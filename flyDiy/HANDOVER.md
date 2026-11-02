@@ -307810,3 +307810,31 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
     nothing cleared them: the shed's restored aeroplane wore the last crash's cracks.
   - The frame loop now clears them in the garage (`glassClear`). A FLYDIY_GLASS_TEST stamp (GLM.test) stays for its rig.
   - GATES OWED add DMGGLASS, plus one look: crash into glass damage, back to the shed, the windscreen whole.
+
+## TRAIN L29e (A0, Mon 2 Nov) - Codex perf wave 2 (without NIGHTWARM's fixed count) + FINISH-1
+
+Landed:
+- claude/ready/perf-wave2 43afd3dd6: b-perf-int with render_premises.js back to before NIGHTWARM, and the NIGHTWARM gate row dropped.
+- stol-pilot-m 5cbaebce3, hands-2 eb7f88963, story-tutor 53c5a2f6f, roundtrip-fl2 140335668.
+- biplane-skin 71a2dc443 (G3870-G3878, plus the LIVERYREACH mock fix).
+
+Timing: one light train gate swings ~20 s on identical code (NOFIX 16.3 s vs the same src at 35.0 s).
+So I judged on an overnight interleaved series, three runs each, with the GPU sampled (flydiy-notes/L29a-AB-20261101.md).
+The worst long task per roll-out, summed over 6 roll-outs:
+- master (L29b) 48.5 / 27.0 / 42.8, median 42.8;
+- perf-wave2 49.4 / 41.7 / 29.0, median 41.7;
+- L29d (this content) 42.7 / 39.3 / 30.8, median 39.3.
+This train's own light gate (L29e f5c8177b4): 0.2 / 10.8 / 0.2 / 5.2 / 4.9 / 1.3 = 22.7 s, Cub garage 29.9 fps (no long frame this run). Focused battery (16 gates): 13 PASS; STOL, ROUNDTRIP, LIVERY red as named below (L29d ran the full 133-gate battery on the same code, bar a test mock).
+Compile is steadier (42 s in all three D runs; master 27-86 s), and garage ready is about the same or better.
+
+Named cost (perf week, PERF-WEEK-KNOWN-ISSUES W2): the Cub garage bench shows ONE 3-4 s frame in 4 of 6 wave-2 runs (master: 0 of 5).
+Lead suspect: wave 2's idle shader warm / intro state compiling in the garage after boot.
+
+Named reds, none a break:
+- master's own: CLOUD, DMGSKINGPU, FRAMECOST, HOUSEWORKER, MEDIA, LIVERY (seedEditor garageFloodArm), LIGHT, PARKED.
+- STOL: the OFF-IS-THE-BITS fixture is joined to master d7e181f4e's spec. The bench / parked / cert-store / procurement keys MOVED since then, and it failed the same way on 28 Oct. The fixture needs a re-take.
+- PILOTPAGE: the cabin_expert page rig timed out waiting for the GPU (a rig limit).
+- ROUNDTRIP: "roll-out 1 after the boot links 3" (master's shader-link family, perf week).
+- AUDIOENG and PAVEMENT: flaky under the parallel battery, PASS alone.
+
+Open for Codex: rework NIGHTWARM's dusk switch without the by-day 8-light cost (three keys every lit program on the visible point-light count).
