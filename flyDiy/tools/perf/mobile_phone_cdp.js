@@ -96,15 +96,27 @@ async function connect() {
   const base = 'http://127.0.0.1:' + PORT;
   const ver = await (await fetch(base + '/json/version')).json().catch(() => null);
   if (!ver) throw new Error('no DevTools on :' + PORT + ' - is Chrome open on the phone and USB debugging allowed? (adb devices)');
-  const tab = await (await fetch(base + '/json/new?about:blank', { method: 'PUT' })).json();
-  const ws = new WebSocket(tab.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
-  let id = 0; const waits = new Map(); const S = { crashed: false, closed: false, exc: [] };
+  // G3904 (PHONE-EDIT-PERF, 2 Nov): THE PAGE THROUGH THE BROWSER'S OWN SOCKET - the user's S20 FE (Chrome 156 Android) answers
+  // PUT /json/new with "Could not create new page"; Target.createTarget + attachToTarget (flatten) works on the phone and on
+  // a desktop Chrome alike. Every page command carries the session; only that session's messages are read
+  const ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+  let id = 0, sid = null; const waits = new Map(); const S = { crashed: false, closed: false, exc: [] };
   ws.onmessage = e => { const m = JSON.parse(e.data);
-    if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); return; }
+    if (m.method === 'Target.detachedFromTarget' && m.params && m.params.sessionId === sid) { S.closed = true; for (const f of waits.values()) f({ error: { message: 'detached' } }); waits.clear(); }
+    if (sid && m.sessionId !== sid) return;
     if (m.method === 'Inspector.targetCrashed') S.crashed = true;
     if (m.method === 'Runtime.exceptionThrown') S.exc.push(((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text || '').split('\n')[0]); };
   ws.onclose = () => { S.closed = true; for (const f of waits.values()) f({ error: { message: 'closed' } }); waits.clear(); };
-  const cmd = (method, params) => S.closed ? Promise.resolve({ error: { message: 'closed' } }) : new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
+  const raw = (method, params, session) => S.closed ? Promise.resolve({ error: { message: 'closed' } }) : new Promise(r => { const i = ++id; waits.set(i, r);
+    ws.send(JSON.stringify(Object.assign({ id: i, method, params: params || {} }, session ? { sessionId: session } : {}))); });
+  const made = await raw('Target.createTarget', { url: 'about:blank' });
+  if (made.error) throw new Error('Target.createTarget: ' + made.error.message);
+  const tab = { id: made.result.targetId };
+  const at = await raw('Target.attachToTarget', { targetId: tab.id, flatten: true });
+  if (at.error) throw new Error('Target.attachToTarget: ' + at.error.message);
+  sid = at.result.sessionId;
+  const cmd = (method, params) => raw(method, params, sid);
   const ev = async (expr, ms = 60000) => {
     const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }), sleep(ms).then(() => ({ error: { message: 'timeout' } }))]);
     if (r.error) throw new Error(r.error.message); const d = r.result; if (d.exceptionDetails) throw new Error((d.exceptionDetails.exception || {}).description || d.exceptionDetails.text);
@@ -115,7 +127,7 @@ async function connect() {
   if (flag('desk')) await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: false });
   else if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: true });
     await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
-  return { ver, tab, cmd, ev, S, close: async () => { try { await fetch(base + '/json/close/' + tab.id); } catch (e) {} } };
+  return { ver, tab, cmd, ev, S, close: async () => { try { await raw('Target.closeTarget', { targetId: tab.id }); } catch (e) {} try { ws.close(); } catch (e) {} } };
 }
 
 // G2103: THE PHONE GARAGE'S TOUCH CHECKS on the phone's own screen (CSS px coordinates, as the page reports them)

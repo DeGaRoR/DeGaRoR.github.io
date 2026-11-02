@@ -1,7 +1,7 @@
 /* ======================================================================
    phone.css - THE WORKSHOP ON A PHONE (MOBILE-GARAGE 1, G2102)
    EVERY RULE IS UNDER html.phone, which profile.js sets ONLY on the phone
-   profile (?profile=phone, or the welcome's "Build on this phone"). On the
+   profile (?profile=phone, or the welcome's "Build on this phone" / "Build and test-fly on this phone"). On the
    desktop not one selector here matches: its pixels are the ones they were.
    Not a second editor: the same columns, the same rows (_cage_ui.js's own
    elements), RE-LAID as one sheet under the view (portrait) or beside it
