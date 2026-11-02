@@ -33,6 +33,13 @@
     font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
     transition:opacity .6s ease; overflow:hidden; }
   #boot.gone { opacity:0; pointer-events:none; }
+  /* STORY-1 (the user 29 Oct: "Tim starts talking during the loading, and parts of the new UI show on top of the
+     loading screen"): the game's layers that stack above #boot's 70 - Tim's band, the story's cards, the top pills
+     (MENU, CONTRACTS, LOAD), the flight's corner buttons, photo mode's bar, the hire screen - wait for the reveal.
+     boot.js sets html.fdBoot while the screen is up (show) and clears it as it lifts (hide); hidden, not removed:
+     their writers keep running and the reveal shows them as they are. The welcome (90) is not a game layer */
+  :root.fdBoot :is(#stTim, #stCard, #stSkip, #mapEntry, #gmMenu, #gmPanel, #frEntry, #frSay, #frLoad, .flCornB,
+    #photoBar, #hireScreen) { visibility:hidden !important; }
   #boot[hidden] { display:none; }
   #bootShots { position:absolute; inset:0; }
   #bootShots .bs { position:absolute; inset:0; margin:0; opacity:0;
