@@ -39,7 +39,10 @@ const BK = opt('build', 'twin'), BUILD = BUILDS[BK] || BK;
 const ROWS = opt('rows', 'wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize').split(',');
 const REPS = +opt('reps', 3), TICKS = +opt('ticks', 20), CPU = +opt('cpu', 6), DPR = +opt('dpr', 2.625), VW = +opt('w', 412), VH = +opt('h', 915);
 const QUIET = +opt('quiet', 1500), IDLE = +opt('idle', 0), TYPED = flag('typed');
-const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') ? ['base', 'noenv', 'lights1', 'nolamps', 'lambert', 'basic', 'halfres', 'base'] : null);
+const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') ? ['base', 'noenv', 'lights1', 'nolamps', 'lambert', 'halfres', 'noplane', 'base'] : null);
+// --idlecheck: the phone's idle hold (load WITHOUT ?idle=0): frames rendered in 5 s after 7 s untouched, then after a touch
+// --shot <file.jpg>: the page after the idle / census (Page.captureScreenshot); --flightlog <file.json>: the page's flight log
+const IDLECHECK = flag('idlecheck'), SHOTF = opt('shot', null), FLOGF = opt('flightlog', null);
 const CSEC = +opt('csec', 8);
 const PHONE = flag('phone'), APORT = +(opt('phone', '') || 9333);
 const ADB = process.env.ADB || 'D:/Dev/platform-tools/adb.exe';
@@ -142,35 +145,36 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
 // every envMap off); lights1 (the first directional light alone); nolamps (the aeroplane's own point / spot lights off);
 // lambert / basic (every mesh's material as a Lambert / Basic one with its colour and map - the cheap-material bounds);
 // halfres (the pixel ratio halved). ?idle=0 belongs with it (the shed must draw).
-const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window.__CEN = { scenes: new Set(), undo: [] };
-  const r = window.FLYDIY_RENDERER, o = r.render; r.render = function (sc, cam) { if (!r.getRenderTarget()) C.scenes.add(sc); return o.apply(this, arguments); };
-  C.scene = () => { let best = null, n = -1; for (const sc of C.scenes) { let k = 0; sc.traverse(x => { if (x.isMesh) k++; }); if (k > n) { n = k; best = sc; } } return best; };
+const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window.__CEN = { scenes: new Map(), undo: [] };
+  const r = window.FLYDIY_RENDERER, o = r.render; r.render = function (sc, cam) { C.scenes.set(sc, 1); return o.apply(this, arguments); };
+  C.scene = () => { let best = null, n = -1; for (const sc of C.scenes.keys()) { let k = 0; sc.traverse(x => { if (x.isMesh && x.visible) k++; }); if (k > n) { n = k; best = sc; } } return best; };
   const mats = sc => { const L = []; sc.traverse(x => { if (x.isMesh && x.material) L.push(x); }); return L; };
   C.apply = v => { const sc = C.scene(); if (!sc) return 'no scene'; const T = window.THREE;
-    if (v === 'noenv') { const e = sc.environment; sc.environment = null; C.undo.push(() => { sc.environment = e; });
-      for (const m of mats(sc)) for (const mt of [].concat(m.material)) if (mt.envMap) { const em = mt.envMap; mt.envMap = null; mt.needsUpdate = true; C.undo.push(() => { mt.envMap = em; mt.needsUpdate = true; }); }
-      sc.traverse(x => { if (x.isMaterial) {} }); for (const m of mats(sc)) for (const mt of [].concat(m.material)) mt.needsUpdate = true; }
+    if (v === 'noenv') { const e = sc.environment; sc.environment = null; C.undo.push(() => { sc.environment = e; }); }
     if (v === 'lights1') { let kept = false; sc.traverse(x => { if (x.isLight && x.visible) { if (x.isDirectionalLight && !kept) { kept = true; return; } x.visible = false; C.undo.push(() => { x.visible = true; }); } }); }
     if (v === 'nolamps') sc.traverse(x => { if ((x.isPointLight || x.isSpotLight) && x.visible) { x.visible = false; C.undo.push(() => { x.visible = true; }); } });
     if (v === 'lambert' || v === 'basic') { const K = v === 'lambert' ? T.MeshLambertMaterial : T.MeshBasicMaterial, cache = new Map();
       for (const m of mats(sc)) { if (m.isSkinnedMesh) continue; const old = m.material;
-        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new K({ color: mt.color ? mt.color.clone() : 0xcccccc, map: mt.map || null, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, depthWrite: mt.depthWrite, vertexColors: !!mt.vertexColors }); cache.set(mt, n); return n; };
+        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new K({ color: mt.color ? mt.color.clone() : 0xcccccc, map: mt.map || null, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, depthWrite: mt.depthWrite }); cache.set(mt, n); return n; };
         m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); } }
     if (v === 'halfres') { const pr = r.getPixelRatio(); r.setPixelRatio(pr * 0.5); window.dispatchEvent(new Event('resize')); C.undo.push(() => { r.setPixelRatio(pr); window.dispatchEvent(new Event('resize')); }); }
+    if (v === 'noplane') for (const m of mats(sc)) if (m.visible) { m.visible = false; C.undo.push(() => { m.visible = true; }); }
     return 'ok'; };
   C.revert = () => { while (C.undo.length) try { C.undo.pop()(); } catch (e) {} return 'ok'; };
   C.sample = async (v, settle, sec) => { const a = C.apply(v); await new Promise(rs => setTimeout(rs, settle));
-    const G = window.__PE, t0 = performance.now(), info = window.FLYDIY_RENDERER.info; await new Promise(rs => setTimeout(rs, sec * 1000));
-    const fr = G.fr.filter(f => f[0] > t0).map(f => f[1]).sort((x, y) => x - y), q = p => fr.length ? +fr[Math.min(fr.length - 1, Math.floor(p * fr.length))].toFixed(1) : null;
-    const out = { v, a, n: fr.length, fps: +(fr.length / sec).toFixed(1), p50: q(0.5), p90: q(0.9), calls: info.render.calls, tris: info.render.triangles, programs: info.programs ? info.programs.length : null };
+    await new Promise(rs => setTimeout(rs, sec * 1000));
+    const s = window.FLIGHT_REC.stats(sec * 1000), info = window.FLYDIY_RENDERER.info;
+    const out = { v, a, fps: +s.fps.toFixed(1), p50: +s.med.toFixed(1), p90: +s.p90.toFixed(1), max: +s.max.toFixed(0), work: +s.work.toFixed(1), programs: info.programs ? info.programs.length : null };
     C.revert(); await new Promise(rs => setTimeout(rs, 1500)); return out; };
   return 'ok'; })()`;
 (async () => {
-  if (await MB.serveRoot(PORT)) { console.error('phone_edit: port ' + PORT + ' is taken'); process.exit(4); }
-  const srv = MB.serve(PORT, null); await sleep(800);
+  // (a server already serving THIS tree on the port - phone_night.sh's - is used as it is)
+  const already = await MB.serveRoot(PORT);
+  if (already && path.resolve(already) !== REPO) { console.error('phone_edit: port ' + PORT + ' serves ' + already + ', not this tree'); process.exit(4); }
+  const srv = already ? null : MB.serve(PORT, null); if (srv) await sleep(800);
   const root = await MB.serveRoot(PORT);
-  if (!root || path.resolve(root) !== REPO) { console.error('phone_edit: the server serves ' + root + ', not ' + REPO); try { srv.kill(); } catch (e) {} process.exit(4); }
-  const done = () => { try { srv.kill(); require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
+  if (!root || path.resolve(root) !== REPO) { console.error('phone_edit: the server serves ' + root + ', not ' + REPO); try { if (srv) srv.kill(); } catch (e) {} process.exit(4); }
+  const done = () => { if (!srv) return; try { srv.kill(); require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
   process.on('exit', done);
   const R = { date: new Date().toISOString(), build: BK, file: BUILD, cpu: CPU, dpr: DPR, w: VW, h: VH, ticks: TICKS, reps: REPS, rows: [] };
   const save = () => fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
@@ -196,13 +200,21 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
     log('idle ' + IDLE + ' s: ' + id.n + ' frames, p50 ' + R.idle.p50 + ' p90 ' + R.idle.p90 + ' max ' + R.idle.max + ' ms; ' + JSON.stringify(id.stats || {}).slice(0, 300));
     save();
   }
+  if (IDLECHECK) {
+    const ic = JSON.parse(await b.ev(`(async () => { const w = ms => new Promise(r => setTimeout(r, ms));
+      await w(7000); const held = window.FLIGHT_REC.stats(5000); await w(5000); const s0 = window.FLIGHT_REC.stats(5000);
+      window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await w(3000); const s1 = window.FLIGHT_REC.stats(2500);
+      return JSON.stringify({ on: !!window.FLYDIY_IDLE, heldFrames: window.FLYDIY_IDLE ? window.FLYDIY_IDLE.held : null, idleFps: +s0.fps.toFixed(1), afterTouchFps: +s1.fps.toFixed(1) }); })()`, 60000));
+    R.idlecheck = ic; save();
+    log('idle hold: ' + JSON.stringify(ic));
+  }
   if (CENSUS) {
     log('census ' + await b.ev(CENSUS_JS));
     R.census = [];
     for (const v of CENSUS) {
       const c = JSON.parse(await b.ev(`(async () => JSON.stringify(await __CEN.sample(${JSON.stringify(v)}, 4000, ${CSEC})))()`, CSEC * 1000 + 60000));
       R.census.push(c); save();
-      log('census ' + v.padEnd(9) + ' ' + c.fps + ' fps  p50 ' + c.p50 + '  p90 ' + c.p90 + ' ms  draws ' + c.calls + '  tris ' + c.tris + '  programs ' + c.programs + (c.a !== 'ok' ? '  (' + c.a + ')' : ''));
+      log('census ' + v.padEnd(9) + ' ' + c.fps + ' fps  p50 ' + c.p50 + '  p90 ' + c.p90 + '  max ' + c.max + ' ms  work ' + c.work + '  programs ' + c.programs + (c.a !== 'ok' ? '  (' + c.a + ')' : ''));
     }
   }
   for (const k of (opt('rows', null) === 'none' ? [] : ROWS)) {
@@ -228,6 +240,9 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
     for (const e of last.ev) log('      +' + e[0] + ' ' + e[1] + ' ' + r1(e[2]) + ' ms ' + (e[3] && typeof e[3] === 'object' ? [e[3].how, e[3].path, e[3].why, 'build ' + e[3].build + '/' + e[3].builds, 'sheet ' + e[3].sheet, 'onBuild ' + e[3].onBuild, e[3].layers].filter(Boolean).join(' | ') : e[3]));
     if (prof) log('      prof self: ' + prof.slice(0, 14).map(([f, ms]) => f + ' ' + ms).join(', '));
   }
+  if (SHOTF) { const sh = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 85 }); if (sh.result) { fs.writeFileSync(SHOTF, Buffer.from(sh.result.data, 'base64')); log('still -> ' + SHOTF); } }
+  if (FLOGF) { try { const t = await b.ev(`(() => { const R = window.FLIGHT_REC && window.FLIGHT_REC.rec; const p = R && R.logParts ? R.logParts() : null; return p ? (Array.isArray(p) ? p.join('') : String(p)) : ''; })()`, 120000);
+    if (t && t !== '__timeout') { fs.writeFileSync(FLOGF, t); log('flight log -> ' + FLOGF + ' (' + t.length + ' chars)'); } } catch (e) { log('flight log: ' + e.message); } }
   R.exc = b.exc.slice();
   if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: 1 });
   await b.close();
