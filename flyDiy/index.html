@@ -4521,7 +4521,7 @@ html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='d14ce383c58c';window.FLYDIY_BUILD_DATE='2026-11-02T22:42:00.846Z';</script>
+<script>window.FLYDIY_BUILD='de10925a67c5';window.FLYDIY_BUILD_DATE='2026-11-02T22:54:16.865Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -11320,7 +11320,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.a62ac0d4.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.27b0c329.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -43404,7 +43404,27 @@ const GEN_SEATS = {
   basic:    { name: 'Moulded pan',        kg: 7.0,  price: 400 },
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
+  // THE SEAT LIBRARY'S PRESETS (SEATS, 2026-11-02): one row per drawn seat type (tools/_seat_gen.js SEAT_PRESETS, the
+  // masses argued in docs/SEATS-REFERENCES.md). The join measures each drawn seat's row into cabin.seatsKg, so a
+  // build weighs the seats it draws; type 0 is `sling` above, the row every saved build already bills.
+  carbon:      { name: 'Carbon bucket',     kg: 4.5,  price: 1400 },
+  airliner:    { name: 'Vintage airliner',  kg: 18.0, price: 1100 },
+  touring:     { name: 'Touring',           kg: 14.0, price: 1300 },
+  sculpted:    { name: 'Sculpted sport',    kg: 9.0,  price: 2400 },
+  executive:   { name: 'Executive leather', kg: 18.0, price: 2900 },
+  ultralight:  { name: 'Ultralight sling',  kg: 3.5,  price: 150 },
+  aerobatic:   { name: 'Aerobatic recline', kg: 6.0,  price: 1600 },
+  vintageCrew: { name: 'Vintage crew',      kg: 20.0, price: 1000 },
+  work:        { name: 'Heavy-duty work',   kg: 16.0, price: 2200 },
+  cane:        { name: 'Woven cane',        kg: 3.0,  price: 300 },
+  reclined:    { name: 'Reclined tub',      kg: 3.0,  price: 700 },
+  folding:     { name: 'Folding canvas',    kg: 2.5,  price: 100 },
+  parachute:   { name: 'Parachute bucket',  kg: 8.0,  price: 800 },
+  utility:     { name: 'Bush utility',      kg: 12.0, price: 700 },
 };
+// the cage's seatType -> its GEN_SEATS row (the order of SEAT_PRESETS; append only - the index rides in every save)
+const GEN_SEAT_TYPES = ['sling', 'carbon', 'airliner', 'touring', 'sculpted', 'executive', 'ultralight', 'aerobatic',
+                        'vintageCrew', 'work', 'cane', 'reclined', 'folding', 'parachute', 'utility'];
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
@@ -46370,6 +46390,12 @@ function clampSpec(spec) {
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
     ? cb.seatsX.map(x => genClamp(x, 0.05, 25)) : null;   // (G3573: 12 -> 25 m - the full-size DC-3's aft rows stand past 12 m; only a seat that far aft moves)
+  // SEATS (2026-11-02): each drawn seat's mass, kg, seat order - the join writes it only when a seat weighs other than
+  // the outfit's row, so ABSENT is every save before and every all-default cabin (and stays absent: no key is added)
+  if (cb.seatsKg !== undefined)
+    cb.seatsKg = Array.isArray(cb.seatsKg) && cb.seatsKg.length &&
+                 cb.seatsKg.every(x => typeof x === 'number' && isFinite(x) && x > 0)
+      ? cb.seatsKg.map(x => genClamp(x, 0.5, 60)) : undefined;
   // G180: the drawn capacity — a whole number of seats, or null = the table's;
   // and the occupancy — a list of 0/1 per seat, or null = the first N. A
   // malformed list reads as "derived", never as a crash or a jump, the same
@@ -51952,7 +51978,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SEATS: one per position, at the weight of the kind you chose.
     // Spread over the seat frames so they sit where the people sit — the
     // cabin rings, which is where `pt` already puts the occupants.
-    const seatM = seat.kg * seats;
+    // ...each at the kind DRAWN there (SEATS, 2026-11-02): cabin.seatsKg is the join's seat-by-seat mass when the
+    // seats differ from the outfit's row; absent, every seat is the row's, as before
+    const seatsKg = Array.isArray(cb.seatsKg) ? cb.seatsKg : null;
+    const seatKgAt = i => (seatsKg && typeof seatsKg[i] === 'number') ? seatsKg[i] : seat.kg;
+    let seatM = 0;
+    for (let i = 0; i < seats; i++) seatM += seatKgAt(i);
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
@@ -52021,7 +52052,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seatKgAt(i), true);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
@@ -62225,7 +62256,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -62242,7 +62273,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f86d37bcee5f';window.FLYDIY_BUILD='d14ce383c58c';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='6af1a9ba39ba';window.FLYDIY_BUILD='de10925a67c5';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -63650,7 +63681,9 @@ const CAGE_PARTS = [
   { key: 'fit', name: 'Cabin fit', parent: 'cabin', layer: 'crew' },
 
   { key: 'seats', name: 'Seats', parent: 'fit', layer: 'crew',
-    sections: ['seatTrim'],
+    // SEATS (2026-11-02, the user: "a couple of configurable colors ... base, accent and seam"): the base upholstery
+    // (seatTrim, the section since G332), the accent panels, the seams (piping, stitching, bindings), the frame / shell
+    sections: ['seatTrim', 'seatAccent', 'seatSeam', 'seatFrame'],
     when: P => +P.crewOn,
     place: { type: ['seatType', 'seatLayout'], fore: 'seatZ', up: 'seatH',
              at: 'on the cabin floor' },
@@ -63658,7 +63691,7 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
@@ -65763,6 +65796,25 @@ const ICON = {
   schemeSweep: { vb: '0 0 64 40', paths: [{ d: 'M6 10 L58 10 L58 30 L6 30 Z', w: 1 },
     { d: 'M6 18 Q30 26 58 14 L58 24 Q30 34 6 28 Z' }] },
 };
+// THE SEAT STYLES (SEATS, 2026-11-02): [label, icon, note, recline, squab tilt] per seatType, in SEAT_PRESETS order
+// (tools/_seat_gen.js; GEN_SEAT_TYPES names their mass rows). GATE SEATS holds the three tables to one order.
+const SEAT_STYLES = [
+  ['Tube & sling',      'seatTube',     'a welded tube frame, laced canvas, a loose cushion', 12, 4],
+  ['Carbon bucket',     'seatShell',    'a moulded carbon bucket on two rails', 22, 6],
+  ['Vintage airliner',  'seatAirliner', 'a deep reclining day seat, buttoned, a linen headrest cover', 14, 4],
+  ['Touring',           'seatAirliner', 'cloth and vinyl on a frame running on rails', 13, 4],
+  ['Sculpted sport',    'seatShell',    'a gloss shell, leather bolsters, contrast stitching', 18, 5],
+  ['Executive leather', 'seatAirliner', 'rolled-pleat leather, a headrest on posts, an armrest', 15, 4],
+  ['Ultralight sling',  'seatTube',     'a bent alloy frame and a laced canvas sling', 16, 6],
+  ['Aerobatic recline', 'seatShell',    'a carbon shell lying back, a parachute in it', 38, 10],
+  ['Vintage crew',      'seatShell',    'a riveted bucket with arms; its cabin takes the vintage airliner seat', 14, 4],
+  ['Heavy-duty work',   'seatShell',    'a crash-rated bucket under a sheepskin, on height tracks', 11, 5],
+  ['Woven cane',        'seatShell',    'a rattan tub on ash bearers, a leather cushion', 9, 3],
+  ['Reclined tub',      'seatShell',    'a moulded pan and an adjustable backrest board', 40, 16],
+  ['Folding canvas',    'seatTube',     'a light frame on floor hinges, a canvas seat and strap back', 10, 3],
+  ['Parachute bucket',  'seatShell',    'a deep resin bucket for a seat-pack parachute', 13, 6],
+  ['Bush utility',      'seatTube',     'a tube frame, a pressed back panel, channel-pleated cushions', 12, 4],
+];
 
 // ---------------------------------------------------------------------------
 // THE CLASSES (§5.2). Five live, three declared with the §5.2 decision's own
@@ -66322,18 +66374,17 @@ const DESIGN_ROWS = [
         writes: { cage: { mirror: 1 } } },
     ] },
 
+  // THE SEATS (SEATS, 2026-11-02): the seat library's presets (tools/_seat_gen.js SEAT_PRESETS - the same order, the
+  // index rides in every save). Named by their SPIRIT, not an aeroplane's (the user: "find names avoiding naming
+  // planes"); 0 / 1 / 2 replaced the tube frame, the moulded shell and the airliner seat. A pick writes the type; its
+  // SEED is the preset's own recline and squab tilt (an aerobatic seat lies back, a tourer sits up), offered as the
+  // starting values - the rows keep them.
   { key: 'seatType', label: 'Interior style', kind: 'starter',
     group: 'cabin', status: 'live',
-    help: 'the seats; headliner, console and trim are owed to a later pass',
+    help: 'the seats: each a calibrated model with its own weight; height, recline and place stay on the rows',
     read: P => Math.round(P.seatType),
-    options: [
-      { value: 0, label: 'Tube frame', icon: ICON.seatTube,
-        writes: { cage: { seatType: 0 } } },
-      { value: 1, label: 'Composite shell', icon: ICON.seatShell,
-        writes: { cage: { seatType: 1 } } },
-      { value: 2, label: 'Airliner', icon: ICON.seatAirliner,
-        writes: { cage: { seatType: 2 } } },
-    ] },
+    options: SEAT_STYLES.map((o, i) => ({ value: i, label: o[0], icon: ICON[o[1]], note: o[2],
+      writes: { cage: { seatType: i } }, seed: { cage: { seatRake: o[3], seatTilt: o[4] } } })) },
 
   // ---- structure ----------------------------------------------------------
   { key: 'intCons', label: 'Construction', kind: 'discriminator',
@@ -68506,6 +68557,11 @@ if (typeof window !== 'undefined') window.CAGE_DESIGN = API;
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
+// THE SEAT TYPES' NAMES (SEATS, 2026-11-02): tools/_seat_gen.js SEAT_PRESETS order, the slider's labels (GATE SEATS
+// holds this list, the design rows' SEAT_STYLES and the presets to one order)
+const SEAT_TYPE_LABELS = ['tube & sling', 'carbon bucket', 'vintage airliner', 'touring', 'sculpted sport',
+  'executive leather', 'ultralight sling', 'aerobatic recline', 'vintage crew', 'heavy-duty work', 'woven cane',
+  'reclined tub', 'folding canvas', 'parachute bucket', 'bush utility'];
 // who the co-pilot's select offers (G204.1; G3700): 0 = 'mixed crew' (the
 // characters rotate through the seats, no two alike while there are enough
 // of them), 1.. = one registered character (52_char_codec.js CHAR_REG; none
@@ -69162,9 +69218,8 @@ window.CAGE_PAGE = {
     ['4c · crew & controls', [
       ['seats', [
         ['crewOn',    'crew layer',     0, 1, 1],
-        ['seatType',  'seat type',      0, 2, 1, ['tube frame',
-                                                  'composite shell',
-                                                  'airliner']],
+        // SEATS (2026-11-02): the seat library's presets, SEAT_PRESETS order (tools/_seat_gen.js; GATE SEATS)
+        ['seatType',  'seat type',      0, 14, 1, SEAT_TYPE_LABELS],
         // G180: the ROW — one abreast or two — in the cockpit AND in every
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
@@ -69193,6 +69248,11 @@ window.CAGE_PAGE = {
       // above). `paxSeatZ` places the row inside its bay off the bay's own
       // aft ring, the way `seatZ` places the pilot's off the cockpit's.
       ['passenger seats', [
+        // SEATS (2026-11-02, the user: "maybe that should be a flag too, pilot and passenger seats"): the cabin's own
+        // seat type. NOT IN THE DEFAULTS TABLE (absent = -1 = as the pilots', or the pilots' preset's own cabin seat):
+        // a build that never moved it saves no key
+        ['paxSeatType', 'seat type', -1, 14, 1, ['as the pilots\''].concat(SEAT_TYPE_LABELS),
+         { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
         ['seat2H',    'squab height',  -1, 1.50, 0.005,
@@ -84755,44 +84815,46 @@ const KIT = () => {
 };
 
 // ---- the presets ---------------------------------------------------------------------------------------------------
-// seatType -> preset. kg is ONE seat as fitted (frame, cushions, its share of the rails), the number the build bills
-// (GEN_SEATS when the preset is wired); hw the seat's outer half-width, back the back's height above the hinge
-// (headrest included), m (metres) and deg. rake/tilt are the preset's own stance, written when it is picked; the
-// rows still move them. Sources and the reasoning: docs/SEATS-REFERENCES.md.
+// seatType -> preset. THE NAMES ARE THE SEAT'S SPIRIT, NOT AN AEROPLANE'S (the user, 2 Nov: "find names avoiding naming
+// planes, get down to the spirit"); what each was modelled on is in docs/SEATS-REFERENCES.md. `key` is the GEN_SEATS row
+// the build bills (kg: ONE seat as fitted - frame, cushions, its share of the rails); `build` the builder below; hw the
+// seat's outer half-width, back the back's height above the hinge (headrest included), m; rake / tilt the preset's own
+// stance (deg), seeded when it is picked - the rows still move them. `pax`: this preset IS a cabin seat; `paxType`:
+// the type a cabin takes when the passengers' own row says "as the pilots'".
+// 0, 1, 2 REPLACED today's tube frame, composite shell and airliner (the user, 2 Nov: "replace both ... also replace
+// the airliner existing seat with the dc3 passenger"): every saved build on them draws these. The tube seat bills
+// 3.0 kg, the `sling` row every saved build already bills, so its mass and CG do not move.
 const SEAT_PRESETS = {
-  3: { key: 'carbon2',  name: 'Carbon bucket',      kg: 4.5,  hw: 0.235, back: 0.80, rake: 22, tilt: 6,
-       note: 'a moulded carbon bucket, integrated headrest, on two rails' },
-  4: { key: 'c172',     name: 'Cessna 172',         kg: 14.0, hw: 0.245, back: 0.70, rake: 13, tilt: 4,
-       note: 'tube and pan frame, cloth inserts with vinyl bolsters, recline lever, on the seat rails' },
-  5: { key: 'icon',     name: 'ICON A5',            kg: 9.0,  hw: 0.265, back: 0.84, rake: 18, tilt: 5,
-       note: 'a sculpted shell, leather with contrast stitching, integrated headrest' },
-  6: { key: 'bonanza',  name: 'Bonanza club',       kg: 18.0, hw: 0.270, back: 0.80, rake: 15, tilt: 4,
-       note: 'pleated leather, a high back, a headrest on posts, armrest' },
-  7: { key: 'ul',       name: 'Ultralight sling',   kg: 3.5,  hw: 0.230, back: 0.56, rake: 16, tilt: 6,
-       note: 'an alloy tube frame and a laced fabric sling, no brace behind' },
-  8: { key: 'extra',    name: 'Extra 330 aerobatic', kg: 6.0, hw: 0.225, back: 0.70, rake: 38, tilt: 10,
-       note: 'a carbon shell deeply reclined, a parachute in the back' },
-  // THE BASE SEAT, REWORKED (the user, 2 Nov: "rework our base seat, it's inspired by a cub"): proposed to replace
-  // seatType 0 once validated - until then it is its own number and every saved build draws the tube seat it drew
-  10: { key: 'cub',     name: 'Cub (tube & sling)', kg: 3.5,  hw: 0.230, back: 0.50, rake: 12, tilt: 4,
-       note: 'the J-3 front seat: a welded tube frame, a laced canvas sling, a loose cushion, a canvas back' },
-  // (the user, 2 Nov: "do you see other types missing? Of really different character ... a modern agricultural plane
-  // ... a WWI aircraft?")
-  11: { key: 'ag',      name: 'Agricultural (AT-802)', kg: 16.0, hw: 0.275, back: 0.88, rake: 11, tilt: 5,
-       note: 'a crash-rated work seat: steel bucket, thick cushions under a sheepskin, height tracks, crush tubes' },
-  12: { key: 'wicker',  name: 'WWI wicker',         kg: 3.0,  hw: 0.230, back: 0.46, rake: 9,  tilt: 3,
-       note: 'the Camel\'s rattan bucket on ash bearers, a leather cushion' },
-  13: { key: 'glider',  name: 'Glider tub',         kg: 3.0,  hw: 0.290, back: 0.66, rake: 40, tilt: 16,
-       note: 'the moulded GRP pan of a sailplane cockpit, an adjustable padded backrest board on a ratchet' },
-  14: { key: 'jump',    name: 'Bush jump seat',     kg: 2.5,  hw: 0.230, back: 0.50, rake: 10, tilt: 3,
-       note: 'the folding canvas seat of a bush cabin: a tube frame on floor hinges, canvas seat and strap back' },
-  15: { key: 'warbird', name: 'Warbird bucket',     kg: 8.0,  hw: 0.245, back: 0.60, rake: 13, tilt: 6,
-       note: 'the Spitfire\'s moulded resin bucket, deep for a seat-pack parachute, on a height-adjust frame' },
-  // (the user, 2 Nov: "maybe model those of the beaver too please"; the passenger bench was dropped the same day)
-  16: { key: 'beaver',  name: 'DHC-2 Beaver',       kg: 12.0, hw: 0.250, back: 0.66, rake: 12, tilt: 4,
-       note: 'a 1950s tube-framed seat, a pressed back panel with lightening holes, channel-pleated cushions' },
-  9: { key: 'dc3',      name: 'DC-3 (1930s)',       kg: 20.0, kgPax: 18.0, hw: 0.260, back: 0.84, backPilot: 0.68, rake: 14, tilt: 4,
-       note: 'pilots: a riveted bucket with cushions and arms; passengers: the deep reclining sleeper' },
+  0:  { key: 'sling',       build: 'cub',     name: 'Tube & sling',      kg: 3.0,  hw: 0.230, back: 0.50, rake: 12, tilt: 4,
+        note: 'a welded tube frame, a laced canvas sling, a loose piped cushion, a canvas back with a pad' },
+  1:  { key: 'carbon',      build: 'carbon2', name: 'Carbon bucket',     kg: 4.5,  hw: 0.235, back: 0.80, rake: 22, tilt: 6,
+        note: 'a moulded carbon bucket, integrated headrest, two pads, on two rails' },
+  2:  { key: 'airliner',    build: 'dc3',     name: 'Vintage airliner',  kg: 18.0, hw: 0.260, back: 0.84, rake: 14, tilt: 4, pax: true,
+        note: 'the deep reclining day seat: buttoned mohair, a linen antimacassar, leather arms, a polished tube frame' },
+  3:  { key: 'touring',     build: 'c172',    name: 'Touring',           kg: 14.0, hw: 0.245, back: 0.70, rake: 13, tilt: 4,
+        note: 'a tube and pan frame on rails, cloth inserts in vinyl bolsters, recline lever, a moulded back shell' },
+  4:  { key: 'sculpted',    build: 'icon',    name: 'Sculpted sport',    kg: 9.0,  hw: 0.265, back: 0.84, rake: 18, tilt: 5,
+        note: 'a sculpted gloss shell, leather bolsters, a quilted centre, contrast stitching, integrated headrest' },
+  5:  { key: 'executive',   build: 'bonanza', name: 'Executive leather', kg: 18.0, hw: 0.270, back: 0.80, rake: 15, tilt: 4,
+        note: 'rolled-pleat leather, a high back, a headrest on posts, an armrest' },
+  6:  { key: 'ultralight',  build: 'ul',      name: 'Ultralight sling',  kg: 3.5,  hw: 0.230, back: 0.56, rake: 16, tilt: 6,
+        note: 'a bent alloy tube frame and a laced canvas sling with a pad, no brace behind' },
+  7:  { key: 'aerobatic',   build: 'extra',   name: 'Aerobatic recline', kg: 6.0,  hw: 0.225, back: 0.70, rake: 38, tilt: 10,
+        note: 'a carbon shell for a pilot lying back, a back-pack parachute in it' },
+  8:  { key: 'vintageCrew', build: 'dc3',     name: 'Vintage crew',      kg: 20.0, hw: 0.260, back: 0.68, rake: 14, tilt: 4, paxType: 2,
+        note: 'a riveted alloy bucket, leather cushions, padded arms, on a column; its cabin takes the vintage airliner seat' },
+  9:  { key: 'work',        build: 'ag',      name: 'Heavy-duty work',   kg: 16.0, hw: 0.275, back: 0.88, rake: 11, tilt: 5,
+        note: 'a crash-rated steel bucket, thick cushions under a sheepskin, height tracks, crush tubes' },
+  10: { key: 'cane',        build: 'wicker',  name: 'Woven cane',        kg: 3.0,  hw: 0.230, back: 0.46, rake: 9,  tilt: 3,
+        note: 'a rattan tub woven on stakes, a wrapped rim, a leather cushion, on ash bearers' },
+  11: { key: 'reclined',    build: 'glider',  name: 'Reclined tub',      kg: 3.0,  hw: 0.290, back: 0.66, rake: 40, tilt: 16,
+        note: 'a moulded glass-fibre pan, a padded backrest board on struts and quadrants, four anchor tubes' },
+  12: { key: 'folding',     build: 'jump',    name: 'Folding canvas',    kg: 2.5,  hw: 0.230, back: 0.50, rake: 10, tilt: 3,
+        note: 'a light frame on floor hinges with quick-release pins, a canvas seat and strap back' },
+  13: { key: 'parachute',   build: 'warbird', name: 'Parachute bucket',  kg: 8.0,  hw: 0.245, back: 0.60, rake: 13, tilt: 6,
+        note: 'a deep moulded resin bucket for a seat-pack parachute, on a height-adjust frame' },
+  14: { key: 'utility',     build: 'beaver',  name: 'Bush utility',      kg: 12.0, hw: 0.250, back: 0.66, rake: 12, tilt: 4,
+        note: 'a painted tube frame, a pressed back panel with lightening holes, channel-pleated cushions' },
 };
 const PRESET_OF = t => SEAT_PRESETS[Math.round(t)] || null;
 
@@ -84833,7 +84895,7 @@ function mat(finish, tint, o) {
   MAT_POOL.set(pk, m);
   return m;
 }
-const TRIM = { sec: 'seatTrim' }, FRAME = { sec: 'seatFrame' }, ACCENT = { sec: 'seatAccent' };
+const TRIM = { sec: 'seatTrim' }, FRAME = { sec: 'seatFrame' }, ACCENT = { sec: 'seatAccent' }, SEAM = { sec: 'seatSeam' };
 
 // ---- the bag: one indexed buffer per material ----------------------------------------------------------------------
 // THE PARTS (the bake, STEP 3): a seat is drawn as rigid parts the live rows move once it is baked - 'floor' (rails,
@@ -85244,7 +85306,7 @@ function seatRails(B, mRail, mHole, A, x, z0, z1, gauge) {
 // brackets onto alloy rails.
 function seatCarbon(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mShell = mat('composite', 0x2a2d31, FRAME), mPad = mat('liner', 0x2c2e33, TRIM), mSt = mat('plasticScr', 0xb8322a),
+  const mShell = mat('composite', 0x2a2d31, FRAME), mPad = mat('liner', 0x2c2e33, TRIM), mSt = mat('plasticScr', 0xb8322a, SEAM),
         mAlu = mat('bareAlu', 0xb6bcc3), mCast = mat('castAlu', 0x8e949a), mDark = mat('rubber', 0x18191c);
   // the shell's occupied face sits 30 mm under the reference (the pad is 30 mm)
   const pad = 0.030;
@@ -85307,7 +85369,7 @@ function seatCarbon(B, A, P, g, pre, sbs) {
 // back shell with a map pocket, and the late-model tall back with its headrest zone.
 function seatC172(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mVinyl = mat('leatherDark', 0x6f6a62, TRIM), mCloth = mat('liner', 0x5d6470, ACCENT), mPipe = mat('leatherDark', 0x4a4640),
+  const mVinyl = mat('leatherDark', 0x6f6a62, TRIM), mCloth = mat('liner', 0x5d6470, ACCENT), mPipe = mat('leatherDark', 0x4a4640, SEAM),
         mShell = mat('plastic', 0xb9b2a3), mFrame = mat('trim', 0x40444a, FRAME), mAlu = mat('bareAlu', 0xb6bcc3),
         mChrome = mat('chrome', 0xdfe5ec), mKnob = mat('plasticScr', 0x1c1e22), mDark = mat('rubber', 0x1b1c20);
   B.part = 'pan';
@@ -85407,7 +85469,7 @@ function seatC172(B, A, P, g, pre, sbs) {
 function seatIcon(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mShell = mat('gelcoat', 0xe9e8e3, FRAME), mLea = mat('leatherDark', 0x2f3236, TRIM), mIns = mat('liner', 0x3a3d43, ACCENT),
-        mSt = mat('plasticScr', 0xe0782f), mAlu = mat('castAlu', 0xa9afb6), mDark = mat('rubber', 0x18191c);
+        mSt = mat('plasticScr', 0xe0782f, SEAM), mAlu = mat('castAlu', 0xa9afb6), mDark = mat('rubber', 0x18191c);
   const pad = 0.040;
   const sp = spine([ptP(S, S.panL + 0.03, g, -0.045), ptP(S, S.panL, g), S.H, ptB(S, S.backL), ptB(S, S.backL + 0.03, -0.03)], 0.11);
   const L = sp.L, sH = sp.sOf(S.H), sHead = sp.sOf(ptB(S, S.backL - 0.22));
@@ -85471,7 +85533,7 @@ function seatIcon(B, A, P, g, pre, sbs) {
 // skirted base on tracks.
 function seatBonanza(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mLea = mat('leather', 0xc8a57e, TRIM), mPipe = mat('leather', 0x8a6440), mBase = mat('plasticGrn', 0x2c2b29),
+  const mLea = mat('leather', 0xc8a57e, TRIM), mPipe = mat('leather', 0x8a6440, SEAM), mBase = mat('plasticGrn', 0x2c2b29),
         mChrome = mat('chrome', 0xdfe5ec), mAlu = mat('bareAlu', 0xb6bcc3), mDark = mat('rubber', 0x1b1c20);
   const thP = 0.055;
   const spP = spine([ptP(S, S.panL + 0.03, g, -0.035), ptP(S, S.panL, g), S.H, ptB(S, 0.06)], 0.05);
@@ -85542,7 +85604,7 @@ function seatBonanza(B, A, P, g, pre, sbs) {
 function seatUL(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mAlu = mat('bareAlu', 0xc2c7cd, FRAME), mSling = mat('webbing', 0x3d5a86, TRIM), mPad = mat('liner', 0x4a5568, ACCENT),
-        mLace = mat('webbing', 0x111214), mBuck = mat('chrome', 0xdfe5ec),
+        mLace = mat('webbing', 0x111214, SEAM), mBuck = mat('chrome', 0xdfe5ec),
         mCast = mat('castAlu', 0x8e949a);
   const K = KIT();
   const tr = 0.0125;
@@ -85599,7 +85661,7 @@ function seatUL(B, A, P, g, pre, sbs) {
 function seatExtra(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mShell = mat('composite', 0x26292d, FRAME), mPad = mat('leatherDark', 0x1c1d20, TRIM), mChute = mat('webbing', 0x3a5378, ACCENT),
-        mChuteT = mat('webbing', 0x1a1d22), mBuck = mat('chrome', 0xdfe5ec), mCast = mat('castAlu', 0x8e949a);
+        mChuteT = mat('webbing', 0x1a1d22, SEAM), mBuck = mat('chrome', 0xdfe5ec), mCast = mat('castAlu', 0x8e949a);
   const chute = 0.075;                                     // the pack's thickness on the back
   const sp = spine([ptP(S, S.panL + 0.02, g, 0.02), ptP(S, S.panL - 0.02, g), S.H, ptB(S, S.backL), ptB(S, S.backL + 0.02, -0.04)], 0.085);
   const L = sp.L, sH = sp.sOf(S.H);
@@ -85650,10 +85712,9 @@ function seatExtra(B, A, P, g, pre, sbs) {
 // bay's is the DST/DC-3 day seat - a deep upholstered reclining seat, a high rounded back with a linen antimacassar
 // over the top, padded arms with chrome ends, on a polished tube frame.
 function seatDC3(B, A, P, g, pre, sbs, SP) {
-  if (SP && SP.pax) return seatDC3Pax(B, A, P, g, pre, sbs);
-  pre = Object.assign({}, pre, { back: pre.backPilot || pre.back });
+  if (pre.pax || (SP && SP.pax)) return seatDC3Pax(B, A, P, g, pre.pax ? pre : SEAT_PRESETS[2], sbs);
   const S = stance(A, P, g, pre, sbs);
-  const mBkt = mat('panelMetal', 0x7d8478, FRAME), mLea = mat('leather', 0x4a3426, TRIM), mPipe = mat('leather', 0x2e2018),
+  const mBkt = mat('panelMetal', 0x7d8478, FRAME), mLea = mat('leather', 0x4a3426, TRIM), mPipe = mat('leather', 0x2e2018, SEAM),
         mRiv = mat('bareAlu', 0xc6cbd0), mCast = mat('castAlu', 0x8e949a), mDark = mat('rubber', 0x1b1c20),
         mTrim = mat('trim', 0x3c403a);
   const K = KIT();
@@ -85703,7 +85764,7 @@ function seatDC3(B, A, P, g, pre, sbs, SP) {
 }
 function seatDC3Pax(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22), mLin = mat('liner', 0xebe5d6),
+  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22, SEAM), mLin = mat('liner', 0xebe5d6),
         mChrome = mat('chrome', 0xdfe5ec), mLea = mat('leather', 0x5a3a28, ACCENT), mDark = mat('rubber', 0x1b1c20);
   const K = KIT();
   const thP = 0.06;
@@ -85779,12 +85840,12 @@ function seatDC3Pax(B, A, P, g, pre, sbs) {
 // tube on four short legs bolted to tabs, two uprights for the back with a top bow - a canvas sling laced under the pan
 // and another across the back, a loose box cushion with piping on the sling and a thin pad on the back. No rails: a
 // Cub's seat is bolted to the fuselage, the station is the station. The cushion and the pad wear the seat-trim livery
-// section (the crew's own M.cushion / M.pipe), so the default seat stays the one the user paints.
+// section (the base seat's section since G332), so a seat the user painted keeps its paint.
 function seatCub(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const KM = window.CAGE_CREW_SEAT && window.CAGE_CREW_SEAT.kit && window.CAGE_CREW_SEAT.kit.M;
-  const mCush = (KM && KM.cushion) || mat('hide', 0x7a4f33), mPipe = (KM && KM.pipe) || mat('leather', 0xd8cdb6);
-  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722),
+  // the cushion keeps today's tube seat's look (G332's hide, its cream piping) as the sections' bottom-out
+  const mCush = mat('hide', 0x7a4f33, TRIM), mPipe = mat('leather', 0xd8cdb6, SEAM);
+  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722, SEAM),
         mCast = mat('castAlu', 0x8e949a), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
   const tr = 0.0095;                                      // 3/4-inch tube
@@ -85872,7 +85933,7 @@ function seatCub(B, A, P, g, pre, sbs) {
 function seatAg(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mBkt = mat('trim', 0x232528, FRAME), mCord = mat('liner', 0x2a2c2f, ACCENT), mWool = mat('liner', 0xd8ccb2, TRIM),
-        mWoolE = mat('leather', 0x6a5440), mSteel = mat('steelTube', 0x6f7780), mCast = mat('castAlu', 0x8e949a),
+        mWoolE = mat('leather', 0x6a5440, SEAM), mSteel = mat('steelTube', 0x6f7780), mCast = mat('castAlu', 0x8e949a),
         mBolt = mat('chrome', 0xdfe5ec), mKnob = mat('plasticScr', 0xc0302a), mDark = mat('rubber', 0x18191c);
   const K = KIT();
   const cush = 0.065;
@@ -85942,7 +86003,7 @@ function seatAg(B, A, P, g, pre, sbs) {
 function seatWicker(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mCane = mat('webbing', 0xcfae70, FRAME), mRim = mat('webbing', 0xb08a4e), mLea = mat('leather', 0x7a4526, TRIM),
-        mPipe = mat('leather', 0x3a2414), mAsh = mat('spruce', 0x8a6a40), mBolt = mat('steelTube', 0x5a6068);
+        mPipe = mat('leather', 0x3a2414, SEAM), mAsh = mat('spruce', 0x8a6a40), mBolt = mat('steelTube', 0x5a6068);
   const K = KIT();
   const cush = 0.050;
   const sp = spine([ptP(S, S.panL, g, -0.02), ptP(S, S.panL - 0.04, g), S.H, ptB(S, S.backL)], 0.10);
@@ -86158,7 +86219,7 @@ function seatJump(B, A, P, g, pre, sbs) {
 // steel frame behind it by two side brackets, raised and lowered by a lever on the right.
 function seatWarbird(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mBkt = mat('plasticScr', 0x5e2b1a, FRAME), mPack = mat('webbing', 0x8a7f5a, ACCENT), mPackE = mat('webbing', 0x5d5539),
+  const mBkt = mat('plasticScr', 0x5e2b1a, FRAME), mPack = mat('webbing', 0x8a7f5a, ACCENT), mPackE = mat('webbing', 0x5d5539, SEAM),
         mLea = mat('leather', 0x3a2618, TRIM), mSteel = mat('trim', 0x5a6a50), mCast = mat('castAlu', 0x8e949a),
         mBolt = mat('chrome', 0xdfe5ec), mDark = mat('rubber', 0x18191c);
   const K = KIT();
@@ -86216,7 +86277,7 @@ function seatWarbird(B, A, P, g, pre, sbs) {
 // tracks. (Its folding rear bench was modelled and dropped, the user 2 Nov: a cabin takes any preset via paxSeatType.)
 function seatBeaver(B, A, P, g, pre, sbs, SP) {
   const S = stance(A, P, g, pre, sbs);
-  const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226),
+  const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226, SEAM),
         mPanel = mat('panelMetal', 0x8a9087, ACCENT), mAlu = mat('bareAlu', 0xb6bcc3), mCast = mat('castAlu', 0x8e949a),
         mDark = mat('rubber', 0x1b1c20), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
@@ -86272,19 +86333,19 @@ const BUILD = { beaver: seatBeaver, glider: seatGlider, jump: seatJump, warbird:
 // the crew's interface: parent, the anchors A, the rows P, the seat's geometry g (seatGeom), this seat's SP, sbs
 function build(parent, A, P, g, SP, sbs) {
   const pre = PRESET_OF(P.seatType);
-  if (!pre || !BUILD[pre.key]) return null;
+  if (!pre || !BUILD[pre.build]) return null;
   // seatGeom carries the squab centre, not the back's station: zBack is szc - 0.20 there
   if (g.zBack == null) g = Object.assign({}, g, { zBack: g.szc - 0.20 });
   const lvl = levelFor(P);
   const B = Bags();
   LOD.lvl = lvl;
   let S;
-  try { S = BUILD[pre.key](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
+  try { S = BUILD[pre.build](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
   const st = B.flush(parent);
-  const kg = SP && SP.pax && pre.kgPax != null ? pre.kgPax : pre.kg;
+  const kg = pre.kg;
   parent.userData.seatStats = { key: pre.key, tris: st.tris, draws: st.draws, kg, lod: lvl };
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: S.hw, backH: S.backL, rake: g.rake, fit: S.fit,
-           preset: pre.key, tris: st.tris, draws: st.draws, lod: lvl };
+           preset: pre.key, kg, tris: st.tris, draws: st.draws, lod: lvl };
 }
 // WHICH LEVEL A SEAT IS BUILT AT: one level per build, not a THREE.LOD (the join flattens the crew layer's meshes, and
 // a parked aeroplane already drops the whole interior past its first rung): the phone profile builds the phone level,
@@ -86309,9 +86370,9 @@ if (typeof module !== 'undefined') module.exports = API;
 // CAGE CREW — the cockpit occupancy layer (G17; born on the _cage5 bench,
 // now one layer of _cage8.html and the game's editor).
 //
-// Seats (ported from the game's 63_gen_skin.js "2h. SEATS" — frame, pan,
-// cushion, piping, lap belts: leaving any out is what makes a seat read
-// as a box), procedural CONTROLS (pedals, stick/yoke/side-stick, throttle
+// Seats (since SEATS, 2026-11-02, every one is tools/_seat_gen.js's: the seat
+// library, its presets and levels of detail; buildSeat below is the door),
+// procedural CONTROLS (pedals, stick/yoke/side-stick, throttle
 // as wall lever / dash push-pull / console quadrant, optional centre
 // console) and the OCCUPANTS: a 19-joint skeleton with analytic two-bone
 // IK, built to each character's own proportions and dressed by it
@@ -86455,216 +86516,19 @@ function Bag(mat) {
   };
 }
 
-// ---- TUBING: ONE WELDED RUN WITH ROUNDED CORNERS --------------------------
-// The frames were separate capped cylinders butted at each bend — they
-// never joined, and both end discs showed (user 2026-08-19). A run is
-// now ONE swept tube: corners are FILLETED (quadratic bezier through the
-// corner, arms inset by min(2.2r, 0.4 arm) — the cageRims seal idiom),
-// the section is PARALLEL-TRANSPORTED so it never flips along the run,
-// consecutive rings SHARE vertices so the surface is continuous, and the
-// ends are DOMED. Every tube in this file goes through it.
-const _sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+// ---- the vector kit the controls use (the seats' welded-run tubing moved to tools/_seat_gen.js with them)
 const _len3 = a => Math.hypot(a[0], a[1], a[2]);
 const _nrm3 = a => { const l = _len3(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; };
-const _crs3 = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2],
-                         a[0]*b[1] - a[1]*b[0]];
-const _dot3 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 const _off3 = (p, d, k) => [p[0] + d[0]*k, p[1] + d[1]*k, p[2] + d[2]*k];
 
-function filletPath(pts, r, seg) {
-  if (pts.length < 3) return pts.slice();
-  const out = [pts[0]];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const a = pts[i - 1], b = pts[i], c = pts[i + 1];
-    const d1 = _sub3(b, a), d2 = _sub3(c, b);
-    const l1 = _len3(d1), l2 = _len3(d2);
-    if (l1 < 1e-6 || l2 < 1e-6) continue;
-    const u1 = _nrm3(d1), u2 = _nrm3(d2);
-    if (Math.acos(clamp(_dot3(u1, u2), -1, 1)) < 0.10) { out.push(b); continue; }
-    const d = Math.min(2.2 * r, 0.40 * Math.min(l1, l2));
-    const p0 = _off3(b, u1, -d), p2 = _off3(b, u2, d);
-    const N = seg || 4;
-    for (let k = 0; k <= N; k++) {
-      const t = k / N, m = 1 - t;
-      out.push([m*m*p0[0] + 2*m*t*b[0] + t*t*p2[0],
-                m*m*p0[1] + 2*m*t*b[1] + t*t*p2[1],
-                m*m*p0[2] + 2*m*t*b[2] + t*t*p2[2]]);
-    }
-  }
-  out.push(pts[pts.length - 1]);
-  return out;
-}
-// samples = [{p, rs}] — rs scales the radius, which is how the domed
-// ends are built (a ring at angle th sits r*cos(th) beyond the end with
-// radius r*sin(th))
-function sweepSamples(bag, samples, r, sides) {
-  sides = sides || 10;
-  const P = samples.map(s => s.p);
-  const T = P.map((p, i) =>
-    _nrm3(_sub3(P[Math.min(P.length - 1, i + 1)], P[Math.max(0, i - 1)])));
-  let nrm = Math.abs(T[0][1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
-  const proj = (n, t) => _nrm3(_sub3(n, [t[0]*_dot3(n,t), t[1]*_dot3(n,t),
-                                         t[2]*_dot3(n,t)]));
-  nrm = proj(nrm, T[0]);
-  const rings = [], poles = [];
-  for (let i = 0; i < P.length; i++) {
-    nrm = proj(nrm, T[i]);
-    const bi = _crs3(T[i], nrm);
-    const rr = r * samples[i].rs;
-    if (rr < 1e-5) { rings.push(null); poles.push(bag.v(P[i][0], P[i][1], P[i][2])); continue; }
-    poles.push(-1);
-    const ring = [];
-    for (let k = 0; k < sides; k++) {
-      const a = 2 * Math.PI * k / sides, ca = Math.cos(a), sa = Math.sin(a);
-      ring.push(bag.v(P[i][0] + (nrm[0]*ca + bi[0]*sa) * rr,
-                      P[i][1] + (nrm[1]*ca + bi[1]*sa) * rr,
-                      P[i][2] + (nrm[2]*ca + bi[2]*sa) * rr));
-    }
-    rings.push(ring);
-  }
-  for (let i = 0; i < rings.length - 1; i++) {
-    const a = rings[i], b = rings[i + 1];
-    if (a && b) {
-      for (let k = 0; k < sides; k++) {
-        const k2 = (k + 1) % sides;
-        bag.quad(a[k], a[k2], b[k2], b[k]);
-      }
-    } else if (a && !b) {                     // fan to the closing pole
-      for (let k = 0; k < sides; k++) bag.tri(a[k], a[(k+1)%sides], poles[i+1]);
-    } else if (!a && b) {
-      for (let k = 0; k < sides; k++) bag.tri(poles[i], b[(k+1)%sides], b[k]);
-    }
-  }
-}
-// pts = polyline; ends: 'dome' (default) | 'flat' | 'open'
-function tubeRun(bag, pts, r, sides, ends) {
-  const path = filletPath(pts, r);
-  if (path.length < 2) return;
-  const samples = path.map(p => ({ p, rs: 1 }));
-  if (ends !== 'open') {
-    const t0 = _nrm3(_sub3(path[1], path[0]));
-    const t1 = _nrm3(_sub3(path[path.length-1], path[path.length-2]));
-    const head = [], tail = [];
-    if (ends === 'flat') {
-      head.push({ p: path[0], rs: 0 });
-      tail.push({ p: path[path.length-1], rs: 0 });
-    } else {
-      for (const th of [0, 30, 60]) {         // pole first
-        const a = th * Math.PI / 180;
-        head.push({ p: _off3(path[0], t0, -r * Math.cos(a)), rs: Math.sin(a) });
-      }
-      for (const th of [60, 30, 0])
-        tail.push({ p: _off3(path[path.length-1], t1, r * Math.cos(th*Math.PI/180)),
-                    rs: Math.sin(th * Math.PI / 180) });
-    }
-    samples.unshift(...head); samples.push(...tail);
-  }
-  sweepSamples(bag, samples, r, sides);
-}
-
-// ---- the cushion: a PUFFED SLAB (port of 63_gen_skin's builder) -----------
-// grid whose thickness falls to zero at the rim on a soft power curve,
-// grooved along the seam lines; piping (the welt) swept round the rim.
-function cushion(parent, ctr, ax, al, up, hw, hd, th, flutes, tuck) {
-  const NU = 10, NV = 12;
-  const P3 = (a, b, u) => [
-    ctr[0] + ax[0] * a * hw + al[0] * b * hd + up[0] * u,
-    ctr[1] + ax[1] * a * hw + al[1] * b * hd + up[1] * u,
-    ctr[2] + ax[2] * a * hw + al[2] * b * hd + up[2] * u,
-  ];
-  // 3 / 0.45 is a filled squab; 5 / 0.30 was a board (63_gen_skin)
-  const puff = (a, b) =>
-    Math.pow(Math.max(0, 1 - Math.pow(Math.abs(a), 3)), 0.45) *
-    Math.pow(Math.max(0, 1 - Math.pow(Math.abs(b), 3)), 0.45);
-  const groove = b => {
-    let g = 1;
-    for (let f = 1; f <= flutes; f++) {
-      const bf = -1 + 2 * f / (flutes + 1);
-      const d = (b - bf) / 0.085;
-      g -= 0.30 * Math.exp(-d * d);
-    }
-    return Math.max(0.45, g);
-  };
-  const bag = Bag(M.cushion);
-  const grid = sgn => {
-    const rows = [];
-    for (let i = 0; i <= NU; i++) {
-      const a = -1 + 2 * i / NU, row = [];
-      for (let j = 0; j <= NV; j++) {
-        const b = -1 + 2 * j / NV;
-        const pf = puff(a, b);
-        const u = sgn > 0 ? th * pf * groove(b)
-                          : -th * pf * (tuck ? 0.20 : 0.45);
-        const p = P3(a, b, u);
-        row.push(bag.v(p[0], p[1], p[2]));
-      }
-      rows.push(row);
-    }
-    return rows;
-  };
-  const top = grid(1), bot = grid(-1);
-  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
-    bag.quad(top[i][j], top[i][j + 1], top[i + 1][j + 1], top[i + 1][j]);
-    bag.quad(bot[i][j], bot[i + 1][j], bot[i + 1][j + 1], bot[i][j + 1]);
-  }
-  bag.mesh(parent);
-  // piping round the rim, in the trim colour
-  const rim = [];
-  const NP = 7;
-  for (let j = 0; j <= NP; j++) rim.push([-1, -1 + 2 * j / NP]);
-  for (let i = 1; i <= NP; i++) rim.push([-1 + 2 * i / NP, 1]);
-  for (let j = NP - 1; j >= 0; j--) rim.push([1, -1 + 2 * j / NP]);
-  for (let i = NP - 1; i >= 0; i--) rim.push([-1 + 2 * i / NP, -1]);
-  for (let k = 0; k < rim.length - 1; k++)
-    tube(parent, M.pipe, P3(rim[k][0], rim[k][1], 0),
-         P3(rim[k + 1][0], rim[k + 1][1], 0), 0.009, true);
-}
-
-// ---- lap belt: a flat RIBBON with a roll-over twist (63 port) -------------
-function ribbon(bag, pts, wid, tw) {
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const nrm = v => {
-    const l = Math.hypot(v[0], v[1], v[2]) || 1;
-    return [v[0] / l, v[1] / l, v[2] / l];
-  };
-  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  let prev = null;
-  for (let k = 0; k < pts.length - 1; k++) {
-    const A = pts[k], C = pts[k + 1];
-    const ax = nrm(sub(C, A));
-    let across = nrm(cross(ax, [0, 1, 0]));
-    if (!isFinite(across[0])) across = [0, 0, 1];
-    const th = (tw || 0) * (k / Math.max(1, pts.length - 2));
-    const upv = nrm(cross(across, ax));
-    const e1 = [0, 1, 2].map(c =>
-      across[c] * Math.cos(th) + upv[c] * Math.sin(th));
-    const e2n = nrm(cross(ax, e1));
-    const e2 = [e2n[0] * 0.0035, e2n[1] * 0.0035, e2n[2] * 0.0035];
-    const quadAt = Pt => [0, 1, 2, 3].map(q => {
-      const sW = (q === 0 || q === 3) ? -1 : 1, sT = q < 2 ? 1 : -1;
-      return bag.v(Pt[0] + e1[0] * sW * 0.5 * wid + e2[0] * sT,
-                   Pt[1] + e1[1] * sW * 0.5 * wid + e2[1] * sT,
-                   Pt[2] + e1[2] * sW * 0.5 * wid + e2[2] * sT);
-    });
-    const a4 = prev || quadAt(A), c4 = quadAt(C);
-    bag.quad(a4[0], a4[1], c4[1], c4[0]);
-    bag.quad(a4[3], c4[3], c4[2], a4[2]);
-    bag.quad(a4[0], c4[0], c4[3], a4[3]);
-    bag.quad(a4[1], a4[2], c4[2], c4[1]);
-    prev = c4;
-  }
-}
-
 // ---- THE SEATS ------------------------------------------------------------
-// Three types, ONE interface: every builder returns the numbers the
-// controls and the occupant lace to (panY, floor, szc, hw, backH, rake), so
-// the cockpit works identically whichever is fitted (user 2026-08-19).
-//   0 tube     the light-aircraft welded frame + laced cushions
-//   1 shell    a moulded composite bucket, for the almost-lying position
-//   2 airliner a padded seat with headrest and armrests
-// SP = this seat's own {h, rake, tilt}: the second seat carries its own
-// set, so a tandem back seat can sit lower or more upright than the front.
+// EVERY SEAT IS THE SEAT LIBRARY'S (SEATS, 2026-11-02): tools/_seat_gen.js draws them all - the tube & sling (0),
+// the carbon bucket (1) and the vintage airliner (2) replaced the tube frame, the moulded shell and the airliner seat
+// that were drawn here (the user: "replace both ... also replace the airliner existing seat with the dc3 passenger"),
+// and 3-14 are its other presets. ONE interface either way: the numbers the controls and the occupant lace to
+// (panY, floor, szc, hw, backH, rake), plus the seat's mass for the join (kg).
+// SP = this seat's own {h, rake, tilt}: the second seat carries its own set, so a tandem back seat can sit lower or
+// more upright than the front.
 function seatGeom(A, P, sx, zBack, sbs, SP) {
   const szc = zBack + 0.20;                    // squab centre
   const floor = A.floorAt(szc);                // the DETECTED floor
@@ -86676,287 +86540,29 @@ function seatGeom(A, P, sx, zBack, sbs, SP) {
   return { szc, floor, panY, rake, tilt, hw, backH, sx };
 }
 
-// ---- 0. THE TUBE SEAT -----------------------------------------------------
-function seatTube(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, floor = g.floor, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const bc = Math.cos(rake), bs = Math.sin(rake);
-  cushion(parent, [sx, panY + 0.5 * 0.22 * Math.sin(tilt), szc],
-          [1, 0, 0], [0, -0.06 - Math.sin(tilt), -Math.cos(tilt)],
-          [0, 1, 0], hw, 0.22, 0.075, 2, true);
-  cushion(parent,
-          [sx, panY + 0.02 + 0.5 * backH * bc, szc - 0.20 - 0.5 * backH * bs],
-          [1, 0, 0], [0, bc, -bs], [0, bs, bc],
-          hw * 0.96, 0.5 * backH, 0.062, 3, false);
-  // THE SUPPORTING STRUCTURE IS TWO NARROW RAILS (user): at most 2/3 of
-  // the seat width, so it lands on the floor of a fuselage that has
-  // narrowed by the belly. Each side is ONE welded run — leg, rail and
-  // back upright in a single filleted sweep.
-  const railHalf = hw * (2 / 3);
-  // G332: drawn alloy tube (the user), and enough sides that a 14 mm tube
-  // seen from 40 cm is round — the seat is the closest hardware there is
-  const bag = Bag(M.seatAlu);
-  for (const s2 of [-1, 1]) {
-    const xx = sx + s2 * railHalf;
-    tubeRun(bag, [[xx, floor, szc + 0.21],
-                  [xx, panY - 0.03, szc + 0.19],
-                  [xx, panY - 0.03, szc - 0.19],
-                  [xx, panY - 0.02 + backH * bc, szc - 0.20 - backH * bs]],
-            0.014, 18);
-    tubeRun(bag, [[xx, floor, szc + 0.21], [xx, panY - 0.03, szc - 0.19]],
-            0.010, 14);
-  }
-  // cross members: run a hair PAST the side rails so the weld closes
-  const xl = sx - railHalf, xr = sx + railHalf, e = 0.010;
-  const X = (y, z, r) => tubeRun(bag, [[xl - e, y, z], [xr + e, y, z]], r, 14);
-  X(panY - 0.03, szc + 0.19, 0.012);
-  X(panY - 0.03, szc - 0.19, 0.012);
-  X(floor, szc + 0.21, 0.011);
-  X(floor, szc - 0.20, 0.011);
-  X(panY - 0.02 + backH * bc, szc - 0.20 - backH * bs, 0.013);
-  bag.mesh(parent);
-}
-
-// ---- 1. THE COMPOSITE SHELL ----------------------------------------------
-// One moulded bucket: a centre-plane profile (front lip, pan, filleted
-// hinge, back, integrated headrest) swept across x with a parabolic
-// bolster, then offset to a real thickness and rimmed. This is the
-// almost-lying seat — set the back recline high and the pilot lies in it.
-function seatShell(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const H = [panY, szc - 0.18];                       // hinge (y, z)
-  const panL = 0.42, bc = Math.cos(rake), bs = Math.sin(rake);
-  const F = [H[0] + panL * Math.sin(tilt), H[1] + panL * Math.cos(tilt)];
-  const hH = backH + 0.16;                            // head above the hinge
-  const B = [H[0] + hH * bc, H[1] - hH * bs];
-  // THE ENDS ROLL AWAY FROM THE BODY (G468, playtest item 47, the user:
-  // "the carbon seat has interior edges at its ends, rendering it
-  // practically unusable, since it would cut the back of the neck and the
-  // legs"). The lip curled UP into the back of the knees and the headrest
-  // curled FORWARD into the neck - both ends pointed at the occupant. A
-  // moulded bucket rolls its edges OUTWARD: the front lip rolls down and
-  // forward under the thighs, the top rolls aft behind the head, and the
-  // cut edge of the shell is a half-round of its own thickness (below),
-  // not an 11 mm saw cut.
-  const prof = [
-    [sx, F[0] - 0.040, F[1] + 0.045],                 // front lip, rolled DOWN and forward
-    [sx, F[0], F[1]],
-    [sx, H[0], H[1]],
-    [sx, B[0], B[1]],
-    [sx, B[0] + 0.030, B[1] - 0.060],                 // the top rolled AFT, behind the head
-  ];
-  const C = filletPath(prof, 0.085, 5);
-  const NU = C.length, NV = 12, TH = 0.011;
-  const uu = [0];
-  for (let i = 1; i < NU; i++)
-    uu.push(uu[i - 1] + _len3(_sub3(C[i], C[i - 1])));
-  const total = uu[NU - 1] || 1;
-  const bag = Bag(M.shellC);
-  const N = [], W = [], BO = [];
-  for (let i = 0; i < NU; i++) {
-    const a = C[Math.max(0, i - 1)], b = C[Math.min(NU - 1, i + 1)];
-    const t = _nrm3(_sub3(b, a));
-    N.push([0, -t[2], t[1]]);                         // toward the occupant
-    const u = uu[i] / total;
-    W.push(hw * (u < 0.45 ? 1.0 : 1.0 - 0.42 * (u - 0.45) / 0.55));
-    BO.push(0.052 * (1 - 0.55 * Math.max(0, (u - 0.5) / 0.5)));
-  }
-  const pt = (i, v, off) => {
-    const w = W[i] * v, r = BO[i] * v * v + (off || 0);
-    return [C[i][0] + w, C[i][1] + N[i][1] * r, C[i][2] + N[i][2] * r];
-  };
-  const IN = [], OUT = [];
-  for (let i = 0; i < NU; i++) {
-    const ri = [], ro = [];
-    for (let j = 0; j <= NV; j++) {
-      const v = -1 + 2 * j / NV;
-      const a = pt(i, v, 0), b = pt(i, v, -TH);
-      ri.push(bag.v(a[0], a[1], a[2]));
-      ro.push(bag.v(b[0], b[1], b[2]));
-    }
-    IN.push(ri); OUT.push(ro);
-  }
-  for (let i = 0; i < NU - 1; i++) for (let j = 0; j < NV; j++) {
-    bag.quad(IN[i][j], IN[i][j + 1], IN[i + 1][j + 1], IN[i + 1][j]);
-    bag.quad(OUT[i][j], OUT[i + 1][j], OUT[i + 1][j + 1], OUT[i][j + 1]);
-  }
-  for (let i = 0; i < NU - 1; i++) {                  // side rims
-    bag.quad(IN[i][0], IN[i + 1][0], OUT[i + 1][0], OUT[i][0]);
-    bag.quad(IN[i][NV], OUT[i][NV], OUT[i + 1][NV], IN[i + 1][NV]);
-  }
-  // the end rims: a HALF-ROUND of the shell's thickness (G468) - three rings
-  // swept round from the inner face to the outer one, past the profile's end
-  // along its tangent, so the edge the thighs and the neck meet is a radius
-  for (const end of [0, NU - 1]) {
-    const i = end, nb = end === 0 ? 1 : NU - 2;
-    const tg = _nrm3(_sub3(C[i], C[nb]));             // outward along the profile
-    const rings = [];
-    for (let k = 0; k <= 4; k++) {
-      const th = Math.PI * k / 4;                     // inner face -> outer face
-      const ext = Math.sin(th) * TH * 0.5, off = -TH * 0.5 + Math.cos(th) * TH * 0.5;
-      const ring = [];
-      for (let j = 0; j <= NV; j++) {
-        const v = -1 + 2 * j / NV;
-        const a = pt(i, v, off);
-        ring.push(bag.v(a[0] + tg[0] * ext, a[1] + tg[1] * ext, a[2] + tg[2] * ext));
-      }
-      rings.push(ring);
-    }
-    for (let k = 0; k < 4; k++) for (let j = 0; j < NV; j++) {
-      if (end === 0) bag.quad(rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]);
-      else bag.quad(rings[k][j], rings[k][j + 1], rings[k + 1][j + 1], rings[k + 1][j]);
-    }
-  }
-  bag.mesh(parent);
-  // a thin cushion pad laid in the bucket, so it is not bare carbon
-  const pad = Bag(M.cushion);
-  const PI = [], PO = [];
-  const i0 = Math.round(NU * 0.10), i1 = Math.round(NU * 0.93);
-  for (let i = i0; i <= i1; i++) {
-    const ri = [], ro = [];
-    for (let j = 1; j < NV; j++) {
-      const v = (-1 + 2 * j / NV) * 0.88;
-      const a = pt(i, v, 0.028 * (1 - Math.abs(v)) + 0.004);
-      const b = pt(i, v, 0.004);
-      ri.push(pad.v(a[0], a[1], a[2]));
-      ro.push(pad.v(b[0], b[1], b[2]));
-    }
-    PI.push(ri); PO.push(ro);
-  }
-  for (let i = 0; i < PI.length - 1; i++)
-    for (let j = 0; j < PI[0].length - 1; j++) {
-      pad.quad(PI[i][j], PI[i][j + 1], PI[i + 1][j + 1], PI[i + 1][j]);
-      pad.quad(PO[i][j], PO[i + 1][j], PO[i + 1][j + 1], PO[i][j + 1]);
-    }
-  pad.mesh(parent);
-  // THE FLOOR SUPPORT (G2799, the user's review of 18 Oct: "the carbon seat
-  // floats about 8 cm over the floor"). Two moulded pedestal ribs under the
-  // pan, their top edge following the shell's outer face from the front of
-  // the pan to the lower back, standing on two fore-aft floor rails - the
-  // airliner seat's pedestal idiom. Drawing only: the shell, the hinge and
-  // every number the crew laces to are unchanged.
-  const rh = hw * 0.45, RT = 0.006, RAIL = 0.012;
-  let ia = 0, ib = NU - 1;
-  while (ia < NU - 1 && C[ia][2] > F[1] + 1e-6) ia++;
-  while (ib > ia && C[ib][1] > H[0] + 0.10) ib--;
-  if (ib - ia >= 1) {
-    const rib = Bag(M.shellC), alu = Bag(M.seatAlu);
-    for (const s2 of [-1, 1]) {
-      const xr = sx + s2 * rh, top = [], bot = [];
-      for (let i = ia; i <= ib; i++) {
-        const p = pt(i, s2 * rh / W[i], -TH);
-        const yB = A.floorAt(p[2]) + 2 * RAIL;
-        top.push([p[1], p[2]]);
-        bot.push([Math.min(yB, p[1] - 0.006), p[2]]);
-      }
-      // a slab RT*2 thick: each face its own vertices, so the shading is flat
-      const n = top.length;
-      for (const xs of [xr - RT, xr + RT]) {
-        const T = top.map(q => rib.v(xs, q[0], q[1]));
-        const Bt = bot.map(q => rib.v(xs, q[0], q[1]));
-        for (let i = 0; i < n - 1; i++)
-          if (xs < xr) rib.quad(T[i], T[i + 1], Bt[i + 1], Bt[i]);
-          else rib.quad(T[i], Bt[i], Bt[i + 1], T[i + 1]);
-      }
-      for (const edge of [top, bot]) {
-        const L = edge.map(q => rib.v(xr - RT, q[0], q[1]));
-        const R = edge.map(q => rib.v(xr + RT, q[0], q[1]));
-        for (let i = 0; i < n - 1; i++) rib.quad(L[i], R[i], R[i + 1], L[i + 1]);
-      }
-      for (const i of [0, n - 1])
-        rib.quad(rib.v(xr - RT, top[i][0], top[i][1]), rib.v(xr + RT, top[i][0], top[i][1]),
-                 rib.v(xr + RT, bot[i][0], bot[i][1]), rib.v(xr - RT, bot[i][0], bot[i][1]));
-      // the rail, a little longer than the rib at both ends
-      const zf = top[0][1] + 0.03, zr = top[n - 1][1] - 0.03;
-      tubeRun(alu, [[xr, A.floorAt(zf) + RAIL, zf], [xr, A.floorAt(zr) + RAIL, zr]], RAIL, 12);
-    }
-    rib.mesh(parent);
-    alu.mesh(parent);
-  }
-}
-
-// ---- 2. THE AIRLINER SEAT -------------------------------------------------
-// Deep squab, thick raked back, a separate headrest on posts, armrests
-// with a rounded rail, on a slim pedestal. Same puffed-slab cushions as
-// the light seat, so the quality reads the same.
-function seatAirline(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, floor = g.floor, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const bc = Math.cos(rake), bs = Math.sin(rake);
-  const w = hw * 1.02;
-  cushion(parent, [sx, panY + 0.5 * 0.24 * Math.sin(tilt), szc],
-          [1, 0, 0], [0, -0.05 - Math.sin(tilt), -Math.cos(tilt)],
-          [0, 1, 0], w, 0.24, 0.095, 2, true);
-  const bH = backH * 0.86;
-  cushion(parent,
-          [sx, panY + 0.03 + 0.5 * bH * bc, szc - 0.21 - 0.5 * bH * bs],
-          [1, 0, 0], [0, bc, -bs], [0, bs, bc],
-          w * 0.98, 0.5 * bH, 0.085, 3, false);
-  // headrest: its own slab, a gap above the back, curled a touch forward
-  const hy = panY + 0.05 + (bH + 0.10) * bc;
-  const hz = szc - 0.21 - (bH + 0.10) * bs;
-  const hr = rake - 0.14, hc = Math.cos(hr), hs2 = Math.sin(hr);
-  cushion(parent, [sx, hy, hz], [1, 0, 0], [0, hc, -hs2], [0, hs2, hc],
-          w * 0.62, 0.085, 0.070, 1, false);
-  const bag = Bag(M.trim);
-  for (const s2 of [-1, 1]) tubeRun(bag, [
-    [sx + s2 * w * 0.34, hy - 0.10 * hc, hz + 0.10 * hs2],
-    [sx + s2 * w * 0.34, hy - 0.02 * hc, hz + 0.02 * hs2]], 0.011, 8);
-  // armrests: a rounded rail on each side, padded on top
-  const ay = panY + 0.20, az0 = szc + 0.16, az1 = szc - 0.20;
-  for (const s2 of [-1, 1]) {
-    const ax = sx + s2 * (w + 0.055);
-    tubeRun(bag, [[ax, ay - 0.12, az1 - 0.02], [ax, ay, az1 + 0.03],
-                  [ax, ay, az0]], 0.016, 10);
-    cushion(parent, [ax, ay + 0.022, (az0 + az1) / 2 + 0.02],
-            [1, 0, 0], [0, 0, -1], [0, 1, 0],
-            0.042, (az0 - az1) * 0.42, 0.020, 0, true);
-  }
-  // pedestal: two transverse legs onto a floor track
-  const rh = hw * (2 / 3);
-  for (const z of [szc + 0.16, szc - 0.16])
-    tubeRun(bag, [[sx - rh, floor + 0.015, z],
-                  [sx - rh * 0.86, panY - 0.05, z],
-                  [sx + rh * 0.86, panY - 0.05, z],
-                  [sx + rh, floor + 0.015, z]], 0.018, 10);
-  for (const s2 of [-1, 1])
-    tubeRun(bag, [[sx + s2 * rh, floor + 0.015, szc + 0.22],
-                  [sx + s2 * rh, floor + 0.015, szc - 0.22]], 0.014, 8);
-  bag.mesh(parent);
-}
-
 function buildSeat(parent, A, P, sx, zBack, sbs, SP, pl) {
   const g = seatGeom(A, P, sx, zBack, sbs, SP);
-  // THE PASSENGERS' OWN SEAT (SEATS, 2026-11-02, the user: "maybe that should be a flag too, pilot and passenger
-  // seats"): `paxSeatType` dresses every passenger bay's seat; absent or -1 (every build before) = the pilots' type
-  const paxT = pl && pl.section && !pl.pilot && P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
-  if (paxT >= 0 && paxT !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: paxT });
-  const type = Math.round(P.seatType || 0);
-  // SEATS (2026-11-02): seatType 3 and up are the seat library's presets (tools/_seat_gen.js) - calibrated models
-  // with the same interface; 0 / 1 / 2 below are untouched, so every saved build draws the seat it drew. `pl` tells
-  // a preset whether this is a passenger's seat (the DC-3 seats its passengers differently from its pilots).
-  if (type >= 3 && typeof window !== 'undefined' && window.SEAT_GEN) {
-    const r = window.SEAT_GEN.build(parent, A, P, g,
-      Object.assign({}, SP, { pax: !!(pl && pl.section && !pl.pilot) }), sbs);
-    if (r) return { panY: r.panY, floor: r.floor, szc: r.szc, hw: r.hw, backH: r.backH, rake: r.rake };
+  const SG = typeof window !== 'undefined' ? window.SEAT_GEN : null;
+  // THE PASSENGERS' OWN SEAT (the user: "maybe that should be a flag too, pilot and passenger seats"): `paxSeatType`
+  // dresses every passenger bay's seat; absent or -1 = as the pilots', or the pilots' preset's own cabin seat
+  // (`paxType`: the vintage crew seat's cabin is the vintage airliner's)
+  const isPax = !!(pl && pl.section && !pl.pilot);
+  if (isPax && SG) {
+    const own = P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
+    const pre = SG.PRESET_OF(P.seatType || 0);
+    const t = own >= 0 ? own : (pre && pre.paxType != null ? pre.paxType : -1);
+    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: t });
   }
-  if (type === 1) seatShell(parent, A, P, g);
-  else if (type === 2) seatAirline(parent, A, P, g);
-  else seatTube(parent, A, P, g);
-  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172: "delete the
-  // option for the hanging safety belts (they got through the fuselage)").
-  // They were off by default since 2026-08-19 and hung through the sides
-  // of any cabin narrower than the stock one; a saved `seatBelt` is read
-  // and ignored.
-  return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw,
-           backH: g.backH, rake: g.rake };
+  const r = SG ? SG.build(parent, A, P, g, Object.assign({}, SP, { pax: isPax }), sbs) : null;
+  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172) and with the seat library no seat carries a belt (the
+  // user, 2 Nov: "drop the seat belts for all"); a saved `seatBelt` is read and ignored.
+  if (r) return { panY: r.panY, floor: r.floor, szc: r.szc, hw: r.hw, backH: r.backH, rake: r.rake, kg: r.kg };
+  // no library on the page (a bench that did not load it): the seat's numbers, nothing drawn, no mass
+  return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw, backH: g.backH, rake: g.rake, kg: 0 };
 }
-
-// THE SEAT LIBRARY'S DOOR (SEATS, 2026-11-02): the seat builder and the small kit it is made of, for the seat
-// bench (tools/_seats.html) and tools/_seat_gen.js (which lays its harness webbing with the crew's own ribbon)
+// THE SEAT LIBRARY'S DOOR: the seat builder, for the seat bench (tools/_seats.html)
 if (typeof window !== 'undefined')
-  window.CAGE_CREW_SEAT = { buildSeat, seatGeom, kit: { M, Bag, tubeRun, cushion, ribbon, filletPath } };
+  window.CAGE_CREW_SEAT = { buildSeat, seatGeom };
 
 // ---- CONTROLS -------------------------------------------------------------
 // each builder returns { obj (an anchor Object3D placed AT the grip,
@@ -90232,9 +89838,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
+    // SEATS: `kg`, the drawn seat's own mass (its preset's), so the join bills each seat as drawn
     seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
                                 panY: s2.panY, section: s2.section | 0,
-                                filled: !!s2.filled })),
+                                filled: !!s2.filled, kg: s2.kg })),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
@@ -124047,6 +123654,17 @@ function cageJoinSpec(P, M, T) {
   // the measured seat stations (see M.seatsX above); absent = the frame's own
   // pillar rule, which is what every fiche and every older save still gets
   if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
+  // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
+  // a cabin of tube & sling seats (3.0 kg, the `sling` row every save bills) keeps its spec - and its certificate -
+  // exactly as it was. Back to all-default after heavier seats, it is cleared (null: the resolver reads it absent,
+  // and the garage's merge cannot keep the stale masses)
+  if (Array.isArray(M.seatsKg) && M.seatsKg.length) {
+    const GS = typeof GEN_SEATS !== 'undefined' ? GEN_SEATS : null;
+    const row = GS && (GS[(spec.outfit && spec.outfit.seats) || 'sling'] || GS.sling);
+    const base = row ? row.kg : 3.0;
+    if (M.seatsKg.some(k => Math.abs(k - base) > 1e-6)) cabin.seatsKg = M.seatsKg;
+    else if (spec.cabin && Array.isArray(spec.cabin.seatsKg)) cabin.seatsKg = null;
+  }
   // G180: the drawn CAPACITY and the seat-by-seat OCCUPANCY, both off the same
   // seat list as seatsX (see M.seats / M.occupied above). Written whenever
   // measured — an all-empty cabin is a real answer, same ruling as `pax`.
@@ -124972,6 +124590,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             .map(s => zFw - s.zBack - SEAT_CG_FWD)
             .filter(x => isFinite(x) && x > 0.05);
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
+          // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner
+          // seats behind two crew seats weighs what it draws, seat for seat (the user: "MASS/CG honest")
+          const kg = CRW.seatsAt.map(s => +s.kg);
+          if (kg.every(v => isFinite(v) && v > 0) && kg.length === CRW.seatsAt.length) M.seatsKg = kg;
         }
         // the MAINS STATION: with gear.x measured, the wheels-to-axles
         // calibration collapses to off[0] = zFw − cg0[0] — the visual's
@@ -163212,8 +162834,14 @@ const AERO_SEC = {
   // The seats follow NOBODY on purpose: a green fuselage does not force
   // green leather. The occupants wear their characters' own clothes (G3700),
   // so the crew has no livery section of its own.
-  seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
+  seatTrim: { parent: null,     fin: 'hide',      label: 'the seats\' base',    // G332: the user's scan
               layer: 'crew' },
+  // SEATS (2026-11-02, the user: "a couple of configurable colors ... base, accent and seam"): a seat preset names its
+  // own finish and tint as each section's bottom-out (tools/_seat_gen.js mat: `fin` / `tint0`), so with nothing picked
+  // every seat wears its calibrated look; a pick here wins on every seat of the aeroplane
+  seatAccent: { parent: null,   fin: 'liner',     label: 'the seats\' accent', layer: 'crew' },
+  seatSeam:   { parent: null,   fin: 'leather',   label: 'the seams',          layer: 'crew' },
+  seatFrame:  { parent: null,   fin: 'trim',      label: 'the seat frames',    layer: 'crew' },
   // G2795 (the user's garage review, 18 Oct: "the floor's material
   // editable"): the cabin floor's boards, plywood until picked
   cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',
@@ -183795,6 +183423,7 @@ const DESIGN_PART = {
   canopy: ['cabin', 'windscreen', 'pilotWindow', 'skylight'],
   mirror: ['fuselage', 'aftDeck', 'aftCabin', 'cabin'],
   seatType: ['seats', 'fit', 'cockpit'],
+  paxSeatType: ['seats', 'fit', 'cockpit'],
   intCons: ['structure', 'fuselage'],
   boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
   booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],
