@@ -257,8 +257,12 @@ function bushLugs(T, TT, R, at) {
 // VARIANT drawn only with TYRE_LOOK.lugs (?tyres=new&lugs=1) - a candidate new carcass or tread, the user's call.
 // Landed 2 Nov (A0) as an OPTION: the tundra row's third value, whSlick 2 'bevelled lugs' (a look row: no fingerprint
 // reads it); the defaults stay as they are, and the proposal for the other carcasses stays behind ?tyres=new.
-const TYRE_LOOK = { on: 0, lugs: 0 };
+// G3851c (2 Nov): THE ACCEPTED PROPOSAL IS THE DEFAULT - the user, 27 Oct: "normal ok for proposal ... Your tiny
+// wheels are good". The standard / slim / tiny carcasses draw tyreLook()'s proportions by default; ?tyres=old draws
+// the pre-proposal wheel (G3548 + G3852) for a before/after. The tundra row is untouched either way.
+const TYRE_LOOK = { on: 1, lugs: 0 };
 try {
+  if (/[?&]tyres=old\b/.test(location.search)) TYRE_LOOK.on = 0;
   if (/[?&]tyres=new\b/.test(location.search)) TYRE_LOOK.on = 1;
   if (/[?&]lugs=1\b/.test(location.search)) TYRE_LOOK.lugs = 1;
 } catch (e) {}

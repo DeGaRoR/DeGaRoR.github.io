@@ -265,8 +265,10 @@ for (let k = 0; k < 3; k++) {
   GG.wheel(bags2, ctr, [1, 0, 0], st.R,
            { brake: true, inboard: 1, P: st.P });
   const g2dark = readBag(bags2.dark);
-  check(!!g2dark && radial(g2dark) > 0.8 * st.R,
-    'the negative control cannot see the pipe in dark — instrument blind');
+  // (G3851c: the proposal's disc is 1.28 x the rim, not 1.48 x, so the caliper sits nearer the axle; the control
+  // proves the 0.62 R line above would catch the pipe - it must stand past THAT line, with a margin)
+  check(!!g2dark && radial(g2dark) > 0.66 * st.R,
+    'the negative control cannot see the pipe in dark — instrument blind', g2dark ? (radial(g2dark) / st.R).toFixed(2) + ' R' : 'no dark');
 }
 
 // ---------------------------------------------------------------------------
@@ -991,13 +993,15 @@ const TYRE_MEASURED = [
 {
   const TL = GG.tyreLook, LOOK = GG.TYRE_LOOK;
   if (check(typeof TL === 'function' && !!LOOK, 'G3851: GEAR_GEN.tyreLook / TYRE_LOOK not published')) {
-    check(!LOOK.on && !LOOK.lugs, 'G3851: the tyres proposal is on by default (it is display-only, switched on by ?tyres=new)');
+    // G3851c (2 Nov): the accepted normal / tiny proposal is the default; ?tyres=old turns it off
+    const LOOK_ON0 = LOOK.on;
+    check(LOOK.on === 1 && !LOOK.lugs, 'G3851c: the accepted proposal is not the default, or the bevelled lugs are on for every tundra');
     // G3851b (the user: "the [slick] one stays as-is"): the proposal leaves the tundra row's drawing alone (today: the
     // bush lugs, G3549b), the same to the micrometre; the bevelled lugs are a variant (whSlick 2 or TYRE_LOOK.lugs) only
     for (const R of [0.10, 0.33, 0.394, 0.445]) {
       check(TL(R, 1) === null, `G3851b R ${R}: tyreLook answers a tundra without the lugged variant asked`);
       const draw = () => { const b = freshBags(); GG.wheel(b, [0, 0, 0], [1, 0, 0], R, { brake: true, P: { whProfile: 1, whTread: 1 } }); const g = readBags(b); return Object.keys(g).map(n => n + digest(g[n])).join(); };
-      const off = draw(); LOOK.on = 1; let on; try { on = draw(); } finally { LOOK.on = 0; }
+      LOOK.on = 0; const off = draw(); LOOK.on = 1; let on; try { on = draw(); } finally { LOOK.on = LOOK_ON0; }
       check(on === off, `G3851b R ${R}: the proposal moved the tundra's own drawing`);
     }
     // G3851b landed as an option (A0, 2 Nov): the tundra row's third value (whSlick 2, 'bevelled lugs') draws the
@@ -1006,7 +1010,7 @@ const TYRE_MEASURED = [
     for (const R of [0.33, 0.394, 0.445]) {
       const draw = P => { const b = freshBags(); GG.wheel(b, [0, 0, 0], [1, 0, 0], R, { brake: true, P }); const g = readBags(b); return Object.keys(g).map(n => n + digest(g[n])).join(); };
       const v2 = draw({ whProfile: 1, whTread: 1, whSlick: 2 });
-      LOOK.on = 1; LOOK.lugs = 1; let viaPage; try { viaPage = draw({ whProfile: 1, whTread: 1 }); } finally { LOOK.on = 0; LOOK.lugs = 0; }
+      LOOK.on = 1; LOOK.lugs = 1; let viaPage; try { viaPage = draw({ whProfile: 1, whTread: 1 }); } finally { LOOK.on = LOOK_ON0; LOOK.lugs = 0; }
       check(v2 === viaPage, `G3851b R ${R}: whSlick 2 does not draw the bevelled-lug variant`);
       check(v2 !== draw({ whProfile: 1, whTread: 1 }) && v2 !== draw({ whProfile: 1, whTread: 1, whSlick: 1 }),
         `G3851b R ${R}: whSlick 2 draws the same as the bush lugs or the smooth tundra`);
@@ -1099,7 +1103,7 @@ const TYRE_MEASURED = [
           check(hMax <= 0.66 * R, `G3851 ${lab}: a hub with a ring of rubber (the hub reaches ${(hMax / R).toFixed(2)} R)`);
         }
       }
-    } finally { LOOK.on = 0; LOOK.lugs = 0; }
+    } finally { LOOK.on = LOOK_ON0; LOOK.lugs = 0; }
   }
 }
 
