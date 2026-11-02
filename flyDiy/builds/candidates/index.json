@@ -12,6 +12,15 @@
     { "file": "cub_quadwin_2026-10.json", "name": "Cub, quad rear window", "note": "the Cub with four rear windows (WINDOWS-FREE)", "from": "tools/fixtures" },
     { "file": "cub_fittings_hand_2026-10.json", "name": "Cub, fittings by hand", "note": "the Cub with hand-placed fittings (FITTINGS-MANUAL)", "from": "tools/fixtures" },
     { "file": "Twin_busher_floats_2.json", "name": "Twin busher floats", "note": "the user's twin pusher on floats (2 Nov), built on the phone, never flown", "from": "the user" },
-    { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown", "from": "the user" }
+    { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown", "from": "the user" },
+    { "file": "mosquito.json", "name": "mosquito", "note": "B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "build_v8_pusher_2026-09-11.json", "name": "pusherLight", "note": "a light pusher (11 Sep, a v8 file)", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "build_v8_twin-boom_2026-09-11.json", "name": "twinBoomFail", "note": "a twin-boom pusher (11 Sep, a v8 file)", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "build_v7_twin_2026-09-04.json", "name": "Twin ultralight (v7)", "note": "the 4 Sep twin, a v7 file", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "build_v7_ultralight_2026-09-05.json", "name": "Ultralight (v7)", "note": "the 5 Sep single-seat ultralight, a v7 file", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "birdman.json", "name": "birdman", "note": "", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "composite_jodel_2026-10-07.json", "name": "JodelGlass", "note": "the Jodel D112 in composite and glass (7 Oct)", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "flydiy-build (3).json", "name": "twinBoomFail EXPERIMENTAL (3)", "note": "the twin boom, a later save (10 Sep)", "from": "the repo's test planes (A0's sweep, 2 Nov)" },
+    { "file": "flydiy-build (4).json", "name": "twinBoomFail EXPERIMENTAL (4)", "note": "the twin boom, another later save (10 Sep)", "from": "the repo's test planes (A0's sweep, 2 Nov)" }
   ]
 }

@@ -731,7 +731,7 @@ function garageInit(api) {
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && typeof p.file === 'string' && /^[\w.-]+\.json$/.test(p.file)) : []),
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }

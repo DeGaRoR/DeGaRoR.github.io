@@ -7,7 +7,7 @@
 //   node tools/_candidates_check.js --selftest   + a doctored pool and doctored sources, each must go red
 //
 // THE POOL (builds/candidates/index.json): it parses, names files that exist in the folder (the user's own file names,
-// nothing invented: plain names, no path), every .json in the folder is named by it (no orphan the game cannot reach),
+// nothing invented: a plain name - letters, digits, space, . _ - ( ) - no path; the user's 'flydiy-build (3).json' kept), every .json in the folder is named by it (no orphan the game cannot reach),
 // every file is a build (an envelope with a spec), and none claims a certificate (no plaque).
 // EVERY CANDIDATE LOADS, BUILDS AND DRAWS: the page's own load door headless (tools/_load_build.js: the editor's layers
 // draw it, the join measures it, the energy layer fits the tanks) with no join error, then buildGen on what it made: a
@@ -35,7 +35,7 @@ function poolRows(P) {
   const seen = new Set();
   for (const p of idx.planes) {
     const f = p && p.file;
-    if (typeof f !== 'string' || !/^[\w.-]+\.json$/.test(f) || f === 'index.json') { bad.push('a plane names no plain .json file: ' + JSON.stringify(p)); continue; }
+    if (typeof f !== 'string' || !/^[\w .()-]+\.json$/.test(f) || f === 'index.json') { bad.push('a plane names no plain .json file: ' + JSON.stringify(p)); continue; }
     if (seen.has(f)) bad.push(f + ' is listed twice');
     seen.add(f);
     if (!p.name) bad.push(f + ' has no name for the rack');

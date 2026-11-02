@@ -38,7 +38,7 @@ for (const inp of inputs) {
 }
 let n = 0;
 for (const t of todo) {
-  if (!/^[\w.-]+\.json$/.test(t.file) || t.file === 'index.json') { console.log('skip ' + t.file + ': not a plain file name'); continue; }
+  if (!/^[\w .()-]+\.json$/.test(t.file) || t.file === 'index.json') { console.log('skip ' + t.file + ': not a plain file name'); continue; }
   const env = Object.assign({}, t.env); delete env.plaque;
   const txt = JSON.stringify(env);
   const dst = path.join(DIR, t.file);
