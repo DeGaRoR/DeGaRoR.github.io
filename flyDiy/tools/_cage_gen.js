@@ -7962,6 +7962,18 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear'];
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
+// CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S
+// END DECIDES AN AFT ENGINE, NOT THE STYLE ROW. A pusher (engMount 1) and a push-pull's rear (4) bolt to the aft
+// bulkhead, which is a face exactly where the pod ENDS at one: a rod boom (boomStyle 1), or twin booms of either
+// style (S.rod is set by boomTwin - the pod ends there and the wing layer draws the booms). It read `boomStyle` alone
+// for the pusher, so twin booms switched to Lofted lost the aperture and the engine with it while the booms stayed.
+// A lofted SINGLE body runs to the tail: no aft face (its "rear" cap is the tail tip). One rule, read by this
+// sheet's aperture and by the engine faces (_cage_cowl.js engineFaces), so the two cannot disagree.
+function cageAftEngineFace(P) {
+  const m = Math.round((P && P.engMount) || 0);
+  return (m === 1 || m === 4) && !!(+P.boomStyle || +P.boomTwin);
+}
+
 function cageToSpec(P) {
   if (!P || typeof P !== 'object') return null;
   const out = {};
@@ -8133,8 +8145,7 @@ function cageSpec(P) {
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
-                   || (engMountK === 4 && (P.boomStyle || +P.boomTwin))) ? 1 : 0,
+    rearAperture: (P.rearAperture || cageAftEngineFace(P)) ? 1 : 0,
     aeroAft,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || !noseEngK) ? 'aero' : 'engine',
@@ -9733,7 +9744,7 @@ if (typeof module !== 'undefined')
                      buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
-                     cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
+                     cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                      CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
@@ -9746,6 +9757,6 @@ if (typeof window !== 'undefined')
                    buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
-                   cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
+                   cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                    CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

@@ -172,6 +172,10 @@ const stolLock = opt => {
   return pk ? 'needs the ' + pk + ' pack from the machine shop' : undefined;
 };
 
+// CONFIG-MATRIX: a lofted twin's DRAWN dorsal carried onto rod-style booms (their own row, finDorsalTube); any other
+// state keeps the row as it is. A cage write, resolved before the tile's boomStyle
+const dorsalToRod = P => (+P.boomTwin && !+P.boomStyle) ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalTube || 0);
+
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
 // flap and does not draw its section.
@@ -1101,13 +1105,18 @@ const DESIGN_ROWS = [
     help: 'the taper section stays its own switch on the slider',
     read: P => Math.round(P.boomStyle),
     options: [
+      // CONFIG-MATRIX: THE DORSAL FOLLOWS ITS HOST. On twin booms both styles are the same host (the boom's own
+      // lofted section), so the switch carries the dorsal as it was DRAWN: the rod's finDorsalTube becomes the
+      // loft's finDorsal and back (a rod twin's stored finDorsal was never drawn - the rod clamp). Resolved before
+      // boomStyle (designApply reads each function against the keys written above it)
       { value: 0, label: 'Lofted skin', icon: ICON.boomLoft,
-        writes: { cage: { boomStyle: 0 } } },
+        writes: { cage: { finDorsal: P => (+P.boomStyle && +P.boomTwin) ? (+P.finDorsalTube ? 1 : 0) : P.finDorsal,
+                          boomStyle: 0 } } },
       // 2026-09-04 (the user): "the rod settings should automatically turn
       // the taper section on. It can be removed manually afterwards"
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
-        writes: { cage: { boomStyle: 1, taperOn: 1 } } },
+        writes: { cage: { finDorsalTube: dorsalToRod, boomStyle: 1, taperOn: 1 } } },
     ] },
 
   // THE COUNT (2026-09-04, the user: "lofted or rod, and dual or single
@@ -1385,7 +1394,7 @@ const DESIGN_ROWS = [
         // datum the engine is on, the boom is on the other, clear of the disc
         // by its own 80 mm. designApply resolves a block's keys in order, so
         // the function reads the `engY` written one line above it.
-        writes: { cage: Object.assign({ engMount: 1, boomStyle: 1, taperOn: 1,
+        writes: { cage: Object.assign({ engMount: 1, finDorsalTube: dorsalToRod, boomStyle: 1, taperOn: 1,
                                         cowlOn: 0, aeroAftOn: 0,
                                         engY: 0.26,
                                         rodY: P => -Math.sign(+P.engY || 1)
@@ -1776,6 +1785,18 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Dorsal fillet', icon: iconFinExtra('dorsal'),
         note: 'a long low fillet runs the leading edge forward along the deck',
         writes: { cage: { finDorsal: 1 } } },
+    ] },
+  // CONFIG-MATRIX: the same choice on rod-style twin booms, in ITS row's slot (finDorsalTube, _cage_fin.js) - the
+  // dorsal the user wanted "on the pod too"
+  { key: 'finDorsalTubeT', label: 'Leading edge', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finDorsalTube'],
+    read: P => Math.round(P.finDorsalTube || 0),
+    options: [
+      { value: 0, label: 'Plain', icon: iconFinExtra(null),
+        writes: { cage: { finDorsalTube: 0 } } },
+      { value: 1, label: 'Dorsal fillet', icon: iconFinExtra('dorsal'),
+        note: 'a long low fillet runs the leading edge forward along the boom',
+        writes: { cage: { finDorsalTube: 1 } } },
     ] },
   { key: 'stCutT', label: 'Stab / elevator', kind: 'discriminator',
     group: 'tail', status: 'live', slot: true, twin: ['stCut'],
