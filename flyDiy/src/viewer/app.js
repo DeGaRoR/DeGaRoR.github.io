@@ -16652,6 +16652,12 @@
     const W = window.innerWidth, H = window.innerHeight;
     const w = fly.offsetWidth || 296;
     const bb = btn ? btn.getBoundingClientRect() : { left: 22, bottom: 90, top: 90 };
+    // TIME-CONTROLS: a flyout the player dragged keeps its place (card_drag.js 'flyout'); only its height is fitted
+    if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed && window.FLYDIY_DRAG.placed('flyout')) {
+      const top = fly.getBoundingClientRect().top;
+      fly.style.maxHeight = Math.round(Math.max(160, H - top - 22)) + 'px';
+      return;
+    }
     // the brief's slots keep the horizontal anchor; the ribbon's branch below
     // overwrites it, because a vertical ribbon anchors the other way round
     fly.style.left = Math.round(Math.max(22, Math.min(bb.left - 6, W - w - 22))) + 'px';
@@ -18592,6 +18598,16 @@
     const flyFrom = (btn, k) => { if (flyOpen === k) { flyOpenSet(null); return; } flAnchorEl = btn; flyOpenSet(k); };
     FL_SLOTS.trip = { title: 'Where it goes' };
     FL_SLOTS.readouts = { title: 'What the readouts show' };
+    // TIME-CONTROLS (A0 2 Nov, the user: "In flight, in the career, this will replace the time of day and weather menu in the
+    // UI, since it cannot be freely controlled anymore"): the career's conditions are THE TIME MENU - the date and the hour,
+    // the day's weather told (not set), the waits (on the ground only: DAY_CLOCK's guard). The sandbox keeps the sky flyout
+    FL_SLOTS.time = { title: 'Time & weather' };
+    FL_BUILD.slot_time = body => {
+      if (!window.DAY_UI || !window.DAY_UI.menu) { FL_BUILD.slot_day(body); return; }
+      window.DAY_UI.menu(body, { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField },
+        { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, forecast: window.FLYDIY_FORECAST || null });
+    };
+    const condCareer = () => typeof DAY_CLOCK !== 'undefined' && !!(DAY_CLOCK.isCareer && DAY_CLOCK.isCareer());
     FL_BUILD.slot_trip = body => {
       FL_BUILD.slot_route(body);
       for (const k of ['drawn', 'start']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
@@ -18600,7 +18616,7 @@
       for (const k of ['instruments', 'trace', 'map']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
     };
     bRoute.onclick = () => flyFrom(bRoute, 'trip');
-    bCond.onclick = () => flyFrom(bCond, 'sky');
+    bCond.onclick = () => flyFrom(bCond, condCareer() ? 'time' : 'sky');
     $('pfdRow').addEventListener('click', () => flyFrom($('pfd'), 'readouts'));
     // the autopilot's words: folded by default, the phase line unfolds them
     let apOpen = prefGet('flydiy.fl2Ap', '') === '1';
@@ -18723,6 +18739,8 @@
       const wc = document.querySelector('#pfdRow .rd[data-i="wind"]'), wOut = !!(wc && wc.classList.contains('fl2Clip'));
       const dw = d + (wOut ? ' \u00b7 ' + txt('r-wind') + ' km/h' : '');
       if (bCond.lastChild.textContent !== dw) bCond.lastChild.textContent = dw;
+      const cw = condCareer() ? 'time & weather' : 'conditions';
+      if (bCond.firstChild.textContent !== cw) bCond.firstChild.textContent = cw;
       fit();
       bRate.hidden = !testFlight; const rw = simRate + '×'; if (bRate.textContent !== rw) bRate.textContent = rw; bRate.disabled = floatsOn();
     };
