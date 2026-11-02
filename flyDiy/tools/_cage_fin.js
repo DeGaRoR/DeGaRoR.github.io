@@ -51,7 +51,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   // never drew (the rod clamp), and a build loads as it was drawn. Present = the fin roots on the boom's skin with
   // its fillet (a dorsal is a fairing; the saddles go), as on lofted booms.
   ['finDorsalTube', 'leading edge (dorsal)', 0, 1, 1, ['removed', 'present'],
-   { when: P => +P.finOn && +P.boomStyle && +P.boomTwin }],
+   { when: P => +P.finOn && +P.boomStyle }],
   ['finRootGuard', 'root loops',      0, 1, 1, ['single + crease',
                                                 'guard pair'],
    { when: P => +P.finOn }],
@@ -175,7 +175,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['dorsal creases', [
     ['finCrA', 'section A crease', 0, 3, 0.05],
     ['finCrB', 'section B crease', 0, 3, 0.05],
-  ], { when: P => +P.finOn && (+P.boomStyle ? +P.boomTwin && +P.finDorsalTube : +P.finDorsal), level: 'expert' }],
+  ], { when: P => +P.finOn && (+P.boomStyle ? +P.finDorsalTube : +P.finDorsal), level: 'expert' }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -560,7 +560,8 @@ PAGE.post = ctx => {
   // every slider re-ran the fin, the stab, the access fittings, the lights and the hinges (~360 ms a release on the
   // user's S20 FE, on their twin-boom floatplane). finSpec reads its keys by name: the same values
   // CONFIG-MATRIX: the dorsal on rod-style TWIN booms is the finDorsalTube row's (the booms are a lofted section)
-  const dorsalTube = !!(+P.boomStyle && +P.boomTwin && +P.finDorsalTube);
+  // (2 Nov, the user: "yes" to the single bare rod too - the same row, the same opt-in)
+  const dorsalTube = !!(+P.boomStyle && +P.finDorsalTube);
   const S = FIN.finSpec(P.boomStyle
     ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
