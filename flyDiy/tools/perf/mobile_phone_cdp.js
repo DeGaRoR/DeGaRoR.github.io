@@ -192,6 +192,33 @@ async function touchChecks(C) {
       await C.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(600);
       const ty = await valOf(r.key), closed = await J('PHONE_UI.editing()');
       say('typed', { ok: Math.abs(ty.v - want) <= r.st + 1e-9 && ty.ev.down === 0 && closed === null, key: r.key, want, got: ty.v, events: ty.ev, editorAfter: closed });
+      // THE SIGN KEY (A0 2 Nov: Samsung Keyboard's decimal pad has no '-'): a row that goes negative, 0.3 typed, +/- , Enter
+      { const k = await J('(() => { const r = [...document.querySelectorAll("#edRows .r.phSlider")].find(r => r.offsetParent && +r.querySelector("input[type=range]").min < 0 && !r.querySelector("input[type=range]").disabled); if (!r) return null; r.scrollIntoView({ block: "center" }); return r.dataset.k; })()');
+        if (!k) say('sign', { ok: true, skipped: 'no row that goes negative on this part' });
+        else {
+          await tap(await centre('#edRows .r[data-k="' + k + '"] .v'));
+          await J('(document.querySelector("#phEdit .phEin").select(), 1)');
+          await C.cmd('Input.insertText', { text: '0.3' });
+          await tap(await J('(() => { const b = document.querySelector("#phEdit .phEsign").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()'));
+          const typed = await J('document.querySelector("#phEdit .phEin").value');
+          await C.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+          await C.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(600);
+          const sv = await valOf(k), lo = await J('+document.getElementById("p_' + k + '").min');
+          say('sign', { ok: typed === '-0.3' && Math.abs(sv.v - Math.max(lo, -0.3)) < 0.011, key: k, typed, got: sv.v });
+        }
+      }
+      // HIT AREAS >= 44 px (A0 2 Nov, PHONE-UI-GUIDELINES): the page's own hit test 22 px out from each control's centre
+      { const h = await J('(() => { const hit = (x, y, ok) => { const e = document.elementFromPoint(x, y); return !!e && ok(e); }; const out = {};' +
+          ' const around = (b, ok) => { const cx = b.left + b.width / 2, cy = b.top + b.height / 2; return [[0, -21], [0, 21], [-21, 0], [21, 0]].every(([dx, dy]) => hit(cx + dx, cy + dy, ok)); };' +
+          ' const row = [...document.querySelectorAll("#edRows .r.phSlider")].find(r => { const q = r.getBoundingClientRect(); const s = document.getElementById("edProps").getBoundingClientRect(); return q.top > s.top + 60 && q.bottom < s.bottom - 60; });' +
+          ' if (row) { const v = row.querySelector(".v"), kb = row.querySelector(".phKnob"), cb = row.querySelector(":scope > input[type=checkbox]");' +
+          '   out.value = around(v.getBoundingClientRect(), e => row.contains(e) && !e.closest(".phKnob")) ? "ok" : "small";' +
+          '   out.knob = around(kb.getBoundingClientRect(), e => e === kb) ? "ok" : "small"; out.rowPx = Math.round(row.getBoundingClientRect().height);' +
+          '   if (cb) out.switch = around(cb.getBoundingClientRect(), e => e === cb) ? "ok" : "small"; out.key = row.dataset.k; }' +
+          ' const dv = document.getElementById("phDiv"); if (dv) { const b = dv.getBoundingClientRect(); out.divider = (b.height >= 44 || b.width >= 44) && hit(b.left + b.width / 2 + 30, b.top + b.height / 2, e => e === dv) ? "ok" : "small"; out.dividerPx = Math.round(Math.min(b.height, b.width)); }' +
+          ' return out; })()');
+        say('hit44', Object.assign({ ok: h.value === 'ok' && h.knob === 'ok' && h.divider === 'ok' && (!h.switch || h.switch === 'ok') }, h));
+      }
       // PRECISION: up 160 px from the scale, then sideways - the gain is 40 / 160
       r = await probe();
       const pdx = r.x + 100 < r.x1 ? 100 : -100, up = Math.max(20, r.y - 160) - r.y;

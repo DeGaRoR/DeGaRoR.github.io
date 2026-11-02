@@ -50,14 +50,16 @@
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
   const D = W.document, $ = id => D.getElementById(id);
   const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
-  const V_FREE = 40, V_MIN = 0.05;   // the precision drag: full gain within 40 px of the scale, then 40 / distance
+  const V_FREE = 40, V_MIN = 0.05;
+  // a detent the thumb feels (8 ms): a step, entering fine, entering the precision drag - where the phone has a vibrator
+  const buzz = () => { try { if (W.navigator && typeof W.navigator.vibrate === 'function') W.navigator.vibrate(8); } catch (e) {} };   // the precision drag: full gain within 40 px of the scale, then 40 / distance
   const ls = { get: k => { try { return W.localStorage.getItem(k); } catch (e) { return null; } },
                set: (k, v) => { try { W.localStorage.setItem(k, v); } catch (e) {} } };
 
   // ---- the page: no browser zoom (a pinch is the view's), no pull-to-refresh (phone.css) -------------------------
   try {
     const mv = D.querySelector('meta[name=viewport]');
-    if (mv) mv.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+    if (mv) mv.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual');
   } catch (e) {}
 
   // ---- THE SHEET'S TABS ------------------------------------------------------------------------------------------
@@ -158,7 +160,7 @@
   };
   // THE KNOB IS PLACED BY CSS (G3900; A0 2 Nov: the phone's shed already runs at ~12 fps - the layout adds no layout
   // reads): phone.css moves the hit area with a transform from the row's --phf (the value's fraction of the scale) over
-  // the row's own width (a container-query unit) - so this WRITES, and only what changed: no box is ever measured here
+  // the row's width (--phw, below) - so this WRITES, and only what changed: no box is ever measured here
   function place(row) {
     const ph = row.__ph; if (!ph) return;
     const rng = ph.rng, off = !!rng.disabled;
@@ -167,8 +169,15 @@
     const f = hi > lo ? Math.max(0, Math.min(1, (num(rng.value, lo) - lo) / (hi - lo))) : 0;
     const t = f.toFixed(4);
     if (ph.f !== t) { ph.f = t; row.style.setProperty('--phf', t); }
+    if ((!drag || drag.row !== row) && ph.aria !== rng.value) { ph.aria = rng.value;   // (the knob as a slider to the screen reader and the rig)
+      ph.knob.setAttribute('aria-valuemin', String(lo)); ph.knob.setAttribute('aria-valuemax', String(hi));
+      ph.knob.setAttribute('aria-valuenow', String(rng.value)); ph.knob.setAttribute('aria-valuetext', valueText(row)); }
   }
   function placeAll() { for (const r of ROWS) if (r.isConnected) place(r); }
+  // THE ROW'S WIDTH for the knob's transform (--phw): a ResizeObserver's own entries - written when a row's width changes
+  // (a turn, the divider, a sheet opening), never measured by a read of ours
+  const roRows = typeof ResizeObserver === 'function' ? new ResizeObserver(es => { for (const e of es) {
+    const w = Math.round(e.contentRect.width); if (w && e.target.__phw !== w) { e.target.__phw = w; e.target.style.setProperty('--phw', w + 'px'); } } }) : null;
 
   // THE DRAG: one at a time
   let drag = null;
@@ -210,7 +219,7 @@
     // the press with nothing moved before it), so a busy main thread - a phone mid-build - cannot turn a held press
     // coarse by running the timer late; the timer only shows it (the amber knob, the bubble) while the finger rests
     const goFine = () => { if (!drag || drag.moved || drag.fine) return;
-      drag.fine = true;
+      drag.fine = true; buzz();
       ph.knob.classList.add('fine'); row.classList.add('phFine');
       bubbleShow(drag.x, drag.y, valueText(row), gainOf(drag)); };
     drag.goFine = goFine;
@@ -237,6 +246,7 @@
     drag.y = e.clientY;
     if (!drag.moved && Math.abs(e.clientX - drag.xd) > STILL_PX) drag.moved = true;
     const g = gainOf(drag);
+    if (g < 0.999 && !drag.fine && !drag.prec) { drag.prec = true; buzz(); } else if (g >= 0.999) drag.prec = false;
     const { lo, hi } = rangeOf(drag.rng);
     drag.acc = Math.max(lo, Math.min(hi, drag.acc + (e.clientX - drag.xl) / drag.w * drag.span * g));
     drag.xl = drag.x = e.clientX;
@@ -271,6 +281,7 @@
       rng.dispatchEvent(new Event('input', { bubbles: true }));
       place(row);
       edShow();
+      buzz();
     };
     press(rng);
     one();
@@ -297,10 +308,17 @@
     edEl.minus = mk('button', 'phStep phMinus', '−'); edEl.minus.type = 'button'; edEl.minus.setAttribute('aria-label', 'less');
     edEl.inp = mk('input', 'phEin'); edEl.inp.type = 'text'; edEl.inp.inputMode = 'decimal'; edEl.inp.setAttribute('enterkeyhint', 'done');
     edEl.inp.setAttribute('autocomplete', 'off'); edEl.inp.spellcheck = false;
+    // THE SIGN (A0 2 Nov, PHONE-UI-GUIDELINES: inputmode decimal has no '-' on Samsung Keyboard, the user's, and their
+    // values go negative - deck height -0.300): a key that flips the typed number's sign, the digits keypad kept
+    edEl.sign = mk('button', 'phEsign', '±'); edEl.sign.type = 'button'; edEl.sign.setAttribute('aria-label', 'change the sign');
     edEl.u = mk('span', 'phEu');
     edEl.plus = mk('button', 'phStep phPlus', '+'); edEl.plus.type = 'button'; edEl.plus.setAttribute('aria-label', 'more');
     // the OK button and Enter set the typed number; - / + set it first (a typed 2.4 then + is 2.4 + a step), then step
     edEl.ok.addEventListener('pointerdown', e => e.preventDefault());
+    edEl.sign.addEventListener('pointerdown', e => e.preventDefault());   // (the field keeps the focus: the keypad stays up)
+    edEl.sign.addEventListener('click', () => { const t = String(edEl.inp.value).trim();
+      edEl.inp.value = t.startsWith('-') ? t.slice(1) : t.startsWith('+') ? '-' + t.slice(1) : '-' + t;
+      try { edEl.inp.focus({ preventScroll: true }); const n = edEl.inp.value.length; edEl.inp.setSelectionRange(n, n); } catch (e) {} });
     edEl.ok.addEventListener('click', () => edClose(true));
     edEl.inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); edClose(true); } else if (e.key === 'Escape') { e.preventDefault(); edClose(false); } });
     for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
@@ -338,6 +356,7 @@
     row.classList.add('phOpen');
     const { lo, hi } = rangeOf(ph.rng);
     edEl.k.textContent = (ph.k && ph.k.textContent) || '';
+    edEl.minus.setAttribute('aria-label', 'less: ' + edEl.k.textContent); edEl.plus.setAttribute('aria-label', 'more: ' + edEl.k.textContent);
     edEl.r.textContent = fmtN(lo) + ' – ' + fmtN(hi);
     edEl.inp.value = cur(row); ed.synced = edEl.inp.value;
     edShow();
@@ -373,16 +392,17 @@
     if (!row || row.__ph || !row.classList || !row.classList.contains('r')) return;
     const rng = row.querySelector(':scope > input[type=range]');
     if (!rng) return;
-    const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('aria-hidden', 'true');
+    const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('role', 'slider'); knob.tabIndex = -1;
     const minus = D.createElement('button'); minus.type = 'button'; minus.className = 'phStep phMinus'; minus.textContent = '−'; minus.setAttribute('aria-label', 'less');
     const plus = D.createElement('button'); plus.type = 'button'; plus.className = 'phStep phPlus'; plus.textContent = '+'; plus.setAttribute('aria-label', 'more');
     row.insertBefore(minus, rng);
     rng.insertAdjacentElement('afterend', plus);
     row.appendChild(knob);
     const k = row.querySelector(':scope > span.k');
-    const vf = row.querySelector(':scope > input.v'), sv = row.querySelector(':scope > span.v');
+    const vf = row.querySelector(':scope > input.v');
     const mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && !c.classList.contains('rn') && c !== knob) || null;
     row.__ph = { rng, knob, vf, mu, k, minus, plus };
+    if (k) { knob.setAttribute('aria-label', k.textContent); minus.setAttribute('aria-label', 'less: ' + k.textContent); plus.setAttribute('aria-label', 'more: ' + k.textContent); }
     row.classList.add('phSlider');
     knob.addEventListener('pointerdown', e => knobDown(row, e));
     knob.addEventListener('pointermove', knobMove);
@@ -398,8 +418,12 @@
     }
     // G3901: the value (and its label) open the editor - the row's own field never raises the keyboard
     if (vf) { vf.readOnly = true; vf.inputMode = 'none'; vf.tabIndex = -1; }
-    for (const t of [vf || sv, k]) if (t) t.addEventListener('click', e => { e.preventDefault(); edOpen(row); });
+    // the row's whole height opens it (A0 2 Nov: a target >= 44 px) - all but the knob, a switch, a button, a select
+    row.addEventListener('click', e => { const t = e.target;
+      if (t && t.closest && t.closest('.phKnob, button, select, input[type=checkbox]')) return;
+      e.preventDefault(); edOpen(row); });
     ROWS.add(row);
+    if (roRows) roRows.observe(row);
     place(row);
   }
   function enhanceIn(host) {
