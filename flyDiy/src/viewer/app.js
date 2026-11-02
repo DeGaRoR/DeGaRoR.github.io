@@ -17160,6 +17160,10 @@
     panels[k] = !!on; flSave('Panels', panels);
     const el = $(k === 'map' ? 'mmp' : 'telp');
     if (el) el.hidden = !on;
+    // STORY-1 (the user 29 Oct: the map button "does not disappear after being clicked, so it hides the map it opens"):
+    // the minimap's button goes the moment the minimap shows and comes back the moment it is put away - not on the
+    // layout's half-second tick, which a throw earlier in it (caught, silent) never reached
+    if (k === 'map') { const mb = $('flMmB'); if (mb) mb.hidden = !!on; }
     flLayout();
     if (on) (k === 'map' ? drawMap : drawTel)();
   }
@@ -18357,6 +18361,7 @@
       for (let i = cells.length - 1; i > 2 && row.scrollWidth > row.clientWidth + 1; i--) cells[i].classList.add('fl2Clip');
     };
     const tick = () => {
+      const mmOff = !!($('mmp') || {}).hidden; if (bMm.hidden !== !mmOff) bMm.hidden = !mmOff;   // the button only while the minimap is away (first: STORY-1)
       const r = txt('flRouteV'), d = txt('flDayV');
       if (bRoute.lastChild.textContent !== r) bRoute.lastChild.textContent = r;
       const wc = document.querySelector('#pfdRow .rd[data-i="wind"]'), wOut = !!(wc && wc.classList.contains('fl2Clip'));
@@ -18364,7 +18369,6 @@
       if (bCond.lastChild.textContent !== dw) bCond.lastChild.textContent = dw;
       fit();
       bRate.hidden = !testFlight; const rw = simRate + '×'; if (bRate.textContent !== rw) bRate.textContent = rw; bRate.disabled = floatsOn();
-      const mmOff = !!($('mmp') || {}).hidden; if (bMm.hidden !== !mmOff) bMm.hidden = !mmOff;   // the button only while the minimap is away
     };
     setInterval(() => { try { if (!inGarage) tick(); } catch (e) {} }, 500);
     window.addEventListener('resize', () => { try { fit(); } catch (e) {} });
