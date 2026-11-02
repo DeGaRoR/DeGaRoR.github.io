@@ -18,7 +18,8 @@
 //                                 default q,s,t,f
 //        [--views hero:<yaw>/<el>/<fov>,profile]  PORTRAITS (2 Nov): the level airframe from <yaw> deg off the nose
 //                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens (then,
-//                                 optional, /<fill> the box's share of the frame, default 0.84, and /<W>x<H> the still's
+//                                 optional, /<fill> the aeroplane's share of the frame, default 0.84 - <fill>c: of the
+//                                 inscribed circle instead, a maskable icon's safe zone - and /<W>x<H> the still's
 //                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); the left
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
@@ -182,7 +183,12 @@ const PORTRAIT = `(o) => {
   const fwd = V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
   const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
   const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
-  const corners = []; for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
+  // the fit's points: the drawn vertices themselves (a few hundred a mesh), not the box's corners - a 3/4 eye throws a
+  // box's corners far wider than the aeroplane (the 20:50 take's heroes filled half the frame, off centre)
+  const corners = [], pv = V();
+  root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
+    const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) corners.push(pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c)); });
+  if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
   const yaw = (o.kind === 'hero' ? o.yaw : 90) * Math.PI / 180, el = (o.kind === 'hero' ? o.el : 0) * Math.PI / 180;
   const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
   const fill = o.fill || 0.84;
@@ -195,7 +201,7 @@ const PORTRAIT = `(o) => {
       cam.position.copy(t).addScaledVector(d, 10); cam.up.copy(up); cam.lookAt(t); cam.updateMatrixWorld(true);
       const rx = V(1, 0, 0).transformDirection(cam.matrixWorld), ry = V(0, 1, 0).transformDirection(cam.matrixWorld);
       const off = c.clone().sub(t);
-      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv); }
+      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, o.circle ? z + Math.hypot(p.dot(rx) / th, p.dot(ry) / tv) : Math.max(z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv)); }
       cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
       let x0 = 1, x1 = -1, y0 = 1, y1 = -1; for (const p0 of corners) { const q = p0.clone().add(c).project(cam); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
       const tt = Math.tan(o.fov * Math.PI / 360);
@@ -335,9 +341,9 @@ async function shoot(o) {
             // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the box's share of the frame and the still's own size (the app
             // icon's square, A0 2 Nov) over --psize
             const hp = v === 'profile' ? [] : v.slice(5).split('/');
-            const [yaw, el, fov, fill] = v === 'profile' ? [90, 0, 0, 0] : hp.slice(0, 4).map(Number);
+            const [yaw, el, fov, fill] = v === 'profile' ? [90, 0, 0, 0] : hp.slice(0, 4).map(parseFloat);
             const ps = hp[4] ? hp[4].split('x').map(Number) : o.psize;
-            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, fill: fill || 0, w: ps[0], h: ps[1], ss: 2 }, o.look);
+            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, fill: fill || 0, circle: /c$/.test(hp[3] || ''), w: ps[0], h: ps[1], ss: 2 }, o.look);
             if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
@@ -508,7 +514,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
