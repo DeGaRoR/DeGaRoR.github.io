@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f86d37bcee5f2e89
+// body-sha256: fdf1e2746a5041ac
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36391,6 +36391,27 @@ function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
   return [h * t * cy, halfW * t * cz];
 }
 
+// CABIN-CRAFT (2026-11-02): THE COWL'S FIREWALL WIDTH BY LEVEL - the cage's `cw_wAftTop` / `cw_wAftBot` (the cowl
+// layer's 'width at the top / bottom line (x widest)', _cowl_gen.js wAftTop): the drawn section narrows with height,
+// 1 at the waist, w at the line, faded to 1 at the nose. The flown cowl wets and weighs that section. Null when both
+// are absent or 1 - every caller then takes its old path, to the bit.
+function genCowlWidths(S) {
+  const c = S && S.cage;
+  if (!c) return null;
+  const t = c.cw_wAftTop != null && isFinite(+c.cw_wAftTop) ? Math.max(0.2, Math.min(2, +c.cw_wAftTop)) : 1;
+  const b = c.cw_wAftBot != null && isFinite(+c.cw_wAftBot) ? Math.max(0.2, Math.min(2, +c.cw_wAftBot)) : 1;
+  return (t === 1 && b === 1) ? null : { top: t, bot: b };
+}
+// genSect with the width by level (the drawn cowl's sectPt rule): the lateral coordinate scales by 1 + (w - 1) v,
+// v the height over the half's own depth
+function genSectW(theta, halfW, yUp, yDn, nTop, nBot, wTop, wBot) {
+  const q = genSect(theta, halfW, yUp, yDn, nTop, nBot);
+  const up = q[0] >= 0, w = up ? wTop : wBot;
+  if (w == null || w === 1) return q;
+  const h = Math.max(1e-5, up ? yUp : yDn);
+  return [q[0], q[1] * (1 + (w - 1) * Math.min(1, Math.abs(q[0]) / h))];
+}
+
 // Symmetric superellipse about the section centre. Retained because the cowl,
 // the tail cone cap and the legacy genRing wrapper all want a shape that is the
 // same above and below; new work should prefer genSect.
@@ -40625,6 +40646,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
       cowlM = per * Math.max(0.1, cb.noseGap) *
               (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
+      // CABIN-CRAFT (2026-11-02): A FIREWALL NARROWER AT THE TOP (or the bottom) IS LESS SKIN - the drawn section's
+      // girth over the round one's (genSectW, the drag build-up's own walk), averaged firewall -> nose where it fades
+      // to 1. Absent rows: no factor, the bit it was.
+      const cwW = genCowlWidths(S);
+      if (cwW) {
+        const girth = w => { let L = 0, pv = null;
+          for (let i = 0; i <= 48; i++) { const q = w ? genSectW(2 * Math.PI * i / 48, a2, b2, b2, 2, 2, w.top, w.bot)
+                                                      : genSect(2 * Math.PI * i / 48, a2, b2, b2, 2, 2);
+            if (pv) L += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; }
+          return L; };
+        const g1 = girth(null);
+        if (g1 > 0) cowlM *= 0.5 * (1 + girth(cwW) / g1);
+      }
     }
     // THE EXHAUST, from the power it carries. Electric has none.
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
@@ -41557,12 +41591,14 @@ function genFusSwet(S, ST) {
   const nT = genCrownToN(fu.crownTop == null ? 0.72 : fu.crownTop);
   const nB = genCrownToN(fu.crownSide == null ? 0.07 : fu.crownSide);
   const N = 32;
-  const per = (halfW, h, nTop, nBot) => {
+  // (CABIN-CRAFT: `w` - the cowl's width by level, genCowlWidths - only on the cowl's own stations)
+  const per = (halfW, h, nTop, nBot, w) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let L = 0, prev = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
+                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) L += Math.hypot(q[0] - prev[0], q[1] - prev[1]);
       prev = q;
     }
@@ -41570,12 +41606,13 @@ function genFusSwet(S, ST) {
   };
   // ...and the section's AREA, the same walk closed by the shoelace (G461,
   // the body's own pitching moment needs the volume)
-  const area = (halfW, h, nTop, nBot) => {
+  const area = (halfW, h, nTop, nBot, w) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let a = 0, prev = null, first = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
+                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) a += prev[0] * q[1] - q[0] * prev[1];
       prev = q; if (!first) first = q;
     }
@@ -41591,9 +41628,11 @@ function genFusSwet(S, ST) {
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
     const K = 8; let prevP = null, prevA = null;
+    const cwW = genCowlWidths(S);                  // CABIN-CRAFT: the drawn firewall's width by level (null = as before)
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      const ww = cwW ? { top: cwW.top + (1 - cwW.top) * c.t, bot: cwW.bot + (1 - cwW.bot) * c.t } : null;
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww);
       if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
       prevP = pc; prevA = ac;
     }
