@@ -731,9 +731,12 @@ if (!BENCH_ONLY) {
   const FXS = path.join(T, 'fixtures', 'stol_cub_showcase.json'), RUN = path.join(T, '_stol_leg.js');
   const LEGS = { bush: ['--profile', 'bush'], gust: ['--wind', '1,4', '--gust', '0.6'], xwind: ['--wind', '0,2'] };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stol9_')), t0 = Date.now();
-  const q = a => "'" + String(a).replace(/'/g, "'\\''") + "'";
-  cp.execSync(Object.keys(LEGS).map(k => [process.execPath, RUN, FXS, ...LEGS[k]].map(q).join(' ') + ' > ' + q(path.join(dir, k + '.out')) + ' 2>&1 &').join(' ') + ' wait',
-              { shell: '/bin/bash', stdio: 'inherit' });
+  // the three legs side by side, each into its .out, waited for: node is the launcher (A0 3 Nov: shell '/bin/bash' threw
+  // ENOENT under the Windows node - the box has no /bin/bash, the section never ran there)
+  const jobs = Object.keys(LEGS).map(k => ({ args: [RUN, FXS, ...LEGS[k]], out: path.join(dir, k + '.out') }));
+  cp.execFileSync(process.execPath, ['-e', "const cp = require('child_process'), fs = require('fs');" +
+    'for (const j of ' + JSON.stringify(jobs) + ") { const fd = fs.openSync(j.out, 'w'); cp.spawn(process.execPath, j.args, { stdio: ['ignore', fd, fd] }).on('exit', () => fs.closeSync(fd)); }"],
+    { stdio: 'inherit' });
   const R = {};
   for (const k of Object.keys(LEGS)) {
     const txt = fs.readFileSync(path.join(dir, k + '.out'), 'utf8').trim().split('\n');
