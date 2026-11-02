@@ -5,15 +5,17 @@
 // cushion, piping, lap belts: leaving any out is what makes a seat read
 // as a box), procedural CONTROLS (pedals, stick/yoke/side-stick, throttle
 // as wall lever / dash push-pull / console quadrant, optional centre
-// console) and the ATD-01 DUMMY (ported from Downloads/mannequin_poser
-// .html: same skeleton, same analytic two-bone IK), auto-laced to the
-// controls: hands and feet find the grips from the CONTROL POSITIONS, so
-// moving a slider re-poses the dummy. Percentile stature per the poser.
+// console) and the OCCUPANTS: a 19-joint skeleton with analytic two-bone
+// IK, built to each character's own proportions and dressed by it
+// (_cage_char.js), auto-laced to the controls: hands and feet find the grips
+// from the CONTROL POSITIONS, so moving a slider re-poses the body.
+// Percentile stature. THE PILOT IS THE RACER (ch20, G3700: the user, 25 Oct,
+// "it will always be them by default").
 //
 // UNITS: the cage template is treated as METRES (cabin halfW 0.554 →
 // 1.11 m side-by-side cabin; keel→roof ≈ 1.9 m — both plausible). The
-// dummy is the calibration instrument: if it doesn't fit, the AEROPLANE
-// is the thing to resize.
+// pilot is the calibration instrument: if the racer doesn't fit, the
+// AEROPLANE is the thing to resize.
 //
 // Wiring: this file loads AFTER _cage_gen.js and BEFORE _cage_ui.js.
 // It attaches window.CAGE_PAGE.post, which _cage_ui.js calls at the end
@@ -42,8 +44,6 @@ const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 // underneath as MFALL and is what a bench with no AEROSKIN loaded still gets.
 const lam = c => new THREE.MeshLambertMaterial({ color: c });
 const MFALL = {
-  shell:   lam(0xd6a11c),      // ATD amber
-  joint:   lam(0x24282e),
   dark:    lam(0x363b42),
   cushion: lam(0x7a4f33),
   pipe:    lam(0xd8cdb6),
@@ -75,7 +75,6 @@ const MFALL = {
   tread:   lam(0x202227),      // a pedal's rubber
   plateAl: lam(0xd0d4d8),      // a pedal's plate: the dash's own metal
   seatAlu: lam(0xb6bcc3),      // the seats' tube frame (G332: alloy, not 4130)
-  marker:  new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
 };
 // FrontSide, matching the Lambert it replaces. A getter per name, so every
 // `M.cushion` in the file below is now a question rather than a constant and
@@ -258,7 +257,6 @@ function tubeRun(bag, pts, r, sides, ends) {
 // ---- the cushion: a PUFFED SLAB (port of 63_gen_skin's builder) -----------
 // grid whose thickness falls to zero at the rim on a soft power curve,
 // grooved along the seam lines; piping (the welt) swept round the rim.
-const smoothS = t => t * t * (3 - 2 * t);
 function cushion(parent, ctr, ax, al, up, hw, hd, th, flutes, tuck) {
   const NU = 10, NV = 12;
   const P3 = (a, b, u) => [
@@ -352,7 +350,7 @@ function ribbon(bag, pts, wid, tw) {
 
 // ---- THE SEATS ------------------------------------------------------------
 // Three types, ONE interface: every builder returns the numbers the
-// controls and the dummy lace to (panY, floor, szc, hw, backH, rake), so
+// controls and the occupant lace to (panY, floor, szc, hw, backH, rake), so
 // the cockpit works identically whichever is fitted (user 2026-08-19).
 //   0 tube     the light-aircraft welded frame + laced cushions
 //   1 shell    a moulded composite bucket, for the almost-lying position
@@ -648,7 +646,7 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
 // quadrant do not share a datum), and this way the default lacing stays
 // correct for every style while one slider set adjusts them all. The
 // whole assembly rides a Group, so the grip anchor — and therefore the
-// dummy's IK — follows automatically.
+// occupant's IK — follows automatically.
 function ctlShift(g, P, kx, ky, kz) {
   const s = new THREE.Group();
   s.position.set(P[kx] || 0, P[ky] || 0, P[kz] || 0);
@@ -662,12 +660,12 @@ function ctlShift(g, P, kx, ky, kz) {
 // publish it as a rigid part and the game can turn it by the same linkage
 // that turns the surfaces at the other end of the cable.
 //
-// THE HAND FOLLOWS THE STICK (live crew, 2026-09-11): a seated dummy's hand
+// THE HAND FOLLOWS THE STICK (live crew, 2026-09-11): a seated occupant's hand
 // is posed by IK at BUILD time against the grip where it then is — and the
 // grip is a CHILD of the moving group, so in flight the pilot crosses the
 // join as a SKELETON (markLive / CAGE_CREW.live), app.js turns the same
 // group and re-runs solveGripJob against the grip where it now is. What
-// stays baked (passengers, an ATD) keeps G210.2's frozen pose.
+// stays baked (the passengers) keeps G210.2's frozen pose.
 let CTL_MOVING = [], LIVE_CREW = [];
 // a throttle lever's full travel (rad, forward from the drawn idle) and a
 // push-pull rod's, as a fraction of its length
@@ -714,9 +712,14 @@ function anchorAt(parent, p, rx, ry) {
 // direction the arm arrives from: hand +x (its width) along the grip,
 // hand -y (its length, wrist->fingertips) wrapping away from the
 // shoulder. `fixed` anchors (the feet) keep the orientation as authored.
-function gripAt(parent, p, axis) {
+// `r` (G3700 HANDS): the grip's own radius where the hand closes - a control
+// that declares it gets the fingers curled to that radius and the hollow of
+// the hand (not the middle phalanges) put on the anchor, which is then the
+// AXIS the hand wraps (fitFists)
+function gripAt(parent, p, axis, r) {
   const o = anchorAt(parent, p);
   o.userData.grip = new THREE.Vector3(axis[0], axis[1], axis[2]).normalize();
+  if (r) o.userData.gripR = r;
   return o;
 }
 const _gx = new THREE.Vector3(), _gy = new THREE.Vector3(),
@@ -823,7 +826,7 @@ function buildStickCenter(g0, A, P, sx, seat) {
   // it under the thumb; the axis IS the shaft.
   const gc = K2 ? [T[0] - up[0] * 0.046, T[1] - up[1] * 0.046, T[2] - up[2] * 0.046]
                 : [T[0], T[1] + 0.035, T[2] + 0.006];
-  return { obj: gripAt(gP, gc, up), label: 'stick' };
+  return { obj: gripAt(gP, gc, up, 0.020), label: 'stick' };
 }
 // the yoke's forward-most metal: the hub's face at +0.052 from its origin
 // (the horns sweep to +0.036 behind it)
@@ -904,7 +907,7 @@ function buildYoke(g0, A, P, sx) {
     }
     // the horn IS the grip axis (out and up from the hub)
     grips[sd] = gripAt(gY, [sd * 0.132, 0.062, 0.030],
-                       [sd * 0.045, 0.080, 0.010]);
+                       [sd * 0.045, 0.080, 0.010], 0.016);
   }
   return { objL: grips[1], objR: grips[-1], label: 'yoke' };
 }
@@ -927,7 +930,7 @@ function buildStickSide(g0, A, P, sx, seat) {
   tube(gS, M.knob, [0, sl - 0.005, -sl * 0.15],
        [0, sl + 0.055, -sl * 0.15 - 0.010], 0.018);
   return { obj: gripAt(gS, [0, sl + 0.025, -sl * 0.15 - 0.004],
-                       [0, 0.99, -0.15]),
+                       [0, 0.99, -0.15], 0.018),
            label: 'side stick' };
 }
 // THE RUDDER PEDALS (G331, the user: "The pedals are really crude. I think
@@ -1116,7 +1119,11 @@ function buildPedals(g, A, P, sx) {
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
 // a twin: wing nacelles (engMount 3) with the engine on - two throttle levers
-const twinEngines = P => !!(P && +P.engOn && Math.round(+P.engMount || 0) === 3);
+// ENGINE-CONFIGS-2 (G3494): ONE LEVER AN ENGINE - the push-pull's two (4), the three's three (5), the four's four (6),
+// each on its own engine's drive (thr0..thr3, makeLinkage's own keys); the first two stay the twin's, the rest follow
+const engLevers = P => (P && +P.engOn) ? ({ 3: 2, 4: 2, 5: 3, 6: 4 })[Math.round(+P.engMount || 0)] || 1 : 1;
+const twinEngines = P => engLevers(P) > 1;
+const moreLevers = (P, dxOf) => { const o = []; for (let i = 2; i < engLevers(P); i++) o.push(['edCtl_throttle' + (i + 1), 'thr' + i, dxOf(i)]); return o; };
 function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
@@ -1175,6 +1182,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // holds the first; a single engine keeps the one lever on 'thr'
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.028]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => inb * 0.028 * i));
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {
     const pv = [piv[0] + dx, piv[1], piv[2]];
@@ -1197,9 +1205,10 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // ball knob on a quadrant lever is held from above and behind: the
   // fingers curl over it fore-and-aft, the thumb inboard, so the axis the
   // hand wraps is the PIVOT's (lateral), and the wrist then continues the
-  // forearm with no twist. The anchor rides a little above the ball's
-  // centre, where the palm actually lands.
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [inb, 0, 0]),
+  // forearm with no twist. G3700 HANDS: the anchor is the ball's centre, the
+  // axis the curled fingers wrap (it rode 12 mm above, where the palm had
+  // landed when the middle phalanges were aimed at it).
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.030),
            label: 'throttle (wall)' };
 }
 // THE THROTTLE THROUGH THE SHOULDER (G344, ctlThr 5): drawn off the cage
@@ -1254,7 +1263,7 @@ function buildThrottleSlot(g0, A, P, L) {
   KW.revolve(boss, [0, -0.008, 0], [0, 1, 0], [[0.011, 0], [0.011, 0.016], [0, 0.016]], 16, true);
   KW.revolve(kb, K, _nrm3(K), ballProf(0.020, 0.010), 32, true);
   arm.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.004], [inb, 0, 0]), label: 'throttle (shoulder)' };
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.020), label: 'throttle (shoulder)' };
 }
 function buildThrottleDash(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
@@ -1272,6 +1281,7 @@ function buildThrottleDash(g0, A, P, sx) {
   // (twinEngines / thr0, thr1); a single engine keeps its one rod on 'thr'
   const inb = sx >= 0 ? -1 : 1;
   const rods = twinEngines(P) ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.056]] : [['edCtl_throttle', 'thr', 0]];
+  rods.push(...moreLevers(P, i => inb * 0.056 * i));
   let first = null;
   for (const [nm, drv, dx] of rods) {
     const xR = xT + dx;
@@ -1324,7 +1334,7 @@ function buildThrottleDash(g0, A, P, sx) {
   // fingers curled over its top and the thumb round its side — the axis
   // the hand wraps is lateral, the wrist continues the forearm, and the
   // knob's own centre (the head runs z +0.008 .. -0.026) sits in the palm.
-  return { obj: gripAt(first, [0, 0.004, -0.008], [1, 0, 0]),
+  return { obj: gripAt(first, [0, 0.004, -0.008], [1, 0, 0], 0.015),
            label: 'throttle (push-pull)', twinDx: rods.length > 1 ? rods[1][2] : 0 };
 }
 // THE CONSOLE BOX IS A SIDE-BY-SIDE FITTING (user 2026-08-19): with one
@@ -1382,6 +1392,7 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   // drive (the wall lever's rule); the boss is one across the box either way
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', -0.012], ['edCtl_throttle2', 'thr1', 0.012]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => i === 2 ? -0.034 : 0.034));   // (the three's and the four's, outside the pair)
   const hw = twin ? 0.009 : 0.012;
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {
@@ -1397,8 +1408,9 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
     } else { tube(gL, M.metal, [0, 0, 0], KL, 0.008); ballAt(gL, M.knob, KL, 0.024); }
     if (!gT) { gT = gL; K = KL; }
   }
-  // held from above like the wall lever's ball (G279): the pivot's axis
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [1, 0, 0]),
+  // held from above like the wall lever's ball (G279): the pivot's axis,
+  // through the ball's centre (G3700 HANDS)
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [1, 0, 0], twin ? 0.020 : 0.024),
            label: 'throttle (quadrant)' };
 }
 
@@ -1895,7 +1907,7 @@ function buildPanel(parent, A, P, pilotX) {
 }
 
 // (G94's floorboards were drawn here until G267 — see the call site; the
-// floor is back as the cabin's own cut, G331, buildFloor above the dummy.)
+// floor is back as the cabin's own cut, G331, buildFloor above the occupants.)
 
 // ---- THE FLOOR (G331) ------------------------------------------------------
 // (the user: "A proper floor. But it needs to match exactly the geometry. I
@@ -2437,89 +2449,35 @@ function buildFloor(g, A, P, mesh, seats, scene) {
                   slots: slots.map(s => s.map(v => +v.toFixed(3))), holes: holes.map(h => ({ x: [+h.x0.toFixed(3), +h.x1.toFixed(3)], z: [+h.z0.toFixed(3), +h.z1.toFixed(3)] })) } };
 }
 
-// ---- THE DUMMY (mannequin_poser.html port) --------------------------------
-const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
-// guarded: the node gates load this file under a THREE stub whose materials
-// carry no userData
-if (PICK_MAT.userData) PICK_MAT.userData.cageUni = 1;   // the editor's passes leave it be
-const BONES = [
-  ['root',      null,       [0, 0, 0]],
-  ['lumbar',    'root',     [0, 0.09, 0]],
-  ['thorax',    'lumbar',   [0, 0.16, 0]],
-  ['neck',      'thorax',   [0, 0.24, 0]],
-  ['head',      'neck',     [0, 0.08, 0]],
-  ['clavicleL', 'thorax',   [ 0.045, 0.195, 0]],
-  ['shoulderL', 'clavicleL',[ 0.145, 0.020, 0]],
-  ['elbowL',    'shoulderL',[0, -0.29, 0]],
-  ['wristL',    'elbowL',   [0, -0.26, 0]],
-  ['clavicleR', 'thorax',   [-0.045, 0.195, 0]],
-  ['shoulderR', 'clavicleR',[-0.145, 0.020, 0]],
-  ['elbowR',    'shoulderR',[0, -0.29, 0]],
-  ['wristR',    'elbowR',   [0, -0.26, 0]],
-  ['hipL',      'root',     [ 0.095, -0.02, 0]],
-  ['kneeL',     'hipL',     [0, -0.44, 0]],
-  ['ankleL',    'kneeL',    [0, -0.42, 0]],
-  ['hipR',      'root',     [-0.095, -0.02, 0]],
-  ['kneeR',     'hipR',     [0, -0.44, 0]],
-  ['ankleR',    'kneeR',    [0, -0.42, 0]],
-];
-const BASE_STATURE = 1.75;
-const STATURES = [1.52, 1.75, 1.88];         // 5th F / 50th / 95th M
-
-function segmentGeom(len, rTop, rMid, rBot, seg) {
-  seg = seg || 12;
-  const pts = [new THREE.Vector2(0.0001, -len)];
-  for (let i = seg; i >= 0; i--) {
-    const t = i / seg;
-    const r = t < 0.5
-      ? THREE.MathUtils.lerp(rTop, rMid, smoothS(t * 2))
-      : THREE.MathUtils.lerp(rMid, rBot, smoothS((t - 0.5) * 2));
-    pts.push(new THREE.Vector2(Math.max(r, 0.001), -len * t));
-  }
-  pts.push(new THREE.Vector2(0.0001, 0));
-  return new THREE.LatheGeometry(pts, 18);
-}
-function shellGeom(y0, y1, rfn, seg) {
-  seg = seg || 14;
-  const pts = [new THREE.Vector2(0.0001, y0)];
-  for (let i = 0; i <= seg; i++) {
-    const t = i / seg;
-    pts.push(new THREE.Vector2(Math.max(rfn(t), 0.001),
-      THREE.MathUtils.lerp(y0, y1, t)));
-  }
-  pts.push(new THREE.Vector2(0.0001, y1));
-  return new THREE.LatheGeometry(pts, 20);
-}
-
+// ---- THE BODY --------------------------------------------------------------
+// Every occupant is a character's own SOLVER CHAIN (_cage_char.js rig(): the
+// nineteen Mixamo joints Hips to the feet, at that character's own reference
+// positions and at its own height - G3700: no stand-in body, no stature
+// scaling). A seat whose character cannot be read (no registry, a node gate)
+// is still billed by the join; it simply has no body to draw or pose.
 const CHAINS = {
-  armL: { root: 'shoulderL', mid: 'elbowL', end: 'wristL', arm: true,
-          label: 'L hand' },
-  armR: { root: 'shoulderR', mid: 'elbowR', end: 'wristR', arm: true,
-          label: 'R hand' },
-  legL: { root: 'hipL', mid: 'kneeL', end: 'ankleL', arm: false,
-          label: 'L foot' },
-  legR: { root: 'hipR', mid: 'kneeR', end: 'ankleR', arm: false,
-          label: 'R foot' },
+  armL: { root: 'LeftArm', mid: 'LeftForeArm', end: 'LeftHand', arm: true,
+          side: 'L', label: 'L hand' },
+  armR: { root: 'RightArm', mid: 'RightForeArm', end: 'RightHand', arm: true,
+          side: 'R', label: 'R hand' },
+  legL: { root: 'LeftUpLeg', mid: 'LeftLeg', end: 'LeftFoot', arm: false,
+          side: 'L', label: 'L foot' },
+  legR: { root: 'RightUpLeg', mid: 'RightLeg', end: 'RightFoot', arm: false,
+          side: 'R', label: 'R foot' },
 };
 
-// `suitM` is THIS dummy's own suit material (phase D) — the per-dummy
-// livery section resolved by the caller, null on the standalone bench.
-// Joints and hands/feet stay the shared hardware; only the SHELL dresses.
-// `rig` (G204) swaps the bone table for a CHARACTER's own proportions
-// (_cage_char.js rig(): the same 19 joints, offsets read off the Mixamo
-// reference pose) so the IK lands the character's hands, not the ATD's, on
-// the grips; with a rig and `shells` false the amber shells are not built —
-// the skinned mesh dresses the skeleton instead (shells stay while the mesh
-// is still on the wire, so the seat is never empty).
-// THE BARE SKELETON (LIVE CREW): the fig and its bone tree, nothing drawn.
-// makeDummy hangs the shells on it; the flown pilot (app.js) re-solves its
-// arms on one of these every frame, from the same rig offsets — the ONE pose
-// engine of G204, on both sides of the join.
-function bareDummy(parent, rig) {
+// THE BARE CHAIN (LIVE CREW): the fig and its joint tree, nothing drawn.
+// `rig` (G204) is the CHARACTER's own (_cage_char.js rig()), so the IK lands
+// that body's hands on the grips; the skinned mesh dresses it
+// (CAGE_CHAR.dress). The flown pilot (app.js) re-solves its arms on one of
+// these every frame, from the same rig offsets — the ONE pose engine of
+// G204, on both sides of the join. No rig, no body: null.
+function bareRig(parent, rig) {
+  if (!rig) return null;
   const fig = new THREE.Group();
   parent.add(fig);
   const bones = {};
-  (rig ? rig.bones : BONES).forEach(([name, par, pos]) => {
+  rig.bones.forEach(([name, par, pos]) => {
     const b = new THREE.Object3D();
     b.name = name;
     b.position.set(pos[0], pos[1], pos[2]);
@@ -2528,83 +2486,6 @@ function bareDummy(parent, rig) {
   });
   return { fig, bones };
 }
-function makeDummy(parent, suitM, rig, shells) {
-  const suit = suitM || M.shell;
-  const { fig, bones } = bareDummy(parent, rig);
-  const att = (bn, mesh) => { bones[bn].add(mesh); return mesh; };
-  const jball = (bn, r) =>
-    att(bn, new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), M.joint));
-  // pelvis
-  {
-    const g = shellGeom(-0.10, 0.07,
-      t => 0.088 + 0.055 * smoothS(t) - 0.012 * t * t);
-    const m = new THREE.Mesh(g, suit); m.scale.z = 0.74;
-    att('root', m);
-  }
-  jball('lumbar', 0.082);
-  {
-    const g = shellGeom(0.0, 0.16, t => 0.098 + 0.030 * t);
-    const m = new THREE.Mesh(g, suit); m.scale.z = 0.74;
-    att('lumbar', m);
-  }
-  {
-    const g = shellGeom(-0.02, 0.245, t => {
-      const u = smoothS(clamp(t * 1.25, 0, 1));
-      return 0.118 + 0.048 * u - 0.030 * Math.max(0, (t - 0.82) / 0.18);
-    });
-    const m = new THREE.Mesh(g, suit); m.scale.set(1.06, 1, 0.70);
-    att('thorax', m);
-  }
-  {
-    const n = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.043, 0.050, 0.09, 14), M.joint);
-    n.position.y = 0.035; att('neck', n);
-    const g = shellGeom(-0.075, 0.145, t => {
-      const y = t * 2 - 1;
-      return 0.098 * Math.sqrt(Math.max(0, 1 - y * y * 0.97));
-    }, 16);
-    const h = new THREE.Mesh(g, suit);
-    h.position.y = 0.10; h.scale.set(0.94, 1, 0.90);
-    att('head', h);
-  }
-  for (const s of ['L', 'R']) {
-    jball('shoulder' + s, 0.062);
-    att('shoulder' + s,
-        new THREE.Mesh(segmentGeom(0.29, 0.050, 0.055, 0.040), suit));
-    jball('elbow' + s, 0.049);
-    att('elbow' + s,
-        new THREE.Mesh(segmentGeom(0.26, 0.043, 0.046, 0.032), suit));
-    jball('wrist' + s, 0.036);
-    const hand = new THREE.Mesh(segmentGeom(0.165, 0.034, 0.046, 0.020),
-                                M.dark);
-    hand.scale.set(1.0, 1, 0.52);
-    att('wrist' + s, hand);
-  }
-  for (const s of ['L', 'R']) {
-    jball('hip' + s, 0.072);
-    att('hip' + s,
-        new THREE.Mesh(segmentGeom(0.44, 0.068, 0.072, 0.052), suit));
-    jball('knee' + s, 0.060);
-    att('knee' + s,
-        new THREE.Mesh(segmentGeom(0.42, 0.058, 0.062, 0.040), suit));
-    jball('ankle' + s, 0.043);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.090, 0.055, 0.225),
-                                M.dark);
-    foot.position.set(0, -0.045, 0.058); att('ankle' + s, foot);
-    const toe = new THREE.Mesh(new THREE.BoxGeometry(0.078, 0.038, 0.05),
-                               M.dark);
-    toe.position.set(0, -0.052, 0.185); att('ankle' + s, toe);
-  }
-  // A DRESSED DUMMY KEEPS ITS SHELLS AS THE PICK PROXY (G204.2): drawn by an
-  // invisible material, so nothing shows and nothing shadows, but the
-  // raycast and the highlight (which re-draws a mesh's geometry as its own
-  // child) still find a body that FOLLOWS THE POSE. The skinned mesh itself
-  // is unpickable — r128 would test it at its bind pose under the floor.
-  if (rig && !shells)
-    fig.traverse(o => { if (o.isMesh) { o.material = PICK_MAT; o.userData.pick = 1; } });
-  return { fig, bones };
-}
-
 // pose = { joint: [x,y,z] degrees }; mirrored L→R with y/z negated
 function seatedPose(reclineDeg, resting, tiltDeg) {
   const hip = -88 - (tiltDeg || 0);   // squab tilt raises the thighs
@@ -2613,29 +2494,29 @@ function seatedPose(reclineDeg, resting, tiltDeg) {
   // does not stare at the roof — the neck and head take up the recline
   // so the eyes stay on the horizon. Counter-rotate everything upstream,
   // neck first (it has the range), head for the remainder, both clamped
-  // to the poser's own joint limits.
+  // to the neck's and the head's own ranges.
   const need = -(-reclineDeg + lumbar + thorax);
   const neck = clamp(need * 0.75, -40, 50);
   const head = clamp(need - neck, -25, 25);
   // resting = no controls to hold: arms drop, hands settle on the thighs
   const sym = resting ? {
-    hipL: [hip, 0, 6], kneeL: [88, 0, 0], ankleL: [-4, 0, 0],
-    shoulderL: [-22, 0, 6], elbowL: [-48, 14, 0], wristL: [-14, 0, 0],
+    LeftUpLeg: [hip, 0, 6], LeftLeg: [88, 0, 0], LeftFoot: [-4, 0, 0],
+    LeftArm: [-22, 0, 6], LeftForeArm: [-48, 14, 0], LeftHand: [-14, 0, 0],
   } : {
-    hipL: [hip, 0, 6], kneeL: [88, 0, 0], ankleL: [-4, 0, 0],
-    shoulderL: [-14, 0, 7], elbowL: [-72, 20, 0], wristL: [-6, 0, 0],
+    LeftUpLeg: [hip, 0, 6], LeftLeg: [88, 0, 0], LeftFoot: [-4, 0, 0],
+    LeftArm: [-14, 0, 7], LeftForeArm: [-72, 20, 0], LeftHand: [-6, 0, 0],
   };
   const pose = {};
   for (const n in sym) {
     pose[n] = sym[n].slice();
-    pose[n.slice(0, -1) + 'R'] =
+    pose['Right' + n.slice(4)] =
       [sym[n][0], -sym[n][1], -sym[n][2]];
   }
-  pose.root = [-reclineDeg, 0, 0];
-  pose.lumbar = [lumbar, 0, 0];
-  pose.thorax = [thorax, 0, 0];
-  pose.neck = [neck, 0, 0];
-  pose.head = [head, 0, 0];
+  pose.Hips = [-reclineDeg, 0, 0];
+  pose.Spine = [lumbar, 0, 0];
+  pose.Spine1 = [thorax, 0, 0];
+  pose.Neck = [neck, 0, 0];
+  pose.Head = [head, 0, 0];
   return pose;
 }
 function applyPose(bones, pose) {
@@ -2644,7 +2525,7 @@ function applyPose(bones, pose) {
                           pose[n][2] * D2R);
 }
 
-// ---- analytic two-bone IK (poser port, solved ONCE per build) -------------
+// ---- analytic two-bone IK (solved ONCE per build) -------------------------
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(),
       _v3 = new THREE.Vector3(), _u = new THREE.Vector3(),
       _perp = new THREE.Vector3(), _n = new THREE.Vector3(),
@@ -2664,9 +2545,9 @@ function boneWorldFromBasis(bone, dir, nrm) {
   bone.quaternion.copy(_qp);
 }
 // target/pole are world-space Vector3s; returns the reach gap (m, >0 short)
-function ikSolve(dum, chainKey, target, pole, alignQ) {
-  const c = CHAINS[chainKey], bones = dum.bones;
-  const sc = dum.fig.scale.x;
+function ikSolve(occ, chainKey, target, pole, alignQ) {
+  const c = CHAINS[chainKey], bones = occ.bones;
+  const sc = occ.fig.scale.x;
   const L1 = bones[c.mid].position.length() * sc;
   const L2 = bones[c.end].position.length() * sc;
   bones[c.root].getWorldPosition(_v1);
@@ -2699,9 +2580,9 @@ function ikSolve(dum, chainKey, target, pole, alignQ) {
   }
   return gap;
 }
-// default pole from the CURRENT (FK-seated) bend — the poser's ikInit
-function ikDefaultPole(dum, chainKey, out) {
-  const c = CHAINS[chainKey], bones = dum.bones;
+// default pole from the CURRENT (FK-seated) bend
+function ikDefaultPole(occ, chainKey, out) {
+  const c = CHAINS[chainKey], bones = occ.bones;
   bones[c.root].getWorldPosition(_v1);
   bones[c.mid].getWorldPosition(_v2);
   bones[c.end].getWorldPosition(_v3);
@@ -2711,19 +2592,19 @@ function ikDefaultPole(dum, chainKey, out) {
   _perp.addScaledVector(_u, -_perp.dot(_u));
   if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, c.arm ? -1 : 1);
   _perp.normalize();
-  out.copy(_v2).addScaledVector(_perp, 0.38 * dum.fig.scale.x);
+  out.copy(_v2).addScaledVector(_perp, 0.38 * occ.fig.scale.x);
   return out;
 }
 
 // world position + orientation of a grip anchor Object3D
 const _aq = new THREE.Quaternion(), _ap = new THREE.Vector3();
-const _hv = new THREE.Vector3();
+const _hv = new THREE.Vector3(), _hf = new THREE.Vector3(), _qf = new THREE.Quaternion();
 function anchorWorld(o) {
   o.updateWorldMatrix(true, false);
   return { p: o.getWorldPosition(new THREE.Vector3()),
            q: o.getWorldQuaternion(new THREE.Quaternion()) };
 }
-// ONE GRIP JOB, SOLVED (module scope since the live crew: seatDummy solves
+// ONE GRIP JOB, SOLVED (module scope since the live crew: seatOccupant solves
 // it once at build, the flown pilot solves it again every frame against the
 // grip where the stick now IS). `j` = { chain, a (the anchor), label };
 // `ctx` = { s (stature scale), palm (m, already x s), elbows, knees (the
@@ -2732,24 +2613,30 @@ function anchorWorld(o) {
 // current bend as the editor does) }. Returns the reach gap.
 const _pole = new THREE.Vector3();
 // G2797: the fist options a dress() takes off P - one fist, or one per hand
-function fistOpts(P) {
-  const f = P.dumFist == null ? 0.5 : +P.dumFist;
-  if (!+P.dumHandsApart) return { fist: f };
-  return { fist: f, fistL: P.dumFistL == null ? f : +P.dumFistL,
-           fistR: P.dumFistR == null ? f : +P.dumFistR };
+// G3700 HANDS: a hand closed round a grip that declares its radius wears the
+// curl fitFists solved for it (`occ.fistSolved`); the slider sets the others
+function fistOpts(P, occ) {
+  const f = P.pilFist == null ? 0.5 : +P.pilFist;
+  const sv = occ && occ.fistSolved;
+  if (!+P.pilHandsApart && !sv) return { fist: f };
+  const apart = !!+P.pilHandsApart;
+  const fL = apart && P.pilFistL != null ? +P.pilFistL : f,
+        fR = apart && P.pilFistR != null ? +P.pilFistR : f;
+  return { fist: f, fistL: sv && sv.L != null ? sv.L : fL,
+           fistR: sv && sv.R != null ? sv.R : fR };
 }
-function solveGripJob(dum, j, ctx) {
+function solveGripJob(occ, j, ctx) {
   const c = CHAINS[j.chain], s = ctx.s;
   const pole = _pole;
   if (ctx.poleFig) {
     // the fig's world matrix is REFRESHED first: on a flying aeroplane it is
     // a frame stale here (the renderer updates the tree after the pose), and
     // a pole 33 cm behind the elbow bent the knee a centimetre off (measured)
-    dum.fig.updateWorldMatrix(true, false);
-    dum.fig.localToWorld(pole.copy(ctx.poleFig));
+    occ.fig.updateWorldMatrix(true, false);
+    occ.fig.localToWorld(pole.copy(ctx.poleFig));
   } else {
-    ikDefaultPole(dum, j.chain, pole);
-    const side = /L$/.test(c.end) ? 1 : -1;
+    ikDefaultPole(occ, j.chain, pole);
+    const side = c.side === 'L' ? 1 : -1;
     if (c.arm) {                    // elbows: down + in/out slider
       pole.y -= 0.22 * s;
       pole.x += side * (0.03 + (ctx.elbows || 0)) * s;
@@ -2759,25 +2646,30 @@ function solveGripJob(dum, j, ctx) {
     }
     // the pole the editor chose, in the fig's frame: what the join carries
     // so the flown solve bends the same elbow the same way
-    j.poleFig = dum.fig.worldToLocal(pole.clone());
+    j.poleFig = occ.fig.worldToLocal(pole.clone());
   }
   const aw = anchorWorld(j.a);
   // a GRIP solves its own hand orientation from the arm's approach;
   // a fixed anchor (the feet) uses the orientation as authored
   let alignQ = aw.q;
   if (j.a.userData.grip) {
-    dum.bones[c.root].getWorldPosition(_gv);
+    occ.bones[c.root].getWorldPosition(_gv);
     alignQ = gripQuat(j.a, _gv, _gq);
     // THE HAND HOLDS IT, NOT THE WRIST (user 2026-08-19): the IK end
     // effector is the wrist JOINT, so a grip placed there put the
     // control halfway up the forearm. Back the wrist off along the
     // hand's own axis (its -y) by the palm offset, scaled with
-    // stature so a small dummy does not over-reach.
+    // stature so a small pilot does not over-reach.
     _hv.set(0, -1, 0).applyQuaternion(alignQ);
     // G2797: each hand's own palm when the hands are set apart
-    const palm = /L$/.test(c.end) ? (ctx.palmL != null ? ctx.palmL : ctx.palm)
+    const palm = c.side === 'L' ? (ctx.palmL != null ? ctx.palmL : ctx.palm)
                                   : (ctx.palmR != null ? ctx.palmR : ctx.palm);
     aw.p.addScaledVector(_hv, -palm);
+    // G3875: the stick hand fore/aft, along the pilot's own forward (the fig's +z, the frame the pole is kept in)
+    if (ctx.stickFwd && /→(stick|yoke)/.test(j.label || '')) {   // the control column's hand (L/R→stick, →yoke)
+      occ.fig.updateWorldMatrix(true, false);
+      aw.p.addScaledVector(_hf.set(0, 0, 1).applyQuaternion(occ.fig.getWorldQuaternion(_qf)), ctx.stickFwd);
+    }
     // THE FIST CLOSES ON THE GRIP (G279): `fixH` is where the dressed rig's
     // fist actually closed relative to the grip, in the hand's own frame,
     // measured by fitFists() below and carried into flight by the join —
@@ -2786,19 +2678,19 @@ function solveGripJob(dum, j, ctx) {
     if (j.fixH) aw.p.add(_hv.copy(j.fixH).applyQuaternion(alignQ));
   } else if (j.fixF) {
     // G468: the SOLE lands on the pedal - fitSoles() measured where this
-    // rig's shoe bottom sits against the ATD's, in the anchor's frame
+    // rig's shoe bottom sits against the reference sole, in the anchor's frame
     aw.p.add(_hv.copy(j.fixF).applyQuaternion(alignQ));
   }
-  const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
+  const gap = ikSolve(occ, j.chain, aw.p, pole, alignQ);
   // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
   // grip basis above was solved from the SHOULDER's approach, which
   // twists the hand against the forearm the IK then placed. Solve it
   // again from the ELBOW, so the hand continues the forearm and wraps
   // the grip from where the arm really arrives.
   if (j.a.userData.grip && gap <= 0.12) {
-    dum.bones[c.mid].getWorldPosition(_gv);
+    occ.bones[c.mid].getWorldPosition(_gv);
     const q2 = gripQuat(j.a, _gv, _gq);
-    const wb = dum.bones[c.end];
+    const wb = occ.bones[c.end];
     wb.parent.getWorldQuaternion(_qp).invert();
     wb.quaternion.copy(_qp.multiply(q2));
     wb.updateMatrixWorld(true);
@@ -2808,15 +2700,15 @@ function solveGripJob(dum, j, ctx) {
   // between them IS the palm offset, i.e. the proof the HAND and
   // not the joint is on the control
   { const w = new THREE.Vector3();
-    dum.bones[c.end].getWorldPosition(w);
+    occ.bones[c.end].getWorldPosition(w);
     j.wrist = [+w.x.toFixed(3), +w.y.toFixed(3), +w.z.toFixed(3)]; }
   if (gap > 0.12) {
     // hopeless stretch reads as a defect — fall back to the rest
     // pose and let the readout carry the finding instead
     if (ctx.base) for (const bn of [c.root, c.mid, c.end]) if (ctx.base[bn])
-      dum.bones[bn].rotation.set(ctx.base[bn][0] * D2R,
+      occ.bones[bn].rotation.set(ctx.base[bn][0] * D2R,
         ctx.base[bn][1] * D2R, ctx.base[bn][2] * D2R);
-    dum.fig.updateMatrixWorld(true);
+    occ.fig.updateMatrixWorld(true);
     ctx.notes.push(c.label + ' OUT OF REACH ' + (gap * 100).toFixed(0)
                    + 'cm (' + j.label + ')');
   } else if (gap > 0.005)
@@ -2842,7 +2734,10 @@ function anchors(spec, P, mesh) {
   const rg = n => R.rings.find(r => r.name === n);
   const cabB = rg('pilCabB');
   const win = rg('ring');
-  const wsF = rg('wsFront') || rg('aeroWsA') || win;
+  // G3511: an OPEN pilot section's panel stands under its fore coaming (the
+  // opening's fore ring, cpOpenB) - not under the decking ahead of it, at the
+  // windscreen ring a closed cabin's dash hangs from
+  const wsF = rg('cpOpenB') || rg('wsFront') || rg('aeroWsA') || win;
   // centreline keel polyline, scaled to world (metres)
   const pts = R.rings.map(r => ({
     z: (r.lv.keel.zC != null ? r.lv.keel.zC : r.lv.keel.z) * k,
@@ -2894,9 +2789,26 @@ function anchors(spec, P, mesh) {
   // sill, where you step in) — the floor is drawn there and everything
   // that stands on the floor stands on it
   const floorAt = z => keelAt(z) + sillOff + (+P.floorLift || 0);
-  const zBack = (cabB ? cabB.lv.waist.z : 0) * k + 0.05 + (P.seatZ || 0);
-  const zDash = ((wsF ? wsF.lv.waist.z : (win ? win.lv.waist.z : 1) + 0.5)
+  let zBack = (cabB ? cabB.lv.waist.z : 0) * k + 0.05 + (P.seatZ || 0);
+  let zDash = ((wsF ? wsF.lv.waist.z : (win ? win.lv.waist.z : 1) + 0.5)
               - (P.dashBack || 0.05)) * k - 0.02;
+  // G3515 (NEW-SHAPES-1, the user: "have an option in the seat section to
+  // designate back seat as pilot seat ... If the rear is designated as the
+  // pilot, it gets the dashboard. The other gets nothing for now"): THE
+  // PILOT'S STATION MOVES TO BAY 1 - the seat off bay 1's aft ring (the
+  // cockpit's own rule: + 0.05 + the pilot's seatZ), the panel under its fore
+  // coaming when it is open (pax<i>OpenB) or at its forward ring - and every
+  // control that stands off the station (the pedals, the throttle, the stick,
+  // the panel) follows it. The cockpit row keeps its own station
+  // (zBackCockpit) for the second person, with nothing in front of them.
+  const rear = crewPilotRear(P);
+  const zBackCockpit = zBack;
+  if (rear) {
+    const i = rear.i;
+    const rA = rg('pilPaxB' + (i || '')), rF = rg('pax' + i + 'OpenB') || rg(i > 0 ? 'pilPaxM' + (i - 1) : 'pilCabA');
+    if (rA) zBack = rA.lv.waist.z * k + 0.05 + (P.seatZ || 0);
+    if (rF) zDash = (rF.lv.waist.z - (P.dashBack || 0.05)) * k - 0.02;
+  }
   // (overall plane dims now come from the displayed bounding box in the
   // viewer's dimensions pane — the honest measure, canopy included)
   // THE DASH SHELL'S OWN BAND, MEASURED (G94, corrected here). The first cut
@@ -3185,10 +3097,14 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F) for (const f of mesh.F) if (f.m === 'firewall') for (const vi of f.v) zFire = Math.max(zFire, mesh.V[vi][2] * k);
   // (flexLayout, G3341: the arch dash is the new builds' — their panel takes
   // the flexible dial layout when the standard one leaves a dial off)
-  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch), face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // (G3515: the cockpit's dash shell is the FRONT seat's - a rear pilot's panel
+  // stands on its own at the rear station, its height off the floor rule)
+  if (rear) { dashLip = null; dashTop = null; dashAftZ = null; face = null; }
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
+           zBackCockpit, pilotRear: !!rear,
            // G180: the resolved rings, so a passenger bay's seat row can be
            // placed off the bay's own aft ring the way the pilot's is off
            // the cockpit's
@@ -3208,9 +3124,17 @@ function anchors(spec, P, mesh) {
 // cockpit's second seat, `paxOcc<n>` says how many sit in bay n, bays counted
 // FRONT TO BACK from the cockpit (bay 1 is the one behind the pilot; the cage
 // numbers its rings from the aft bulkhead, which is why the ring index is
-// inverted below). A filled seat gets a dummy AND a mass; an empty one keeps
+// inverted below). A filled seat gets a body AND a mass; an empty one keeps
 // its chair. Seat order out of here is the order the join and the frame bill
 // in: pilot, the cockpit's other seat, then bay 1's row, bay 2's...
+// G3515: the rear-pilot designation, when it can apply - a tandem cockpit (one
+// seat abreast) with a bay behind it; null otherwise (every build before it)
+function crewPilotRear(P) {
+  if (!P || !(Math.round(+P.pilotRear || 0) > 0)) return null;
+  const bays = Math.max(0, Math.round(+P.paxCount || 0));
+  if (bays < 1 || Math.round(+P.seatLayout || 0) === 1 || +P.mirror) return null;
+  return { i: bays - 1 };                        // bay 1, front to back, is cage bay (bays - 1)
+}
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
   const abreast = lay === 1 ? 2 : 1;
@@ -3235,7 +3159,7 @@ function seatPlaces(A, P) {
     return xs;
   };
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
-  // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
+  // skeleton's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
   const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
   const row = (zBack, halfW, section, filled, ab) => {
@@ -3251,7 +3175,13 @@ function seatPlaces(A, P) {
                  filled: section === 0 && j === 0 ? true : j < filled });
     return out;
   };
-  const seats = row(A.zBack, A.halfW, 0, 1 + (+P.cabOcc ? 1 : 0));
+  // G3515: with the pilot in bay 1 the cockpit row is the second person's
+  // (bay 1's `seated` row says whether they are aboard) and the pilot's seat
+  // leads the list (the order the join and the frame bill in: pilot first)
+  const rear = A.pilotRear;
+  const seats = rear ? [] : row(A.zBack, A.halfW, 0, 1 + (+P.cabOcc ? 1 : 0));
+  const front = rear ? row(A.zBackCockpit, A.halfW, 0, Math.min(1, Math.round(+P.paxOcc1 || 0)))
+                         .map(s => Object.assign(s, { pilot: false })) : null;
   const rings = A.rings || [];
   const rg = n => rings.find(r => r.name === n);
   for (let n = 1; n <= bays; n++) {
@@ -3263,6 +3193,14 @@ function seatPlaces(A, P) {
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
+    if (rear && n === 1) {
+      // the pilot's row: the station seat (A.zBack), the pilot in its first
+      // seat, the row's others empty; then the cockpit's second person
+      const r1 = row(A.zBack, halfW, n, 0, paxAb);
+      r1[0].pilot = true; r1[0].filled = true;
+      seats.push(r1[0], ...front, ...r1.slice(1));
+      continue;
+    }
     const rows = Math.max(1, Math.round(+P.paxRows || 1));
     if (rows === 1) { seats.push(...row(zBack, halfW, n, Math.min(perRowOf(paxAb), want), paxAb)); continue; }
     // G3573: the bay's front ring (the next bay forward's aft ring, or the cockpit's back for the first bay)
@@ -3302,8 +3240,8 @@ const charRebuild = () => {
   }, 60);
 };
 // THE CREW IS PENDING while a character is on the wire or its rebuild is
-// armed (G1985, JOIN-PARITY): the layer stands the ATD (or a half-dressed
-// rig) in the meantime, and the energy layer must not SHAPE a tank to that
+// armed (G1985, JOIN-PARITY): the seat holds an undressed chain (or a
+// half-dressed rig) in the meantime, and the energy layer must not SHAPE a tank to that
 // stand-in - measured in the game on the user's Cub, a nose tank shaped at
 // t = 18 s of the boot against the waiting crew (feet splayed 16 cm off the
 // centreline, 3 cm low) was 29 L and kept, the same file loaded after the
@@ -3544,21 +3482,23 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     catch (e) { console.error('panel:', e); panel = null; }
   if (!panel) panel = buildPanel(group, A, P, pilot.x);
 
-  // ---- dummies ----
-  // TWO POSES, NOT ONE PER BODY (G180, the user: "all the passenger and dummy
-  // positions will be the same for all dummies"): the cockpit's occupants
-  // take the pilot's stature and recline, every bay's the passenger set
-  const sPilot = STATURES[clamp(Math.round(P.dumSize), 0, 2)] / BASE_STATURE;
-  const sPax = STATURES[clamp(Math.round(P.paxSize == null ? 1 : P.paxSize), 0, 2)]
-             / BASE_STATURE;
-  const POSE_PILOT = { s: sPilot, recline: P.dumRecline || 0 };
-  const POSE_PAX = { s: sPax, recline: P.paxRecline || 0 };
+  // ---- the occupants ----
+  // TWO POSES, NOT ONE PER BODY (G180, the user: every passenger sits the
+  // same way, and so does every pilot): the cockpit's occupants take the
+  // pilot's recline, every bay's the passengers'. No stature: each character
+  // sits at its own Mixamo height (G3700).
+  const POSE_PILOT = { recline: P.pilRecline || 0 };
+  const POSE_PAX = { recline: P.paxRecline || 0 };
   const notes = [];
   // EVERY OCCUPANT IS POSED THE SAME WAY (user 2026-08-19): the second
-  // dummy is not a passenger ornament — give it a station and it flies
+  // occupant is not a passenger ornament — give it a station and it flies
   // from it, by the identical rules. Without one it rests its hands.
-  // WHO SITS WHERE (G204/G204.1). `pilotWho` and `copWho` read the same list:
-  // 0 = mixed crew, 1 = the ATD-01, 2.. = one declared character (tools/
+  // WHO SITS WHERE (G204/G204.1; G3700). THE PILOT IS THE RACER, always
+  // (CAGE_CHAR.RACER, ch20; the user, 25 Oct: "Our test guy is the racer
+  // mixamo character [...] it will always be them by default"): no saved
+  // build names its pilot any more (cageFromSpec drops `pilotWho`), and only
+  // the career's hired pilot (below) takes the seat from them. `cabWho` picks
+  // the co-pilot: 0 = mixed crew, 1.. = one declared character (tools/
   // chars_table.py order). MIXED CREW ROTATES: every seat that says 'mixed'
   // takes the next character off a cycle that starts at a hash of the
   // aeroplane's registration (the user: 'alternate between characters on
@@ -3572,13 +3512,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   const CH_LIST = window.CAGE_CHAR ? window.CAGE_CHAR.list() : [];
   const whoOf = v => Math.round(+v || 0);
   // G2290 (PILOTS): THE CAREER'S PILOT WEARS THEIR BODY - window.CAGE_CREW_PILOT(key) (app.js, ?career=1 only) seats
-  // that character (a chars_table key) in the pilot's seat in place of the spec's pilotWho; null hands the seat back.
-  // The sandbox never sets it, so its crew is the spec's, as before.
+  // that character (a chars_table key) in the pilot's seat in place of the racer; null hands the seat back.
+  // The sandbox never sets it, so its pilot is the racer.
   const crewKey = window.FLYDIY_CREW_PILOT || null;
-  const crewIdx = crewKey ? CH_LIST.findIndex(c => c && c.key === crewKey) : -1;
-  const pilotWho = crewIdx >= 0 ? crewIdx + 2 : P.pilotWho;
-  const named = new Set([pilotWho, P.cabOcc ? P.copWho : 0].map(whoOf)
-    .filter(v => v >= 2).map(v => v - 2));
+  const keyIdx = k => k ? CH_LIST.findIndex(c => c && c.key === k) : -1;
+  const crewIdx = keyIdx(crewKey);
+  const pilotIdx = crewIdx >= 0 ? crewIdx : keyIdx(window.CAGE_CHAR && window.CAGE_CHAR.RACER);
+  const named = new Set([pilotIdx, P.cabOcc ? whoOf(P.cabWho) - 1 : -1].filter(i => i >= 0));
   const cycle = CH_LIST.map((c, i) => i).filter(i => !named.has(i));
   const S0 = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get();
   const regStr = String((S0 && (S0.reg || (S0.meta && S0.meta.reg))) || '');
@@ -3595,7 +3535,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
-        // G1985: a FAILED character rebuilds too - the crew stays the ATD, and the layers that waited on the crew
+        // G1985: a FAILED character rebuilds too - the seat keeps its undressed chain, and the layers that waited on the crew
         // (the energy layer's tank shape) settle on it now rather than on the next edit
         if (window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
         if (window.BOOT) window.BOOT.landed('crew', !!d, c.key);
@@ -3603,39 +3543,40 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     }
     return { key: c.key, label: c.label, rig, ready };
   };
-  // role: 'pilot' | 'cop' | 'pax' — the seat's own select, or the cycle
+  // role: 'pilot' | 'cop' | 'pax' — the racer (or the hired pilot), the
+  // co-pilot's select, or the cycle; null = no character (no registry, or
+  // a mixed seat with the list run out): the seat is billed, no body drawn
   const charFor = role => {
-    const v = role === 'pilot' ? whoOf(pilotWho)
-            : role === 'cop' ? whoOf(P.copWho) : 0;
-    if (v === 1) return null;                          // the ATD, by name
-    if (v >= 2) return charAt(v - 2);                  // one person, by name
-    if (!cycle.length) return null;                    // mixed, nobody left: ATD
+    if (role === 'pilot') return pilotIdx >= 0 ? charAt(pilotIdx) : null;
+    const v = role === 'cop' ? whoOf(P.cabWho) : 0;
+    if (v >= 1) return charAt(v - 1);                  // one person, by name
+    if (!cycle.length) return null;                    // mixed, nobody left
     const i = cycle[cyc % cycle.length]; cyc++;
     return charAt(i);
   };
-  const dressed = (dum, CH, role, idx) => {
+  const dressed = (occ, CH, role, idx) => {
     if (CH && CH.ready) {
       const inst = window.CAGE_CHAR.instance(CH.key);
       if (inst) {
-        window.CAGE_CHAR.dress(inst, dum,
+        window.CAGE_CHAR.dress(inst, occ,
           fistOpts(P));
-        dum.char = inst;
+        occ.char = inst;
         // THE IDLE (G205): a passenger wears the sitting-idle clip on the
         // upper body (seat, recline and feet stay ours); a pilot only its
         // breathing and glances — the hands are the IK's. Phases differ per
         // seat so a cabin never moves in unison.
         const pax = role === 'pax';
         const amp = pax ? (P.paxIdle == null ? 1 : +P.paxIdle)
-                        : (P.dumIdle == null ? 1 : +P.dumIdle);   // G2798: 1 when unset, as the defaults
-        // the clip spec is kept on the dummy: a LIVE occupant wears the same
+                        : (P.pilIdle == null ? 1 : +P.pilIdle);   // G2798: 1 when unset, as the defaults
+        // the clip spec is kept on the occupant: a LIVE one wears the same
         // one in flight, stepped by the game loop instead of the ticker
-        dum.animSpec = { key: 'sitidle', mode: pax ? 'body' : 'head', amp,
+        occ.animSpec = { key: 'sitidle', mode: pax ? 'body' : 'head', amp,
                          phase: (idx || 1) * 1.7 };
         if (window.CAGE_CHAR.animate && amp > 0)
-          window.CAGE_CHAR.animate(inst, dum.animSpec);
+          window.CAGE_CHAR.animate(inst, occ.animSpec);
       }
     }
-    return dum;
+    return occ;
   };
   // THE LIVE CREW: who crosses the join as a SKELETON instead of a bake.
   // Policy 'controls' (the default): whoever holds a moving control — the
@@ -3645,7 +3586,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     || 'controls';
   // THE FIST CLOSES ON THE GRIP (G279, the user: "it does not hold the
   // stick right anymore ... the crooked position of its wrist on the
-  // throttle"). The grip solve aims the ATD's WRIST at a point `palm` short
+  // throttle"). The grip solve aims the skeleton's WRIST at a point `palm` short
   // of the grip along the hand — and the drawn hand is the character's,
   // whose fingers close where ITS arm and hand lengths put them: measured
   // on the stock pilot, 5 cm up the stick from the palm point on the right
@@ -3656,109 +3597,179 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // The correction rides the job (`fixH`) through the join, so the flown
   // solve — the same function, every frame — lands the same fist on the
   // same grip as the stick moves.
-  const fitFists = (dum, CH, jobs, solveJob) => {
-    if (!dum.char || !window.CAGE_CHAR.fistAt) return;
+  // G3700 HANDS (the user: "a better grip on the yoke and throttle,
+  // something real clean ... the normal in-game one is quite off by a few
+  // cm"): a grip that declares its radius first gets each hand's curl
+  // solved so the fingers' bone circle is the grip plus the finger's own
+  // flesh (CAGE_CHAR.hollowAt), then the HOLLOW of that curl - the axis
+  // the hand wraps - is what lands on the anchor; up to eight passes, to
+  // 2 mm. A hand still over 20 cm out could not reach: the IK's finding,
+  // recorded on occ.fistFit with the rest of the fit (curl, radius, error).
+  // HANDS-2: the error is taken in the basis solveGripJob moves the target
+  // in (the grip basis from the SHOULDER's approach) - it was read in the
+  // hand bone's frame (the wrist solved from the ELBOW), and where those two
+  // differ (the Cub's stick) every pass turned the correction, which grew
+  // until the target passed the IK's 12 cm reach and the arm fell back to
+  // its rest pose 33 cm off. Each job also keeps its best correction: a pass
+  // that makes the error grow, or would put the hand out of reach, goes back
+  // to the best and halves the step. Flesh 9 -> 18 mm: at 9 the finger pads
+  // still sat 0.6-1.8 cm inside the grip.
+  const FIST_FLESH = 0.018, FIST_TOL = 0.002, FIST_GIVEUP = 0.20, FIST_REACH = 0.12;
+  const fitFists = (occ, CH, jobs, solveJob) => {
+    if (!occ.char || !window.CAGE_CHAR.fistAt) return;
     const grips = jobs.filter(j => j.a.userData.grip && CHAINS[j.chain].arm);
     if (!grips.length) return;
-    const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion();
-    for (let it = 0; it < 2; it++) {
+    const CC = window.CAGE_CHAR, hollow = CC.hollowAt;
+    const wantR = {};
+    if (hollow) for (const j of grips) {
+      const r = j.a.userData.gripR;
+      if (r) wantR[CHAINS[j.chain].side] = r + FIST_FLESH;
+    }
+    // THE CURL: bisect each gripping hand's fist on its bone circle's
+    // radius (a tighter curl draws a smaller circle over this range)
+    const sides = Object.keys(wantR);
+    if (sides.length) {
+      const lo = {}, hi = {}, sv = occ.fistSolved = {};
+      for (const sd of sides) { lo[sd] = 0.2; hi[sd] = 1.0; sv[sd] = 0.6; }
+      for (let it = 0; it < 7; it++) {
+        CC.dress(occ.char, occ, fistOpts(P, occ));
+        for (const sd of sides) {
+          const h = hollow(occ.char, sd);
+          if (!h || h.r > wantR[sd]) lo[sd] = sv[sd]; else hi[sd] = sv[sd];
+          sv[sd] = (lo[sd] + hi[sd]) / 2;
+        }
+      }
+      CC.dress(occ.char, occ, fistOpts(P, occ));
+    }
+    const fit = occ.fistFit = {};
+    const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion(),
+          rp = new THREE.Vector3();
+    const st = new Map();
+    // the fist's error against the grip, in the basis fixH is applied in
+    const errOf = (j, out) => {
+      const c = CHAINS[j.chain], side = c.side;
+      let at = null, r = null;
+      if (wantR[side]) { const h = hollow(occ.char, side, fp); if (h) { at = h.p; r = h.r; } }
+      if (!at && CC.fistAt(occ.char, side, fp)) at = fp;
+      if (!at) return null;
+      occ.bones[c.root].getWorldPosition(rp);
+      gripQuat(j.a, rp, q).invert();
+      out.copy(at).sub(anchorWorld(j.a).p).applyQuaternion(q);
+      return { r, err: out.length() };
+    };
+    for (let it = 0; it < 8; it++) {
       let moved = false;
       for (const j of grips) {
-        const side = /L$/.test(CHAINS[j.chain].end) ? 'L' : 'R';
-        if (!window.CAGE_CHAR.fistAt(dum.char, side, fp)) continue;
-        const aw = anchorWorld(j.a);
-        dum.bones[CHAINS[j.chain].end].getWorldQuaternion(q).invert();
-        e.copy(fp).sub(aw.p).applyQuaternion(q);       // fist - grip, hand frame
+        const side = CHAINS[j.chain].side;
+        const m = errOf(j, e);
+        if (!m) continue;
+        let s = st.get(j);
+        if (!s) st.set(j, s = { best: Infinity, fix: null, e: new THREE.Vector3(), gain: 1, done: false });
+        if (m.err < s.best) {
+          s.best = m.err; s.fix = j.fixH ? j.fixH.clone() : null; s.e.copy(e);
+        } else if (!s.done) {
+          s.gain *= 0.5;                               // grew: back to the best, half the step
+          if (s.gain < 0.1) s.done = true;
+        }
+        fit[side] = { label: j.label, fist: occ.fistSolved ? occ.fistSolved[side] : null,
+                      r: m.r != null ? +m.r.toFixed(4) : null, err: +s.best.toFixed(4),
+                      skip: s.best > FIST_GIVEUP, passes: it + 1 };
         // a hand that could not reach is the IK's finding, not the fit's
-        if (e.lengthSq() < 1e-6 || e.length() > 0.15) continue;
-        j.fixH = (j.fixH || new THREE.Vector3()).sub(e);
-        solveJob(j);
+        if (s.done || s.best < FIST_TOL || s.best > FIST_GIVEUP) continue;
+        j.fixH = (s.fix ? s.fix.clone() : new THREE.Vector3()).addScaledVector(s.e, -s.gain);
+        if (solveJob(j) > FIST_REACH) {                // never push the hand out of reach
+          j.fixH = s.fix ? s.fix.clone() : null;
+          s.gain *= 0.5; if (s.gain < 0.1) s.done = true;
+          solveJob(j);
+        }
         moved = true;
       }
       if (!moved) break;
-      window.CAGE_CHAR.dress(dum.char, dum,
-        fistOpts(P));
+      CC.dress(occ.char, occ, fistOpts(P, occ));
     }
+    // every hand ends on its best correction
+    let back = false;
+    for (const [j, s] of st) {
+      const m = errOf(j, e);
+      if (m && m.err > s.best + 1e-4) { j.fixH = s.fix ? s.fix.clone() : null; solveJob(j); back = true; }
+    }
+    if (back) CC.dress(occ.char, occ, fistOpts(P, occ));
   };
   // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
-  // leg job's target is the ANKLE, placed so the ATD's foot box has its
+  // leg job's target is the ANKLE, placed so the reference foot box has its
   // mid-sole (0.06 forward, 0.0725 below the ankle, bone frame) on the
   // pedal's centre. A dressed rig's shoe is another depth and length, so
   // its sole is read (CAGE_CHAR.soleAt, in the anchor's frame) and the
   // target moved by the difference: the contact patch of THIS shoe lands
-  // where the ATD's would. Rides the job as `fixF` through the join.
-  const fitSoles = (dum, CH, jobs, solveJob, s) => {
-    if (!dum.char || !window.CAGE_CHAR.soleAt) return;
+  // where the reference sole would. Rides the job as `fixF` through the join.
+  const fitSoles = (occ, CH, jobs, solveJob, s) => {
+    if (!occ.char || !window.CAGE_CHAR.soleAt) return;
     const legs = jobs.filter(j => !j.a.userData.grip && !CHAINS[j.chain].arm);
     if (!legs.length) return;
     const sp = new THREE.Vector3(), e = new THREE.Vector3(), inv = new THREE.Matrix4();
-    const atd = new THREE.Vector3(0, -0.0725, 0.06);
+    const refSole = new THREE.Vector3(0, -0.0725, 0.06);
     for (let it = 0; it < 2; it++) {
       let moved = false;
       group.updateMatrixWorld(true);
       for (const j of legs) {
-        const side = /L$/.test(CHAINS[j.chain].end) ? 'L' : 'R';
+        const side = CHAINS[j.chain].side;
         j.a.updateWorldMatrix(true, false);
         inv.copy(j.a.matrixWorld).invert();
-        if (!window.CAGE_CHAR.soleAt(dum.char, side, inv, sp)) continue;
+        if (!window.CAGE_CHAR.soleAt(occ.char, side, inv, sp)) continue;
         // the anchor's frame is the ankle's (alignQ = the anchor's own
-        // rotation for a fixed anchor), so the ATD's mid-sole is `atd`
+        // rotation for a fixed anchor), so the reference mid-sole is `refSole`
         // scaled by the stature; what is left after the last pass is the
         // residual (the target already carries fixF)
-        e.copy(sp).addScaledVector(atd, -(s || 1));
+        e.copy(sp).addScaledVector(refSole, -(s || 1));
         if (e.lengthSq() < 1e-6 || e.length() > 0.20) continue;
         j.fixF = (j.fixF || new THREE.Vector3()).sub(e);
         solveJob(j);
         moved = true;
       }
       if (!moved) break;
-      window.CAGE_CHAR.dress(dum.char, dum,
-        fistOpts(P));
+      window.CAGE_CHAR.dress(occ.char, occ,
+        fistOpts(P, occ));
     }
   };
-  const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
-    if (!dum.char || LIVE_POLICY === 'none') return dum;
-    if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return dum;
-    for (const m of dum.char.meshes) m.userData.live = true;
-    dum.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm,
-                 fist: P.dumFist == null ? 0.5 : +P.dumFist,
-                 anim: dum.animSpec || null,
+  const markLive = (occ, CH, role, idx, s, jobs, ctx) => {
+    if (!occ.char || LIVE_POLICY === 'none') return occ;
+    if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return occ;
+    for (const m of occ.char.meshes) m.userData.live = true;
+    occ.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm, stickFwd: ctx.stickFwd || 0,
+                 fist: P.pilFist == null ? 0.5 : +P.pilFist,
+                 anim: occ.animSpec || null,
                  jobs: jobs.filter(j => j.ctl) };
-    // G2797: the two hands, only when set apart (one hand = the record as ever)
-    if (+P.dumHandsApart) {
-      const fo = fistOpts(P);
-      Object.assign(dum.live, { fistL: fo.fistL, fistR: fo.fistR,
-                                palmL: ctx.palmL, palmR: ctx.palmR });
+    // G2797: the two hands, only when set apart (one hand = the record as ever);
+    // G3700 HANDS: or when a grip solved a hand's curl, which the flown dress wears
+    if (+P.pilHandsApart || occ.fistSolved) {
+      const fo = fistOpts(P, occ);
+      Object.assign(occ.live, { fistL: fo.fistL, fistR: fo.fistR });
+      if (+P.pilHandsApart) Object.assign(occ.live, { palmL: ctx.palmL, palmR: ctx.palmR });
     }
-    LIVE_CREW.push(dum);
-    return dum;
+    LIVE_CREW.push(occ);
+    return occ;
   };
-  const seatDummy = (seat, ST, idx, pose) => {
+  const seatOccupant = (seat, ST, idx, pose) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
     const role = idx === 1 ? 'pilot' : seat.section ? 'pax' : 'cop';
     const CH = charFor(role);
-    // pose.s is stature / the ATD's 1.75; a character scales from ITS height
-    const s = CH ? (pose || POSE_PILOT).s * BASE_STATURE / CH.rig.height
-                 : (pose || POSE_PILOT).s;
-    // the dummy's OWN suit (phase D): one colour of personality each, the
-    // second following the first; ATD amber is the walk's last word. G180:
-    // TWO suits, not one per body — the pilot's, and everyone else's (the
-    // livery declares `dummy1` and `dummy2`; a third name would be nobody's).
-    const suit = (typeof window !== 'undefined' && window.CAGE_SECMAT &&
-      window.CAGE_SECMAT('dummy' + (idx === 1 ? 1 : 2),
-        { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
-      || null;
-    const dum = makeDummy(group, suit, CH && CH.rig, CH && !CH.ready);
-    dum.fig.name = 'edDum' + (idx || 1);
-    dum.fig.scale.setScalar(s);
+    // no character, no body (the join still bills the seat); one is drawn
+    // at its own height: the scale every seat number below multiplies is 1
+    if (!CH) return null;
+    const s = 1;
+    const occ = bareRig(group, CH.rig);
+    if (!occ) return null;
+    occ.rig = CH.rig;
+    occ.fig.name = 'edCrew' + (idx || 1);
+    occ.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;
     const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
-    applyPose(dum.bones,
+    applyPose(occ.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
-    dum.fig.position.set(seat.x,
-                         seat.panY + 0.03 + (0.085 + (CH ? CH.rig.hipDrop : 0.02)) * s,
+    occ.fig.position.set(seat.x,
+                         seat.panY + 0.03 + (0.085 + CH.rig.hipDrop) * s,
                          seat.zBack + 0.095 * s + 0.02);
-    dum.fig.updateMatrixWorld(true);
+    occ.fig.updateMatrixWorld(true);
     // FEET WITHOUT PEDALS (G205, the user: 'sliders for controlling the feet
     // position of the passengers. Something like the pedals for the pilots,
     // but without the actual pedals'): two fixed anchors on the floor of the
@@ -3774,7 +3785,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     })() : null;
     // (no early return any more: hands with nothing to hold REST ON THE
     // KNEES by IK below, so every occupant goes through the solver)
-    // HANDS FOLLOW THE GEOMETRY (user 2026-08-19: the dummy crossed its
+    // HANDS FOLLOW THE GEOMETRY (user 2026-08-19: the pilot crossed its
     // arms when the console moved from beside the seat to between the
     // seats). Each control is asked WHICH SIDE OF THIS SEAT it actually
     // sits on (+x is the occupant's left) and the near hand takes it; a
@@ -3825,13 +3836,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     }) };
     DBG.stations.push(rec);
     const base = seatedPose(recline, false, SP.tilt);
-    const ctx = { s, palm: (P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s,
-                  elbows: +P.dumElbows || 0, knees: +P.dumKnees || 0,
+    const ctx = { s, palm: (P.pilHandGrip != null ? P.pilHandGrip : 0.075) * s,
+                  elbows: +P.pilElbows || 0, knees: +P.pilKnees || 0,
+                  stickFwd: (+P.pilStickFwd || 0) * s,     // G3875
                   base, notes, poleFig: null };
     // G2797: each hand on its grip by its own amount when the hands are apart
-    if (+P.dumHandsApart) {
-      ctx.palmL = (P.dumGripL != null ? +P.dumGripL : ctx.palm / s) * s;
-      ctx.palmR = (P.dumGripR != null ? +P.dumGripR : ctx.palm / s) * s;
+    if (+P.pilHandsApart) {
+      ctx.palmL = (P.pilGripL != null ? +P.pilGripL : ctx.palm / s) * s;
+      ctx.palmR = (P.pilGripR != null ? +P.pilGripR : ctx.palm / s) * s;
     }
     const solveJob = j => {
       // WHICH MOVING PART HOLDS THE ANCHOR (live crew): the grip is authored
@@ -3840,7 +3852,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       let o = j.a.parent;
       while (o && !CTL_MOVING.some(m => m.name === o.name)) o = o.parent;
       j.ctl = o ? o.name : null; j.ctlObj = o || null;
-      return solveGripJob(dum, j, ctx);
+      return solveGripJob(occ, j, ctx);
     };
     for (const j of jobs) solveJob(j);
     // HANDS ON THE KNEES (G205.2, the user: 'their hands are meant at
@@ -3856,7 +3868,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       group.updateWorldMatrix(true, false);
       const kneeJobs = [];
       for (const sd of ['L', 'R']) {
-        const kw = dum.bones['knee' + sd].getWorldPosition(new THREE.Vector3());
+        const kw = occ.bones[sd === 'L' ? 'LeftLeg' : 'RightLeg'].getWorldPosition(new THREE.Vector3());
         const kl = group.worldToLocal(kw);
         kl.y += 0.05 * s; kl.z -= 0.03 * s;
         const a = gripAt(g, [kl.x, kl.y, kl.z], [sd === 'L' ? -1 : 1, 0, 0.35]);
@@ -3867,10 +3879,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         get wrist() { return j.wrist; } })));
       jobs.push(...kneeJobs);
     }
-    dressed(dum, CH, role, idx);
-    fitFists(dum, CH, jobs, solveJob);
-    fitSoles(dum, CH, jobs, solveJob, s);
-    return markLive(dum, CH, role, idx, s, jobs, ctx);
+    dressed(occ, CH, role, idx);
+    fitFists(occ, CH, jobs, solveJob);
+    fitSoles(occ, CH, jobs, solveJob, s);
+    // THE BODY AS POSED (G3700): the click, the selection outline's pick and
+    // the tank's crew clearance read the character's own skinned vertices
+    if (occ.char && window.CAGE_CHAR.pickBody) window.CAGE_CHAR.pickBody(occ.char);
+    return markLive(occ, CH, role, idx, s, jobs, ctx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -3885,10 +3900,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // for the join. Filled as they are drawn, so a station without a stick
     // publishes nothing rather than a part with no geometry.
     moving: CTL_MOVING,
-    // LIVE CREW: the dummies that fly as skeletons (see markLive), and the
+    // LIVE CREW: the occupants that fly as skeletons (see markLive), and the
     // solver the flown side runs on them — the editor's own, not a copy
     live: LIVE_CREW,
-    ik: { bareDummy, solveGripJob, anchorWorld, CHAINS },
+    ik: { bareRig, solveGripJob, anchorWorld, CHAINS },
     // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
@@ -3898,24 +3913,26 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
-  const dums = [];
-  if (P.dumOn) dums.push(seatDummy(pilot, st1, 1, POSE_PILOT));
-  // A BODY IN EVERY FILLED SEAT (G180). `dum2On` used to put one in every seat
-  // that was not the pilot's; the sections say who is aboard now, and the
+  const occs = [];
+  const pilotOcc = P.pilOn ? seatOccupant(pilot, st1, 1, POSE_PILOT) : null;
+  if (pilotOcc) occs.push(pilotOcc);
+  // A BODY IN EVERY FILLED SEAT (G180). A retired all-seats switch used to put
+  // one in every seat that was not the pilot's; the sections say who is aboard now, and the
   // join bills exactly the bodies drawn here — what you see is what weighs.
   // The cockpit's second occupant flies from its own station in the pilot's
   // pose; a bay's occupants rest their hands in the passenger pose.
   for (let si = 0; si < seats.length; si++) {
     if (seats[si] === pilot || !seats[si].filled) continue;
-    dums.push(seatDummy(seats[si], stn[si], si + 1,
-                        seats[si].section ? POSE_PAX : POSE_PILOT));
+    const o = seatOccupant(seats[si], stn[si], si + 1,
+                           (seats[si].section || !stn[si]) ? POSE_PAX : POSE_PILOT);   // (G3515: no station, no stick to hold)
+    if (o) occs.push(o);
   }
   {
     const aboard = seats.filter(s2 => s2.filled).length;
     notes.push('aboard ' + aboard + '/' + seats.length);
   }
 
-  // ---- eye point + head clearance (the sizing instruments) ----
+  // ---- the eye point ----
   // WORLD -> THE GROUP'S OWN FRAME (G41.2, user: "the eyesight line of
   // the pilot has not been properly rotated like the rest of the
   // plane"). head.matrixWorld includes whatever transform the build is
@@ -3927,21 +3944,18 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // world matrix: exact everywhere, a no-op standalone. The IK and
   // reach code above needs none of this — it is relative world math,
   // invariant under a rigid mount.
-  // THE EYE POINT IS PUBLISHED, NOT JUST DRAWN (G107, the interior view).
-  // It was computed only when `dumMarkers` was on and only in order to draw a
-  // ball and a sight line — so the one object in the whole build that knows
-  // where a pilot's eyes are could not be asked where they are. It is now
-  // computed whenever there IS a pilot, in WORLD space because that is the
-  // frame a camera lives in, and `dumMarkers` still gates exactly what it
-  // always gated: the markers.
+  // THE EYE POINT IS PUBLISHED (G107, the interior view): computed whenever
+  // there IS a pilot, in WORLD space because that is the frame a camera lives
+  // in. (Its ball and sight-line markers are retired, G3700.)
   //
   // THE HEADS RIDE ALONG. A camera at the eye point is inside the skull, and
   // the view has no business learning the skeleton to find it — so the layer
   // that built them hands them over.
-  if (dums.length) {
-    const head = dums[0].bones.head;
+  const eyeOff = pilotOcc && pilotOcc.rig.eye;
+  if (eyeOff) {
+    const head = pilotOcc.bones.Head;
     head.updateWorldMatrix(true, false);
-    const eyeW = new THREE.Vector3(0, 0.125, 0.082)
+    const eyeW = new THREE.Vector3().fromArray(eyeOff)
       .applyMatrix4(head.matrixWorld);
     const fwdW = new THREE.Vector3(0, 0, 1)
       .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
@@ -3951,43 +3965,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                                // body (G204): while you look out of it the
                                // whole body is what there is to hide — the
                                // PILOT's only; the co-pilot stays in view
-                               heads: dums.flatMap((d, i) => d.char
-                                 ? (i === 0 ? d.char.meshes : [])
-                                 : [d.bones.head]) };
-    // G2794 (the user's garage review, 18 Oct: "remove the leftovers of the
-    // original pilot dummy"): the eye point and its sight line are an
-    // expert's instrument now - drawn only with expert rows on; a saved
-    // build's `dumMarkers` keeps its value
-    const UIx = (typeof window !== 'undefined') && window.CAGE_UI;
-    if (P.dumMarkers && UIx && UIx.EXPERT && UIx.EXPERT.on) {
-      const eye = group.worldToLocal(eyeW.clone());
-      // THE MARKERS ARE NOT CLICKABLE (G210.1, the user: 'the area which
-      // triggers a crew selection seems wider than the visual silhouette').
-      // A THREE.Line is picked with Raycaster.params.Line.threshold, ONE
-      // METRE by default — so this 0.6 m sight line answered every click
-      // within a metre of the pilot's head, for the crew. The eye ball too.
-      // ...and A MARKER IS NOT THE AEROPLANE (the panel arc, session 4): the
-      // join bakes every visible mesh, and this ball flew — a red sphere
-      // at the pilot's eye, seen from inside in the cockpit view
-      const eyeBall = ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
-      eyeBall.raycast = () => {};
-      eyeBall.userData.edMarker = 1;
-      const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
-      const fwd = fwdW.clone().applyQuaternion(gq);
-      const lg = new THREE.BufferGeometry().setFromPoints(
-        [eye, eye.clone().addScaledVector(fwd, 0.6)]);
-      const sight = new THREE.Line(lg, new THREE.LineBasicMaterial(
-        { color: 0xff4d3d, transparent: true, opacity: 0.55 }));
-      sight.raycast = () => {};
-      group.add(sight);
-      const crown = group.worldToLocal(new THREE.Vector3(0, 0.245, 0)
-        .applyMatrix4(head.matrixWorld));
-      const seatFloor = A.floorAt(pilot.zBack + 0.20);
-      notes.unshift('eye +' + (eye.y - seatFloor).toFixed(2) + ' fl',
-                    'head clr ' + (A.roofY - crown.y).toFixed(2));
-    }
+                               heads: pilotOcc.char ? pilotOcc.char.meshes : [] };
   } else if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
-  // cabin height at the pilot station — the number the dummy judges
+  // cabin height at the pilot station — the number the pilot judges
   {
     const fl = A.floorAt(pilot.zBack + 0.20);
     notes.unshift('cabin h ' + (A.roofY - fl).toFixed(2));

@@ -918,6 +918,46 @@ for (const f of fail) console.log('  FAIL ' + f);
   }
 }
 
+// ---------------------------------------------------------------------------
+// G3549b A BUSH TYRE IS NEVER A SLICK (the user, 27 Oct: the tundras "suck in their geometry and thread"): the
+// torus wears low lugs for whTread 1 and 2 (procure's tundra writes 1), the drawing following the carcass - whTread is
+// a hashed cage row and moves nowhere. The lugs are the only thing that stands proud of the radius bought: their tops
+// sit BUSH_LUG.h (1.6 % R) off the crown, low as a Bushwheel's 3/16" on 31". A 31" tundra (R 0.394).
+{
+  const axle = [0.8, -1.0, 2.0], axis = [1, 0, 0], R = 0.394;
+  const tyreOf = P => { const b = freshBags(); GG.wheel(b, axle, axis, R, { inboard: 1, P }); return readBags(b).tyre; };
+  const rMaxOf = g => { let m = 0;
+    for (let i = 0; i < g.pos.length; i += 3) m = Math.max(m, Math.hypot(g.pos[i + 1] - axle[1], g.pos[i + 2] - axle[2]));
+    return m; };
+  const t1 = tyreOf({ whProfile: 1, whTread: 1 }), t2 = tyreOf({ whProfile: 1, whTread: 2 });
+  const t0 = tyreOf({ whProfile: 1, whTread: 0 }), s1 = tyreOf({ whProfile: 0, whTread: 1 });
+  const s0 = tyreOf({ whProfile: 0, whTread: 0 }), s2 = tyreOf({ whProfile: 0, whTread: 2 });
+  if (check(!!(t1 && t2 && t0 && s1 && s0 && s2), 'G3549b: a tyre was not drawn')) {
+    const h = (rMaxOf(t1) - R) / R;
+    check(h > 0.008 && h < 0.024, 'G3549b: the tundra\'s lugs do not stand low and proud of the carcass (0.8-2.4 % R)', (h * 100).toFixed(2) + ' % R');
+    // G3852: the carcass decides the tread, whatever whTread a file carries (0, 1 or 2 draw one tyre)
+    for (const [a, b, what] of [[t1, t2, 'tundra 1/2'], [t1, t0, 'tundra 1/0'], [s0, s1, 'standard 0/1'], [s0, s2, 'standard 0/2']])
+      check(a.nt === b.nt && Math.abs(rMaxOf(a) - rMaxOf(b)) < 1e-9,
+        'G3852: whTread changed the drawn tyre (' + what + ': the carcass decides, not the hashed row)', a.nt + ' vs ' + b.nt + ' tris');
+    check(rMaxOf(s0) <= R * 1.001, 'G3852 NEGATIVE: the standard carcass stands something proud - the instrument cannot tell lugs',
+      ((rMaxOf(s0) / R - 1) * 100).toFixed(2) + ' % R');
+    // G3852 THE SMOOTH TUNDRA (the user: "I also want a Tundra tyre with no pattern"): whSlick 1 draws the plain
+    // balloon - nothing proud of the radius, fewer tris than the lugged one; absent or 0 = the lugs (every file on
+    // record); a standard carcass ignores it
+    const k1 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 1 }), k0 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 0 });
+    const ks = tyreOf({ whProfile: 0, whTread: 1, whSlick: 1 });
+    if (check(!!(k1 && k0 && ks), 'G3852: a whSlick tyre was not drawn')) {
+      check(rMaxOf(k1) <= R * 1.001 && k1.nt < t1.nt, 'G3852: the smooth tundra (whSlick 1) still wears lugs',
+        ((rMaxOf(k1) / R - 1) * 100).toFixed(2) + ' % R, ' + k1.nt + ' vs ' + t1.nt + ' tris');
+      check(k0.nt === t1.nt && Math.abs(rMaxOf(k0) - rMaxOf(t1)) < 1e-9, 'G3852: whSlick 0 is not the tundra on file (the lugs)',
+        k0.nt + ' vs ' + t1.nt + ' tris');
+      check(ks.nt === s1.nt, 'G3852: whSlick changed a standard tyre (it is the tundra\'s row)', ks.nt + ' vs ' + s1.nt + ' tris');
+    }
+    console.log('  tundra 31": lugs ' + (h * 100).toFixed(2) + ' % R proud, ' + t1.nt + ' tris (standard ' + s0.nt +
+      ', smooth tundra ' + (k1 ? k1.nt : '-') + ')');
+  }
+}
+
 // the sections after the summary (7-centre, 10-13) print their own reds
 for (const f of fail) if (!printed.has(f)) console.log('  FAIL ' + f);
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));

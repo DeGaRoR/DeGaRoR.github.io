@@ -57,9 +57,11 @@ function simViewDefSig(def) {
 //   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
 //   scar     G2357 (DMG-SCAR): the ground's scar - the primitives 34_scar.js sealed (craters, gouges, the sweep); vS bumps
 //            when they changed (the page's grass cull and decal: ground_scar.js, once an event)
+//   how      G3770 (DMG-LOOKS): each member's break code (30_solver.js howCode; 0 whole) - null until a payload brings one
+//   bend     G3770: the trunk bends, a Map bi -> { kt1, dk, nx, nz }; vD bumps when they changed
 function simViewDmgState(n, nb) {
   return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0',
-           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0 };   // G2040 (DMG-FABRIC): the cover ties - null until one is made
+           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0, how: null, bend: null, vD: 0 };   // G2040 (DMG-FABRIC): the cover ties - null until one is made
 }
 // G2040 (DMG-FABRIC): the live cover ties' pairs (tied, a Set of a * n + b, a < b), the torn ones' (torn), and the HELD
 // pieces (pcH: the pieces joined by the live ties - what the covering still holds together; 0 the core's), from a payload
@@ -86,7 +88,12 @@ function simViewDmgApply(D, P) {
     let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
     D.nPc = k + 1; D.vB++; D.sB = P.sB;
     simViewDmgTies(D, P);                           // G2040
+    if (P.hw) { const H = D.how && D.how.length === D.nb ? D.how : (D.how = new Uint8Array(D.nb)); H.fill(0);   // G3770
+      for (let j = 0; j < D.br.length && j < P.hw.length; j++) if (D.br[j] >= 0 && D.br[j] < D.nb) H[D.br[j]] = P.hw[j]; }
+    else if (!D.br.length) D.how = null;
   }
+  if (P.bd) { const M = new Map(); for (let j = 0; j + 4 < P.bd.length; j += 5) M.set(P.bd[j], { kt1: P.bd[j + 1], dk: P.bd[j + 2], nx: P.bd[j + 3], nz: P.bd[j + 4] });
+    D.bend = M.size ? M : null; D.vD++; }   // G3770
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
   if (P.sc) { D.scar = P.sc.slice(); D.sC = P.sC; D.vS++; }   // G2357

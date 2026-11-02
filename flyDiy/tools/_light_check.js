@@ -373,9 +373,29 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
 // 4g. THERE IS NO SECOND, UNCONTROLLED ROOM. The studio was a white void with
 // a full-strength hemisphere, a warm fill and a bright-floored dome, none of
 // it switchable, reachable only as a silent fallback.
-check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test(app),
-      'the studio is back — a second light rig with no switches, entered by ' +
-      'accident when the hangar fails to build');
+// G3726 (PHONE-GARAGE, landed in L28a) brought a studio back ON PURPOSE: the
+// black studio (studio.js), the phone's room (PROFILE room 'studio') and a
+// desktop MENU option, OFF by default. The row used to forbid the word; it now
+// forbids the ACCIDENT - a studio built anywhere but behind its switch, the
+// switch turned on by any line but its own, or a failed hangar answered with
+// anything but the empty room and its console line.
+{
+  const studioWrites = (app.match(/\bstudioOn\s*=(?!=)/g) || []).length;
+  const studioBuilds = (app.match(/\bSTUDIO\.build\(/g) || []).length;
+  check(/const STUDIO_PHONE = [^\n]*PROFILE\.is\('room', 'studio'\)/.test(app) &&
+        /let studioOn = STUDIO_PHONE \|\| prefGet\('flydiy\.garageStudio', '0'\) === '1'/.test(app) &&
+        studioWrites === 2 && /function setStudio\(on\) \{[^}]*studioOn = on;/.test(app),
+        'the studio is back — a second light rig with no switches, entered by ' +
+        'accident when the hangar fails to build (its switch is no longer the ' +
+        'phone profile or the MENU option alone: ' + studioWrites + ' writes)');
+  check(studioBuilds === 1 && /if \(studioOn\) \{[^}]{0,200}\bSTUDIO\.build\(/.test(app) &&
+        !/new THREE\.Scene\(\)[^\n]*studio|studio\w*\s*=\s*new THREE\.Scene\(/i.test(app.replace(/\/\/[^\n]*/g, '')),
+        'the studio is built outside its switch (' + studioBuilds + ' builds) — ' +
+        'a room the hangar\'s failure can fall into');
+  check(/function garageScene\(\)[\s\S]{0,400}no fallback room by design[\s\S]{0,120}return hangarScene;/.test(app),
+        'a hangar that fails to build no longer leaves the empty room and says so ' +
+        '— the silent fallback the studio was');
+}
 
 // ---------------------------------------------------------------------------
 // 5. THE AEROPLANE'S OWN LAMPS (2026-08-31, four items from the user's second
@@ -634,8 +654,13 @@ if (process.argv.includes('--selftest')) {
   check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
   // G1080 (SHADOW-EYES): the craft's maps are aimed at the DRAWN aeroplane - the pose model.grp carries, re-read right
   // after poseModel - never at the point worldUpdate is given (the camera under the free camera / the world editor)
+  const poseAimOrder = text => /poseModel\(\);\s*\n(\s*(\/\/.*|if \(sceneSample\) FR\.sceneDetail\.lap\(0\);|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(text);
+  const poseFirst = '    poseModel();', aimLast = "    if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();";
+  const reversedAim = app.replace(poseFirst, '__PERF_POSE__').replace(aimLast, poseFirst).replace('__PERF_POSE__', aimLast);
+  check(!poseAimOrder(reversedAim), 'G1080 negative: moving near-shadow aim before pose is rejected');
+  check(poseAimOrder(app.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '')), 'G1080: removing optional pose timing preserves the wiring');
   check(/S\.aimDrawn && AIM\.hAt && drawnCentre\(\)/.test(near) && /aimDrawn: true/.test(near) && /nearTag\(SHADOW_NEAR\.aimPoint \? SHADOW_NEAR\.aimPoint\(cg\) : cg\)/.test(world)
-    && /poseModel\(\);\s*\n(\s*(\/\/.*|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
+    && poseAimOrder(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
   // (G601: the registry's pass - a caster over NEAR_MIN_R within reach; GATE STAND runs it)
   check(/nearTag = cg =>/.test(world) && /s\[3\] >= NEAR_MIN_R && Math\.sqrt\(dx \* dx \+ dy \* dy \+ dz \* dz\) - s\[3\] < R/.test(world) &&/Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes (over NEAR_MIN_R) within reach of the CG; the map is half the tier\'s far map');
   check(/SHADOW_NEAR\.tagCraft\(craft(, model\.grp)?\)/.test(app), 'app: the craft is tagged when the model joins the world');

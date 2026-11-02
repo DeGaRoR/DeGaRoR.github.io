@@ -35,6 +35,30 @@
    "label": "David",
    "man": "media/chars/david.3628450d.json",
    "tris": 47869
+  },
+  {
+   "key": "adam",
+   "label": "Adam",
+   "man": "media/chars/adam.67a9f56a.json",
+   "tris": 56258
+  },
+  {
+   "key": "jody",
+   "label": "Jody",
+   "man": "media/chars/jody.626857c5.json",
+   "tris": 52126
+  },
+  {
+   "key": "kate",
+   "label": "Kate",
+   "man": "media/chars/kate.ec3f11ad.json",
+   "tris": 59192
+  },
+  {
+   "key": "pete",
+   "label": "Pete",
+   "man": "media/chars/pete.5c18bb9e.json",
+   "tris": 53738
   }
  ],
  "roles": {
@@ -46,7 +70,15 @@
   ],
   "queue": [
    "lookabout",
-   "texting"
+   "texting",
+   "phone",
+   "briefcase",
+   "happy",
+   "sad",
+   "swat"
+  ],
+  "pace": [
+   "pacing"
   ],
   "sit": [
    "sitidle"
@@ -1002,11 +1034,2069 @@
     0.0017,
     0.0016
    ]
+  },
+  "phone": {
+   "v": 1,
+   "key": "phone",
+   "label": "phone",
+   "credit": "\"Talking On A Cell Phone\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "Talking On A Cell Phone.fbx",
+   "fps": 12,
+   "frames": 448,
+   "dur": 37.25,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_phone.e831593b.gz.bin",
+   "len": 465920,
+   "role": "queue",
+   "rootV": 0,
+   "bob": [
+    0.011,
+    0.0104,
+    0.0094,
+    0.0085,
+    0.0077,
+    0.007,
+    0.0063,
+    0.0057,
+    0.0049,
+    0.0042,
+    0.0037,
+    0.0029,
+    0.002,
+    0.0012,
+    0.0007,
+    0.0004,
+    0.0003,
+    0.0006,
+    0.0011,
+    0.0013,
+    0.0018,
+    0.0022,
+    0.0023,
+    0.0018,
+    0.0016,
+    0.0015,
+    0.0014,
+    0.0016,
+    0.0017,
+    0.0018,
+    0.002,
+    0.0021,
+    0.0023,
+    0.0024,
+    0.0024,
+    0.0024,
+    0.0022,
+    0.0021,
+    0.0019,
+    0.0017,
+    0.0014,
+    0.001,
+    0.0008,
+    0.0003,
+    -0.0003,
+    -0.0009,
+    -0.0013,
+    -0.0017,
+    -0.002,
+    -0.0024,
+    -0.0026,
+    -0.0027,
+    -0.0025,
+    -0.0023,
+    -0.0022,
+    -0.0019,
+    -0.0017,
+    -0.0014,
+    -0.001,
+    -0.0006,
+    -0.0002,
+    0.0002,
+    0.0008,
+    0.0014,
+    0.0022,
+    0.003,
+    0.0038,
+    0.0046,
+    0.0053,
+    0.006,
+    0.0067,
+    0.007,
+    0.0074,
+    0.0078,
+    0.0084,
+    0.0089,
+    0.0094,
+    0.0098,
+    0.0098,
+    0.0094,
+    0.009,
+    0.008,
+    0.0067,
+    0.0056,
+    0.0053,
+    0.0045,
+    0.0037,
+    0.0033,
+    0.0029,
+    0.0021,
+    0.0013,
+    0.0006,
+    -0.0005,
+    -0.0014,
+    -0.0029,
+    -0.0041,
+    -0.0044,
+    -0.0039,
+    -0.0033,
+    -0.0028,
+    -0.0023,
+    -0.0024,
+    -0.0016,
+    -0.0009,
+    -0.0005,
+    -0.001,
+    -0.0019,
+    -0.0028,
+    -0.0038,
+    -0.0046,
+    -0.0052,
+    -0.0056,
+    -0.0061,
+    -0.0068,
+    -0.0083,
+    -0.0096,
+    -0.0096,
+    -0.0086,
+    -0.0079,
+    -0.0073,
+    -0.0069,
+    -0.0068,
+    -0.0054,
+    -0.0033,
+    -0.0023,
+    -0.0014,
+    -0.0005,
+    -0.0005,
+    0.0015,
+    0.0037,
+    0.0049,
+    0.0052,
+    0.0045,
+    0.0027,
+    -0.0006,
+    -0.005,
+    -0.0077,
+    -0.0074,
+    -0.0071,
+    -0.0072,
+    -0.0074,
+    -0.0076,
+    -0.0079,
+    -0.0085,
+    -0.0089,
+    -0.0088,
+    -0.0086,
+    -0.008,
+    -0.0074,
+    -0.0071,
+    -0.0071,
+    -0.0072,
+    -0.007,
+    -0.0067,
+    -0.0065,
+    -0.0064,
+    -0.0064,
+    -0.0064,
+    -0.0064,
+    -0.0063,
+    -0.0061,
+    -0.006,
+    -0.0058,
+    -0.0059,
+    -0.006,
+    -0.0059,
+    -0.0057,
+    -0.0056,
+    -0.0055,
+    -0.0055,
+    -0.0054,
+    -0.0053,
+    -0.0051,
+    -0.005,
+    -0.0049,
+    -0.0048,
+    -0.0048,
+    -0.0047,
+    -0.0047,
+    -0.0047,
+    -0.0046,
+    -0.0046,
+    -0.0046,
+    -0.0045,
+    -0.0044,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0043,
+    -0.0044,
+    -0.0044,
+    -0.0046,
+    -0.0046,
+    -0.0046,
+    -0.0047,
+    -0.0047,
+    -0.0047,
+    -0.0048,
+    -0.0048,
+    -0.0049,
+    -0.0049,
+    -0.0049,
+    -0.005,
+    -0.0051,
+    -0.0051,
+    -0.0052,
+    -0.0052,
+    -0.0052,
+    -0.0053,
+    -0.0059,
+    -0.0072,
+    -0.0093,
+    -0.012,
+    -0.0138,
+    -0.015,
+    -0.015,
+    -0.0144,
+    -0.0135,
+    -0.0122,
+    -0.0109,
+    -0.011,
+    -0.0099,
+    -0.0055,
+    -0.0019,
+    -0.0001,
+    0.0011,
+    0.0018,
+    0.0016,
+    0.0002,
+    -0.0019,
+    -0.0023,
+    -0.001,
+    -0.0001,
+    0.0022,
+    0.0051,
+    0.0052,
+    0.0045,
+    0.0036,
+    0.0033,
+    0.0031,
+    0.0028,
+    0.0015,
+    0.0001,
+    0.0003,
+    0.002,
+    0.0018,
+    0.0004,
+    -0.0029,
+    -0.006,
+    -0.0092,
+    -0.0129,
+    -0.0148,
+    -0.0159,
+    -0.0172,
+    -0.018,
+    -0.0174,
+    -0.0159,
+    -0.0152,
+    -0.0148,
+    -0.0143,
+    -0.013,
+    -0.0112,
+    -0.0098,
+    -0.0072,
+    -0.0033,
+    0.001,
+    0.0043,
+    0.0055,
+    0.0062,
+    0.0061,
+    0.0059,
+    0.0055,
+    0.0047,
+    0.0036,
+    0.0023,
+    0.0014,
+    0.0009,
+    0.0006,
+    0.0004,
+    0.0003,
+    0.0001,
+    0,
+    0.0001,
+    0.0001,
+    -0.0001,
+    0,
+    -0.0001,
+    -0.0003,
+    -0.0003,
+    -0.0003,
+    -0.0002,
+    -0.0003,
+    -0.0003,
+    -0.0003,
+    -0.0003,
+    -0.0001,
+    0,
+    0,
+    -0.0001,
+    0,
+    -0.0001,
+    -0.0001,
+    -0.0002,
+    -0.0004,
+    -0.0003,
+    -0.0002,
+    -0.0002,
+    -0.0006,
+    -0.0017,
+    -0.0031,
+    -0.0046,
+    -0.0059,
+    -0.0065,
+    -0.0072,
+    -0.0076,
+    -0.0077,
+    -0.0072,
+    -0.0066,
+    -0.0064,
+    -0.0063,
+    -0.0056,
+    -0.0053,
+    -0.005,
+    -0.0047,
+    -0.0045,
+    -0.0047,
+    -0.0046,
+    -0.0035,
+    -0.0008,
+    0.0005,
+    0.0003,
+    -0.0008,
+    -0.0028,
+    -0.0048,
+    -0.0059,
+    -0.0064,
+    -0.0066,
+    -0.0068,
+    -0.0068,
+    -0.0065,
+    -0.0059,
+    -0.0042,
+    -0.0025,
+    -0.0016,
+    -0.0013,
+    -0.0011,
+    -0.0012,
+    -0.0022,
+    -0.0032,
+    -0.0022,
+    -0.0016,
+    -0.0018,
+    -0.0022,
+    -0.0024,
+    -0.0014,
+    0,
+    0.0012,
+    0.003,
+    0.0058,
+    0.0085,
+    0.01,
+    0.011,
+    0.0114,
+    0.0131,
+    0.0149,
+    0.0162,
+    0.017,
+    0.0174,
+    0.0177,
+    0.0178,
+    0.0179,
+    0.0177,
+    0.017,
+    0.0163,
+    0.0157,
+    0.0149,
+    0.0152,
+    0.0154,
+    0.0148,
+    0.0133,
+    0.0125,
+    0.0129,
+    0.0133,
+    0.0123,
+    0.0099,
+    0.0068,
+    0.0031,
+    -0.0007,
+    -0.0045,
+    -0.0064,
+    -0.007,
+    -0.007,
+    -0.007,
+    -0.0071,
+    -0.0069,
+    -0.0058,
+    -0.0046,
+    -0.004,
+    -0.0037,
+    -0.0038,
+    -0.0014,
+    0.0018,
+    0.0043,
+    0.0058,
+    0.007,
+    0.0078,
+    0.0086,
+    0.0094,
+    0.0103,
+    0.011,
+    0.0115,
+    0.0119,
+    0.0123,
+    0.0122,
+    0.0123,
+    0.0125,
+    0.0126,
+    0.0128,
+    0.0126,
+    0.0124,
+    0.0125,
+    0.0124,
+    0.0123,
+    0.0122,
+    0.012,
+    0.0117,
+    0.0116,
+    0.0114,
+    0.0114,
+    0.0114,
+    0.0115,
+    0.0114,
+    0.0114,
+    0.0114,
+    0.0113,
+    0.0112,
+    0.011,
+    0.0106,
+    0.0106,
+    0.0105,
+    0.0103,
+    0.0105,
+    0.0106,
+    0.011
+   ]
+  },
+  "briefcase": {
+   "v": 1,
+   "key": "briefcase",
+   "label": "briefcase",
+   "credit": "\"Standing W_Briefcase Idle\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "Standing W_Briefcase Idle.fbx",
+   "fps": 15,
+   "frames": 210,
+   "dur": 13.933333333333334,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_briefcase.879101a9.gz.bin",
+   "len": 218400,
+   "role": "queue",
+   "rootV": 0.0001,
+   "bob": [
+    -0.0033,
+    -0.0033,
+    -0.0032,
+    -0.0032,
+    -0.0032,
+    -0.0033,
+    -0.0034,
+    -0.0035,
+    -0.0037,
+    -0.0039,
+    -0.0041,
+    -0.0044,
+    -0.0047,
+    -0.005,
+    -0.0053,
+    -0.0055,
+    -0.0057,
+    -0.0059,
+    -0.006,
+    -0.0061,
+    -0.0061,
+    -0.0061,
+    -0.006,
+    -0.0059,
+    -0.0056,
+    -0.0052,
+    -0.0048,
+    -0.0043,
+    -0.0037,
+    -0.0031,
+    -0.0025,
+    -0.002,
+    -0.0014,
+    -0.001,
+    -0.0006,
+    -0.0008,
+    -0.0016,
+    -0.0015,
+    -0.0011,
+    -0.0008,
+    -0.0007,
+    -0.0006,
+    -0.0003,
+    0,
+    0.0007,
+    0.0024,
+    0.0043,
+    0.0058,
+    0.0064,
+    0.0067,
+    0.0068,
+    0.0067,
+    0.0066,
+    0.0065,
+    0.0064,
+    0.0062,
+    0.0059,
+    0.0057,
+    0.0056,
+    0.0055,
+    0.0052,
+    0.005,
+    0.0048,
+    0.0046,
+    0.0047,
+    0.0049,
+    0.0055,
+    0.0058,
+    0.0058,
+    0.0057,
+    0.0055,
+    0.0055,
+    0.0053,
+    0.0049,
+    0.0048,
+    0.0048,
+    0.0047,
+    0.0049,
+    0.0053,
+    0.0057,
+    0.0059,
+    0.0059,
+    0.0061,
+    0.0063,
+    0.0066,
+    0.0068,
+    0.0069,
+    0.0071,
+    0.0073,
+    0.0072,
+    0.007,
+    0.0065,
+    0.006,
+    0.0053,
+    0.0047,
+    0.0041,
+    0.0037,
+    0.0034,
+    0.0032,
+    0.0033,
+    0.0036,
+    0.0039,
+    0.0042,
+    0.0046,
+    0.0049,
+    0.0051,
+    0.0053,
+    0.0054,
+    0.0056,
+    0.0057,
+    0.0058,
+    0.0058,
+    0.0058,
+    0.0058,
+    0.0058,
+    0.0057,
+    0.0057,
+    0.0057,
+    0.0057,
+    0.0057,
+    0.0057,
+    0.0056,
+    0.0056,
+    0.0055,
+    0.0054,
+    0.0052,
+    0.005,
+    0.0047,
+    0.0044,
+    0.0041,
+    0.0037,
+    0.0034,
+    0.0029,
+    0.0026,
+    0.0021,
+    0.0016,
+    0.0009,
+    0.0002,
+    -0.0006,
+    -0.0013,
+    -0.002,
+    -0.0028,
+    -0.0038,
+    -0.0045,
+    -0.0048,
+    -0.0048,
+    -0.0049,
+    -0.005,
+    -0.0051,
+    -0.0052,
+    -0.0052,
+    -0.0053,
+    -0.0054,
+    -0.0054,
+    -0.0054,
+    -0.0054,
+    -0.0053,
+    -0.0052,
+    -0.0052,
+    -0.0053,
+    -0.0053,
+    -0.0052,
+    -0.0052,
+    -0.0051,
+    -0.005,
+    -0.005,
+    -0.005,
+    -0.0049,
+    -0.0049,
+    -0.0048,
+    -0.0048,
+    -0.0048,
+    -0.0049,
+    -0.0049,
+    -0.0048,
+    -0.0048,
+    -0.0047,
+    -0.0045,
+    -0.0044,
+    -0.0043,
+    -0.0043,
+    -0.0042,
+    -0.0041,
+    -0.0041,
+    -0.0042,
+    -0.0043,
+    -0.0043,
+    -0.0044,
+    -0.0045,
+    -0.0046,
+    -0.0047,
+    -0.0048,
+    -0.0048,
+    -0.0049,
+    -0.0049,
+    -0.005,
+    -0.005,
+    -0.0049,
+    -0.0048,
+    -0.0048,
+    -0.0046,
+    -0.0045,
+    -0.0044,
+    -0.0042,
+    -0.0041,
+    -0.0039,
+    -0.0038,
+    -0.0036,
+    -0.0035,
+    -0.0034
+   ]
+  },
+  "happy": {
+   "v": 1,
+   "key": "happy",
+   "label": "happy",
+   "credit": "\"Happy Idle\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "Happy Idle.fbx",
+   "fps": 15,
+   "frames": 46,
+   "dur": 3,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_happy.1f3ba78d.gz.bin",
+   "len": 47840,
+   "role": "queue",
+   "rootV": 0,
+   "bob": [
+    -0.0044,
+    -0.0048,
+    -0.0055,
+    -0.0005,
+    0.0111,
+    0.0203,
+    0.0228,
+    0.0095,
+    -0.0088,
+    -0.0079,
+    0.0054,
+    0.0174,
+    0.0211,
+    0.0134,
+    -0.0018,
+    -0.0093,
+    -0.0026,
+    0.0105,
+    0.017,
+    0.0125,
+    -0.0005,
+    -0.0085,
+    -0.0043,
+    0.0058,
+    0.0101,
+    0.0065,
+    -0.0037,
+    -0.013,
+    -0.0143,
+    -0.011,
+    -0.0069,
+    -0.0036,
+    -0.0029,
+    -0.0056,
+    -0.0102,
+    -0.0076,
+    -0.0028,
+    -0.0036,
+    -0.0052,
+    -0.0053,
+    -0.0051,
+    -0.0051,
+    -0.005,
+    -0.0047,
+    -0.0044,
+    -0.0044
+   ]
+  },
+  "sad": {
+   "v": 1,
+   "key": "sad",
+   "label": "sad",
+   "credit": "\"Sad Idle\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "Sad Idle.fbx",
+   "fps": 15,
+   "frames": 43,
+   "dur": 2.8,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_sad.d18f007c.gz.bin",
+   "len": 44720,
+   "role": "queue",
+   "rootV": 0,
+   "bob": [
+    0.0037,
+    0.0033,
+    0.0019,
+    0,
+    -0.0015,
+    -0.0028,
+    -0.0032,
+    -0.0021,
+    -0.0011,
+    -0.0016,
+    -0.0044,
+    -0.0063,
+    -0.0048,
+    -0.0023,
+    -0.0015,
+    -0.0027,
+    -0.0054,
+    -0.0077,
+    -0.0083,
+    -0.0075,
+    -0.005,
+    -0.0033,
+    -0.0028,
+    0.0007,
+    0.0043,
+    0.0066,
+    0.0089,
+    0.0109,
+    0.013,
+    0.0129,
+    0.0104,
+    0.0053,
+    0.0012,
+    -0.003,
+    -0.0064,
+    -0.0067,
+    -0.005,
+    -0.0025,
+    0.0004,
+    0.0027,
+    0.0038,
+    0.0039,
+    0.0038
+   ]
+  },
+  "swat": {
+   "v": 1,
+   "key": "swat",
+   "label": "swat",
+   "credit": "\"Swatting Bugs\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "Swatting Bugs.fbx",
+   "fps": 15,
+   "frames": 101,
+   "dur": 6.666666666666667,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_swat.54f6cba1.gz.bin",
+   "len": 105040,
+   "role": "queue",
+   "rootV": 0.4502,
+   "bob": [
+    0.0084,
+    0.0089,
+    0.007,
+    0.0021,
+    -0.0047,
+    -0.0123,
+    -0.0189,
+    -0.0224,
+    -0.0231,
+    -0.0216,
+    -0.0179,
+    -0.0119,
+    -0.004,
+    0.0044,
+    0.0117,
+    0.0163,
+    0.0164,
+    0.0123,
+    0.005,
+    -0.0037,
+    -0.0112,
+    -0.0127,
+    -0.0067,
+    -0.0015,
+    0.0014,
+    0.0031,
+    0.0036,
+    0.0033,
+    0.0015,
+    -0.0022,
+    -0.0086,
+    -0.0152,
+    -0.0162,
+    -0.0102,
+    -0.0004,
+    0.0095,
+    0.0177,
+    0.0244,
+    0.0291,
+    0.0307,
+    0.0282,
+    0.0214,
+    0.0133,
+    0.0069,
+    -0.0008,
+    -0.0096,
+    -0.0115,
+    -0.011,
+    -0.0051,
+    0.0022,
+    0.0079,
+    0.0032,
+    -0.0073,
+    -0.0069,
+    0.0001,
+    0.0082,
+    0.0179,
+    0.0244,
+    0.0268,
+    0.0248,
+    0.018,
+    0.0102,
+    0.0023,
+    -0.0066,
+    -0.0183,
+    -0.0191,
+    -0.014,
+    -0.0142,
+    -0.0172,
+    -0.0184,
+    -0.0132,
+    -0.011,
+    -0.005,
+    0.0015,
+    0.0018,
+    -0.0014,
+    -0.0084,
+    -0.0157,
+    -0.0159,
+    -0.0109,
+    -0.0081,
+    -0.0089,
+    -0.0089,
+    -0.0053,
+    -0.0009,
+    0.0031,
+    0.0085,
+    0.0147,
+    0.019,
+    0.0203,
+    0.0171,
+    0.0103,
+    -0.0007,
+    -0.0122,
+    -0.0189,
+    -0.0139,
+    -0.0061,
+    0.0016,
+    0.0051,
+    0.0068,
+    0.008
+   ]
+  },
+  "pacing": {
+   "v": 1,
+   "key": "pacing",
+   "label": "pacing",
+   "credit": "\"Pacing And Talking On A Phone\" animation by Adobe Mixamo (mixamo.com), Mixamo licence",
+   "src": "female_Pacing And Talking On A Phone.fbx",
+   "fps": 15,
+   "frames": 142,
+   "dur": 9.4,
+   "joints": [
+    "Head",
+    "HeadTop_End",
+    "Hips",
+    "LeftArm",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftHandIndex1",
+    "LeftHandIndex2",
+    "LeftHandIndex3",
+    "LeftHandIndex4",
+    "LeftHandMiddle1",
+    "LeftHandMiddle2",
+    "LeftHandMiddle3",
+    "LeftHandMiddle4",
+    "LeftHandPinky1",
+    "LeftHandPinky2",
+    "LeftHandPinky3",
+    "LeftHandPinky4",
+    "LeftHandRing1",
+    "LeftHandRing2",
+    "LeftHandRing3",
+    "LeftHandRing4",
+    "LeftHandThumb1",
+    "LeftHandThumb2",
+    "LeftHandThumb3",
+    "LeftHandThumb4",
+    "LeftLeg",
+    "LeftShoulder",
+    "LeftToeBase",
+    "LeftToe_End",
+    "LeftUpLeg",
+    "Neck",
+    "RightArm",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightHandIndex1",
+    "RightHandIndex2",
+    "RightHandIndex3",
+    "RightHandIndex4",
+    "RightHandMiddle1",
+    "RightHandMiddle2",
+    "RightHandMiddle3",
+    "RightHandMiddle4",
+    "RightHandPinky1",
+    "RightHandPinky2",
+    "RightHandPinky3",
+    "RightHandPinky4",
+    "RightHandRing1",
+    "RightHandRing2",
+    "RightHandRing3",
+    "RightHandRing4",
+    "RightHandThumb1",
+    "RightHandThumb2",
+    "RightHandThumb3",
+    "RightHandThumb4",
+    "RightLeg",
+    "RightShoulder",
+    "RightToeBase",
+    "RightToe_End",
+    "RightUpLeg",
+    "Spine",
+    "Spine1",
+    "Spine2"
+   ],
+   "bin": "media/geo/chars/anim_pacing.fc845f9c.gz.bin",
+   "len": 147680,
+   "role": "pace",
+   "rootV": 0.0824,
+   "bob": [
+    -0.0003,
+    -0.0037,
+    -0.0054,
+    -0.0043,
+    -0.0022,
+    -0.0041,
+    -0.0102,
+    -0.0105,
+    -0.0067,
+    -0.0034,
+    -0.0027,
+    -0.0032,
+    -0.0031,
+    -0.0014,
+    0.0028,
+    0.0062,
+    0.0075,
+    0.0067,
+    0.0067,
+    0.0081,
+    0.0097,
+    0.0102,
+    0.0103,
+    0.0102,
+    0.0098,
+    0.0092,
+    0.009,
+    0.009,
+    0.0094,
+    0.0094,
+    0.0088,
+    0.0079,
+    0.0059,
+    0.004,
+    0.0036,
+    0.0037,
+    0.0038,
+    0.0042,
+    0.0045,
+    0.0034,
+    0.0003,
+    -0.0025,
+    -0.0032,
+    -0.0035,
+    -0.0033,
+    -0.0036,
+    -0.0021,
+    0.0001,
+    0.0008,
+    -0.0005,
+    -0.003,
+    -0.006,
+    -0.0075,
+    -0.0059,
+    -0.0035,
+    -0.0036,
+    -0.0042,
+    -0.0016,
+    0.002,
+    0.0037,
+    0.0042,
+    0.0043,
+    0.0049,
+    0.0062,
+    0.0078,
+    0.0093,
+    0.0103,
+    0.0098,
+    0.0072,
+    0.0049,
+    0.0039,
+    0.0038,
+    0.0041,
+    0.0035,
+    0.0027,
+    0.0042,
+    0.0058,
+    0.0073,
+    0.0086,
+    0.0097,
+    0.0091,
+    0.0074,
+    0.0077,
+    0.007,
+    0.0049,
+    0.0036,
+    0.0018,
+    0.0009,
+    0.0017,
+    0.0007,
+    -0.0009,
+    -0.0015,
+    -0.0014,
+    -0.001,
+    -0.0027,
+    -0.0052,
+    -0.0064,
+    -0.0111,
+    -0.0188,
+    -0.0147,
+    -0.0075,
+    -0.0045,
+    -0.0035,
+    -0.0035,
+    -0.004,
+    -0.0061,
+    -0.0067,
+    -0.0018,
+    0.0013,
+    -0.0003,
+    -0.0002,
+    0.0018,
+    0.0017,
+    0.0002,
+    0.001,
+    0.0027,
+    0.0045,
+    0.0065,
+    0.0079,
+    0.0113,
+    0.0127,
+    0.0115,
+    0.0099,
+    0.0077,
+    0.0063,
+    0.0057,
+    0.0046,
+    0.0056,
+    0.0081,
+    0.0093,
+    0.007,
+    0.004,
+    0.0037,
+    0.0043,
+    0.0021,
+    -0.0002,
+    0.0011,
+    0.0032,
+    0.0033,
+    0.0021,
+    0.0013,
+    -0.0003
+   ],
+   "drift": [
+    [
+     0,
+     0
+    ],
+    [
+     0.004,
+     0.045
+    ],
+    [
+     0.011,
+     0.096
+    ],
+    [
+     0.019,
+     0.152
+    ],
+    [
+     0.028,
+     0.207
+    ],
+    [
+     0.035,
+     0.257
+    ],
+    [
+     0.039,
+     0.297
+    ],
+    [
+     0.039,
+     0.33
+    ],
+    [
+     0.037,
+     0.359
+    ],
+    [
+     0.034,
+     0.385
+    ],
+    [
+     0.03,
+     0.409
+    ],
+    [
+     0.022,
+     0.435
+    ],
+    [
+     0.009,
+     0.466
+    ],
+    [
+     -0.01,
+     0.501
+    ],
+    [
+     -0.03,
+     0.536
+    ],
+    [
+     -0.05,
+     0.568
+    ],
+    [
+     -0.068,
+     0.598
+    ],
+    [
+     -0.083,
+     0.623
+    ],
+    [
+     -0.095,
+     0.645
+    ],
+    [
+     -0.104,
+     0.663
+    ],
+    [
+     -0.111,
+     0.677
+    ],
+    [
+     -0.116,
+     0.689
+    ],
+    [
+     -0.12,
+     0.698
+    ],
+    [
+     -0.124,
+     0.707
+    ],
+    [
+     -0.128,
+     0.713
+    ],
+    [
+     -0.13,
+     0.718
+    ],
+    [
+     -0.131,
+     0.721
+    ],
+    [
+     -0.131,
+     0.723
+    ],
+    [
+     -0.13,
+     0.723
+    ],
+    [
+     -0.127,
+     0.721
+    ],
+    [
+     -0.123,
+     0.72
+    ],
+    [
+     -0.116,
+     0.72
+    ],
+    [
+     -0.104,
+     0.724
+    ],
+    [
+     -0.087,
+     0.731
+    ],
+    [
+     -0.065,
+     0.741
+    ],
+    [
+     -0.038,
+     0.754
+    ],
+    [
+     -0.008,
+     0.769
+    ],
+    [
+     0.023,
+     0.785
+    ],
+    [
+     0.055,
+     0.8
+    ],
+    [
+     0.084,
+     0.815
+    ],
+    [
+     0.108,
+     0.829
+    ],
+    [
+     0.125,
+     0.843
+    ],
+    [
+     0.138,
+     0.856
+    ],
+    [
+     0.147,
+     0.867
+    ],
+    [
+     0.155,
+     0.877
+    ],
+    [
+     0.161,
+     0.887
+    ],
+    [
+     0.166,
+     0.896
+    ],
+    [
+     0.169,
+     0.906
+    ],
+    [
+     0.171,
+     0.919
+    ],
+    [
+     0.172,
+     0.936
+    ],
+    [
+     0.17,
+     0.961
+    ],
+    [
+     0.166,
+     0.994
+    ],
+    [
+     0.158,
+     1.034
+    ],
+    [
+     0.146,
+     1.077
+    ],
+    [
+     0.132,
+     1.12
+    ],
+    [
+     0.12,
+     1.157
+    ],
+    [
+     0.11,
+     1.187
+    ],
+    [
+     0.102,
+     1.21
+    ],
+    [
+     0.097,
+     1.228
+    ],
+    [
+     0.094,
+     1.24
+    ],
+    [
+     0.093,
+     1.251
+    ],
+    [
+     0.094,
+     1.26
+    ],
+    [
+     0.098,
+     1.267
+    ],
+    [
+     0.103,
+     1.27
+    ],
+    [
+     0.108,
+     1.271
+    ],
+    [
+     0.116,
+     1.27
+    ],
+    [
+     0.126,
+     1.263
+    ],
+    [
+     0.139,
+     1.252
+    ],
+    [
+     0.156,
+     1.234
+    ],
+    [
+     0.177,
+     1.213
+    ],
+    [
+     0.198,
+     1.19
+    ],
+    [
+     0.219,
+     1.167
+    ],
+    [
+     0.237,
+     1.146
+    ],
+    [
+     0.251,
+     1.13
+    ],
+    [
+     0.26,
+     1.118
+    ],
+    [
+     0.266,
+     1.108
+    ],
+    [
+     0.268,
+     1.099
+    ],
+    [
+     0.266,
+     1.089
+    ],
+    [
+     0.261,
+     1.077
+    ],
+    [
+     0.252,
+     1.06
+    ],
+    [
+     0.239,
+     1.037
+    ],
+    [
+     0.222,
+     1.004
+    ],
+    [
+     0.203,
+     0.966
+    ],
+    [
+     0.184,
+     0.927
+    ],
+    [
+     0.169,
+     0.891
+    ],
+    [
+     0.154,
+     0.861
+    ],
+    [
+     0.139,
+     0.837
+    ],
+    [
+     0.125,
+     0.818
+    ],
+    [
+     0.112,
+     0.802
+    ],
+    [
+     0.098,
+     0.787
+    ],
+    [
+     0.083,
+     0.773
+    ],
+    [
+     0.066,
+     0.758
+    ],
+    [
+     0.048,
+     0.739
+    ],
+    [
+     0.026,
+     0.713
+    ],
+    [
+     0.002,
+     0.678
+    ],
+    [
+     -0.026,
+     0.636
+    ],
+    [
+     -0.053,
+     0.591
+    ],
+    [
+     -0.079,
+     0.549
+    ],
+    [
+     -0.098,
+     0.512
+    ],
+    [
+     -0.109,
+     0.476
+    ],
+    [
+     -0.116,
+     0.444
+    ],
+    [
+     -0.119,
+     0.416
+    ],
+    [
+     -0.121,
+     0.389
+    ],
+    [
+     -0.119,
+     0.358
+    ],
+    [
+     -0.114,
+     0.322
+    ],
+    [
+     -0.104,
+     0.279
+    ],
+    [
+     -0.091,
+     0.23
+    ],
+    [
+     -0.074,
+     0.181
+    ],
+    [
+     -0.056,
+     0.136
+    ],
+    [
+     -0.041,
+     0.096
+    ],
+    [
+     -0.029,
+     0.062
+    ],
+    [
+     -0.019,
+     0.034
+    ],
+    [
+     -0.012,
+     0.011
+    ],
+    [
+     -0.008,
+     -0.01
+    ],
+    [
+     -0.007,
+     -0.032
+    ],
+    [
+     -0.007,
+     -0.055
+    ],
+    [
+     -0.007,
+     -0.08
+    ],
+    [
+     -0.007,
+     -0.108
+    ],
+    [
+     -0.006,
+     -0.14
+    ],
+    [
+     -0.006,
+     -0.173
+    ],
+    [
+     -0.006,
+     -0.203
+    ],
+    [
+     -0.005,
+     -0.229
+    ],
+    [
+     -0.004,
+     -0.251
+    ],
+    [
+     -0.002,
+     -0.266
+    ],
+    [
+     -0.002,
+     -0.275
+    ],
+    [
+     -0.001,
+     -0.281
+    ],
+    [
+     0,
+     -0.284
+    ],
+    [
+     0.004,
+     -0.297
+    ],
+    [
+     0.007,
+     -0.302
+    ],
+    [
+     0.01,
+     -0.298
+    ],
+    [
+     0.014,
+     -0.281
+    ],
+    [
+     0.016,
+     -0.252
+    ],
+    [
+     0.016,
+     -0.215
+    ],
+    [
+     0.013,
+     -0.178
+    ],
+    [
+     0.009,
+     -0.146
+    ],
+    [
+     0.006,
+     -0.122
+    ],
+    [
+     0.006,
+     -0.102
+    ],
+    [
+     0.006,
+     -0.085
+    ],
+    [
+     0.005,
+     -0.068
+    ],
+    [
+     0.003,
+     -0.049
+    ],
+    [
+     0.001,
+     -0.027
+    ],
+    [
+     0,
+     0
+    ]
+   ]
   }
  },
  "budget": {
-  "memberMiB": 6,
-  "castMiB": 30,
+  "memberMiB": 6.1,
+  "castMiB": 42,
   "clipKiB": 400,
   "tris": 60000
  },
@@ -1052,6 +3142,27 @@
     }
    ],
    "files": {
+    "media/tex/ktx2/chars/Ch26_1001_Normal_ng.6236476c.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch26_1001_Normal_ng.6236476c.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/elizabeth/Ch26_1001_Normal.5ffa6651.webp",
+      "media/tex/chars/elizabeth/Ch26_1001_Glossiness.d3240589.webp"
+     ],
+     "bytes": 1066681,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 40.45,
+      "a": 42.29,
+      "mean0": 0.33,
+      "meanM": 0.28,
+      "tile": 0.52
+     }
+    },
     "media/tex/ktx2/chars/Ch26_1002_Diffuse.988e0fc4.ktx2": {
      "url": "media/tex/ktx2/chars/Ch26_1002_Diffuse.988e0fc4.ktx2",
      "role": "ktx2-color",
@@ -1073,27 +3184,6 @@
       "mean0": 0.3,
       "meanM": 1.24,
       "tile": 1.69
-     }
-    },
-    "media/tex/ktx2/chars/Ch26_1001_Normal_ng.6236476c.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch26_1001_Normal_ng.6236476c.ktx2",
-     "role": "ktx2-normal",
-     "opts": {},
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/elizabeth/Ch26_1001_Normal.5ffa6651.webp",
-      "media/tex/chars/elizabeth/Ch26_1001_Glossiness.d3240589.webp"
-     ],
-     "bytes": 1066681,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 40.45,
-      "a": 42.29,
-      "mean0": 0.33,
-      "meanM": 0.28,
-      "tile": 0.52
      }
     },
     "media/tex/ktx2/chars/Ch26_1001_Diffuse.85109371.ktx2": {
@@ -1185,6 +3275,27 @@
     }
    ],
    "files": {
+    "media/tex/ktx2/chars/Ch06_1001_Normal_ng.c9bde051.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch06_1001_Normal_ng.c9bde051.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/james/Ch06_1001_Normal.e444121d.webp",
+      "media/tex/chars/james/Ch06_1001_Glossiness.42a609f2.webp"
+     ],
+     "bytes": 973548,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 41.76,
+      "a": 44.5,
+      "mean0": 0.23,
+      "meanM": 0.41,
+      "tile": 0.37
+     }
+    },
     "media/tex/ktx2/chars/Ch06_1001_Diffuse.8fe86ffa.ktx2": {
      "url": "media/tex/ktx2/chars/Ch06_1001_Diffuse.8fe86ffa.ktx2",
      "role": "ktx2-color",
@@ -1209,25 +3320,25 @@
       "tile": 0.47
      }
     },
-    "media/tex/ktx2/chars/Ch06_1001_Normal_ng.c9bde051.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch06_1001_Normal_ng.c9bde051.ktx2",
+    "media/tex/ktx2/chars/Ch06_1002_Normal_ng.84c07f14.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch06_1002_Normal_ng.84c07f14.ktx2",
      "role": "ktx2-normal",
      "opts": {},
      "codec": "UASTC",
      "w": 1024,
      "h": 1024,
      "src": [
-      "media/tex/chars/james/Ch06_1001_Normal.e444121d.webp",
-      "media/tex/chars/james/Ch06_1001_Glossiness.42a609f2.webp"
+      "media/tex/chars/james/Ch06_1002_Normal.1ea8c1e8.webp",
+      "media/tex/chars/james/Ch06_1002_Glossiness.71c2ea0a.webp"
      ],
-     "bytes": 973548,
+     "bytes": 1089461,
      "gpu": 1398128,
      "q": {
-      "rgb": 41.76,
-      "a": 44.5,
-      "mean0": 0.23,
-      "meanM": 0.41,
-      "tile": 0.37
+      "rgb": 37.76,
+      "a": 41.65,
+      "mean0": 0.08,
+      "meanM": 0.38,
+      "tile": 0.42
      }
     },
     "media/tex/ktx2/chars/Ch06_1002_Diffuse.2e6a9540.ktx2": {
@@ -1251,27 +3362,6 @@
       "mean0": 0.11,
       "meanM": 0.46,
       "tile": 0.45
-     }
-    },
-    "media/tex/ktx2/chars/Ch06_1002_Normal_ng.84c07f14.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch06_1002_Normal_ng.84c07f14.ktx2",
-     "role": "ktx2-normal",
-     "opts": {},
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/james/Ch06_1002_Normal.1ea8c1e8.webp",
-      "media/tex/chars/james/Ch06_1002_Glossiness.71c2ea0a.webp"
-     ],
-     "bytes": 1089461,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 37.76,
-      "a": 41.65,
-      "mean0": 0.08,
-      "meanM": 0.38,
-      "tile": 0.42
      }
     }
    },
@@ -1319,6 +3409,27 @@
     }
    ],
    "files": {
+    "media/tex/ktx2/chars/Ch27_1001_Normal_ng.1e5d5ead.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch27_1001_Normal_ng.1e5d5ead.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/martha/Ch27_1001_Normal.40af8b9f.webp",
+      "media/tex/chars/martha/Ch27_1001_Glossiness.8ce4ebab.webp"
+     ],
+     "bytes": 988752,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 42.55,
+      "a": 42.54,
+      "mean0": 0.12,
+      "meanM": 0.33,
+      "tile": 0.52
+     }
+    },
     "media/tex/ktx2/chars/Ch27_1002_Diffuse.8eebad5f.ktx2": {
      "url": "media/tex/ktx2/chars/Ch27_1002_Diffuse.8eebad5f.ktx2",
      "role": "ktx2-color",
@@ -1342,6 +3453,26 @@
       "tile": 1.98
      }
     },
+    "media/tex/ktx2/chars/Ch27_1002_Normal.7bfc9c9e.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch27_1002_Normal.7bfc9c9e.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/martha/Ch27_1002_Normal.ef881b27.webp"
+     ],
+     "bytes": 832638,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 44.16,
+      "a": 99,
+      "mean0": 0.06,
+      "meanM": 0.15,
+      "tile": 0.52
+     }
+    },
     "media/tex/ktx2/chars/Ch27_1001_Diffuse.da717817.ktx2": {
      "url": "media/tex/ktx2/chars/Ch27_1001_Diffuse.da717817.ktx2",
      "role": "ktx2-color",
@@ -1363,47 +3494,6 @@
       "mean0": 0.11,
       "meanM": 0.59,
       "tile": 0.39
-     }
-    },
-    "media/tex/ktx2/chars/Ch27_1002_Normal.7bfc9c9e.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch27_1002_Normal.7bfc9c9e.ktx2",
-     "role": "ktx2-normal",
-     "opts": {},
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/martha/Ch27_1002_Normal.ef881b27.webp"
-     ],
-     "bytes": 832638,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 44.16,
-      "a": 99,
-      "mean0": 0.06,
-      "meanM": 0.15,
-      "tile": 0.52
-     }
-    },
-    "media/tex/ktx2/chars/Ch27_1001_Normal_ng.1e5d5ead.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch27_1001_Normal_ng.1e5d5ead.ktx2",
-     "role": "ktx2-normal",
-     "opts": {},
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/martha/Ch27_1001_Normal.40af8b9f.webp",
-      "media/tex/chars/martha/Ch27_1001_Glossiness.8ce4ebab.webp"
-     ],
-     "bytes": 988752,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 42.55,
-      "a": 42.54,
-      "mean0": 0.12,
-      "meanM": 0.33,
-      "tile": 0.52
      }
     }
    },
@@ -1451,30 +3541,6 @@
     }
    ],
    "files": {
-    "media/tex/ktx2/chars/Ch31_1002_Diffuse.e12f5296.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch31_1002_Diffuse.e12f5296.ktx2",
-     "role": "ktx2-color",
-     "opts": {
-      "mip": "srgb",
-      "codec": "uastc",
-      "alpha": true
-     },
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/leonard/Ch31_1002_Diffuse.67b41196.webp"
-     ],
-     "bytes": 844935,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 40.24,
-      "a": 35.59,
-      "mean0": 0.19,
-      "meanM": 1.08,
-      "tile": 0.9
-     }
-    },
     "media/tex/ktx2/chars/Ch31_1001_Normal_ng.35d0defa.ktx2": {
      "url": "media/tex/ktx2/chars/Ch31_1001_Normal_ng.35d0defa.ktx2",
      "role": "ktx2-normal",
@@ -1517,6 +3583,30 @@
       "mean0": 0.19,
       "meanM": 1,
       "tile": 0.48
+     }
+    },
+    "media/tex/ktx2/chars/Ch31_1002_Diffuse.e12f5296.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch31_1002_Diffuse.e12f5296.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc",
+      "alpha": true
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/leonard/Ch31_1002_Diffuse.67b41196.webp"
+     ],
+     "bytes": 844935,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 40.24,
+      "a": 35.59,
+      "mean0": 0.19,
+      "meanM": 1.08,
+      "tile": 0.9
      }
     }
    },
@@ -1564,6 +3654,27 @@
     }
    ],
    "files": {
+    "media/tex/ktx2/chars/Ch28_1001_Normal_ng.a4202ce2.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch28_1001_Normal_ng.a4202ce2.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/david/Ch28_1001_Normal.7f66a6f8.webp",
+      "media/tex/chars/david/Ch28_1001_Glossiness.c34cbcbf.webp"
+     ],
+     "bytes": 1065416,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 40.25,
+      "a": 42.01,
+      "mean0": 0.13,
+      "meanM": 0.22,
+      "tile": 0.45
+     }
+    },
     "media/tex/ktx2/chars/Ch28_1001_Diffuse.f5fc27f9.ktx2": {
      "url": "media/tex/ktx2/chars/Ch28_1001_Diffuse.f5fc27f9.ktx2",
      "role": "ktx2-color",
@@ -1587,27 +3698,6 @@
       "meanM": 0.74,
       "tile": 0.4
      }
-    },
-    "media/tex/ktx2/chars/Ch28_1001_Normal_ng.a4202ce2.ktx2": {
-     "url": "media/tex/ktx2/chars/Ch28_1001_Normal_ng.a4202ce2.ktx2",
-     "role": "ktx2-normal",
-     "opts": {},
-     "codec": "UASTC",
-     "w": 1024,
-     "h": 1024,
-     "src": [
-      "media/tex/chars/david/Ch28_1001_Normal.7f66a6f8.webp",
-      "media/tex/chars/david/Ch28_1001_Glossiness.c34cbcbf.webp"
-     ],
-     "bytes": 1065416,
-     "gpu": 1398128,
-     "q": {
-      "rgb": 40.25,
-      "a": 42.01,
-      "mean0": 0.13,
-      "meanM": 0.22,
-      "tile": 0.45
-     }
     }
    },
    "gpu": {
@@ -1619,6 +3709,602 @@
     "newN": 2,
     "wireOld": 1190160,
     "wireNew": 1664856
+   }
+  },
+  "adam": {
+   "mats": [
+    {
+     "src": {
+      "map": "media/tex/chars/adam/Ch08_1003_Diffuse.b5398b1e.webp",
+      "nrm": "media/tex/chars/adam/Ch08_1003_Normal.a3c0efc0.webp"
+     },
+     "map": "media/tex/ktx2/chars/Ch08_1003_Diffuse.6382e9ca.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch08_1003_Normal.c32f7862.ktx2"
+    },
+    {
+     "src": {
+      "map": "media/tex/chars/adam/Ch08_1001_Diffuse.4bd2e2c8.jpg",
+      "nrm": "media/tex/chars/adam/Ch08_1001_Normal.d068b58f.webp",
+      "mr": "media/tex/chars/adam/Ch08_1001_Glossiness.e5bb62cf.webp",
+      "spec": [
+       255,
+       255,
+       255
+      ]
+     },
+     "map": "media/tex/ktx2/chars/Ch08_1001_Diffuse.e4344c25.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch08_1001_Normal_ng.10a20231.ktx2",
+     "gloss": 1,
+     "spec": [
+      1,
+      1,
+      1
+     ],
+     "specStd": 0
+    },
+    {
+     "src": {
+      "map": "media/tex/chars/adam/Ch08_1002_Diffuse.119a0d0e.jpg",
+      "nrm": "media/tex/chars/adam/Ch08_1002_Normal.6331e01a.webp",
+      "mr": "media/tex/chars/adam/Ch08_1002_Glossiness.ff063165.webp",
+      "spec": [
+       255,
+       255,
+       255
+      ]
+     },
+     "map": "media/tex/ktx2/chars/Ch08_1002_Diffuse.6010b4a4.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch08_1002_Normal_ng.2d6942fb.ktx2",
+     "gloss": 1,
+     "spec": [
+      1,
+      1,
+      1
+     ],
+     "specStd": 0
+    }
+   ],
+   "files": {
+    "media/tex/ktx2/chars/Ch08_1003_Normal.c32f7862.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1003_Normal.c32f7862.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1003_Normal.a3c0efc0.webp"
+     ],
+     "bytes": 695552,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 45.02,
+      "a": 99,
+      "mean0": 0.04,
+      "meanM": 0.3,
+      "tile": 0.4
+     }
+    },
+    "media/tex/ktx2/chars/Ch08_1001_Normal_ng.10a20231.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1001_Normal_ng.10a20231.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1001_Normal.d068b58f.webp",
+      "media/tex/chars/adam/Ch08_1001_Glossiness.e5bb62cf.webp"
+     ],
+     "bytes": 1058309,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 39.46,
+      "a": 40.61,
+      "mean0": 0.11,
+      "meanM": 0.41,
+      "tile": 0.51
+     }
+    },
+    "media/tex/ktx2/chars/Ch08_1003_Diffuse.6382e9ca.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1003_Diffuse.6382e9ca.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc",
+      "alpha": true
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1003_Diffuse.b5398b1e.webp"
+     ],
+     "bytes": 750175,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 39.59,
+      "a": 37.21,
+      "mean0": 0.15,
+      "meanM": 0.95,
+      "tile": 0.88
+     }
+    },
+    "media/tex/ktx2/chars/Ch08_1002_Normal_ng.2d6942fb.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1002_Normal_ng.2d6942fb.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1002_Normal.6331e01a.webp",
+      "media/tex/chars/adam/Ch08_1002_Glossiness.ff063165.webp"
+     ],
+     "bytes": 902025,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 43.2,
+      "a": 46.14,
+      "mean0": 0.17,
+      "meanM": 0.51,
+      "tile": 0.42
+     }
+    },
+    "media/tex/ktx2/chars/Ch08_1002_Diffuse.6010b4a4.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1002_Diffuse.6010b4a4.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc"
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1002_Diffuse.119a0d0e.jpg"
+     ],
+     "bytes": 750927,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 48.53,
+      "a": 99,
+      "mean0": 0.01,
+      "meanM": 0.22,
+      "tile": 0.34
+     }
+    },
+    "media/tex/ktx2/chars/Ch08_1001_Diffuse.e4344c25.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch08_1001_Diffuse.e4344c25.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc"
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/adam/Ch08_1001_Diffuse.4bd2e2c8.jpg"
+     ],
+     "bytes": 838972,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 44.55,
+      "a": 99,
+      "mean0": 0.16,
+      "meanM": 0.48,
+      "tile": 0.54
+     }
+    }
+   },
+   "gpu": {
+    "old": 134217726,
+    "oldN": 6,
+    "oldAll": 178956968,
+    "oldAllN": 8,
+    "new": 8388768,
+    "newN": 6,
+    "wireOld": 5133188,
+    "wireNew": 4995960
+   }
+  },
+  "jody": {
+   "mats": [
+    {
+     "src": {
+      "map": "media/tex/chars/jody/Ch37_1001_Diffuse.b5000f66.jpg",
+      "nrm": "media/tex/chars/jody/Ch37_1001_Normal.3e0126cf.webp",
+      "mr": "media/tex/chars/jody/Ch37_1001_Glossiness.f247c58f.webp",
+      "spec": [
+       255,
+       255,
+       255
+      ]
+     },
+     "map": "media/tex/ktx2/chars/Ch37_1001_Diffuse.47f494cd.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch37_1001_Normal_ng.5c67f1b9.ktx2",
+     "gloss": 1,
+     "spec": [
+      1,
+      1,
+      1
+     ],
+     "specStd": 0
+    },
+    {
+     "src": {
+      "map": "media/tex/chars/jody/Ch37_1002_Diffuse.42bb08c7.webp",
+      "nrm": "media/tex/chars/jody/Ch37_1002_Normal.48efe432.webp"
+     },
+     "map": "media/tex/ktx2/chars/Ch37_1002_Diffuse.67b44df9.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch37_1002_Normal.b1bacff7.ktx2"
+    }
+   ],
+   "files": {
+    "media/tex/ktx2/chars/Ch37_1001_Normal_ng.5c67f1b9.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch37_1001_Normal_ng.5c67f1b9.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/jody/Ch37_1001_Normal.3e0126cf.webp",
+      "media/tex/chars/jody/Ch37_1001_Glossiness.f247c58f.webp"
+     ],
+     "bytes": 880025,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 40.84,
+      "a": 42.59,
+      "mean0": 0.08,
+      "meanM": 0.23,
+      "tile": 0.65
+     }
+    },
+    "media/tex/ktx2/chars/Ch37_1002_Normal.b1bacff7.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch37_1002_Normal.b1bacff7.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/jody/Ch37_1002_Normal.48efe432.webp"
+     ],
+     "bytes": 871252,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 43.73,
+      "a": 99,
+      "mean0": 0.08,
+      "meanM": 0.14,
+      "tile": 0.5
+     }
+    },
+    "media/tex/ktx2/chars/Ch37_1001_Diffuse.47f494cd.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch37_1001_Diffuse.47f494cd.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc"
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/jody/Ch37_1001_Diffuse.b5000f66.jpg"
+     ],
+     "bytes": 623512,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 47.28,
+      "a": 99,
+      "mean0": 0.06,
+      "meanM": 0.38,
+      "tile": 0.37
+     }
+    },
+    "media/tex/ktx2/chars/Ch37_1002_Diffuse.67b44df9.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch37_1002_Diffuse.67b44df9.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc",
+      "alpha": true
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/jody/Ch37_1002_Diffuse.42bb08c7.webp"
+     ],
+     "bytes": 866239,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 39.46,
+      "a": 37.08,
+      "mean0": 0.17,
+      "meanM": 0.88,
+      "tile": 1
+     }
+    }
+   },
+   "gpu": {
+    "old": 89478484,
+    "oldN": 4,
+    "oldAll": 111848105,
+    "oldAllN": 5,
+    "new": 5592512,
+    "newN": 4,
+    "wireOld": 3785539,
+    "wireNew": 3241028
+   }
+  },
+  "kate": {
+   "mats": [
+    {
+     "src": {
+      "map": "media/tex/chars/kate/Ch21_1001_Diffuse.0996c9fa.jpg",
+      "nrm": "media/tex/chars/kate/Ch21_1001_Normal.a2fa9e84.webp",
+      "mr": "media/tex/chars/kate/Ch21_1001_Glossiness.d175e288.webp",
+      "spec": [
+       255,
+       255,
+       255
+      ]
+     },
+     "map": "media/tex/ktx2/chars/Ch21_1001_Diffuse.0bb1251b.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch21_1001_Normal_ng.95a769a7.ktx2",
+     "gloss": 1,
+     "spec": [
+      1,
+      1,
+      1
+     ],
+     "specStd": 0
+    },
+    {
+     "src": {
+      "map": "media/tex/chars/kate/Ch21_1002_Diffuse.6c42cbc8.webp",
+      "nrm": "media/tex/chars/kate/Ch21_1002_Normal.bb3a55b0.webp"
+     },
+     "map": "media/tex/ktx2/chars/Ch21_1002_Diffuse.8154ce7e.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch21_1002_Normal.e079c4b6.ktx2"
+    }
+   ],
+   "files": {
+    "media/tex/ktx2/chars/Ch21_1001_Normal_ng.95a769a7.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch21_1001_Normal_ng.95a769a7.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/kate/Ch21_1001_Normal.a2fa9e84.webp",
+      "media/tex/chars/kate/Ch21_1001_Glossiness.d175e288.webp"
+     ],
+     "bytes": 1019431,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 41.79,
+      "a": 43.28,
+      "mean0": 0.19,
+      "meanM": 0.48,
+      "tile": 0.39
+     }
+    },
+    "media/tex/ktx2/chars/Ch21_1001_Diffuse.0bb1251b.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch21_1001_Diffuse.0bb1251b.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc"
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/kate/Ch21_1001_Diffuse.0996c9fa.jpg"
+     ],
+     "bytes": 748757,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 44.82,
+      "a": 99,
+      "mean0": 0.16,
+      "meanM": 0.52,
+      "tile": 0.57
+     }
+    },
+    "media/tex/ktx2/chars/Ch21_1002_Normal.e079c4b6.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch21_1002_Normal.e079c4b6.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/kate/Ch21_1002_Normal.bb3a55b0.webp"
+     ],
+     "bytes": 656119,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 45.48,
+      "a": 99,
+      "mean0": 0.05,
+      "meanM": 0.25,
+      "tile": 0.49
+     }
+    },
+    "media/tex/ktx2/chars/Ch21_1002_Diffuse.8154ce7e.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch21_1002_Diffuse.8154ce7e.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc",
+      "alpha": true
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/kate/Ch21_1002_Diffuse.6c42cbc8.webp"
+     ],
+     "bytes": 768705,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 42.56,
+      "a": 38.3,
+      "mean0": 0.12,
+      "meanM": 0.64,
+      "tile": 0.79
+     }
+    }
+   },
+   "gpu": {
+    "old": 89478484,
+    "oldN": 4,
+    "oldAll": 111848105,
+    "oldAllN": 5,
+    "new": 5592512,
+    "newN": 4,
+    "wireOld": 2944215,
+    "wireNew": 3193012
+   }
+  },
+  "pete": {
+   "mats": [
+    {
+     "src": {
+      "map": "media/tex/chars/pete/Ch17_1001_Diffuse.fb0ddb1d.jpg",
+      "nrm": "media/tex/chars/pete/Ch17_1001_Normal.70967f33.webp",
+      "mr": "media/tex/chars/pete/Ch17_1001_Glossiness.c2258e52.webp",
+      "spec": [
+       255,
+       255,
+       255
+      ]
+     },
+     "map": "media/tex/ktx2/chars/Ch17_1001_Diffuse.adde6d16.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch17_1001_Normal_ng.19e5dae4.ktx2",
+     "gloss": 1,
+     "spec": [
+      1,
+      1,
+      1
+     ],
+     "specStd": 0
+    },
+    {
+     "src": {
+      "map": "media/tex/chars/pete/Ch17_1002_Diffuse.924626c1.webp",
+      "nrm": "media/tex/chars/pete/Ch17_1002_Normal.3ffd2335.webp"
+     },
+     "map": "media/tex/ktx2/chars/Ch17_1002_Diffuse.206f1fb9.ktx2",
+     "nrm": "media/tex/ktx2/chars/Ch17_1002_Normal.1854120b.ktx2"
+    }
+   ],
+   "files": {
+    "media/tex/ktx2/chars/Ch17_1001_Normal_ng.19e5dae4.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch17_1001_Normal_ng.19e5dae4.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/pete/Ch17_1001_Normal.70967f33.webp",
+      "media/tex/chars/pete/Ch17_1001_Glossiness.c2258e52.webp"
+     ],
+     "bytes": 1150221,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 38.84,
+      "a": 39.22,
+      "mean0": 0.11,
+      "meanM": 0.37,
+      "tile": 0.56
+     }
+    },
+    "media/tex/ktx2/chars/Ch17_1002_Diffuse.206f1fb9.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch17_1002_Diffuse.206f1fb9.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "alpha": true
+     },
+     "codec": "ETC1S",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/pete/Ch17_1002_Diffuse.924626c1.webp"
+     ],
+     "bytes": 347039,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 40.44,
+      "a": 27.07,
+      "mean0": 0.36,
+      "meanM": 0.65,
+      "tile": 1.93
+     }
+    },
+    "media/tex/ktx2/chars/Ch17_1002_Normal.1854120b.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch17_1002_Normal.1854120b.ktx2",
+     "role": "ktx2-normal",
+     "opts": {},
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/pete/Ch17_1002_Normal.3ffd2335.webp"
+     ],
+     "bytes": 831038,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 44.14,
+      "a": 99,
+      "mean0": 0.06,
+      "meanM": 0.13,
+      "tile": 0.37
+     }
+    },
+    "media/tex/ktx2/chars/Ch17_1001_Diffuse.adde6d16.ktx2": {
+     "url": "media/tex/ktx2/chars/Ch17_1001_Diffuse.adde6d16.ktx2",
+     "role": "ktx2-color",
+     "opts": {
+      "mip": "srgb",
+      "codec": "uastc"
+     },
+     "codec": "UASTC",
+     "w": 1024,
+     "h": 1024,
+     "src": [
+      "media/tex/chars/pete/Ch17_1001_Diffuse.fb0ddb1d.jpg"
+     ],
+     "bytes": 1093988,
+     "gpu": 1398128,
+     "q": {
+      "rgb": 43.03,
+      "a": 99,
+      "mean0": 0.17,
+      "meanM": 0.33,
+      "tile": 0.43
+     }
+    }
+   },
+   "gpu": {
+    "old": 89478484,
+    "oldN": 4,
+    "oldAll": 111848105,
+    "oldAllN": 5,
+    "new": 5592512,
+    "newN": 4,
+    "wireOld": 4154263,
+    "wireNew": 3422286
    }
   }
  }

@@ -1,0 +1,32 @@
+== start 20:40:33 unlocked (A0 OK 20:4x), stop 21:12
+1bafe174a already merged
+on ccaa51836 20:40:34
+build exit 0 20:40:43
+tools/flight_core.js (3536.6 KB), index.html (13637.8 KB), dev.html (116.8 KB), career_core.ec46df72.js (430.0 KB), route_draw.df5cd4af.js (31.3 KB) — syntax OK, build d21a95f11ba1 (381 named inputs
+parked_cook --check: manifest build 1bd647158b91, this tree d21a95f11ba1 (STALE: every key is captured live until a re-cook); keys arch:c172, arch:chinook, arch:cub, arch:jodel
+cook exit 0 20:46:54
+parked_cook --check: manifest build d21a95f11ba1, this tree d21a95f11ba1 (same); keys arch:c172, arch:chinook, arch:cub, arch:jodel
+== gates 20:46:54: BOOMBOX,VIEW,CARDDRAG,PANEL,BUILD,BUILT,UISMOKE,UISMOKE-PHONE
+exit 0 20:50:56
+GATE BOOMBOX: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE CARDDRAG: PASS
+GATE BUILD: PASS
+GATE VIEW: PASS
+GATE PANEL: PASS
+GATE BUILT: PASS
+BATTERY: PASS
+== still s20 20:51:03
+exit 0 20:51:29
+view: {"w":412,"h":915,"dpr":2.625,"canvas":[0,0,412,609],"viewShare":0.666,"calls":1,"triangles":2,"programs":24,"textures":66}
+shot -> C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_still/s20_top.jpg
+shot2 -> C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_still/s20_tank.jpg
+== still desk 20:51:29
+exit 0 20:52:57
+view: {"w":1600,"h":900,"dpr":1,"canvas":[320,0,640,900],"viewShare":0.4,"calls":1,"triangles":2,"programs":404,"textures":733}
+shot -> C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_still/desk_top.jpg
+shot2 -> C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_still/desk_tank.jpg
+stills done 20:53:01
+done 20:53:01
+body exit 0 20:53:01

@@ -1,0 +1,33 @@
+armed Sun Oct 25 20:45:36 RST 2026 - UNTIMED at Mon Oct 26 16:35:00 RST 2026, hard stop Mon Oct 26 17:35:00 RST 2026, body C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_s2.sh
+boxlock: CPU battery taken by PHONEGARAGE
+== body 16:35:07
+S3 flag: present 16:35:07
+on 9f20ac6dd 16:35:07
+parked_cook --check: manifest build bb69326c9848, this tree bb69326c9848 (same); keys arch:c172, arch:chinook, arch:cub, arch:jodel
+== pass 1 16:35:07: UISMOKE,UISMOKE-PHONE,CARDDRAG,CARDS,BOOT,BUILD,BUILT,PANEL,VIEW,BOOMBOX,UILAYER,PROFILE
+exit 1 16:47:07
+GATE BOOMBOX: FAIL (11)
+GATE PROFILE: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE BOOT: PASS
+GATE UILAYER: PASS
+GATE CARDS: PASS
+GATE CARDDRAG: PASS
+GATE BUILD: PASS
+GATE VIEW: PASS
+GATE PANEL: PASS
+GATE BUILT: PASS
+BATTERY: FAIL — never deliver red.
+== pass 2 16:47:07: FRAMECOST
+exit 1 16:49:10
+GATE FRAMECOST: FAIL (1)
+BATTERY: FAIL — never deliver red.
+== pass 3 16:49:10: ROUNDTRIP
+exit 1 16:55:17
+GATE ROUNDTRIP: FAIL (1)
+BATTERY: FAIL — never deliver red.
+done 16:55:17
+body exit 0 16:55:17
+boxlock: CPU battery released by PHONEGARAGE
+done Mon Oct 26 16:55:17 RST 2026

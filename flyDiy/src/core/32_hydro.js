@@ -82,6 +82,25 @@
 // collapses — which is the hump's far side (§1.3). kWake and dVent are
 // INFERRED constants the tow sweep exposes; H3's calibration against the
 // NACA tank reports pins them.
+// G3440 (HYDRO-TRIM): THE WAKE IS NOW THE MEASURED ONE (P.wakeSM, 1). The
+// streamline above sank the deeper the higher the trim, so the afterbody
+// DRIED as the bow rose and nothing held the trim down: a free float in
+// GATE HYDRODYN's tank ran to 23 deg, the seaplane tow to 20, and the 172R
+// on Wipline 2350s sat at its hump at 10-15 deg and never left the water
+// (G3390). A float's afterbody is what limits its hump trim (Parkinson,
+// NACA TN 563, 1936: the free-to-trim hump trim and resistance follow the
+// afterbody keel angle). Behind the step the surface now stands H over the
+// forebody keel line extended aft, Savitsky & Morabito's tank fit (Marine
+// Technology 47(1), 2010, "Surface wave contours associated with the
+// forebody wake of stepped planing hulls"; deadrise 10-30 deg):
+//   H / b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi / C_V) (X / 3)^1.5)
+// b the chine beam at the step, X = x / b aft of it, L_K the wetted keel
+// length in beams, tau the forebody's trim in degrees, C_V = V / sqrt(g b),
+// A 1.5 on the centreline and 2 at the quarter beam (held to the chine). Held
+// at its crest past the first quarter wave, never above the undisturbed
+// surface, blended in by the step's air as before. It RISES with the trim
+// and the loading: a trimmed-up hull's afterbody meets its own wake. kWake
+// is the H0 law's alone (wakeSM 0).
 //
 // NOT MODELLED (H0 cuts, each named): the spray-root wave rise (Savitsky's
 // lambda is the still-water one here); whisker spray drag; the added-mass
@@ -196,6 +215,8 @@ const DEF = {
   xi0: 0.01,       // the leading-edge weight's core, in beams (0.05 integrated to 86 % of lambda^0.5 at lambda 2)
   kTr: 0.15,       // transom fade length = kTr V^2/g (fitted in the check)
   kWake: 0.5,      // wake recovery length = kWake V^2/g (INFERRED)
+  sideShed: 1,     // G3440: no skin friction on a side above a chine that sheds the flow (1); 0 = the H0 clipper's wetted side
+  wakeSM: 1,       // G3440: the wake behind a ventilated step is Savitsky & Morabito's measured profile (1); 0 = the H0 law (kWake)
   dVent: 0.05,     // chine depth at the step over which the step loses its air, m
   Cd: 1.2,         // cross-flow / square-on pressure coefficient
   kw: Math.PI / 2, // Wagner's rise-up on the wetted width (1 = von Karman)
@@ -713,16 +734,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const air = Math.max(airStill, airChine);
   const vent = air * sep;
   const lr = Math.max(0.02, P.kWake * Vflow * Vflow / G);
-  // the stern transom's own: its chines are higher, so it usually has air
-  const sK = W[F.stern.K];
-  // (a transom is open to the sky: its air comes over the deck edge)
-  const dSternChine = 0.5 * ((water.h(W[F.stern.Dm][0], W[F.stern.Dm][2], t) - W[F.stern.Dm][1]) +
-                             (water.h(W[F.stern.Dp][0], W[F.stern.Dp][2], t) - W[F.stern.Dp][1]));
-  const dStern = water.h(sK[0], sK[2], t) - sK[1];
-  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
-  const airStern = smooth01(1 - dSternChine / P.dVent);
-  const ventStern = airStern * sepStern;
-  out.sep = sep; out.air = air; out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
+  out.sep = sep; out.air = air;
   out.vent = vent; out.Vflow = Vflow; out.dEdge = dEdge; out.lr = lr;
   // (0) G1807: the hull's own wave (the plough), from the still-water keel and the speed through the water
   const wvA = P.kWave > 0 ? ploughWave(F, W, water, t, -dot(vE, xhat) + dot(water.v(eK[0], eK[2], t), xhat), out.wave) : (out.wave.a = 0);
@@ -730,6 +742,26 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   // the CG's horizontal velocity is the steady motion; what is left of a
   // panel's velocity after it is the UNSTEADY entry the slam is computed on
   const vH = ctx.vH;
+  // (3b) G3440: THE FOREBODY'S WAKE AS MEASURED (Savitsky & Morabito 2010) - see the header's THE STEP WORKS BY
+  // GEOMETRY. The trim, the wetted keel length and the beam Froude number it reads, once per pass
+  const wSM = (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 && vent > 0;
+  let smB = 1, smCv = 1, smAmp = 0;
+  if (wSM) {
+    smB = 2 * halfBeamAt(F, -1e-6);
+    smCv = Vflow / Math.sqrt(G * smB);
+    const tauD = Math.max(0, -Math.asin(Math.max(-1, Math.min(1, xhat[1]))) / D2R);
+    // the wetted keel length ahead of the step (still water): the forebody's keel stations walked forward from it
+    let LK = 0;
+    for (let i = F.nF; i > 0; i--) {
+      const a = F.sta[i], b = F.sta[i - 1], ka = W[a.K], kb = W[b.K];
+      const da = water.h(ka[0], ka[2], t) - ka[1], db = water.h(kb[0], kb[2], t) - kb[1];
+      if (da <= 0) break;
+      if (db <= 0) { LK = -(a.x + (b.x - a.x) * da / (da - db)); break; }
+      LK = -b.x;
+    }
+    smAmp = 0.03 * (LK / smB) * CORE_MATH.pow(tauD, 1.5);
+    out.smLK = LK; out.smTau = tauD;
+  }
   // 3. signed depth per vertex — with the WAKE under everything aft of the step
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
@@ -737,7 +769,16 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
     // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
     if (wvA !== 0) h += wvA * (x <= wvX ? 1 : CORE_MATH.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
-    if (x > 0 && vent > 0) {
+    if (x > 0 && wSM) {
+      // the wake's surface stands H over the forebody keel line extended aft, H/b = 0.17 (A + 0.03 L_K tau^1.5)
+      // sin((pi / C_V)(X / 3)^1.5), A 1.5 on the centreline and 2 at the quarter beam (held to the chine), held at its
+      // crest past the first quarter wave, never above the undisturbed surface; the air that reaches the step blends it in
+      const X = x / smB, z = Math.abs(V[i][2]);
+      const A0 = 1.5 + 0.5 * Math.min(1, 4 * z / smB);
+      const arg = Math.min(0.5 * Math.PI, (Math.PI / smCv) * CORE_MATH.pow(X / 3, 1.5));
+      const yW = eK[1] + x * xhat[1] + 0.17 * smB * (A0 + smAmp) * CORE_MATH.sin(arg);
+      if (yW < h) h -= vent * (h - yW);
+    } else if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
       const drop = Math.max(0, h - yW) * Math.exp(-dx / lr);
@@ -745,6 +786,21 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     }
     D[i] = h - W[i][1];
   }
+  // the stern transom's own: its chines are higher, so it usually has air
+  // (a transom is open to the sky: its air comes over the deck edge). G3440: its depths are read against the water it
+  // actually sits in - the forebody's wake (step 3) - as the afterbody bottom around it is; they read the still surface,
+  // and at the hump (the 172 on 2350s, 7.8 m/s, 8 deg) a stern deck under the still level but over the wake kept the
+  // transom unventilated: its base suction 0.03 W of drag and the deck's 0.02 W of download
+  const dSternChine = 0.5 * (D[F.stern.Dm] + D[F.stern.Dp]);
+  const dStern = D[F.stern.K];
+  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
+  // ...and, as at the step (S1, G451.1), the air also comes up a side whose chine sheds the flow (sigma_chine under 1):
+  // a transom whose deck edge is awash in the wake's crest is not sealed when its chines are throwing the water off
+  const dSternC = 0.5 * (D[F.stern.Cm] + D[F.stern.Cp]);
+  const airStern = Math.max(smooth01(1 - dSternChine / P.dVent),
+                            (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 ? smooth01(1 - 2 * G * Math.max(0, dSternC) / (Vflow * Vflow)) : 0);
+  const ventStern = airStern * sepStern;
+  out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   // 4. clip every panel; the wet leading edge per (body, side) row
   const LE = out.LE;
   LE.F[0][0] = LE.F[0][1] = LE.F[1][0] = LE.F[1][1] = LE.A[0][0] = LE.A[0][1] = LE.A[1][0] = LE.A[1][1] = Infinity;
@@ -861,7 +917,17 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
         const Re = Math.max(1e4, Vt * s / NU);
         const lg = Math.log10(Re) - 2;
         const Cf = 0.075 / (lg * lg);
-        scl(ut, 0.5 * rho * Cf * Vt * A, fv);   // ut is already Vt * direction
+        // G3440: A SIDE ABOVE A CHINE THAT SHEDS THE FLOW IS NOT WETTED BY IT. The chine sheds by the cavity law the
+        // step's air reads (sigma_chine = 2 g d_chine / V^2 under 1, (2) above), and what the clipper counts on the
+        // side over it is the still level the spray has been thrown off (the spray-root rise is an H0 cut): Savitsky's
+        // planing hull is wetted on its bottom only. Its skin friction alone goes - the side's pressure terms (the
+        // keel's grip in a slip) stay as they were
+        let kWet = 1;
+        if ((pn.kind === 'side' || pn.kind === 'bevel') && (P.sideShed != null ? P.sideShed : DEF.sideShed) > 0) {
+          let dC = 0; for (let j = 0; j < pn.v.length; j++) if (D[pn.v[j]] > dC) dC = D[pn.v[j]];
+          kWet = 1 - smooth01(1 - 2 * G * dC / (Vt * Vt));
+        }
+        scl(ut, 0.5 * rho * Cf * Vt * A * kWet, fv);   // ut is already Vt * direction
         apply(fv, o.c, T.fric); add(o.Ff, fv, o.Ff);
       }
     }

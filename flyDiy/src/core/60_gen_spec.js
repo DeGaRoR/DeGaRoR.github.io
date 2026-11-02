@@ -2276,10 +2276,30 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
+// `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT (HYDRO-TRIM G3443's reading): momentum theory's
+// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
+// 0.477 is FM 0.33 (the A-65 + Sensenich anchor) and 'climb' 0.530 FM 0.386.
+// G3445 (FLOAT-KIT, the user 22 Oct: "4 yes" - fitting floats fits the certified seaplane propeller, OTHER PLANES ARE
+// LEFT ALONE): G3443 raised 'climb' for every aeroplane (0.530 -> 0.630) and is REVERTED - the land classes are
+// byte-identical to master. The float prop is its OWN class instead: 'seaplane', FM 0.50 (fm 0.630), the static figure
+// of merit measured on full-power fixed props standing - Flight Resource's static tests for STC SA02245CH (C170B,
+// O-360-A1A 180 hp, 1000 ft, 75 F): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - a
+// float prop is the fine prop that DOES reach rated rpm standing. pd 0.524: the 172's McCauley 1A200/WFA8243 is 82 x 43
+// in. NOT in GEN_PROP_AUTO_ORDER: 'auto' never picks it; only the float kit (GEN_SEAPLANE_PROPS, below) fits it.
 const GEN_PROP_PITCH = {
   climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
+  seaplane: { name: 'Seaplane (float prop)', fm: 0.630, pd: 0.524 },
+};
+// G3445 THE CERTIFIED SEAPLANE PROPELLER, per float model: what the float's STC fits with it (Wipaire's Wipline 2350
+// page, the 172R / 172S row: McCauley 1A200/WFA8243, fixed pitch; McCauley's naming = 82 in diameter x 43 in pitch).
+// A float model with no row here fits no propeller: the aeroplane keeps its own (the user: other planes left alone).
+// Read by the editor's float layer (tools/_cage_float.js) when floats are fitted; `D` m, `blades`, `material` the
+// cowl page's blade rows, `pitch` a GEN_PROP_PITCH class.
+const GEN_SEAPLANE_PROPS = {
+  'Wipline 2350': { name: 'McCauley 1A200/WFA8243 (82 x 43 in)', D: 2.083, blades: 2, material: 'alu', pitch: 'seaplane',
+                    for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
 // COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
@@ -2393,7 +2413,168 @@ const GEN_TIPS = {
   // top. `bow` 0 because the blend IS the tip; `fin` is the height in tip
   // chords (0.42 was the old band's).
   winglet: { name: 'Winglet',    e: 1.07, bow: 0,    arc: 0, fin: 0.75 },
+  // G2820 (STOL-WING, the user 2026-10-10: "the large flat surfaces at the
+  // wingtips"). APPENDED, never inserted: the cage saves a tip as an INDEX
+  // into Object.keys(GEN_TIPS), so every saved build keeps its meaning.
+  // ENDPLATE: a flat plate standing above and below the full-chord tip.
+  // Hoerner's end-plate law (e/e0 ~ 1 + 1.9 h/b) at a STOL plate's height
+  // (~0.55 c over a 6-8 AR wing) gives ~+12 %; a flat plate is a poorer
+  // vortex fence than a cambered winglet and its own wetted area is paid as
+  // drag (`plate`: its height and length in tip chords, 62_gen_aero prices
+  // both faces at Cf 0.006). e 1.05 is the honest middle.
+  // DROOPED: the bush tip (Hoerner's drooped tip, the Super Cub / Maule
+  // fibreglass tips) - the last bow rows bent down `droop` tip chords, which
+  // keeps the tip vortex outboard of the span as a Hoerner tip does; e as
+  // the Hoerner row and a hair more, no drag of its own.
+  endplate:{ name: 'Endplate',   e: 1.05, bow: 0,    arc: 0, fin: 0, plate: [0.55, 1.10] },
+  drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
 };
+
+// ===========================================================================
+// THE STOL WING (G2820) - LEADING-EDGE AND SPANWISE HIGH-LIFT DEVICES
+// ===========================================================================
+// The user (2026-10-10): "it's a bush flying game, and there were plans for
+// STOL wing features back in the day". The flap model (GEN_FLAPS) is a
+// camber + drag + stall-margin delta per strip; what it never had is the
+// OTHER half of a STOL wing - the devices that do not add camber but let the
+// section fly to a HIGHER ANGLE before it lets go: the slat and the slot,
+// vortex generators, the cuff. They are modelled as what they physically
+// are, an increment of the STALL ANGLE (`dAs`, rad: the lift curve runs on
+// past the clean stall, so dCLmax = a3d x dAs on the strip and nothing below
+// the stall moves), plus their profile drag (`cd`, on the strip's own
+// coefficient). A cuff also droops the nose, which is a little camber (dCl).
+//
+// Every device is a SPEC OPTION, OFF BY DEFAULT, on `wings[k].stol` - absent
+// (or null) is off, and an aeroplane without it flies the bits it flew
+// before (GATE STOL's section 1). Numbers, all per section, ~ +-30 %:
+//   slot  the fixed leading-edge slot / fixed slat (Storch, Zenith CH 701,
+//         Savannah): Abbott & von Doenhoff fig. 105 / Hoerner Fluid-Dynamic
+//         Lift 3-15 give ~+8 deg of stall and dCLmax 0.5-0.7; it is ALWAYS
+//         open, so its gap drag is paid at cruise (the 701 cruises ~15 %
+//         under a clean wing on the same power: dCd0 ~0.006).
+//   auto  the Handley Page automatic slat (Helio Courier, Me 108, Do 27):
+//         nested at cruise (a seam's drag), it runs out on its tracks when
+//         the suction peak pulls it - modelled as deploying over the last
+//         `open` rad before the clean stall, ~+10 deg once out, and the gap
+//         drag only while out.
+//   vg    vortex generators (Micro AeroDynamics kits on Cubs, 172s, the
+//         Savannah VG): +2-4 deg and 3-5 mph of stall on the kit sheets,
+//         dCd0 under 0.001.
+//   cuff  a drooped leading-edge cuff (the Robertson / Horton STOL kits) on
+//         the outboard wing: the tip stalls ~4 deg later than the root, so
+//         the aileron still answers in the stall - `dAs` on the cuffed
+//         strips only, a little nose camber.
+//   fence chordwise fences on top of the wing: on a straight wing they stop
+//         the root's separation creeping outboard along the span, a small
+//         stall gain OUTBOARD of the fence; each fence pays its own wetted
+//         area (`h` x the chord, both faces, Cf 0.008).
+//   droop drooping ailerons (Kitfox, Robertson): the ailerons go down with
+//         the flap lever by `droop` of a plain flap's travel (0.35 = 14 deg),
+//         a plain-flap increment at the aileron's own chord, and they still
+//         deflect differentially about the drooped datum.
+//   grow  FOWLER AREA GROWTH: the Fowler's dCl 2.05 stood in for its camber
+//         AND the chord it adds (HANDOVER, session 2). With `grow` the flap
+//         flies the slotted row's camber (1.60) and the strip's own area and
+//         chord grow by slide x flap chord as it runs out - the same lift at
+//         the stall to a few per cent, more of it at every lower angle, the
+//         moment arm and the drag of the bigger wing.
+// The devices' increments ADD on a strip, capped at `dAsMax` (a slatted,
+// VG'd, cuffed wing does not stall at 45 deg - the slat's own wake bounds it).
+const GEN_SLATS = {
+  none: { name: 'None',           dAs: 0,    cd: 0 },
+  slot: { name: 'Fixed slot',     dAs: 0.14, cd: 0.0060 },
+  auto: { name: 'Automatic slat', dAs: 0.17, cd: 0.0006, cdOut: 0.0040, open: 0.10, band: 0.06 },
+};
+const GEN_STOL = {
+  vg:    { dAs: 0.05, cd: 0.0008 },
+  cuff:  { dAs: 0.07, dCl: 0.04, cd: 0.0006 },
+  fence: { dAs: 0.025, h: 0.12, cf: 0.008 },        // h: fence height in local chords
+  dAsMax: 0.22,
+  droopMax: 0.50,                                   // of a plain flap's travel
+  // G2823: the editor's three settings (the cage row wgDroop is an index): none, 10 and 20 deg of a plain flap's
+  // 40. Kitfox / Zenith flaperons and the Robertson / Horton droop kits run ~10-20 deg at full flap (the kits'
+  // supplements; owners report the aileron answering less the further it droops - GATE STOL, the design check's
+  // ctl.droop row)
+  droopSteps: [0, 0.25, 0.50],
+  growCamber: 'slotted',                            // the Fowler's camber row under `grow`
+  // THE MACHINE SHOP (the GAME coordinator's): which purchasable pack each
+  // option would sit in. A FLAG, nothing more - no era, no calendar, no
+  // price; the editor greys an option whose pack the player does not own
+  // when (and only when) the page publishes an owned-pack list
+  // (window.MACHINE_SHOP_OWNS, see genStolLocked). Candidates, not rulings.
+  packs: { slat: 'stol-kit', vg: 'stol-kit', cuff: 'stol-kit', fences: 'stol-kit',
+           droop: 'stol-kit', grow: 'stol-kit', endplate: 'stol-kit', drooped: null },
+  // G2828 (STOL-WING-2, the user 23 Oct: "add weights and prices first"): WHAT EACH DEVICE WEIGHS AND COSTS, billed
+  // into the ledger's own 'stol' row (61_gen_frame, per plane, onto the wing nodes the device hangs on - the mass
+  // flies where it is, and the damage layer takes it with its wing). Kit catalogue and type-data figures as recalled,
+  // +-30 %, in the game's credits (dollar-like: the Cub's A-65 bills ~10 000, the whole Cub ~30 000):
+  //   slot   a fixed aluminium slat on its brackets: ~1.2 kg per metre of span, ~280 / m (the Zenith 701 slat pair
+  //          ~1500 for ~5.5 m)
+  //   auto   the Handley Page slat on tracks and rollers: ~1.8 kg/m, ~420 / m (the tracks are the weight and the money)
+  //   vg     a vortex-generator row: ~80 g per metre of span (the vanes are a few grams each, glued), the kit ~1100
+  //          for an aeroplane (Micro AeroDynamics' Cub / Cessna kits ~1000-1400)
+  //   cuff   a moulded leading-edge glove: ~0.6 kg/m, ~200 / m
+  //   fence  a riveted chordwise plate: ~0.25 kg, ~90 each
+  //   droop  the mixer, its push-pull rods and the bellcranks: ~3 kg for the pair, ~900 (the R/STOL droop kits)
+  //   grow   the Fowler's longer tracks and carriage: ~1.0 kg per metre of flap span, ~250 / m
+  //   plate  an endplate (formed sheet, its doubler): ~1.5 kg, ~350 each
+  //   tipD   a drooped glassfibre tip over a plain one: +0.6 kg, ~300 each (Super Cub drooped tips ~600-800 a pair)
+  cost: { slot: { kgM: 1.2, perM: 280 }, auto: { kgM: 1.8, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
+          cuff: { kgM: 0.6, perM: 200 }, fence: { kg: 0.25, each: 90 }, droop: { kg: 3.0, kit: 900 },
+          grow: { kgM: 1.0, perM: 250 }, plate: { kg: 1.5, each: 350 }, tipD: { kg: 0.6, each: 300 } },
+};
+// the option a pack gates, against a list of owned packs (null/undefined =
+// no machine shop in play: nothing is locked). Returns the pack's name when
+// locked, else null.
+function genStolLocked(opt, owned) {
+  const pk = GEN_STOL.packs[opt];
+  if (!pk || !Array.isArray(owned)) return null;
+  return owned.includes(pk) ? null : pk;
+}
+// THE EDITOR'S ROWS -> the record (the cage's wgSlat... rows; the join and
+// the wing layer both read it, so the drawn wing and the flown one cannot
+// disagree). A P without the rows says nothing (undefined); with them, the
+// record or null - STATED in both states (A3), so the garage's merge can
+// take a device back off.
+const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan', 'wgDroop', 'wgFowlerGrow'];
+// G2827 (STOL-WING-2): THE ROWS' "OFF" - the wing layer's PAGE.defaults (tools/_cage_wing.js spreads this table) and
+// the value every fingerprint treats as ABSENT. A build that never touched a STOL row carries them at these values
+// once the editor has seen it (the cage states its rows), and every key the game hashes a build by - the certificate's
+// (genCertKey: the IndexedDB store's), the bench's and the parked fleet's (bench.js benchStripCosmetic: the shipped
+// parked bakes are keyed by it - a miss drew the fleet live, 139 draws for 2, GATE FRAMECOST), the procurement's -
+// must not see them: the build is the one it was before the STOL wing existed.
+const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+// the cage without its STOL rows at "off" (the same object when it has none: a hash over it is the old bytes)
+function genStolCageOff(cage) {
+  if (!cage || typeof cage !== 'object') return cage;
+  let out = null;
+  for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  return out || cage;
+}
+function genStolCage(P) {
+  if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
+  return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
+                     slatSpan: P.wgSlatSpan, vg: P.wgVG, fences: P.wgFence,
+                     cuff: P.wgCuff, cuffSpan: P.wgCuffSpan,
+                     droop: GEN_STOL.droopSteps[Math.round(+P.wgDroop || 0)] || 0, grow: P.wgFowlerGrow });
+}
+// THE PLANE'S STOL RECORD, normalised: null when every device is off (the
+// key then leaves the spec - absent IS off, so an old file and a new file
+// that says "nothing" are the same file).
+function genStolOf(st) {
+  if (!st || typeof st !== 'object') return null;
+  const o = {};
+  if (GEN_SLATS[st.slat] && st.slat !== 'none') {
+    o.slat = st.slat;
+    o.slatSpan = genClamp(st.slatSpan == null ? 1 : +st.slatSpan, 0.30, 1);
+  }
+  if (+st.vg) o.vg = 1;
+  if (+st.fences) o.fences = genClamp(Math.round(+st.fences), 1, 2);
+  if (+st.cuff) { o.cuff = 1; o.cuffSpan = genClamp(st.cuffSpan == null ? 0.40 : +st.cuffSpan, 0.20, 0.60); }
+  if (+st.droop > 0) o.droop = genClamp(+st.droop, 0.05, GEN_STOL.droopMax);
+  if (+st.grow) o.grow = 1;
+  return Object.keys(o).length ? o : null;
+}
 
 // Design constants that are rules rather than choices. Each one reproduces a
 // measured value on the Cub (noted), which is why they are constants and not
@@ -3183,8 +3364,45 @@ GEN_MIGRATORS[5] = r => {
 //             the derived block branches on.
 //
 // The crank still means what G61-era code said: ONE break, two sections.
+//
+//   elliptic  `plan: 'elliptic'` (the Spitfire's wing, the user: "a truly
+//             elliptic wing"): the chord follows ONE ellipse over the whole
+//             semispan, c0 sqrt(1 - (z/semi)^2) with c0 = `chord` the
+//             CENTRELINE chord, constant across the cabin as every law is.
+//             The line at `planAxis` of the chord (0.30 on the Spitfire,
+//             measured) runs straight, swept by `tipX` at the tip; the
+//             offsets below are the FRONT SPAR's (the section scales about
+//             it: 63's wingSectionAt), so the drawn line at planAxis is the
+//             straight one. The chord closes on the ellipse itself (no tip
+//             bow), floored at ELL.tip of c0 so the last section is a tip,
+//             not a point; `cBox` floors the STRUCTURAL depth (a spar box
+//             must keep a depth to the tip rib).
 // ---------------------------------------------------------------------------
+const GEN_PLAN_ELL = { tip: 0.035, box: 0.25 };
 function genPlanLaw(w, zR, semi) {
+  if (w.plan === 'elliptic') {
+    const c0 = w.chord, sf = GEN_RULES.sparFront;
+    const ax = w.planAxis != null ? +w.planAxis : 0.30;
+    const spanE = Math.max(1e-6, semi - zR);
+    const rel = z => {
+      const u = Math.max(zR, Math.min(z, semi)) / Math.max(1e-6, semi);
+      return Math.sqrt(Math.max(0, 1 - u * u));
+    };
+    const cAt = z => c0 * Math.max(GEN_PLAN_ELL.tip, rel(z));
+    const cBox = z => c0 * Math.max(GEN_PLAN_ELL.box, rel(z));
+    const xTip = w.tipX == null ? 0 : +w.tipX, cR = cAt(zR);
+    // the front spar's walk: the planAxis line straight means the spar moves
+    // aft by (planAxis - sparFront) of every metre of chord lost, plus the sweep
+    const xoff = z => {
+      z = Math.max(zR, Math.min(z, semi));
+      return (ax - sf) * (cR - cAt(z)) + xTip * (z - zR) / spanE;
+    };
+    // the DRAWN leading edge, aft of xLE: the section sits on the front spar
+    // (at sparFront of its own chord), the spar at sparFront of c0 + xoff
+    const leAt = z => sf * c0 + xoff(z) - sf * cAt(z);
+    return { zC: 0, xTip, xCrk: 0, cCrk: null, tipC: cAt(semi), cAt, xoff,
+             explicit: true, ell: true, cBox, leAt, axis: ax };
+  }
   const span = Math.max(1e-6, semi - zR);
   const zC = w.crankAt > 0 ? zR + span * w.crankAt : 0;
   const swT = Math.tan((w.sweep || 0) * Math.PI / 180);
@@ -3293,10 +3511,12 @@ const GEN_DEFAULT = {
     // moves — see 63_gen_skin.js). `depth` is how far aft the coaming shelf runs;
     // `wrap` is how far down the sill arc it wraps, and 0.5 is exactly the sill.
     panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.50 },
-    // THE OCCUPANT. A crash-test dummy on the first `pilots` seats. `stature` is
-    // standing height in metres and everything else is a pose angle in degrees.
-    // The rig is anthropometric (Drillis & Contini fractions), so the one length
-    // scales the figure and every chain hangs off the one before it.
+    // A RETIRED FIELD, UNREAD (G3700). The first generator posed a figure of
+    // its own from these numbers; the cage's crew layer seats the characters
+    // now (the pilot is the racer, _cage_crew.js) and nothing reads `pilot`.
+    // It stays, normalised as before, because every saved build carries it
+    // and the bench's fingerprint hashes it: dropping it would withdraw every
+    // certificate (A0's ruling, 25 Oct).
     pilot: { show: true, stature: 1.75, lean: 17, thigh: -9, shank: 10,
              armDown: 40, fore: 6, head: -11, armIn: 26,
              ankle: 40, toeOut: 7, hipOut: 0, kneeOut: 3 },
@@ -3573,6 +3793,10 @@ const GEN_DEFAULT = {
             // Null = derived from sweep/taper exactly as v5 did — `sweep`
             // stays the legacy input; these are the honest model.
             crankChord: null, crankX: null, tipX: null,
+            // THE ELLIPTIC PLANFORM (genPlanLaw): `plan` null = the straight
+            // stations above, 'elliptic' = one ellipse over the semispan;
+            // `planAxis` the chord fraction that runs straight (null 0.30)
+            plan: null, planAxis: null,
             // EXTRA LOFT STATIONS (G189): spanwise metres from the centreline
             // where the covering must have a row — the lamp bay's two edges,
             // so a narrow bay is cut on its own geometry. Null = none.
@@ -4011,14 +4235,22 @@ function genPlanePair(pos0, pos1) {
 // A build that asks 18 m or less is clamped by exactly the numbers above, so
 // nothing it draws moves (the metal Cessna's drawn 1.51 m cabin is held to
 // its 1.45, as ever). The editor's rows reach the big envelope.
+// NEW-SHAPES-1 (the user, 27 Oct, matching a Camel and a Tiger Moth to reference models: "our settings for the
+// biplanes are too restrictive, and the sliders too. We should freely set both wings sizes"): the leading edge to
+// 1.2 m AHEAD of the firewall (an upper plane overhanging its engine - the DH.82's 0.52 m, the Camel's 0.26 off the
+// physics datum - was held at 0.20), the second plane's up / down to -1.0 .. +1.5 m, and `second`: the second
+// plane's own size floor (a short lower plane - a sesquiplane's - was held to the first plane's 6.5 m and 0.80 m).
+// Only a wing the old numbers clamped moves.
+// The chord to 3.0 m (the Spitfire's elliptic wing, 27 Oct: 2.55 m on the centreline, 11.2 m of span).
 const GEN_WING_ENVELOPE = {
-  chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  taper: [0.45, 1.0], xLE: [-0.20, 3.00],
-  placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
+  chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
   // wing is inside the small box, which is unchanged
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
+  second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
@@ -4037,7 +4269,7 @@ function clampWing(w, S, k) {
   // positive stagger, upper forward, is a lower plane aft). Its controls,
   // when it carries any, are clamped as the aeroplane's are.
   if (k > 0) {
-    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -1.0, 1.0);
+    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -2.5, 2.5);
     if (w.controls && typeof w.controls === 'object') clampControls(w.controls);
     else w.controls = null;
   }
@@ -4046,8 +4278,12 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  let E = genWingEnv(w.span);                            // G3503: the big envelope past 18 m asked
-  const chord0 = w.chord;
+  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
+  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
+    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
+  let E = envOf(w.span);
+  const big = genEnvBig(w.span), chord0 = w.chord;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
@@ -4055,8 +4291,8 @@ function clampWing(w, S, k) {
   // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
   // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
   // it: a wing that is small or big from the start takes exactly the path it always did
-  if (genEnvBig(w.span) !== (E === GEN_WING_ENVELOPE ? false : true)) {
-    E = genWingEnv(w.span);
+  if (genEnvBig(w.span) !== big) {
+    E = envOf(w.span);
     w.chord = genClamp(chord0, ...E.chord);
     w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                               Math.min(E.span[1], E.spanPerChord[1] * w.chord));
@@ -4077,6 +4313,18 @@ function clampWing(w, S, k) {
   w.xLE = genFieldClamp('wings[].xLE', w.xLE, S);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // G2820: the STOL record - normalised, and GONE when nothing is on (null
+  // and absent are both "off", and neither may reach the resolved spec: a
+  // key there moves genCertKey's hash on an aeroplane that flies the same)
+  if ('stol' in w) { const st = genStolOf(w.stol); if (st) w.stol = st; else delete w.stol; }
+  // THE ELLIPTIC PLANFORM: one curve, so no crank; its tip IS the ellipse's
+  // closing (the 'elliptic' tip's Oswald factor and loft arc stand for it)
+  if (w.plan !== 'elliptic') { w.plan = null; w.planAxis = null; }
+  else {
+    w.planAxis = genClamp(w.planAxis == null ? 0.30 : +w.planAxis, 0.10, 0.50);
+    w.crankAt = 0;
+    w.tip = 'elliptic';
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -4300,6 +4548,51 @@ function genNullToDefault(t, d) {
     } else if (dv && typeof dv === 'object') genNullToDefault(t[k], dv);
     else if (typeof dv === 'number' && t[k] === null) t[k] = dv;
   }
+}
+
+// G2790 ENGINE-CONFIGS (2026-10-12, the user's slider review: "the
+// configuration nose engine + pusher engine (Cessna Skymaster) ... activate
+// the 3 and 4 engines configuration"): THE ENGINE LAYOUTS. `engines[]` has
+// been an array since day one and the solver shares thrust per engine over
+// each engine's own mount nodes (refs.engineOf); what held it to one mount
+// was the clamp. A layout is the LIST OF MOUNTS, in order, and only these
+// exact lists fly as several engines — anything else is clamped the way it
+// always was (a single mount, or the wing pair), so no save changes meaning.
+//   pushPull  nose + pusher: centreline thrust, the Skymaster. The rear prop
+//             turns the other way (the same engine turned round on its mount,
+//             so seen from behind it is the front one's mirror), which is
+//             what cancels the propeller's torque and P-factor in pairs.
+//   tri       nose + a wing pair: the Trimotor / Ju 52.
+//   quad      two wing pairs, inner then outer: the Heron / DC-4.
+// ONE ENGINE TYPE PER AEROPLANE: the solver flies one propeller law (PR,
+// EN) and multiplies it per engine, so every entry carries entry 0's type
+// and custom row, as a wing pair always did. `nacAt` is the default semispan
+// fraction of each wing pair, inner first.
+const GEN_ENG_LAYOUTS = {
+  pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
+  tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
+  quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+};
+// the layout key of an engine list, or null for every list the clamp keeps
+// to one mount / the classic pair (the pre-G2790 path, byte for byte)
+function genEngLayoutOf(E) {
+  if (!Array.isArray(E)) return null;
+  for (const k in GEN_ENG_LAYOUTS) {
+    const m = GEN_ENG_LAYOUTS[k].mounts;
+    if (E.length === m.length && m.every((x, i) => E[i] && E[i].mount === x)) return k;
+  }
+  return null;
+}
+// a spec's engine list FOR a layout (the editor's tiles and the archetypes'
+// birth spec): every entry the first one's type, the mounts in order, the
+// pusher's hand the nose's mirror, each wing pair's tops-inward rows kept
+// to +1 / +1 (one hand, the Lycoming's, as the twin fixture flies)
+function genEngLayoutEngines(layout, type, base) {
+  const L = GEN_ENG_LAYOUTS[layout];
+  const b = Object.assign({ type: type || 'a65_sensenich74', place: { dx: 0, dy: 0 } }, base || {});
+  if (!L) return [Object.assign({}, b, { mount: (base && base.mount) || 'nose' })];
+  return L.mounts.map((m, i) => Object.assign(genClone(b), { mount: m,
+    sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
 }
 
 function clampSpec(spec) {
@@ -4678,6 +4971,13 @@ function clampSpec(spec) {
   if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
+  // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every
+  // seated section is open, tools/_cage_join.js). ABSENT unless the join wrote it - no default, so every build that
+  // never opened a section keeps every key it had; the frame bills it (61_gen_frame)
+  if ('screenM2' in cb) {
+    if (typeof cb.screenM2 === 'number' && isFinite(cb.screenM2) && cb.screenM2 > 0) cb.screenM2 = genClamp(cb.screenM2, 0, 10);
+    else delete cb.screenM2;
+  }
   // G185: the wing clamp is a function of the PLANE (clampWing, above), run
   // on every entry of wings[] — a biplane's second plane keeps the same
   // envelope as the first.
@@ -4806,7 +5106,31 @@ function clampSpec(spec) {
   // exactly two entries (the second is the first's mirror: same type, same
   // station, the other side), every other mount stays one. A lone 'wing'
   // entry is doubled rather than flown as one nacelle on one side.
-  if (Array.isArray(S.engines) && S.engines.length) {
+  // G2790: THE LAYOUTS (GEN_ENG_LAYOUTS above) — an exact list of mounts
+  // keeps every entry; each wing pair is its own mirror (entry 2k+1 follows
+  // entry 2k of the wing entries), every entry flies entry 0's engine, and
+  // a push-pull's rear prop is the front one's mirror hand.
+  const LAY = genEngLayoutOf(S.engines);
+  if (LAY) {
+    const E = S.engines, e0 = E[0];
+    for (let i = 1; i < E.length; i++) {
+      E[i].type = e0.type;
+      if (e0.custom) E[i].custom = genClone(e0.custom); else delete E[i].custom;
+    }
+    const W = E.filter(e => e.mount === 'wing');
+    for (let k = 0; k + 1 < W.length; k += 2) {
+      const a = W[k], b = W[k + 1];
+      b.x = a.x; b.y = a.y; b.z = a.z; b.pylon = a.pylon; b.tilt = a.tilt;
+      if (a.aim) b.aim = a.aim; else delete b.aim;
+    }
+    // the outer pair stands outboard of the inner one (a measured inner
+    // nacelle past a measured outer one is the pair order swapped)
+    if (LAY === 'quad' && W[0].z != null && W[2].z != null && W[2].z < W[0].z + 0.3) {
+      const zi = Math.min(W[0].z, W[2].z), zo = Math.max(W[0].z, W[2].z, zi + 0.3);
+      W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
+    }
+    if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+  } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);
     if (pair && S.engines.length === 1) S.engines.push(genClone(S.engines[0]));
@@ -5079,7 +5403,31 @@ function resolveSpec(spec) {
   // engine of a pair counted): a pusher's wing sits ~0.45 m further back, an
   // over-the-wing engine's ~0.3. A MEASURED station (the join's, off a drawn
   // wing) is the builder's and does not move — the plaque tells the margin.
-  if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
+  // G2790: A LAYOUT'S ENGINES, the same estimate per entry. Entry 0 off the
+  // nose has MOVED from the nose (the lever from engX0, as above); every
+  // further engine is ADDED to an aeroplane that balanced on its wing, so its
+  // lever is from the wing's own quarter chord — a Skymaster's pusher pulls
+  // the wing aft by its arm behind it, a Trimotor's nacelles (ahead of the
+  // quarter chord) bring it forward a little. The single mounts and the
+  // classic pair keep the branch below, byte for byte.
+  const LAYW = genEngLayoutOf(S.engines);
+  if (auto['wing.xLE'] && LAYW) {
+    const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
+    const e0 = S.engines[0];
+    const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
+    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const xAC = w.xLE + 0.25 * w.chord;
+    const xOf = e => e.x != null ? e.x
+      : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
+      : e.mount === 'wing' ? w.xLE + 0.05 : engX0;
+    let mom = 0;
+    S.engines.forEach((e, i) => {
+      if (i === 0) { if (e.mount !== 'nose') mom += mE * (xOf(e) - engX0); }
+      else mom += mE * (xOf(e) - xAC);
+    });
+    const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (S.engines.length - 1) * mE;
+    w.xLE += mom / mRef;
+  } else if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
@@ -5121,8 +5469,27 @@ function resolveSpec(spec) {
   // G140: the one planform law — legacy fields reproduce the pre-G140
   // expressions verbatim inside it, stations make it piecewise.
   const LAW = genPlanLaw(w, zR0, semi);
-  let cBar, yMac, xAC;
-  if (!LAW.explicit) {
+  let cBar, yMac, xAC, ellA = 0;
+  if (LAW.ell) {
+    // THE ELLIPTIC WING, integrated: no trapezoid composes a curve. Area, MAC
+    // (2/S int c^2), and the quarter chord of the DRAWN sections (their own
+    // leading edge, LAW.leAt) weighted by area; the sweep reported is the
+    // quarter-chord line's - an ellipse's leading edge turns to 90 deg at the
+    // tip and says nothing there.
+    const n = 240, dz = (semi - zR0) / n;
+    let A = 0, cS = 0, xS = 0, swS = 0;
+    for (let i = 0; i < n; i++) {
+      const z = zR0 + (i + 0.5) * dz, c = LAW.cAt(z);
+      const q = z2 => LAW.leAt(z2) + 0.25 * LAW.cAt(z2);
+      A += c * dz; cS += c * c * dz; xS += c * dz * (w.xLE + q(z));
+      swS += c * dz * Math.abs(Math.atan2(q(z + 0.5 * dz) - q(z - 0.5 * dz), dz)) * 180 / Math.PI;
+    }
+    cBar = cS / Math.max(1e-9, A);
+    xAC = xS / Math.max(1e-9, A);
+    yMac = null;
+    w.sweepEff = swS / Math.max(1e-9, A);
+    ellA = A;
+  } else if (!LAW.explicit) {
     // LEGACY (sweep/taper only): the pre-G140 lines, byte for byte. The
     // aerodynamic centre sits at the quarter chord OF THE MAC, and sweep
     // carries that aft with the spanwise station the MAC lives at:
@@ -5163,7 +5530,8 @@ function resolveSpec(spec) {
   // is a radius inboard of the tip — implicit, so settle it by iteration (it
   // converges in two on any sane taper). LAW.cAt IS the old `lin` when the
   // stations are null, so the legacy bow is unchanged to the bit.
-  const bowF = (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
+  // (an elliptic planform closes on its own curve: no bow)
+  const bowF = LAW.ell ? 0 : (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
   let Rb = bowF * LAW.cAt(semi);
   for (let i = 0; i < 3; i++) Rb = bowF * LAW.cAt(Math.max(zR0, semi - Rb));
   Rb = Math.max(0, Math.min(Rb, 0.45 * (semi - zR0)));
@@ -5186,7 +5554,10 @@ function resolveSpec(spec) {
   //
   // The bow still comes off: it removes a quarter of the rectangle it replaces
   // on each tip (half-ellipse of span Rb and chord tipC).
-  const Sw = !LAW.explicit
+  const Sw = LAW.ell
+    // the elliptic wing: the centre's rectangle at its own chord, and the integral
+    ? 2 * zR0 * LAW.cAt(zR0) * ctrK + 2 * ellA
+    : !LAW.explicit
     ? 2 * zR0 * w.chord * ctrK
       + (semi - zR0) * w.chord * (1 + w.taper)
       - 2 * w.tipC * Rb * (1 - Math.PI / 4)
@@ -5453,8 +5824,16 @@ function resolveSpec(spec) {
   // at 0.45 of the cabin height; the over-the-wing engine 30 % of the chord
   // behind the leading edge, a pylon above the upper skin; a wing pair at
   // the front spar, 35 % of the way out from the root.
+  // G2790: a layout's wing pairs — entry 2k of the wing entries is the
+  // port nacelle of pair k, 2k+1 its starboard mirror; the default station
+  // is the layout's own semispan fraction for that pair (GEN_ENG_LAYOUTS)
+  const LAYA = genEngLayoutOf(S.engines);
+  const wingRank = []; { let r = 0; for (const e of S.engines) wingRank.push(e.mount === 'wing' ? r++ : -1); }
+  S.engLayout = LAYA || (S.engines[0].mount === 'wing' ? 'pair' : 'single');
   S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
+    const nacAt = LAYA && m === 'wing'
+      ? GEN_ENG_LAYOUTS[LAYA].nacAt[wingRank[i] >> 1] : 0.35;
     const semi = 0.5 * w.span, zR = S.cab.halfW;
     const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
@@ -5463,13 +5842,16 @@ function resolveSpec(spec) {
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
-                               z: zR + 0.35 * Math.max(0.5, semi - zR) }
+                               z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
     return { mount: m,
              // G194: the hand, and which SIDE of a wing pair this entry is
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
-             side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
+             side: m === 'wing' ? (LAYA ? ((wingRank[i] & 1) ? 1 : -1) : (i === 0 ? -1 : 1)) : 0,
+             // G2790: which wing pair (0 inner) — the frame builds a pair
+             // from its port entry and mirrors it
+             pair: m === 'wing' ? (LAYA ? wingRank[i] >> 1 : 0) : -1,
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,

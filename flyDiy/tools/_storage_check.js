@@ -256,6 +256,42 @@ function run(mut) {
   ok(/function ask\(name\)/.test(uc) && /hsAsk/.test(uc) && /A\.fly\(c\.name\)/.test(uc) && /fl\.addEventListener\('click', ev => \{ ev\.stopPropagation\(\); ask\(name\); \}\)/.test(uc)
      && !/A\.fly\(name\)/.test(uc), 'Fly asks first (the garage\'s look), then flies');
   ok(/kind !== 'long'/.test(uc), 'no Fly on a long-term card');
+  // ==== G3613 GARAGE-GO: THE GARAGE HALF OF THE MAP'S TELEPORT (the user 25 Oct: "clicking on an owned garage allows to
+  // teleport there, with whatever plane is in there") - app.js's own garagesList / gotoGarage, run over this core
+  {
+    const g0 = app.indexOf('  // G3613 GARAGE-GO'), g1 = app.indexOf('  window.FLYDIY_PLAYER = {', g0);
+    ok(g0 > 0 && g1 > g0 && /garages: \(\) => garagesList\(\), gotoGarage: id => gotoGarage\(id\),/.test(app), 'FLYDIY_PLAYER.garages / gotoGarage: the map\'s two doors (G3613)');
+    let doc = clone(D);
+    doc.sheds.HOME = shed('club', 'HOME'); doc.sheds['w3.1'] = shed('club', 'w3'); doc.sheds.w9 = shed('field', 'w9', { locked: 'story' });
+    doc.here = 'HOME';
+    doc.fleet = { Cub: { hangar: 'HOME', aero: 'HOME', kind: 'floor' }, Jodel: { hangar: 'w3.1', aero: 'w3', kind: 'inside', slot: 0 } };
+    const T = { opened: [], moved: [], trips: 0, saved: 0, stand: 'Cub', inGarage: true, started: false, flEnded: false, wog: 1 };
+    const Hx = Object.assign(Object.create(null), R, {
+      world: { aerodromes: [{ id: 'HOME', name: 'Jolene AFB 13/31' }, { id: 'w3', name: 'Tamgas Hill Strip' }, { id: 'w9', name: 'Cabin Strip' }] },
+      playerLoad: () => doc, playerSave: () => { T.saved++; }, slotOnStand: () => T.stand, applyEnv: () => {}, storeChanged: () => {}, roomFollow: () => {},
+      storeMove: (n, to) => { T.moved.push(n + ':' + to.kind); T.stand = n; return { ok: true }; }, $: () => null, flyOpenSet: () => {},
+      rollInScreen: after => { T.trips++; T.inGarage = true; after(); }, storeSyncHold: false, arrivalShown: false, baseId: 'HOME', console, Promise, String, Object,
+      window: { GARAGE_SPEC: { open: n => { T.opened.push(n); T.stand = n; } }, FLYDIY_ROUTE: null },
+    });
+    for (const k of ['inGarage', 'started', 'flEnded']) Object.defineProperty(Hx, k, { get: () => T[k], configurable: true });
+    Object.defineProperty(Hx, 'player', { get: () => doc, set: v => { doc = v; }, configurable: true });
+    Object.defineProperty(Hx, 'sim', { get: () => ({ wheelsOnGround: () => T.wog }), configurable: true });
+    vm.createContext(Hx);
+    const G = vm.runInContext('(function () {\n' + app.slice(g0, g1) + '\nreturn { garagesList, gotoGarage }; })()', Hx, { filename: 'app.js (G3613)' });
+    const L = G.garagesList(), byId = id => L.find(x => x.id === id) || {};
+    ok(L.length === 3 && byId('HOME').here && byId('HOME').stand === 'Cub' && byId('w3.1').stand === 'Jodel' && byId('w3.1').planes.join() === 'Jodel' &&
+       byId('w3.1').aero === 'w3' && /Tamgas Hill Strip/.test(byId('w3.1').name) && byId('w9').locked && /story/.test(byId('w9').why),
+       'garages(): every held hangar, its base, its planes and the one for the stand; a story-held one listed locked, with why (G3613)', JSON.stringify(L.map(x => [x.id, x.stand, x.locked])));
+    G.gotoGarage('w9'); G.gotoGarage('HOME');
+    ok(doc.here === 'HOME' && !T.saved, 'gotoGarage: a locked hangar and the one you are in are refused, nothing moved (G3613)');
+    T.inGarage = false; T.started = true; T.wog = 0;
+    G.gotoGarage('w3.1');
+    ok(doc.here === 'HOME' && !T.trips, 'gotoGarage: in the air it is refused ("land first"), nothing moved (G3613)');
+    T.wog = 1;
+    G.gotoGarage('w3.1');
+    ok(doc.here === 'w3.1' && T.trips === 1 && T.moved.join() === 'Jodel:floor' && T.stand === 'Jodel',
+       'gotoGarage on the ground after a flight: "The shed"\'s trip, the hangar is here (free), its plane worked on - onto the stand (G3613)', JSON.stringify({ here: doc.here, trips: T.trips, moved: T.moved }));
+  }
   for (const f of ['fleet_stand.js', 'parked.js']) {
     const s = rd('src/viewer/' + f);
     // (parked.js's passive pointerdown / input watchers are the bake's idle window, FLEET-PROPS B - they pick nothing)

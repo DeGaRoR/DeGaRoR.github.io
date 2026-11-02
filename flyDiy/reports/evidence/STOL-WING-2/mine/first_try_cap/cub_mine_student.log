@@ -1,0 +1,7 @@
+piperCub (file tail) mn_strip calm · normal · student
+  ROLL@0 ABORT@9.4 STOPPED@14.3
+  departure: short · Vx 19.3 m/s · run needed 142 m of 250
+  control reversals /min (da dr de): takeoff 16 10 2 · landing 0 0 0
+  ! 9.4s rejected-takeoff: will not reach Vr: 0.56 m/s^2 needs 143 m more, 197 m left
+  rejected-takeoff at 14.3 s (26 s wall)
+{"key":"builds/cub_2026-09-20_corrected.json","name":"piperCub","from":"mn_strip","to":"mn_strip","style":"normal","profile":"student","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"rejected-takeoff","phase":"STOPPED","t":14.3,"phases":["ROLL@0","ABORT@9.4","STOPPED@14.3"],"goArounds":0,"verdicts":["9.4s rejected-takeoff: will not reach Vr: 0.56 m/s^2 needs 143 m more, 197 m left"],"takeoff":null,"climb":{"hTurn":null,"vsMean":null},"legs":[],"final":null,"flare":null,"track":{"xtRms":null,"n":0},"bounces":0,"pitchMax":-99,"stab":null,"landing":null,"activity":{"takeoff":{"s":14,"da":16,"dr":10,"de":2},"landing":{"s":0,"da":0,"dr":0,"de":0}},"rollout":null,"Vs":16.1,"VsLanding":13.5,"VAppr":17.5,"appr":null,"dep":{"technique":"short","Vx":19.3,"runNeed":142,"len":250,"surface":6},"circuit":null,"mass":461,"sheet":{"Vs":15.72,"Vs0":13.45,"Vref":17.49,"Vrot":15.9,"Vx":19.31,"Vy":22.2,"Vbg":22.24,"Vms":16.9,"Vcruise":31.5,"climbMax":3.13,"sinkMin":2.07,"LDbest":9.44,"TORun":142,"LDGrun":97.89,"mass":460.7},"tecs":true,"path":true,"wall":26}

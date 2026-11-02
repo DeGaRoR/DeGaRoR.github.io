@@ -137,8 +137,10 @@ function runChecks(C, F, D, src, quiet) {
   }
   // the known values the user's builds carry (the PREM-S2 / plaque figures)
   // T41b (JOIN-PARITY's correction, agreed with GAME 10 Oct): the Cub the game FLIES carries 27 L - its drawn nose tank, the
-  // joined spec (tools/_load_build.js); the 45 L was the build file's number, which the game never flies
-  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 27 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
+  // joined spec (tools/_load_build.js); the 45 L was the build file's number, which the game never flies.
+  // G3700 (the user, 26 Oct: "choice a on the cub"): 28 L - the nose tank is shaped clear of the racer's posed body
+  // (the old figure's shells left it 27 L); the Cub's certificate re-stamped in the same train
+  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 28 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
      'the user\'s Cub: 2 seats (1 aboard), ' + EV.cub.tankL + ' L (the drawn tank, as flown), piston, 10.8 m across');
   ok(EV.cub.emptyKg > 330 && EV.cub.emptyKg < 380, 'the Cub empty ' + EV.cub.emptyKg.toFixed(1) + ' kg (a J-3 is 310-340: the model\'s, in its band)');
   ok(EV.eTrainer.powertrain === 'electric' && EV.eTrainer.batteryKWh === 2, 'the user\'s electric trainer: electric, 2 kWh');
@@ -301,6 +303,14 @@ function runChecks(C, F, D, src, quiet) {
     [{ k: 'rangeKm', v: 100 }, 'ok'], [{ k: 'rangeKm', v: 5000 }, 'fail'],
     [{ k: 'takeoffAt', at: 'HOME' }, 'ok'], [{ k: 'takeoffAt', at: 'A4' }, 'needs-flight'],
     [{ k: 'landAt', at: 'HOME' }, 'ok'], [{ k: 'landAt', at: 'A4' }, 'needs-flight'],
+    // (MISSIONS-P2) the order's new criteria: the size off the Cub's measured plan, the seats beside the pilot, the shed;
+    // the shakedown's numbers need it handed in (ev.shake - none here: a test to run); the flow needs a leg with litres
+    [{ k: 'heightM', v: 8 }, 'ok'], [{ k: 'heightM', v: 1 }, 'fail'],
+    [{ k: 'lengthM', v: 25 }, 'ok'], [{ k: 'lengthM', v: 3 }, 'fail'],
+    [{ k: 'pax', v: 1 }, 'ok'], [{ k: 'pax', v: 3 }, 'fail'],
+    [{ k: 'fitsShed', v: 'works' }, 'ok'], [{ k: 'fitsShed', v: 'field', at: { dims: { HW: 3, HD: 3, EAVE: 2 } } }, 'fail'],
+    [{ k: 'stallKmh', v: 60 }, 'needs-test'], [{ k: 'toDistM', v: 300 }, 'needs-test'], [{ k: 'climbMs', v: 2 }, 'needs-test'],
+    [{ k: 'fuelLph', v: 100 }, legCub && legCub.flowLh != null ? 'ok' : 'needs-flight'],
     [{ k: 'warpDrive', v: 1 }, 'fail'],
   ];
   for (const [c, want] of per) { const r = one(c); ok(r.status === want, 'verdict ' + c.k + ' ' + (c.op || '') + JSON.stringify(c.v != null ? c.v : c.at) + ' -> ' + r.status + (r.value != null ? ' (' + r.value + ')' : '') + (r.status !== want ? ' WANTED ' + want : '')); }
@@ -353,7 +363,7 @@ function runChecks(C, F, D, src, quiet) {
   // ===== D. THE PAGE (source) =====
   const S = src;
   ok(/'71_player_bases\.js',[\s\S]*'72_accept\.js',[\s\S]*'90_node_exports\.js'/.test(S.build) && /'bench\.js', 'accept_rec\.js'/.test(S.build), 'the manifest: 72_accept.js before the exports, accept_rec.js after bench.js');
-  ok(/hudEnergy\(\);\s*\n\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.frame\(\);/.test(S.app), 'app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame)');
+  ok(/hudEnergy\(\);\s*\n(\s*hudWind\(\);\s*\n)?\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.frame\(\);/.test(S.app), 'app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame; GAME-MENUS\' hudWind may sit between)');
   ok(/flightLogged = true;\s*\n\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.flightEnd\(\);/.test(S.app), 'app.js logFlight: a leg still flying ends with the flight');
   ok(/r\.at = at;/.test(S.app) && /acceptStopAt\(world, cg\[0\], cg\[2\]\)/.test(S.app) && /r\.occ = S\.occupants/.test(S.app) && /r\.fp = fpo/.test(S.app), 'app.js logFlight: the row says where it stopped, who was aboard, which build');
   const blk = (S.app.split("H('proved in flight')")[1] || '').split('// G134')[0];

@@ -1,0 +1,89 @@
+=== STOL ===
+  ok   selftest: a null stol hashed raw differs from the absent key (what bench.js strips)
+(124 checks)
+GATE STOL: PASS
+=== PILOT ===
+--- shard 0/3 (330.2 s) ---
+  ok     box: NAV closes on the waypoint (2257 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+--- shard 1/3 (297.6 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+--- shard 2/3 (302.0 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+=== STRIPSURF ===
+(13.8 s)
+GATE STRIPSURF: PASS
+=== TAKEOFF ===
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 26.8 s; max |cross| 2.9 m, past an end -5.2 m, off the surface 0.0 s; LIFTOFF (airborne); backtrack,pivot,committed-takeoff
+GATE TAKEOFF: PASS
+=== PLAN ===
+stock, HOME (analytic)       legs CROSSWIND 125 m / DOWNWIND 125 m / BASE 125 m / FINAL 0 m · downwind 0.4 m off the plan · terrain lift 0 m
+  aluminium C172, Jolene HOME  legs CROSSWIND 187 m / DOWNWIND 187 m / BASE 187 m / FINAL 35 m · downwind 1.2 m off the plan · terrain lift 0 m
+GATE PLAN: PASS
+=== LINEUP ===
+GATE LINEUP: PASS
+=== DESTTO ===
+--- shard 0/3 (535.7 s) ---
+  air:metal: ok (172 s) [shard 0/3]
+DESTTO: 0 failure(s), 535 s [shard 0/3]
+GATE DESTTO: PASS
+--- shard 1/3 (1044.8 s) ---
+  store:cub: ok (136 s) [shard 1/3]
+DESTTO: 0 failure(s), 1044 s [shard 1/3]
+GATE DESTTO: PASS
+--- shard 2/3 (1645.0 s) ---
+  ltd:twinFloats: ok (586 s) [shard 2/3]
+DESTTO: 0 failure(s), 1645 s [shard 2/3]
+GATE DESTTO: PASS
+=== ROUTE ===
+--- shard 0/3 (505.1 s) ---
+  persona:club: ok (266 s) [shard 0/3]
+ROUTE: 0 failure(s), 505 s [shard 0/3]
+GATE ROUTE: PASS
+--- shard 1/3 (618.5 s) ---
+  persona:student: ok (277 s) [shard 1/3]
+ROUTE: 0 failure(s), 618 s [shard 1/3]
+GATE ROUTE: PASS
+--- shard 2/3 (599.0 s) ---
+  persona:hamfist: ok (269 s) [shard 2/3]
+ROUTE: 0 failure(s), 599 s [shard 2/3]
+GATE ROUTE: PASS
+=== SEAPLANE ===
+PASS the track within 0.8 m (bound 10)
+
+GATE SEAPLANE: PASS
+=== PILOTS ===
+the pack: 4 pilots, bodies, the companion, 16 knobs, 12 trait phrases - the roster exactly
+  the bodies: kit=ch01 rafe=ch42 remy=remy sky=ch22 (chars_table keys, shipped manifests); ch20 / ch02 not recruits; no download
+  the clamp (the core (PILOT-PERSONA landed)): 4 pilots x 12 growth points, every knob in range, a fixpoint, the same values today and after train 40; a wild person clamped
+  night-shy on the day's almanac (G2665): June's 21:00 / 04:00 flown, 22:30 to 02:54 refused, past midnight wrapped; a night job's leg refused before the wait
+  refusals: the 4 recruits x 12 legs (kit: wind > 18 kt, a leg ending at 19.5 h); 6 hooks each on its leg alone, at its boundary; refuses-nothing, fearless, the order
+  the career: the companion with careerNew, 2-3 offers refreshed with the market (4 sets), hire / fire / the boat, the place follows the aeroplane, growth capped and monotone
+  the text: every key resolves (57 draft keys); the Block 5 import
+  the sandbox: the career doors inert without ?career=1 (careerCrewProfile undefined; the row, the logbook, the flight's end, the crew body under CAREER_DEV); the persona select PILOT-PERSONA's own
+4927 checks
+FAIL: kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip, not with the aeroplane.)
+GATE PILOTS: FAIL
+(exit code 1)
+
+──────── summary ────────
+STOL      PASS   387.1 s
+PILOT     PASS   330.2 s  [3 shards]
+STRIPSURF PASS    14.1 s
+TAKEOFF   PASS   389.4 s
+PLAN      PASS   427.6 s
+LINEUP    PASS   179.2 s
+DESTTO    PASS  1645.0 s  [3 shards]
+ROUTE     PASS   618.5 s  [3 shards]
+SEAPLANE  PASS   243.2 s
+PILOTS    FAIL     0.9 s
+total           4235.2 s
+wall            1947.0 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

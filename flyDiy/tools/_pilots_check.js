@@ -58,7 +58,8 @@ const ROOT = path.join(__dirname, '..');
 const CORE = require('./flight_core.js');
 const SELF = process.argv.includes('--selftest');
 
-const SRC76 = fs.readFileSync(path.join(ROOT, 'src', 'core', '76_pilots.js'), 'utf8');
+const SRC76 = fs.readFileSync(path.join(ROOT, 'src', 'core', '72_people.js'), 'utf8') + '\n' +   // (G3614: the roster's rows are people)
+              fs.readFileSync(path.join(ROOT, 'src', 'core', '76_pilots.js'), 'utf8');
 const SRC74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');   // careerNew / careerNormalise: the doors
 const PACK = fs.readFileSync(path.join(ROOT, 'futureDesigns', 'game', 'NARRATIVE-PROMPT-PACK-2026-10-06.md'), 'utf8');
 const CHARS_PY = fs.readFileSync(path.join(__dirname, 'chars_table.py'), 'utf8');
@@ -174,11 +175,12 @@ function run(mut) {
   // ==== THE PACK =============================================================
   const P = parsePack();
   ok(P.rows.length === 4, 'the pack\'s Block 3 has four pilots (' + P.rows.length + ')');
-  ok(eq(P.rows.map(r => r.id), ORDER) && eq(Object.keys(R), ORDER), 'the ids are the pack\'s, in its order: ' + P.rows.map(r => r.id).join() + ' vs ' + ORDER.join());
+  const WEAR = M.PEOPLE_FROM_PACK || {};   // G3614: the pack's pilot -> the person wearing it (kit Brian, rafe Bryce, remy, sky Megan)
+  ok(eq(P.rows.map(r => WEAR[r.id]), ORDER) && eq(Object.keys(R), ORDER), 'the pack\'s pilots, in its order, are the people\'s pilots: ' + P.rows.map(r => r.id + '=' + WEAR[r.id]).join() + ' vs ' + ORDER.join());
   for (const r of P.rows) {
-    const X = R[r.id];
+    const X = R[WEAR[r.id]];
     if (!ok(!!X, 'no roster row for the pack\'s ' + r.id)) continue;
-    ok(X.id === r.id, r.id + ': its id field');
+    ok(X.id === WEAR[r.id] && X.from === r.id, r.id + ': worn by ' + X.id + ' (its id and `from`)');
     ok(X.who === r.body, r.id + ': the body is the pack\'s (' + r.body + ' vs ' + X.who + ')');
     ok(!!X.companion === /^COMPANION\b/.test(r.seed), r.id + ': the companion marker');
     ok(X.profile.base === r.base && !!M.PILOT_PROFILES[r.base], r.id + ': the base profile is the pack\'s (' + r.base + ' vs ' + X.profile.base + ')');
@@ -198,12 +200,26 @@ function run(mut) {
     }
     ok(eq(X.traits.slice().sort(), Array.from(named).sort()), r.id + ': the traits are exactly the pack\'s (' + X.traits + ' vs ' + Array.from(named) + ')');
     ok(growSaid || (X.grow === null ? !!(X.pack && X.pack.grow) : !!(X.pack && X.pack.grow)), r.id + ': a growth the pack does not state is listed in `pack`');
-    ok(X.portrait === null, r.id + ': the portrait is null until the user\'s AI run');
+    ok(X.portrait === M.peopleFace(X.id, 256), r.id + ': the portrait is the person\'s own (' + X.portrait + ')');
     for (const t of X.traits) ok(!!M.PILOTS_TRAITS[t], r.id + ': trait ' + t + ' is a hook');
     if (X.grow) ok(!!M.PILOTS_GROW[X.grow.rate] && !!M.PILOT_PROFILES[X.grow.ceiling], r.id + ': the growth names a rate and a profile');
   }
+  // ==== G3620 THE BACKGROUNDS (the user 26 Oct: "a hard mapping table ... fixed roles for everyone") ====
+  { const SC = M.PEOPLE_BG_SCENES, BG = M.PEOPLE_BG;
+    for (const id of M.PEOPLE_IDS) ok(!!SC[BG[id]], id + ': one background, a scene of the user\'s (' + BG[id] + ')');
+    for (const sc of Object.keys(SC)) {
+      ok(/^BG-[\w-]+$/.test(sc), sc + ': the user\'s own name (BG-<type>: the type of character it is for)');
+      ok(eq(SC[sc].who.slice().sort(), M.PEOPLE_IDS.filter(id => BG[id] === sc).sort()), sc + ': its `who` is exactly the people the table gives it');
+      const f = M.PEOPLE_BGS[sc + '_' + M.PEOPLE_BG_PX];
+      ok(!!f && fs.existsSync(path.join(ROOT, 'media', 'people', f)), sc + ': its ' + M.PEOPLE_BG_PX + ' px cut ships (' + f + ')');
+    }
+    ok(new Set(ORDER.map(id => BG[id])).size === ORDER.length, 'the hirable pilots never share a background (' + ORDER.map(id => BG[id]) + ')');
+    for (const id of ORDER) ok(BG[id] === M.PEOPLE_BG_PILOT[R[id].profile.base], id + ': a pilot\'s background is their level\'s type (' + R[id].profile.base + ' -> ' + BG[id] + ')');
+    for (const id of ORDER) ok(M.pilotsCard(M.careerNew({ id: 'bg', seed: 'dev' }), id, null).bg === M.peopleBg(id) && !!M.peopleBg(id),
+      id + ': the hire card layers its background (large format); the head stays the transparent cut');
+    ok(M.peopleBg('nobody') === null, 'no person, no background'); }
   ok(P.reserved && eq(Object.keys(M.PILOTS_RESERVED).sort(), ['ch02', 'ch20']), 'ch20 (the test pilot) and ch02 (kept) are the reserved bodies, as the pack says');
-  ok(M.PILOTS_COMPANION === 'kit' && R.kit.companion && ORDER.filter(id => R[id].companion).length === 1, 'one companion: kit');
+  ok(M.PILOTS_COMPANION === WEAR.kit && R[WEAR.kit].companion && ORDER.filter(id => R[id].companion).length === 1, 'one companion: the pack\'s kit, worn by ' + WEAR.kit + ' (until HIRE G3618)');
   lines.push('the pack: 4 pilots, bodies, the companion, ' + P.rows.reduce((a, r) => a + Object.keys(r.knobs).length, 0) + ' knobs, ' + P.rows.reduce((a, r) => a + r.phrases.length, 0) + ' trait phrases - the roster exactly');
 
   // ==== THE BODIES: no download, every `who` in chars_table ===================
@@ -216,7 +232,7 @@ function run(mut) {
     ok(!M.PILOTS_RESERVED[w], id + ': wears a reserved body (' + w + ')');
   }
   ok(new Set(ORDER.map(id => R[id].who)).size === 4, 'the four bodies are distinct');
-  ok(eq(ORDER.map(id => R[id].who), ['ch01', 'ch42', 'remy', 'ch22']), 'GQ13: kit ch01, rafe ch42, remy remy, sky ch22');
+  ok(eq(ORDER.map(id => R[id].who), ['ch01', 'ch42', 'remy', 'ch22']), 'GQ13 + G3614: brian ch01, bryce ch42, remy remy, megan ch22 (the pack\'s bodies)');
   ok(!/https?:|fetch\(|import\(|XMLHttpRequest|\.glb|\.fbx/.test(SRC), '76_pilots.js names no download');
   lines.push('the bodies: ' + ORDER.map(id => id + '=' + R[id].who).join(' ') + ' (chars_table keys, shipped manifests); ch20 / ch02 not recruits; no download');
 
@@ -251,7 +267,7 @@ function run(mut) {
     const f = Object.assign({}, wild.skill, wild.quirks, wild.limits, wild.technique);   // as handed to makePilot, unread
     ok(f.reaction === 0.6 && f.smooth === 0.5 && f.hamFist === 0.08 && f.comfortG === 2 && f.field == null && f.bankK === 0.5, 'an out-of-range person is clamped by the path (' + J([f.reaction, f.smooth, f.hamFist, f.comfortG, f.field, f.bankK]) + ')');
   }
-  ok(M.pilotsProfile(M.pilotsBaseFlat('kit'), 'kit').skill.reaction === 0.25 && M.pilotsProfile(M.pilotsBaseFlat('sky'), 'sky').technique.field === 'short', 'the pack\'s knobs reach makePilot (kit reaction .25, sky short field)');
+  ok(M.pilotsProfile(M.pilotsBaseFlat('brian'), 'brian').skill.reaction === 0.25 && M.pilotsProfile(M.pilotsBaseFlat('megan'), 'megan').technique.field === 'short', 'the pack\'s knobs reach makePilot (brian reaction .25, megan short field)');
   lines.push('the clamp (' + PERSONA.from + '): 4 pilots x 12 growth points, every knob in range, a fixpoint, the same values today and after train 40; a wild person clamped');
 
   // ==== REFUSALS (GQ30: by trait only) ==========================================
@@ -268,12 +284,12 @@ function run(mut) {
   };
   // what fires on each leg (the altiport is grass: snow AND unpaved; a water lane is never "unpaved")
   const fire = { weather: ['weather'], night: ['night'], short: ['short'], unpaved: ['unpaved'], water: ['water'], floats: ['water'], snow: ['snow', 'unpaved'], skis: ['snow'] };
-  // the four recruits: only kit refuses, on the weather and the night
+  // the four recruits: only brian refuses, on the weather and the night
   for (const id of ORDER) {
     ok(M.pilotsRefusal(id, base) === null, id + ' refuses the plain leg');
     for (const k of Object.keys(legs)) {
       const r = M.pilotsRefusal(id, legs[k]);
-      const exp = id === 'kit' && (k === 'weather' || k === 'night') ? k : null;
+      const exp = id === 'brian' && (k === 'weather' || k === 'night') ? k : null;
       ok((r ? r.kind : null) === exp, id + ' on the ' + k + ' leg: ' + (r ? r.kind : 'flies') + ', want ' + (exp || 'flies'));
       if (r) ok(!/\[|\{/.test(r.why) && r.why.includes(M.pilotsName(id)), id + ': the refusal\'s line resolves (' + r.why + ')');
     }
@@ -296,68 +312,74 @@ function run(mut) {
   R.t_.traits = ['night-shy', 'cautious'];
   ok((M.pilotsRefusal('t_', Object.assign({}, legs.night, { windKt: 40 })) || {}).kind === 'night', 'two refusals: the first in the pilot\'s trait order');
   delete R.t_;
-  ok(M.pilotsRefusal('kit', legs.unknown) === null, 'an unknown wind or hour refuses nothing');
+  ok(M.pilotsRefusal('brian', legs.unknown) === null, 'an unknown wind or hour refuses nothing');
   // (G2665 NIGHT-OPS) the night is the almanac's (June: dusk 22:29, dawn 03:08), it wraps midnight, and a leg to a night
   // job's window is a night leg whatever the hour now - the route row says so before the wait
   {
     const alm = { duskH: 22.48, dawnH: 3.12 }, at = h => Object.assign({}, base, alm, { endHour: h });
-    ok(M.pilotsRefusal('kit', at(21)) === null && M.pilotsRefusal('kit', at(4)) === null, 'night-shy on the almanac: 21:00 and 04:00 in June are day (dusk 22:29, dawn 03:08)');
-    ok(['kit'].every(id => [22.5, 23.9, 0.5, 2.9, 24.6].every(h => (M.pilotsRefusal(id, at(h)) || {}).kind === 'night')), 'night-shy on the almanac: 22:30, 23:54, past midnight (00:30, 02:54, 24.6 unwrapped) are the night');
-    ok(M.pilotsRefusal('kit', Object.assign({}, base, { endHour: 1 })).kind === 'night', 'without the almanac the constants, and 01:00 is still the night (the hour wraps)');
+    ok(M.pilotsRefusal('brian', at(21)) === null && M.pilotsRefusal('brian', at(4)) === null, 'night-shy on the almanac: 21:00 and 04:00 in June are day (dusk 22:29, dawn 03:08)');
+    ok(['brian'].every(id => [22.5, 23.9, 0.5, 2.9, 24.6].every(h => (M.pilotsRefusal(id, at(h)) || {}).kind === 'night')), 'night-shy on the almanac: 22:30, 23:54, past midnight (00:30, 02:54, 24.6 unwrapped) are the night');
+    ok(M.pilotsRefusal('brian', Object.assign({}, base, { endHour: 1 })).kind === 'night', 'without the almanac the constants, and 01:00 is still the night (the hour wraps)');
     const nj = Object.assign({}, base, alm, { endHour: 15, night: true, nightHour: 0.5 });
-    const r = M.pilotsRefusal('kit', nj);
-    ok(r && r.kind === 'night' && /0\.5/.test(r.why) && M.pilotsRefusal('remy', nj) === null, 'a night job\'s leg: kit refuses it at 15:00 already (' + (r && r.why) + '), remy flies it');
+    const r = M.pilotsRefusal('brian', nj);
+    ok(r && r.kind === 'night' && /0\.5/.test(r.why) && M.pilotsRefusal('remy', nj) === null, 'a night job\'s leg: brian refuses it at 15:00 already (' + (r && r.why) + '), remy flies it');
     lines.push('night-shy on the day\'s almanac (G2665): June\'s 21:00 / 04:00 flown, 22:30 to 02:54 refused, past midnight wrapped; a night job\'s leg refused before the wait');
   }
-  ok(M.pilotsRefusal('nobody', base) === null && M.pilotsRefusal('kit', null) === null, 'no pilot / no leg: no refusal');
-  lines.push('refusals: the 4 recruits x ' + Object.keys(legs).length + ' legs (kit: wind > ' + LIM + ' kt, a leg ending at ' + DUSK + ' h); 6 hooks each on its leg alone, at its boundary; refuses-nothing, fearless, the order');
+  ok(M.pilotsRefusal('nobody', base) === null && M.pilotsRefusal('brian', null) === null, 'no pilot / no leg: no refusal');
+  lines.push('refusals: the 4 recruits x ' + Object.keys(legs).length + ' legs (brian: wind > ' + LIM + ' kt, a leg ending at ' + DUSK + ' h); 6 hooks each on its leg alone, at its boundary; refuses-nothing, fearless, the order');
 
   // ==== THE CAREER: hiring, the place, growth ====================================
   const d0 = M.careerNew({ id: 't', seed: 'dev' });
-  ok(eq(d0.career.roster, ['kit']) && d0.career.pilots.kit && d0.career.pilots.kit.fee === 0 && d0.career.pilotPick === 'kit', 'careerNew: the companion arrives, no fee, flies next');
+  ok(eq(d0.career.roster, ['brian']) && d0.career.pilots.brian && d0.career.pilots.brian.fee === 0 && d0.career.pilotPick === 'brian', 'careerNew: the companion arrives, no fee, flies next');
   ok(d0.wallet === M.CAREER_GRANT && d0.ledger.length === 1 && d0.ledger[0].k === 'grant', 'careerNew: the grant alone in the ledger (no sign-on line for the companion)');
-  ok(M.pilotsPlace(d0, 'kit') === 'HOME', 'the companion starts at HOME');
+  ok(M.pilotsPlace(d0, 'brian') === 'HOME', 'the companion starts at HOME');
   ok(eq(M.careerNormalise(clone(d0)), d0), 'careerNormalise is a fixpoint with the roster');
-  const odd = clone(d0); odd.career.roster.push('ghost', 'kit'); odd.career.pilots.ghost = { aero: 'w3' }; odd.career.pilotPick = 'ghost';
+  const odd = clone(d0); odd.career.roster.push('ghost', 'brian'); odd.career.pilots.ghost = { aero: 'w3' }; odd.career.pilotPick = 'ghost';
   const on = M.careerNormalise(odd);
-  ok(eq(on.career.roster, ['kit']) && !on.career.pilots.ghost && on.career.pilotPick === 'kit', 'the normaliser drops an unknown pilot and a duplicate');
+  ok(eq(on.career.roster, ['brian']) && !on.career.pilots.ghost && on.career.pilotPick === 'brian', 'the normaliser drops an unknown pilot and a duplicate');
   const old = clone(d0); delete old.career.roster; delete old.career.pilots; delete old.career.pilotPick; delete old.career.pilotN;
   const no = M.careerNormalise(old);
   ok(eq(no.career.roster, []) && no.career.pilotPick === 'me' && no.career.pilotN === 0, 'an older career (no roster) normalises to "I fly"');
-  // the market
-  const offersAt = (doc, n) => { const x = clone(doc); x.career.contracts.done = Array.from({ length: n }, (_, i) => ({ id: 'x' + i, at: 0, pay: 0 })); return M.pilotsOffers(x); };
-  const seen = new Set();
-  for (let n = 0; n < 24; n++) {
-    const o = offersAt(d0, n);
-    ok(o.length >= M.PILOTS_MARKET.min && o.length <= M.PILOTS_MARKET.max && o.every(id => id !== 'kit' && R[id]), 'the offers at ' + n + ' done: 2-3 of the unhired (' + o + ')');
-    ok(eq(o, offersAt(d0, n)), 'the offers are deterministic');
-    ok(eq(o, offersAt(d0, M.contractEpoch(n) * M.CONTRACT_GEN.refreshEvery)), 'the offers hold within an epoch');
-    seen.add(o.join());
-  }
-  ok(seen.size >= 2, 'the offers refresh with the market (' + seen.size + ' different sets over 8 epochs)');
-  const d0b = clone(d0); d0b.career.seed = 'other';
-  const seeds = new Set([0, 3, 6, 9, 12, 15].map(n => offersAt(d0b, n).join() + '|' + offersAt(d0, n).join()));
-  ok(seeds.size >= 2, 'the offers follow the career\'s seed');
+  // the market (G3618, the user 25 Oct: "All 4 available"): every pilot not on the roster, always
+  ok(eq(M.pilotsOffers(d0), ORDER.filter(id => !d0.career.roster.includes(id))), 'the offers: every pilot not hired (' + M.pilotsOffers(d0) + ')');
+  { const x = clone(d0); x.career.contracts.done = Array.from({ length: 9 }, (_, i) => ({ id: 'x' + i, at: 0, pay: 0 }));
+    ok(eq(M.pilotsOffers(x), M.pilotsOffers(d0)), 'the offers do not move with the job market'); }
   // hire
-  const off = M.pilotsOffers(d0), notOff = ORDER.filter(id => id !== 'kit' && !off.includes(id));
+  const off = M.pilotsOffers(d0), notOff = ORDER.filter(id => id !== 'brian' && !off.includes(id));
   const h = M.pilotsHire(d0, off[0]);
   ok(h.ok && h.doc.wallet === d0.wallet - M.pilotsSignOn(off[0]) && h.doc.career.roster.includes(off[0]), 'hire: on the roster, the sign-on charged (' + off[0] + ' ' + M.pilotsSignOn(off[0]) + ')');
+  ok(h.wage === M.pilotsWage(off[0]) && h.wage > 0 && h.fee === M.pilotsSignOn(off[0]), 'G3618: the hire says its fee and its wage; the wage is not charged at the hire');
+  // G3618 THE PAYDAY: the wage at the END of each day ("like classic paycheck"), the first at the end of the hiring day
+  { const day = M.pilotsDay(h.doc), at = k => day * M.PILOTS_DAY_S + M.PILOTS_PAY_UT_S + k;   // (k: s into the pay day)
+    const same = M.pilotsPayroll(h.doc, at(M.PILOTS_DAY_S - 1));
+    ok(same.ok && same.paid === 0 && same.doc === h.doc, 'payday: nothing within the hiring day (the same document back)');
+    const p1 = M.pilotsPayroll(h.doc, at(M.PILOTS_DAY_S + 5));
+    ok(p1.paid === h.wage && p1.doc.wallet === h.doc.wallet - h.wage && p1.doc.ledger[p1.doc.ledger.length - 1].k === 'wage', 'payday: the end of day 1 pays one wage, a ledger line (' + p1.paid + ')');
+    const p3 = M.pilotsPayroll(p1.doc, at(4 * M.PILOTS_DAY_S));
+    ok(p3.paid === 3 * h.wage && p3.lines[0].days === 3, 'payday: three more days ended, three wages (' + p3.paid + ')');
+    ok(M.pilotsPayroll(p3.doc, at(4 * M.PILOTS_DAY_S + 100)).paid === 0, 'payday: paid up, nothing twice');
+    const broke = clone(h.doc); broke.wallet = 10;
+    ok(M.pilotsPayroll(broke, at(2 * M.PILOTS_DAY_S)).doc.wallet === 10 - 2 * h.wage, 'payday: owed all the same - the wallet goes below zero');
+    ok(M.pilotsPayroll(d0, at(9 * M.PILOTS_DAY_S)).paid === 0, 'payday: the companion works for nothing (until STORY T6b retires it)'); }
+  { const c = M.pilotsCard(h.doc, off[0], null);
+    ok(typeof c.level === 'string' && c.level.length > 3 && Array.isArray(c.skills) && c.skills.length === M.PILOTS_ROSTER[off[0]].traits.length && c.wage === h.wage,
+       'G3618: the card states an experience level and skill chips (no "can fly" verdict) and the wage (' + c.level + ' | ' + c.skills + ')'); }
   const L = h.doc.ledger[h.doc.ledger.length - 1];
   ok(L && L.k === 'signon' && L.ref === off[0] && L.amt === M.pilotsSignOn(off[0]), 'hire: the ledger\'s sign-on line');
   ok(M.pilotsPlace(h.doc, off[0]) === 'HOME', 'a new hire signs on at HOME');
-  { const b = clone(d0); refused(M.pilotsHire(d0, 'kit'), b, d0, 'hire the hired'); }
+  { const b = clone(d0); refused(M.pilotsHire(d0, 'brian'), b, d0, 'hire the hired'); }
   if (notOff.length) { const b = clone(d0); refused(M.pilotsHire(d0, notOff[0]), b, d0, 'hire one not on offer'); }
   { const poor = clone(d0); poor.wallet = 10; const b = clone(poor); refused(M.pilotsHire(poor, off[0]), b, poor, 'hire past the wallet'); }
   { const b = clone(d0); refused(M.pilotsHire(d0, 'nobody'), b, d0, 'hire nobody'); }
   { const b = clone(d0); refused(M.pilotsFire(d0, off[0]), b, d0, 'fire one not hired'); }
-  ok(M.pilotsSignOn('kit') === 0 && M.pilotsSignOn('remy') < M.pilotsSignOn('rafe') && M.pilotsSignOn('rafe') < M.pilotsSignOn('sky'), 'the sign-ons: the companion free, remy the cheapest, sky the priciest');
-  const ME = loadModel(mut, null, { econPrice: (k, id) => (k === 'signon' ? { kit: 999, remy: 111, rafe: 222, sky: 333 }[id] : null) });
-  ok(ME.pilotsSignOn('rafe') === 222 && ME.pilotsSignOn('kit') === 0, 'the sign-on is the price book\'s when ECONOMY lands (econPrice(\'signon\', id))');
+  ok(M.pilotsSignOn('brian') === 0 && M.pilotsSignOn('remy') < M.pilotsSignOn('bryce') && M.pilotsSignOn('bryce') < M.pilotsSignOn('megan'), 'the sign-ons: the companion free, remy the cheapest, megan the priciest');
+  const ME = loadModel(mut, null, { econPrice: (k, id) => (k === 'signon' ? { brian: 999, remy: 111, bryce: 222, megan: 333 }[id] : null) });
+  ok(ME.pilotsSignOn('bryce') === 222 && ME.pilotsSignOn('brian') === 0, 'the sign-on is the price book\'s when ECONOMY lands (econPrice(\'signon\', id))');
   // fire: free; the pick falls back; a re-hire keeps the logbook
-  const fk = M.pilotsFire(d0, 'kit');
-  ok(fk.ok && fk.doc.wallet === d0.wallet && fk.doc.ledger.length === d0.ledger.length && !fk.doc.career.roster.includes('kit') && fk.doc.career.pilotPick === 'me', 'fire: free, off the roster, the next flight is "I fly"');
+  const fk = M.pilotsFire(d0, 'brian');
+  ok(fk.ok && fk.doc.wallet === d0.wallet && fk.doc.ledger.length === d0.ledger.length && !fk.doc.career.roster.includes('brian') && fk.doc.career.pilotPick === 'me', 'fire: free, off the roster, the next flight is "I fly"');
   ok(M.pilotsCanFly(fk.doc, 'me', 'w3', legs.weather).ok, '"I fly" is never refused');
-  ok(!M.pilotsCanFly(fk.doc, 'kit', 'HOME', base).ok, 'a fired pilot does not fly');
+  ok(!M.pilotsCanFly(fk.doc, 'brian', 'HOME', base).ok, 'a fired pilot does not fly');
   // the place: with the aeroplane
   let d = clone(d0);
   d.fleet = { Cub: { hangar: 'HOME', aero: 'HOME' } };
@@ -368,32 +390,32 @@ function run(mut) {
     const r = M.pilotsOnFlightEnd(x, { pilot: who, slot: 'Cub', from, to: landed ? to : null, landed, tw: true, t: 600 });
     return r.doc;
   };
-  d = fly(d, 'kit', 'w3', true);
-  ok(M.pilotsPlace(d, 'kit') === 'w3' && d.career.pilots.kit.plane === 'Cub' && d.career.pilots.kit.log.length === 1, 'kit flew the Cub to w3: kit is at w3, with it');
+  d = fly(d, 'brian', 'w3', true);
+  ok(M.pilotsPlace(d, 'brian') === 'w3' && d.career.pilots.brian.plane === 'Cub' && d.career.pilots.brian.log.length === 1, 'brian flew the Cub to w3: brian is at w3, with it');
   const bh = M.playerBringHome(d, 'Cub', {}).doc;
-  ok(M.pilotsPlace(bh, 'kit') === 'HOME', '"bring it home": the pilot with it comes home too');
+  ok(M.pilotsPlace(bh, 'brian') === 'HOME', '"bring it home": the pilot with it comes home too');
   d = fly(d, 'me', 'mn_strip', true);
-  ok(M.pilotsPlace(d, 'kit') === 'w3' && d.career.pilots.kit.plane === null && M.playerWhere(d, 'Cub').aero === 'mn_strip', 'you flew the Cub on to the mine: kit stays at w3');
-  const away = M.pilotsCanFly(d, 'kit', 'mn_strip', base);
-  ok(!away.ok && away.kind === 'away' && !away.boat && /w3|Tamgas/.test(away.why), 'kit is not where the aeroplane is: refused (' + away.why + ')');
-  const boatQ = M.pilotsCanFly(d, 'kit', 'HOME', base);
-  ok(!boatQ.ok && boatQ.boat === true, 'the aeroplane is at HOME: the boat brings kit');
-  const bt = M.pilotsBoatHome(d, 'kit');
-  ok(bt.ok && M.pilotsPlace(bt.doc, 'kit') === 'HOME' && bt.doc.wallet === d.wallet && bt.doc.ledger.length === d.ledger.length, 'the boat home: free, to HOME');
-  { const b = clone(bt.doc); refused(M.pilotsBoatHome(bt.doc, 'kit'), b, bt.doc, 'the boat home when already at HOME'); }
-  ok(M.pilotsCanFly(bt.doc, 'kit', 'HOME', base).ok, 'home by boat, kit flies the aeroplane at HOME');
+  ok(M.pilotsPlace(d, 'brian') === 'w3' && d.career.pilots.brian.plane === null && M.playerWhere(d, 'Cub').aero === 'mn_strip', 'you flew the Cub on to the mine: brian stays at w3');
+  const away = M.pilotsCanFly(d, 'brian', 'mn_strip', base);
+  ok(!away.ok && away.kind === 'away' && !away.boat && [M.GAME_NAMES.fields.w3, 'w3'].some(w => away.why.includes(w)), 'brian is not where the aeroplane is: refused (' + away.why + ')');
+  const boatQ = M.pilotsCanFly(d, 'brian', 'HOME', base);
+  ok(!boatQ.ok && boatQ.boat === true, 'the aeroplane is at HOME: the boat brings brian');
+  const bt = M.pilotsBoatHome(d, 'brian');
+  ok(bt.ok && M.pilotsPlace(bt.doc, 'brian') === 'HOME' && bt.doc.wallet === d.wallet && bt.doc.ledger.length === d.ledger.length, 'the boat home: free, to HOME');
+  { const b = clone(bt.doc); refused(M.pilotsBoatHome(bt.doc, 'brian'), b, bt.doc, 'the boat home when already at HOME'); }
+  ok(M.pilotsCanFly(bt.doc, 'brian', 'HOME', base).ok, 'home by boat, brian flies the aeroplane at HOME');
   // a flight that ended in a wreck / off a field: the ledger keeps the aeroplane where it left, the pilot with it
-  let w = fly(bt.doc, 'kit', 'w3', true);
-  const before = M.pilotsPlace(w, 'kit');
-  w = fly(w, 'kit', null, false);
-  ok(M.pilotsPlace(w, 'kit') === before && w.career.pilots.kit.log.length === 3, 'a flight that did not land: the pilot stays with the aeroplane where it stands; logged');
-  // the money hooks: with the aeroplane, the mechanic's field labour; rafe's bill
-  ok(J(M.pilotsRepairK(w, 'Cub')) === J({ labour: 0.9, bill: 1, pilot: 'kit' }), 'the mechanic with the Cub, out at w3: field labour x0.9 (' + J(M.pilotsRepairK(w, 'Cub')) + ')');
+  let w = fly(bt.doc, 'brian', 'w3', true);
+  const before = M.pilotsPlace(w, 'brian');
+  w = fly(w, 'brian', null, false);
+  ok(M.pilotsPlace(w, 'brian') === before && w.career.pilots.brian.log.length === 3, 'a flight that did not land: the pilot stays with the aeroplane where it stands; logged');
+  // the money hooks: with the aeroplane, the mechanic's field labour; bryce's bill
+  ok(J(M.pilotsRepairK(w, 'Cub')) === J({ labour: 0.9, bill: 1, pilot: 'brian' }), 'the mechanic with the Cub, out at w3: field labour x0.9 (' + J(M.pilotsRepairK(w, 'Cub')) + ')');
   { const inn = clone(w); inn.fleet.Cub = { hangar: 'HOME', aero: 'HOME' }; ok(M.pilotsRepairK(inn, 'Cub').labour === 1, 'the mechanic\'s x0.9 is the field\'s only (in a hangar: x1)'); }
   ok(M.pilotsRepairK(d0, 'Cub').labour === 1 && M.pilotsRepairK(d0, 'Cub').bill === 1, 'nobody with it: x1');
-  { const r = clone(w); r.career.roster.push('rafe'); r.career.pilots.rafe = { hired: 0, fee: 0, aero: 'w3', plane: null, log: [] };
-    const rr = M.pilotsOnFlightEnd(M.playerArrive(r, 'Cub', 'HOME', {}).doc, { pilot: 'rafe', slot: 'Cub', from: 'w3', to: 'HOME', landed: true, tw: true, t: 1 }).doc;
-    ok(M.pilotsRepairK(rr, 'Cub').bill === 1.1 && rr.career.pilots.kit.plane === null && M.pilotsPlace(rr, 'kit') === 'w3', 'rafe took the Cub: repair bills x1.1, and kit stays where it left from'); }
+  { const r = clone(w); r.career.roster.push('bryce'); r.career.pilots.bryce = { hired: 0, fee: 0, aero: 'w3', plane: null, log: [] };
+    const rr = M.pilotsOnFlightEnd(M.playerArrive(r, 'Cub', 'HOME', {}).doc, { pilot: 'bryce', slot: 'Cub', from: 'w3', to: 'HOME', landed: true, tw: true, t: 1 }).doc;
+    ok(M.pilotsRepairK(rr, 'Cub').bill === 1.1 && rr.career.pilots.brian.plane === null && M.pilotsPlace(rr, 'brian') === 'w3', 'bryce took the Cub: repair bills x1.1, and brian stays where it left from'); }
   // growth from the logbook
   const logOf = (n, tw, landed) => Array.from({ length: n }, (_, i) => ({ n: i + 1, at: i, slot: 'Cub', from: 'HOME', to: 'w3', landed: landed !== false, tw: !!tw, t: 600 }));
   const withLog = (id, log) => { const x = clone(d0); x.career.pilots[id] = { hired: 0, fee: 0, aero: 'HOME', plane: null, log }; if (!x.career.roster.includes(id)) x.career.roster.push(id); return x; };
@@ -424,24 +446,24 @@ function run(mut) {
   ok(M.PILOTS_GROW.fast < M.PILOTS_GROW.steady && R.remy.grow.rate === 'fast', 'remy grows fast (' + remyN + ' landings) - faster than steadily (' + M.PILOTS_GROW.steady + ')');
   ok(M.pilotsKnobs().every(K => J(M.pilotsGrowth('remy', remyN).flat[K.k]) === J(ex[K.k])), 'remy at ' + remyN + ' landings flies as the expert');
   ok(M.pilotsGrowth('remy', remyN / 2).flat.reaction > 0, 'remy half-way is not yet the expert');
-  const kitTop = M.pilotsGrowth('kit', M.PILOTS_GROW.steady).flat, bush = M.pilotProfile('bush');
-  ok(kitTop.reaction === bush.reaction && kitTop.field === 'short' && kitTop.slip === true && kitTop.comfortG === bush.comfortG, 'kit at the ceiling flies the bush\'s reaction, technique and comfort');
-  ok(M.pilotsGrowth('kit', 1e6).flat.reaction >= bush.reaction, 'kit never passes the bush');
+  const kitTop = M.pilotsGrowth('brian', M.PILOTS_GROW.steady).flat, bush = M.pilotProfile('bush');
+  ok(kitTop.reaction === bush.reaction && kitTop.field === 'short' && kitTop.slip === true && kitTop.comfortG === bush.comfortG, 'brian at the ceiling flies the bush\'s reaction, technique and comfort');
+  ok(M.pilotsGrowth('brian', 1e6).flat.reaction >= bush.reaction, 'brian never passes the bush');
   { // a ceiling FURTHER from the expert than the start (a test row: club -> student) never drags a knob back
     R.t_ = { id: 't_', who: 'ch01', profile: { base: 'club', knobs: {} }, style: 'normal', traits: [], grow: { rate: 'fast', ceiling: 'student' } };
     const s = M.pilotsBaseFlat('t_'), g = M.pilotsGrowth('t_', 1000).flat, E = M.pilotProfile('expert');
     ok(['reaction', 'smooth', 'hamFist', 'overRotate', 'flareK', 'bankK'].every(k => Math.abs(g[k] - E[k]) <= Math.abs(s[k] - E[k]) + 1e-9), 'a ceiling further from the expert drags nothing back (' + J(g) + ')');
     delete R.t_;
   }
-  ok(eq(M.pilotsGrowth('rafe', 500).flat, M.pilotsBaseFlat('rafe')), 'rafe never changes (no ceiling)');
-  ok(M.pilotsLandings({ log: logOf(10, false) }, R.sky) === 0 && M.pilotsLandings({ log: logOf(10, true) }, R.sky) === 10, 'sky grows on tailwheel landings only');
-  ok(M.pilotsGrowth('sky', 60).flat.field === 'short' && M.pilotsGrowth('sky', 60).flat.slip === true, 'sky\'s short field and slips are the trait\'s: growth never moves them');
-  ok(M.pilotsLandings({ log: logOf(10, true, false) }, R.kit) === 0, 'only landings count (a flight that did not land: none)');
-  { const lg = logOf(23, true); const a = M.pilotsFlatOf(withLog('kit', lg), 'kit'), b = M.pilotsFlatOf(withLog('kit', lg.slice().reverse()), 'kit');
-    ok(eq(a, b) && eq(a, M.pilotsGrowth('kit', 23).flat), 'growth replays from the logbook (order-free)'); }
-  { const r = M.pilotsOnFlightEnd(withLog('kit', logOf(4, true)), { pilot: 'kit', slot: null, from: 'HOME', to: 'w3', landed: true, tw: false, t: 30 });
-    ok(r.ok && r.doc.career.pilots.kit.log.length === 5 && r.logged.n === 1 && r.doc.career.pilotN === 1 && M.pilotsPlace(r.doc, 'kit') === 'w3', 'a logged flight of an unsaved build: the row, the pilot left at the stop'); }
-  lines.push('the career: the companion with careerNew, 2-3 offers refreshed with the market (' + seen.size + ' sets), hire / fire / the boat, the place follows the aeroplane, growth capped and monotone');
+  ok(eq(M.pilotsGrowth('bryce', 500).flat, M.pilotsBaseFlat('bryce')), 'bryce never changes (no ceiling)');
+  ok(M.pilotsLandings({ log: logOf(10, false) }, R.megan) === 0 && M.pilotsLandings({ log: logOf(10, true) }, R.megan) === 10, 'megan grows on tailwheel landings only');
+  ok(M.pilotsGrowth('megan', 60).flat.field === 'short' && M.pilotsGrowth('megan', 60).flat.slip === true, 'megan\'s short field and slips are the trait\'s: growth never moves them');
+  ok(M.pilotsLandings({ log: logOf(10, true, false) }, R.brian) === 0, 'only landings count (a flight that did not land: none)');
+  { const lg = logOf(23, true); const a = M.pilotsFlatOf(withLog('brian', lg), 'brian'), b = M.pilotsFlatOf(withLog('brian', lg.slice().reverse()), 'brian');
+    ok(eq(a, b) && eq(a, M.pilotsGrowth('brian', 23).flat), 'growth replays from the logbook (order-free)'); }
+  { const r = M.pilotsOnFlightEnd(withLog('brian', logOf(4, true)), { pilot: 'brian', slot: null, from: 'HOME', to: 'w3', landed: true, tw: false, t: 30 });
+    ok(r.ok && r.doc.career.pilots.brian.log.length === 5 && r.logged.n === 1 && r.doc.career.pilotN === 1 && M.pilotsPlace(r.doc, 'brian') === 'w3', 'a logged flight of an unsaved build: the row, the pilot left at the stop'); }
+  lines.push('the career: the companion with careerNew, every unhired pilot on offer (G3618), the wage at the end of each day, hire / fire / the boat, the place follows the aeroplane, growth capped and monotone');
 
   // ==== THE TEXT ==================================================================
   const T = M.PILOTS_TEXT;
@@ -455,8 +477,9 @@ function run(mut) {
     ok([c.name, c.tagline, c.fliesLike].concat(c.traits.map(t => t.label), c.traits.map(t => t.how)).every(x => typeof x === 'string' && !/\[pilot\.|\{\w+\}/.test(x)) && c.fliesLike.length > 10 && c.initials.length >= 1, id + ': the card resolves');
   }
   const imp = M.pilotsImportPack({ pilots: [{ id: 'kit', name: 'Kit Alder', tagline: 't', backstory: 'b', fliesLike: 'f', pitch: 'p', barks: { hired: 'h' } }, { id: 'zed', name: 'Zed' }] });
-  ok(!imp.ok && imp.text['pilot.kit.name'].t === 'Kit Alder' && imp.text['pilot.kit.name'].draft === false && imp.why.some(w => /zed/.test(w)) && M.PILOTS_TEXT['pilot.kit.name'].t === 'Kit', 'the import: Block 5\'s pilots over the keys, an unknown id refused, the table handed in kept');
-  ok(M.pilotsCard(d0, 'kit', null).fliesLike === M.pilotsFliesLike(M.pilotsBaseFlat('kit')), 'the card\'s "flies like" is the profile in words until the pack writes it');
+  ok(imp.text['pilot.brian.tagline'].t === 't' && imp.text['pilot.brian.name'].t === 'Brian' && !imp.text['pilot.kit.tagline'], 'G3614: the pack\'s kit imports onto Brian, whose name stays his own');
+  ok(!imp.ok && imp.text['pilot.brian.bio'].t === 'b' && imp.text['pilot.brian.bio'].draft === false && imp.why.some(w => /zed/.test(w)) && M.PILOTS_TEXT['pilot.brian.name'].t === 'Brian', 'the import: Block 5\'s pilots over the keys, an unknown id refused, the table handed in kept');
+  ok(M.pilotsCard(d0, 'brian', null).fliesLike === M.pilotsFliesLike(M.pilotsBaseFlat('brian')), 'the card\'s "flies like" is the profile in words until the pack writes it');
   lines.push('the text: every key resolves (' + Object.keys(T).length + ' draft keys); the Block 5 import');
 
   // ==== THE SANDBOX ===============================================================
@@ -477,8 +500,9 @@ function run(mut) {
     ok(i > 0 && /CAREER_DEV/.test(APP.slice(APP.lastIndexOf('\n', i - 300), i)), 'the page\'s ' + call.split('(')[0] + ' is under CAREER_DEV');
   }
   ok((APP.match(/CAGE_CREW_PILOT\(/g) || []).length === 1 && /function careerCrewBody\(\) \{\s*if \(!CAREER_DEV\) return;/.test(APP), 'the crew\'s body door is called by the career only');
-  ok(/window\.CAGE_CREW_PILOT = key =>/.test(CREW) && /const pilotWho = crewIdx >= 0 \? crewIdx \+ 2 : P\.pilotWho;/.test(CREW) && (CREW.match(/FLYDIY_CREW_PILOT\s*=/g) || []).length === 1,
-     'the crew: the pilot seat takes the career\'s body only through CAGE_CREW_PILOT; else the spec\'s pilotWho');
+  // G3700: no spec names its pilot any more - the seat is the racer's (CAGE_CHAR.RACER) unless hired
+  ok(/window\.CAGE_CREW_PILOT = key =>/.test(CREW) && /const pilotIdx = crewIdx >= 0 \? crewIdx : keyIdx\(window\.CAGE_CHAR && window\.CAGE_CHAR\.RACER\);/.test(CREW) && (CREW.match(/FLYDIY_CREW_PILOT\s*=/g) || []).length === 1,
+     'the crew: the pilot seat takes the career\'s body only through CAGE_CREW_PILOT; else the racer');
   // the persona select: PILOT-PERSONA's own (when it is in the tree), untouched by this session
   // (G3324 PERSONA-DEV, train L20b: the persona is DEV's - personaProfile / the route row / the plate's pills gained a
   // personaDev() guard; the rows below accept it, their intent unchanged: the career first, the persona the sandbox's)
@@ -503,11 +527,11 @@ const MUTS = [
   ['a pack knob off by a step', sub('reaction: 0.25, smooth: 0.8', 'reaction: 0.3, smooth: 0.8')],
   ['the mechanic\'s factor', sub('mechanic:             { labourK: 0.9 }', 'mechanic:             { labourK: 1.0 }')],
   ['the bill factor', sub("'hard-on-airframes':  { billK: 1.1 }", "'hard-on-airframes':  { billK: 1.2 }")],
-  ['a body swapped to the test pilot', sub("kit:  { id: 'kit', who: 'ch01'", "kit:  { id: 'kit', who: 'ch20'")],
+  ['a body swapped to the test pilot', sub("file: 'Brian',     char: 'ch01'", "file: 'Brian',     char: 'ch20'")],
   ['a trait the pack does not give', sub("traits: ['eager']", "traits: ['eager', 'no-water']")],
   ['the base profile', sub("profile: { base: 'hamfist'", "profile: { base: 'club'")],
   ['the ceiling', sub("grow: { rate: 'steady', ceiling: 'bush' }", "grow: { rate: 'steady', ceiling: 'expert' }")],
-  ['the sign-on order', sub('remy: 1500, rafe: 4000', 'remy: 4500, rafe: 4000')],
+  ['the sign-on order', sub('remy: 1500, bryce: 4000', 'remy: 4500, bryce: 4000')],
   ['the weather boundary', sub('leg.windKt > PILOTS_WEATHER.windKt', 'leg.windKt >= PILOTS_WEATHER.windKt')],
   ['the dusk boundary', sub('return h >= dusk || h < dawn ? { hour: h.toFixed(1) } : null;', 'return h > dusk || h < dawn ? { hour: h.toFixed(1) } : null;')],
   // (G2665 NIGHT-OPS) the night on the almanac, past midnight, and a night job's leg
@@ -532,8 +556,9 @@ const MUTS = [
   ['hire anyone', sub("if (!pilotsOffers(doc).includes(id)) return plNo(doc, pilotsName(id) + ' is not looking for work right now');", '')],
   ['hire past the wallet', sub("if (doc.mode === 'career' && (doc.wallet || 0) < fee)", 'if (false)')],
   ['a refusal that mutates', sub('if (pilotsHired(doc).includes(id)) return plNo(doc,', 'if (pilotsHired(doc).includes(id)) return plNo((doc.wallet -= 1, doc),')],
-  ['the market shows everyone', sub('const n = Math.min(pool.length, PILOTS_MARKET.min + Math.floor(rng() * (PILOTS_MARKET.max - PILOTS_MARKET.min + 1)));', 'const n = pool.length;')],
-  ['the market never refreshes', sub("String(c.seed) + ':pilots:' + epoch", "String(c.seed) + ':pilots:'")],
+  ['the wage charged at the hire', sub("if (fee) playerCharge(d, fee, 'signon', id);", "if (fee) playerCharge(d, fee + pilotsWage(id), 'signon', id);")],
+  ['payday at the start of the day', sub('if (today > from) owed.push', 'if (today >= from) owed.push')],
+  ['a hired pilot still on the market', sub('return PILOTS_ORDER.filter(id => !hired.has(id));', 'return PILOTS_ORDER.slice();')],
   ['no companion', sub('c.roster = [PILOTS_COMPANION];', 'c.roster = [];')],
   ['the companion charged', sub('function pilotsSignOn(id) {\n  if (PILOTS_ROSTER[id] && PILOTS_ROSTER[id].companion) return 0;', 'function pilotsSignOn(id) {')],
   ['the price book ignored', sub("if (typeof econPrice === 'function')", 'if (false)')],

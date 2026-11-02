@@ -209,6 +209,9 @@ the body aft for exactly this reason.
 3. Align overlays on the datum, not the cowl front: cowls differ in length.
 4. A wrong datum compresses or stretches the whole body (the DH.82's first pass): `"datum": "prop"` + markers.
 5. A birth's engine preset overwrites the engine rows a card sets: put the engine's own geometry in its preset.
+   A NEW ENGINE PRESET goes at the END of PRESETS (tools/_eng_page.js) and into PRESETS_AFTER_CUSTOM: `engPreset` is a
+   saved index, and the Clerget / Merlin inserted mid-list gave nine saved builds another engine (A0, T-P1). Add its
+   row to the sound table (src/viewer/audio/engine_config.js) and GEN_ENG_CG too (GATES AUDIOENG, ENGID).
 6. A birth's cowl fit (radial style) overwrites the cowl section: a free cowl (`fitNose 0`) keeps its size and
    vertical section rows.
 7. The birth's tail seed writes `finHeight = finChord` (one number): a card stating `finHeight` / `stSpan` keeps

@@ -37,6 +37,8 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
+  whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth
+                     // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
                      // top of the carcass profile; 1 = as drawn before)
   // (a) bending beam
@@ -76,6 +78,9 @@ const LEG_ROWS = {
     ['linkSpread', 'V base', 0.10, 1.00, 0.01],
     ['linkX', 'crossed struts (Cub X)', 0, 1, 1],
     ['linkPanel', 'V panel', 0, 1, 1],
+    // NEW-SHAPES-1: the old fixed gear's cross axle - one bar wheel to wheel, the bungee at the V's apex, no strut
+    ['linkAxle', 'cross axle (one bar)', 0, 1, 1],
+    ['linkAxleX', 'cross-bracing wires (X)', 0, 1, 1],
     ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
     ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
@@ -123,7 +128,10 @@ const STEERS = ['fixed', 'linked', 'full swivel'];   // (the third wheel's row s
 // the bench's own group + the new sidewall bulge.
 const WHEEL_ROWS = [
   ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
-  ['whTread', 'tread', 0, 2, 1, ['ribbed', 'smooth', 'blocked']],
+  // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
+  // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
+  // with no pattern"), shown only on that carcass
+  ['whSlick', 'tundra tread', 0, 1, 1, ['bush lugs', 'smooth'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
   ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
@@ -191,6 +199,8 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,
+               // NEW-SHAPES-1: where the legs root - 0 auto (a wing under the body takes them), 1 the fuselage
+               root: Math.round(+P['s' + i + 'Root'] || 0),
                fair: Math.round(P['s' + i + 'Fair'] || 0),
                fairSkirt: +P['s' + i + 'FairSkirt'] || 0,
                fairTail: +P['s' + i + 'FairTail'] || 1,

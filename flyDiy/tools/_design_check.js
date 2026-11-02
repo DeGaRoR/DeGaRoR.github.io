@@ -49,7 +49,7 @@
 // matching check to go red. A check on an observable that cannot change is
 // indistinguishable from a check that works.
 'use strict';
-const path = require('path');
+const path = require('path'), fs = require('fs');
 
 const T = __dirname;
 
@@ -148,12 +148,28 @@ try {
 
 // does a dotted path exist in GEN_DEFAULT (arrays step into their template
 // element, the genDefaults convention)?
+// the skin's sections (aeroskin.js AERO_SEC) and its role names (the body's own: 'body', 'taper' ...)
+const SKIN_SECTIONS = (() => {
+  const src = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  const out = new Set(), a = src.indexOf('const AERO_SEC = {');
+  const body = src.slice(a, src.indexOf('\n};', a));
+  for (const m of body.matchAll(/^  ([A-Za-z0-9]+): *\{/gm)) out.add(m[1]);
+  const r = src.indexOf('const AERO_ROLE = {'), rb = src.slice(r, src.indexOf('\n};', r));
+  for (const m of rb.matchAll(/\b([A-Za-z0-9]+): '[a-z]+'/g)) out.add(m[1]);
+  return out;
+})();
 function specPathOk(pathStr) {
   if (NEW_SPEC_FIELDS.includes(pathStr)) return true;
   // THE MARKING KIT (2026-09-04): finish is null in GEN_DEFAULT by design (the
   // factory finish), and its decals are AERO_DEC_DEF's fields — the kit's
   // three layers are m1..m3 + a field name. An archetype may carry a recipe.
   if (/^finish.decals.m[123][A-Z][A-Za-z]*$/.test(pathStr)) return true;
+  // the registration's own fields (its text is meta.reg), and a section's paint (finish.sections.<section>.tint / .fin:
+  // the liveries, 27 Oct) on a section the skin knows
+  if (/^finish.decals.reg[A-Z][A-Za-z]*$/.test(pathStr)) return true;
+  const sm = /^finish.sections.([A-Za-z0-9]+).(tint|fin)$/.exec(pathStr);
+  if (sm) return SKIN_SECTIONS.has(sm[1]);
+  if (pathStr === 'meta.reg') return true;
   let node = CORE.GEN_DEFAULT;
   for (const part of pathStr.split('.')) {
     if (Array.isArray(node)) node = node[0];

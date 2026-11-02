@@ -291,7 +291,9 @@
       watch($('edRows'));
       watch($('edFlyBody'));
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
-      setInterval(() => { if (!drag && !D.hidden) placeAll(); }, 400);
+      // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
+      // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
+      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
       W.addEventListener('resize', () => W.requestAnimationFrame(placeAll));
       W.addEventListener('orientationchange', () => setTimeout(placeAll, 200));
     }

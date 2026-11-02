@@ -70,6 +70,7 @@ const NOGL = process.argv.includes('--nogl');
     for (let i = 0; i < 300 && !ok; i++) {
       await sleep(2000);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click()); return 1;})()", 0);
+      await ev("(()=>{ const h=document.getElementById('edRoute'); if (h && !h.offsetParent && document.getElementById('edDest') && window.FLYDIY_MENU && FLYDIY_MENU.page && (!window.BOOT || !BOOT.state || BOOT.state === 'gone')) FLYDIY_MENU.page('dest'); return 1; })()", 0);   // G3743: #edRoute is the menu's Destination page now
       ok = (await ev("(()=>{const h=document.getElementById('edRoute'); const s=h&&h.querySelectorAll('select'); return !!(s&&s.length>=1&&s[s.length-1].options.length>1&&h.offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone');})()", false)) === true;
     }
     console.log(pg + ': garage ' + (ok ? 'up' : 'NOT up') + ' after ' + el() + (errs.length ? ' (' + errs.length + ' page errors: ' + errs[0] + ')' : ''));

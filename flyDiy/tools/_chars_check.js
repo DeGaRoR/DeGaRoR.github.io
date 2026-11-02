@@ -72,7 +72,7 @@ if (T && P) {
   }
   const cw = T.CLIPS.map(r => r.key).sort(), cg = Object.keys(P.clips || {}).sort();
   verdict(JSON.stringify(cw) === JSON.stringify(cg), `1 the clips: ${cg.join(', ')}`);
-  for (const role of ['walk', 'idle', 'queue', 'sit']) {
+  for (const role of ['walk', 'idle', 'queue', 'sit', ...(T.CLIPS.some(r => r.role === 'pace') ? ['pace'] : [])]) {
     const ks = (P.roles || {})[role] || [];
     const ok = ks.length > 0 && ks.every(k => (P.clips || {})[k] || (role === 'sit' && fs.existsSync(path.join(ROOT, 'src', 'chars', k + '_anim.js'))));
     verdict(ok, `1 role ${role}: ${ks.join(', ') || '(none)'}`);
@@ -137,6 +137,12 @@ for (const [k, a] of Object.entries((P && P.clips) || {})) {
   verdict(!miss.length, `3 clip ${k}: drives the body (${miss.length ? 'missing ' + miss.join(',') : POSED.length + ' joints'})`);
   verdict(Array.isArray(a.bob) && a.bob.length === a.frames && a.rootV >= 0, `3 clip ${k}: root travel ${a.rootV} m/s, ${a.bob ? a.bob.length : 0} bob samples`);
   if (a.role === 'walk') verdict(a.rootV === 0 || (a.rootV > 0.6 && a.rootV < 2.2), `3 clip ${k}: a walk's travel is a walking pace (${a.rootV} m/s; 0 = in place, the default speed)`);
+  // G3619: a pacer walks about its spot - its ground track one sample a frame, back near where it began, within 1.5 m
+  if (a.role === 'pace') {
+    const D = a.drift, okD = Array.isArray(D) && D.length === a.frames && D.every(d => d.length === 2 && d.every(Number.isFinite));
+    const reach = okD ? Math.max(...D.map(d => Math.hypot(d[0], d[1]))) : NaN, gapL = okD ? Math.hypot(D[D.length - 1][0], D[D.length - 1][1]) : NaN;
+    verdict(okD && reach <= 1.5 && gapL <= 0.3, `3 clip ${k}: a pace's drift ${okD ? D.length : 0} samples, reach ${reach.toFixed(2)} m (<= 1.5), the loop closes to ${gapL.toFixed(2)} m (<= 0.3)`);
+  }
   for (const key of Object.keys(members)) {
     const names = new Set(members[key].c.nodes.map(n => n.n.replace(/^.*:/, '')));
     const lack = POSED.filter(n => a.joints.includes(n) && !names.has(n));
@@ -209,6 +215,37 @@ function drive(path_, seats, opts) {
   // the queue bends with a short path: six people, a path for three - nobody leaves before there is room
   const D = drive([[0, 0], [2.2, 0]], [1, 2, 3, 4, 5, 6].map(i => ({ seat: i })));
   verdict(D.R.done() && D.passed === 0 && D.worst >= D.sp - 1e-6, `4 a path shorter than the queue: everyone boards, none closer than the spacing (closest ${D.worst.toFixed(3)} m)`);
+  // G3619 THE LINE: drawn waiting at the start when the run begins, in boarding order front to back, apart, facing the
+  // door (within lineYaw), neighbours on different idles; nobody walks before the hold; then it boards as the walk does
+  // (in order, the spacing, nobody passes); a pacer at the back; the same seed draws the same line, another seed another
+  const DEFc = CR.DEF, pthL = [[0, 0], [0, 8], [14, 12], [20, 4]], doorL = pthL[pthL.length - 1];
+  for (const pace of [false, true]) {
+    const seatsL = [1, 2, 3, 4].map(i => ({ seat: i }));
+    const ci = { rootV: 1.4, queueClips: 3, drift: pace ? t => [0.8 * Math.sin(t), 0.3 * Math.sin(2 * t)] : null, paceReach: 0.85 };
+    const R = CR.run({ path: pthL, seats: seatsL, line: {}, seed: 'job:field:3:1', face: -2.4 }, ci);
+    const P0 = R.people.map(p => ({ st: p.state, s: p.s, x: p.x, z: p.z, yaw: p.yaw, q: p.queueClip, stand: p.stand, pace: p.pace }));
+    const lined = P0.every(p => p.st === 'line' && p.stand === 1), ordered = P0.every((p, i) => !i || P0[i - 1].s - p.s >= DEFc.spacing - 1e-9);
+    const facing = P0.every(p => Math.abs(Math.atan2(Math.sin(p.yaw - Math.atan2(doorL[0] - p.x, doorL[1] - p.z)), Math.cos(p.yaw - Math.atan2(doorL[0] - p.x, doorL[1] - p.z)))) <= DEFc.lineYaw + 1e-9);
+    const mixed = P0.every((p, i) => !i || p.q !== P0[i - 1].q);
+    const pacer = P0.map(p => p.pace).join(',') === (pace ? 'false,false,false,true' : 'false,false,false,false');
+    let early = 0, steps = 0, worst = Infinity, passed = 0;
+    while (!R.done() && steps < 30 * 600) {
+      R.step(1 / 30); steps++;
+      if (R.T < DEFc.hold - 1e-9 && R.people.some(p => p.state !== 'line')) early++;
+      let ahead = null;
+      for (const p of R.people) {
+        if (p.state === 'seated') continue;
+        if (ahead) { worst = Math.min(worst, ahead.s - p.s); if (p.s > ahead.s + 1e-9) passed++; }
+        ahead = p;
+      }
+    }
+    const tag = pace ? 'a pacer at the back' : 'four standing';
+    verdict(lined && ordered && facing && mixed && pacer, `4 the line (${tag}): drawn at the start in boarding order, ${DEFc.spacing} m apart at least, facing the door within ${DEFc.lineYaw} rad, neighbours on different idles`);
+    verdict(!early && R.done() && R.boarded.join(',') === '1,2,3,4' && passed === 0 && worst >= DEFc.spacing - 1e-6,
+      `4 the line (${tag}): nobody walks before the ${DEFc.hold} s hold; all board in order (${R.boarded.join(',')}, ${(steps / 30).toFixed(1)} s), closest ${worst.toFixed(3)} m, ${passed} passings`);
+  }
+  const lineOf = sd => CR.run({ path: pthL, seats: [1, 2, 3].map(i => ({ seat: i })), line: {}, seed: sd }, { queueClips: 3 }).people.map(p => p.s.toFixed(4) + ':' + p.yaw.toFixed(4) + ':' + p.queueClip).join('|');
+  verdict(lineOf('job:a:1:1') === lineOf('job:a:1:1') && lineOf('job:a:1:1') !== lineOf('job:b:2:2'), '4 the line is seeded: the same job draws the same line, another job another');
 }
 
 // ---- 5 FADE -------------------------------------------------------------------------------------------------------

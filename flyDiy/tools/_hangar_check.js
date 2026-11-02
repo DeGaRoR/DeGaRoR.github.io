@@ -194,7 +194,9 @@ function runA() {
   }
   const bare = CORE.hangarFitRing(dims, ['park'],
                                   { x0: -1, x1: 1, z0: -1, z1: 1 });
-  ok(bare.length === 0, 'a park-only shed walks nothing over');
+  // G3533 (HANGARS-LOOK): but the garage radio stands in every hangar - the boombox alone, from the office's `always` row
+  ok(bare.length === 1 && bare[0].prop === 'boombox', 'a park-only shed walks only the boombox over (' +
+     bare.map(r => r.prop).join(',') + ')');
 
   runCozy(union);
 }
@@ -709,7 +711,7 @@ const BREAKS = [
   ['the club hangs the cozy lamps',
    { srcH: s => s.replace('const LAYIT = (LAYOUT && LAYOUT.light) || null;', 'const LAYIT = (typeof hangarLayout === "function" && hangarLayout("cozy", "works") || {}).light || null;') }],
   ['a wall drawn with a negative box',
-   { srcH: s => s.replace('const DOOR_W = Math.max(6, 2 * HW - 5)',
+   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5)',
                           'const DOOR_W = (2 * HW - 55)') }],
 ];
 let bad = 0;

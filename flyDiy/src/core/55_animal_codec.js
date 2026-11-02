@@ -7,7 +7,7 @@
 // Three things it cannot carry, each of them load-bearing here:
 //
 //   A CLIP WITH TRANSLATIONS. char_prep keeps rotation channels only, on
-//   purpose: the ATD owns a seated pilot's root and a translation would fight
+//   purpose: the crew's IK owns a seated pilot's root and a translation would fight
 //   the seat. An animal's clip IS the whole animal — 34 of a bear's 76
 //   channels are translations, and its root walks the rig forward.
 //   A CLIP LIBRARY. A character wears one of two clips. A bear ships 81 and

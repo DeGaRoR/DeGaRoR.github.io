@@ -43,6 +43,22 @@ const path = require('path');
 // (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
 // CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
+  { id: 'COVERIDLE', file: '_coveridle_check.js', tier: 'core' },
+  { id: 'NIGHTVISIBILITY', file: '_nightvisibility_check.js', tier: 'core' },
+  { id: 'NIGHTEXPOSURE', file: '_nightexposure_check.js', tier: 'core' },
+  { id: 'INTROSCENE', file: '_introscene_check.js', tier: 'core' },
+  { id: 'INTROSTATE', file: '_introstate_check.js', tier: 'core' },
+  { id: 'PACKINPUTS', file: '_packinputs_check.js', tier: 'core' },
+  { id: 'HULLWARM', file: '_hullwarm_check.js', tier: 'core' },
+  { id: 'COOKWAIT', file: '_cookwait_check.js', tier: 'core' },   // CDP deadlines are cancelled after settled cook requests
+  { id: 'FLIGHTEVIDENCE', file: '_flightevidence_check.js', tier: 'core' },
+  { id: 'WINDRASTER', file: '_windraster_check.js', tier: 'core' },
+  { id: 'SCENEDETAIL', file: '_scenedetail_check.js', tier: 'core' },
+  { id: 'GROUNDQUERY', file: '_groundquery_check.js', tier: 'core' },   // visual pavement end-query parity and operation count
+  { id: 'PLOTQUERY', file: '_plotquery_check.js', tier: 'core' },
+  { id: 'PATCHBOUNDS', file: '_patchbounds_check.js', tier: 'core' },
+  { id: 'PACECADENCE', file: '_pacecadence_check.js', tier: 'core' },
+  { id: 'SCENERYLIGHTS', file: '_scenerylights_check.js', tier: 'core' },
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
   // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.
@@ -103,6 +119,13 @@ const GATES = [
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
+  // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
+  // growth - every card off the STOL wing is its pre-G2820 bits (def, 4 s of flight, the drawn wing); each device
+  // measured in the tunnel and drawn where it flies; Savannah / Super Cub / Highlander against their sheets
+  // G2821-G2824 (STOL-WING-2): the six validated builds (as the game ships and loads them) benched to master's bits too (the fixture is
+  // tools/_stol_samebits.js --capture's, on an untouched master); each device against its published range, the
+  // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
+  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 480 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
@@ -111,6 +134,11 @@ const GATES = [
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
+  // G3760 (HIRE): pilotCanFly - the pilot's own laws asked before the flight (the hire card, routeSign). The expert's
+  // refusal IS makePilot departFrom's (every validated land build x every strip under 700 m); the gear; a contract row
+  // = the aerodrome record; a normal-approach person refuses at least the expert's; the wind only on a one-way strip,
+  // never a headwind's credit; the boundary; the card's words; pure. Then the roster's table (information)
+  { id: 'PILOTCANFLY', file: '_canfly_check.js', tier: 'core' },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
   // G1375 STRIP-SURFACE: every aerodrome of both worlds says its surface, the gear rule (wheels / floats / amphibian /
@@ -307,6 +335,8 @@ const GATES = [
   // the Cub, the Jodel and the metal Cessna (no mount comes off), one physics with DMG-DRIVE's strike, nothing in the nose's
   // reach in a circuit, the 30 m/s trunks still crash. Three at once
   { id: 'DMGNOSE', file: '_dmg_nose_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // DMG-FALL: every separated piece down before the flight ends - the watch waits for the solver's pieces (DMG.rest / DMG.fall), a break-up in the air
+  { id: 'DMGFALL', file: '_dmg_fall_check.js', tier: 'core', weight: 3, wall: 600 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
@@ -367,6 +397,10 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },   // (G2354: the 30 m/s rows' ensembles)
+  // G3770-G3773 (DMG-LOOKS, ?dmglook=1): the frame members by material - off = master's skin bytes, the parting rule
+  // (released members whole, unparted kinks), the member pool's plan and its pose (the vertex shader's JS mirror) on the
+  // validated land builds' crashes. Three builds at once
+  { id: 'DMGLOOK', file: '_dmg_look_check.js', tier: 'core', weight: 3, wall: 900 },
   { id: 'DMGHEAL', file: '_dmg_heal_check.js', tier: 'core', weight: 4, wall: 300 },   // G1859.8 (DMG-WALL): a wreck's tears never reach the next flight (node page)
   // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
@@ -411,6 +445,11 @@ const GATES = [
   // G2382 (DMG-SCAR2): + the join (a skipping slide one gouge, a crater only where a hard blow stopped), the resting wreck's
   // hull inside the cull, the runway's scuff readable from the chase camera, the floats' water crash scarless
   { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 950 },
+  // G3623 (DMG-GLASS): the impact mark on the glazing - the GLSL copy in aeroskin.js = dmg_glass.js's, the rules (no mark
+  // under 0.3 % set: no crazing on hard landings; never moved; at most 4), the GLSL against its JS mirror and the real
+  // aeroGlass drawn in WebGL2 (headless Chromium, NOT RUN without it), the triggers on the Cub, the Jodel and the metal
+  // Cessna (the taxi and FAR 23.473's drop unmarked, the 30 m/s centreline trunk marked). Three children at once
+  { id: 'DMGGLASS', file: '_dmg_glass_check.js', tier: 'core', weight: 3, wall: 400 },
   // G2373-G2377 (DMG-OCCUPANT): each occupant's band after a crash (src/core/34_occupant.js) - one of five words, the
   // criteria behind it in the gate's output only: the bands by case on the validated builds (the taxi and FAR 23.473's
   // drop Unharmed, the 30 m/s centreline severe), damage off = no record, the recorder only reads, the hop once, the
@@ -424,6 +463,9 @@ const GATES = [
   { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
+  // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
+  // Stay keeps the flight, Leave leaves, the tab's beforeunload; and NEVER on a rig (WELCOME.RIG, ?nogate, ?backguard=0, a frame)
+  { id: 'BACKGUARD', file: '_backguard_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
   // boots key and link the same sources, a bake links each program once, the off-scene passes are listed
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
@@ -453,6 +495,10 @@ const GATES = [
   // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
   // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
   { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
+  // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
+  // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
+  // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
+  { id: 'CARDDRAG', file: '_carddrag_check.js', tier: 'core', wall: 5 },
   // G3449 FLOAT-DUP: one pair of floats in the shed along the builder's path (dev.html, headless Chrome, software GL)
   { id: 'FLOATDUP', file: '_floatdup_check.js', tier: 'full', timeout: 900_000, wall: 300 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
@@ -517,6 +563,13 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  { id: 'HANDLE', file: '_handle_check.js', tier: 'core', wall: 400 },   // DOOR-HINGES-2: no handle on the glass, every build file and card
+  // FITTINGS-MANUAL (2026-10-27): every fitting placeable BY HAND - on the Cub through the layers headless: no hand
+  // row and every row reset to auto place identically (and the save carries none), each hand-placed fitting read
+  // back off the sheet's own triangles (on the skin, at the asked fore/aft and height), 10 mm asked moves 10 mm (no
+  // snap), a fitting the table does not fit here drawn only once placed, the rows in the normal panel (~10 s;
+  // --selftest)
+  { id: 'FITMANUAL', file: '_fit_manual_check.js', tier: 'core' },
   // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy must give three's
   // own hit list - both ways on ~3 200 rays (random, axis-aligned, grazing at vertices and edges, inside, near/far)
   // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take
@@ -533,6 +586,9 @@ const GATES = [
   // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
   // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
   { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
+  // G3630 (HANGAR-VIEW): the view out of the garage door is the world - the capture's faces and the lookup one convention,
+  // the distance resolve inverts three's depth, the boot / return / lights / outdoors seams, no GPU readback
+  { id: 'HANGARVIEW', file: '_hangarview_check.js', tier: 'core', wall: 30 },
   // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
   // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
   // the roll-out; the idle garage uploads no more skin than before
@@ -573,6 +629,10 @@ const GATES = [
   { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
+  // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
+  // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
+  // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
+  { id: 'QUADWIN', file: '_quadwin_check.js', tier: 'core' },
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
@@ -618,6 +678,7 @@ const GATES = [
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
   { id: 'STARTER', file: '_starter_check.js', tier: 'core' },
+  { id: 'FLOATKIT', file: '_floatkit_check.js', tier: 'core' },   // G3445: the float kit (the seaplane propeller in / out, the card)
   // 2026-09-03: what you SAVE is what is on the stand. The shelf's spec was
   // a cache of the editor that only a roll-out refreshed.
   { id: 'SAVE', file: '_save_check.js', tier: 'core' },
@@ -626,6 +687,9 @@ const GATES = [
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
   { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
+  // G3780 CERT-RULE (the user 26 Oct: "Everything should be as fast as the bench check and the altitude check"): no
+  // watched test left, and the bench check, the density altitude and the computed wing loading each under a ceiling
+  { id: 'BENCHTIME', file: '_benchtime_check.js', tier: 'core', wall: 120 },
   // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
   // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
   { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
@@ -655,6 +719,11 @@ const GATES = [
   // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
   { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
+  // G3560-G3569 (AP-HONEST): the autopilot's reasons in words (every go-around reason 43_pilot.js gives has a sentence);
+  // the page under the physics worker (one page in node, ~4.8 GB, ~4.5 min): the worker pilot's route on the page's
+  // ap.route, the toggle keeping the plan, a forced go-around and divert said in #apWhy; --selftest strips the route /
+  // the report from the snapshots (red)
+  { id: 'APHONEST', file: '_aphonest_check.js', tier: 'core', timeout: 2 * 3600_000, weight: 2, wall: 300 },
   // G3320 (PILOTPAGE, the user 18 Oct: "some actual browser-based flying ... in case the numerical simulations would not be
   // fully representative"): the validated builds' legs flown BY THE PAGE (tools/pilotpage_legs.json: the persona the user
   // flies, the student, beside the expert), the expert legs held to node's track; a GPU job on a quiet box, run when the
@@ -689,6 +758,12 @@ const GATES = [
   // sixty FUZZED builds — forty random houses and twenty random sheds, which
   // is where the buried-in-the-hillside sampler bugs came from.
   { id: 'HOUSE', file: '_house_check.js', tier: 'core' },
+  // THE FAR RUNGS ARE BUILDINGS (LODS-2026-10, the user 27 Oct: "they don't even represent closed volumes ... Some
+  // houses show without roof and black"): every far rung of every building the island places, made by the game's own
+  // rules (tools/_lods_lib.js), roofed from above (>= 90 %), not looked INTO (leak, hole <= 3 %), the far colour's gain
+  // unity-calibrated. A RATCHET until the fix lands: tools/_lods_known.json holds today's failures at their numbers,
+  // anything new or worse is red; --strict is the fix's verdict, --selftest the negative verification, --fix the proposed ladder (~45 s, the whole catalogue)
+  { id: 'LODS', file: '_lods_check.js', tier: 'core' },
   // THE VILLAGE (G275): the terrain, the road, the plots off it, a house on
   // every plot built by the house generator on the terrain under it, the
   // fences on the plot lines and the paths to the road - eight seeds, every
@@ -847,6 +922,9 @@ const GATES = [
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },
+  // THE HUMP (G3442, HYDRO-TRIM): the afterbody in the forebody's wake (the 2350 hull in the tank), and the stock
+  // 172R on Wipaire's exact float over its hump and off the water at the STC gross (~3 min)
+  { id: 'HYDROTRIM', file: '_hydrotrim_check.js', tier: 'full', wall: 200 },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two
@@ -884,7 +962,22 @@ const GATES = [
   // clearance per attitude re-derived off its own shell; its drag (Raymer's build-up) in the axial row and its cost
   // in cruise and climb; the bench's row (a strike refused with its number); the mounts under a real certificate;
   // the CG full; the acceptance leg off / on / full (reports/evidence/POD/flights.json); --selftest 21 doctored rules
-  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 60 },
+  // G2679 (BELLY-POD-2): + the editor's volume mapped by the core, its readouts the core's and its red reasons; the
+  // flown pod (four scraping nodes at its lowest points, its mass on them, no substep paid, a deep pod resting and
+  // sliding on them); no pod = the base core's certificate and 300 flown steps to the bit (tools/_pod_bytes.js, a
+  // process a build); a pod on a BOUGHT aeroplane is a modification (procureOnSave); the drawn pod headless (one
+  // mesh, the join's datums and snapshot bucket, 2 draws; absent: nothing) - --selftest 30 doctored rules
+  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 130 },
+  // THE BELLY POD'S SECTION IN THE GARAGE EDITOR (G2679, BELLY-POD-2): tools/_cage_pod.js driven through its own rows
+  // (ranges, the fitted box, the door, the double-click resets) over the core's text evaluated the page's way: off
+  // writes nothing, a drag nothing, a release once (genPodFromVolume's dims inside GEN_POD.clamp), the readouts the
+  // core's, red with the reason, unticked = the key removed; the wiring's sources; --selftest 10 doctored rules
+  { id: 'PODEDITOR', file: '_pod_editor_check.js', tier: 'core', wall: 20 },
+  // THE BELLY POD WITH THE DAMAGE LAYER ON (G3463 / G3464, BELLY-POD-2): its own break group (pod:mount, the 16 hangers),
+  // the hangers / braces as steel fittings and the glass shell; belly landings on the metal Cessna and the Jodel (gear
+  // down: untouched; gear up 1.5 m/s: crushed, freight at risk; 3 m/s: torn off, freight lost) in the integrity
+  // record's words; the scrape's wear; the pod's freight on its own nodes and lost with it in the career's stop record
+  { id: 'DMGPOD', file: '_dmg_pod_check.js', tier: 'core', weight: 2, wall: 90 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
   // arc stage flyable by a validated design, none doing every class (az); (G2430 CONTRACT-ROUTES) THE ROUTES: >= 60 % of
@@ -892,6 +985,17 @@ const GATES = [
   // 3-stop chain flown through the stop records; 64 doctored rules. ~2 s (20 s cold: the five designs' shakedown,
   // cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
+  // MISSIONS-P0 (futureDesigns/MISSIONS-2026-10-25.md): the mission packs (src/missions/*.json, 73b_missions.js) - every
+  // pack validates (the tree, the orders, the places, the people, each record through contractValidate), the editor's
+  // core judges them as the full core; the BUILT-IN pack is today's contracts (each record, its pay, the install, the
+  // offers and documents of two careers walked under both); the tutorial listed read-only; the new model's rules each
+  // refused alone; the rally's derived checkpoints; (P1/P2) the runtime end to end through a career - orders sold + profit,
+  // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
+  // `--selftest`: 37 doctored rules, each red (~25 min)
+  { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
+  // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
+  { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
@@ -939,6 +1043,8 @@ const GATES = [
   // deterministic and capped; a pilot follows their aeroplane; hire / fire / the boat; the sandbox's doors inert;
   // 36 doctored rules. ~2 s
   { id: 'PILOTS', file: '_pilots_check.js', tier: 'core' },
+  // G3700 (the user, 25 Oct): the racer is the only pilot - no reference to the retired figure outside the load migration
+  { id: 'NODUMMY', file: '_nodummy_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR
@@ -1016,6 +1122,12 @@ const GATES = [
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
   { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
+  // G2790-G2799 ENGINE-CONFIGS (the user, 10 Oct: the Skymaster's nose + pusher, the 3 and 4 engines): the layouts
+  // (60_gen_spec GEN_ENG_LAYOUTS) - the saved builds and single mounts bit-identical to master, the clamp, each layout's
+  // lattice and balance, a Skymaster-alike / three / four flown level and each engine cut on a straight downwind
+  // (centreline: no yaw; the twin fixture the control), the three certify (bench to the ultimate HELD), the join and
+  // the design tiles. Flights and certificates in parallel children (~3-4 min at --jobs=4).
+  { id: 'ENGCONFIG', file: '_engconfig_check.js', tier: 'core', wall: 240 },
   // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound

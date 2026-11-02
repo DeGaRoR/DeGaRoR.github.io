@@ -59,6 +59,22 @@
       "persona": "student",
       "q": "town=1",
       "known": "capsize on the water lift-off - master's too (19 Oct); G3323 floats-person is the fix"
+    },
+    {
+      "id": "stol_expert",
+      "kind": "info",
+      "build": "tools/fixtures/stol_cub_showcase.json",
+      "order": "HOME,mn_strip",
+      "persona": "expert",
+      "note": "STOL-PILOT (27 Oct): the showcase STOL Cub, the STOL law (a STOL sheet, the expert qualified) - to the mine strip node cannot take off for (HANDOVER STOL-PILOT); read the frame time at the roll's start (the review's fix 1: no stolGain probe there)"
+    },
+    {
+      "id": "stol_student",
+      "kind": "info",
+      "build": "tools/fixtures/stol_cub_showcase.json",
+      "order": "HOME,mn_strip",
+      "persona": "student",
+      "note": "STOL-PILOT: the student is not STOL-qualified - the showcase flown as any Cub"
     }
   ],
   "bar": {

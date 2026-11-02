@@ -148,6 +148,7 @@
 <!-- THE HANGAR SHELLS (G405): the garage's three families as exterior assets -->
 <script src="_hangar_gen.js"></script>
 <script src="_tower_gen.js"></script>
+<script src="_meteo_gen.js"></script>   <!-- G3660: the meteo station -->
 <!-- the lot ground patch's material (G378): the fields' grass rides on it -->
 <script src="../src/viewer/lot_tex.js"></script>
 <script src="_tram_gen.js"></script>
@@ -164,6 +165,7 @@ const BG = window.BIG_GEN;
 const SP = window.SPORT_GEN;
 const HN = window.HANGAR_GEN;
 const TW = window.TOWER_GEN;
+const OB = window.METEO_GEN;   // the meteo station (G3660)
 const $ = id => document.getElementById(id);
 const D2R = Math.PI / 180;
 // TWO GENERATORS, ONE BENCH. The shed is a different MODEL of a building — a
@@ -743,7 +745,7 @@ function checks(hi, lo) {
   const S = hi.stats, rows = [];
   if (GEN === SH) return shedChecks(hi, lo);
   if (GEN === BG) return bigChecks(hi, lo);
-  if (GEN === SP || GEN === HN || GEN === TW) return genericChecks(hi, lo);   // the sports grounds, the hangar shells (G405), the towers (G414)
+  if (GEN === SP || GEN === HN || GEN === TW || GEN === OB) return genericChecks(hi, lo);   // the sports grounds, the hangar shells (G405), the towers (G414)
   if (S.composite) return compositeChecks(hi, lo);
   const row = (label, val, cls, note) =>
     rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
@@ -1122,7 +1124,7 @@ const psel = $('presetSel');
 // THE CATEGORY LIST (G393): every preset of every generator under the word it
 // declares; a preset's option carries its generator, so the category select
 // replaces the model select and the generator follows the preset
-const GENS = { house: G, shed: SH, big: BG, sport: SP, hangar: HN, tower: TW };
+const GENS = { house: G, shed: SH, big: BG, sport: SP, hangar: HN, tower: TW, meteo: OB };
 const CATALOG = [];
 for (const [gk, GG] of Object.entries(GENS)) for (const n of Object.keys(GG.PRESETS)) CATALOG.push({ gen: gk, name: n, cat: GG.catOf(n) || 'uncategorised' });
 {
@@ -1148,7 +1150,7 @@ function applyPreset(v) {
 $('modelSel').onchange = () => { fillPresets(); applyPreset(psel.value); };
 psel.onchange = e => applyPreset(e.target.value);
 const rollOne = sd => {
-  P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : (GEN === SP ? SP.randomSport(sd) : (GEN === HN ? HN.randomHangar(sd) : (GEN === TW ? TW.randomTower(sd) : G.randomHouse(sd)))));
+  P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : (GEN === SP ? SP.randomSport(sd) : (GEN === HN ? HN.randomHangar(sd) : (GEN === TW ? TW.randomTower(sd) : (GEN === OB ? OB.randomObservatory(sd) : G.randomHouse(sd))))));
   buildPanel(); syncVis(); build();
   $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : (GEN === BG ? 'big building' : (GEN === SP ? 'sports ground' : 'house'))) +
     ', seed ' + sd;

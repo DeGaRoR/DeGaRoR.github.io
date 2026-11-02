@@ -223,7 +223,7 @@ function reach() {
     out[nm] = all.filter(n => !got.includes(n));
     // every species of every mix a code on this map names
     const B = ctx.BIOMES.make(TP), T = W.island.ttype, seen = new Set(); for (let k = 0; k < T.length; k++) seen.add(T[k]);
-    for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
+    for (const [a, d] of [[6, 12], [8, 13], [7, 14], [1, 18]]) if (seen.has(a)) seen.add(d);   // (18: a lake's shore band, G3430)
     const miss = [];
     for (const c of seen) { const m = B.mixAt(c); if (m) for (const sp of Object.keys(B.mixOf(m).species || {})) if (all.includes(sp) && !got.includes(sp)) miss.push(c + ':' + sp); }
     for (const c of TP.collections) if (['rock', 'debris', 'cliff'].includes(c.kind) && !got.includes(c.name)) miss.push(c.kind + ':' + c.name);

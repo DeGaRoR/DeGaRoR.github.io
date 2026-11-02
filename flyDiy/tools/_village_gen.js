@@ -1599,6 +1599,7 @@ function finishPlot(vil, plot, house, built) {
     // THE OTHER CATEGORIES (G401): no outbuilding, no wreck, no boat - the lot slab, its bays and its cars instead
     plot.out = null; plot.car = null; plot.boat = null; plot.drive = null;
     plot.lot = planLot(vil, plot, house, built, rnd, cat);
+    if (plot.lot && plot.noCar) plot.lot.cars = [];   // (a noCar plot: its bays empty - drawn after the draws, so its lot is as planned)
     if (plot.lot) plot.path = [];                   // the slab or the yard is the way in; no garden path across it
     return plot;
   }
@@ -1620,6 +1621,9 @@ function finishPlot(vil, plot, house, built) {
   // THE FRONT LOT (G401): the drive and the pad; the pad's car replaces a backyard wreck when there is no garage
   plot.drive = planDrive(vil, plot, house, built, rnd);
   if (plot.drive && plot.drive.car && !(plot.car && plot.car.garage)) plot.car = plot.drive.car;
+  // (a noCar plot - its zone's rules.cars false / noCar: no car parked, the pad and the drive kept; after every draw, so the
+  //  rest of the plot - its boat, its outbuilding - is the one it had)
+  if (plot.noCar) { plot.car = null; if (plot.drive) plot.drive.car = null; }
   plot.lot = null;
   return plot;
 }

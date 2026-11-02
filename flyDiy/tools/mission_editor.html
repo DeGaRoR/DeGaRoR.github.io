@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission Editor</title>
+<!--
+  THE MISSION EDITOR (MISSIONS-P0, futureDesigns/MISSIONS-2026-10-25.md §5) - a DEV TOOL, pure UI, no 3D. It loads the
+  game's own core (the LEAN set of tools/_missions_lib.js, below, in that order: GATE MISSIONS holds the list) so the
+  editor and the game agree on every verdict and on the reward. Serve flyDiy/ (any static server) and open
+  tools/mission_editor.html. Reads / writes a mission pack (src/missions/*.json): load a file or the built-in pack, edit,
+  Save downloads the JSON (commit it under src/missions/). Nothing is written anywhere else; the browser keeps a draft.
+  THE LOOK (the user, 27 Oct: "Dark theme ... meaningful names ... a passenger picker, and an interface that resembles
+  the contract one for preview like in game"): the game's own editor tokens (src/viewer/editor.css --ed-*) and type, the
+  map screen's contract card (src/viewer/map_menu.js mmRow / mmBody / mmWho) reproduced for the preview.
+-->
+<style>
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 100 700; font-display: swap; src: url(../vendor/fonts/plex-sans-var.woff2) format('woff2'); }
+:root {
+  --ed-panel:#201d1a; --ed-board:#1a1815; --ed-plate:rgba(32,29,26,.94);
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-field:rgba(0,0,0,.28);
+  --ed-warn:#d8a07a; --ed-bad:#e08a5a; --ed-ok:#9ccf9a;
+  --t-cargo:#d99a3c; --t-pax:#4f9fd6; --t-survey:#6cbf8a; --t-build:#b58fd8; --t-other:#c0b8ac;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ed-board); color: var(--ed-ink); font: 400 13.5px/1.45 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; }
+button, select, input, textarea { font: inherit; color: var(--ed-ink); }
+::selection { background: var(--ed-acc-soft); }
+/* ---- the top bar */
+.top { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 14px; background: var(--ed-panel); border-bottom: 1px solid var(--ed-hair); }
+.brand { font: 600 12px/1 'IBM Plex Sans'; letter-spacing: .16em; text-transform: uppercase; color: var(--ed-faint); white-space: nowrap; }
+.file { color: var(--ed-dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file b { color: var(--ed-ink); font-weight: 500; }
+.grow { flex: 1; }
+.btn { background: var(--ed-btn-bg); border: 1px solid var(--ed-btn-bd); border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--ed-acc); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.pri { background: var(--ed-acc); color: var(--ed-acc-ink); border-color: var(--ed-acc); font-weight: 600; }
+.btn.sm { padding: 3px 9px; font-size: 12.5px; }
+.btn.ghost { background: none; border-color: transparent; color: var(--ed-dim); }
+.btn.ghost:hover { color: var(--ed-ink); border-color: var(--ed-btn-bd); }
+.btn.danger:hover { border-color: var(--ed-bad); color: var(--ed-bad); }
+.checks { font-size: 12.5px; white-space: nowrap; }
+.ok { color: var(--ed-ok); } .bad { color: var(--ed-bad); } .warn { color: var(--ed-warn); } .dim { color: var(--ed-dim); } .faint { color: var(--ed-faint); }
+/* ---- the three columns */
+#main { display: grid; grid-template-columns: 300px minmax(420px, 1fr) 440px; height: calc(100% - 52px); }
+@media (max-width: 1200px) { #main { grid-template-columns: 1fr; height: auto; } }
+#tree { background: var(--ed-panel); border-right: 1px solid var(--ed-hair); overflow: auto; padding: 8px 0 16px; }
+#form { overflow: auto; padding: 18px 22px 40px; }
+#side { background: var(--ed-panel); border-left: 1px solid var(--ed-hair); overflow: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+.colHead { font: 600 10.5px/1 'IBM Plex Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-faint); padding: 8px 14px 6px; display: flex; align-items: center; gap: 8px; }
+#side .colHead { padding: 4px 0 0; }
+/* ---- the tree */
+.tn { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 10px 3px 0; cursor: pointer; border-left: 2px solid transparent; }
+.tn:hover { background: rgba(255,255,255,.035); }
+.tn.sel { background: var(--ed-acc-soft); border-left-color: var(--ed-acc); }
+.tn .ic { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 6px; font-size: 11px; color: var(--ed-dim); background: rgba(255,255,255,.05); }
+.tn .ic.dot::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--t-other)); }
+.tn .lb { flex: 1; min-width: 0; display: grid; }
+.tn .lb b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tn .lb small { color: var(--ed-faint); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tn.ro .lb b { color: var(--ed-dim); }
+.tn .badge { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: rgba(224,138,90,.16); color: var(--ed-bad); flex: none; }
+.tn .badge.w { background: rgba(216,160,122,.12); color: var(--ed-warn); }
+.tgroup { border-left: 1px solid var(--ed-hair); }
+.tsec { font: 600 10.5px/1 'IBM Plex Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-faint); padding: 16px 14px 6px; }
+.tadd { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 14px 0; }
+/* ---- the form */
+.crumbs { color: var(--ed-faint); font-size: 12px; margin-bottom: 4px; }
+.crumbs a { color: var(--ed-dim); cursor: pointer; text-decoration: none; } .crumbs a:hover { color: var(--ed-ink); }
+h2.title { font: 600 20px/1.25 'IBM Plex Sans'; margin: 0 0 4px; }
+.sub { color: var(--ed-dim); margin: 0 0 16px; }
+.sec { background: var(--ed-panel); border: 1px solid var(--ed-hair); border-radius: 10px; padding: 12px 16px 14px; margin: 0 0 14px; }
+.sec > h4 { margin: 0 0 10px; font: 600 10.5px/1 'IBM Plex Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-faint); display: flex; justify-content: space-between; align-items: center; }
+.sec > p.help { color: var(--ed-faint); margin: -4px 0 10px; font-size: 12.5px; }
+.f { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: start; margin: 7px 0; }
+.f > label { color: var(--ed-dim); padding-top: 6px; }
+.f > label small { display: block; color: var(--ed-faint); font-size: 11.5px; line-height: 1.3; margin-top: 2px; }
+.inp, select.inp, textarea.inp { width: 100%; background: var(--ed-field); border: 1px solid var(--ed-btn-bd); border-radius: 7px; padding: 6px 9px; min-height: 32px; }
+textarea.inp { min-height: 64px; resize: vertical; line-height: 1.5; }
+.inp:focus { outline: 2px solid var(--ed-acc); outline-offset: -1px; border-color: transparent; }
+.inp:disabled { opacity: .55; }
+.inp.num { width: 110px; } .inp.num.s { width: 80px; }
+select.inp option { background: var(--ed-panel); }
+.inl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inl > .lbl { color: var(--ed-faint); font-size: 12.5px; }
+.inl .inp { width: auto; }
+.key { font: 400 11.5px/1.3 ui-monospace, Menlo, monospace; color: var(--ed-faint); margin-top: 4px; cursor: pointer; }
+.key:hover { color: var(--ed-dim); }
+.list { display: grid; gap: 6px; }
+.li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,.16); border: 1px solid var(--ed-hair); border-radius: 8px; padding: 6px 8px; }
+.li .inp { width: auto; }
+.seg { display: inline-flex; border: 1px solid var(--ed-btn-bd); border-radius: 7px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 5px 11px; cursor: pointer; color: var(--ed-dim); border-right: 1px solid var(--ed-btn-bd); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--ed-acc); color: var(--ed-acc-ink); font-weight: 600; }
+.seg button:disabled { cursor: default; }
+.ro-box { background: rgba(255,255,255,.04); border: 1px dashed var(--ed-border); border-radius: 10px; padding: 12px 14px; color: var(--ed-dim); margin-bottom: 14px; }
+.steps { display: grid; gap: 4px; }
+.steps .st { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px; background: rgba(0,0,0,.16); border: 1px solid var(--ed-hair); cursor: pointer; }
+.steps .st:hover { border-color: var(--ed-border); }
+.steps .st .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ed-acc-soft); font-size: 11.5px; flex: none; }
+details.adv { margin-top: 18px; color: var(--ed-faint); }
+details.adv summary { cursor: pointer; font-size: 12.5px; }
+details.adv textarea { width: 100%; min-height: 220px; font: 12px/1.45 ui-monospace, Menlo, monospace; }
+.bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+/* ---- the people picker */
+.pp { position: relative; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 2px; border-radius: 16px; background: var(--ed-acc-soft); border: 1px solid var(--ed-border); }
+.chip img, .chip .av { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; object-position: 50% 25%; }
+.chip button { background: none; border: 0; color: var(--ed-faint); cursor: pointer; padding: 0 4px; font-size: 14px; }
+.chip button:hover { color: var(--ed-bad); }
+.av { display: grid; place-items: center; background: var(--ed-hair); color: var(--ed-dim); font-weight: 600; font-size: 11px; }
+.ppPop { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 380px; max-height: 360px; overflow: auto; background: var(--ed-plate); border: 1px solid var(--ed-border); border-radius: 10px; padding: 8px; box-shadow: 0 14px 40px rgba(0,0,0,.5); backdrop-filter: blur(6px); }
+.ppPop input { margin-bottom: 8px; }
+.ppGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.ppGrid button { display: flex; gap: 8px; align-items: center; text-align: left; background: none; border: 1px solid transparent; border-radius: 8px; padding: 4px; cursor: pointer; }
+.ppGrid button:hover { background: rgba(255,255,255,.05); }
+.ppGrid button.on { background: var(--ed-acc-soft); border-color: var(--ed-acc); }
+.ppGrid img, .ppGrid .av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; object-position: 50% 25%; flex: none; }
+.ppGrid span { display: grid; min-width: 0; } .ppGrid b { font-weight: 500; } .ppGrid small { color: var(--ed-faint); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ppGroup { font: 600 10px/1 'IBM Plex Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-faint); margin: 8px 2px 4px; grid-column: 1 / -1; }
+/* ---- the in-game card (src/viewer/map_menu.js, #mapScreen's rules, scoped to .gc) */
+.gc { background: var(--ed-panel); border: 1px solid var(--ed-hair); border-radius: 10px; overflow: hidden; font: 400 14px/1.5 'IBM Plex Sans'; font-variant-numeric: tabular-nums; }
+.gc .mmItem { border-bottom: 1px solid var(--ed-hair); }
+.gc .mmItem:last-child { border-bottom: 0; }
+.gc .mmRow { width: 100%; display: grid; grid-template-columns: 10px 40px 1fr auto 18px; gap: 10px; align-items: center; padding: 10px 16px 10px 14px; min-height: 48px; border-left: 2px solid transparent; background: none; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; }
+.gc .mmItem.open .mmRow { background: var(--ed-acc-soft); border-left-color: var(--ed-acc); }
+.gc .mmDot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.gc .mmFace { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: 50% 25%; background: var(--ed-hair); }
+.gc .mmT { font-weight: 500; min-width: 0; }
+.gc .mmSub { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.gc .mmTag { font-size: 11px; color: var(--ed-dim); border: 1px solid var(--ed-btn-bd); border-radius: 9px; padding: 0 6px; }
+.gc .mmPay { font-variant-numeric: tabular-nums; }
+.gc .mmMark { text-align: center; font-weight: 600; }
+.gc .mmMark.ok { color: var(--ed-acc); } .gc .mmMark.no { color: var(--ed-bad); } .gc .mmMark.w { color: var(--ed-warn); }
+.gc .mmBody { display: grid; gap: 12px; padding: 2px 16px 16px 36px; background: var(--ed-acc-soft); }
+.gc .mmBody p { margin: 0; max-width: 42ch; font-size: 13.5px; line-height: 1.55; }
+.gc .mmWho { display: flex; gap: 14px; align-items: center; }
+.gc .mmFaceBig { width: 120px; height: 120px; flex: none; border-radius: 12px; object-fit: cover; object-position: 50% 25%; background: var(--ed-hair); }
+.gc .mmWho span { display: grid; gap: 2px; color: var(--ed-dim); font-size: 13px; }
+.gc .mmWho b { color: var(--ed-ink); font-size: 16px; font-weight: 600; }
+.gc .mmRw { display: block; margin-top: 6px; font-size: 12.5px; color: var(--ed-dim); }
+.gc .mmWhy { display: block; margin-top: 6px; color: var(--ed-bad); }
+.gc .mmTrack { justify-self: start; font: 600 12px/1 'IBM Plex Sans'; letter-spacing: .1em; text-transform: uppercase; color: var(--ed-acc-ink); background: var(--ed-acc); border: 1px solid var(--ed-acc); border-radius: 8px; padding: 0 18px; min-height: 48px; }
+.gc .face0 { display: grid; place-items: center; color: var(--ed-dim); font-weight: 600; }
+.notes { background: rgba(0,0,0,.18); border: 1px solid var(--ed-hair); border-radius: 10px; padding: 10px 12px; font-size: 13px; display: grid; gap: 6px; }
+.notes ol { margin: 0; padding-left: 20px; } .notes li { margin: 2px 0; }
+.notes .pay { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-variant-numeric: tabular-nums; }
+/* ---- the map, the checks */
+#mapWrap { position: relative; border: 1px solid var(--ed-hair); border-radius: 10px; overflow: hidden; height: 340px; background: #0b2a44; }
+#map { width: 100%; height: 100%; display: block; cursor: crosshair; }
+#mapHint { position: absolute; left: 8px; top: 8px; background: rgba(20,18,16,.75); color: var(--ed-dim); padding: 2px 8px; border-radius: 6px; font-size: 12px; pointer-events: none; }
+#pickLbl { font-size: 12.5px; }
+#val { display: grid; gap: 4px; font-size: 12.5px; max-height: 220px; overflow: auto; }
+#val div { padding: 4px 8px; border-radius: 6px; background: rgba(224,138,90,.08); cursor: pointer; }
+#val div.okv { background: rgba(156,207,154,.08); cursor: default; }
+dialog { background: var(--ed-panel); color: var(--ed-ink); border: 1px solid var(--ed-border); border-radius: 12px; width: min(640px, 92vw); }
+dialog::backdrop { background: rgba(0,0,0,.55); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Mission Editor</div>
+  <div class="file" id="fileLbl"></div>
+  <span class="grow"></span>
+  <button class="btn" id="bBuiltin" title="Open src/missions/builtin.json (the game's contracts as missions)">Open built-in pack</button>
+  <button class="btn" id="bOpen" type="button">Open file…</button><input id="fOpen" type="file" accept=".json,application/json" hidden>
+  <button class="btn" id="bNew">New pack</button>
+  <button class="btn ghost" id="bRetro" title="Rebuild the built-in pack from today's 72_contract_data.js (the retrofit)">Rebuild from game data</button>
+  <button class="btn pri" id="bSave">Save pack</button>
+  <span class="checks" id="vcount"></span>
+</header>
+<div id="main">
+  <nav id="tree"></nav>
+  <section id="form"></section>
+  <aside id="side">
+    <div class="colHead">In-game preview <span class="faint" style="text-transform:none;letter-spacing:0;font-weight:400">the map screen's contract card</span></div>
+    <div id="card"></div>
+    <div id="notes"></div>
+    <div class="colHead">Map <span class="grow"></span><span id="pickLbl" class="faint" style="text-transform:none;letter-spacing:0;font-weight:400"></span><button class="btn sm" id="bFit" type="button">Fit</button></div>
+    <div id="mapWrap"><canvas id="map"></canvas><div id="mapHint"></div></div>
+    <div class="colHead">Checks <span class="faint" style="text-transform:none;letter-spacing:0;font-weight:400">the game's own validator</span></div>
+    <div id="val"></div>
+  </aside>
+</div>
+<dialog id="dlgRoute">
+  <form method="dialog">
+    <h3 style="margin-top:0">Import a drawn route</h3>
+    <p class="dim">Paste a route (as saved by the game's route tool) or the game's route library; it is embedded in the mission.</p>
+    <textarea id="routeTxt" class="inp" style="min-height:160px"></textarea>
+    <div class="f"><label>Route name <small>when pasting a library</small></label><input id="routeName" class="inp" placeholder="optional"></div>
+    <div class="f"><label>Or a file</label><input id="routeFile" type="file" accept=".json"></div>
+    <menu style="display:flex;gap:8px;justify-content:flex-end;padding:0"><button class="btn" value="cancel">Cancel</button><button class="btn pri" id="routeOk" value="ok">Import</button></menu>
+  </form>
+</dialog>
+
+<!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in build.js MANIFEST.core's order -->
+<script data-core="01_names.js" src="../src/core/01_names.js"></script>
+<script data-core="26_hangar_fit.js" src="../src/core/26_hangar_fit.js"></script>
+<script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
+<script data-core="38c_route.js" src="../src/core/38c_route.js"></script>
+<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
+<script data-core="72_people.js" src="../src/core/72_people.js"></script>
+<script data-core="72_accept.js" src="../src/core/72_accept.js"></script>
+<script data-core="72_contract_data.js" src="../src/core/72_contract_data.js"></script>
+<script data-core="73_contracts.js" src="../src/core/73_contracts.js"></script>
+<script data-core="73b_missions.js" src="../src/core/73b_missions.js"></script>
+<script data-core="73c_mission_run.js" src="../src/core/73c_mission_run.js"></script>
+<script data-core="79_story.js" src="../src/core/79_story.js"></script>
+<!-- the island's 2-D map (map_bake.js) and the fleet's tie-down spots (fleet_spots.js --cook) -->
+<script src="../src/viewer/map_pack.js"></script>
+<script src="../src/viewer/fleet_spots_pack.js"></script>
+<script>
+'use strict';
+(function () {
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, ...kids) => { const e = document.createElement(tag); for (const k in (attrs || {})) { if (k === 'on') for (const ev in attrs.on) e.addEventListener(ev, attrs.on[ev]); else if (k === 'cls') e.className = attrs[k]; else if (k === 'style' && typeof attrs[k] === 'object') { for (const q in attrs[k]) if (q.startsWith('--')) e.style.setProperty(q, attrs[k][q]); else e.style[q] = attrs[k][q]; } else if (attrs[k] != null) e.setAttribute(k, attrs[k]); } for (const c of kids.flat(3)) if (c != null && c !== false) e.append(c.nodeType ? c : String(c)); return e; };
+const clone = o => JSON.parse(JSON.stringify(o));
+const MAP = window.MAP_PACK || null, SPOTS = (window.FLEET_SPOTS_PACK && window.FLEET_SPOTS_PACK.aero) || {};
+const DRAFT = 'flydiy.missionEditor.draft';
+const S = { pack: null, sel: { t: 'pack' }, pick: null, file: 'pack.json', pp: null, open: {} };
+const store = { get() { try { return localStorage.getItem(DRAFT); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(DRAFT, v); } catch (e) { /* private window */ } } };
+function safe(f) { try { return f(); } catch (e) { return null; } }
+
+// ---- THE WORDS: what the editor calls things (the format's names stay in the file) -------------------------------------
+const DO_LABEL = { carry: 'Carry cargo / people', fly: 'Fly to', land: 'Land at', photo: 'Take a photo', pass: 'Fly through', park: 'Park at a tie-down',
+  deliver: 'Deliver the aircraft', accept: 'Acceptance check', wait: 'Wait', talk: 'Talk to someone' };
+const DO_ICON = { carry: '⇄', fly: '➚', land: '⤓', photo: '◉', pass: '⊙', park: 'P', deliver: '✈', accept: '✓', wait: '⏱', talk: '“' };
+const PLACE_LABEL = { '': 'Nowhere in particular', field: 'An airfield / strip', pt: 'A point (in the air)', gate: 'A gate (two posts)', ring: 'A ring', spot: 'A tie-down spot', site: 'A construction site' };
+const KIND_LABEL = { contract: 'Contract', challenge: 'Challenge', build: 'Aircraft order', survey: 'Survey', job: 'Job' };
+const PROP_LABEL = { pylons: 'Air-race pylons', balloons: 'Balloon columns', donut: 'Inflatable ring' };
+const RULES_UI = {
+  crash: ['If the aircraft crashes', { fail: 'The mission fails', reset: 'Reset and carry on (today\'s contracts)' }],
+  injury: ['If someone aboard is hurt', { fail: 'The mission fails', ignore: 'Nothing happens' }],
+  freight: ['If the freight is damaged', { fail: 'The mission fails', ignore: 'Nothing happens' }],
+  damage: ['If the airframe is damaged', { assess: 'The client notes the damage', fail: 'The mission fails', ignore: 'Nothing happens' }],
+  strike: ['If a gate post or ring is hit', { penalty: '+3 s on the lap (the air race rule)', fail: 'The mission fails', ignore: 'Nothing happens' }],
+};
+const SITE_STATE = { planned: 'Planned', building: 'Being built', built: 'Built' };
+const CRIT_LABEL = { seats: 'Seats', emptyKg: 'Empty weight', powertrain: 'Powertrain', tankL: 'Fuel tank', batteryKWh: 'Battery', spanM: 'Wingspan', costMax: 'Build cost',
+  ultimateG: 'Ultimate load', xwindKt: 'Crosswind limit', hydro: 'Floats', tasKmh: 'Cruise speed', enduranceMin: 'Endurance', rangeKm: 'Range', takeoffAt: 'Takes off from',
+  landAt: 'Lands at', climbMs: 'Climb rate', stallKmh: 'Stall speed', toDistM: 'Take-off run', ldgDistM: 'Landing run', fuelLph: 'Fuel burn', cargoL: 'Cargo volume',
+  pax: 'Passengers', heightM: 'Height', lengthM: 'Length', fitsShed: 'Fits their shed' };
+const PREF_LABEL = { engines: 'Engines', thrust: 'Propeller', wing: 'Wing position', tail: 'Tail', gear: 'Landing gear', canopy: 'Canopy', suspension: 'Suspension' };
+const OP_LABEL = { '>=': 'at least', '<=': 'at most', '==': 'exactly' };
+const MEDALS = ['gold', 'silver', 'bronze'];
+const TYPE_COLOUR = { cargo: 'var(--t-cargo)', pax: 'var(--t-pax)', survey: 'var(--t-survey)', build: 'var(--t-build)' };
+const fieldName = id => (CONTRACT_FIELDS[id] ? CONTRACT_FIELDS[id].name : id || '?');
+const critKinds = () => Object.assign({}, CONTRACT_CRIT_KINDS, CONTRACT_CRIT_NEXT);
+const critName = k => (CRIT_LABEL[k] || k) + (critKinds()[k] && critKinds()[k].unit && !['', 'strip', 'shell', 'pax', 'seats'].includes(critKinds()[k].unit) ? ' (' + critKinds()[k].unit + ')' : '');
+const personName = id => (GAME_PEOPLE[id] ? GAME_PEOPLE[id].name : id);
+const kmFmt = k => (k < 10 ? k.toFixed(1).replace(/\.0$/, '') : Math.round(k).toLocaleString('en'));
+const credits = n => Math.round(n || 0).toLocaleString('en');
+
+// ---- the pack ------------------------------------------------------------------------------------------------------
+const emptyPack = () => ({ what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'new', title: '', campaigns: [], missions: [], sites: [], text: {} });
+function setPack(p, name) { S.pack = missionPackNormalise(p); S.sel = { t: 'pack' }; if (name) S.file = name; status('opened ' + (name || '') + ' · ' + S.pack.missions.length + ' missions'); renderAll(); }
+function status(s) { $('fileLbl').innerHTML = ''; $('fileLbl').append(el('b', {}, S.file || 'pack.json'), s ? el('span', {}, '  ·  ' + s) : null); }
+// (MISSIONS-P1) an in-flight step (a pass, a photo or a fly to a point / gate / ring) is judged by its id: give one to
+// any that has none (p1, p2, ... unique in its mission)
+function autoIds() {
+  for (const m of S.pack.missions) {
+    if (isTut(m) || !Array.isArray(m.legs)) continue;
+    const used = new Set([].concat(...m.legs.map(L => (L.steps || []).map(s => s.id).filter(Boolean))));
+    let n = 1;
+    for (const L of m.legs) for (const st of L.steps || [])
+      if (!st.id && missionInFlight({ do: st.do, place: missionPlaceNorm(st.place) })) { while (used.has('p' + n)) n++; st.id = 'p' + n; used.add(st.id); }
+  }
+}
+function changed() { autoIds(); store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
+const T = () => missionText(S.pack);
+const words = k => { const e = T()[k]; return e ? e.t : ''; };
+const setWords = (k, s) => { S.pack.text[k] = { t: s, draft: true }; };
+const mission = id => S.pack.missions.find(m => m.id === id) || null;
+const isTut = m => m && m.tutorial != null;
+const campOf = id => { for (const c of S.pack.campaigns) for (const h of c.chapters) if (h.missions.includes(id)) return { c, h }; return null; };
+const readOnly = () => { const m = S.sel.id && mission(S.sel.id); if (m && isTut(m)) return true; const c = S.sel.c != null && S.pack.campaigns[S.sel.c]; return !!(c && c.readonly); };
+const recOf = m => safe(() => missionToContract(m, { pack: S.pack }));
+function typeOf(m) {
+  if (m.kind === 'build') return 'build';
+  const steps = [].concat(...(m.legs || []).map(L => L.steps || []));
+  if (m.kind === 'survey' || steps.some(s => s.do === 'photo')) return 'survey';
+  if (steps.some(s => s.load && s.load.pax && (Array.isArray(s.load.pax) ? s.load.pax.length : s.load.pax))) return 'pax';
+  return 'cargo';
+}
+
+// ---- plain words for places and steps --------------------------------------------------------------------------------
+const placeWords = p => { const k = missionPlaceKind(p); if (!k) return ''; if (k === 'field') return fieldName(msFieldOf(p));
+  if (k === 'pt') return 'the point ' + p.pt.map(Math.round).join(', '); if (k === 'gate') return 'the gate'; if (k === 'ring') return 'the ring at ' + p.ring[1] + ' m';
+  if (k === 'spot') { const [a, id] = [String(p.spot).slice(0, String(p.spot).indexOf(':')), String(p.spot).slice(String(p.spot).indexOf(':') + 1)]; return fieldName(a) + ' tie-down ' + id; }
+  return 'site ' + p.site; };
+const peopleWords = v => (Array.isArray(v) ? v.map(personName).join(', ') : v ? v + ' ' + (v === 1 ? 'person' : 'people') : '');
+function stepSentence(s) {
+  const at = s.place ? placeWords(s.place) : '', fr = s.from ? fieldName(msFieldOf(s.from)) : '';
+  const L = s.load || {}, load = [L.kg ? L.kg + ' kg' : '', L.pax ? peopleWords(L.pax) : ''].filter(Boolean).join(' + ');
+  switch (s.do) {
+    case 'carry': return 'Carry ' + (load || 'the load') + (fr ? ' from ' + fr : '') + (at ? ' to ' + at : '');
+    case 'fly': return 'Fly ' + (fr ? 'from ' + fr + ' ' : '') + 'to ' + (at || '…');
+    case 'land': return 'Land at ' + (at || '…');
+    case 'photo': return 'Photograph ' + (at || '…');
+    case 'pass': return 'Fly through ' + (at || '…') + (s.id ? ' (' + s.id + ')' : '');
+    case 'park': return 'Park at ' + (at || 'a tie-down');
+    case 'deliver': return 'Deliver the aircraft' + (at ? ' at ' + at : '');
+    case 'accept': return 'The client checks the aircraft';
+    case 'wait': return 'Wait' + (s.require && s.require.waitMin ? ' ' + s.require.waitMin + ' min' : '') + (at ? ' at ' + at : '');
+    case 'talk': return 'Talk' + (s.say && s.say.who ? ' to ' + personName(s.say.who) : '') + (at ? ' at ' + at : '');
+    default: return (DO_LABEL[s.do] || s.do) + (at ? ' · ' + at : '');
+  }
+}
+const ORDER_WORDS = o => { const m = /^choose:(\d+)$/.exec(o || ''); return o === 'seq' ? 'in order' : m ? 'any ' + m[1] : 'any order'; };
+
+// ---- the tree ------------------------------------------------------------------------------------------------------
+let WHY = [];
+const whyOf = id => WHY.filter(w => w === id || w.startsWith(id + ' ') || w.startsWith(id + ':'));
+function tnode(o) {
+  const on = JSON.stringify(o.sel) === JSON.stringify(S.sel);
+  const ic = o.dot ? el('span', { cls: 'ic dot', style: { '--c': o.dot } }) : el('span', { cls: 'ic' }, o.icon || '•');
+  return el('div', { cls: 'tn' + (on ? ' sel' : '') + (o.ro ? ' ro' : ''), style: { paddingLeft: (10 + 16 * (o.ind || 0)) + 'px' }, title: o.tip || '',
+    on: { click: () => { S.sel = o.sel; S.pick = null; S.pp = null; renderAll(); } } },
+    ic, el('span', { cls: 'lb' }, el('b', {}, o.label), o.meta ? el('small', {}, o.meta) : null), o.bad ? el('span', { cls: 'badge', title: 'problems: see Checks' }, o.bad) : null,
+    o.wait ? el('span', { cls: 'badge w', title: o.wait }, 'later') : null);
+}
+function missionNode(m, ind) {
+  if (isTut(m)) { const b = (typeof STORY_BEATS !== 'undefined' ? STORY_BEATS : []).find(x => x.id === m.tutorial); return tnode({ label: (b ? b.title : m.tutorial), meta: 'tutorial · read-only', icon: '🔒', sel: { t: 'mission', id: m.id }, ind, ro: true }); }
+  const rec = recOf(m), rw = rec ? contractRuntimeOk(rec) : '';
+  return tnode({ label: words(m.title) || m.id, meta: m.id + ' · ' + (KIND_LABEL[m.kind] || m.kind) + (m.client ? ' · ' + personName(m.client) : ''), dot: TYPE_COLOUR[typeOf(m)],
+    sel: { t: 'mission', id: m.id }, ind, bad: whyOf(m.id).length || null, wait: rw ? 'waits for its runtime: ' + rw : null });
+}
+function renderTree() {
+  const t = $('tree'); t.innerHTML = '';
+  t.append(el('div', { cls: 'colHead' }, 'Structure'));
+  t.append(tnode({ label: words(S.pack.title) || S.pack.id || 'The pack', meta: S.pack.campaigns.length + ' campaigns · ' + S.pack.missions.length + ' missions', icon: '▣', sel: { t: 'pack' }, ind: 0 }));
+  S.pack.campaigns.forEach((c, ci) => {
+    t.append(tnode({ label: words(c.title) || c.id, meta: (c.tutorial ? 'tutorial · ' : 'campaign · ') + 'chapters ' + ORDER_WORDS(c.order), icon: c.tutorial ? '🔒' : '◆', sel: { t: 'campaign', c: ci }, ind: 0, ro: c.readonly }));
+    c.chapters.forEach((h, hi) => {
+      t.append(tnode({ label: words(h.title) || h.id, meta: 'chapter · missions ' + ORDER_WORDS(h.order), icon: '▤', sel: { t: 'chapter', c: ci, h: hi }, ind: 1, ro: c.readonly }));
+      for (const id of h.missions) {
+        const m = mission(id);
+        if (!m) { t.append(el('div', { cls: 'tn', style: { paddingLeft: '42px' } }, el('span', { cls: 'bad' }, 'missing mission ' + id))); continue; }
+        t.append(missionNode(m, 2));
+        if (!isTut(m) && S.sel.id === id) legsTree(t, m, 3);
+      }
+    });
+  });
+  const loose = S.pack.missions.filter(m => !campOf(m.id));
+  if (loose.length) { t.append(el('div', { cls: 'tsec' }, 'Not in a campaign')); for (const m of loose) { t.append(missionNode(m, 0)); if (S.sel.id === m.id) legsTree(t, m, 1); } }
+  t.append(el('div', { cls: 'tsec' }, 'Construction sites'));
+  if (!S.pack.sites.length) t.append(el('div', { cls: 'faint', style: { padding: '0 14px', fontSize: '12.5px' } }, 'none yet'));
+  S.pack.sites.forEach((s, i) => t.append(tnode({ label: s.asset || s.id, meta: s.id + ' · ' + (SITE_STATE[s.state] || s.state), icon: '⚑', sel: { t: 'site', i }, ind: 0 })));
+  t.append(el('div', { cls: 'tadd' },
+    el('button', { cls: 'btn sm', on: { click: () => { S.pack.campaigns.push({ id: 'cmp' + (S.pack.campaigns.length + 1), title: '', order: 'any', chapters: [] }); S.sel = { t: 'campaign', c: S.pack.campaigns.length - 1 }; changed(); } } }, '+ Campaign'),
+    el('button', { cls: 'btn sm', on: { click: () => addMission(null) } }, '+ Mission'),
+    el('button', { cls: 'btn sm', on: { click: () => { S.pack.sites.push({ id: 'site' + (S.pack.sites.length + 1), asset: '', at: { x: 0, z: 0, hdg: 0 }, state: 'planned' }); S.sel = { t: 'site', i: S.pack.sites.length - 1 }; changed(); } } }, '+ Site')));
+}
+function legsTree(t, m, ind) {
+  m.legs.forEach((L, li) => {
+    t.append(tnode({ label: 'Leg ' + (li + 1), meta: L.steps.length + ' step' + (L.steps.length === 1 ? '' : 's') + ' · ' + ORDER_WORDS(L.order || 'any') + (L.rally ? ' · rally' : ''), icon: '↳', sel: { t: 'leg', id: m.id, l: li }, ind }));
+    L.steps.forEach((s, si) => t.append(tnode({ label: stepSentence(s), meta: DO_LABEL[s.do] || s.do, icon: DO_ICON[s.do] || '•', sel: { t: 'step', id: m.id, l: li, s: si }, ind: ind + 1, tip: stepSentence(s) })));
+  });
+}
+function addMission(chapter) {
+  let n = S.pack.missions.length + 1, id; do id = 'm' + n++; while (mission(id));
+  const prov = Object.keys(CONTRACT_PROVIDERS)[0];
+  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: peopleClientOf(prov),
+              legs: [{ steps: [{ do: 'carry', from: { field: 'HOME' }, place: { field: 'w3' }, load: { kg: 20, pax: 0 } }] }],
+              pay: { base: 1500 }, rep: { provider: prov, gain: 0.5 }, rules: Object.assign({}, MISSION_RULES_NEW) };
+  setWords(m.title, 'A new mission'); setWords(m.brief, 'What the client asks.');
+  S.pack.missions.push(m); if (chapter) chapter.missions.push(id);
+  S.sel = { t: 'mission', id }; changed();
+}
+
+// ---- the form's parts ----------------------------------------------------------------------------------------------------
+const field = (label, input, help) => el('div', { cls: 'f' }, el('label', {}, label, help ? el('small', {}, help) : null), el('div', {}, input));
+const sec = (title, help, ...kids) => el('div', { cls: 'sec' }, el('h4', {}, title), help ? el('p', { cls: 'help' }, help) : null, ...kids);
+function inp(v, set, o) {
+  o = o || {};
+  const e = el(o.area ? 'textarea' : 'input', { cls: 'inp' + (o.type === 'number' ? ' num' + (o.small ? ' s' : '') : ''), type: o.area ? null : (o.type || 'text'), step: o.step || 'any', placeholder: o.ph || '' });
+  e.value = v == null ? '' : v; if (readOnly() || o.disabled) e.disabled = true;
+  e.addEventListener('change', () => { let x = e.value; if (o.type === 'number') x = x === '' ? null : +x; set(x); changed(); });
+  return e;
+}
+function sel(v, opts, set, o) {
+  const e = el('select', { cls: 'inp' }); if (o && o.blank != null) e.append(el('option', { value: '' }, o.blank));
+  for (const x of opts) { const [val, lab] = Array.isArray(x) ? x : [x, x]; const op = el('option', { value: String(val) }, lab); if (String(v) === String(val)) op.selected = true; e.append(op); }
+  if (readOnly()) e.disabled = true;
+  if (o && o.w) e.style.width = o.w;
+  e.addEventListener('change', () => { set(e.value); changed(); }); return e;
+}
+function seg(v, opts, set) {
+  return el('div', { cls: 'seg' }, opts.map(([val, lab]) => el('button', { type: 'button', cls: String(v) === String(val) ? 'on' : '', disabled: readOnly() ? '' : null, on: { click: () => { set(val); changed(); } } }, lab)));
+}
+// an order: in order | any order | any N of them
+function orderCtl(v, set, what) {
+  const m = /^choose:(\d+)$/.exec(v || ''), cur = v === 'seq' ? 'seq' : m ? 'choose' : 'any';
+  return el('div', { cls: 'inl' }, seg(cur, [['seq', 'In order'], ['any', 'Any order'], ['choose', 'Any N of them']], x => set(x === 'choose' ? 'choose:' + (m ? m[1] : 1) : x)),
+    m ? el('span', { cls: 'inl' }, inp(+m[1], x => set('choose:' + Math.max(1, x | 0)), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'of the ' + what)) : null);
+}
+// a text the record names by KEY: the words edited here go to the pack's text table under the key
+function textField(label, key, setKey, o) {
+  o = o || {};
+  const w = inp(words(key), x => setWords(key, x), { area: !!o.area, ph: o.ph || '', disabled: !key });
+  const k = el('div', { cls: 'key', title: 'the text key the record names (click to change)', on: { click: () => { if (readOnly()) return; const nk = prompt('Text key', key || ''); if (nk != null) { setKey(nk.trim()); changed(); } } } },
+    key ? 'key ' + key + (T()[key] && !S.pack.text[key] ? ' · the game\'s words (an edit overrides them in this pack)' : '') : 'no key yet - click to name one');
+  return field(label, [w, k], o.help);
+}
+// ---- THE PEOPLE PICKER: portraits, by role; a list (several) or one; or a count of anonymous people -----------------------
+function faceImg(id, px, cls) {
+  const src = id && safe(() => peopleFace(id, px > 64 ? 128 : 64));
+  if (src) { const im = el('img', { cls, src: '../' + src, alt: personName(id), width: px, height: px, loading: 'lazy' }); im.onerror = () => im.replaceWith(el('span', { cls: (cls || '') + ' av' }, (personName(id) || '?')[0])); return im; }
+  return el('span', { cls: (cls || '') + ' av' }, (personName(id) || '?')[0]);
+}
+const ROLE_ORDER = ['client', 'pilot', 'passenger', 'reserved'];
+function peopleList() {
+  const L = PEOPLE_IDS.map(id => GAME_PEOPLE[id]);
+  return L.sort((a, b) => (ROLE_ORDER.indexOf(a.role) + 9) % 9 - (ROLE_ORDER.indexOf(b.role) + 9) % 9 || a.name.localeCompare(b.name));
+}
+function peoplePick(key, value, set, o) {
+  o = o || {};
+  const ids = Array.isArray(value) ? value.slice() : (o.single && value ? [value] : []);
+  const count = !Array.isArray(value) && !o.single && typeof value === 'number' ? value : 0;
+  const box = el('div', { cls: 'pp' });
+  const put = list => { if (o.single) set(list[0] || undefined); else set(list.length ? list : (o.allowCount ? 0 : undefined)); changed(); };
+  for (const id of ids) box.append(el('span', { cls: 'chip' }, faceImg(id, 24), personName(id), readOnly() ? null : el('button', { type: 'button', title: 'remove', on: { click: e => { e.stopPropagation(); put(ids.filter(x => x !== id)); } } }, '×')));
+  if (!readOnly()) box.append(el('button', { cls: 'btn sm', type: 'button', on: { click: e => { e.stopPropagation(); S.pp = S.pp === key ? null : key; renderForm(); } } }, o.single ? (ids.length ? 'Change…' : 'Choose…') : '+ Add a person'));
+  if (o.allowCount && !ids.length) box.append(el('span', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'or'), inp(count || '', x => set(x ? Math.max(0, x | 0) : (o.zero ? 0 : undefined)), { type: 'number', small: true, ph: '0' }), el('span', { cls: 'lbl' }, 'unnamed')));
+  if (S.pp === key && !readOnly()) {
+    const pop = el('div', { cls: 'ppPop', on: { click: e => e.stopPropagation() } });
+    const q = el('input', { cls: 'inp', placeholder: 'Find someone…' });
+    const grid = el('div', { cls: 'ppGrid' });
+    const draw = () => {
+      grid.innerHTML = ''; let role = null;
+      for (const p of peopleList()) {
+        if (q.value && !(p.name + ' ' + p.role + ' ' + (p.org || '') + ' ' + p.id).toLowerCase().includes(q.value.toLowerCase())) continue;
+        if (p.role !== role) { role = p.role; grid.append(el('div', { cls: 'ppGroup' }, role === 'reserved' ? 'story people' : role + 's')); }
+        const on = ids.includes(p.id);
+        grid.append(el('button', { type: 'button', cls: on ? 'on' : '', on: { click: () => { if (o.single) { S.pp = null; put([p.id]); } else put(on ? ids.filter(x => x !== p.id) : ids.concat([p.id])); } } },
+          faceImg(p.id, 36), el('span', {}, el('b', {}, p.name), el('small', {}, [p.org ? CONTRACT_PROVIDERS[p.org] ? contractText(CONTRACT_PROVIDERS[p.org].name, null, T()) : p.org : '', p.why || ''].filter(Boolean).join(' · ') || p.role))));
+      }
+    };
+    q.addEventListener('input', draw); draw();
+    pop.append(q, grid, el('div', { cls: 'bar' }, el('button', { cls: 'btn sm', type: 'button', on: { click: () => { S.pp = null; renderForm(); } } }, 'Done')));
+    box.append(pop);
+    requestAnimationFrame(() => q.focus());
+  }
+  return box;
+}
+document.addEventListener('click', () => { if (S.pp) { S.pp = null; renderForm(); } });
+const say = (label, v, set, help) => {
+  const s = v || {};
+  return [field(label + ' - who', peoplePick('say:' + label, s.who, x => set(x ? Object.assign({}, s, { who: x }) : undefined), { single: true }), help),
+          s.who ? textField(label + ' - words', s.text || '', k => set(Object.assign({}, s, { text: k })), { area: true }) : null];
+};
+const fieldOpts = () => Object.keys(CONTRACT_FIELDS).map(id => [id, CONTRACT_FIELDS[id].name]);
+const providerOpts = () => Object.keys(CONTRACT_PROVIDERS).map(p => [p, contractText(CONTRACT_PROVIDERS[p].name, null, T())]);
+const trackOpts = () => [].concat(...Object.keys(CONTRACT_TRACKS).map(t => Array.from({ length: CONTRACT_TRACKS[t].max }, (_, i) => [t + ':' + (i + 1), t + ' - stage ' + (i + 1)])));
+function moveBtns(list, i, reselect) {
+  const mv = d => { const j = i + d; if (j < 0 || j >= list.length) return; const [x] = list.splice(i, 1); list.splice(j, 0, x); reselect(j); changed(); };
+  return [el('button', { cls: 'btn sm', title: 'move up', on: { click: () => mv(-1) } }, '↑ Up'), el('button', { cls: 'btn sm', title: 'move down', on: { click: () => mv(1) } }, '↓ Down')];
+}
+// ids as chips with a picker of the candidates
+function idChips(list, cands, set, ph) {
+  const box = el('div', { cls: 'inl' });
+  for (const id of list) box.append(el('span', { cls: 'chip', style: { paddingLeft: '8px' } }, id, readOnly() ? null : el('button', { type: 'button', on: { click: () => { set(list.filter(x => x !== id)); changed(); } } }, '×')));
+  const rest = cands.filter(c => !list.includes(c[0] || c));
+  if (!readOnly() && rest.length) box.append(sel('', rest, x => { if (x) set(list.concat([x])); }, { blank: ph || 'add…', w: 'auto' }));
+  return box;
+}
+function adv(obj, set) {
+  const ta = el('textarea', { cls: 'inp' }); ta.value = JSON.stringify(obj, null, 1); if (readOnly()) ta.disabled = true;
+  ta.addEventListener('change', () => { try { set(JSON.parse(ta.value)); changed(); } catch (er) { ta.style.outline = '2px solid var(--ed-bad)'; status('not JSON: ' + er.message); } });
+  return el('details', { cls: 'adv' }, el('summary', {}, 'Advanced: the raw JSON of this ' + ({ mission: 'mission', leg: 'leg', step: 'step' }[S.sel.t] || 'item')), ta);
+}
+function crumbs(parts) { return el('div', { cls: 'crumbs' }, parts.map((p, i) => [i ? ' / ' : '', p.sel ? el('a', { on: { click: () => { S.sel = p.sel; renderAll(); } } }, p.t) : p.t])); }
+
+// ---- the form ------------------------------------------------------------------------------------------------------
+let formSel = '';
+function renderForm() {
+  const f = $('form'); f.innerHTML = '';
+  const sk = JSON.stringify(S.sel); if (sk !== formSel) { formSel = sk; f.scrollTop = 0; }
+  const s = S.sel, P = S.pack;
+  if (s.t === 'pack') {
+    f.append(el('h2', { cls: 'title' }, words(P.title) || 'The pack'), el('p', { cls: 'sub' }, 'A mission pack: campaigns made of chapters, chapters of missions, missions of legs, legs of steps. Save it and commit the file under src/missions/.'),
+      sec('The pack', null, field('Name (id)', inp(P.id, x => P.id = x)), textField('Title', P.title, x => P.title = x), field('Format', el('span', { cls: 'dim' }, P.what + ' v' + P.v))));
+    if (P.legacy) f.append(sec('Imported from the game', 'The game\'s authored contracts, read into missions.', el('div', {}, P.legacy.retrofitted.length + ' contracts imported'), el('div', { cls: 'dim' }, 'Left out: ' + (P.legacy.dropped.map(d => d.id + ' (' + d.why + ')').join(', ') || 'none'))));
+    return;
+  }
+  if (s.t === 'campaign') {
+    const c = P.campaigns[s.c];
+    f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: 'Campaign' }]), el('h2', { cls: 'title' }, (c.tutorial ? '🔒 ' : '') + (words(c.title) || c.id)), el('p', { cls: 'sub' }, 'A campaign groups chapters; its contractor offers them.'));
+    if (c.readonly) f.append(el('div', { cls: 'ro-box' }, 'The tutorial stays exactly as it is in the game (79_story.js). It is listed here to be seen, not edited.'));
+    f.append(sec('The campaign', null, textField('Title', c.title, x => c.title = x), field('ID', inp(c.id, x => c.id = x)),
+      field('Contractor', sel(c.provider || '', providerOpts(), x => c.provider = x || undefined, { blank: 'Any contractor' })),
+      field('Missions from other contractors', seg(c.mixed ? 'yes' : 'no', [['no', 'No'], ['yes', 'Allowed']], x => c.mixed = x === 'yes' || undefined)),
+      field('Its chapters are played', orderCtl(c.order, x => c.order = x, 'chapters')),
+      field('Opens after', idChips(((c.needs || {}).after || []), containerIds(), x => c.needs = x.length ? { after: x } : undefined, 'add a campaign or chapter…'), 'every one of these done first')));
+    if (!c.readonly) f.append(el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { c.chapters.push({ id: c.id + '.ch' + (c.chapters.length + 1), title: '', order: 'seq', missions: [] }); S.sel = { t: 'chapter', c: s.c, h: c.chapters.length - 1 }; changed(); } } }, '+ Chapter'),
+      moveBtns(P.campaigns, s.c, i => S.sel = { t: 'campaign', c: i }), el('button', { cls: 'btn danger', on: { click: () => { if (confirm('Delete the campaign ' + c.id + '? Its missions stay, outside any campaign.')) { P.campaigns.splice(s.c, 1); S.sel = { t: 'pack' }; changed(); } } } }, 'Delete')));
+    return;
+  }
+  if (s.t === 'chapter') {
+    const c = P.campaigns[s.c], h = c.chapters[s.h];
+    f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: words(c.title) || c.id, sel: { t: 'campaign', c: s.c } }, { t: 'Chapter' }]), el('h2', { cls: 'title' }, words(h.title) || h.id), el('p', { cls: 'sub' }, 'A chapter is a set of missions offered together.'));
+    f.append(sec('The chapter', null, textField('Title', h.title, x => h.title = x), field('ID', inp(h.id, x => h.id = x)),
+      field('Its missions are offered', orderCtl(h.order, x => h.order = x, 'missions'), 'in order: one at a time, an arc'),
+      field('Opens after', idChips(((h.needs || {}).after || []), containerIds(), x => h.needs = x.length ? { after: x } : undefined, 'add a campaign or chapter…'))));
+    const list = el('div', { cls: 'steps' }, h.missions.map((id, i) => { const m = mission(id);
+      return el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'mission', id }; renderAll(); } } }, el('span', { cls: 'n' }, i + 1), el('span', { cls: 'grow' }, m ? words(m.title) || id : 'missing ' + id), el('span', { cls: 'faint' }, id)); }));
+    f.append(sec('Its missions', null, list, c.readonly ? null : el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => addMission(h) } }, '+ New mission'),
+      sel('', S.pack.missions.filter(m => !campOf(m.id)).map(m => [m.id, words(m.title) || m.id]), x => { if (x) h.missions.push(x); }, { blank: 'Add a mission from outside the campaigns…', w: 'auto' }))));
+    if (!c.readonly) f.append(el('div', { cls: 'bar' }, moveBtns(c.chapters, s.h, i => S.sel = { t: 'chapter', c: s.c, h: i }), el('button', { cls: 'btn danger', on: { click: () => { c.chapters.splice(s.h, 1); S.sel = { t: 'campaign', c: s.c }; changed(); } } }, 'Delete')));
+    return;
+  }
+  if (s.t === 'site') {
+    const x = P.sites[s.i];
+    f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: 'Construction site' }]), el('h2', { cls: 'title' }, x.asset || x.id), el('p', { cls: 'sub' }, 'Something the missions build in the world: planned, being built, built.'));
+    f.append(sec('The site', null, field('What is built', inp(x.asset, v => x.asset = v, { ph: 'e.g. weather station' })), field('ID', inp(x.id, v => x.id = v)),
+      field('Where', el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'x'), inp(x.at.x, v => x.at.x = v, { type: 'number' }), el('span', { cls: 'lbl' }, 'z'), inp(x.at.z, v => x.at.z = v, { type: 'number' }), el('span', { cls: 'lbl' }, 'facing °'), inp(x.at.hdg, v => x.at.hdg = v, { type: 'number', small: true }), pickBtn('Pick on the map', { kind: 'siteAt', i: s.i }))),
+      field('State at the start', seg(x.state, MISSION_SITE_STATES.map(k => [k, SITE_STATE[k] || k]), v => x.state = v)),
+      field('Reveals when built', sel(x.track || '', trackOpts(), v => x.track = v || undefined, { blank: 'nothing' }), 'a world construction stage'),
+      field('Served by the strip', sel(x.field || '', fieldOpts(), v => x.field = v || undefined, { blank: 'none (a step to it waits)' }), 'the strip a step to this site is flown to')),
+      el('div', { cls: 'bar' }, el('button', { cls: 'btn danger', on: { click: () => { P.sites.splice(s.i, 1); S.sel = { t: 'pack' }; changed(); } } }, 'Delete the site')));
+    return;
+  }
+  const m = mission(s.id);
+  if (!m) return;
+  if (isTut(m)) { tutorialForm(f, m); return; }
+  if (s.t === 'mission') missionForm(f, m);
+  else if (s.t === 'leg') legForm(f, m, s.l);
+  else if (s.t === 'step') stepForm(f, m, s.l, s.s);
+  f.append(adv(s.t === 'mission' ? m : s.t === 'leg' ? m.legs[s.l] : m.legs[s.l].steps[s.s], v => {
+    if (s.t === 'mission') { for (const k of Object.keys(m)) delete m[k]; Object.assign(m, v); } else if (s.t === 'leg') m.legs[s.l] = v; else m.legs[s.l].steps[s.s] = v; }));
+}
+const containerIds = () => [].concat(...S.pack.campaigns.map(c => [[c.id, (words(c.title) || c.id) + ' (campaign)']].concat(c.chapters.map(h => [h.id, (words(h.title) || h.id) + ' (chapter)']))));
+function tutorialForm(f, m) {
+  const t = missionTutorial().find(x => x.beat === m.tutorial) || {};
+  f.append(el('h2', { cls: 'title' }, '🔒 ' + (t.title || m.id)), el('div', { cls: 'ro-box' },
+    el('div', {}, el('b', {}, 'Tutorial - read-only. '), 'The story\'s beats stay exactly as they are in the game (79_story.js).'),
+    el('p', {}, t.brief || ''), (t.tim || []).length ? el('ul', {}, (t.tim || []).map(x => el('li', {}, 'Tim: ' + x))) : null));
+}
+function missionForm(f, m) {
+  const ch = campOf(m.id);
+  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }].concat(ch ? [{ t: words(ch.c.title) || ch.c.id, sel: { t: 'campaign', c: S.pack.campaigns.indexOf(ch.c) } }, { t: words(ch.h.title) || ch.h.id, sel: { t: 'chapter', c: S.pack.campaigns.indexOf(ch.c), h: ch.c.chapters.indexOf(ch.h) } }] : []).concat([{ t: 'Mission' }])),
+    el('h2', { cls: 'title' }, words(m.title) || m.id), el('p', { cls: 'sub' }, (KIND_LABEL[m.kind] || m.kind) + ' for ' + (m.client ? personName(m.client) : 'nobody yet') + ' · ' + m.legs.length + ' leg' + (m.legs.length === 1 ? '' : 's')));
+  const idIn = inp(m.id, x => { const old = m.id; if (!x || mission(x)) return; m.id = x; for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.map(y => y === old ? x : y);
+    for (const o of S.pack.missions) if (o.needs && o.needs.after) o.needs.after = o.needs.after.map(y => y === old ? x : y); S.sel = { t: 'mission', id: x }; });
+  f.append(sec('The mission', null,
+    textField('Title', m.title, x => m.title = x), textField('What the client asks', m.brief, x => m.brief = x, { area: true }),
+    field('Client', peoplePick('client', m.client, x => m.client = x, { single: true }), 'whose face is on the card'),
+    field('Contractor', sel(m.provider, providerOpts(), x => { m.provider = x; m.rep = Object.assign({}, m.rep, { provider: x }); })),
+    field('Type', seg(m.kind, CONTRACT_KINDS.filter(k => k !== 'job').map(k => [k, KIND_LABEL[k] || k]), x => m.kind = x)),
+    field('ID', idIn), field('Goods name', inp(m.goods || '', x => m.goods = x || undefined, { ph: 'e.g. goods.mail' }), 'a text key: what is carried')));
+  f.append(sec('Reward', 'What the card offers and what the career pays.',
+    field('Base pay', el('div', { cls: 'inl' }, inp(m.pay.base, x => m.pay.base = +x || 0, { type: 'number' }), el('span', { cls: 'lbl' }, 'credits')), 'an authored contract is paid this times the story factor; an order as written'),
+    field('Bonuses', bonusEditor(m)),
+    field('Reputation gained', inp(m.rep.gain, x => m.rep.gain = +x || 0, { type: 'number', small: true })),
+    field('Unlocks', sel((m.unlock || {}).stage || '', trackOpts(), x => m.unlock = x ? { stage: x } : undefined, { blank: 'nothing' }), 'a world construction stage')));
+  f.append(sec('When it is offered', null,
+    field('After these missions', idChips(((m.needs || {}).after || []), S.pack.missions.filter(x => x !== m).map(x => [x.id, (words(x.title) || x.id)]), a => m.needs = Object.assign({}, m.needs || {}, { after: a }), 'add a mission…')),
+    field('Reputation needed', inp((m.needs || {}).rep, x => { m.needs = Object.assign({}, m.needs || {}, { rep: +x || 0 }); }, { type: 'number', small: true })),
+    field('Its legs are flown', orderCtl(m.order || 'seq', x => m.order = x === 'seq' ? undefined : x, 'legs'))));
+  const R = m.rules || {};
+  const B = (typeof GEN_OCC !== 'undefined' && GEN_OCC.bands) || [];
+  f.append(sec('When things go wrong', 'New missions fail on a crash or an injury; today\'s contracts reset on a crash and carry on.',
+    ...Object.keys(MISSION_RULES).map(k => {
+      const [label, opts] = RULES_UI[k] || [k, {}];
+      const setR = x => { m.rules = Object.assign({}, m.rules || {}); if (x === '' || x == null) delete m.rules[k]; else m.rules[k] = x; };
+      if (k === 'injury') {
+        const cur = R.injury == null ? '' : typeof R.injury === 'object' ? 'band' : R.injury;
+        return field(label, el('div', { cls: 'inl' }, sel(cur, [['fail', 'The mission fails'], ['band', 'It fails from a level of injury'], ['ignore', 'Nothing happens']], x => setR(x === 'band' ? { fail: 2 } : x), { blank: 'Not set (today\'s)', w: 'auto' }),
+          cur === 'band' ? sel(R.injury.fail, B.map((w, i) => [i, w]).slice(1), x => setR({ fail: +x }), { w: 'auto' }) : null));
+      }
+      if (k === 'strike' && R.strike && typeof R.strike === 'object')
+        return field(label, el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, '+'), inp(R.strike.penalty, x => setR({ penalty: +x || 0 }), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 's on the lap'), el('button', { cls: 'btn sm', on: { click: () => { setR('penalty'); changed(); } } }, 'Use the 3 s')));
+      return field(label, el('div', { cls: 'inl' }, sel(R[k] || '', MISSION_RULES[k].map(v => [v, opts[v] || v]), setR, { blank: 'Not set (today\'s)', w: 'auto' }),
+        k === 'strike' && R.strike === 'penalty' ? el('button', { cls: 'btn sm ghost', on: { click: () => { setR({ penalty: 5 }); changed(); } } }, 'other seconds…') : null));
+    }),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn sm', on: { click: () => { m.rules = Object.assign({}, MISSION_RULES_NEW); changed(); } } }, 'Use the new missions\' rules'), el('button', { cls: 'btn sm ghost', on: { click: () => { delete m.rules; changed(); } } }, 'Clear (today\'s behaviour)'))));
+  f.append(sec('Timers', 'A lap timed from one step to another - a medal, or a target to beat.', timersEditor(m)));
+  if (m.kind === 'build') {
+    f.append(sec('The aircraft order', 'The client orders an aircraft built to their needs.',
+      field('Built from', startFromEditor(m)),
+      field('On delivery', seg(m.delivery && !m.delivery.sold ? 'kept' : 'sold', [['sold', 'Sold to the client (blueprint saved)'], ['kept', 'Kept in the fleet']], x => m.delivery = x === 'kept' ? { sold: false, blueprint: true } : undefined)),
+      field('Size (their shed)', sizeEditor(m)), field('Preferences', prefsEditor(m)), field('A happy client orders again', followUpEditor(m), 'one requirement changed next time')));
+  }
+  f.append(sec('The completion line', 'Said when the mission is done.', ...say('Said by', (m.onDone || {}).say, v => { m.onDone = Object.assign({}, m.onDone || {}); if (v) m.onDone.say = v; else delete m.onDone.say; if (!Object.keys(m.onDone).length) delete m.onDone; })));
+  f.append(sec('Rally course', 'A hidden route: the checkpoints and their split times are worked out from it.',
+    field('Route', el('span', {}, m.route ? m.route.name + ' · ' + m.route.pts.length + ' points' : el('span', { cls: 'faint' }, 'none'))),
+    field('Reference speed', el('div', { cls: 'inl' }, inp((m.rally || {}).refKmh, x => m.rally = Object.assign({}, m.rally || {}, { refKmh: +x }), { type: 'number', ph: '150' }), el('span', { cls: 'lbl' }, 'km/h'))),
+    field('Checkpoint radius', el('div', { cls: 'inl' }, inp((m.rally || {}).r, x => m.rally = Object.assign({}, m.rally || {}, { r: +x }), { type: 'number', ph: '300' }), el('span', { cls: 'lbl' }, 'm'))),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn sm', on: { click: () => openRoute(m) } }, 'Import a drawn route…'),
+      el('button', { cls: 'btn sm', on: { click: () => { if (!m.route) return status('no route'); if (!m.rally) m.rally = { refKmh: 150, r: 300 }; Object.assign(m, missionRallyDerive(m)); changed(); } } }, 'Work out checkpoints + splits'),
+      m.route ? el('button', { cls: 'btn sm danger', on: { click: () => { delete m.route; delete m.rally; changed(); } } }, 'Remove the route') : null)));
+  f.append(sec('Legs', null, el('div', { cls: 'steps' }, m.legs.map((L, li) => el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'leg', id: m.id, l: li }; renderAll(); } } },
+    el('span', { cls: 'n' }, li + 1), el('span', { cls: 'grow' }, L.steps.map(stepSentence).join(' · ') || 'no steps'), el('span', { cls: 'faint' }, ORDER_WORDS(L.order || 'any'))))),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { m.legs.push({ steps: [] }); S.sel = { t: 'leg', id: m.id, l: m.legs.length - 1 }; changed(); } } }, '+ Leg'))));
+  f.append(el('div', { cls: 'bar' },
+    el('button', { cls: 'btn', on: { click: () => { const c = clone(m); let n = 2; while (mission(m.id + '.' + n)) n++; c.id = m.id + '.' + n; S.pack.missions.push(c); const ch2 = campOf(m.id); if (ch2) ch2.h.missions.push(c.id); S.sel = { t: 'mission', id: c.id }; changed(); } } }, 'Duplicate'),
+    el('button', { cls: 'btn danger', on: { click: () => { if (!confirm('Delete the mission ' + m.id + '?')) return; S.pack.missions = S.pack.missions.filter(x => x !== m); for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.filter(y => y !== m.id); S.sel = { t: 'pack' }; changed(); } } }, 'Delete')));
+}
+// the bonuses: a medal (gold / silver / bronze) or a requirement beaten by a margin, each +pct
+function bonusEditor(m) {
+  const list = m.pay.bonus || [], crits = (recOf(m) ? contractCrit(recOf(m)) : []).map(c => c.k);
+  const put = () => { if (list.length) m.pay.bonus = list; else delete m.pay.bonus; };
+  return el('div', { cls: 'list' }, list.map((b, i) => el('div', { cls: 'li' },
+    sel(b.crit, [['medal', 'A medal']].concat(crits.map(k => [k, 'Beating: ' + critName(k)])), x => { b.crit = x; b.by = x === 'medal' ? 'gold' : 0.1; put(); }, { w: 'auto' }),
+    b.crit === 'medal' ? sel(b.by, MEDALS.map(x => [x, x]), x => { b.by = x; put(); }, { w: 'auto' })
+      : el('span', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'by'), inp(Math.round((b.by || 0) * 100), x => { b.by = (+x || 0) / 100; put(); }, { type: 'number', small: true }), el('span', { cls: 'lbl' }, '%')),
+    el('span', { cls: 'lbl' }, 'pays +'), inp(b.pct, x => { b.pct = +x || 0; put(); }, { type: 'number', small: true }), el('span', { cls: 'lbl' }, '%'),
+    el('button', { cls: 'btn sm ghost', on: { click: () => { list.splice(i, 1); put(); changed(); } } }, 'Remove'))),
+    readOnly() ? null : el('div', {}, el('button', { cls: 'btn sm', on: { click: () => { m.pay.bonus = list.concat([{ crit: 'medal', by: 'gold', pct: 50 }]); changed(); } } }, '+ Bonus')));
+}
+// the timers: from a step to a step; a target (seconds, or a reference speed over the steps' places) or medals
+function timersEditor(m) {
+  const list = m.timers || [], steps = [].concat(...m.legs.map((L, li) => L.steps.map((s, si) => s.id ? [s.id, s.id + ' - ' + stepSentence(s)] : null))).filter(Boolean);
+  const put = () => { if (list.length) m.timers = list; else delete m.timers; };
+  const rows = list.map((t, i) => {
+    const isRef = t.target && typeof t.target === 'object';
+    return el('div', { cls: 'li', style: { display: 'grid', gap: '6px' } },
+      el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Name'), inp(t.id, x => { t.id = x; put(); }, { ph: 'speed' }), el('span', { cls: 'lbl' }, 'from'), sel(t.start, steps, x => { t.start = x; put(); }, { blank: 'step…', w: 'auto' }), el('span', { cls: 'lbl' }, 'to'), sel(t.stop, steps, x => { t.stop = x; put(); }, { blank: 'step…', w: 'auto' })),
+      el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Target'), seg(isRef ? 'ref' : 's', [['s', 'Seconds'], ['ref', 'At a speed']], x => { t.target = x === 'ref' ? { refKmh: 150 } : 90; put(); }),
+        isRef ? [inp(t.target.refKmh, x => { t.target = { refKmh: +x || 0 }; put(); }, { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'km/h over the steps\' places')] : [inp(t.target, x => { t.target = x == null ? undefined : +x; put(); }, { type: 'number', small: true }), el('span', { cls: 'lbl' }, 's')]),
+      el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Medals'), (t.medals || []).map((md, j) => el('span', { cls: 'chip', style: { paddingLeft: '8px' } }, sel(md.medal, MEDALS, x => { md.medal = x; put(); }, { w: 'auto' }), el('span', { cls: 'lbl' }, '≤'), inp(md.le, x => { md.le = +x || 0; put(); }, { type: 'number', small: true }), 's',
+        el('button', { type: 'button', on: { click: () => { t.medals.splice(j, 1); if (!t.medals.length) delete t.medals; put(); changed(); } } }, '×'))),
+        el('button', { cls: 'btn sm', on: { click: () => { t.medals = (t.medals || []).concat([{ medal: MEDALS[(t.medals || []).length] || 'bronze', le: 60 }]); put(); changed(); } } }, '+ Medal'),
+        el('span', { cls: 'grow' }), el('button', { cls: 'btn sm ghost', on: { click: () => { list.splice(i, 1); put(); changed(); } } }, 'Remove timer')));
+  });
+  return el('div', { cls: 'list' }, rows, !steps.length ? el('div', { cls: 'faint' }, 'Give steps an id (a gate, a point) to time between them.') : null,
+    readOnly() ? null : el('div', {}, el('button', { cls: 'btn sm', on: { click: () => { m.timers = list.concat([{ id: 'lap' + (list.length + 1), start: (steps[0] || [])[0], stop: (steps[steps.length - 1] || [])[0], target: 90 }]); changed(); } } }, '+ Timer')));
+}
+function startFromEditor(m) {
+  const v = m.startFrom, kind = v == null ? '' : typeof v === 'object' ? 'file' : v === 'player' ? 'player' : 'design';
+  return el('div', { cls: 'inl' }, sel(kind, [['player', 'The player designs it'], ['design', 'The client\'s own aircraft (a design)'], ['file', 'The client\'s own aircraft (a build file)']], x => m.startFrom = x === 'player' ? 'player' : x === 'design' ? Object.keys(CONTRACT_DESIGNS)[0] : x === 'file' ? { build: 'builds/' } : undefined, { blank: 'Not said (the player)', w: 'auto' }),
+    kind === 'design' ? sel(v, Object.keys(CONTRACT_DESIGNS), x => m.startFrom = x, { w: 'auto' }) : null,
+    kind === 'file' ? inp(v.build, x => m.startFrom = { build: x }, { ph: 'builds/x.json' }) : null);
+}
+// THE SIZE (the user, 26 Oct: "so they fit in their sheds: width, height and length")
+function sizeEditor(m) {
+  const st = [].concat(...m.legs.map(L => L.steps)).find(s => s.do === 'deliver' || s.do === 'accept');
+  if (!st) return el('span', { cls: 'faint' }, 'add a "Deliver the aircraft" step first');
+  const plane = () => (st.require && st.require.plane) || [];
+  const get = k => plane().find(c => c.k === k);
+  const put = (k, c) => { st.require = Object.assign({}, st.require || {}); const L = plane().filter(x => x.k !== k); if (c) L.push(c); st.require.plane = L;
+    if (!L.length) delete st.require.plane; if (!Object.keys(st.require).length) delete st.require; };
+  const num = k => inp((get(k) || {}).v, x => put(k, x == null ? null : { k, op: '<=', v: +x }), { type: 'number', small: true, ph: 'm' });
+  const sh = get('fitsShed') || {}, D = (sh.at && sh.at.dims) || {};
+  const shed = (v, dims) => put('fitsShed', v ? Object.assign({ k: 'fitsShed', op: '==', v }, dims ? { at: { dims } } : {}) : null);
+  const dimIn = k => inp(D[k], x => { const d = Object.assign({}, SHELLS[sh.v].dims, D); if (x == null) return shed(sh.v, null); d[k] = +x; shed(sh.v, d); }, { type: 'number', small: true, ph: String(SHELLS[sh.v].dims[k]) });
+  const shellWords = k => SHELLS[k].name + ' (' + 2 * SHELLS[k].dims.HW + ' x ' + 2 * SHELLS[k].dims.HD + ' m, eaves ' + SHELLS[k].dims.EAVE + ' m)';
+  return el('div', { style: { display: 'grid', gap: '8px' } },
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Wingspan at most'), num('spanM'), el('span', { cls: 'lbl' }, 'height'), num('heightM'), el('span', { cls: 'lbl' }, 'length'), num('lengthM'), el('span', { cls: 'lbl' }, 'm')),
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Must fit their shed'), sel(sh.v || '', Object.keys(SHELLS).map(k => [k, shellWords(k)]), x => shed(x, null), { blank: 'no shed to fit', w: 'auto' })),
+    sh.v ? el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'an odd shed: half-width'), dimIn('HW'), el('span', { cls: 'lbl' }, 'half-depth'), dimIn('HD'), el('span', { cls: 'lbl' }, 'eaves'), dimIn('EAVE'), el('span', { cls: 'lbl' }, 'm')) : null);
+}
+function prefsEditor(m) {
+  const list = m.prefs || [];
+  return el('div', { cls: 'list' }, list.map((p, i) => el('div', { cls: 'li' },
+    sel(p.k, Object.keys(MISSION_PREF_KINDS).map(k => [k, PREF_LABEL[k] || k]), x => { p.k = x; p.v = missionPrefValues(x)[0]; }, { w: 'auto' }),
+    sel(p.v, missionPrefValues(p.k) || [], x => p.v = isNaN(+x) ? x : +x, { w: 'auto' }),
+    seg(p.need || '', [['bonus', 'Would like it'], ['mandatory', 'Insists']], x => { p.need = x; if (x === 'mandatory') delete p.pct; else if (!p.pct) p.pct = 10; }),
+    p.need === 'bonus' ? el('span', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'pays +'), inp(p.pct, x => p.pct = +x, { type: 'number', small: true }), el('span', { cls: 'lbl' }, '%')) : null,
+    el('button', { cls: 'btn sm ghost', on: { click: () => { list.splice(i, 1); if (!list.length) delete m.prefs; changed(); } } }, 'Remove'))),
+    readOnly() ? null : el('div', {}, el('button', { cls: 'btn sm', on: { click: () => { m.prefs = list.concat([{ k: 'engines', v: 2, need: 'mandatory' }]); changed(); } } }, '+ Preference')));
+}
+function followUpEditor(m) {
+  const F = m.followUp || {}, prefer = F.prefer || [];
+  const put = o => { const n = Object.assign({}, m.followUp || {}, o); for (const k of Object.keys(n)) if (Array.isArray(n[k]) && !n[k].length) delete n[k]; m.followUp = Object.keys(n).length ? n : undefined; };
+  return el('div', { style: { display: 'grid', gap: '8px' } }, el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Changes first'), idChips(prefer, Object.keys(critKinds()).map(k => [k, critName(k)]), x => put({ prefer: x }), 'a requirement…')),
+    el('div', {}, el('span', { cls: 'lbl faint' }, 'Adds'), critRows(F.add || [], x => put({ add: x }))));
+}
+// requirements on the aircraft: [kind] [at least | at most | exactly] [value]
+function critRows(list, set) {
+  const K = critKinds();
+  return el('div', { cls: 'list' }, list.map((c, i) => el('div', { cls: 'li' },
+    sel(c.k, Object.keys(K).map(k => [k, critName(k)]), x => { c.k = x; c.op = (K[x].op || ['>='])[0]; set(list); }, { w: 'auto' }),
+    sel(c.op, ((K[c.k] && K[c.k].op) || ['>=', '<=', '==']).map(o => [o, OP_LABEL[o] || o]), x => { c.op = x; set(list); }, { w: 'auto' }),
+    inp(c.v, x => { c.v = isNaN(+x) || x === '' ? x : +x; set(list); }, { ph: 'value' }),
+    el('span', { cls: 'faint' }, safe(() => contractCritWords(c, CONTRACT_FIELDS, T())) || ''),
+    el('button', { cls: 'btn sm ghost', on: { click: () => { list.splice(i, 1); set(list); changed(); } } }, 'Remove'))),
+    readOnly() ? null : el('div', {}, el('button', { cls: 'btn sm', on: { click: () => { set(list.concat([{ k: 'seats', op: '>=', v: 2 }])); changed(); } } }, '+ Requirement')));
+}
+function legForm(f, m, li) {
+  const L = m.legs[li];
+  f.append(crumbs([{ t: words(m.title) || m.id, sel: { t: 'mission', id: m.id } }, { t: 'Leg ' + (li + 1) }]), el('h2', { cls: 'title' }, 'Leg ' + (li + 1)), el('p', { cls: 'sub' }, 'A leg is a set of steps; the next leg opens when this one is done.'));
+  f.append(sec('The leg', null, field('Its steps are done', orderCtl(L.order || 'any', x => L.order = x === 'any' ? undefined : x, 'steps'), 'any order is today\'s contracts')));
+  f.append(sec('Steps', null, el('div', { cls: 'steps' }, L.steps.map((s, si) => el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'step', id: m.id, l: li, s: si }; renderAll(); } } },
+    el('span', { cls: 'n' }, si + 1), el('span', { cls: 'grow' }, stepSentence(s)), el('span', { cls: 'faint' }, s.id || '')))),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { L.steps.push({ do: 'land', place: { field: 'HOME' } }); S.sel = { t: 'step', id: m.id, l: li, s: L.steps.length - 1 }; changed(); } } }, '+ Step'))));
+  f.append(el('div', { cls: 'bar' }, moveBtns(m.legs, li, i => S.sel = { t: 'leg', id: m.id, l: i }), el('button', { cls: 'btn danger', on: { click: () => { m.legs.splice(li, 1); S.sel = { t: 'mission', id: m.id }; changed(); } } }, 'Delete the leg')));
+}
+function placeEditor(p, set, allow, pickKey) {
+  const k = missionPlaceKind(p) || '', box = el('div', { style: { display: 'grid', gap: '8px' } });
+  const num = (v, s, o) => inp(v, s, Object.assign({ type: 'number' }, o || {}));
+  box.append(el('div', { cls: 'inl' }, sel(k, allow.map(a => [a, PLACE_LABEL[a] || a]), x => set(x === '' ? undefined : x === 'field' ? { field: 'HOME' } : x === 'pt' ? { pt: [0, -2000], r: MISSION_PLACE_R.pt } : x === 'gate' ? { gate: [[0, -2000], [100, -2000]], prop: 'pylons' }
+    : x === 'ring' ? { ring: [0, 200, -2000], r: MISSION_PLACE_R.ring, prop: 'donut' } : x === 'spot' ? { spot: 'HOME:' + ((SPOTS.HOME || [[0, 0, 0, 'x']])[0][3]) } : { site: (S.pack.sites[0] || {}).id || '' }), { w: 'auto' }),
+    k && k !== 'site' && !readOnly() ? pickBtn(k === 'gate' ? 'Pick both posts on the map' : 'Pick on the map', pickKey) : null));
+  if (k === 'field') box.append(sel(msFieldOf(p), fieldOpts(), x => set({ field: x })));
+  if (k === 'pt') box.append(el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'x'), num(p.pt[0], x => { p.pt[0] = +x; }), el('span', { cls: 'lbl' }, 'z'), num(p.pt[1], x => { p.pt[1] = +x; }), el('span', { cls: 'lbl' }, 'radius'), num(p.r, x => { p.r = +x; }, { small: true }), el('span', { cls: 'lbl' }, 'm')));
+  if (k === 'gate') box.append(
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Post A x'), num(p.gate[0][0], x => { p.gate[0][0] = +x; }), el('span', { cls: 'lbl' }, 'z'), num(p.gate[0][1], x => { p.gate[0][1] = +x; })),
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Post B x'), num(p.gate[1][0], x => { p.gate[1][0] = +x; }), el('span', { cls: 'lbl' }, 'z'), num(p.gate[1][1], x => { p.gate[1][1] = +x; }),
+      el('span', { cls: 'faint' }, Math.round(Math.hypot(p.gate[1][0] - p.gate[0][0], p.gate[1][1] - p.gate[0][1])) + ' m wide')),
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Looks like'), seg(p.prop || 'pylons', MISSION_PROPS.gate.map(x => [x, PROP_LABEL[x] || x]), x => p.prop = x),
+      el('span', { cls: 'lbl' }, 'flown towards'), num(p.dir, x => p.dir = x === null ? undefined : +x, { small: true, ph: 'any' }), el('span', { cls: 'lbl' }, '° (blank: either way)')));
+  if (k === 'ring') box.append(el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Centre x'), num(p.ring[0], x => { p.ring[0] = +x; }), el('span', { cls: 'lbl' }, 'z'), num(p.ring[2], x => { p.ring[2] = +x; }),
+      el('span', { cls: 'lbl' }, 'altitude'), num(p.ring[1], x => { p.ring[1] = +x; }, { small: true }), el('span', { cls: 'lbl' }, 'm above sea')),
+    el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Opening radius'), num(p.r, x => p.r = +x, { small: true }), el('span', { cls: 'lbl' }, 'm · flown towards'), num(p.dir, x => p.dir = x === null ? undefined : +x, { small: true, ph: 'any' }), el('span', { cls: 'lbl' }, '°')));
+  if (k === 'spot') { const a = String(p.spot).slice(0, String(p.spot).indexOf(':')); box.append(el('div', { cls: 'inl' }, sel(a, Object.keys(SPOTS).filter(x => SPOTS[x].length).map(x => [x, fieldName(x)]), x => set({ spot: x + ':' + SPOTS[x][0][3] }), { w: 'auto' }), sel(p.spot, (SPOTS[a] || []).map(q => [a + ':' + q[3], 'tie-down ' + q[3]]), x => set({ spot: x }), { w: 'auto' }))); }
+  if (k === 'site') box.append(sel(p.site, S.pack.sites.map(x => [x.id, (x.asset || x.id)]), x => set({ site: x }), { blank: 'choose a site…' }));
+  if (k === 'pt' || k === 'gate') {
+    const A = p.alt || {};
+    const setA = o => { p.alt = Object.assign({ ref: 'agl' }, p.alt || {}, o); };
+    box.append(el('div', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'Height band'), num(A.min, x => setA({ min: x == null ? undefined : +x }), { small: true, ph: 'min' }), el('span', { cls: 'lbl' }, 'to'), num(A.max, x => setA({ max: x == null ? undefined : +x }), { small: true, ph: 'max' }),
+      el('span', { cls: 'lbl' }, 'm'), seg(A.ref || 'agl', [['agl', 'above ground'], ['msl', 'above sea']], x => setA({ ref: x })), p.alt ? el('button', { cls: 'btn sm ghost', on: { click: () => { delete p.alt; changed(); } } }, 'No band') : null));
+  }
+  return box;
+}
+function stepForm(f, m, li, si) {
+  const L = m.legs[li], s = L.steps[si], allow = MISSION_PLACES_OF[s.do] || [''];
+  f.append(crumbs([{ t: words(m.title) || m.id, sel: { t: 'mission', id: m.id } }, { t: 'Leg ' + (li + 1), sel: { t: 'leg', id: m.id, l: li } }, { t: 'Step ' + (si + 1) }]), el('h2', { cls: 'title' }, stepSentence(s)), el('p', { cls: 'sub' }, DO_LABEL[s.do] || s.do));
+  f.append(sec('What', null,
+    field('Action', sel(s.do, MISSION_DO.map(d => [d, DO_LABEL[d] || d]), x => { s.do = x; const a = MISSION_PLACES_OF[x]; if (!a.includes(missionPlaceKind(s.place) || '')) s.place = a[0] === 'field' ? { field: 'HOME' } : undefined; })),
+    field('Where', placeEditor(s.place, v => { if (v === undefined) delete s.place; else s.place = v; }, allow, { kind: 'place', id: m.id, l: li, s: si })),
+    ['carry', 'fly', 'photo'].includes(s.do) ? field('Departing from', sel(msFieldOf(s.from) || '', fieldOpts(), x => s.from = x ? { field: x } : undefined, { blank: 'anywhere' }), 'where the load is picked up') : null,
+    field('Step ID', inp(s.id || '', x => s.id = x || undefined, { ph: 'optional' }), 'needed for timers and rally checkpoints'),
+    s.do === 'photo' ? el('p', { cls: 'faint' }, 'A photo over an airfield is today\'s survey (a pass over it); over a point: the shutter and a line.') : null));
+  if (['carry', 'deliver', 'wait', 'talk', 'fly', 'land'].includes(s.do)) {
+    const Ld = s.load || {};
+    f.append(sec('Cargo and passengers', null,
+      field('Cargo', el('div', { cls: 'inl' }, inp(Ld.kg, x => s.load = Object.assign({}, s.load || { pax: 0 }, { kg: +x || 0 }), { type: 'number' }), el('span', { cls: 'lbl' }, 'kg'))),
+      field('Passengers', peoplePick('pax', Ld.pax, x => s.load = Object.assign({}, s.load || { kg: 0 }, { pax: x == null ? 0 : x }), { allowCount: true, zero: true }), 'named people, or a number of strangers'),
+      field('Goods name', inp(s.goods || '', x => s.goods = x || undefined, { ph: 'e.g. goods.mail' })),
+      field('Boarding here', peoplePick('embark', s.embark, x => s.embark = x || undefined, { allowCount: true }), 'they must get on at this stop'),
+      field('Getting off here', peoplePick('disembark', s.disembark, x => s.disembark = x || undefined, { allowCount: true }), 'they must get off at this stop')));
+  }
+  const R = s.require || {};
+  const setR = (k, v) => { s.require = Object.assign({}, s.require || {}); if (v === undefined || v === null || v === '') delete s.require[k]; else s.require[k] = v; if (!Object.keys(s.require).length) delete s.require; };
+  const dep = R.depart || {}, dk = dep.at ? 'at' : dep.after != null ? 'after' : dep.before != null ? 'before' : '';
+  f.append(sec('Conditions', null,
+    field('Arrive', sel(R.when ? JSON.stringify(R.when) : '', [['{"before":"dusk"}', 'before dusk'], ['{"after":"dusk"}', 'after dusk (at night)'], ['{"before":"dawn"}', 'before dawn']], x => setR('when', x ? JSON.parse(x) : undefined), { blank: 'any time' })),
+    field('Time limit', el('div', { cls: 'inl' }, inp(R.maxMin, x => setR('maxMin', x), { type: 'number', small: true, ph: 'none' }), el('span', { cls: 'lbl' }, 'minutes of flight'))),
+    s.do === 'wait' ? field('Wait there', el('div', { cls: 'inl' }, inp(R.waitMin, x => setR('waitMin', x), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'minutes'))) : null,
+    field('Departure window', el('div', { cls: 'inl' }, sel(dk, [['after', 'leave after'], ['before', 'leave before'], ['at', 'leave between']], x => setR('depart', x === 'after' ? { after: 8 } : x === 'before' ? { before: 18 } : x === 'at' ? { at: [8, 10] } : undefined), { blank: 'any time', w: 'auto' }),
+      dk === 'after' ? [inp(dep.after, x => setR('depart', { after: +x }), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'h')] : null,
+      dk === 'before' ? [inp(dep.before, x => setR('depart', { before: +x }), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'h')] : null,
+      dk === 'at' ? [inp(dep.at[0], x => setR('depart', { at: [+x, dep.at[1]] }), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'and'), inp(dep.at[1], x => setR('depart', { at: [dep.at[0], +x] }), { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'h (local)')] : null)),
+    s.do === 'deliver' || s.do === 'accept' ? field('The aircraft must have', critRows(R.plane || [], x => setR('plane', x.length ? x : undefined))) : null,
+    s.do === 'fly' ? field('Medals (flight time)', el('div', { cls: 'inl' }, (s.medals || []).map((md, j) => el('span', { cls: 'chip', style: { paddingLeft: '8px' } }, sel(md.medal, MEDALS, x => { md.medal = x; }, { w: 'auto' }), el('span', { cls: 'lbl' }, '≤'), inp(md.le, x => { md.le = +x || 0; }, { type: 'number', small: true }), 's',
+      el('button', { type: 'button', on: { click: () => { s.medals.splice(j, 1); if (!s.medals.length) delete s.medals; changed(); } } }, '×'))),
+      el('button', { cls: 'btn sm', on: { click: () => { s.medals = (s.medals || []).concat([{ medal: MEDALS[(s.medals || []).length] || 'bronze', le: 300 }]); changed(); } } }, '+ Medal'))) : null,
+    field('Split target', el('div', { cls: 'inl' }, inp(s.split, x => s.split = x == null ? undefined : +x, { type: 'number', small: true }), el('span', { cls: 'lbl' }, 's from the first checkpoint')), 'a rally checkpoint'),
+    s.auto != null || m.route ? field('Worked out from the route', sel(s.auto == null ? '' : String(s.auto), [['true', 'yes (rebuilt each time)'], ['place', 'its place only (the split is mine)'], ['false', 'no (authored)']], x => s.auto = x === '' ? undefined : x === 'true' ? true : x === 'false' ? false : 'place', { blank: 'not a checkpoint', w: 'auto' })) : null));
+  const od = s.onDone || {};
+  const setOD = (k, v) => { s.onDone = Object.assign({}, s.onDone || {}); if (v == null) delete s.onDone[k]; else s.onDone[k] = v; if (!Object.keys(s.onDone).length) delete s.onDone; };
+  f.append(sec('Story', 'Lines said by the people of the mission (their portrait shows on screen).',
+    ...say('Said at this step', s.say, v => { if (v) s.say = v; else delete s.say; }),
+    ...say('Said once done', od.say, v => setOD('say', v)),
+    field('Pays once done', el('div', { cls: 'inl' }, inp(od.pay, x => setOD('pay', x == null ? null : +x), { type: 'number', ph: 'nothing' }), el('span', { cls: 'lbl' }, 'credits'))),
+    field('Changes a site', el('div', { cls: 'inl' }, sel(od.site ? od.site.id : '', S.pack.sites.map(x => [x.id, x.asset || x.id]), x => setOD('site', x ? { id: x, state: (od.site && od.site.state) || 'building' } : null), { blank: 'no', w: 'auto' }),
+      od.site ? seg(od.site.state, MISSION_SITE_STATES.map(k => [k, SITE_STATE[k] || k]), x => setOD('site', { id: od.site.id, state: x })) : null))));
+  f.append(el('div', { cls: 'bar' }, moveBtns(L.steps, si, i => S.sel = { t: 'step', id: m.id, l: li, s: i }), el('button', { cls: 'btn', on: { click: () => { L.steps.splice(si + 1, 0, clone(s)); changed(); } } }, 'Duplicate'),
+    el('button', { cls: 'btn danger', on: { click: () => { L.steps.splice(si, 1); S.sel = { t: 'leg', id: m.id, l: li }; changed(); } } }, 'Delete the step')));
+}
+
+// ---- THE PREVIEW: the map screen's contract card (map_menu.js rowHTML + paraHTML), then the editor's notes ---------------------
+function cardItem(m, open) {
+  const rec = recOf(m);
+  const Tx = T(), vars = (rec && safe(() => contractVars(rec, CONTRACT_FIELDS, Tx))) || {};
+  const prov = CONTRACT_PROVIDERS[m.provider], pname = prov ? contractText(prov.name, null, Tx) : m.provider;
+  const rw = safe(() => missionReward(m, { pack: S.pack })), pay = rw ? rw.pay.total : 0;
+  const title = rec ? contractText(rec.title, vars, Tx) : (words(m.title) || m.id), brief = rec ? contractText(rec.brief, vars, Tx) : words(m.brief);
+  const mark = !rec || whyOf(m.id).length ? ['✗', 'no'] : rw && rw.why ? ['⏳', 'w'] : ['✓', 'ok'];
+  const stops = [];
+  for (const L of m.legs) for (const s of L.steps) { if (s.from && missionPlaceKind(s.from) === 'field') stops.push(fieldName(msFieldOf(s.from))); if (s.place && missionPlaceKind(s.place) === 'field') stops.push(fieldName(msFieldOf(s.place))); }
+  const chain = stops.filter((x, i) => x !== stops[i - 1]);
+  const tags = [m.kind === 'build' ? 'order' : '', (m.legs.some(L => L.steps.some(s => s.require && s.require.when && s.require.when.after === 'dusk'))) ? 'night' : ''].filter(Boolean);
+  const face = (px, cls) => { const src = m.client && safe(() => peopleFace(m.client, px > 64 ? 128 : 64)); return src ? el('img', { cls, src: '../' + src, alt: '', width: px, height: px }) : el('span', { cls: cls + ' face0' }, (m.client || '?')[0].toUpperCase()); };
+  const item = el('div', { cls: 'mmItem' + (open ? ' open' : '') },
+    el('button', { type: 'button', cls: 'mmRow', on: { click: () => { S.sel = { t: 'mission', id: m.id }; renderAll(); } } },
+      el('i', { cls: 'mmDot', style: { background: TYPE_COLOUR[typeOf(m)] } }), face(40, 'mmFace'),
+      el('span', { cls: 'mmT' }, title, tags.length ? el('span', { cls: 'mmSub' }, tags.map(t => el('small', { cls: 'mmTag' }, t))) : null),
+      el('span', { cls: 'mmPay' }, credits(pay)), el('span', { cls: 'mmMark ' + mark[1] }, mark[0])));
+  if (open) item.append(el('div', { cls: 'mmBody' },
+    m.client ? el('div', { cls: 'mmWho' }, face(120, 'mmFaceBig'), el('span', {}, el('b', {}, personName(m.client)), pname)) : null,
+    el('p', {}, pname + ': ' + brief + ' Pays ' + credits(pay) + '.', chain.length ? el('span', { cls: 'mmRw' }, chain.join(' → ') + (rw && rw.pay.km ? ' · ' + kmFmt(rw.pay.km) + ' km' : '')) : null,
+      mark[1] === 'no' ? el('span', { cls: 'mmWhy' }, whyOf(m.id)[0] || 'it does not convert') : null),
+    el('button', { type: 'button', cls: 'mmTrack' }, 'Track')));
+  return item;
+}
+function renderCard() {
+  const c = $('card'), N = $('notes'); c.innerHTML = ''; N.innerHTML = '';
+  const s = S.sel, m = s.id && mission(s.id);
+  let list = null;
+  if (s.t === 'chapter') list = S.pack.campaigns[s.c].chapters[s.h].missions;
+  else if (s.t === 'campaign') list = [].concat(...S.pack.campaigns[s.c].chapters.map(h => h.missions));
+  if (list) {
+    const ms = list.map(mission).filter(x => x && !isTut(x));
+    if (!ms.length) { c.append(el('div', { cls: 'faint' }, 'No missions here yet.')); return; }
+    c.append(el('div', { cls: 'gc' }, ms.slice(0, 30).map(x => cardItem(x, false))));
+    return;
+  }
+  if (!m) { c.append(el('div', { cls: 'faint' }, 'Select a mission to see its card as the map screen shows it.')); return; }
+  if (isTut(m)) { const t = missionTutorial().find(x => x.beat === m.tutorial) || {}; c.append(el('div', { cls: 'gc' }, el('div', { cls: 'mmItem open' }, el('div', { cls: 'mmBody', style: { paddingLeft: '16px', paddingTop: '14px' } }, el('p', {}, el('b', {}, t.title || m.id)), el('p', {}, t.brief || ''))))); return; }
+  c.append(el('div', { cls: 'gc' }, cardItem(m, true)));
+  // the editor's notes: the steps in words, the preferences, the money, whether today's runtime runs it
+  const rw = safe(() => missionReward(m, { pack: S.pack })), Tx = T();
+  const ol = el('ol', {}, m.legs.map((L, i) => L.steps.map(st => el('li', {}, stepSentence(st),
+    st.require && st.require.when ? el('span', { cls: 'faint' }, ' · ' + safe(() => contractWhenWords(st.require.when))) : null,
+    st.require && st.require.plane ? el('span', { cls: 'faint' }, ' · ' + st.require.plane.map(q => safe(() => contractCritWords(q, CONTRACT_FIELDS, Tx)) || q.k).join('; ')) : null,
+    m.legs.length > 1 ? el('span', { cls: 'faint' }, '  (leg ' + (i + 1) + ')') : null))));
+  N.append(el('div', { cls: 'notes' }, el('b', {}, 'What the player does'), ol,
+    (m.prefs || []).length ? el('div', {}, (m.prefs || []).map(p => el('div', {}, contractText('pref.' + p.need, { p: contractText('pref.' + p.k, { v: p.v }, Tx) }, Tx) + (p.need === 'bonus' ? ' (+' + p.pct + ' %)' : '')))) : null,
+    m.onDone && m.onDone.say ? el('div', { cls: 'dim' }, '“' + contractText(m.onDone.say.text, {}, Tx) + '” - ' + personName(m.onDone.say.who)) : null,
+    rw ? el('div', { cls: 'pay' }, el('span', { cls: 'faint' }, 'Offered'), el('span', {}, credits(rw.pay.total) + ' credits' + (rw.pay.km ? ' · ' + kmFmt(rw.pay.km) + ' km' : '')),
+      el('span', { cls: 'faint' }, 'Paid'), el('span', {}, credits(rw.paid)), rw.best !== rw.paid ? [el('span', { cls: 'faint' }, 'At best'), el('span', {}, credits(rw.best) + (rw.prefs ? ' · preferences +' + rw.prefs + ' %' : ''))] : null) : null,
+    rw ? el('div', { cls: rw.why ? 'warn' : 'ok' }, rw.why ? '⏳ Not playable yet: ' + rw.why : '✓ The game runs it today') : null));
+}
+
+// ---- the map (MAP_PACK: px = (x - x0) / mpp, py = (z - z0) / mpp; north up) ------------------------------------------
+const cv = $('map'), cx = cv.getContext('2d');
+const V = { s: 0.2, ox: 0, oy: 0, img: null, drag: null };
+if (MAP) { const im = new Image(); im.onload = () => { V.img = im; drawMap(); }; im.src = '../' + ((MAP.art && MAP.art.img) || MAP.img); }
+const w2s = (x, z) => [((x - MAP.x0) / MAP.mpp) * V.s + V.ox, ((z - MAP.z0) / MAP.mpp) * V.s + V.oy];
+const s2w = (sx, sy) => [((sx - V.ox) / V.s) * MAP.mpp + MAP.x0, ((sy - V.oy) / V.s) * MAP.mpp + MAP.z0];
+function fit(pts) {
+  if (!MAP) return;
+  const W = cv.clientWidth, H = cv.clientHeight; let x0 = MAP.x0, x1 = MAP.x1, z0 = MAP.z0, z1 = MAP.z1;
+  if (pts && pts.length) { x0 = Math.min(...pts.map(p => p[0])) - 1500; x1 = Math.max(...pts.map(p => p[0])) + 1500; z0 = Math.min(...pts.map(p => p[1])) - 1500; z1 = Math.max(...pts.map(p => p[1])) + 1500; }
+  V.s = Math.min(W / ((x1 - x0) / MAP.mpp), H / ((z1 - z0) / MAP.mpp));
+  V.ox = W / 2 - ((x0 + x1) / 2 - MAP.x0) / MAP.mpp * V.s; V.oy = H / 2 - ((z0 + z1) / 2 - MAP.z0) / MAP.mpp * V.s;
+}
+function missionPts(m) {
+  const out = [];
+  const put = p => { const q = contractPlaceXZ(p, CONTRACT_FIELDS) || (missionPlaceKind(p) === 'site' ? ((S.pack.sites.find(x => x.id === p.site) || {}).at && [S.pack.sites.find(x => x.id === p.site).at.x, S.pack.sites.find(x => x.id === p.site).at.z]) : null); if (q) out.push(q); };
+  for (const L of m.legs || []) for (const s of L.steps || []) { if (s.from) put(s.from); if (s.place) put(s.place); }
+  for (const p of (m.route && m.route.pts) || []) out.push([p.x, p.z]);
+  return out;
+}
+function drawMap() {
+  const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
+  cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); cx.clearRect(0, 0, W, H);
+  if (!MAP) { cx.fillStyle = '#fff'; cx.fillText('no map pack (src/viewer/map_pack.js)', 10, 20); return; }
+  if (V.img) cx.drawImage(V.img, V.ox, V.oy, MAP.w * V.s, MAP.h * V.s);
+  cx.font = '500 11px "IBM Plex Sans", system-ui'; cx.lineWidth = 1.5;
+  for (const id of Object.keys(CONTRACT_FIELDS)) { const f = CONTRACT_FIELDS[id], [x, y] = w2s(f.x, f.z); cx.fillStyle = f.surf === 'water' ? '#4fc3f7' : '#e6dbc9'; cx.beginPath(); cx.arc(x, y, 4, 0, 7); cx.fill(); cx.fillStyle = '#f4efe6'; cx.fillText(f.name, x + 6, y + 3); }
+  for (const s of S.pack.sites) { const [x, y] = w2s(s.at.x, s.at.z); cx.strokeStyle = '#b58fd8'; cx.strokeRect(x - 5, y - 5, 10, 10); cx.fillStyle = '#b58fd8'; cx.fillText(s.asset || s.id, x + 7, y + 3); }
+  const m = S.sel.id && mission(S.sel.id);
+  if (!m || isTut(m)) return;
+  if (m.route) { cx.setLineDash([5, 4]); cx.strokeStyle = '#ffffffaa'; cx.beginPath(); m.route.pts.forEach((p, i) => { const [x, y] = w2s(p.x, p.z); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke(); cx.setLineDash([]); }
+  m.legs.forEach((L, li) => L.steps.forEach((s, si) => {
+    const on = S.sel.t === 'step' && S.sel.l === li && S.sel.s === si, col = on ? '#ff8a5c' : '#9ccf9a';
+    cx.strokeStyle = col; cx.fillStyle = col;
+    const fr = s.from && contractPlaceXZ(s.from, CONTRACT_FIELDS), k = missionPlaceKind(s.place);
+    let to = s.place ? contractPlaceXZ(s.place, CONTRACT_FIELDS) : null;
+    if (k === 'site') { const st = S.pack.sites.find(x => x.id === s.place.site); to = st ? [st.at.x, st.at.z] : null; }
+    if (fr && to) { const a = w2s(fr[0], fr[1]), b = w2s(to[0], to[1]); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); }
+    if (k === 'pt') { const [x, y] = w2s(s.place.pt[0], s.place.pt[1]); cx.beginPath(); cx.arc(x, y, Math.max(3, s.place.r / MAP.mpp * V.s), 0, 7); cx.stroke(); cx.fillText((s.id || s.do) + (s.split != null ? ' ' + s.split + 's' : ''), x + 6, y - 6); }
+    if (k === 'gate') { const a = w2s(s.place.gate[0][0], s.place.gate[0][1]), b = w2s(s.place.gate[1][0], s.place.gate[1][1]); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); cx.lineWidth = 1.5; cx.fillText(s.id || 'gate', b[0] + 5, b[1]); }
+    if (k === 'ring') { const [x, y] = w2s(s.place.ring[0], s.place.ring[2]); cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.stroke(); cx.beginPath(); cx.arc(x, y, 2, 0, 7); cx.fill(); cx.fillText((s.id || 'ring') + ' ' + s.place.ring[1] + ' m', x + 8, y); }
+    if (k === 'spot') { const i0 = s.place.spot.indexOf(':'), a = s.place.spot.slice(0, i0), id = s.place.spot.slice(i0 + 1), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
+  }));
+  if (S.sel.t === 'step') { const s = m.legs[S.sel.l].steps[S.sel.s]; if (s && missionPlaceKind(s.place) === 'spot') { const a = s.place.spot.split(':')[0]; cx.fillStyle = '#ffffff88'; for (const q of SPOTS[a] || []) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 2, y - 2, 4, 4); } } }
+}
+function pickBtn(label, key) { return el('button', { cls: 'btn sm', on: { click: () => { S.pick = Object.assign({ n: 0 }, key); $('pickLbl').textContent = 'click the map (Esc to stop)'; $('pickLbl').className = 'warn'; } } }, label); }
+function applyPick(wx, wz) {
+  const P = S.pick; if (!P) return;
+  if (P.kind === 'siteAt') { const s = S.pack.sites[P.i]; s.at.x = Math.round(wx); s.at.z = Math.round(wz); S.pick = null; $('pickLbl').textContent = 'placed'; $('pickLbl').className = 'faint'; return changed(); }
+  const m = mission(P.id), s = m && m.legs[P.l].steps[P.s]; if (!s) return;
+  const k = missionPlaceKind(s.place);
+  if (k === 'field') { let best = null, bd = 1e18; for (const id of Object.keys(CONTRACT_FIELDS)) { const f = CONTRACT_FIELDS[id], d = Math.hypot(f.x - wx, f.z - wz); if (d < bd) { bd = d; best = id; } } s.place = { field: best }; S.pick = null; }
+  else if (k === 'pt') { s.place.pt = [Math.round(wx), Math.round(wz)]; S.pick = null; }
+  else if (k === 'ring') { s.place.ring = [Math.round(wx), s.place.ring[1], Math.round(wz)]; S.pick = null; }
+  else if (k === 'gate') { s.place.gate[P.n] = [Math.round(wx), Math.round(wz)]; P.n++; if (P.n > 1) S.pick = null; else $('pickLbl').textContent = 'now the second post'; }
+  else if (k === 'spot') { let best = null, bd = 1e18; for (const a of Object.keys(SPOTS)) for (const q of SPOTS[a]) { const d = Math.hypot(q[0] - wx, q[1] - wz); if (d < bd) { bd = d; best = a + ':' + q[3]; } } if (best) s.place = { spot: best }; S.pick = null; }
+  if (!S.pick) { $('pickLbl').textContent = 'placed'; $('pickLbl').className = 'faint'; }
+  changed();
+}
+cv.addEventListener('wheel', e => { e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = e.deltaY < 0 ? 1.25 : 0.8; V.ox = mx - (mx - V.ox) * k; V.oy = my - (my - V.oy) * k; V.s *= k; drawMap(); }, { passive: false });
+cv.addEventListener('mousedown', e => { V.drag = { x: e.clientX, y: e.clientY, ox: V.ox, oy: V.oy, moved: false }; });
+window.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); if (MAP && e.target === cv) { const [x, z] = s2w(e.clientX - r.left, e.clientY - r.top); $('mapHint').textContent = 'x ' + Math.round(x) + '  z ' + Math.round(z); }
+  if (!V.drag) return; const dx = e.clientX - V.drag.x, dy = e.clientY - V.drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) V.drag.moved = true; if (V.drag.moved) { V.ox = V.drag.ox + dx; V.oy = V.drag.oy + dy; drawMap(); } });
+window.addEventListener('mouseup', e => { const D = V.drag; V.drag = null; if (D && !D.moved && e.target === cv && MAP) { const r = cv.getBoundingClientRect(); const [x, z] = s2w(e.clientX - r.left, e.clientY - r.top); applyPick(x, z); } });
+window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (S.pick) { S.pick = null; $('pickLbl').textContent = 'stopped'; } if (S.pp) { S.pp = null; renderForm(); } } });
+$('bFit').onclick = () => { const m = S.sel.id && mission(S.sel.id); fit(m && !isTut(m) ? missionPts(m) : null); drawMap(); };
+window.addEventListener('resize', drawMap);
+
+// ---- the route import (a 38c_route.js record, or the game's library) -----------------------------------------------------
+let routeFor = null;
+function openRoute(m) { routeFor = m; $('routeTxt').value = ''; $('dlgRoute').showModal(); }
+$('routeFile').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => { $('routeTxt').value = t; }); };
+$('dlgRoute').addEventListener('close', () => {
+  if ($('dlgRoute').returnValue !== 'ok' || !routeFor) return;
+  try {
+    let r = JSON.parse($('routeTxt').value);
+    if (r && r.route && r.route.pts) r = r.route;                         // the draft (flydiy.routeDraw: { v, route, fly })
+    if (Array.isArray(r)) { const n = $('routeName').value.trim(); r = (n && r.find(x => x && x.name === n)) || r[0]; }
+    const R = routeNormalise(r);
+    if (!R || R.pts.length < 2) throw new Error('not a route with 2+ points');
+    routeFor.route = R; if (!routeFor.rally) routeFor.rally = { refKmh: 150, r: 300 };
+    status('route imported: ' + R.name + ', ' + R.pts.length + ' points'); fit(missionPts(routeFor)); changed();
+  } catch (e) { status('route import failed: ' + e.message); }
+});
+
+// ---- validation, render, I/O --------------------------------------------------------------------------------------------
+function renderVal() {
+  WHY = safe(() => missionPackValidate(S.pack, { spots: SPOTS })) || ['the validator threw'];
+  const v = $('val'); v.innerHTML = '';
+  $('vcount').innerHTML = '';
+  $('vcount').append(WHY.length ? el('span', { cls: 'bad' }, '✗ ' + WHY.length + ' problem' + (WHY.length === 1 ? '' : 's')) : el('span', { cls: 'ok' }, '✓ The pack checks out'));
+  if (!WHY.length) v.append(el('div', { cls: 'okv ok' }, '✓ Everything checks out - the game will agree (the same core).'));
+  for (const w of WHY) v.append(el('div', { on: { click: () => { const id = w.split(/[ :]/)[0], m = mission(id); if (m) { S.sel = { t: 'mission', id }; renderAll(); } } } }, w));
+}
+function renderAll() { renderVal(); renderTree(); renderForm(); renderCard(); drawMap(); }
+$('bSave').onclick = () => { const txt = JSON.stringify(S.pack, null, 1) + '\n'; const a = el('a', { href: URL.createObjectURL(new Blob([txt], { type: 'application/json' })), download: S.file || 'pack.json' }); document.body.append(a); a.click(); a.remove(); status('saved'); };
+$('bOpen').onclick = () => $('fOpen').click();
+$('fOpen').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => { try { setPack(JSON.parse(t), f.name); } catch (er) { status('not a pack: ' + er.message); } }); };
+$('bBuiltin').onclick = () => fetch('../src/missions/builtin.json').then(r => r.json()).then(p => setPack(p, 'builtin.json'), e => status('could not fetch the built-in pack (serve flyDiy/ over http): ' + e.message));
+$('bNew').onclick = () => { if (confirm('Start an empty pack? (the current one stays only if saved)')) setPack(emptyPack(), 'pack.json'); };
+$('bRetro').onclick = () => { if (confirm('Rebuild the built-in pack from today\'s 72_contract_data.js? (the retrofit)')) setPack(missionPackFromContracts(), 'builtin.json'); };
+window.MISSION_EDITOR = { S, renderAll, setPack, mission };
+
+const d = store.get();
+let start = null; try { start = d && JSON.parse(d); } catch (e) { start = null; }
+if (start && start.pack) setPack(start.pack, start.file); else setPack(missionPackFromContracts(), 'builtin.json');
+requestAnimationFrame(() => { fit(); drawMap(); });
+})();
+</script>
+</body>
+</html>

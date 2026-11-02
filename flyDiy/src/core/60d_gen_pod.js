@@ -60,6 +60,34 @@ const GEN_POD = {
   // than a runway); at or under 0 it strikes, shown red with the number - the engineer's handbook: shown, not forbidden
   clearWarn: 0.08,
   nSta: 24,
+  // G3463 (BELLY-POD-2): THE FLOWN POD'S MEMBERS AS WHAT THEY ARE, for the damage layer (61_gen_frame's pod block; read
+  // only with damage on - the sections and materials change no force, stiffness or mass):
+  //   the 16 HANGERS are the four fittings' bolts and lugs: 4130 steel (GEN_CRASH.tubeFabric), sized so the pod FULL
+  //     (shell + rated load) holds 23.561(b)(3)'s 9 g forward at the ultimate (as recalled, the emergency landing's
+  //     cargo case; the same 9 g genCertPodMounts reports), a fitting's load over `mountShare` of the 16 (each pod
+  //     node hangs from all four fittings, so two members of a fitting's four carry its quarter); fittings break
+  //     brittle at 1.15 x their ultimate (30_solver dmgMember's seam rule)
+  //     - and, the larger, the shell BEARING the aeroplane against the belly between them on a belly landing: the
+  //     aeroplane's mass the frame is built at (genLattice's `gross`, parts.podFrame.bearKg) at `bearG` g over the 16 in compression (GAME, calibrated on the metal Cessna gear-up, damage on - a
+  //     gear-up landing at 0.5-1.5 m/s crushes the pod, 3 m/s tears it off at its fittings; at 20 g nothing yields, at
+  //     4 g it tears at any touch; a normal landing on the wheels never reaches it). `mountK` the hangers' stiffness
+  //     over the gear class's: x 1 (x 8 made the pod a brace of the belly - the fuselage's own flexing loaded its
+  //     fittings to 55 % of their ultimate parked; at x 1, 14 %)
+  //   the 6 BRACES are the moulded shell: E-glass (GEN_CRASH.glass), the section two skins of `shellSkin` round the
+  //     section's perimeter, shared by the six
+  //   G3468: re-calibrated 10 -> 8.25 on the straight floor (its nodes ~7 mm higher than the old level floor's on the
+  //   metal Cessna, the touch softer): 8 tears the pod off at 1.5 m/s, 8.5 and up hold it at 3 m/s - a narrow band,
+  //   GATE DMGPOD's two anchors either side of it (HANDOVER G3468)
+  mountG: 9, mountK: 1, mountShare: 1 / 8, bearG: 8.25, mountMat: 'tubeFabric', shellMat: 'glass', shellSkin: 0.0015,
+  // G3468 (BELLY-POD-2): THE MAIN GEAR'S FITTINGS ARE NOT THE POD'S (the user, 27 Oct: "yours clips on the front
+  // suspension ... the default cub should stop right before the X component"). The mains are anchored on the two frame
+  // rings that straddle the axle (61_gen_frame genLattice's own rule, iFwd / iAft: 0.10 m either side); where those
+  // anchors - the lower longerons - stand within `gearReach` of the pod's wall, the gear's vee, its fittings and its
+  // bracing come down UNDER the belly where the pod would be (measured on the drawn Cub: the vee and its fittings fill
+  // the pod's box from 0.35 to 1.04 m aft of the firewall, the aft ring at 0.99), and the pod keeps aft of the aft ring
+  // by `gearFit` (the fitting's reach). Mains that leave the body well outboard of it (the Cessnas' spring legs, 0.18 m
+  // outboard of a 0.63 m pod) leave the run free: the pod passes between them, as the 206's and the 185's pods do.
+  gearReach: 0.12, gearFit: 0.08,
 };
 
 const genPodOn = S => !!(S && S.pod && typeof S.pod === 'object' && +S.pod.on);
@@ -75,9 +103,34 @@ function genPodKeel(ST, x) {
   const z = ST[ST.length - 1]; return { yb: z.yb, w: z.w };
 }
 
+// the pod's floor (its bottom) at station x - the resolved stations' own line (R.sta)
+function genPodFloorAt(R, x) {
+  // (the run: its straight floor exactly; the fairings: the stations' line)
+  if (R && R.floorA != null && x >= R.xa && x <= R.xb) return R.floorA + (R.floorB - R.floorA) * (x - R.xa) / Math.max(1e-9, R.xb - R.xa);
+  const S = R && R.sta;
+  if (!S || !S.length) return R ? R.yBot : 0;
+  if (x <= S[0].x) return S[0].bot;
+  for (let i = 0; i < S.length - 1; i++) {
+    const a = S[i], b = S[i + 1];
+    if (x <= b.x) { const t = (x - a.x) / Math.max(1e-9, b.x - a.x); return a.bot + t * (b.bot - a.bot); }
+  }
+  return S[S.length - 1].bot;
+}
+
 // ---- THE SHAPE -------------------------------------------------------------------------------------------------
 // S: the resolved spec (S.wings, S.pod); ST: the frame's station table (x aft of the firewall, w the half-width, yb
 // the keel). Returns null with the pod off.
+// the run under the belly the main gear's fittings take, or null (the mains root clear of a pod `half` wide)
+function genPodGearKeep(S, ST, half) {
+  const g = S && S.gear;
+  if (!g || g.type === 'floats' || g.x == null || !isFinite(+g.x) || !ST || ST.length < 2) return null;
+  const gx = +g.x;
+  let iF = 0; for (let i = 0; i < ST.length; i++) if (ST[i].x < gx - 0.10) iF = i;
+  let iA = Math.min(ST.length - 1, iF + 1); for (let i = 0; i < ST.length; i++) if (ST[i].x > gx + 0.10) { iA = i; break; }
+  const wMin = Math.min(genPodKeel(ST, ST[iF].x).w, genPodKeel(ST, ST[iA].x).w);
+  if (wMin - half >= GEN_POD.gearReach) return null;
+  return { x0: ST[iF].x - GEN_POD.gearFit, x1: ST[iA].x + GEN_POD.gearFit, gap: wMin - half };
+}
 function genPodResolve(S, ST) {
   if (!genPodOn(S) || !ST || ST.length < 2) return null;
   const D = GEN_POD.def, K = GEN_POD.clamp, sp = S.pod;
@@ -91,27 +144,38 @@ function genPodResolve(S, ST) {
   // (never ahead of the firewall's fittings: on a Cub the quarter chord is 0.7 m aft of it and a 2 m pod centred
   // there would hang under the engine)
   x0 = genClamp(x0, ST[0].x + 0.15, Math.max(ST[0].x + 0.15, xEnd - 0.3 - len));
+  // (never through the main gear's fittings: aft of them - G3468, the limit and the default alike)
+  // (the gear's question, not the pod's size: asked at the default pod's half-width, so a pod's place never jumps as it
+  // is resized - the volume row bisects on a continuous pod)
+  const gearKeep = genPodGearKeep(S, ST, 0.5 * GEN_POD.def.width);
+  const gearMoved = !!(gearKeep && x0 < gearKeep.x1 && x0 + len > gearKeep.x0);
+  if (gearMoved) x0 = Math.min(gearKeep.x1, Math.max(ST[0].x + 0.15, xEnd - 0.3 - 0.8));
   const x1 = Math.min(xEnd - 0.3, x0 + len);
   const L = x1 - x0;
   const xa = x0 + nf * L, xb = x1 - tf * L;                    // the flat floor's run
-  // the floor: `depth` under the lowest keel point of the flat run
-  let kMin = 1e9;
-  for (let i = 0; i <= 16; i++) kMin = Math.min(kMin, genPodKeel(ST, xa + (xb - xa) * i / 16).yb);
-  const yBot = kMin - depth;
+  // THE FLOOR FOLLOWS THE BELLY (G3468): a STRAIGHT floor `depth` under the keel at both ends of the run - the chord,
+  // as a moulded belly pod hangs (the Airglas Cub pod, the 206's); a level floor under a belly that rises aft (the
+  // Cub's, 0.15 m over its run) made a wedge 0.28 m deep at its nose and 0.43 m at its tail, closed by a boat-tail as
+  // steep. Straight, so its lowest point is always one of its ends - where the flown pod's nodes are. `yBot` is the
+  // floor's LOWEST point (genPodFloorAt gives it at any station)
   const xm = 0.5 * (x0 + x1);
   const hw = Math.min(0.5 * num('width'), 0.95 * genPodKeel(ST, xm).w);
   // the side-view profile, sampled: top (the keel), bottom, half-width
   const N = GEN_POD.nSta, sta = [];
-  const Da = genPodKeel(ST, xa).yb - yBot, Db = genPodKeel(ST, xb).yb - yBot;
+  let yBot = 1e9;
+  // (the fairings rise from the run's own ends, monotonically - the lowest points stay the run's two ends, where the
+  // flown pod's nodes are, genPodNodesAt)
+  const fa = genPodKeel(ST, xa).yb - depth, fb = genPodKeel(ST, xb).yb - depth;
   for (let i = 0; i <= N; i++) {
     const x = x0 + L * i / N, top = genPodKeel(ST, x).yb;
     let d, h;
     if (x < xa) { const u = (xa - x) / Math.max(1e-9, xa - x0); const s = Math.sqrt(Math.max(0, 1 - u * u));
-                  d = Da * s; h = hw * (0.35 + 0.65 * s); }
-    else if (x > xb) { const v = (x - xb) / Math.max(1e-9, x1 - xb); d = Db * (1 - v); h = hw * (1 - 0.55 * v); }
-    else { d = top - yBot; h = hw; }
-    d = Math.max(0, Math.min(d, top - yBot));
+                  d = (top - fa) * s; h = hw * (0.35 + 0.65 * s); }
+    else if (x > xb) { const v = (x - xb) / Math.max(1e-9, x1 - xb); d = (top - fb) * (1 - v); h = hw * (1 - 0.55 * v); }
+    else { d = top - (fa + (fb - fa) * (x - xa) / Math.max(1e-9, xb - xa)); h = hw; }   // (a straight floor: the chord)
+    d = Math.max(0, d);
     sta.push({ x, top, bot: top - d, d, hw: h });
+    yBot = Math.min(yBot, top - d);
   }
   // areas, volume and the shell's centroid (the corners are rounded: 0.92 of the box section)
   let swet = 0, sx = 0, vol = 0, vx = 0, side = 0, plan = 0, frontal = 0;
@@ -147,16 +211,24 @@ function genPodResolve(S, ST) {
   // THE DOOR: a side hatch over the middle 55 % of the flat run, 80 % of the hold's shallowest depth tall, its sill
   // on the floor (FREIGHT-MODEL's packer passes an item through it in some orientation)
   const dl = 0.55 * (xb - xa), dc = 0.5 * (xa + xb);
-  const doorH = Math.max(0, 0.8 * (dMinFlat - 2 * wall));
+  // (the floor follows the belly, and so does the door: its sill on the floor - y0 / y1 at its middle, `slope` the
+  // floor's rise per metre aft - the packer reads its w x h)
+  const fA = genPodFloorAt({ sta }, dc - 0.5 * dl), fB = genPodFloorAt({ sta }, dc + 0.5 * dl);
+  // (G3470: nearly the hold's full height - the Airglas door drops down from just under the joint to the sill)
+  const doorH = Math.max(0, 0.92 * (dMinFlat - 2 * wall));
+  const sill = genPodFloorAt({ sta }, dc) + wall;                // (the box's own floor: the door and the hold share it)
   const door = { side: sp.door === 'right' ? 1 : -1, sideName: sp.door === 'right' ? 'right' : 'left',
-                 x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: yBot + wall, y1: yBot + wall + doorH, w: dl, h: doorH };
+                 x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: sill, y1: sill + doorH, w: dl, h: doorH,
+                 slope: dl > 0 ? (fB - fA) / dl : 0 };
   // THE MOUNTS: the two frame rings that straddle the shell's centroid (61_gen_frame's own `straddle` rule), each a
   // pair of fittings on its lower longerons - the rings the frame bills the pod's mass onto
   const xS = swet > 0 ? sx / swet : xm, xL = litres > 0 ? lx / litres : 0.5 * (xa + xb);
   const mounts = genPodStraddle(ST, xS);
-  return { on: true, len: L, x0, x1, xa, xb, yBot, hw, depth, noseFair: nf, tailFair: tf, sta,
+  // `strap`: the mounting - bolted through its joint (0) or held by two stainless bands (1, G3470); drawn only, the
+  // fittings' mass and the four mounts stand for either
+  return { on: true, len: L, x0, x1, xa, xb, yBot, floorA: fa, floorB: fb, hw, depth, noseFair: nf, tailFair: tf, sta, strap: +sp.strap ? 1 : 0,
            swet, side, plan, frontal, vol, xVol: vol > 0 ? vx / vol : xm, xShell: xS, xLoad: xL,
-           litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall };
+           litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall, gearKeep, gearMoved };
 }
 // 61_gen_frame's straddle(x), over the station table alone
 function genPodStraddle(ST, x) {
@@ -175,10 +247,11 @@ function genPodSpace(S, ST, R) {
   const P = R || genPodResolve(S, ST);
   if (!P) return null;
   const w = P.wall;
-  let top = 1e9;
-  for (const s of P.sta) if (s.x >= P.xa - 1e-9 && s.x <= P.xb + 1e-9) top = Math.min(top, s.top);
+  // the packer's box: the hold's own height (the depth inside the walls), on the floor at the run's middle - the floor
+  // follows the belly, the box is the packer's axis-aligned stand-in for it
+  const y0 = genPodFloorAt(P, 0.5 * (P.xa + P.xb)) + w;
   return { kind: 'pod', id: 'pod', name: 'Belly pod', external: true,
-           box: { x0: P.xa, x1: P.xb, y0: P.yBot + w, y1: top - w, halfW: P.hw - w },
+           box: { x0: P.xa, x1: P.xb, y0, y1: y0 + Math.max(0, P.depth - 2 * w), halfW: P.hw - w },
            litres: P.litres, floorM2: P.floorM2, floorKgM2: GEN_POD.floorLimit, maxKg: P.maxKg,
            station: P.xLoad, door: Object.assign({}, P.door) };
 }
@@ -258,7 +331,9 @@ function genPodClearance(def, mass) {
   // pod's run is a conflict, the pod refused with it (it would have to be cut round the leg)
   const legs = [];
   const zMain = (P.gearAnchors || []).map(i => P.ST[i] ? P.ST[i].w : null).filter(v => v != null);
-  if (zMain.length && !(P.floats && P.floats.length)) legs.push({ id: 'mains', name: 'the main legs, beside it', gap: Math.min(...zMain) - R.hw, ok: true });
+  if (zMain.length && !(P.floats && P.floats.length))
+    legs.push(R.gearKeep ? { id: 'mains', name: 'the main gear\'s fittings, ahead of it', gap: R.x0 - R.gearKeep.x1, ok: R.x0 >= R.gearKeep.x1 - 1e-6 }
+                         : { id: 'mains', name: 'the main legs, beside it', gap: Math.min(...zMain) - R.hw, ok: true });
   if (P.TW >= 0 && P.twX > R.x0 - 0.1 && P.twX < R.x1 + 0.1)
     legs.push({ id: S.gear.type === 'tricycle' ? 'nose' : 'tail', name: S.gear.type === 'tricycle' ? 'the nose leg, under it' : 'the tailwheel, under it',
                 gap: -1, ok: false });
@@ -311,4 +386,159 @@ function genPodShell(R, nAround) {
       idx.push(a, c, b, b, c, d);
     }
   return { pos: Float32Array.from(pos), idx: Uint32Array.from(idx), nv: pos.length / 3, nt: idx.length / 3 };
+}
+
+// ---- THE EDITOR'S VIEW: A VOLUME AND A SHAPE (G2675, BELLY-POD-2) ------------------------------------------------
+// The user (7 Oct): "it should be a configurable volume from the garage editor". The spec keeps the core's own rows
+// (len / width / depth, through GEN_POD.clamp); the editor leads with what a builder asks for - how many litres the
+// hold takes, and how that volume is shaped - and these two pure functions map one onto the other:
+//   shape   0 = long and shallow (the least frontal area, the most ground clearance), 1 = short and deep. It is the
+//           pod's length over its depth, 12 at 0 to 4 at 1, linearly; the width is twice the depth (the default
+//           pod's 0.56 / 0.28), cut by the resolver to 0.95 of the belly as always.
+//   litres  the HOLD (genPodResolve's `litres`: the flat run's interior, inset by the wall - the fairings are fairing,
+//           not hold): what the freight packer fills.
+// genPodFromVolume bisects the depth (the hold grows monotonically with it at a fixed shape) on the resolver itself,
+// with the aeroplane's own station table: the answer is exactly what the frame will build. Where a clamp or the body
+// stops it short, `reached` is false and `litres` is the most this shape can hold here.
+const GEN_POD_UI = {
+  litres: [20, 1000], shape: [0, 1],
+  ldAt0: 12, ldAt1: 4, wd: 2.0,
+  round: 1000,                                                    // the spec's dims to the millimetre
+};
+const genPodLD = t => GEN_POD_UI.ldAt0 + (GEN_POD_UI.ldAt1 - GEN_POD_UI.ldAt0) * genClamp(+t || 0, 0, 1);
+// the shape a pod's own dims read as (the inverse of genPodLD, clamped)
+function genPodShapeOf(len, depth) {
+  const r = (+len || GEN_POD.def.len) / Math.max(1e-6, +depth || GEN_POD.def.depth);
+  return genClamp((r - GEN_POD_UI.ldAt0) / (GEN_POD_UI.ldAt1 - GEN_POD_UI.ldAt0), 0, 1);
+}
+// S: the resolved spec (S.pod's other rows - fairings, x, door - are kept); ST: the frame's station table.
+// -> { len, width, depth, litres, reached }
+function genPodFromVolume(S, ST, litres, shape) {
+  const K = GEN_POD.clamp, U = GEN_POD_UI, ld = genPodLD(shape);
+  const want = genClamp(+litres || 0, U.litres[0], U.litres[1]);
+  const q = v => Math.round(v * U.round) / U.round;
+  const dims = d => ({ len: q(genClamp(ld * d, K.len[0], K.len[1])), width: q(genClamp(U.wd * d, K.width[0], K.width[1])), depth: q(genClamp(d, K.depth[0], K.depth[1])) });
+  const at = d => { const o = dims(d); const R = genPodResolve(Object.assign({}, S, { pod: Object.assign({}, S && S.pod, o, { on: 1 }) }), ST);
+                    o.litres = R ? R.litres : 0; return o; };
+  let lo = K.depth[0], hi = K.depth[1];
+  const top = at(hi);
+  if (top.litres < want) return Object.assign(top, { reached: false });
+  const bot = at(lo);
+  if (bot.litres >= want) return Object.assign(bot, { reached: bot.litres - want < 0.5 });
+  for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (at(m).litres < want) lo = m; else hi = m; }
+  return Object.assign(at(hi), { reached: true });
+}
+
+// ---- THE EDITOR'S READOUTS AND ITS RED REASONS (G2675) ----------------------------------------------------------
+// Off the core's own numbers, nothing re-derived: the hold and the floor (genPodSpace), the empty mass and the price
+// (the ledger's `pod` row), the drag (genPodCdA, through 62_gen_aero) and its cost in cruise and range (the sheet's
+// pod.cruise on this aeroplane's probe), the CG with the pod empty (its shell's moment on the sheet's own mass) and
+// full (genPodBalance), and the clearance in every attitude (genPodClearance). sh may be null (the garage runs the
+// shakedown post-idle): the rows that need it then say so (`pending`), the rest are exact already.
+// RED, with the reason, when it is out of bounds: a clearance under GEN_POD.clearWarn (0.08 m), a strike, a leg under
+// the pod, or a static margin under 0 full (the Jodel's refusal); AMBER when the margin full is under the bench's 0.05.
+function genPodReadout(def, sh) {
+  const P = def && def.parts, R = P && P.pod;
+  if (!R) return null;
+  const S = def.spec, sp = genPodSpace(S, P.ST, R), pd = genPodCdA(R), Lg = P.ledger && P.ledger.pod;
+  const p = sh && sh.pod;
+  const C = p ? p.clearance : genPodClearance(def, sh ? sh.mass : null);
+  const out = {
+    litres: sp.litres, floorM2: sp.floorM2, maxKg: sp.maxKg, len: R.len, width: 2 * R.hw, depth: R.depth,
+    shape: genPodShapeOf(R.len, R.depth),
+    emptyKg: Lg ? Lg.mass : R.shellKg, price: Lg ? Lg.cost : R.price,
+    cda: pd.cda, cdFrontal: pd.cdFrontal,
+    cruise: null, rangeKm: null, dRangeKm: null, cgEmpty: null, cgFull: null,
+    clearance: C ? C.rows.map(r => ({ id: r.id, name: r.name, deg: r.deg, clear: r.clear })) : [],
+    legs: C ? (C.legs || []).map(l => ({ id: l.id, name: l.name, gap: l.gap, ok: l.ok })) : [],
+    pending: !p, red: [], amber: [],
+  };
+  if (p) {
+    const c = p.cruise || {};
+    out.cruise = { vWith: c.vWith, vWithout: c.vWithout, dV: c.dV, dPct: c.dPct, dClimb: c.dClimb };
+    // G3461: the sheet's penalty against the same aeroplane with no pod (take-off, climb, cruise)
+    out.perf = p.perf ? Object.assign({}, p.perf) : null;
+    out.rangeKm = sh.rangeKm;
+    out.dRangeKm = sh.rangeKm != null && c.dRangePct != null ? sh.rangeKm - sh.rangeKm / (1 + c.dRangePct) : null;
+    // the CG empty: the shell's moment taken back off the sheet's own mass and CG (the pod billed by moment, 61_)
+    const m0 = sh.mass - R.shellKg, cg0 = m0 > 0 ? (sh.mass * sh.cgX - R.shellKg * R.xShell) / m0 : sh.cgX;
+    const pct = x => (sh.cBar > 0 && typeof sh.xLEmac === 'number') ? (x - sh.xLEmac) / sh.cBar : null;
+    out.cgEmpty = { cgX: sh.cgX, shift: sh.cgX - cg0, cgPct: pct(sh.cgX), staticMargin: sh.staticMargin };
+    const b = p.balance;
+    if (b) out.cgFull = { cgX: b.cgX, shift: b.shift, cgPct: b.cgPct, staticMargin: b.staticMargin, loadKg: b.loadKg };
+  }
+  const n2 = v => (+v).toFixed(2);
+  for (const r of out.clearance) {
+    if (!(r.clear > 0)) out.red.push('it strikes ' + r.name + ' (' + n2(r.clear) + ' m)');
+    else if (r.clear < GEN_POD.clearWarn) out.red.push(r.name + ': ' + n2(r.clear) + ' m clear, under ' + GEN_POD.clearWarn + ' m');
+  }
+  for (const l of out.legs) if (!l.ok) out.red.push(l.name);
+  if (out.cgFull && out.cgFull.staticMargin != null) {
+    if (out.cgFull.staticMargin < 0) out.red.push('full, its static margin is ' + n2(out.cgFull.staticMargin) + ' (unstable)');
+    else if (out.cgFull.staticMargin < 0.05) out.amber.push('full, its static margin is only ' + n2(out.cgFull.staticMargin));
+  }
+  out.ok = !out.red.length;
+  return out;
+}
+
+// ---- THE FLOWN POD'S CONTACT POINTS (G2678) ---------------------------------------------------------------------
+// The four points 61_gen_frame makes the pod's nodes at: the flat floor's fore (xa) and aft (xb) ends, half the pod's
+// half-width out each side, ON the shell (genPodShell's superellipse: at |z| = hw / 2 its bottom is sqrt(sin t) of the
+// depth down, cos t = 1/4) - so in every attitude genPodClearance measures, the lowest node is within a few
+// millimetres of the lowest point of the shell (GATE POD holds it). Order: fore left, fore right, aft left, aft right
+// (+z is left, the generator's frame). -> [[x, y, z] x 4]
+const GEN_POD_NODE_Z = 0.5;
+function genPodNodesAt(R, ST) {
+  const ey = Math.sqrt(Math.sqrt(1 - 0.0625));             // |cos t| = 0.25 at |z| = hw / 2 (ex = sqrt|cos t|)
+  const out = [];
+  for (const x of [R.xa, R.xb]) {
+    const top = genPodKeel(ST, x).yb, d = Math.max(0, top - genPodFloorAt(R, x)), y = top - d * ey, z = GEN_POD_NODE_Z * R.hw;
+    out.push([x, y, z], [x, y, -z]);
+  }
+  return out;
+}
+
+// ---- THE POD IN A CRASH (G3463, BELLY-POD-2; the damage layer on) ---------------------------------------------------
+// A pod is sacrificial: on a gear-up or a collapsed-gear landing it is what touches, it scrapes, and on a hard one it
+// tears off at its fittings (61_gen_frame: its own part, group `pod:mount`, the 16 hangers its joint). Read after (or
+// during) a flight from the solver's damage record - never pushed into it:
+//   D.pod    each pod node's scrape (30_solver: slid metres, friction work, peak normal force)
+//   D.groups the groups broken (pod:mount = torn off), D.broken / D.wB the members broken / their plastic work
+// THE WEAR (Archard's law written as an energy: the volume abraded = the friction's work over a specific abrasion
+// energy): each node stands for a quarter of the floor, so its patch is worn by work / (GEN_POD_DMG.eAbr x the patch).
+// eAbr 1.0e9 J/m3 is GAME (the order of a polymer laminate's specific abrasion energy on an abrasive face; A0 to
+// source): with it a 1 000 kg aeroplane sliding 100 m on its pod wears its aft patches ~2 mm - the outer skin of a
+// glass / foam pod (two plies and a gelcoat: GEN_POD_DMG.skin) - which is what the pods' owners report of a gear-up
+// slide (the floor ground through, the freight in it scuffed or wet). The tiers:
+//   clean     no pod node touched                      freight safe
+//   scuffed   worn under GEN_POD_DMG.scuff (the gelcoat) freight safe
+//   ground    worn under the outer skin                 freight safe (a repair: the floor laid up again)
+//   holed     the outer skin ground through             freight AT RISK (the floor open to the runway)
+//   crushed   a pod member yielded or broke (no tear)   freight AT RISK (the shell deformed round it)
+//   torn off  the mount group let go                    freight LOST with the pod (left on the ground)
+// def: the built def (parts.pod, parts.podFrame); D: sim.damage(). -> null without a pod, else the verdict.
+const GEN_POD_DMG = { eAbr: 1.0e9, skin: 0.002, scuff: 0.0005 };
+function genPodDamage(def, D) {
+  const P = def && def.parts, R = P && P.pod, F = P && P.podFrame;
+  if (!R || !F) return null;
+  const S = D && D.pod, patch = Math.max(1e-3, (R.xb - R.xa) * 2 * R.hw / 4);
+  const worn = [0, 0, 0, 0], slide = [0, 0, 0, 0], work = [0, 0, 0, 0];
+  if (S) for (let k = 0; k < 4; k++) { slide[k] = S.slide[k]; work[k] = S.work[k]; worn[k] = S.work[k] / (GEN_POD_DMG.eAbr * patch); }
+  const wMax = Math.max(...worn), touched = slide.some(v => v > 0) || (S && S.fnPeak && Array.prototype.some.call(S.fnPeak, v => v > 0));
+  const mine = F.hangers.concat(F.braces);
+  const brk = new Set((D && D.broken) || []);
+  const nBroken = mine.filter(b => brk.has(b)).length;
+  const nSet = D && D.wB ? mine.filter(b => D.wB[b] > 0).length : 0;
+  const torn = !!(D && D.groups && D.groups.some(g => g.key === 'pod:mount'));
+  const state = torn ? 'torn off' : (nBroken || nSet) ? 'crushed' : wMax >= GEN_POD_DMG.skin ? 'holed'
+    : wMax >= GEN_POD_DMG.scuff ? 'ground' : touched ? 'scuffed' : 'clean';
+  const freight = torn ? 'lost' : (state === 'crushed' || state === 'holed') ? 'at risk' : 'safe';
+  const loadKg = R.loadKg || 0;
+  const mm = v => (v * 1000).toFixed(1);
+  const say = state === 'clean' ? null
+    : 'belly pod ' + state + (state === 'torn off' ? ' at its fittings' : '') + ' - slid ' + Math.max(...slide).toFixed(0) + ' m, worn '
+      + mm(wMax) + ' mm' + (freight === 'safe' ? '' : '; its freight ' + (freight === 'lost' ? 'LOST with it' : 'AT RISK') + (loadKg > 0 ? ' (' + Math.round(loadKg) + ' kg)' : ''));
+  return { state, freight, torn, touched: !!touched, worn, wornMax: wMax, slide, work, patch,
+           members: { broken: nBroken, set: nSet, of: mine.length }, loadKg, say,
+           tFirst: S ? S.tFirst : -1 };
 }

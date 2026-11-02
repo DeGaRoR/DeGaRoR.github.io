@@ -49,6 +49,7 @@ const CONTRACT_FIELDS = {
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
+  cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -73,10 +74,10 @@ const CONTRACT_DESIGNS = {
             cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 34363, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
-            cruiseKmh: 177, rangeKm: 102, spanM: 11, cost: 93783, tankL: 29.7, power: 'fuel' },
+            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 93783, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
             gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
-            cruiseKmh: 204, rangeKm: 117, spanM: 11, cost: 95731, tankL: 29.7, power: 'fuel' },
+            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 95731, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
             gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
@@ -590,4 +591,14 @@ const CONTRACT_TEXT = {
   'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
   // (G2705 CAREER-DAMAGE) a crash in the career: back where the flight departed from ({n} the place), repaired, free
   'ev.crash': CT_('crashed - back at {n}, repaired'),
+  // (MISSIONS-P1/P2) a mission failed by its rules (and offered again), a lap timed, the airframe handed over, the profit,
+  // the damage assessed ({t} the mission, {n} a reason / a time / a name, {c} the cost, {p} the profit)
+  'ev.failed': CT_('{t}: failed - {n}'), 'ev.restart': CT_('You can start it again.'),
+  'ev.timer': CT_('{t}: {n}'), 'ev.strikes': CT_('{n} hit, +{s} s'), 'ev.handover': CT_('handed over to the client; the blueprint is saved as {n}'),
+  'ev.handback': CT_('the client\'s aeroplane ({n}) is back with its owner'),
+  'ev.profit': CT_('paid {n}, it cost {c} to build: {p} profit'),
+  'ev.assess.ok': CT_('the client checked the airframe: not a scratch'), 'ev.assess.bent': CT_('the client noted the damage: {n}'),
+  // (MISSIONS-P3) a step's pay, a site's new state ({n} the site)
+  'ev.bonus': CT_('{t}: +{n}'), 'ev.site.planned': CT_('{n}: planned'), 'ev.site.building': CT_('{n}: building has started'),
+  'ev.site.built': CT_('{n}: built'),
 };

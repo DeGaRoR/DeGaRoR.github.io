@@ -1,0 +1,21 @@
+STOL Cub (file tail) mn_strip calm · normal
+  ROLL@0 LIFTOFF@11.6 CLIMB@16.9 CROSSWIND@25.9 DOWNWIND@42.5 BASE@73.4 FINAL@106 FLARE@208.2 ROLLOUT@212.6 STOPPED@221.9
+  take-off: run 64 m, lift-off 16.1 m/s (1 lift-off, rotation 3.3 deg/s) · crosswind turn at 60.1 m
+  circuit tracking: cross-track rms 1.9 m on the straights · bounces 0
+  CROSSWIND overshoot    3 m  settle 8.9 s  roll reversals 1.8/min
+  DOWNWIND  overshoot    5 m  settle 9.4 s  roll reversals 0.3/min
+  BASE      overshoot    1 m  settle 10.7 s  roll reversals 0.6/min
+  final: captured at 151.4 s · above-slope rms 1.5 m · V-VAppr rms 0.52 (mean 0.46) · thr 0.13..0.17
+  flare: from 7.3 m at -2.36 m/s, 4.4 s
+  departure: normal · Vx 16.9 m/s · run needed 58 m of 250
+  circuit: left-hand at 100 m, join straight
+  approach: short · Vref 14.5 m/s · aim 111 m in · flap 1 · run needed 80 m of 250
+  landing: sink 0.93 m/s · 13.6 m/s = 1.12 Vs · 13 m past the aim · -0.1 m off · run 56 m
+  control reversals /min (da dr de): takeoff 16 26 18 · climb 4 2 40 · legs 8 6 14 · downwind 1.9 3.9 0 · base 9.2 3.7 9.2 · final 2.9 8.2 2.3 · landing 2 20 14
+  rollout: max heading 11 deg, 0 reversals, rudder 0.91 · -0.4 m off at the stop
+  stabilised approach: gate 60 m, 1 final judged, 0 go-arounds · worst / limit vLo 0 vHi 0.06 dev 0.19 sink 0.67 xt 0
+  ! 11.6s committed-takeoff: past the point of stopping at V=16.1 with 175 m left — continuing
+  ! 16.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear
+  ! 25.9s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in
+  completed at 221.9 s (93 s wall)
+{"key":"tools/fixtures/stol_cub_showcase.json","name":"STOL Cub","from":"mn_strip","to":"mn_strip","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":221.9,"phases":["ROLL@0","LIFTOFF@11.6","CLIMB@16.9","CROSSWIND@25.9","DOWNWIND@42.5","BASE@73.4","FINAL@106","FLARE@208.2","ROLLOUT@212.6","STOPPED@221.9"],"goArounds":0,"verdicts":["11.6s committed-takeoff: past the point of stopping at V=16.1 with 175 m left — continuing","16.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear","25.9s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"],"takeoff":{"run":64,"Vlo":16.1,"lifts":1,"qMax":3.3},"climb":{"hTurn":60.1,"vsMean":5.36},"legs":[{"name":"CROSSWIND","overshoot":3,"settleT":8.9,"rollRev":1.8},{"name":"DOWNWIND","overshoot":5,"settleT":9.4,"rollRev":0.3},{"name":"BASE","overshoot":1,"settleT":10.7,"rollRev":0.6}],"final":{"captureT":151.4,"aboveRms":1.5,"vRms":0.52,"vErrMean":0.46,"thrMin":0.13,"thrMax":0.17},"flare":{"entryAgl":7.3,"entryVs":-2.36,"t0":208.21666666666667,"dur":4.4},"track":{"xtRms":1.9,"n":2433},"bounces":0,"pitchMax":15,"stab":{"gateH":60,"finals":1,"ga":0,"committed":null,"worst":{"vLo":0,"vHi":0.06,"dev":0.19,"sink":0.67,"xt":0}},"landing":{"sink":0.93,"V":13.6,"VoverVs":1.12,"pastAim":13,"off":-0.1,"run":56,"three":false,"drift":-0.25},"activity":{"takeoff":{"s":17,"da":16,"dr":26,"de":18},"climb":{"s":9,"da":4,"dr":2,"de":40},"legs":{"s":17,"da":8,"dr":6,"de":14},"downwind":{"s":31,"da":1.9,"dr":3.9,"de":0},"base":{"s":33,"da":9.2,"dr":3.7,"de":9.2},"final":{"s":102,"da":2.9,"dr":8.2,"de":2.3},"landing":{"s":14,"da":2,"dr":20,"de":14}},"rollout":{"maxE":11,"zeroX":0,"maxDr":0.91,"xtEnd":-0.4},"Vs":14.1,"VsLanding":12.1,"VAppr":14.5,"appr":{"technique":"short","Vref":14.5,"Vbase":14.5,"gust":0,"aimIn":111,"flap":1,"len":250,"surface":6,"runNeed":80,"displaced":111,"gs":0.16,"reqGs":0.271},"dep":{"technique":"normal","Vx":16.9,"runNeed":58,"len":250,"surface":6},"circuit":{"hand":"left","hC":100,"join":"straight","declared":null},"mass":524,"sheet":{"Vs":13.72,"Vs0":12.09,"Vref":15.72,"Vrot":13.9,"Vx":16.88,"Vy":19.4,"Vbg":21.72,"Vms":16.5,"Vcruise":31,"climbMax":5.04,"sinkMin":2.33,"LDbest":8.18,"TORun":58,"LDGrun":80.47,"mass":525.08},"tecs":true,"path":true,"wall":93}

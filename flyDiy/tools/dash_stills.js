@@ -103,7 +103,7 @@ for (const layer of r.scene.children) {
       if (/edFuel_/.test(nm)) return;                           // the fuel inside: the shell is the tank
       c = unfit.has(vi) ? COL.tankBad : COL.tankOk; k = 'tank';
     } else if (layer.name === 'cageLayer:crew') {
-      if (/edDum/.test(nm)) { c = COL.pilot; k = 'pilot'; }
+      if (/edCrew/.test(nm)) { c = COL.pilot; k = 'pilot'; }
       else if (/edSeat/.test(nm)) { c = COL.seat; k = 'seat'; }
       else if (/edPanel|edGauge|edSwitch/.test(nm)) { c = COL.panel; k = 'panel'; }
       else { c = COL.ctl; k = 'ctl'; }

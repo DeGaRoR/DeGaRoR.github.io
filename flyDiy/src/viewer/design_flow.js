@@ -114,6 +114,9 @@ const DESIGN_PART = {
   wgPos: ['wings', 'cabane'], wgBrace: ['wings', 'struts'],
   planes: ['wings', 'wingPanel2', 'wingPanel', 'interplane', 'wires', 'cabane'],
   wgTip: ['wings'], wgFlapType: ['wingCtl', 'wings'],
+  // G2820: the STOL wing (G2821: 'wingPanel' merged into 'wings' by G2760)
+  wgSlat: ['wings'], wgVG: ['wings'], wgFence: ['wings'],
+  wgCuff: ['wings'], wgDroop: ['wingCtl', 'wings'], wgFowlerGrow: ['wingCtl', 'wings'],
   engFamily: ['power', 'engine'],
   engMount: ['engine', 'power', 'cowl'], engCount: ['power', 'engine'],
   prop: ['prop', 'power'],

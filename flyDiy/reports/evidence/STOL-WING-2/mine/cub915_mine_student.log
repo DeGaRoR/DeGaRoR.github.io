@@ -1,0 +1,20 @@
+piperCub (file tail) mn_strip calm · normal · student
+  ROLL@0 LIFTOFF@10.7 CLIMB@15.3 CROSSWIND@23.7 DOWNWIND@58.8 BASE@118.8 FINAL@153.9 GOAROUND@393.9 CROSSWIND@393.9
+  take-off: run 62 m, lift-off 17.6 m/s (1 lift-off, rotation 6.1 deg/s) · crosswind turn at 69 m
+  circuit tracking: cross-track rms 6.2 m on the straights · bounces 0
+  CROSSWIND overshoot   33 m  settle 10.7 s  roll reversals 5.1/min
+  DOWNWIND  overshoot    3 m  settle 14.2 s  roll reversals 8.5/min
+  BASE      overshoot   13 m  settle 17 s  roll reversals 5.7/min
+  CROSSWIND overshoot    0 m  settle   —  roll reversals 1.6/min
+  final: captured at 176.4 s · above-slope rms 21.3 m · V-VAppr rms 19.69 (mean -19.1) · thr 0.03..0.17
+  departure: normal · Vx 19.5 m/s · run needed 68 m of 250
+  circuit: left-hand at 228 m, join straight
+  approach: normal · Vref 20.6 m/s · aim 60 m in · flap 0 · run needed 133 m of 250
+  control reversals /min (da dr de): takeoff 20 26 26 · climb 22 6 32 · legs 51 39.3 71.4 · downwind 57 31 59 · base 52.9 34.2 47.8 · final 35.5 32.2 30.2
+  stabilised approach: gate 91 m, 0 finals judged, 0 go-arounds · worst / limit vLo 0 vHi 0 dev 0 sink 0 xt 0
+  ! 10.4s committed-takeoff: past the point of stopping at V=16.7 with 184 m left — continuing
+  ! 15.3s vx-climb: ground ahead above the aeroplane — climbing at Vx 22.1 m/s until clear
+  ! 180s flare-guard: not flaring 234 m over the aim of Copperhead Mine Street (25 m at most) - the final flies on
+  ! 393.9s go-around: final took 240 s (attempt 1)
+  gave-up at 400 s (127 s wall)
+{"key":"/tmp/claude-0/-home-user-DeGaRoR-github-io/3a55678d-42d1-56ae-b636-a49470347b13/scratchpad/mine/eng/stockcub_915.json","name":"piperCub","from":"mn_strip","to":"mn_strip","style":"normal","profile":"student","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"gave-up","phase":"CROSSWIND","t":400,"phases":["ROLL@0","LIFTOFF@10.7","CLIMB@15.3","CROSSWIND@23.7","DOWNWIND@58.8","BASE@118.8","FINAL@153.9","GOAROUND@393.9","CROSSWIND@393.9"],"goArounds":1,"verdicts":["10.4s committed-takeoff: past the point of stopping at V=16.7 with 184 m left — continuing","15.3s vx-climb: ground ahead above the aeroplane — climbing at Vx 22.1 m/s until clear","180s flare-guard: not flaring 234 m over the aim of Copperhead Mine Street (25 m at most) - the final flies on","393.9s go-around: final took 240 s (attempt 1)"],"takeoff":{"run":62,"Vlo":17.6,"lifts":1,"qMax":6.1},"climb":{"hTurn":69,"vsMean":6.88},"legs":[{"name":"CROSSWIND","overshoot":33,"settleT":10.7,"rollRev":5.1},{"name":"DOWNWIND","overshoot":3,"settleT":14.2,"rollRev":8.5},{"name":"BASE","overshoot":13,"settleT":17,"rollRev":5.7},{"name":"CROSSWIND","overshoot":0,"settleT":null,"rollRev":1.6}],"final":{"captureT":176.4,"aboveRms":21.3,"vRms":19.69,"vErrMean":-19.1,"thrMin":0.03,"thrMax":0.17},"flare":null,"track":{"xtRms":6.2,"n":4031},"bounces":0,"pitchMax":16.5,"stab":{"gateH":91,"finals":0,"ga":0,"committed":null,"worst":{"vLo":0,"vHi":0,"dev":0,"sink":0,"xt":0}},"landing":null,"activity":{"takeoff":{"s":15,"da":20,"dr":26,"de":26},"climb":{"s":8,"da":22,"dr":6,"de":32},"legs":{"s":41,"da":51,"dr":39.3,"de":71.4},"downwind":{"s":60,"da":57,"dr":31,"de":59},"base":{"s":35,"da":52.9,"dr":34.2,"de":47.8},"final":{"s":240,"da":35.5,"dr":32.2,"de":30.2}},"rollout":null,"Vs":16.2,"VsLanding":16.2,"VAppr":20.6,"appr":{"technique":"normal","Vref":20.6,"Vbase":20.6,"gust":0,"aimIn":60,"flap":0,"len":250,"surface":6,"runNeed":133,"gs":0.15,"reqGs":0.637},"dep":{"technique":"normal","Vx":19.5,"runNeed":68,"len":250,"surface":6},"circuit":{"hand":"left","hC":228,"join":"straight","declared":null},"mass":469,"sheet":{"Vs":15.88,"Vs0":15.88,"Vref":20.64,"Vrot":16.1,"Vx":19.49,"Vy":22.4,"Vbg":22.47,"Vms":17.07,"Vcruise":35.7,"climbMax":6.99,"sinkMin":2.11,"LDbest":9.33,"TORun":68,"LDGrun":133.06,"mass":469.98},"tecs":true,"path":true,"wall":127}

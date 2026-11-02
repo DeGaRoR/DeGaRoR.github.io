@@ -166,14 +166,18 @@ function ringsOf(cageSpec, G) {
 }
 // THE DATUM, in cage units: the windscreen-base ring's waist. This is the
 // join's `zFw`, the core's x = 0, and where the ledger's firewall ring sits.
+// G3518: the round body (aeroNose) has no wsFront ring - its screen rings are aeroWsA/B - so the datum is read
+// through the cage's own one home (cageFirewallZ: wsFront, then wsAft, aeroWsA, ring), the join's and the wing
+// layer's; a build with a wsFront ring reads it as before
+const fwOf = (zOf, G) => (G && G.cageFirewallZ ? G.cageFirewallZ(zOf) : zOf('wsFront'));
 function firewallZ(cageSpec, G) {
   const zOf = ringsOf(cageSpec, G);
-  return zOf ? zOf('wsFront') : null;
+  return zOf ? fwOf(zOf, G) : null;
 }
 function specFromCage(cageSpec, G, wing, fuseDefaults) {
   const zOf = ringsOf(cageSpec, G);
   if (!zOf) return null;
-  const zFw = zOf('wsFront'), zCabF = zOf('pilCabB'), zCabA = zOf('pilPaxA'),
+  const zFw = fwOf(zOf, G), zCabF = zOf('pilCabB'), zCabA = zOf('pilPaxA'),
         zPost = zOf('tailPost');
   if (zFw == null) return null;
   const fd = fuseDefaults || {};

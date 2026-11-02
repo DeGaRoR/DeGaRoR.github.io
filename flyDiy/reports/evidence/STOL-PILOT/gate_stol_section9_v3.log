@@ -1,0 +1,15 @@
+9. THE STOL LAW AT THE TOUCH (the showcase: bush calm, expert in gusts, expert across 2 m/s)
+     bush   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.5,"stol":true},"landing":{"run":28,"sink":1.38,"V":11.3,"offCentre":-0.1,"pastAim":11,"k":1,"three":true,"onStrip":true,"tdIn":21,"stopLeft":1051},"touches":1,"td":{"bank":-2,"sink":1.38,"V":11.3}}
+     gust   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":1.1,"Vref":15.1,"stol":true},"landing":{"run":29,"sink":1.34,"V":12.3,"offCentre":0.6,"pastAim":5,"k":1,"three":false,"onStrip":true,"tdIn":15,"stopLeft":1055},"touches":1,"td":{"bank":-1.1,"sink":1.34,"V":12.3}}
+     xwind  {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.5,"stol":true},"landing":{"run":25,"sink":1.41,"V":11.4,"offCentre":0.2,"pastAim":11,"k":1,"three":true,"onStrip":true,"tdIn":21,"stopLeft":1054},"touches":1,"td":{"bank":-0.8,"sink":1.41,"V":11.4}}
+  ok   bush: the STOL law flew it and landed first time (completed)
+  ok   bush (calm): three-point, one touch, 1.38 m/s at 11.3 m/s (three true, 1 touch(es)); roll 28 m
+  ok   gust: the STOL law flew it and landed first time (completed)
+  ok   gust: the day reads 1.1 m/s of gust - over stolGustMax 0.75, the gusty branch armed
+  ok   gust: one touch (1), bank -1.1 deg at the touch (< 5), 1.34 m/s (<= 1.6) at 12.3 m/s; roll 29 m
+  ok   xwind: the STOL law flew it and landed first time (completed)
+  ok   xwind 2 m/s: one touch (1), bank -0.8 deg at the touch (< 5), 1.41 m/s (<= 1.6) at 11.4 m/s; roll 25 m
+     [section 9: 166 s wall]
+(131 checks)
+GATE STOL: PASS
+GATE_DONE

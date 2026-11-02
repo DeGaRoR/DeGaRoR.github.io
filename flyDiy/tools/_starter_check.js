@@ -154,7 +154,8 @@ function checkDoors(src) {
     const at = src.indexOf(d);
     if (!check(at >= 0, 'door not found in _cage_ui.js', d)) { ok = false; continue; }
     const body = src.slice(at, at + 3000);     // G377: applySpec grew past 1400 (G334's registration lines)
-    const b = body.indexOf('build();'), l = body.indexOf('loaded();');
+    // G3700: applySpec hands the spec on (`loaded(spec)`: the float layer holds the saved station)
+    const b = body.indexOf('build();'), l = body.search(/\bloaded\((spec)?\);/);
     ok = check(l >= 0 && b >= 0 && l < b,
       'a door that replaces P builds without saying `loaded()` first', d) && ok;
   }

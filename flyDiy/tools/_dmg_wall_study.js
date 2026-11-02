@@ -268,4 +268,4 @@ if (require.main === module) {
   }
   if (opt('out', null)) fs.writeFileSync(opt('out'), JSON.stringify(res, null, 1));
 }
-module.exports = { prepare, run, CASES };
+module.exports = { prepare, run, CASES, go };   // (G3770: go - GATE DMGLOOK flies the same crashes)

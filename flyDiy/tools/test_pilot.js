@@ -72,7 +72,7 @@ function fly(spec, maxS, card, opts) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   const a = world.aerodromes[0], site = siteOf('HOME');
   if (opts.stand) { if (sim.stance) sim.stance(); placeAtStand(sim, a, site.stand); }
-  const mk = () => makePilot(sim, def, world);
+  const mk = () => makePilot(sim, def, world, opts.pilotOpts);   // STOL-PILOT: pilotOpts (the shakedown) - undefined for every other case
   let ap = mk();
   if (opts.stand || opts.depart) { ap.setRoute(a, a); ap.departFrom(a, a, site); }
   if (card) ap.setCard(card);              // SI here — the UI converts, not us
@@ -585,6 +585,117 @@ part('-- BOX: the modes as a device, over the pilot and over a hand --', () => {
   for (const v of bx.verdicts || []) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
   console.log('   alt ' + bx.altErr.toFixed(1) + ' m, hdg ' + bx.hdgErr.toFixed(1) + ' deg, ias ' + bx.iasErr.toFixed(1) + ' m/s, vs ' + bx.vsErr.toFixed(2) + ' m/s | hand da ' + bx.handDa + ', alt ' + bx.altHold2.toFixed(1) + ' m | nav xtk ' + bx.xtk.toFixed(0) + ' m, ' + bx.disDrop.toFixed(0) + ' m nearer | ' + bx.outcome + ' at ' + bx.t.toFixed(0) + ' s');
   checkBox(bx);
+});
+
+// LAND-WAY (A0 27 Oct): ap.landWayFrom - the landing way the pilot would plan from a point (the story's skip poses on it);
+// no flight, a question: its shape, no side effect, and the wind deciding it (8 m/s down the runway either way: both
+// ends' 3 km points answer into the wind). Calm: printed (the pref - the end it is lined up on - and the site decide)
+part('-- LAND-WAY: the landing way the pilot would plan from here --', () => {
+  const lw = (wind) => {
+    const world = makeWorld();
+    if (wind && world.setWind) world.setWind({ base: [wind[0], 0, wind[1]], gust: 0 });
+    const def = buildGen(), sim = makeSim(def, world);
+    sim.reset(0);
+    const ap = makePilot(sim, def, world), a = world.aerodromes[0];
+    ap.setRoute(a, a);
+    const hx = Math.cos(a.hdg), hz = Math.sin(a.hdg), at = sg => [a.x - sg * 3000 * hx, a.z - sg * 3000 * hz];
+    const why0 = ap.dirWhy, ph0 = ap.phase, n0 = ap.report.verdicts.length;
+    const KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'gs', 'siteDir', 'patGround', 'plan'];
+    const snap = () => KEYS.map(k => [Object.prototype.hasOwnProperty.call(ap, k), ap[k]]), s0 = snap();
+    const r = [1, -1].map(sg => ap.landWayFrom(a, ...at(sg)));
+    const f = [1, -1].map(sg => ap.finalFrom(a, ...at(sg))), s1 = snap();
+    return { a, r, f, clean: ap.dirWhy === why0 && ap.phase === ph0 && ap.report.verdicts.length === n0,
+             planClean: s0.every((q, i) => q[0] === s1[i][0] && q[1] === s1[i][1]), hx, hz };
+  };
+  const calm = lw(null), tail = lw([8 * Math.cos(calm.a.hdg), 8 * Math.sin(calm.a.hdg)]), head = lw([-8 * Math.cos(calm.a.hdg), -8 * Math.sin(calm.a.hdg)]);
+  for (const [k, L] of [['calm', calm], ['wind along hdg', tail], ['wind against hdg', head]])
+    console.log('   ' + k + ': from the +hdg end ' + (L.r[0] ? L.r[0].way + ' (' + L.r[0].why + ')' : 'null') + ', from the -hdg end ' + (L.r[1] ? L.r[1].way + ' (' + L.r[1].why + ')' : 'null'));
+  const shapeOk = [calm, tail, head].every(L => L.r.every(q => q && q.u.length === 2 && Math.abs(Math.hypot(q.u[0], q.u[1]) - 1) < 1e-6 &&
+    (q.way === 1 || q.way === -1) && q.way === (q.u[0] * L.hx + q.u[1] * L.hz >= 0 ? 1 : -1)));
+  check(shapeOk, 'LAND-WAY: landWayFrom answers { u (unit), way +-1 along the runway heading, why } from both ends');
+  check([calm, tail, head].every(L => L.clean), 'LAND-WAY: asking changes nothing (dirWhy, phase, verdicts as they were)');
+  check(tail.r.every(q => q.way === -1) && head.r.every(q => q.way === 1), 'LAND-WAY: 8 m/s down the runway - both ends answer into the wind');
+  { const w = makeWorld(), d = buildGen(), s = makeSim(d, w); s.reset(0); const p = makePilot(s, d, w);
+    check(p.landWayFrom(null, 0, 0) === null && p.landWayFrom(calm.a, NaN, 0) === null && p.finalFrom(null, 0, 0) === null, 'LAND-WAY: no aerodrome or no point - null'); }
+  // ap.finalFrom - the final the pilot would fly (planArrival's answer): the story's skip poses d m before aim along u on gs
+  const all = [calm, tail, head];
+  for (const [k, L] of [['calm', calm], ['wind along hdg', tail]])
+    console.log('   finalFrom ' + k + ': ' + L.f.map(q => q ? 'way ' + q.way + ' aim ' + q.aim.map(v => Math.round(v)).join(',') + ' (' + Math.round((q.aim[0] - L.a.x) * q.u[0] + (q.aim[1] - L.a.z) * q.u[1]) + ' m along from the centre) aimY ' + Math.round(q.aimY) + ' gs ' + (q.gs * 100).toFixed(1) + ' %' : 'null').join(' | '));
+  check(all.every(L => L.f.every((q, i) => q && Number.isFinite(q.aim[0]) && Number.isFinite(q.aim[1]) && Number.isFinite(q.aimY) && q.dIaf > 0 && q.gs >= 0.02 && q.gs <= 0.3 &&
+    q.way === L.r[i].way && q.u[0] === L.r[i].u[0] && q.u[1] === L.r[i].u[1])), 'FINAL-FROM: { u, way, why, aim, aimY, gs, dIaf } - the way landWayFrom gives, a finite aim, a slope in 2-30 %, the IAF out');
+  check(all.every(L => L.f.every(q => { const dx = q.aim[0] - L.a.x, dz = q.aim[1] - L.a.z, along = dx * q.u[0] + dz * q.u[1], off = -dx * q.u[1] + dz * q.u[0];
+    return Math.abs(off) < 1 && Math.abs(along) <= L.a.len / 2; })), 'FINAL-FROM: the aim is on the centreline through the field, inside the strip');
+  check(all.every(L => L.clean && L.planClean), 'FINAL-FROM: asking plans nothing (frame, aim, slope, plan, approach as they were; nothing said)');
+});
+
+// STOL-PILOT (27 Oct; futureDesigns/STOL-PILOT-2026-10.md): THE SHORT-FIELD LAW ENGAGES ONLY ON A STOL SHEET, FLOWN BY A
+// STOL-QUALIFIED PILOT. A build whose wing carries a stall-angle device (def.strips[].stol) AND whose sheet Vs0 is under
+// 0.92 x the same wing's without them, flown by the expert (the autopilot in the player's place) or a profile carrying the
+// `stol` technique knob (the bush pilot), lands and departs short on every land strip that is not soft: 1.2 Vs0 on a
+// 6.8 deg power-on slope to an aim 10 m in, the flare flown on power to the three-point attitude on the stick's whole
+// travel, the stick back and the brakes at once; half the landing flap and a Vx climb to 15 m. The showcase STOL Cub
+// (tools/fixtures/stol_cub_showcase.json) qualifies; the kit Cub (its elevator holds 48.6 km/h for a 41.8 stall) does not;
+// the validated builds carry no device and are never probed - their whole circuits are GATE STOL section 1's
+// (tools/fixtures/stol_baseline.json.gz: the stock Cub's lap below is read from it, not flown again) and
+// tools/_stol_samebits.js's. TWO PARTS, two shards (the review's wall): ONE circuit (the showcase's, with its shakedown as the
+// page hands it, ~95 s wall - the 12th part: shard 2, the lightest before it) and the qualifications (no flight, ~25 s, shard 0)
+const STOL_G = {};   // the showcase's def and shakedown, built once per process (each part builds it when its shard needs it)
+const stolShow = () => {
+  if (STOL_G.d) return STOL_G;
+  const LB = require('./_load_build.js'), C = require('./flight_core.js');
+  STOL_G.spec = LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'stol_cub_showcase.json'), 'utf8')));
+  STOL_G.d = buildGen(STOL_G.spec); STOL_G.sh = C.genShakedown(STOL_G.d, { corners: false });
+  return STOL_G;
+};
+part('-- STOL: the short-field law flown - the showcase STOL Cub\'s circuit off HOME --', () => {
+  const t0 = Date.now();
+  const G = stolShow(), Vs0 = require('./flight_core.js').machineSheet(G.d, { shakedown: G.sh }).Vs0;
+  // the circuit off HOME: the showcase, with its shakedown (as the page and pilot_trace fly it), against the stock Cub's lap
+  // as GATE STOL's baseline holds it (master's: lift-off 96.1 m, landing 62 m)
+  const FIXB = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(path.join(__dirname, 'fixtures', 'stol_baseline.json.gz'))));
+  const LS = FIXB.builds.cub.lap;
+  const show = fly(null, 420, null, { def: buildGen(G.spec), pilotOpts: { shakedown: G.sh } });
+  const L1 = show.report.landing || {}, A1 = show.report.appr || {}, D1 = show.report.dep || {};
+  console.log('   stock Cub (GATE STOL\'s baseline lap): lift-off run ' + LS.liftRun.toFixed(1) + ' m, landing ' + LS.ldgRun + ' m');
+  console.log('   STOL Cub:   ' + show.report.outcome + ', lift-off run ' + (show.liftRun || 0).toFixed(1) + ' m, landing ' + JSON.stringify(L1) + ', appr ' + JSON.stringify({ tq: A1.technique, Vref: A1.Vref, aimIn: A1.aimIn, gs: A1.gs, stol: !!A1.stol }) + ', dep ' + JSON.stringify(D1));
+  check(show.report.outcome === 'completed' && !!A1.stol && A1.technique === 'short' && !!D1.stol && (show.gaN || 0) === 0, 'STOL: the showcase flies the STOL law - the plan says so, landed first time');
+  check(A1.gs >= 0.119, 'STOL: the approach slope ' + (Math.atan(A1.gs || 0) * 57.3).toFixed(1) + ' deg (gsStol 0.12 = 6.8 deg)');
+  check(L1.three === true && L1.V <= 1.0 * Vs0 && L1.sink <= 1.6, 'STOL: a three-point touch at the stall (' + L1.V + ' m/s for a Vs0 of ' + Vs0.toFixed(2) + ', three ' + L1.three + ') and not hard (' + L1.sink + ' m/s, 1.6 at most)');
+  check(L1.run > 0 && L1.run <= 0.60 * LS.ldgRun, 'STOL: the landing roll ' + L1.run + ' m, at most 0.60 x the stock Cub\'s ' + LS.ldgRun + ' m');
+  check(Math.abs(L1.pastAim) <= 30 && L1.onStrip !== false, 'STOL: on the aim (' + L1.pastAim + ' m past it, 30 m at most)');
+  check(show.liftRun > 0 && show.liftRun < 0.6 * LS.liftRun, 'STOL: the lift-off run ' + (show.liftRun || 0).toFixed(1) + ' m under 0.6 x the stock Cub\'s ' + LS.liftRun.toFixed(1));
+  console.log('   [STOL part: ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall]');
+});
+part('-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --', () => {
+  const t0 = Date.now();
+  const LB = require('./_load_build.js');
+  const pilotOf = (spec, o) => { const w = makeWorld(), d = buildGen(spec), s = makeSim(d, w); s.reset(0); return makePilot(s, d, w, o); };
+  const fx = f => LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8')));
+  const G = stolShow(), kitS = fx('stol_cub_kit.json');
+  const onShow = o => { const w = makeWorld(), s = makeSim(G.d, w); s.reset(0); return makePilot(s, G.d, w, Object.assign({ shakedown: G.sh }, o)); };
+  // THE GAIN RIDES THE SHAKEDOWN (A0 / PILOT's review: no probe at the roll's start): the sheet built from the shakedown carries
+  // it, and the first read of ap.stol costs no probe
+  const pS = onShow(), tq = Date.now(), qs = pS.stol, dtq = Date.now() - tq;
+  const qk = pilotOf(kitS).stol;
+  console.log('   showcase ' + JSON.stringify(qs) + ' | kit ' + JSON.stringify(qk));
+  check(!!qs && qs.on === true && qs.ratio < 0.92, 'STOL: the showcase STOL Cub qualifies (its Vs0 ' + (qs && qs.ratio) + ' x its wing without the devices)');
+  check(!!qk && qk.on === false, 'STOL: the kit Cub does not (the elevator-held Vs0, ' + (qk && qk.ratio) + ' x - its tail cannot use the slot)');
+  const vals = [...Object.keys(LB.VALIDATED).map(k => [k, LB.loadValidated(k).spec]),
+                ['rufus', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'rufus_2026-10-18_certified.json'), 'utf8')))],
+                ['c172', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cessna172_2026-09-20_corrected.json'), 'utf8')))]];
+  const qv = vals.map(([k, sp]) => [k, pilotOf(sp).stol]);
+  console.log('   validated: ' + qv.map(([k, q]) => k + ' ' + JSON.stringify(q)).join(', '));
+  check(qv.every(([, q]) => q === null), 'STOL: no validated build (' + qv.map(q => q[0]).join(', ') + ') carries a STOL device - the law is never even probed');
+  // THE PILOT'S QUALIFICATION (the user, 27 Oct): the expert and the bush pilot; not the club pilot, the student, the ham-fist;
+  // the custom person is the expert's unless the knob says otherwise
+  const ql = ['expert', 'bush', 'club', 'student', 'hamfist'].map(p => [p, onShow({ profile: p }).stolQual]);
+  const qc = onShow({ profile: { skill: { reaction: 0.2 } } }).stolQual, qn = onShow({ profile: { technique: { stol: false } } }).stolQual;
+  console.log('   qualified: ' + ql.map(([p, q]) => p + ' ' + q).join(', ') + ' | custom ' + qc + ', custom with the knob off ' + qn);
+  check(ql.every(([p, q]) => q === (p === 'expert' || p === 'bush')) && qc === true && qn === false,
+    'STOL: the qualification - the expert and the bush pilot fly the law; the club pilot, the student, the ham-fist do not; the knob decides a custom person');
+  console.log('   the shakedown\'s stolGain ' + JSON.stringify(G.sh.stolGain) + ', the first ap.stol read with it ' + dtq + ' ms');
+  check(!!G.sh.stolGain && !!pS.sheet.stolGain && qs && qs.on && dtq < 40, 'STOL: the gain rides the shakedown and the sheet (the first read ' + dtq + ' ms: no probe sims at the roll\'s start)');
+  console.log('   [STOL-QUAL part: ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall]');
 });
 
 if (fails.length) console.log('FAILED CHECKS: ' + fails.join(', '));

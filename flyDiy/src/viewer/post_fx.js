@@ -79,9 +79,13 @@ const POST_FX = (() => {
   const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
   // CURVE(c): in linear mode the renderer's tone map + encode over a sampled radiance, so the pass
   // works on the picture the viewer sees; a no-op in display mode (the sample is the picture)
+  // EYE-GPU: in linear mode the curve scales the radiance by the eye's factor first (tEyeK, a 1x1 the GPU keeps - white when off),
+  // as aa_resolve's blit does: the exposure the renderer applies, times the eye
   const CURVE = `
+    uniform sampler2D tEyeK;
     vec3 pfxCurve(vec3 c) {
     #ifdef PFX_LINEAR
+      c *= texture2D(tEyeK, vec2(0.5)).r;
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -251,6 +255,18 @@ const POST_FX = (() => {
       vec3 c = vec3(0.0);
       for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) c += texture2D(tSrc, vUv + uTexel * (vec2(float(x), float(y)) - 1.5)).rgb;
       gl_FragColor = vec4(pfxCurve(c / 16.0), 1.0); }`;
+  // EYE-GPU (A0 24 Oct; HWCOV): THE EYE ADAPTS ON THE GPU. The 16x16 means (display values: T.eye is a display target, its
+  // sRGB bytes decoded by the sampler as EYE_DEC did on the CPU) to one luminance, and the loop of G1354 in one pixel: from the
+  // factor the measured frame was drawn with (tPrev - this frame's), the stops to the target (x0.45: display space), held to
+  // +-EYE_STOPS, eased with its own time constant up and down. r: the factor, g: the mean (the on-demand read's)
+  const EYE_ADAPT = `uniform sampler2D tMean; uniform sampler2D tPrev; uniform float uDt; uniform vec4 uLaw; uniform vec2 uTau; varying vec2 vUv;
+    void main() {
+      float s = 0.0;
+      for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) s += dot(texture2D(tMean, (vec2(float(x), float(y)) + 0.5) / 16.0).rgb, vec3(0.2126, 0.7152, 0.0722));
+      float lum = s / 256.0, lp = log2(max(1e-3, texture2D(tPrev, vec2(0.5)).r));
+      float k = clamp(lp + log2(uLaw.x / max(0.02, lum)) * uLaw.z, -uLaw.y, uLaw.y);
+      float a = 1.0 - exp(-uDt / (k > lp ? uTau.x : uTau.y));
+      gl_FragColor = vec4(exp2(lp + (k - lp) * a), lum, 0.0, 1.0); }`;
 
   // ---- presets ------------------------------------------------------------------------------
   // the bloom's numbers per compositing: display thresholds sit on the curve (0..1), linear ones are
@@ -277,6 +293,7 @@ const POST_FX = (() => {
     // toneMapped only matters in linear mode, where the renderer's chunks are compiled in (PFX_LINEAR)
     // and run on a draw to the canvas or to a display (XR) target; the sky-glare rule (no curve of our
     // own) holds either way - the chunks ARE the renderer's
+    if (!('tEyeK' in uniforms)) uniforms.tEyeK = EYE_U;   // (EYE-GPU: one uniform object, aa_resolve's - every curve reads the same factor)
     return new THREE.ShaderMaterial(Object.assign({ uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false,
       toneMapped: linear, defines: linear ? { PFX_LINEAR: 1 } : {} }, extra || {}));
   }
@@ -291,6 +308,7 @@ const POST_FX = (() => {
   }
   function init(T3, R, AA) {
     THREE = T3; renderer = R; aa = AA;
+    if (aa && aa.eyeU) EYE_U = aa.eyeU;   // (EYE-GPU: the blit's own uniform object)
     try {
       gl = renderer.getContext && renderer.getContext();
       ready = !renderer.isWebGPURenderer && !!(gl && THREE.WebGLRenderTarget && THREE.ShaderMaterial && aa && aa.setPost && renderer.capabilities && renderer.capabilities.isWebGL2);
@@ -317,8 +335,12 @@ const POST_FX = (() => {
     M.ao = mat(AO, { tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uProj: { value: V2() }, uRadius: { value: 1.2 }, uFrame: { value: 0 } });
     M.aoBlur = mat(AO_BLUR, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uDir: { value: V2() } });
     M.aoApply = mat(AO_APPLY, { tSrc: { value: null }, uPow: { value: 1.0 } }, { blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendEquation: THREE.AddEquation, transparent: true });
+    if (!EYE_U.value) EYE_U.value = eyeWhite();
     M.eye = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });
     T.eye = target(16, 16, false, true);
+    // EYE-GPU: the adaptation (1x1, half float, nearest - two, read one and write the other)
+    M.eyeAdapt = mat(EYE_ADAPT, { tMean: { value: null }, tPrev: { value: null }, uDt: { value: 0 }, uLaw: { value: new THREE.Vector4(EYE_TARGET, EYE_STOPS, 0.45, 0) }, uTau: { value: new THREE.Vector2(EYE_TAU_UP, EYE_TAU_DOWN) } });
+    T.eyeS0 = eyeTarget(); T.eyeS1 = eyeTarget(); eyeInit = false;
     // G1357 the catcher (v2): the copy, the one-pixel decision, the read on a catch; RING mip-mapped half-float slots
     M.catCopy = mat(CAT_COPY, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.catDecide = mat(CAT_DECIDE, { tA: { value: null }, tB: { value: null }, tC: { value: null }, uLod: { value: 6 }, uSpike: { value: CAT.spike }, uSky: { value: CAT.sky } });
@@ -333,7 +355,7 @@ const POST_FX = (() => {
     const w = rt.width, h = rt.height;
     if (sized.w === w && sized.h === h) return;
     sized = { w, h };
-    for (const k in T) if (k !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
+    for (const k in T) if (k.slice(0, 3) !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
     // the bloom pyramid: 1/2 .. 1/32
     let bw = w >> 1, bh = h >> 1;
     for (let i = 0; i < 5; i++) { T['b' + i] = target(bw, bh, true); T['u' + i] = target(bw, bh, true); bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); }
@@ -418,7 +440,7 @@ const POST_FX = (() => {
     draw(M.aoApply, null);
     tEnd(h);
   }
-  // THE EYE: a 16x16 mean, read back asynchronously; the loop on the display mean, in stops
+  // THE EYE: a 16x16 mean and the loop on the display mean, in stops (its CPU history below: G1354 / G1356 / G1357 - since EYE-GPU it's all on the GPU)
   // G1354 THE MEASUREMENT KNOWS ITS EXPOSURE (LIGHT-SMOOTH). The mean comes back a few frames late (async), and the loop
   // used to add the error it implies to the eye AS IT IS NOW: every frame the read was in flight (a GPU busy linking, a
   // stall) integrated the same stale error again - the eye overshot past the target and came back, a swing the user saw
@@ -430,48 +452,52 @@ const POST_FX = (() => {
   // 0.57 for a frame whose canvas mean was ~0.3, and the loop sat on its -1.5 stop floor (eyeK 0.354: the whole frame x0.35
   // whenever `eye` was on). The bytes are decoded once (the hardware's encode is the standard sRGB curve, exactly
   // inverted by this table), leaving the display values pfxCurve wrote. The display compositing's T.eye is a plain RGBA8.
-  const EYE_DEC = (() => { const t = new Float32Array(256); for (let i = 0; i < 256; i++) { const v = i / 255; t[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return t; })();
-  // G1357 (EVEN-30's long tasks): the eye's read is a call into the GPU process in Chrome (the fence's poll, the buffer's
-  // copy) - one in flight, issued from the frame, and at most every EYE_READ_MS (its loop's time constant is 1.5-2 s:
-  // four reads a second lose nothing; a read a frame paid a wait a frame while the GPU process was busy linking)
-  const EYE_READ_MS = 250;
-  let eyeBusy = false, eyeK = 1, eyeLast = 0, eyeKRead = 1, eyeIssued = -1e9;
-  const eyeBuf = (typeof Uint8Array !== 'undefined') ? new Uint8Array(16 * 16 * 4) : null;
+  // EYE-GPU (A0 24 Oct; HWCOV; the user's flights of 24 Oct): THE EYE NEVER READS BACK. It read its 16x16 mean back to the CPU
+  // four times a second (readRenderTargetPixelsAsync: a fence, then a copy - a call into the GPU process) and, the GPU process
+  // busy linking programs, one read held the page 1.3-1.9 s in cruise (the log: TimerHandler setTimeout r - three's probeAsync).
+  // Now the mean goes into a 1x1 target and the loop runs there (EYE_ADAPT), every frame; the factor is a texture the curves and
+  // aa_resolve's blit read (tEyeK). The CPU's eye stays 1 (GFX.setEye: the exposure contract untouched); stats.eyeK / eyeLum
+  // are what the last ON-DEMAND read found (eyeRead(): the dev panel, a rig - never the frame). Linear compositing only: in
+  // display mode the tone map is every scene material's own, so the eye is off there.
+  let EYE_U = { value: null }, eyeInit = false, eyeCur = 0, eyeLast = 0, eyeK = 1, eyeReading = false;
+  const eyeWhite = () => (aa && aa.eyeWhite) ? aa.eyeWhite() : (() => { const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
+  function eyeTarget() {
+    return new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false });
+  }
+  const CLR = { c: null, a: 1 };
+  function eyeClear(t) {   // a target to factor 1 (the loop starts from the schedule)
+    if (!CLR.c) CLR.c = new THREE.Color();
+    renderer.getClearColor(CLR.c); CLR.a = renderer.getClearAlpha();
+    renderer.setRenderTarget(t); renderer.setClearColor(0xffffff, 1); renderer.clear(true, false, false);
+    renderer.setClearColor(CLR.c, CLR.a);
+  }
   function eye(rt) {
-    const tIssue = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-    if (!renderer.readRenderTargetPixelsAsync || eyeBusy || tIssue - eyeIssued < EYE_READ_MS) { tick(); return; }
-    eyeIssued = tIssue;
+    if (!linear) { eyeOff(); return; }
+    const now = (typeof performance !== 'undefined') ? performance.now() : Date.now(), dt = eyeLast ? Math.min(0.1, (now - eyeLast) / 1000) : 0; eyeLast = now;
+    if (!eyeInit) { eyeClear(T.eyeS0); eyeClear(T.eyeS1); eyeInit = true; eyeCur = 0; EYE_U.value = T.eyeS0.texture; }
     const h = tBegin('eye');
     M.eye.uniforms.tSrc.value = rt.texture; M.eye.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
-    draw(M.eye, T.eye);
+    draw(M.eye, T.eye);   // the frame's means, drawn with the factor it had (EYE_U: prev)
+    const prev = eyeCur ? T.eyeS1 : T.eyeS0, next = eyeCur ? T.eyeS0 : T.eyeS1, u = M.eyeAdapt.uniforms;
+    u.tMean.value = T.eye.texture; u.tPrev.value = prev.texture; u.uDt.value = dt;
+    draw(M.eyeAdapt, next);
     tEnd(h);
-    eyeBusy = true;
-    const kAt = eyeK;   // the eye this frame was drawn with
-    const dec = (T.eye.texture.colorSpace === THREE.SRGBColorSpace && T.eye.texture.type === THREE.UnsignedByteType) ? EYE_DEC : null;
-    renderer.readRenderTargetPixelsAsync(T.eye, 0, 0, 16, 16, eyeBuf).then(() => {
-      let s = 0;
-      if (dec) for (let i = 0; i < 256; i++) s += 0.2126 * dec[eyeBuf[i * 4]] + 0.7152 * dec[eyeBuf[i * 4 + 1]] + 0.0722 * dec[eyeBuf[i * 4 + 2]];
-      else for (let i = 0; i < 256; i++) s += (0.2126 * eyeBuf[i * 4] + 0.7152 * eyeBuf[i * 4 + 1] + 0.0722 * eyeBuf[i * 4 + 2]) / 255;
-      stats.eyeLum = s / 256; eyeKRead = kAt; eyeBusy = false;
-    }).catch(() => { eyeBusy = false; });
-    tick();
+    eyeCur ^= 1; EYE_U.value = next.texture;   // the next frame's curves and blit
   }
-  function tick() {
-    const now = performance.now(), dt = eyeLast ? Math.min(0.1, (now - eyeLast) / 1000) : 0; eyeLast = now;
-    if (S.eye === 'off') { eyeK = 1; }
-    else if (stats.eyeLum > 0) {
-      // the mean the eye wants, in stops from the mean it sees (the picture is display-space:
-      // a stop of exposure is ~0.45 of the mean's log2 here, so the loop is scaled to it)
-      const want = Math.log2(EYE_TARGET / Math.max(0.02, stats.eyeLum)) * 0.45;
-      let k = Math.log2(eyeKRead) + want;   // G1354: from the exposure the measured frame had
-      k = Math.max(-EYE_STOPS, Math.min(EYE_STOPS, k));
-      const tau = k > Math.log2(eyeK) ? EYE_TAU_UP : EYE_TAU_DOWN;
-      const a = 1 - Math.exp(-dt / tau);
-      eyeK = Math.pow(2, Math.log2(eyeK) + (k - Math.log2(eyeK)) * a);
-    }
-    stats.eyeK = eyeK;
-    const G = (typeof window !== 'undefined') ? window.GFX : null;
-    if (G && G.setEye) G.setEye(eyeK);
+  function eyeOff() {
+    if (EYE_U.value && THREE) EYE_U.value = eyeWhite();
+    eyeInit = false; eyeLast = 0;
+    if (eyeK !== 1) { eyeK = 1; stats.eyeK = 1; }
+  }
+  // the ON-DEMAND read (the dev panel, a rig): the factor and the mean the GPU holds now - async, one at a time, never the frame
+  function eyeRead() {
+    if (eyeReading || !eyeInit || !renderer || !renderer.readRenderTargetPixelsAsync) return Promise.resolve({ eyeK: stats.eyeK, eyeLum: stats.eyeLum });
+    eyeReading = true;
+    const t = eyeCur ? T.eyeS0 : T.eyeS1, buf = new Uint16Array(4);
+    return renderer.readRenderTargetPixelsAsync(t, 0, 0, 1, 1, buf).then(() => {
+      const H = THREE.DataUtils; stats.eyeK = +H.fromHalfFloat(buf[0]).toFixed(4); stats.eyeLum = +H.fromHalfFloat(buf[1]).toFixed(4);
+      eyeReading = false; return { eyeK: stats.eyeK, eyeLum: stats.eyeLum };
+    }, () => { eyeReading = false; return { eyeK: stats.eyeK, eyeLum: stats.eyeLum }; });
   }
 
   // ---- THE CATCHER (G1357, LIGHT-SMOOTH for A0, 2026-10-03; v2 2026-10-04: NO READBACK A FRAME) ---------------------
@@ -658,7 +684,7 @@ const POST_FX = (() => {
     if (S.ao !== 'off') { ao(rt, camera); stats.passes++; }
     if (S.rays !== 'off') { rays(rt, camera); stats.passes++; }
     if (S.bloom !== 'off') { bloom(rt); stats.passes++; }
-    if (S.eye !== 'off') { eye(rt); stats.passes++; } else if (eyeK !== 1) tick();
+    if (S.eye !== 'off' && linear) { eye(rt); stats.passes++; } else if (eyeInit) eyeOff();   // (EYE-GPU)
     renderer.autoClear = ac;
     renderer.setRenderTarget(prevTarget);
   }
@@ -675,7 +701,7 @@ const POST_FX = (() => {
     if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
     if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
     if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
-    if (S.eye !== 'off') add(M.eye);
+    if (S.eye !== 'off' && linear) { add(M.eye); add(M.eyeAdapt); }   // (EYE-GPU: the adaptation's 1x1 pass)
     return out;
   }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
@@ -685,7 +711,7 @@ const POST_FX = (() => {
     if (on && !hooked) { aa.setPost(render); hooked = true; }
     if (!on && hooked) { aa.setPost(null); hooked = false; }
     if (aa.needRT) aa.needRT(on, 'post');
-    if (!on && eyeK !== 1) { eyeK = 1; stats.eyeK = 1; const G = (typeof window !== 'undefined') ? window.GFX : null; if (G && G.setEye) G.setEye(1); }
+    if (!on) { eyeOff(); const G = (typeof window !== 'undefined') ? window.GFX : null; if (G && G.setEye && G.eye && G.eye() !== 1) G.setEye(1); }   // (EYE-GPU: eyeK = 1 on the CPU always)
     return on;
   }
   function set(k, v) { if (!(k in S)) return false; S[k] = v; return apply(); }
@@ -694,9 +720,10 @@ const POST_FX = (() => {
   function dispose() {
     for (const k in T) { T[k].dispose(); delete T[k]; }
     for (const k in M) { M[k].dispose(); delete M[k]; }
+    if (EYE_U && THREE) EYE_U.value = eyeWhite(); eyeInit = false;   // (EYE-GPU: the factor back to 1 with its targets gone)
     installed = false; sized = { w: 0, h: 0 }; cat.gen++; cat.q.length = 0;   // (G1357: a read or query in flight on a disposed target lands nowhere)
   }
-  const API = { S, KEYS, BLOOM, stats, catcher, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, BLOOM, stats, catcher, eyeRead, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();

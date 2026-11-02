@@ -61,7 +61,8 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
+// G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;
@@ -154,7 +155,7 @@ const PROCURE_ENGINES = {
 // editor writes), as the A-65's dict + each engine's differences. Without them the panel's load audit reads the old
 // engine's dials under the new index and turns the engine "custom" (measured on the page, G2280); GATE PROCURE holds
 // every dict byte-equal to applyEngPreset's
-const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
+const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exPair: 0, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
 const PROCURE_ENG_DIALS = {
   a65: {},
   o200: {eng_rpm: 2750, eng_bore: 0.1031875, eng_stroke: 0.098425},
@@ -206,16 +207,16 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 50, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11025, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 40, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 27, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -710, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 24, tankL: 0, seats: 0 }) } } } },
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -11033, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
+                                                                     c172f: PE_({ cost: -715, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 728, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 52, tankL: 14.8, seats: 0 }),
-                                                                c172f: PE_({ cost: 724, emptyKg: 7, massKg: 17, toM: 27, cruiseKmh: 2, rangeKm: 60, tankL: 14.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 683, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                                                c172f: PE_({ cost: 681, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
                                     3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1513, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                                          c172f: PE_({ cost: -1522, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
                                          basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
                                                                        c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
@@ -389,9 +390,17 @@ function prCanon(v) {
   const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
   return '{' + ks.map(k => JSON.stringify(k) + ':' + prCanon(v[k])).join(',') + '}';
 }
-// the spec minus what is not the aeroplane (bench.js benchStripCosmetic's blocks and state rows; every other row
-// counts) -> 8 hex digits, the physics version folded in (a certificate from an older physics is another's)
+// G3780 CERT-RULE (the user 26 Oct: "R1-R6 yes"; CERT-REVIEW M3): the factory certificate is signed with the bench's
+// MAJOR fingerprint - ONE list (66b_cert_rule.js certMajor: no version tag, no minor or measured row), so a game update,
+// a passenger, a GPS or the cabin's light switches never make a bought aeroplane MODIFIED or bill it again (the
+// PROCURE_STATE_ROWS copy below had drifted from the bench's: the G3449 switches billed). The old `p1` hash stays only
+// to recognise an airframe signed under it (procureP1Matches).
 function procureFp(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const M = (typeof certMajor === 'function') ? certMajor(spec) : null;
+  return M ? M.fp : procureFpP1(spec);
+}
+function procureFpP1(spec, sv, pv) {
   if (!spec || typeof spec !== 'object') return null;
   const c = prClone(spec);
   for (const k of PROCURE_COSMETIC.concat(PROCURE_READOUTS)) delete c[k];
@@ -401,8 +410,23 @@ function procureFp(spec) {
   }
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
-  const tag = 'p1|v' + (typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0) + '|p' + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0) + '|';
+  // G2820: a STOL record at "every device off" (null) is the absent key (bench.js's rule)
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);   // G2827: the rows at "off" are absent
+  if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
+  if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;
+  const tag = 'p1|v' + sv + '|p' + pv + '|';
   return ('0000000' + contractHash(tag + prCanon(c)).toString(16)).slice(-8);
+}
+// M3: was `h` this same spec's p1 signature under ANY version the game ever had? (then the airframe never changed)
+function procureP1Matches(spec, h) {
+  if (!spec || !h) return false;
+  const SV = Math.max(10, typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0), PV = Math.max(6, typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0);
+  // G3780 CERT-POD: the pod is a bolt-on outside the certificate - an airframe signed before its pod was fitted is the same
+  const bodies = [spec];
+  if (spec.pod !== undefined) { const np = prClone(spec); delete np.pod; bodies.push(np); }
+  for (const b of bodies) for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) if (procureFpP1(b, sv, pv) === h) return true;
+  return false;
 }
 // a ledger (buildGen's parts.ledger) as the airframe row keeps it: { key: [mass kg 0.01, cost 1] }
 function procureLedgerOf(L) {
@@ -750,7 +774,37 @@ function procureAnchor(doc, slot, spec, opts) {
 // ledger it measured (buildGen). An airframe whose spec no longer carries its certificate's fingerprint is MODIFIED:
 // `factory` false, the certificate withdrawn (kept, struck, with the reason), the change billed (dm11) once; a save
 // that only repainted it (the fingerprint unmoved) changes nothing. -> { ok, doc, modified, bill, why }
+// G3465 / G3780 (BELLY-POD-2; the user 27 Oct: "Belly pod should indeed be excluded from certificates"): THE POD IS A
+// BOLT-ON OUTSIDE THE CERTIFICATE. Fitting, resizing or removing it never withdraws, re-checks or re-stamps one: the
+// certificate's rule below (procureOnSaveCert - the cert rule's own, unchanged) is handed the aeroplane WITHOUT its pod
+// and the ledger without the pod's line (the cert rule's procureFp leaves the pod out too - claude/ready/cert-pod;
+// stripping it here keeps that true on any base). The pod is billed as ITS OWN LEDGER LINE (60d: the moulding, the
+// fittings, the hatch), on every airframe alike: a save whose pod costs more than was paid for a pod before
+// (`podPaid`) pays the difference ('upgrade'); a smaller or removed pod refunds nothing; a pod fitted again is paid
+// again. (A pod billed before this rule sits in the airframe's ledger: that line counts as paid.) -> { ok, doc,
+// modified, bill, why }, the pod's line joined to the certificate side's bill
 function procureOnSave(doc, slot, spec, ledger) {
+  const A0 = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A0) return procureOnSaveCert(doc, slot, spec, ledger);
+  const podNow = ledger && ledger.pod ? Math.round(+ledger.pod.cost || 0) : 0;
+  const paid = A0.podPaid != null ? A0.podPaid : (A0.ledger && A0.ledger.pod ? Math.round(+A0.ledger.pod[1] || 0) : 0);
+  let d0 = doc, podBill = null;
+  if (podNow !== paid || (A0.ledger && A0.ledger.pod)) {
+    d0 = prClone(doc);
+    const R = d0.career.airframes[slot], cost = Math.max(0, podNow - paid);
+    R.podPaid = podNow;
+    if (R.ledger && R.ledger.pod) delete R.ledger.pod;        // (the certificate side's ledger never carries the pod)
+    if (cost > 0) { playerCharge(d0, cost, 'upgrade', slot); podBill = { cost, lines: [{ k: 'pod', cost }] }; }
+  }
+  const specC = spec && typeof spec === 'object' ? Object.assign({}, spec, { pod: undefined }) : spec;
+  let ledgerC = ledger;
+  if (ledger && ledger.pod) { ledgerC = Object.assign({}, ledger); delete ledgerC.pod; }
+  const r = procureOnSaveCert(d0, slot, specC, ledgerC);
+  if (!podBill) return r;
+  const b = r.bill;
+  return Object.assign({}, r, { bill: b ? { cost: (b.cost || 0) + podBill.cost, lines: (b.lines || []).concat(podBill.lines) } : podBill });
+}
+function procureOnSaveCert(doc, slot, spec, ledger) {
   const c = doc && doc.career, A = c && c.airframes && c.airframes[slot];
   if (!A) return { ok: true, doc, modified: false, bill: null, why: 'not an airframe of the career' };
   const fp = procureFp(spec);
@@ -758,6 +812,19 @@ function procureOnSave(doc, slot, spec, ledger) {
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
   if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // G3780 M3: SIGNED UNDER THE OLD HASH, THE SAME AEROPLANE: re-signed with the major fingerprint, nothing withdrawn,
+  // nothing billed - and an airframe an earlier update alone had made MODIFIED (its file's own p1 under another
+  // version) gets its maker's certificate back (that bill was nothing: an update moves no ledger row)
+  if (A.fps !== 'p2' && procureP1Matches(spec, A.fp)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: !!R.modified, bill: null, why: 're-signed under the certificate rule (G3780)' };
+  }
+  if (A.modified && !A.factory && A.withdrawn && A.withdrawn.cert && A.fps !== 'p2' && A.fpFile && procureP1Matches(spec, A.fpFile)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.factory = true; R.modified = false; R.cert = R.withdrawn.cert; delete R.withdrawn; R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: false, bill: null, why: "the maker's certificate restored: only a game update had moved it (G3780)" };
+  }
   const L1 = ledger ? procureLedgerOf(ledger) : null;
   const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
   const cost = (A.ledger && L1) ? procureEcon('edit', { cost: B.cost, slot }) : 0;

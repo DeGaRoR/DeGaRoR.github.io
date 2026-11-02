@@ -448,7 +448,7 @@ for (const CT of Wd.cities) {
   // the procedural path untouched: the village, the editor's premises, the piers keep their builds (no city host on them)
   check(/kitOf\(p\) >= 0 \? buildKitLot\(p, R\) : buildHouse\(p, R\)/.test(RP), 'H the unique / kit dispatch is as it was (buildHouse for every non-kit plot: the village, the editor\'s premises, the piers)');
   // the city host, behind its flag (default off) and the town's
-  check(/const CITY = \{ want: !!\(KT\.want && typeof location !== 'undefined' && \/\[\?&\]cityhost=1\\b\/\.test/.test(RP), 'H the city host only with the town on (KT.want) and ?cityhost=1');
+  check(/const CITY = \{ want: !!\(KT\.want && !\(typeof location !== 'undefined' && \/\[\?&\]cityhost=0\\b\/\.test/.test(RP), 'H the city host with the town on (KT.want), the default since METLA-ON; ?cityhost=0 the old kit host');
   check(/if \(cityOwn\(p\) === 1\) \{ CITY\.stubs\+\+; return \{ grp: new THREE\.Group\(\), tris: 0, extra: \[\], lights: 0 \}; \}/.test(RP) && /cityOwn\(p\) === 1 \? null : p\.isItem \? 'item'/.test(RP),
     'H a pack entry builds nothing (an unparented entry in HOUSES), is never sent to the worker');
   check(/: cityOwn\(p\) \? cityBuildOne\(p, R\) : kitOf\(p\) >= 0 \? buildKitLot\(p, R\) : buildHouse\(p, R\); if \(h && CITY\.on\) cityBoundBuilt\(p, h\);/.test(RP), 'H the dispatch: the pack\'s first, then the kit lot / the unique house as before');

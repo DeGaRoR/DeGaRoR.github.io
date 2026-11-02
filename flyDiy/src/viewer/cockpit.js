@@ -418,10 +418,10 @@ function make(THREE) {
   };
 
   // ---- the cockpit view: the pilot goes away -----------------------------------
-  // The pilot is the crew layer's FIRST occupant (dums[0], the one whose
-  // head the eye is published off), flown as a live character (G246:
-  // model.people[0].inst, its `meshes`) or, on a build without the crew
-  // characters, as the `dummy1` buckets of the bake. Both are hidden while
+  // The pilot is the crew layer's pilot occupant (the one whose head the eye
+  // is published off), flown as a live character (G246:
+  // model.people[0].inst, its `meshes`) or as the character's buckets of the
+  // bake (`char`, CK.pilotKey). Both are hidden while
   // you look out of that head — the eye sits INSIDE it, and a skull around
   // the camera is a black screen. The character's meshes land async, so
   // this is asked every frame and hides what has arrived since.
@@ -431,7 +431,7 @@ function make(THREE) {
     const mats = model.mats || {};
     if (!CK.hidden.length) for (const k in model.meshes) {
       const m = mats[k] || {};
-      const isPilot = (CK.pilotKey && m.char === CK.pilotKey) || m.sec === 'dummy1';
+      const isPilot = CK.pilotKey && m.char === CK.pilotKey;
       if (isPilot && model.meshes[k].visible) { model.meshes[k].visible = false; CK.hidden.push(model.meshes[k]); }
     }
     const P = model.people && model.people[0];

@@ -18,7 +18,10 @@
 //   ui      'touch'   html.phone: phone.css re-lays the workshop (the view over a sheet in portrait, beside it in
 //                     landscape, a tab bar in the thumb zone) and phone.js gives the sliders a finger knob (R4-R13)
 //   preset  'laptop'  the lightest picture (POTATO-DEEP's rung under potato), unless ?gfx= says otherwise
-//   rail    the view rail's entries kept (the rest are a desktop's: controls, sound, the legend, the sky)
+//   rail    the view rail's entries kept (the rest are a desktop's: controls, sound, the legend, the sky). G3725: the rail
+//           is off the screen on every version now (its items are MENU pages); kept for the rigs
+//   room    'studio' (G3726, PHONE-GARAGE; the user, 25 Oct: "no garage at all, just dark studio as we had said" - the M2
+//           ruling of 4 Oct): the shed is never built; the aeroplane stands in a pool of light on black (studio.js)
 //   benchOff the bench's tests that are not offered (bench.js usable): the test flight, the crosswind and the hydro test
 //            need the world; the live sandbag rig runs seconds of a worker - its heat on a phone is measured first (v2).
 //            The bench check (the shakedown) and the density altitude stay: pure computations, no world
@@ -30,9 +33,9 @@
   const W = typeof window !== 'undefined' ? window : null;
   if (!W) return;
   const TABLE = {
-    desktop: { boot: 'full', fly: 'roll', ui: 'desk', preset: null, rail: null, benchOff: null },
+    desktop: { boot: 'full', fly: 'roll', ui: 'desk', preset: null, rail: null, benchOff: null, room: 'shed' },
     phone: { boot: 'garage', fly: 'none', ui: 'touch', preset: 'laptop', rail: ['camera', 'display', 'explode', 'graphics'],
-             benchOff: ['flight', 'xwind', 'load', 'hydro'] },
+             benchOff: ['flight', 'xwind', 'load', 'hydro'], room: 'studio' },
   };
   const P = W.PROFILE = {
     TABLE, name: 'desktop', why: 'the trunk',

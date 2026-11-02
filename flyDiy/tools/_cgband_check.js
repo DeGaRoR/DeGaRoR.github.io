@@ -6,7 +6,8 @@
 //           orange; "!" on red and orange only; every band has its reasons (and a fix where one is owed); no margin, no band
 //   BUILDS  the band of real aeroplanes, joined as the game loads them: the user's corrected Cub green, the user's
 //           'birdman (1)' (CG 18 % behind the neutral point) red, when it is on this machine
-//   PAGE    app.js colours both posts, both labels and the ground bar from the band (no old amber / cyan / red test left)
+//   PAGE    app.js colours both posts, both labels and the ground bar from the band (no old amber / cyan / red test left),
+//           the CG readout opens on a warning sign on red and orange (G3452)
 //           and opens the tooltip on a hover AND a tap
 //   node tools/_cgband_check.js     -> "GATE CGBAND: PASS|FAIL"
 'use strict';
@@ -44,6 +45,7 @@ ok(/genMarginBand\(smV\)/.test(app), 'the indicator reads its band from genMargi
 ok(/post\(cg\[0\], cg\[2\], COL, 3\.2\)/.test(app) && /post\(npx, npz, COL, 2\.8\)/.test(app), 'both posts wear the band colour');
 ok(/'neutral point', COL, smTxt/.test(app) && /'centre of gravity', COL, cgTxt/.test(app), 'both labels wear the band colour');
 ok(!/smBad/.test(app), 'the old red-below-5 % test is gone');
+ok(/if \(MB && MB\.mark\) cgTxt = '(?:\\u26a0|⚠) ' \+ \(cgTxt \|\| MB\.title\)/.test(app), 'G3452: the CG readout opens on a warning sign on red and orange (the band\'s mark)');
 ok(/cgTipHover\(e\.clientX, e\.clientY\)/.test(app) && /cgTipTap\(e\.clientX, e\.clientY, e\.pointerType === 'mouse'\)/.test(app), 'the tooltip opens on a hover and on a tap');
 const css = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'editor.css'), 'utf8');
 ok(/#cgTip\b/.test(css) && /#cgTip\.b-red/.test(css) && /#cgTip\.b-orange/.test(css) && /#cgTip\.b-green/.test(css), 'the tooltip is styled per band (editor.css)');

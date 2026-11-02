@@ -51,6 +51,7 @@
 
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const CG2 = window.CAGE2, GG = window.GEAR_GEN, K = window.GEAR_KIT;
+let OPEN_BAND = { P: null, v: null };     // G3519: the open cockpits' crown band, once a build
 const SITE = window.FIT_SITE, FG = window.FIT_GEN;
 if (!SITE || !FG || !K) {
   console.error('cage access layer: fitting modules not loaded');
@@ -93,6 +94,15 @@ const accFitKeys = () => {
   return T ? Object.keys(T) : [];
 };
 const ACC_KEYS = accFitKeys();
+// FITTINGS-MANUAL: what the auto site was, per fitting, on the last build ({ kind, z, h }: z metres from the firewall
+// along the table's tape, h percent of the local height on a flank - or the span / chord on a wing) - the follow rows
+// read it, and unticking one writes it as the row's own, so a fitting taken by hand starts exactly where it stood.
+// ABSENT ROWS ARE AUTO: the keys are not in the defaults, so no file written before them carries them.
+let AUTO = {}, AUTO_BUILT = false;
+const autoVal = (k, q) => (AUTO[k] && AUTO[k][q] != null ? AUTO[k][q] : null);
+// (a fitting this aeroplane does not carry has no rows once a build has said so)
+const handKind = k => (AUTO[k] ? AUTO[k].kind : (AUTO_BUILT ? 'none' : 'flank'));
+const handVal = v => (v == null || v === '' || !isFinite(+v) ? null : +v);
 for (const k of ACC_KEYS) { accDef['acc_' + k + '_sL'] = 0;
                             accDef['acc_' + k + '_lv'] = 0; }
 
@@ -111,6 +121,10 @@ const GROUP = ['9 · fittings', [
 ], 'open'];
 // one subgroup per family, filled after FAMILY is declared (below) so the two
 // tables cannot disagree about which fitting belongs where
+// FITTINGS-MANUAL (the user, 27 Oct: "the auto place messes up; every fitting must be placeable BY HAND ... The move
+// controls should NOT be hidden under expert rows"): the PLACEMENT subgroup, in the normal panel, one fore/aft and one
+// height row per fitting - each follows the auto site until it is unticked (the frames' follow widget, T2.1)
+GROUP[1].push(['placement', [], { when: P => +P.accOn }]);
 GROUP[1].push(['fine placement', [], { when: P => +P.accOn, level: 'expert' }]);
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -140,8 +154,25 @@ const FAMILY = {
                  accInstr: 'instruments', accAerials: 'aerials & lights',
                  accHandling: 'steps & handles', accOn: 'unfamilied' };
   const host = GROUP[1][GROUP[1].length - 1][1];
+  const hostHand = GROUP[1][GROUP[1].length - 2][1];
   const T = (typeof GEN_ACCESS !== 'undefined') ? GEN_ACCESS : window.GEN_ACCESS;
   for (const fam of Object.keys(bin)) {
+    const hand = [];
+    for (const k of bin[fam]) {
+      const label = (T && T[k] && T[k].name) ? T[k].name : k;
+      const on = T && T[k] ? T[k].on : null;
+      if (on === 'cowl') continue;                 // the cowl draws its own oil door (G213)
+      const wing = on === 'wing' || on === 'wing2';
+      const opt = q => ({ follow: () => autoVal(k, q), followTitle: 'auto - the table places it; untick to place it ' +
+        'by hand (tick again, or double-click the label: back to auto)' });
+      hand.push(['acc_' + k + '_z', label + (wing ? ' — span' : ' — fore/aft'), wing ? 0 : -3, wing ? 9 : 12, 0.005,
+                 Object.assign({ dim: 'm', when: P => handKind(k) !== 'none' }, opt('z'))]);
+      hand.push(['acc_' + k + '_h', label + (wing ? ' — chord' : ' — height %'), 0, wing ? 1.7 : 100, wing ? 0.01 : 0.5,
+                 Object.assign({ when: P => ['flank', 'wing'].includes(handKind(k)) }, opt('h'))]);
+    }
+    if (hand.length)
+      hostHand.push([NAME[fam] || fam, hand,
+                     { when: P => +P.accOn && +(P[fam] === undefined ? 1 : P[fam]) }]);
     const rows = [];
     for (const k of bin[fam]) {
       const label = (T && T[k] && T[k].name) ? T[k].name : k;
@@ -170,6 +201,110 @@ function pitchFor(material) {
 // the mounting frame at a site lives in _fit_site.js, so the gate builds the
 // same one the aeroplane does — see THE MOUNTING FRAME AT A SITE there.
 const frameAt = SITE.frameAt;
+
+// ---------------------------------------------------------------------------
+// BY HAND (FITTINGS-MANUAL, 2026-10-27)
+// ---------------------------------------------------------------------------
+// The user: "the auto place messes up; every fitting must be placeable BY HAND". Two numbers a fitting, the table's
+// own tape: FORE/AFT is metres from the firewall along the body (the field's sL - the same tape every row of
+// GEN_ACCESS is written in), HEIGHT is percent of the section at that station on the flank (0 the keel, 100 the
+// top), so a hand-placed handle keeps its place on the side when the fuselage is reshaped. No snap: the site is the
+// skin's own point there (the field's exact barycentric lookup), and everything after the site - the frame, the
+// sagitta lift, the clip, the bags - is today's. A centreline fitting (crown, keel) takes the fore/aft only, a wing
+// fitting its span (m from the root) and chord (the field's lv), a rod or boom fitting its station; the cowl's oil
+// door is the cowl's (G213) and has none.
+function handKindOf(row, atLV) {
+  const on = row.on;
+  if (on === 'cowl') return 'none';
+  if (on === 'rod' || on === 'boom') return on;
+  if (on === 'wing' || on === 'wing2') return 'wing';
+  if (on === 'door') return 'flank';
+  return atLV === 'crown' || atLV === 'keel' ? 'spine' : 'flank';
+}
+// the section's keel and top at a station (the spine chains, interpolated - crownSite), and a height as a percent
+const sectionYs = (mesh, sLc) => {
+  const top = SITE.crownSite(mesh, sLc, 1), keel = SITE.crownSite(mesh, sLc, -1);
+  return top && keel && top.p[1] > keel.p[1] + 1e-6 ? [keel.p[1], top.p[1]] : null;
+};
+// the field at a point of the skin (the door handle's auto site is walked along the door's edges, not looked up):
+// the face under the point in the side view, on its flank, nearest in x, its corners' field interpolated
+function fieldAt(mesh, p) {
+  const V = mesh.V, A = mesh.A;
+  if (!V || !A) return null;
+  let best = null;
+  for (const f of mesh.F) {
+    const v = f.v;
+    if (v.length < 3 || v.some(i => !A[i])) continue;
+    for (let t = 1; t + 1 < v.length; t++) {
+      const a = V[v[0]], b = V[v[t]], c = V[v[t + 1]];
+      if ((a[0] + b[0] + c[0]) * p[0] <= 0) continue;
+      const den = (b[1] - c[1]) * (a[2] - c[2]) + (c[2] - b[2]) * (a[1] - c[1]);
+      if (Math.abs(den) < 1e-12) continue;
+      const w0 = ((b[1] - c[1]) * (p[2] - c[2]) + (c[2] - b[2]) * (p[1] - c[1])) / den;
+      const w1 = ((c[1] - a[1]) * (p[2] - c[2]) + (a[2] - c[2]) * (p[1] - c[1])) / den;
+      const w2 = 1 - w0 - w1;
+      if (w0 < -1e-6 || w1 < -1e-6 || w2 < -1e-6) continue;
+      const dx = Math.abs(a[0] * w0 + b[0] * w1 + c[0] * w2 - p[0]);
+      if (!best || dx < best.dx) {
+        const fa = A[v[0]], fb = A[v[t]], fc = A[v[t + 1]];
+        best = { dx, A: fa.map((x, i) => x * w0 + fb[i] * w1 + fc[i] * w2) };
+      }
+    }
+  }
+  return best && best.dx < 0.05 ? best.A : null;
+}
+const r4 = v => (v == null || !isFinite(v) ? null : Math.round(v * 1e4) / 1e4);
+// THE AUTO SITE, as the two hand numbers (what the follow rows show, and where a fitting taken by hand starts)
+function autoOf(row, kind, sites, atSL0, mesh, K2) {
+  const out = { kind, z: null, h: null };
+  if (kind === 'rod' || kind === 'boom') { out.z = r4(atSL0); return out; }
+  if (!sites.length) return out;
+  const s = sites.find(q => q.side === 'star') || sites[0];
+  if (kind === 'wing') { out.z = r4(s.sL); out.h = r4(s.lv); return out; }
+  let sLc = s.sL;
+  if (s.mat === 'door' || sLc == null) { const f = fieldAt(mesh, s.p); sLc = f ? f[0] : null; }
+  if (sLc == null) return out;
+  out.z = r4(sLc * K2);
+  if (kind === 'flank') {
+    const ys = sectionYs(mesh, sLc);
+    if (ys) out.h = r4((s.p[1] - ys[0]) / (ys[1] - ys[0]) * 100);
+  }
+  return out;
+}
+// THE HAND SITE: the skin's point at that station and height, on the asked flank(s)
+function handSites(row, kind, zM, hV, atLV, want, mesh, K2, WF) {
+  if (kind === 'wing')
+    return WF ? SITE.accessSites(WF, { sL: zM, lv: hV != null ? hV : row.at.lv, sC: row.at.sC, snap: 'free',
+                                       side: row.side, allow: [row.on] }) : [];
+  const sLc = zM / K2;
+  if (kind === 'spine') return SITE.accessSites(mesh, { sL: sLc, lv: atLV, snap: 'free', side: want });
+  const ys = sectionYs(mesh, sLc);
+  if (!ys) return [];
+  const yT = ys[0] + Math.max(0, Math.min(100, hV != null ? hV : 50)) / 100 * (ys[1] - ys[0]);
+  // the rail coordinate whose flank point stands at that height: lv runs keel (0) to roof (5) up the flank, so
+  // its height is monotone and a bisection settles it
+  const sgn = want === 'port' ? -1 : 1;
+  const yAt = lv => {
+    let b = null;
+    for (const h of SITE.fieldHits(mesh, SITE.AX_RAIL, sLc, lv))
+      if (h.p[0] * sgn > -1e-4 && (!b || h.p[0] * sgn > b.p[0] * sgn)) b = h;
+    return b ? b.p[1] : null;
+  };
+  let lo = 0, hi = 5;
+  const y0 = yAt(lo), y1 = yAt(hi);
+  if (y0 == null || y1 == null) return [];
+  let lv;
+  if (yT <= y0) lv = lo; else if (yT >= y1) lv = hi;
+  else {
+    for (let i = 0; i < 40; i++) {
+      const m = (lo + hi) / 2, ym = yAt(m);
+      if (ym == null) break;
+      if (ym < yT) lo = m; else hi = m;
+    }
+    lv = (lo + hi) / 2;
+  }
+  return SITE.accessSites(mesh, { sL: sLc, lv, snap: 'free', side: want, allow: row.on === 'door' ? ['door'] : [] });
+}
 
 // ---------------------------------------------------------------------------
 // THE OTHER TWO SURFACES (G84)
@@ -503,6 +638,25 @@ PAGE.post = ctx => {
   }
   const R = needs(P, extra);
   const rows = list(R);
+  // FITTINGS-MANUAL: EVERY FITTING OF THE TABLE HAS ITS PLACEMENT ROWS, and one this aeroplane's table does not fit
+  // (the Cub's step: its sill is under the 0.62 m the table asks) is fitted once it is placed by hand - saying where
+  // it goes is asking for it. Until then its would-be site is looked up and published, never drawn. The row is
+  // resolved the way genAccessList resolves one (60_gen_spec.js).
+  {
+    const T0 = (typeof GEN_ACCESS !== 'undefined') ? GEN_ACCESS : window.GEN_ACCESS;
+    for (const key of Object.keys(T0 || {})) {
+      if (rows.some(r => r.key === key)) continue;
+      const row = T0[key];
+      let at = null;
+      try { at = row.at(R); } catch (e) { at = null; }
+      if (!at) continue;
+      rows.push({ key, n: 1, at, absent: true, name: row.name, serves: row.serves,
+        on: typeof row.on === 'function' ? (row.on(R) || 'body') : (row.on || 'body'),
+        snap: row.snap || 'free',
+        side: typeof row.side === 'function' ? row.side(R) : (row.side || 'both'),
+        form: typeof row.form === 'function' ? row.form(R) : row.form, size: row.size });
+    }
+  }
 
   // AF is used only for the conforming surface under a large plate, so it is
   // optional by construction: no gear, no AF, and the plates lie on their own
@@ -528,13 +682,14 @@ PAGE.post = ctx => {
   let wingF = null, wingTried = false;
   let wingF2 = null, wing2Tried = false;      // G185: the second plane's field
 
+  AUTO = {}; AUTO_BUILT = true;
   for (const row of rows) {
     const fam = FAMILY[row.key];
     if (fam && !Math.round(P[fam] === undefined ? 1 : P[fam])) continue;
     // a surface with no placer is REPORTED, never dropped in silence — an
     // aeroplane quietly missing its wing filler cap is the acceptance test
     // failing quietly, and quietly is how this gap survived two chantiers
-    if (!FG.FIT_SURFACES[row.on]) { unplaced.push(row); continue; }
+    if (!FG.FIT_SURFACES[row.on]) { if (!row.absent) unplaced.push(row); continue; }
     // THE COWL DRAWS ITS OWN OIL DOOR (G213: a disc let into the loft, in the
     // cowl's skin, with its gap and latch). This table's `oilDoor` was a
     // SECOND door beside it - a flat plate on the tangent plane at az 122,
@@ -544,7 +699,7 @@ PAGE.post = ctx => {
     // the cowl"). One door: the cowl's, whenever the cowl layer is drawn.
     if (row.key === 'oilDoor' && Math.round(P.cowlOn === undefined ? 1 : P.cowlOn)) continue;
     const form = FG.FORMS[row.form];
-    if (!form) { unplaced.push(row); continue; }
+    if (!form) { if (!row.absent) unplaced.push(row); continue; }
 
     // ONLY THE CAGE IS IN CAGE UNITS. Its field and its vertices both scale by
     // FS; the wing's are already metres and the cowl is evaluated straight
@@ -558,8 +713,18 @@ PAGE.post = ctx => {
     // off the structure the snap exists to put it on. Absent rows read 0.
     const dSL = +P['acc_' + row.key + '_sL'] || 0;
     const dLV = +P['acc_' + row.key + '_lv'] || 0;
-    const atSL = row.at.sL + dSL;
+    const atSL0 = row.at.sL + dSL;
     const atLV = (typeof row.at.lv === 'number') ? row.at.lv + dLV : row.at.lv;
+    // FITTINGS-MANUAL: BY HAND. acc_<k>_z / acc_<k>_h set = the fitting stands exactly there (no snap); absent = the
+    // auto site, unchanged. The rod and boom placers draw their collar as they place, so their station is replaced
+    // BEFORE they run; every other surface is placed auto first (the follow rows read it) and then by hand.
+    const kind = handKindOf(row, atLV);
+    const hz = handVal(P['acc_' + row.key + '_z']), hh = handVal(P['acc_' + row.key + '_h']);
+    const byHand = kind !== 'none' && (hz != null || hh != null);
+    const atSL = byHand && (kind === 'rod' || kind === 'boom') && hz != null ? hz : atSL0;
+    // a fitting the table does not fit here, not placed by hand: its site is published (the rows), nothing drawn -
+    // and a rod or boom placer is not run at all (it draws its collar as it places)
+    if (row.absent && !byHand && (kind === 'rod' || kind === 'boom')) { AUTO[row.key] = { kind, z: r4(atSL0), h: null }; continue; }
     let sites;
     if (row.on === 'cowl') {
       const one = cowlSite(row, P);
@@ -573,7 +738,10 @@ PAGE.post = ctx => {
       // along the chord (sL, metres) and up the panel (lv, cage units)
       const recs = (CG2 && CG2.cageDoorEdges) ? CG2.cageDoorEdges(mesh) : [];
       const edge = Math.round(+P.hgDoorEdge || 0);
-      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV })).filter(Boolean);
+      // DOOR-HINGES-2: on the door's SOLID skin (never its glass), lying
+      // along the chord; the frame beside it when the door has no room
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV,
+                                                    mesh, FS, size: row.size })).filter(Boolean);
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
@@ -670,8 +838,24 @@ PAGE.post = ctx => {
       }
       return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
     })();
+    // ...AND NOT IN FRONT OF A SEATED FACE (G3519, NEW-SHAPES-1): an open section's coaming rings (cpOpenA/B,
+    // pax<i>OpenA/B) bound a band of the crown, the cockpits and the decking between them, where the comm aerial
+    // stood before the rear occupant's face; a crown fitting goes to the turtle deck aft instead. Only a build
+    // with a section open (S.open) has those rings.
+    const openBand = OPEN_BAND.P === P ? OPEN_BAND.v : (OPEN_BAND = { P, v: (() => {
+      if (!CG2 || !CG2.cageSpec || !CG2.cageResolve || !CG2.cageAnyOpen || !CG2.cageAnyOpen(P)) return null;
+      let R; try { R = CG2.cageResolve(CG2.cageSpec(Object.assign({}, P))); } catch (e) { return null; }
+      let z0 = Infinity, z1 = -Infinity;
+      for (const r of (R && R.rings) || []) {
+        if (!/^(cp|pax\d+)Open[AB]$/.test(r.name)) continue;
+        const l = r.lv && (r.lv.waist || r.lv.keel); if (!l || !isFinite(l.z)) continue;
+        z0 = Math.min(z0, l.z * FS); z1 = Math.max(z1, l.z * FS);
+      }
+      return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
+    })() }).v;
     const shadowed = pm => {
       if (finBand && pm[2] > finBand.z0 - 0.06 && pm[2] < finBand.z1 + 0.06) return true;
+      if (openBand && pm[2] > openBand.z0 - 0.10 && pm[2] < openBand.z1 + 0.10) return true;
       if (!wingHigh || !WG || !WG.leAt || !WG.teAt) return false;
       const le = WG.leAt(0), te = WG.teAt(0);
       if (!le || !te) return false;
@@ -707,6 +891,27 @@ PAGE.post = ctx => {
         }
       }
     }
+    // DOOR-HINGES-2: A HANDLE IS NEVER ON THE GLASS - a grab handle snapped to
+    // a ring beside a window (the PA-18's, the STOL Cub's: its foot over the
+    // door's glass) walks to the nearest clear skin on its side
+    if (row.form === 'handleGrab' && row.on === 'body' && SITE.handleOffGlass) {
+      const sz = row.size || {}, r = +sz.r || 0.009;
+      const hl = ((+sz.w || 0.13) * 0.5 + 2 * r + 0.006) / K2, hh = (2 * r + 0.006) / K2;
+      sites = sites.map(s => SITE.handleOffGlass(mesh, s, { FS: K2, hl, hh, along: [0, 1, 0] })).filter(Boolean);
+    }
+    // FITTINGS-MANUAL: the auto site recorded, then the hand's
+    AUTO[row.key] = autoOf(row, kind, sites, atSL0, mesh, K2);
+    if (byHand && kind !== 'rod' && kind !== 'boom') {
+      const au = AUTO[row.key];
+      const zM = hz != null ? hz : au.z, hV = hh != null ? hh : au.h;
+      const wantSide = typeof row.side === 'function' ? row.side(R) : row.side;
+      const onSides = new Set(sites.map(q => q.side));
+      sites = zM == null ? [] : handSites(row, kind, zM, hV, atLV, wantSide, mesh, K2, kind === 'wing'
+        ? (row.on === 'wing2' ? wingF2 : wingF) : null);
+      // a hand site stays on the flanks the auto site found (a door handle stays on the door's side)
+      if (onSides.size && sites.length > 1) sites = sites.filter(q => onSides.has(q.side) || q.side === 'centre');
+    }
+    if (row.absent && !byHand) continue;
     if (!sites.length) { unplaced.push(row); continue; }
 
     for (const s of sites) {
@@ -716,7 +921,20 @@ PAGE.post = ctx => {
       // the skin — the base sits on the skin, the fitting points up (or down
       // under the keel); every other form keeps the surface's own normal.
       const upright = (atLV === 'crown' || atLV === 'keel') && /Aerial|Beacon/.test(String(row.form));
+      let sunk = 0;                         // FITTINGS-MANUAL: how deep an upright fitting stands in the skin
       let F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
+      // DOOR-HINGES-2: a site that names its long axis (the door handle
+      // along the chord, or upright on the frame) turns the form's `side`
+      // onto it; fore = side x n keeps the frame's handedness
+      if (s.along) {
+        const n = F.n, a = s.along, d = a[0] * n[0] + a[1] * n[1] + a[2] * n[2];
+        let sd = [a[0] - n[0] * d, a[1] - n[1] * d, a[2] - n[2] * d];
+        const L = Math.hypot(sd[0], sd[1], sd[2]);
+        if (L > 1e-6) {
+          sd = [sd[0] / L, sd[1] / L, sd[2] / L];
+          F = { p: F.p, n, side: sd, fore: [sd[1] * n[2] - sd[2] * n[1], sd[2] * n[0] - sd[0] * n[2], sd[0] * n[1] - sd[1] * n[0]] };
+        }
+      }
       // the conforming surface: ask the contract where the skin is a little
       // way off in each direction, so a big plate follows the section instead
       // of standing off at its corners
@@ -762,13 +980,21 @@ PAGE.post = ctx => {
         // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
         // 0.19 m length, between the coarse grid's samples, and its foot
         // sat at the gate's 1.5 mm on the cowl profile's flank
-        let lift = 0;
+        let lift = 0, low = 0;
         for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
           const q = surf(i * foot * 0.1625, j * foot * 0.1625);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
+          if (d < low) low = d;
         }
-        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
+        // AN UPRIGHT AERIAL OR BEACON IS SUNK, NEVER FLOATING (FITTINGS-MANUAL, the user on the Cub's comm blade, 27 Oct:
+        // "I'd rather have it sunk than floating"): standing vertical on a sloping deck, the highest rise under its
+        // base lifted the whole blade to the high side and its low side stood in the air. It stands at the LOWEST
+        // skin point under its footprint instead, the high side entering the skin; the depth rides the record
+        // (`sunk`), and GATE CLIP allows exactly that much for this fitting.
+        if (upright) {
+          if (low < -0.0003) { F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n); sunk = lift - low; }
+        } else if (lift > 0.0003) F = Object.assign({}, F, { p: [pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)] });   // (DOOR-HINGES-2: the frame keeps its along)
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site
@@ -783,8 +1009,9 @@ PAGE.post = ctx => {
       // pass without it fell back to "up" for everything and reported seven
       // perfectly good fittings as invisible.
       placed.push({ key: row.key, name: row.name, serves: row.serves,
-                    on: row.on, side: s.side, p: pm, n: F.n,
-                    st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '' });
+                    on: row.on, side: s.side, p: pm, n: F.n, along: F.side,
+                    onFrame: !!s.onFrame,                          // DOOR-HINGES-2: the handle went to the frame
+                    st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '', ...(sunk > 0 ? { sunk } : {}) });
     }
   }
 
@@ -808,7 +1035,8 @@ PAGE.post = ctx => {
   }
   scene.add(group);
 
-  window.CAGE_ACCESS = { needs: R, rows, placed, unplaced, tris };
+  // (rows: what this aeroplane needs plus what a hand placed - the table rows only looked up are not in it)
+  window.CAGE_ACCESS = { needs: R, rows: rows.filter(r => !r.absent || placed.some(q => q.key === r.key)), placed, unplaced, tris, auto: AUTO };
   if (stat)
     stat.textContent += '  ·  fittings: ' + nFit + ' (' + tris + ' t)' +
       (unplaced.length ? ' · ' + unplaced.length + ' unplaced' : '');

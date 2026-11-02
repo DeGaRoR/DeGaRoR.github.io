@@ -1,0 +1,50 @@
+armed Sun Oct 25 20:44:47 RST 2026 - UNTIMED at Mon Oct 26 15:45:00 RST 2026, hard stop Mon Oct 26 16:35:00 RST 2026, body C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-nostalgic-chebyshev-9f616c/14349089-a612-4730-a215-09d8123a9b77/scratchpad/pg_s3.sh
+boxlock: GPU taken by PHONEGARAGE
+== body 15:45:02
+on 9f20ac6dd 15:45:02
+build exit 0 15:45:04
+tools/flight_core.js (3428.9 KB), index.html (13508.9 KB), dev.html (116.5 KB), career_core.21d1c068.js (403.1 KB), route_draw.df5cd4af.js (31.3 KB) — syntax OK, build bb69326c9848 (378 named inputs), 1139 ms
+dev.html lists studio.js
+parked_cook --check: manifest build 3791eb8aac40, this tree bb69326c9848 (STALE: every key is captured live until a re-cook); keys arch:c172, arch:chinook, arch:cub, arch:jodel
+cook exit 0 15:50:51
+  arch:jodel: 12.98 MB as is, 3.38 MB gzipped; rungs 150284 / 18034 / 3756 tris; 9460 charts, 1.13 cm a texel; pitch -9.70 deg; 3.9 s
+  wrote src\core\parked_packs.json (4 keys)
+  pruned 4: arch_c172.f9605352.gz.bin, arch_chinook.b444d17e.gz.bin, arch_cub.10a28f8e.gz.bin, arch_jodel.688872b9.gz.bin
+cook --check: same
+== after on D:/Dev/DeGaRoR.github.io/.claude/worktrees/nostalgic-chebyshev-9f616c: 9f20ac6dd G3720-G3726 PHONE-GARAGE: the plane 2/3 on the phone, the black studio (phone; desktop opt 15:50:51
+newest train in the served tree: train L24c
+"Browser": "Chrome/155.0.8059.85"
+== run s20_cub_x4 (412x915 @2.625, cub, cpu x4 ) 15:50:58
+exit 0 15:53:08
+boot: gone in 29.6 s; JS heap peak 189.2 MB + backing stores 196.9 MB; renderer PSS peak 0 MB, GPU process 0 MB
+view: {"w":412,"h":915,"dpr":2.625,"canvas":[0,0,412,609],"viewShare":0.666,"calls":1,"triangles":2,"programs":24,"textures":65}
+CPU throttle x4
+touch scale    FAIL {"ok":false,"key":"wgDy","value":-0.1,"afterHorizontal":-1,"afterVertical":-1,"scrolled":[920,920]}
+drag wgSpan     tick 101.5 ms (drawn 126.5)  release 319.7 ms (drawn 363.1)  {"n":7,"whole":1,"last":{"ran":["panel","cowlAft","access","light","energy","hinge","ext"],"why":"panel(always) cowlAft(
+drag wgChord    tick 100.9 ms (drawn 128.3)  release 301.8 ms (drawn 348.5)  {"n":11,"whole":1,"last":{"ran":["panel","cowlAft","access","light","energy","hinge","ext"],"why":"panel(always) cowlAft
+drag stSpan     tick 15.4 ms (drawn 31.5)  release 259.6 ms (drawn 292.9)  {"n":15,"whole":1,"last":{"ran":["panel","cowlAft","access","light","hinge","ext"],"why":"panel(always) cowlAft(always) 
+drag paxLen     tick 25.4 ms (drawn 42.8)  release 1122.8 ms (drawn 1199.1)  {"n":15,"whole":5,"last":{"whole":"a deformed drag"}}
+frames at rest: {"n":600,"fps":60,"p50":16.7,"p95":16.8,"p99":16.8,"over50":0}
+frames orbiting: {"n":594,"fps":59.4,"p50":16.7,"p95":16.8,"p99":16.8,"over50":1}
+== run desk_cub (1600x900 @1, cub, cpu x1 --desk) 15:53:08
+exit 0 15:55:45
+boot: gone in 86.7 s; JS heap peak 418.5 MB + backing stores 2955.7 MB; renderer PSS peak 0 MB, GPU process 0 MB
+view: {"w":1600,"h":900,"dpr":1,"canvas":[320,0,640,900],"viewShare":0.4,"calls":1,"triangles":2,"programs":404,"textures":732}
+drag wgSpan     tick 25.9 ms (drawn 37.6)  release 78.1 ms (drawn 101.9)  {"n":4,"whole":0,"last":{"ran":["panel","cowlAft","access","light","energy","hinge","ext"],"why":"panel(always) cowlAft(
+drag wgChord    tick 25.1 ms (drawn 36.3)  release 75.1 ms (drawn 99.3)  {"n":8,"whole":0,"last":{"ran":["panel","cowlAft","access","light","energy","hinge","ext"],"why":"panel(always) cowlAft(
+drag stSpan     tick 3.7 ms (drawn 30.2)  release 67 ms (drawn 87.3)  {"n":12,"whole":0,"last":{"ran":["panel","cowlAft","access","light","hinge","ext"],"why":"panel(always) cowlAft(always) 
+drag paxLen     tick 5.1 ms (drawn 30.2)  release 279 ms (drawn 316.5)  {"n":12,"whole":4,"last":{"whole":"a deformed drag"}}
+frames at rest: {"n":601,"fps":60,"p50":16.7,"p95":16.8,"p99":16.8,"over50":0}
+frames orbiting: {"n":599,"fps":59.9,"p50":16.7,"p95":16.8,"p99":16.8,"over50":0}
+== lag desk (index.html, cub,metal) 15:55:45
+exit 124 16:34:11
+  == after (flyDiy) Cub
+  warm-up load (discarded)
+skip s375_cub_x4: 47 s left
+skip lag phone: 46 s left
+skip s20_metal_x4: 46 s left
+skip s20_cub_x1: 46 s left
+done 16:34:17
+body exit 0 16:34:17
+boxlock: GPU released by PHONEGARAGE
+done Mon Oct 26 16:34:17 RST 2026

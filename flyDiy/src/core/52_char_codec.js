@@ -7,7 +7,7 @@
 // carries four joint indices and four weights, and the payload has to carry
 // the joint tree and the inverse bind matrices the skin was authored against,
 // or the mesh cannot be posed at all. Positions ride as float32 exactly as the
-// exporter wrote them (import-models-as-is): a mannequin is 1.8 m tall and
+// exporter wrote them (import-models-as-is): a character is 1.8 m tall and
 // quantising it buys nothing worth a second encoding.
 //
 // Layout (little-endian, sections 4-byte aligned; the manifest carries every

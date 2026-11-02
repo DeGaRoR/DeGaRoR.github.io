@@ -222,6 +222,25 @@ const PRESETS = {
   'P&W PT6A-60A': { arch: 'turbine', tStyle: 0, tCanD: 0.489, tCanL: 1.30,
     gearK: 1.20, flatK: 1.20, tRpm: 1700, fwW: 1.00, fwH: 1.00,
     carbOn: 0, airbox: 0, plumb: 0 },
+  // ---- AFTER THE CUSTOM ENGINE (NEW-SHAPES-1, A0's T-P1 verdict) ----------------------------------------------
+  // engPreset is a SAVED INDEX (cage.engPreset: every build file, the page's stock designs, procure's table). The
+  // catalogue's first 41 entries and the custom engine's 41 are fixed by every file saved before these two; the
+  // Clerget and the Merlin went in mid-list first and shifted them (the metal C172's index 18, the O-540, read the
+  // Merlin; the stock C172's custom 41 read a PT6A). A new preset goes HERE, at the end, and into
+  // PRESETS_AFTER_CUSTOM below, so presetNames() lists it after the custom engine and no saved index moves.
+  // NEW-SHAPES-1: THE CLERGET 9B, the Camel's rotary - nine cylinders of 120 x 160 mm (16.3 L), ~1.0 m across the
+  // heads; no carburettor and no airbox (a rotary breathes through its hollow crankshaft), long finned barrels
+  'Clerget 9B': { arch: 'radial', cyl: 9, exStyle: 2,
+    bore: 0.120, stroke: 0.160, rpm: 1250, finR: 1.25,
+    fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0,
+    mountGap: 0.40 },   // a rotary sits close on its bearer plate: the cylinders inside a short cowl, not ahead of it
+  // THE MERLIN 66 (27 Oct, the Spitfire): a 60 deg UPRIGHT V12 of 5.4 x 6.0 in (27.0 L), liquid cooled, the
+  // 0.477 reduction on the nose, the two-speed two-stage blower at +18 lb (2.22 of ambient) to 1 765 m; the
+  // exhaust in ejector stubs out of the bank flanks, paired (the reference's three a side)
+  'Rolls-Royce Merlin 66': { arch: 'vee', cyl: 12, vee: 60, twoStroke: 0, inlineAim: 1,
+    liquid: 1, geared: 1, blower: 2, boost: 2.22, critAlt: 1765,
+    bore: 0.1372, stroke: 0.1524, rpm: 3000, exStyle: 4, exPair: 1, exDrop: 1.2,
+    mountGap: 6.9 },    // the bay behind the banks (blower, header tank): the firewall 2.35 m aft of the prop
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -305,7 +324,7 @@ const ENG_GROUPS = [
     // about the aim above — 60 on a Hirth, 90 on an Argus
     ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
-    ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
+    ['stroke',  'stroke mm', 0.04, 0.16, 0.001, mm],   // (to 0.16: the Merlin's 152.4)
     ['rpm',     'rpm',       1800, 6500, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
   ], isPiston],
@@ -344,8 +363,10 @@ const ENG_GROUPS = [
     ['airbox',  'air filter', 'check'],
     ['intake',  'intake risers', 'check'],
     ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
-                                       [2, 'collector'], [3, 'expansion']]],
+                                       [2, 'collector'], [3, 'expansion'],
+                                       [4, 'ejector stubs (side)']]],
     ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
+    ['exPair',  'stubs in pairs', 'check'],     // (ejector stubs: one per two cylinders)
     // G155: the collector's OUTLET. Where the pipe leaves is a real choice on
     // a real aeroplane and was one hardcoded point here.
     ['exOut',   'collectors', 'drop', [[2, 'one under each bank'],
@@ -386,7 +407,9 @@ const ENG_GROUPS = [
   ['mount + firewall', [
     ['mount',    'mount',      'check'],
     ['mountX',   'diagonals',  'check'],
-    ['mountGap', 'fore / aft (stand-off)', 0.4, 2.0, 0.01],
+    // (to 8 case radii, 27 Oct: a Merlin's bay behind its banks - the two-stage blower, the header tank - runs
+    // 0.9 m to the firewall, and the bench draws no blower casing to fill it)
+    ['mountGap', 'fore / aft (stand-off)', 0.4, 8.0, 0.01],
     ['mountR',   'tube radius ×', 0.5, 2.2, 0.02],
     ['fwOn',     'firewall',   'check'],
     ['fwW',      'fw width m', 0.4, 1.4, 0.01, x => x.toFixed(2)],
@@ -401,7 +424,17 @@ const ENG_GROUPS = [
 
 // THE CUSTOM ENGINE'S NAME (2026-09-05, the picker ruling) — the option the
 // cage editor and the birth flow append after the catalogue; one keeper
+const CUSTOM_ENGINE = 'custom engine';
+// THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
+// engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
+// Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66'];
+function presetNames() {
+  const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
+  return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],
+    PRESETS_AFTER_CUSTOM.filter(n => all.includes(n)));
+}
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
                     GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine,
-                    CUSTOM_ENGINE: 'custom engine' };
+                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames };
 })();

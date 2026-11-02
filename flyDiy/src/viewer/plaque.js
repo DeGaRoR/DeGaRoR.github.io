@@ -223,6 +223,9 @@ const PLAQUE_WHY = {
   'pod drag': { what: 'its drag area (Raymer\u2019s component build-up: the moulded skin, the form factor, 1.5 for a '
       + 'store on the fuselage), its share of the body\u2019s, and what it costs this aeroplane\u2019s cruise and climb, '
       + 'measured on its own probe with the pod and without its drag.' },
+  'pod cost': { what: 'what the pod costs THIS aeroplane, against the same aeroplane with no pod (its drag area and '
+      + 'its shell\u2019s kilograms taken off): the take-off run to 2.5 m, the climb rate at the climb speed and the '
+      + 'cruise speed, each by the sheet\u2019s own rule - the change first, the figure with the pod in brackets.' },
   'pod full': { what: 'the centre of gravity with the pod loaded to its rated weight, and the static margin left.',
     fix: 'a pod aft of the CG walks it aft as it fills: load it lighter or move it forward. Under 0.05 the '
       + 'aeroplane is twitchy full; negative it is unflyable.' },

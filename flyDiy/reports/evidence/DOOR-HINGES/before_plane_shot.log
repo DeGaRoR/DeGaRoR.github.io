@@ -1,0 +1,13 @@
+[   0.5 s] plane_shot: 3 build(s) x mesh:edHinge_door_pilot_P/-75/8/1.4,mesh:edHinge_door_pilot_P/-60/10/3 at 1600x900 on SwiftShader with /opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+[   1.1 s] browser Chrome/153.0.8010.12 (SwiftShader)
+[   1.3 s] page http://localhost:41727/flyDiy/index.html?profile=phone&gfx=laptop&intro=0
+[ 187.3 s] garage up 156.9 s, 11 steps, on ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) - profile phone room shed preset laptop
+[ 285.7 s] stol_cub_showcase loaded in 65.8 s, 1012/1012 cage rows equal, box [-6,-0.206,-6,6,2.717,6]
+[ 840.8 s] stol_cub_showcase mesh:edHinge_door_pilot_P/-75/8/1.4 ok 555.1 s, aeroplane 84.9 % of 1200x900 -> ../../sp/before/stol_cub_showcase_mesh-edHinge_door_pilot_P--75-8-1.4.png
+[1258.5 s] stol_cub_showcase mesh:edHinge_door_pilot_P/-60/10/3 ok 417.7 s, aeroplane 68.5 % of 1200x900 -> ../../sp/before/stol_cub_showcase_mesh-edHinge_door_pilot_P--60-10-3.png
+[1393.2 s] cub_user loaded in 134.7 s, 891/905 cage rows equal, box [-6,-0.244,-6,6,2.511,6]
+[1988.5 s] cub_user mesh:edHinge_door_pilot_P/-75/8/1.4 ok 595.3 s, aeroplane 93.9 % of 1200x900 -> ../../sp/before/cub_user_mesh-edHinge_door_pilot_P--75-8-1.4.png
+[2344.9 s] cub_user mesh:edHinge_door_pilot_P/-60/10/3 ok 356.4 s, aeroplane 66.2 % of 1200x900 -> ../../sp/before/cub_user_mesh-edHinge_door_pilot_P--60-10-3.png
+[2436.8 s] cub_clamshell loaded in 91.9 s, 892/905 cage rows equal, box [-6,-0.244,-6,6,2.511,6]
+[2907.4 s] cub_clamshell mesh:edHinge_door_pilot_P/-75/8/1.4 ok 470.5 s, aeroplane 81.5 % of 1200x900 -> ../../sp/before/cub_clamshell_mesh-edHinge_door_pilot_P--75-8-1.4.png
+[3274.0 s] cub_clamshell mesh:edHinge_door_pilot_P/-60/10/3 ok 366.7 s, aeroplane 74.5 % of 1200x900 -> ../../sp/before/cub_clamshell_mesh-edHinge_door_pilot_P--60-10-3.png

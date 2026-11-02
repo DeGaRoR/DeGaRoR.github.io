@@ -1,0 +1,986 @@
+[run_gates] 0/11 jobs done · running DMGGEAR 30 s
+[run_gates] 0/11 jobs done · running DMGGEAR 60 s
+[run_gates] 0/11 jobs done · running DMGGEAR 90 s
+[run_gates] 0/11 jobs done · running DMGGEAR 120 s
+[run_gates] 0/11 jobs done · running DMGGEAR 150 s
+[run_gates] 0/11 jobs done · running DMGGEAR 180 s
+[run_gates] 0/11 jobs done · running DMGGEAR 210 s
+[run_gates] 0/11 jobs done · running DMGGEAR 240 s
+[run_gates] 0/11 jobs done · running DMGGEAR 270 s
+[run_gates] 0/11 jobs done · running DMGGEAR 301 s
+[run_gates] 0/11 jobs done · running DMGGEAR 331 s
+[run_gates] 0/11 jobs done · running DMGGEAR 361 s
+[run_gates] 0/11 jobs done · running DMGGEAR 391 s
+[run_gates] 0/11 jobs done · running DMGGEAR 421 s
+[run_gates] 0/11 jobs done · running DMGGEAR 451 s
+[run_gates] 0/11 jobs done · running DMGGEAR 481 s
+[run_gates] 0/11 jobs done · running DMGGEAR 511 s
+[run_gates] 0/11 jobs done · running DMGGEAR 541 s
+[run_gates] 0/11 jobs done · running DMGGEAR 571 s
+[run_gates] 0/11 jobs done · running DMGGEAR 601 s
+[run_gates] 0/11 jobs done · running DMGGEAR 631 s
+[run_gates] 0/11 jobs done · running DMGGEAR 661 s
+[run_gates] 0/11 jobs done · running DMGGEAR 691 s
+[run_gates] 0/11 jobs done · running DMGGEAR 721 s
+[run_gates] 0/11 jobs done · running DMGGEAR 751 s
+[run_gates] 0/11 jobs done · running DMGGEAR 781 s
+[run_gates] 0/11 jobs done · running DMGGEAR 811 s
+[run_gates] 0/11 jobs done · running DMGGEAR 841 s
+[run_gates] 0/11 jobs done · running DMGGEAR 871 s
+[run_gates] 0/11 jobs done · running DMGGEAR 901 s
+[run_gates] 0/11 jobs done · running DMGGEAR 931 s
+[run_gates] 0/11 jobs done · running DMGGEAR 961 s
+[run_gates] 0/11 jobs done · running DMGGEAR 991 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1021 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1052 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1082 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1112 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1142 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1172 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1202 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1232 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1262 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1292 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1322 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1352 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1382 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1412 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1442 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1472 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1502 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1532 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1562 s
+[run_gates] 0/11 jobs done · running DMGGEAR 1592 s
+[run_gates] 1/11 jobs done · running CLOUD 9 s, TREEHIT 9 s
+[run_gates] 1/11 jobs done · running CLOUD 39 s, TREEHIT 39 s
+[run_gates] 1/11 jobs done · running CLOUD 69 s, TREEHIT 69 s
+[run_gates] 1/11 jobs done · running CLOUD 99 s, TREEHIT 99 s
+[run_gates] 1/11 jobs done · running CLOUD 129 s, TREEHIT 129 s
+[run_gates] 1/11 jobs done · running CLOUD 159 s, TREEHIT 159 s
+[run_gates] 1/11 jobs done · running CLOUD 189 s, TREEHIT 189 s
+[run_gates] 1/11 jobs done · running CLOUD 219 s, TREEHIT 219 s
+[run_gates] 1/11 jobs done · running CLOUD 250 s, TREEHIT 250 s
+[run_gates] 1/11 jobs done · running CLOUD 280 s, TREEHIT 280 s
+[run_gates] 1/11 jobs done · running CLOUD 310 s, TREEHIT 310 s
+[run_gates] 1/11 jobs done · running CLOUD 340 s, TREEHIT 340 s
+[run_gates] 1/11 jobs done · running CLOUD 370 s, TREEHIT 370 s
+[run_gates] 1/11 jobs done · running CLOUD 400 s, TREEHIT 400 s
+[run_gates] 1/11 jobs done · running CLOUD 430 s, TREEHIT 430 s
+[run_gates] 1/11 jobs done · running CLOUD 460 s, TREEHIT 460 s
+[run_gates] 2/11 jobs done · running CLOUD 490 s, DMGINST 28 s
+[run_gates] 2/11 jobs done · running CLOUD 520 s, DMGINST 59 s
+[run_gates] 2/11 jobs done · running CLOUD 550 s, DMGINST 89 s
+[run_gates] 2/11 jobs done · running CLOUD 580 s, DMGINST 119 s
+[run_gates] 2/11 jobs done · running CLOUD 610 s, DMGINST 149 s
+[run_gates] 2/11 jobs done · running CLOUD 640 s, DMGINST 179 s
+[run_gates] 2/11 jobs done · running CLOUD 670 s, DMGINST 209 s
+[run_gates] 2/11 jobs done · running CLOUD 700 s, DMGINST 239 s
+[run_gates] 3/11 jobs done · running CLOUD 730 s, JOINPARITY 27 s
+[run_gates] 3/11 jobs done · running CLOUD 760 s, JOINPARITY 57 s
+[run_gates] 3/11 jobs done · running CLOUD 790 s, JOINPARITY 87 s
+[run_gates] 4/11 jobs done · running CLOUD 820 s, POD 9 s
+[run_gates] 4/11 jobs done · running CLOUD 850 s, POD 39 s
+[run_gates] 4/11 jobs done · running CLOUD 880 s, POD 69 s
+[run_gates] 4/11 jobs done · running CLOUD 910 s, POD 99 s
+[run_gates] 5/11 jobs done · running CLOUD 940 s, WORLD 25 s
+=== CLOUD ===
+1. the cover is the cover
+  ok   st cover 0.1: covered fraction 0.100
+  ok   st cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.3: covered fraction 0.300
+  ok   st cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.5: covered fraction 0.500
+  ok   st cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.7: covered fraction 0.700
+  ok   st cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.9: covered fraction 0.900
+  ok   st cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   sc cover 0.1: covered fraction 0.100
+  ok   sc cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.3: covered fraction 0.300
+  ok   sc cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.5: covered fraction 0.500
+  ok   sc cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.7: covered fraction 0.700
+  ok   sc cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.9: covered fraction 0.900
+  ok   sc cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   cuh cover 0.1: covered fraction 0.100
+  ok   cuh cover 0.1: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.3: covered fraction 0.300
+  ok   cuh cover 0.3: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.5: covered fraction 0.500
+  ok   cuh cover 0.5: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.7: covered fraction 0.700
+  ok   cuh cover 0.7: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.9: covered fraction 0.900
+  ok   cuh cover 0.9: coverage in [0,1], height in [0.55,1]
+  ok   cu cover 0.1: covered fraction 0.100
+  ok   cu cover 0.1: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.3: covered fraction 0.300
+  ok   cu cover 0.3: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.5: covered fraction 0.500
+  ok   cu cover 0.5: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.7: covered fraction 0.700
+  ok   cu cover 0.7: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.9: covered fraction 0.900
+  ok   cu cover 0.9: coverage in [0,1], height in [0.5,1]
+  ok   cb cover 0.1: covered fraction 0.100
+  ok   cb cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.3: covered fraction 0.300
+  ok   cb cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.5: covered fraction 0.500
+  ok   cb cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.7: covered fraction 0.700
+  ok   cb cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.9: covered fraction 0.900
+  ok   cb cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   ac cover 0.1: covered fraction 0.100
+  ok   ac cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.3: covered fraction 0.300
+  ok   ac cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.5: covered fraction 0.500
+  ok   ac cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.7: covered fraction 0.700
+  ok   ac cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.9: covered fraction 0.900
+  ok   ac cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.1: covered fraction 0.100
+  ok   as cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.3: covered fraction 0.300
+  ok   as cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.5: covered fraction 0.500
+  ok   as cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.7: covered fraction 0.700
+  ok   as cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.9: covered fraction 0.900
+  ok   as cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   cover 0: no cloud anywhere
+  ok   cover 1: cloud everywhere
+  ok   the mean coverage rises with the cover
+2. the profile
+  ok   st: the profile is 0 at the base and the top, in [0,1] between
+  ok   st: the profile fills the column somewhere (peak 1.00)
+  ok   st: a half-height column is nowhere fuller than a full one
+  ok   st: the mean fill is a sane constant (0.725)
+  ok   sc: the profile is 0 at the base and the top, in [0,1] between
+  ok   sc: the profile fills the column somewhere (peak 1.00)
+  ok   sc: a half-height column is nowhere fuller than a full one
+  ok   sc: the mean fill is a sane constant (0.820)
+  ok   cuh: the profile is 0 at the base and the top, in [0,1] between
+  ok   cuh: the profile fills the column somewhere (peak 1.00)
+  ok   cuh: a half-height column is nowhere fuller than a full one
+  ok   cuh: the mean fill is a sane constant (0.850)
+  ok   cu: the profile is 0 at the base and the top, in [0,1] between
+  ok   cu: the profile fills the column somewhere (peak 1.00)
+  ok   cu: a half-height column is nowhere fuller than a full one
+  ok   cu: the mean fill is a sane constant (0.870)
+  ok   cb: the profile is 0 at the base and the top, in [0,1] between
+  ok   cb: the profile fills the column somewhere (peak 1.00)
+  ok   cb: a half-height column is nowhere fuller than a full one
+  ok   cb: the mean fill is a sane constant (0.910)
+  ok   ac: the profile is 0 at the base and the top, in [0,1] between
+  ok   ac: the profile fills the column somewhere (peak 1.00)
+  ok   ac: a half-height column is nowhere fuller than a full one
+  ok   ac: the mean fill is a sane constant (0.775)
+  ok   as: the profile is 0 at the base and the top, in [0,1] between
+  ok   as: the profile fills the column somewhere (peak 1.00)
+  ok   as: a half-height column is nowhere fuller than a full one
+  ok   as: the mean fill is a sane constant (0.750)
+  ok   the types thicken st < sc < cu < cb
+3. the layer
+  ok   the day's base, the type's thickness
+  ok   the base is clamped to 120..5000 m
+  ok   an unknown type (or no day) is cumulus
+  ok   the overrides are honoured
+4. the column
+  ok   the summed column optical depth rises with the cover
+  ok   a clear map has no column
+  ok   the map tiles over the span
+  ok   a drift of one span is the same map
+  ok   a full column's optical depth is the profile's fill x the height x sigma (47.4)
+5. determinism
+  ok   the same seed, cover and type is the same map to the bit
+  ok   a different seed is a different map
+6. the splice rules
+  ok   clouds.js has no hook of its own (the shadow rides ATMO.inject)
+  ok   the shadow is spliced into exactly the two lights chunks, in install(): SC.lights_pars_begin SC.lights_fragment_begin
+  ok   the sun's colour is multiplied by the cloud transmittance under the CLOUD_SHADOW define
+  ok   the shadow tile is read from the aerial-perspective atlas - no sampler added to the world's programs
+  ok   the atlas carries the tile above the AP rows and publishes its geometry
+  ok   ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows
+  ok   the trees' own leaf terms take the cloud shadow
+  ok   the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame's depth, with THIS frame's camera (G650)
+  ok   app.js marches before the scene and dims the flare by the column
+  ok   the composite is a quad IN the world scene at the cloud's depth (reversed float or log, as the renderer runs - PERF 2026-09-23), last, tested per MSAA sample (the 1-px line round the aeroplane)
+  ok   the composite filters premultiplied (an empty texel must not darken its neighbour)
+  ok   the pass carries its own GPU timer
+  ok   one march text serves the fullscreen pass and the dome (the probe, the shed)
+  ok   the world's probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)
+  ok   ATMO.makeProbe takes the decorator and the dirty test (with the live cap beside it - the ground under the craft, 2026-09-22)
+  ok   the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)
+  ok   the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)
+  ok   the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow's scalars)
+  ok   the dome carries the cirrus veil
+  ok   the mist takes the in-cloud slab (the ONE copy of the mist GLSL)
+  ok   clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)
+  ok   ?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL
+  ok   the clouds panel carries the low deck's cover and type
+  ok   the day slot no longer draws the cover itself; the day panel opens the clouds flyout
+  ok   the WORLD editor carries the cover and the type
+  ok   the OVERCAST mood follows the day's cover (moodFor), it does not set it
+  ok   the march is GLSL3 (a sampler3D needs it)
+  ok   the composite is tone-mapped and encoded by three's own chunks (the target is display-space)
+  ok   the march takes the aerial perspective and the mist from ATMO (one splice, shared)
+  ok   and applies them at the cloud's own mean distance
+  ok   no wall clock: the drift is the day's seconds
+  ok   the pass samples the core's maps and layers (one field)
+  ok   the GLSL profile is the core's profile, verbatim (per deck)
+  ok   render_world retired the billboard puffs and hands the day to the clouds
+  ok   the GRAPHICS menu has the clouds row in every preset
+  ok   the resolve pass carries the depth texture and the overlay hook
+  ok   both files are in the build
+7. several decks (A6): the field
+  ok   layers(): the low deck first, the upper decks after, in order
+  ok   the first deck is layer(day): the dewpoint base, the day's cover
+  ok   an upper deck without a base takes its type's alt
+  ok   the decks never overlap: each base above the deck below plus the gap (a base of 100 m is lifted)
+  ok   at most MAX_LAYERS decks
+  ok   no cloudUpper: one deck, layer() itself
+  ok   a deck over a cumulonimbus rides above its 4 km top, under 12 km
+  ok   type st carries erode, period and alt
+  ok   type sc carries erode, period and alt
+  ok   type cuh carries erode, period and alt
+  ok   type cu carries erode, period and alt
+  ok   type cb carries erode, period and alt
+  ok   type ac carries erode, period and alt
+  ok   type as carries erode, period and alt
+  ok   the sheets erode less than the heaps (stratus < stratocumulus < cumulus)
+  ok   altocumulus and altostratus are types (the upper decks' own)
+  ok   upperWith() births a missing deck and patches the named one
+  ok   upperWith() on no decks
+  ok   the day publishes cloudUpper (sanitised, two at most) and cloudLayers
+7b. several decks + the look: the march (static)
+  ok   the weather maps are one 2D array texture, a slice a deck
+  ok   the per-deck numbers are arrays of MAXL
+  ok   density and weather take the deck
+  ok   the march walks the decks' segments in the order of their entry
+  ok   a deck stands in the softened shadow of the decks above it
+  ok   the shadow tile bakes every deck, an upper deck shifted along the sun to the first deck's middle
+  ok   the array sampler declares its precision (ESSL 3.00 has no default for it)
+  ok   the noise bake is stretched to the byte by its measured percentiles (the slab's cause)
+  ok   the worley fbm erodes by subtraction (the type's erode), never from lf - 1
+  ok   the cover fit: the map inflated until the sky's share (four hemispheres from the ground) is the deck's cover - one step a frame, the read asynchronous
+  ok   the fit waits 300 ms for a slider and runs even with the clock paused
+  ok   erode and period are the type's, scaled / overridden by the dials (G460.4: rounded to divide the span, so the shadow tile wraps without a seam)
+  ok   the deck noise and the detail noise tile over the span (no seam at the shadow tile's wrap)
+  ok   the ambient falls with the depth toward the sun (a core darker than a fringe)
+  ok   sunT sums the column over the decks above the point
+  ok   the probe reports the noise's percentiles (the instrument that found the slab)
+  ok   the clouds panel carries the upper decks (cover, type, base)
+  ok   the flight rail has the clouds item and mounts the panel with the day clock
+  ok   the panel: presets, the decks, the veil, the look, the motion, the render
+  ok   the look is saved as flydiy.clouds and applied at load; the weather is saved with the day
+  ok   clouds_ui.js is in the build
+  ok   the day panel: the conditions through #selCond, the presets ("set the clock", G2650), the hour, the date, the rate through the clock
+  ok   the flight rail's day slot mounts it, the plate refreshed, the clouds a flyout away
+  ok   the shed's night flyout mounts it, the clouds in a fold beside it, the borrowed light rows in their own (the tree's mood select not borrowed)
+  ok   the clouds and the day share the rail's row vocabulary (railRows)
+  ok   #selTime is gone: the presets are pills, DAY_CLOCK the one state
+  ok   the quick bar's time button presses the clock, not the mood
+  ok   day_ui.js is in the build
+  ok   a mood picked by hand moves the hour only - the weather stays the day's (no OVERCAST preset)
+  ok   the tree's OVERCAST mood is offered greyed - it follows the clouds (hangar.moodFor)
+  ok   the flight rail has NIGHT: the day panel, the aeroplane's switches, the world's sources
+  ok   the lights rule: nav, beacon and the panel at night, the landing light low and moving, the taxi light low and slow
+  ok   the rule runs by hand too; a switch the hand set is the hand's until the next sunset or sunrise
+  ok   the pilot no longer carries its own lights (one rule, the cockpit's)
+  ok   the light layer publishes drive(levels) and re-applies it after a rebuild
+  ok   the drive restores the DESIGN's level (recorded from the rows, not from a cached material the night may have driven); the dial faces keep their base
+  ok   the shed applies the pilot's rule (nav, beacon, the panel - no beam from a stand) at night and takes it off at sunrise
+  ok   every land strip stands its lights (standStrip) and the analytic HOME too
+  ok   white lenses down both edges every 60 m, six green ones across each threshold (the core's places, none on another strip or a pavement)
+  ok   the lights are declared on the world switchboard and honour its mute
+  ok   on from two degrees of sun down through the horizon, the level divided back through the exposure schedule, every frame before the sun-moved guard
+  ok   a light is a sharp core of the lens's angular size (1.5 px at least) whose brightness falls with the distance; the fixtures keep their true size and are frustum-culled
+  ok   one instanced fixture mesh and one glow layer a strip; a repainted strip takes both out of the drive
+  ok   a CONSTANT pool of eight point lights on the premises root, assigned within 500 m
+  FAIL the pool is re-assigned every 30 frames to the nearest published lamps; the level is the bench's night divided by the live exposure base
+  ok   every built thing publishes its lamps, its finish's lit panes and its smoke to the pool
+  ok   declared on the world switchboard as lamps, driven each frame by the day (the runway lights' fade), reachable for the F8 dial
+  ok   the chimney smoke is a haze lit by the sky (an unlit column no more)
+  ok   a PAPI unit is a light (its reading the emissive, dark from behind) and the overlays keep their own colour through the exposure
+  ok   the PAPI's lenses take the runway lights' level from the flight loop
+  ok   props.js publishes propSetGlowOf: the author's intensity kept, the levels of detail with it, a prop built later takes the last k
+  ok   the pool drives the published fixtures' glow by the day (the lenses' law) and the mute takes it to nothing
+  ok   the WORLD editor carries the upper decks
+  ok   F8 carries the upper decks, erode and the cover fit
+  ok   the rig that judges the sky (tools/cloud_shot.js) is there
+8. the drift is wrapped to the span before it is uploaded (G1050: the rims re-dealt every clock step)
+  ok   clouds.js defines wrapSpan (drift mod span)
+  ok   the uploaded drift is in [0, span) after a long day (secs 1e7, 3e7)
+  ok   the wrap moves the drift by whole spans only (the field the GPU draws is unchanged)
+  ok   the uploaded drift keeps under 1 cm of float32 (worst 1.19 mm; unwrapped it was 1-16 m)
+  ok   the wrap is ON by default (S.driftWrap 1; 0 = the old upload, an A/B dial)
+  ok   the decks' drift uniforms (uDriftA) are wrapped
+  ok   the shadow tile's drift (uCloudP) is wrapped
+  ok   the wrap's premise: the noise periods divide the span, the shadow tile wraps (fract)
+9. the composite never samples the depth it draws into (G1532: 'current' drew no cloud from train 25 to 38)
+  ok   clouds.js: the clouds' depth is depthFor(r, target), never the target's depth texture directly
+  ok   depthFor: the attachment only when multisampled (the resolve is what is read - the MSAA path unchanged); at zero samples a blitted copy (S.depthCopy 1 by default; 0 = the old read, an A/B dial)
+  ok   the feedback tracker: own depth at 0 samples 3/3 draws, at 4 samples 0, a blitted copy 0 ({"own0":3,"own4":0,"copy0":0})
+  ok   the shipped presets with clouds on, read from gfx_settings.js: current, gamer, ultra
+  ok   current: the clouds live, the composite drawn, no feedback draw (samples 0, composite 6 draws, feedbacks 0, 396 s)
+  ok   gamer: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 244 s)
+  ok   ultra: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 306 s)
+239 checks, 1 failed
+GATE CLOUD: FAIL (1 of 239)
+(exit code 1)
+=== TREEHIT ===
+1. the island's collidable woodland
+  ok   Jolene composes in node
+  ok   trees rooted over the analytic treeline (165 m) are collidable: 5440 of 24771
+  ok   every collidable tree stands on the tree map's TREE class (0 off it)
+  ok   HOME stands over 24 m (31.7 m): the case the old altitude gate missed
+2. the solver meets a trunk at any elevation
+  ok   the three runs finite and rolling (8.6 m/s at the most)
+  ok   with no tree the aeroplane rolls through the place (83.9 m)
+  FAIL at 0 m the trunk stops it (the CG got to 63.5 m of 60)
+  FAIL at 300 m the trunk stops it too (62.9 m of 60) - the altitude gate is gone
+  ok   with the woodland cylinders off (world.woodSolid false: the game page and its worker) the same tree is not met (83.9 m)
+3. the trunk rule, the bins, the worker's world
+  ok   a 15 m realistic fir (crown 0.28 H): r 0.3 m, the trunk to 10.05 m
+  ok   a 25 m maple (crown 0.45 H): r 0.5 m, the trunk splits at 12.5 m
+  ok   20 000 points (half beside a trunk) against the brute force: 0 differ; 3400 trunks in 2 sets, the island-wide set on 64 m cells
+  ok   a set dropped goes whole (400 left)
+  ok   the worker's world takes the page's tset / tdrop (3000 trunks, version 1)
+  ok   and its tclear
+  ok   the worker world takes wsolid (woodSolid false); a world no viewer stands on keeps its cylinders
+4. a flight into a forest-fill trunk
+  FAIL the fill's rule, a 15 m fir: taxied at it, the trunk stops the aeroplane (the CG to 83.7 m of 60; 83.7 m with none)
+  FAIL the fill's rule, a 15 m fir: across the span, 0.7 m -> 84 (the wing broke on it: 0 members, a crash), 1.5 m -> 84 (the wing broke on it: 0 members, a crash), 2.5 m -> 84 (the wing broke on it: 0 members, a crash), 3.5 m -> 84 (the wing broke on it: 0 members, a crash), 4.5 m -> 84 (the wing broke on it: 0 members, a crash) m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  ok   the fill's rule, a 15 m fir: flown at it (4 m AGL, 30 m/s): 24682 beam contacts, 17.7 m/s lost passing it; with no trunk it flies on past at 32.0 m/s, nothing touched
+5. the census: every tree drawn within 1 km of the aeroplane on HOME's stand (the page in node)
+  ok   the page booted and rolled out (333 s)
+       kind       drawn   collidable now   before
+       fill       18482            18482        2
+       wood           0                0        0
+       prem           0                0        0
+  ok   every fill tree drawn is collidable (18482 of 18482; before: 2)
+  ok   every woodland tree drawn - its neighbours and the placed ones too - is collidable (0 of 0; before: 0)
+  ok   every premises tree drawn is collidable (0 of 0; before: 0)
+  ok   the world holds 71371 trunks in 22 sets (22 fill chunk parts round the aeroplane)
+  ok   no woodland cylinder collides unseen (115 physics seeds within 1000 m, woodSolid false, 0 woodland trees drawn)
+  ok   no page error
+       the page's fill trunk nearest the stand (74 m): r 0.30 m, 9.5 m long
+  FAIL the page's own fill trunk: taxied at it, the trunk stops the aeroplane (the CG to 83.7 m of 60; 83.7 m with none)
+  FAIL the page's own fill trunk: across the span, 0.7 m -> 84 (the wing broke on it: 0 members, a crash), 1.5 m -> 84 (the wing broke on it: 0 members, a crash), 2.5 m -> 84 (the wing broke on it: 0 members, a crash), 3.5 m -> 84 (the wing broke on it: 0 members, a crash), 4.5 m -> 84 (the wing broke on it: 0 members, a crash) m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  ok   the page's own fill trunk: flown at it (4 m AGL, 30 m/s): 25367 beam contacts, 18.0 m/s lost passing it; with no trunk it flies on past at 32.0 m/s, nothing touched
+  23/29 checks
+GATE TREEHIT: FAIL
+(exit code 1)
+[run_gates] 7/11 jobs done · running TREECRASH 20 s
+[run_gates] 7/11 jobs done · running TREECRASH 50 s
+[run_gates] 7/11 jobs done · running TREECRASH 80 s
+[run_gates] 7/11 jobs done · running TREECRASH 110 s
+[run_gates] 7/11 jobs done · running TREECRASH 140 s
+[run_gates] 7/11 jobs done · running TREECRASH 170 s
+[run_gates] 7/11 jobs done · running TREECRASH 200 s
+[run_gates] 7/11 jobs done · running TREECRASH 230 s
+[run_gates] 7/11 jobs done · running TREECRASH 260 s
+[run_gates] 7/11 jobs done · running TREECRASH 290 s
+[run_gates] 7/11 jobs done · running TREECRASH 320 s
+[run_gates] 7/11 jobs done · running TREECRASH 350 s
+[run_gates] 7/11 jobs done · running TREECRASH 380 s
+[run_gates] 7/11 jobs done · running TREECRASH 410 s
+[run_gates] 7/11 jobs done · running TREECRASH 440 s
+[run_gates] 7/11 jobs done · running TREECRASH 470 s
+[run_gates] 7/11 jobs done · running TREECRASH 500 s
+[run_gates] 7/11 jobs done · running TREECRASH 530 s
+[run_gates] 7/11 jobs done · running TREECRASH 560 s
+[run_gates] 7/11 jobs done · running TREECRASH 591 s
+[run_gates] 7/11 jobs done · running TREECRASH 621 s
+[run_gates] 7/11 jobs done · running TREECRASH 651 s
+[run_gates] 7/11 jobs done · running TREECRASH 681 s
+[run_gates] 7/11 jobs done · running TREECRASH 711 s
+[run_gates] 7/11 jobs done · running TREECRASH 741 s
+[run_gates] 7/11 jobs done · running TREECRASH 771 s
+[run_gates] 7/11 jobs done · running TREECRASH 801 s
+[run_gates] 7/11 jobs done · running TREECRASH 831 s
+[run_gates] 7/11 jobs done · running TREECRASH 861 s
+[run_gates] 7/11 jobs done · running TREECRASH 891 s
+[run_gates] 7/11 jobs done · running TREECRASH 921 s
+[run_gates] 7/11 jobs done · running TREECRASH 951 s
+[run_gates] 7/11 jobs done · running TREECRASH 981 s
+[run_gates] 7/11 jobs done · running TREECRASH 1011 s
+[run_gates] 7/11 jobs done · running TREECRASH 1041 s
+[run_gates] 7/11 jobs done · running TREECRASH 1071 s
+[run_gates] 7/11 jobs done · running TREECRASH 1101 s
+[run_gates] 7/11 jobs done · running TREECRASH 1131 s
+[run_gates] 7/11 jobs done · running TREECRASH 1162 s
+[run_gates] 7/11 jobs done · running TREECRASH 1192 s
+[run_gates] 7/11 jobs done · running TREECRASH 1222 s
+[run_gates] 7/11 jobs done · running TREECRASH 1252 s
+[run_gates] 7/11 jobs done · running TREECRASH 1282 s
+[run_gates] 7/11 jobs done · running TREECRASH 1312 s
+[run_gates] 7/11 jobs done · running TREECRASH 1342 s
+[run_gates] 7/11 jobs done · running TREECRASH 1372 s
+[run_gates] 7/11 jobs done · running TREECRASH 1402 s
+[run_gates] 7/11 jobs done · running TREECRASH 1432 s
+[run_gates] 7/11 jobs done · running TREECRASH 1462 s
+[run_gates] 7/11 jobs done · running TREECRASH 1492 s
+[run_gates] 7/11 jobs done · running TREECRASH 1522 s
+[run_gates] 7/11 jobs done · running TREECRASH 1552 s
+=== TREECRASH ===
+(875 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+Cub:
+1. the table
+  ok    404 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 42 m/s to the limit (the wing's load 3.95 W; the CG then reading 2.82 g): nothing yields; the worst member 0.79 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.67 g, nothing yields; the worst member 0.70 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.93 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 248 s, 1.65 g at the most): nothing yields; the worst member 0.40 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (the nose crushed 16 cm, its spinner; 0 members set, 0 of the nose broken, 0 J), no crash; the spinner took it - the blades never met the trunk, the engine idling; back 0.14 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (8026 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (S0BR off the core) at 1.32 s), 113 members broken (35 of the wing), 32.5 kJ of plastic work, 19.67 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 49 members broken (34 of the wing), 13.3 kJ of plastic work, 16.31 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (aab4eb93e133 / aab4eb93e133)
+Jodel:
+1. the table
+  ok    502 members, every one with a section and a GEN_CRASH material (wood, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 49 m/s to the limit (the wing's load 4.16 W; the CG then reading 2.18 g): nothing yields; the worst member 0.63 (gear, tension)
+  ok    a drop at 2.17 m/s (7.13 ft/s, FAR 23.473): 1.83 g, nothing yields; the worst member 0.64 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.18 g, nothing yields; the worst member 0.85 (gear, compression)
+  ok    a circuit with the pilot (null, 340 s, 1.62 g at the most): nothing yields; the worst member 0.46 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (the nose crushed 15 cm, its spinner; 0 members set, 0 of the nose broken, 0 J), no crash; the spinner took it - the blades never met the trunk, the engine idling; back 0.24 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (8613 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 145 members broken (64 of the wing), 22.4 kJ of plastic work, 37.76 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 94 members broken (69 of the wing), 5.2 kJ of plastic work, 5.02 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (f84c45db5c85 / f84c45db5c85)
+metal Cessna:
+1. the table
+  ok    452 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 30 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.47 (wing, tension)
+  ok    a flown pull from 58 m/s to the limit (the wing's load 3.83 W; the CG then reading 2.56 g): nothing yields; the worst member 0.91 (wing, tension)
+  ok    a drop at 2.38 m/s (7.80 ft/s, FAR 23.473): 2.11 g, nothing yields; the worst member 0.69 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.42 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 340 s, 2.13 g at the most): nothing yields; the worst member 0.45 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (the nose crushed 26 cm, its spinner; 0 members set, 0 of the nose broken, 0 J), no crash; the spinner took it - the blades never met the trunk, the engine idling; back 0.12 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (34495 contacts), 3 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (a wing member broke at 1.28 s), 141 members broken (38 of the wing), 40.7 kJ of plastic work, 30.55 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 24 members broken (13 of the wing), 16.6 kJ of plastic work, 5.17 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (e7e1972f2658 / e7e1972f2658)
+Cessna floats:
+1. the table
+  ok    543 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 16 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.47 (wing, tension)
+  ok    a flown pull from 65 m/s to the limit (the wing's load 3.81 W; the CG then reading 2.74 g): nothing yields; the worst member 0.81 (wing, tension)
+  ok    a drop at 2.50 m/s (8.19 ft/s, FAR 23.473): 1.66 g, nothing yields; the worst member 0.47 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.71 g, nothing yields; the worst member 0.60 (wing, tension)
+  ok    a circuit with the pilot (null, 340 s, 1.26 g at the most): nothing yields; the worst member 0.27 (wing, tension)
+   (a floatplane: the trunk runs are the land builds')
+twin floatplane:
+1. the table
+  ok    500 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 43 m/s to the limit (the wing's load 3.89 W; the CG then reading 2.96 g): nothing yields; the worst member 0.70 (tail, compression)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.66 g, nothing yields; the worst member 0.24 (fus, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.84 g, nothing yields; the worst member 0.36 (fus, compression)
+  ok    a circuit with the pilot (completed, 308 s, 1.43 g at the most): nothing yields; the worst member 0.25 (tail, compression)
+   (a floatplane: the trunk runs are the land builds')
+6. the water - Cub
+  ok    a 5 m/s level pancake: the worst member 2.24 (wing, compression); 14 set {"fus":8,"wing":6}, 0 broken, the slam 519 kPa, 2 hull slice(s) holed, 6.15 g, dented, no crash; the damage follows the beams' own loads
+  ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 3.35 (gear, tension); 28 set {"fus":8,"wing":18,"gear":2}, 23 broken, the slam 270 kPa, 1 hull slice(s) holed, 8.21 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+  ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 7.25 (fus, compression); 81 set {"fus":38,"wing":35,"tail":8}, 98 broken, the slam 2806 kPa, 4 hull slice(s) holed, 12.99 g, CRASHED (a wing member broke) - must yield, break and crash; the damage follows the beams' own loads
+6. the water - twin floatplane
+  ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 1.32 (gear, tension); 1 set {"gear":1}, 1 broken, 4.91 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.66 (gear, tension); 81 set {"fus":37,"wing":41,"tail":2,"gear":1}, 105 broken, 25.73 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+7. the 30 m/s crash as an ensemble of 16 (the start nudged by up to 0.001 m; a regression = the distribution moves, Mann-Whitney p < 0.01)
+  ok    Cub, 30 m/s trunk, the centreline: every member crashed, a wing member broken, finite, the energy bounded - broken 117 [113-128], pieces 9 [8-10], work 37.4 [32.0-44.5], mountOff 16/16, cowlOff 16/16 (kJ for the work)
+  ok    cub/trunk0 against the reference: broken p 0.791, pieces p 0.422, work p 0.101, mountOff p 1.000, cowlOff p 1.000
+  ok    Cub, 30 m/s trunk, 2.5 m out: every member crashed, a wing member broken, finite, the energy bounded - broken 47 [35-53], pieces 5 [4-5], work 14.2 [13.3-15.4], mountOff 0/16, cowlOff 0/16 (kJ for the work)
+  ok    cub/trunk25 against the reference: broken p 0.637, pieces p 0.456, work p 0.147, mountOff p 1.000, cowlOff p 1.000
+  ok    Jodel, 30 m/s trunk, the centreline: every member crashed, a wing member broken, finite, the energy bounded - broken 153 [145-162], pieces 14 [13-14], work 22.6 [21.5-26.4], mountOff 16/16, cowlOff 16/16 (kJ for the work)
+  FAIL  jodel/trunk0 against the reference: broken p 0.034, pieces p 0.045, work MOVED p 0.000, mountOff p 1.000, cowlOff p 1.000 - work median 19724.1 -> 22577.2 (pooled p10-p90 spread 4928.6)
+  ok    Jodel, 30 m/s trunk, 2.5 m out: every member crashed, a wing member broken, finite, the energy bounded - broken 91 [76-108], pieces 6 [5-8], work 4.4 [3.1-5.4], mountOff 0/16, cowlOff 0/16 (kJ for the work)
+  ok    jodel/trunk25 against the reference: broken p 0.521, pieces p 0.431, work p 0.250, mountOff p 1.000, cowlOff p 1.000
+  ok    metal Cessna, 30 m/s trunk, the centreline: every member crashed, a wing member broken, finite, the energy bounded - broken 116 [65-143], pieces 13 [6-16], work 37.4 [35.7-46.5], mountOff 13/16, cowlOff 13/16 (kJ for the work)
+  ok    metal/trunk0 against the reference: broken p 0.105, pieces p 0.622, work p 0.194, mountOff p 0.436, cowlOff p 0.436
+  ok    metal Cessna, 30 m/s trunk, 2.5 m out: every member crashed, a wing member broken, finite, the energy bounded - broken 38 [25-156], pieces 5 [4-14], work 17.9 [14.8-43.6], mountOff 0/16, cowlOff 0/16 (kJ for the work)
+  ok    metal/trunk25 against the reference: broken p 0.571, pieces p 0.544, work p 0.836, mountOff p 1.000, cowlOff p 1.000
+        (the ensembles: 686 s)
+  61/62 checks
+GATE TREECRASH: FAIL
+(exit code 1)
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 21 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 51 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 81 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 111 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 141 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 171 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 201 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 231 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 261 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 291 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 321 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 352 s
+[run_gates] 8/11 jobs done · running DMGCOMPOSITE 382 s
+[run_gates] 9/11 jobs done · running DMGCERT 8 s
+[run_gates] 9/11 jobs done · running DMGCERT 38 s
+[run_gates] 9/11 jobs done · running DMGCERT 68 s
+[run_gates] 9/11 jobs done · running DMGCERT 98 s
+[run_gates] 9/11 jobs done · running DMGCERT 128 s
+[run_gates] 9/11 jobs done · running DMGCERT 158 s
+[run_gates] 9/11 jobs done · running DMGCERT 188 s
+[run_gates] 9/11 jobs done · running DMGCERT 218 s
+[run_gates] 9/11 jobs done · running DMGCERT 248 s
+[run_gates] 9/11 jobs done · running DMGCERT 278 s
+[run_gates] 9/11 jobs done · running DMGCERT 308 s
+[run_gates] 9/11 jobs done · running DMGCERT 338 s
+[run_gates] 9/11 jobs done · running DMGCERT 368 s
+[run_gates] 9/11 jobs done · running DMGCERT 398 s
+=== DMGCERT ===
+(409 s, 5 builds)
+the rules: kappa 0.1, m 1.05, a joint at 1.5 F_l m x 1, a member at 1.5 F_l m x 1.15, the first set at 1.01 x F_l, the controls' cases x 2
+Cub:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    389 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 46 on the certificate, 343 on the floor; compression: 108 / 277
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (20668 ms in node: flight cases 2572.32, bench 22.55, the dynamic ones 17437.36); a second build of the same spec takes it from the cache in 24 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (46 members), the first group wing0R:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.01 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.95 W, the CG reading 2.82 g): nothing yields; the worst member 0.79 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (6 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.06 and less), certified as built: the bench BROKE UP (first broken at 2.94 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 156 certified 4.4 kN (elevDownDuL) -> crushes at 8.0 kN (physics 36.3); member 157 certified 1.9 kN (flownElev) -> crushes at 3.6 kN (physics 36.3); member 158 certified 2.8 kN (elevDownD) -> crushes at 5.2 kN (physics 36.3); member 159 certified 1.7 kN (flownElevF) -> crushes at 3.6 kN (physics 36.3)
+Jodel:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    487 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 69 on the certificate, 418 on the floor; compression: 141 / 342
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (33185 ms in node: flight cases 2562.93, bench 39.82, the dynamic ones 29621.42); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (88 members), the first group wing0R:root, the first member a bond (WB-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.09 g (wing0L:root, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: bond (wing WB-WF, wood, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.09 g (the left wing's root, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 4.16 W, the CG reading 2.18 g): nothing yields; the worst member 0.63 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (5 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the wing root (20 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 4.04 g, under its 5.70 g ultimate)
+  REPORT  the Jodel's first member broken on the bench to destruction: bond WB-WF (wood, tension); its first group wing0L:root
+metal Cessna:
+1. the certificate (48 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropNoseUp, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gNoseAft, gNoseFwd, gNoseSideR, gNoseSideL, flown, flownElev, flownRud, flownElevF)
+  ok    437 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 99 on the certificate, 338 on the floor; compression: 165 / 268
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (31192 ms in node: flight cases 1192.97, bench 31.59, the dynamic ones 28767.08); a second build of the same spec takes it from the cache in 0 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 16 members set (the largest 0.18 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 30 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (42 members), the first group wing0R:strut, the first member a fitting (S1BR-WB, tension)
+3. to destruction
+  ok    BROKE AT 6.06 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WB, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.06 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.83 W, the CG reading 2.56 g): nothing yields; the worst member 0.91 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 2.14 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 161 certified 14.7 kN (bench) -> crushes at 26.7 kN (physics 68.3); member 162 certified 19.3 kN (bench) -> crushes at 35.0 kN (physics 68.3); member 163 certified 2.5 kN (flownElev) -> crushes at 6.8 kN (physics 68.3); member 164 certified 3.5 kN (flownElevF) -> crushes at 6.8 kN (physics 68.3)
+Cessna floats:
+1. the certificate (49 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    437 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 171 on the certificate, 266 on the floor; compression: 219 / 214
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (60052 ms in node: flight cases 5130.71, bench 51.97, the dynamic ones 51183.71); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 8 members set (the largest 0.06 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 16 set, nothing broken
+  FAIL  to the ultimate x 1.1 (6.27 g): it breaks (0 members), the first group none, the first member a -
+3. to destruction
+  FAIL  BROKE AT 7.21 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WF, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 7.21 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.81 W, the CG reading 2.74 g): nothing yields; the worst member 0.81 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (33 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 2.94 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 161 certified 30.4 kN (dropDriftL) -> crushes at 55.0 kN (physics 68.3); member 162 certified 32.0 kN (dropDriftL) -> crushes at 57.9 kN (physics 68.3); member 163 certified 3.8 kN (dropDriftL) -> crushes at 6.9 kN (physics 68.3); member 164 certified 4.2 kN (flownElevF) -> crushes at 7.6 kN (physics 68.3)
+twin floatplane:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    394 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 107 on the certificate, 287 on the floor; compression: 168 / 222
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (31108 ms in node: flight cases 2913.74, bench 56.92, the dynamic ones 25256.42); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (14 members), the first group wing0R:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.01 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 5.98 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.89 W, the CG reading 2.96 g): nothing yields; the worst member 0.70 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (30 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.04 and less), certified as built: the bench BROKE UP (first broken at 2.99 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 133 certified 5.4 kN (flownElev) -> crushes at 9.7 kN (physics 36.3); member 134 certified 3.9 kN (dropDriftL) -> crushes at 7.1 kN (physics 36.3); member 135 certified 22.6 kN (bow) -> crushes at 36.3 kN (physics 36.3); member 136 certified 4.7 kN (flownElevF) -> crushes at 8.5 kN (physics 36.3)
+  68/70 checks
+GATE DMGCERT: FAIL
+(exit code 1)
+=== DMGGEAR ===
+(1611 s, 5 builds; on the certificate, 66_gen_cert.js)
+Cub:
+1. the bracket (taildragger, bungee)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.04 of a member's length); limits 1.34-7.62 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.78-6.55 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.67 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.09 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-TPT, kink) - set 0 gear / 11 airframe, broken 8 / 0, the first group tw:gear, 1.87 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.30 (gear AXLER-S0TR, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.39 (gear AXLER-S0TR, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.30 (S1BL-S2TL), the gear 0.54 (AXLER-S0TR)
+  ok    a taxi on grass at 8 m/s: 0.22 (gear AXLER-S0BR, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.26 (gear TW-TPT, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.23 (tail HTR-S6TR, compression)
+  ok    the circuit (completed, 248 s, touchdown 1.38 m/s): 0.40 (gear AXLEL-S1BL, compression, ROLLOUT)
+  ok    a crosswind circuit (2.69 m/s across, 0.2 V_S0) (completed, 255 s, touchdown 1.21 m/s): 0.31 (gear AXLEL-S1BL, compression, ROLLOUT)
+3. §7.4's gear rows
+  --    REPORT the ground loop (15 m/s, swung 20 deg at 120 deg/s, the base's staging): groups none, the lowest wingtip -0.03 m (struck) - the wheels slide
+  ok    the ground loop (15 m/s, swung 30 deg at 180 deg/s): a main gear folds (gearR:gear), the low wing strikes (at 4.42 s); the groups in order gearR:gear; a wing member broke
+Jodel:
+1. the bracket (taildragger, oleo)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.1 of a member's length); limits 1.35-9.59 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.79-11.10 kN
+  ok    the drop at its FAR 23.473 limit sink (2.17 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.83 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear yields, nothing breaks, the airframe takes no set - set 1 gear / 0 airframe, broken 0 / 0, 2.43 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (AXLEL-AXLER, ragged) - set 2 gear / 2 airframe, broken 9 / 1, the first group gearR:gear, 2.84 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.31 (gear AXLER-S0BR, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.43 (gear TW-TPT, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.17 m/s (the gear's own limit case): the airframe 0.27 (WB-S0TL), the gear 0.62 (TW-TPT)
+  ok    a taxi on grass at 8 m/s: 0.14 (gear AXLER-S0BR, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.44 (gear AXLER-S0TR, tension)
+  ok    a taxi on the rough field at 12 m/s: 0.39 (gear TW-TPT, compression)
+  ok    the circuit (null, 340 s): 0.46 (gear AXLEL-S0BR, compression, ROLLOUT)
+  ok    a crosswind circuit (3.79 m/s across, 0.2 V_S0) (null, 340 s): 0.16 (gear AXLER-S0TR, tension, FINAL)
+3. §7.4's gear rows
+  --    REPORT the ground loop (15 m/s, swung 20 deg at 120 deg/s): groups none, the lowest wingtip 0.96 m - on flat grass the wheels slide (friction-limited side load)
+metal Cessna:
+1. the bracket (tricycle, spring)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.15 / 0.06 of a member's length); limits 2.58-19.03 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 3.43-13.77 kN
+  ok    the drop at its FAR 23.473 limit sink (2.38 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 2.11 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.70 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-MNTBL, kink) - set 4 gear / 14 airframe, broken 6 / 0, the first group tw:gear, 2.99 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.34 (gear TW-MNTBL, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.45 (gear TW-MNTBL, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.38 m/s (the gear's own limit case): the airframe 0.41 (WF-WF), the gear 0.64 (TW-MNTBL)
+  ok    a taxi on grass at 8 m/s: 0.34 (gear TW-S0BL, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.44 (gear TW-S0BL, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.48 (gear TW-S0BL, compression)
+  ok    the circuit (completed, 340 s, touchdown 1.79 m/s): 0.45 (gear AXLER-S2BR, compression, ROLLOUT)
+  ok    a crosswind circuit (4.49 m/s across, 0.2 V_S0) (null, 340 s): 0.52 (gear AXLEL-S2BL, compression, ROLLOUT)
+3. §7.4's gear rows
+  ok    the porpoise (nose-first at 25 m/s, 5 deg down, the bounces at 3 / 4 / 5 / 6 m/s): the nose gear collapses on bounce 4 (the reference: the fourth since the drawn engine height of G2365 - accepted by name by the user, 8 Oct; was the third) - 1: whole; 2: whole; 3: whole; 4: tw:gear+gearR:gear+gearL:gear; the prop strikes; a gear member broke
+Cessna floats:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 13.17-93.74 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 8.62-102.77 kN
+  ok    the drop at its FAR 23.473 limit sink (2.50 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.66 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 1.73 g
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.43 (wing WR-WR, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.49 (wing WR-WR, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.50 m/s (the gear's own limit case): the airframe 0.59 (WR-WR), the gear 0.48 (FLD-S1BR)
+  ok    a taxi on the water at 4 m/s: 0.14 (wing WF-WF, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.14 (wing WF-WF, tension)
+  ok    the circuit (null, 340 s): 0.27 (wing WB-WF, tension, FINAL)
+  ok    a crosswind circuit (4.99 m/s across, 0.2 V_S0) (null, 340 s): 0.29 (wing WB-WF, tension, FINAL)
+3. §7.4's gear rows
+  ok    the float nose-in at its own V_S0, 89.7 km/h, 4.99 m/s (0.2 V_S0), 20 deg (the WATER CASE): nothing breaks (0 set)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatL:strut, floatR:strut) - the first group floatL:strut (FLD-S1BL, root-twist); then floatR:strut, eng:mount, wing0R:root, wing0L:root, fin:attach, stab:attach; broke up: the fuselage parted (TPB off the core)
+twin floatplane:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 2.16-37.21 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 2.41-19.85 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.66 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 1.94 g
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.27 (fus S1BR-S2TR, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.31 (fus S1BR-S2TR, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.37 (S1BR-S2TR), the gear 0.34 (FLD-S1BR)
+  ok    a taxi on the water at 4 m/s: 0.09 (wing WF-WR, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.14 (gear FLD-S1TL, compression)
+  ok    the circuit (completed, 308 s, touchdown 0.37 m/s): 0.25 (tail HB-HB, compression, CLIMB)
+  OPEN  a crosswind circuit (3.32 m/s across) - the twin skips, owner DMG-RECAL2: 0.24 (tail HB-HB, compression, CLIMB)
+3. §7.4's gear rows
+  ok    the float nose-in at its own V_S0, 59.7 km/h, 3.32 m/s (0.2 V_S0), 20 deg (the WATER CASE): nothing breaks (0 set)
+  FAIL  SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 water load, past its ultimate): the boom root goes, first at its root bay (FLD-FLD tension at 2.57 s, 1 broken)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatL:strut, floatR:strut) - the first group floatL:strut (FLD-S2TL, tension); then floatR:strut, engL:mount, engR:mount, wing0L:strut, wing0R:root; broke up: the fuselage parted (TPB off the core)
+THE HEADROOM TABLE (the worst member over its certified yield; the 23.473 row: the airframe):
+  Cub             td 1.0 0.30 | td 1.5 0.39 | td 23.473 0.30 | taxi on grass at 8 m/s 0.22 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.26 | taxi on the rough field at 12 m/s 0.23 | circuit 0.40 | crosswind circuit 0.31
+  Jodel           td 1.0 0.31 | td 1.5 0.43 | td 23.473 0.27 | taxi on grass at 8 m/s 0.14 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.44 | taxi on the rough field at 12 m/s 0.39 | circuit 0.46 | crosswind circuit 0.16
+  metal Cessna    td 1.0 0.34 | td 1.5 0.45 | td 23.473 0.41 | taxi on grass at 8 m/s 0.34 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.44 | taxi on the rough field at 12 m/s 0.48 | circuit 0.45 | crosswind circuit 0.52
+  Cessna floats   td 1.0 0.43 | td 1.5 0.49 | td 23.473 0.59 | taxi on the water at 4 m/s 0.14 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.14 | circuit 0.27 | crosswind circuit 0.29
+  twin floatplane td 1.0 0.27 | td 1.5 0.31 | td 23.473 0.37 | taxi on the water at 4 m/s 0.09 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.14 | circuit 0.25 | crosswind circuit (OPEN) 0.24
+  71/72 checks
+OPEN (split out of the gate until their owner lands; not counted):
+  the twin on floats, its crosswind water circuit: 0.24 (owner DMG-RECAL2, opened 2026-10-07 at 2.00)
+GATE DMGGEAR: FAIL
+(exit code 1)
+=== DMGINST ===
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 11 readers / writers
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  FAIL  every k x 5 in flight (past the integrator's limit): tripped at frame 1 as 'speed' (node 65 at 570.42 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.16 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.09 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.11 m/s off the CG
+  FAIL  the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 9.75 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.42 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 12.45 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.55 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 8.46 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 3.73 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 8.36 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 2.46 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 9.72 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 1.87 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 3.42 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 58.59 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 67.65 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 29.85 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 69.13 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 68.71 m/s off the CG
+  ok    the census: 16 runs, never tripped; the worst 69.13 m/s (the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water), under 3/4 of the guard
+3. G1802: the plastic work per beam
+  ok    DMG.wB: a Float64Array, one per beam (404), on sim.damage()
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (30616.483 J against 30616.483 J)
+  ok    69 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 16.0 kJ, engines 5.3 kJ, vessel 3.2 kJ, gear 3.2 kJ, wings 2.5 kJ, tail 0.5 kJ
+  ok    the metal Cessna's: 26617.756 J against 26617.756 J
+  ok    reset() after a crash zeroes every beam's work
+4. G1803: every beam carries its ledger section
+  ok    Cub: 404 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Jodel: 502 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 68, wing > bracing 118, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    metal Cessna: 452 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Cessna floats: 543 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    twin floatplane: 500 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 52, wing > bracing 12, fus > engines 28, tail > tail 180, wire > tail 4, gear > gear 106, fus > vessel 9
+5. G1804: the damage view's colours (src/viewer/dmg_overlay.js)
+  ok    calm: |F| / limit up to 0.25 draws the frame's neutral [0.34,0.49,0.69]
+  ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
+  ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
+  ok    the precedence: broken > set > stress > calm
+  ok    the Cub's 30 m/s crash drawn: {"calm":327,"stress":2,"set":25,"broken":50} - every broken member red, every set member orange / cyan
+  ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
+  ok    the layer off (params.damage false): all 2401 members of the five builds calm
+  ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
+  ok    app.js: the view is off unless ?dmgview=1 or the overlays pill; off, sync() is the strain colouring; dmg_overlay.js is in the page (build.js) before app.js
+        the legend:
+          calm   |F| / limit <= 0.25    rgb 0.340 0.490 0.690  #577db0
+          stress |F| / limit = 0.625    rgb 0.670 0.635 0.405  #aba267
+          stress |F| / limit >= 1       rgb 1.000 0.780 0.120  #ffc71f
+          set    stretched 0.01 %       rgb 0.737 0.556 0.419  #bc8e6b
+          set    stretched >= 3 %       rgb 1.000 0.600 0.240  #ff993d
+          set    crushed 0.01 %         rgb 0.322 0.706 0.822  #52b4d2
+          set    crushed >= 3 %         rgb 0.310 0.850 0.910  #4fd9e8
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  31/33 checks
+GATE DMGINST: FAIL
+(exit code 1)
+[run_gates] 10/11 jobs done · running DMGTYRE 19 s
+[run_gates] 10/11 jobs done · running DMGTYRE 49 s
+[run_gates] 10/11 jobs done · running DMGTYRE 79 s
+[run_gates] 10/11 jobs done · running DMGTYRE 109 s
+[run_gates] 10/11 jobs done · running DMGTYRE 139 s
+[run_gates] 10/11 jobs done · running DMGTYRE 169 s
+[run_gates] 10/11 jobs done · running DMGTYRE 199 s
+[run_gates] 10/11 jobs done · running DMGTYRE 229 s
+=== DMGTYRE ===
+FAIL Jodel taxi turn, rudder 0.2: R 31.8 m at 2.93 m/s against the old law's 40.5 m (x0.784, 0.80-1.10; the kinematic bicycle 41.3 m)
+FAIL metal Cessna taxi turn, rudder 0.2: R 15.9 m at 3.03 m/s against the old law's 23.9 m (x0.664, 0.80-1.10; the kinematic bicycle 25.8 m)
+FAIL the Cub's crosswind roll-out at 4 m/s across: completed, the heading's largest error 28 deg (<= 15), 0 reversals (<= 3), touchdown 0.5 m off the centre line (<= 3) at 1.33 m/s, rudder peak 0.95
+FAIL the Cub's crosswind roll-out at 5 m/s across: completed, the heading's largest error 58.6 deg (<= 15), 0 reversals (<= 3), touchdown 0.7 m off the centre line (<= 3) at 1.49 m/s, rudder peak 0.95
+GATE DMGTYRE: FAIL (4)
+(exit code 1)
+=== DMGCOMPOSITE ===
+DMGCOMPOSITE - composite (composite_jodel_2026-10-07.json), damage on, the certificate stamped (70 s, GEN_CERT_V 7)
+  ok    the build: fuselage glass, wing glass, fin glass, stab glass; members {"glass":466,"tubeFabric":36}; laminate seams {"bond":189,"opening":10,"fitting":78} - 514.4 kg, CG 28.6 % MAC, V_S 19.44 m/s
+  ok    every laminate member brittle on the stamp: 451 / 451 break at their yield, 451 crushed at once (ecu 0)
+  ok    with the layer off every limit is infinite and the certificate is not stamped
+  ok    the bench to the limit (3.80 g) and to 1.2 x: no set (0, 0), nothing broken (0, 0) - a laminate has no set past its limit
+  ok    to the ultimate (5.70 g): HELD, 0 set, 0 broken
+  ok    BROKE AT 6.11 g (wing0L:root, fitting) within [5.70, 6.13] g; 0 laminate members set on the way
+  ok    the first member broken: bond (wing WB-WB, glass, tension)
+  ok    the circuit: ROLL > LIFTOFF > CLIMB > CROSSWIND > DOWNWIND > BASE > FINAL > FLARE > ROLLOUT > STOPPED in 388.1 s, n_z max 1.71, 0 yields, 0 broken
+  ok    no laminate member set and whole in any crash: taxi 0, noseover 0, hard 0, trunk0 0, trunk25 0 (a crushed one is broken at once)
+  ok    the 3 m/s taxi and the drop at 1.5 x FAR 23.473 break no laminate member: 0, 0
+  ok    the 30 m/s trunks break it into pieces - centreline: 311 broken (engines 20, wings 44, bracing 61, gear 15, fuselage 25, vessel 8, tail 138), how {"tension/fitting":13,"kink/fitting":11,"group/fitting":53,"group":11,"tension/bond":66,"tension/opening":6,"kink":18,"tension":64,"kink/bond":36,"root-member/fitting":1}, 0 laminate set, pieces off: body 133 kg; eng 109.5 kg; wing0L 61.8 kg; body 58.3 kg; wing0R 58.3 kg; body 18.7 kg; gearL 7.2 kg; gearR 7.2 kg; tw 3.8 kg; stab 3.6 kg; wing0R 3.5 kg; stab 2.8 kg; stab 1.6 kg; stab 1.6 kg; eng 1.1 kg; eng 1.1 kg; eng 1.1 kg; eng 1.1 kg; stab 0.8 kg; fin 0.7 kg; fin 0.7 kg || 2.5 m out: 99 broken (wings 41, bracing 48, gear 9, tail 1), how {"kink":7,"kink/bond":25,"tension/bond":18,"tension/fitting":11,"tension":9,"kink/fitting":3,"group/fitting":15,"group":11}, 0 laminate set, pieces off: wing0R 61.8 kg; wing0L 37.5 kg; wing0L 19.3 kg; gearL 7.2 kg; gearR 7.2 kg; wing0L 4.1 kg; wing0L 0.8 kg
+  ok    the shell over the centreline crash (283 frames broken, 6430 triangles): worst live edge 0.0 mm past 5 % + 1 cm (worst stretch x1.5118), 4371 removed of which 3647 cracked, on 8 pieces
+  FAIL  damage OFF: the Cub, the Jodel, the metal Cessna into the 30 m/s trunk on the base's bytes ({"cub":"8b472a2983895015","jodel":"880a26f26240b258","metal":"a00258881bf70b5c"} vs claude/dmg-t41 037519846 with DMG-COMPOSITE's src/core changes reverted (its merge 0220abd3 against its first parent 1e214874) - train 41, 8 Oct)
+  REPORT  taxi: 0 broken, 0.0 kJ of member work, steel set 0, back 0.18 m
+  REPORT  noseover: 33 broken, 0.2 kJ of member work, steel set 0, CRASHED (a gear member broke), back 0.00 m
+  REPORT  hard: 0 broken, 0.0 kJ of member work, steel set 0
+  REPORT  trunk0: 311 broken, 6.8 kJ of member work, steel set 1, CRASHED (broke up: the fuselage parted (S0BR off the core)), back 0.00 m
+  REPORT  trunk25: 99 broken, 0.2 kJ of member work, steel set 0, CRASHED (a wing member broke), back 0.00 m
+12/13 checks, 404 s
+GATE DMGCOMPOSITE: FAIL
+(exit code 1)
+=== JOINPARITY ===
+== 1. node's load path against the page's own spec (tools/fixtures/join_parity_page.json) ==
+PASS the page capture holds every validated build (cub, jodel, metal, floats, twinFloats)
+     (the load chain's files changed since the capture of 2026-10-20T08:10:41.773Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+PASS Cub              node = page: n 97/97 nb 404/404 mass 460.703/460.703 kg, worst 0.00e+0
+PASS Jodel            node = page: n 115/115 nb 502/502 mass 464.183/464.183 kg, worst 2.22e-16
+PASS metal Cessna     node = page: n 107/107 nb 452/452 mass 888.772/888.772 kg, worst 1.92e-16
+PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.22720 / page 1.22720, y -1.09042 / page -1.09042 (within 5 mm)
+PASS Cessna floats    node = page: n 134/134 nb 543/543 mass 952.449/952.449 kg, worst 1.88e-16
+PASS twin floatplane  the float station (the page's CG handshake, declared): x 1.21434 / page 1.21434, y -0.45973 / page -0.45973 (within 5 mm)
+PASS twin floatplane  node = page: n 123/123 nb 500/500 mass 487.244/487.244 kg, worst 0.00e+0
+== 2. the file as written is NOT the game's aeroplane (the pre-G1985 loaders) ==
+PASS metal Cessna: the engine nodes as written at x -0.510 m, in the game at -1.162 (the join's engines[0].x = -1.1619)
+PASS Cub: the nose tank's nodes as written 0.924 m over the firewall's foot, in the game 0.000; 476.19 kg as written, 460.70 in the game (the tank 27 L)
+== 3. the chain is a pure function of its inputs ==
+PASS metal Cessna: two fresh computations and the cache agree to the byte
+PASS Cub: two fresh computations and the cache agree to the byte
+== 4. the game's spec saved and opened again (question 4) ==
+PASS Cub              save -> open: n 97/97 nb 404/404 mass 460.703/460.703 kg, worst 0.00e+0, engines[0].x -0.8920 carried
+PASS Jodel            save -> open: n 115/115 nb 502/502 mass 464.183/464.183 kg, worst 0.00e+0, engines[0].x -0.9855 carried
+PASS metal Cessna     save -> open: n 107/107 nb 452/452 mass 888.772/888.772 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS Cessna floats    save -> open: n 134/134 nb 543/543 mass 952.449/952.449 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS twin floatplane  save -> open: n 123/123 nb 500/500 mass 487.244/487.244 kg, worst 0.00e+0
+== 5. every loader of a validated build goes through tools/_load_build.js ==
+PASS tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte (so it is held like it)
+PASS the legacy list only shrinks: 19 of at most 19, every one still raw (owner Deform)
+PASS the incoming list only shrinks: 5 of at most 5
+  OPEN pod_still.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN pod_trials.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_check.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_fly.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _radialdiv_check.js reads a validated build raw [owner RADIAL-DIVERGE, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+FAIL no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js
+PASS pilot_trace.js loads saved builds through tools/_load_build.js
+PASS _treecrash_lib.js loads saved builds through tools/_load_build.js
+GATE JOINPARITY: 1 FAIL
+(exit code 1)
+=== POD ===
+FAIL cub: pod off, the whole def is the base's bytes (4eceefb3:143310)
+  FAIL cub: pod off, the shakedown sheet is the base's bytes (bb1b9bfa:4189)
+  FAIL jodel: pod off, the whole def is the base's bytes (c656be5b:169871)
+  FAIL jodel: pod off, the shakedown sheet is the base's bytes (8fc4c309:4249)
+  FAIL c172: pod off, the whole def is the base's bytes (313c46ec:162219)
+  FAIL c172: pod off, the shakedown sheet is the base's bytes (a9b0410b:4263)
+  FAIL floats: pod off, the whole def is the base's bytes (3e0633ce:179749)
+  FAIL floats: pod off, the shakedown sheet is the base's bytes (400c4205:4084)
+  FAIL twinf: pod off, the whole def is the base's bytes (a34c7b5c:159379)
+  FAIL twinf: pod off, the shakedown sheet is the base's bytes (cad91a93:4002)
+  FAIL metal: pod off, the whole def is the base's bytes (e4c9386a:154348)
+  FAIL metal: pod off, the shakedown sheet is the base's bytes (ef03f4ec:4159)
+  -- the clearance, per build and attitude (the default pod: 2.0 x 0.56 x 0.28 m) --
+  cub    level, tail up 0.0 deg: 0.378 m | three-point, at rest 11.2 deg: 0.152 m | mains 0.062 -> fits
+  jodel  level, tail up 0.0 deg: 0.498 m | three-point, at rest 13.1 deg: 0.187 m | mains 0.211 -> fits
+  c172   level, at rest 0.0 deg: 0.225 m | rotated to the tail strike 11.3 deg: 0.172 m | mains 0.212 -> fits
+  floats at rest on the water 0.0 deg: 0.447 m -> fits
+  twinf  at rest on the water 0.0 deg: 0.296 m -> fits
+  metal  level, at rest 0.0 deg: 0.225 m | rotated to the tail strike 11.8 deg: 0.209 m | mains 0.312 -> fits
+  -- the drag and its cost (measured on each aeroplane's own probe) --
+  cub    CdA 0.0299 m2 (5.1 % of the body) · cruise 113.0 -> 111.7 km/h (-1.12 %) · climb -0.045 m/s · VCruise (clamped) 113.0 -> 111.6 · range 376 -> 371 km
+  jodel  CdA 0.0264 m2 (6.5 % of the body) · cruise 125.3 -> 121.8 km/h (-2.79 %) · climb -0.064 m/s · VCruise (clamped) 127.1 -> 121.7 · range 422 -> 404 km
+  c172   CdA 0.0244 m2 (6.5 % of the body) · cruise 183.7 -> 180.2 km/h (-1.93 %) · climb -0.064 m/s · VCruise (clamped) 184.3 -> 180.0 · range 1183 -> 1155 km
+  floats CdA 0.0244 m2 (5.2 % of the body) · cruise 207.6 -> 204.5 km/h (-1.49 %) · climb -0.068 m/s · VCruise (clamped) 204.1 -> 204.5 · range 117 -> 117 km
+  twinf  CdA 0.0242 m2 (2.5 % of the body) · cruise 139.0 -> 138.0 km/h (-0.77 %) · climb -0.037 m/s · VCruise (clamped) 129.6 -> 131.4 · range 110 -> 112 km
+  metal  CdA 0.0244 m2 (5.2 % of the body) · cruise 206.1 -> 203.2 km/h (-1.40 %) · climb -0.051 m/s · VCruise (clamped) 177.5 -> 178.6 · range 102 -> 102 km
+  cub    full 73 kg: CG 23.3 -> 26.5 % MAC, margin 0.171 -> 0.139, the corners' range 23.3-37.8 % (inside), -7 kg against the design gross · bench: POD FITS
+  jodel  full 73 kg: CG 27.6 -> 32.6 % MAC, margin 0.032 -> -0.018, -7 kg against the design gross · bench: POD REFUSED — full, its static margin is -0.02
+  c172   full 73 kg: CG 35.4 -> 37.1 % MAC, margin 0.216 -> 0.199, -87 kg against the design gross · bench: POD FITS
+  floats full 73 kg: CG 33.4 -> 34.1 % MAC, margin 0.175 -> 0.168, -88 kg against the design gross · bench: POD FITS
+  twinf  full 72 kg: CG 31.1 -> 32.2 % MAC, margin 0.143 -> 0.133, 76 kg against the design gross · bench: POD FITS
+  metal  full 73 kg: CG 28.9 -> 30.0 % MAC, margin 0.142 -> 0.131, -87 kg against the design gross · bench: POD FITS
+  the Cub, pod full (73 kg), certified in 44.6 s: the fittings carry 38.3 kg / 38.3 kg / 3.4 kg / 3.4 kg; pod limit share of the node's certified envelope 8 % / 8 % / 2 % / 2 %
+  -- the acceptance leg (5 min, 75 % throttle, HOME + 300 m, calm) --
+  cub    TAS 126.9 / 124.5 / 121.5 km/h · flow 10.89 / 10.89 / 10.89 · range 346 / 339 / 331 km (off / on / full)
+  jodel  TAS 137.4 / 133.3 / 124.8 km/h · flow 10.89 / 10.89 / 10.89 · range 375 / 363 / 340 km (off / on / full)
+  c172   TAS 195.5 / 191.6 / 188.8 km/h · flow 26.57 / 26.57 / 26.57 · range 1074 / 1053 / 1038 km (off / on / full)
+  228 checks, 12 failed (104 s)
+GATE POD: FAIL
+(exit code 1)
+=== WORLD ===
+perf: 1e6 terrainH calls in 1115 ms (1.11 us/call), checksum 30151143.638
+world: seed 0 | 24686 trees | 12 aerodromes | 42 checks, 1 failed
+  FAIL: island: 13/31 approaches under 4 % both ways (the fans clear)
+GATE WORLD: FAIL
+(exit code 1)
+
+──────── summary ────────
+CLOUD     FAIL   950.3 s
+TREEHIT   FAIL   461.3 s
+TREECRASH FAIL  1561.0 s
+DMGCERT   FAIL   409.0 s
+DMGGEAR   FAIL  1612.9 s
+DMGINST   FAIL   241.6 s
+DMGTYRE   FAIL   249.7 s
+DMGCOMPOSITE FAIL   403.8 s
+JOINPARITY FAIL   108.6 s
+POD       FAIL   104.1 s
+WORLD     FAIL    29.4 s
+total           6131.7 s
+wall            5186.8 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.

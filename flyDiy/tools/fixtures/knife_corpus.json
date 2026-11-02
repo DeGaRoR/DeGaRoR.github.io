@@ -1,10 +1,10 @@
 {
- "recordedAt": "2026-10-19T04:42:25.244Z",
- "head": "63b1757ff",
+ "recordedAt": "2026-10-26T06:51:18.180Z",
+ "head": "9dca4f16a",
  "items": {
   "file:builds/cessna172_2026-09-20.json": {
-   "nV": 58241,
-   "nF": 33750,
+   "nV": 57684,
+   "nF": 33242,
    "loops": [
     {
      "n": 68,
@@ -47,11 +47,11 @@
      ]
     }
    ],
-   "hash": "e531092cfc48cef44eccf1145229287585234b33"
+   "hash": "89d1e364dd5d5dabd684eeadd7145c6cb385b02f"
   },
   "file:builds/cessna172_2026-09-20_corrected.json": {
-   "nV": 58167,
-   "nF": 33804,
+   "nV": 57610,
+   "nF": 33296,
    "loops": [
     {
      "n": 64,
@@ -94,11 +94,11 @@
      ]
     }
    ],
-   "hash": "55e56375074b7ddd0251ea02cac21fd9d82651a4"
+   "hash": "1597429349398cddbaf039b4e3a0ac48bb6b599c"
   },
   "file:bugReports/cessnaMetal (1).json": {
-   "nV": 58319,
-   "nF": 33860,
+   "nV": 57762,
+   "nF": 33352,
    "loops": [
     {
      "n": 64,
@@ -141,11 +141,11 @@
      ]
     }
    ],
-   "hash": "b08b8894429c41d687dfe46eb013c2e082627e86"
+   "hash": "a0a7e6b14a3e954104cbbf42fbe46b3c3d2ca387"
   },
   "file:bugReports/flydiy-build (3).json": {
-   "nV": 16205,
-   "nF": 14212,
+   "nV": 15648,
+   "nF": 13704,
    "loops": [
     {
      "n": 119,
@@ -168,11 +168,11 @@
      ]
     }
    ],
-   "hash": "721dc8ab675d3110be527c7c29e578fa65df1a09"
+   "hash": "a7ed335da2f2f474ff841b594ab69e694804af5e"
   },
   "file:bugReports/flydiy-build (4).json": {
-   "nV": 16205,
-   "nF": 14212,
+   "nV": 15648,
+   "nF": 13704,
    "loops": [
     {
      "n": 119,
@@ -195,11 +195,11 @@
      ]
     }
    ],
-   "hash": "721dc8ab675d3110be527c7c29e578fa65df1a09"
+   "hash": "a7ed335da2f2f474ff841b594ab69e694804af5e"
   },
   "file:tools/fixtures/build_v10_cessnaMetal_2026-09-26.json": {
-   "nV": 58319,
-   "nF": 33860,
+   "nV": 57762,
+   "nF": 33352,
    "loops": [
     {
      "n": 64,
@@ -242,7 +242,7 @@
      ]
     }
    ],
-   "hash": "b08b8894429c41d687dfe46eb013c2e082627e86"
+   "hash": "a0a7e6b14a3e954104cbbf42fbe46b3c3d2ca387"
   },
   "preset:cessna 172": {
    "nV": 57444,

@@ -157,8 +157,16 @@ if (process.argv.includes('--drawn')) {
   ok(mesh.count === 0 && !mesh.visible, 'no blob: nothing drawn');
   // the wiring
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), build = fs.readFileSync(path.join(T, 'build.js'), 'utf8');
-  const iPose = app.indexOf('    poseModel();\n    // G1002'), iCs = app.indexOf('contactShadows();', iPose);
-  ok(iPose > 0 && iCs > iPose && iCs - iPose < 200, 'app.js poses the contact shadows right after poseModel in the frame');
+  const contactPoseOrder = text => {
+    const frameApp = text.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '');
+    const iPose = frameApp.indexOf('    poseModel();\n    // G1002'), iCs = frameApp.indexOf('contactShadows();', iPose);
+    return iPose > 0 && iCs > iPose && iCs - iPose < 200;
+  };
+  ok(contactPoseOrder(app), 'app.js poses the contact shadows right after poseModel in the frame');
+  const poseFirst = '    poseModel();', contactLast = "    if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();";
+  const reversedContact = app.replace(poseFirst, '__PERF_POSE__').replace(contactLast, poseFirst).replace('__PERF_POSE__', contactLast);
+  ok(!contactPoseOrder(reversedContact), 'contact negative: moving contact shadow before pose is rejected');
+  ok(contactPoseOrder(app.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '')), 'contact: removing optional pose timing preserves the wiring');
   ok(/'contact_shadow\.js'/.test(build) && build.indexOf("'contact_shadow.js'") < build.indexOf("'app.js'"), 'build.js ships contact_shadow.js before app.js');
   // G2055: both meshes made at load and left in their scenes (the compile steps link the one program), the shed's floor
   const iMk = app.indexOf('  function contactMeshes() {'), iCall = app.indexOf('\n  contactMeshes();\n', iMk);

@@ -66,6 +66,13 @@ const SIM_LINK = (() => {
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
+  // G3560 (AP-HONEST): ...but the ROUTE and the NAVIGATOR are not left as the page planned them. The worker sends the
+  // route as its two aerodrome ids (sim_host.js meta: { from, to }) - a divert (43_pilot.js judgeHeld / goAround) moves
+  // ap.route there, and the page kept the field it rolled out for ("Short of Jumbo Mine Street" on a flight that had
+  // diverted to strip 13; every page reader of ap.route stale). The ids are resolved onto the page's own aerodrome records
+  // when they change (two string compares a snapshot, nothing copied); the navigator's readouts (sim_host.js: `nav` only
+  // when its `last` changes - the box's NAV mode) are written into the page's navigator (app.js flNav), which nothing on
+  // the page steps under the worker
 
   const isPlain = o => o !== null && typeof o === 'object' && !Array.isArray(o) && !ArrayBuffer.isView(o);
   // src's fields into dst (dst's own objects kept, so a reader holding one sees the new numbers)
@@ -87,11 +94,23 @@ const SIM_LINK = (() => {
   // the page has, after three (they build with it at load), so its world composes the premises as the page's did
   const GEN_FILES = { HOUSE_GEN: ['tools/_house_kit.js', 'tools/_house_gen.js'], BIG_GEN: ['tools/_big_gen.js'], SHED_GEN: ['tools/_shed_gen.js'],
                       HANGAR_GEN: ['tools/_hangar_gen.js'], TOWER_GEN: ['tools/_tower_gen.js'], TRAM_GEN: ['tools/_tram_gen.js'],
-                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'] };
+                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'], METEO_GEN: ['tools/_meteo_gen.js'] };
   function catalogueScripts(W) {
     const out = [];
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);
     return out.length ? ['vendor/three.min.js'].concat(out) : out;
+  }
+  // G3610: the worker's route ({ from, to } ids, sim_host meta) onto the page's pilot F.ap, once per change of the worker's
+  // ids (F.routeSeen); true when the page's route was replaced
+  function routeCopy(F, wr, world) {
+    const wSig = wr ? wr.from + '>' + wr.to : null;
+    if (wSig === F.routeSeen) return false;
+    F.routeSeen = wSig;
+    const cur = F.ap.route, A = (world && world.aerodromes) || [], byId = id => A.find(a => a.id === id) || null;
+    const to = wr && byId(wr.to);
+    if (!to || !cur || (cur.to && cur.to.id === wr.to && cur.from && cur.from.id === wr.from)) return false;
+    F.ap.route = { from: byId(wr.from) || cur.from, to };
+    return true;
   }
   const copyEng = e => (Array.isArray(e) ? e.map(x => (x && typeof x === 'object' ? Object.assign({}, x) : x)) : e == null ? null : e);
 
@@ -518,12 +537,27 @@ const SIM_LINK = (() => {
       }
       merge(F.ap, V.ap, 3, AP_SKIP.concat(AP_WHOLE));
       for (const k of AP_WHOLE) if (k in V.ap && F.ap[k] !== V.ap[k]) F.ap[k] = V.ap[k];
+      // G3610 (the 24 Oct playtest, item 53): THE WORKER'S ROUTE ON THE PAGE. sim_host sends ap.route as its two ids; the
+      // page's route stayed the one it started with, so a divert (43_pilot 'divert') never reached the page's readers - the
+      // arrival card said 'Short of Jumbo Mine Street' long after the plane had gone elsewhere. When the worker's route
+      // CHANGES (not every snapshot: a destination the page has just asked for, not yet stepped there, stays), the page's
+      // route is the worker's, as the page world's own aerodromes
+      if (routeCopy(F, V.ap.route, world)) st.routeCopies = (st.routeCopies || 0) + 1;
+      if (V.ap.nav !== navSeen) { navSeen = V.ap.nav; navIn(F.ap, navSeen); }   // G3560 (AP-HONEST): the navigator's readouts (the route is G3610's routeCopy above)
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
       if (S.F_CRASHED && (f[S.FLAGS] & S.F_CRASHED)) st.crashed = true;   // G1470
       st.dmg = V.dmg || null;
       return step;
+    }
+
+    // G3560 (AP-HONEST): the navigator's readouts (sim_host sends ap.nav only when its `last` changes)
+    let navSeen;
+    function navIn(ap, N) {
+      const P = ap.nav;
+      if (!P || !N || typeof N !== 'object') return;
+      P.mode = N.mode; P.active = N.active; P.arrived = !!N.arrived; P.last = N.last || null;
     }
 
     // ---- THE LOOP'S DOORS -------------------------------------------------------------------------------
@@ -702,7 +736,7 @@ const SIM_LINK = (() => {
     };
     return api;
   }
-  return { make };
+  return { make, routeCopy };
 })();
 if (typeof window !== 'undefined') window.SIM_LINK = SIM_LINK;
 if (typeof module !== 'undefined' && module.exports) module.exports = { SIM_LINK };

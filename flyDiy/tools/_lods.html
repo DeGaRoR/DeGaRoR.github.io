@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>LODS rig</title>
+<!-- THE LOD COMPARISON RIG (LODS-2026-10): one building, its near mesh and every far rung the game draws of it, from
+     the same camera - driven by tools/lods_sheet.js (headless Chromium on SwiftShader). The far rungs are made by
+     render_premises.js's OWN code, lifted out of the file at load (tools/_lods_rig.js): detailOf, lod1Bags, meanOf,
+     hlodMerge, hlodBoxes, lodMat - so the colours and the shapes on the sheet are the game's, not a restatement. -->
+<style>html,body{margin:0;background:#222;color:#ddd;font:12px sans-serif}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="300" height="300"></canvas>
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/tex_means.js"></script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/ground_tex.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="_shed_gen.js"></script>
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="_big_gen.js"></script>
+<script src="_hangar_gen.js"></script>
+<script src="_tower_gen.js"></script>
+<script src="_navaid_gen.js"></script>
+<script src="_tram_gen.js"></script>
+<script src="../src/viewer/lot_tex.js"></script>
+<script src="_sport_gen.js"></script>
+<script src="_marine_gen.js"></script>
+<script src="../src/totems/totems_poles.js"></script>
+<script src="_totem_gen.js"></script>
+<!-- (the meteo branch's HOUSE_GEN.std, restated when this checkout's generator has none) -->
+<script>if (window.HOUSE_GEN && !HOUSE_GEN.std) HOUSE_GEN.std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));</script>
+<script src="_meteo_gen.js"></script>
+<script src="_lods_rig.js"></script>
+</body></html>

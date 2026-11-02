@@ -1,0 +1,1280 @@
+{
+ "stock/HOME/expert": {
+  "outcome": "completed",
+  "t": 248.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 96,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.4,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": 1,
+   "off": -0.1,
+   "run": 62,
+   "three": false,
+   "drift": -0.27
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.1,
+   "entryVs": -1.75,
+   "t0": 231.96666666666667,
+   "dur": 5.6
+  },
+  "verdicts": []
+ },
+ "stock/HOME/student": {
+  "outcome": "completed",
+  "t": 268.4,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 94,
+   "Vlo": 17,
+   "lifts": 1,
+   "qMax": 3.6
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.79,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": 4,
+   "off": -0.6,
+   "run": 61,
+   "three": false,
+   "drift": -0.03
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.48,
+   "entryVs": -1.65,
+   "t0": 253.1,
+   "dur": 4.7
+  },
+  "verdicts": [
+   "19.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/HOME/bush": {
+  "outcome": "completed",
+  "t": 303.5,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 96,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.27,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": -1,
+   "off": 0,
+   "run": 56,
+   "three": false,
+   "drift": -0.12
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 66,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.11,
+   "entryVs": -1.64,
+   "t0": 289.4166666666667,
+   "dur": 5.4
+  },
+  "verdicts": []
+ },
+ "stock/HOME/hamfist": {
+  "outcome": "completed",
+  "t": 248.5,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 96,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 5.6
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.53,
+   "V": 14.2,
+   "VoverVs": 1.06,
+   "pastAim": -1,
+   "off": -0.1,
+   "run": 66,
+   "three": false,
+   "drift": -0.45
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.1,
+   "entryVs": -1.59,
+   "t0": 232.2,
+   "dur": 5.4
+  },
+  "verdicts": [
+   "19.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/HOME/club": {
+  "outcome": "completed",
+  "t": 253.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 96,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 3.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.27,
+   "V": 14.4,
+   "VoverVs": 1.07,
+   "pastAim": -3,
+   "off": 0,
+   "run": 71,
+   "three": false,
+   "drift": -0.08
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.7,
+   "entryVs": -1.77,
+   "t0": 236.86666666666667,
+   "dur": 4.9
+  },
+  "verdicts": []
+ },
+ "stock/A4/expert": {
+  "outcome": "completed",
+  "t": 264.7,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 98,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.18,
+   "V": 13.7,
+   "VoverVs": 1.02,
+   "pastAim": 3,
+   "off": -0.1,
+   "run": 58,
+   "three": false,
+   "drift": -0.12
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.46,
+   "entryVs": -1.62,
+   "t0": 249.51666666666668,
+   "dur": 6
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "24.7s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/A4/student": {
+  "outcome": "completed",
+  "t": 222.9,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 95,
+   "Vlo": 16.9,
+   "lifts": 1,
+   "qMax": 4.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.33,
+   "V": 14.1,
+   "VoverVs": 1.05,
+   "pastAim": 9,
+   "off": 0.3,
+   "run": 72,
+   "three": false,
+   "drift": -0.06
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.47,
+   "entryVs": -1.64,
+   "t0": 206.08333333333334,
+   "dur": 4.7
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "19.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/A4/bush": {
+  "outcome": "completed",
+  "t": 258,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 97,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 3.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.4,
+   "V": 13.8,
+   "VoverVs": 1.03,
+   "pastAim": -1,
+   "off": 0.1,
+   "run": 58,
+   "three": false,
+   "drift": -0.13
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.44,
+   "entryVs": -1.65,
+   "t0": 243.13333333333333,
+   "dur": 5.6
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "24.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/A4/club": {
+  "outcome": "completed",
+  "t": 270.6,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 97,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 3.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.01,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": -1,
+   "off": -0.1,
+   "run": 63,
+   "three": false,
+   "drift": -0.09
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.96,
+   "entryVs": -1.62,
+   "t0": 255.56666666666666,
+   "dur": 5.2
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "24.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/A4/hamfist": {
+  "outcome": "completed",
+  "t": 265,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 96,
+   "Vlo": 17,
+   "lifts": 1,
+   "qMax": 6.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.55,
+   "V": 14.4,
+   "VoverVs": 1.07,
+   "pastAim": -21,
+   "off": -1,
+   "run": 59,
+   "three": false,
+   "drift": -0.65
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.82,
+   "entryVs": -2.18,
+   "t0": 250.71666666666667,
+   "dur": 4.8
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "20.2s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "kit/HOME/expert": {
+  "outcome": "completed",
+  "t": 236.7,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 93,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.47,
+   "V": 14,
+   "VoverVs": 1.21,
+   "pastAim": 1,
+   "off": 0,
+   "run": 71,
+   "three": false,
+   "drift": -0.25
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.11,
+   "entryVs": -1.79,
+   "t0": 219.66666666666666,
+   "dur": 5.5
+  },
+  "verdicts": [
+   "19.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/student": {
+  "outcome": "completed",
+  "t": 253.3,
+  "ga": 0,
+  "bounces": 2,
+  "to": {
+   "run": 88,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 2.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 2.37,
+   "V": 14.9,
+   "VoverVs": 1.28,
+   "pastAim": -7,
+   "off": -0.3,
+   "run": 83,
+   "three": false,
+   "drift": 0.08
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -1.99,
+   "t0": 237.16666666666666,
+   "dur": 3.7
+  },
+  "verdicts": [
+   "20s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/bush": {
+  "outcome": "completed",
+  "t": 290,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 93,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.85,
+   "V": 14.1,
+   "VoverVs": 1.22,
+   "pastAim": -4,
+   "off": 0.1,
+   "run": 60,
+   "three": false,
+   "drift": -0.13
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 66,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.12,
+   "entryVs": -1.63,
+   "t0": 275.9166666666667,
+   "dur": 5.1
+  },
+  "verdicts": [
+   "19.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/club": {
+  "outcome": "completed",
+  "t": 240.7,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 93,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.63,
+   "V": 15.3,
+   "VoverVs": 1.32,
+   "pastAim": -16,
+   "off": 0.2,
+   "run": 89,
+   "three": false,
+   "drift": 0.12
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.71,
+   "entryVs": -1.83,
+   "t0": 223.73333333333332,
+   "dur": 4
+  },
+  "verdicts": [
+   "19.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/hamfist": {
+  "outcome": "completed",
+  "t": 236.8,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 91,
+   "Vlo": 15.8,
+   "lifts": 1,
+   "qMax": 8.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.66,
+   "V": 14.3,
+   "VoverVs": 1.23,
+   "pastAim": -10,
+   "off": -2.7,
+   "run": 77,
+   "three": false,
+   "drift": 0.78
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.11,
+   "entryVs": -1.77,
+   "t0": 219.5,
+   "dur": 5.3
+  },
+  "verdicts": [
+   "20.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/student": {
+  "outcome": "completed",
+  "t": 212.9,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 90,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.98,
+   "V": 15,
+   "VoverVs": 1.29,
+   "pastAim": -10,
+   "off": -0.4,
+   "run": 92,
+   "three": false,
+   "drift": 0.27
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -1.79,
+   "t0": 195.33333333333334,
+   "dur": 3.8
+  },
+  "verdicts": [
+   "20.3s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/expert": {
+  "outcome": "completed",
+  "t": 253.3,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 94,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.22,
+   "V": 13.7,
+   "VoverVs": 1.18,
+   "pastAim": 4,
+   "off": -0.1,
+   "run": 59,
+   "three": false,
+   "drift": -0.16
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.48,
+   "entryVs": -1.63,
+   "t0": 237.96666666666667,
+   "dur": 5.9
+  },
+  "verdicts": [
+   "20.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/bush": {
+  "outcome": "completed",
+  "t": 247.2,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 95,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.16,
+   "V": 13.9,
+   "VoverVs": 1.2,
+   "pastAim": -2,
+   "off": 0,
+   "run": 61,
+   "three": false,
+   "drift": -0.16
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.5,
+   "entryVs": -1.61,
+   "t0": 232.11666666666667,
+   "dur": 5.5
+  },
+  "verdicts": [
+   "20.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/club": {
+  "outcome": "completed",
+  "t": 257.6,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 94,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.42,
+   "V": 14.6,
+   "VoverVs": 1.26,
+   "pastAim": -11,
+   "off": 0.3,
+   "run": 64,
+   "three": false,
+   "drift": 0.05
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.98,
+   "entryVs": -1.71,
+   "t0": 243.51666666666668,
+   "dur": 4.4
+  },
+  "verdicts": [
+   "20.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/hamfist": {
+  "outcome": "completed",
+  "t": 254,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 92,
+   "Vlo": 15.7,
+   "lifts": 1,
+   "qMax": 8.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.8,
+   "V": 14.1,
+   "VoverVs": 1.22,
+   "pastAim": -12,
+   "off": -0.3,
+   "run": 57,
+   "three": false,
+   "drift": -0.06
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.47,
+   "entryVs": -1.8,
+   "t0": 239.66666666666666,
+   "dur": 5.1
+  },
+  "verdicts": [
+   "20.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "stol/HOME/expert": {
+  "outcome": "completed",
+  "t": 270,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 43,
+   "Vlo": 14.4,
+   "lifts": 1,
+   "qMax": 4.2
+  },
+  "dep": "short",
+  "depStol": true,
+  "ldg": {
+   "sink": 1.38,
+   "V": 11.3,
+   "VoverVs": 0.93,
+   "pastAim": 11,
+   "off": 0,
+   "run": 27,
+   "three": true,
+   "drift": -0.24
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 10,
+   "gs": 0.12,
+   "stol": true
+  },
+  "flare": {
+   "entryAgl": 7.32,
+   "entryVs": -1.73,
+   "t0": 258.3666666666667,
+   "dur": 5.6
+  },
+  "verdicts": []
+ },
+ "stol/HOME/student": {
+  "outcome": "completed",
+  "t": 242,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 48,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 20
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.72,
+   "V": 14,
+   "VoverVs": 1.16,
+   "pastAim": -8,
+   "off": -0.3,
+   "run": 67,
+   "three": false,
+   "drift": 0.49
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.86,
+   "entryVs": -1.72,
+   "t0": 227.56666666666666,
+   "dur": 3.3
+  },
+  "verdicts": [
+   "11.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/HOME/bush": {
+  "outcome": "completed",
+  "t": 265.9,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 43,
+   "Vlo": 14.5,
+   "lifts": 1,
+   "qMax": 13.1
+  },
+  "dep": "short",
+  "depStol": true,
+  "ldg": {
+   "sink": 1.38,
+   "V": 11.3,
+   "VoverVs": 0.93,
+   "pastAim": 11,
+   "off": -0.1,
+   "run": 28,
+   "three": true,
+   "drift": -0.11
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 10,
+   "gs": 0.12,
+   "stol": true
+  },
+  "flare": {
+   "entryAgl": 7.32,
+   "entryVs": -1.74,
+   "t0": 254.2,
+   "dur": 5.6
+  },
+  "verdicts": [
+   "11.3s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.0 m/s until clear"
+  ]
+ },
+ "stol/HOME/club": {
+  "outcome": "completed",
+  "t": 225.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 47,
+   "Vlo": 15.5,
+   "lifts": 1,
+   "qMax": 20.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.04,
+   "V": 13.7,
+   "VoverVs": 1.13,
+   "pastAim": -8,
+   "off": 0.4,
+   "run": 67,
+   "three": false,
+   "drift": -0.08
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.95,
+   "entryVs": -1.58,
+   "t0": 209.71666666666667,
+   "dur": 4.3
+  },
+  "verdicts": [
+   "11.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/HOME/hamfist": {
+  "outcome": "completed",
+  "t": 221.5,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 49,
+   "Vlo": 15.9,
+   "lifts": 1,
+   "qMax": 18.2
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.41,
+   "V": 14.2,
+   "VoverVs": 1.17,
+   "pastAim": -20,
+   "off": 2,
+   "run": 68,
+   "three": false,
+   "drift": 0.71
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.3,
+   "entryVs": -2.36,
+   "t0": 206.8,
+   "dur": 3.6
+  },
+  "verdicts": [
+   "11.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/A4/expert": {
+  "outcome": "completed",
+  "t": 269.2,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 44,
+   "Vlo": 14.5,
+   "lifts": 1,
+   "qMax": 4.2
+  },
+  "dep": "short",
+  "depStol": true,
+  "ldg": {
+   "sink": 1.38,
+   "V": 11.3,
+   "VoverVs": 0.93,
+   "pastAim": 11,
+   "off": -0.1,
+   "run": 30,
+   "three": true,
+   "drift": -0.27
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 10,
+   "gs": 0.12,
+   "stol": true
+  },
+  "flare": {
+   "entryAgl": 7.69,
+   "entryVs": -1.74,
+   "t0": 256.71666666666664,
+   "dur": 5.8
+  },
+  "verdicts": [
+   "13.7s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.0 m/s until clear"
+  ]
+ },
+ "stol/A4/student": {
+  "outcome": "completed",
+  "t": 245.7,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 48,
+   "Vlo": 15.5,
+   "lifts": 1,
+   "qMax": 20.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.53,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": -9,
+   "off": 0.5,
+   "run": 73,
+   "three": false,
+   "drift": -0.05
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.84,
+   "entryVs": -1.68,
+   "t0": 230.06666666666666,
+   "dur": 3.4
+  },
+  "verdicts": [
+   "11.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/A4/bush": {
+  "outcome": "completed",
+  "t": 265,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 44,
+   "Vlo": 14.5,
+   "lifts": 1,
+   "qMax": 12.5
+  },
+  "dep": "short",
+  "depStol": true,
+  "ldg": {
+   "sink": 1.38,
+   "V": 11.3,
+   "VoverVs": 0.93,
+   "pastAim": 11,
+   "off": -0.2,
+   "run": 30,
+   "three": true,
+   "drift": -0.15
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 10,
+   "gs": 0.12,
+   "stol": true
+  },
+  "flare": {
+   "entryAgl": 7.67,
+   "entryVs": -1.75,
+   "t0": 252.5,
+   "dur": 5.8
+  },
+  "verdicts": [
+   "11.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.0 m/s until clear"
+  ]
+ },
+ "stol/A4/club": {
+  "outcome": "completed",
+  "t": 293.5,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 47,
+   "Vlo": 15.5,
+   "lifts": 1,
+   "qMax": 19.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.04,
+   "V": 13.8,
+   "VoverVs": 1.14,
+   "pastAim": -2,
+   "off": -0.1,
+   "run": 54,
+   "three": false,
+   "drift": -0.48
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.33,
+   "entryVs": -1.47,
+   "t0": 279.26666666666665,
+   "dur": 5.2
+  },
+  "verdicts": [
+   "11.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/A4/hamfist": {
+  "outcome": "completed",
+  "t": 297.2,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 49,
+   "Vlo": 15.9,
+   "lifts": 1,
+   "qMax": 20.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.71,
+   "V": 13.7,
+   "VoverVs": 1.13,
+   "pastAim": -26,
+   "off": -0.9,
+   "run": 58,
+   "three": false,
+   "drift": 1.16
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.13,
+   "entryVs": -2.12,
+   "t0": 283.56666666666666,
+   "dur": 4.2
+  },
+  "verdicts": [
+   "11.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "297.2s off-the-strip: touched -6 m in, stopped -287 m past the end of 340 m (0 m off the centreline)"
+  ]
+ },
+ "stol/w8/expert": {
+  "outcome": "completed",
+  "t": 532.6,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 49,
+   "Vlo": 15.4,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.02,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": 4,
+   "off": -0.2,
+   "run": 51,
+   "three": false,
+   "drift": -0.44
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 24,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.57,
+   "entryVs": -1.47,
+   "t0": 520.3333333333334,
+   "dur": 5
+  },
+  "verdicts": [
+   "11.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/w8/student": {
+  "outcome": "completed",
+  "t": 597.8,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 46,
+   "Vlo": 14.7,
+   "lifts": 1,
+   "qMax": 22.3
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.43,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": -12,
+   "off": -0.3,
+   "run": 60,
+   "three": false,
+   "drift": 0.18
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.85,
+   "entryVs": -1.79,
+   "t0": 585.4166666666666,
+   "dur": 3.4
+  },
+  "verdicts": [
+   "12.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ }
+}

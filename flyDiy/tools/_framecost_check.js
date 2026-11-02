@@ -445,16 +445,47 @@ const ALLOW = [
   { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
   { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3534 (HANGARS-LOOK, A0 25 Oct): the garage room wears HANGAR_GEN's polish, uploaded once at compile (bakeHangarEnv's
+  // render of the room); proven by A/B - the polish off in source gives master's 1559360 back; upTo = measured + 5 %
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  // G3543 (VEHICLE PRINTS, A0 26 Oct): the traffic's prints follow the posed cars, only the drawn matrices uploaded (an update
+  // range): 544 -> 768 B a frame at the bench, both builds; upTo 800
+  { key: 'stand/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
   // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
   // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
   { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
   // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
   // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
-  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' }
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' },
+  // G2991 (WORLD-LOOK debris, the user 26 Oct "keep the 131 debris"): the cover ring's debris are BatchedMeshes with
+  // perObjectFrustumCulled (G585) - each uploads its visible-instance list at every draw, per camera (main + cascades):
+  // taxi ~588 K -> ~779 K bytes a frame (Cub, 23:55 fold measure); upTo = measured + 5 %. The fix is ticket debris-batch-uploads
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 818000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 825000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
+function ringsIdle(fill) {
+  for (const key of ['cover', 'grass']) {
+    const ring = fill && typeof fill[key] === 'function' ? fill[key]() : null;
+    const s = ring && ring.stat ? ring.stat() : null;
+    if (s && (s.queued > 0 || s.dirty > 0 || s.building || s.tierUp > 0)) return false;
+  }
+  return true;
+}
+async function settleUploads(frames, idle, uploaded, cap = 120, quietFrames = 30) {
+  let more = 0, quiet = 0, previous = uploaded();
+  while (more < cap && quiet < quietFrames) {
+    await frames(1); more++;
+    const current = uploaded();
+    quiet = idle() && current === previous ? quiet + 1 : 0;
+    previous = current;
+  }
+  return more; // A permanent allocation still reaches the original cap and is measured/reported, never exempted.
+}
 async function census(build) {
   const { openPage } = require('./_page_node.js');
   const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
@@ -468,7 +499,8 @@ async function census(build) {
   // FRAMECOST_WORKERS=1 (G830): the page's house worker on (the harness's Worker shim and a fake IndexedDB in a fresh
   // directory - a cold cache), as the browser runs it; without it the page takes its no-Worker path, the inline build
   const wk = process.env.FRAMECOST_WORKERS ? { workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(require('os').tmpdir(), 'fc-idb-')), workerWaitMs: 900000 } : {};
-  const Q0 = process.env.FRAMECOST_QUERY || '';
+  // (METLA-ON: the census is the field's - Metlakatla cut, as its baseline was taken - unless the query names the town itself)
+  const Q0 = (q => /(^|&)town=/.test(q) ? q : (q ? q + '&' : '') + 'town=0')(process.env.FRAMECOST_QUERY || '');
   const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: FLEETQ ? (Q0 ? Q0 + '&' : '') + 'fleet=1' : Q0 }, wk));
   const W = P.win;
   const snap = bootMark.snap;
@@ -505,8 +537,7 @@ async function census(build) {
   // for many frames: at WARM 6 the counts measured where that transient happened to stand - the taxi's gl.bufferData 15 on
   // master, 30.5 with the reveal's eye placed right (G1119), 0 / 0 at WARM 60 (four Cub censuses, parkcook=0). So after its
   // WARM frames a view warms on until the ring's queue is empty and no block is left to rebuild, 120 frames at most
-  const ringIdle = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const s = r && r.stat ? r.stat() : null;
-    return !s || (!(s.queued > 0) && !(s.dirty > 0) && !s.building); } catch (e) { return true; } };
+  const ringIdle = () => ringsIdle(W.TREE_FILL);
   // FRAMECOST_SETTLE=<max frames> (off by default: the gate's own counts are unchanged): LIKE WITH LIKE. The census runs on
   // a virtual clock, so a tree whose boot does more (a warm draw, a compile) reaches the view with the world's streaming
   // elsewhere - the houses and props drawn at the counted frame differ (C4b's cockpit census: houses 4 vs 2, props 9 vs 8,
@@ -528,8 +559,8 @@ async function census(build) {
   };
   let viewTag = 'stand';
   const measure = async (warm, frames) => { rows = null; FP.camSettle(); await settle(viewTag); await P.frames(warm === undefined ? WARM : warm);
-    let more = 0; while (more < 120 && !ringIdle()) { await P.frames(1); more++; }
-    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for the cover ring to go idle)');
+    const more = await settleUploads(n => P.frames(n), ringIdle, () => P.rec.bytes.bufferData || 0);
+    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for both cover rings to go idle)');
     rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
@@ -1311,4 +1342,4 @@ async function main() {
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
-if (require.main !== module) module.exports = { census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });
+if (require.main !== module) module.exports = { ringsIdle, settleUploads, census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });

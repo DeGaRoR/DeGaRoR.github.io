@@ -55,7 +55,7 @@ function panel() {
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js'])
     require(path.join(__dirname, f));
   const EP = global.window.ENG_PAGE;
-  const presets = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  const presets = EP.presetNames();   // the saved order (NEW-SHAPES-1)
   const JOIN = require(path.join(__dirname, '_cage_join.js'));
   const COWL = require(path.join(__dirname, '_cowl_gen.js'));
   global.window = {};
@@ -160,7 +160,9 @@ function run(core, edSrc) {
     ok(n && n.length === M.TECH_ROWS[k].length, k + ': the row\'s ' + (n ? n.length : '?') + ' options, one key each');
   }
   const pk = M.techRowKeys('engPreset', { names: PANEL.presets, engines: PANEL.engines });
-  ok(pk && pk.length === PANEL.presets.length && pk.slice(0, -1).every(k => k && T[k] != null) && pk[pk.length - 1] === null,
+  // (the custom engine at its saved slot, NEW-SHAPES-1: not necessarily the last option)
+  const ci = PANEL.presets.indexOf('custom engine');
+  ok(pk && pk.length === PANEL.presets.length && ci >= 0 && pk.every((k, i) => i === ci ? k === null : (k && T[k] != null)),
      'engPreset: every catalogue engine reads its registry row\'s segment, the custom engine none (' + PANEL.presets.length + ' options)');
   const cw = M.techRowKeys('cw_material', { propMats: PANEL.propMats });
   ok(cw && cw.every(k => T[k] != null) && cw.length === PANEL.namesOf('cw_material').length, 'cw_material: every blade material through CAGE_JOIN_PROP_MATS, in step with the cowl page\'s list', J(cw));
@@ -279,9 +281,10 @@ function run(core, edSrc) {
   // the design tiles, through the real design table
   const tileGreys = (key) => PANEL.DES.rowOptions(PANEL.DES.DESIGN_ROWS.find(r => r.key === key)).filter(o => !o.inactive)
     .filter(o => !!E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === key), o)).map(o => o.value);
-  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2], gearLayout: ['trike'], canopy: ['bubble'], suspension: [], covering: [], planes: [] };
+  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2, 'pushPull', 3, 4], gearLayout: ['trike'], canopy: ['bubble'], suspension: [], covering: [], planes: [] };
   const tb = Object.keys(TILE_EXPECT).filter(k => J(tileGreys(k)) !== J(TILE_EXPECT[k]));
-  ok(!tb.length, 'the design tiles at segment 1: construction (composite, aluminium, aluminium tube, glassfibre), electric and turbine, the twin, the tricycle, the bubble - and nothing else',
+  // (ENGINE-CONFIGS-2: the push-pull, the three and the four are several engines - greyed with the twin)
+  ok(!tb.length, 'the design tiles at segment 1: construction (composite, aluminium, aluminium tube, glassfibre), electric and turbine, the twin (and the push-pull, the three, the four), the tricycle, the bubble - and nothing else',
      tb.map(k => k + ' ' + J(tileGreys(k))).join('; ') || null);
   const trike = PANEL.DES.rowOptions(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout')).find(o => o.value === 'trike');
   ok(E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout'), trike) === 'Machine shop: Sheets and bolts', 'a tile\'s reason is the segment it needs', E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout'), trike));

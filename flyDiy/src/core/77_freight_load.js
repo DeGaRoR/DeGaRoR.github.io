@@ -213,7 +213,7 @@ function freightLoadFromRecord(card, rec) {
     const it = items.find(q => q.id === p.id) || freightItem(p);
     const d = freightDoorAny(card, it);
     return { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack, at: Object.assign({}, p.at),
-             on: p.on || null, door: d.door, how: d.how, space: frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) };
+             on: p.on || null, door: d.door, how: d.how, space: p.space === 'pod' ? 'pod' : frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) };   // (G3464: the pod's own)
   });
   return { v: FREIGHT_LOAD_V, card: card.id, pax, seatsOut: flSeatsOutOk(card, pax, rec.seatsOut), items, placed };
 }
@@ -242,7 +242,7 @@ function freightLoadJob(doc, slot) {
 function freightStopItems(doc, slot) {
   const A = freightAccepted(doc);
   if (!A || (slot != null && A.slot != null && A.slot !== String(slot))) return null;
-  return A.items.map(p => ({ id: p.id, kind: p.kind, kg: p.kg, dims: p.dims }));
+  return A.items.map(p => (p.space === 'pod' ? { id: p.id, kind: p.kind, kg: p.kg, dims: p.dims, space: 'pod' } : { id: p.id, kind: p.kind, kg: p.kg, dims: p.dims }));   // (G3464: the pod's items say so)
 }
 // after a stop: the accepted load leaves the record once the sub it was loaded for is done (delivered), its contract
 // is no longer accepted or its stage has moved on -> the document (a copy when it changes)

@@ -436,7 +436,7 @@ function makeSim(def, world) {
   let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
-                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
+                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, rest: null, restFrom: null, fall: false,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
@@ -449,10 +449,22 @@ function makeSim(def, world) {
   // (params.scar === false: no record - GATE DMGSCAR's selftest, the A/B of its cost)
   const SCR = DMG_ON && P_.scar !== false && typeof scarMake === 'function' ? scarMake(def, P_.nEngines || 1) : null;
   if (SCR !== null) DMG.scar = SCR.out;
+  // G3463 (BELLY-POD-2): THE BELLY POD'S FLOOR ON THE GROUND - with the damage layer on and a pod fitted (61_gen_frame's
+  // parts.podFrame: its four nodes), each pod node's scrape is summed as the solver's own contact computes it: the
+  // distance it slid while pressed (m), the friction's work (J) and its peak normal force (N). Read by 60d_gen_pod
+  // genPodDamage (the shell ground through, the freight at risk); never pushed: the bits are the base's. Null without
+  // a pod or with the layer off: one compare in the scrape branch, nothing allocated per frame.
+  const PODS = DMG_ON && def.parts && def.parts.podFrame && def.parts.podFrame.nodes ? new Int8Array(n).fill(-1) : null;
+  if (PODS !== null) { def.parts.podFrame.nodes.forEach((i, k) => { PODS[i] = k; });
+    DMG.pod = { slide: new Float64Array(4), work: new Float64Array(4), fnPeak: new Float64Array(4), tFirst: -1, n: 0 }; }
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
   const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
+  // G3770 (DMG-LOOKS): WHY EACH MEMBER BROKE, per member (the first break's `how` is kept for every member, not only the
+  // flight's first): the page draws a broken member by it (skin_break.js's parting rule, dmg_members.js). Written only at a
+  // break, zeroed by reset(); read by sim_host.js simDmgHop. 0 = whole; HOW_CODE below
+  DMG.how = new Uint8Array(nb);
   // G2373 (DMG-OCCUPANT, 34_occupant.js): THE OCCUPANTS' RECORD - each filled seat's pulse and space, kept on an event,
   // judged at its close into one of five bands (DMG.occ). With the layer off (or no cabin) null: nothing of it exists
   const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
@@ -923,9 +935,25 @@ function makeSim(def, world) {
   // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
   const STRUCT_WORDS = { gear: 'the landing gear', wing: 'a wing', tail: 'the tail', fin: 'the tail', fus: 'the fuselage', boom: 'the tail boom',
                          cabane: 'a wing strut', interplane: 'a wing strut', wire: 'a bracing wire', float: 'a float', rod: 'a strut', bridge: 'a float' };
+  // G3463 (BELLY-POD-2): with a pod, its verdict rides here too (60d genPodDamage: scuffed / ground / holed / crushed /
+  // torn off, and its freight safe / at risk / lost) once the pod has touched or let go - a holed, crushed or torn pod
+  // is damage, its words the card's when its members are the first that broke (they are gear-class: "the landing gear
+  // broke" would be a lie). No pod: the record as it was, to the field.
+  const PODM = PODS !== null ? new Set(def.parts.podFrame.hangers.concat(def.parts.podFrame.braces)) : null;
+  // (the verdict kept until the scrape, the breaks or the sets move: the host reads this record every frame, and a pod
+  // at rest after its slide must cost nothing there)
+  let podC = null, podCn = -1, podCb = -1, podCy = -1;
   Object.defineProperty(DMG, 'structural', { configurable: true, enumerable: false, get: () => {
-    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary, damaged = broken > 0 || separated.length > 0;
+    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary;
     const fp = DMG.firstPrimary;
+    if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
+      if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
+      const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
+      const damaged = broken > 0 || separated.length > 0 || podBad;
+      return { damaged, broken, separated, pod,
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+    }
+    const damaged = broken > 0 || separated.length > 0;
     return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
@@ -1278,20 +1306,31 @@ function makeSim(def, world) {
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    DMG.how.fill(0);  // G3770
     if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
+    if (PODS !== null) { DMG.pod.slide.fill(0); DMG.pod.work.fill(0); DMG.pod.fnPeak.fill(0); DMG.pod.tFirst = -1; DMG.pod.n = 0; podC = null; }   // G3463
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
+  // G3770: `how` as a code - 1 tension (or brittle), 2 kink, 3 fold, 4 ragged, 5 group, 6 a cluster's cut ('root-...',
+  // 'station-...'), 7 core, 8 gate
+  function howCode(how) {
+    if (!how || how === 'tension') return 1;
+    switch (how) { case 'kink': return 2; case 'fold': return 3; case 'ragged': return 4; case 'group': return 5; case 'core': return 7; case 'gate': return 8; }
+    return 6;
+  }
   function beamBreak(bi, how) {
     const b = beams[bi];
     if (b.broken) return;
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
+    DMG.how[bi] = howCode(how);                       // G3770
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
@@ -1491,11 +1530,23 @@ function makeSim(def, world) {
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
   // ends it there (app.js endFlight('crashed')), so the card shows the aeroplane bent as it lies, not the first
   // millisecond of the impact
+  // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): ...and the PIECES' rest, for the game's watch
+  // (app.js): DMG.rest = the time every node has been under 0.3 m/s for 0.5 s (null while one moves), DMG.fall = a node
+  // still coming down faster than 3 m/s (a piece in the air: the watch's cap waits for it). The CG's rest
+  // above ends the flight's physics verdict, not the picture: a part flung off, or the halves of a break-up in the air
+  // (over at the parting, 30_solver.js compEvent), still fall when the CG has stopped. Read only after a crash (n nodes)
   function dmgOver() {
-    if (!DMG.crashed || DMG.over) return;
-    let x = 0, y = 0, z = 0;
-    for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
-    if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    if (!DMG.crashed) return;
+    if (!DMG.over) {
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
+      if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    }
+    let v2 = 0, vd = 0;
+    for (let i = 0; i < n * 3; i += 3) { const s = v[i] * v[i] + v[i+1] * v[i+1] + v[i+2] * v[i+2]; if (s > v2) v2 = s; if (-v[i+1] > vd) vd = -v[i+1]; }
+    DMG.fall = vd > 3;
+    if (v2 > 0.09) { DMG.restFrom = null; DMG.rest = null; }
+    else { if (DMG.restFrom === null) DMG.restFrom = simT; if (DMG.rest === null && simT - DMG.restFrom >= 0.5) DMG.rest = simT; }
   }
   const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
   // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
@@ -2596,6 +2647,15 @@ function makeSim(def, world) {
   // per engine, refreshed by the thrust pass: the hub (mount centroid), the swirl rate, the wake radius, the sense
   const SW_HUB = new Float64Array(SENSE.length * 3), SW_W = new Float64Array(SENSE.length), SW_R = new Float64Array(SENSE.length);
   let swirlOn = false;
+  // ENGINE-CONFIGS-2 (G3490): A LAYOUT'S STRIPS NAME THEIR DISC (62_gen_aero genStripsLayout, `washE`: an engine, -2
+  // the push-pull's centreline in series, -1 none). Their wash is that disc's own (its own thrust through momentum
+  // theory, the mean disc's law), so a dead engine takes the wake off what flies behind IT; the swirl at a tail strip
+  // sums every running disc's (the push-pull's counter-rotating pair: the rear prop takes back the front one's). Every
+  // other def has no `washE`: WE is null and the pass is the one it was, to the bit.
+  const WE = def.strips.some(st => st.washE != null) ? Int8Array.from(def.strips, st => st.washE == null ? -1 : st.washE) : null;
+  const WASH_E = WE ? new Float64Array(SENSE.length + 1) : null;   // per engine, then [SENSE.length] the series
+  const WE_C = WE ? Uint8Array.from(SENSE, (_, k) => (ENG_DEF[k] && ENG_DEF[k].side) ? 0 : 1) : null;   // on the centreline (side 0)
+  if (WE) out.washE = WASH_E;   // (published for a layout only: GATE ENGCONFIG reads each disc's wake)
   // the published moments, body components [along xAft, along yUp, along zRt] per engine (+yUp = nose LEFT,
   // +xAft = left wing down, +zRt = nose up): `out.propFx`
   const PFO = { Q: new Float64Array(SENSE.length), rpm: new Float64Array(SENSE.length), H: new Float64Array(SENSE.length),
@@ -2705,6 +2765,19 @@ function makeSim(def, world) {
   // wake radius, faded to nothing over its last quarter beyond it
   function swirlAt(sx, sy, sz, o) {
     o[0] = o[1] = o[2] = 0;
+    if (WE) {   // ENGINE-CONFIGS-2: a layout sums every running disc's, each faded by its own wake radius
+      for (let k = 0; k < SW_W.length; k++) {
+        if (!SW_W[k]) continue;
+        let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+        const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+        dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+        const d = hyp3(dx, dy, dz), Rw = SW_R[k], g = d <= Rw ? 1 : Math.max(0, 1 - (d - Rw) / (0.25 * Rw));
+        if (!g) continue;
+        const w = SW_W[k] * g;
+        o[0] += w * (dy*xAft[2] - dz*xAft[1]); o[1] += w * (dz*xAft[0] - dx*xAft[2]); o[2] += w * (dx*xAft[1] - dy*xAft[0]);
+      }
+      return o;
+    }
     let best = -1, bd = Infinity, bdx = 0, bdy = 0, bdz = 0;
     for (let k = 0; k < SW_W.length; k++) {
       if (!SW_W[k]) continue;
@@ -2836,6 +2909,15 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      if (WE) {   // ENGINE-CONFIGS-2: each disc's own wash, and the centreline's in series (nose + pusher)
+        let Tc = 0;
+        for (let k = 0; k < WASH_E.length - 1; k++) {
+          const Tk = k < nE ? Ti[k] : 0;
+          WASH_E[k] = Math.sqrt(Vfwd * Vfwd + 2 * Tk / (rho * PROPA)) - Vfwd;
+          if (WE_C[k]) Tc += Tk;
+        }
+        WASH_E[WASH_E.length - 1] = Math.sqrt(Vfwd * Vfwd + 2 * Tc / (rho * PROPA)) - Vfwd;
+      }
       // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
       // force is turned about the lateral axis, forward-and-down at the
       // front of the engine, so a high pusher's line of action passes
@@ -2958,7 +3040,7 @@ function makeSim(def, world) {
       let wx_ = wcx, wy_ = wcy, wz_ = wcz;
       if (world && world.wind) { const wv = world.wind(spx, spy, spz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       // relative air velocity = air motion (wash + wind) - node motion
-      const wsh = wash * st.wash;
+      const wsh = (WE && !probe ? (WE[stripIdx] >= 0 ? WASH_E[WE[stripIdx]] : WE[stripIdx] === -2 ? WASH_E[WASH_E.length - 1] : wash) : wash) * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
       // G2080: the slipstream's swirl, where the wash reaches
       if (swirlOn && st.wash > 0 && !probe && st.kind !== 'wing') { swirlAt(spx, spy, spz, _sw); rx += _sw[0] * st.wash; ry += _sw[1] * st.wash; rz += _sw[2] * st.wash; }
@@ -3016,11 +3098,43 @@ function makeSim(def, world) {
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
-      const [Cl, Cd] = fl > 0
-        ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
-        : polar(al, P, sig);
+      let Cl, Cd;
+      if (st.stol === undefined && st.dr === undefined) {
+        [Cl, Cd] = fl > 0
+          ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
+          : polar(al, P, sig);
+      } else {
+        // G2820: THE STOL WING. A slat, a slot, VGs or a cuff move the
+        // STALL ANGLE (dAStall goes negative: the lift curve runs on past
+        // the clean stall) and pay their drag; a cuff adds a little nose
+        // camber. The fixed devices act at positive alpha only (a slot does
+        // nothing for an inverted stall); an automatic slat runs out over
+        // the last `so` rad before the clean stall (`sb` wide) and is only
+        // worth its gain - and its gap drag - once out. Drooped ailerons are
+        // a plain flap on the lever. A strip without these keys never
+        // reaches this branch.
+        let dCl = 0, dCd = 0, dAS = 0;
+        if (fl > 0) { dCl = (FP.dCl0 || 0) * fl; dCd = (FP.dCd0 || 0) * fl; dAS = (FP.dAStall || 0) * fl; }
+        const SR = st.stol;
+        if (SR) {
+          let g = al > 0 ? SR.dAs : 0;
+          dCl += SR.dCl; dCd += SR.cd;
+          if (SR.sa) {
+            const dp = Math.min(1, Math.max(0, (al - (P.aStall - SR.so)) / SR.sb));
+            g += dp * SR.sa; dCd += dp * SR.scd;
+          }
+          dAS -= Math.min(SR.mx, g);
+        }
+        if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; dAS += (st.dr.dAs || 0) * ctl.flap; }
+        [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
+      }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
-      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
+      let q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1);
+      const iv = 1 / Math.sqrt(V2);
+      // G2820: Fowler area growth - the strip's area (and below its chord)
+      // grows with the run-out; `fg` exists only on a grown Fowler's strips
+      const cg = (fl > 0 && st.fg) ? 1 + st.fg * fl : 1;
+      if (cg !== 1) q *= cg;
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -3031,7 +3145,7 @@ function makeSim(def, world) {
         // ev x b, dotted with the normal: the lift of a + circulation A -> B
         const cx = (ry*bz - rz*by), cy = (rz*bx - rx*bz), cz = (rx*by - ry*bx);
         const sgn = (cx*sn[0] + cy*sn[1] + cz*sn[2]) >= 0 ? 1 : -1;
-        Gam[stripIdx] = 0.5 * Cl * st.chord / iv * sgn;
+        Gam[stripIdx] = cg !== 1 ? 0.5 * Cl * st.chord * cg / iv * sgn : 0.5 * Cl * st.chord / iv * sgn;
       }
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
@@ -3051,8 +3165,12 @@ function makeSim(def, world) {
       // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
         // G185: the strip's own plane's Cm0 and spar spacing
-        const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
-                     * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
+        let Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / (st.sparSpacing || P_.sparSpacing);
+        const t = st.t;
+        // G2820: the drooped aileron's own moment, and a grown chord's arm
+        if (st.dr && ctl.flap > 0) Fc += q * st.dr.dCm * ctl.flap * st.chord / (st.sparSpacing || P_.sparSpacing);
+        if (cg !== 1) Fc *= cg;
         CW_I[0] = st.fIn; CW_W[0] = (1-t); CW_I[1] = st.fOut; CW_W[1] = t;
         CW_I[2] = st.rIn; CW_W[2] = -(1-t); CW_I[3] = st.rOut; CW_W[3] = -t;
         for (let q = 0; q < 4; q++) {
@@ -3646,6 +3764,8 @@ function makeSim(def, world) {
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
+          if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
+            if (Fn > P4.fnPeak[k]) P4.fnPeak[k] = Fn; if (P4.tFirst < 0) P4.tFirst = simT; }   // G3463: the pod's scrape, read
         } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }
@@ -4015,6 +4135,8 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // DMG-FALL: each node's piece (the root of its part: the unbroken beams and the clusters, as compEvent reads it) - GATE DMGFALL's
+           pieceOf: () => { const fd = pieces(), r = new Int32Array(n); for (let i = 0; i < n; i++) r[i] = fd(i); return r; },
            damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
            // G2373 (DMG-OCCUPANT): the seats and the recorder (null with the layer off) - the gates' reader
            occupants: () => (OCC ? { spec: OCC, state: OCS } : null),

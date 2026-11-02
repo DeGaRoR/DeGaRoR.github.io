@@ -1251,7 +1251,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     for (const [o, c] of nearReg) {
       if (o.userData.craft) { nearReg.delete(o); continue; }        // joined before tagCraft marked it: the craft's layers are shadow_near's
       let s = c;
-      if (!s || o.matrixWorldAutoUpdate || o.matrixAutoUpdate) {    // not frozen (or never seen): posed again
+      const cp = o.userData.crowdPerson;
+      if (cp) {   // G3619 (the user 26 Oct: "passengers should have shadows"): a passenger's piece (a shirt, a shoe: each under
+        // NEAR_MIN_R) is tagged by the WHOLE person's sphere - 1 m about the hips of its group (crowd.js) - so the person casts
+        // whole, and no prop's floor moves
+        const e = cp.matrixWorld.elements;
+        if (!s) nearReg.set(o, s = [0, 0, 0, 0]);
+        s[0] = e[12]; s[1] = e[13] + 0.9; s[2] = e[14]; s[3] = 1;
+      } else if (!s || o.matrixWorldAutoUpdate || o.matrixAutoUpdate) {    // not frozen (or never seen): posed again
         const g = o.geometry; if (!g) continue;
         if (!g.boundingSphere) g.computeBoundingSphere();
         if (!g.boundingSphere) continue;
@@ -2685,11 +2692,44 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
         return Q;
       };
+      // Patch positions are immutable until resink replaces their cache entry.
+      // Cache their exact Float32 boxes. A patch box bounds every distance from
+      // the combined box centre: scan the most distant box first, then only
+      // patches that can increase the radius. Same sphere as three's full walk.
+      const farBounds = (geo, pos, patches) => {
+        const parts = patches || [{ pos }];
+        let ax = Infinity, ay = Infinity, az = Infinity, bx = -Infinity, by = -Infinity, bz = -Infinity;
+        for (const P of parts) {
+          let b = P.bounds;
+          if (!b) {
+            let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+            const a = P.pos;
+            for (let i = 0; i < a.length; i += 3) {
+              const x = a[i], y = a[i + 1], z = a[i + 2];
+              if (!Number.isFinite(x + y + z)) { geo.computeBoundingSphere(); geo.computeBoundingBox(); return; }
+              x0 = Math.min(x0, x); y0 = Math.min(y0, y); z0 = Math.min(z0, z);
+              x1 = Math.max(x1, x); y1 = Math.max(y1, y); z1 = Math.max(z1, z);
+            }
+            P.bounds = b = [x0, y0, z0, x1, y1, z1];
+          }
+          ax = Math.min(ax, b[0]); ay = Math.min(ay, b[1]); az = Math.min(az, b[2]);
+          bx = Math.max(bx, b[3]); by = Math.max(by, b[4]); bz = Math.max(bz, b[5]);
+        }
+        const box = new THREE.Box3(); box.min.set(ax, ay, az); box.max.set(bx, by, bz);
+        const center = box.getCenter(new THREE.Vector3()); let r2 = 0;
+        const upper = P => { const b = P.bounds, x = Math.max(Math.abs(center.x - b[0]), Math.abs(center.x - b[3])), y = Math.max(Math.abs(center.y - b[1]), Math.abs(center.y - b[4])), z = Math.max(Math.abs(center.z - b[2]), Math.abs(center.z - b[5])); return x * x + y * y + z * z; };
+        const scan = P => { const a = P.pos; for (let i = 0; i < a.length; i += 3) { const x = center.x - a[i], y = center.y - a[i + 1], z = center.z - a[i + 2]; r2 = Math.max(r2, x * x + y * y + z * z); } };
+        let first = null, max = -1;
+        for (const P of parts) { const u = upper(P); if (u > max) { max = u; first = P; } }
+        if (first) scan(first);
+        for (const P of parts) if (P !== first && upper(P) > r2) scan(P);
+        geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
+      };
       const buildQuad = Q => {
-        const nodes = Q.want || [];
+        const nodes = Q.want || [], patches = [];
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
-        nodes.forEach((n, i) => { const P = patchOf(n); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
+        nodes.forEach((n, i) => { const P = patchOf(n); patches.push(P); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
           const o = i * TPL.length, b = i * NV; for (let k = 0; k < TPL.length; k++) idx[o + k] = TPL[k] + b; });
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -2697,7 +2737,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
         // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
+        if (nodes.length) { farBounds(geo, pos, patches); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
@@ -2719,7 +2759,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (stale.length) {
           FARLOD.stamp++;
           stale.sort((a, b) => (a.m.geometry.boundingSphere ? a.m.geometry.boundingSphere.center.distanceTo(e) : 0) - (b.m.geometry.boundingSphere ? b.m.geometry.boundingSphere.center.distanceTo(e) : 0));
-          for (const Q of stale.slice(0, nMax != null ? nMax : force ? stale.length : FARLOD.budget)) buildQuad(Q);
+          for (const Q of stale.slice(0, nMax != null ? nMax : force ? stale.length : FARLOD.budget)) {
+            buildQuad(Q);
+            // Keep the existing nearest-first queue and count cap. After a
+            // heavy quadrant, leave the next one to the next frame. Forced
+            // loader work and explicit resink slices retain their old rules.
+            if (!force && nMax == null && performance.now() - t0 >= 4) break;
+          }
           // the patches no quadrant draws any more leave the cache
           const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
           for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
@@ -4775,6 +4821,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
+    // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
+    // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
+    // (the steeper faces are the 17 rock bank); the cover ring plants the lake shore's rows there (BIO.shoreHere)
+    if (BIO) BIO.shore = (x, z) => {
+      const K = BIO.knobs(), R = K.shoreReach || 0, J = K.shoreJit || 0; if (!(R > 0)) return false;
+      const sd = drawnLakeSD(x, z); if (sd > 0 || -sd > R * (1 + J)) return false;
+      if (-sd > R * (1 + (vnoise(x, z, 17, 9) - 0.5) * 2 * J)) return false;
+      const d = 4, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+      return Math.atan(sl) * 180 / Math.PI < (K.shoreSlope !== undefined ? K.shoreSlope : (K.bankLo !== undefined ? K.bankLo : 22));
+    };
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -6250,7 +6306,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // nothing to merge.
     // SHELL: the dial (the A/B): merge false = the 278 meshes as built; castMin 0 = every piece casts as before.
     // WORLD.shell(o) sets it and re-stands the shed at its current dims.
-    const SHELL = { merge: true, castMin: 0.5, coarseShare: 0.03, swapPx: 48, swapM: [200, 900] };   // (G1398: the coarse rung and its switch)
+    const SHELL = { merge: true, castMin: 0.5, coarseShare: 0.03, swapPx: 48, swapM: [200, 900],   // (G1398: the coarse rung and its switch)
+      // G3532 (HANGARS-LOOK): the player's sheds built as the scenery's hangars are (HANGAR_GEN); ?shellpolish=0 the bare exterior
+      polish: !(typeof location !== 'undefined' && /[?&]shellpolish=0(&|$)/.test(location.search || '')) };
+    // G3532 (HANGARS-LOOK, the user 24 Oct: "the garages' outsides should match the real scenery buildings: simplified but
+    // matching"): the scenery's own hangars (the flying club's, Tamgas Hill's, the fire point's) are HANGAR_GEN items - hangar.js's
+    // very exterior baked into bags with the house's polish over it (the casings, the gutters and downpipes, the flue and its
+    // smoke), its ground skirt on the terrain and its occlusion baked - while the player's sheds stood the bare exterior. Now a
+    // player's shed is that same build at ITS shell and dims: the house frame (the door to +z) turned under the hangar's (the
+    // door at local -x) by -PI/2 and dropped by the slab's floorY, so the floor, the door and every reader of the shed (the
+    // stand, the roll-out, the coarse rung) are where they were; the ground is the world's, in the house frame; the finish is
+    // the build's own (G3531: the shell's materials are clones, so the player's dress lays on them alone). Returns the shape
+    // genHangarBuild's exterior had ({ group, mats by hangar.js's names, dims }) or null (the caller builds the bare one).
+    const POLISH_PRESET = { field: 'field shed', club: 'club hangar', works: 'works hangar' };
+    function polishedShell(H, dims, shell) {
+      const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+      if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
+      const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
+        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 },   // (G3537: its own door; G3531: its own shell finish)
+        HGN.signDials ? HGN.signDials(dims.sign) : {},   // (G3540: its own sign, the room's too)
+        HGN.groundDials ? HGN.groundDials(dims.ground) : {});   // (G3541/G3542: its own ground - the apron, the dark ring, the dark foot - the room's too)
+      const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
+      // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
+      P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
+      let F = null, built = null;
+      try { F = HGN.makeFinish(); HGN.applyFinish(P, F); built = HGN.build(P, 0, F); }
+      catch (e) { console.warn('player shed polish:', e && e.message); return null; }
+      if (!built || !built.stats || built.stats.source !== 'hangar.js') return null;   // headless / no canvas: the bare exterior
+      const group = new THREE.Group(), inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
+      for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) { const m = built.bags[k].mesh(inner, built.MAT[k]); if (m && k === 'glass') m.castShadow = false; }   // (G3540: the sign's face casts nothing; its plank does)
+      const flat = [];
+      if (built.bags.smoke && F.MAT.smoke) { const m = built.bags.smoke.mesh(inner, F.MAT.smoke); if (m) { m.renderOrder = 10; flat.push(m); } }
+      if (built.bags.aoskirt && F.MAT.aoskirt) { const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt); if (m) { m.renderOrder = 5; flat.push(m); } }
+      F.SHADE_U.uDirtY0.value = y0 - fy;   // G581: the dirt line drawn in the house frame, lifted by where it stands
+      // G3541/G3542: the shed's ground pad on the terrain (one draw: the apron, the dark ring round the walls), shadowed
+      const pad = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad) : null;
+      if (pad) inner.add(pad);
+      const mats = {};
+      for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
+      return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+    }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
     // wall and roof, two casters as the box had (the inner skins and the doors' 6 cm-off shadows add nothing at 500 m)
@@ -6383,18 +6479,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             genHangarSupported(THREE))) return;
       if (shedNode) { dropShed(shedNode); shedNode = null; }
       shedNode = shedNodeAt(SITE.hangar, dims);
+      if (shedNode && !shedNode.name) shedNode.name = 'shed:HOME';   // G3532: named as the side sheds are (a census tells the player's sheds from the scenery's)
     }
     // G2310 (PREM-S3): ONE SHED AT ONE PLACE - HOME's at the site's hangar (above), a side hangar at its plot (below):
     // the same exterior build, merge, coarse rung, LOD and ground; `dress` (a held hangar's shell skin + its parts,
     // dressExterior) is laid on the exterior's own materials BEFORE the merge, and is nothing at all when absent
     function shedNodeAt(H, dims, dress) {
-      const shed = genHangarBuild(THREE,
-        dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
-        { exterior: true, shell: dims && dims.shell });
-      if (dress) dressExterior(shed.mats, dims && dims.shell, dress);
+      const D0 = dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE };
+      const shell = (dims && dims.shell) || 'club';
+      const shed = polishedShell(H, D0, shell) || genHangarBuild(THREE, D0, { exterior: true, shell: dims && dims.shell });
+      if (dress) dressExterior(shed.mats, shell, dress);
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
+      for (const m of shed.flat || []) { m.castShadow = false; m.receiveShadow = false; }   // G3532: the skirt and the smoke
+      if (shed.pad) { shed.pad.castShadow = false; shed.pad.receiveShadow = true; }   // G3541: the pad takes the shed's shadow (blended over the terrain, it must)
       // G600 (A1-STAND, playtest 2026-09-26): THE SHELL IS A HANDFUL OF DRAWS. The 278 meshes below were 278
       // draws in the main pass, 278 more in the near shadow map (every frame: the stand is inside its 90 m) and
       // again in the far map - at the stand, where the frame was measured. Nothing in the exterior moves (the
@@ -6430,7 +6529,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // clone keeps the building the same building across the switch;
         // the box's 0..1 uv is the same grammar the sheeting bands wear
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
-        const skin = MT.wallOut.clone(); skin.side = THREE.FrontSide;
+        const skin = (MT.wallOut || MT.wall).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
+        if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
         body.position.y = D.EAVE / 2;
@@ -6465,7 +6565,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         rgeo.setAttribute('uv', new THREE.Float32BufferAttribute([
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
-        const roof = new THREE.Mesh(rgeo, MT.roofOut);
+        const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
+        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
@@ -6506,14 +6607,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G2310 (PREM-S3, GAME §4.4): THE SIDE HANGARS YOU HOLD, each at its plot (the premises record's `plots`, contract
     // v1.33), at THAT hangar's shell and dims, dressed: `list` = [{ id, x, z, ry, y, dims { HW, HD, EAVE, shell }, dress }]
     // from app.js (71_player_bases.js playerWorldSheds joined with the site's plot). A plot not held is not in the list
-    // and stands NOTHING (GQ8); HOME's shed is standShed's, never in it; at most two (GQ4). A shed is rebuilt only when
+    // and stands NOTHING (GQ8) - unless its plot is flagged `closedShed` (CLOSED-SHED: its offer's shed, shut, a `closed`
+    // entry); HOME's shed is standShed's, never in it; at most two held (GQ4). A shed is rebuilt only when
     // its key (place, dims, shell, dress) changes; one no longer listed comes down. Residents are never drawn here: the
     // exterior's doors are shut (premResidentsDrawn: an open door AND the camera within 60 m - FLEET-PROPS' to draw).
     const sideSheds = new Map();   // id -> { key, node }
     function setPlayerSheds(list) {
       if (!(typeof genHangarBuild === 'function' && typeof genHangarSupported === 'function' && genHangarSupported(THREE))) return 0;
       const want = new Map();
-      for (const q of (list || []).slice(0, 2)) if (q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z)) want.set(q.id, q);
+      // (CLOSED-SHED, the user 28 Oct: a plot not held but flagged stands its offer's shed, shut - `closed` entries, outside
+      // the two held: GQ4 counts what the player holds, not what the street shows)
+      const ok = q => q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z);
+      for (const q of (list || []).filter(q => q && !q.closed).slice(0, 2)) if (ok(q)) want.set(q.id, q);
+      for (const q of (list || []).filter(q => q && q.closed)) if (ok(q) && !want.has(q.id)) want.set(q.id, q);
       for (const [id, e] of sideSheds) if (!want.has(id)) { dropShed(e.node); sideSheds.delete(id); }
       for (const [id, q] of want) {
         const key = JSON.stringify([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
@@ -6542,7 +6648,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const want = Object.assign({}, skin, dress && dress.parts ? dress.parts : {});
       const LIB = Object.assign({}, (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
       const timber = shell === 'field';
-      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? M.wall : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
+      // G3537: the timber shed's back gable is M.wallBack (hangar.js EXT), so its dress goes there - it stood white beside the
+      // room's planks
+      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? (M.wallBack || M.wall) : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
       const tex = (img, srgb, tile) => {
         if (Array.isArray(img) || !img) return null;
         const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile);
@@ -7508,7 +7616,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // colour, the ground half and the exposure base ease toward it on the wall clock (LE.tau 1.2 s: 95 % in 3.6 s). A writer
   // other than this (the F8 rig rows, the shed's exposure) is seen as a value we did not set and taken at once.
   // LE.on false is the old cut.
-  const LE = { on: true, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
+  const LE = { on: true, cut: false, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
     sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff), wSunC: C(0xffffff), wHemiC: C(0xffffff), wGndC: C(0xffffff),
     tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0, writes: 0 };
   if (typeof window !== 'undefined') window.LIGHT_EASE = LE;
@@ -7553,7 +7661,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
       LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
     }
-    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex)) exSet(LE.ex);
+    // Seed the last-written value: a NaN sentinel otherwise suppresses every exposure update.
+    if (LE.ex > 0 && (!Number.isFinite(LE.setEx) || Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex))) exSet(LE.ex);
   }
   // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
   function lightEase(now) {
@@ -7566,9 +7675,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const d = Math.abs(LE.tSunI - LE.sunI) + Math.abs(LE.tHemiI - LE.hemiI) + (LE.tEx > 0 ? Math.abs(LE.tEx - LE.ex) : 0);
     const dc = Math.abs(LE.tSunC.r - LE.sunC.r) + Math.abs(LE.tSunC.g - LE.sunC.g) + Math.abs(LE.tSunC.b - LE.sunC.b) + Math.abs(LE.tHemiC.r - LE.hemiC.r) + Math.abs(LE.tHemiC.b - LE.hemiC.b) + Math.abs(LE.tGndC.g - LE.gndC.g);
     if (d < 1e-7 && dc < 1e-6) return;
-    LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k;
+    // Ease exposed light energy, not two inverse quantities independently (which makes night jumps flash white).
+    if (LE.tEx > 0 && LE.ex > 0) {
+      const beforeEx = LE.ex, afterEx = beforeEx * Math.exp(Math.log(LE.tEx / beforeEx) * k);
+      LE.sunI = (LE.sunI * beforeEx * (1 - k) + LE.tSunI * LE.tEx * k) / afterEx;
+      LE.hemiI = (LE.hemiI * beforeEx * (1 - k) + LE.tHemiI * LE.tEx * k) / afterEx;
+      LE.ex = afterEx;
+    } else { LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k; }
     LE.sunC.lerp(LE.tSunC, k); LE.hemiC.lerp(LE.tHemiC, k); LE.gndC.lerp(LE.tGndC, k);
-    if (LE.tEx > 0 && LE.ex > 0) LE.ex += (LE.tEx - LE.ex) * k;
     LE.eases++;
     // arrived (every part within a step of its target): the target exactly, written once - the ease then rests (d = 0 above)
     const there = relD(LE.sunI, LE.tSunI) < LE_STEP.i && relD(LE.hemiI, LE.tHemiI) < LE_STEP.i && colD(LE.sunC, LE.tSunC) < LE_STEP.c
@@ -7592,8 +7706,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (rigCur.manual) return;                                                          // the hand-placed sun: the LIGHT stops following the almanac; the weather does not
-    if (probe && !rigCur.manual) probe.maybe(day, 1.5);
-    if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
+    // A clock cut must not fade yesterday's bright cube under today's high night exposure.
+    const probeCut = LE.cut;
+    if (probe && !rigCur.manual) { if (probeCut) probe.bake(day, true); else probe.maybe(day, 1.5); }
+    if (probeIn && !rigCur.manual) { if (probeCut) probeIn.bake(day, true); else probeIn.maybe(day, 1.5); }
+    LE.cut = false;                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
     if (premisesR && premisesR.lamps) {                                                     // G449: the premises lamps, the same fade, the pool re-assigned to the eye
       const W2 = typeof window !== 'undefined' ? window : {};
@@ -7623,8 +7740,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
-    SUN.copy(SUN_SKY);
-    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
     rigCur.elev = el; rigCur.azim = day.rigAzim;
     const t = Math.min(1, Math.max(0, (el + 6) / 12)), k = t * t * (3 - 2 * t);
     if (ATMO_ON && typeof SKY_LIGHT !== 'undefined') {
@@ -7636,7 +7751,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? LE.cT : 1;   // G1352: eased (above)
       LE.cTapplied = cT; LE.applyAt = nowL + 300;
       const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT,
-        sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
+        nightVisibility: 0.8, sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
@@ -7647,6 +7762,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       hemi.intensity = RIG.hemi * LIGHT_UNIT * Math.max(0.06, k);
       if (sun.color && sun.color.setHex && sun.color.lerp) { const w = Math.min(1, Math.max(0, 1 - el / 12)); sun.color.setHex(rigCur.sunCol).lerp(WARM_SUN, w * w); }
     }
+    // applyDay selects the key with hysteresis. Shadows and illumination must follow that same moon or sun.
+    const keyV = ATMO_ON && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon ? day.moon : v;
+    SUN.set(keyV[0], keyV[1], keyV[2]);
+    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
@@ -7861,7 +7980,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, exposureNow: () => LE.ex, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

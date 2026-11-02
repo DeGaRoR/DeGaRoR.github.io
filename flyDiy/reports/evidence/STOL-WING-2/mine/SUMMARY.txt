@@ -1,0 +1,12 @@
+cub915_home2mine_expert.log        gave-up            LIFTOFF@12.2   t900 
+cub915_home2mine_student.log       capsized           LIFTOFF@12.7   t900 
+cub915_mine_expert.log             gave-up            LIFTOFF@10.4   t400 
+cub915_mine_student.log            gave-up            LIFTOFF@10.7   t400 
+cub_home2mine_expert.log           completed          LIFTOFF@13.3   t811.1 
+cub_home2mine_student.log          rejected-takeoff   -              t16.3 9.3s rejected-takeoff: will not reach Vr: 0.18 m/s^2 needs 572 m more, 725 m left
+cub_mine_expert.log                completed          LIFTOFF@12.7   t227.8 
+cub_mine_student.log               rejected-takeoff   -              t14.3 9.4s rejected-takeoff: will not reach Vr: 0.56 m/s^2 needs 143 m more, 197 m left
+showcase_home2mine_expert.log      completed          LIFTOFF@12.2   t850.5 
+showcase_home2mine_student.log     completed          LIFTOFF@13     t804.9 
+showcase_mine_expert.log           completed          LIFTOFF@11.6   t221.9 
+showcase_mine_student.log          completed          LIFTOFF@11.2   t187.9 
