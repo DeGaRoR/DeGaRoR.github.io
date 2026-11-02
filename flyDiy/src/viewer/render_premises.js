@@ -391,8 +391,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (!LAMPS.prep || LAMPS.ready === want) LAMPS.arm(want);
       else if (LAMPS.prepping !== want) {   // the other count's programs, linked in the background; the pool waits for them
         const tok = ++LAMPS.prepTok; LAMPS.prepping = want; LAMPS.ready = null;
-        Promise.resolve().then(() => LAMPS.prep(want)).catch(e => console.warn('lamps prep:', e && e.message))
-          .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } });
+        Promise.resolve().then(() => LAMPS.prep(want))
+          .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } },
+            e => { console.warn('lamps prep failed; pool unchanged:', e && e.message); });
       }
     }
     if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }

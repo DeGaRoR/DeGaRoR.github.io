@@ -13428,7 +13428,7 @@
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
   // 'craft' step compiles again (known keys: no new source, no new link) and waits for what is still linking
-  let craftEarly = null;
+  let craftEarly = null, craftShedEarly = null;
   function craftStart() {
     craftLightsKeep();   // (the flown model's light signature: the next boot's prelink keys with it)
     if (!WF || typeof renderer.compileAsync !== 'function' || craftEarly) return;
@@ -13440,7 +13440,7 @@
         .then(() => compileSliced(craft, aa && aa.target ? aa.target() : null, hangarScene))
         .then(() => { const { helper } = PROG_WARM.depthVariants(THREE, renderer, [craft]); return compileSliced(helper, PLAIN_RT(), hangarScene, true); })
         .then(() => compileXrayVariants());   // (its see-through twins: first light's, G441)
-      (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants ? shed() : Promise.resolve()).catch(e => console.warn('craft early (shed):', e && e.message));
+      craftShedEarly = (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants ? shed() : Promise.resolve()).catch(e => console.warn('craft early (shed):', e && e.message));
     }
   }
   // G1027 (B8B9 + B10 on train 14): ...AND THE SHED AS THE ROLL-OUT SHOT DRAWS IT. The shed shows the editor's cage with
@@ -19572,14 +19572,21 @@
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
+  const lampWarmKeep = new Map();
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
-    if (!L || L.fixedCount || typeof renderer.compileAsync !== 'function') return Promise.resolve();
-    const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
+    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
     const t0 = performance.now();
-    return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
-      .then(() => compileDepthVariants(scene, true, dress))
-      .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
+    return PROG_WARM.lampVariants(THREE, renderer, scene, camera, {
+      pool: L.pool, want, target: aa && aa.target ? aa.target() : null,
+      depthTarget: PLAIN_RT(), extra: keptGroup().KG, budgetMs: 4
+    }).then(prepared => {
+      const old = lampWarmKeep.get(want); lampWarmKeep.set(want, prepared);
+      if (old) old.dispose();
+      if (typeof window !== 'undefined') window.__lampWarm = { want, ms: performance.now() - t0,
+        jobs: prepared.jobs, materials: prepared.materials, maxSliceMs: prepared.maxSliceMs };
+      console.info('lamps: isolated pool ' + (want ? 'armed' : 'disarmed') + ' programs ready');
+    });
   }
   // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
   // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
@@ -19972,16 +19979,19 @@
   // two targets, its shadow pass, the twins - a group a task, not awaited: the compile step and first light compile the
   // same keys (known: no new source, no new link) and wait for what is still linking. Only when the room's pieces
   // have landed (a prop or the crew landing later adds programs the compile step catches, as before)
+  let shedEarly = null;
   function shedPrelink() {
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
+    if (shedEarly) return shedEarly;
+    // Keep the early chain: firstFrame must join it before the loader lifts.
     // Warm the PMREM before shedEnvKey draws its black placeholder, too.
-    new Promise(res => setTimeout(res, 0)).then(() => pmremWarmBake()).then(() => { shedEnvKey(); })
+    return (shedEarly = new Promise(res => setTimeout(res, 0)).then(() => pmremWarmBake()).then(() => { shedEnvKey(); })
       .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
       .then(() => compileDepthVariants(hangarScene, true))
       .then(() => compileXrayVariants())
-      .catch(e => console.warn('shed prelink:', e && e.message));
+      .catch(e => console.warn('shed prelink:', e && e.message)));
   }
   // G2787 (EDITOR-BUGS): THE EDITOR'S LIGHTS JOIN THREE'S COUNT ONLY AFTER THEIR PROGRAMS LINKED - G1340's law on the
   // shed's side. A cabin dimmer's first notch off 0 adds a PointLight, and three keys every lit program on the count:
@@ -20046,7 +20056,11 @@
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
     if (typeof renderer.compileAsync !== 'function' || !hangar) return;   // (the harness: nothing to warm, the boot stays synchronous)
-    return new Promise(res => setTimeout(res, 0)).then(() => compileXrayVariants());
+    // Source preparation launched earlier is loader work even when the later
+    // compile step already hit the same keys. Do not leave those timers running
+    // over the first interactive garage frames.
+    return Promise.all([shedEarly, craftShedEarly])
+      .then(() => new Promise(res => setTimeout(res, 0))).then(() => compileXrayVariants());
   });
   if (!GARAGE_ONLY) bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
   // ...and the aeroplane's programs in the world's light LAST: the parked batch's restore is followed by the editor's

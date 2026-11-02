@@ -76,10 +76,10 @@ var PROG_WARM = (() => {
 
   function depthVariants(THREE, renderer, scenes, opt) {
     opt = opt || {};
-    const helper = new THREE.Scene(), seen = new Set();
+    const helper = new THREE.Scene(), seen = opt.seen || new Set();
     const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
     const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
-    const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
+    const base = opt.base || new THREE.MeshDepthMaterial(), baseDist = opt.baseDist || (THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null);
     // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
     let kinds = { depth: false, distance: false };
     for (const sc of scenes) if (sc) sc.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
@@ -191,7 +191,92 @@ var PROG_WARM = (() => {
     };
     return G;
   }
-  const api = { depthVariants, fogless, passes, twin, standIn, guard };
+  // Dusk preparation owns its materials and light state. A compile on a live
+  // material changes its currentProgram even when the caller restores the lights.
+  // Retain the twins until replacement so their ready programs stay in the cache.
+  // A job is indivisible in three: budgetMs bounds dispatch, not an individual
+  // shader's source generation. maxSliceMs exposes that limit to the runtime rig.
+  function lampVariants(THREE, renderer, sc, camera, opt) {
+    const schedule = opt.schedule || (fn => requestAnimationFrame(() => setTimeout(fn, 0)));
+    const now = opt.now || (() => performance.now()), budget = opt.budgetMs || 4;
+    const lit = new THREE.Scene(); lit.fog = sc.fog; lit.environment = sc.environment;
+    lit.environmentRotation = sc.environmentRotation;
+    const pool = new Set(opt.pool), twins = new Map(), owned = new Set(), seen = new Set();
+    const jobs = [], waits = [], nodes = [[sc, true]];
+    if (opt.extra) nodes.push([opt.extra, false]);
+    const result = { maxSliceMs: 0, jobs: 0, materials: 0, dispose() { for (const m of owned) m.dispose(); owned.clear(); } };
+    const kinds = { depth: false, distance: false };
+    const depthOpt = { kinds, seen: new Set(), base: new THREE.MeshDepthMaterial(), baseDist: THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null };
+    owned.add(depthOpt.base); if (depthOpt.baseDist) owned.add(depthOpt.baseDist);
+    const copyLight = o => {
+      const l = Object.create(o); l.parent = null; l.children = []; l.visible = true;
+      l._listeners = undefined; lit.add(l);
+      if (o.castShadow && o.shadow) kinds[o.isPointLight ? 'distance' : 'depth'] = true;
+    };
+    // Pool lights may currently be hidden; do not change the live pool to find them.
+    if (opt.want) for (const o of pool) copyLight(o);
+    const twinOf = m => {
+      let t = twins.get(m);
+      if (!t) { t = twin(m); twins.set(m, t); owned.add(t); }
+      return t;
+    };
+    const meshes = [];
+    const collect = (o, visible) => {
+      const vis = visible && o.visible !== false;
+      if (o.isLight && vis && !pool.has(o)) copyLight(o);
+      if ((o.isMesh || o.isLine || o.isPoints || o.isSprite) && o.material) meshes.push(o);
+      for (let i = o.children.length - 1; i >= 0; i--) nodes.push([o.children[i], vis]);
+    };
+    // compileAsync polls KHR_parallel_shader_compile. No LINK_STATUS query or
+    // material attachment is performed by this helper while a program is pending.
+    const compile = job => {
+      const prev = renderer.getRenderTarget(), fog = lit.fog;
+      const face = renderer.getActiveCubeFace ? renderer.getActiveCubeFace() : 0;
+      const mip = renderer.getActiveMipmapLevel ? renderer.getActiveMipmapLevel() : 0;
+      try {
+        lit.fog = job.depth ? null : sc.fog;
+        renderer.setRenderTarget(job.depth ? opt.depthTarget : opt.target, 0);
+        const wait = Promise.resolve(renderer.compileAsync(job.object, camera, lit));
+        wait.catch(() => {}); waits.push(wait);
+      } finally { lit.fog = fog; renderer.setRenderTarget(prev, face, mip); }
+      result.jobs++;
+    };
+    let mi = 0;
+    return new Promise((resolve, reject) => {
+      const fail = e => { result.dispose(); reject(e); };
+      const tick = () => {
+        const start = now();
+        try {
+          while (nodes.length && now() - start < budget) { const [o, visible] = nodes.pop(); collect(o, visible); }
+          // All lights are known before any program is keyed. Mesh preparation is
+          // incremental, too; no full-scene clone or JSON copy in the dusk click.
+          while (!nodes.length && mi < meshes.length && now() - start < budget) {
+            const o = meshes[mi++], g = o.geometry;
+            const layout = g ? Object.keys(g.attributes || {}).sort().join(',') + '|' + Object.keys(g.morphAttributes || {}).sort().join(',') : '';
+            const kind = [!!o.isInstancedMesh, !!o.instanceColor, !!o.morphTexture, !!o.isSkinnedMesh, !!o.isBatchedMesh, !!o._colorsTexture, !!o.morphTargetInfluences, !!(g && g.morphTargetsRelative), !!o.isPoints, !!o.isLine, !!o.isLineSegments, !!o.isSprite].join(',');
+            for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+              if (!m || m.visible === false) continue;
+              const key = m.uuid + '|' + kind + '|' + layout;
+              if (!seen.has(key)) { seen.add(key); jobs.push({ object: standIn(o, twinOf(m)), depth: false }); }
+            }
+            if (o.castShadow || (o.userData && o.userData.mayCast)) {
+              const helper = depthVariants(THREE, renderer, [{ traverse(fn) { fn(o); } }], depthOpt).helper;
+              for (const d of helper.children) { owned.add(d.material); jobs.push({ object: d, depth: true }); }
+            }
+          }
+          // At most one compile invocation per animation frame, even for cheap
+          // keys. Expensive source generation cannot grow an adaptive group.
+          if (!nodes.length && mi === meshes.length && jobs.length && now() - start < budget) compile(jobs.shift());
+          result.maxSliceMs = Math.max(result.maxSliceMs, now() - start);
+          if (nodes.length || mi < meshes.length || jobs.length) schedule(tick);
+          else Promise.all(waits).then(() => { result.materials = owned.size; resolve(result); }, fail);
+        } catch (e) { fail(e); }
+      };
+      schedule(tick);   // never issue compilation in the lamp-on frame
+    });
+  }
+
+  const api = { depthVariants, fogless, passes, twin, standIn, guard, lampVariants };
   if (typeof window !== 'undefined') window.PROG_WARM = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
