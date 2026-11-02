@@ -166,7 +166,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
 // Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
-const WIRE_BUDGET_MIB = 4.6;   // the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB" - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+// MEDIA-BUDGET (A0 2 Nov, rule b - the user 14 Oct: no page-size work): 4.6 -> 5.0. Red on master since L28c: 4.68 MiB on L29f
+// d1a754b94 (4.79 with L29g's FINISH-3 on top). Checked first for something heavy inlined by mistake - none: data: still 118 KB
+// (the same four woff2 fonts as L25c), no ref model, the packs fetched (premises_packs / crowd_pack never inlined); the
+// growth is CODE: L28-0 (missions p0, 73b), L28a (+187 KB raw: missions p1/p3/props, menus, story, hire, people), L28b
+// (+281 KB raw: people-crowd, dmg-looks / dmg_members, bench, cert-rule, float-kit), L28c-L29f (+80 KB raw); app.js alone +153 KB
+// since L25c. 5.0 = today + FINISH-3 + ~0.2 MiB of headroom. The per-train STEP row stays the heavy-move tripwire.
+const WIRE_BUDGET_MIB = 5.0;   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -188,7 +194,10 @@ const DATA_BUDGET_KB = 400;
 // G2685 (CAREER-LAZY): the career-only core is its own file (career_core.<h8>.js, fetched only by a career / ?map=1 /
 // ?freight=1 boot), measured here beside index.html and never counted in it. Its own tripwire: 305 KB at the split
 // (8 Oct, train 43's nine modules); a career module past this ceiling is something heavy moving into the career's boot.
-const CAREER_BUDGET_KB = 512;
+// MEDIA-BUDGET (A0 2 Nov, rule b): 512 -> 640. Red since L28a: 444 KB (L28-0) -> 553 KB (L28a: missions p1 - 73c_mission_run.js
+// +454 lines, demo_p1.json +799, 74_career / 79_story / 73_contracts / 72_accept; all career CODE and mission data) -> 556.9 KB
+// (L29f) -> 567.1 KB (L29g, belly-pod-2's 75_career_wire / 76_freight / 76_procure). 640 = that + ~70 KB of headroom.
+const CAREER_BUDGET_KB = 640;   // was 512
 // G3070 (ROUTE-LAZY): the drawn route's drawing is its own file too (route_draw.<h8>.js, fetched on first demand or at
 // boot for an armed route), measured beside index.html and never counted in it. Its tripwire: 31 KB at the split (12
 // Oct, route_draw.js as train 44 landed it); past this, something heavy is riding the drawing.
