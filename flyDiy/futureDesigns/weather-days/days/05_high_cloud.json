@@ -1,0 +1,10 @@
+{ "v": 1, "id": "high-cloud", "name": "High cloud coming",
+  "story": "Still fine, but the sky is changing: a halo round the sun by noon, a thin veil thickening from the southwest by evening, the wind backing southeast. The front is two days out and the radio says so.",
+  "fly": "easy", "forecast": "Fine, high cloud thickening from the southwest in the afternoon. Wind backing southeast 6-10 kt. Pressure falling slowly. Night: high overcast, the moon a pale disc. A FRONT is forecast for the day after tomorrow.",
+  "temp": { "min": 1, "max": 1.5 }, "dew": [[4, -2.5], [15, -2], [27, -1]],
+  "qnh": [[4, 1017], [27, 1013]],
+  "wind": [[4, 3, 150, 0.08], [12, 6, 160, 0.12], [17, 9, 150, 0.15], [22, 8, 140, 0.15], [27, 8, 135, 0.15]],
+  "rich": { "breeze": 0.6, "terrain": 0.5, "thermals": 0.3 },
+  "low": [[4, 0.05, "cuh"], [12, 0.1, "cuh"], [16, 0.12, "cuh"], [21, 0.05, "cuh"]],
+  "up": [[4, 0.0, "as", 5000], [10, 0.1, "as", 5000], [16, 0.35, "as", 4500], [22, 0.6, "as", 4200], [27, 0.7, "as", 4000]],
+  "turbidity": 3.0, "aurora": [] }

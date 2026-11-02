@@ -1,0 +1,9 @@
+{ "v": 1, "id": "golden-evening", "name": "Golden evening",
+  "story": "A gentle, clear day that saves its best for last: the wind drops away after five, the lake and the sound go glass-calm, and the sun sets gold into a clean horizon. Then the stars, the moon, a curtain of aurora.",
+  "fly": "easy", "forecast": "Fair. West 6 kt, calm from 18:00, glassy water in the evening. Few cumulus. Visibility 50 km. Clear night, aurora possible.",
+  "temp": { "min": -0.5, "max": 0.5 }, "dew": [[4, -4.5], [15, -5], [27, -4]],
+  "qnh": [[4, 1020], [27, 1021]],
+  "wind": [[4, 2, 270, 0.06], [11, 4, 260, 0.1], [15, 6, 255, 0.12], [18, 2, 250, 0.06], [21, 0.5, 250, 0.02], [26, 0.5, 90, 0.02]],
+  "rich": { "breeze": 0.8, "terrain": 0.4, "thermals": 0.4 },
+  "low": [[4, 0.02, "cuh"], [12, 0.1, "cuh"], [16, 0.12, "cuh"], [19, 0.03, "cuh"], [21, 0.0, "cuh"]],
+  "turbidity": 2.5, "aurora": [[22, 3], [24, 4], [27, 3]] }
