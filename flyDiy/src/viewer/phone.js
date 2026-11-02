@@ -29,7 +29,8 @@
 // - THE SPLIT: --ph-split (the view's share, phone.css) per orientation, .5 by default, remembered (flydiy.phSplit);
 //   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
 //   on release; a double tap puts it back to half.
-// - THE ROW (phone.css): one control a row, ~40 px, the scale the row's width; the row's - / + moved into the editor.
+// - THE ROW (phone.css): one FIXED GRID a control, ~56 px, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing
+//   of sliders and button components") - label | switch | value | unit over [-] the scale [+], the - / + 40 px.
 // - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
 //   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
 //   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
@@ -252,7 +253,7 @@
     place(d.row);
   }
 
-  // THE STEPPERS (R6), in the value's editor since G3900: a tap is one step; held, they repeat - one press, ticks, one
+  // THE STEPPERS (R6), on the row and in the value's editor: a tap is one step; held, they repeat - one press, ticks, one
   // release, as a drag
   let rep = null;
   function stepDown(row, dir, e) {
@@ -371,17 +372,28 @@
     const rng = row.querySelector(':scope > input[type=range]');
     if (!rng) return;
     const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('aria-hidden', 'true');
+    const minus = D.createElement('button'); minus.type = 'button'; minus.className = 'phStep phMinus'; minus.textContent = '−'; minus.setAttribute('aria-label', 'less');
+    const plus = D.createElement('button'); plus.type = 'button'; plus.className = 'phStep phPlus'; plus.textContent = '+'; plus.setAttribute('aria-label', 'more');
+    row.insertBefore(minus, rng);
+    rng.insertAdjacentElement('afterend', plus);
     row.appendChild(knob);
     const k = row.querySelector(':scope > span.k');
     const vf = row.querySelector(':scope > input.v'), sv = row.querySelector(':scope > span.v');
     const mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && !c.classList.contains('rn') && c !== knob) || null;
-    row.__ph = { rng, knob, vf, mu, k };
+    row.__ph = { rng, knob, vf, mu, k, minus, plus };
     row.classList.add('phSlider');
     knob.addEventListener('pointerdown', e => knobDown(row, e));
     knob.addEventListener('pointermove', knobMove);
     knob.addEventListener('pointerup', knobUp);
     knob.addEventListener('pointercancel', knobUp);
     knob.addEventListener('lostpointercapture', knobUp);
+    for (const [b, dir] of [[minus, -1], [plus, 1]]) {   // R6: a tap one step, held they repeat
+      b.addEventListener('pointerdown', e => { if (ed) edClose(true); stepDown(row, dir, e); });
+      b.addEventListener('pointerup', stepUp);
+      b.addEventListener('pointercancel', stepUp);
+      b.addEventListener('lostpointercapture', stepUp);
+      b.addEventListener('contextmenu', e => e.preventDefault());
+    }
     // G3901: the value (and its label) open the editor - the row's own field never raises the keyboard
     if (vf) { vf.readOnly = true; vf.inputMode = 'none'; vf.tabIndex = -1; }
     for (const t of [vf || sv, k]) if (t) t.addEventListener('click', e => { e.preventDefault(); edOpen(row); });

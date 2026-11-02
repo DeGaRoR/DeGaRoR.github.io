@@ -31,7 +31,7 @@
 //   node tools/perf/mobile_phone_cdp.js [--url http://localhost:8700/flyDiy/index.html?gfx=potato] [--build cub|metal]
 //        [--cold] [--rows wgSpan,wgChord,stSpan,paxLen] [--reps 3] [--ticks 4] [--frames 10] [--soak 10] [--skip boot,drag,frames,soak]
 //        [--port 9222] [--out tools/perf/phone_<build>_<stamp>.json]
-//        [--shot <jpg>] [--shot2 <jpg> --shot2-js '<the page script, run before the second still>']
+//        [--shot <jpg>] [--shot2 <jpg> --shot2-js '<the page script, run before the second still>'] [--shot3 <jpg> --shot3-js '<...>']
 //   --build puts that validated build in flydiy.wip before the page's first script (the phone opens on it).
 //   --cold clears the origin's cache and storage first (a first visit); otherwise a warm load (run it twice: the first warms).
 //   When the garage-only entry exists (MOBILE-GARAGE phase M1), point --url at it: the same rig, the same table.
@@ -69,7 +69,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MiB = x => +(x / 1048576).toFixed(1);
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))].toFixed(1) : null; };
 const med = a => pct(a, 0.5);
-const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), SHOT2 = opt('shot2', null), SHOT2JS = opt('shot2-js', null), THROTTLE = +opt('cpu-throttle', 0);
+const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), SHOT2 = opt('shot2', null), SHOT2JS = opt('shot2-js', null), SHOT3 = opt('shot3', null), SHOT3JS = opt('shot3-js', null), THROTTLE = +opt('cpu-throttle', 0);
 const adb = (...a) => { if (flag('no-adb')) return ''; try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 const log = s => console.log(s);
 
@@ -169,13 +169,16 @@ async function touchChecks(C) {
       const coarse = fdx / Math.max(40, r.w - 26) * (r.hi - r.lo);
       say('fine', { ok: f.v !== r.v && Math.abs(f.v - r.v) <= Math.abs(coarse) * 0.15 + r.st, key: r.key, from: r.v, to: f.v, coarseWouldBe: +coarse.toFixed(3) });
       r = await probe();
-      // G3901-G3902 (PHONE-EDIT-LAYOUT): the row's - / + live in the value's editor now - a tap on the value opens it
+      // THE ROW'S + (G3900: on line 2 of a fixed grid, 40 px), then the value's editor (G3901: a tap on the value) and its +
+      const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+      await tap(pl); const p = await valOf(r.key);
+      say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
       await tap(await centre('#edRows .r[data-k="' + r.key + '"] .v'));
       const open = await J('PHONE_UI.editing()');
       await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
       await tap(await J('(() => { const b = document.querySelector("#phEdit .phPlus").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()'));
-      const p = await valOf(r.key);
-      say('stepper', { ok: open === r.key && Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, opened: open, from: r.v, to: p.v, step: r.st });
+      const q = await valOf(r.key);
+      say('editor', { ok: open === r.key && Math.abs(q.v - Math.min(r.hi, p.v + r.st)) < r.st * 0.01 + 1e-9 && q.ev.change === 1, key: r.key, opened: open, from: p.v, to: q.v });
       // TYPED: the editor's number, Enter - the row's typed path (v_<k> change), no drag events on the range
       const want = +(r.lo + (r.hi - r.lo) * 0.37).toFixed(6);
       await J('(__ev = { down: 0, input: 0, change: 0 }, document.querySelector("#phEdit .phEin").select(), 1)');
@@ -214,7 +217,18 @@ async function touchChecks(C) {
       const d = await J('(() => { const sc = document.getElementById("edProps"), rows = document.getElementById("edRows"); sc.scrollTop = rows.offsetTop; const b = sc.getBoundingClientRect();' +
         ' const vis = [...rows.querySelectorAll(".r.phSlider")].filter(r => { const q = r.getBoundingClientRect(); return q.height > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1; });' +
         ' const hs = vis.map(r => r.getBoundingClientRect().height); return { rows: vis.length, sheet: Math.round(b.height), rowPx: hs.length ? Math.round(hs.reduce((a, x) => a + x, 0) / hs.length) : 0 }; })()');
-      say('density', Object.assign({ ok: d.rows >= 8 }, d));
+      say('density', Object.assign({ ok: d.rows >= 5 }, d));   // (the user's grid: - / + on line 2 make a row ~58 px: 5-6 rows in half a 360x800 screen)
+      // THE SHAPE (G3900; the user's 13:02-13:03 stills: rows wrapped, - / + on lines of their own, stray marks): every slider
+      // row of the sheet one height, its - / scale / + on one line, nothing past the row's right edge, the knob on the thumb
+      const g = await J('(() => { const out = { rows: 0, heights: {}, offLine: [], overflow: [], knobErr: 0 }; for (const r of document.querySelectorAll("#edRows .r.phSlider")) {' +
+        ' const rb = r.getBoundingClientRect(); if (!rb.height || r.offsetParent === null) continue; out.rows++; const h = Math.round(rb.height); out.heights[h] = (out.heights[h] || 0) + 1;' +
+        ' const m = r.querySelector(".phMinus").getBoundingClientRect(), pl = r.querySelector(".phPlus").getBoundingClientRect(), g = r.querySelector("input[type=range]"), gb = g.getBoundingClientRect();' +
+        ' const mid = q => q.top + q.height / 2; if (Math.abs(mid(m) - mid(gb)) > 3 || Math.abs(mid(pl) - mid(gb)) > 3 || m.right > gb.left + 1 || pl.left < gb.right - 1) out.offLine.push(r.dataset.k);' +
+        ' for (const c of r.children) { if (c.classList.contains("phKnob")) continue; const cb = c.getBoundingClientRect(); if (cb.width && (cb.right > rb.right + 1 || cb.left < rb.left - 1 || cb.bottom > rb.bottom + 1)) { out.overflow.push(r.dataset.k + ":" + (c.className || c.tagName)); break; } }' +
+        ' if (!g.disabled) { const f = (g.value - g.min) / ((g.max - g.min) || 1), tc = gb.left + 11 + f * (gb.width - 22), kb = r.querySelector(".phKnob").getBoundingClientRect(); out.knobErr = Math.max(out.knobErr, Math.round(Math.abs(kb.left + kb.width / 2 - tc) + Math.abs(kb.top + kb.height / 2 - mid(gb)))); } }' +
+        ' out.offLine = out.offLine.slice(0, 6); out.overflow = out.overflow.slice(0, 6); return out; })()');
+      const tallest = Math.max(...Object.keys(g.heights).map(Number)), common = +Object.entries(g.heights).sort((x, y) => y[1] - x[1])[0][0];
+      say('shape', Object.assign({ ok: g.rows > 0 && !g.offLine.length && !g.overflow.length && g.knobErr <= 3 && tallest <= common + 18 }, g));
       await J('(document.getElementById("edProps").scrollTop = 0, 1)');
     }
     // THE VIEW
@@ -287,6 +301,9 @@ async function touchChecks(C) {
   // G3728/G3729: a second still after a script of the page's own (--shot2-js: open a panel, scroll a row into view)
   if (SHOT2) { try { if (SHOT2JS) await C.ev('(async () => { ' + SHOT2JS + ' })()', 30000); await new Promise(r => setTimeout(r, 2500));
     const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT2, Buffer.from(sh.result.data, 'base64')); log('shot2 -> ' + SHOT2); } catch (e) { log('shot2 failed: ' + e); } }
+  // G3904: a third still after a script (PHONE-EDIT-LAYOUT: the value's editor open on a row)
+  if (SHOT3) { try { if (SHOT3JS) await C.ev('(async () => { ' + SHOT3JS + ' })()', 30000); await new Promise(r => setTimeout(r, 2500));
+    const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT3, Buffer.from(sh.result.data, 'base64')); log('shot3 -> ' + SHOT3); } catch (e) { log('shot3 failed: ' + e); } }
   if (THROTTLE > 1) { await C.cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE }); R.cpuThrottle = THROTTLE; log('CPU throttle x' + THROTTLE); }
   // ---- SHARE + STORAGE PROBE (G1517): can this phone's share sheet carry a build FILE, and will its storage keep it ----
   // Chrome shares only a permitted list of file types (JSON is not believed to be on it: the .txt twin is the fallback);
