@@ -309908,3 +309908,24 @@ tools/newshapes_identity.js, origin/master 53640b390 (a clean copy of the tree) 
 Cessna, Cessna floats, twin floatplane, Rufus - IDENTITY: ALL IDENTICAL (spec, def, draw, certKey, procureFp, ledger,
 price, sheet, design, mass, nodes, beams, fly20). The page's drawing of the cabin lamps moves by design (above); the
 identity's headless draw has no cabin lamps on either side (the headless gap).
+
+### 4. THE FIREWALL RULE (CABIN-CRAFT-2, the user 2 Nov ~22:25, via A0)
+"I think the back cowl should be constrained to stick to the firewall, so I don't even know why this option exists.
+Only the stand and the cowl length should be editable in this axis." Found on the flagship: engBlockZ moved the
+pusher's whole engine face - the cowl with the engine - so at +0.3 the cowl stood 0.3 m inside the cabin (seen through
+the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/cabin-craft/cowl_joint_twin_2_3_4_side.png).
+- A COWL ON A BODY FACE (the nose, the pusher's aft face) STARTS AT THE FIREWALL: the stand-off (cowlGap) is applied off
+  the body only (_cage_cowl.js cowlPlace; _cage_access.js the cowl's fittings), its row shown only for a pylon / nacelle.
+- A COWLED PUSHER (mount 1, or a push-pull's aft unit) stands on the pod's face: engineFaces ignores engBlockZ /
+  engBlockY there (the engine layer reads the same faces, so the engine follows), and the two rows hide (_cage_eng.js
+  cowledPusherRow). Fore and aft, the engine STAND (eng_mountGap) and the COWL LENGTH (cw_cowlLen) are what move.
+- Kept: a nacelle's or an over-the-wing cowl (a synthetic face - the engine's own plate, no firewall) takes both rows;
+  a COWL-LESS pusher keeps its block (the Chinook, dropped by the user on 25 Oct: A0, leave it alone).
+- No saved build moved: every repo build and the flagship's files surveyed - the cowled pushers and the body cowls all
+  sat at 0 (the twins _2/_3/_3b/_4 included); Rufus's -0.05 gap is on a cowl-less nose, the twin floatplane's on
+  nacelles, the Chinook's block on a cowl-less pusher. IDENTITY: ALL IDENTICAL (the six validated builds). Still:
+  evidence 2026-11-03/cabin-craft/firewall_rule_twin3_side.png (the twin _3 forced to engBlockZ +0.3 / cowlGap +0.1:
+  master puts the cowl in the cabin, the rule keeps it on the firewall).
+- Gates (node, on this head): SAVE CAGEFIT COWL PARTS DESIGN NACLAG STARTER ENGID GEOPARITY FRAMES SUBSTEP WEATHER SKINMAT
+  PROCURE ENERGY EDBUGS JOIN CABINLAMP LIGHT ROLLANIM SIMWORKER UISMOKE UISMOKE-PHONE BUILD PASS; TECH and ENGCONFIG red
+  with master's exact FAIL lines (standing).

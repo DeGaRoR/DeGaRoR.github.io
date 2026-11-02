@@ -120,8 +120,9 @@ const GROUP = ['2b · cowl', [
     'fitted — size and section follow the fuselage',
     'sealed — size follows, the section is yours'],
    { when: P => +P.cowlOn }],
+  // (FIREWALL RULE: only off the body - a pylon, a nacelle - where the face is the engine's own plate)
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
-   { when: P => +P.cowlOn }],
+   { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(+P.engMount || 0)) }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
@@ -442,6 +443,16 @@ function noseFace(mesh, FS, end) {
 // as engines[i]): 4 push-pull = the nose face + the aft bulkhead's (the
 // Skymaster); 5 = the nose + a nacelle pair at `engNacAt` (the Trimotor);
 // 6 = two nacelle pairs, inner at `engNacAt`, outer at `engNacAt2`.
+// FIREWALL RULE (CABIN-CRAFT, the user 2 Nov ~22:25: "I think the back cowl should be constrained to stick to the
+// firewall, so I don't even know why this option exists. Only the stand and the cowl length should be editable in this
+// axis"): A COWL ON A BODY FACE (the nose, the pusher's aft face) STARTS AT THE FIREWALL. Neither the stand-off
+// (cowlGap) nor, on a cowled pusher, the engine block (engBlockZ / engBlockY, which moved the whole face - the cowl
+// with the engine) takes it off; fore and aft, the engine STAND (eng_mountGap) and the COWL LENGTH are what move. A
+// face OFF the body (a pylon, a nacelle: the engine's own plate, no firewall) keeps both - they are how it is placed.
+// No saved build moved (the survey of every repo build and the flagship's files: the cowled pushers and the body
+// cowls all sat at 0; the Chinook's block is on a cowl-less pusher, the twin floatplane's gap on nacelles).
+const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
+  [1, 4].includes(Math.round(+P.engMount || 0));
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   if (mount >= 4 && mount <= 6) {
@@ -463,6 +474,8 @@ function engineFaces(mesh, FS, P) {
     // trailing edge, a third of a metre ahead of where the pod ends — the
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
+    // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
+    if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
@@ -1325,8 +1338,9 @@ function cowlPlace(ctx, again) {
     }
     // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
     // the flat firewall cap (noseFace). The builder's stand-off adds to it.
+    // (FIREWALL RULE: the stand-off applies off the body only - a body face's cowl starts at its firewall)
     ug.position.set(f.x || 0, f.yc,
-                    f.z + (u.aft ? -1 : 1) * ((P.cowlGap || 0) + (f.seat || 0)));
+                    f.z + (u.aft ? -1 : 1) * ((f.synthetic ? (P.cowlGap || 0) : 0) + (f.seat || 0)));
     // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
     // the face, scaled like the cage parts (explodeD is cage units, this
     // group is metres, so × FS); the engine layer stages the cone and the
