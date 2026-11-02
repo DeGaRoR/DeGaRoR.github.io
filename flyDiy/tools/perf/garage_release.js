@@ -23,7 +23,13 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json',
+  // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats, the plane of their S20 FE log (the file's own name)
+  twin: 'bugReports/Twin_busher_floats_2.json' };
+// PHONE-EDIT-PERF: --keepjobs lets the workers answer after the boot (the balance worker's CG handshake rebuilds a floatplane:
+// its build lands in idle); --typed sets the row's typed field (v_<key> change) instead of a drag; the page's garage edit log
+// (_cage_ui 'gedit', the named tasks 'gtask') is kept per row when the recorder is on the page
+const KEEPJOBS = flag('keepjobs'), TYPED = flag('typed');
 const BK = opt('build', 'cub'), REPS = +opt('reps', 3), TICKS = +opt('ticks', 4), RELMS = +opt('relms', 1500);
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop',
   'frCabTopW', 'rimW', 'dashDepth', 'dashBack', 'rimRivet', 'rimRise', 'dashLip', 'shoulderT', 'doorDepth', 'skinT', 'winSillPilot']);
@@ -50,7 +56,10 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
   await P.until(() => false, 8000);
   log(BK + ': garage up in ' + ((now() - t0) / 1000).toFixed(1) + ' s; errors ' + P.errors.length + '; chain ' + (W.CAGE_CHAIN ? (W.CAGE_CHAIN.ok ? 'ok' : 'NOT OK') : 'absent'));
   W.requestAnimationFrame = () => 0;
-  dropJobs = true;
+  dropJobs = !KEEPJOBS;
+  const GEV = [];
+  { const FR = W.FLIGHT_REC; if (FR && FR.event) { const e0 = FR.event; FR.event = function (k, ms, d) { if (k === 'gedit' || k === 'gtask') GEV.push([k, ms == null ? null : +(+ms).toFixed(1), d]); return e0.apply(this, arguments); };
+ } }
   const BUSY = { ms: 0, n: 0 };
   for (const k of ['setTimeout', 'setInterval', 'requestIdleCallback']) { const f = W[k];
     W[k] = function (fn, ...a) { if (typeof fn !== 'function') return f.call(this, fn, ...a);
@@ -82,7 +91,7 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
     if (!el || el.type !== 'range' || el.offsetParent === null || el.disabled) { log(k.padEnd(12) + ' (no visible slider)'); continue; }
     const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001, dir = (hi - x0) > (x0 - lo) ? 1 : -1;
     const d = Math.max(st, (hi - lo) * 0.012);
-    const ticks = [], rels = [], idles = [], pvs = [], sheets = [], chains = [], fns = [], whys = [];
+    const ticks = [], rels = [], idles = [], pvs = [], sheets = [], chains = [], fns = [], whys = [], gevs = [];
     let prof = null;
     for (let r = 0; r <= REPS; r++) {                   // rep 0 is a warm-up (profiled with --prof)
       const base = x0 + dir * d * 5 * (r % 2);          // alternate: away and back, distinct values each rep
@@ -90,8 +99,9 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
       // carry it past 350 ms inside the gap between two ticks) - the release is the settle, as a hand lets go
       U.dragSettleMs = 1e9;
       const pv0 = U.preview ? U.preview.n : 0;
-      el.dispatchEvent(new PE('pointerdown')); await P.until(() => false, 20);
-      for (let i = 1; i <= TICKS; i++) {
+      const gev0 = GEV.length;
+      if (!TYPED) { el.dispatchEvent(new PE('pointerdown')); await P.until(() => false, 20); }
+      for (let i = 1; i <= (TYPED ? 0 : TICKS); i++) {
         el.value = String(Math.min(hi, Math.max(lo, base + dir * d * i * (r % 2 ? -1 : 1) + dir * d * 0.5 * r)));
         const tA = now(); el.dispatchEvent(new Ev('input')); ticks.push(now() - tA);
         await P.until(() => false, 30);
@@ -101,13 +111,17 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
       ACC.m = {}; ACC.on = true;
       const pvN = U.preview ? U.preview.n - pv0 : 0;
       U.dragSettleMs = 350;
-      const tB = now(); el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup')); const rel = now() - tB;
+      let rel;
+      if (TYPED) { const vf = D.getElementById('v_' + k); vf.value = String(Math.min(hi, Math.max(lo, base + dir * d * (r % 2 ? -1 : 1) * TICKS)));
+        const tB = now(); vf.dispatchEvent(new Ev('change')); rel = now() - tB; }
+      else { const tB = now(); el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup')); rel = now() - tB; }
       ACC.on = false;
       if (flag('prof') && r === 0) prof = hot((await post('Profiler.stop')).profile);
       const fn = ACC.m; const chain = W.CAGE_CHAIN && W.CAGE_CHAIN.last ? W.CAGE_CHAIN.last.map(x => [x.name, x.ran ? x.ms : -1]) : null;
       const why = U.release ? JSON.stringify(U.release) : '';
       const b0 = BUSY.ms; await P.until(() => false, RELMS); const idle = BUSY.ms - b0;
       if (r === 0) continue;
+      gevs.push(GEV.slice(gev0));
       rels.push(rel); idles.push(idle); pvs.push(pvN); sheets.push(fn.sheet || 0); chains.push(chain); fns.push(fn); whys.push(why);
     }
     // back to the build's value (a whole build)
@@ -116,12 +130,13 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
     const chainMed = chains[0] ? chains[0].map((c, j) => [c[0], +med(chains.map(x => x ? x[j][1] : null)).toFixed(1)]) : null;
     const fnMed = {}; for (const f of new Set(fns.flatMap(x => Object.keys(x)))) fnMed[f] = +med(fns.map(x => x[f] || 0)).toFixed(1);
     const row = { key: k, tick: +med(ticks).toFixed(1), release: +med(rels).toFixed(1), releaseMax: +Math.max(...rels).toFixed(1), idle: +med(idles).toFixed(1),
-      sheet: +med(sheets).toFixed(1), previews: pvs.join('/'), fn: fnMed, chain: chainMed, why: whys[whys.length - 1], prof };
+      sheet: +med(sheets).toFixed(1), previews: pvs.join('/'), fn: fnMed, chain: chainMed, why: whys[whys.length - 1], prof, gedit: gevs[gevs.length - 1] || [] };
     R.rows.push(row); fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
     const ch = chainMed ? chainMed.filter(c => c[1] !== 0).map(c => c[0] + (c[1] < 0 ? '-' : ' ' + c[1])).join(' ') : '';
     log(k.padEnd(12) + ' tick ' + String(row.tick).padStart(6) + '  RELEASE ' + String(row.release).padStart(6) + ' (max ' + row.releaseMax + ')  idle ' + String(row.idle).padStart(6) + '  sheet ' + String(row.sheet).padStart(5) + '  previews ' + row.previews + '/' + TICKS + '  ' + (row.why || '') + '\n      ' + ch +
       '  | ' + Object.entries(fnMed).filter(([f]) => f !== 'sheet').map(([f, v]) => f + ' ' + v).join(' '));
     if (prof) log('      prof: ' + Object.entries(prof.named).slice(0, 22).map(([f, v]) => f + ' ' + v).join(', '));
+    for (const g of row.gedit) log('      ' + g[0] + ' ' + g[1] + ' ms ' + (typeof g[2] === 'object' && g[2] ? [g[2].how, g[2].path, g[2].why, 'build ' + g[2].build + '/' + g[2].builds, 'sheet ' + g[2].sheet, g[2].layers].filter(Boolean).join(' | ') : g[2]));
   }
   log('-> ' + OUT);
   P.close(); process.exit(0);

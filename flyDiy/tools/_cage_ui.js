@@ -1475,7 +1475,56 @@ function updateDims(box, FS) {
 // and the page's post chain (the layers): ~0.5 + ~0.45 s for a larger aeroplane, which as one task was the longest
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
-function build() { const g = buildSteps(); while (!g.next().done); }
+function build() {
+  const t0 = performance.now(), g = buildSteps();
+  try { while (!g.next().done); } finally { geBuilt(performance.now() - t0); }
+}
+// PHONE-EDIT-PERF (D, 2 Nov - the user's S20 FE: "second long waits, impossible to operate", and the log could only say
+// "TimerHandler:setTimeout 8550ms; DOMWindow.onpointerup up 1510ms"): THE GARAGE'S EDITS IN THE FLIGHT RECORDER. Every
+// handler that builds (a row's input / change / typed value, the pointer up, the 350 ms pause) is timed as ONE edit and
+// logged as a 'gedit' event: the row's key, how (drag / input / release / typed / pause, or a bare call: the CG
+// handshake 'cg', a switch), the handler's whole ms, the builds in it and their ms, the sheet's ms, the build's path
+// (deform / preview / detail / release plan / whole, and why a release went whole), the post chain's layers that ran
+// (the last build's, the eight longest) and the game's CAGE_ON_BUILD. A drag's ticks are COUNTED, not logged (a tick a
+// frame: the counters below are numbers in place, nothing allocated) and ride the release's event; a tick of 50 ms or
+// more is logged on its own (a frame that long is the cost being looked for). Nothing here changes what is built.
+// tools/analyze_log.js prints them (GARAGE EDITS).
+const GE = { on: 0, t0: 0, build: 0, nb: 0, sheet: 0, path: '', why: '', onBuild: 0, key: '', ticks: 0, tickSum: 0, tickMax: 0, tickBuild: 0 };
+const geNow = () => (window.__realNow ? window.__realNow() : performance.now());   // (a rig's real clock, as the chain's)
+const geR = x => Math.round(x * 10) / 10;
+function geBegin() {
+  if (GE.on++ > 0) return;
+  GE.t0 = geNow(); GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
+function geEnd(how, key) {
+  if (GE.on <= 0) return;
+  if (--GE.on > 0) return;
+  geDone(how, key || GE.key, geNow() - GE.t0);
+}
+function geDone(how, key, ms) {
+  if (!GE.nb && ms < 4) return;              // nothing built, nothing to say
+  if (how === 'drag' && ms < 50) { GE.ticks++; GE.tickSum += ms; GE.tickBuild += GE.build; if (ms > GE.tickMax) GE.tickMax = ms; return; }
+  const R = typeof window !== 'undefined' ? window.FLIGHT_REC : null;
+  if (!R || typeof R.event !== 'function') { if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0; return; }
+  const CH = window.CAGE_CHAIN, L = GE.nb && CH && Array.isArray(CH.last) ? CH.last : null;
+  let layers = '';
+  if (L) layers = L.filter(l => l.ran && l.ms >= 1).sort((a, b) => b.ms - a.ms).slice(0, 8).map(l => l.name + ' ' + Math.round(l.ms)).join(', ');
+  const d = { k: key || null, how, build: geR(GE.build), builds: GE.nb, sheet: geR(GE.sheet), path: GE.path || null, why: GE.why || null,
+              layers, onBuild: geR(GE.onBuild) };
+  if (how !== 'drag' && GE.ticks) { d.ticks = GE.ticks; d.tickMean = geR(GE.tickSum / GE.ticks); d.tickMax = geR(GE.tickMax); d.tickBuild = geR(GE.tickBuild); }
+  if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0;
+  try { R.event('gedit', ms, d); } catch (e) {}
+}
+// a build outside any handler (the CG handshake's, a switch's, a load's): an edit of its own; `CAGE_UI.buildWhy` names it
+function geBuilt(ms) {
+  GE.build += ms; GE.nb++;
+  if (GE.on) return;
+  const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;
+  const why = (UI && UI.buildWhy) || (DRAG_TICK ? 'drag' : 'call');
+  if (UI && UI.buildWhy) UI.buildWhy = null;
+  geDone(why, why === 'drag' ? GE.key : '', ms);
+  GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
 // G1303 (GARAGE-LAG-2): THE DETAIL LAYERS WAIT FOR THE PAUSE. A slider dragged under a held pointer rebuilt every
 // layer on every tick; the ones that only DRESS the aeroplane - the lights, the control hinges, the access fittings,
 // the tanks (the energy layer reads the crew and the wing; nothing that builds before it reads it) - ride the post
@@ -1494,10 +1543,10 @@ function dragSettle() {
 let RELEASE = false;
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
-  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
+  DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
-  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release'); } } };
   window.addEventListener('pointerup', up, true);
   window.addEventListener('pointercancel', up, true);
 }
@@ -2036,6 +2085,7 @@ function* buildSteps() {
     try { ok = deformTick(LAST_SHEET, step, L); } catch (e) { PREVIEW.deformWhy = 'threw: ' + (e && e.message); ok = false; }
     cageStill = !ok && PREVIEW.deformWhy === 'the cage did not move';
     if (ok) {
+      GE.path = 'deform';
       yield 'post';
       DRAG_LATE = true;
       if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -2044,7 +2094,9 @@ function* buildSteps() {
       return;
     }
   }
+  const tSheet = geNow();
   const built = sheetKept(P, { step, level: L });
+  GE.sheet += geNow() - tSheet;
   const spec = built.spec, m = built.cage;
   // G1442 (GARAGE-INSTANT): A DRAG TICK THAT KEEPS THE SHEET IS A PREVIEW. The fuselage on the stand is this
   // sheet's already (its mesh, its decals, its weathering, the panels), so only the layers whose inputs moved run
@@ -2055,6 +2107,7 @@ function* buildSteps() {
   const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
     !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
   if (plan) {
+    GE.path = 'preview';
     standRestore(LAST_SHEET);
     yield 'post';
     DRAG_LATE = true;
@@ -2081,8 +2134,9 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
+    if (rplan && !crewMoved) { GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
+    GE.why = RELEASE_INFO.last.whole;
   }
   LAST_SHEET = built;
   M0 = m;
@@ -2282,6 +2336,7 @@ function* buildSteps() {
   // sheet's are (G1442) - the parts stand where the cage holds them; the settle build is whole.
   const plan2 = cageStill && CH && CH.on ? CH.plan(P) : null;
   if (plan2) {
+    GE.path = 'detail';
     yield 'post';
     DRAG_LATE = true;
     if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -2294,6 +2349,7 @@ function* buildSteps() {
     return;
   }
   SEC_EPOCH++;
+  GE.path = DRAG_TICK ? 'whole (deferred)' : 'whole';
   yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
   // G1303: a drag tick defers the detail layers; any other build is whole, and settles a deferred one
   const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
@@ -2431,7 +2487,7 @@ function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
   if (!renderer) {
-    if (window.CAGE_ON_BUILD) window.CAGE_ON_BUILD();
+    if (window.CAGE_ON_BUILD) { const t0 = geNow(); try { window.CAGE_ON_BUILD(); } finally { if (GE.on) GE.onBuild += geNow() - t0; } }
     return;
   }
   const r = cv.parentElement.getBoundingClientRect();
@@ -2699,19 +2755,22 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       vf.value = fmtV(+e.target.value);
       // G1303: a tick under a held pointer is a DRAG tick - the detail layers wait for the pause (dragBuild)
       DRAG_TICK = DRAG_ON === rng;
+      GE.key = k; geBegin();
+      const how = DRAG_TICK ? 'drag' : 'input';
       try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
-      finally { DRAG_TICK = false; }
+      finally { DRAG_TICK = false; geEnd(how, k); }
       if (DRAG_LATE) dragSettleSoon();
     };
     rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
-    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettle(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release', k); } });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
       if (!Number.isFinite(v)) { vf.value = fmtV(rng.value); return; }
       v = Math.max(lo, Math.min(hi, v));
       rng.value = v; vf.value = fmtV(v);
-      oninput(rel ? (sizeRef || 1) * v : v);
+      GE.key = k; geBegin();
+      try { oninput(rel ? (sizeRef || 1) * v : v); } finally { geEnd('typed', k); }
     };
     widget = meta.el = rng; meta.vf = vf;
   }

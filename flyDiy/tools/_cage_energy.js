@@ -1812,7 +1812,7 @@ function balanceApply(r) {
     const held = typeof window.CAGE_FLOAT_HELD === 'function' && window.CAGE_FLOAT_HELD();
     if (moved && !held && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
       clearTimeout(balanceApply._t);
-      balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
+      balanceApply._t = setTimeout(() => { try { UI.buildWhy = 'cg'; UI.build(); } catch (e) {} }, 60);   // ('cg': the garage's edit log, PHONE-EDIT-PERF)
     }
   }
   for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
