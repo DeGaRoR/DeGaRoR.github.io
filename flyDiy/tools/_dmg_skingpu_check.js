@@ -41,6 +41,12 @@ const TEAR_FRAMES = 3;                                  // the page's TEAR_EVERY
 // (train 39, the coordinator's ruling: ONE GPU SAMPLING PERIOD - a tear check every TEAR_FRAMES frames on a read-back one
 // frame old - is the longest a live edge may stand past the bound on the GPU path, and a miss must be such a transient)
 const PERIOD_G = TEAR_FRAMES + 1;
+// THE LATE TEAR'S FLOAT32 BOUND (2 Nov, master's red since L28c): a tear the GPU path makes later than one period, the CPU
+// having torn it within float32's reach of the bound, is a sampling of the GPU's own float32 places - its CPU margin is held
+// to TWICE THE CASE'S PLACE DRIFT (S.dP: the shader's mirror against the CPU's exact riding, an edge's two places; the
+// mirror row holds it to 0.1 mm), 0.01 mm at least. It was 0.01 mm flat (train 41): the floats' water nose-in lies ~1 300 m
+// out, where float32 places are 0.12 mm apart - its mirror 0.0978 mm, two CPU margins 0.0334 mm (a quarter step) went red
+const lateTol = S => Math.max(1e-5, 2 * (S.dP || 0));
 function overRun(R, run, maxRun) {
   // (train 41: each triangle on the bound its tear holds it to - skin_break.js tear() / over(): a HELD covering triangle
   // (G2040) stretches to HELD, a tube / a composite shell / sheet metal to theirs; a record that never tears is not measured)
@@ -402,12 +408,12 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       // no longer than one GPU sampling period; no live edge past the bound longer than that period on either path; a tear
       // the GPU path makes later than the CPU's, within it
       // (train 41: the GPU path samples the CPU's frames - the misses back to the 1 % / 3 of the CPU tear's own phase)
-      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G && (S.lateBorder || 0) <= Math.max(3, 0.01 * S.tornC) && !((S.lateBorderMarginMax || 0) > 1e-5),
+      yes(S.missed <= Math.max(3, 0.01 * S.tornC) && (S.missRun || 0) <= PERIOD_G && (S.runG || 0) <= PERIOD_G && (S.runC || 0) <= PERIOD_G && S.lateMax <= PERIOD_G && (S.lateBorder || 0) <= Math.max(3, 0.01 * S.tornC) && !((S.lateBorderMarginMax || 0) > lateTol(S)),
         'the tear on the read-back places: ' + S.tornG + ' torn (the CPU\'s full tear ' + S.tornC + '): ' + S.missed + ' it tore that this still draws (' + S.goneOther + ' more gone here by an event instead), ' + S.late + ' later (up to '
         + S.lateMax + ' frames), ' + S.early + ' earlier; the worst live edge past the bound on any frame ' + (S.excessG * 1000).toFixed(1) + ' mm (the CPU\'s ' + (S.excessC * 1000).toFixed(1) + ' mm)' + (S.excessGAt ? ' [the GPU path\'s worst: ' + JSON.stringify(S.excessGAt) + ']' : '') + (S.longestLive ? '; the longest live edge at the end (the CPU path, any kind): ' + JSON.stringify(S.longestLive) + ' (before the reach fix: ' + JSON.stringify(S.longestLiveB) + ')' : '')
         + (S.heldMax != null ? '; FABRIC held covering (the CPU path): up to ' + S.heldMax + ' triangles held at once (' + (S.heldMaxB || 0) + ' before the reach fix, which drew ' + (S.goneB || 0) + ' gone against ' + (S.goneC || 0) + ' now at the end), ' + (S.heldTorn || 0) + ' torn past HELD' : '')
         + '; the longest a live edge stood past the bound: GPU path ' + (S.runG || 0) + ' frames, CPU ' + (S.runC || 0) + ' (one GPU sampling period: ' + PERIOD_G + ')'
-        + '; THE FLOAT32 TOLERANCE (A0, train 41: a tear later than one period, the CPU having torn it within float32\'s reach of the bound - its margin at most 0.01 mm; at most max(3, 1 %)): ' + (S.lateBorder || 0) + ' exempted' + ((S.lateBorderMarginMax || 0) > 1e-5 ? ' - ONE PAST 0.01 mm (' + (S.lateBorderMarginMax * 1000).toFixed(4) + ' mm): RED' : '')
+        + '; THE FLOAT32 TOLERANCE (A0, train 41: a tear later than one period, the CPU having torn it within float32\'s reach of the bound - its margin at most twice the case\'s own place drift - the mirror\'s - and 0.01 mm at least: here ' + (lateTol(S) * 1000).toFixed(4) + ' mm; at most max(3, 1 %)): ' + (S.lateBorder || 0) + ' exempted' + ((S.lateBorderMarginMax || 0) > lateTol(S) ? ' - ONE PAST IT (' + (S.lateBorderMarginMax * 1000).toFixed(4) + ' mm): RED' : '')
         + (S.lateBorder ? '; ' + S.lateBorder + ' torn later past one period that the CPU tore within 0.2 mm of the bound (float32\'s reach: up to ' + S.lateBorderMax + ' frames) ' + JSON.stringify(S.lateBorderAt) : '')
         + (S.lateAt ? '; the first late past one period ' + JSON.stringify(S.lateAt) : '')
         + (S.missedAt ? '; misses (transients between the read-backs, past the bound at most ' + (S.missRun || 0) + ' frames on the GPU path) ' + JSON.stringify(S.missedAt) : ''));

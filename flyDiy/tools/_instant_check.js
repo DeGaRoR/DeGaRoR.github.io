@@ -28,7 +28,9 @@ const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json',
+  // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats (their S20 FE log's plane; the file's own name)
+  twin: 'bugReports/Twin_busher_floats_2.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
@@ -63,6 +65,17 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     W.requestAnimationFrame = () => 0;
     const hash = () => { try { return crypto.createHash('sha1').update(JSON.stringify(W.CAGE_JOIN.export())).digest('hex').slice(0, 16); } catch (e) { return 'ERR ' + e.message; } };
     log('== ' + bk + '  boot spec ' + hash() + '  chain ' + (W.CAGE_CHAIN ? (W.CAGE_CHAIN.ok ? 'ok' : 'NOT OK: ' + W.CAGE_CHAIN.why) + ', ' + W.CAGE_CHAIN.layers.length + ' layers' : 'absent'));
+    // PHONE-EDIT-PERF (2 Nov): THE FLOATS' CG HANDSHAKE (G396). The float layer stands its step on the CG the balance
+    // answered for the build before (FLYDIY_CG_MODEL) and the join's datum (CAGE_DATUM); the answer to the short way's
+    // last build moves it once more by under 2 cm (no rebuild then, by design), so a long build right after read a newer
+    // CG than the scene it is compared with - a difference on master's whole builds too. A trap notes the values the last
+    // float build read (each read; kept when CAGE_FLOAT is set), and the long builds read those (--cgfree: the page's own)
+    const CGT = { CAGE_DATUM: {}, FLYDIY_CG_MODEL: {} }; let cgUsed = null, cgPin = null;
+    for (const key of Object.keys(CGT)) { const r = CGT[key]; r.v = W[key];
+      Object.defineProperty(W, key, { configurable: true, set(x) { r.v = x; }, get() { const v = cgPin ? cgPin[key] : r.v; r.read = v; return v; } }); }
+    { let fv = W.CAGE_FLOAT; Object.defineProperty(W, 'CAGE_FLOAT', { configurable: true, get() { return fv; },
+      set(x) { fv = x; if (x) cgUsed = { CAGE_DATUM: CGT.CAGE_DATUM.read, FLYDIY_CG_MODEL: CGT.FLYDIY_CG_MODEL.read }; } }); }
+    const CGFREE = argv.includes('--cgfree');
     const U = W.CAGE_UI, Ev = W.Event, PE = W.PointerEvent || W.Event;
     const FL = FLEETQ ? W.PARKED.fleet : null, EVO = FLEETQ ? { bubbles: true } : undefined;
     if (FL) log('fleet: on ' + W.PARKED.fleetOn() + ', stood ' + (W.FLEET_STAND ? W.FLEET_STAND.state.holders.length : 0) + ', queued ' + FL.stats.queued + ', captures so far ' + FL.stats.captures + ', queue ' + FL.queue.join(' '));
@@ -91,6 +104,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const capD = FL ? FL.stats.captures - cap0 : 0;
       U.dragSettleMs = 350;
       el.dispatchEvent(new Ev('change', EVO)); winToo('change'); W.dispatchEvent(new PE('pointerup', EVO));
+      if (U.releaseFlush) U.releaseFlush();   // (PHONE-EDIT-PERF P-2: the release builds after a paint - here, now)
       if (capD) { dragCaps += capD; bad++; log(k.padEnd(12) + ' FLEET: ' + capD + ' capture(s) started DURING the drag'); }
       const relN = U.release ? U.release.n - rl0 : 0, relW = U.release ? U.release.whole - rw0 : 0;
       const relTxt = !U.release ? '' : relN ? '  release: partial [' + ((U.release.last && U.release.last.why) || '') + '; floor ' + ((U.release.last && U.release.last.floor) || '') + ']'
@@ -100,7 +114,8 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const hA = hash(), A = JSON.parse(run(FP));
       // the long way: the sheet built, nothing kept (G1450-G1455's caches - the sheet's stages, the cavity bake, the
       // tank soup, the soles - off with it: RELEASE_FAST_OFF)
-      const long = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; try { U.build(); } finally { U.sheetKeep = true; W.RELEASE_FAST_OFF = false; } };
+      const long = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; cgPin = CGFREE ? null : cgUsed;
+        try { U.build(); } finally { U.sheetKeep = true; W.RELEASE_FAST_OFF = false; cgPin = null; } };
       long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const hB = hash(), B = JSON.parse(run(FP));
@@ -122,6 +137,57 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       // back to the build's value (a whole build)
       el.value = String(x0); el.dispatchEvent(new Ev('input')); el.dispatchEvent(new Ev('change'));
       await P.until(() => false, 1500);
+    }
+    // --settled [rows] (A0, 2 Nov): THE SETTLED AEROPLANE, UNPINNED. The pinned rows above compare one CG; this one proves
+    // the aeroplane the player keeps. Each way is iterated to the handshake's FIXED POINT - built again while the CG the
+    // balance answered (or the join's datum) is not bit for bit the one the last float build read - the game's 2 cm
+    // deadband off on both (the page's own timer rebuild held; the short way rebuilds with buildCg, the release's CG build,
+    // the long way with the long build), then the two aeroplanes are compared bit for bit
+    if (argv.includes('--settled') && W.CAGE_FLOAT) {
+      const SROWS = (opt('settled', null) || 'paxLen,rimW,wgSpan').split(',');
+      let nBal = 0; (W.BALANCE_LISTENERS = W.BALANCE_LISTENERS || []).push(() => { nBal++; });
+      const cgBuild0 = U.buildCg;
+      const quiet = () => cgUsed && JSON.stringify(cgUsed.FLYDIY_CG_MODEL) === JSON.stringify(CGT.FLYDIY_CG_MODEL.v) && JSON.stringify(cgUsed.CAGE_DATUM) === JSON.stringify(CGT.CAGE_DATUM.v);
+      const settle = async (rebuild) => {
+        let it = 0;
+        for (; it < 40; it++) {
+          const n0 = nBal; await P.until(() => nBal > n0, 10000); await P.until(() => false, 300);
+          if (quiet()) break;
+          rebuild();
+        }
+        const a = CGT.FLYDIY_CG_MODEL.v, u = cgUsed && cgUsed.FLYDIY_CG_MODEL;
+        return { it, quiet: quiet(), res: a && u ? Math.hypot(a[0] - u[0], a[1] - u[1]) : null };
+      };
+      for (const k of SROWS) {
+        const tR = Date.now(), el = D.getElementById('p_' + k);
+        if (!el || el.type !== 'range' || el.offsetParent === null || el.disabled) { log(('S:' + k).padEnd(12) + ' (no visible slider)'); continue; }
+        const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001, dir = (hi - x0) > (x0 - lo) ? 1 : -1, d = Math.max(st, (hi - lo) * 0.012);
+        U.buildCg = () => {};   // the page's timer rebuild held: each way drives its own
+        try {
+          U.dragSettleMs = 1e9;
+          el.dispatchEvent(new PE('pointerdown'));
+          for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input')); await P.until(() => false, 30); }
+          U.dragSettleMs = 350;
+          el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup'));
+          if (U.releaseFlush) U.releaseFlush();
+          const sA = await settle(() => cgBuild0());
+          const hA = hash(), A = JSON.parse(run(FP));
+          const longU = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; try { U.build(); } finally { U.sheetKeep = true; W.RELEASE_FAST_OFF = false; } };
+          longU();
+          const sB = await settle(longU);
+          const hB = hash(), B = JSON.parse(run(FP));
+          let nd = 0; const first = [];
+          for (let i = 0; i < Math.max(A.out.length, B.out.length); i++) if (A.out[i] !== B.out[i]) { nd++; if (first.length < 2) first.push(i); }
+          const same = !nd && hA === hB && sA.quiet && sB.quiet;
+          if (!same) bad++;
+          log(('S:' + k).padEnd(12) + ' settled short ' + sA.it + ' rebuild(s)' + (sA.quiet ? '' : ' NOT QUIET (' + sA.res + ' m)') + ', long ' + sB.it + (sB.quiet ? '' : ' NOT QUIET (' + sB.res + ' m)') +
+            '  objects ' + A.out.length + '/' + B.out.length + '  ' + (same ? 'same' : 'DIFFER ' + nd + (hA !== hB ? ' + spec ' + hA + ' vs ' + hB : '')) + '  (' + ((Date.now() - tR) / 1000).toFixed(1) + ' s)');
+          for (const i of first) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
+            log('   @' + i + ' short: ..' + a.slice(Math.max(0, c - 60), c + 100) + '\n     long:  ..' + b.slice(Math.max(0, c - 60), c + 100)); }
+        } finally { U.buildCg = cgBuild0; }
+        el.value = String(x0); el.dispatchEvent(new Ev('input')); el.dispatchEvent(new Ev('change'));
+        await P.until(() => false, 1500);
+      }
     }
     if (FL) {   // after the rows: no input - the queue's idle window opens and a capture runs
       const c1 = FL.stats.captures; FL.framed = true;

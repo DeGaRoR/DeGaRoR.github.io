@@ -1475,7 +1475,56 @@ function updateDims(box, FS) {
 // and the page's post chain (the layers): ~0.5 + ~0.45 s for a larger aeroplane, which as one task was the longest
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
-function build() { const g = buildSteps(); while (!g.next().done); }
+function build() {
+  const t0 = performance.now(), g = buildSteps();
+  try { while (!g.next().done); } finally { geBuilt(performance.now() - t0); }
+}
+// PHONE-EDIT-PERF (D, 2 Nov - the user's S20 FE: "second long waits, impossible to operate", and the log could only say
+// "TimerHandler:setTimeout 8550ms; DOMWindow.onpointerup up 1510ms"): THE GARAGE'S EDITS IN THE FLIGHT RECORDER. Every
+// handler that builds (a row's input / change / typed value, the pointer up, the 350 ms pause) is timed as ONE edit and
+// logged as a 'gedit' event: the row's key, how (drag / input / release / typed / pause, or a bare call: the CG
+// handshake 'cg', a switch), the handler's whole ms, the builds in it and their ms, the sheet's ms, the build's path
+// (deform / preview / detail / release plan / whole, and why a release went whole), the post chain's layers that ran
+// (the last build's, the eight longest) and the game's CAGE_ON_BUILD. A drag's ticks are COUNTED, not logged (a tick a
+// frame: the counters below are numbers in place, nothing allocated) and ride the release's event; a tick of 50 ms or
+// more is logged on its own (a frame that long is the cost being looked for). Nothing here changes what is built.
+// tools/analyze_log.js prints them (GARAGE EDITS).
+const GE = { on: 0, t0: 0, build: 0, nb: 0, sheet: 0, path: '', why: '', onBuild: 0, key: '', ticks: 0, tickSum: 0, tickMax: 0, tickBuild: 0 };
+const geNow = () => (window.__realNow ? window.__realNow() : performance.now());   // (a rig's real clock, as the chain's)
+const geR = x => Math.round(x * 10) / 10;
+function geBegin() {
+  if (GE.on++ > 0) return;
+  GE.t0 = geNow(); GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
+function geEnd(how, key) {
+  if (GE.on <= 0) return;
+  if (--GE.on > 0) return;
+  geDone(how, key || GE.key, geNow() - GE.t0);
+}
+function geDone(how, key, ms) {
+  if (!GE.nb && ms < 4) return;              // nothing built, nothing to say
+  if (how === 'drag' && ms < 50) { GE.ticks++; GE.tickSum += ms; GE.tickBuild += GE.build; if (ms > GE.tickMax) GE.tickMax = ms; return; }
+  const R = typeof window !== 'undefined' ? window.FLIGHT_REC : null;
+  if (!R || typeof R.event !== 'function') { if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0; return; }
+  const CH = window.CAGE_CHAIN, L = GE.nb && CH && Array.isArray(CH.last) ? CH.last : null;
+  let layers = '';
+  if (L) layers = L.filter(l => l.ran && l.ms >= 1).sort((a, b) => b.ms - a.ms).slice(0, 8).map(l => l.name + ' ' + Math.round(l.ms)).join(', ');
+  const d = { k: key || null, how, build: geR(GE.build), builds: GE.nb, sheet: geR(GE.sheet), path: GE.path || null, why: GE.why || null,
+              layers, onBuild: geR(GE.onBuild) };
+  if (how !== 'drag' && GE.ticks) { d.ticks = GE.ticks; d.tickMean = geR(GE.tickSum / GE.ticks); d.tickMax = geR(GE.tickMax); d.tickBuild = geR(GE.tickBuild); }
+  if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0;
+  try { R.event('gedit', ms, d); } catch (e) {}
+}
+// a build outside any handler (the CG handshake's, a switch's, a load's): an edit of its own; `CAGE_UI.buildWhy` names it
+function geBuilt(ms) {
+  GE.build += ms; GE.nb++;
+  if (GE.on) return;
+  const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;
+  const why = (UI && UI.buildWhy) || (DRAG_TICK ? 'drag' : 'call');
+  if (UI && UI.buildWhy) UI.buildWhy = null;
+  geDone(why, why === 'drag' ? GE.key : '', ms);
+  GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
 // G1303 (GARAGE-LAG-2): THE DETAIL LAYERS WAIT FOR THE PAUSE. A slider dragged under a held pointer rebuilt every
 // layer on every tick; the ones that only DRESS the aeroplane - the lights, the control hinges, the access fittings,
 // the tanks (the energy layer reads the crew and the wing; nothing that builds before it reads it) - ride the post
@@ -1492,12 +1541,19 @@ function dragSettle() {
 }
 // G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
 let RELEASE = false;
+// PHONE-EDIT-PERF (2 Nov): THE CG HANDSHAKE'S BUILD IS A RELEASE TOO. The balance worker's answer moved the floatplane's
+// CG 2 cm (G396) and rebuilt the WHOLE aeroplane for the float layer's step - 0.8-1.2 s on the user's S20 FE after every
+// edit, and inside the next drag when it landed there. Only the float layer reads the CG (FLYDIY_CG_MODEL); the build runs
+// as a release's (G1451: what moved, what a preview left stale) with the float layer always run. buildCg() is that build
+// (_cage_energy's handshake calls it, after the hand is off the sliders)
+let CG_ONLY = false;
+function buildCg() { CG_ONLY = true; try { build(); } finally { CG_ONLY = false; } }
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
-  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
+  DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
-  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release'); } } };
   window.addEventListener('pointerup', up, true);
   window.addEventListener('pointercancel', up, true);
 }
@@ -1700,23 +1756,40 @@ function standInfo(stand, L) {
   for (let i = 0; i < nB; i++) for (let a = 0; a < 3; a++) { const x = V[i][a]; if (x < lo[a]) lo[a] = x; if (x > hi[a]) hi[a] = x; }
   const ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
   const cs = ext / Math.max(4, Math.cbrt(nB) * 1.5);
-  const cell = new Map(), ck = (x, y, z) => x + ',' + y + ',' + z;
+  // PHONE-EDIT-PERF (2 Nov, the user's S20 FE): THE GRID IS AN ARRAY, AND A RING WALKS ITS SHELL ONLY. The cells were a Map
+  // of 'x,y,z' strings and a ring visited every cell of its cube (skipping the inside): a part far from the fuselage - the
+  // floats, a boom's tail, the fin - walked out to r 64, O(r^4) string lookups. On the user's twin-boom floatplane one
+  // press's measure (standSoon -> standFollowers) was a 6-8 s task on the phone (`near` 18.6 s self in a profile). Same
+  // cells, same visiting order (x, then y, then z ascending; a cell outside the grid is empty, as the Map had it), same
+  // answers - only the empty cells and the cube's inside are no longer visited
+  const nx = Math.floor((hi[0] - lo[0]) / cs) + 1, ny = Math.floor((hi[1] - lo[1]) / cs) + 1, nz = Math.floor((hi[2] - lo[2]) / cs) + 1;
+  const cell = new Array(nx * ny * nz);
   for (let i = 0; i < nB; i++) {
-    const k = ck(Math.floor((V[i][0] - lo[0]) / cs), Math.floor((V[i][1] - lo[1]) / cs), Math.floor((V[i][2] - lo[2]) / cs));
-    let a = cell.get(k); if (!a) cell.set(k, a = []); a.push(i);
+    const k = (Math.floor((V[i][0] - lo[0]) / cs) * ny + Math.floor((V[i][1] - lo[1]) / cs)) * nz + Math.floor((V[i][2] - lo[2]) / cs);
+    let a = cell[k]; if (!a) cell[k] = a = []; a.push(i);
   }
   const near = (p, k) => {             // the k nearest base vertices (k = 1: the nearest)
     const cx = Math.floor((p[0] - lo[0]) / cs), cy = Math.floor((p[1] - lo[1]) / cs), cz = Math.floor((p[2] - lo[2]) / cs);
     const best = [];                   // [d2, i] sorted
+    const visit = a => {
+      for (const i of a) {
+        const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
+        if (best.length < k || d2 < best[best.length - 1][0]) {
+          best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
+        }
+      }
+    };
     for (let r = 0; r < 64; r++) {
-      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
-        if (Math.max(Math.abs(x - cx), Math.abs(y - cy), Math.abs(z - cz)) !== r) continue;
-        const a = cell.get(ck(x, y, z)); if (!a) continue;
-        for (const i of a) {
-          const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
-          if (best.length < k || d2 < best[best.length - 1][0]) {
-            best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
-          }
+      const x0 = Math.max(0, cx - r), x1 = Math.min(nx - 1, cx + r), y0 = Math.max(0, cy - r), y1 = Math.min(ny - 1, cy + r);
+      const z0 = Math.max(0, cz - r), z1 = Math.min(nz - 1, cz + r);
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const base = (x * ny + y) * nz;
+        if (Math.abs(x - cx) === r || Math.abs(y - cy) === r) {      // on the shell's x / y faces: the whole z run
+          for (let z = z0; z <= z1; z++) { const a = cell[base + z]; if (a) visit(a); }
+        } else {                                                      // inside them: the two z faces alone
+          const zA = cz - r, zB = cz + r;
+          if (zA >= 0 && zA < nz) { const a = cell[base + zA]; if (a) visit(a); }
+          if (r > 0 && zB >= 0 && zB < nz) { const a = cell[base + zB]; if (a) visit(a); }
         }
       }
       // every cell within r rings is seen: done once the k-th is closer than the ring's inner edge
@@ -1894,17 +1967,20 @@ let PRE_KEY = null, STAT0 = '', WHOLE_SEQ = 0;      // WHOLE_SEQ: the chain's ru
 const RELEASE_INFO = { n: 0, whole: 0, last: null };
 function releaseWhy(built) {
   const CH = window.CAGE_CHAIN;
-  if (!RELEASE) return 'not a release';
+  if (!RELEASE && !CG_ONLY) return 'not a release';
   if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
   if (!CH || !CH.on || !CH.cur) return 'no chain';
   if (DEFORMED) return 'a deformed drag';
   // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
-  // P key, so no record holds it) and the handshake rebuilds when that CG moves 2 cm; its release is the whole build,
-  // as it was
-  if (+P.gearFloats > 0) return 'a floatplane (the CG handshake)';
+  // P key, so no record holds it) - PHONE-EDIT-PERF: its CG build (buildCg) is the plan with the float layer always run
+  // (below; INSTANT --settled: the same aeroplane as the whole build's). A DRAG's release on a floatplane stays whole
+  // (PHONE-1a, 2 Nov 19:10): on the user's twin the wgSpan release kept the crew layer and its footwell ended 17 cm off
+  // the whole build's (the weathering's uFootA) - a feed the plan does not know yet; PHONE-1b finds it
+  if (RELEASE && !CG_ONLY && +P.gearFloats > 0) return 'a floatplane\'s drag (PHONE-1a)';
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
-  if (craftKey() !== CRAFT_KEY) return 'the sit moved';
+  // (PHONE-EDIT-PERF: a moved sit - the floats' CG step, the gear - is measured again at the release's start, below, as
+  // the whole build measures it at its own; it no longer sends the release whole)
   return '';
 }
 function* releaseSteps(built, rplan) {
@@ -2036,6 +2112,7 @@ function* buildSteps() {
     try { ok = deformTick(LAST_SHEET, step, L); } catch (e) { PREVIEW.deformWhy = 'threw: ' + (e && e.message); ok = false; }
     cageStill = !ok && PREVIEW.deformWhy === 'the cage did not move';
     if (ok) {
+      GE.path = 'deform';
       yield 'post';
       DRAG_LATE = true;
       if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -2044,7 +2121,9 @@ function* buildSteps() {
       return;
     }
   }
+  const tSheet = geNow();
   const built = sheetKept(P, { step, level: L });
+  GE.sheet += geNow() - tSheet;
   const spec = built.spec, m = built.cage;
   // G1442 (GARAGE-INSTANT): A DRAG TICK THAT KEEPS THE SHEET IS A PREVIEW. The fuselage on the stand is this
   // sheet's already (its mesh, its decals, its weathering, the panels), so only the layers whose inputs moved run
@@ -2055,6 +2134,7 @@ function* buildSteps() {
   const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
     !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
   if (plan) {
+    GE.path = 'preview';
     standRestore(LAST_SHEET);
     yield 'post';
     DRAG_LATE = true;
@@ -2069,9 +2149,11 @@ function* buildSteps() {
     return;
   }
   // G1451: a drag's release that keeps the sheet runs what the drag reached
-  if (RELEASE) {
+  if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
     const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
+    if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
     const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
     if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
@@ -2081,8 +2163,24 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
+    if (rplan && !crewMoved) {
+      // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
+      // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the
+      // weathering's sources: applyWeather, every release) then publish in this one
+      if (craftKey() !== CRAFT_KEY) {
+        const A0 = AK();
+        if (A0 && A0.aeroSetCraft) {
+          const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) || ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+          let mw = new THREE.Matrix4();
+          if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
+          A0.aeroSetCraft(THREE, mw, { lateral: 'x', along: 'z', up: 'y', aft: true });
+          CRAFT_KEY = craftKey();
+        }
+      }
+      GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return;
+    }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
+    GE.why = RELEASE_INFO.last.whole;
   }
   LAST_SHEET = built;
   M0 = m;
@@ -2282,6 +2380,7 @@ function* buildSteps() {
   // sheet's are (G1442) - the parts stand where the cage holds them; the settle build is whole.
   const plan2 = cageStill && CH && CH.on ? CH.plan(P) : null;
   if (plan2) {
+    GE.path = 'detail';
     yield 'post';
     DRAG_LATE = true;
     if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -2294,6 +2393,7 @@ function* buildSteps() {
     return;
   }
   SEC_EPOCH++;
+  GE.path = DRAG_TICK ? 'whole (deferred)' : 'whole';
   yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
   // G1303: a drag tick defers the detail layers; any other build is whole, and settles a deferred one
   const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
@@ -2431,7 +2531,7 @@ function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
   if (!renderer) {
-    if (window.CAGE_ON_BUILD) window.CAGE_ON_BUILD();
+    if (window.CAGE_ON_BUILD) { const t0 = geNow(); try { window.CAGE_ON_BUILD(); } finally { if (GE.on) GE.onBuild += geNow() - t0; } }
     return;
   }
   const r = cv.parentElement.getBoundingClientRect();
@@ -2699,19 +2799,25 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       vf.value = fmtV(+e.target.value);
       // G1303: a tick under a held pointer is a DRAG tick - the detail layers wait for the pause (dragBuild)
       DRAG_TICK = DRAG_ON === rng;
+      GE.key = k; geBegin();
+      const how = DRAG_TICK ? 'drag' : 'input';
       try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
-      finally { DRAG_TICK = false; }
+      finally { DRAG_TICK = false; geEnd(how, k); }
       if (DRAG_LATE) dragSettleSoon();
     };
     rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
-    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettle(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release', k); } });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
       if (!Number.isFinite(v)) { vf.value = fmtV(rng.value); return; }
       v = Math.max(lo, Math.min(hi, v));
       rng.value = v; vf.value = fmtV(v);
-      oninput(rel ? (sizeRef || 1) * v : v);
+      // PHONE-EDIT-PERF (the brief: "typed values take the same path"): a typed value is a release - one tick, no
+      // preview before it - and builds as G1451's release does (what the value moved, the rest kept; the whole build
+      // when the sheet moved, as a drag's release)
+      GE.key = k; geBegin(); RELEASE = true;
+      try { oninput(rel ? (sizeRef || 1) * v : v); } finally { RELEASE = false; geEnd('typed', k); }
     };
     widget = meta.el = rng; meta.vf = vf;
   }
@@ -5838,7 +5944,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the

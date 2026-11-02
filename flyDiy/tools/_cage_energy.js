@@ -1812,7 +1812,12 @@ function balanceApply(r) {
     const held = typeof window.CAGE_FLOAT_HELD === 'function' && window.CAGE_FLOAT_HELD();
     if (moved && !held && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
       clearTimeout(balanceApply._t);
-      balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
+      // PHONE-EDIT-PERF: never under a held slider (the drag's own release follows), and as a release's build (buildCg)
+      const go = () => {
+        if (typeof UI.dragging === 'function' && UI.dragging()) { balanceApply._t = setTimeout(go, 250); return; }
+        try { UI.buildWhy = 'cg'; (UI.buildCg || UI.build)(); } catch (e) {}
+      };
+      balanceApply._t = setTimeout(go, 60);
     }
   }
   for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
