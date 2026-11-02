@@ -309782,3 +309782,26 @@ Timing (light gate, one run): roll-out sum 58.7 s [cub 0.1/13.4, metal 8.6/17.6,
 - **Watch:** L29i's gate (17:15) is the second sample. If it is again over 48.5 s, bisect windows-fittings / new-shapes-1 / belly-pod-2.
 
 Ready refs now landed (for the user's delete list): ready/windows-fittings, ready/new-shapes-1, ready/belly-pod-2, ready/cert-rule (landed rebased in L28b), ready/media-budget, ready/light-studio, a0/finish3, a0/finish3b. NOT landed: ready/avionics-gps.
+
+## CREW-LOAD-BACKOFF (GPS-STALL, Mon 2 Nov) - A FAILED CHARACTER RETRIES ON A CLOCK, NOT ON EVERY BUILD (GATE CREWLOAD)
+
+THE BUG (found tracing the avionics-gps roll-out stall): `tools/_cage_crew.js` charAt loads a character that is not ready,
+and G1985 rebuilds the aeroplane when the load FAILS (the seat keeps its undressed chain, the energy layer settles on it).
+That rebuild re-ran charAt, which found the key still not ready and loaded it again. A key that keeps failing therefore
+rebuilt the whole aeroplane every ~280 ms for ever, in flight: a ~210 ms main-thread task each (60 ms debounce + the
+build). Measured: 389 rebuilds in one rollout_perf run whose Chrome profile could not store ch20 (a --udd under a long
+path), 9.7 s of a 12.6 s live profile in `build > buildSteps`. A player whose connection drops the character's file
+would get the same.
+
+THE FIX: the first failure still rebuilds once (G1985's settle, unchanged). After it the key is out of charAt's hands
+(`CHAR_FAIL[key]`): `charRetry` loads it alone, with no build, after 2, 4, 8 ... 60 s, and calls charRebuild only when it
+lands. CAGE_CREW_PENDING is unchanged: a key waiting for its retry isn't pending, as G1985 wants of a failed one.
+
+GATE CREWLOAD (`tools/_crewload_check.js`, core, ~20 s): the page's crew and character layers headless
+(`_scene_headless.js` with the registry in scope), the user's Cub, a counting CAGE_UI.build. A: an asset door that always
+fails -> one rebuild over 7.5 s, fetches at 0 / +2 / +6 s. B: the retry serves the real bytes -> the settle, then one
+rebuild when it lands, the character ready. SELF-TEST: the mutant without the guard rebuilds 12 times in the window.
+
+RIG TRAP (the same trace): `rollout_perf.js --udd` under a long path (the session scratchpad) left the page unable to
+store its assets: ch20 and the tree bins failed and the boot hit its hard timeout. Keep rig profiles under a short
+path (C:/Users/<you>/AppData/Local/Temp/<x>).

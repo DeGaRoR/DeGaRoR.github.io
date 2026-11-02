@@ -669,6 +669,10 @@ const GATES = [
   // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
   // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
   { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
+  // CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): a character that fails to load rebuilds the aeroplane ONCE (G1985's settle) and
+  // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
+  // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
+  { id: 'CREWLOAD', file: '_crewload_check.js', tier: 'core', wall: 25 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

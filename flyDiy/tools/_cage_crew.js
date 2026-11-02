@@ -3220,6 +3220,28 @@ let group = null;
 // characters on the wire (G204): one fetch per key, the build re-runs on
 // landing; a texture landing only needs a redraw (the bench draws on demand)
 const CHAR_WAIT = {};
+// CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): A FAILED CHARACTER RETRIES ON A CLOCK, NOT ON THE BUILD. G1985's rebuild after
+// a failure re-ran this layer, whose charAt found the key still not ready and loaded it again: a key that keeps failing
+// (an asset that will not come - measured in the game, ch20 on a rig profile that could not store it) rebuilt the whole
+// aeroplane every ~280 ms for ever, in flight (a ~210 ms task each, 389 rebuilds in one roll-out). Now the FIRST failure
+// rebuilds once (G1985's settle: the seat keeps its undressed chain, the energy layer settles on it); after it the key
+// is out of charAt's hands until its retry, which loads it alone (no build) after 2, 4, 8 ... 60 s, and rebuilds only
+// when it lands. key -> { n: failures so far, t: the retry's timer }
+const CHAR_FAIL = {};
+const CHAR_RETRY_MS = n => Math.min(60000, 2000 * Math.pow(2, n - 1));
+const charRetry = key => {
+  const f = CHAR_FAIL[key];
+  if (!f || f.t) return;
+  f.t = setTimeout(() => {
+    f.t = 0;
+    const C = window.CAGE_CHAR;
+    if (!C) return;
+    C.load(key).then(d => {
+      if (d) { delete CHAR_FAIL[key]; if (window.CAGE_UI && window.CAGE_UI.build) charRebuild(); }
+      else { f.n++; charRetry(key); }
+    });
+  }, CHAR_RETRY_MS(f.n));
+};
 // several characters landing in one breath rebuild ONCE
 let charRebuildT = 0;
 // G2290 (PILOTS): the career's door onto the pilot's seat (see crewKey below): a change rebuilds the crew, a repeat is free
@@ -3530,11 +3552,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     let rig = null;
     try { rig = C.rig(c.key); } catch (e) { console.warn(e.message); return null; }
     const ready = !!C.ready(c.key);
-    if (!ready && !CHAR_WAIT[c.key]) {
+    if (!ready && !CHAR_WAIT[c.key] && !CHAR_FAIL[c.key]) {   // (a failed key waits for its retry: CREW-LOAD-BACKOFF)
       CHAR_WAIT[c.key] = 1;
       if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
+        if (!d) { CHAR_FAIL[c.key] = { n: 1, t: 0 }; charRetry(c.key); }
         // G1985: a FAILED character rebuilds too - the seat keeps its undressed chain, and the layers that waited on the crew
         // (the energy layer's tank shape) settle on it now rather than on the next edit
         if (window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
