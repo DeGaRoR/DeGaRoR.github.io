@@ -12010,7 +12010,7 @@
       ' — measured on this build, not estimated.';
   }
 
-  let gInd = null, gLabels = [], gLabelsOld = [];
+  let gInd = null, gLabels = [], gLabelsOld = [], gIndMeshMat = null;
   // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
   // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
   let gTipBand = null, gTipEl = null;
@@ -12130,21 +12130,29 @@
   // an imported aeroplane, a build mid-rebuild — and the caller then HIDES the
   // instruments rather than drawing them somewhere they do not belong. An
   // instrument in the wrong place is worse than no instrument.
+  // G3906b (PHONE-1b; the user 2 Nov on the phone, the twin on floats: no posts): A FLOAT BUILD HAS NO AXLES - its GAL /
+  // GAR are the two floats' STEP KEELS (61_gen_frame FLOATS: GAL = FL.K[2]), and the float layer publishes the same two
+  // points in the cage frame (_cage_float.js rec.tetraC[side][0], "step keel" - the tetra the physics rides). The one
+  // landmark both aeroplanes agree on, as the axles are for wheels: the posts stand on floats too (the desktop as well).
   function standOffset() {
     if (!showCage) return [0, 0, 0];
     const G = window.CAGE_GEAR;
     const legs = G && G.units && G.units.legs;
     const P = def && def.parts;
-    if (!legs || !P || P.GAL == null || P.GAR == null) return null;
-    const mains = legs.filter(l => l.kind === 'L' || l.kind === 'R');
-    if (mains.length < 2) return null;
+    if (!P || P.GAL == null || P.GAR == null) return null;
+    let pts = legs ? legs.filter(l => l.kind === 'L' || l.kind === 'R').map(l => l.axle) : [];
+    if (pts.length < 2 && (P.TW == null || P.TW < 0)) {
+      const F = window.CAGE_FLOAT, T = F && F.tetraC;
+      pts = T && T.L && T.R && T.L[0] && T.R[0] ? [T.L[0], T.R[0]] : [];
+    }
+    if (pts.length < 2) return null;
     edSitP.updateMatrixWorld(true);
     const w = new THREE.Vector3();
     let cx = 0, cy = 0, cz = 0;
-    for (const l of mains) {
-      w.set(l.axle[0], l.axle[1], l.axle[2]);
+    for (const q of pts) {
+      w.set(q[0], q[1], q[2]);
       edSitP.localToWorld(w);
-      cx += w.x / mains.length; cy += w.y / mains.length; cz += w.z / mains.length;
+      cx += w.x / pts.length; cy += w.y / pts.length; cz += w.z / pts.length;
     }
     const a = P.GAL * 3, b = P.GAR * 3;
     const lx = 0.5 * (sim.p[a] + sim.p[b]),
@@ -12158,10 +12166,28 @@
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
-    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
-    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
-    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
+  }
+  // G3906b: line segments (V, C: 6 floats a segment) as square prisms t across, their ends run on by t/2 so a cross joins
+  function prismGeo(V, C, t) {
+    const P = [], Q = [], h = t / 2, a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(),
+          u = new THREE.Vector3(), v = new THREE.Vector3();
+    for (let s = 0; s + 5 < V.length; s += 6) {
+      a.set(V[s], V[s + 1], V[s + 2]); b.set(V[s + 3], V[s + 4], V[s + 5]);
+      d.subVectors(b, a); const L = d.length(); if (!(L > 0)) continue; d.divideScalar(L);
+      if (Math.abs(d.y) < 0.9) u.set(0, 1, 0); else u.set(1, 0, 0);
+      u.cross(d).normalize().multiplyScalar(h); v.crossVectors(d, u).normalize().multiplyScalar(h);
+      a.addScaledVector(d, -h); b.addScaledVector(d, h);
+      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u.x * i + v.x * j, o.y + u.y * i + v.y * j, o.z + u.z * i + v.z * j]);
+      const A = ring(a), B = ring(b), col = [C[s], C[s + 1], C[s + 2]];
+      const tri = (p, q, r) => { P.push(...p, ...q, ...r); for (let k = 0; k < 3; k++) Q.push(...col); };
+      for (let k = 0; k < 4; k++) { const k2 = (k + 1) & 3; tri(A[k], A[k2], B[k2]); tri(A[k], B[k2], B[k]); }
+      tri(A[0], A[1], A[2]); tri(A[0], A[2], A[3]); tri(B[0], B[2], B[1]); tri(B[0], B[3], B[2]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Q), 3));
+    return g;
   }
   function buildIndicators() {
     // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
@@ -12228,8 +12254,8 @@
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
-    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
-    // one place the posts are built from, so the two never disagree
+    // reading as numbers too - the one source for any readout that is not a 3D mark, written where the posts are built so
+    // the two never disagree (the phone's text chip that read it is retired, G3906b: the posts are the phone's readout)
     if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
       sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
@@ -12256,8 +12282,14 @@
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
-    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
+    // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
+    // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
+    // margin, the band's colour the verdict
+    if (!TOUCH_UI) {
+      label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+      label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    }
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
@@ -12272,7 +12304,14 @@
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
-    gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    if (TOUCH_UI) {
+      // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
+      // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
+      // next build - G1027's trap; one link on the first build is the phone's cost)
+      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
+      g.dispose();
+    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     placeIndicators();

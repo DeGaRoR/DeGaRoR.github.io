@@ -288,18 +288,6 @@ html.phone:where(:not(.phfly)) #bRun, html.phone:where(:not(.phfly)) #bAward, ht
   max-height:calc(100vh - var(--ph-st) - var(--ph-tab) - 16px);
   max-height:calc(100dvh - var(--ph-st) - var(--ph-tab) - 16px); overflow-y:auto; }
 
-/* THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov: "I can't see the CG and margin indicators in the phone interface"):
-   phone.js's chip at the view's lower left - the posts' reading in numbers, in the margin band's colour (app.js's
-   red / orange / green, P1 CG-COLOURS). Above the divider's hit zone (--ph-vh less 22 px) in portrait, the view's foot in
-   landscape; no pointer (the orbit's finger passes through); one line, ellipsed in a narrow view */
-html.phone:where(:not(.phfly)) #phCg { position:fixed; left:10px; top:calc(var(--ph-vh) - 62px); z-index:45; pointer-events:none;
-  max-width:calc(var(--ph-vw) - 20px); box-sizing:border-box; padding:6px 10px 6px 9px; border-radius:8px;
-  border-left:3px solid #c0b8ac; background:rgba(20,18,15,.8); color:#f4efe6;   /* (body-level: the --ed-* tokens live on the panels, editor.css 40) */
-  font:600 13px/16px 'IBM Plex Sans', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-html.phone:where(:not(.phfly)) #phCg[hidden] { display:none; }
-html.phone:where(:not(.phfly)) #phCg[data-band="green"] { border-left-color:#6fd08a; }
-html.phone:where(:not(.phfly)) #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
-html.phone:where(:not(.phfly)) #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
 
 /* THE INSTALLED APP (G3910, PHONE-1b): no pull-to-refresh or overscroll glow fighting a drag; in a standalone window the
    tab bar stands on the gesture bar's inset (phone.js's viewport-fit=cover hands it over) */
