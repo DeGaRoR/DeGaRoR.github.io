@@ -566,15 +566,16 @@ const CAGE_PARTS = [
                     'aeroAftShape', 'aeroAftEdge']],   // G339: the shape and its edge
     ] },
 
-  // THE FITTINGS (G81-G83). They are not a shape you draw — they are what
-  // GEN_ACCESS says this aeroplane must carry, resolved against the built
-  // skin, so there are no position sliders here and there should not be: a
-  // fitting whose station you can drag is decoration, and the table's whole
-  // claim is that each one is where it is because of what it serves.
+  // THE FITTINGS (G81-G83). What GEN_ACCESS says this aeroplane must carry,
+  // resolved against the built skin - the AUTO site, and still the default.
+  // FITTINGS-MANUAL (2026-10-27, the user: "the auto place messes up; every
+  // fitting must be placeable BY HAND ... The move controls should NOT be
+  // hidden under expert rows"): a fore/aft and a height row per fitting in the
+  // normal panel, each following the auto site until it is taken by hand.
   //
-  // The rows are therefore a switch per FAMILY and a fastener density, which
-  // is what somebody actually wants to change. `layer: 'access'` matches the
-  // group _cage_access.js names, so G79's raycast can resolve a hit to it.
+  // Beside them a switch per FAMILY and a fastener density. `layer: 'access'`
+  // matches the group _cage_access.js names, so G79's raycast can resolve a
+  // hit to it.
   { key: 'access', name: 'Fittings', parent: 'fuselage', layer: 'access',
     when: P => +P.accOn, gate: 'accOn',
     sections: ['accPaint'],
@@ -583,6 +584,9 @@ const CAGE_PARTS = [
       ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
                     'accHandling']],
       ['detail', ['accDetail']],
+      // FITTINGS-MANUAL: the hand rows, generated as _cage_access.js generates them (the cowl's oil door has none)
+      ['placement', ACC_FIT_KEYS.filter(k => !(typeof GEN_ACCESS !== 'undefined' && GEN_ACCESS[k] && GEN_ACCESS[k].on === 'cowl'))
+        .reduce((a2, k) => a2.concat(['acc_' + k + '_z', 'acc_' + k + '_h']), [])],
       // THE FINE PLACEMENT (2026-08-31). Two nudges per declared fitting, in
       // GEN_ACCESS's own units — `sL` metres aft of the firewall, `lv` a rail
       // index — GENERATED from the same key list `_cage_access.js` generates
