@@ -298,6 +298,8 @@ const GATES = [
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published
   { id: 'CABIN', file: '_cabin_check.js', tier: 'core' },
+  // SEATS (2026-11-02): the seat library - one order across its four tables, honest mass, every preset at every level
+  { id: 'SEATS', file: '_seats_check.js', tier: 'core' },
   // THE TREE PAYLOAD (W0b). Not "does the file exist" — every fault this
   // pipeline met in the bench presented as "the tree is missing or wrong"
   // and was something else entirely, so this asserts what comes back OUT is

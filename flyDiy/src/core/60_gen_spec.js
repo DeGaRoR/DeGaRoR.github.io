@@ -1760,7 +1760,27 @@ const GEN_SEATS = {
   basic:    { name: 'Moulded pan',        kg: 7.0,  price: 400 },
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
+  // THE SEAT LIBRARY'S PRESETS (SEATS, 2026-11-02): one row per drawn seat type (tools/_seat_gen.js SEAT_PRESETS, the
+  // masses argued in docs/SEATS-REFERENCES.md). The join measures each drawn seat's row into cabin.seatsKg, so a
+  // build weighs the seats it draws; type 0 is `sling` above, the row every saved build already bills.
+  carbon:      { name: 'Carbon bucket',     kg: 4.5,  price: 1400 },
+  airliner:    { name: 'Vintage airliner',  kg: 18.0, price: 1100 },
+  touring:     { name: 'Touring',           kg: 14.0, price: 1300 },
+  sculpted:    { name: 'Sculpted sport',    kg: 9.0,  price: 2400 },
+  executive:   { name: 'Executive leather', kg: 18.0, price: 2900 },
+  ultralight:  { name: 'Ultralight sling',  kg: 3.5,  price: 150 },
+  aerobatic:   { name: 'Aerobatic recline', kg: 6.0,  price: 1600 },
+  vintageCrew: { name: 'Vintage crew',      kg: 20.0, price: 1000 },
+  work:        { name: 'Heavy-duty work',   kg: 16.0, price: 2200 },
+  cane:        { name: 'Woven cane',        kg: 3.0,  price: 300 },
+  reclined:    { name: 'Reclined tub',      kg: 3.0,  price: 700 },
+  folding:     { name: 'Folding canvas',    kg: 2.5,  price: 100 },
+  parachute:   { name: 'Parachute bucket',  kg: 8.0,  price: 800 },
+  utility:     { name: 'Bush utility',      kg: 12.0, price: 700 },
 };
+// the cage's seatType -> its GEN_SEATS row (the order of SEAT_PRESETS; append only - the index rides in every save)
+const GEN_SEAT_TYPES = ['sling', 'carbon', 'airliner', 'touring', 'sculpted', 'executive', 'ultralight', 'aerobatic',
+                        'vintageCrew', 'work', 'cane', 'reclined', 'folding', 'parachute', 'utility'];
 // THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
 // accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
 // heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
@@ -4892,6 +4912,12 @@ function clampSpec(spec) {
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
     ? cb.seatsX.map(x => genClamp(x, 0.05, 25)) : null;   // (G3573: 12 -> 25 m - the full-size DC-3's aft rows stand past 12 m; only a seat that far aft moves)
+  // SEATS (2026-11-02): each drawn seat's mass, kg, seat order - the join writes it only when a seat weighs other than
+  // the outfit's row, so ABSENT is every save before and every all-default cabin (and stays absent: no key is added)
+  if (cb.seatsKg !== undefined)
+    cb.seatsKg = Array.isArray(cb.seatsKg) && cb.seatsKg.length &&
+                 cb.seatsKg.every(x => typeof x === 'number' && isFinite(x) && x > 0)
+      ? cb.seatsKg.map(x => genClamp(x, 0.5, 60)) : undefined;
   // G180: the drawn capacity — a whole number of seats, or null = the table's;
   // and the occupancy — a list of 0/1 per seat, or null = the first N. A
   // malformed list reads as "derived", never as a crash or a jump, the same

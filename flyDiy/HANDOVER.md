@@ -310980,3 +310980,28 @@ BATTERY (44 gates, jobs 8): green except, all named:
 
 TIMED (light): RED 53 vs the 12 Oct baseline ee466b792 (no reference taken since). Warm nav -> garage 65 -> 141 s (shader links MISS, worst 31 s), chase 29.8 -> 19.9 fps, compile 3.5 -> 32 s.
 A/B on the box 09:00-09:29 (master_bench --only loads,garage, cub): master F4 2f104df85 nav -> garage 136.6 s (35 links > 5 s) vs this train 150.8 s (40 links > 5 s): THE BOOT COST IS ALREADY ON MASTER (FINISH-4, whose own timed gate was killed at 40 min - this is why). Landed under the user's land-everything rule with the cost named; the F4 boot/link + chase cost goes on the perf-week list and gets a bisect (F4's 21 branches) in a box slot. Also seen: this train's bench garage sample reads 0.5 fps (one 12.8 s frame; master 30.1) - the light gate's garage rows "not measured": suspect the 1b idle hold on desktop vs the bench (needs &idle=0); PHONE-EDIT-PERF to confirm. CABIN-CRAFT ran node work 08:42-08:59 (inside the timed window, after the boot rows) - noted.
+## SEATS (2026-11-02, cloud session, the user via A0): the seat library
+Every seat the crew layer draws is `tools/_seat_gen.js`'s (MANIFEST.editor, before `_cage_crew.js`; `buildSeat` is the
+door). 15 calibrated presets on `cage.seatType` 0-14, named by their spirit (the user: "avoiding naming planes"):
+0 Tube & sling (replaced the tube frame), 1 Carbon bucket (replaced the moulded shell), 2 Vintage airliner (replaced the
+airliner seat), 3 Touring, 4 Sculpted sport, 5 Executive leather, 6 Ultralight sling, 7 Aerobatic recline, 8 Vintage
+crew (its cabin: type 2), 9 Heavy-duty work, 10 Woven cane, 11 Reclined tub, 12 Folding canvas, 13 Parachute bucket,
+14 Bush utility. What each is modelled on, its dimensions and mass: docs/SEATS-REFERENCES.md.
+- GEOMETRY: one primitive, `slab` (a lattice rounded box carried on a side-profile spine, with crown / wings / pleat
+  fields); `skin` (an insert laid on a slab's own surface, tucked into a seam channel); piping through the slab's own
+  edge rounding; pads built ON their shell (the underside follows it, the top stays flat - the user); no belts (the
+  user). Width and back height are calibrated (a narrow cabin scales the width, a low roof the back: `fit`); stand
+  height, recline, tilt, fore/aft and layout stay on the rows. Picking a style seeds its own recline/tilt.
+- LEVELS OF DETAIL by REGENERATION (the user: not decimation): 0 hero, 1 mid, 2 phone - every primitive reads the level
+  (lattice rows, sides, segments, path steps) and small features step off. One level per seat build (no THREE.LOD: the
+  join flattens the crew layer): the phone profile builds level 2, else 0; `?seatlod=0|1|2`, `P.seatLod`,
+  `SEAT_GEN.force`. Phone 640-1 320 tris, 4-6 draws a seat; 1-4 ms to generate.
+- MASS (WYSIWYG): `GEN_SEATS` has a row per preset (`GEN_SEAT_TYPES[seatType]`); the crew publishes each drawn seat's kg
+  in `CAGE_CREW.seatsAt`, the join writes `cabin.seatsKg` ONLY when a seat weighs other than the outfit's row (so a
+  Tube & sling cabin - 3.0 kg, the `sling` row - keeps its spec and its certificate), genFrame bills seat by seat.
+- THE CABIN'S SEAT: `cage.paxSeatType` (not in the defaults; absent = -1 = as the pilots', or the preset's `paxType`).
+- FINISH: four livery sections - `seatTrim` (base), `seatAccent`, `seatSeam`, `seatFrame` - the preset's finish/tint
+  are each section's bottom-out (`CAGE_SECMAT(sec, { fin, tint0 })`), a pick wins on every seat.
+- BENCH `tools/_seats.html` (?seat=N), RIG `tools/seat_shot.js` (sheet / close / lod, ~10 s on SwiftShader), GATE SEATS
+  `tools/_seats_check.js` (core: the four tables in one order, honest mass, every preset at every level, the cabin seat,
+  the mass reaching the build). Evidence and the open items: reports/evidence/SEATS/STATUS.md.

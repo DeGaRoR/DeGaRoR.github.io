@@ -1,7 +1,7 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Seat studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- THE SEAT STUDIO (SEATS, 2026-11-02): every seat the crew layer can draw, alone on a neutral cyclorama, with the
+<!-- THE SEAT STUDIO (SEATS, 2026-11-02): every seat type the crew layer draws (the seat library's presets), alone on a neutral cyclorama, with the
      finish system's own materials. Open it in a browser to orbit one seat (?seat=4), or let tools/seat_shot.js shoot
      the contact sheet (SEAT_BENCH.sheet()). The seat is built by the crew's own buildSeat (window.CAGE_CREW_SEAT) over
      a stub cabin: a flat floor at y 0, a 1.2 m cabin, the rows below. -->
@@ -88,7 +88,7 @@ function build(type, opt) {
   let tris = 0, draws = 0;
   host.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; draws++;
     tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; } });
-  lastStats = { type, key: pre ? pre.key : ['tube', 'shell (old)', 'airliner'][type], name: pre ? pre.name : ['Tube frame', 'Composite shell (today)', 'Airliner'][type],
+  lastStats = { type, key: pre ? pre.key : 'none', name: pre ? pre.name : 'type ' + type,
                 kg: pre ? ((opt && opt.pax && pre.kgPax != null) ? pre.kgPax : pre.kg) : null, tris, draws, panY: +r.panY.toFixed(3), backH: +r.backH.toFixed(3) };
   return lastStats;
 }
@@ -147,7 +147,7 @@ function lodSheet(list, o) {
   const stats = [];
   list.forEach((it, i) => {
     const gx = (i % groups) * 3 * tw, gy = Math.floor(i / groups) * (tw + cap);
-    const row = { label: it.label, lv: [] };
+    const row = { label: it.label || (window.SEAT_GEN.PRESET_OF(it.type) || {}).name, lv: [] };
     let frame = null;
     for (let L = 0; L < 3; L++) {
       window.SEAT_GEN.force = L;
@@ -160,7 +160,7 @@ function lodSheet(list, o) {
     }
     window.SEAT_GEN.force = null;
     g.fillStyle = '#22252a'; g.font = '600 16px system-ui, sans-serif';
-    g.fillText(it.label, gx + 10, gy + tw + 18);
+    g.fillText(row.label, gx + 10, gy + tw + 18);
     g.strokeStyle = '#c9c7c1'; g.strokeRect(gx + 0.5, gy + 0.5, 3 * tw - 1, tw + cap - 1);
     stats.push(row);
   });
