@@ -91,7 +91,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const FIX = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(T, 'fixtures', 'stol_baseline.json.gz'))));
 const CARDS = FIX.cards;
 // the wing layer's defaults for the STOL rows (tools/_cage_wing.js PAGE.defaults)
-const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+const STOL_ROW_DEFAULTS = require(path.join(T, '_stol_fp.js')).STOL_ROW_DEFAULTS;   // (one table: the capture drops the same rows)
 const RHO = C.RHO;
 
 // ---- the instruments ------------------------------------------------------
@@ -144,7 +144,8 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
   vm.runInNewContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'bench.js'), 'utf8'),
     { module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String, Array, Object,
       Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol,
-      genStolCageOff: C.genStolCageOff });             // G2827: the core's global, as bench.js finds it in the page
+      genStolCageOff: C.genStolCageOff,                // G2827: the core's global, as bench.js finds it in the page
+      certMajorOf: C.certMajorOf, certStrip: C.certStrip });   // G3780: benchFingerprint is the cert rule's (66b) - without them it hashed null, every spec alike
   const BE = m.exports;
   // G2821: THE VALIDATED BUILDS (the load door's VALIDATED - Cub, Jodel, metal Cessna, Cessna floats, twin floats -
   // and the certified Rufus): LOADED HERE through the game's own load door
