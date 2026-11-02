@@ -908,7 +908,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
   padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
 
-.gfMine, .gfStock { display:flex; flex-direction:column; gap:4px; }
+.gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
+/* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
+.gfCandRow .gfLoad { border-style:dashed; }
 
 .gfRow { display:flex; align-items:stretch; gap:4px; }
 
@@ -1902,6 +1904,7 @@ html.phone #edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v {
 .dfKindH { grid-column:1 / -1; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
   text-transform:uppercase; color:var(--ed-dim); margin:8px 0 2px; }
 .dfArch.dfReal b::after { content:' ·'; color:var(--ed-dim); }
+.dfArch.dfCand { border-style:dashed; }
 /* the design tiles sprinkled into the STRUCTURE view, by part */
 .dfWrap.dfInline { margin:0 0 10px; padding-bottom:8px;
   border-bottom:1px solid rgba(255,255,255,.08); }

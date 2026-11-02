@@ -686,6 +686,30 @@ function renderBirth() {
     grid.appendChild(b);
   }
   }
+  // CANDIDATE OFFICIAL (the user, 2 Nov: "offered as their own archetype ... labeled as such"): the staging pool's
+  // whole builds (builds/candidates/, garage.js candidates) - a card opens the FILE as built, unnamed and with no plaque,
+  // where an archetype above bakes a fresh cage from its selection. Drawn when the pool's index answers.
+  const g = GS();
+  if (g && g.candidates && g.openCandidate) {
+    g.candidates().then(list => {
+      if (!list.length || birthEl.hidden || grid.querySelector('.dfCandH')) return;
+      const h = document.createElement('div');
+      h.className = 'dfKindH dfCandH';
+      h.textContent = 'candidate official — built, not validated';
+      grid.appendChild(h);
+      for (const c of list) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dfArch dfCand';
+        b.innerHTML = '<b></b><span></span>';
+        b.querySelector('b').textContent = c.name || c.file;
+        b.querySelector('span').textContent = 'candidate official' + (c.note ? ' — ' + c.note : '');
+        b.title = c.file + ': designed and built, not validated - no certificate';
+        b.addEventListener('click', () => { closeBirth(); g.openCandidate(c); });
+        grid.appendChild(b);
+      }
+    });
+  }
 }
 
 function birthFooter() {
