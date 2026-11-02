@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c8108bb05c8deb81
+// body-sha256: 411112dc59d913d6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -24134,13 +24134,13 @@ const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
-             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 }, technique: { stol: false } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -24160,6 +24160,11 @@ const PILOT_PROFILE_KNOBS = [
   { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
   { sec: 'technique', k: 'slip', label: 'slips', kind: 'bool', d: false, desc: 'the forward slip on any final high at idle' },
   { sec: 'technique', k: 'stepHold', label: 'step hold', kind: 'bool', d: false, desc: 'holds the step attitude on the water' },
+  // STOL-PILOT (the user, 27 Oct: "this set of technique should be reserved to pilots with the STOL qualification - the bush
+  // pilot, and the expert autopilot, the one that engages instead of the player"): the qualification. `d` is the expert's
+  // (every knob's default is the expert's value); the club pilot, the student and the ham-fist are not qualified, the bush
+  // pilot is; a hired pilot earns it growing toward a qualified ceiling (76_pilots: a bool takes the ceiling's at half way)
+  { sec: 'technique', k: 'stol', label: 'STOL qualified', kind: 'bool', d: true, desc: 'flies a STOL wing\'s own technique (the slow steep approach, the flare on power, the brakes at once)' },
 ];
 function pilotProfile(p) {
   const base = PILOT_PROFILES.expert;
@@ -24170,7 +24175,8 @@ function pilotProfile(p) {
            reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
            overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1), decisionK: g('quirks', 'decisionK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
-           field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
+           field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false),
+           stol: !!g('technique', 'stol', true) };
   // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
   // profile is the table's own and passes as written (the expert's bypass is untouched)
   if (typeof p !== 'string') {
@@ -24378,7 +24384,8 @@ function makePilot(sim, def, world, opts) {
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
-    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : 0.35 } });
+    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70)
+      : (ap.stolFld && (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT')) ? (A.deStol ?? 0.70) : 0.35 } });   // STOL-PILOT: the stick's full travel
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -24442,6 +24449,35 @@ function makePilot(sim, def, world, opts) {
   // the speed ladder: the sheet's when the flag is on and the stall is measured
   const sheetVAppr = () => { const S = sheetOf(); return S && S.src.Vs0 === 'measured' ? S.Vref : null; };
   const VApprShort = () => sheetVAppr() != null ? 1.20 * sheetOf().Vs0 : A.VApprShort;
+  // STOL-PILOT (27 Oct; futureDesigns/STOL-PILOT-2026-10.md): THE SHEET THAT SAYS THE WING CAN. A build whose wing carries
+  // a stall-angle device (a slot, a slat, VGs: def.strips[].stol, genStolHeld's own test) AND whose sheet Vs0 - the
+  // elevator-held one when the tail cannot fly the slatted stall (G2826) - is under stolRatio (0.92) x the stall the SAME
+  // wing would have without its devices (64_gen_build genStolGain). The showcase STOL Cub 0.85 (on); the kit Cub, whose
+  // elevator holds 48.6 km/h for a 41.8 stall, 0.99 (off: its tail cannot use the slot, a short-field technique would ask
+  // a flare it cannot fly); no device - every validated build - null, never probed. The water is not judged here: the
+  // landing and the departure that read it are never planned on the water nor for a float build (planArrival's `water`,
+  // the roll's `onWaterNow`: an amphibian flies the water's laws everywhere today), so the record is the wing's alone.
+  // THE GAIN RIDES THE SHAKEDOWN (64_gen_build genShakedown -> the sheet's `stolGain`): the page builds that post-idle or
+  // in the sheet worker, never at the roll's start; a sheet without it (no shakedown handed: the gates' fly(), a stored
+  // shakedown older than this) probes it here once (two probe sims, ~0.1 s)
+  let stolV;
+  const stolDevice = () => !!(def.strips && def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0)));
+  const stolSheet = () => {
+    if (stolV !== undefined) return stolV;
+    stolV = null;
+    if (!stolDevice() || typeof genStolGain !== 'function') return stolV;
+    const S = sheetOf();
+    const G = S && (S.stolGain || genStolGain(def));
+    if (!G || !S || S.src.Vs0 !== 'measured' || !(S.Vs0 > 0)) return stolV;
+    const ratio = S.Vs0 / G.VsPlain0;
+    stolV = { on: ratio <= (A.stolRatio ?? 0.92), ratio: Math.round(ratio * 1000) / 1000, Vs0: Math.round(S.Vs0 * 100) / 100, VsPlain0: Math.round(G.VsPlain0 * 100) / 100 };
+    return stolV;
+  };
+  // STOL-PILOT (the user, 27 Oct): ...AND FLOWN ONLY BY A PILOT WITH THE STOL QUALIFICATION - the expert (the autopilot that
+  // flies in the player's place: always the most competent) and a profile carrying it (PILOT_PROFILE_KNOBS `stol`: the bush
+  // pilot; not the club pilot, the student, the ham-fist). An unqualified pilot flies a STOL build as any other
+  const stolQual = !PRA || !!PRF.stol;
+  const stolOn = () => stolQual && !!(stolSheet() && stolSheet().on);
   let vAppr;                                  // G1302: the approach speed, the sheet's once first read
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
@@ -24464,6 +24500,7 @@ function makePilot(sim, def, world, opts) {
     // never was - the panel came (the netto variometer reads its polar), so it
     // is published now, lazily, through the same memo the pilot uses.
     get sheet() { return sheetOf(); },
+    get stol() { return stolSheet(); },   // STOL-PILOT: the sheet's STOL record (null: no STOL device)
     // G710: THE PLAN, PUBLISHED (the Jolene playtest: "it's unclear to what altitude the autopilot
     // intends to go ... no waypoints on the map"). Written at the end of every update, one object
     // mutated in place (no garbage at 60 Hz): the phase, the legs and the active one, the point flown
@@ -24478,6 +24515,7 @@ function makePilot(sim, def, world, opts) {
   // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
   // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
   Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
+  Object.defineProperty(ap, 'stolQual', { get: () => stolQual });   // STOL-PILOT: the pilot's STOL qualification (not enumerable, as thrCap)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
@@ -24704,7 +24742,7 @@ function makePilot(sim, def, world, opts) {
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
   let flThr0 = 0, flWI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator
-  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0, flH0 = 1;   // altG: GTRAM, the altiport's grade at the aim; flH0: STOL-PILOT, the flare's entry height
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
@@ -25104,7 +25142,7 @@ function makePilot(sim, def, world, opts) {
   // planArrival writes on `ap` put back and anything it said taken back (it plans, it does not fly). The caller poses d m
   // before `aim` along u, d * gs over aimY
   // (the straight-in is taken from 300 m before the IAF: d >= dIaf + 300; slot A's 8/8 flew d = 3000)
-  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
+  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'stolFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
   ap.finalFrom = (a, x, z) => {
     const L = ap.landWayFrom(a, x, z);
     if (!L) return null;
@@ -25236,9 +25274,15 @@ function makePilot(sim, def, world, opts) {
       const runNeed = sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null;
       const short = !water && (to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed));
       const gust = gustAt(to);
-      let technique = short ? 'short' : soft ? 'soft' : 'normal';
+      // STOL-PILOT: A WING THE SHEET SAYS CAN (stolSheet) LANDS SHORT ON EVERY LAND STRIP THAT IS NOT SOFT - the short-field
+      // technique below and its STOL parts (the steeper power-on slope, the aim at the threshold, the three-point touchdown on
+      // the stick's whole travel, the brakes at once): the landing the devices were bought for. A profile's own field
+      // technique still wins (the Student flies a normal approach everywhere, the STOL Cub included)
+      const stolL = !water && !soft && stolOn();   // (the sheet's AND the pilot's qualification)
+      let technique = (short || stolL) ? 'short' : soft ? 'soft' : 'normal';
       if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
       const shortT = technique === 'short';
+      const stolT = shortT && stolL;
       const Vbase = shortT && VApprShort() ? VApprShort() : (sheetVAppr() ?? A.VAppr);
       // G1936 (PILOT-ONE, the user: "aim for touching down at the beginning of the strip"): the short aim is 10 m
       // in (6 % of a longer short strip) - the hold-off's float carries the wheels on from there; 30 m in left the
@@ -25247,15 +25291,19 @@ function makePilot(sim, def, world, opts) {
       // the go-around + 10 m (ap.aimBack, this strip's only), never more than 10 m before the threshold. The Cub at East
       // Point floated with 122 m left for a 122 m stop; aimed 15 m earlier it touched 14 m in and stopped with 24 m left
       const back = (shortT && ap.aimBack && ap.aimBack.to === to) ? ap.aimBack.m : 0;
-      const aim = shortT ? sThr + Math.max(Math.max(10, 0.06 * to.len) - back, -10)
+      // STOL-PILOT: the STOL aim is 10 m in on any strip (the ACS's short-field touchdown: 0 to +100 ft past the point
+      // chosen; a STOL wing has no float to carry it on from there)
+      const aim = shortT ? sThr + Math.max((stolT ? 10 : Math.max(10, 0.06 * to.len)) - back, -10)
                 : to.len < 700 ? sThr + Math.max(60, 0.12 * to.len)
                 : Math.max(A.xAim, sThr + 40);
       const FS0 = def.params.flaps;
       ap.appr = { technique, Vref: Math.round((Vbase + 0.5 * gust) * 10) / 10, Vbase: Math.round(Vbase * 10) / 10, gust: Math.round(gust * 10) / 10,
                   aimIn: Math.round(aim - sThr), flap: FS0 ? (FS0.ldg ?? 1) : 0, len: to.len, surface: to.surface,
                   runNeed: runNeed != null ? Math.round(runNeed) : null };
+      if (stolT) ap.appr.stol = Object.assign({}, stolSheet());   // STOL-PILOT: the sheet that engaged it (absent on every other plan)
       ap.report.appr = ap.appr;
       ap.xAim = aim; ap.shortFld = technique === 'short'; ap.VAppr = Vbase + 0.5 * gust;
+      if (stolT || ap.stolFld) ap.stolFld = stolT;
       if (runNeed != null && to.len < 1.15 * runNeed && !ap.stripShortSaid) { ap.stripShortSaid = true; say('strip-short', to.len + ' m of strip for a ' + Math.round(runNeed) + ' m landing run — landing short-field, no margin'); }
     }
     let hC = ap.hCruise;
@@ -25268,6 +25316,10 @@ function makePilot(sim, def, world, opts) {
     const M = siteModelOf(to);
     const D = M ? M.dir[(u[0] * M.dir[1].u[0] + u[1] * M.dir[1].u[1]) > 0 ? 1 : 0] : null;
     ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax())) : A.gs;
+    // STOL-PILOT: THE STOL APPROACH IS STEEPER AND FLOWN ON POWER (FAA-H-8083-3: full flap, the power holding the speed,
+    // the pitch the path; 50 ft cleared and the touchdown 300-500 ft on is 6-9.5 deg): gsStol (0.12, 6.8 deg) at the
+    // least, never past the sheet's own gsMax; an obstacle's steeper slope stands
+    if (ap.stolFld) ap.gs = clamp(Math.max(ap.gs, A.gsStol ?? 0.12), ap.gs, Math.max(ap.gs, gsMax()));
     ap.siteDir = D;
     // G2125 PILOT-PROFILE: AN APPROACH STILL UNDER ITS OBSTACLE AT THE STEEPEST SLOPE THE AEROPLANE FLIES (the cone's
     // binding tree or house) CROSSES THE THRESHOLD HIGHER: the aim moves down the strip until the slope from it clears that
@@ -26807,6 +26859,11 @@ function makePilot(sim, def, world, opts) {
     };
     let flapTgt = 0;
     const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap) : 0;
+    // STOL-PILOT: A STOL DEPARTURE TAKES HALF THE LANDING FLAP (flapStolK 0.5) when that is more than the sheet's take-off
+    // setting (the PA-18 Information Manual: "half or full flap can be applied to reduce takeoff run ... the best angle of
+    // climb is attained with full flap"). Measured on the showcase Cub off HOME: the sheet's 0.25 lifted off in 47 m and met
+    // 15 m 155 m from the brakes (the climb still accelerating, 21.6 m/s); 0.5: 43 m / 134 m; 1.0: 45 m / 120 m
+    const fTOd = (ap.dep && ap.dep.stol && FS) ? Math.max(fTO, (A.flapStolK ?? 0.5) * (FS.ldg ?? 1)) : fTO;
 
     // THE AP BOX flies instead of the phases while it is on; a disengage
     // resumes the pilot at a phase that fits where the aeroplane is
@@ -27010,7 +27067,7 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
-          flI = 0; flVsF = vcg[1];
+          flI = 0; flVsF = vcg[1]; flH0 = Math.max(0.5, aglG);
         }
         break;
       }
@@ -27380,11 +27437,15 @@ function makePilot(sim, def, world, opts) {
           const soft = !onWaterNow && !!row && row[0] >= 0.10;
           const runNeed = sheetOf() && sheetOf().TORun ? sheetOf().TORun : null;
           const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
-          ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: sheetOf() && sheetOf().Vx ? Math.round(sheetOf().Vx * 10) / 10 : null,
+          // STOL-PILOT: a STOL sheet departs short from every land strip that is not soft (the brakes held to full power, the
+          // climb at Vx over the 15 m screen - CLIMB); a profile with its own field technique flies that one's departure
+          const stolD = !onWaterNow && !soft && stolOn() && !(PRA && PRF.field && PRF.field !== 'short');   // (a qualified person's 'normal everywhere' departs normal)
+          ap.dep = { technique: (short || stolD) ? 'short' : soft ? 'soft' : 'normal', Vx: sheetOf() && sheetOf().Vx ? Math.round(sheetOf().Vx * 10) / 10 : null,
                      runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
+          if (stolD) ap.dep.stol = true;
           ap.report.dep = ap.dep;
         }
-        flapTgt = fTO;
+        flapTgt = fTOd;
         const runUsed = Math.abs(sAl - rollS0);
         const left = runwayLeft();
         const vr = A.VRot || 18;
@@ -27720,7 +27781,7 @@ function makePilot(sim, def, world, opts) {
         // The water's and the high thrust line's lift-offs keep the attitude law above (G396, G435)
         if (!sim.hydro && !highThrust) {
           const K = climbKit();
-          const Vt = depNeed(15, 1500) > 0 ? K.Vx : K.Vy;
+          const Vt = (depNeed(15, 1500) > 0 || !!(ap.dep && ap.dep.stol)) ? K.Vx : K.Vy;   // STOL-PILOT: a STOL departure accelerates to Vx only
           // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
           // deg at the floor speed sent the Jodel back under it)
           const obstTO = Vt === K.Vx && K.Vx < K.Vy;
@@ -27746,7 +27807,7 @@ function makePilot(sim, def, world, opts) {
           } else engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: Vt, wK: null, vFloor: K.Vfloor, toCap: K.cap, thrFull: null, thMin: null, thMax: null, flc: true, bank: 0.15 });
           ap.climbKit = K;
         }
-        flapTgt = fTO;
+        flapTgt = fTOd;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
           cond('height', aglG, A.hSafe, aglG > A.hSafe, 'm'),
@@ -27817,7 +27878,10 @@ function makePilot(sim, def, world, opts) {
         // attitude cap ride the climb (TECS vFloor / toCap); on the water and with a high thrust line, as before
         const landTO = !sim.hydro && !highThrust;
         const K = landTO ? climbKit() : null;
-        const obstAhead = !!(sheetOf() && sheetOf().Vx) && (landTO ? depNeed(15, 1500) > 0 : gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0);
+        // STOL-PILOT: a STOL departure climbs at Vx to the 15 m (50 ft) screen whatever stands ahead (the short-field
+        // take-off's obstacle climb, FAA-H-8083-3), then as before
+        const obstAhead = !!(sheetOf() && sheetOf().Vx) && ((landTO ? depNeed(15, 1500) > 0 : gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0)
+                          || (!!(ap.dep && ap.dep.stol) && agl < 15));
         const VxF = K ? K.Vx : sheetOf() && sheetOf().Vx;
         if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + VxF.toFixed(1) + ' m/s until clear'); } }
         const iasC = obstAhead ? VxF : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
@@ -27840,7 +27904,7 @@ function makePilot(sim, def, world, opts) {
           engage('LOC', 'TECS', 'TECS', { alt: capH, vs: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
                                           vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: null });
         if (K) ap.climbKit = K;
-        flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
+        flapTgt = agl > 2 * A.hSafe ? 0 : fTOd;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
         const routeArmed = !!(ap.drawn && ap.drawn.state === 'armed');   // G2120: the drawn route takes over at the crosswind turn's height
@@ -28358,7 +28422,7 @@ function makePilot(sim, def, world, opts) {
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
           if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
-          flI = 0; flVsF = vcg[1];
+          flI = 0; flVsF = vcg[1]; flH0 = Math.max(0.5, aglG);
         }
         break;
       }
@@ -28430,12 +28494,29 @@ function makePilot(sim, def, world, opts) {
           const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
-          const deSat = SV.aDe > 0.30;
+          const deSat = SV.aDe > (ap.stolFld ? (A.deStol ?? 0.70) - 0.05 : 0.30);   // STOL-PILOT: the stick's whole travel is the flare's
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
-          const thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
+          let thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
+          // STOL-PILOT: ...and on a STOL flare the attitude is brought to the three-point one (flCap) as the height goes - at
+          // half the entry height (flareStolK) - the power (below) holding the sink: the pitch flies the speed down to
+          // the touch, the throttle the path (the hold-off's own pitch law alone left the showcase Cub at +2 deg, 1.10 Vs0)
+          if (ap.stolFld) thC = Math.max(thC, thFlare0 + (flCap - thFlare0) * clamp((1 - Math.max(0, aglG) / flH0) / (A.flareStolK ?? 0.5), 0, 1));
           // the pull: a firmer inner loop and the rotation's integrator authority
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
+          // STOL-PILOT (G3862's review: "reach a three-point touch or drop the claim"): ON A STOL FLARE THE STICK COMES ALL THE
+          // WAY BACK - the integrator's authority the stick's whole travel (deStol) and its wind flareStolIth 1.5 /rad/s. The
+          // hold-off's 0.30 at 0.4 held the showcase Cub at +6.7 deg on 0.25-0.34 of stick (P x 5 deg of error), the mains first
+          // at 12.0 m/s; at 1.5 the nose reaches the three-point attitude: three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s, 27 m
+          // (1.0: 11.6, 30 m; 3.0 bounced at 2.1 m/s)
+          // STOL-PILOT-3 (A0 + PILOT's review of a8dbda45e: "in gusty air don't force the full-stall three-point"): ...BUT NOT IN
+          // GUSTY AIR. With the day's gust over stolGustMax (0.75 m/s: the planner's gustAt spread, ap.appr.gust - the gusty leg
+          // GATE STOL flies reads 1.1, a third inside it) the STOL flare keeps the hold-off's integrator: the touch keeps some
+          // of the gust's increment over the stall (the approach carries half of it, Vref + gust / 2) instead of a full-stall
+          // arrival a gust can drop a wing out of. Measured at 1,4 m/s, gust 0.6: the full-stall flare met a -8.6 deg wing drop
+          // in the last metre at 0.97 Vs0, a main first at 1.8 m/s, a 16 cm hop; the hold-off's: one touch at 12.3 m/s (1.02
+          // Vs0), -1.1 deg, 1.34 m/s, 29 m. Calm (and under 0.75 m/s of spread): as before
+          if (ap.stolFld && !(ap.appr && ap.appr.gust > (A.stolGustMax ?? 0.75))) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else if (sim.hydro) {
             // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
@@ -28446,6 +28527,17 @@ function makePilot(sim, def, world, opts) {
             const eS = vsC - flVsF;   // > 0: sinking faster than asked
             flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
             engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
+          }
+          else if (ap.stolFld) {
+            // STOL-PILOT: A STOL FLARE IS FLOWN ON POWER (the bush pilot's "dragged in" arrival; FAA-H-8083-3: the power
+            // holds the sink while the attitude comes up, closed at the touch). Measured on the showcase Cub: on the idle
+            // flare G970's slow-arrival cushion (apAssist, 0.40 under 1.15 Vs0) held 13.7 m/s = 1.13 Vs0 to the wheels; with
+            // the cushion off the tail had no authority without its slipstream - 0.65 of stick held the nose at -3 deg and
+            // it met the ground at 2.8 m/s. (This branch flies the throttle SET: the cushion, an IDLE mode's, never runs.) The approach throttle is kept and a PI on the sink trims it (the water flare's law, G3079), the
+            // stick's whole travel (deStol) brings the three-point attitude and the wing bleeds to its touchdown speed
+            const eS = vsC - flVsF;
+            flWI = clamp(flWI + (A.flareStolI ?? 0.10) * eS * dt, -flThr0, 0.4);
+            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareStolP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
           }
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
@@ -28533,7 +28625,11 @@ function makePilot(sim, def, world, opts) {
           // onto a heading 8 deg off — an 88 deg ground loop on the stearman
           // in 2 m/s across. The tailwheel steers from the first second now.
           // (G3077: PERSONA-2 G2462's water hold is the one above, G3079's - merged once)
-          if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
+          // STOL-PILOT: A STOL ROLL-OUT IS HELD WITH THE STICK FULLY BACK - from the touch on a three-point arrival, from
+          // the moment the wing cannot fly it again otherwise (the tail kept down under the full brakes: AOPA, the POHs'
+          // short-field roll-out)
+          if (ap.stolFld && (tdThree || V < 1.15 * (A.VRot || 18))) engage('RWY', 'DE', 'SET', { thr: 0, de: A.deStol ?? 0.70 });
+          else if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
           else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
                     : (th > (A.thPinMax ?? 0.26) ? 0.05 : V > (A.VPinFull ?? 0) ? 0.14 : 0.35) });
@@ -28556,7 +28652,9 @@ function makePilot(sim, def, world, opts) {
           const WCb = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
           const tailRising = trike ? (thRest != null && th < thRest - 0.05) : !!(WCb && !WCb.tw && onG >= 1 && phaseT > 0.5);
           if (tailRising) brakeRamp = Math.max(0, brakeRamp - 3.0 * dt);
-          else if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, brakeShort);
+          // STOL-PILOT: on a STOL landing the brakes come on at once (brakeStolRate 1.0 /s: the limit in a second, the
+          // tail's guard above still lets them off): the flaps going up (the roll-out's default) put the weight on the wheels
+          else if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + (ap.stolFld ? (A.brakeStolRate ?? 1.0) : 2 * A.brakeRampRate) * dt, brakeShort);
         }
         else if (Vg < A.VBrakeOn || (trike && onG >= 3 && (V < (A.VDerotate ?? 20) || rollLeft() < 1.3 * stopDist(Vg))))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
@@ -28766,6 +28864,8 @@ function machineSheet(def, opts) {
     src,
     shakedown: !!sh,
   };
+  // STOL-PILOT: the STOL devices' gain, off the shakedown (64_gen_build genStolGain) - a wing with a stall-angle device only
+  if (sh && sh.stolGain) S.stolGain = sh.stolGain;
   // ---- THE POLAR, AS A CURVE (CLIMATE K3) -----------------------------------
   // The sheet knows two points of the glide polar - minimum sink at Vms and the
   // sink at best glide at Vbg - and a variometer needs the whole curve: to say
@@ -44643,6 +44743,10 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && typeof genDesignCheck === 'function') {
     try { out.design = genDesignCheck(def, out, sim); } catch (e) { out.design = null; }
   }
+  // STOL-PILOT: WHAT THE STOL DEVICES BUY (genStolGain, below) rides the sheet the page builds post-idle or in its worker -
+  // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
+  // gets the key; every other shakedown is the same object as before
+  if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
   return out;
 }
 
@@ -44841,6 +44945,34 @@ function genStolHeld(def) {
   A.VApprShort *= VsAP / Vs0;
   g.VsFlapAP = VsAP;
   g.VsHeld = Vheld;
+}
+
+// STOL-PILOT (27 Oct): WHAT THE DEVICES BUY THE LANDING - the stall speed the same wing would have WITHOUT its STOL
+// devices, in the landing configuration: the highest lift each wing makes over a sweep of attitudes (prop off, the
+// landing flap, 0.5 deg steps to 35 deg), the device-less one off the same def with every strip's `stol` key taken off.
+// Returns { gain, VsPlain0 } - gain = sqrt(Lmax plain / Lmax with the devices) (the slot + VGs of the showcase Cub
+// 0.85), VsPlain0 = the measured flapped stall / gain - or null on a wing without a stall-angle device (genStolHeld's
+// own test). Carried on the shakedown (`stolGain`, genShakedown) for the autopilot (43_pilot stolSheet); writes nothing on
+// the def
+function genStolGain(def) {
+  if (!def.strips || !def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return null;
+  const P = def.params, g = P.gen || {};
+  const ldg = P.flaps ? (P.flaps.ldg ?? 1) : 0;
+  const Vs0 = ldg > 0 && !g.landsFlapless ? g.VsFlap : (g.VsMeas || g.Vs);
+  if (!(Vs0 > 0)) return null;
+  const lmax = d => {
+    const sim = makeSim(d, null);
+    sim.reset(0);
+    sim.ctl.flap = ldg;
+    let m = 0;
+    for (let a = 0; a < 0.611; a += 0.0087) m = Math.max(m, genProbeAt(sim, 15, a).Fy);
+    return m;
+  };
+  const plain = Object.assign({}, def, { strips: def.strips.map(st => { if (!st.stol) return st; const o = Object.assign({}, st); delete o.stol; return o; }) });
+  const Ld = lmax(def), Lp = lmax(plain);
+  if (!(Ld > 0 && Lp > 0)) return null;
+  const gain = Math.sqrt(Lp / Ld);
+  return { gain, VsPlain0: Vs0 / gain };
 }
 
 // ---------------------------------------------------------------------------
@@ -54071,6 +54203,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
 };
 const econLedgerClass = k => ECON_LEDGER[k] || null;
@@ -55808,10 +55941,10 @@ const plHome = doc => (doc && doc.sheds && doc.sheds[PREM_MAIN] && doc.sheds[PRE
 // The knob -> section map is PILOT_PROFILE_KNOBS' own when PILOT-PERSONA is in the core (train 40); before it, the
 // same eleven names in PILOT-ONE's sections (43's pilotProfile reads both shapes).
 const PILOTS_KNOB_SEC = { reaction: 'skill', smooth: 'skill', hamFist: 'skill', gain: 'skill', overRotate: 'quirks', flareK: 'quirks',
-                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique' };
+                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique', stol: 'technique' };
 function pilotsKnobs() {
   if (typeof PILOT_PROFILE_KNOBS !== 'undefined') return PILOT_PROFILE_KNOBS.map(K => ({ k: K.k, sec: K.sec, kind: K.kind, lo: K.lo, hi: K.hi, d: K.d }));
-  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold') ? 'bool' : 'range',
+  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold' || k === 'stol') ? 'bool' : 'range',
                                                   d: pilotProfile('expert')[k] }));
 }
 // the flat knobs (pilotProfile's shape) of the pilot as signed on: the base person, the pack's knobs over it
@@ -55897,6 +56030,7 @@ function pilotsFliesLike(F) {
   if (F.field === 'short') t.push('short fields');
   if (F.field === 'normal') t.push('a normal approach everywhere');
   if (F.slip) t.push('slips every final');
+  if (F.stol === true) t.push('STOL-qualified');   // STOL-PILOT: the qualification (the bush pilot's; earned growing toward a qualified ceiling)
   const l = [];
   l.push(F.bankK >= 1.1 ? 'steep turns' : F.bankK <= 0.9 ? 'shallow turns' : 'normal turns');
   if (F.comfortG != null) l.push('pulls ' + F.comfortG.toFixed(2).replace(/0$/, '') + ' g at most');
@@ -57294,6 +57428,13 @@ const STORY_TUTOR = {
       say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
     { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
   ],
+  // G3585 T6b (the user 25 Oct: "the tutorial must hire"): the water job comes with a route, and a route needs a hired
+  // pilot - the hire screen opens in the garage (the page: storyHireOpen; opened from the story it closes only after a
+  // hire), nothing else held (free: a flight is never locked); the route then goes to the pilot you hired (storyRoutePilot)
+  T6: [
+    { id: 'hire', wait: 'hiredPilot', open: 'hire', free: true,
+      say: 'This job comes with a route, and someone has to fly it while we work. Hire a pilot: pick one and pay the sign-on - the wage comes at the end of each day.' },
+  ],
 };
 const storyTutorSteps = id => STORY_TUTOR[id] || null;
 // one tick of the tutor (pure): T { beat, i }, the beat now, fact(name) -> bool (the page's predicates) -> { T, step }.
@@ -57651,10 +57792,12 @@ function storyApply(doc, e, o) {
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
 }
-// G3260 (ROUTES): T6's pilot - the career's companion while free on the roster, else the first free hired pilot (or null)
+// G3260 (ROUTES): T6's pilot - the one you hired (T6b: the latest free hire that is not the companion), else the career's
+// companion while free on the roster, else the first free hired pilot (or null)
 function storyRoutePilot(doc) {
   const free = (typeof pilotsHired === 'function' ? pilotsHired(doc) : []).filter(id => !routeOfPilot(doc, id));
-  return free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
+  const own = free.filter(id => id !== PILOTS_COMPANION);
+  return own.length ? own[own.length - 1] : free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
 }
 // T6's words for the arrival card, the beat card and Tim: the route, its pilot, the down payment in the wallet
 function storyRouteLine(r, aeros) {
@@ -58037,7 +58180,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

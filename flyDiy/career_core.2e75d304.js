@@ -4264,6 +4264,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
 };
 const econLedgerClass = k => ECON_LEDGER[k] || null;
@@ -6001,10 +6002,10 @@ const plHome = doc => (doc && doc.sheds && doc.sheds[PREM_MAIN] && doc.sheds[PRE
 // The knob -> section map is PILOT_PROFILE_KNOBS' own when PILOT-PERSONA is in the core (train 40); before it, the
 // same eleven names in PILOT-ONE's sections (43's pilotProfile reads both shapes).
 const PILOTS_KNOB_SEC = { reaction: 'skill', smooth: 'skill', hamFist: 'skill', gain: 'skill', overRotate: 'quirks', flareK: 'quirks',
-                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique' };
+                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique', stol: 'technique' };
 function pilotsKnobs() {
   if (typeof PILOT_PROFILE_KNOBS !== 'undefined') return PILOT_PROFILE_KNOBS.map(K => ({ k: K.k, sec: K.sec, kind: K.kind, lo: K.lo, hi: K.hi, d: K.d }));
-  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold') ? 'bool' : 'range',
+  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold' || k === 'stol') ? 'bool' : 'range',
                                                   d: pilotProfile('expert')[k] }));
 }
 // the flat knobs (pilotProfile's shape) of the pilot as signed on: the base person, the pack's knobs over it
@@ -6090,6 +6091,7 @@ function pilotsFliesLike(F) {
   if (F.field === 'short') t.push('short fields');
   if (F.field === 'normal') t.push('a normal approach everywhere');
   if (F.slip) t.push('slips every final');
+  if (F.stol === true) t.push('STOL-qualified');   // STOL-PILOT: the qualification (the bush pilot's; earned growing toward a qualified ceiling)
   const l = [];
   l.push(F.bankK >= 1.1 ? 'steep turns' : F.bankK <= 0.9 ? 'shallow turns' : 'normal turns');
   if (F.comfortG != null) l.push('pulls ' + F.comfortG.toFixed(2).replace(/0$/, '') + ' g at most');
@@ -7108,6 +7110,13 @@ const STORY_TUTOR = {
       say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
     { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
   ],
+  // G3585 T6b (the user 25 Oct: "the tutorial must hire"): the water job comes with a route, and a route needs a hired
+  // pilot - the hire screen opens in the garage (the page: storyHireOpen; opened from the story it closes only after a
+  // hire), nothing else held (free: a flight is never locked); the route then goes to the pilot you hired (storyRoutePilot)
+  T6: [
+    { id: 'hire', wait: 'hiredPilot', open: 'hire', free: true,
+      say: 'This job comes with a route, and someone has to fly it while we work. Hire a pilot: pick one and pay the sign-on - the wage comes at the end of each day.' },
+  ],
 };
 const storyTutorSteps = id => STORY_TUTOR[id] || null;
 // one tick of the tutor (pure): T { beat, i }, the beat now, fact(name) -> bool (the page's predicates) -> { T, step }.
@@ -7465,10 +7474,12 @@ function storyApply(doc, e, o) {
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
 }
-// G3260 (ROUTES): T6's pilot - the career's companion while free on the roster, else the first free hired pilot (or null)
+// G3260 (ROUTES): T6's pilot - the one you hired (T6b: the latest free hire that is not the companion), else the career's
+// companion while free on the roster, else the first free hired pilot (or null)
 function storyRoutePilot(doc) {
   const free = (typeof pilotsHired === 'function' ? pilotsHired(doc) : []).filter(id => !routeOfPilot(doc, id));
-  return free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
+  const own = free.filter(id => id !== PILOTS_COMPANION);
+  return own.length ? own[own.length - 1] : free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
 }
 // T6's words for the arrival card, the beat card and Tim: the route, its pilot, the down payment in the wallet
 function storyRouteLine(r, aeros) {
