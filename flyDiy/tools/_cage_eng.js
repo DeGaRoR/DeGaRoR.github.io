@@ -909,12 +909,29 @@ PAGE.post = ctx => {
   });
   else engPlace(ctx, null);
 };
+// CONFIG-MATRIX (2 Nov, the user: a push-pull or a pusher on a single rod "is very possible, with Rod on top or
+// below the engine and prop. A lot of our current planes use this"): THE ROD CLEARS THE REAR DISC. The rod leaves the
+// aft bulkhead right behind the pusher's disc; `rodY` is the builder's free slider (G26), so the layer never moves it
+// on its own - a TILE that puts an aft engine on a single rod (Pusher, Rod & pod, Booms·Single) arms one fit, and
+// the next placement moves the rod to the far side of the disc from the hub (below a hub over the bulkhead's middle,
+// above one under it), clear by ROD_CLEAR, then builds once more so the rod and the tail ride there. A rod the
+// builder already set clear of the disc is left where it is.
+let rodFitNext = false;
+window.CAGE_ROD_FIT_NEXT = () => { rodFitNext = true; };
+const ROD_CLEAR = 0.08;      // m between the blade tip and the rod (the Pusher tile's own 80 mm)
+// the single rod's axis height (scene metres) at `dz` metres aft of the bulkhead, and its radius; null off a rod
+function rodAxis(P, FS) {
+  if (!+P.boomStyle || +P.boomTwin) return null;
+  const t = Math.tan((+P.rodIncl || 0) * Math.PI / 180);
+  return { y: dz => (+P.rodY || 0) * FS + t * dz, r: Math.max(0.015, (+P.rodD || 0.12) / 2) * FS, t };
+}
 // the layer's own build; `prev` is the first pass's units when the wing places
 // it again (G2880) - superseded, their propeller check stands down
 function engPlace(ctx, prev) {
   const { scene, mesh, P, stat } = ctx;
   if (prev) prev.superseded = true;
   dispose(group); group = null;
+  window.CAGE_ENG_LOST = null;
   if (!P.engOn) return null;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -924,15 +941,23 @@ function engPlace(ctx, prev) {
   const NF = window.CAGE_NOSE;
   const mountK = Math.round(P.engMount || 0);
   const units = NF && NF.engineFaces ? NF.engineFaces(mesh, FS, P) : [];
+  // CONFIG-MATRIX: EVERY ENGINE THE MOUNT LISTS IS BOLTED ON, OR THE LAYER SAYS WHICH IS NOT AND WHY. The join flies
+  // the mount's list whatever was drawn; CAGE_ENG_LOST is what it files as an error row (an engine flown and not
+  // drawn), and CAGE_ENG no longer outlives a build that drew nothing (its stations flew on as the old drawing's)
+  const want = ({ 3: 2, 4: 2, 5: 3, 6: 4 })[mountK] || 1;
+  const aftFace = !!(+P.rearAperture || (CG2 && CG2.cageAftEngineFace && CG2.cageAftEngineFace(P)));
+  const whyLost = mountK === 1 || (mountK === 4 && !aftFace)
+      ? (aftFace ? 'no aft bulkhead face' : 'an aft engine needs the pod to end at the aft bulkhead (Rod & pod, or twin booms)')
+    : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing (or a parasol)')
+    : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
+    : 'no engine face on this body';
+  if (units.length < want) window.CAGE_ENG_LOST = { mount: mountK, want, got: units.length, why: whyLost };
   if (!units.length) {
-    if (stat) stat.textContent += '  ·  engine: ' +
-      (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
-     : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
-     : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
-     : mountK === 4 ? 'a push-pull needs the pod to end at the aft bulkhead (rod or twin booms)'
-     : 'no engine face on this body');
+    if (stat) stat.textContent += '  ·  engine: ' + whyLost;
+    window.CAGE_ENG = null;
     return null;
   }
+  if (units.length < want && stat) stat.textContent += '  ·  engine: ' + units.length + ' of ' + want + ' drawn — ' + whyLost;
   const face = units[0].face;
 
   // spec: the shared dial dict (engSpecOfP — the join resolves the same
@@ -1166,7 +1191,7 @@ function engPlace(ctx, prev) {
     // the drawn disc's offset from the mount the aids measure the prop's clearance from (app.js aidPropOff)
     let propAt = null;
     if (pg) { const pv = pg.position.clone(); ug.updateMatrix(); pv.applyMatrix4(ug.matrix); propAt = [pv.x, pv.y, pv.z]; }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, propAt,
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt,
                    at: [ug.position.x, ug.position.y, ug.position.z],
                    prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
                    propFit: null });
@@ -1182,6 +1207,7 @@ function engPlace(ctx, prev) {
   // `propFit`, the join says it (and the status line). Runs after the
   // chain: the engine layer is built before the wing and the gear, so the
   // post schedules it as a microtask and the join calls it outright.
+  const FSc = FS;
   const propFitCheck = () => {
     const W = window.CAGE_WING, AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
     const inWing = (x, y, z) => {
@@ -1222,6 +1248,13 @@ function engPlace(ctx, prev) {
       const why = [];
       if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');
       if (bodyHits) why.push('through the body (' + bodyHits + ' points)');
+      // CONFIG-MATRIX: THE ROD IN THE DISC, measured exactly (the sampled rings above step 15 deg and miss a 12 cm
+      // tube): an aft disc on a single rod strikes it when the rod's axis is nearer the hub than R plus its radius
+      const RA = u.aft && rodAxis(P, FSc);
+      if (RA && isFinite(u.faceZ)) {
+        const miss = Math.abs(hy - RA.y(u.faceZ - hz)) - R - RA.r;
+        if (miss < 0) why.push('through the rod boom (' + Math.round(-1000 * miss) + ' mm of blade past it)');
+      }
       u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
       if (why.length) {
         const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
@@ -1234,6 +1267,44 @@ function engPlace(ctx, prev) {
   };
   if (typeof queueMicrotask === 'function') queueMicrotask(() => { if (unitOut.superseded) return; try { propFitCheck(); } catch (e) {} });
 
+  if (rodFitNext && !prev) {
+    rodFitNext = false;
+    const RA = rodAxis(P, FS), u = unitOut.find(v => v.aft && v.prop && v.prop.hub);
+    if (RA && u && isFinite(u.faceZ)) {
+      const hy = u.prop.hub[1], R = u.prop.R, dz = u.faceZ - u.prop.hub[2];
+      if (Math.abs(hy - RA.y(dz)) < R + RA.r) {
+        const below = !(hy < (isFinite(u.faceYc) ? u.faceYc : hy) - 1e-3);
+        const yAx = below ? hy - R - ROD_CLEAR - RA.r : hy + R + ROD_CLEAR + RA.r;
+        const v = Math.max(-0.9, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
+        // what the rod's slider range could not give (metres) goes to the REAR ENGINE ALONE, where the firewall
+        // rule lets it move (CABIN-CRAFT-2, engineFaces: a COWLED pusher - or a push-pull's rear - stands on the pod's
+        // face itself and ignores the block; the cowl does not read engY, so moving a cowled engine would pull it out
+        // of its cowl):
+        //   a lone uncowled pusher: engY (one unit - the Pusher tile's own "engine top = boom bottom" rule, carried on)
+        //   an uncowled push-pull: engBlockY (it moves the aft face's unit; the nose engine stands on noseFace)
+        //   a cowled one: nothing moves - the notice says what is left and the prop check files it
+        const short = Math.max(0, (below ? (v * FS + RA.t * dz) - yAx : yAx - (v * FS + RA.t * dz)));
+        let eMove = 0, left = short, eRow = null;
+        if (short > 1e-3 && !cowledPusherRow(P)) {
+          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 0.5] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
+          if (k) {
+            const e0 = +P[k] || 0, e1 = Math.max(lo, Math.min(hi, e0 + (below ? 1 : -1) * short));
+            eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove)); eRow = k;
+            P[k] = Math.round(e1 / 0.005) * 0.005;
+          }
+        }
+        if (Math.abs(v - (+P.rodY || 0)) > 1e-6 || eMove) {
+          P.rodY = v;
+          if (stat) stat.textContent += '  ·  rod: moved ' + (below ? 'below' : 'above') + ' the disc (rod height ' + v.toFixed(3) + ')' +
+            (eMove ? ', the ' + (mountK === 4 ? 'rear ' : '') + 'engine ' + (below ? 'up' : 'down') + ' ' + Math.round(1000 * Math.abs(eMove)) + ' mm (' + eRow + ')' : '') +
+            (left > 1e-3 ? ' - ' + Math.round(1000 * left) + ' mm of blade still reach it: ' +
+              (cowledPusherRow(P) ? 'a cowled rear engine stands on the pod\'s face (the firewall rule) - shorten the prop, or take the cowl off and raise the block'
+                                  : 'raise the rear engine or shorten the prop') : '');
+          setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
+        }
+      }
+    }
+  }
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
                       propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)

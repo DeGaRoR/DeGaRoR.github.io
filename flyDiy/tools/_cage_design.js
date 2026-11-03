@@ -172,6 +172,31 @@ const stolLock = opt => {
   return pk ? 'needs the ' + pk + ' pack from the machine shop' : undefined;
 };
 
+// CONFIG-MATRIX STEP 4: THE DYSFUNCTIONAL COMBINATIONS, GREYED. `off(P)` on a tile: the reason the tile cannot
+// apply in the aeroplane's CURRENT state, or nothing. The panel greys it with the reason in the tile (design_flow.js
+// tileGrid: nothing hover-only) and refuses the pick; the tile the aeroplane holds stays lit (a saved build is never
+// rewritten - its engine notice is the join's error row). designApply is untouched: a birth composes its whole
+// recipe and may pass through a state on its way. docs/CONFIG-MATRIX.md section 11 is the table.
+const aftEng = P => [1, 4].includes(Math.round(+P.engMount || 0));
+const CM_OFF = {
+  loftSingle: P => aftEng(P) && !+P.boomTwin
+    ? 'a lofted body runs to the tail: no aft bulkhead for the pusher (twin booms first, or another mount)' : null,
+  // (2 Nov, the user: a push-pull or pusher on a single rod "is very possible, with Rod on top or below the engine
+  // and prop" - on a rod the tile goes, and the rod fit moves the rod clear of the disc; a lofted body has no face)
+  single: P => aftEng(P) && !+P.boomStyle
+    ? 'a lofted body runs to the tail: no aft bulkhead for the rear engine (Rod & pod first, or another mount)' : null,
+  twinT: P => +P.boomTwin ? 'twin booms have no centre fin for the stab to ride (Cruciform seats it between the fins)' : null,
+  twinV: P => +P.boomTwin ? 'a V-tail roots on the centreline, where twin booms have no boom' : null,
+  wingTop: P => Math.round(+P.engMount || 0) === 2 ? 'the over-the-wing pylon stands on a high wing or a parasol' : null,
+};
+
+// CONFIG-MATRIX: a lofted twin's DRAWN dorsal carried onto rod-style booms (their own row, finDorsalTube); any other
+// state keeps the row as it is. A cage write, resolved before the tile's boomStyle
+const dorsalToRod = P => !+P.boomStyle ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalTube || 0);
+// ...and the rod placed clear of a rear disc on the next build (_cage_eng.js CAGE_ROD_FIT_NEXT): the panel's door
+// (design_flow.js doApply runs `after`); designApply and the births never call it
+const rodFit = () => { if (W.CAGE_ROD_FIT_NEXT) W.CAGE_ROD_FIT_NEXT(); };
+
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
 // flap and does not draw its section.
@@ -1101,13 +1126,19 @@ const DESIGN_ROWS = [
     help: 'the taper section stays its own switch on the slider',
     read: P => Math.round(P.boomStyle),
     options: [
-      { value: 0, label: 'Lofted skin', icon: ICON.boomLoft,
-        writes: { cage: { boomStyle: 0 } } },
+      // CONFIG-MATRIX: THE DORSAL FOLLOWS ITS HOST. On twin booms both styles are the same host (the boom's own
+      // lofted section), so the switch carries the dorsal as it was DRAWN: the rod's finDorsalTube becomes the
+      // loft's finDorsal and back (a rod twin's stored finDorsal was never drawn - the rod clamp). Resolved before
+      // boomStyle (designApply reads each function against the keys written above it)
+      { value: 0, label: 'Lofted skin', icon: ICON.boomLoft, off: CM_OFF.loftSingle,
+        writes: { cage: { finDorsal: P => +P.boomStyle ? (+P.finDorsalTube ? 1 : 0) : P.finDorsal,
+                          boomStyle: 0 } } },
       // 2026-09-04 (the user): "the rod settings should automatically turn
       // the taper section on. It can be removed manually afterwards"
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
-        writes: { cage: { boomStyle: 1, taperOn: 1 } } },
+        after: rodFit,
+        writes: { cage: { finDorsalTube: dorsalToRod, boomStyle: 1, taperOn: 1 } } },
     ] },
 
   // THE COUNT (2026-09-04, the user: "lofted or rod, and dual or single
@@ -1118,7 +1149,7 @@ const DESIGN_ROWS = [
     help: 'two booms leave the wing; the pod ends at the bulkhead',
     read: P => +P.boomTwin ? 'twin' : 'single',
     options: [
-      { value: 'single', label: 'Single', icon: ICON.boomLoft,
+      { value: 'single', label: 'Single', icon: ICON.boomLoft, after: rodFit, off: CM_OFF.single,
         writes: { cage: { boomTwin: 0, stMount: 0, stX: 0.05 } } },
       { value: 'twin', label: 'Twin booms', icon: ICON.boomTwin,
         note: 'two booms off the wing, a fin each, the stab between them',
@@ -1168,9 +1199,9 @@ const DESIGN_ROWS = [
     options: [
       { value: 0, label: 'High', icon: iconFront('high'),
         writes: { cage: { wgPos: 0 } } },
-      { value: 1, label: 'Mid', icon: iconFront('mid'),
+      { value: 1, label: 'Mid', icon: iconFront('mid'), off: CM_OFF.wingTop,
         writes: { cage: { wgPos: 1 } } },
-      { value: 2, label: 'Low', icon: iconFront('low'),
+      { value: 2, label: 'Low', icon: iconFront('low'), off: CM_OFF.wingTop,
         writes: { cage: { wgPos: 2 } } },
       // G185: on a cabane above the deck, lift struts to the lower longeron
       { value: 3, label: 'Parasol', icon: iconFront('parasol', 'strut'),
@@ -1374,7 +1405,7 @@ const DESIGN_ROWS = [
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
         writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
-      { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
+      { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher, after: rodFit,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher
         // configurations, engine and boom should be opposite; engine top =
@@ -1385,7 +1416,7 @@ const DESIGN_ROWS = [
         // datum the engine is on, the boom is on the other, clear of the disc
         // by its own 80 mm. designApply resolves a block's keys in order, so
         // the function reads the `engY` written one line above it.
-        writes: { cage: Object.assign({ engMount: 1, boomStyle: 1, taperOn: 1,
+        writes: { cage: Object.assign({ engMount: 1, finDorsalTube: dorsalToRod, boomStyle: 1, taperOn: 1,
                                         cowlOn: 0, aeroAftOn: 0,
                                         engY: 0.26,
                                         rodY: P => -Math.sign(+P.engY || 1)
@@ -1546,7 +1577,7 @@ const DESIGN_ROWS = [
                           stMount: P => +P.boomTwin ? 3 : 0,
                           stX: P => +P.boomTwin ? 0 : 0.05 } } },
       { value: 't', label: 'T-tail',
-        icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }),
+        icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }), off: CM_OFF.twinT,
         note: 'the stab rides the fin tip',
         writes: { cage: { stMount: 2, stY: 0.02, stZ: -0.10, stCant: 0,
                           stX: 0.05, finOn: 1 } } },
@@ -1555,7 +1586,7 @@ const DESIGN_ROWS = [
         writes: { cage: { stY: 1.05, stZ: -0.12, stMount: 0, stCant: 0,
                           stX: 0.05, finOn: 1 } } },
       { value: 'v', label: 'V-tail',
-        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }),
+        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }), off: CM_OFF.twinV,
         note: 'two canted panels, no fin — ruddervators',
         writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
                           finOn: 0 } } },
@@ -1777,6 +1808,18 @@ const DESIGN_ROWS = [
         note: 'a long low fillet runs the leading edge forward along the deck',
         writes: { cage: { finDorsal: 1 } } },
     ] },
+  // CONFIG-MATRIX: the same choice on rod-style twin booms, in ITS row's slot (finDorsalTube, _cage_fin.js) - the
+  // dorsal the user wanted "on the pod too"
+  { key: 'finDorsalTubeT', label: 'Leading edge', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finDorsalTube'],
+    read: P => Math.round(P.finDorsalTube || 0),
+    options: [
+      { value: 0, label: 'Plain', icon: iconFinExtra(null),
+        writes: { cage: { finDorsalTube: 0 } } },
+      { value: 1, label: 'Dorsal fillet', icon: iconFinExtra('dorsal'),
+        note: 'a long low fillet runs the leading edge forward along the boom',
+        writes: { cage: { finDorsalTube: 1 } } },
+    ] },
   { key: 'stCutT', label: 'Stab / elevator', kind: 'discriminator',
     group: 'tail', status: 'live', slot: true, twin: ['stCut'],
     read: P => Math.round(P.stCut || 0),
@@ -1795,7 +1838,7 @@ const DESIGN_ROWS = [
     options: [
       { value: 0, label: 'On the keel', icon: iconSeat(0), writes: { cage: { stMount: 0 } } },
       { value: 1, label: 'On the deck', icon: iconSeat(1), writes: { cage: { stMount: 1 } } },
-      { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
+      { value: 2, label: 'On the fin tip', icon: iconSeat(2), off: CM_OFF.twinT, writes: { cage: { stMount: 2 } } },
       { value: 3, label: 'Between the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
     ] },
@@ -3220,7 +3263,8 @@ function archInactive(a) {
   return null;
 }
 
-const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions,
+// CM_OFF (CONFIG-MATRIX step 4): the greyed-combination rules by id - NEW-PLANE's chooser reads them; the ids are stable
+const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions, CM_OFF,
               optionOf, designApply, designSeed, designMerge,
               designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,
