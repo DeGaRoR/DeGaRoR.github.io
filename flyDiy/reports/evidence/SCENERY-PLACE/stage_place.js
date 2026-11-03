@@ -36,6 +36,10 @@ module.exports = async (page, { frames, shot, log }) => {
     const A = await shot(path.join(OUT, s.name + '.jpg'));
     const cam = await page.evaluate(() => { const D = window.DEV_CAM; return D ? { x: +D.pos.x.toFixed(1), y: +D.pos.y.toFixed(1), z: +D.pos.z.toFixed(1), yaw: +(D.yaw * 180 / Math.PI).toFixed(1), pitch: +(D.pitch * 180 / Math.PI).toFixed(1) } : null; });
     log('SHOT', s.name, JSON.stringify(p), JSON.stringify(cam), ((Date.now() - t0) / 1000).toFixed(0) + ' s wall');
+    if (s.debug) log('DEBUG', s.debug, await page.evaluate(k => { const out = []; try { const sc = (window.WORLD && window.WORLD.scene) || null;
+      if (sc) sc.traverse(o => { if (o.name && o.name.indexOf('prop:' + k) === 0) { const p = new (window.THREE.Vector3)(); o.getWorldPosition(p);
+        out.push({ name: o.name, kids: o.children.length, pending: !!(o.userData && o.userData.propPending), vis: o.visible, at: [Math.round(p.x), Math.round(p.y), Math.round(p.z)] }); } }); else out.push('no WORLD.scene'); } catch (e) { out.push('threw ' + e.message); }
+      return JSON.stringify(out).slice(0, 800); }, s.debug));
     done.push({ name: s.name, cam, coverage: A && A.coverage });
   }
   return { skipMain: true, shots: done };

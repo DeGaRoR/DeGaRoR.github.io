@@ -311100,3 +311100,15 @@ FRAMECOST: A0's, on the GPU box. **PICTURES**: tools/soft_still.js + reports/evi
 (plane_shot.js has no world): one boot, the paused aeroplane parked 400 m over each place - THE PREMISES STREAM ROUND THE
 AEROPLANE (render_premises STREAM.reach 6 km), not the free eye: a still of a place 8 km from HOME drew nothing of it until
 the aeroplane went there (the test mode keeps it at HOME).
+
+**SCENERY-PLACE, NARROWED** (the user, 3 Nov, the same evening: "The 2 hydroplants were the main thing. I actually did not
+want the other assets. The f104 should be next to the runway, OK for construction machines, but not the factories, they
+look bad, nor the abandoned plant and nothing more on Mount Ardent than the already placed meteo observatory."). WITHDRAWN
+from the record (and so from what this entry lists above): the Cabin Lake camp (tents, fire pit, crowd), Mount Ardent's
+observatory and antenna and their pads, the heating plant, the bunker and its pad, the sky-rest ruin, the trawler. KEPT:
+the two hydro powerhouses + the Upper Lake works (crane, backhoe), the quarry's machines and wreck, the gardens' tractors,
+the mine's sign fix + GATE HOUSE 'signs' + the manifest's itemPatches. MOVED: the F-104G (af_o_f104) to (-442.1, -73.9),
+130 m abeam 13/31 on the side away from the club, parked along it (its tail 4.9 m over the runway; the 1:7 transitional
+surface allows 7.9). Re-cooked (premises, city, map, fleet spots); gates as above (39 PASS, the same nine reds as master's,
+row for row). The withdrawn placements stay in the session's scratch generator only: a later ask can stand them from this
+entry's points.
