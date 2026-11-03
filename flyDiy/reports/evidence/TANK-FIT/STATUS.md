@@ -241,27 +241,26 @@ Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half
 * NOT within 4 ms on a phone yet: the nose auto-fit's first shaping (270-760 ms here, once per body change, cached);
   the first layout after a rebuild (28 ms here). Owed: the auto-fit's search off the main thread (open question 4).
 
-## Gates (node, the tree built; 3 Nov, round 2 - two container restarts, so run gate by gate where they died)
-PASS (28 asked): TANKMOUNT, ENERGY, ENERGYBASE, PARTS, DESIGN, SAVE, CAGEFIT, JOIN, FLOATKIT, COWL, STARTER, LIGHT,
-DASH, ACCEPT, DESIGNCHECK, TAKEOFF, CGBAND, HONESTY, PROCURE (+ FLOATS and JOINPARITY: see below).
-Rows updated with the reason (the applied refit, the user's "Yes"): ACCEPT reads the Cub's fitted 44 L (was 28);
-DASH asks its box-vs-arch question of the bay-rule tank and adds "the fitted nose tank clears either dash";
-TANKMOUNT skips the contact markers (and still holds a KNOWN row for the floatplane card, now refitted: unused).
-FAIL, **standing on master** (the same lines on an origin/master worktree):
-* TECH ("[pitch:seaplane]"), NODUMMY (`edDum` in three tools), STOL (the stol null-record rows, Vref, the lift-off),
-  HANDLE (Twin_busher_floats_2's door handles), BENCHTIME (the bench check 6.5-8.8 s vs 6 s on master here - a timing
-  gate on a shared box);
-* ENGCONFIG: pinned hashes off an older master. This tree's differ from master's on three builds only, all intended:
-  the Chinook (the strut pods' drag), the Cub and the Jodel (the applied nose tanks);
-* JOINPARITY: master fails 4 rows (the metal Cessna, the Cessna floats, the v10 fixture, the "no tool flies raw"
-  list); this tree adds **the Cub and the Jodel** (node vs the page's capture of 27 Oct: mass 476.9 vs 461.7 kg, 473.7
-  vs 464.2 kg) - the applied tanks, intended. **Owed: a re-capture** (`node tools/join_parity_page.js`, the page) when
-  the train lands this.
-* PROFILE: timed out (1800 s) under the battery's load, on master too in the same run; not judged.
-* FLOATS: red with the twin floatplane's 10 L refit (NaN in the idle taxi), green on master -> the refit withdrawn;
-  re-run: **PASS**. JOINPARITY re-run after it: 6 FAIL = master's 4 + the Cub and the Jodel (the re-capture owed).
-Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates (UISMOKE...); the editor's
-new rows (auto-fit, the gap and room rows, dragLayout) and the bench's tank rows are untested in a page: a look owed.
+## Gates on train 1B (origin/master 1db22c8a; node, built; 3 Nov 08:32-10:40 UTC, one log a gate: the box restarted twice)
+**PASS (20 of 28)**: TANKMOUNT, ENERGY, ENERGYBASE, PARTS, DESIGN, SAVE, CAGEFIT, JOIN, FLOATKIT, COWL, STARTER, DASH,
+LIGHT, DESIGNCHECK, ACCEPT, CGBAND, HONESTY, FLOATS, TAKEOFF, PROFILE, PROCURE (the nine that fly the twin floatplane
+re-run on its 8 L refit: ACCEPT, DESIGNCHECK, FLOATS, PROCURE, PROFILE pass).
+**FAIL, standing on master 1B** (an origin/master worktree, the same run, the same lines): TECH, NODUMMY, HANDLE,
+BENCHTIME, and these three with this tree's rows beside master's:
+* ENGCONFIG: master fails its pinned hashes on 15 rows; this tree differs from master's on three only, all
+  intended: the Chinook (the strut pods' drag), the Cub and the Jodel (their fitted nose tanks);
+* JOINPARITY: master 3 FAIL (the twin floatplane's float station, the v10 fixture, the "raw" list); this tree adds
+  the Cub (476.9 vs the page's 461.7 kg), the Jodel (471.8 vs 464.2 kg) and the twin floatplane's mass (476.4 vs 487.0:
+  its 8 L) - the applied tanks. **Owed (A0 schedules it): the page re-capture.**
+* STOL: master fails its standing rows (the null stol record, the slat, the merge); this tree added two in section 6
+  (the user's STOL-kit Cub against the stock one: Vref 65.8 vs 63.0 km/h, lift-off 101.2 vs 96.1 m) - the kit loaded
+  with today's 44 L fitted tank against master's pinned stock Cub with its 28 L: the gate now flies the kit on the
+  stock's own tank (the kit's effect alone). Re-run: see below.
+Rows updated with their reason: ACCEPT (the Cub's 44 L), DASH (the box/arch question on the bay-rule tank + "the
+fitted nose tank clears either dash"), TANKMOUNT (the contact markers are not a skin), FLOATS (the landing flown until
+the taxi is read), STOL (section 6 on the stock's tank).
+Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates; the editor's new rows and
+the bench's tank rows are untested in a page: a look is owed.
 
 ## Round 3 (A0, the user's answers of 3 Nov 08:40)
 * T1 the twin floatplane's refit: applied - 8 L on 1B (the 10 L no longer clears after the knee fix; above); GATE FLOATS' landing flies until its taxi is read (a gate fix, not
