@@ -9,6 +9,21 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
+## 000. READY (the train-1B branch)
+
+**Base: origin/master `1db22c8a` (train 1B: PHONE-1b landed).** The NEW-PLANE commits replayed onto it (two textual
+conflicts, both resolved by keeping 1B's side and adding only this work: `phone.css` - 1B's installed-app block, the
+chooser's phone rules after it; `plane_shot.js` - 1B's `phmat` URL and option, `&idle=0` and the chooser's close
+added). Gates on this base (`--no-build` over its own build, all PASS): **NEWPLANE (45 s solo), STARTER, DESIGN, PARTS,
+SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER**. NEWPLANE-BUILDS once, outside the battery: **11 checks, 167 s,
+PASS**. ARCHETYPES was last run on `0fcf54ef` (one red, standing on master: the Chinook-alike's rejected take-off).
+CONFIG-MATRIX step 4 is a separate ready in the same train: a trial merge on F4 had no conflict.
+
+**Where it is:** the push to `claude/ready/new-plane` was refused by this cloud session's permission policy (a
+`claude/ready/*` push reads as a production deploy here). The identical tree is on `claude/new-plane` (an `ours` merge
+over the earlier history, so the push is a fast-forward; `git diff <1B branch head> claude/new-plane` is empty) - A0
+promotes from it, as the original brief had it.
+
 ## 00. The user's calls of 3 Nov (via A0, 08:40) — what landed
 
 | call | status |
