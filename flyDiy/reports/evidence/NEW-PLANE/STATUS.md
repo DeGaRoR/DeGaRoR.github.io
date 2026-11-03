@@ -9,6 +9,18 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
+## 0000. NOW (3 Nov, 14:30 UTC)
+
+- **N1, as the user re-ruled ("make the join measure the fin above the deck"): DONE** - `_cage_join.js` `finTaperAbove`:
+  the fin's taper is read on its planform above the highest point of the boom's top line under its chord (the fin
+  layer's own `deck`). The FIN_ARCH presets now read 0.46-0.54, the validated Cub 0.59, Jodel 0.69, metal Cessna 0.70,
+  Chinook 0.55 - inside the envelope, no clamp, no error row. **A physics change for saved builds:** they fly their
+  measured fin taper instead of the clamp's 0.35 (the user accepted it with the call).
+- **Running:** the core battery on this branch (the flown taper moves numbers the gates may pin); a red is compared
+  with master `a8a23ad6` before it is called standing. Then the replay onto `a8a23ad6` (train L30a) and the ten named gates.
+- **Blocked:** the push to `claude/ready/new-plane` is refused by this cloud session's permission policy (a
+  `claude/ready/*` push reads as a production deploy). Everything lands on `claude/new-plane`; A0 promotes from it.
+
 ## 000. READY (the train-1B branch)
 
 **Base: origin/master `1db22c8a` (train 1B: PHONE-1b landed).** The NEW-PLANE commits replayed onto it (two textual
