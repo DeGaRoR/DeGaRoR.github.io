@@ -91,10 +91,11 @@ PAGE.defaults = Object.assign({
   // answer, so a build that never touches them is the one physics asked for.
   wgStrutZ: 0, wgStrutX: 0,
   // PILLAR-ANCHORS (2026-11-02): THE ANCHORS STAND ON THE PILLARS - the lift strut's foot, the float struts' roots,
-  // the boarding step and its kin, the door handle by its latch (tools/_pillar_site.js). 0 is every build saved
-  // before the row (absent from spec.cage at 0, CAGE_ZERO_ABSENT: a saved build keeps every key it had); a card born
-  // in the design flow takes 1 (_cage_design.js designFull) - the default for NEW placements, never a silent move
-  pilSnap: 0,
+  // the boarding step and its kin, the door handle by its latch (tools/_pillar_site.js). 1 for EVERY build, saved
+  // ones included (the user's call, 3 Nov through A0: "ALL saved builds with doors get pilSnap 1"); absent from
+  // spec.cage at 1 (CAGE_DEFAULT_ABSENT: a saved build keeps every key it had), 0 written only when a builder
+  // turns it off. It moves drawings only: the frame already roots these loads on the pillars' rings
+  pilSnap: 1,
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   // G185: ailerons are a switch per plane (a biplane's upper plane may carry

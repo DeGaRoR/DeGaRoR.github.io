@@ -69,6 +69,9 @@ const hgDef = {
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges (0 forward, 1 top, 2 aft, 3 bottom, 4 top + bottom - G1105)
+  // PILLAR-ANCHORS (3 Nov, the user's call): THE DOOR STOP, degrees - how far the doors open, what the door-swing
+  // check sweeps to (CAGE_DEFAULT_ABSENT: not written at 75)
+  doorStop: 75,
   hgDrOff: 0, hgDrTilt: 0, hgDrSlide: 0, hgDrInset: 0,   // DOOR-HINGES: the doors' one axis, tweaked (0 each = the fitted line)
   hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
@@ -107,6 +110,9 @@ const GROUP = ['13 · control hardware', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
     ['hgDoorEdge', 'hinge edge', 0, 4, 1, ['forward', 'top', 'aft', 'bottom', 'top + bottom'],
      { when: P => +P.hgOn && +P.hgDoor }],
+    // PILLAR-ANCHORS: how far the doors open (the door-swing check sweeps to it; a red under 20 mm fails the
+    // commercial certificate's "Doors open fully" row, DESIGN-AIDS aid.doors)
+    ['doorStop', 'door stop', 45, 120, 5, { when: P => +P.hgOn && +P.hgDoor, dim: '°' }],
     // DOOR-HINGES (2026-10-27): every hinge of a door on ONE axis, fitted to
     // the straight part of the chosen edge; these move that axis. Display
     // hardware: bench.js / 76_procure.js keep them out of every certificate
@@ -1154,7 +1160,7 @@ function doorSwingSchedule(ctx, FS) {
     try {
       const R = CG2 && CG2.cageResolve ? CG2.cageResolve(spec || CG2.cageSpec(Object.assign({}, P))) : null;
       const rep = PSm.doorSwingReport(THREE, scene, mesh, R, SC.FS,
-        { edge: Math.round(+P.hgDoorEdge || 0), hinges: window.CAGE_HINGE && window.CAGE_HINGE.doors });
+        { edge: Math.round(+P.hgDoorEdge || 0), hinges: window.CAGE_HINGE && window.CAGE_HINGE.doors, stop: +P.doorStop || 75 });
       if (tok !== swingTok) return;
       window.CAGE_DOORSWING.last = rep;
       if (stat && rep.doors.length) {

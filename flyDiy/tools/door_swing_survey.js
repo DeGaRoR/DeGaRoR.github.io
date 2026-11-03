@@ -1,7 +1,8 @@
-// door_swing_survey.js [build.json ...] [--out <prefix>] [--snap-only] [--off] - THE DOOR-SWING TABLE (PILLAR-ANCHORS,
+// door_swing_survey.js [build.json ...] [--out <prefix>] [--snap-only] - THE DOOR-SWING TABLE, BEFORE / AFTER (PILLAR-ANCHORS,
 // 2026-11-02). Every build named (default: the repo's saved builds - builds/*.json, builds/candidates/*.json and the
 // validated aeroplanes of tools/_load_build.js) goes through the game's own load door (LB.gameSpecFull: the join over
-// what the editor drew), is drawn headless twice - AS SAVED and with the pillar snap on (`pilSnap` 1) - and each
+// what the editor drew), is drawn headless twice - BEFORE (the anchors as placed, `pilSnap` 0, the doors swept to 90 deg) and AFTER (the
+// build as it loads now: the snap on, the doors to their `doorStop`, 75 deg) - and each
 // door is turned 0 -> 90 deg about its hinge (PILLAR_SITE.doorSwingReport). Printed: per build and door, the least
 // clearance in mm, the angle, and the least to each kind of obstacle (the wing, the wing struts, the float struts,
 // the booms, the anchors); RED under 20 mm. With --out, <prefix>.json (every number) and <prefix>.md (the table).
@@ -43,19 +44,34 @@ for (const f of files) {
     const W = r.W;
     const R = W.CAGE2.cageResolve(r.built.spec);
     const rep = W.PILLAR_SITE.doorSwingReport(W.THREE, r.scene, r.built.sheet, R, r.FS,
-      { edge: Math.round(+r.P.hgDoorEdge || 0), hinges: W.CAGE_HINGE && W.CAGE_HINGE.doors });
+      { edge: Math.round(+r.P.hgDoorEdge || 0), hinges: W.CAGE_HINGE && W.CAGE_HINGE.doors, stop: +r.P.doorStop || 75 });
     const st = r.stat || '';
     // the layers' status segments are joined by '  ·  ' (their inner parts by ' · ')
     const seg = st.split('  ·  ').map(x => x.trim());
     const grab = k => seg.find(x => x.startsWith(k)) || null;
-    return { rep, strut: grab('strut:'), floats: grab('floats:'), fittings: grab('fittings:'),
+    // every layer's drawn vertices, hashed (the light layer's beacon turns between builds: not compared)
+    const hs = {}, v3 = new W.THREE.Vector3();
+    r.scene.updateMatrixWorld(true);
+    r.scene.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      let lay = ''; for (let q = o; q; q = q.parent) if (/^cageLayer:/.test(q.name || '')) { lay = q.name.slice(10); break; }
+      if (!lay || lay === 'light') return;
+      const pa = o.geometry.attributes.position, a = new Float32Array(pa.count * 3);
+      for (let i = 0; i < pa.count; i++) { v3.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld); a[3 * i] = v3.x; a[3 * i + 1] = v3.y; a[3 * i + 2] = v3.z; }
+      hs[lay] = require('crypto').createHash('sha1').update(hs[lay] || '').update(Buffer.from(a.buffer)).digest('hex');
+    });
+    return { rep, hs, strut: grab('strut:'), floats: grab('floats:'), fittings: grab('fittings:'),
              pillars: W.PILLAR_SITE.pillarsOf(r.built.sheet, R, r.FS).pillars.map(p => p.key + (p.frame ? '*' : '')).join(' ') };
   };
   const t0 = Date.now();
   // --off: the first column with the snap explicitly off (a card born with it on, compared with what it was before)
-  const saved = flag('snap-only') ? null : one(flag('off') ? { pilSnap: 0 } : {});
-  const snap = one({ pilSnap: 1 });
-  const row = { build: label, ms: Date.now() - t0, pillars: snap.pillars,
+  // BEFORE: the anchors as placed and the doors swept to 90 deg (master before PILLAR-ANCHORS); AFTER: the build as it
+  // loads now - the snap on, the doors to their stop (75 deg unless the build says otherwise)
+  const saved = flag('snap-only') ? null : one({ pilSnap: 0, doorStop: 90 });
+  const snap = one({});
+  // the layers whose drawing the snap moves (this build's draw hash changes there)
+  const moved = saved ? [...new Set(Object.keys(saved.hs).concat(Object.keys(snap.hs)))].filter(k => saved.hs[k] !== snap.hs[k]) : [];
+  const row = { build: label, ms: Date.now() - t0, pillars: snap.pillars, drawMoved: moved,
                 saved: saved && { doors: saved.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat, onClosed: d.onClosed })), red: saved.rep.red,
                                   strut: saved.strut, floats: saved.floats, fittings: saved.fittings },
                 snap: { doors: snap.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat, onClosed: d.onClosed })), red: snap.rep.red,
@@ -77,7 +93,7 @@ const cell = (s, key) => {
   return (d.minMM < PS.SWING_RED_MM ? '**RED ' : '') + d.minMM + ' mm' + (d.deg != null ? ' @' + d.deg + '°' : '') + (d.minMM < PS.SWING_RED_MM ? '**' : '') +
          (c.length ? ' (' + c.join(', ') + ')' : '') + (on.length ? '; ON the closed door: ' + on.join(', ') : '');
 };
-const md = ['| build | door | as saved: least (by kind, mm) | with the pillar snap | what the snap changes |', '|---|---|---|---|---|'];
+const md = ['| build | door | BEFORE: as placed, swept to 90° (least, by kind, mm) | AFTER: the snap on, swept to the stop (75°) | what the snap changes |', '|---|---|---|---|---|'];
 for (const r of rows) {
   if (r.error) { md.push(`| ${r.build} | - | ${r.error} | | |`); continue; }
   const keys = [...new Set([].concat((r.saved || r.snap).doors.map(d => d.key), r.snap.doors.map(d => d.key)))];
@@ -90,6 +106,8 @@ for (const r of rows) {
     md.push(`| ${path.basename(r.build)} | ${k} | ${cell(r.saved, k)} | ${cell(r.snap, k)} | ${k === keys[0] ? chg || 'nothing' : ''} |`);
   }
 }
+md.push('', '**The drawings the snap moves** (layers whose vertices differ, before vs after; the remodelled fittings are', 'not in this column - both runs draw them):', '');
+for (const r of rows) if (!r.error) md.push('- ' + path.basename(r.build) + ': ' + (r.drawMoved && r.drawMoved.length ? r.drawMoved.join(', ') : 'nothing'));
 const out = opt('out', null);
 if (out) {
   fs.writeFileSync(out + '.json', JSON.stringify(rows, null, 1));

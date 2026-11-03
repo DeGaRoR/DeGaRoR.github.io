@@ -53,9 +53,6 @@ const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const CG2 = window.CAGE2, GG = window.GEAR_GEN, K = window.GEAR_KIT;
 let OPEN_BAND = { P: null, v: null };     // G3519: the open cockpits' crown band, once a build
 const SITE = window.FIT_SITE, FG = window.FIT_GEN;
-// PILLAR-ANCHORS: the latch lever's sizes (FIT_GEN.FORMS.handleLever): the escutcheon's length and height, the
-// lever's stand-off, its bar's half-thickness - a light-aircraft outside handle, 115 x 36 mm, 22 mm proud
-const LEVER_SIZE = { w: 0.115, h: 0.036, reach: 0.022, r: 0.006 };
 // the fittings that are ANCHORS (a hand or a foot or a rope pulls on them): on the pillars, these go to a pillar
 const PIL_ANCHORS = new Set(['step', 'grabHandle']);
 if (!SITE || !FG || !K) {
@@ -692,7 +689,7 @@ PAGE.post = ctx => {
   let wingF2 = null, wing2Tried = false;      // G185: the second plane's field
 
   // PILLAR-ANCHORS (2026-11-02, the user: "Pillars should really be the target for all fixation devices and
-  // anchors"): with `pilSnap` on, the door handle is the latch lever (form 'handleLever'), held to its strip by the
+  // anchors"): with `pilSnap` on, the door handle is held to its latch strip by the
   // aft edge, and a body fitting whose site lands on a door's panel (measured on _4b: the boarding step and the belly
   // inspection plate on the pilot door) goes to the nearest pillar at its own height, off every door face
   const pilOn = Math.round(+P.pilSnap || 0) === 1;
@@ -718,9 +715,7 @@ PAGE.post = ctx => {
     // trap bay is not the cowl's colour, is pixelated and does not bend to
     // the cowl"). One door: the cowl's, whenever the cowl layer is drawn.
     if (row.key === 'oilDoor' && Math.round(P.cowlOn === undefined ? 1 : P.cowlOn)) continue;
-    // PILLAR-ANCHORS: on the pillars, the door handle is the latch lever (FIT_GEN's handleLever)
-    const leverRow = pilOn && row.key === 'doorHandle' && FG.FORMS.handleLever;
-    const form = FG.FORMS[leverRow ? 'handleLever' : row.form];
+    const form = FG.FORMS[row.form];
     if (!form) { if (!row.absent) unplaced.push(row); continue; }
 
     // ONLY THE CAGE IS IN CAGE UNITS. Its field and its vertices both scale by
@@ -762,17 +757,15 @@ PAGE.post = ctx => {
       const edge = Math.round(+P.hgDoorEdge || 0);
       // DOOR-HINGES-2: on the door's SOLID skin (never its glass), lying
       // along the chord; the frame beside it when the door has no room
-      // PILLAR-ANCHORS: THE HANDLE BY THE LATCH. On the pillars, the handle is a lever by the door's latch edge (the
-      // edge it shuts against the pillar on): its near end 25 mm in from that edge, at the waist, and the two nudges
-      // HELD to the latch strip - 0..0.10 m further in along the chord, +-0.15 m up or down - so no nudge walks it
-      // into the middle of the panel; the search under it still keeps it off the glass
-      const lever = pilOn;
-      const dSLh = lever ? Math.max(0, Math.min(0.10, dSL)) : dSL, dLVh = lever ? Math.max(-0.15, Math.min(0.15, dLV)) : dLV;
-      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: (lever ? 0.025 : 0.06) / FS, dSL: dSLh / FS, dLV: dLVh,
-                                                    mesh, FS, size: lever ? LEVER_SIZE : row.size })).filter(Boolean)
-        // which way along the chord the latch is: the site lies `along` the chord, +z (forward); the latch is the
-        // edge opposite the hinges - aft (-) for a forward-hung door, forward (+) for an aft-hung one
-        .map(st => Object.assign(st, { latch: edge === 2 ? 1 : -1 }));
+      // PILLAR-ANCHORS: THE HANDLE BY THE LATCH. On the pillars the handle is held to the latch strip: its near
+      // foot 40 mm in from the edge the door shuts against the pillar on, at the waist, the two nudges HELD to the
+      // strip - 0..0.10 m further in along the chord, +-0.15 up or down - so no nudge walks it into the middle of
+      // the panel; the search under it still keeps it off the glass. (3 Nov: the latch lever it wore for a day is
+      // gone - the user: "the old U style would even be better" - the U is the table's own, smoothed)
+      const strip = pilOn;
+      const dSLh = strip ? Math.max(0, Math.min(0.10, dSL)) : dSL, dLVh = strip ? Math.max(-0.15, Math.min(0.15, dLV)) : dLV;
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: (strip ? 0.04 : 0.06) / FS, dSL: dSLh / FS, dLV: dLVh,
+                                                    mesh, FS, size: row.size })).filter(Boolean);
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
@@ -1063,7 +1056,7 @@ PAGE.post = ctx => {
       // merged bags, so the range every form wrote is recorded with the site
       const B = bagsFor(s.host);
       const t0 = {}; for (const k of FG.FIT_BAGS) t0[k] = B[k].tris;
-      try { form(B, F, (leverRow ? LEVER_SIZE : row.size) || {}, { surf, pitch, latch: s.latch }); }
+      try { form(B, F, row.size || {}, { surf, pitch }); }
       catch (e) { unplaced.push(row); continue; }
       nFit++;
       const tris = {}; for (const k of FG.FIT_BAGS) tris[k] = [t0[k], B[k].tris];

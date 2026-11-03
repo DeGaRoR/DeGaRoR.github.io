@@ -11,16 +11,17 @@
 //   1 THE SWEEP IS A RULER: a flat 0.8 x 1.0 m door hinged on a vertical line, turned 0 -> 90 deg past a post a
 //     known distance from its arc - PILLAR_SITE.swingSweep reads the analytic clearance to 3 mm, at the analytic
 //     angle; a post ON the panel reads 0; the door's own fitting (an access-layer plate on it) is not an obstacle.
-//   2 SNAP OFF IS THE BUILD AS IT WAS (the validated aeroplanes stay bit-identical): every validated build loads with
-//     pilSnap 0 (absent from its cage: CAGE_ZERO_ABSENT, never written at 0), and with the snap off every layer draws
-//     the SAME vertices with the pillar module loaded or removed (a hash of the scene's positions, both ways).
+//   2 THE SNAP FOR EVERY SAVED BUILD (the user's call, 3 Nov): every validated build loads with pilSnap 1 (absent
+//     from its cage, CAGE_DEFAULT_ABSENT); the flown spec through the load door is the same with the snap on or off
+//     (the physics is the build's own); the meshes the snap moves are printed; snap off, the module removed draws
+//     the same vertices (the off path is master's).
 //   3 THE PILLAR RECORD: the C172-alike card (born in the design flow) has its B and C pillars, each carrying its
 //     frame ring (B's forward ring = the join's noseGap station, C's aft ring = the cabin's rear), off every door;
-//     the card is born with pilSnap 1 (the default for a new placement).
+//     the card is born with the snap on (the default; no key in its cage).
 //   4 SNAP ON (the C172-alike and the twin floatplane fixture with pilSnap 1): the lift strut's foot stands on the
 //     pillar the frame roots the strut on; the float struts' roots on the pillars the frame hangs the truss on; no
-//     strut root on a door's panel; no anchor (step, grab) on a door's panel; the door handle is the latch lever,
-//     within 0.15 m of the latch edge, and light (< 300 triangles a handle).
+//     strut root on a door's panel; no anchor (step, grab) on a door's panel; the door handle (the U) by its latch
+//     edge; the swing swept to the 75 deg door stop.
 //   5 THE DOOR-SWING TABLE, printed (the C172-alike as born): every door's least clearance and its obstacle kinds -
 //     reported, not bounded (the user decides per build; tools/door_swing_survey.js is the repo-wide table).
 'use strict';
@@ -95,23 +96,37 @@ const sceneHashes = r => {
 };
 const diffKeys = (x, y) => [...new Set([...Object.keys(x), ...Object.keys(y)])].filter(k => x[k] !== y[k]);
 
-// ---- 2 snap off = the build as it was ------------------------------------------------------------------------------
+// ---- 2 THE SNAP FOR EVERY SAVED BUILD, THE PHYSICS AS IT WAS (the user's call, 3 Nov) ---------------------------------
+// Every saved build loads with pilSnap 1 (absent from its cage: CAGE_DEFAULT_ABSENT). The snap moves DRAWINGS only:
+// the game's spec through the load door (the join over what the editor drew) is the same with the snap 0 or 1 but
+// for the row itself, so the frame, the masses and every physics digest are the build's own. The drawings that do
+// move are printed per layer (READY names them); the module removed with the snap OFF still draws exactly master.
+const fsx = require('fs');
+const specNoCage = sp => { const o = JSON.parse(JSON.stringify(sp)); delete o.cage; return JSON.stringify(o); };
 for (const key of Object.keys(LB.VALIDATED)) {
-  const L = LB.loadValidated(key);
-  const cage = (L.spec && L.spec.cage) || {};
-  ok(!('pilSnap' in cage), `IDENTITY ${L.label}: no pilSnap in its cage (a saved build is never moved)`);
-  const r1 = build(L.spec);
-  ok(Math.round(+r1.P.pilSnap || 0) === 0, `IDENTITY ${L.label}: loads with the snap off`, r1.P.pilSnap);
-  // two builds with the module loaded give the NOISE (the light layer's beacon turns between builds); a third
-  // with the module removed may differ from them only there
-  const h1 = sceneHashes(r1), h2 = sceneHashes(build(L.spec));
+  const B = LB.VALIDATED[key];
+  let raw = JSON.parse(fsx.readFileSync(path.join(T, '..', B.build), 'utf8'));
+  if (B.patch) raw = B.patch(raw);
+  const cage = (raw.spec && raw.spec.cage) || {};
+  ok(!('pilSnap' in cage), `IDENTITY ${B.label}: no pilSnap in its saved cage (it loads at the default, on)`);
+  const on = LB.gameSpecFull(raw).spec;
+  const raw0 = JSON.parse(JSON.stringify(raw)); raw0.spec.cage = Object.assign({}, raw0.spec.cage, { pilSnap: 0 });
+  const off = LB.gameSpecFull(raw0).spec;
+  ok(specNoCage(on) === specNoCage(off), `IDENTITY ${B.label}: the flown spec is the same with the snap on or off (the physics is the build's own)`);
+  const r1 = build(on);
+  ok(Math.round(+r1.P.pilSnap) === 1, `IDENTITY ${B.label}: loads with the snap on`, r1.P.pilSnap);
+  const h1 = sceneHashes(r1), h2 = sceneHashes(build(on));
   const noise = new Set(diffKeys(h1, h2));
+  const h0 = sceneHashes(build(on, { pilSnap: 0 }));
+  const moved = diffKeys(h2, h0).filter(k => !noise.has(k));
+  console.log(`  draw   ${B.label}: the snap moves ${moved.length} of ${Object.keys(h2).length} meshes` + (moved.length ? ' - ' + [...new Set(moved.map(k => k.split('/')[0].replace('cageLayer:', '') + ' ' + (k.split('/')[1] || '').split('#')[0]))].join(', ') : ''));
+  // with the snap off, the module removed changes nothing (the off path is master's)
   const W = r1.W, keep = W.PILLAR_SITE;
   W.PILLAR_SITE = undefined;
-  let h0;
-  try { h0 = sceneHashes(build(L.spec)); } finally { W.PILLAR_SITE = keep; }
-  const moved = diffKeys(h2, h0).filter(k => !noise.has(k));
-  ok(!moved.length, `IDENTITY ${L.label}: every layer's vertices the same with the pillar module removed (${Object.keys(h2).length} meshes, ${noise.size} build-to-build noise)`, moved.slice(0, 4).join(', '));
+  let hx;
+  try { hx = sceneHashes(build(on, { pilSnap: 0 })); } finally { W.PILLAR_SITE = keep; }
+  const moved0 = diffKeys(h0, hx).filter(k => !noise.has(k));
+  ok(!moved0.length, `IDENTITY ${B.label}: snap off, every layer's vertices the same with the pillar module removed`, moved0.slice(0, 4).join(', '));
 }
 
 // ---- 3 + 4 + 5 the C172-alike, born ---------------------------------------------------------------------------------
@@ -163,12 +178,13 @@ const checkSnap = (label, spec, opt) => {
   if (PSx.doors.length) {
     ok(hd.length === PSx.doors.length, `SNAP ${label}: a handle on every door side`, hd.length + ' / ' + PSx.doors.length);
     const tr = hd.map(q => Object.values(q.tris || {}).reduce((a, x) => a + (x[1] - x[0]), 0));
-    ok(tr.every(n => n > 20 && n < 300), `SNAP ${label}: the latch lever is light (< 300 triangles)`, tr.join(' '));
+    ok(tr.every(n => n > 20 && n < 700), `SNAP ${label}: the U handle drawn (smoothed, < 700 triangles)`, tr.join(' '));
     const near = hd.map(q => { const d = PSx.doors.find(dd => dd.sgn === (q.p[0] >= 0 ? 1 : -1) && q.p[2] >= dd.z0 - 0.02 && q.p[2] <= dd.z1 + 0.02);
       return d ? q.p[2] - d.z0 : null; });   // forward-hung: the latch is the aft edge (z0)
-    ok(near.every(x => x != null && x >= 0 && x <= 0.15), `SNAP ${label}: each handle within 0.15 m of its latch edge`, near.map(x => x == null ? '-' : x.toFixed(3)).join(' '));
+    ok(near.every(x => x != null && x >= 0 && x <= 0.20), `SNAP ${label}: each handle's centre within 0.20 m of its latch edge`, near.map(x => x == null ? '-' : x.toFixed(3)).join(' '));
   }
-  const rep = PSm.doorSwingReport(W.THREE, r.scene, r.built.sheet, R, r.FS, { edge: Math.round(+r.P.hgDoorEdge || 0), hinges: W.CAGE_HINGE && W.CAGE_HINGE.doors });
+  const rep = PSm.doorSwingReport(W.THREE, r.scene, r.built.sheet, R, r.FS, { edge: Math.round(+r.P.hgDoorEdge || 0), hinges: W.CAGE_HINGE && W.CAGE_HINGE.doors, stop: +r.P.doorStop || 75 });
+  ok(rep.stopDeg === 75 && rep.doors.every(d => d.deg == null || d.deg <= 75), `STOP ${label}: swept to the 75 deg door stop`, rep.stopDeg);
   for (const d of rep.doors)
     console.log('  table  ' + label + '  ' + PSm.swingLine(d) + (d.red ? '  RED' : '') + '  ' +
       Object.entries(d.byCat || {}).map(([k, v]) => k + ' ' + v.mm).join(', '));
@@ -176,7 +192,7 @@ const checkSnap = (label, spec, opt) => {
 };
 {
   const { s0, spec } = born('c172');
-  ok(+((s0.cage || {}).pilSnap) === 1, 'BIRTH C172-alike: born with the pillar snap on (a new placement)', (s0.cage || {}).pilSnap);
+  ok(!('pilSnap' in (s0.cage || {})), 'BIRTH C172-alike: the card carries no pilSnap (the default, on)', (s0.cage || {}).pilSnap);
   checkSnap('C172-alike', spec, { pillars: true, strut: true });
 }
 {

@@ -559,7 +559,7 @@ function sceneObstacles(THREE, scene, opt) {
 // the row's edge otherwise) against every drawn layer: the least clearance per door and per kind of obstacle, and
 // RED under SWING_RED_MM. `hinges` CAGE_HINGE.doors; `edge` the hinge row. ~1 s a door: the editor runs it when the
 // hand stops (the hinge layer schedules it), the gates and the survey call it, the join only READS the last answer.
-const SWING_RED_MM = 20;
+const SWING_RED_MM = 20, SWING_STOP = 75;
 function doorSwingReport(THREE, scene, mesh, R, FS, o) {
   o = o || {};
   const PS = pillarsOf(mesh, R, FS);
@@ -572,12 +572,15 @@ function doorSwingReport(THREE, scene, mesh, R, FS, o) {
   }
   const obs = sceneObstacles(THREE, scene, Object.assign({ box: bx }, o));
   const doors = [];
+  // THE STOP (the build's doorStop row, 75 deg by default - the user's call, 3 Nov): the doors open that far and no
+  // further, so that is how far they are swept
+  const stop = o.stop > 0 ? +o.stop : SWING_STOP;
   for (const d of PS.doors) {
-    const sw = swingSweep(d, axesOf(d, o.edge, o.hinges), obs, o);
-    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, byCat: sw.byCat, onClosed: sw.onClosed, red: sw.minMM < SWING_RED_MM });
+    const sw = swingSweep(d, axesOf(d, o.edge, o.hinges), obs, Object.assign({}, o, { max: stop }));
+    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, byCat: sw.byCat, onClosed: sw.onClosed, stop, red: sw.minMM < SWING_RED_MM });
   }
   const worst = doors.reduce((a, d) => (!a || d.minMM < a.minMM ? d : a), null);
-  return { doors, worst, red: doors.some(d => d.red), redMM: SWING_RED_MM };
+  return { doors, worst, red: doors.some(d => d.red), redMM: SWING_RED_MM, stopDeg: stop };
 }
 // one line for a door's answer ('pilot:P 0 mm at 3 deg (float strut), on the closed door: float strut')
 function swingLine(d) {
@@ -587,7 +590,7 @@ function swingLine(d) {
          (on.length ? ', on the closed door: ' + on.join(', ') : '');
 }
 
-const API = { SWING_CATS, SWING_RED_MM, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
+const API = { SWING_CATS, SWING_RED_MM, SWING_STOP, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PILLAR_SITE = API;
 })();
