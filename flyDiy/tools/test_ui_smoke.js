@@ -679,6 +679,9 @@ try {
   // THE CLOCK (G2650 SIM-CLOCK): day_clock.js rides the RENDER block too - run from its own source so app.js binds the
   // real DAY_CLOCK (no storage, no location here: the game's day) and the route rows carry its clock line and wait select
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8'), sandbox, { filename: 'day_clock.js' });
+  // TIME-CONTROLS: day_ui.js (window.DAY_UI, the time menu) rides the same block - run from its own source so the G2650
+  // block finds the page's time menu
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_ui.js'), 'utf8'), sandbox, { filename: 'day_ui.js' });
   // G3070 (ROUTE-LAZY): the drawn route's door (route_lazy.js) rides the RENDER block - run from its own source, with
   // the page's file name (index.html's ROUTE_LOADER) and a fetch that records the drawing's file and never answers (the
   // drawing itself is GATE ROUTE's); any other fetch is what it was here, absent
