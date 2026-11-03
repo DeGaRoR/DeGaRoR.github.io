@@ -1,0 +1,2401 @@
+{
+ "lines": [
+  "== tank 0 nose lv 0.25..1.00",
+  "  lv=0.250 y=-0.260  NOW RED 12 mm into the cowl; 103 mm into a crew member  |  LEGACY RED through the crew (2247 points); through the cowl (22 points); through the skin or the frame (1 drawn points)",
+  "  lv=0.300 y=-0.234  NOW RED 82 mm into a crew member  |  LEGACY RED through the crew (2087 points)",
+  "  lv=0.350 y=-0.208  NOW RED 57 mm into a crew member  |  LEGACY RED through the crew (1431 points)",
+  "  lv=0.400 y=-0.182  NOW RED 32 mm into a crew member  |  LEGACY RED through the crew (1208 points)",
+  "  lv=0.450 y=-0.157  NOW RED 7 mm into a crew member  |  LEGACY RED through the crew (820 points)",
+  "  lv=0.500 y=-0.131  NOW fits (29 mm to skin (plywood), right)  |  LEGACY fits",
+  "  lv=0.550 y=-0.105  NOW fits (10 mm to skin (plywood), left)  |  LEGACY fits",
+  "  lv=0.600 y=-0.079  NOW fits (6 mm to skin (plywood), left)  |  LEGACY RED through the skin by 24 mm",
+  "  lv=0.650 y=-0.053  NOW RED no room for the pads: 5 mm to the skin (plywood), left (needs 5)  |  LEGACY RED through the skin by 50 mm",
+  "  lv=0.700 y=-0.027  NOW RED 11 mm into the skin (plywood), right  |  LEGACY RED through the skin by 75 mm; through the skin or the frame (66 drawn points)",
+  "  lv=0.750 y=-0.001  NOW RED 33 mm into the skin (plywood), left  |  LEGACY RED through the skin by 101 mm; through the skin or the frame (223 drawn points)",
+  "  lv=0.800 y=0.018  NOW RED 45 mm into the skin (plywood), left  |  LEGACY RED through the skin by 121 mm; through the skin or the frame (326 drawn points)",
+  "  lv=0.850 y=0.018  NOW RED 45 mm into the skin (plywood), left  |  LEGACY RED through the skin by 121 mm; through the skin or the frame (326 drawn points)",
+  "  lv=0.900 y=0.018  NOW RED 45 mm into the skin (plywood), left  |  LEGACY RED through the skin by 121 mm; through the skin or the frame (326 drawn points)",
+  "  lv=0.950 y=0.018  NOW RED 45 mm into the skin (plywood), left  |  LEGACY RED through the skin by 121 mm; through the skin or the frame (326 drawn points)",
+  "  lv=1.000 y=0.018  NOW RED 45 mm into the skin (plywood), left  |  LEGACY RED through the skin by 121 mm; through the skin or the frame (326 drawn points)",
+  "  fitOf ms median: now 138.8, legacy 33.1",
+  "== tank 0 nose along -0.50..0.60",
+  "  along=-0.499 y=-0.195  NOW RED 108 mm into the engine, right  |  LEGACY RED runs out of the body; 10 corners past the bay; through the engine (848 points); through the skin or the frame (576 drawn points)",
+  "  along=-0.469 y=-0.195  NOW RED 107 mm into the engine, right  |  LEGACY RED runs out of the body; 10 corners past the bay; through the engine (631 points); through the skin or the frame (508 drawn points)",
+  "  along=-0.439 y=-0.194  NOW RED 97 mm into the engine, right  |  LEGACY RED runs out of the body; 10 corners past the bay; through the engine (309 points); through the skin or the frame (504 drawn points)",
+  "  along=-0.409 y=-0.194  NOW RED 79 mm into the engine, right  |  LEGACY RED runs out of the body; 10 corners past the bay; through the engine (95 points); through the skin or the frame (504 drawn points)",
+  "  along=-0.379 y=-0.194  NOW RED 50 mm into the engine, right; 10 mm into a crew member  |  LEGACY RED runs out of the body; 6 corners past the bay; through the crew (289 points); through the engine (67 points); through the skin or the frame (504 drawn points)",
+  "  along=-0.349 y=-0.160  NOW RED 20 mm into the engine, right; 7 mm into a crew member  |  LEGACY RED runs out of the body; 6 corners past the bay; through the crew (241 points); through the engine (41 points); through the skin or the frame (283 drawn points)",
+  "  along=-0.319 y=-0.136  NOW fits (7 mm to engine, left)  |  LEGACY RED 6 corners past the bay",
+  "  along=-0.289 y=-0.130  NOW fits (19 mm to frame (woodFrame), right)  |  LEGACY fits",
+  "  along=-0.259 y=-0.125  NOW fits (24 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=-0.229 y=-0.122  NOW fits (20 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=-0.199 y=-0.125  NOW fits (23 mm to skin (plywood), left)  |  LEGACY RED through the crew (4 points)",
+  "  along=-0.169 y=-0.111  NOW fits (18 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=-0.139 y=-0.030  NOW RED 4 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 66 mm; through the skin or the frame (100 drawn points)",
+  "  along=-0.109 y=0.047  NOW RED 42 mm into the frame (woodFrame), left; 9 mm into the panel  |  LEGACY RED through the skin by 126 mm; through the crew (84 points); through the dash (32 points); through the skin or the frame (331 drawn points)",
+  "  along=-0.079 y=0.106  NOW RED 78 mm into the skin (plywood), left; 39 mm into the panel  |  LEGACY RED through the skin by 174 mm; through the crew (1148 points); through the dash (382 points); through the skin or the frame (775 drawn points)",
+  "  along=-0.049 y=0.114  NOW RED 76 mm into the skin (plywood), left; 69 mm into the panel  |  LEGACY RED through the skin by 182 mm; through the crew (3873 points); through the dash (418 points); through the skin or the frame (896 drawn points)",
+  "  along=-0.019 y=0.122  NOW RED 73 mm into the frame (joint), left; 93 mm into the panel  |  LEGACY RED through the skin by 180 mm; through the crew (15893 points); through the dash (952 points); through the skin or the frame (985 drawn points)",
+  "  along=0.011 y=0.129  NOW RED 76 mm into the dash, left; 101 mm into the panel  |  LEGACY RED through the skin by 187 mm; through the crew (15673 points); through the dash (1814 points); through the skin or the frame (1021 drawn points)",
+  "  along=0.041 y=0.133  NOW RED 81 mm into the dash, left; 98 mm into the panel  |  LEGACY RED through the skin by 180 mm; through the crew (15510 points); through the dash (1796 points); through the skin or the frame (1018 drawn points)",
+  "  along=0.071 y=0.137  NOW RED 95 mm into the dash, left; 97 mm into the panel  |  LEGACY RED through the skin by 184 mm; through the crew (15308 points); through the dash (1782 points); through the skin or the frame (1007 drawn points)",
+  "  along=0.101 y=0.140  NOW RED 105 mm into the dash, left; 107 mm into the crew  |  LEGACY RED through the skin by 187 mm; through the crew (14974 points); through the dash (1738 points); through the skin or the frame (1009 drawn points)",
+  "  along=0.131 y=0.142  NOW RED 106 mm into the dash, left; 109 mm into the crew  |  LEGACY RED through the skin by 155 mm; through the crew (14906 points); through the dash (1694 points); through the skin or the frame (1095 drawn points)",
+  "  along=0.161 y=0.143  NOW RED 108 mm into the dash, left; 107 mm into the crew  |  LEGACY RED through the skin by 155 mm; through the crew (14874 points); through the dash (1654 points); through the skin or the frame (857 drawn points)",
+  "  along=0.191 y=0.144  NOW RED 109 mm into the dash, left; 106 mm into the crew  |  LEGACY RED through the skin by 156 mm; through the crew (14850 points); through the dash (1588 points); through the skin or the frame (578 drawn points)",
+  "  along=0.221 y=0.143  NOW RED 108 mm into the dash, left; 107 mm into the crew  |  LEGACY RED through the skin by 88 mm; through the crew (14874 points); through the dash (1550 points); through the skin or the frame (504 drawn points)",
+  "  along=0.251 y=0.143  NOW RED 103 mm into the dash, left; 98 mm into the crew  |  LEGACY RED through the skin by 88 mm; through the crew (14888 points); through the dash (1502 points); through the skin or the frame (432 drawn points)",
+  "  along=0.281 y=0.142  NOW RED 87 mm into the dash, left; 85 mm into the crew  |  LEGACY RED through the skin by 34 mm; through the crew (14822 points); through the dash (1462 points); through the skin or the frame (352 drawn points)",
+  "  along=0.311 y=0.141  NOW RED 62 mm into the dash, left; 80 mm into the crew  |  LEGACY RED through the skin by 34 mm; through the crew (14384 points); through the dash (1406 points); through the skin or the frame (216 drawn points)",
+  "  along=0.341 y=0.141  NOW RED 32 mm into the dash, left; 61 mm into the crew  |  LEGACY RED through the skin by 34 mm; through the crew (12687 points); through the dash (1342 points); through the skin or the frame (124 drawn points)",
+  "  along=0.371 y=0.141  NOW RED 2 mm into the dash, left; 42 mm into the crew  |  LEGACY RED through the skin by 34 mm; through the crew (637 points); through the skin or the frame (24 drawn points)",
+  "  along=0.401 y=0.139  NOW RED 12 mm into the crew  |  LEGACY RED through the skin by 33 mm; through the crew (149 points)",
+  "  along=0.431 y=0.138  NOW RED 5 mm into a crew member  |  LEGACY RED through the skin by 33 mm; 6 corners past the bay; through the crew (679 points)",
+  "  along=0.461 y=0.136  NOW RED 22 mm into a crew member  |  LEGACY RED through the skin by 33 mm; 6 corners past the bay; through the crew (1130 points)",
+  "  along=0.491 y=0.135  NOW RED 41 mm into a crew member  |  LEGACY RED through the skin by 32 mm; 6 corners past the bay; through the crew (1516 points)",
+  "  along=0.521 y=0.133  NOW RED 52 mm into a crew member  |  LEGACY RED runs out of the body; 10 corners past the bay; through the crew (2034 points)",
+  "  along=0.551 y=0.132  NOW RED 72 mm into a crew member  |  LEGACY RED runs out of the body; 10 corners past the bay; through the crew (2393 points)",
+  "  along=0.581 y=0.131  NOW RED 92 mm into a crew member  |  LEGACY RED runs out of the body; 10 corners past the bay; through the crew (2643 points)",
+  "  fitOf ms median: now 276.4, legacy 162.6",
+  "== tank 1 cabin lv 0.00..1.00",
+  "  lv=0.000 y=-0.407  NOW RED 11 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 62 mm; through the skin or the frame (134 drawn points)",
+  "  lv=0.050 y=-0.407  NOW RED 11 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 62 mm; through the skin or the frame (134 drawn points)",
+  "  lv=0.100 y=-0.407  NOW RED 11 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 62 mm; through the skin or the frame (134 drawn points)",
+  "  lv=0.150 y=-0.407  NOW RED 11 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 62 mm; through the skin or the frame (134 drawn points)",
+  "  lv=0.200 y=-0.389  NOW RED 0 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 45 mm; through the skin or the frame (28 drawn points)",
+  "  lv=0.250 y=-0.331  NOW fits (7 mm to skin (plywood), left)  |  LEGACY fits",
+  "  lv=0.300 y=-0.273  NOW fits (9 mm to frame (woodFrame), right)  |  LEGACY fits",
+  "  lv=0.350 y=-0.215  NOW fits (9 mm to skin (plywood), right)  |  LEGACY fits",
+  "  lv=0.400 y=-0.157  NOW fits (6 mm to skin (plywood), left)  |  LEGACY fits",
+  "  lv=0.450 y=-0.099  NOW fits (8 mm to skin (plywood), left)  |  LEGACY fits",
+  "  lv=0.500 y=-0.041  NOW fits (6 mm to frame (woodFrame), left)  |  LEGACY RED through the skin by 0 mm",
+  "  lv=0.550 y=0.017  NOW RED no room for the pads: 3 mm to the frame (woodFrame), right (needs 5)  |  LEGACY RED through the skin by 26 mm",
+  "  lv=0.600 y=0.075  NOW RED 14 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 52 mm; through the skin or the frame (96 drawn points)",
+  "  lv=0.650 y=0.133  NOW RED 28 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 77 mm; through the skin or the frame (173 drawn points)",
+  "  lv=0.700 y=0.191  NOW RED 28 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 103 mm; through the skin or the frame (173 drawn points)",
+  "  lv=0.750 y=0.250  NOW RED 39 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 128 mm; through the skin or the frame (173 drawn points)",
+  "  lv=0.800 y=0.308  NOW RED 39 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 153 mm; through the skin or the frame (173 drawn points)",
+  "  lv=0.850 y=0.325  NOW RED 42 mm into the skin (body), left  |  LEGACY RED through the skin by 161 mm; through the skin or the frame (181 drawn points)",
+  "  lv=0.900 y=0.325  NOW RED 42 mm into the skin (body), left  |  LEGACY RED through the skin by 161 mm; through the skin or the frame (181 drawn points)",
+  "  lv=0.950 y=0.325  NOW RED 42 mm into the skin (body), left  |  LEGACY RED through the skin by 161 mm; through the skin or the frame (181 drawn points)",
+  "  lv=1.000 y=0.325  NOW RED 42 mm into the skin (body), left  |  LEGACY RED through the skin by 161 mm; through the skin or the frame (181 drawn points)",
+  "  fitOf ms median: now 150.0, legacy 67.1",
+  "== tank 1 cabin along 0.35..2.15",
+  "  along=0.346 y=-0.213  NOW RED 92 mm into a crew member  |  LEGACY RED through the skin by 1 mm; 14 corners past the bay; through the crew (5344 points)",
+  "  along=0.376 y=-0.215  NOW RED 94 mm into a crew member  |  LEGACY RED through the skin by 1 mm; 10 corners past the bay; through the crew (4634 points)",
+  "  along=0.406 y=-0.218  NOW RED 94 mm into a crew member  |  LEGACY RED through the skin by 1 mm; 6 corners past the bay; through the crew (4483 points)",
+  "  along=0.436 y=-0.220  NOW RED 93 mm into a crew member  |  LEGACY RED through the skin by 0 mm; 6 corners past the bay; through the crew (4578 points)",
+  "  along=0.466 y=-0.223  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (4358 points)",
+  "  along=0.496 y=-0.226  NOW RED 92 mm into a crew member  |  LEGACY RED through the crew (3562 points)",
+  "  along=0.526 y=-0.228  NOW RED 93 mm into a crew member  |  LEGACY RED through the crew (2748 points)",
+  "  along=0.556 y=-0.231  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (2297 points)",
+  "  along=0.586 y=-0.233  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (2440 points)",
+  "  along=0.616 y=-0.235  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (2461 points)",
+  "  along=0.646 y=-0.237  NOW RED 92 mm into a crew member  |  LEGACY RED through the crew (2560 points)",
+  "  along=0.676 y=-0.239  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (2657 points)",
+  "  along=0.706 y=-0.241  NOW RED 92 mm into a crew member  |  LEGACY RED through the crew (2548 points)",
+  "  along=0.736 y=-0.242  NOW RED 92 mm into a crew member  |  LEGACY RED through the crew (2329 points)",
+  "  along=0.766 y=-0.244  NOW RED 93 mm into a crew member  |  LEGACY RED through the crew (2074 points)",
+  "  along=0.796 y=-0.245  NOW RED 91 mm into a crew member  |  LEGACY RED through the crew (1780 points)",
+  "  along=0.826 y=-0.246  NOW RED 94 mm into a crew member  |  LEGACY RED through the crew (1615 points)",
+  "  along=0.856 y=-0.246  NOW RED 92 mm into a seat  |  LEGACY RED through the crew (1334 points)",
+  "  along=0.886 y=-0.247  NOW RED 93 mm into a seat  |  LEGACY RED through the crew (1095 points)",
+  "  along=0.916 y=-0.247  NOW RED 94 mm into a seat  |  LEGACY RED through the crew (755 points)",
+  "  along=0.946 y=-0.247  NOW RED 14 mm into the bulkhead, right; 72 mm into a seat  |  LEGACY RED through the crew (418 points); through the skin or the frame (310 drawn points)",
+  "  along=0.976 y=-0.248  NOW RED 44 mm into the bulkhead, right; 44 mm into a seat  |  LEGACY RED through the crew (250 points); through the skin or the frame (522 drawn points)",
+  "  along=1.006 y=-0.248  NOW RED 75 mm into the bulkhead, right; 23 mm into a seat  |  LEGACY RED through the crew (116 points); through the skin or the frame (600 drawn points)",
+  "  along=1.036 y=-0.246  NOW RED 88 mm into the bulkhead, left; within 10 mm of a seat  |  LEGACY RED through the crew (32 points); through the skin or the frame (636 drawn points)",
+  "  along=1.066 y=-0.245  NOW RED 59 mm into the bulkhead, left  |  LEGACY RED through the skin or the frame (504 drawn points)",
+  "  along=1.096 y=-0.243  NOW RED 28 mm into the bulkhead, left  |  LEGACY RED through the skin or the frame (384 drawn points)",
+  "  along=1.126 y=-0.240  NOW RED no room for the pads: 1 mm to the bulkhead, left (needs 5)  |  LEGACY RED through the skin or the frame (48 drawn points)",
+  "  along=1.156 y=-0.237  NOW fits (9 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.186 y=-0.234  NOW fits (6 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.216 y=-0.231  NOW fits (25 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.246 y=-0.229  NOW fits (28 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.276 y=-0.226  NOW fits (28 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=1.306 y=-0.223  NOW fits (7 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=1.336 y=-0.220  NOW fits (10 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=1.366 y=-0.217  NOW fits (6 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.396 y=-0.214  NOW fits (10 mm to skin (plywood), left)  |  LEGACY fits",
+  "  along=1.426 y=-0.211  NOW fits (5 mm to frame (woodFrame), right)  |  LEGACY fits",
+  "  along=1.456 y=-0.208  NOW fits (8 mm to frame (woodFrame), right)  |  LEGACY fits",
+  "  along=1.486 y=-0.205  NOW fits (8 mm to skin (plywood), right)  |  LEGACY fits",
+  "  along=1.516 y=-0.202  NOW fits (5 mm to floor frame (floorLoop), right)  |  LEGACY RED through the skin by 8 mm",
+  "  along=1.546 y=-0.199  NOW fits (6 mm to skin (plywood), left)  |  LEGACY RED through the skin by 7 mm",
+  "  along=1.576 y=-0.196  NOW fits (5 mm to skin (plywood), left)  |  LEGACY RED through the skin by 17 mm",
+  "  along=1.606 y=-0.193  NOW fits (5 mm to skin (plywood), right)  |  LEGACY RED through the skin by 27 mm",
+  "  along=1.636 y=-0.190  NOW fits (5 mm to skin (plywood), left)  |  LEGACY RED through the skin by 26 mm",
+  "  along=1.666 y=-0.187  NOW RED no room for the pads: 5 mm to the skin (plywood), left (needs 5)  |  LEGACY RED through the skin by 36 mm",
+  "  along=1.696 y=-0.185  NOW RED no room for the pads: 2 mm to the skin (plywood), left (needs 5)  |  LEGACY RED through the skin by 46 mm; through the skin or the frame (4 drawn points)",
+  "  along=1.726 y=-0.182  NOW RED 0 mm into the skin (plywood), left  |  LEGACY RED through the skin by 45 mm; through the skin or the frame (57 drawn points)",
+  "  along=1.756 y=-0.179  NOW RED 18 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 55 mm; through the skin or the frame (164 drawn points)",
+  "  along=1.786 y=-0.176  NOW RED 48 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 54 mm; through the skin or the frame (181 drawn points)",
+  "  along=1.816 y=-0.173  NOW RED 74 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 64 mm; through the skin or the frame (192 drawn points)",
+  "  along=1.846 y=-0.170  NOW RED 81 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 74 mm; through the skin or the frame (223 drawn points)",
+  "  along=1.876 y=-0.167  NOW RED 60 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 73 mm; through the skin or the frame (262 drawn points)",
+  "  along=1.906 y=-0.164  NOW RED 30 mm into the frame (woodFrame), left  |  LEGACY RED through the skin by 83 mm; through the skin or the frame (298 drawn points)",
+  "  along=1.936 y=-0.161  NOW RED 14 mm into the floor frame (floorLoop), left  |  LEGACY RED through the skin by 82 mm; through the skin or the frame (294 drawn points)",
+  "  along=1.966 y=-0.158  NOW RED 11 mm into the floor frame (floorLoop), left  |  LEGACY RED through the skin by 92 mm; through the skin or the frame (304 drawn points)",
+  "  along=1.996 y=-0.155  NOW RED 12 mm into the floor frame (floorLoop), left  |  LEGACY RED through the skin by 101 mm; through the skin or the frame (336 drawn points)",
+  "  along=2.026 y=-0.152  NOW RED 36 mm into the skin (plywood), left  |  LEGACY RED through the skin by 101 mm; through the skin or the frame (342 drawn points)",
+  "  along=2.056 y=-0.149  NOW RED 53 mm into the skin (plywood), left  |  LEGACY RED through the skin by 111 mm; 6 corners past the bay; through the skin or the frame (346 drawn points)",
+  "  along=2.086 y=-0.146  NOW RED 58 mm into the skin (plywood), left  |  LEGACY RED through the skin by 120 mm; 6 corners past the bay; through the skin or the frame (346 drawn points)",
+  "  along=2.116 y=-0.143  NOW RED 50 mm into the skin (plywood), left  |  LEGACY RED through the skin by 120 mm; 10 corners past the bay; through the skin or the frame (346 drawn points)",
+  "  along=2.146 y=-0.141  NOW RED 31 mm into the skin (plywood), left  |  LEGACY RED runs out of the body; 14 corners past the bay; through the skin or the frame (346 drawn points)",
+  "  fitOf ms median: now 24.0, legacy 38.7",
+  "relayout (release) ms: legacy 338.8 {\"place\":1.8,\"crew\":86,\"surf\":137.6,\"draw\":39.7,\"total\":265.2} | now 8.7 {\"place\":2.9,\"crew\":0,\"surf\":4.2,\"draw\":0.2,\"total\":7.4}",
+  "drag tick ms (tank 0, 20 ticks of 1 cm): legacy relayout median 338.1 max 544.7 | now relayout median 8.5 max 1059.0 | now drag layout median 5.1 max 270.1",
+  "the build's own tanks now: nose 60 L fits | cabin 63 L fits"
+ ],
+ "rows": [
+  {
+   "sweep": 1,
+   "key": "lv",
+   "x": 0.25,
+   "y": -0.26,
+   "ok": false,
+   "why": [
+    "12 mm into the cowl",
+    "103 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2247 points)",
+    "through the cowl (22 points)",
+    "through the skin or the frame (1 drawn points)"
+   ],
+   "clear": 1.4,
+   "clearTo": "cowl"
+  },
+  {
+   "sweep": 2,
+   "key": "lv",
+   "x": 0.3,
+   "y": -0.234,
+   "ok": false,
+   "why": [
+    "82 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2087 points)"
+   ],
+   "clear": 7.8,
+   "clearTo": "cowl"
+  },
+  {
+   "sweep": 3,
+   "key": "lv",
+   "x": 0.35,
+   "y": -0.208,
+   "ok": false,
+   "why": [
+    "57 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1431 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 4,
+   "key": "lv",
+   "x": 0.4,
+   "y": -0.182,
+   "ok": false,
+   "why": [
+    "32 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1208 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 5,
+   "key": "lv",
+   "x": 0.45,
+   "y": -0.157,
+   "ok": false,
+   "why": [
+    "7 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (820 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 6,
+   "key": "lv",
+   "x": 0.5,
+   "y": -0.131,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 29.1,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 7,
+   "key": "lv",
+   "x": 0.55,
+   "y": -0.105,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 9.9,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 8,
+   "key": "lv",
+   "x": 0.6,
+   "y": -0.079,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 24 mm"
+   ],
+   "clear": 6.3,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 9,
+   "key": "lv",
+   "x": 0.65,
+   "y": -0.053,
+   "ok": false,
+   "why": [
+    "no room for the pads: 5 mm to the skin (plywood), left (needs 5)"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 50 mm"
+   ],
+   "clear": 5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 10,
+   "key": "lv",
+   "x": 0.7,
+   "y": -0.027,
+   "ok": false,
+   "why": [
+    "11 mm into the skin (plywood), right"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 75 mm",
+    "through the skin or the frame (66 drawn points)"
+   ],
+   "clear": 3.4,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 11,
+   "key": "lv",
+   "x": 0.75,
+   "y": -0.001,
+   "ok": false,
+   "why": [
+    "33 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 101 mm",
+    "through the skin or the frame (223 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 12,
+   "key": "lv",
+   "x": 0.8,
+   "y": 0.018,
+   "ok": false,
+   "why": [
+    "45 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 121 mm",
+    "through the skin or the frame (326 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 13,
+   "key": "lv",
+   "x": 0.85,
+   "y": 0.018,
+   "ok": false,
+   "why": [
+    "45 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 121 mm",
+    "through the skin or the frame (326 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 14,
+   "key": "lv",
+   "x": 0.9,
+   "y": 0.018,
+   "ok": false,
+   "why": [
+    "45 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 121 mm",
+    "through the skin or the frame (326 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 15,
+   "key": "lv",
+   "x": 0.95,
+   "y": 0.018,
+   "ok": false,
+   "why": [
+    "45 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 121 mm",
+    "through the skin or the frame (326 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 16,
+   "key": "lv",
+   "x": 1,
+   "y": 0.018,
+   "ok": false,
+   "why": [
+    "45 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 121 mm",
+    "through the skin or the frame (326 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 19,
+   "key": "along",
+   "x": -0.499,
+   "y": -0.195,
+   "ok": false,
+   "why": [
+    "108 mm into the engine, right"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the engine (848 points)",
+    "through the skin or the frame (576 drawn points)"
+   ],
+   "clear": 1.5,
+   "clearTo": "engine"
+  },
+  {
+   "sweep": 20,
+   "key": "along",
+   "x": -0.469,
+   "y": -0.195,
+   "ok": false,
+   "why": [
+    "107 mm into the engine, right"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the engine (631 points)",
+    "through the skin or the frame (508 drawn points)"
+   ],
+   "clear": 1.6,
+   "clearTo": "engine, left"
+  },
+  {
+   "sweep": 21,
+   "key": "along",
+   "x": -0.439,
+   "y": -0.194,
+   "ok": false,
+   "why": [
+    "97 mm into the engine, right"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the engine (309 points)",
+    "through the skin or the frame (504 drawn points)"
+   ],
+   "clear": 1.6,
+   "clearTo": "engine, left"
+  },
+  {
+   "sweep": 22,
+   "key": "along",
+   "x": -0.409,
+   "y": -0.194,
+   "ok": false,
+   "why": [
+    "79 mm into the engine, right"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the engine (95 points)",
+    "through the skin or the frame (504 drawn points)"
+   ],
+   "clear": 3.8,
+   "clearTo": "engine, left"
+  },
+  {
+   "sweep": 23,
+   "key": "along",
+   "x": -0.379,
+   "y": -0.194,
+   "ok": false,
+   "why": [
+    "50 mm into the engine, right",
+    "10 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "6 corners past the bay",
+    "through the crew (289 points)",
+    "through the engine (67 points)",
+    "through the skin or the frame (504 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "engine, left"
+  },
+  {
+   "sweep": 24,
+   "key": "along",
+   "x": -0.349,
+   "y": -0.16,
+   "ok": false,
+   "why": [
+    "20 mm into the engine, right",
+    "7 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "6 corners past the bay",
+    "through the crew (241 points)",
+    "through the engine (41 points)",
+    "through the skin or the frame (283 drawn points)"
+   ],
+   "clear": 0.8,
+   "clearTo": "engine, right"
+  },
+  {
+   "sweep": 25,
+   "key": "along",
+   "x": -0.319,
+   "y": -0.136,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "6 corners past the bay"
+   ],
+   "clear": 6.7,
+   "clearTo": "engine, left"
+  },
+  {
+   "sweep": 26,
+   "key": "along",
+   "x": -0.289,
+   "y": -0.13,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 19,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 27,
+   "key": "along",
+   "x": -0.259,
+   "y": -0.125,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 23.5,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 28,
+   "key": "along",
+   "x": -0.229,
+   "y": -0.122,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 20.4,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 29,
+   "key": "along",
+   "x": -0.199,
+   "y": -0.125,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (4 points)"
+   ],
+   "clear": 23.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 30,
+   "key": "along",
+   "x": -0.169,
+   "y": -0.111,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 17.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 31,
+   "key": "along",
+   "x": -0.139,
+   "y": -0.03,
+   "ok": false,
+   "why": [
+    "4 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 66 mm",
+    "through the skin or the frame (100 drawn points)"
+   ],
+   "clear": 0.8,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 32,
+   "key": "along",
+   "x": -0.109,
+   "y": 0.047,
+   "ok": false,
+   "why": [
+    "42 mm into the frame (woodFrame), left",
+    "9 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 126 mm",
+    "through the crew (84 points)",
+    "through the dash (32 points)",
+    "through the skin or the frame (331 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 33,
+   "key": "along",
+   "x": -0.079,
+   "y": 0.106,
+   "ok": false,
+   "why": [
+    "78 mm into the skin (plywood), left",
+    "39 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 174 mm",
+    "through the crew (1148 points)",
+    "through the dash (382 points)",
+    "through the skin or the frame (775 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 34,
+   "key": "along",
+   "x": -0.049,
+   "y": 0.114,
+   "ok": false,
+   "why": [
+    "76 mm into the skin (plywood), left",
+    "69 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 182 mm",
+    "through the crew (3873 points)",
+    "through the dash (418 points)",
+    "through the skin or the frame (896 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 35,
+   "key": "along",
+   "x": -0.019,
+   "y": 0.122,
+   "ok": false,
+   "why": [
+    "73 mm into the frame (joint), left",
+    "93 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 180 mm",
+    "through the crew (15893 points)",
+    "through the dash (952 points)",
+    "through the skin or the frame (985 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 36,
+   "key": "along",
+   "x": 0.011,
+   "y": 0.129,
+   "ok": false,
+   "why": [
+    "76 mm into the dash, left",
+    "101 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 187 mm",
+    "through the crew (15673 points)",
+    "through the dash (1814 points)",
+    "through the skin or the frame (1021 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 37,
+   "key": "along",
+   "x": 0.041,
+   "y": 0.133,
+   "ok": false,
+   "why": [
+    "81 mm into the dash, left",
+    "98 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 180 mm",
+    "through the crew (15510 points)",
+    "through the dash (1796 points)",
+    "through the skin or the frame (1018 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 38,
+   "key": "along",
+   "x": 0.071,
+   "y": 0.137,
+   "ok": false,
+   "why": [
+    "95 mm into the dash, left",
+    "97 mm into the panel"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 184 mm",
+    "through the crew (15308 points)",
+    "through the dash (1782 points)",
+    "through the skin or the frame (1007 drawn points)"
+   ],
+   "clear": 1.4,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 39,
+   "key": "along",
+   "x": 0.101,
+   "y": 0.14,
+   "ok": false,
+   "why": [
+    "105 mm into the dash, left",
+    "107 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 187 mm",
+    "through the crew (14974 points)",
+    "through the dash (1738 points)",
+    "through the skin or the frame (1009 drawn points)"
+   ],
+   "clear": 0.1,
+   "clearTo": "frame (joint), left"
+  },
+  {
+   "sweep": 40,
+   "key": "along",
+   "x": 0.131,
+   "y": 0.142,
+   "ok": false,
+   "why": [
+    "106 mm into the dash, left",
+    "109 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 155 mm",
+    "through the crew (14906 points)",
+    "through the dash (1694 points)",
+    "through the skin or the frame (1095 drawn points)"
+   ],
+   "clear": 0.4,
+   "clearTo": "frame (joint), left"
+  },
+  {
+   "sweep": 41,
+   "key": "along",
+   "x": 0.161,
+   "y": 0.143,
+   "ok": false,
+   "why": [
+    "108 mm into the dash, left",
+    "107 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 155 mm",
+    "through the crew (14874 points)",
+    "through the dash (1654 points)",
+    "through the skin or the frame (857 drawn points)"
+   ],
+   "clear": 2.6,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 42,
+   "key": "along",
+   "x": 0.191,
+   "y": 0.144,
+   "ok": false,
+   "why": [
+    "109 mm into the dash, left",
+    "106 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 156 mm",
+    "through the crew (14850 points)",
+    "through the dash (1588 points)",
+    "through the skin or the frame (578 drawn points)"
+   ],
+   "clear": 1.9,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 43,
+   "key": "along",
+   "x": 0.221,
+   "y": 0.143,
+   "ok": false,
+   "why": [
+    "108 mm into the dash, left",
+    "107 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 88 mm",
+    "through the crew (14874 points)",
+    "through the dash (1550 points)",
+    "through the skin or the frame (504 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 44,
+   "key": "along",
+   "x": 0.251,
+   "y": 0.143,
+   "ok": false,
+   "why": [
+    "103 mm into the dash, left",
+    "98 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 88 mm",
+    "through the crew (14888 points)",
+    "through the dash (1502 points)",
+    "through the skin or the frame (432 drawn points)"
+   ],
+   "clear": 0.4,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 45,
+   "key": "along",
+   "x": 0.281,
+   "y": 0.142,
+   "ok": false,
+   "why": [
+    "87 mm into the dash, left",
+    "85 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 34 mm",
+    "through the crew (14822 points)",
+    "through the dash (1462 points)",
+    "through the skin or the frame (352 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 46,
+   "key": "along",
+   "x": 0.311,
+   "y": 0.141,
+   "ok": false,
+   "why": [
+    "62 mm into the dash, left",
+    "80 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 34 mm",
+    "through the crew (14384 points)",
+    "through the dash (1406 points)",
+    "through the skin or the frame (216 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 47,
+   "key": "along",
+   "x": 0.341,
+   "y": 0.141,
+   "ok": false,
+   "why": [
+    "32 mm into the dash, left",
+    "61 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 34 mm",
+    "through the crew (12687 points)",
+    "through the dash (1342 points)",
+    "through the skin or the frame (124 drawn points)"
+   ],
+   "clear": 4.7,
+   "clearTo": "dash (dashFace), left"
+  },
+  {
+   "sweep": 48,
+   "key": "along",
+   "x": 0.371,
+   "y": 0.141,
+   "ok": false,
+   "why": [
+    "2 mm into the dash, left",
+    "42 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 34 mm",
+    "through the crew (637 points)",
+    "through the skin or the frame (24 drawn points)"
+   ],
+   "clear": 2.5,
+   "clearTo": "dash, left"
+  },
+  {
+   "sweep": 49,
+   "key": "along",
+   "x": 0.401,
+   "y": 0.139,
+   "ok": false,
+   "why": [
+    "12 mm into the crew"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 33 mm",
+    "through the crew (149 points)"
+   ],
+   "clear": 6.3,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 50,
+   "key": "along",
+   "x": 0.431,
+   "y": 0.138,
+   "ok": false,
+   "why": [
+    "5 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 33 mm",
+    "6 corners past the bay",
+    "through the crew (679 points)"
+   ],
+   "clear": 6.3,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 51,
+   "key": "along",
+   "x": 0.461,
+   "y": 0.136,
+   "ok": false,
+   "why": [
+    "22 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 33 mm",
+    "6 corners past the bay",
+    "through the crew (1130 points)"
+   ],
+   "clear": 5.9,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 52,
+   "key": "along",
+   "x": 0.491,
+   "y": 0.135,
+   "ok": false,
+   "why": [
+    "41 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 32 mm",
+    "6 corners past the bay",
+    "through the crew (1516 points)"
+   ],
+   "clear": 6.3,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 53,
+   "key": "along",
+   "x": 0.521,
+   "y": 0.133,
+   "ok": false,
+   "why": [
+    "52 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the crew (2034 points)"
+   ],
+   "clear": 6.3,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 54,
+   "key": "along",
+   "x": 0.551,
+   "y": 0.132,
+   "ok": false,
+   "why": [
+    "72 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the crew (2393 points)"
+   ],
+   "clear": 5.5,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 55,
+   "key": "along",
+   "x": 0.581,
+   "y": 0.131,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "10 corners past the bay",
+    "through the crew (2643 points)"
+   ],
+   "clear": 14.4,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 58,
+   "key": "lv",
+   "x": 0,
+   "y": -0.407,
+   "ok": false,
+   "why": [
+    "11 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 62 mm",
+    "through the skin or the frame (134 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 59,
+   "key": "lv",
+   "x": 0.05,
+   "y": -0.407,
+   "ok": false,
+   "why": [
+    "11 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 62 mm",
+    "through the skin or the frame (134 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 60,
+   "key": "lv",
+   "x": 0.1,
+   "y": -0.407,
+   "ok": false,
+   "why": [
+    "11 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 62 mm",
+    "through the skin or the frame (134 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 61,
+   "key": "lv",
+   "x": 0.15,
+   "y": -0.407,
+   "ok": false,
+   "why": [
+    "11 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 62 mm",
+    "through the skin or the frame (134 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 62,
+   "key": "lv",
+   "x": 0.2,
+   "y": -0.389,
+   "ok": false,
+   "why": [
+    "0 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 45 mm",
+    "through the skin or the frame (28 drawn points)"
+   ],
+   "clear": 0.6,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 63,
+   "key": "lv",
+   "x": 0.25,
+   "y": -0.331,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 7.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 64,
+   "key": "lv",
+   "x": 0.3,
+   "y": -0.273,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 9.2,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 65,
+   "key": "lv",
+   "x": 0.35,
+   "y": -0.215,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 9.2,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 66,
+   "key": "lv",
+   "x": 0.4,
+   "y": -0.157,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 6.4,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 67,
+   "key": "lv",
+   "x": 0.45,
+   "y": -0.099,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 7.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 68,
+   "key": "lv",
+   "x": 0.5,
+   "y": -0.041,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 0 mm"
+   ],
+   "clear": 5.7,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 69,
+   "key": "lv",
+   "x": 0.55,
+   "y": 0.017,
+   "ok": false,
+   "why": [
+    "no room for the pads: 3 mm to the frame (woodFrame), right (needs 5)"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 26 mm"
+   ],
+   "clear": 2.7,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 70,
+   "key": "lv",
+   "x": 0.6,
+   "y": 0.075,
+   "ok": false,
+   "why": [
+    "14 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 52 mm",
+    "through the skin or the frame (96 drawn points)"
+   ],
+   "clear": 1.6,
+   "clearTo": "skin (body), left"
+  },
+  {
+   "sweep": 71,
+   "key": "lv",
+   "x": 0.65,
+   "y": 0.133,
+   "ok": false,
+   "why": [
+    "28 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 77 mm",
+    "through the skin or the frame (173 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 72,
+   "key": "lv",
+   "x": 0.7,
+   "y": 0.191,
+   "ok": false,
+   "why": [
+    "28 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 103 mm",
+    "through the skin or the frame (173 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 73,
+   "key": "lv",
+   "x": 0.75,
+   "y": 0.25,
+   "ok": false,
+   "why": [
+    "39 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 128 mm",
+    "through the skin or the frame (173 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 74,
+   "key": "lv",
+   "x": 0.8,
+   "y": 0.308,
+   "ok": false,
+   "why": [
+    "39 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 153 mm",
+    "through the skin or the frame (173 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 75,
+   "key": "lv",
+   "x": 0.85,
+   "y": 0.325,
+   "ok": false,
+   "why": [
+    "42 mm into the skin (body), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 161 mm",
+    "through the skin or the frame (181 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 76,
+   "key": "lv",
+   "x": 0.9,
+   "y": 0.325,
+   "ok": false,
+   "why": [
+    "42 mm into the skin (body), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 161 mm",
+    "through the skin or the frame (181 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 77,
+   "key": "lv",
+   "x": 0.95,
+   "y": 0.325,
+   "ok": false,
+   "why": [
+    "42 mm into the skin (body), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 161 mm",
+    "through the skin or the frame (181 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 78,
+   "key": "lv",
+   "x": 1,
+   "y": 0.325,
+   "ok": false,
+   "why": [
+    "42 mm into the skin (body), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 161 mm",
+    "through the skin or the frame (181 drawn points)"
+   ],
+   "clear": 1.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 81,
+   "key": "along",
+   "x": 0.346,
+   "y": -0.213,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 1 mm",
+    "14 corners past the bay",
+    "through the crew (5344 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 82,
+   "key": "along",
+   "x": 0.376,
+   "y": -0.215,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 1 mm",
+    "10 corners past the bay",
+    "through the crew (4634 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 83,
+   "key": "along",
+   "x": 0.406,
+   "y": -0.218,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 1 mm",
+    "6 corners past the bay",
+    "through the crew (4483 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 84,
+   "key": "along",
+   "x": 0.436,
+   "y": -0.22,
+   "ok": false,
+   "why": [
+    "93 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 0 mm",
+    "6 corners past the bay",
+    "through the crew (4578 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 85,
+   "key": "along",
+   "x": 0.466,
+   "y": -0.223,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (4358 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 86,
+   "key": "along",
+   "x": 0.496,
+   "y": -0.226,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (3562 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 87,
+   "key": "along",
+   "x": 0.526,
+   "y": -0.228,
+   "ok": false,
+   "why": [
+    "93 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2748 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 88,
+   "key": "along",
+   "x": 0.556,
+   "y": -0.231,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2297 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 89,
+   "key": "along",
+   "x": 0.586,
+   "y": -0.233,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2440 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 90,
+   "key": "along",
+   "x": 0.616,
+   "y": -0.235,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2461 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 91,
+   "key": "along",
+   "x": 0.646,
+   "y": -0.237,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2560 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 92,
+   "key": "along",
+   "x": 0.676,
+   "y": -0.239,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2657 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 93,
+   "key": "along",
+   "x": 0.706,
+   "y": -0.241,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2548 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 94,
+   "key": "along",
+   "x": 0.736,
+   "y": -0.242,
+   "ok": false,
+   "why": [
+    "92 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2329 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 95,
+   "key": "along",
+   "x": 0.766,
+   "y": -0.244,
+   "ok": false,
+   "why": [
+    "93 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (2074 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 96,
+   "key": "along",
+   "x": 0.796,
+   "y": -0.245,
+   "ok": false,
+   "why": [
+    "91 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1780 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 97,
+   "key": "along",
+   "x": 0.826,
+   "y": -0.246,
+   "ok": false,
+   "why": [
+    "94 mm into a crew member"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1615 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 98,
+   "key": "along",
+   "x": 0.856,
+   "y": -0.246,
+   "ok": false,
+   "why": [
+    "92 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1334 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 99,
+   "key": "along",
+   "x": 0.886,
+   "y": -0.247,
+   "ok": false,
+   "why": [
+    "93 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (1095 points)"
+   ],
+   "clear": 30,
+   "clearTo": null
+  },
+  {
+   "sweep": 100,
+   "key": "along",
+   "x": 0.916,
+   "y": -0.247,
+   "ok": false,
+   "why": [
+    "94 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (755 points)"
+   ],
+   "clear": 9.3,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 101,
+   "key": "along",
+   "x": 0.946,
+   "y": -0.247,
+   "ok": false,
+   "why": [
+    "14 mm into the bulkhead, right",
+    "72 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (418 points)",
+    "through the skin or the frame (310 drawn points)"
+   ],
+   "clear": 5,
+   "clearTo": "bulkhead, right"
+  },
+  {
+   "sweep": 102,
+   "key": "along",
+   "x": 0.976,
+   "y": -0.248,
+   "ok": false,
+   "why": [
+    "44 mm into the bulkhead, right",
+    "44 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (250 points)",
+    "through the skin or the frame (522 drawn points)"
+   ],
+   "clear": 2.7,
+   "clearTo": "bulkhead, right"
+  },
+  {
+   "sweep": 103,
+   "key": "along",
+   "x": 1.006,
+   "y": -0.248,
+   "ok": false,
+   "why": [
+    "75 mm into the bulkhead, right",
+    "23 mm into a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (116 points)",
+    "through the skin or the frame (600 drawn points)"
+   ],
+   "clear": 2.7,
+   "clearTo": "bulkhead, right"
+  },
+  {
+   "sweep": 104,
+   "key": "along",
+   "x": 1.036,
+   "y": -0.246,
+   "ok": false,
+   "why": [
+    "88 mm into the bulkhead, left",
+    "within 10 mm of a seat"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the crew (32 points)",
+    "through the skin or the frame (636 drawn points)"
+   ],
+   "clear": 1.5,
+   "clearTo": "bulkhead, right"
+  },
+  {
+   "sweep": 105,
+   "key": "along",
+   "x": 1.066,
+   "y": -0.245,
+   "ok": false,
+   "why": [
+    "59 mm into the bulkhead, left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin or the frame (504 drawn points)"
+   ],
+   "clear": 6.9,
+   "clearTo": "bulkhead, right"
+  },
+  {
+   "sweep": 106,
+   "key": "along",
+   "x": 1.096,
+   "y": -0.243,
+   "ok": false,
+   "why": [
+    "28 mm into the bulkhead, left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin or the frame (384 drawn points)"
+   ],
+   "clear": 10.5,
+   "clearTo": "bulkhead, left"
+  },
+  {
+   "sweep": 107,
+   "key": "along",
+   "x": 1.126,
+   "y": -0.24,
+   "ok": false,
+   "why": [
+    "no room for the pads: 1 mm to the bulkhead, left (needs 5)"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin or the frame (48 drawn points)"
+   ],
+   "clear": 1.3,
+   "clearTo": "bulkhead, left"
+  },
+  {
+   "sweep": 108,
+   "key": "along",
+   "x": 1.156,
+   "y": -0.237,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 8.5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 109,
+   "key": "along",
+   "x": 1.186,
+   "y": -0.234,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 5.5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 110,
+   "key": "along",
+   "x": 1.216,
+   "y": -0.231,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 24.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 111,
+   "key": "along",
+   "x": 1.246,
+   "y": -0.229,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 27.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 112,
+   "key": "along",
+   "x": 1.276,
+   "y": -0.226,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 28.2,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 113,
+   "key": "along",
+   "x": 1.306,
+   "y": -0.223,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 7.2,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 114,
+   "key": "along",
+   "x": 1.336,
+   "y": -0.22,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 10.1,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 115,
+   "key": "along",
+   "x": 1.366,
+   "y": -0.217,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 6.4,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 116,
+   "key": "along",
+   "x": 1.396,
+   "y": -0.214,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 9.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 117,
+   "key": "along",
+   "x": 1.426,
+   "y": -0.211,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 5.4,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 118,
+   "key": "along",
+   "x": 1.456,
+   "y": -0.208,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 8.3,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 119,
+   "key": "along",
+   "x": 1.486,
+   "y": -0.205,
+   "ok": true,
+   "why": [],
+   "legacyOk": true,
+   "legacyWhy": [],
+   "clear": 7.6,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 120,
+   "key": "along",
+   "x": 1.516,
+   "y": -0.202,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 8 mm"
+   ],
+   "clear": 5.1,
+   "clearTo": "floor frame (floorLoop), right"
+  },
+  {
+   "sweep": 121,
+   "key": "along",
+   "x": 1.546,
+   "y": -0.199,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 7 mm"
+   ],
+   "clear": 5.5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 122,
+   "key": "along",
+   "x": 1.576,
+   "y": -0.196,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 17 mm"
+   ],
+   "clear": 5.1,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 123,
+   "key": "along",
+   "x": 1.606,
+   "y": -0.193,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 27 mm"
+   ],
+   "clear": 5,
+   "clearTo": "skin (plywood), right"
+  },
+  {
+   "sweep": 124,
+   "key": "along",
+   "x": 1.636,
+   "y": -0.19,
+   "ok": true,
+   "why": [],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 26 mm"
+   ],
+   "clear": 5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 125,
+   "key": "along",
+   "x": 1.666,
+   "y": -0.187,
+   "ok": false,
+   "why": [
+    "no room for the pads: 5 mm to the skin (plywood), left (needs 5)"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 36 mm"
+   ],
+   "clear": 4.8,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 126,
+   "key": "along",
+   "x": 1.696,
+   "y": -0.185,
+   "ok": false,
+   "why": [
+    "no room for the pads: 2 mm to the skin (plywood), left (needs 5)"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 46 mm",
+    "through the skin or the frame (4 drawn points)"
+   ],
+   "clear": 2.5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 127,
+   "key": "along",
+   "x": 1.726,
+   "y": -0.182,
+   "ok": false,
+   "why": [
+    "0 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 45 mm",
+    "through the skin or the frame (57 drawn points)"
+   ],
+   "clear": 5,
+   "clearTo": "floor frame (floorLoop), left"
+  },
+  {
+   "sweep": 128,
+   "key": "along",
+   "x": 1.756,
+   "y": -0.179,
+   "ok": false,
+   "why": [
+    "18 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 55 mm",
+    "through the skin or the frame (164 drawn points)"
+   ],
+   "clear": 2.2,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 129,
+   "key": "along",
+   "x": 1.786,
+   "y": -0.176,
+   "ok": false,
+   "why": [
+    "48 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 54 mm",
+    "through the skin or the frame (181 drawn points)"
+   ],
+   "clear": 0.5,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 130,
+   "key": "along",
+   "x": 1.816,
+   "y": -0.173,
+   "ok": false,
+   "why": [
+    "74 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 64 mm",
+    "through the skin or the frame (192 drawn points)"
+   ],
+   "clear": 2.5,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 131,
+   "key": "along",
+   "x": 1.846,
+   "y": -0.17,
+   "ok": false,
+   "why": [
+    "81 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 74 mm",
+    "through the skin or the frame (223 drawn points)"
+   ],
+   "clear": 2.7,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 132,
+   "key": "along",
+   "x": 1.876,
+   "y": -0.167,
+   "ok": false,
+   "why": [
+    "60 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 73 mm",
+    "through the skin or the frame (262 drawn points)"
+   ],
+   "clear": 0.5,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 133,
+   "key": "along",
+   "x": 1.906,
+   "y": -0.164,
+   "ok": false,
+   "why": [
+    "30 mm into the frame (woodFrame), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 83 mm",
+    "through the skin or the frame (298 drawn points)"
+   ],
+   "clear": 3.5,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 134,
+   "key": "along",
+   "x": 1.936,
+   "y": -0.161,
+   "ok": false,
+   "why": [
+    "14 mm into the floor frame (floorLoop), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 82 mm",
+    "through the skin or the frame (294 drawn points)"
+   ],
+   "clear": 2.5,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 135,
+   "key": "along",
+   "x": 1.966,
+   "y": -0.158,
+   "ok": false,
+   "why": [
+    "11 mm into the floor frame (floorLoop), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 92 mm",
+    "through the skin or the frame (304 drawn points)"
+   ],
+   "clear": 5,
+   "clearTo": "floor frame (floorLoop), left"
+  },
+  {
+   "sweep": 136,
+   "key": "along",
+   "x": 1.996,
+   "y": -0.155,
+   "ok": false,
+   "why": [
+    "12 mm into the floor frame (floorLoop), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 101 mm",
+    "through the skin or the frame (336 drawn points)"
+   ],
+   "clear": 1.4,
+   "clearTo": "frame (woodFrame), right"
+  },
+  {
+   "sweep": 137,
+   "key": "along",
+   "x": 2.026,
+   "y": -0.152,
+   "ok": false,
+   "why": [
+    "36 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 101 mm",
+    "through the skin or the frame (342 drawn points)"
+   ],
+   "clear": 0.2,
+   "clearTo": "frame (woodFrame), left"
+  },
+  {
+   "sweep": 138,
+   "key": "along",
+   "x": 2.056,
+   "y": -0.149,
+   "ok": false,
+   "why": [
+    "53 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 111 mm",
+    "6 corners past the bay",
+    "through the skin or the frame (346 drawn points)"
+   ],
+   "clear": 0,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 139,
+   "key": "along",
+   "x": 2.086,
+   "y": -0.146,
+   "ok": false,
+   "why": [
+    "58 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 120 mm",
+    "6 corners past the bay",
+    "through the skin or the frame (346 drawn points)"
+   ],
+   "clear": 3.6,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 140,
+   "key": "along",
+   "x": 2.116,
+   "y": -0.143,
+   "ok": false,
+   "why": [
+    "50 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "through the skin by 120 mm",
+    "10 corners past the bay",
+    "through the skin or the frame (346 drawn points)"
+   ],
+   "clear": 0.7,
+   "clearTo": "skin (plywood), left"
+  },
+  {
+   "sweep": 141,
+   "key": "along",
+   "x": 2.146,
+   "y": -0.141,
+   "ok": false,
+   "why": [
+    "31 mm into the skin (plywood), left"
+   ],
+   "legacyOk": false,
+   "legacyWhy": [
+    "runs out of the body",
+    "14 corners past the bay",
+    "through the skin or the frame (346 drawn points)"
+   ],
+   "clear": 2.1,
+   "clearTo": "frame (woodFrame), left"
+  }
+ ],
+ "timing": {
+  "relayoutLegacy": 338.8024629999418,
+  "relayoutNow": 8.676964999875054,
+  "dragLegacy": 338.0668959999457,
+  "dragNow": 8.457455000141636,
+  "dragLayout": 5.140307999914512,
+  "dragLayoutMax": 270.1371189998463
+ },
+ "verdicts": [
+  {
+   "bay": "nose",
+   "ok": true,
+   "why": [],
+   "cap": 60,
+   "along": -0.263426006905878,
+   "lv": 0.51,
+   "dims": {
+    "L": 0.38,
+    "W": 0.85,
+    "H": 0.22
+   }
+  },
+  {
+   "bay": "cabin",
+   "ok": true,
+   "why": [],
+   "cap": 63,
+   "along": 1.14615,
+   "lv": 0.33,
+   "dims": {
+    "L": 0.19,
+    "W": 0.91,
+    "H": 0.43
+   }
+  }
+ ]
+}

@@ -187,7 +187,12 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   // touchdown's; every later re-touch (the skips of a fast, hands-off arrival) is measured and printed apart
   let ok = true, T = 0, touched = null, sinkTouch = 0, prev = 0, maxJump = 0, peak = 0, frames = [], iPk = -1, endV = NaN;
   let first = true, skips = [], cur = null, vyPrev = 0;
-  for (let s = 0; s < 45 * 60; s++) {
+  // TANK-FIT (3 Nov): THE RUN LASTS UNTIL THE TAXI IS READ. It was 45 s flat, and the taxi speed is read 20 s after
+  // the touch: master's twin floatplane touched at 24.90 s (0.1 s inside), the validated build with its header tank
+  // refitted (10 L, 6.5 kg lighter) floats longer in the ground effect and touched at 26.38 s - the read never came
+  // and the row said "NaN m/s" (the sentinel, not a divergence: every frame was finite). 90 s now; the break below
+  // still ends it 20 s after the touch.
+  for (let s = 0; s < 90 * 60; s++) {
     s3.step(1 / 60); T += 1 / 60;
     const r = state(s3);
     if (!finite(r)) { ok = false; break; }

@@ -108,6 +108,26 @@ function benchCommLine(r) {
        : C.verdict === 'warn' ? 'commercial ✓ with ' + C.warn + ' note' + (C.warn > 1 ? 's' : '')
        : 'commercial ✗ ' + C.n + ' issue' + (C.n > 1 ? 's' : '');
 }
+// TANK-FIT: the editor's tank verdicts as design-check rows (one FAIL a tank that does not fit; none when they all
+// do, or when no editor is loaded - the core's own rows then stand alone)
+function benchTankRows() {
+  const E = typeof window !== 'undefined' ? window.CAGE_ENERGY : null;
+  let rs = null;
+  try { rs = E && E.results ? E.results() : null; } catch (e) { rs = null; }
+  if (!Array.isArray(rs)) return [];
+  const out = [];
+  rs.forEach((r, i) => {
+    if (!r || r.ok || r.unmounted) return;              // (an unmounted pod is the core's row, wb.tank<i>)
+    // (tier 'safe': the AIRWORTHINESS certificate - DESIGN-AIDS' GEN_CERT_TIER reads r.tier first; an unfit tank is not
+    //  safe to fly a mission in, the user 3 Nov; never `proposed`)
+    out.push({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' fits (' + ((r.bay && r.bay.name) || (r.v && r.v.bay) || 'its bay') + ')',
+               level: 'fail', value: Math.round((r.v && r.v.capacity) || 0), unit: 'L',
+               limit: 'the drawn tank clears every drawn surface by 5 mm and the crew by 10 mm',
+               why: (r.why || []).join('; ') || 'it does not fit',
+               fix: 'move or resize the tank (the red bead marks the contact), or pick the nose bay\'s auto-fit' });
+  });
+  return out;
+}
 
 // G3780: THE WING LOADING'S VERDICT, one function for the rig's last state - the quick run's (the bench's thread,
 // unpaced) and the watched rig's (kept as a DEV tool)
@@ -224,6 +244,10 @@ const BENCH_TESTS = [
                              why: r.why, fix: r.fix, tier: r.tier, proposed: !!r.proposed });
         if (dsg) dsg.rows = dsg.rows.concat(aidRows.map(keep));
       }
+      // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): each tank
+      // that does not fit is a SAFE-tier FAIL row (benchTankRows), so the tiers below withhold the airworthiness certificate
+      if (dsg) for (const r of benchTankRows()) if (!dsg.rows.some(q => q.id === r.id)) dsg.rows.push(r);
+      if (dsg && dsg.rows.some(r => r.level === 'fail')) dsg.verdict = 'fail';
       const allRows = dsg ? dsg.rows : [];
       const TI = typeof genCertTiers === 'function' ? genCertTiers(allRows) : null;
       const dFail = TI ? TI.safeFail : allRows.filter(r => r.level === 'fail');
