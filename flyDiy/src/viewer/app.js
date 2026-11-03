@@ -9269,7 +9269,7 @@
   function careerAct(id, what) {
     let d = playerLoad();
     // G2742 (STORY-PAGE, Q1): the generated list is held while the story runs - its rows stand greyed, Track refused
-    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes after the move-in'); return careerRecord(); }
+    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes later in the story'); return careerRecord(); }
     const C = d.career.contracts;
     let r = null;
     if (what === 'accept') r = C.accepted.includes(id) ? null : careerAccept(d, id);
@@ -9944,7 +9944,7 @@
     } catch (e) { console.warn('flyDiy (story): the certificate -', e && e.message); }
   }
   if (STORY_PAGE) window.BENCH_CERTIFIED = storyCertified;
-  // Q1 ON THE MAP: the generated rows held (greyed, "after the move-in"), the story's own goal at the head of the list
+  // Q1 ON THE MAP: the generated rows held (greyed, "later in the story"), the story's own goal at the head of the list
   function storyRecord(R) {
     if (!STORY_PAGE || !R) return R;
     const d = playerLoad();
@@ -9953,7 +9953,7 @@
     const K = storyCardNow();
     // G2744 (the user: "the middle of nowhere"): while the story runs from the cabin, the map opens on it (`at`)
     const hereB = d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null;
-    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in',
+    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), held: 'later in the story',   // (STORY-HOME-FIX F4/F5: no step counter - G3356; HOME yours from the start)
                     at: hereB && hereB !== 'HOME' ? hereB : null } : null;
     return R;
   }
@@ -10745,15 +10745,28 @@
       const G = garageStand(d, id), here = d.here === id;
       const kind = ((typeof SHELLS === 'object' && SHELLS[sh.shell]) || {}).name || 'hangar';
       out.push({ id, name: sh.name || (id === PREM_MAIN && aero === 'HOME' ? 'the main hangar' : 'the ' + String(kind).toLowerCase()) + (a ? ' at ' + (a.name || a.id) : ''),
-                 aero, here, locked: !!sh.locked, why: garageWhy(sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
+                 aero, here, locked: !!sh.locked, why: garageWhy(sh), away: here ? '' : garageAway(d, id, sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
     }
     return out;
+  }
+  // STORY-HOME-FIX (F2): AN EMPTY HANGAR while the aeroplane on the stand stands at another field - going there would show
+  // that aeroplane in a room it is not in, and its roll-out would leave from where it stands: the map says so instead
+  // (fly one in first). '' = no objection (a plane in there, the stand's own field, an unsaved build on the stand, or out of
+  // a flight: The shed's trip brings the flown aeroplane in where it landed)
+  function garageAway(d, id, sh) {
+    if (!inGarage || garageStand(d, id).stand) return '';
+    const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return '';
+    const aero = typeof sh.base === 'string' ? sh.base : 'HOME', W = playerStoreWhere(d, S);
+    if (W && W.aero === aero) return '';
+    const a = ((world && world.aerodromes) || []).find(x => x.id === aero);
+    return 'empty - fly an aeroplane to ' + (a ? a.name || a.id : aero) + ' first';
   }
   function gotoGarage(id) {
     const d = playerLoad(), sh = d.sheds && d.sheds[id];
     if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
     if (sh.locked) return Promise.resolve({ ok: false, why: garageWhy(sh), stand: null });
     if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
+    const away = garageAway(d, id, sh); if (away) return Promise.resolve({ ok: false, why: away, stand: null });
     const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
     if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
     const r = playerGoTo(d, id);
