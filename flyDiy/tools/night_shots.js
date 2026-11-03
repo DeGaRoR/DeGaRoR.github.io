@@ -131,6 +131,9 @@ const VIEWS = [
   { scout: 1, name: 'scout_a', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 0, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
   { scout: 1, name: 'scout_b', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 1, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
   { scout: 1, name: 'scout_c', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 2, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
+  { scout: 1, name: 'scout_d', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 3, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // three spares: the
+  { scout: 1, name: 'scout_e', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 4, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // three best go to
+  { scout: 1, name: 'scout_f', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 5, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // the user
   { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 14 },
   { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
   { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
