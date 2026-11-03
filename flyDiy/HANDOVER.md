@@ -311043,3 +311043,60 @@ TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav
 - `noseAuto` (fit: 'auto'): a deck tank behind the panel (floor the dash's bottom, top the deck less a 10 cm gap);
   new nose tanks only; `window.TANK_NOSE_AUTO_ALL` for the saves' no-station nose tanks, pending the user.
 - Tools: `tools/tank_fit_probe.js`, `tools/tank_shot.js` (cutaway renders, `--legacy`).
+## WEATHER-FIXES - A FRONT'S SKY IS DRAWN, ITS END DOES NOT SNAP, ITS DROP IS A RAMP, THE WIND MIXES THE MIST AWAY, THE MOON READS THE EFFECTIVE COVER (2026-11-03, cloud session for the user via A0; branch claude/weather-fixes off origin/master 2f104df85 = train F4)
+The four bugs (and the contracts' moon) found by the WEATHER-DAYS study (futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
+§1.5, branch claude/weather-days-study), fixed as small fixes on the user's call of 3 Nov (study §9.1). Node only.
+- F1 THE CLOUDS READ THE EFFECTIVE SKY. `08_cloud_field.js` `lowOf(day)`: the low deck's cover and type are the day's
+  `cloudCoverEff` / `cloudTypeEff` (a front's overcast, its cumulonimbus at I > 0.5), not the declared ones - before,
+  a front changed the thermals, the breeze, the mist's burn and the radio, never the drawn sky. Bit-identical when
+  nothing moves them (a plain object, a day with no front). The cover moves in LOW_EFF_STEP 0.05 steps above the
+  declared one: clouds.js re-thresholds and re-fits the map on every cover change (mapsFor, keyed to 3 decimals), so
+  a continuous ramp would re-fit every few seconds (CLIMATE §10's "0.05 cover steps"); 0.37 -> 0.95 is 12 covers.
+  KNOWN: the type still switches to `cb` at I 0.5 (07_day's own rule, now visible) - one re-fit, under ~0.6 cover.
+- F2 NO VEER SNAP. `07_day.js` storm `veer` x I from the end of the passage: it held its full value through `post`
+  and 09_climate's stormOf() dropped it at I = 0 - a 55 deg (default veerDeg) snap of the wind's direction at the end
+  of every front. Approach and passage unchanged. Worst direction step now 1.2 deg a minute.
+- F3 THE DROP IS A RAMP. `dTemp x smf((t - at) / STORM_DT_RAMP + 0.5)`, STORM_DT_RAMP 600 s centred on `at` (was
+  `t > at ? 1 : 0`: the whole -6 K, ~2 % of sigma and hundreds of metres of cloud base, in one tick). Half the drop
+  at the declared instant, all of it 5 min later; worst step 0.89 K a minute.
+- F5 THE WIND MIXES THE MIST AWAY. `d.mistCalm` = 1 - smoothstep((kt - 3) / 7) on the DECLARED 10 m wind (kts | mps |
+  a legacy base vector) times a front's windK; `mistRho0` x mistCalm (still ONE line: test_climate's LAW regex
+  holds). 1 with no wind declared, so every gate's day is bit-identical. NOTE: the game's own day (GAME_WIND 8 kt)
+  keeps 0.20 of the layer - a misty morning picked by hand under the default breeze is now thinner; pick calm.
+- F7 THE MOON READS THE EFFECTIVE COVER. `75_career_wire.js` `careerSkyCover(day)` (effective, else declared, else
+  undefined): the map record's night options and both of app.js's `career.cover` stamps.
+GATES: DAY (the calm term: still air exact, monotone, gone by 10 kt, kt = m/s = base vector, a front's windK counts,
+the law one line), CLIMATE 11 (the front walked a minute at a time: direction < 6 deg, temperature < 1 K, half the
+drop at `at`; the drawn deck at the passage is 0.97 cb, the declared sky after), CLOUD 7a (declared exactly when
+nothing moves it, a front's deck, the 0.05 steps, clamped), CONTRACTS (careerSkyCover; the record and both stamps
+through it) + a selftest break ("the moon reads the declared cover").
+NEGATIVE PROOF: the new checks run against master's own code (2f104df85) in a scratch worktree: CLIMATE red on all
+four (a 55.0 deg direction step at minute 225 = the front's end, a 6.00 K step at minute 61, 0.00 K of the drop at
+`at`, the drawn deck 0.20 cu at the passage), DAY red (5: no mistCalm), CONTRACTS selftest catches "the moon reads
+the declared cover".
+RUN: the full core battery does not finish in a cloud container (2 of 295 jobs in 40 min; stopped). Run instead,
+`--only=` every gate that reads the changed code or the page: DAY CLIMATE CLOUD FOG ATMO ATMOS CONTRACTS (+ selftest)
+CLOCK HONESTY NIGHTVISIBILITY UISMOKE WATER ASSETS ECON FREIGHT LAZY MISSIONS PREMISES PROCURE ROUTES STORY BLUEPRINT
+VILLAGE HOUSE MEDIA BUILD: 20 PASS. The six reds, each checked: CLOUD (a browser probe's 600 s timeout under 4 jobs)
+and PREMISES (terrainH / solve timing) PASS alone, --jobs=1; FOG (2: app.js's MAIN camera), ASSETS (5 material
+sites), STORY (the T0 beat card) and LAZY (route_draw's first demand) are red IDENTICALLY on master 2f104df85 - the
+standing reds of the F4 entry above. The train's full battery is the delivery verdict.
+NOT PUSHED: claude/ready/weather-fixes (the session's push to a ready branch was refused as a deploy; the user's call).
+- 15 JULY (the user's call, 3 Nov ~14:35 via A0, study §9.2): the CAREER's first day is 15 Jul 16:00 AKDT -
+  `74_career.js` CAREER_DAY0 { date: '2026-07-16', utc: 0 } (UT), and `73_contracts.js` CONTRACT_NIGHT.sky0
+  '2026-07-15' (documented as the career's first local day). The sandbox's GAME_DAY (day_clock.js, 21 Jun) and every
+  gate's own day are unchanged; day_clock.js needs no edit (in the career the instant is the document's). GATE CLOCK
+  (its career block's dates, and "CAREER_DAY0 is 15 July at the game's hour") and GATE CONTRACTS (the offers' sky
+  date, the night of the next opening) re-dated; both PASS. The other gates that build a career run (DESTTO ECON
+  FLIGHTREC FREIGHT HANGAR LAZY MISSIONS NIGHTVISIBILITY PILOTS PLAYER POD PROCURE ROUTES STOREDRAW STORY TECH CLIMATE
+  DAY SOAR UISMOKE): results in the next entry line.
+- STATUS (3 Nov): BLOCKED ON A PUSH APPROVAL. This cloud session's push to claude/ready/weather-fixes is refused by its
+  permission classifier (a deploy). The branch claude/weather-fixes is complete; the user (or a session allowed to)
+  pushes it to claude/ready/weather-fixes. Messages to A0 from this cloud session are also refused (HTTP 401 /
+  untrusted device), so this line is the report.
+- 15 JULY, THE RUN (`--only=`, jobs 2, on 3937e6236): CLOCK CONTRACTS DESTTO (both shards) ECON FLIGHTREC FREIGHT HANGAR
+  MISSIONS NIGHTVISIBILITY PILOTS PLAYER PROCURE ROUTES STOREDRAW CLIMATE DAY SOAR UISMOKE PASS. Red: POD (the frozen
+  _pod_base.json digests), TECH ("pitch:seaplane" has no segment), STORY (the T0 beat card), LAZY (route_draw's first
+  demand) - all four on the F4 entry's list of master's standing reds, none reading the career's date or the weather.
+- THE SEASONAL BLOCKS (option B) are on claude/weather-blocks: 28 new days for the user's review, study §10. No game
+  code yet.

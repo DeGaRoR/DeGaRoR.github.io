@@ -185,6 +185,13 @@ function careerMapMark(doc, id, fleet, F) {
   const rec = careerContract(doc, id);
   return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
 }
+// THE SKY'S COVER FOR THE MOON (WEATHER-FIXES F7, 2026-11-03): the EFFECTIVE cover (07_day cloudCoverEff - a front's
+// overcast hides the moon as a declared one does), else the declared, else undefined (no day: the job's own stamp)
+function careerSkyCover(day) {
+  if (!day) return undefined;
+  if (typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff)) return day.cloudCoverEff;
+  return typeof day.cloudCover === 'number' ? day.cloudCover : undefined;
+}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
 // opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
@@ -202,7 +209,7 @@ function careerMapRecord(doc, world, opts) {
                ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };
   const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {
