@@ -147,6 +147,15 @@ withholds the certificate (G2640's rule); the aeroplane still flies as drawn (G3
 a strut pod on a strutless wing (64b genDesignCheck, `unmounted`), so the core's own readers refuse it too. The
 editor's readout says "it flies, but the bench will not certify it".
 
+**The overall rule** (the user, 3 Nov): "you can fly an uncertified plane, but you cannot engage it in any mission in
+the story mode". The tank's side of it holds: an unfit tank is a bench FAIL, so no certificate, and it flies. **The
+mission side is NOT enforced anywhere today** (measured in the code, not changed here): the career map judges a
+player's own build by its shakedown (75_career_wire.js certOf -> app.js careerCerts: "the saved build's shakedown"),
+and careerAccept / the departure never ask the bench whether it passed (BENCH_STATE is the stand's build only; the
+bench keeps no certificate per fleet slot). **For A0: a story/career chantier** - a per-slot bench certificate (the
+f3 fingerprint the bench signs) and a refusal at careerAccept / the leg's departure for a build without one; out of
+TANK-FIT's scope (it touches the career's record and the map).
+
 **2 - how much the instruments need.** Our instruments are drawn as their FACES on the panel (no cases; measured: the
 Cub's gauges all within 2.155-2.249 m of the panel face at 2.181 m). A real 3-1/8" instrument's case is 8-17 cm deep
 behind the panel (ASI and altimeter ~8-9 cm, VSI / turn ~10-12 cm, attitude / DG gyros ~17 cm), and its pitot /
@@ -238,6 +247,7 @@ Not run here: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the
 editor's rows (the auto-fit select, the gap row, dragLayout on input) are untested in a page: a look is owed.
 
 ## Open questions for the user
+0. For A0 (not the user's): the story mode's mission gate on the certificate is not built (see the overall rule above).
 1. The validated twin floatplane: 10 L that fits, or the 19 L red (flies, no certificate)? Or a second tank (where)?
 2. The camel fixture loses 19 L (44 → 25 L) under the same rule: keep, or give it its own box?
 3. The instruments' cases: 10 cm assumed (a VFR set). A gyro panel wants ~17 cm of case + 5 cm: should the case depth
