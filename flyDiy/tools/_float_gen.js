@@ -143,21 +143,37 @@ function ringSide(P, s, o) {
   const rG = Math.min(o.rGun, 0.30 * (s.yd - s.yc), 0.30 * s.bd, 0.30 * (s.bd - 0));
   const pts = [];
   const push = (y, z, ny, nz) => pts.push([y, z, ny, nz]);
-  // FLOATS-CLASSIC: an EDO's bottom is CONVEX (32_hydro sectionOf: keel -> mid point M -> chine, two facets a side):
-  // the keel round reads the inner facet's slope, the chine round the outer's, and M is the keel support's place; a
-  // straight V's two slopes are its one deadrise (the same numbers as ever)
-  const edoB = !!(P.crownK && s.zm != null && s.b > 1e-6);
-  const bIn = edoB ? Math.atan2(s.ym - s.yk, Math.max(1e-9, s.zm)) : s.beta * D2R;
-  const bOut = edoB ? Math.atan2(s.yc - s.ym, Math.max(1e-9, s.b - s.zm)) : s.beta * D2R;
-  const tb = Math.tan(bIn), cb = Math.cos(bIn), sb = Math.sin(bIn);
-  const cbO = Math.cos(bOut), sbO = Math.sin(bOut), tbO = Math.tan(bOut);
-  // the bottom's outward normal (down and out) and the side's
-  const nB = [-cbO, sbO];                      // [ny, nz] (the outer facet's: the chine's)
-  // the side's slope from the section's own chine and deck edge (the flare
-  // dies toward the bow where the deck closes to its point)
+  // FLOATS-CLASSIC: an EDO's bottom is FLUTED (32_hydro sectionOf `flute`: two points on the keel's arc, the ridge,
+  // three on the chine's - the user's "Batman" former). The EDO's keel and chine are sharp, so the keel round's two
+  // slots and its support carry the first arc and the ridge, the chine support and the chine round's four slots the
+  // second arc, the chine itself and a hair of the side above it: the same RING_N, the loft stays one grid
+  const edoB = !!(P.crownK && s.flute && s.b > 1e-6);
   const fl = Math.atan2(s.bd - s.b, Math.max(1e-6, s.yd - s.yc));
   const tf = Math.tan(fl), cf = Math.cos(fl), sf = Math.sin(fl);
   const nS = [-sf, cf];                        // the side leans out by the flare: normal tilts down a hair
+  const iS = [sf, -cf];                        // its inward normal
+  const onS = y => s.b + (y - s.yc) * tf;      // the side's z at y
+  let yCs;
+  if (edoB) {
+    const L = [[s.yk, 0], ...s.flute, [s.yc, s.b]];
+    const nrmOf = (a, b) => { const dz = b[1] - a[1], dy = b[0] - a[0], l = Math.hypot(dz, dy) || 1; return [-dz / l, dy / l]; };   // [ny, nz] down-and-out
+    push(s.yk, 0, -1, 0);                      // the keel: a point (the strip rides it)
+    for (let i = 1; i <= 6; i++) {
+      // the arcs' points: the normal of their neighbours' chord; the ridge (i 3) the mean of its two arcs' end chords
+      const n = i === 3 ? (() => { const a = nrmOf(L[2], L[3]), b = nrmOf(L[3], L[4]), m = [a[0] + b[0], a[1] + b[1]], l = Math.hypot(m[0], m[1]) || 1; return [m[0] / l, m[1] / l]; })()
+                        : nrmOf(L[i - 1], L[i + 1]);
+      push(L[i][0], L[i][1], n[0], n[1]);
+    }
+    const nC = nrmOf(L[6], L[7]);
+    push(s.yc, s.b, nC[0], nC[1]);             // the chine: sharp, the last arc's normal
+    yCs = s.yc + Math.min(0.03, 0.35 * (s.yd - s.yc)) * cf;
+    const yC1 = s.yc + Math.min(0.004, 0.1 * (yCs - s.yc));
+    push(yC1, onS(yC1), nS[0], nS[1]);         // a hair up the side: the chine's edge in the shading
+  } else {
+  const bIn = s.beta * D2R;
+  const tb = Math.tan(bIn), cb = Math.cos(bIn), sb = Math.sin(bIn);
+  // the bottom's outward normal (down and out) and the side's
+  const nB = [-cb, sb];                        // [ny, nz]
   // 1. the keel: a round of radius rKeel between the two bottom planes —
   //    the centre sits rKeel / cos(beta) above the keel on the centreline
   const yK0 = s.yk;
@@ -171,29 +187,27 @@ function ringSide(P, s, o) {
   // the keel round's end on the bottom (z = r sin beta), and its support
   const tK = rKeel * sb;
   const onB = z => yK0 + z * tb;               // the bottom's y at z
-  const zKs = edoB ? s.zm : Math.min(tK + 1.6 * rKeel, 0.45 * s.b);
-  if (edoB) { const nx = -(cb + cbO), nz = sb + sbO, nl = Math.hypot(nx, nz) || 1; push(s.ym, s.zm, nx / nl, nz / nl); }
-  else push(onB(zKs), zKs, nB[0], nB[1]);
-  const onBo = edoB ? (z => s.ym + (z - s.zm) * tbO) : onB;   // the outer facet's y at z
+  const zKs = Math.min(tK + 1.6 * rKeel, 0.45 * s.b);
+  push(onB(zKs), zKs, nB[0], nB[1]);
   // 2. the chine round: centre inside, at distance rC from both the bottom and the side
   //    bisector of the bottom's and the side's inward normals
-  const iB = [cbO, -sbO], iS = [sf, -cf];      // inward normals
+  const iB = [cb, -sb];                        // the bottom's inward normal
   const bis = [iB[0] + iS[0], iB[1] + iS[1]]; const bl = Math.hypot(bis[0], bis[1]) || 1; bis[0] /= bl; bis[1] /= bl;
   const half = Math.acos(Math.max(-1, Math.min(1, iB[0] * iS[0] + iB[1] * iS[1]))) / 2;   // half the angle between the normals
   const dC = rC / Math.max(0.2, Math.cos(half));
   const cC = [s.yc + bis[0] * dC, s.b + bis[1] * dC];
   const tC = rC * Math.tan(half);              // tangent length along each face
   // support on the bottom, then the arc from the bottom's normal to the side's
-  const zCs = Math.max(zKs + 1e-4, s.b - tC * Math.min(2.2, 0.35 * s.b / Math.max(1e-6, tC)) * cbO);
-  push(onBo(zCs), zCs, nB[0], nB[1]);
+  const zCs = Math.max(zKs + 1e-4, s.b - tC * Math.min(2.2, 0.35 * s.b / Math.max(1e-6, tC)) * cb);
+  push(onB(zCs), zCs, nB[0], nB[1]);
   const a0 = Math.atan2(nB[1], nB[0]), a1 = Math.atan2(nS[1], nS[0]);
   for (let i = 0; i <= NC; i++) {
     const a = a0 + (a1 - a0) * i / NC;
     push(cC[0] + rC * Math.cos(a), cC[1] + rC * Math.sin(a), Math.cos(a), Math.sin(a));
   }
+  yCs = s.yc + Math.min(2.2 * tC, 0.35 * (s.yd - s.yc)) * cf;
+  }
   // 3. the side: support above the chine round, support below the gunwale round
-  const onS = y => s.b + (y - s.yc) * tf;      // the side's z at y
-  const yCs = s.yc + Math.min(2.2 * tC, 0.35 * (s.yd - s.yc)) * cf;
   push(yCs, onS(yCs), nS[0], nS[1]);
   // FLOATS-CLASSIC: THE EDO TOPSIDE (measured, 32_hydro sectionOf) - the leaning side runs to a support under the
   // shoulder, then the arc's seven points (HY.edoArc: the physics section's own) to the crown, each with the
@@ -680,19 +694,38 @@ function buildRudder(P, HY, o, sc) {
   // THE BLADE: its span (fore-aft) and depth from the hull's own area and
   // depth — the physics reads these two numbers, so what it feels is drawn
   const depth = P.wrDepth + 0.01 * sc;                   // the foot exactly wrDepth under the stern keel, the head a hair above it
-  const span = P.wrArea / (0.92 * depth);                // a rounded lower-aft corner takes 8 %
+  let span = P.wrArea / (0.92 * depth);                  // a rounded lower-aft corner takes 8 %
   const pivot = [post[0], yFoot + 0.01 * sc, 0];         // the arms' horizontal pivot at the post's foot
   const xB0 = pivot[0] + 0.06 * sc;                      // the blade's leading edge
   const yB1 = pivot[1] + 0.03 * sc, yB0 = yB1 - depth;   // top and foot
   const t = 0.008 * sc, r = 0.35 * depth;
+  let yTopE = null;                                      // FLOATS-CLASSIC: the EDO stone's top, when it is lower than the plate's
   // the outline in (x, y), lower-aft corner rounded
-  const outl = [[xB0, yB1], [xB0 + span, yB1], [xB0 + span, yB0 + r]];
+  let outl = [[xB0, yB1], [xB0 + span, yB1], [xB0 + span, yB0 + r]];
   for (let k = 1; k <= 5; k++) { const a = (Math.PI / 2) * k / 5; outl.push([xB0 + span - r + r * Math.cos(a), yB0 + r - r * Math.sin(a)]); }
   outl.push([xB0, yB0]);
+  if (P.crownK) {
+    // FLOATS-CLASSIC: THE EDO's RIVER STONE (the user's plan: "a very vintage rounded stone-like, river stone-like
+    // profile" - the blade a rounded pebble hung off the post): a superellipse, squarer above (n 3, where the arms
+    // hold it) and rounder below and aft (n 2.2); its depth the same wrDepth, its width solved so its area is exactly
+    // wrArea - the numbers waterRudder() reads, so the water still feels what is drawn
+    // (a squat pebble, as the plan's: 1.15 as wide as tall - its FOOT is the physics' wrDepth under the stern keel and its
+    // AREA wrArea; its top falls where that leaves it, the arms reaching down to it from the pivot)
+    const ring = (a, c) => { const o = [], N = 28, cx = xB0 + a, cy = yB0 + c;
+      for (let k = 0; k < N; k++) { const th = 2 * Math.PI * k / N, ct = Math.cos(th), st = Math.sin(th), n = st > 0 ? 3 : 2.2;
+        o.push([cx + a * Math.sign(ct) * Math.pow(Math.abs(ct), 2 / n), cy + c * Math.sign(st) * Math.pow(Math.abs(st), 2 / n)]); }
+      return o; };
+    const areaOf = q => { let A = 0; for (let k = 0; k < q.length; k++) { const a = q[k], b = q[(k + 1) % q.length]; A += a[0] * b[1] - b[0] * a[1]; } return Math.abs(A) / 2; };
+    const K1 = areaOf(ring(1, 1));                          // the unit stone's area
+    const c = Math.min(0.5 * depth, Math.sqrt(P.wrArea / (1.15 * K1))), a = P.wrArea / (K1 * c);
+    outl = ring(a, c);
+    span = 2 * a;
+    yTopE = yB0 + 2 * c;
+  }
   plateXY(blade, outl, 0, t);
   // the two arms: flat bars from the pivot to the blade's top edge
   for (const sd of [-1, 1]) {
-    const a = [pivot[0], pivot[1], sd * 0.02 * sc], b = [xB0 + 0.04 * sc, yB1 - 0.02 * sc, sd * (t / 2 + 0.003 * sc)];
+    const a = [pivot[0], pivot[1], sd * 0.02 * sc], b = [xB0 + 0.04 * sc, (yTopE != null ? yTopE : yB1) - 0.02 * sc, sd * (t / 2 + 0.003 * sc)];
     const d = sub(b, a), L = len(d), X = nrm(d), Z = [0, 0, 1], Y = nrm(crs(Z, X));
     boxAt(blade, lerp(a, b, 0.5), [L / 2 + 0.012 * sc, 0.012 * sc, 0.003 * sc], X, Y, Z);
   }

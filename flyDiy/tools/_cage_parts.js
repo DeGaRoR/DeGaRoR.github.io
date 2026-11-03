@@ -786,7 +786,7 @@ const CAGE_PARTS = [
       // left here once the trunk has taken its rows is the root fillet
       ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
                 'finKeel']],
-      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
+      ['ventral', ['finVentralOn', 'finVentralShape', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`

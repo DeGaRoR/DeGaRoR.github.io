@@ -90,7 +90,7 @@ const PRESET_LABELS = PRESET_NAMES.map(n => {
 // the 2350 and the rows follow. The frame's own sizing rule
 // (HYDRO.floatParamsFor: a pair displaces 180 % of the gross) is what a
 // spec with no drawn float still gets.
-const rowsOfParams = Q => ({
+const rowsOfParams = Q => Object.assign({
   fltL: Q.L, fltStep: Q.xs / Q.L, fltB: Q.B, fltH: Q.H, fltBeta: Q.beta, fltBetaBow: Q.betaBow,
   fltBetaA: Q.betaA, fltHs: Q.hs, fltAft: Q.aftAngle, fltAftCurve: Q.aftCurve, fltFlat: Q.flatK,
   fltStem: Q.stemK, fltRake: Q.rake, fltNoseR: Q.noseR, fltPlan: Q.planK, fltStern: Q.bStern,
@@ -98,7 +98,7 @@ const rowsOfParams = Q => ({
   fltSpreadAft: +(0.28 * (Q.scale || 1)).toFixed(2),      // the aft spreader bar, just aft of the step
   // FLOATS-CLASSIC: a catalogue row says its own style (an EDO row the classic deck, a Wipline row the flat one)
   fltStyle: Q.style === 'edo' ? 1 : 0,
-});
+}, Q.style === 'edo' ? { finVentralShape: 1 } : null);   // ...and an EDO kit's ventral is the plan's vintage lobe (once, like every row here)
 const DEF_ROWS = HY0 ? rowsOfParams(HY0.presetParams('Wipline 1450')) : {};
 // (the preset row itself boots at `custom`: a build saved before G451 must
 // not come back labelled as a catalogue row its dials never were)
@@ -212,6 +212,9 @@ function applyFloatPreset(P, name) {
   const Q = HY && HY.presetParams(name);
   if (!Q) return false;
   Object.assign(P, rowsOfParams(Q));
+  // FLOATS-CLASSIC: an EDO kit's ventral is the plan's vintage lobe at the plan's proportions - its chord 3.0 times
+  // its depth (the long forward point; the plate's 0.6 x 0.4 drew a short bucket) - the depth row kept
+  if (Q.style === 'edo') P.finVentralC = Math.min(2.5, +((+P.finVentralH || 0.4) / 0.33).toFixed(2));
   return true;
   // (rowsOfParams writes fltStyle: an EDO row turns the classic deck on, a Wipline row the flat one)
 }
@@ -297,7 +300,8 @@ function floatKitCard(ev, P) {
     else lines.push(['Propeller', ev.model && ev.model !== CUSTOM ? 'unchanged: no certified seaplane propeller is listed for the ' + esc(ev.model) + '.'
                                      : 'unchanged. Pick a Wipline model: one with a certified propeller (the 2350, for the Cessna 172) fits it.']);
     if (+P.gearFloats) {
-      lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats).' : 'not fitted (switch it on in the fin rows).']);
+      lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats)' +
+                  (Math.round(+P.finVentralShape || 0) === 1 ? ' - the vintage lobe of the EDO kits.' : '.') : 'not fitted (switch it on in the fin rows).']);
       lines.push(['Water rudders', +P.fltRudder ? 'fitted on both float sterns.' : 'off.']);
       const pairKg = R ? R.mSys : 2 * (+P.fltMass || 0);
       // FLOATS-CLASSIC: what the pair costs (HYDRO.floatPrice: the catalogue's, else the family's rate on its mass)

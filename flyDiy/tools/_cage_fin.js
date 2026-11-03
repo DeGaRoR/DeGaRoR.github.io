@@ -31,6 +31,7 @@ if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 // that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
   finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35,
+  finVentralShape: 0,   // FLOATS-CLASSIC: 0 the swept plate (every build before), 1 the vintage lobe (the EDO plan's)
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
   finFillet: 0.035,
@@ -85,6 +86,10 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['finVentralZ', 'ventral station (ahead of the tail cap)', 0, 1.5, 0.01,
    { when: P => +P.finOn && !+P.boomTwin && +P.gearFloats && +P.finVentralOn }],
   ['finVentralTip', 'ventral tip chord (x root)', 0.05, 1.0, 0.01,
+   { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) && +P.finVentralOn && !Math.round(+P.finVentralShape || 0) }],
+  // FLOATS-CLASSIC (the user, reading the EDO plan: "an interesting tail ventral fin shape, very vintage ... a tic-tac
+  // shape on one side and then just goes further towards the fore side"): the lobe - see the build below
+  ['finVentralShape', 'ventral shape', 0, 1, 1, ['swept plate', 'vintage lobe'],
    { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) && +P.finVentralOn }],
   // THE FIN'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what the tail is built from — grammar, the livery's auto-finish
@@ -697,19 +702,37 @@ PAGE.post = ctx => {
       const sink = z => Math.min(0.05, 0.35 * Math.max(0, deck.top(zc(z)) - belly(z)));
       const yRoot = z => belly(z) + sink(z);
       const yTip = belly(zAftAll + 0.5 * cR) - h;
-      const NU = 6, NV = 4;                       // chordwise x spanwise quads
+      // FLOATS-CLASSIC: THE VINTAGE LOBE (the user's EDO plan, the ventral under its tail cone): hung from the belly,
+      // a long point forward sweeping down in a PARABOLA into a straight bottom (level: deepening aft as the belly rises), a
+      // ROUND aft end - a half-ellipse as deep as the fin standing 0.18 of the chord aft of where its root leaves the
+      // belly: the tic-tac. In u (0 the forward tip .. 1 the aft-most point, along the chord `finVentralC`) and v (0 the
+      // belly .. 1 the bottom line, `finVentralH` under the belly at the root's aft end): the leading edge u0(v) =
+      // 0.36 (1 - sqrt(1 - v)) - a parabola leaving the belly at ~50 deg on the plan and meeting the bottom tangent - the aft edge
+      // u1(v) = 0.82 + 0.18 sqrt(1 - (1 - 2v)^2); read off the plan (the tip to the bottom over 0.36 of the chord, the
+      // bottom to 0.82, the round to 1). Its area 0.841 c h (the join's: 0.9614 - 0.12).
+      const lobe = Math.round(+P.finVentralShape || 0) === 1 && !TB;
+      const NU = lobe ? 8 : 6, NV = lobe ? 8 : 4;  // chordwise x spanwise quads
       const V = [], F = [];
+      const yTipL = belly(zAftAll + 0.18 * cR) - h;
       for (let j = 0; j <= NV; j++) {
         const v = j / NV, c = cR + (cT - cR) * v;
+        const u0 = lobe ? 0.36 * (1 - Math.sqrt(Math.max(0, 1 - v))) : 0;
+        const u1 = lobe ? 0.82 + 0.18 * Math.sqrt(Math.max(0, 1 - (1 - 2 * v) * (1 - 2 * v))) : 0;
         for (let i = 0; i <= NU; i++) {
-          const u = i / NU, z = zAftAll + u * c;
-          V.push([0, (1 - v) * yRoot(z) + v * yTip, z]);
+          if (lobe) {
+            const u = u0 + (u1 - u0) * i / NU, z = zAftAll + (1 - u) * cR;
+            V.push([0, (1 - v) * yRoot(Math.min(z, zAftAll + 0.18 * cR)) + v * yTipL, z]);
+          } else {
+            const u = i / NU, z = zAftAll + u * c;
+            V.push([0, (1 - v) * yRoot(z) + v * yTip, z]);
+          }
         }
       }
       const at = (i, j) => j * (NU + 1) + i;
       for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++)
         F.push({ v: [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], m: 'finVentral', part: 'ventral' });
-      let solid = FIN.finThicken({ V, F }, { thick: t, thickTE: tTE,
+      // (the lobe's aft end is ROUND, not a trailing edge: its thickness holds to the rim - no thinning)
+      let solid = FIN.finThicken({ V, F }, { thick: t, thickTE: lobe ? t : tTE,
         zHinge: zAftAll + 0.45 * cR, zAftEnd: zAftAll, rimN: P.tailRimN });
       // the thickener's sides follow the sheet's winding; the plate must
       // face OUT (the rim's normals are built, the sides' computed) — the

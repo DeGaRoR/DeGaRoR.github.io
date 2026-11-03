@@ -89,11 +89,21 @@ if (STATIC) {
     const sA = H.sectionOf(P, 1e-9), sT = H.sectionOf(P, P.L - P.xs - 1e-6), sternD = (sT.yt - sT.yk) / P.H;
     ok(kErr <= 0.02 && Math.abs(sA.yk / P.H - 0.12) < 1e-9 && sternD >= 0.30 && sternD <= 0.48 && P.sheerK === 0,
        `the measured profile: the keel within ${f2(kErr, 3)} of the depth of the plan's eight points, the step 0.12 of the depth deep at ${f2(P.xs / P.L, 3)} L, the stern ${f2(sternD)} of the depth deep (plan 0.39), a level deck`);
-    // THE BELLY (the main formers): convex - the mid point at half the straight V's height over the middle, none at the ends
-    const sB = H.sectionOf(P, -0.2 * P.xs), sBow = H.sectionOf(P, -0.85 * P.xs);
-    const rB = (sB.ym - sB.yk) / (sB.zm * Math.tan(sB.beta * Math.PI / 180)), rBow = (sBow.ym - sBow.yk) / (sBow.zm * Math.tan(sBow.beta * Math.PI / 180));
-    ok(Math.abs(rB - 0.5) < 1e-6 && Math.abs(rBow - 1) < 1e-6,
-       `the belly: convex over the middle (the mid point at ${f2(rB)} of the straight V's height, formers A/B 0.41-0.57), a straight V at the bow (${f2(rBow)})`);
+    // THE FLUTED BOTTOM (the main formers, and the user's "Batman" reading): ahead of the step each half of the V is
+    // two concave arcs meeting at a ridge 0.55 of the half-beam out, ~8 % of it under the straight V; a straight V at
+    // the bow and aft of the step; the physics' two facets a side hold the drawn flutes' area (its ridge raised)
+    const sB = H.sectionOf(P, -0.2 * P.xs), sBow = H.sectionOf(P, -0.95 * P.xs), sAft = H.sectionOf(P, 0.3 * (P.L - P.xs));
+    const vAt = (q, z) => q.yk + z * Math.tan(q.beta * Math.PI / 180);
+    const drop = q => (vAt(q, q.flute[2][1]) - q.flute[2][0]) / q.b;
+    // concave: every arc point stands above (inside) its chord - keel to ridge, ridge to chine
+    const concave = q => { const r = q.flute[2], C = [q.yc, q.b];
+      const above = (p, a, b) => p[0] > a[0] + (p[1] - a[1]) * (b[0] - a[0]) / Math.max(1e-9, b[1] - a[1]) + 1e-6;
+      return [0, 1].every(i => above(q.flute[i], [q.yk, 0], r)) && [3, 4, 5].every(i => above(q.flute[i], r, C)); };
+    const A = qq => H.secAreaTo(P, qq, 10);
+    const drawnA = (() => { const q = sB, pts = [[q.yk, 0], ...q.flute, [q.yc, q.b]]; let a2 = 0; for (let i = 0; i + 1 < pts.length; i++) a2 += (pts[i][1] * pts[i + 1][0] - pts[i + 1][1] * pts[i][0]); return a2; })();
+    const physA = (() => { const q = sB, pts = [[q.yk, 0], ...q.fluteP, [q.yc, q.b]]; let a2 = 0; for (let i = 0; i + 1 < pts.length; i++) a2 += (pts[i][1] * pts[i + 1][0] - pts[i + 1][1] * pts[i][0]); return a2; })();
+    ok(Math.abs(drop(sB) - 0.08) < 1e-6 && concave(sB) && Math.abs(drop(sBow)) < 1e-6 && Math.abs(drop(sAft)) < 1e-6 && Math.abs(drawnA - physA) < 1e-9,
+       `the fluted bottom: the ridge ${f2(100 * drop(sB), 1)} % of the half-beam under the V ahead of the step (formers A, B, D: 7.4-9), the flutes concave, a straight V at the bow (${f2(100 * drop(sBow), 1)} %) and aft of the step (${f2(100 * drop(sAft), 1)} %); the physics' ridge holds the flutes' area`);
     // THE SIZE: the plan's shape scaled to the model number - the EDO 2000 against the owners' 16 ft bumper to transom
     ok(P.L >= 4.55 && P.L <= 4.88, `the EDO 2000 at the plan's proportions holds 907 kg at ${f2(P.L)} m (${f2(P.L / 0.3048, 1)} ft hull; the owners' 16 ft is bumper to transom)`);
     ok(Math.abs(H.levelVolume(F, 10, 4000) / F.volDeck - 1) < 0.004, 'levelVolume to the deck = volDeck (the section family and the panels agree)');
@@ -123,6 +133,13 @@ console.log('JOIN - the style rides the game\'s own load path');
     ok(fa && !('style' in fa) && !('crownK' in fa) && !('bowDrop' in fa) && !('noseMul' in fa), 'as saved: the PA-18\'s float record names no style');
     ok(fb && fb.style === 'edo' && fb.crownK === H.EDO_STYLE.crownK && fb.bowDrop === H.EDO_STYLE.bowDrop && fb.noseMul === H.EDO_STYLE.noseMul && fb.L === fa.L && fb.B === fa.B,
        'style row 1: the record carries the EDO deck over the same rows (same length and beam)');
+    // THE VINTAGE VENTRAL (the plan's lobe): the fin area the join flies grows by the lobe's (0.841 c h) over the
+    // plate's ((1 + tip) / 2 c h) - the same chord and height
+    const rv = JSON.parse(JSON.stringify(rb)); (rv.spec || rv).cage.finVentralShape = 1;
+    const bv = LB.gameSpec(rv), cg = (rv.spec || rv).cage, FSv = (+cg.planeScale || 1);
+    const dSv = bv.tail.Sv - b.tail.Sv, want = (0.841 - 0.5 * (1 + (+cg.finVentralTip || 0.35))) * (+cg.finVentralC || 0.6) * (+cg.finVentralH || 0.4) * FSv * FSv;
+    ok(+cg.finOn && +cg.finVentralOn && Math.abs(dSv - want) < 1e-6 * Math.max(1, want),
+       `the vintage ventral flies its own area: the tail's Sv ${f2(b.tail.Sv, 3)} -> ${f2(bv.tail.Sv, 3)} m2 (+${f2(dSv, 4)}, the lobe's 0.841 c h against the plate's)`);
     const def = C.buildGen(C.genMigrateSpec(b));
     ok(def.parts.floats[0].P.crownK === H.EDO_STYLE.crownK && fb.volDeck < fa.volDeck,
        `the frame flies the dome (${f2(fb.volDeck * 1000, 0)} kg to the deck against the flat deck's ${f2(fa.volDeck * 1000, 0)})`);

@@ -1692,7 +1692,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               const FSv = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * (+P.planeScale || 1);
               const hV = Math.max(0.05, +P.finVentralH || 0.4), cV = Math.max(0.1, +P.finVentralC || 0.6);
               const tip = Math.max(0.05, Math.min(1, +P.finVentralTip || 0.35));
-              M.Sv += (TBj ? 2 : 1) * 0.5 * (1 + tip) * cV * hV * FSv * FSv;
+              // (FLOATS-CLASSIC: the vintage lobe under a single fin is 0.841 c h - _cage_fin.js's outline integrated)
+              const lobeV = !TBj && Math.round(+P.finVentralShape || 0) === 1;
+              M.Sv += (TBj ? 2 : 1) * (lobeV ? 0.841 : 0.5 * (1 + tip)) * cV * hV * FSv * FSv;
             }
             M.dorsalArea = finM.areaDorsal;
             M.vTaper = finTaperAbove(finM, FNm);
