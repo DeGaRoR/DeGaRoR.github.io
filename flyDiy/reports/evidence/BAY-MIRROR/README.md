@@ -57,20 +57,62 @@ neighbours' mean (6 rings) so the texture's bilinear filter does not lift a bay'
 on first use: ~35 ms warm, ~90–140 ms cold in node; deterministic (CORE_MATH for the headings). No hand-painted polygons:
 any island with a coast field gets its bays for free.
 
+**Calmer, not glassy (A0's ruling, 3 Nov ~22:00)**: the shelter removes the fetch-built sea, not the wind's own ripple. The
+waves scale by `waveK = 0.25 + 0.75 x calm` (`28_island.js` `waveK`, the dial `SHELTER.ripple`): 1 on open water, 0.25 deep
+in a bay. 0.25 is JONSWAP's height ~ sqrt(fetch): a bay's ~0.6 km against the ~10 km the open sea stands for. The sea's
+amplitude is already the wind's (0.018 m per m/s), so the ripple goes glassy exactly when the wind does (GATE WATER 7: the
+SEA base keeps 0.026 m of ripple at a 5 m/s sea, 0 in calm air). The mirror ring's bay rule reads the raw shelter.
+
 **One source (WYSIWYG)**:
-- physics: `src/core/20_world.js` `waterH(x, z, t)` multiplies the felt trains by `calmAt(x, z)` (k = 1 is never
-  multiplied, so open water is the same doubles; k = 0 returns 0). Floats, the hull's hydro, the spray's water level and
-  the buoys all read `waterH`, so they ride the calmer bay;
-- the eye: `render_world.js` hands `world.calmField()` (the same bytes) to `WATER.setCalm`, an R8 texture
+- physics: `src/core/20_world.js` `waterH(x, z, t)` multiplies the felt trains by `waveK(x, z)` (k = 1 is never
+  multiplied, so open water is the same doubles). Floats, the hull's hydro, the spray's water level and the buoys all read
+  `waterH`, so they ride the calmer bay;
+- the eye: `render_world.js` hands `world.calmField()` (the same bytes and dial) to `WATER.setCalm`, an R8 texture
   (`uWCalm`, texel centres at the cells' centres, clamped like the core). The near patch's lift is multiplied by it (the
   hull sits in the wave it is drawn in); on the sea's body the fragment blends the per-body row toward the LAKE's
-  (`mix(uWBody[1], uWBody[0], calm)`: the swell's slopes x calm, the ripple tile 1.0 -> 0.55) and thins the whitecaps'
-  cover by calm. The colour, the depth, the shore and the roughness law stay the sea's;
+  (`mix(uWBody[1], uWBody[0], waveK)`: the swell's slopes x waveK, the ripple tile toward 0.55) and thins the whitecaps'
+  cover by waveK; the ripple dial reaches the shader from the field itself (`uWRipple`). The colour, the depth, the shore and the roughness law stay the sea's;
 - the mirror: no second capture, the same plane. Over a bay the AUTO ring's weight takes the lake's rule by the bay's own
   weight (`water.js` mirrorRender: `sea + (1 - sea) x bay`, bay = 1 - calm at the eye): no 300-400 m fade and no
   1.0-1.3 km fade over a sheltered bay; open water (calm 1) exactly as before. After the `'off'` return, so reflections
   off still costs nothing on the CPU.
 
 **Cost**: one R8 texture sample per sea fragment and per near-patch vertex (every tier, the waves are not a reflections
-setting), a 121 KB texture, the field's one-time build. The water program's samplers: five of its own now (GATE WATER's
-row; the GL program's units are counted on the "after" run, see section 4).
+setting), a 121 KB texture, the field's one-time build. The water program's own samplers: five now (GATE WATER's row).
+Counted off the linked GL program on SwiftShader (`bay_stage.js`, G424's rule): master's water program uses 8 texture units
+with the hull reflection (uWSdf, uWDetail, uWInter, uWHull, uWMirror, envMap, uApAtlas, dfgLUT); this branch adds uWCalm
+(9 - the hardware floor is 16; the after run's count is in `after.json`).
+
+## 3. The floats on the calmer bay: the take-off run at the SEA base, master vs this branch
+
+The game's own seaplane base `SEA` (360, -3660) lies inside the south fjord (calm 0, waveK 0.25); Cedar Harbour's `mk_sea`
+and `cb_sea` are on open water (calm 1, unchanged). The floats Cessna (`bugReports/cessnaFloatsWOrks.json`, 1017 kg) flown
+down SEA's lane from 600 m short of its centre, no air wind, the sea pinned, with `tools/hydro_trim_table.js --world jolene
+--at SEA --sea A,L,dir` (new option; `--core` the master worktree's core for the before):
+
+| sea | technique | master | this branch (the bay, waveK 0.25) |
+|---|---|---|---|
+| 5 m/s (A 0.09, L 10) | G3390 rig | 26.9 s, 458 m | 26.6 s, 455 m |
+| 5 m/s | POH | 21.7 s, 292 m | 21.4 s, 291 m |
+| 8 m/s (A 0.144, L 14.2) | G3390 rig | 27.3 s, 456 m | 26.7 s, 457 m |
+| 8 m/s | POH | 23.1 s, 310 m | 21.5 s, 293 m |
+| calm (A 0) | both | 26.5 s, 451 m / 21.4 s, 293 m | identical |
+
+The floats unstick the same on the bay; the one difference past a few metres is the POH run at 8 m/s, 17 m shorter on the
+calmer water (master's tracks drift 3-9 deg off the lane in the open-sea waves; the bay's hold within 2-3 deg).
+
+## 4. Gates (node; this tree's build, `--no-build`)
+
+The brief's set: **WATER, GFX, FLOATS, SEAPLANE, HYDRODYN, UISMOKE, UISMOKE-PHONE: PASS**. There is no SPRAY gate in the runner -
+the spray's rows are GATE WATER section 6 (PASS).
+
+The gates that read the touched files (`water.js`, `render_world.js`, `20_world.js` / `28_island.js` through the island,
+`waterH`): **PASS** - SIMWORKER, HYDRO, WETFX, WETFX-PAGE, WIPLINE, CLIMATE, WORLDRENDER, UILAYER, SHADOWSKY, MEDIA, SITE,
+TESTFIELD, METKIT, AUDIO, STRIPGROUND, FLIGHTREC. **RED, and red on a clean origin/master adb2d2a9 with the same rows**
+(the master worktree, the same session):
+- TOUR: the aluminium C172 ground-loops landing at tw_ski (2 of 4 legs);
+- DESTTO: ltd:floats' leg 2 gives up its roll-out at mk_sea after 811 s (the same event times on both trees; the gate's
+  island has no sea state - A 0 - so `waterH` returns before the shelter is read: this change cannot reach it);
+- VEHICLE: DEF / AIRBORNE; LAKEBED: 02/20's pond rows 2 and 3; WORLD: island approaches 13/31 under 4 %;
+- ASSETS: the `new THREE.*Material` counts (render_premises, app, hangar_view, studio, dmg_members - files not touched here);
+- PARKED: node's heap out of memory building the parked aeroplanes (on master too).
