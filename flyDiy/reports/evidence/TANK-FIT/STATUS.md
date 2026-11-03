@@ -188,7 +188,12 @@ C172 has no nose tank.
 * the saves' nose tanks with no station and no box of their own now take the auto shape by default
   (`window.TANK_NOSE_AUTO_ALL = false` = the old shaping, the A/B);
 * the floatplane card's STOCK_TANKS entry is `fit: 'auto'` (hand-edited: tank_refit_apply.js generated the table);
-* the validated twin floatplane's header tank: **NOT applied** (measured, then withdrawn). Nothing larger than 10 L
+* the validated twin floatplane's header tank: **applied, 19 → 10 L** (round 3, A0's T1, the user's answer of 3 Nov
+  08:40: "the 10 L refit goes in as soon as the FLOATS idle-taxi NaN is fixed"). The NaN was NOT the sim: GATE FLOATS
+  flew its landing for a FIXED 45 s and reads the taxi 20 s after the touch - master's touched at 24.90 s (0.1 s
+  inside), the refitted aeroplane (6.5 kg lighter) floats longer in the ground effect and touched at 26.38 s, so the
+  read never came and the row printed its NaN sentinel (every frame finite). The gate now flies until the taxi is
+  read (90 s cap): PASS, the taxi 3.0 m/s 20 s after a 0.42 m/s touch. No physics changed. The history, round 2: Nothing larger than 10 L
   fits the open pod's nose (searched: 0.8-1.0 of its size, every station and level, both turns; a second tank behind
   the seat did not clear at the bay rule's spots), and the 10 L refit (the same cylinder at 0.8, 2 cm forward, 5 mm
   clear) made **GATE FLOATS' idle water taxi diverge** (NaN 20 s after the touch; master passes) - a sim fragility the
@@ -204,7 +209,7 @@ Every save this changes (the master spec's own tank vs this tree's, on today's c
 | builds/composite_jodel_2026-10-07 | 45 L | 56 L deck | −14.5 / +8.1 mm | 514.4 → 525.4 kg |
 | tools/fixtures/camel_2026-10 | 44 L (red: 61 mm into the engine) | **25 L** deck, fits | +13.3 / −11.5 mm | 716.0 → 696.9 kg (31.7 → 18.0 kg) — **19 L less: flag it** |
 | tools/fixtures/cub_fittings_hand_2026-10, cub_quadwin_2026-10, stol_cub_kit | 28 L | 44 L deck | −20.1..−20.7 / +56..59 mm | +15 kg |
-| validated twin floatplane | 19 L cyl | unchanged (the 10 L refit withdrawn: GATE FLOATS' taxi diverged) | — | — |
+| validated twin floatplane (its VALIDATED patch, _load_build.js) | 19 L cyl, red | 10 L cyl, fits (5 mm clear), 2 cm forward | the tank's 6.5 kg of fuel less | — |
 | every other saved tank (its own place or box) | unchanged | | | |
 
 Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half of the skin cut away):
@@ -255,10 +260,42 @@ FAIL, **standing on master** (the same lines on an origin/master worktree):
 Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates (UISMOKE...); the editor's
 new rows (auto-fit, the gap and room rows, dragLayout) and the bench's tank rows are untested in a page: a look owed.
 
+## Round 3 (A0, the user's answers of 3 Nov 08:40)
+* T1 the twin floatplane's 10 L: applied (above); GATE FLOATS' landing flies until its taxi is read (a gate fix, not
+  the sim: nothing in the core).
+* T2 the camel fixture's 25 L: accepted. T3: 10 cm of instrument cases everywhere (NOSE_CASE_DEPTH, unchanged).
+* T4 THE FIRST SHAPING OFF THE MAIN THREAD (the phone): sliced, not a Worker (the shaping asks this thread's own
+  surfaces, crew points and solids; a slice of the same code is the same answer, bit for bit). On a page it runs one
+  ~4 ms slice a frame (noseAutoGen, NOSE_JOB); the tank reads "fitting the tank to the nose" meanwhile, is neither
+  drawn nor written back, and the slice that ends lays the tanks out again. Node (the gates) runs it whole, as before.
+  The search judges a LIGHT solid (VESSEL_MESH.mkShape, no mesh: building a drawn tank per candidate was 20-60 ms),
+  stops at the first contact, and a deck's top bounds the surfaces above its shoulders (the box bound refined the
+  whole deck skin: 100 ms a judgement). Measured (node, the page's slicing emulated - frames queued, drained, timed):
+
+  | build | slices | median / p90 | the long ones | wall | before (synchronous) |
+  |---|---|---|---|---|---|
+  | Cub | 29 | 4.7 / 5.1 ms | the last (the layout that builds the drawn tank): 25 ms; the start 15 ms | 131 ms | 646 ms in one block |
+  | Jodel | 57 | 5.5 / 7.7 ms | the last two 10, 34 ms; the start 13 ms | 327 ms | 754 ms |
+  | metal Cessna (a new auto tank) | 104 | 5.5 / 8.5 ms | the start 96 ms; the last four 28-59 ms | 718 ms | 1128 ms |
+
+  Owed: the start (the bay's first measurement before the first yield) and the drawn tank's build at the end still
+  run whole (up to ~100 ms on the C172 here); a layout of fitted tanks is 8-11 ms (was 105 with the deck's box bound).
+* T5 the story's mission gate: Game's (A0 briefs them).
+
+## For DESIGN-AIDS (A0: "tell DESIGN-AIDS the row ids")
+TANK-FIT adds design-check rows, both `group: 'wb'`, `tier: 'safe'` (the AIRWORTHINESS certificate: a FAIL withholds
+it; never `proposed`), id **`wb.tank<i>`** (i = the vessel's index in spec.energy.vessels):
+* bench.js `benchTankRows()`: one FAIL per tank the editor's drawn clearance refuses ("Tank 1 fits (Nose bay)", the
+  reason in `why`, "move or resize the tank ... or pick the nose bay's auto-fit" in `fix`), pushed into the shake
+  test's `dsg.rows` before `dFail` is taken - the same lines DESIGN-AIDS rewrites (allRows / TI.safeFail): merge so
+  the tank rows stay in the list the airworthiness verdict reads;
+* 64b `genDesignCheck`: one FAIL per strut pod on a strutless wing (`unmounted`), at the end of the row list.
+GEN_CERT_TIER's default ('safe' for an unknown id) already reads them right; a prefix entry (`wb.tank*`) would say so.
+
 ## Open questions for the user
 0. For A0 (not the user's): the story mode's mission gate on the certificate is not built (see the overall rule above).
 1. The validated twin floatplane: 10 L that fits, or the 19 L red (flies, no certificate)? Or a second tank (where)?
 2. The camel fixture loses 19 L (44 → 25 L) under the same rule: keep, or give it its own box?
 3. The instruments' cases: 10 cm assumed (a VFR set). A gyro panel wants ~17 cm of case + 5 cm: should the case depth
    follow the panel's own instruments (the panel layer knows which it drew)?
-4. The auto-fit's first shaping costs 0.3-1.1 s in node, once per body change (cached): off the main thread next?
+4. (answered: sliced off the main thread, round 3)

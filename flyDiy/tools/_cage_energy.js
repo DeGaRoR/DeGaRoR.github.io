@@ -682,6 +682,11 @@ function placeAll(ctx, inv) {
       // (the body moves, the tank follows), written into the vessel - the ledger bills what is drawn
       if (noseAutoWanted(v, bay) && !FIT_AUTO_SKIP) {
         const na = noseAuto(ctx, inv, bay, v, zFw, cache);
+        if (na && na.pending) {
+          // the shaping is on its way (sliced): nothing drawn, nothing written; the slice that finishes lays out again
+          results.push({ on: 'body', ok: true, pending: true, why: [], v, bay, res, dims, needL: res.installedL, roomL: bay.roomL, crewHits: 0 });
+          continue;
+        }
         if (na && na.dims && !na.why) {
           const same = v.form === 'deck' && v.dims && JSON.stringify(v.dims) === JSON.stringify(na.dims) && v.along === na.along && v.lv === na.lv;
           if (!same) { v.form = 'deck'; v.dims = na.dims; v.along = na.along; v.lv = na.lv; v.rot = 0; v.fit = 'auto'; wroteBack = true; }
@@ -1524,8 +1529,10 @@ const crewWord = n => /pick/i.test(n) ? 'a crew member' : /seat/i.test(n) ? 'a s
 const JUDGE = { drag: false, fast: false };
 function judgeTank(ctx, scene, inv, r) {
   const VM = window.VESSEL_MESH;
-  const sol0 = vesselSolid(r);
-  if (!sol0 || !sol0.shell || !VM) return;
+  // (a LIGHT solid - the shape alone, no mesh, no hardware: the auto-fit's search, which judges a new size every step
+  //  and built a whole drawn tank for each, 20-60 ms apiece; the drawn tank is judged whole by the layout after)
+  const sol0 = r.lightSolid || vesselSolid(r);
+  if (!sol0 || !(sol0.shell || sol0.light) || !VM) return;
   const S = surfAll(ctx, scene, inv), O = obstIndex(S), tag = S.tag;
   const yaw = r.rot + (sol0.yaw || 0);
   const tj0 = msNow();
@@ -1563,7 +1570,7 @@ function judgeTank(ctx, scene, inv, r) {
   //    (swollen by NEAR_R) is sampled every SAMPLE_STEP, and each sample asked of the tank's EXACT solid (the shape
   //    VESSEL_MESH draws, its rounded corners included): inside it (a contact: how deep), within CLEAR_GAP of it
   //    (no room), or how near (the readout). Exact where it matters, and a few thousand analytic tests a tank.
-  const b = S.buf, bb0 = drawnPts(r, solAll, ['shell']).bb, R = NEAR_R;
+  const b = S.buf, bb0 = solAll.light ? lightBox(r, solAll) : drawnPts(r, solAll, ['shell']).bb, R = NEAR_R;
   const bb = [bb0[0] - R, bb0[1] - R, bb0[2] - R, bb0[3] + R, bb0[4] + R, bb0[5] + R];
   let inside = null, nInside = 0, nThin = 0, near = [], coarse = Infinity, coarseTag = -1, coarseAt = null, leaves = 0;
   // the solid's own frame: the slot meshes' centre and turn (inSolid's), and its box (the solid lies inside it, so a
@@ -1581,6 +1588,7 @@ function judgeTank(ctx, scene, inv, r) {
   const inV = k => { pv[0] = t[k]; pv[1] = t[k + 1]; pv[2] = t[k + 2]; return inSolid(pv, r, solAll, 0); };
   const LEVELS = [CLEAR_GAP, 0.010, 0.020, NEAR_R];
   const convex = !(solAll.shape && solAll.shape.form === 'deck');
+  const deckTop = !convex && solAll.shape.atZ && solAll.shape.atZ(0) && solAll.shape.atZ(0).topAt ? solAll.shape.atZ(0).topAt : null;
   const BUDGET = JUDGE.drag ? 600 : 2000, RED_BUDGET = JUDGE.drag ? 120 : 400;
   let redAt = 0;
             // leaves a tank: past it the verdict is already red, and its depth is good enough
@@ -1597,6 +1605,14 @@ function judgeTank(ctx, scene, inv, r) {
       for (let a = 0; a < 3; a++) {
         const lo = Math.min(Lq[a], Lq[a + 3], Lq[a + 6]), hi = Math.max(Lq[a], Lq[a + 3], Lq[a + 6]);
         gap = Math.max(gap, lo - E3[a], -E3[a] - hi);
+      }
+      // A DECK's top falls toward its flanks, under its box's lid: the deck skin over the shoulders is inside the box
+      // and outside the tank, and the box's bound refined all of it to 8 mm leaves (the Cub's fitted tank: 100 ms a
+      // judgement). Its top at the piece's nearest |x| is the highest the tank reaches there - the bound from above.
+      if (deckTop && gap <= CLEAR_GAP) {
+        const xl = Math.min(Lq[0], Lq[3], Lq[6]), xh = Math.max(Lq[0], Lq[3], Lq[6]);
+        const ax = xl <= 0 && xh >= 0 ? 0 : Math.min(Math.abs(xl), Math.abs(xh));
+        if (ax < E3[0]) gap = Math.max(gap, Math.min(Lq[1], Lq[4], Lq[7]) - deckTop(ax));
       }
       if (gap > R) continue;
       if (gap > CLEAR_GAP) { if (gap < coarse) { coarse = gap; coarseTag = tag[i]; coarseAt = [(t[0] + t[3] + t[6]) / 3, (t[1] + t[4] + t[7]) / 3, (t[2] + t[5] + t[8]) / 3]; } continue; }
@@ -1720,6 +1736,23 @@ function podClear(ctx, scene, inv, pods) {
   }
   return null;
 }
+// THE LIGHT SOLID: VESSEL_MESH.build's own shape for these extents (its canonical turn, its corner radius), and its box
+function lightSolid(r, form, profile) {
+  const VM = window.VESSEL_MESH;
+  if (!VM || !VM.mkShape) return null;
+  const e0 = r.e.map(x => Math.max(0.02, x));
+  const swap = form !== 'deck' && e0[0] > e0[2] * 1.15;
+  const e = swap ? [e0[2], e0[1], e0[0]] : e0;
+  const rBox = EN.kind === 'battery' ? Math.max(0.005, Math.min(0.030, 0.10 * Math.min(e[0], e[1], e[2])))
+                                     : Math.max(0.008, Math.min(0.075, 0.34 * Math.min(e[0], e[1], e[2])));
+  const fm = form === 'cyl' ? 'cyl' : (form === 'deck' && Array.isArray(profile)) ? 'deck' : 'box';
+  return { light: true, shape: VM.mkShape(fm, e, { r: rBox, dome: 0.30, profile }), e, yaw: swap ? Math.PI / 2 : 0, form: fm };
+}
+function lightBox(r, sol) {
+  const yaw = r.rot + (sol.yaw || 0), cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw)), e = sol.e, c = r.c;
+  const ex = cs * e[0] + sn * e[2], ez = sn * e[0] + cs * e[2];
+  return [c[0] - ex, c[1] - e[1], c[2] - ez, c[0] + ex, c[1] + e[1], c[2] + ez];
+}
 // ALL BODY TANKS (the layout's and fitOf's door)
 function judgeAll(scene, inv, results, ctx) {
   for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
@@ -1761,7 +1794,41 @@ function noseAutoWanted(v, bay) {
   // validated Cub's and Jodel's) take the auto shape too; `window.TANK_NOSE_AUTO_ALL = false` is the old rule (the A/B)
   return window.TANK_NOSE_AUTO_ALL !== false && v.along == null && !v.dims;
 }
+// THE FIRST SHAPING IS SLICED (TANK-FIT, the user via A0 3 Nov: "move the auto-fit's first shaping off the main
+// thread - the phone"). A first shaping is 0.3-1.1 s of rays and judgements (node; once per body change, then cached),
+// which on the phone was a frozen garage. The shaping is a generator that yields after every floor it measures and
+// every candidate it judges; on a page it runs in ~4 ms slices, one per frame (NOSE_JOB), the tank reads "fitting to
+// the nose" meanwhile and is neither drawn nor written back, and the slice that finishes lays the tanks out again (the
+// shape then comes from the cache, drawn and committed). Not a Worker: the shaping asks the layer's own surfaces, the
+// crew's points and the drawn solid (VESSEL_MESH) - all on this thread - and a slice of the same code is the same
+// answer, bit for bit. Under node (the gates, the tools, the load chain: navigator.userAgent 'node') and with
+// window.TANK_AUTO_SYNC it runs to the end at once, as before.
+let NOSE_KEY_LAST = null, NOSE_JOB = null;
+const noseSliced = () => !window.TANK_AUTO_SYNC && typeof navigator !== 'undefined' && !!navigator.userAgent && navigator.userAgent !== 'node';
+const noseSchedule = fn => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16));
 function noseAuto(ctx, inv, bay, v, zFw, cache) {
+  const g = noseAutoGen(ctx, inv, bay, v, zFw, cache);
+  let r = g.next();
+  if (r.done) return r.value;                               // cached, or nothing to shape
+  if (!noseSliced()) { while (!r.done) r = g.next(); return r.value; }
+  const key = NOSE_KEY_LAST;
+  if (NOSE_JOB && NOSE_JOB.key === key) return { pending: true };   // (already on its way: this start is dropped)
+  const job = NOSE_JOB = { key, g, r, t0: msNow() };
+  const tick = () => {
+    if (NOSE_JOB !== job) return;                            // a newer body's shaping took over
+    const t0 = msNow();
+    let st = job.r;
+    while (!st.done && msNow() - t0 < 4) st = job.g.next();
+    job.r = st;
+    if (!st.done) { noseSchedule(tick); return; }
+    NOSE_JOB = null;
+    LAST.noseMs = msNow() - job.t0;
+    try { relayout(); } catch (e) { console.error('energy: the nose shaping', e); }
+  };
+  noseSchedule(tick);
+  return { pending: true };
+}
+function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
   const FS = fsOf(ctx), M = ctx.mesh;
   if (!M || zFw == null || !cache) return null;
   const gap = v.gap != null ? Math.max(0.0, Math.min(0.3, +v.gap)) : NOSE_GAP;
@@ -1769,6 +1836,7 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
   if (!CREW_PTS || !crewFresh(ctx.scene, inv)) CREW_PTS = crewPoints(ctx.scene, inv);
   const key = BODY_SIG + '|' + S.sig.length + ':' + S.n + '|' + (CREW_PTS.sig || '').length + ':' + CREW_PTS.n + '|' + gap.toFixed(3) + '|' + (v.room != null ? (+v.room).toFixed(3) : 'r') + '|' + EN.kind + '|' + vesselKey();
   if (NOSE_AUTO.has(key)) return NOSE_AUTO.get(key);
+  NOSE_KEY_LAST = key;
   const zOfA = a => zFw * FS - a;
   // the bay's span along the body, and its section in the middle
   const aLo = Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0), aHi = Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1);
@@ -1813,14 +1881,14 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
   let front = 0, floor = 0, L0 = 0, zs = null, best = null, fail = null, keel = 0;
   back = back0;
   for (const bk of backs) {
-    const e = evalBack(bk);
+    const e = yield* evalBack(bk);
     if (e.fail) { if (!fail) fail = e.fail; continue; }
     if (!best || e.best.vol * e.L0 > best.vol * L0 * 1.001) { best = e.best; back = bk; front = e.front; L0 = e.L0; zs = e.zs; keel = e.keel; }
   }
   if (!best) { const r = fail || { why: 'no room between the firewall and the panel' };
     r.measured = { panelFace: faceZ, shieldFront: dashBack, backs, keel: extMid.yLo, deck: extMid.yHi };
     LAST.nose = r; NOSE_AUTO.set(key, r); return r; }
-  function evalBack(back) {
+  function* evalBack(back) {
     // THE FIREWALL: the first surface ahead of the back face, low in the space (a pod's windscreen slopes down over the
     // panel and meets a ray at panel height a few cm ahead - the tank's top is the ceilings' and the clearance's)
     const yProbe = [0.15, 0.3, 0.45].map(f => extMid.yLo + f * (extMid.yHi - extMid.yLo));
@@ -1899,6 +1967,7 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
     let best = null;
     for (let fl = floor; fl < extMid.yHi - gap - 0.05; fl += 0.02) {
       const sh = shapeAt(fl);
+      yield;                                                // (a slice: one floor measured)
       if (sh && sh.vol > 0 && (!best || sh.vol > best.vol * 1.001)) best = sh;
     }
     if (!best) return { fail: { why: 'no height under the deck above the feet (the floor ' + Math.round((floor - extMid.yLo) * 1000) + ' mm over the keel, the gap ' + Math.round(gap * 1000) + ' mm)' } };
@@ -1916,6 +1985,7 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
     const cand = { bay: 'nose', capacity: 1, along: +along.toFixed(4), lv: +lv.toFixed(4), rot: 0, form: 'deck',
                    dims: { L: +dims.L.toFixed(3), W: +dims.W.toFixed(3), H: +dims.H.toFixed(3), profile: dims.profile.map(p => +p.toFixed(3)) } };
     const pl = noseJudge(ctx, inv, bay, cand, zFw, cache, yc);
+    yield;                                                  // (a slice: one candidate judged)
     last = { cand, pl };
     if (pl && pl.ok) break;
     if (it % 3 === 2) { const d = Math.min(0.03, dims.L * 0.08); front -= d / 2; back += d / 2; dims.L -= d; }
@@ -1942,7 +2012,10 @@ function noseJudge(ctx, inv, bay, cand, zFw, cache, yc) {
   const dims = G.vesselDims(vesselKey(), res.installedL, cand.dims, 'deck');
   const pl = autoPlace(cand, dims, yc);
   pl.v = Object.assign({}, cand); pl.dims = dims;
-  judgeTank(ctx, ctx.scene, inv, pl);
+  pl.lightSolid = lightSolid(pl, 'deck', cand.dims.profile);
+  // (the search wants the verdict only: stop at the first contact - the drawn tank is judged whole by the layout)
+  JUDGE.fast = true;
+  try { judgeTank(ctx, ctx.scene, inv, pl); } finally { JUDGE.fast = false; }
   return pl;
 }
 // THE AUTO TANK IS PLACED BY ITS OWN NUMBERS: its floor and its length were measured, so its centre is known - the
@@ -3694,6 +3767,7 @@ function syncReadouts() {
     if (r.on === 'strut' && r.pods && r.pods.length)
       bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
     if (r.unmounted) { d.textContent = '✗ NOT FITTED, CARRIES NO FUEL — ' + r.why.join('; '); d.classList.add('bad'); return; }
+    if (r.pending) { d.textContent = '… fitting the tank to the nose'; d.classList.remove('bad'); return; }
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');

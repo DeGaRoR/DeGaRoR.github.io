@@ -483,7 +483,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   {
     const off = ((S && S.energy && S.energy.vessels) || []).map((v, i) => [v, i]).filter(([v]) => v && v.unmounted);
     for (const [v, i] of off)
-      row({ id: 'wb.tank' + i, group: 'wb', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
+      row({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
             limit: 'every tank the design carries is fitted to the aeroplane',
             why: 'it hangs on the lift struts, and this wing has none: not fitted, it carries no fuel',
             fix: 'give the wing its lift struts back, or move the tank to another bay' });

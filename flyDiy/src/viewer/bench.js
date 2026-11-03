@@ -83,7 +83,9 @@ function benchTankRows() {
   const out = [];
   rs.forEach((r, i) => {
     if (!r || r.ok || r.unmounted) return;              // (an unmounted pod is the core's row, wb.tank<i>)
-    out.push({ id: 'wb.tank' + i, group: 'wb', label: 'Tank ' + (i + 1) + ' fits (' + ((r.bay && r.bay.name) || (r.v && r.v.bay) || 'its bay') + ')',
+    // (tier 'safe': the AIRWORTHINESS certificate - DESIGN-AIDS' GEN_CERT_TIER reads r.tier first; an unfit tank is not
+    //  safe to fly a mission in, the user 3 Nov; never `proposed`)
+    out.push({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' fits (' + ((r.bay && r.bay.name) || (r.v && r.v.bay) || 'its bay') + ')',
                level: 'fail', value: Math.round((r.v && r.v.capacity) || 0), unit: 'L',
                limit: 'the drawn tank clears every drawn surface by 5 mm and the crew by 10 mm',
                why: (r.why || []).join('; ') || 'it does not fit',
