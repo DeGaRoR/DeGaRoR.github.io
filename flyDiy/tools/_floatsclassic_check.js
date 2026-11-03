@@ -174,5 +174,7 @@ if (WATER) {
     waterRun('PA-18 on its floats, EDO classic', LB.gameSpec(raw), { taxiThr: 0.25 });
   }
 }
-console.log(`GATE FLOATSCLASSIC: ${fails ? 'FAIL' : 'PASS'} (${n - fails}/${n})`);
+console.log(`${n - fails}/${n} checks`);
+// (the runner reads the verdict line bare; the water half run alone is its own row, FLOATSCLASSIC-WATER)
+console.log(`GATE ${ONLY === 'water' ? 'FLOATSCLASSIC-WATER' : 'FLOATSCLASSIC'}: ${fails ? 'FAIL' : 'PASS'}`);
 process.exitCode = fails ? 1 : 0;
