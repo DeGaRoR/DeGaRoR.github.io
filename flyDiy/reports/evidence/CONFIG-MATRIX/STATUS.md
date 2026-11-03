@@ -88,6 +88,11 @@ UISMOKE, CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP,
 F4 master itself (a clean worktree) fails the same four with byte-identical FAIL lines (ENGCONFIG re-pinned by F4:
 fewer builds differ, the same ones on both).
 
+**On master L30a a8a23ad62 (merged into the ready branch, no file in common) - the READY state for L30c:** the
+thirteen + UISMOKE: GEN (1071 s), UISMOKE, CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH,
+NODUMMY, ENGCONFIG FAIL - L30a master itself (a clean worktree) fails the same four with byte-identical FAIL lines (15,
+diffed): all standing.
+
 **Rebased on master 1B 1db22c8a4 (PHONE-1b landed) - the READY state:** the thirteen + UISMOKE: GEN (954 s), UISMOKE,
 CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH, NODUMMY, ENGCONFIG FAIL - and 1B master
 itself (a clean worktree) fails the same four with byte-identical FAIL lines (15 lines, diffed): all standing. The

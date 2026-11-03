@@ -1,7 +1,8 @@
 # CONFIG-MATRIX — READY (for the design train L30b)
 
 Branch `claude/ready/config-matrix`: steps 2-3 (the switch fixes, the dorsal on rod hosts, the rod clear of the rear
-disc) and step 4 (the greyed tiles), rebased on `origin/master` 1db22c8a4 (train 1B, PHONE-1b), unbuilt (the train builds). Gates: STATUS.md (ten green with
+disc) and step 4 (the greyed tiles), rebased on `origin/master` 1db22c8a4 (train 1B, PHONE-1b) and merged with master a8a23ad62 (L30a: no file in
+common), unbuilt (the train builds). Re-gated on L30a. Gates: STATUS.md (ten green with
 UISMOKE; CLIP, TECH, NODUMMY, ENGCONFIG standing on 1B master with byte-identical FAIL lines).
 The user's calls (A0, 3 Nov 08:40): C1 steps 2-3 yes, C2 the step-4 greys accepted.
 
