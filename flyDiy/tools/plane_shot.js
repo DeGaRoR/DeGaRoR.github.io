@@ -30,6 +30,8 @@
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
 //        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
+//        [--takeoff]              the hero (hero:, and cuts:' hero panel) as a take-off: the flown model, flaps at the
+//                                 build's take-off setting, every lamp on, the prop's disc turning (3 Nov, the user)
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
@@ -176,17 +178,17 @@ const ANALYSE = `async (a, b) => {
 // A dark studio either way: the studio's black under a soft radial backdrop, the studio's own lights plus a portrait
 // key (low at the front, so a belly seen from below is lit) and a rim from behind; no pool, no floor. Drawn at 2x and
 // halved (the supersample is the anti-aliasing). The page's size, lens and pose come back as they were.
-const PORTRAIT = `(o) => {
-  const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera(), root = window.CAGE_UI_SCENE;
+const PORTRAIT_BODY = `(o, root, fwd0) => {
+  const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera();
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const pitch0 = root.rotation.x;
-  if (o.kind !== 'profile') root.rotation.x = 0;   // the air's attitude for the hero and the board's 3-view; the thumbnail stands
+  if (o.kind !== 'profile' && !fwd0) root.rotation.x = 0;   // the air's attitude for the hero and the board's 3-view; the thumbnail stands
   root.updateMatrixWorld(true);
   // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
   // turned to the room; up is the room's)
   const box = new THREE.Box3(), gb = new THREE.Box3();
   root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb); });
-  const fwd = V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
+  const fwd = fwd0 ? V(fwd0[0], fwd0[1], fwd0[2]) : V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
   const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
   const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
   // the fit's points: the drawn vertices themselves (a few hundred a mesh), not the box's corners - a 3/4 eye throws a
@@ -330,6 +332,45 @@ const PORTRAIT = `(o) => {
   return { a, b, cuts, meta: { name: meta.name || null, reg: meta.reg || null }, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
            box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
 }`;
+// THE TAKE-OFF HERO (the user, 3 Nov: "the hero shot should be rendered with flaps, lights, and turning blades, as it
+// clearly evokes a plane just taking off seen from the ground"): o.takeoff draws the FLOWN model, not the editor's cage
+// (the cage has no flap travel, no prop disc, no lamps) - shown at the stand for the one call through the roll-out
+// shot's door (window.FLYDIY_CRAFT_IN_SHED: model.grp shown, the cage down, posed), the flaps run to the build's take-off
+// setting through the linkage (def.params.flaps.to, else 0.25), every lamp switched on (the cockpit's switches,
+// FLYDIY_COCKPIT_I), the prop drawn as the game draws it turning (its disc at 2400 rpm); everything put back after. Its
+// attitude is the stand's (the flown model is not levelled); the stand's forward is the cage's. Cuts: the hero panel
+// from the take-off draw, the three orthos from the cage as before. No door -> the cage's hero, said in the result.
+const PORTRAIT = `(o) => {
+  const body = ${PORTRAIT_BODY};
+  const cage = window.CAGE_UI_SCENE, P = window.FLIGHT_PROBE;
+  if (!o.takeoff) return body(o, cage, null);
+  const M = P.model && P.model(), g = M && M.grp, sim = P.sim && P.sim(), def = P.def && P.def(), CK = window.FLYDIY_COCKPIT_I;
+  if (!g || !window.FLYDIY_CRAFT_IN_SHED || !sim || !sim.ctl) { const r = body(o, cage, null); r.takeoff = 'fallback: no flown model door'; return r; }
+  const plain = o.kind === 'cuts' ? body(o, cage, null) : null;   // the orthos as before
+  cage.updateMatrixWorld(true);
+  const f = new THREE.Vector3(0, 0, 1).transformDirection(cage.parent.matrixWorld), fwd0 = [f.x, f.y, f.z];
+  const fl = def && def.params && def.params.flaps, flapTO = fl && Number.isFinite(fl.to) ? fl.to : 0.25;
+  const ctl0 = { flap: sim.ctl.flap, de: sim.ctl.de, da: sim.ctl.da, dr: sim.ctl.dr };
+  const sw0 = CK && CK.sw ? Object.assign({}, CK.sw) : null, hand0 = CK && CK.handSw ? Object.assign({}, CK.handSw) : null;
+  const disc = rpm => { for (const p of (M.props || [])) { const d = p.userData && p.userData.disc; if (d && d.update) try { d.update(rpm, p.userData.spinAng || 0, 1, 0.016); } catch (e) {} } };
+  try {
+    Object.assign(sim.ctl, { flap: flapTO, de: 0, da: 0, dr: 0 });
+    for (let i = 0; i < 300; i++) window.FLYDIY_CRAFT_IN_SHED(() => 0);   // the linkage is rate-limited: run it home
+    return window.FLYDIY_CRAFT_IN_SHED(() => {
+      let lamps = 0;
+      if (CK && CK.sw) { for (const k of ['sw_nav', 'sw_beacon', 'sw_land', 'sw_taxi', 'sw_strobe']) if (k in CK.sw) { CK.sw[k] = 1; lamps++; if (CK.handSw) CK.handSw[k] = true; } try { if (CK.glow) CK.glow(0); } catch (e) {} }
+      disc(2400); g.updateMatrixWorld(true);
+      const r = body(o, g, fwd0);
+      if (plain) { const hero = r.cuts.find(c => /^hero/.test(c.name)); plain.cuts = plain.cuts.map(c => /^hero/.test(c.name) && hero ? hero : c); }
+      const out = plain || r;
+      out.takeoff = { flap: flapTO, props: (M.props || []).length, lamps };
+      return out;
+    });
+  } finally {
+    Object.assign(sim.ctl, ctl0); disc(0);
+    if (CK && sw0) { Object.assign(CK.sw, sw0); CK.handSw = hand0 || {}; try { if (CK.glow) CK.glow(0); } catch (e) {} }
+  }
+}`;
 
 // ---- one boot, every build, every view ----------------------------------------------------------------------------
 async function shoot(o) {
@@ -433,11 +474,12 @@ async function shoot(o) {
               const ps = sz ? sz.split('x').map(Number) : o.psize;
               po = { kind, yaw, el, fov, fill: fill || 0, circle: /c$/.test(fs || ''), w: ps[0], h: ps[1], ss: 2 };
             }
-            Object.assign(po, o.look);
+            Object.assign(po, o.look); if (o.takeoff && kind !== 'profile') po.takeoff = true;
             if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
-            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box });
+            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box, takeoff: pr.takeoff || null });
+            if (pr.takeoff) log(base, v, 'take-off:', JSON.stringify(pr.takeoff));
             if (pr.cuts) {   // THE CUT-OUTS: one transparent PNG a view + <base>_cuts.json (the orthos' px a metre, the name, the reg)
               VR.cuts = [];
               for (const k of pr.cuts) {
@@ -644,6 +686,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     psize: (opt('psize', '1800x1200')).split('x').map(Number),
     same: +opt('same', 0.9),   // the share of the file's cage rows the page must hold (an old v7 / v8 file: the build's clamps and migrations pull more)
     // the portrait's studio: the backdrop's centre and edge, the key's and the rim's strength
+    takeoff: flag('takeoff'),
     look: { bg0: opt('bg0', '#2b2724'), bg1: opt('bg1', '#0a0908'), key: +opt('key', 2.2), rim: +opt('rim', 2.6) },
   };
   // the arguments, before anything is launched (--dry stops here)
