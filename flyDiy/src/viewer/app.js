@@ -10719,7 +10719,11 @@
     if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
     const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
     if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
-    const r = playerGoTo(d, id);
+    // STORY-HOME-LOOK F2: a hangar with no aeroplane of its own takes the one on the stand with you (playerGoTo's carry:
+    // sent there and on its floor), so the stand there is it and the roll-out leaves from there - not from the field left.
+    // From the garage only: out of a flight the flight's end (playerFlightEnd) says where the aeroplane stands
+    const on = inGarage ? slotOnStand() : null;
+    const r = playerGoTo(d, id, on ? { carry: on, foots: storeFoots(on) } : null);
     if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
     player = r.doc; playerSave();
     baseId = player.sheds[player.here].base;

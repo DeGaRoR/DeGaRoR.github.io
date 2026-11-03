@@ -311108,3 +311108,24 @@ HELD: claude/ready/weather-fixes 47815e0a0 - pulled at 20:05 on GATE CLOUD's 3 r
 A0 fixes: HANDOVER.md and tools/plane_shot.js back to master's CRLF bytes (tank-fit and new-plane had normalised them; content unchanged).
 BATTERY (88 gates): 81 PASS. Red: CLOUD 3 of 239 "the clouds live, the composite drawn ... composite 0 draws" on current / gamer / ultra - suspected NEW-PLANE's first-launch chooser holding the render loop on the gate's fresh profile (FLYDIY_UI_HOLD); NEW-PLANE to fix the rig or the hold (rule b or a fix) -> L30d. STOL: the fixture's byte comparison vs the joins tank-fit changes on purpose (Cub/Jodel tanks, the Chinook's pods) - Pilot re-captures. TAXICLEAR 1: the Cub's wing 0.07 m from Jumbo Mine's clinic (11c) - tank-fit's mass or the hut's footprints, owner TANK-FIT/HWCOV. FRAMECOST 8: the boot links (5 -> 39/44) + updateMatrixWorld - the boot cost being dated tonight (HWCOV mb_date 23:05). ASSETS, HANDLE, TECH: master standing.
 TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better than L30b's 114.6 s), nothing new.
+
+## STORY-HOME-LOOK - a story career's two hangars, pictured; F2 fixed (3 Nov 2026, cloud)
+
+- EVIDENCE: reports/evidence/STORY-HOME/ (README: stills, asserts, garages() printed, findings F1-F10 with file:line);
+  the rig tools/story_home_look.js (an evidence tool, NOT in run_gates.js: a New career through the welcome on a fresh
+  profile, the opening skipped, T0 / gotoGarage('HOME') / the map / the roll-out / an old locked save / ?storycard=1;
+  --tutor0, --uamobile --nogfx for a phone through the device gate). Two rig lessons: `?gfx=` skips the device gate
+  too (welcome.js decide), and at T0 Tim's tutorial holds every click outside his band (storyTutorGuard), the CONTRACTS
+  pill and Roll out among them - a rig that wants the map at T0 loads `?tutor=0`.
+- F2 FIXED (the user: "going to HOME rolls out from HOME"): gotoGarage into a hangar with NO aeroplane of its own kept
+  the aeroplane of the hangar left behind on the stand, and the roll-out left from THAT field (rollFromId follows the
+  fleet row: an empty HOME rolled out at Cabin Strip). playerGoTo(doc, id, { carry, foots }) (71_player_bases.js) now
+  takes the carried aeroplane along when the target holds none (floor and inside slots empty): playerSendTo there
+  (free, instant - the store's send-to) and playerMove onto its floor; -> carried: name | null. A hangar with an
+  aeroplane of its own keeps the old rule (that one on the stand); a send the rules refuse (on a route) leaves the
+  aeroplane where it was and the trip still happens; no carry, no move (every other playerGoTo caller: the roll-in,
+  the base select). The page's gotoGarage (app.js) hands slotOnStand() FROM THE GARAGE ONLY - out of a flight,
+  playerFlightEnd still decides where the aeroplane stands. GATE STORY: +10 rows (the carry both ways, free, the
+  hangar with its own aeroplane, locked, an unsaved build, the page's call).
+- OPEN for Game: with the map reachable (after T0's tutorial), a player can now take the ultralight to HOME without
+  flying it, then roll out and stop there - T1's goal ('stop at home', 79_story.js:79) is not guarded against that.

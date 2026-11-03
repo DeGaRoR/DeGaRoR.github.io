@@ -208,6 +208,12 @@ async function runProfile(browser, prof, URL0) {
   const h4 = g4.find(g => g.id === 'HOME');
   check('4', !!h4 && h4.here, 'HOME is here after the trip', h4 && { here: h4.here, stand: h4.stand });
   check('4', g4.length >= 2 && homeOpen(g4).ok, 'garages() lists both hangars, HOME open', g4.map(g => g.id + (g.locked ? '(locked)' : '')));
+  // F2 (fixed 3 Nov): an empty HOME takes the stand's aeroplane along - the roll-out leaves from HOME, one hangar lists it
+  const rf4 = await pg.evaluate(() => FLYDIY_PLAYER.rollFrom());
+  step('4').prints.rollFromAfterGoto = rf4;
+  check('4', rf4 === 'HOME', "F2: after gotoGarage('HOME') the roll-out leaves from HOME (FLYDIY_PLAYER.rollFrom())", rf4);
+  const twice = h4 && h4.stand ? g4.filter(g => g.id !== 'HOME' && (g.planes || []).includes(h4.stand)).map(g => g.id) : [];
+  check('4', !twice.length, "F2: HOME's stand is not also listed in another hangar's planes", { stand: h4 && h4.stand, alsoIn: twice });
   check('4', !(await bodyHasLock()), 'body innerText has no "not yours yet"');
   await shot('4', '4a_home_inside', "HOME's club hangar inside, after gotoGarage('HOME') (the stand)", { settle: 5000 });
   // the map (the CONTRACTS pill, #mapEntry): both garages, then the Go row of the other one

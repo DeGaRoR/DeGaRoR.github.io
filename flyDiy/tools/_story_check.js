@@ -158,6 +158,30 @@ function run(M) {
   ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
   const back2 = M.playerSendTo(st.doc, 'ul', 'w1', { foots: UL });
   ok(back2.ok && M.playerWhere(back2.doc, 'ul').hangar === 'w1', 'send-to from INSIDE HOME back to the cabin: moved (not "already inside")', JSON.stringify(M.playerWhere(back2.doc, 'ul')));
+  // ---- STORY-HOME-LOOK F2 (the user, 3 Nov: "going to HOME rolls out from HOME"): a hangar with no aeroplane of its own
+  // takes the one on the stand with you (playerGoTo's carry), so the stand there is it and the roll-out leaves from there
+  { let c0 = JSON.parse(JSON.stringify(back2.doc)); c0.here = 'w1';
+    const fl = M.playerMove(c0, 'ul', { kind: 'floor', hangar: 'w1' }, { foots: UL }); c0 = fl.ok ? fl.doc : c0;
+    ok(M.playerStoreView(c0, 'w1').floor === 'ul' && !M.playerStoreView(c0, 'HOME').floor && M.playerRollFrom(c0, 'ul') === 'w1', 'F2 set-up: the ultralight on the cabin\'s floor, HOME empty');
+    const plain = M.playerGoTo(c0, 'HOME');
+    ok(plain.ok && plain.carried === null && M.playerRollFrom(plain.doc, 'ul') === 'w1', 'F2: a go-to with nothing carried moves no aeroplane (the doors that only open a hangar)');
+    const g = M.playerGoTo(c0, 'HOME', { carry: 'ul', foots: UL });
+    ok(g.ok && g.carried === 'ul' && g.doc.here === 'HOME' && M.playerStoreView(g.doc, 'HOME').floor === 'ul' && !M.playerStoreView(g.doc, 'w1').floor,
+       'F2: going to an empty HOME takes the ultralight along - on HOME\'s floor, the cabin empty', JSON.stringify(M.playerStoreWhere(g.doc, 'ul')));
+    ok(M.playerRollFrom(g.doc, 'ul') === 'HOME' && M.playerRollHangar(g.doc, 'ul') === 'HOME', 'F2: ...so the roll-out leaves from HOME, out of HOME\'s hangar', M.playerRollFrom(g.doc, 'ul'));
+    ok(g.doc.wallet === c0.wallet, 'F2: the carry is free (the store\'s send-to)');
+    const b = M.playerGoTo(g.doc, 'w1', { carry: 'ul', foots: UL });
+    ok(b.ok && b.carried === 'ul' && M.playerStoreView(b.doc, 'w1').floor === 'ul' && M.playerRollFrom(b.doc, 'ul') === 'w1', 'F2: and back to the empty cabin, the same rule');
+    const own = JSON.parse(JSON.stringify(c0)); own.fleet.cub = { hangar: 'HOME', aero: 'HOME', kind: 'floor' };
+    const o = M.playerGoTo(own, 'HOME', { carry: 'ul', foots: UL });
+    ok(o.ok && o.carried === null && M.playerStoreWhere(o.doc, 'ul').hangar === 'w1' && M.playerStoreView(o.doc, 'HOME').floor === 'cub',
+       'F2: a hangar with an aeroplane of its own keeps it on the stand - the carried one stays where it was');
+    const lk = JSON.parse(JSON.stringify(c0)); lk.sheds.HOME.locked = 'test';
+    ok(!M.playerGoTo(lk, 'HOME', { carry: 'ul', foots: UL }).ok, 'F2: a locked hangar is still refused, nothing carried');
+    ok(M.playerGoTo(c0, 'HOME', { carry: 'not-in-fleet' }).carried === null, 'F2: an unsaved build (no fleet row) carries nothing - it rolls out from `here`');
+    const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    ok(/const on = inGarage \? slotOnStand\(\) : null;\s*\n\s*const r = playerGoTo\(d, id, on \? \{ carry: on, foots: storeFoots\(on\) \} : null\);/.test(APP),
+       'F2 page: gotoGarage hands the stand\'s aeroplane to playerGoTo from the garage (a flight\'s end decides out of a flight)'); }
   // ---- G3350 STORY-TIM: Tim's lines for every beat; the editor's story lock; the bench never in the small shed
   ok(M.STORY_TIM && M.STORY_TIM.name === 'Tim' && M.STORY_BEATS.every(B => M.storyTimLines(B.id).length >= 1 && M.storyTimLines(B.id).every(l => typeof l === 'string' && l.length > 8)),
      'Tim has a line for every beat (T0-T7)');
