@@ -140,7 +140,10 @@ function runChecks(C, F, D, src, quiet) {
   // joined spec (tools/_load_build.js); the 45 L was the build file's number, which the game never flies.
   // G3700 (the user, 26 Oct: "choice a on the cub"): 28 L - the nose tank is shaped clear of the racer's posed body
   // (the old figure's shells left it 27 L); the Cub's certificate re-stamped in the same train
-  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 28 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
+  // TANK-FIT (the user, 3 Nov: "Yes" - the validated Cub's nose tank fitted to the nose): 44 L, a J-3's 12 US gal place,
+  // clear of the pilot's feet, 15 cm ahead of the panel (reports/evidence/TANK-FIT/STATUS.md); the shaped 28 L stood
+  // 46 mm into the pilot. Its certificate re-stamps with the train that lands it.
+  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 44 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
      'the user\'s Cub: 2 seats (1 aboard), ' + EV.cub.tankL + ' L (the drawn tank, as flown), piston, 10.8 m across');
   ok(EV.cub.emptyKg > 330 && EV.cub.emptyKg < 380, 'the Cub empty ' + EV.cub.emptyKg.toFixed(1) + ' kg (a J-3 is 310-340: the model\'s, in its band)');
   ok(EV.eTrainer.powertrain === 'electric' && EV.eTrainer.batteryKWh === 2, 'the user\'s electric trainer: electric, 2 kWh');

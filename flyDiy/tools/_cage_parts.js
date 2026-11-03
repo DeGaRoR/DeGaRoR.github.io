@@ -776,7 +776,7 @@ const CAGE_PARTS = [
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finCons', 'finDorsal', 'finKeel', 'finProject'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
     order: ['fitted', 'type', 'g:size', 'size'],
     rename: { size: 'outline points' },
@@ -784,7 +784,7 @@ const CAGE_PARTS = [
     groups: [
       // 'root', not a second 'fitted' heading under the trunk's own: what is
       // left here once the trunk has taken its rows is the root fillet
-      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal',
+      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
                 'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
