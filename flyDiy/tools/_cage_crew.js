@@ -2588,6 +2588,25 @@ function ikDefaultPole(occ, chainKey, out) {
   bones[c.end].getWorldPosition(_v3);
   _u.copy(_v3).sub(_v1);
   const dl = _u.length() || 1e-4; _u.divideScalar(dl);
+  if (!c.arm) {
+    // A KNEE BENDS IN THE BODY'S OWN UPRIGHT PLANE (KNEE-FIX, the user 2 Nov,
+    // the twin busher: "the left knee far too much out ... it goes through the
+    // door ... Right leg is better somehow"). The pole was the knee's CURRENT
+    // bend direction, and a leg reaching far pedals (pedalZ 0.9) starts nearly
+    // straight, so that direction was the rig's few millimetres of incidental
+    // bend - sideways on one leg, upward on the other, 38 cm out, which the
+    // +-25 cm knees slider could not turn back. Now: up across the hip->foot
+    // line in the fig's own frame (no sideways part), from the line's middle;
+    // sideways is the slider's alone, the same for both knees.
+    occ.fig.getWorldQuaternion(_qf);
+    _n.set(1, 0, 0).applyQuaternion(_qf);                // the body's side axis
+    _perp.crossVectors(_n, _u);
+    if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, 1).applyQuaternion(_qf);
+    _perp.normalize();
+    if (_perp.dot(_n.set(0, 1, 0).applyQuaternion(_qf)) < 0) _perp.negate();
+    out.copy(_v1).add(_v3).multiplyScalar(0.5).addScaledVector(_perp, 0.38 * occ.fig.scale.x);
+    return out;
+  }
   _perp.copy(_v2).sub(_v1);
   _perp.addScaledVector(_u, -_perp.dot(_u));
   if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, c.arm ? -1 : 1);
