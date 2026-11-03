@@ -861,7 +861,7 @@ function contractWhenOk(w, stop) {
 // The window itself is a time of day (GQ17): flown on any night it is met; the job line states the moon of the NEXT
 // opening from the career's clock (75_ careerNightLine).
 const CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1,
-                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-07-15' };   // the career's first LOCAL day (74_ CAREER_DAY0, 15 Jul since WEATHER-DAYS)
+                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-06-21' };
 // the window's local hours [h0, h1) on a night of this dusk / dawn (h0 > h1 wraps midnight)
 function contractWhenSpan(w, duskH, dawnH) {
   if (!w || contractWhenWhy(w)) return null;
@@ -3156,12 +3156,8 @@ function missionMarkers(rec, live, opts) {
 // with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
 // (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
 const CAREER_V = 2;
-// the career's first day: 15 JULY, 16:00 AKDT, as UT (WEATHER-DAYS, the user's call of 3 Nov via A0: a new moon on the
-// 14th, so the career's first fortnight runs from the darkest, starriest nights to a full moon on the 29th; 16.8 h of
-// day, a dark core of 2.3 h past -12 deg, the aurora near full strength - futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
-// §9.2). The hour is the game's own (viewer/day_clock.js GAME_DAY, 16:00 local, the sun side-lighting the island); the
-// DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
-const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -3898,13 +3894,6 @@ function careerMapMark(doc, id, fleet, F) {
   const rec = careerContract(doc, id);
   return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
 }
-// THE SKY'S COVER FOR THE MOON (WEATHER-FIXES F7, 2026-11-03): the EFFECTIVE cover (07_day cloudCoverEff - a front's
-// overcast hides the moon as a declared one does), else the declared, else undefined (no day: the job's own stamp)
-function careerSkyCover(day) {
-  if (!day) return undefined;
-  if (typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff)) return day.cloudCoverEff;
-  return typeof day.cloudCover === 'number' ? day.cloudCover : undefined;
-}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
 // opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
@@ -3922,7 +3911,7 @@ function careerMapRecord(doc, world, opts) {
                ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
   const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {

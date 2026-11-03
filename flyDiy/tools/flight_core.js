@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c4f93c8680c139ab
+// body-sha256: 1f077a1cbd36632d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1590,12 +1590,6 @@ var DAY = (function () {
   // no fields moves nothing and `storm: null` is exactly today's day.
   const STORM_D = Object.freeze({ pre: 5400, dur: 2700, post: 7200, windK: 2.2, gustK: 2.5,
                                   veerDeg: 55, dTemp: -6, dQnh: -900, cover: 0.95, type: 'cb' });
-  const STORM_DT_RAMP = 600;                         // s: a front's temperature drop, centred on its `at` (F3)
-  // THE WIND MIXES THE MIST AWAY (WEATHER-FIXES F5): radiation fog lies only in near-calm air - full under MIST_CALM_KT[0]
-  // of surface wind, gone by MIST_CALM_KT[1] (it lifts into a stratus deck: the deck is the cloud's business, not this
-  // layer's). Read on the DECLARED 10 m wind times a front's windK - the day's own number, not a local sample.
-  const MIST_CALM_KT = [3, 10];
-  const KT_MS = 0.514444;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -1670,18 +1664,9 @@ var DAY = (function () {
                     windK: 1 + (( st.windK != null ? +st.windK : STORM_D.windK) - 1) * I * I0,
                     gustK: 1 + (( st.gustK != null ? +st.gustK : STORM_D.gustK) - 1) * I * I0,
                     // the wind VEERS through the passage, not through the approach
-                    // ...and BACKS OFF WITH THE FRONT as it clears (WEATHER-FIXES F2, 2026-11-03): the veer held its
-                    // full value through `post` and the climate dropped it the tick I reached 0 (09_climate stormOf is
-                    // null at I = 0) - a 55 deg snap of the wind's direction at the end of every front. Times I from
-                    // the end of the passage, so it fades as the wind and the gusts do; the approach and the passage
-                    // are unchanged.
                     veer: (st.veerDeg != null ? +st.veerDeg : STORM_D.veerDeg) * I0
-                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)) * (t < at + dur ? 1 : I),
-                    // THE DROP IS A RAMP, NOT A STEP (WEATHER-FIXES F3): it was `t > at ? 1 : 0` - the whole dTemp (-6 K
-                    // by default) in one tick at the passage, sigma ~2 % and the cloud base hundreds of metres in a frame.
-                    // A cold front's drop takes minutes: STORM_DT_RAMP centred on `at`, so the front is half through its
-                    // drop at the declared instant and all of it five minutes later.
-                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * smf((t - at) / STORM_DT_RAMP + 0.5) * I,
+                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)),
+                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * (t > at ? 1 : 0) * I,
                     dQnh: (st.dQnh != null ? +st.dQnh : STORM_D.dQnh) * I0 * I,
                     cover: st.cover != null ? +st.cover : STORM_D.cover,
                     type: st.type || STORM_D.type,
@@ -1759,15 +1744,7 @@ var DAY = (function () {
       const cov = clamp(d.cloudCoverEff != null ? d.cloudCoverEff : 0, 0, 1);
       const burn = clamp((d.sunElLag - 5) / 20, 0, 1) * (1 - cov);
       d.mistBurn = burn;
-      // ...and THE WIND (F5): the storm day's gale drew 1.4 /km of ground fog before this - `mistCalm` is what the wind
-      // leaves of the layer (1 in still air and on every day that declares no wind, so those are bit-identical)
-      const w = s.wind || null;
-      const wKt = !w ? 0 : w.kts != null ? +w.kts : w.mps != null ? +w.mps / KT_MS
-                : Array.isArray(w.base) ? Math.hypot(+w.base[0] || 0, +w.base[2] || 0) / KT_MS : 0;
-      const wEff = (Number.isFinite(wKt) ? wKt : 0) * (d.storm ? d.storm.windK : 1);
-      const q = clamp((wEff - MIST_CALM_KT[0]) / (MIST_CALM_KT[1] - MIST_CALM_KT[0]), 0, 1);
-      d.mistCalm = 1 - q * q * (3 - 2 * q);
-      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn) * d.mistCalm;
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -1882,7 +1859,6 @@ var DAY = (function () {
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
                      'mistBurn',                                                       // F3c: how much of the layer the morning has taken
-                     'mistCalm',                                                       // WEATHER-FIXES F5: how much of it the wind leaves
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }
@@ -2205,23 +2181,9 @@ var CLOUD_FIELD = (function () {
     if (h <= 0 || h >= top) return 0;
     return smooth(0, T.bot, h) * (1 - smooth(T.top * top, top, h));
   }
-  // THE SKY YOU SEE IS THE EFFECTIVE ONE (WEATHER-FIXES F1, 2026-11-03). The low deck read the DECLARED cover and type,
-  // so a front's overcast and its cumulonimbus (07_day cloudCoverEff / cloudTypeEff) reached the thermals, the breeze,
-  // the mist's burn and the radio's words - and never the drawn sky. lowOf(day) is the low deck's { cover, type } as
-  // the day has it NOW: the declared numbers when nothing moves them (bit-identical: a plain object or a day with no
-  // front), else the effective ones, the cover in steps of LOW_EFF_STEP above the declared (the renderer re-thresholds
-  // and re-fits its map on every cover change - clouds.js mapsFor - so a front's continuous ramp would re-fit every
-  // few seconds; CLIMATE §10's "0.05 cover steps").
-  const LOW_EFF_STEP = 0.05;
-  function lowOf(day) {
-    const decl = clamp(day && day.cloudCover != null ? +day.cloudCover : 0.2, 0, 1);
-    const e = day && typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff) ? clamp(day.cloudCoverEff, 0, 1) : decl;
-    const cover = e === decl ? decl : clamp(decl + Math.round((e - decl) / LOW_EFF_STEP) * LOW_EFF_STEP, 0, 1);
-    return { cover, type: typeOf(day && (day.cloudTypeEff || day.cloudType)) };
-  }
   // layer(day) -> { base, thick, top, type }: the day's base (the dewpoint spread), the type's thickness
   function layer(day, override) {
-    const type = lowOf(day).type, T = TYPES[type];
+    const type = typeOf(day && day.cloudType), T = TYPES[type];
     let base = override && override.base != null ? override.base : (day && day.cloudBase != null ? day.cloudBase : 1000);
     base = clamp(base, 120, 5000);
     const thick = override && override.thick != null ? override.thick : T.thick;
@@ -2235,7 +2197,7 @@ var CLOUD_FIELD = (function () {
   // cover, its type and its index (the weather map and the drift are per deck).
   function layers(day, override) {
     const first = layer(day, override);
-    first.cover = lowOf(day).cover; first.index = 0;
+    first.cover = clamp(day && day.cloudCover != null ? day.cloudCover : 0.2, 0, 1); first.index = 0;
     const out = [first], up = (day && day.cloudUpper) || [];
     for (let i = 0; i < up.length && out.length < MAX_LAYERS; i++) {
       const u = up[i] || {}, type = typeOf(u.type), T = TYPES[type], prev = out[out.length - 1];
@@ -2264,7 +2226,7 @@ var CLOUD_FIELD = (function () {
     if (out[i]) Object.assign(out[i], patch);
     return out;
   }
-  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
+  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, typeOf, weatherMap, sample, coverFraction, profile, layer, layers, upperWith, columnOD, vnoise, fbm };
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
@@ -3472,6 +3434,11 @@ function makeWorld(seed, opts) {
   // premise). Without it every line below is the analytic world, byte for
   // byte (GATE WORLD's goldens).
   const ISL = (opts && opts.island) || null;
+  // THE TEST FIELD (G3790, PHONE-TESTFLIGHT; the user, 27 Oct: "1 building, 1 runway, and some infinite thing"):
+  // opts.flat is the analytic world with every stage subtracted - the ground 0 everywhere, HOME alone (the same strip,
+  // heading and site: its hangar is the one building), no water, no towns or roads, no generated strips, no trees. The
+  // stages below short-circuit on it; without it every line is the analytic world byte for byte (GATE WORLD's goldens)
+  const FLAT = !ISL && !!(opts && opts.flat);
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
   // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
@@ -3600,7 +3567,7 @@ function makeWorld(seed, opts) {
     // point of a 1 m grid over the box; GATE GE pins the identity. The island
     // never reaches here (h0 routes it to its raster) and the premises layer
     // composes on top. opts.exactGround keeps the long path for the proof.
-    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
+    if (FLAT || (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90)) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -3695,6 +3662,7 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
+  if (FLAT) aerodromes.splice(1);   // (the test field: HOME alone, at 0)
   // an island with premises: the analytic HOME record goes the moment the
   // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
@@ -3755,7 +3723,10 @@ function makeWorld(seed, opts) {
   // the island's water (28_island hydro): 'map' (the default since G2990) the map's lakes, no rivers; 'blend' (G413)
   // the map's lakes and the bake's rivers between them; 'proc' (G405) the analytic bake's lakes and rivers
   const HM = ISL ? ISL.hydro : 'proc';
-  const HYD = bakeHydrology(
+  // (the test field bakes nothing: dry everywhere, no reach, no lake - the bake's own shape, empty)
+  const HYD = FLAT ? { rivers: [], lakeCount: 0, lakeCells: 0, riverCells: 0, segCount: 0, lakeSurf: [],
+    carve: (x, z, h) => h, water: () => -Infinity, riverWater: () => -Infinity, seaAt: () => false, distW: () => 1e9,
+    grids: null, stats: { bakeMs: 0, N: 0, maxAcc: 0, cellW: (BOUNDS.x1 - BOUNDS.x0) / 512 } } : bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
@@ -3801,7 +3772,7 @@ function makeWorld(seed, opts) {
   // the stage-1 grids, organic road network grown from the home airfield,
   // bridges across water runs, building footprints. Roads add a shallow
   // grading term to terrainH below.
-  const SET = ISL
+  const SET = ISL || FLAT
     ? { settlements: [], roads: [], buildings: [], roadNear: () => 1e9, roadDelta: (x, z, h) => h,
         inCore: () => false, stats: { bakeMs: 0 } }
     : bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
@@ -3844,13 +3815,13 @@ function makeWorld(seed, opts) {
   // G1253 NO GENERATED STRIPS ON AN ISLAND (QUICK-BYTES): the island never took them (below, and baseH grades none),
   // and its search found none on Jolene - so AERO.surfaceAt / inBox / grade (the biomes' aeroSurf, the trees' box
   // and treeGround) already answered -1 / false / h. The stub says so without the 1 587-candidate scan (14-20 ms)
-  const AERO = ISL
+  const AERO = ISL || FLAT
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
-  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
+  if (!ISL && !FLAT) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
@@ -4144,7 +4115,7 @@ function makeWorld(seed, opts) {
   // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  {
+  if (!FLAT) {   // (the test field stands no tree)
     const GS = 64, G0x = BOUNDS.x0, G0z = BOUNDS.z0;   // ±12000 m (24 km domain, W6): GN 375
     const GNx = Math.ceil((BOUNDS.x1 - BOUNDS.x0) / GS), GNz = Math.ceil((BOUNDS.z1 - BOUNDS.z0) / GS);
     for (let gz = 0; gz < GNz; gz++) for (let gx = 0; gx < GNx; gx++) {
@@ -4424,7 +4395,9 @@ function makeWorld(seed, opts) {
     }
     return SURFACE.GRASS;
   };
-  const surface = ISL ? islandSurface : B.surface;
+  // (the test field: grass, under whatever a strip or a premises surface says there)
+  const flatSurface = (x, z) => { const a = aeroSurfAll(x, z); return a >= 0 ? a : SURFACE.GRASS; };
+  const surface = ISL ? islandSurface : FLAT ? flatSurface : B.surface;
   // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
   // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
   // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
@@ -4641,6 +4614,7 @@ function makeWorld(seed, opts) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
+    flat: FLAT,   // G3790: the test field (opts.flat) - the physics worker makes its own with the same switch
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
@@ -13238,12 +13212,13 @@ const GROUND_FIELDS = (() => {
       5:  { tex: ['rocksG', null, null], scale: [41.5, 90, 0], far: [null, null, null], farScale: [90, 0, 0], mix: [30, 3, 0, 0], vary: [3, 0.1, 20], para: 1 },
       6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1 },
       7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
+      // THE FOREST FLOOR NEAR THE EYE (the user, 3 Nov 2026, on GROUND-LOOK G2611): 17.5 m on all three forest floors - forest (8), old forest (13) and the town's (16) - near set A of the aerial floor itself, the aerial set stays at 81 m (same photograph, so the near -> far fade carries no colour change). Tune in F8 > types > detail sets A.
       8:  { tex: ['forestAir', 'mud', null],   scale: [17.5, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
       9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
       10: { tex: ['dirt', 'coastA', 'beach'], scale: [1.5, 19.94, 29.98], far: ['dirt', null, null], farScale: [11.5, 0, 0], mix: [20, 1, 0, 0], vary: [2, 0.06, 10], para: 0.2 },
       11: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): the dark foreshore aerial (coast_land_rocks_01) with pale rock chunks (rocksG) in it and the green-tufted upper shore (coast_sand_rocks_02) a third of the band - four recipes judged straight down at -4414,-4936 (bench/coast/try_4.png); `pebble` (Gravel022, pale) left the code. A NEGATIVE bias A|B favours A
       12: { tex: ['rocksB', null, null], scale: [51.5, 90.5, 0], far: ['rocksB', null, null], farScale: [120, 0, 0], mix: [44, 2.3, -0.2, -0.2], vary: [2, 0.48, 71], para: 1 },
-      13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
+      13: { tex: ['forestAir', 'mud', null],   scale: [17.5, 3, 0], far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['grassRock', 'grass', 'rockyA'], scale: [15, 4, 90], far: ['grassRock', null, 'rockyA'],     farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },   // 2026-09-21: the lush lawn out here too
       // 15 LUSH (METLAKATLA, 2026-09-22): the bright green that borders a road cut and fills an old clearing -
       // alder and salmonberry on drained ground, not the moor. It is the ONE terrain type the island's raster
@@ -13254,7 +13229,7 @@ const GROUND_FIELDS = (() => {
       // forest floor's own aerial, worn thinner where feet and wheels cross it, with the
       // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
       // wood that never left, and its trees are the `residential` mix.
-      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
+      16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [17.5, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
       // 17 THE BANK (SHORES-2 G1955, the user 2026-10-05: "you just need a good cliff texture, ideally oriented with respect
       // to the slope ... we need good blending"): DERIVED in the shader, like 12-14 - the steep faces within bankReach of a
       // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat), read
@@ -13607,8 +13582,14 @@ const OBSTACLES = (() => {
   // opts.base (G844, C2c): a shape rasterised EARLIER from other triangles of the same object, in the same frame, cell and
   // pad (the house worker's raster of a house's own bags): the result is the raster of both soups - the grid is the lattice
   // both share (every grid starts on a multiple of the cell), grown to hold both, the base's columns copied in and the new
-  // triangles marked over them. The same cells, lows and highs one pass over both soups gives, up to a vertex lying
-  // exactly on a lattice line.
+  // triangles marked over them. The same cells, lows and highs one pass over both soups gives.
+  // G844b (HWCOV, 3 Nov): A POINT'S COLUMN IS ITS LATTICE INDEX, NOT AN OFFSET FROM THE GRID'S ORIGIN. floor((x - ox) / cell)
+  // rounds x - ox, and the union's origin is not the one pass's (the worker's bags start a row higher than bags + props):
+  // a vertex on a lattice line fell in one row here and the next row there (s_strip/hut's 4.506 m prop, HOUSEWORKER's one
+  // red). Every index is floor(x / cell) less the grid's integer origin, so a point's column is the same in any grid; SNAP
+  // (a millionth of a cell) only absorbs the last bits of two matrices' products for a vertex lying exactly on a line.
+  const SNAP = 1e-6;
+  const lattice = (x, cell) => Math.floor(x / cell + SNAP);
   function rasterise(pos, idx, cell, opts) {
     const B = opts && opts.base && opts.base.cell === cell ? opts.base : null;
     const nTri = idx ? idx.length / 3 : pos.length / 9;
@@ -13618,20 +13599,23 @@ const OBSTACLES = (() => {
     for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     if (!isFinite(x0) && !B) return null;
     const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
-    let ox = isFinite(x0) ? Math.floor(x0 / cell) * cell - pad * cell : Infinity, oz = isFinite(z0) ? Math.floor(z0 / cell) * cell - pad * cell : Infinity;
-    let nx = isFinite(x0) ? Math.ceil((x1 - ox) / cell) + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil((z1 - oz) / cell) + pad + 1 : 0;
+    // gx, gz: the grid's origin in whole cells (ox = gx * cell)
+    let gx = isFinite(x0) ? lattice(x0, cell) - pad : Infinity, gz = isFinite(z0) ? lattice(z0, cell) - pad : Infinity;
+    let nx = isFinite(x0) ? Math.ceil(x1 / cell - SNAP) - gx + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil(z1 / cell - SNAP) - gz + pad + 1 : 0;
     if (B) {   // the union's grid: its origin the lower of the two (both on the lattice), its far edge the farther
-      const ex = Math.max(isFinite(ox) ? ox + nx * cell : -Infinity, B.ox + B.nx * cell), ez = Math.max(isFinite(oz) ? oz + nz * cell : -Infinity, B.oz + B.nz * cell);
-      ox = Math.min(ox, B.ox); oz = Math.min(oz, B.oz);
-      nx = Math.round((ex - ox) / cell); nz = Math.round((ez - oz) / cell);
+      const bx = Math.round(B.ox / cell), bz = Math.round(B.oz / cell);
+      const ex = Math.max(isFinite(gx) ? gx + nx : -Infinity, bx + B.nx), ez = Math.max(isFinite(gz) ? gz + nz : -Infinity, bz + B.nz);
+      gx = Math.min(gx, bx); gz = Math.min(gz, bz);
+      nx = ex - gx; nz = ez - gz;
     }
+    const ox = gx * cell, oz = gz * cell;
     const lo = new Float32Array(nx * nz).fill(Infinity), hi = new Float32Array(nx * nz).fill(-Infinity);
     if (B) {
-      const di = Math.round((B.ox - ox) / cell), dj = Math.round((B.oz - oz) / cell);
+      const di = Math.round(B.ox / cell) - gx, dj = Math.round(B.oz / cell) - gz;
       for (let j = 0; j < B.nz; j++) for (let i = 0; i < B.nx; i++) { const s = j * B.nx + i, k = (j + dj) * nx + i + di; lo[k] = B.lo[s]; hi[k] = B.hi[s]; }
     }
     const mark = (x, y, z) => {
-      const i = Math.floor((x - ox) / cell), j = Math.floor((z - oz) / cell);
+      const i = lattice(x, cell) - gx, j = lattice(z, cell) - gz;
       if (i < 0 || j < 0 || i >= nx || j >= nz) return;
       const k = j * nx + i;
       if (y < lo[k]) lo[k] = y;
@@ -14143,7 +14127,7 @@ const OBSTACLES = (() => {
     };
     return api;
   }
-  return { rasterise, box, penetration, planDist, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
+  return { rasterise, lattice, box, penetration, planDist, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
 
 // ---- TREE_HITS (G1330, TREE-HITBOX) - THE TREES YOU SEE ARE THE TREES YOU HIT ---------------------------------------
@@ -35735,8 +35719,14 @@ function clampSpec(spec) {
     // hand-written spec land on the same aeroplane.
     if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
+    // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
+    // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
+    // holds nothing here - the litres are the fitted tanks' - and the frame bills it nowhere (it was billed on the
+    // wing's spar pair: a phantom tank, its fuel flown where nothing was drawn).
+    const strutted = !!(S.bracing && S.bracing.type === 'strut');
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
@@ -35768,7 +35758,7 @@ function clampSpec(spec) {
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
         v.tint = null;
-      total += v.capacity;
+      if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
     else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
@@ -41045,9 +41035,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // strut sends the pod to the strut station's spar pair instead
       const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
       const L2 = wf.L, R2 = wf.R;
-      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
-      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
-                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+      const ok = !v.unmounted && L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      // TANK-FIT (Part 3): no strut, no pod - billed nowhere, its fuel not aboard (it was sent to the spar pair at
+      // 0.3 of the span: a phantom tank nobody drew). The resolved spec says so (unmounted) and the editor shows why.
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]] : [];
+      if (!ok) v.unmounted = true;
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
@@ -41065,10 +41057,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // `pair` is a weighted node list [[node, share], ...] — two entries for a
     // wing tank, four for a body tank between rings, sharing to 1.
-    if (r.emptyKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
+    if (r.emptyKg > 0 && pair.length) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
                          spend(r.price); }
     v._pair = pair; v._res = r;
-    fuelTotalM += r.payloadKg;
+    if (pair.length) fuelTotalM += r.payloadKg;
   }
   sec('fuel');
   const fuelM = fuelTotalM;
@@ -43196,6 +43188,29 @@ function genParams(S, fr, strips) {
     cda.fusCdA[1] += pd.crossY; cda.fusCdA[2] += pd.crossZ;
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
+  }
+  // TANK-FIT (Part 3): THE STRUT PODS' DRAG. A pod on each front lift strut (G477) hung in the airstream and cost
+  // nothing - its kilos were billed, its drag was not. Raymer's component build-up (12.5), as the belly pod's: per pod
+  // Cf (the moulded row, genPodCdA's) x FF (1 + 60/f^3 + f/400 on its own fineness) x Q 1.3 (a store hung on a strut,
+  // Raymer's pylon-mounted Q) x Swet (the drawn spindle, r = R (1 - (2u-1)^2)^0.65: 0.75 pi D L, integrated). The
+  // drawn pod's own size: the player's dims (L, the diameter as W), else the litres' at fineness 4 (_vessel_gen.js
+  // vesselDims ogive: V = 0.55 D^2 L, a pod a side holding half). Absent with no pod: not a key, not a term.
+  {
+    let pc = 0;
+    const cdW = (typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS.carbon && GEN_MATERIALS.carbon.cdWet) || 0.0045;
+    for (const v of ((S.energy && S.energy.vessels) || [])) {
+      if (v.bay !== 'strut' || v.unmounted || !(v.capacity > 0)) continue;
+      let L, D;
+      if (v.dims && v.dims.L > 0 && v.dims.W > 0) { L = +v.dims.L; D = +v.dims.W; }
+      else {
+        const inst = (v._res && v._res.installedL) || v.capacity * 1.06;
+        const V = Math.max(0.002, inst / 2 / 1000);
+        D = Math.cbrt(V / (0.55 * 4)); L = 4 * D;
+      }
+      const f = L / Math.max(0.02, D), FF = 1 + 60 / (f * f * f) + f / 400;
+      pc += 2 * cdW * FF * 1.3 * (0.75 * Math.PI * D * L);
+    }
+    if (pc > 0) { cda.fusCdA[0] += pc; cda.drag.strutPods = pc; }
   }
   // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
   // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
@@ -46673,6 +46688,18 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: 'full rudder must hold the sideslip of a 0.2 Vs crosswind at the approach (FAR 23.233): ' + r2(need * 1.944) + ' kt here',
           why: 'full rudder holds ' + r2(bMax * 180 / Math.PI) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h',
           fix: lvl === 'pass' ? '' : 'a bigger rudder (more of the fin\'s chord, or more fin)' });
+  }
+  // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): A POD ON STRUTS
+  // THE WING DOES NOT HAVE is not fitted (60_gen_spec `unmounted`: not billed, not aboard) - the design fails on it.
+  // Absent on every build without one (no row: the check is the bytes it was). The editor's DRAWN fit (a tank through
+  // the skin, the crew) is the bench's to add (bench.js: CAGE_ENERGY's verdict), the core never draws a tank.
+  {
+    const off = ((S && S.energy && S.energy.vessels) || []).map((v, i) => [v, i]).filter(([v]) => v && v.unmounted);
+    for (const [v, i] of off)
+      row({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
+            limit: 'every tank the design carries is fitted to the aeroplane',
+            why: 'it hangs on the lift struts, and this wing has none: not fitted, it carries no fuel',
+            fix: 'give the wing its lift struts back, or move the tank to another bay' });
   }
   const worst = rows.some(r => r.level === 'fail') ? 'fail' : rows.some(r => r.level === 'warn') ? 'warn' : 'pass';
   return { verdict: worst, rows,
@@ -51783,7 +51810,7 @@ function contractWhenOk(w, stop) {
 // The window itself is a time of day (GQ17): flown on any night it is met; the job line states the moon of the NEXT
 // opening from the career's clock (75_ careerNightLine).
 const CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1,
-                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-07-15' };   // the career's first LOCAL day (74_ CAREER_DAY0, 15 Jul since WEATHER-DAYS)
+                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-06-21' };
 // the window's local hours [h0, h1) on a night of this dusk / dawn (h0 > h1 wraps midnight)
 function contractWhenSpan(w, duskH, dawnH) {
   if (!w || contractWhenWhy(w)) return null;
@@ -54078,12 +54105,8 @@ function missionMarkers(rec, live, opts) {
 // with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
 // (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
 const CAREER_V = 2;
-// the career's first day: 15 JULY, 16:00 AKDT, as UT (WEATHER-DAYS, the user's call of 3 Nov via A0: a new moon on the
-// 14th, so the career's first fortnight runs from the darkest, starriest nights to a full moon on the 29th; 16.8 h of
-// day, a dark core of 2.3 h past -12 deg, the aurora near full strength - futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
-// §9.2). The hour is the game's own (viewer/day_clock.js GAME_DAY, 16:00 local, the sun side-lighting the island); the
-// DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
-const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -54820,13 +54843,6 @@ function careerMapMark(doc, id, fleet, F) {
   const rec = careerContract(doc, id);
   return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
 }
-// THE SKY'S COVER FOR THE MOON (WEATHER-FIXES F7, 2026-11-03): the EFFECTIVE cover (07_day cloudCoverEff - a front's
-// overcast hides the moon as a declared one does), else the declared, else undefined (no day: the job's own stamp)
-function careerSkyCover(day) {
-  if (!day) return undefined;
-  if (typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff)) return day.cloudCoverEff;
-  return typeof day.cloudCover === 'number' ? day.cloudCover : undefined;
-}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
 // opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
@@ -54844,7 +54860,7 @@ function careerMapRecord(doc, world, opts) {
                ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
   const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {
@@ -59449,7 +59465,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerSkyCover, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
