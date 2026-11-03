@@ -311017,3 +311017,27 @@ IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-ED
 
 BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
 TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
+
+## DESIGN-AIDS — THE GARAGE'S DESIGN AIDS, THE INDICATORS MENU, THE TWO-TIER CERTIFICATE (cloud, 3 Nov 2026)
+The user (via A0): "we miss helpers in the garage ... center of lift, thrust vector, something to help with floats";
+"a failed certification should be crystal clear on what fails and what to do"; "Planes get certified when they're safe
+to fly, they get their commercial certification when they're robust and practical". Full write-up, the _2 -> _4b
+answer table and the renders: reports/evidence/DESIGN-AIDS/STATUS.md.
+- `src/core/64c_gen_aids.js` genDesignAids(def, balance, { propOff }): the centre of lift per surface, the thrust line
+  and its pitch moment, the floats (step vs the CG's vertical, the waterline at gross by 32_hydro levelVolume, the
+  reserve, the move that fixes the step), the CG over the four loading corners (the ledger moved seat by seat: equal to
+  genShakedown's envelope CGs on the Cub), tail volumes, the prop's clearance (ground on its three points / water at
+  gross / the structure in the drawn disc's circle with the flaps down - `CAGE_ENG.units[i].propAt`, new), the ground
+  stance. Its rows carry `tier` and `proposed`. genKeyIssues: 3-5 issues, the margin's remedy sized by REBUILDING
+  (genAidLevers: the wing 0.1 m aft, the stab +10 %; on the bench's thread, bench_worker 'levers').
+- `64b` GEN_CERT_TIER / genCertTiers: only a safe, non-proposed fail withholds the bench check. Tail volumes moved to
+  commercial (relaxes); the float step, the float reserve and the prop clearance are PROPOSED safe checks (warnings
+  until the user rules); the CG range, the doors (PILLAR-ANCHORS's CAGE_DOORSWING), the thrust line and the stance are
+  commercial.
+- `app.js` buildAids (the posts' group, built when they are; GARAGE_AIDS + `flydiy.aids`). The posts on a float build
+  are PHONE-1b's (standOffset on the float layer's step keels, CAGE_FLOAT.tetraC): this branch's own copy was dropped at
+  the L30a rebase. On a touch screen the aids draw without words, as the posts do (G3906b). `editor.js`: the reference-cut quick button is the indicators' button
+  (QUICK 'aids'), its menu in #edPopCard (the cut is its last item).
+- `bench.js`: KEY ISSUES first (benchKeyHtml), the full report folded (details.bFull), the commercial line (benchCommLine).
+- GATE AIDS (`tools/_aids_check.js`, ~20 s, core). Tools: `aids_shot.js` (Playwright stills with the marks on),
+  `aids_verdict_shot.js` (the card before / after), `aids_survey.js` (the tiers over a set of builds).

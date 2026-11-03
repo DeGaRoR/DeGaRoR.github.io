@@ -712,6 +712,10 @@ const GATES = [
   // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
   // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
   { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
+  // DESIGN-AIDS (the user 3 Nov): the garage's design aids and the certificate's tiers on the user's twin (_2): the
+  // step ahead of the CG, the floats short, the margin's remedy sized by rebuilt levers; the corners against the
+  // envelope; the tiers only relax; the indicators' menu replaces the reference-cut button; ~40 s
+  { id: 'AIDS', file: '_aids_check.js', tier: 'core', wall: 45 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,

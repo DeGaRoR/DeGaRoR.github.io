@@ -73,6 +73,42 @@ function benchDesignHtml(d) {
       '</div>').join('') + '</div>';
 }
 
+// DESIGN-AIDS: THE KEY ISSUES, rendered - FIRST on a failed or warned bench check (the user: "crystal clear on what
+// fails and what to do, without the need of scrolling through its full report. Only a number of key issues with
+// remedial suggestions"): what fails in plain words with its number, the remedy sized from the model, and which
+// certificate it belongs to. Pure (the rows are 64c genKeyIssues's).
+function benchKeyHtml(r) {
+  const K = r && r.key;
+  if (!K || !K.length) return '';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const rejects = k => k.tier === 'safe' && k.level === 'fail' && !k.proposed;
+  const tag = k => rejects(k) ? 'not safe to fly' : k.tier === 'safe' ? (k.level === 'fail' ? 'safety · proposed: a warning for now' : 'safety · warning')
+                                : 'commercial · robust and practical';
+  return '<div class="bKey"><span>' + (K.some(rejects) ? 'key issues' : 'warnings') + (r.keyPending ? ' · sizing the remedies…' : '') + '</span>' +
+    K.map(k => '<div class="bKeyR ' + (rejects(k) ? 'fail' : 'warn') + '">' +
+      '<b>' + esc(k.title) + '</b>' + (k.value != null ? ' <em>' + esc(k.value) + (k.unit ? ' ' + esc(k.unit) : '') + '</em>' : '') +
+      '<i>' + tag(k) + '</i>' +
+      (k.what ? '<div>' + esc(k.what) + '</div>' : '') +
+      (k.remedy ? '<div class="bKeyFix">→ ' + esc(k.remedy) + '</div>' : '') + '</div>').join('') + '</div>';
+}
+// DESIGN-AIDS D5: "flies a circuit" - a climb of 0.3 m/s and a take-off within 1100 m (genShakedown's flyableCircuit);
+// on FLOATS the take-off is the hydroplane test's (its own gating row), so only the climb is asked here. Pure.
+function benchCircuit(s, floats) {
+  const why = [];
+  const climbs = (s && s.climbRate || 0) >= 0.3, runs = (s && s.TORun || 0) <= 1100;
+  if (!climbs) why.push('it climbs ' + benchNum(s && s.climbRate, 2) + ' m/s');
+  if (!runs && !floats) why.push('it needs ' + benchNum(s && s.TORun, 0) + ' m to take off');
+  return { flies: floats ? climbs : (s ? !!s.flyableCircuit : false), why, floats: !!floats };
+}
+// the commercial certificate's one line
+function benchCommLine(r) {
+  const C = r && r.comm;
+  if (!C) return '';
+  return C.verdict === 'pass' ? 'commercial ✓ robust and practical'
+       : C.verdict === 'warn' ? 'commercial ✓ with ' + C.warn + ' note' + (C.warn > 1 ? 's' : '')
+       : 'commercial ✗ ' + C.n + ' issue' + (C.n > 1 ? 's' : '');
+}
+
 // G3780: THE WING LOADING'S VERDICT, one function for the rig's last state - the quick run's (the bench's thread,
 // unpaced) and the watched rig's (kept as a DEV tool)
 function benchLoadVerdict(st) {
@@ -150,9 +186,11 @@ const BENCH_TESTS = [
     run(api) {
       const s = api.shake();
       if (!s) return { verdict: 'not measurable', ok: false };
-      const why = [];
-      if ((s.climbRate || 0) < 0.3) why.push('it climbs ' + benchNum(s.climbRate, 2) + ' m/s');
-      if ((s.TORun || 0) > 1100) why.push('it needs ' + benchNum(s.TORun, 0) + ' m to take off');
+      // DESIGN-AIDS D5 (the user 3 Nov): A FLOAT BUILD'S TAKE-OFF IS THE HYDROPLANE TEST'S (its own gating row: the
+      // run from rest to lift-off on the sea lane), not the land take-off estimate - benchCircuit
+      const floats = typeof api.hasFloats === 'function' && !!api.hasFloats();
+      const CI = benchCircuit(s, floats);
+      const why = CI.why.slice();
       // G2640 DESIGN-TRUST: THE DESIGN CHECK rides the bench check (the user:
       // "the first bench check should be able to detect something bad from the
       // numbers alone ... deterministic check with real pointers"). The rows
@@ -163,17 +201,58 @@ const BENCH_TESTS = [
         verdict: s.design.verdict,
         rows: s.design.rows.map(r => ({ id: r.id, group: r.group, label: r.label, level: r.level,
                                         value: r.value, unit: r.unit, limit: r.limit, why: r.why, fix: r.fix })) } : null;
-      const dFail = dsg ? dsg.rows.filter(r => r.level === 'fail') : [];
+      // DESIGN-AIDS: the aids' rows join the design check's (the room draws the same numbers: app.js GARAGE_AIDS), the door
+      // swing from the editor's own check when it has answered (PILLAR-ANCHORS: CAGE_DOORSWING), and THE TIERS decide
+      // (64b GEN_CERT_TIER, the user 3 Nov: "Planes get certified when they're safe to fly, they get their commercial
+      // certification when they're robust and practical"): only a safe-to-fly fail withholds this certificate; a
+      // commercial fail is a warning on it (a row marked `proposed` - a new safe check awaiting the user's ruling - too)
+      let A = null;
+      try { A = typeof api.aids === 'function' ? api.aids() : null; } catch (e) { A = null; }
+      const aidRows = (A && A.rows ? A.rows : []).slice();
+      try {
+        const DS = typeof window !== 'undefined' ? window.CAGE_DOORSWING : null, rep = DS && DS.last, PS = typeof window !== 'undefined' ? window.PILLAR_SITE : null;
+        if (rep && rep.doors && rep.doors.length) {
+          const red = rep.doors.filter(d => d.red);
+          aidRows.push({ id: 'aid.doors', group: 'access', tier: 'comm', label: 'Doors open fully (egress)', level: red.length ? 'fail' : 'pass',
+            value: red.length, unit: 'blocked', limit: 'every door swings 0-90 deg with ' + rep.redMM + ' mm clear of every part (the editor\'s door-swing check)',
+            why: red.length ? red.map(d => PS && PS.swingLine ? PS.swingLine(d) : d.key).join('; ') : 'every door swings clear',
+            fix: red.length ? 'move what the door meets (a strut root, the wing) or the door\'s hinge edge' : '' });
+        }
+      } catch (e) {}
+      if (aidRows.length) {
+        const keep = r => ({ id: r.id, group: r.group, label: r.label, level: r.level, value: r.value, unit: r.unit, limit: r.limit,
+                             why: r.why, fix: r.fix, tier: r.tier, proposed: !!r.proposed });
+        if (dsg) dsg.rows = dsg.rows.concat(aidRows.map(keep));
+      }
+      const allRows = dsg ? dsg.rows : [];
+      const TI = typeof genCertTiers === 'function' ? genCertTiers(allRows) : null;
+      const dFail = TI ? TI.safeFail : allRows.filter(r => r.level === 'fail');
       for (const r of dFail) why.push(r.label.toLowerCase() + ' fails (' + r.value + (r.unit ? ' ' + r.unit : '') + ')');
-      const flies = !!s.flyableCircuit, sound = !dFail.length;
+      const flies = CI.flies, sound = !dFail.length;
+      // the key issues: the 3-5 rows that matter, in plain words, each with its sized remedy (64c genKeyIssues); the
+      // static margin's levers are measured after (the bench's thread: startKey)
+      let key = [];
+      try { key = typeof api.keyIssues === 'function' ? api.keyIssues(s, A) : []; } catch (e) { key = []; }
+      if (!flies) key.unshift({ id: 'shake.circuit', tier: 'safe', level: 'fail', title: 'Cannot fly a circuit',
+        what: (CI.why.join('; ') || 'climb or field length') + (floats ? ' (the bar: a climb of 0.3 m/s or more; the take-off is the hydroplane test\'s)'
+                                                                   : ' (the bar: a climb of 0.3 m/s or more, a take-off within 1100 m)'),
+        remedy: 'power against weight: a bigger engine, a coarser propeller, less structure, or more wing area' });
+      // THE COMMERCIAL CERTIFICATE's data (Game reads it through BENCH_STATE().comm, which adds the airworthiness): its
+      // verdict over every row (a fail of either tier fails it; a circuit it cannot fly too), the counts, and the ids
+      const comm = TI ? { verdict: !flies ? 'fail' : TI.comm, n: TI.commFail.length + (flies ? 0 : 1), warn: TI.warns.length,
+                          fails: TI.commFail.map(r => r.id).concat(flies ? [] : ['shake.circuit']),
+                          notes: TI.warns.filter(r => r.level === 'warn').map(r => r.id) } : null;
       return {
         verdict: !flies ? 'WILL NOT FLY A CIRCUIT' : !sound ? 'FLIES, BUT THE DESIGN FAILS' : 'FLIES A CIRCUIT',
         ok: flies && sound,
         design: dsg,
+        key: key.slice(0, 5),
+        keyLevers: key.some(k => k.id === 'pitch.sm' || k.id === 'aid.range'),
+        comm,
         // the plaque is this test's real output; the line here is its headline
         note: benchNum(s.Vs * 3.6, 0) + ' km/h stall · ' +
               benchNum(s.climbRate, 2) + ' m/s climb · ' +
-              benchNum(s.TORun, 0) + ' m take-off',
+              (floats ? benchNum(s.TORun, 0) + ' m take-off (land estimate; on floats the hydroplane test decides)' : benchNum(s.TORun, 0) + ' m take-off'),
         why: why.join('; '),
         fix: !flies ? 'power against weight: a bigger engine, a coarser '
            + 'propeller, less structure, or more wing area. The plaque\'s rows say which.'
@@ -1107,6 +1186,11 @@ function benchInit(api) {
              stale: anyStale(),
              // G3780: the states the HUD and the header speak (R3 suspended, R5 grounded); the change a superseded row names
              suspended: anySuspended(), grounded, change: anyStale() ? withdrawnNote : '',
+             // DESIGN-AIDS: THE COMMERCIAL CERTIFICATE (D2: passengers for hire, paid contracts - Game's to wire). null until
+             // a current bench check; { verdict 'pass'|'warn'|'fail', n, warn, fails: [row ids], notes: [row ids],
+             // airworthy: the airworthiness certificate stands, ok: airworthy and the verdict is not 'fail' }
+             comm: (() => { const r = results.shake; if (!r || r.stale || r.running || !r.comm) return null;
+                            return Object.assign({}, r.comm, { airworthy: passed(), ok: passed() && r.comm.verdict !== 'fail' }); })(),
              trim: (trimUse && f && !f.stale && !f.running && f.ok
                     && f.trim != null && isFinite(f.trim)) ? f.trim : null };
   };
@@ -1144,6 +1228,7 @@ function benchInit(api) {
     note(t, r);
     if (r.advise) startAdvice(t, r);
     if (r.destroy) startDestroy(t, r);
+    if (r.keyLevers) startKey(t, r);
     persist();
     stickersChanged();
     render();
@@ -1211,6 +1296,36 @@ function benchInit(api) {
         awardAdvice(r);
       });
     } catch (e) { r.advice = { lines: [], done: true, n: 0 }; }
+  }
+  // DESIGN-AIDS: THE REMEDIES SIZED - the static margin's levers measured on the bench's thread (app.js api.levers:
+  // the aeroplane rebuilt with the wing 0.1 m aft, the stabiliser 10 % bigger), then the key issues re-read with them
+  function startKey(t, r) {
+    delete r.keyLevers;
+    if (typeof api.levers !== 'function' || typeof api.keyIssues !== 'function') return;
+    r.keyPending = true;
+    let s = null, A = null;
+    try { s = api.shake(); A = typeof api.aids === 'function' ? api.aids() : null; } catch (e) {}
+    try {
+      api.levers(lv => {
+        if (results[t.id] !== r) return;
+        r.keyPending = false;
+        if (lv && s) {
+          try {
+            const k2 = api.keyIssues(s, A, lv), head = (r.key || []).filter(k => k.id === 'shake.circuit');
+            // the door swing's issue is the bench's own (not genKeyIssues's): kept where it was
+            const doors = (r.key || []).filter(k => k.id === 'aid.doors');
+            r.key = head.concat(k2, doors.filter(d => !k2.some(k => k.id === d.id))).slice(0, 5);
+          } catch (e) {}
+        }
+        persist(); render(); awardKey(r);
+      });
+    } catch (e) { r.keyPending = false; }
+  }
+  function awardKey(r) {
+    const U = ui();
+    if (!U || U.aw.hidden || !awardCur || awardCur.r !== r) return;
+    const old = U.aw.querySelector('.bKey');
+    if (old) old.outerHTML = benchKeyHtml(r);
   }
   // G1832 (DMG-D2a): THE TEST TO DESTRUCTION (ruling dm6: free). With the damage layer on, after the wing loading the
   // bench's thread takes the certified airframe past its ultimate until the first break group lets go, and the row
@@ -1709,10 +1824,13 @@ function benchInit(api) {
       '<div class="bAs">' + (r.ok ? 'certified' : 'failed') + '</div>' +
       '<div class="bAv"><b>' + esc(r.verdict) + '</b>' +
       (r.note ? '<br>' + esc(r.note) : '') + '</div>' +
-      (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
+      // DESIGN-AIDS: the key issues FIRST, the full report one tap away (the design check's rows folded under it)
+      benchKeyHtml(r) + (benchCommLine(r) ? '<div class="bAc">' + esc(benchCommLine(r)) + '</div>' : '') +
+      (!r.ok && (r.why || r.fix) && !(r.key && r.key.length) ? '<div class="bAf">' +
         (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
       (r.warn ? '<div class="bAw">' + esc(r.warn) + '</div>' : '') +
-      adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) +
+      adviceHtml(r) + destroyHtml(r) +
+      (r.key && r.key.length && r.design ? '<details class="bFull"><summary>full report</summary>' + benchDesignHtml(r.design) + '</details>' : benchDesignHtml(r.design)) +
       '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
       ' · click to close</div>';
     U.aw.hidden = false;
@@ -1725,9 +1843,11 @@ function benchInit(api) {
       } catch (e) {}
     }
     U.aw.onclick = done;
+    // DESIGN-AIDS: opening the full report is not a close, and it holds the card open
+    try { U.aw.querySelectorAll('details').forEach(d => { d.onclick = e => { e.stopPropagation(); if (awardT) { clearTimeout(awardT); awardT = null; } }; }); } catch (e) {}
     // a card with the advisor on it waits for the measurements (awardAdvice
     // re-arms the close once they are in); a plain pass closes itself
-    awardT = ((r.advice && !r.advice.done) || (r.destroy && !r.destroy.done)) ? null : setTimeout(done, r.ok ? 2800 : 9000);
+    awardT = ((r.advice && !r.advice.done) || (r.destroy && !r.destroy.done)) ? null : setTimeout(done, r.ok && !(r.key && r.key.length) ? 2800 : r.key && r.key.length ? 20000 : 9000);
     awardCur = { r, done };
   }
   let awardCur = null;
@@ -1771,6 +1891,7 @@ function benchInit(api) {
       } catch (e) {}
     });
   }
+  const openFull = {};
   function render() {
     const bits = [];
     const nCert = certs().length, nGate = gating().length;
@@ -1805,6 +1926,8 @@ function benchInit(api) {
       '<em>' + (line1 != null ? line1
                       : nCert ? nCert + ' of ' + BENCH_TESTS.filter(usable).length + ' certificates'
                       : 'no certificate yet') + '</em>' +
+      // DESIGN-AIDS: the commercial certificate (robust and practical) beside the airworthiness one - its line only
+      (sh && !sh.stale && !sh.running && benchCommLine(sh) ? '<em class="bComm">' + benchCommLine(sh) + '</em>' : '') +
       '</div></div>');
     for (const t of BENCH_TESTS) {
       const r = results[t.id] || null;
@@ -1856,10 +1979,14 @@ function benchInit(api) {
           cfg.unit + '</label>').join('') + '</div>' : '') +
         (r && r.rungs && r.rungs.length && !r.stale ? '<div class="bRungs">' + r.rungs.map(x => '<div>' + x + '</div>').join('') + '</div>'
           : r && r.note && !r.stale ? '<div class="bW">' + r.note + '</div>' : '') +
-        (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
+        // DESIGN-AIDS: a bench check with issues opens on its KEY ISSUES (3-5, each sized), the full report folded under
+        (r && !r.stale && !r.running ? benchKeyHtml(r) : '') +
+        (r && !r.ok && !r.stale && !r.running && (r.why || r.fix) && !(r.key && r.key.length)
           ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
         (r && r.warn && !r.stale && !r.running ? '<div class="bWarn">' + r.warn + '</div>' : '') +
-        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) : '') +
+        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) +
+          (r.key && r.key.length && r.design ? '<details class="bFull"' + (openFull[t.id] ? ' open' : '') + ' data-full="' + t.id + '"><summary>full report</summary>' + benchDesignHtml(r.design) + '</details>'
+                                             : benchDesignHtml(r.design)) : '') +
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
@@ -1893,6 +2020,7 @@ function benchInit(api) {
         (cardVals[id] || (cardVals[id] = {}))[k] = inp.value;
       };
     });
+    rows.querySelectorAll('details[data-full]').forEach(d => { d.ontoggle = () => { openFull[d.dataset.full] = d.open; }; });
     const tu = $('bTrimUse');
     if (tu) tu.onchange = () => { trimUse = !!tu.checked; persist(); changed(); };
   }
@@ -1903,4 +2031,4 @@ if (typeof module !== 'undefined' && module.exports)
   module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME, BENCH_FP_F2,
                      benchMajor, benchFingerprintF2, benchF2Set, benchVersionTag,
                      benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine, benchDestroyLine,
-                     benchFingerprint, benchFlightStep, benchTrimWords, benchNum, benchDesignHtml };
+                     benchFingerprint, benchFlightStep, benchTrimWords, benchNum, benchDesignHtml, benchKeyHtml, benchCommLine, benchCircuit };
