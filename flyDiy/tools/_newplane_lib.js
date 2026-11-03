@@ -166,4 +166,18 @@ function hop(def) {
   return { ok: false, why: (tOff == null ? 'no lift-off in 120 s (' + ap.phase + ')' : 'climbed ' + Math.round(maxAlt) + ' m in 120 s') + said };
 }
 
-module.exports = { judge, joinedOf, hop, init, NP: () => (init(), NP) };
+// STANDING: a failure the same KIND of aeroplane has on master's own cards (STATUS.md section 4 names each and its
+// cards), so it is reported and asked about but does not hide a new failure: a judged build fails only on the rest
+//   the fin presets' drawn taper under the flown envelope (every FIN_ARCH preset; the T-tail tourer card)
+//   the disc through the wing or the body on a pusher, an over-the-wing engine or a push-pull's rear (the Pod-and-boom,
+//     Archaeopteryx and Chinook cards: the disc stands over the wing / against the pod, not behind them)
+//   the full-cabin corner's margin behind the neutral point with 3-4 bays (the Caravan, DA62, twin bush, Beaver cards)
+function standing(f, ch) {
+  if (/the drawn [vh]Taper .* is outside the flown envelope/.test(f)) return 'fin taper';
+  if (/^join: prop: through the (wing|body)/.test(f) && ch && ['pusher', 'wingTop', 'pushPull'].includes(ch.engArch)) return 'pusher disc';
+  if (/^design: pitch\.sm=/.test(f) && !/ (pitch\.(?!sm)|yaw|roll|ctl)/.test(f) && ch && ch.bays >= 3) return 'big cabin corner';
+  return null;
+}
+const realFails = (fails, ch) => fails.filter(f => !standing(f, ch));
+
+module.exports = { judge, joinedOf, hop, init, standing, realFails, NP: () => (init(), NP) };
