@@ -128,6 +128,14 @@ async function child(mode, idbDir, outFile) {
   const R = W.WORLD && W.WORLD.premises;
   const out = { mode, query: q, wall: Date.now() - t0, entries: {}, calls, stepWall: wall, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
   if (!R) { out.fail = 'no premises renderer'; fs.writeFileSync(outFile, JSON.stringify(out)); return; }
+  // G844c: a parked aeroplane registers its obstacle when its capture lands, one a tick (render_premises hitPendingStep,
+  // G680) - on its own clock, as its ladder (digestEntry hashes the holder's pose only). The local child, the page building
+  // every entry itself, reached BOOT gone with af_park2's still pending (3 Nov: 0 obstacles vs the workers' 1): the
+  // snapshot waits for every holder's (120 virtual s at most; the entries still pending are named)
+  const airPending = () => [...R.houses].filter(([, h]) => h.isObject && h.plot && h.plot.rec && h.plot.rec.kind === 'aircraft' && h.grp && h.grp.parent && !(h.grp.userData.obst || []).length).map(([id]) => id);
+  const airT0 = W.performance.now();
+  await P.until(() => !airPending().length, 120000);
+  out.airWait = { pending: airPending(), ms: Math.round(W.performance.now() - airT0) };
   const DET = !!process.env.HOUSEWORKER_DETAIL;
   for (const [id, h] of R.houses) out.entries[id] = { d: DET ? digestEntry(W, h, true).d : digestEntry(W, h), parts: DET ? digestEntry(W, h, true).parts : undefined, kind: h.plot && h.plot.isItem ? 'item' : h.plot && h.plot.isFence ? 'fence' : h.plot && h.plot.isObject ? 'object' : h.plot && h.plot.isPark ? 'park' : 'house', failed: !!h.failed };
   out.queued = R.stats.queued;
@@ -208,7 +216,7 @@ function verdict(res, ok) {
     }
     if (L && L.obst && C.obst) {
       const ids = Object.keys(L.obst).sort(), bad = ids.filter(id => C.obst[id] !== L.obst[id]);
-      ok(!bad.length, m + ': G844 every entry has the obstacles of the page own build (' + (ids.length - bad.length) + ' / ' + ids.length + '; ' + JSON.stringify(C.hit) + ' vs local ' + JSON.stringify(L.hit) + (bad.length ? '; differ: ' + bad.slice(0, 6).join(', ') : '') + ')');
+      ok(!bad.length, m + ': G844 every entry has the obstacles of the page own build (' + (ids.length - bad.length) + ' / ' + ids.length + '; ' + JSON.stringify(C.hit) + ' vs local ' + JSON.stringify(L.hit) + (bad.length ? '; differ: ' + bad.slice(0, 6).join(', ') : '') + '; parked aeroplanes waited ' + (C.airWait ? C.airWait.ms : '?') + ' / local ' + (L.airWait ? L.airWait.ms : '?') + ' ms' + ((C.airWait && C.airWait.pending.length) || (L.airWait && L.airWait.pending.length) ? ', STILL PENDING ' + JSON.stringify([(C.airWait || {}).pending, (L.airWait || {}).pending]) : '') + ')');
       if (m === 'cold') ok(C.hit && C.hit.base > 0, 'cold: G844 the worker rasterised the bags, the page only its props (' + (C.hit ? C.hit.base : 0) + ' over the worker raster, ' + (C.hit ? C.hit.walk : 0) + ' whole walks)');
     }
     const town = sumCalls(C.calls, /:town$/), all = sumCalls(C.calls);
