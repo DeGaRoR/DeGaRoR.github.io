@@ -1,0 +1,25 @@
+// function body: the overhead console against the roof - rays straight up through its footprint, every cage face hit
+const UI = window.CAGE_UI, G2 = window.CAGE2, M = UI && UI.MS;
+if (!M || !M.V || !M.F) return { err: 'no cage mesh' };
+const k = (G2 ? G2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);
+const V = M.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function rayTri(o, d, a, b, c) { const e1 = sub(b, a), e2 = sub(c, a), pv = cross(d, e2), det = dot(e1, pv); if (Math.abs(det) < 1e-12) return null;
+  const inv = 1 / det, tv = sub(o, a), u = dot(tv, pv) * inv; if (u < 0 || u > 1) return null; const qv = cross(tv, e1), v = dot(d, qv) * inv;
+  if (v < 0 || u + v > 1) return null; const t = dot(e2, qv) * inv; return t > 0 ? t : null; }
+const up = (x, z, y0) => { const o = [x, y0, z], hits = [];
+  for (const f of M.F) { for (let i = 1; i + 1 < f.v.length; i++) { const t = rayTri(o, [0, 1, 0], V[f.v[0]], V[f.v[i]], V[f.v[i + 1]]); if (t != null) hits.push([+(y0 + t).toFixed(4), f.m]); } }
+  return hits.sort((a, b) => a[0] - b[0]).slice(0, 8); };
+const A = window.CAGE_CREW && window.CAGE_CREW.A, out = { ohc: A && A.ohc, roofY: A && A.roofY, waistY: A && A.waistY };
+let pod = null; if (window.__scene) window.__scene.traverse(o => { if (!pod && o.name === 'edOhConsole') pod = o; });
+if (pod) { let y1 = -1e9, y0 = 1e9, x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  pod.traverse(o => { const p = o.geometry && o.geometry.attributes.position; if (!p) return; for (let i = 0; i < p.count; i++) { const y = p.getY(i), x = p.getX(i), z = p.getZ(i); y1 = Math.max(y1, y); y0 = Math.min(y0, y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } });
+  out.pod = { y: [y0, y1].map(v => +v.toFixed(4)), x: [x0, x1].map(v => +v.toFixed(3)), z: [z0, z1].map(v => +v.toFixed(3)) };
+  const zc = (z0 + z1) / 2; out.rays = {};
+  for (const dz of [-0.12, 0, 0.12]) for (const x of [0, 0.08]) out.rays[x + '/' + (zc + dz).toFixed(3)] = up(x, zc + dz, y0 - 0.05);
+}
+const L = window.CAGE_LIGHT; out.lamps = {};
+if (L && L.sites) for (const kk of Object.keys(L.sites)) { const s = L.sites[kk]; if (s && s.p && /flood|pax/.test(kk)) out.lamps[kk] = { p: s.p.map(v => +v.toFixed(3)), rung: s.rung, rays: up(s.p[0], s.p[2], s.p[1] - 0.05) }; }
+if (L && L.sites && Array.isArray(L.sites.pax)) out.paxs = L.sites.pax.map(s => ({ p: s.p.map(v => +v.toFixed(3)), rung: s.rung, rays: up(s.p[0], s.p[2], s.p[1] - 0.05) }));
+return out;

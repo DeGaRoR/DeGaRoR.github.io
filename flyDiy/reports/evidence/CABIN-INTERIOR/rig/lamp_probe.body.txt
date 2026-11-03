@@ -1,0 +1,6 @@
+const L = window.CAGE_LIGHT, out = { lit: L && L.lit, sites: {} };
+if (L && L.sites) { const s = L.sites; out.sites.flood = s.flood && { p: s.flood.p, rung: s.flood.rung, n: s.flood.n };
+  out.sites.pax = (s.pax || []).map(q => ({ p: q.p, rung: q.rung })); }
+const pts = []; if (window.__scene) window.__scene.traverse(o => { if (o.isPointLight || o.isSpotLight) pts.push({ t: o.type, i: +o.intensity.toFixed(3), vis: o.visible, p: o.position.toArray().map(v => +v.toFixed(3)), par: o.parent && o.parent.name }); });
+out.lights = pts; out.P = (() => { const P = window.CAGE_UI && window.CAGE_UI.P; return P && { lightOn: P.lightOn, li_flood: P.li_flood, li_pax: P.li_pax, li_floodFit: P.li_floodFit }; })();
+return out;
