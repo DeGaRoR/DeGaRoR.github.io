@@ -1046,8 +1046,6 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
   tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
   return { obj: gL, label: 'flap lever' };
 }
-// THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
-// hanging off the box, a bushing, the rod and a T handle; it slides aft.
 // THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
 // the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
 // heads - the 172's and every light twin's: two eyeball vents forward, two reading-lamp seats aft, one each side.
@@ -1077,7 +1075,13 @@ function buildOverheadConsole(gRoot, A, P, mesh, front) {
   }
   const LEN = 0.30, W = front.length > 1 ? 0.21 : 0.16, D = 0.045;
   const zc = Math.min(zS + 0.47, isFinite(zWs) ? zWs - 0.03 : Infinity) - LEN / 2;
-  let yC = Infinity;
+  // THE CEILING UNDER EVERY POINT OF THE POD (CABIN-SHOTS, 3 Nov: one flat top at the lowest roof face's centroid,
+  // on the twin's roof falling to its raked screen, put the pod's nose 1.0 cm out through the skin - a black slot on
+  // the roof from outside - and left a 3.8 cm gap under the headliner aft; the Cub's nose 1.0 cm out too). A ray
+  // straight up at (x, z) meets the sheet's roof faces: the lowest is the liner, the next the skin over it. The pod's
+  // top sits 4 mm into the liner, never more than halfway to the skin (the twin's nose has 7 mm between them); with
+  // no liner (the skin alone) it stops 2 mm under the skin.
+  const tris = [];
   for (const f of mesh.F) {
     if (f.v.length < 3) continue;
     let cx = 0, cy = 0, cz = 0;
@@ -1088,40 +1092,71 @@ function buildOverheadConsole(gRoot, A, P, mesh, front) {
       if (Math.abs(cx) < W / 2 + 0.06 && Math.abs(cz - zc) < LEN / 2 + 0.06) return null;
       continue;
     }
-    if (!ROOF.has(f.m) || Math.abs(cx) > 0.08 || Math.abs(cz - zc) > 0.10) continue;
-    const a = V[f.v[0]], b = V[f.v[1]], c = V[f.v[2]];
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-    const ny = uz * vx - ux * vz, nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
-    if (!(nl > 1e-12) || Math.abs(ny / nl) < 0.55) continue;
-    if (cy < yC) yC = cy;
+    if (!ROOF.has(f.m) || Math.abs(cx) > W / 2 + 0.10 || Math.abs(cz - zc) > LEN / 2 + 0.10) continue;
+    const q = f.v.map(vi => [V[vi][0] * k, V[vi][1] * k, V[vi][2] * k]);
+    for (let n = 1; n + 1 < q.length; n++) tris.push([q[0], q[n], q[n + 1]]);
   }
-  if (!isFinite(yC)) return null;
+  const yTop = (x, z) => {
+    const ys = [];
+    for (const [a, b, c] of tris) {
+      const dd = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+      if (Math.abs(dd) < 1e-12) continue;
+      const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / dd;
+      const l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / dd;
+      if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
+      const y = l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * c[1];
+      if (y > mid) ys.push(y);
+    }
+    if (!ys.length) return NaN;
+    ys.sort((p, q) => p - q);
+    const yIn = ys[0], yOut = ys.find(y => y > yIn + 0.0015);
+    return yOut == null ? yIn - 0.002 : yIn + Math.min(0.004, 0.5 * (yOut - yIn));
+  };
   // the pod: a rounded section lofted fore and aft, easing to the ceiling at both ends (a moulding, not a box);
-  // its top 4 mm into the liner so it is closed against it from every view
-  const pod = K.Bag(), NS = 12, NU = 10, top = yC + 0.004;
+  // every point of its top on the ceiling over it, so it is closed against the liner from every view
+  const pod = K.Bag(), NS = 12, NU = 10, LAMP_R = 0.019;
   const ease = t => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * t - 1), 4)), 0.25);
+  const zOf = i => zc + LEN / 2 - (i / NS) * LEN;
+  const topC = [];
+  for (let i = 0; i <= NS; i++) { const y = yTop(0, zOf(i)); if (!isFinite(y)) return null; topC.push(y); }
+  const topAt = (x, z) => {                                 // the ceiling at (x, z), or the centreline's under a miss
+    const y = yTop(x, z);
+    if (isFinite(y)) return y;
+    const u = Math.max(0, Math.min(NS, (zc + LEN / 2 - z) / LEN * NS)), i0 = Math.min(NS - 1, Math.floor(u));
+    return topC[i0] + (topC[i0 + 1] - topC[i0]) * (u - i0);
+  };
   const rows = [];
   for (let i = 0; i <= NS; i++) {
-    const t = i / NS, e = ease(t), z = zc + LEN / 2 - t * LEN, hw = (W / 2) * e, d = D * Math.sqrt(e);
+    const t = i / NS, e = ease(t), z = zOf(i), hw = (W / 2) * e, d = D * Math.sqrt(e);
     const r = [];
     for (let j = 0; j <= NU; j++) {
       const th = Math.PI * j / NU;                          // 0 at +x, PI at -x, through the bottom
       const cs = Math.cos(th), sn = Math.sin(th);
       const sx = Math.sign(cs) * Math.pow(Math.abs(cs), 0.6), sy = Math.pow(sn, 0.6);
-      r.push(pod.v([hw * sx, top - (d + 0.004) * sy, z]));
+      r.push(pod.v([hw * sx, topAt(hw * sx, z) - (d + 0.004) * sy, z]));
     }
     rows.push(r);
   }
   for (let i = 0; i < NS; i++) for (let j = 0; j < NU; j++)
     pod.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
-  const tc = pod.v([0, top, zc]);                          // the top, closed against the liner
-  for (let i = 0; i < NS; i++) { pod.tri(tc, rows[i + 1][0], rows[i][0]); pod.tri(tc, rows[i][NU], rows[i + 1][NU]); }
-  const bot = z => top - 0.004 - D * Math.sqrt(ease((zc + LEN / 2 - z) / LEN));
+  // the top, closed against the liner along the centreline (one spine point a row)
+  const spine = topC.map((y, i) => pod.v([0, y, zOf(i)]));
+  for (let i = 0; i < NS; i++) {
+    pod.quad(spine[i], spine[i + 1], rows[i + 1][0], rows[i][0]);
+    pod.quad(spine[i + 1], spine[i], rows[i][NU], rows[i + 1][NU]);
+  }
+  // the pod's underside at (z, x): the section's own depth there (|x| across the half-width gives the angle)
+  const bot = (z, x = 0) => {
+    const e = ease((zc + LEN / 2 - z) / LEN), hw = (W / 2) * e;
+    const ax = hw > 1e-6 ? Math.min(1, Math.abs(x) / hw) : 0;
+    const cs = Math.pow(ax, 1 / 0.6), sy = Math.pow(Math.sqrt(Math.max(0, 1 - cs * cs)), 0.6);
+    return topAt(x, z) - (D * Math.sqrt(e) + 0.004) * sy;
+  };
   // the two eyeball vents forward (a bezel ring and the ball in it), the lamps' bezels aft
   const fit = K.Bag();
   const xs = front.length > 1 ? [0.052, -0.052] : [0];
   const ring = (x, z, r0, r1, h) => {
-    const y = bot(z), N = 14, a = [], b = [];
+    const y = bot(z, x), N = 14, a = [], b = [];
     for (let n = 0; n < N; n++) {
       const t = 2 * Math.PI * n / N, cx = Math.cos(t), cz = Math.sin(t);
       a.push(fit.v([x + cx * r1, y + 0.002, z + cz * r1]));
@@ -1132,14 +1167,17 @@ function buildOverheadConsole(gRoot, A, P, mesh, front) {
     for (let n = 0; n < N; n++) fit.tri(b[n], b[(n + 1) % N], c);
   };
   for (const x of xs) ring(x, zc + 0.075, 0.016, 0.022, 0.012);    // the vents' bezels and balls
-  for (const x of xs) ring(x, zc - 0.075, 0.020, 0.026, 0.003);    // the reading lamps' bezels (the lamp sits in it)
+  for (const x of xs) ring(x, zc - 0.075, LAMP_R + 0.001, LAMP_R + 0.007, 0.003);  // the reading lamps' bezels (the lamp sits in it)
   const g = new THREE.Group();
   g.name = 'edOhConsole';
   gRoot.add(g);
   pod.mesh(g, M.dark); fit.mesh(g, M.dark);
-  A.ohc = { zSeat: zS, seats: xs.map(x => ({ sd: Math.abs(x) < 0.01 ? 0 : Math.sign(x), p: [x, bot(zc - 0.075) - 0.003, zc - 0.075] })) };
+  A.ohc = { zSeat: zS, r: LAMP_R,
+            seats: xs.map(x => ({ sd: Math.abs(x) < 0.01 ? 0 : Math.sign(x), p: [x, bot(zc - 0.075, x) - 0.003, zc - 0.075] })) };
   return A.ohc;
 }
+// THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
+// hanging off the box, a bushing, the rod and a T handle; it slides aft.
 function buildBrakeKnob(gRoot, A, P, sx) {
   const K = window.GEAR_KIT;
   if (!K || A.dashLip == null || A.dashAftZ == null) return null;
