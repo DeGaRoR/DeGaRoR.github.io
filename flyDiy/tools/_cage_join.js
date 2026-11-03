@@ -523,6 +523,17 @@ function cageJoinSpec(P, M, T) {
   // the measured seat stations (see M.seatsX above); absent = the frame's own
   // pillar rule, which is what every fiche and every older save still gets
   if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
+  // PILLAR-ANCHORS P4: a picked strut pillar's station; a pick returned to auto CLEARS the one the game's spec holds
+  // (the garage's merge keeps a key the export leaves out). A build that never picked states nothing: its spec is
+  // byte for byte what it was
+  if (spec.bracing) {
+    if (typeof M.strutAt === 'number' && isFinite(M.strutAt)) spec.bracing.strutAt = M.strutAt;
+    else {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAt != null); } catch (e) {}
+      if (had) spec.bracing.strutAt = null;
+    }
+  }
   // G180: the drawn CAPACITY and the seat-by-seat OCCUPANCY, both off the same
   // seat list as seatsX (see M.seats / M.occupied above). Written whenever
   // measured — an all-empty cabin is a real answer, same ruling as `pax`.
@@ -1393,6 +1404,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             x: fwOk ? zFw - CF.zStep : null, y: CF.keelY - yD, track: CF.track, volDeck: CF.vol });
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
+      }
+      // PILLAR-ANCHORS P4: THE PICKED STRUT PILLAR's ring station, metres aft of the firewall (the wing layer drew
+      // the foot on it; the frame roots the strut on the ring nearest it)
+      {
+        const CW = window.CAGE_WING;
+        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
       }
       // PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK'S ANSWER, a note per door that is RED (under 20 mm of
       // clearance somewhere in its 0-90 deg swing). The sweep is ~1 s a door, so the join never runs it (export is
