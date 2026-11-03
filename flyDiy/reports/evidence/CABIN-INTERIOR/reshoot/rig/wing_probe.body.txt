@@ -1,0 +1,18 @@
+// the wing layer inside the cabin: a ray straight up from the waist at (x, z) - the first wing-layer hit vs the liner/roof
+const sc = window.__scene; sc.updateMatrixWorld(true);
+let wing = null, crew = null; sc.traverse(o => { if (o.name === 'cageLayer:wing' && !wing) wing = o; if (o.name === 'cageLayer:crew') crew = o; });
+const A = window.CAGE_CREW.A, UI = window.CAGE_UI, M = UI.MS, k = (window.CAGE2 ? CAGE2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);
+const par = crew.parent, rc = new THREE.Raycaster(), out = { roofY: A.roofY, waistY: A.waistY, rows: [] };
+const meshes = []; wing.traverse(o => { if (o.isMesh) meshes.push(o); });
+const T = []; for (const f of M.F) { if (f.v.length < 3) continue; const q = f.v.map(i => M.V[i].map(x => x * k)); for (let n = 1; n + 1 < q.length; n++) T.push([q[0], q[n], q[n + 1], f.m]); }
+const sheet = (x, z) => { const ys = []; for (const [a, b, c, m] of T) { const dd = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]); if (Math.abs(dd) < 1e-12) continue;
+  const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / dd, l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / dd;
+  if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue; const y = l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * c[1]; if (y > A.waistY) ys.push([+y.toFixed(3), m]); } return ys.sort((p, q) => p[0] - q[0]); };
+const seats = window.CAGE_CREW.seatsAt; const zs = seats.map(s => s.zBack);
+for (let z = Math.min(...zs) - 0.2; z <= Math.max(...zs) + 0.6; z += 0.1) for (const x of [0, 0.2]) {
+  const o = par.localToWorld(new THREE.Vector3(x, A.waistY, z)), up = par.localToWorld(new THREE.Vector3(x, A.waistY + 1, z)).sub(o).normalize();
+  rc.set(o, up); const h = rc.intersectObjects(meshes, true)[0];
+  const wy = h ? +par.worldToLocal(h.point.clone()).y.toFixed(3) : null; const sh = sheet(x, z);
+  out.rows.push({ x, z: +z.toFixed(2), wingFirst: wy, liner: sh.length ? sh[0] : null, skin: sh.length ? sh[sh.length - 1] : null, wingInCabin: wy != null && sh.length && wy < sh[0][0] - 0.002 });
+}
+return out;

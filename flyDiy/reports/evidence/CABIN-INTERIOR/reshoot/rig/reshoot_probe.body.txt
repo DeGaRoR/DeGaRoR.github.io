@@ -1,0 +1,64 @@
+// CABIN-RESHOOT probe (function body for tools/_load_build.js FLYDIY_JOIN_PROBE): the rows as loaded, the console's
+// presence, and every vertex of the console and of the cabin lamps against the sheet: a vertical ray up from it must
+// meet a face of the sheet (liner, skin or glass) - a vertex with none over it is OUT through the roof.
+const UI = window.CAGE_UI, G2 = window.CAGE2, M = UI && UI.MS, P = (UI && UI.P) || {};
+if (!M || !M.V || !M.F) return { err: 'no cage mesh' };
+const k = (G2 ? G2.CAGE_UNIT : 1) * ((P && P.planeScale) || 1);
+const V = M.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
+const A = window.CAGE_CREW && window.CAGE_CREW.A;
+const out = { rows: {}, ohc: A ? A.ohc : 'no CAGE_CREW.A', roofY: A && A.roofY, waistY: A && A.waistY };
+for (const r of ['hdlOn', 'wallTrimOn', 'ohConsoleOn', 'canopy', 'skylight', 'skyExt', 'bubble', 'cpOpen', 'lightOn', 'li_flood', 'li_pax']) out.rows[r] = P[r];
+const mid = A ? (A.waistY + A.roofY) / 2 : 0;
+// the sheet's triangles in plan, for vertical rays
+const T = [];
+for (const f of M.F) { if (f.v.length < 3) continue; const q = f.v.map(vi => V[vi]); for (let n = 1; n + 1 < q.length; n++) T.push([q[0], q[n], q[n + 1], f.m]); }
+const hitsAt = (x, z) => { const ys = [];
+  for (const [a, b, c, m] of T) {
+    const dd = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]); if (Math.abs(dd) < 1e-12) continue;
+    const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / dd, l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / dd;
+    if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
+    ys.push([l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * c[1], m]); }
+  return ys.sort((p, q) => p[0] - q[0]); };
+const sc = window.__scene; sc.updateMatrixWorld(true);
+let crew = null, light = null; sc.traverse(o => { if (o.name === 'cageLayer:crew') crew = o; if (o.name === 'cageLayer:light') light = o; });
+const frameOf = g => g && g.parent ? new THREE.Matrix4().copy(g.parent.matrixWorld).invert() : new THREE.Matrix4();
+const check = (objs, inv, label) => {
+  let n = 0, outN = 0, worst = null, minClear = Infinity, minAt = null; const v = new THREE.Vector3(), seen = new Map();
+  for (const o of objs) o.traverse(m => { const p = m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!p) return;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+      if (v.y < mid) continue; const key = v.x.toFixed(3) + ',' + v.y.toFixed(3) + ',' + v.z.toFixed(3); if (seen.has(key)) continue; seen.set(key, 1); n++;
+      const hs = hitsAt(v.x, v.z), above = hs.filter(h => h[0] > v.y), below = hs.filter(h => h[0] <= v.y);
+      if (!above.length) { outN++; const sk = below.length ? below[below.length - 1] : null; const by = sk ? v.y - sk[0] : null;
+        if (!worst || (by != null && by > worst.by)) worst = { p: [v.x, v.y, v.z].map(x => +x.toFixed(4)), by: by != null ? +by.toFixed(4) : null, skin: sk && sk[1], mesh: m.name || m.parent && m.parent.name }; }
+      else { const top = above[above.length - 1][0] - v.y; if (top < minClear) { minClear = top; minAt = { p: [v.x, v.y, v.z].map(x => +x.toFixed(4)), over: above.map(h => [+h[0].toFixed(4), h[1]]) }; } } } });
+  return { label, verts: n, out: outN, worstOut: worst, minUnderOuter: isFinite(minClear) ? +minClear.toFixed(4) : null, minAt };
+};
+const pods = []; sc.traverse(o => { if (o.name === 'edOhConsole') pods.push(o); });
+out.consoleMeshes = pods.length;
+if (pods.length) out.consoleCheck = check(pods, frameOf(crew), 'console');
+const lamps = []; if (light) light.traverse(o => { if (/^edLamp_/.test(o.name) && !/nav|beacon|strobe|land|taxi|logo|wing|tail|recog|ice/i.test(o.name) && o.isMesh) lamps.push(o); });
+out.lampKeys = [...new Set(lamps.map(o => o.name))];
+if (lamps.length) { out.lampCheck = check(lamps, frameOf(light), 'cabin lamps'); out.lampEach = [];
+  const inv = frameOf(light), grp = new Map(), c = new THREE.Vector3();
+  for (const o of lamps) { const b = new THREE.Box3().setFromObject(o); b.getCenter(c); c.applyMatrix4(inv); const key = o.name + '@' + [c.x, c.y, c.z].map(x => x.toFixed(2)).join(','); if (!grp.has(key)) grp.set(key, []); grp.get(key).push(o); }
+  for (const [key, os] of grp) { const r = check(os, inv, key); out.lampEach.push({ lamp: key, verts: r.verts, out: r.out, worstOut: r.worstOut && r.worstOut.by, worstAt: r.worstOut && r.worstOut.p, skin: r.worstOut && r.worstOut.skin, minUnderOuter: r.minUnderOuter }); } }
+const L = window.CAGE_LIGHT; out.sites = {};
+if (L && L.sites) for (const kk of Object.keys(L.sites)) { const s = L.sites[kk]; const one = s => s && s.p ? { p: s.p.map(v => +v.toFixed(3)), rung: s.rung } : null;
+  if (/flood|pax/.test(kk)) out.sites[kk] = Array.isArray(s) ? s.map(one) : one(s); }
+// the console's own two refusals, replayed: canopy, and glass over its footprint (as buildOverheadConsole does)
+const GL = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+const seats = (window.CAGE_CREW && window.CAGE_CREW.seatsAt) || [];
+const zF = seats.length ? Math.max(...seats.map(s => s.zBack)) : null, front = seats.filter(s => Math.abs(s.zBack - zF) < 0.05);
+let zWs = Infinity; for (const f of M.F) { if (f.m !== 'windshield') continue; for (const vi of f.v) { const q = V[vi]; if (q[1] > mid && Math.abs(q[0]) < 0.25) zWs = Math.min(zWs, q[2]); } }
+const W = front.length > 1 ? 0.21 : 0.16, LEN = 0.30;
+if (front.length) { const zS = front.reduce((a, s) => a + s.zBack, 0) / front.length, zc = Math.min(zS + 0.47, isFinite(zWs) ? zWs - 0.03 : Infinity) - LEN / 2;
+  const glass = new Map(); let roofN = 0;
+  for (const f of M.F) { if (f.v.length < 3) continue; let cx = 0, cy = 0, cz = 0; for (const vi of f.v) { cx += V[vi][0]; cy += V[vi][1]; cz += V[vi][2]; } cx /= f.v.length; cy /= f.v.length; cz /= f.v.length;
+    if (cy < mid) continue;
+    if (GL.has(f.m) && Math.abs(cx) < W / 2 + 0.06 && Math.abs(cz - zc) < LEN / 2 + 0.06) glass.set(f.m, (glass.get(f.m) || 0) + 1);
+    const ROOF = ['ceilingLoop', 'body', 'plywood', 'cloth', 'composite', 'toele', 'waistband', 'headliner'];
+    if (ROOF.includes(f.m) && Math.abs(cx) < W / 2 + 0.10 && Math.abs(cz - zc) < LEN / 2 + 0.10) roofN++; }
+  out.footprint = { zS: +zS.toFixed(3), zc: +zc.toFixed(3), zWs: isFinite(zWs) ? +zWs.toFixed(3) : null, W, glassOver: Object.fromEntries(glass), roofFacesOver: roofN,
+    centreRay: hitsAt(0, zc).filter(h => h[0] > mid).map(h => [+h[0].toFixed(4), h[1]]) };
+} else out.footprint = 'no seats';
+return out;
