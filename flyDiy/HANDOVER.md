@@ -311129,3 +311129,8 @@ TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better th
   hangar with its own aeroplane, locked, an unsaved build, the page's call).
 - OPEN for Game: with the map reachable (after T0's tutorial), a player can now take the ultralight to HOME without
   flying it, then roll out and stop there - T1's goal ('stop at home', 79_story.js:79) is not guarded against that.
+- F2, THE RUNS (L30c + the fix): STORY GAMEPREM STORAGE UISMOKE UISMOKE-PHONE PASS. DESTTO red in shard 0/3 (air:cub
+  capsized in ROLLOUT on w2) and 2/3 (ltd:floats gave up in ROLLOUT on water at mk_sea) - each shard re-run on a clean
+  master L30c worktree side by side: the same reds, the same lines. The page (the rig, run E): after gotoGarage('HOME')
+  rollFrom() is HOME, Rufus listed at HOME only, the cabin's Go row says "empty", the roll-out screen's BASE is HOME.
+  Seen on that screen, not chased: CLOCK "16:01 · 21 Jun" (the sandbox's day) in a career that L30c dated 15 July.

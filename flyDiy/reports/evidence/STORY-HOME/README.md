@@ -17,6 +17,7 @@ No frame time is quoted. A boot is roughly 15 min on this renderer.
 | B, phone 360x800 | `results_phone_tutor0.json` | `phone_tutor0_phone_*` | `--only phone --tutor0`: steps 1 and 2 on the player's page, step 4 after a Continue reload with `?tutor=0` |
 | C, desktop step 4 again | `results_tutor0.json` | `tutor0_desktop_*` | `--only desktop --tutor0 --skip 5` |
 | D, phone through the device gate | `results_phone_gate.json` | `phone_gate_phone_*` | `--only phone --uamobile --nogfx --skip 4` |
+| E, desktop after the F2 fix | `results_f2fix.json` | `f2fix_desktop_*` | `--only desktop --tutor0 --skip 5 --tag f2fix`, on L30c + the fix |
 
 Why B and C exist: at T0, on the player's page, Tim's tutorial holds every click outside his band (finding F1). Run A's
 map and roll-out therefore never happened. `?tutor=0` is the game's own dev flag (`app.js:10261` STORY_TUTOR_OFF): Tim's
@@ -84,7 +85,34 @@ The raw save held `'story'`; after the reload the saved document holds `null`.
   map; `Emulation.setEmitTouchEventsForMouse` made Playwright's clicks hang (removed).
 - Run D logged one other warning: `flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily`.
 
-## Findings (named, not fixed)
+## F2 fixed (the user, 3 Nov: "going to HOME rolls out from HOME")
+
+`playerGoTo(doc, id, { carry, foots })` (`71_player_bases.js`) now takes the aeroplane on the stand along when the hangar
+gone to holds no aeroplane of its own. It is sent there with `playerSendTo` (free, instant: the store's send-to) and set
+on that hangar's floor. The page's `gotoGarage` hands it `slotOnStand()` from the garage only; out of a flight,
+`playerFlightEnd` still decides where the aeroplane stands. A hangar with its own aeroplane keeps the old rule. GATE
+STORY has 10 new rows; the rig asserts it in step 4. Run E, on the built page:
+
+| file | what it shows | asserts |
+|---|---|---|
+| `f2fix_desktop_4a_home_inside.jpg` | HOME's hangar after `gotoGarage('HOME')`, Rufus on the stand | PASS: `{ok:true}`; HOME here; **`rollFrom()` = `"HOME"`**; **Rufus not also listed at `w1`** |
+| `f2fix_desktop_4b_map_garages.jpg` | the map, both garages | PASS: 2 garages, none locked |
+| `f2fix_desktop_4c_map_go_row.jpg` | the Go row for the cabin shed, now "empty" | PASS: "Go to the field shed at Cabin Strip? / empty / Go there / Stay" |
+| `f2fix_desktop_4d_rollout_outside.jpg` | Roll out: the roll-out screen, **BASE "HOME BASE · THE WWII H…"**, TO Circuit (the still caught the loading screen; its backdrop is the screen's stock image) | PASS: left the shed; body `mode-fly rollShot`; `here` HOME, `rollFrom` HOME; no page error |
+
+`garages()` after the fix (step 4):
+```
+{"id":"HOME","name":"the main hangar at Jolene AFB 13/31","aero":"HOME","here":true,"locked":false,"why":"","planes":["Rufus"],"stand":"Rufus"}
+{"id":"w1","name":"the field shed at Cabin Strip","aero":"w1","here":false,"locked":false,"why":"","planes":[],"stand":null}
+```
+New observation on that still: the roll-out screen's CLOCK reads "16:01 · 21 Jun" (the sandbox's GAME_DAY) in a career
+that L30c set to 15 July (`74_career.js` CAREER_DAY0). Not investigated.
+
+Gates on the fix (L30c + the fix): STORY, GAMEPREM, STORAGE, UISMOKE, UISMOKE-PHONE PASS. DESTTO red in two shards,
+**identical on clean master L30c** (each shard run on both trees): `air:cub` capsized in ROLLOUT on w2 (shard 0/3) and
+`ltd:floats` gave up in ROLLOUT on water at mk_sea (shard 2/3). Neither involves `playerGoTo`'s new option.
+
+## Findings (named; F2 fixed since, see above)
 
 - **F1. At T0 the player's page holds the map and Roll out, so the player cannot reach HOME yet.** Tim's step `hello`
   (`79_story.js:174`) carries no `allow`, so `storyTutorLock` (`app.js:10341`) locks everything, and `storyTutorGuard`
@@ -94,7 +122,7 @@ The raw save held `'story'`; after the reload the saved document holds `null`.
   consistent with Tim's script, but it means the "both hangars from the start" change shows only through
   `FLYDIY_PLAYER.gotoGarage`, never through a player's tap at T0. (A side probe on `?profile=phone&map=1`, with no
   story, opened the map in about 3 s, so the lazy load itself works.)
-- **F2. Going to an empty HOME keeps the cabin's aeroplane on the stand, and Roll out leaves from the cabin.**
+- **F2 (FIXED, see above). Going to an empty HOME kept the cabin's aeroplane on the stand, and Roll out left from the cabin.**
   `gotoGarage` (`app.js:10730-10731`) only swaps the stand when the target hangar has a plane (`n` is null for an empty
   HOME), so Rufus stays on HOME's stand. `garagesList` (`app.js:10711`) then reports Rufus as HOME's `stand` while `w1`
   still lists it in `planes` (one aeroplane in two hangars, in the printout above). `rollFromId` (`app.js:6647`, via
@@ -135,5 +163,6 @@ node flyDiy/tools/story_home_look.js --only desktop
 node flyDiy/tools/story_home_look.js --only desktop --tutor0 --skip 5
 node flyDiy/tools/story_home_look.js --only phone --tutor0 --tag phone_tutor0
 node flyDiy/tools/story_home_look.js --only phone --uamobile --nogfx --skip 4 --tag phone_gate
+node flyDiy/tools/story_home_look.js --only desktop --tutor0 --skip 5 --tag f2fix
 ```
 About 30 to 65 min each on SwiftShader. Runs A and C each started their own New career on a fresh profile; so did B and D.
