@@ -7331,21 +7331,20 @@ function storyNormalise(s) {
 // the story of a career document, or null (the sandbox, a career without one)
 const storyOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.story) ? storyNormalise(doc.career.story) : null;
 // G2743 THE CABIN, GRANTED: the shed on the cabin's plot (BASE_OFFERS[aero].plots[plot]) is the player's, free - the
-// story's gift, no ledger charge - and HOME's shed is LOCKED until T1 (71_ playerShedLocked: the start owns ONLY the
-// cabin, the user 18 Oct). `here` is the cabin. A cabin with no plot on offer -> refused with the reason (the start
-// stays at HOME's garage and the page says why; never a guess).
+// story's gift, no ledger charge. HOME's club stays yours and open (STORY-1, the user 29 Oct: the start owns BOTH - the
+// Shed for you, the club for the business; the lock until T1 was an overreach). `here` is the cabin. A cabin with no
+// plot on offer -> refused with the reason (the start stays at HOME's garage and the page says why; never a guess).
 function storyGrantCabin(d, aero, plot) {
   const O = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero], P = O && O.plots[plot || aero];
   if (!P) return 'no shed to hold at ' + aero + ' (BASE_OFFERS has no plot there)';
   const id = plot || aero, shell = P.shells[0];
   if (!d.sheds[id]) d.sheds[id] = { shell, kits: (P.kits || []).slice(), base: aero, tenure: 'own',
     dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price: 0, since: 0, story: true };
-  if (d.sheds[PREM_MAIN] && id !== PREM_MAIN) d.sheds[PREM_MAIN].locked = 'story';
   d.here = id;
   return null;
 }
 // a new career WITH the story (STORY-PAGE calls this once, at New career): the starter plane's slot is bound by the page;
-// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin and locks HOME until T1
+// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin (HOME stays yours: STORY-1)
 function storyStart(doc, starterSlot, o) {
   if (!doc || doc.mode !== 'career' || !doc.career) return { ok: false, doc, why: 'not a career' };
   if (doc.career.story) return { ok: false, doc, why: 'the story has already started' };
@@ -7418,8 +7417,6 @@ function storyStep(doc, ev, ctx) {
   const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
   s.done.push(B.id);
   if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
-  // G2743: T1's reward - the WWII field's hangar is ours: HOME's lock (storyStart) is lifted
-  if (B.id === 'T1' && d.sheds && d.sheds[PREM_MAIN] && d.sheds[PREM_MAIN].locked) delete d.sheds[PREM_MAIN].locked;
   const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
   if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
@@ -7485,7 +7482,7 @@ function storyCabinShed(aero, clock) {
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
-// in it, and the WWII field's hangar is held for the move (`locked`: T1's 'hangar' effect hands it over). No cabin on the
+// in it, and the WWII field's hangar stays yours and open (STORY-1, the user 29 Oct: both from the start). No cabin on the
 // island yet: the story starts at HOME, the reason recorded for the beat card. The starter's airframe row is written here;
 // its slot (the envelope) is the page's, and the page's lift stands it in the cabin's shed once the slot exists.
 // o: { aeros: world.aerodromes, starter? } -> { ok, doc, effects, cabin, why }
@@ -7504,7 +7501,6 @@ function storyNewCareer(doc, o) {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
     d.here = C.id;
-    if (d.sheds.HOME) d.sheds.HOME.locked = 'story';
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
@@ -7524,7 +7520,8 @@ function storyClientSpec(cub) {
   return s;
 }
 // EACH EFFECT, APPLIED (storyStep hands them; the page fetches what a plane needs first and passes it in o):
-//   hangar      the WWII field's hangar is ours: the lock lifted, a ledger line at 0
+//   hangar      the WWII field's hangar: its ledger line at 0 (it has been yours from the start - STORY-1; an older
+//               career's lock is lifted here and by playerNormalise, and only then the line says so)
 //   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
 //               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
 //   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
@@ -7544,9 +7541,10 @@ function storyApply(doc, e, o) {
   if (e.k === 'hangar') {
     const id = PREM_MAIN;
     if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
+    const was = !!d.sheds[id].locked;
     delete d.sheds[id].locked;
     playerLedger(d, 'story', 0, id);
-    line = 'The WWII field’s hangar is yours.';
+    if (was) line = 'The WWII field’s hangar is yours.';
   } else if (e.k === 'clientPlane') {
     const slot = o.slot || STORY_SLOTS.client;
     if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
@@ -7662,7 +7660,6 @@ function storyCard(doc, o) {
   }
   const notes = [];
   if (s.note) notes.push(s.note);
-  if (B.id === 'T0' && doc.sheds && doc.sheds.HOME && doc.sheds.HOME.locked) notes.push('The WWII field’s hangar is not yours yet.');
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }
