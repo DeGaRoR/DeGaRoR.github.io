@@ -108,10 +108,10 @@ const VIEWS = [
   { twin: 1, name: 'twin_full_dark', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.10, dist: 15, lights: DARK },
   { twin: 1, name: 'twin_full_cabin', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.04, dist: 6, lights: LIT },
   // THE REFERENCE SCENE: the dusk (the main shot), the deeper blue hour, the full-moon night, and the lights-off control
-  { ref: 1, name: 'ref_dusk',       day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 14 },
-  { ref: 1, name: 'ref_blue',       day: Object.assign({}, APR_BLUE, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 10 },
-  { ref: 1, name: 'ref_night',      day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 12 },
-  { ref: 1, name: 'ref_dusk_dark',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: DARK, settle: 8 },
+  { ref: 1, name: 'ref_dusk',       day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 18, fov: 26, lights: LIT, settle: 14 },
+  { ref: 1, name: 'ref_blue',       day: Object.assign({}, APR_BLUE, CLEAR), aim: 'ref', el: 0.035, dist: 18, fov: 26, lights: LIT, settle: 10 },
+  { ref: 1, name: 'ref_night',      day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'ref', el: 0.035, dist: 18, fov: 26, lights: LIT, settle: 12 },
+  { ref: 1, name: 'ref_dusk_dark',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 18, fov: 26, lights: DARK, settle: 8 },
   // THE USER'S FRAME: 2 Nov 2026 16:30 / 16:45 AKST (the HUD's "16:.."; the sun -3.9 / -6.0 deg at az 249 / 252, the moon
   // down: Codex's floor alone), and the full night (17:45, -14.4) for the same eye
   { user: 1, name: 'jolene_dusk',   day: { date: '2026-11-03', utc: 1.5 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 14 },
@@ -162,9 +162,13 @@ const SETUP = V => `(async () => {
       const ex = nx * 0.77 + lx * 0.64, ez = nz * 0.77 + lz * 0.64, h = Math.hypot(ex, ez) || 1; look = [-ex / h, -ez / h]; } }   // the eye 40 deg off the nose, port side
   if (aim === 'ref') {   // THE SCENE SOLVER: the eye 40 deg off the nose (port or starboard), the look fixed by that; the plane
     // (30, 40 or 50 deg off the nose) anywhere on Cedar Harbour's water (a 100 m sweep of the bay) where the plane, the eye and 150 m ahead are water;
-    // scored on the lit things in a 25 deg cone (250 m - 3.5 km) and the relief's angle (8 deg cap)
+    // scored on the lit things in the frame's width (250 m - 3.5 km) and the relief's angle (8 deg cap).
+    // A0 19:00, the user: "both mountains and some life in the background, but no open sea, frame so you are closer to the plane,
+    // lower FOV, and not too much sea" - the lens is the view's fov (26: about twice the plane of the 46 default at 18 m), and
+    // every ray across the frame's width must reach land within 2.5 km (landFrac 1: no open sea; a spot short of it pays 30 a ray share)
     if (!window.__refScene) {
       const ax = s.axes(), n = [-ax[0][0], -ax[0][2]], l = [-ax[2][0], -ax[2][2]], LITS = ${JSON.stringify(LITS)}, dist = ${+V.dist || 17};
+      const hf = Math.atan(Math.tan((${+V.fov || 46} / 2) / 57.2958) * 16 / 9), cosHf = Math.cos(hf);
       const nn = Math.hypot(n[0], n[1]) || 1; n[0] /= nn; n[1] /= nn; const ll = Math.hypot(l[0], l[1]) || 1; l[0] /= ll; l[1] /= ll;
       let best = null;
       for (const side of [1, -1]) for (const off of [30, 40, 50]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
@@ -172,10 +176,12 @@ const SETUP = V => `(async () => {
           if (!wet(px, pz) || !wet(px + e[0] * dist, pz + e[1] * dist)) continue;
           let fg = true; for (let k = 20; k <= 150; k += 26) if (!wet(px + lk[0] * k, pz + lk[1] * k)) { fg = false; break; } if (!fg) continue;
           const ex = px + e[0] * dist, ez = pz + e[1] * dist, ey = (w.waterH(px, pz) || 0) + 1.5;
-          let L = 0; for (const p of LITS) { const vx = p[0] - ex, vz = p[1] - ez, dd = Math.hypot(vx, vz); if (dd < 250 || dd > 3500) continue; if ((vx * lk[0] + vz * lk[1]) / dd < 0.906) continue; L += p[2]; }
+          let L = 0; for (const p of LITS) { const vx = p[0] - ex, vz = p[1] - ez, dd = Math.hypot(vx, vz); if (dd < 250 || dd > 3500) continue; if ((vx * lk[0] + vz * lk[1]) / dd < cosHf) continue; L += p[2]; }
           let mt = 0; for (let k = 800; k <= 16000; k += 200) { const a = Math.atan2(w.terrainH(ex + lk[0] * k, ez + lk[1] * k) - ey, k) * 57.2958; if (a > mt) mt = a; }
-          const sc = Math.min(L, 30) * 0.5 + Math.min(mt, 8) * 2;
-          if (!best || sc > best.sc) best = { sc, side, off, px, pz, look: lk, L, mt: +mt.toFixed(1) };
+          let land = 0; for (let r = 0; r < 9; r++) { const a = -hf + 2 * hf * r / 8, ca = Math.cos(a), sa = Math.sin(a), rx = lk[0] * ca - lk[1] * sa, rz = lk[0] * sa + lk[1] * ca;
+            for (let k = 60; k <= 2500; k += 40) if (!wet(ex + rx * k, ez + rz * k)) { land++; break; } }
+          const lf = land / 9, sc = Math.min(L, 30) * 0.5 + Math.min(mt, 8) * 2 - (1 - lf) * 30;
+          if (!best || sc > best.sc) best = { sc, side, off, px, pz, look: lk, L, mt: +mt.toFixed(1), lf: +lf.toFixed(2) };
         } }
       window.__refScene = best || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
     }
@@ -189,12 +195,14 @@ const SETUP = V => `(async () => {
   if (agl != null) { const cg = s.cgPos(), wh = w.waterH ? w.waterH(px, pz) : null, gy = Math.max(w.terrainH(px, pz), Number.isFinite(wh) ? wh : -1e9) + agl;   // the sea's level IS 0 (|| -1e9 sank the plane 13 m)
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
+  // the lens: the view's fov (the ref scene's 26), every other view the flight's own (46, put back)
+  if (window.FLYDIY_HVIEW && FLYDIY_HVIEW.flyFov) { const cm = FLIGHT_PROBE.camera(); if (window.__fov0 == null) window.__fov0 = cm.fov; FLYDIY_HVIEW.flyFov(${+V.fov || 0} || window.__fov0); }
   FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist});
   const LT = ${JSON.stringify(V.lights || null)}, K = window.FLYDIY_COCKPIT_I || null, lit = {};   // app.js's CK is module-local; the page hands it out as FLYDIY_COCKPIT_I
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
-    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, fov: FLIGHT_PROBE.camera().fov, score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
@@ -224,15 +232,17 @@ const REPORT = `(() => {
       for (let i = 0; i < ww * hh; i++) { const r = h2f(buf[i * 4]), g = h2f(buf[i * 4 + 1]), b = h2f(buf[i * 4 + 2]); const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
         sum += Y; n++; vals.add(buf[i * 4 + 1]); if (g > 0 && g < minNZ) minNZ = g; if (g > 0 && g < 6.1e-5) sub++; if (g === 0) zero++; }
       o.rt = { type: rt.texture.type, samples: rt.samples, meanY: +(sum / n).toExponential(3), minG: minNZ === Infinity ? 0 : +minNZ.toExponential(3), distinctG: vals.size, subnormalShare: +(sub / n).toFixed(3), zeroShare: +(zero / n).toFixed(3) };
-      // the brightest radiance round a few screen spots (NIGHT-LOOK 3 Nov: the ref scene's shore lamps at 23:00), raw and
-      // as exposed (x the renderer's exposure) - drawn into the target or lost after it
-      o.spots = {};
-      for (const [nm, fx, fy] of [['lampR', 0.903, 0.447], ['lampL', 0.797, 0.443], ['waterR', 0.903, 0.472]]) {
-        const sw = 32, sh = 16, sx = Math.max(0, Math.min(rt.width - sw, Math.floor(rt.width * fx - sw / 2))), sy = Math.max(0, Math.min(rt.height - sh, Math.floor(rt.height * (1 - fy) - sh / 2)));
-        const sb = new Uint16Array(sw * sh * 4); R.readRenderTargetPixels(rt, sx, sy, sw, sh, sb);
-        let mx = 0, mxc = null, bad = 0;
-        for (let i = 0; i < sw * sh; i++) { const r = h2f(sb[i * 4]), g = h2f(sb[i * 4 + 1]), b = h2f(sb[i * 4 + 2]); if (!isFinite(r + g + b)) { bad++; continue; } const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b; if (Y > mx) { mx = Y; mxc = [r, g, b]; } }
-        o.spots[nm] = { maxY: +mx.toExponential(3), exposed: +(mx * R.toneMappingExposure).toExponential(3), rgb: mxc && mxc.map(v => +v.toExponential(2)), nonFinite: bad };
+      // the hot pixels (NIGHT-LOOK 3 Nov: the shore lamps lost under P): the lower 65 % of the target (the land, the water, the
+      // aeroplane - the stars above), each texel's luminance as exposed (x the renderer's exposure); how many pass 1 and 4,
+      // and the ten brightest spots 12 px apart (x / y as fractions of the frame from its top left) - drawn into the target or lost after it
+      if (rt.width * rt.height <= 4.2e6) {
+        const fw = rt.width, fh = Math.floor(rt.height * 0.65), fb = new Uint16Array(fw * fh * 4); R.readRenderTargetPixels(rt, 0, 0, fw, fh, fb);
+        const ek = R.toneMappingExposure, hot = []; let n1 = 0, n4 = 0, bad = 0;
+        for (let i = 0; i < fw * fh; i++) { const r = h2f(fb[i * 4]), g = h2f(fb[i * 4 + 1]), b = h2f(fb[i * 4 + 2]); if (!isFinite(r + g + b)) { bad++; continue; }
+          const E = (0.2126 * r + 0.7152 * g + 0.0722 * b) * ek; if (E > 1) { n1++; if (E > 4) n4++; hot.push([E, i, r, g, b]); } }
+        hot.sort((p, q) => q[0] - p[0]); const top = [];
+        for (const h of hot) { const x = h[1] % fw, y = rt.height - 1 - Math.floor(h[1] / fw); if (top.some(t => Math.abs(t.x - x) < 12 && Math.abs(t.y - y) < 12)) continue; top.push({ x, y, E: +h[0].toFixed(2), rgb: [h[2], h[3], h[4]].map(v => +(v * ek).toFixed(2)) }); if (top.length >= 10) break; }
+        o.hot = { over1: n1, over4: n4, nonFinite: bad, top: top.map(t => [+(t.x / rt.width).toFixed(3), +(t.y / rt.height).toFixed(3), t.E, t.rgb]) };
       }
     }
   } catch (e) { o.rtErr = String(e).slice(0, 120); }
