@@ -1,6 +1,6 @@
 # READY - claude/ready/bay-mirror (BAY-MIRROR, 3 Nov 2026, cloud: node gates + SwiftShader stills)
 
-Base: origin/master adb2d2a9 (train L30b built). No built files committed (index.html, dev.html, sw.js, version.json,
+Base: origin/master 05f95aa7 (train L30d built; rebased from adb2d2a9 - only HANDOVER.md overlapped, the append re-applied as bytes). The stills and the master comparisons were taken on adb2d2a9; the gate set below was re-run on the rebased tree. No built files committed (index.html, dev.html, sw.js, version.json,
 tools/flight_core.js come from `node flyDiy/tools/build.js` on the train).
 
 ## What it does
@@ -27,6 +27,10 @@ height ~ sqrt(fetch)); the amplitude is the wind's, so it is glassy only in calm
 - The other reds, all red on clean master with the same rows: TOUR (the aluminium C172's ground-loop at tw_ski), VEHICLE
   (DEF / AIRBORNE), LAKEBED (02/20's pond rows 2-3), WORLD (13/31 island approaches), ASSETS (material counts in files not
   touched here), PARKED (node heap out of memory, also seen by NEW-PLANE's session on master).
+- **Re-gated on L30d** (05f95aa7 + this branch): WATER, GFX, FLOATS, SEAPLANE, HYDRODYN, UISMOKE, UISMOKE-PHONE, SIMWORKER,
+  WETFX, WIPLINE, WORLDRENDER, UILAYER, SHADOWSKY, CLIMATE, HYDRO, SITE: PASS. MEDIA: FAIL - "index.html is 5.03 MiB gzipped
+  against a declared 5 MiB budget", the same row on clean L30d (master's own build is 5.0142 MiB gzipped; this branch adds
+  4.7 KB, 5.0187 MiB).
 - The water program: one more sampler of its own (uWCalm) - 8 -> 9 texture units with the hull's reflection, counted off
   the linked GL program on SwiftShader; GATE WATER's sampler row now names five.
 - The look (stills): the south bay's ripple ridges -31 % (to the lake's level), Port Chester -22 %, the bay from 300 m -11 %
