@@ -1121,8 +1121,10 @@ function seatDC3Pax(B, A, P, g, pre, sbs) {
 function seatCub(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   // the cushion keeps today's tube seat's look (G332's hide, its cream piping) as the sections' bottom-out
+  // (SEATS-COST: the canvas rides the FRAME role, so in the game this seat wears THREE materials - cushion, piping,
+  // frame - exactly the tube frame's it replaced; the hero still draws it as canvas)
   const mCush = mat('hide', 0x7a4f33, TRIM), mPipe = mat('leather', 0xd8cdb6, SEAM);
-  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722, SEAM),
+  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, FRAME), mLace = mat('webbing', 0x2a2722, SEAM),
         mCast = mat('castAlu', 0x8e949a), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
   const tr = 0.0095;                                      // 3/4-inch tube
