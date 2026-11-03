@@ -1010,3 +1010,576 @@ authored season (E) costs four times B for little more than B + D gives.
 Both fit the design as written: a block is only a different `DAYS` array chosen by the date, and the tracks already
 blend across any two days, so the seam between blocks is as smooth as any midnight (§3.2). With 15 July as the
 first day, the high block's epoch is set so that 15 July is its fair-weather cumulus.
+
+---
+
+## 10. THE THREE SEASONAL BLOCKS: 28 new days for review (3 Nov)
+
+> The user's calls of 3 Nov ~14:35 (via A0): **the career opens on 15 July** (career only: the sandbox and the gates keep
+> 21 June; landed on `claude/weather-fixes`), and **option B**: three seasonal blocks of 14 days. This section is the
+> reviewable set: the 28 new days (`days/early/`, `days/late/`), the high block (the 14 days of §4, moved to
+> `days/high/`), the block table, and flyability per block. **No game code**: the evaluator (the block lookup in the
+> core, and the blocks' edge, which the tracks already blend) comes after the user has read the days.
+>
+> ```
+> node futureDesigns/weather-days/plan_proto.js --block=early        # a block's 14 days, hourly (Appendix D)
+> node futureDesigns/weather-days/plan_proto.js --fly                # flyability per block (§10.3)
+> node futureDesigns/weather-days/plan_proto.js --season             # the block table, every aurora night (§10.2, §10.5)
+> node futureDesigns/weather-days/plan_proto.js --smooth             # the whole season walked minute by minute (§10.6)
+> node futureDesigns/weather-days/plan_proto.js --check              # the authoring rules (§10.4)
+> ```
+
+### 10.1 The blocks
+
+| block | dates | its day 1 | character |
+|---|---|---|---|
+| **early** | 20 May → 2 Jul | 20 May | spring into summer: cool clear northwesterlies, the first sea breezes and cumulus, a warm spell, one valley-fog morning, **one spring gale**; white nights (the sun never below −16°, −11.5° at the solstice), the moon carries the night and the aurora is faint |
+| **high** | 3 Jul → 15 Aug | **15 Jul** (the career's first day: its day 1 is the game's own fair-weather cumulus) | §4's 14 days unchanged: highs, a morning fog, thermal and hazy days, a sea-fog bank, **one storm**; the dark core of the night returns, aurora from late July |
+| **late** | 16 Aug → 30 Sep | 16 Aug | late summer into autumn: warm hazy highs, valley fogs, golden still days, more fronts (**two storms**, the second the equinox gale), drizzle under stratus, crisp post-frontal days; long dark nights and the **strongest aurora of the year** (a Kp 7 night) |
+
+A date picks its block by its month and day; a block's day is `(date − its day 1) mod 14`. Each block is seen about
+three times a season (44, 44 and 46 days). The two edges fall where the weather already flows: early's last days
+(calm, clear, the dew rising) run into the high block's morning fog on 3 July; the high block's warm hazy day (15 Aug)
+runs into late's late-summer high. The tracks blend the two days across an edge exactly as across any midnight (§3.2),
+and the walk in §10.6 measures it.
+
+**Moved by the 15 July epoch:** the high block's days fall 24 days later than §4's tables show (the storm on 21 July,
+not 27 June). Under those dates the storm's pre-frontal cloud is under 300 m from 07:00, so its declared window is now
+**07:00-18:00** (was 08:30-17:30), the forecast says so, and §4.1's line is superseded by this one.
+
+### 10.2 The block table
+
+| block | dates | days in 2026 | normals (low/high °C) | easy · moderate · storm days | fog mornings | aurora nights (Kp ≥ 4) |
+|---|---|---|---|---|---|---|
+| early | 05-20 → 07-02 | 44 | 7.0/14.9 → 10.6/17.9 | 11 · 2 · 1 | 1 | 3 |
+| high | 07-03 → 08-15 | 44 | 10.7/17.9 → 11.5/18.5 | 10 · 3 · 1 | 2 | 4 |
+| late | 08-16 → 09-30 | 46 | 11.4/18.4 → 7.3/13.3 | 9 · 3 · 2 | 1 | 4 |
+
+### 10.3 Flyability per block (the §4.2 classifier, every daylight half-hour on each day's first date of 2026)
+
+**early** (05-20 → 07-02, dates of 2026)
+
+| # | day | date | authored | easy | care | no-fly | no-fly hours | care hours |
+|---|---|---|---|---|---|---|---|---|
+| 1 | cool-northwesterly | 2026-05-20 | easy | 31 | 0 | 0 |  |  |
+| 2 | calm-and-bright | 2026-05-21 | easy | 31 | 0 | 0 |  |  |
+| 3 | first-cumulus | 2026-05-22 | easy | 33 | 0 | 0 |  |  |
+| 4 | warm-spell | 2026-05-23 | easy | 33 | 0 | 0 |  |  |
+| 5 | valley-fog | 2026-05-24 | easy-after-wait | 24 | 2 | 7 | 05:00-08:30 | 08:30-09:30 |
+| 6 | thickening-sky | 2026-05-25 | easy | 33 | 0 | 0 |  |  |
+| 7 | grey-and-mild | 2026-05-26 | easy | 29 | 4 | 0 |  | 05:00-06:30, 21:00-21:30 |
+| 8 | spring-gale | 2026-05-27 | storm | 8 | 0 | 25 | 05:00-17:30 |  |
+| 9 | spring-showers | 2026-05-28 | moderate | 25 | 8 | 0 |  | 13:00-17:00 |
+| 10 | crisp-dawn | 2026-05-29 | easy | 33 | 0 | 0 |  |  |
+| 11 | breezy-westerly | 2026-05-30 | moderate | 19 | 14 | 0 |  | 11:00-18:00 |
+| 12 | june-cumulus | 2026-05-31 | easy | 33 | 0 | 0 |  |  |
+| 13 | long-light-evening | 2026-06-01 | easy | 33 | 0 | 0 |  |  |
+| 14 | midsummer-blue | 2026-06-02 | easy | 33 | 0 | 0 |  |  |
+| | **early** | | | **398 (87 %)** | **28 (6 %)** | **32 (7 %)** | | |
+
+**high** (07-03 → 08-15, dates of 2026)
+
+| # | day | date | authored | easy | care | no-fly | no-fly hours | care hours |
+|---|---|---|---|---|---|---|---|---|
+| 1 | fair-cumulus | 2026-07-15 | easy | 33 | 0 | 0 |  |  |
+| 2 | clear-high | 2026-07-16 | easy | 33 | 0 | 0 |  |  |
+| 3 | morning-fog | 2026-07-17 | easy-after-wait | 21 | 3 | 9 | 05:00-09:30 | 09:30-11:00 |
+| 4 | warm-hazy | 2026-07-18 | easy | 33 | 0 | 0 |  |  |
+| 5 | high-cloud | 2026-07-19 | easy | 33 | 0 | 0 |  |  |
+| 6 | overcast-calm | 2026-07-20 | easy | 29 | 4 | 0 |  | 05:00-07:00 |
+| 7 | the-storm | 2026-07-21 | storm | 7 | 4 | 22 | 07:00-18:00 | 05:00-07:00 |
+| 8 | showers-sunshine | 2026-07-22 | moderate | 24 | 9 | 0 |  | 13:00-17:30 |
+| 9 | crisp-clear | 2026-07-23 | easy | 33 | 0 | 0 |  |  |
+| 10 | ridge-day | 2026-07-24 | moderate | 8 | 25 | 0 |  | 07:30-20:00 |
+| 11 | thermal-day | 2026-07-25 | easy | 33 | 0 | 0 |  |  |
+| 12 | sea-fog | 2026-07-26 | moderate | 14 | 2 | 15 | 05:00-12:00, 20:00-20:30 | 12:00-12:30, 19:30-20:00 |
+| 13 | golden-evening | 2026-07-27 | easy | 31 | 0 | 0 |  |  |
+| 14 | light-southerly | 2026-07-28 | easy | 31 | 0 | 0 |  |  |
+| | **high** | | | **363 (80 %)** | **47 (10 %)** | **46 (10 %)** | | |
+
+**late** (08-16 → 09-30, dates of 2026)
+
+| # | day | date | authored | easy | care | no-fly | no-fly hours | care hours |
+|---|---|---|---|---|---|---|---|---|
+| 1 | late-summer-high | 2026-08-16 | easy | 29 | 0 | 0 |  |  |
+| 2 | valley-fog-autumn | 2026-08-17 | easy-after-wait | 19 | 3 | 7 | 06:00-09:30 | 09:30-11:00 |
+| 3 | golden-september | 2026-08-18 | easy | 29 | 0 | 0 |  |  |
+| 4 | southerly-freshening | 2026-08-19 | easy | 29 | 0 | 0 |  |  |
+| 5 | first-autumn-storm | 2026-08-20 | storm | 5 | 0 | 24 | 06:00-18:00 |  |
+| 6 | clearing-showers | 2026-08-21 | moderate | 21 | 8 | 0 |  | 12:00-16:00 |
+| 7 | aurora-night | 2026-08-22 | easy | 29 | 0 | 0 |  |  |
+| 8 | still-and-fair | 2026-08-23 | easy | 29 | 0 | 0 |  |  |
+| 9 | grey-drizzle | 2026-08-24 | moderate | 0 | 27 | 0 |  | 06:00-19:30 |
+| 10 | southwest-ridge | 2026-08-25 | moderate | 10 | 17 | 0 |  | 09:30-18:00 |
+| 11 | indian-summer | 2026-08-26 | easy | 27 | 0 | 0 |  |  |
+| 12 | equinox-signs | 2026-08-27 | easy | 27 | 0 | 0 |  |  |
+| 13 | equinox-gale | 2026-08-28 | storm | 2 | 1 | 24 | 06:00-18:00 | 18:00-18:30 |
+| 14 | bright-behind-the-gale | 2026-08-29 | easy | 27 | 0 | 0 |  |  |
+| | **late** | | | **283 (72 %)** | **56 (14 %)** | **55 (14 %)** | | |
+
+all blocks: easy 1044 (80 %), care 131 (10 %), no-fly 133 (10 %) of 1308 daylight half-hours
+
+The season keeps the user's "vast majority good": **80 % of all daylight easy**, 10 % fly with care, 10 % no-fly.
+The blocks differ on purpose: the early season is the gentlest (87 % easy, one gale), the late season the roughest
+(72 % easy, two storms and a drizzle day), as a Southeast-Alaska September is.
+
+### 10.4 The authoring rules (`--check`, what GATE WEATHERPLAN will hold on the data)
+
+- 14 days a block, ids unique, every required field;
+- a fair day's dawn is clear: its dew point at dawn is ≥ 3.5 °C under its minimum (§3.4), fog and storm days excepted;
+- **a storm is forecast**: its own forecast says STORM or GALE and carries a no-VFR window, and the **two days before
+  it** in its block forecast it;
+- **a storm's window is honest**: every no-fly daylight half-hour of the day lies inside the declared window, and at
+  least 75 % of the window is no-fly (this rule moved four windows, §10.1);
+- no cloud type changes under cover in daylight;
+- a day authored `easy` is easy for ≥ 85 % of its daylight; each block ≥ 60 % easy.
+
+All 42 days pass (`PLAN CHECK: PASS`).
+
+### 10.5 The nights of the season
+
+The new days follow §4.1's rule for nights: clear or broken skies on most of them, the overcast ones with a showcase
+of their own. The aurora nights (Kp ≥ 4) across the 2026 season, at 00:30, with the real moon and darkness:
+
+```
+2026-05-20 early cool-northwesterly   Kp 4  sun -14.7  moon 27% up    cover 0.00  aurora 0.40
+  2026-05-28 early spring-showers       Kp 4  sun -13.2  moon 96% up    cover 0.00  aurora 0.18
+  2026-05-29 early crisp-dawn           Kp 5  sun -13.1  moon 99% up    cover 0.07  aurora 0.32
+  2026-06-03 early cool-northwesterly   Kp 4  sun -12.4  moon 86% down  cover 0.00  aurora 0.37
+  2026-06-11 early spring-showers       Kp 4  sun -11.7  moon 11% down  cover 0.00  aurora 0.26
+  2026-06-12 early crisp-dawn           Kp 5  sun -11.6  moon 5% down  cover 0.07  aurora 0.49
+  2026-06-17 early cool-northwesterly   Kp 4  sun -11.4  moon 15% down  cover 0.00  aurora 0.30
+  2026-06-25 early spring-showers       Kp 4  sun -11.5  moon 88% up    cover 0.00  aurora 0.14
+  2026-06-26 early crisp-dawn           Kp 5  sun -11.5  moon 94% up    cover 0.07  aurora 0.25
+  2026-07-01 early cool-northwesterly   Kp 4  sun -11.8  moon 95% up    cover 0.00  aurora 0.17
+  2026-07-07 high  the-storm            Kp 5  sun -12.3  moon 44% up    cover 0.01  aurora 0.45
+  2026-07-08 high  showers-sunshine     Kp 6  sun -12.5  moon 33% up    cover 0.00  aurora 0.65
+  2026-07-09 high  crisp-clear          Kp 4  sun -12.6  moon 23% up    cover 0.07  aurora 0.34
+  2026-07-13 high  golden-evening       Kp 4  sun -13.1  moon 0% down  cover 0.02  aurora 0.43
+  2026-07-21 high  the-storm            Kp 5  sun -14.5  moon 59% down  cover 0.01  aurora 0.73
+  2026-07-22 high  showers-sunshine     Kp 6  sun -14.7  moon 68% down  cover 0.00  aurora 0.96
+  2026-07-23 high  crisp-clear          Kp 4  sun -14.9  moon 77% down  cover 0.07  aurora 0.47
+  2026-07-27 high  golden-evening       Kp 4  sun -15.8  moon 98% up    cover 0.02  aurora 0.24
+  2026-08-04 high  the-storm            Kp 5  sun -17.9  moon 58% up    cover 0.01  aurora 0.52
+  2026-08-05 high  showers-sunshine     Kp 6  sun -18.1  moon 47% up    cover 0.00  aurora 0.73
+  2026-08-06 high  crisp-clear          Kp 4  sun -18.4  moon 36% up    cover 0.07  aurora 0.39
+  2026-08-10 high  golden-evening       Kp 4  sun -19.6  moon 3% down  cover 0.02  aurora 0.48
+  2026-08-18 late  golden-september     Kp 4  sun -22.1  moon 43% down  cover 0.02  aurora 0.48
+  2026-08-21 late  clearing-showers     Kp 5  sun -23.1  moon 71% down  cover 0.00  aurora 0.75
+  2026-08-22 late  aurora-night         Kp 7  sun -23.4  moon 79% down  cover 0.00  aurora 1.00
+  2026-08-29 late  bright-behind-the-gale Kp 5  sun -25.9  moon 95% up    cover 0.00  aurora 0.38
+  2026-09-01 late  golden-september     Kp 4  sun -27.0  moon 72% up    cover 0.02  aurora 0.31
+  2026-09-04 late  clearing-showers     Kp 5  sun -28.1  moon 38% up    cover 0.00  aurora 0.61
+  2026-09-05 late  aurora-night         Kp 7  sun -28.5  moon 27% up    cover 0.00  aurora 0.86
+  2026-09-12 late  bright-behind-the-gale Kp 5  sun -31.2  moon 6% down  cover 0.00  aurora 0.73
+  2026-09-15 late  golden-september     Kp 4  sun -32.3  moon 27% down  cover 0.02  aurora 0.48
+  2026-09-18 late  clearing-showers     Kp 5  sun -33.5  moon 55% down  cover 0.00  aurora 0.75
+  2026-09-19 late  aurora-night         Kp 7  sun -33.9  moon 64% down  cover 0.00  aurora 1.00
+  2026-09-26 late  bright-behind-the-gale Kp 5  sun -36.6  moon 99% up    cover 0.00  aurora 0.37
+  2026-09-29 late  golden-september     Kp 4  sun -37.8  moon 84% up    cover 0.02  aurora 0.28
+```
+
+Read down the column: the early block's aurora is faint (0.14-0.49: the white nights), the high block's grows through
+July (0.24 → 0.96), and the late block's is the year's best (up to 1.00, a Kp 7 night under a dark sky). The moon
+moves across them loop by loop, as §5.2 says.
+
+### 10.6 Smooth across the season and its block edges (`--smooth`, 20 May → 30 Sep, minute by minute)
+
+| quantity | largest step per minute, the season | where | within a day of a block edge | where |
+|---|---|---|---|---|
+| T | 0.0755 | 2026-09-25 12.5h late/equinox-gale | 0.0317 | 2026-08-15 5.9h high/warm-hazy |
+| Td | 0.1374 | 2026-07-27 3.5h high/sea-fog | 0.0674 | 2026-08-17 3.5h late/late-summer-high |
+| qnh | 0.1499 | 2026-08-24 3.5h late/still-and-fair | 0.0750 | 2026-08-16 3.5h high/warm-hazy |
+| kts | 0.1493 | 2026-05-27 11.9h early/spring-gale | 0.0354 | 2026-07-02 2.8h early/cool-northwesterly |
+| cover | 0.0300 | 2026-08-25 3.3h late/grey-drizzle | 0.0017 | 2026-07-04 13.5h high/warm-hazy |
+| base | 20.0000 | 2026-05-26 5.0h early/grey-and-mild | 9.0419 | 2026-08-17 3.5h late/late-summer-high |
+| vis | 4.3505 | 2026-09-26 3.7h late/equinox-gale | 2.7402 | 2026-08-17 10.9h late/valley-fog-autumn |
+| kp | 0.1000 | 2026-05-30 3.5h early/crisp-dawn | 0.0750 | 2026-07-02 3.5h early/cool-northwesterly |
+| rain | 0.0087 | 2026-05-27 13.9h early/spring-gale | 0.0000 | 2026-07-02 16.0h early/cool-northwesterly |
+| mist | 0.1229 | 2026-07-13 3.3h high/sea-fog | 0.0562 | 2026-08-17 3.5h late/late-summer-high |
+
+Every step at a block edge is smaller than the season's own largest: the edges are invisible, as designed. The season's
+largest steps are the same as §3.9's (the fronts' hours, a fog's marine air leaving at 03:30); the cloud base's 20 m is
+07_day's own quantum. The walk takes 28 s for the whole season.
+
+### 10.7 For review, and what comes next
+
+**For the user:** the 28 stories and their order (Appendix D has every day hourly), the storm count per block (1 / 1
+/ 2), the late block's roughness (72 % easy), the first-of-season dates.
+**Then (W1 of §7, after the review):** the core's plan evaluator with the block lookup (`BLOCKS`, `blockOf`, `idxOf`
+of the prototype), the data inlined as one JSON (42 days, ~45 KB), GATE WEATHERPLAN running `--check`'s rules and the
+season walk with §10.6's numbers as its bars.
+
+---
+
+## Appendix D: the early and late blocks, hourly (`plan_proto.js --block=early|late`)
+
+Columns as Appendix A.
+
+### D.1 early
+
+#### early 1. Cool northwesterly (cool-northwesterly, 2026-05-20, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 5.5 | 1.5 | 1021 | 320/6 | 0.00 cuh | 503 | 40.9 | 0.08 / 0.04 | 0.00 | -431 | 1.042 | 3 | 19 | 0.1 | 0.00 | easy |
+| 08:00 | 9.6 | 1.1 | 1021 | 320/8 | 0.05 cuh | 1067 | 88.0 | 0.00 / 0.00 | 0.00 | -279 | 1.027 | 27 | 21 | 0.5 | 0.00 | easy |
+| 11:00 | 12.8 | 0.5 | 1021 | 319/9 | 0.08 cuh | 1539 | 97.7 | 0.00 / 0.00 | 0.00 | -164 | 1.016 | 50 | 22up | 1.1 | 0.00 | easy |
+| 14:00 | 14.3 | 0.1 | 1022 | 315/11 | 0.14 cuh | 1781 | 99+ | 0.00 / 0.00 | 0.00 | -112 | 1.011 | 52 | 23up | 1.7 | 0.00 | easy |
+| 17:00 | 13.9 | 0.2 | 1022 | 316/10 | 0.10 cuh | 1713 | 99+ | 0.00 / 0.00 | 0.00 | -133 | 1.013 | 31 | 24up | 2.4 | 0.00 | easy |
+| 20:00 | 11.5 | 0.6 | 1023 | 320/7 | 0.03 cuh | 1362 | 99+ | 0.00 / 0.00 | 0.00 | -222 | 1.022 | 6 | 25up | 2.8 | 0.00 | easy |
+| 23:00 | 8.3 | 1.2 | 1023 | 320/5 | 0.00 cuh | 894 | 93.4 | 0.00 / 0.00 | 0.00 | -343 | 1.033 | -12 | 27up | 3.0 | 0.15 | easy |
+| 02:00 | 6.8 | 1.6 | 1023 | 320/3 | 0.00 cuh | 651 | 87.1 | 0.00 / 0.00 | 0.00 | -403 | 1.039 | -13 | 28 | 3.5 | 0.32 | easy |
+
+#### early 2. Calm and bright (calm-and-bright, 2026-05-21, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 6.1 | 2.6 | 1023 | 067/1 | 0.00 cuh | 442 | 16.9 | 0.18 / 0.18 | 0.00 | -428 | 1.042 | 3 | 29 | 0.0 | 0.00 | easy |
+| 08:00 | 10.4 | 2.5 | 1023 | 193/1 | 0.01 cuh | 998 | 76.2 | 0.00 / 0.00 | 0.00 | -266 | 1.026 | 28 | 31 | 0.0 | 0.00 | easy |
+| 11:00 | 13.8 | 2.3 | 1023 | 216/2 | 0.03 cuh | 1439 | 72.8 | 0.00 / 0.00 | 0.00 | -142 | 1.014 | 50 | 32up | 0.0 | 0.00 | easy |
+| 14:00 | 15.4 | 2.1 | 1023 | 245/6 | 0.04 cuh | 1657 | 71.0 | 0.00 / 0.00 | 0.00 | -81 | 1.008 | 52 | 33up | 0.0 | 0.00 | easy |
+| 17:00 | 14.9 | 2.2 | 1022 | 248/5 | 0.05 cuh | 1588 | 70.6 | 0.00 / 0.00 | 0.00 | -97 | 1.009 | 31 | 35up | 0.0 | 0.00 | easy |
+| 20:00 | 12.5 | 2.5 | 1022 | 250/4 | 0.00 cuh | 1241 | 69.5 | 0.00 / 0.00 | 0.00 | -184 | 1.018 | 6 | 36up | 0.0 | 0.00 | easy |
+| 23:00 | 9.3 | 2.9 | 1022 | 114/0 | 0.00 cuh | 801 | 67.8 | 0.00 / 0.00 | 0.00 | -299 | 1.029 | -11 | 37up | 0.0 | 0.00 | easy |
+| 02:00 | 7.8 | 3.2 | 1022 | 232/1 | 0.00 cuh | 582 | 51.7 | 0.02 / 0.02 | 0.00 | -354 | 1.034 | -13 | 39 | 0.0 | 0.00 | easy |
+
+#### early 3. First cumulus (first-cumulus, 2026-05-22, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 7.3 | 3.2 | 1021 | 250/2 | 0.00 cuh | 509 | 27.4 | 0.08 / 0.08 | 0.00 | -365 | 1.035 | 3 | 40 | 0.0 | 0.00 | easy |
+| 08:00 | 11.3 | 3.1 | 1021 | 250/4 | 0.05 cuh | 1033 | 62.0 | 0.00 / 0.00 | 0.00 | -213 | 1.021 | 28 | 41 | 0.0 | 0.00 | easy |
+| 11:00 | 14.5 | 2.9 | 1021 | 250/5 | 0.08 cuh | 1450 | 60.7 | 0.00 / 0.00 | 0.00 | -96 | 1.009 | 50 | 43 | 0.0 | 0.00 | easy |
+| 14:00 | 16.0 | 2.7 | 1021 | 250/8 | 0.20 cuh | 1655 | 60.0 | 0.00 / 0.00 | 0.00 | -40 | 1.004 | 53 | 44up | 0.0 | 0.00 | easy |
+| 17:00 | 15.5 | 2.8 | 1020 | 250/7 | 0.16 cuh | 1594 | 58.8 | 0.00 / 0.00 | 0.00 | -54 | 1.005 | 31 | 45up | 0.0 | 0.00 | easy |
+| 20:00 | 13.2 | 2.9 | 1020 | 250/5 | 0.04 cuh | 1285 | 53.6 | 0.00 / 0.00 | 0.00 | -136 | 1.013 | 7 | 47up | 0.0 | 0.00 | easy |
+| 23:00 | 10.8 | 3.1 | 1020 | 247/3 | 0.00 cuh | 951 | 46.6 | 0.00 / 0.00 | 0.00 | -225 | 1.022 | -11 | 48up | 0.0 | 0.00 | easy |
+| 02:00 | 9.7 | 3.3 | 1020 | 240/2 | 0.01 cu | 805 | 39.8 | 0.00 / 0.00 | 0.00 | -263 | 1.025 | -13 | 49 | 0.0 | 0.00 | easy |
+
+#### early 4. Warm spell (warm-spell, 2026-05-23, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 9.4 | 5.8 | 1020 | 182/2 | 0.02 cu | 451 | 12.7 | 0.19 / 0.19 | 0.00 | -274 | 1.027 | 3 | 51 | 0.0 | 0.00 | easy |
+| 08:00 | 14.4 | 6.0 | 1020 | 195/3 | 0.05 cu | 1052 | 30.0 | 0.00 / 0.00 | 0.00 | -90 | 1.009 | 28 | 52 | 0.0 | 0.00 | easy |
+| 11:00 | 18.2 | 6.2 | 1020 | 200/4 | 0.08 cu | 1505 | 27.3 | 0.00 / 0.00 | 0.00 | 51 | 0.995 | 51 | 53 | 0.0 | 0.00 | easy |
+| 14:00 | 20.1 | 6.3 | 1019 | 214/7 | 0.18 cu | 1717 | 26.1 | 0.00 / 0.00 | 0.00 | 120 | 0.989 | 53 | 55up | 0.0 | 0.00 | easy |
+| 17:00 | 19.5 | 6.3 | 1019 | 214/6 | 0.19 cu | 1650 | 26.2 | 0.00 / 0.00 | 0.00 | 105 | 0.990 | 32 | 56up | 0.0 | 0.00 | easy |
+| 20:00 | 16.7 | 6.2 | 1018 | 210/5 | 0.10 cu | 1315 | 27.2 | 0.00 / 0.00 | 0.00 | 8 | 0.999 | 7 | 57up | 0.0 | 0.00 | easy |
+| 23:00 | 12.0 | 6.0 | 1018 | 204/3 | 0.02 cu | 750 | 29.1 | 0.00 / 0.00 | 0.00 | -160 | 1.015 | -11 | 59up | 0.0 | 0.00 | easy |
+| 02:00 | 9.4 | 5.9 | 1018 | 190/2 | 0.00 cuh | 445 | 11.8 | 0.20 / 0.20 | 0.00 | -252 | 1.024 | -12 | 60up | 0.0 | 0.00 | easy |
+
+#### early 5. Valley fog (valley-fog, 2026-05-24, easy-after-wait)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 8.5 | 8.4 | 1018 | 200/0 | 0.00 cuh | 14 | 1.3 | 2.37 / 2.37 | 0.00 | -287 | 1.028 | 4 | 61 | 0.0 | 0.00 | NO |
+| 08:00 | 12.3 | 7.5 | 1018 | 200/1 | 0.03 cuh | 602 | 2.5 | 0.01 / 1.49 | 0.00 | -147 | 1.014 | 28 | 63 | 0.0 | 0.00 | NO |
+| 11:00 | 15.2 | 4.9 | 1018 | 218/3 | 0.05 cuh | 1297 | 40.1 | 0.00 / 0.00 | 0.00 | -40 | 1.004 | 51 | 64 | 0.0 | 0.00 | easy |
+| 14:00 | 16.7 | 4.5 | 1018 | 226/5 | 0.10 cuh | 1522 | 41.6 | 0.00 / 0.00 | 0.00 | 11 | 0.999 | 53 | 65up | 0.0 | 0.00 | easy |
+| 17:00 | 16.2 | 4.5 | 1018 | 229/6 | 0.08 cuh | 1470 | 41.8 | 0.00 / 0.00 | 0.00 | -4 | 1.000 | 32 | 66up | 0.0 | 0.00 | easy |
+| 20:00 | 14.1 | 4.6 | 1018 | 222/3 | 0.04 cuh | 1180 | 42.3 | 0.00 / 0.00 | 0.00 | -82 | 1.008 | 7 | 67up | 0.0 | 0.00 | easy |
+| 23:00 | 10.8 | 4.8 | 1018 | 215/3 | 0.00 cuh | 752 | 43.1 | 0.00 / 0.00 | 0.00 | -200 | 1.019 | -11 | 69up | 0.0 | 0.00 | easy |
+| 02:00 | 9.2 | 5.0 | 1018 | 200/2 | 0.02 cuh | 525 | 24.5 | 0.07 / 0.07 | 0.00 | -262 | 1.025 | -12 | 70up | 0.0 | 0.00 | easy |
+
+#### early 6. Thickening sky (thickening-sky, 2026-05-25, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 8.6 | 4.5 | 1018 | 171/3 | 0.03 cuh+as 0.01 | 513 | 23.0 | 0.08 / 0.08 | 0.00 | -283 | 1.027 | 4 | 71 | 0.0 | 0.00 | easy |
+| 08:00 | 11.7 | 4.7 | 1018 | 174/5 | 0.06 cuh+as 0.06 | 882 | 46.5 | 0.00 / 0.00 | 0.00 | -164 | 1.016 | 28 | 72 | 0.0 | 0.00 | easy |
+| 11:00 | 14.1 | 4.9 | 1017 | 175/6 | 0.08 cuh+as 0.10 | 1154 | 47.3 | 0.00 / 0.00 | 0.00 | -68 | 1.007 | 51 | 73 | 0.0 | 0.00 | easy |
+| 14:00 | 15.2 | 5.0 | 1016 | 171/8 | 0.09 cuh+as 0.26 | 1279 | 47.8 | 0.00 / 0.00 | 0.00 | -15 | 1.001 | 53 | 74 | 0.0 | 0.00 | easy |
+| 17:00 | 14.9 | 5.1 | 1014 | 169/9 | 0.09 cuh+as 0.37 | 1220 | 48.0 | 0.00 / 0.00 | 0.00 | -15 | 1.001 | 32 | 75up | 0.0 | 0.00 | easy |
+| 20:00 | 13.2 | 5.6 | 1013 | 161/11 | 0.05 cuh+as 0.54 | 943 | 48.6 | 0.00 / 0.00 | 0.00 | -68 | 1.007 | 7 | 76up | 0.0 | 0.00 | easy |
+| 23:00 | 11.2 | 6.2 | 1012 | 158/11 | 0.02 cuh+as 0.61 | 630 | 49.6 | 0.00 / 0.00 | 0.00 | -130 | 1.013 | -11 | 78up | 0.0 | 0.00 | easy |
+| 02:00 | 10.4 | 6.5 | 1012 | 151/10 | 0.24 sc+as 0.69 | 482 | 48.6 | 0.14 / 0.00 | 0.00 | -155 | 1.015 | -12 | 79up | 0.0 | 0.00 | easy |
+
+#### early 7. Grey and mild (grey-and-mild, 2026-05-26, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 10.2 | 6.1 | 1012 | 150/9 | 0.62 sc+as 0.70 | 500 | 47.0 | 0.10 / 0.01 | 0.00 | -164 | 1.016 | 4 | 80 | 0.0 | 0.00 | care |
+| 08:00 | 11.9 | 6.2 | 1012 | 147/8 | 0.80 sc+as 0.71 | 700 | 53.8 | 0.00 / 0.00 | 0.00 | -96 | 1.009 | 28 | 81 | 0.0 | 0.00 | easy |
+| 11:00 | 13.2 | 6.5 | 1011 | 145/8 | 0.83 sc+as 0.72 | 840 | 54.8 | 0.00 / 0.00 | 0.00 | -38 | 1.004 | 51 | 82 | 0.0 | 0.00 | easy |
+| 14:00 | 13.9 | 6.6 | 1010 | 145/9 | 0.84 sc+as 0.74 | 900 | 55.4 | 0.00 / 0.00 | 0.00 | -4 | 1.000 | 53 | 82 | 0.0 | 0.00 | easy |
+| 17:00 | 13.7 | 6.8 | 1008 | 144/9 | 0.86 sc+as 0.76 | 860 | 55.8 | 0.00 / 0.00 | 0.00 | 1 | 1.000 | 32 | 83up | 0.0 | 0.00 | easy |
+| 20:00 | 12.7 | 7.4 | 1007 | 140/12 | 0.87 sc+as 0.78 | 660 | 36.9 | 0.00 / 0.00 | 0.03 | -23 | 1.002 | 7 | 84up | 0.0 | 0.00 | easy |
+| 23:00 | 11.5 | 8.1 | 1006 | 139/13 | 0.88 sc+as 0.79 | 420 | 18.3 | 0.28 / 0.00 | 0.11 | -59 | 1.006 | -10 | 85up | 0.0 | 0.00 | care |
+| 02:00 | 10.9 | 8.6 | 1006 | 135/14 | 0.90 sc+as 0.80 | 280 | 14.3 | 0.70 / 0.00 | 0.14 | -75 | 1.007 | -12 | 86up | 0.0 | 0.00 | NO |
+
+#### early 8. Spring gale (spring-gale, 2026-05-27, storm)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 10.7 | 9.2 | 1006 | 135/14 | 0.92 sc+as 0.85 | 180 | 19.8 | 1.19 / 0.00 | 0.07 | -78 | 1.008 | 4 | 87 | 0.1 | 0.00 | NO |
+| 08:00 | 11.5 | 9.9 | 1002 | 135/16G20 | 0.94 sc+as 0.88 | 200 | 11.2 | 1.09 / 0.00 | 0.20 | -10 | 1.001 | 28 | 88 | 0.5 | 0.00 | NO |
+| 11:00 | 12.2 | 10.6 | 998 | 143/17G22 | 0.96 sc+as 0.90 | 180 | 5.5 | 1.12 / 0.00 | 0.50 | 51 | 0.995 | 51 | 88 | 1.1 | 0.00 | NO |
+| 14:00 | 10.0 | 10.0 | 1000 | 213/22G38 | 0.98 cb+as 0.70 | 0 | 3.5 | 2.45 / 0.00 | 0.65 | -49 | 1.005 | 53 | 89 | 1.7 | 0.00 | NO |
+| 17:00 | 10.3 | 8.3 | 1003 | 265/11 | 0.63 sc+as 0.40 | 260 | 16.4 | 0.52 / 0.00 | 0.13 | -61 | 1.006 | 32 | 90 | 2.4 | 0.00 | NO |
+| 20:00 | 10.0 | 4.7 | 1007 | 273/8 | 0.13 sc+as 0.05 | 660 | 79.1 | 0.00 / 0.00 | 0.00 | -112 | 1.011 | 7 | 91up | 2.8 | 0.00 | easy |
+| 23:00 | 7.3 | 4.0 | 1008 | 281/6 | 0.02 sc | 420 | 17.4 | 0.26 / 0.17 | 0.00 | -231 | 1.022 | -10 | 91up | 3.0 | 0.06 | easy |
+| 02:00 | 5.2 | 2.9 | 1011 | 288/3 | 0.01 cu | 300 | 5.8 | 0.62 / 0.61 | 0.00 | -335 | 1.033 | -12 | 92up | 3.0 | 0.09 | care |
+
+#### early 9. Spring showers (spring-showers, 2026-05-28, moderate)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 5.5 | 1.3 | 1012 | 301/5 | 0.06 cu | 520 | 47.6 | 0.05 / 0.04 | 0.00 | -338 | 1.033 | 4 | 93 | 3.0 | 0.00 | easy |
+| 08:00 | 9.2 | 1.3 | 1013 | 304/9 | 0.20 cu | 1000 | 90.0 | 0.00 / 0.00 | 0.00 | -211 | 1.020 | 28 | 93 | 3.0 | 0.00 | easy |
+| 11:00 | 12.1 | 1.3 | 1015 | 306/10 | 0.28 cu | 1340 | 92.4 | 0.00 / 0.00 | 0.00 | -122 | 1.012 | 51 | 94 | 3.0 | 0.00 | easy |
+| 14:00 | 13.5 | 1.3 | 1016 | 310/12G16 | 0.45 cu | 1520 | 11.6 | 0.00 / 0.00 | 0.23 | -83 | 1.008 | 54 | 94 | 3.0 | 0.00 | care |
+| 17:00 | 13.1 | 1.4 | 1016 | 310/10 | 0.32 cu | 1460 | 13.9 | 0.00 / 0.00 | 0.18 | -100 | 1.010 | 32 | 95 | 3.0 | 0.00 | easy |
+| 20:00 | 11.0 | 1.5 | 1017 | 309/7 | 0.12 cu | 1180 | 95.9 | 0.00 / 0.00 | 0.00 | -187 | 1.018 | 7 | 95up | 3.0 | 0.00 | easy |
+| 23:00 | 7.5 | 1.7 | 1018 | 300/4 | 0.02 cu | 720 | 98.8 | 0.00 / 0.00 | 0.00 | -327 | 1.032 | -10 | 96up | 3.0 | 0.06 | easy |
+| 02:00 | 5.6 | 1.9 | 1019 | 306/2 | 0.00 cuh | 480 | 23.6 | 0.13 / 0.13 | 0.00 | -405 | 1.039 | -12 | 96up | 4.0 | 0.17 | easy |
+
+#### early 10. Crisp dawn (crisp-dawn, 2026-05-29, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 5.2 | 0.9 | 1020 | 317/1 | 0.00 cuh | 539 | 51.7 | 0.04 / 0.04 | 0.00 | -433 | 1.042 | 4 | 97 | 4.0 | 0.00 | easy |
+| 08:00 | 9.6 | 0.7 | 1020 | 304/2 | 0.01 cuh | 1102 | 99+ | 0.00 / 0.00 | 0.00 | -270 | 1.026 | 29 | 97 | 4.0 | 0.00 | easy |
+| 11:00 | 12.9 | 0.5 | 1020 | 300/3 | 0.02 cuh | 1547 | 99+ | 0.00 / 0.00 | 0.00 | -149 | 1.014 | 51 | 98 | 4.0 | 0.00 | easy |
+| 14:00 | 14.5 | 0.4 | 1021 | 291/5 | 0.04 cuh | 1765 | 99+ | 0.00 / 0.00 | 0.00 | -94 | 1.009 | 54 | 98 | 4.0 | 0.00 | easy |
+| 17:00 | 14.1 | 0.6 | 1021 | 290/4 | 0.03 cuh | 1688 | 99+ | 0.00 / 0.00 | 0.00 | -115 | 1.011 | 32 | 98 | 4.0 | 0.00 | easy |
+| 20:00 | 11.6 | 1.2 | 1022 | 290/3 | 0.00 cuh | 1303 | 99+ | 0.00 / 0.00 | 0.00 | -209 | 1.020 | 8 | 99 | 4.0 | 0.00 | easy |
+| 23:00 | 9.2 | 1.9 | 1022 | 292/2 | 0.04 cuh | 904 | 99+ | 0.00 / 0.00 | 0.00 | -302 | 1.029 | -10 | 99up | 4.5 | 0.13 | easy |
+| 02:00 | 8.3 | 2.4 | 1022 | 300/1 | 0.09 cuh | 735 | 96.1 | 0.00 / 0.00 | 0.00 | -336 | 1.033 | -11 | 99up | 4.3 | 0.18 | easy |
+
+#### early 11. Breezy westerly (breezy-westerly, 2026-05-30, moderate)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 8.2 | 4.0 | 1019 | 265/8 | 0.11 cuh | 529 | 73.1 | 0.06 / 0.01 | 0.00 | -308 | 1.030 | 4 | 99 | 0.0 | 0.00 | easy |
+| 08:00 | 11.5 | 4.0 | 1019 | 265/11 | 0.16 cuh | 934 | 83.6 | 0.00 / 0.00 | 0.00 | -188 | 1.018 | 29 | 99 | 0.0 | 0.00 | easy |
+| 11:00 | 13.9 | 4.0 | 1019 | 263/12 | 0.20 cuh | 1244 | 79.6 | 0.00 / 0.00 | 0.00 | -95 | 1.009 | 52 | 100 | 0.0 | 0.00 | care |
+| 14:00 | 15.1 | 4.0 | 1019 | 260/14G18 | 0.23 cuh | 1392 | 77.6 | 0.00 / 0.00 | 0.00 | -50 | 1.005 | 54 | 100 | 0.0 | 0.00 | care |
+| 17:00 | 14.8 | 4.1 | 1018 | 260/12 | 0.23 cuh | 1343 | 76.8 | 0.00 / 0.00 | 0.00 | -60 | 1.006 | 33 | 100 | 0.0 | 0.00 | care |
+| 20:00 | 13.0 | 4.2 | 1018 | 258/9 | 0.15 cuh | 1095 | 73.7 | 0.00 / 0.00 | 0.00 | -124 | 1.012 | 8 | 100 | 0.0 | 0.00 | easy |
+| 23:00 | 10.1 | 4.4 | 1018 | 255/7 | 0.07 cuh | 716 | 69.1 | 0.00 / 0.00 | 0.00 | -227 | 1.022 | -10 | 100up | 0.0 | 0.00 | easy |
+| 02:00 | 8.6 | 4.5 | 1018 | 251/4 | 0.04 cuh | 512 | 28.3 | 0.08 / 0.08 | 0.00 | -282 | 1.027 | -11 | 100up | 0.0 | 0.00 | easy |
+
+#### early 12. June cumulus (june-cumulus, 2026-05-31, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 8.4 | 4.6 | 1020 | 258/2 | 0.04 cuh | 475 | 19.2 | 0.13 / 0.13 | 0.00 | -313 | 1.030 | 4 | 100 | 0.0 | 0.00 | easy |
+| 08:00 | 12.0 | 4.4 | 1020 | 251/4 | 0.08 cuh | 951 | 55.6 | 0.00 / 0.00 | 0.00 | -177 | 1.017 | 29 | 100 | 0.0 | 0.00 | easy |
+| 11:00 | 14.9 | 4.2 | 1020 | 250/5 | 0.12 cuh | 1327 | 52.9 | 0.00 / 0.00 | 0.00 | -74 | 1.007 | 52 | 100 | 0.0 | 0.00 | easy |
+| 14:00 | 16.2 | 4.1 | 1020 | 250/8 | 0.25 cuh | 1513 | 51.5 | 0.00 / 0.00 | 0.00 | -25 | 1.002 | 54 | 100 | 0.0 | 0.00 | easy |
+| 17:00 | 15.8 | 4.2 | 1020 | 250/7 | 0.21 cuh | 1459 | 51.7 | 0.00 / 0.00 | 0.00 | -39 | 1.004 | 33 | 99 | 0.0 | 0.00 | easy |
+| 20:00 | 13.8 | 4.3 | 1020 | 250/5 | 0.07 cuh | 1182 | 52.7 | 0.00 / 0.00 | 0.00 | -114 | 1.011 | 8 | 99 | 0.0 | 0.00 | easy |
+| 23:00 | 10.8 | 4.5 | 1020 | 247/3 | 0.03 cuh | 782 | 54.5 | 0.00 / 0.00 | 0.00 | -224 | 1.022 | -10 | 99up | 0.0 | 0.00 | easy |
+| 02:00 | 9.2 | 4.6 | 1020 | 240/2 | 0.02 cuh | 575 | 41.7 | 0.02 / 0.02 | 0.00 | -280 | 1.027 | -11 | 99up | 0.0 | 0.00 | easy |
+
+#### early 13. Long light evening (long-light-evening, 2026-06-01, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 9.0 | 5.2 | 1020 | 269/2 | 0.02 cuh | 478 | 19.2 | 0.13 / 0.13 | 0.00 | -290 | 1.028 | 4 | 99 | 0.0 | 0.00 | easy |
+| 08:00 | 12.6 | 5.0 | 1020 | 262/3 | 0.05 cuh | 951 | 61.9 | 0.00 / 0.00 | 0.00 | -155 | 1.015 | 29 | 98 | 0.0 | 0.00 | easy |
+| 11:00 | 15.4 | 4.8 | 1020 | 260/4 | 0.08 cuh | 1326 | 63.9 | 0.00 / 0.00 | 0.00 | -53 | 1.005 | 52 | 98 | 0.0 | 0.00 | easy |
+| 14:00 | 16.8 | 4.7 | 1020 | 256/6 | 0.09 cuh | 1511 | 65.0 | 0.00 / 0.00 | 0.00 | -4 | 1.000 | 54 | 98 | 0.0 | 0.00 | easy |
+| 17:00 | 16.4 | 4.8 | 1020 | 253/4 | 0.08 cuh | 1458 | 64.8 | 0.00 / 0.00 | 0.00 | -18 | 1.002 | 33 | 97 | 0.0 | 0.00 | easy |
+| 20:00 | 14.4 | 4.9 | 1020 | 250/1 | 0.01 cuh | 1182 | 63.3 | 0.00 / 0.00 | 0.00 | -92 | 1.009 | 8 | 97 | 0.0 | 0.00 | easy |
+| 23:00 | 11.1 | 5.1 | 1020 | 229/0 | 0.00 cuh | 753 | 61.1 | 0.00 / 0.00 | 0.00 | -210 | 1.020 | -10 | 97 | 0.0 | 0.00 | easy |
+| 02:00 | 9.4 | 5.2 | 1020 | 090/1 | 0.02 cuh | 522 | 27.3 | 0.07 / 0.07 | 0.00 | -274 | 1.027 | -11 | 96up | 0.0 | 0.00 | easy |
+
+#### early 14. Midsummer blue (midsummer-blue, 2026-06-02, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 9.1 | 5.3 | 1019 | 180/3 | 0.02 cuh | 478 | 18.7 | 0.14 / 0.14 | 0.00 | -276 | 1.027 | 5 | 96up | 0.0 | 0.00 | easy |
+| 08:00 | 12.5 | 5.1 | 1019 | 180/5 | 0.05 cuh+ac 0.03 | 921 | 53.9 | 0.00 / 0.00 | 0.00 | -150 | 1.014 | 29 | 95 | 0.0 | 0.00 | easy |
+| 11:00 | 15.1 | 4.9 | 1019 | 180/6 | 0.08 cuh+ac 0.07 | 1273 | 52.3 | 0.00 / 0.00 | 0.00 | -55 | 1.005 | 52 | 95 | 0.0 | 0.00 | easy |
+| 14:00 | 16.4 | 4.8 | 1019 | 180/8 | 0.08 cuh+ac 0.12 | 1447 | 51.5 | 0.00 / 0.00 | 0.00 | -9 | 1.001 | 54 | 94 | 0.0 | 0.00 | easy |
+| 17:00 | 16.0 | 5.0 | 1019 | 181/7 | 0.07 cuh+ac 0.35 | 1377 | 52.0 | 0.00 / 0.00 | 0.00 | -22 | 1.002 | 33 | 94 | 0.0 | 0.00 | easy |
+| 20:00 | 14.1 | 5.6 | 1019 | 185/5 | 0.02 cuh+ac 0.38 | 1061 | 55.0 | 0.00 / 0.00 | 0.00 | -91 | 1.009 | 8 | 93 | 0.0 | 0.00 | easy |
+| 23:00 | 10.2 | 5.9 | 1019 | 189/3 | 0.01 cuh+ac 0.37 | 531 | 29.3 | 0.07 / 0.07 | 0.00 | -235 | 1.023 | -9 | 92 | 0.0 | 0.00 | easy |
+| 02:00 | 7.8 | 6.7 | 1019 | 200/2 | 0.00 cuh+ac 0.18 | 128 | 2.4 | 1.50 / 1.50 | 0.00 | -325 | 1.032 | -11 | 92up | 0.0 | 0.00 | NO |
+
+### D.2 late
+
+#### late 1. Late-summer high (late-summer-high, 2026-08-16, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 13.1 | 9.4 | 1020 | 192/2 | 0.02 cu | 461 | 11.0 | 0.19 / 0.19 | 0.00 | -138 | 1.013 | -4 | 17 | 0.0 | 0.00 | easy |
+| 08:00 | 16.1 | 9.5 | 1020 | 205/3 | 0.05 cu | 826 | 27.0 | 0.00 / 0.00 | 0.00 | -27 | 1.003 | 21 | 18 | 0.0 | 0.00 | easy |
+| 11:00 | 19.9 | 9.7 | 1020 | 210/4 | 0.08 cu | 1270 | 28.2 | 0.00 / 0.00 | 0.00 | 108 | 0.990 | 43 | 19 | 0.0 | 0.00 | easy |
+| 14:00 | 21.8 | 9.9 | 1020 | 219/7 | 0.17 cu | 1491 | 28.9 | 0.00 / 0.00 | 0.00 | 177 | 0.983 | 46 | 20up | 0.0 | 0.00 | easy |
+| 17:00 | 21.3 | 9.9 | 1019 | 219/6 | 0.16 cu | 1433 | 29.2 | 0.00 / 0.00 | 0.00 | 163 | 0.984 | 27 | 21up | 0.0 | 0.00 | easy |
+| 20:00 | 18.6 | 9.9 | 1019 | 215/4 | 0.05 cu | 1099 | 30.4 | 0.00 / 0.00 | 0.00 | 70 | 0.993 | 2 | 22up | 0.0 | 0.00 | easy |
+| 23:00 | 15.2 | 9.8 | 1019 | 210/2 | 0.01 cu | 670 | 32.5 | 0.00 / 0.00 | 0.00 | -53 | 1.005 | -18 | 23 | 0.0 | 0.00 | easy |
+| 02:00 | 13.4 | 9.8 | 1019 | 190/1 | 0.00 cuh | 447 | 11.5 | 0.22 / 0.22 | 0.00 | -117 | 1.011 | -20 | 24 | 0.0 | 0.00 | easy |
+
+#### late 2. Valley fog, late summer (valley-fog-autumn, 2026-08-17, easy-after-wait)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 12.5 | 12.5 | 1019 | 250/0 | 0.00 cuh | 3 | 1.3 | 2.48 / 2.48 | 0.00 | -150 | 1.014 | -4 | 26 | 0.0 | 0.00 | NO |
+| 08:00 | 14.8 | 12.3 | 1019 | 250/1 | 0.03 cuh | 313 | 1.7 | 0.62 / 2.13 | 0.00 | -66 | 1.006 | 21 | 27 | 0.0 | 0.00 | NO |
+| 11:00 | 17.7 | 9.3 | 1019 | 255/3 | 0.05 cuh | 1054 | 45.9 | 0.00 / 0.00 | 0.00 | 40 | 0.996 | 43 | 28 | 0.0 | 0.00 | easy |
+| 14:00 | 19.2 | 8.4 | 1019 | 255/5 | 0.09 cuh | 1346 | 47.7 | 0.00 / 0.00 | 0.00 | 92 | 0.991 | 46 | 29up | 0.0 | 0.00 | easy |
+| 17:00 | 18.9 | 8.3 | 1019 | 255/6 | 0.07 cuh | 1322 | 48.2 | 0.00 / 0.00 | 0.00 | 79 | 0.992 | 26 | 30up | 0.0 | 0.00 | easy |
+| 20:00 | 16.8 | 8.3 | 1019 | 251/2 | 0.01 cuh | 1061 | 50.2 | 0.00 / 0.00 | 0.00 | 4 | 1.000 | 1 | 31up | 0.0 | 0.00 | easy |
+| 23:00 | 13.2 | 8.3 | 1019 | 248/2 | 0.00 cuh | 623 | 47.8 | 0.01 / 0.01 | 0.00 | -123 | 1.012 | -18 | 32 | 0.0 | 0.00 | easy |
+| 02:00 | 11.4 | 8.3 | 1019 | 240/1 | 0.00 cuh | 392 | 9.4 | 0.34 / 0.34 | 0.00 | -191 | 1.018 | -20 | 34 | 0.0 | 0.00 | easy |
+
+#### late 3. Golden September (golden-september, 2026-08-18, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 10.4 | 6.7 | 1021 | 269/1 | 0.00 cuh | 464 | 16.8 | 0.17 / 0.17 | 0.00 | -246 | 1.024 | -4 | 35 | 0.1 | 0.00 | easy |
+| 08:00 | 13.4 | 6.6 | 1021 | 262/2 | 0.01 cuh | 853 | 69.5 | 0.00 / 0.00 | 0.00 | -136 | 1.013 | 21 | 36 | 0.5 | 0.00 | easy |
+| 11:00 | 17.2 | 6.4 | 1021 | 260/2 | 0.02 cuh | 1351 | 74.4 | 0.00 / 0.00 | 0.00 | 4 | 1.000 | 43 | 37 | 1.1 | 0.00 | easy |
+| 14:00 | 19.1 | 6.2 | 1020 | 255/4 | 0.04 cuh | 1609 | 77.3 | 0.00 / 0.00 | 0.00 | 76 | 0.993 | 46 | 38up | 1.9 | 0.00 | easy |
+| 17:00 | 18.6 | 6.3 | 1020 | 253/3 | 0.01 cuh | 1544 | 76.9 | 0.00 / 0.00 | 0.00 | 63 | 0.994 | 26 | 40up | 2.5 | 0.00 | easy |
+| 20:00 | 15.9 | 6.6 | 1019 | 248/2 | 0.00 cuh | 1167 | 74.4 | 0.00 / 0.00 | 0.00 | -31 | 1.003 | 1 | 41up | 2.9 | 0.00 | easy |
+| 23:00 | 13.8 | 6.9 | 1019 | 209/1 | 0.01 cuh | 863 | 70.7 | 0.00 / 0.00 | 0.00 | -103 | 1.010 | -18 | 42 | 3.5 | 0.37 | easy |
+| 02:00 | 12.8 | 7.2 | 1019 | 177/2 | 0.03 cuh | 707 | 66.5 | 0.00 / 0.00 | 0.00 | -139 | 1.013 | -21 | 43 | 3.3 | 0.31 | easy |
+
+#### late 4. Southerly freshening (southerly-freshening, 2026-08-19, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 12.3 | 8.7 | 1019 | 170/3 | 0.03 cuh+as 0.00 | 460 | 14.3 | 0.21 / 0.21 | 0.00 | -157 | 1.015 | -4 | 44 | 0.0 | 0.00 | easy |
+| 08:00 | 14.4 | 8.8 | 1018 | 170/5 | 0.04 cuh+as 0.05 | 700 | 59.2 | 0.00 / 0.00 | 0.00 | -74 | 1.007 | 20 | 46 | 0.0 | 0.00 | easy |
+| 11:00 | 17.1 | 9.0 | 1017 | 170/6 | 0.06 cuh+as 0.10 | 1020 | 56.8 | 0.00 / 0.00 | 0.00 | 36 | 0.997 | 42 | 47 | 0.0 | 0.00 | easy |
+| 14:00 | 18.5 | 9.1 | 1016 | 166/8 | 0.06 cuh+as 0.25 | 1180 | 55.6 | 0.00 / 0.00 | 0.00 | 101 | 0.990 | 45 | 48 | 0.0 | 0.00 | easy |
+| 17:00 | 18.2 | 9.2 | 1014 | 164/9 | 0.06 cuh+as 0.42 | 1120 | 55.8 | 0.00 / 0.00 | 0.00 | 105 | 0.990 | 26 | 49up | 0.0 | 0.00 | easy |
+| 20:00 | 16.2 | 9.7 | 1013 | 156/11 | 0.03 cuh+as 0.62 | 820 | 57.4 | 0.00 / 0.00 | 0.00 | 49 | 0.995 | 1 | 50up | 0.0 | 0.00 | easy |
+| 23:00 | 15.0 | 10.2 | 1012 | 152/11 | 0.00 cuh+as 0.71 | 600 | 59.7 | 0.02 / 0.00 | 0.00 | 18 | 0.998 | -19 | 52 | 0.0 | 0.00 | easy |
+| 02:00 | 14.5 | 10.6 | 1011 | 146/12 | 0.45 sc+as 0.79 | 480 | 60.4 | 0.15 / 0.00 | 0.00 | 3 | 1.000 | -21 | 53 | 0.0 | 0.00 | easy |
+
+#### late 5. The first autumn storm (first-autumn-storm, 2026-08-20, storm)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 14.2 | 12.2 | 1011 | 140/12 | 0.90 sc+as 0.85 | 240 | 37.0 | 0.88 / 0.00 | 0.02 | -3 | 1.000 | -5 | 54 | 0.1 | 0.00 | NO |
+| 08:00 | 14.6 | 13.1 | 1006 | 140/14 | 0.93 sc+as 0.88 | 180 | 14.5 | 1.18 / 0.00 | 0.13 | 55 | 0.995 | 20 | 55 | 0.5 | 0.00 | NO |
+| 11:00 | 15.2 | 14.0 | 1001 | 144/15G20 | 0.95 sc+as 0.90 | 160 | 6.9 | 1.33 / 0.00 | 0.37 | 129 | 0.988 | 42 | 56 | 1.1 | 0.00 | NO |
+| 14:00 | 14.4 | 14.0 | 1001 | 193/20G34 | 0.98 cb+as 0.76 | 40 | 3.0 | 2.06 / 0.00 | 0.94 | 111 | 0.989 | 45 | 58 | 1.7 | 0.00 | NO |
+| 17:00 | 12.7 | 11.9 | 1002 | 252/11 | 0.75 sc+as 0.50 | 100 | 10.2 | 1.31 / 0.00 | 0.20 | 28 | 0.997 | 26 | 59up | 2.4 | 0.00 | NO |
+| 20:00 | 12.5 | 8.0 | 1006 | 276/9 | 0.26 sc+as 0.10 | 560 | 76.4 | 0.02 / 0.00 | 0.00 | -19 | 1.002 | 1 | 60up | 2.8 | 0.00 | easy |
+| 23:00 | 10.1 | 7.2 | 1008 | 285/7 | 0.03 sc | 360 | 15.1 | 0.44 / 0.20 | 0.00 | -131 | 1.013 | -19 | 61 | 3.0 | 0.25 | easy |
+| 02:00 | 9.0 | 6.1 | 1012 | 289/4 | 0.01 cu | 360 | 9.4 | 0.40 / 0.36 | 0.00 | -202 | 1.019 | -21 | 62 | 3.0 | 0.25 | easy |
+
+#### late 6. Clearing showers (clearing-showers, 2026-08-21, moderate)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 9.2 | 5.0 | 1013 | 301/5 | 0.08 cu | 520 | 42.4 | 0.07 / 0.05 | 0.00 | -210 | 1.020 | -5 | 63 | 3.1 | 0.00 | easy |
+| 08:00 | 11.4 | 4.8 | 1014 | 304/9 | 0.22 cu | 820 | 97.4 | 0.00 / 0.00 | 0.00 | -142 | 1.014 | 20 | 65 | 3.2 | 0.00 | easy |
+| 11:00 | 14.3 | 4.6 | 1016 | 306/10 | 0.31 cu | 1220 | 20.9 | 0.00 / 0.00 | 0.11 | -50 | 1.005 | 42 | 66 | 3.5 | 0.00 | easy |
+| 14:00 | 15.8 | 4.5 | 1017 | 310/12G16 | 0.45 cu | 1420 | 11.1 | 0.00 / 0.00 | 0.24 | -8 | 1.001 | 45 | 67 | 3.7 | 0.00 | care |
+| 17:00 | 15.5 | 4.5 | 1017 | 310/10 | 0.32 cu | 1360 | 26.6 | 0.00 / 0.00 | 0.08 | -24 | 1.002 | 25 | 68 | 3.9 | 0.00 | easy |
+| 20:00 | 13.3 | 4.6 | 1018 | 309/7 | 0.11 cu | 1080 | 99+ | 0.00 / 0.00 | 0.00 | -112 | 1.011 | 0 | 69up | 4.0 | 0.00 | easy |
+| 23:00 | 10.1 | 4.8 | 1019 | 300/4 | 0.01 cu | 660 | 99+ | 0.00 / 0.00 | 0.00 | -239 | 1.023 | -19 | 70 | 5.0 | 0.75 | easy |
+| 02:00 | 8.5 | 4.9 | 1020 | 300/2 | 0.00 cuh | 440 | 17.1 | 0.19 / 0.19 | 0.00 | -308 | 1.030 | -22 | 71 | 4.5 | 0.62 | easy |
+
+#### late 7. Cold clear, aurora night (aurora-night, 2026-08-22, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 7.6 | 3.4 | 1021 | 318/2 | 0.00 cuh | 528 | 41.0 | 0.06 / 0.06 | 0.00 | -351 | 1.034 | -5 | 72 | 3.0 | 0.00 | easy |
+| 08:00 | 10.4 | 3.3 | 1021 | 306/3 | 0.01 cuh | 896 | 99+ | 0.00 / 0.00 | 0.00 | -248 | 1.024 | 20 | 73 | 3.2 | 0.00 | easy |
+| 11:00 | 14.3 | 3.0 | 1021 | 300/3 | 0.02 cuh | 1402 | 99+ | 0.00 / 0.00 | 0.00 | -111 | 1.011 | 42 | 74 | 3.4 | 0.00 | easy |
+| 14:00 | 16.2 | 2.9 | 1022 | 291/4 | 0.04 cuh | 1663 | 99+ | 0.00 / 0.00 | 0.00 | -44 | 1.004 | 44 | 75 | 3.7 | 0.00 | easy |
+| 17:00 | 15.7 | 3.0 | 1022 | 290/3 | 0.01 cuh | 1591 | 99+ | 0.00 / 0.00 | 0.00 | -66 | 1.006 | 25 | 76 | 3.9 | 0.00 | easy |
+| 20:00 | 12.9 | 3.4 | 1023 | 290/2 | 0.00 cuh | 1186 | 99+ | 0.00 / 0.00 | 0.00 | -171 | 1.017 | 0 | 77up | 4.0 | 0.00 | easy |
+| 23:00 | 11.3 | 4.0 | 1023 | 293/1 | 0.00 cuh | 911 | 95.5 | 0.00 / 0.00 | 0.00 | -235 | 1.023 | -20 | 78up | 6.5 | 0.61 | easy |
+| 02:00 | 10.4 | 4.3 | 1023 | 300/1 | 0.00 cuh | 760 | 84.5 | 0.00 / 0.00 | 0.00 | -268 | 1.026 | -22 | 79 | 6.0 | 1.00 | easy |
+
+#### late 8. Still and fair (still-and-fair, 2026-08-23, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 10.0 | 6.3 | 1022 | 203/1 | 0.00 cuh | 452 | 16.1 | 0.19 / 0.19 | 0.00 | -274 | 1.027 | -5 | 80 | 4.0 | 0.00 | easy |
+| 08:00 | 12.5 | 6.3 | 1022 | 216/2 | 0.03 cuh | 768 | 67.6 | 0.00 / 0.00 | 0.00 | -180 | 1.017 | 19 | 81 | 3.9 | 0.00 | easy |
+| 11:00 | 15.9 | 6.3 | 1022 | 220/3 | 0.06 cuh | 1197 | 62.6 | 0.00 / 0.00 | 0.00 | -53 | 1.005 | 41 | 82 | 3.7 | 0.00 | easy |
+| 14:00 | 17.6 | 6.3 | 1021 | 229/5 | 0.10 cuh | 1414 | 60.2 | 0.00 / 0.00 | 0.00 | 13 | 0.999 | 44 | 83 | 3.4 | 0.00 | easy |
+| 17:00 | 17.2 | 6.4 | 1021 | 228/4 | 0.07 cuh | 1347 | 60.1 | 0.00 / 0.00 | 0.00 | 1 | 1.000 | 25 | 84 | 3.2 | 0.00 | easy |
+| 20:00 | 14.7 | 6.9 | 1020 | 220/3 | 0.01 cuh | 980 | 60.5 | 0.00 / 0.00 | 0.00 | -85 | 1.008 | -0 | 85up | 3.0 | 0.00 | easy |
+| 23:00 | 13.7 | 7.4 | 1020 | 204/2 | 0.00 cuh | 783 | 61.3 | 0.00 / 0.00 | 0.00 | -120 | 1.012 | -20 | 86up | 3.0 | 0.14 | easy |
+| 02:00 | 13.1 | 7.7 | 1020 | 180/2 | 0.20 st | 673 | 62.2 | 0.00 / 0.00 | 0.00 | -138 | 1.013 | -22 | 87 | 2.2 | 0.05 | easy |
+
+#### late 9. Grey drizzle (grey-drizzle, 2026-08-24, moderate)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 12.8 | 9.3 | 1014 | 140/6 | 0.55 st | 440 | 18.9 | 0.23 / 0.14 | 0.00 | -86 | 1.008 | -6 | 87 | 0.0 | 0.00 | care |
+| 08:00 | 13.5 | 10.0 | 1014 | 143/7 | 0.85 st | 444 | 22.1 | 0.23 / 0.11 | 0.00 | -60 | 1.006 | 19 | 88 | 0.0 | 0.00 | care |
+| 11:00 | 14.6 | 10.7 | 1014 | 145/7 | 0.86 st | 488 | 14.8 | 0.13 / 0.05 | 0.11 | -21 | 1.002 | 41 | 89 | 0.0 | 0.00 | care |
+| 14:00 | 15.1 | 11.1 | 1014 | 145/8 | 0.87 st | 500 | 17.4 | 0.12 / 0.03 | 0.10 | 0 | 1.000 | 44 | 90 | 0.0 | 0.00 | care |
+| 17:00 | 15.0 | 11.1 | 1013 | 145/8 | 0.88 st | 478 | 15.1 | 0.15 / 0.03 | 0.12 | -3 | 1.000 | 24 | 90 | 0.0 | 0.00 | care |
+| 20:00 | 14.2 | 10.8 | 1013 | 142/7 | 0.86 st | 421 | 15.0 | 0.27 / 0.13 | 0.04 | -29 | 1.003 | -1 | 91up | 0.0 | 0.00 | care |
+| 23:00 | 12.6 | 10.5 | 1013 | 141/6 | 0.81 st | 266 | 6.8 | 0.79 / 0.50 | 0.00 | -86 | 1.008 | -20 | 92up | 0.0 | 0.00 | NO |
+| 02:00 | 11.7 | 10.2 | 1013 | 149/5 | 0.65 st | 192 | 4.0 | 1.14 / 0.90 | 0.00 | -116 | 1.011 | -23 | 92up | 0.0 | 0.00 | NO |
+
+#### late 10. Southwest ridge day (southwest-ridge, 2026-08-25, moderate)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 11.3 | 7.2 | 1013 | 230/8 | 0.35 cuh | 516 | 57.7 | 0.09 / 0.01 | 0.00 | -132 | 1.013 | -6 | 93 | 0.0 | 0.00 | easy |
+| 08:00 | 13.1 | 7.2 | 1013 | 230/12 | 0.31 cuh | 740 | 74.7 | 0.00 / 0.00 | 0.00 | -69 | 1.007 | 19 | 94 | 0.0 | 0.00 | easy |
+| 11:00 | 15.7 | 7.2 | 1014 | 232/13 | 0.30 cuh | 1063 | 76.4 | 0.00 / 0.00 | 0.00 | 19 | 0.998 | 41 | 94 | 0.0 | 0.00 | care |
+| 14:00 | 17.0 | 7.1 | 1014 | 235/15G20 | 0.30 cuh | 1226 | 77.4 | 0.00 / 0.00 | 0.00 | 61 | 0.994 | 43 | 95 | 0.0 | 0.00 | care |
+| 17:00 | 16.6 | 7.2 | 1015 | 235/12 | 0.28 cuh | 1181 | 76.5 | 0.00 / 0.00 | 0.00 | 42 | 0.996 | 24 | 95 | 0.0 | 0.00 | care |
+| 20:00 | 14.7 | 7.3 | 1015 | 235/10 | 0.25 cuh | 928 | 72.2 | 0.00 / 0.00 | 0.00 | -31 | 1.003 | -1 | 96up | 0.0 | 0.00 | easy |
+| 23:00 | 13.1 | 7.5 | 1016 | 235/8 | 0.29 cuh | 698 | 66.1 | 0.00 / 0.00 | 0.00 | -96 | 1.009 | -21 | 96up | 0.0 | 0.00 | easy |
+| 02:00 | 12.2 | 7.6 | 1016 | 239/5 | 0.23 cuh | 574 | 42.6 | 0.03 / 0.03 | 0.00 | -130 | 1.013 | -23 | 97up | 0.0 | 0.00 | easy |
+
+#### late 11. Indian summer (indian-summer, 2026-08-26, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 11.7 | 7.6 | 1021 | 202/1 | 0.01 cu | 518 | 23.6 | 0.09 / 0.09 | 0.00 | -199 | 1.019 | -6 | 97 | 0.0 | 0.00 | easy |
+| 08:00 | 14.6 | 7.4 | 1021 | 209/3 | 0.06 cu | 895 | 49.4 | 0.00 / 0.00 | 0.00 | -92 | 1.009 | 19 | 98 | 0.0 | 0.00 | easy |
+| 11:00 | 18.7 | 7.2 | 1021 | 210/4 | 0.10 cu | 1438 | 46.2 | 0.00 / 0.00 | 0.00 | 59 | 0.994 | 40 | 98 | 0.0 | 0.00 | easy |
+| 14:00 | 20.8 | 7.1 | 1020 | 206/6 | 0.28 cu | 1717 | 44.7 | 0.00 / 0.00 | 0.00 | 137 | 0.987 | 43 | 98 | 0.0 | 0.00 | easy |
+| 17:00 | 20.3 | 7.1 | 1020 | 204/5 | 0.22 cu | 1642 | 44.8 | 0.00 / 0.00 | 0.00 | 121 | 0.988 | 24 | 99 | 0.0 | 0.00 | easy |
+| 20:00 | 17.2 | 7.4 | 1019 | 200/3 | 0.05 cu | 1224 | 46.0 | 0.00 / 0.00 | 0.00 | 16 | 0.998 | -2 | 99up | 0.0 | 0.00 | easy |
+| 23:00 | 13.9 | 7.8 | 1019 | 198/2 | 0.00 cu | 769 | 48.0 | 0.00 / 0.00 | 0.00 | -100 | 1.010 | -21 | 99up | 0.0 | 0.00 | easy |
+| 02:00 | 12.2 | 8.0 | 1019 | 190/1 | 0.01 cuh | 523 | 23.4 | 0.09 / 0.09 | 0.00 | -162 | 1.016 | -23 | 99up | 0.0 | 0.00 | easy |
+
+#### late 12. Equinox signs (equinox-signs, 2026-08-27, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 11.3 | 7.5 | 1017 | 159/3 | 0.03 cuh+as 0.01 | 460 | 16.0 | 0.17 / 0.17 | 0.00 | -174 | 1.017 | -7 | 100 | 0.0 | 0.00 | easy |
+| 08:00 | 12.9 | 7.7 | 1016 | 156/5 | 0.04 cuh+as 0.11 | 660 | 55.5 | 0.00 / 0.00 | 0.00 | -107 | 1.010 | 18 | 100 | 0.0 | 0.00 | easy |
+| 11:00 | 15.5 | 7.8 | 1015 | 155/6 | 0.06 cuh+as 0.19 | 960 | 58.6 | 0.00 / 0.00 | 0.00 | 3 | 1.000 | 40 | 100 | 0.0 | 0.00 | easy |
+| 14:00 | 16.8 | 8.0 | 1013 | 151/7 | 0.06 cuh+as 0.46 | 1100 | 59.9 | 0.00 / 0.00 | 0.00 | 71 | 0.993 | 43 | 100 | 0.0 | 0.00 | easy |
+| 17:00 | 16.4 | 8.2 | 1010 | 149/8 | 0.05 cuh+as 0.58 | 1040 | 60.3 | 0.00 / 0.00 | 0.00 | 80 | 0.992 | 23 | 100 | 0.0 | 0.00 | easy |
+| 20:00 | 14.6 | 8.9 | 1008 | 145/12 | 0.03 cuh+as 0.78 | 720 | 61.6 | 0.00 / 0.00 | 0.00 | 36 | 0.997 | -2 | 100up | 0.0 | 0.00 | easy |
+| 23:00 | 14.3 | 9.8 | 1007 | 143/13 | 0.00 cuh+as 0.83 | 560 | 62.7 | 0.06 / 0.00 | 0.00 | 39 | 0.996 | -21 | 100up | 0.0 | 0.00 | care |
+| 02:00 | 14.1 | 10.4 | 1006 | 140/15 | 0.47 sc+as 0.89 | 460 | 62.3 | 0.20 / 0.00 | 0.00 | 41 | 0.996 | -24 | 100up | 0.0 | 0.00 | care |
+
+#### late 13. The equinox gale (equinox-gale, 2026-08-28, storm)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 14.0 | 13.0 | 1004 | 140/15 | 0.95 sc+as 0.90 | 120 | 9.8 | 1.57 / 0.00 | 0.21 | 54 | 0.995 | -7 | 100up | 0.1 | 0.00 | NO |
+| 08:00 | 14.0 | 13.5 | 999 | 140/17G22 | 0.96 sc+as 0.90 | 60 | 5.4 | 1.99 / 0.00 | 0.45 | 113 | 0.989 | 18 | 100 | 0.4 | 0.00 | NO |
+| 11:00 | 14.2 | 13.9 | 995 | 145/20G28 | 0.97 sc+as 0.90 | 40 | 3.5 | 2.17 / 0.00 | 0.74 | 159 | 0.985 | 40 | 100 | 1.0 | 0.00 | NO |
+| 14:00 | 11.3 | 11.3 | 998 | 224/27G48 | 0.98 cb+as 0.76 | 0 | 3.8 | 2.46 / 0.00 | 0.55 | 23 | 0.998 | 42 | 99 | 1.6 | 0.00 | NO |
+| 17:00 | 11.7 | 10.1 | 1001 | 272/13G18 | 0.75 sc+as 0.50 | 200 | 10.3 | 0.86 / 0.00 | 0.23 | 4 | 1.000 | 23 | 99 | 2.2 | 0.00 | NO |
+| 20:00 | 11.5 | 7.4 | 1006 | 285/10 | 0.36 sc+as 0.10 | 520 | 78.0 | 0.07 / 0.00 | 0.00 | -49 | 1.005 | -2 | 99up | 2.7 | 0.00 | easy |
+| 23:00 | 8.8 | 6.6 | 1007 | 289/7 | 0.07 sc | 280 | 9.7 | 0.72 / 0.34 | 0.00 | -166 | 1.016 | -22 | 99up | 3.0 | 0.12 | easy |
+| 02:00 | 7.5 | 5.5 | 1011 | 293/5 | 0.00 cuh | 260 | 5.0 | 0.82 / 0.72 | 0.00 | -249 | 1.024 | -24 | 98up | 3.0 | 0.13 | care |
+
+#### late 14. Bright behind the gale (bright-behind-the-gale, 2026-08-29, easy)
+
+| local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05:00 | 8.1 | 3.8 | 1013 | 301/9 | 0.04 cuh | 540 | 91.1 | 0.06 / 0.00 | 0.00 | -251 | 1.024 | -7 | 98up | 3.0 | 0.00 | easy |
+| 08:00 | 10.3 | 3.7 | 1015 | 305/10 | 0.09 cuh | 820 | 99+ | 0.00 / 0.00 | 0.00 | -186 | 1.018 | 18 | 98 | 3.2 | 0.00 | easy |
+| 11:00 | 13.8 | 3.5 | 1016 | 305/9 | 0.12 cuh | 1280 | 99+ | 0.00 / 0.00 | 0.00 | -78 | 1.007 | 39 | 97 | 3.4 | 0.00 | easy |
+| 14:00 | 15.5 | 3.3 | 1018 | 304/8 | 0.15 cuh | 1520 | 99+ | 0.00 / 0.00 | 0.00 | -28 | 1.003 | 42 | 97 | 3.6 | 0.00 | easy |
+| 17:00 | 15.1 | 3.5 | 1018 | 300/5 | 0.09 cuh | 1460 | 99+ | 0.00 / 0.00 | 0.00 | -49 | 1.005 | 23 | 96 | 3.8 | 0.00 | easy |
+| 20:00 | 12.7 | 4.1 | 1019 | 300/3 | 0.01 cuh | 1080 | 93.6 | 0.00 / 0.00 | 0.00 | -144 | 1.014 | -3 | 96 | 4.0 | 0.00 | easy |
+| 23:00 | 12.2 | 4.8 | 1020 | 296/2 | 0.00 cuh | 940 | 73.0 | 0.00 / 0.00 | 0.00 | -173 | 1.017 | -22 | 95up | 4.5 | 0.33 | easy |
+| 02:00 | 12.0 | 5.2 | 1021 | 210/1 | 0.01 cu | 840 | 56.0 | 0.00 / 0.00 | 0.00 | -190 | 1.018 | -24 | 94up | 4.3 | 0.30 | easy |

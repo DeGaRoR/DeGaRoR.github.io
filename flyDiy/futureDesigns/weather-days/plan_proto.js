@@ -6,22 +6,33 @@
 // makeAtmos), so every number the study prints is the number 07_day.js and
 // 05_atmos.js would derive from that spec.
 //
-//   node futureDesigns/weather-days/plan_proto.js            the 14 days, hourly, on their first dates
-//   node futureDesigns/weather-days/plan_proto.js --season   one day across the season (the normals at work)
-//   node futureDesigns/weather-days/plan_proto.js --smooth   the loop walked minute by minute: the biggest step per quantity
-//   node futureDesigns/weather-days/plan_proto.js --fly      the flyable hours per day (the classifier of §4.2)
+//   node futureDesigns/weather-days/plan_proto.js [--block=early|high|late]          a block's 14 days, hourly
+//   node futureDesigns/weather-days/plan_proto.js --fly [--block=…]                    flyable half-hours per day (§4.2)
+//   node futureDesigns/weather-days/plan_proto.js --smooth [--from=MM-DD --to=MM-DD]   walked minute by minute
+//   node futureDesigns/weather-days/plan_proto.js --season                              the block table, the season walk
+//   node futureDesigns/weather-days/plan_proto.js --check                               the blocks' rules (§10.4)
+// THREE SEASONAL BLOCKS (the user's call, 3 Nov: option B, study §9.3 / §10): early 20 May - 2 Jul, high 3 Jul -
+// 15 Aug, late 16 Aug - 30 Sep, each 14 days looping inside its own dates. A date picks its block by its month and day;
+// the day before and after it may be another block's, so a block's edge is as smooth as any midnight (§3.2).
 // ============================================================
 'use strict';
 const fs = require('fs'), path = require('path');
 const C = require(path.join(__dirname, '../../tools/flight_core.js'));
 const { DAY, SOLAR, makeAtmos } = C;
 
-// ---- THE PLAN: 14 days, read in file order -------------------------------------------------------------------
-const DIR = path.join(__dirname, 'days');
-const DAYS = fs.readdirSync(DIR).filter(f => /\.json$/.test(f)).sort().map(f => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')));
-const L = DAYS.length;
-// the plan's epoch: the local date that is plan day 0 (the career's first day, 74_career CAREER_DAY0 = 21 Jun 16:00 AKDT)
-const EPOCH = '2026-06-21';
+// ---- THE PLAN: three blocks of 14 days, each read in file order -----------------------------------------------
+const readBlock = id => { const dir = path.join(__dirname, 'days', id);
+  return fs.readdirSync(dir).filter(f => /\.json$/.test(f)).sort().map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))); };
+// from / to: the block's dates (MM-DD, inclusive); epoch: the MM-DD that is the block's day 1 every year. The high block's
+// epoch is 15 July, the career's first day (74_career CAREER_DAY0, 15 Jul 16:00 AKDT), so a career opens on its day 1,
+// the game's own fair-weather cumulus. Outside the season (the sandbox's dates) the nearest block plays.
+const BLOCKS = [
+  { id: 'early', from: '05-20', to: '07-02', epoch: '05-20' },
+  { id: 'high',  from: '07-03', to: '08-15', epoch: '07-15' },
+  { id: 'late',  from: '08-16', to: '09-30', epoch: '08-16' },
+].map(b => Object.assign(b, { days: readBlock(b.id) }));
+const DAYS = BLOCKS[1].days, L = DAYS.length;            // the high block (the study's §4 days)
+const EPOCH = '2026-07-15';
 // THE WEATHER DAY OWNS 04:00 -> 28:00 LOCAL (a pilot's day: its dawn, its afternoon, its evening and the night that follows)
 const WDAY_H0 = 4;
 // THE SEASON'S NORMALS: Ketchikan-like monthly mean daily high / low (C), rounded; read at mid-month and interpolated
@@ -33,7 +44,12 @@ const mod = (a, n) => ((a % n) + n) % n;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = x => { const q = clamp(x, 0, 1); return q * q * (3 - 2 * q); };
 const J0 = jdnOf(EPOCH);
-const planAt = j => DAYS[mod(j - J0, L)];
+const md = j => { const c = SOLAR.civil(j); return String(c.m).padStart(2, '0') + '-' + String(c.d).padStart(2, '0'); };
+function blockOf(j) { const k = md(j); return BLOCKS.find(b => k >= b.from && k <= b.to) || (k < BLOCKS[0].from ? BLOCKS[0] : BLOCKS[2]); }
+function idxOf(j) { const b = blockOf(j), y = SOLAR.civil(j).y, e = jdnOf(y + '-' + b.epoch); return { b, i: mod(j - e, b.days.length) }; }
+const planAt = j => { const r = idxOf(j); return r.b.days[r.i]; };
+// the date of a block's day k in 2026 (its first: the epoch + k)
+const blockDate = (b, k) => dateOf(jdnOf('2026-' + b.epoch) + k);
 
 function normals(jf) {                                  // [high, low] at a local date (fractional: continuous through midnight)
   const j = Math.floor(jf), c = SOLAR.civil(j), mid = SOLAR.jdn(c.y, c.m, 15);
@@ -169,7 +185,7 @@ function weatherAt(abs) {
     storm = Object.assign({}, S, { at, pre: S.pre * 3600, dur: S.dur * 3600, post: S.post * 3600 });
   }
   spec.storm = storm;
-  const meta = { planIdx: mod(wj - J0, L), id: D.id, name: D.name, fly: D.fly, wdate: dateOf(wj), localH: h,
+  const meta = { planIdx: idxOf(wj).i, block: idxOf(wj).b.id, id: D.id, name: D.name, fly: D.fly, wdate: dateOf(wj), localH: h,
                  rain: scalar(wj, wh, 'rain', null, 0), kp: scalar(wj, wh, 'aurora', null, 0), fogHold: scalar(wj, wh, 'fog.hold', null, 0), fogWhere: D.fog ? D.fog.where : null,
                  dipLow: low.dip, dipUp: up ? up.dip : false };
   return { spec, meta, date: dateOf(jU), utc };
@@ -222,46 +238,120 @@ function row(abs) {
 const HEAD = 'local | T C | Td C | QNH | wind | low deck + upper | base m | vis km | mist /km today / planned | rain | DA m (s.l.) | sigma | sun | moon % | Kp | aurora | fly';
 const HOURS = [5, 8, 11, 14, 17, 20, 23, 26];
 
-const arg = process.argv[2] || '';
+const argv = process.argv.slice(2), arg = argv.find(a => !/^--(block|from|to|step)=/.test(a)) || '';
+const opt = k => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : null; };
+const pickBlocks = () => { const b = opt('block'); return b ? BLOCKS.filter(x => x.id === b) : BLOCKS; };
+// a day's daylight half-hours, classified
+function flyDay(date) {
+  const j = jdnOf(date), A = alm(j), cnt = { easy: 0, care: 0, NO: 0 }, care = [], nofly = [];
+  for (let h = Math.ceil(A.tr); h <= Math.floor(A.ts); h += 0.5) { const c = flyClass(derive(absLocal(date, h))); cnt[c]++; if (c === 'care') care.push(h); if (c === 'NO') nofly.push(h); }
+  return { cnt, care, nofly };
+}
+const span = hs => { if (!hs.length) return ''; const out = []; let a = hs[0], b = hs[0];
+  for (const h of hs.slice(1)) { if (h === b + 0.5) b = h; else { out.push([a, b]); a = b = h; } } out.push([a, b]);
+  const t = h => String(Math.floor(h)).padStart(2, '0') + ':' + (h % 1 ? '30' : '00');
+  return out.map(([x, y]) => t(x) + '-' + t(y + 0.5)).join(', '); };
 if (require.main !== module) { /* a library */ }
 else if (arg === '--season') {
-  for (const date of ['2026-05-25', '2026-06-21', '2026-07-19', '2026-08-16', '2026-09-13']) {
-    const j = jdnOf(date), D = planAt(j), n = normals(j);
-    const lo = derive(absLocal(date, alm(j).tr + 0.5)), hi = derive(absLocal(date, 15));
-    console.log(date, D.id.padEnd(17), 'normal', n[1].toFixed(1) + '/' + n[0].toFixed(1), '-> dawn', f1(lo.d.oatC), 'afternoon', f1(hi.d.oatC),
-                'sunrise', alm(j).tr.toFixed(2), 'sunset', alm(j).ts.toFixed(2));
+  // THE BLOCK TABLE: the dates, the normals at both ends, and what each block's 14 days hold
+  console.log('| block | dates | days in 2026 | normals (low/high °C) | easy · moderate · storm days | fog mornings | aurora nights (Kp ≥ 4) |');
+  console.log('|---|---|---|---|---|---|---|');
+  for (const b of BLOCKS) {
+    const y0 = jdnOf('2026-' + b.from), y1 = jdnOf('2026-' + b.to), n0 = normals(y0), n1 = normals(y1);
+    const k = { easy: 0, moderate: 0, storm: 0 };
+    for (const D of b.days) k[D.fly === 'storm' ? 'storm' : D.fly === 'moderate' ? 'moderate' : 'easy']++;
+    const fog = b.days.filter(D => D.fog).length, aur = b.days.filter(D => (D.aurora || []).some(a => a[1] >= 4)).length;
+    console.log('| ' + b.id + ' | ' + b.from + ' → ' + b.to + ' | ' + (y1 - y0 + 1) + ' | ' + n0[1].toFixed(1) + '/' + n0[0].toFixed(1) + ' → ' + n1[1].toFixed(1) + '/' + n1[0].toFixed(1)
+      + ' | ' + k.easy + ' · ' + k.moderate + ' · ' + k.storm + ' | ' + fog + ' | ' + aur + ' |');
   }
-  // the aurora night (plan day 8's night, Kp 6 at midnight) on each of its dates in the season: darkness and the moon decide
-  console.log('\nthe Kp-6 night (showers-sunshine) at 00:30, on every date it falls in the season:');
-  for (let j = jdnOf('2026-05-20'); j <= jdnOf('2026-09-30'); j++) if (planAt(j).id === 'showers-sunshine') {
+  // every aurora night of the season, its darkness and its moon
+  console.log('\nevery aurora night (Kp >= 4 at the night\'s peak) in the 2026 season, at its local 00:30:');
+  for (let j = jdnOf('2026-05-20'); j <= jdnOf('2026-09-30'); j++) {
+    const D = planAt(j), pk = Math.max(0, ...(D.aurora || []).map(a => a[1]));
+    if (pk < 4) continue;
     const x = derive(absLocal(dateOf(j + 1), 0.5));
-    console.log(' ', dateOf(j), 'sun', x.d.sunEl.toFixed(1), 'moon', (x.d.moonPhase * 100).toFixed(0) + '%' + (x.d.moonUp ? ' up' : ' down'), 'cover', x.cover.toFixed(2), 'aurora', x.auroraVis.toFixed(2));
+    console.log('  ' + dateOf(j) + ' ' + idxOf(j).b.id.padEnd(5) + ' ' + D.id.padEnd(20) + ' Kp ' + pk + '  sun ' + x.d.sunEl.toFixed(1) + '  moon ' + (x.d.moonPhase * 100).toFixed(0) + '%' + (x.d.moonUp ? ' up  ' : ' down') + '  cover ' + x.cover.toFixed(2) + '  aurora ' + x.auroraVis.toFixed(2));
   }
 } else if (arg === '--smooth') {
-  // walk two loops minute by minute; the biggest one-minute step per quantity (a pop would show as a big step)
-  const a0 = absLocal(EPOCH, 4), N = 2 * L * 1440, worst = {};
+  // walk the dates minute by minute (--step minutes); the biggest step per minute of each quantity, over the whole walk
+  // and within a day of each block edge (a pop would show as a big step)
+  const from = jdnOf('2026-' + (opt('from') || '05-20')), to = jdnOf('2026-' + (opt('to') || '09-30')), step = +(opt('step') || 1);
+  const edges = BLOCKS.slice(1).map(b => jdnOf('2026-' + b.from));
+  const a0 = from * 86400 + (4 - alm(from).off) * 3600, N = Math.floor((to - from + 1) * 1440 / step), worst = {}, worstE = {};
   let prev = null;
-  const take = (k, v, at) => { if (prev && prev[k] != null) { const s = Math.abs(v - prev[k]); if (!worst[k] || s > worst[k].s) worst[k] = { s, at }; } };
-  for (let i = 0; i < N; i++) {
-    const abs = a0 + i * 60, x = derive(abs), cur = { T: x.d.oatC, Td: x.d.dewC, qnh: x.d.qnhEff / 100, kts: x.kts,
+  for (let i = 0; i <= N; i++) {
+    const abs = a0 + i * 60 * step, x = derive(abs), cur = { T: x.d.oatC, Td: x.d.dewC, qnh: x.d.qnhEff / 100, kts: x.kts,
       cover: x.cover, base: x.d.cloudBase, vis: Math.min(x.visKm, 100), kp: x.W.meta.kp, rain: x.W.meta.rain, mist: x.mistPlan * 1000 };
-    for (const k of Object.keys(cur)) take(k, cur[k], x.W.date + ' ' + f1(x.W.meta.localH) + 'h ' + x.W.meta.id);
+    const at = x.W.date + ' ' + f1(x.W.meta.localH) + 'h ' + x.W.meta.block + '/' + x.W.meta.id, jd = Math.floor(abs / 86400);
+    const nearEdge = edges.some(e => Math.abs(jd - e) <= 1);
+    if (prev) for (const k of Object.keys(cur)) {
+      const s = Math.abs(cur[k] - prev[k]) / step;
+      if (!worst[k] || s > worst[k].s) worst[k] = { s, at };
+      if (nearEdge && (!worstE[k] || s > worstE[k].s)) worstE[k] = { s, at };
+    }
     prev = cur;
   }
-  for (const k of Object.keys(worst)) console.log(k.padEnd(6), 'max step per minute', worst[k].s.toFixed(4), 'at', worst[k].at);
+  console.log('| quantity | largest step per minute, the season | where | within a day of a block edge | where |');
+  console.log('|---|---|---|---|---|');
+  for (const k of Object.keys(worst)) console.log('| ' + k + ' | ' + worst[k].s.toFixed(4) + ' | ' + worst[k].at + ' | ' + (worstE[k] ? worstE[k].s.toFixed(4) : '-') + ' | ' + (worstE[k] ? worstE[k].at : '') + ' |');
 } else if (arg === '--fly') {
-  for (let k = 0; k < L; k++) {
-    const j = J0 + k, date = dateOf(j), A = alm(j), cnt = { easy: 0, care: 0, NO: 0 }, NO = [];
-    for (let h = Math.ceil(A.tr); h <= Math.floor(A.ts); h += 0.5) { const c = flyClass(derive(absLocal(date, h))); cnt[c]++; if (c !== 'easy') NO.push(h + c[0]); }
-    const tot = cnt.easy + cnt.care + cnt.NO;
-    console.log(String(k + 1).padStart(2), DAYS[k].id.padEnd(17), DAYS[k].fly.padEnd(16), 'daylight half-hours', tot, 'easy', cnt.easy, 'care', cnt.care, 'no-fly', cnt.NO, NO.length ? ' ' + NO.join(' ') : '');
+  const tot = { easy: 0, care: 0, NO: 0 };
+  for (const b of pickBlocks()) {
+    const bt = { easy: 0, care: 0, NO: 0 };
+    console.log('\n**' + b.id + '** (' + b.from + ' → ' + b.to + ', dates of 2026)\n');
+    console.log('| # | day | date | authored | easy | care | no-fly | no-fly hours | care hours |'); console.log('|---|---|---|---|---|---|---|---|---|');
+    b.days.forEach((D, k) => {
+      const date = blockDate(b, k), r = flyDay(date);
+      for (const c of Object.keys(bt)) bt[c] += r.cnt[c];
+      console.log('| ' + (k + 1) + ' | ' + D.id + ' | ' + date + ' | ' + D.fly + ' | ' + r.cnt.easy + ' | ' + r.cnt.care + ' | ' + r.cnt.NO + ' | ' + span(r.nofly) + ' | ' + span(r.care) + ' |');
+    });
+    const n = bt.easy + bt.care + bt.NO;
+    console.log('| | **' + b.id + '** | | | **' + bt.easy + ' (' + Math.round(100 * bt.easy / n) + ' %)** | **' + bt.care + ' (' + Math.round(100 * bt.care / n) + ' %)** | **' + bt.NO + ' (' + Math.round(100 * bt.NO / n) + ' %)** | | |');
+    for (const c of Object.keys(tot)) tot[c] += bt[c];
   }
+  const n = tot.easy + tot.care + tot.NO;
+  console.log('\nall blocks: easy ' + tot.easy + ' (' + Math.round(100 * tot.easy / n) + ' %), care ' + tot.care + ' (' + Math.round(100 * tot.care / n) + ' %), no-fly ' + tot.NO + ' (' + Math.round(100 * tot.NO / n) + ' %) of ' + n + ' daylight half-hours');
+} else if (arg === '--check') {
+  // THE BLOCKS' RULES (§10.4): what GATE WEATHERPLAN would hold on the data. Exit 1 on any failure.
+  let bad = 0; const no = m => { console.log('  FAIL ' + m); bad++; }, okm = m => console.log('  ok   ' + m);
+  const ids = new Set();
+  for (const b of BLOCKS) {
+    if (b.days.length !== 14) no(b.id + ': ' + b.days.length + ' days, not 14');
+    b.days.forEach((D, k) => {
+      const tag = b.id + '/' + (k + 1) + ' ' + D.id;
+      if (ids.has(D.id)) no(tag + ': the id is used twice'); ids.add(D.id);
+      for (const f of ['v', 'id', 'name', 'story', 'fly', 'forecast', 'temp', 'dew', 'qnh', 'wind']) if (D[f] == null) no(tag + ': no `' + f + '`');
+      if (!['easy', 'easy-after-wait', 'moderate', 'storm'].includes(D.fly)) no(tag + ': fly `' + D.fly + '`');
+      // a fair day's dawn stays clear: its dew point at dawn is >= 3.5 C under its minimum (§3.4) - fog and storm days excepted
+      if (!D.fog && D.fly !== 'storm' && !(D.dew[0][1] <= (D.temp.min || 0) - 3.5 + 1e-9)) no(tag + ': dawn spread ' + ((D.temp.min || 0) - D.dew[0][1]).toFixed(1) + ' C < 3.5 on a day with no declared fog');
+      // a storm is forecast: it says so, it has a no-fly window, and the two days before it say it is coming
+      if (D.fly === 'storm') {
+        if (!/STORM|GALE/.test(D.forecast) || !(D.noFly && D.noFly.length)) no(tag + ': a storm day must say STORM/GALE and carry noFly');
+        for (const back of [1, 2]) { const P = b.days[mod(k - back, 14)]; if (!/front|storm|gale/i.test(P.forecast)) no(tag + ': day ' + (mod(k - back, 14) + 1) + ' (' + P.id + ') does not forecast it'); }
+      }
+      // no cloud type changes under cover in daylight
+      const date = blockDate(b, k), A = alm(jdnOf(date));
+      for (let h = Math.ceil(A.tr); h <= Math.floor(A.ts); h += 0.5) { const x = weatherAt(absLocal(date, h)); if ((x.meta.dipLow && x.spec.cloudCover > 0.05) || (x.meta.dipUp && x.spec.cloudUpper && x.spec.cloudUpper[0].cover > 0.05)) { no(tag + ': a cloud type changes under cover at ' + h + ' h'); break; } }
+    });
+    // the authored class against the classifier: an `easy` day is easy for >= 85 % of its daylight, a storm day has no-fly hours
+    let easyN = 0, n = 0;
+    b.days.forEach((D, k) => { const r = flyDay(blockDate(b, k)), t = r.cnt.easy + r.cnt.care + r.cnt.NO; easyN += r.cnt.easy; n += t;
+      if (D.fly === 'easy' && r.cnt.easy < 0.85 * t) no(b.id + '/' + (k + 1) + ' ' + D.id + ': authored easy, ' + r.cnt.easy + ' of ' + t + ' easy');
+      if (D.fly === 'storm' && r.cnt.NO === 0) no(b.id + '/' + (k + 1) + ' ' + D.id + ': a storm with no no-fly hour');
+      // a declared no-VFR window holds every no-fly daylight half-hour of the day (to the half-hour), and is mostly no-fly
+      if (D.noFly) { const hh = s => { const m = /^(\d\d):(\d\d)$/.exec(s); return +m[1] + m[2] / 60; };
+        const W = D.noFly.map(w => [hh(w[0]), hh(w[1])]), inW = h => W.some(([a, z]) => h >= a - 0.5 && h + 0.5 <= z + 0.5);
+        const out = r.nofly.filter(h => !inW(h)); if (out.length) no(b.id + '/' + (k + 1) + ' ' + D.id + ': no-fly outside its declared window at ' + span(out));
+        const wl = W.reduce((t, [a, z]) => t + (z - a) * 2, 0); if (r.nofly.length < 0.75 * wl) no(b.id + '/' + (k + 1) + ' ' + D.id + ': its window is ' + wl + ' half-hours, only ' + r.nofly.length + ' are no-fly'); } });
+    (easyN >= 0.6 * n ? okm : no)(b.id + ': ' + Math.round(100 * easyN / n) + ' % of daylight easy (the bar: 60 %)');
+  }
+  console.log('PLAN CHECK: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS')); process.exit(bad ? 1 : 0);
 } else {
-  for (let k = 0; k < L; k++) {
-    const date = dateOf(J0 + k);
-    console.log('\n### ' + (k + 1) + '. ' + DAYS[k].name + ' (' + DAYS[k].id + ', ' + date + ', ' + DAYS[k].fly + ')\n');
+  for (const b of pickBlocks()) b.days.forEach((D, k) => {
+    const date = blockDate(b, k);
+    console.log('\n#### ' + b.id + ' ' + (k + 1) + '. ' + D.name + ' (' + D.id + ', ' + date + ', ' + D.fly + ')\n');
     console.log('| ' + HEAD + ' |'); console.log('|' + HEAD.split('|').map(() => '---').join('|') + '|');
-    for (const h of HOURS) console.log('| ' + row(absLocal(h < 24 ? date : dateOf(J0 + k + 1), h % 24)) + ' |');
-  }
+    for (const h of HOURS) console.log('| ' + row(absLocal(h < 24 ? date : dateOf(jdnOf(date) + 1), h % 24)) + ' |');
+  });
 }
-module.exports = { weatherAt, derive, DAYS, EPOCH };
+module.exports = { weatherAt, derive, DAYS, BLOCKS, EPOCH, planAt, idxOf };
