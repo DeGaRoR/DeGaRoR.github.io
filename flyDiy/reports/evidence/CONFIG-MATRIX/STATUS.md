@@ -88,6 +88,12 @@ UISMOKE, CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP,
 F4 master itself (a clean worktree) fails the same four with byte-identical FAIL lines (ENGCONFIG re-pinned by F4:
 fewer builds differ, the same ones on both).
 
+**Rebased on master 1B 1db22c8a4 (PHONE-1b landed) - the READY state:** the thirteen + UISMOKE: GEN (954 s), UISMOKE,
+CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH, NODUMMY, ENGCONFIG FAIL - and 1B master
+itself (a clean worktree) fails the same four with byte-identical FAIL lines (15 lines, diffed): all standing. The
+user's switch re-checked on the landed `builds/candidates/Twin_busher_floats_4b.json`: base / -> Lofted / -> Rod & pod
+all `units pusher | flown pusher@2.37 | ok`; + the dorsal tile: 0.126 m2 flown on the pod.
+
 The sweeps: `sweep_before.txt`, `sweep_after_steps2-3.txt` (the four XX cells left are step 4's greyed ones, now a
 join error instead of an engine on the nose).
 
