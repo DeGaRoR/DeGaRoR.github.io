@@ -7,7 +7,7 @@ Branch `claude/pillar-anchors` (cloud session). Asked for by the user on 2 Nov t
 > to go on the door areas, when possible. Pillars should really be the target for all fixation devices and anchors.
 > We know perfectly where they are."
 
-State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). The rebase on FINISH-4 and PHONE-1b is still to do; two check-ins are scheduled for it, at 03:15 and 09:15 UTC on 3 Nov.
+State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). Rebase on FINISH-4: not yet. At the 03:15 UTC check-in, origin/master was still 0fcf54ef9, so there was nothing to rebase onto. Checking again at 05:15 and 09:15 UTC (PHONE-1b).
 
 ## 1. What was measured first (the trace)
 
