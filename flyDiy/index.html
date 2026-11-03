@@ -4533,7 +4533,7 @@ html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='9e373216f00d';window.FLYDIY_BUILD_DATE='2026-11-03T06:55:16.449Z';</script>
+<script>window.FLYDIY_BUILD='545531dc18d9';window.FLYDIY_BUILD_DATE='2026-11-03T08:32:12.033Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -47190,8 +47190,14 @@ function clampSpec(spec) {
     // hand-written spec land on the same aeroplane.
     if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
+    // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
+    // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
+    // holds nothing here - the litres are the fitted tanks' - and the frame bills it nowhere (it was billed on the
+    // wing's spar pair: a phantom tank, its fuel flown where nothing was drawn).
+    const strutted = !!(S.bracing && S.bracing.type === 'strut');
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
@@ -47223,7 +47229,7 @@ function clampSpec(spec) {
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
         v.tint = null;
-      total += v.capacity;
+      if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
     else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
@@ -52500,9 +52506,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // strut sends the pod to the strut station's spar pair instead
       const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
       const L2 = wf.L, R2 = wf.R;
-      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
-      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
-                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+      const ok = !v.unmounted && L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      // TANK-FIT (Part 3): no strut, no pod - billed nowhere, its fuel not aboard (it was sent to the spar pair at
+      // 0.3 of the span: a phantom tank nobody drew). The resolved spec says so (unmounted) and the editor shows why.
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]] : [];
+      if (!ok) v.unmounted = true;
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
@@ -52520,10 +52528,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // `pair` is a weighted node list [[node, share], ...] — two entries for a
     // wing tank, four for a body tank between rings, sharing to 1.
-    if (r.emptyKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
+    if (r.emptyKg > 0 && pair.length) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
                          spend(r.price); }
     v._pair = pair; v._res = r;
-    fuelTotalM += r.payloadKg;
+    if (pair.length) fuelTotalM += r.payloadKg;
   }
   sec('fuel');
   const fuelM = fuelTotalM;
@@ -54651,6 +54659,29 @@ function genParams(S, fr, strips) {
     cda.fusCdA[1] += pd.crossY; cda.fusCdA[2] += pd.crossZ;
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
+  }
+  // TANK-FIT (Part 3): THE STRUT PODS' DRAG. A pod on each front lift strut (G477) hung in the airstream and cost
+  // nothing - its kilos were billed, its drag was not. Raymer's component build-up (12.5), as the belly pod's: per pod
+  // Cf (the moulded row, genPodCdA's) x FF (1 + 60/f^3 + f/400 on its own fineness) x Q 1.3 (a store hung on a strut,
+  // Raymer's pylon-mounted Q) x Swet (the drawn spindle, r = R (1 - (2u-1)^2)^0.65: 0.75 pi D L, integrated). The
+  // drawn pod's own size: the player's dims (L, the diameter as W), else the litres' at fineness 4 (_vessel_gen.js
+  // vesselDims ogive: V = 0.55 D^2 L, a pod a side holding half). Absent with no pod: not a key, not a term.
+  {
+    let pc = 0;
+    const cdW = (typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS.carbon && GEN_MATERIALS.carbon.cdWet) || 0.0045;
+    for (const v of ((S.energy && S.energy.vessels) || [])) {
+      if (v.bay !== 'strut' || v.unmounted || !(v.capacity > 0)) continue;
+      let L, D;
+      if (v.dims && v.dims.L > 0 && v.dims.W > 0) { L = +v.dims.L; D = +v.dims.W; }
+      else {
+        const inst = (v._res && v._res.installedL) || v.capacity * 1.06;
+        const V = Math.max(0.002, inst / 2 / 1000);
+        D = Math.cbrt(V / (0.55 * 4)); L = 4 * D;
+      }
+      const f = L / Math.max(0.02, D), FF = 1 + 60 / (f * f * f) + f / 400;
+      pc += 2 * cdW * FF * 1.3 * (0.75 * Math.PI * D * L);
+    }
+    if (pc > 0) { cda.fusCdA[0] += pc; cda.drag.strutPods = pc; }
   }
   // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
   // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
@@ -58128,6 +58159,18 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: 'full rudder must hold the sideslip of a 0.2 Vs crosswind at the approach (FAR 23.233): ' + r2(need * 1.944) + ' kt here',
           why: 'full rudder holds ' + r2(bMax * 180 / Math.PI) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h',
           fix: lvl === 'pass' ? '' : 'a bigger rudder (more of the fin\'s chord, or more fin)' });
+  }
+  // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): A POD ON STRUTS
+  // THE WING DOES NOT HAVE is not fitted (60_gen_spec `unmounted`: not billed, not aboard) - the design fails on it.
+  // Absent on every build without one (no row: the check is the bytes it was). The editor's DRAWN fit (a tank through
+  // the skin, the crew) is the bench's to add (bench.js: CAGE_ENERGY's verdict), the core never draws a tank.
+  {
+    const off = ((S && S.energy && S.energy.vessels) || []).map((v, i) => [v, i]).filter(([v]) => v && v.unmounted);
+    for (const [v, i] of off)
+      row({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
+            limit: 'every tank the design carries is fitted to the aeroplane',
+            why: 'it hangs on the lift struts, and this wing has none: not fitted, it carries no fuel',
+            fix: 'give the wing its lift struts back, or move the tank to another bay' });
   }
   const worst = rows.some(r => r.level === 'fail') ? 'fail' : rows.some(r => r.level === 'warn') ? 'warn' : 'pass';
   return { verdict: worst, rows,
@@ -62928,7 +62971,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='14c776711da7';window.FLYDIY_BUILD='9e373216f00d';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d8e5046f0cd7';window.FLYDIY_BUILD='545531dc18d9';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -68773,7 +68816,9 @@ const STOCK_TANKS = {
   sesqui: [{"bay":"wingRoot","capacity":90,"rot":0,"form":"box"}],
   jodel: [{"bay":"nose","capacity":22,"along":-0.2012,"lv":0.6566,"rot":0,"form":"deck","dims":{"L":0.19,"W":0.829,"H":0.194,"profile":[1,1,1,0.9899,0.9194,0.8306,0.7417,0.6069,0.5413]}}],
   ul1: [{"bay":"nose","capacity":13,"along":-0.1517,"lv":0.6088,"rot":0,"form":"deck","dims":{"L":0.172,"W":0.498,"H":0.228,"profile":[1,0.9985,0.9808,0.9272,0.8739,0.7659,0.6319,0.4622,0.3829]}}],
-  floatplane: [{"bay":"nose","capacity":13,"along":-0.2529,"lv":0.601,"rot":0,"form":"deck","dims":{"L":0.303,"W":0.225,"H":0.22,"profile":[1,1,1,1,1,1,1,1,1]}}],
+  // TANK-FIT (the user, 3 Nov: "Yes"): the refitted 13 L deck tank stood 3 mm into a frame tube (the drawn clearance);
+  // the card's nose tank is the nose's own auto-fit now (_cage_energy.js noseAuto), shaped on the card as built
+  floatplane: [{"bay":"nose","capacity":13,"along":null,"lv":null,"rot":0,"form":"box","dims":null,"fit":"auto"}],
   pusherPod: [{"bay":"nose","capacity":29,"along":-0.2454,"lv":0.5,"rot":0,"form":"box","dims":{"L":0.399,"W":0.58,"H":0.15}}],
   radial: [{"bay":"nose","capacity":44,"along":-0.1636,"lv":0.5435,"rot":0,"form":"deck","dims":{"L":0.217,"W":0.809,"H":0.303,"profile":[1,1,1,1,1,0.9943,0.9773,0.9038,0.8796]}}],
   ttail: [{"bay":"nose","capacity":56,"along":-0.1513,"lv":0.571,"rot":0,"form":"deck","dims":{"L":0.302,"W":0.808,"H":0.275,"profile":[1,1,1,1,1,0.9925,0.9701,0.8983,0.8743]}}],
@@ -118087,7 +118132,9 @@ function extAt(cache, sL) {
   return E[E.length - 1];
 }
 
-function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
+// opts.noFit (TANK-FIT, 2026-11-03): skip the corners-against-the-sections fit (the layer's verdict is the drawn
+// clearance now, and this fit was most of a placement's cost) - `fitsSkin` then reads true and `clear` null
+function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache, opts) {
   const out = { on: 'body', ok: false, why: [] };
   if (!B_ || !mesh || !bay) { out.why.push('no bay'); return out; }
   const wallU = (wall == null ? 0.035 : wall) / FS;
@@ -118182,7 +118229,7 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   const prof = cache ? cache.prof
     : B_.bayProfile(mesh, s0 - pad, s1 + pad, wallU,
                     Math.max(4, Math.ceil((s1 - s0) / (0.08 / FS)) + 2));
-  const fit = B_.baySolidFits(prof, samples);
+  const fit = (opts && opts.noFit) ? { fits: true, worst: Infinity, at: null, outside: 0 } : B_.baySolidFits(prof, samples);
 
   // inside its BAY: every sample's station within [x0, x1], and its height
   // within the band (the band is where the bay is, the skin is where the body is)
@@ -119454,12 +119501,20 @@ if (typeof module !== 'undefined') module.exports = API;
 'use strict';
 (() => {
 
+// TANK-FIT: the file's own binding for Math (and the typed arrays). Under node's vm (every gate, every headless
+// tool) a global name is looked up through the context's interceptor on each use, and the clearance's loops say
+// Math.floor a million times a rebuild: ugly_bi's surface index read 160 ms there and 30 ms out of it. One lookup
+// here; the same objects, so nothing else changes.
+const GL_ = typeof globalThis !== 'undefined' ? globalThis : window;      // (GATE PARTS loads this under a stub window)
+const Math = window.Math || GL_.Math, Float64Array = window.Float64Array || GL_.Float64Array,
+      Int32Array = window.Int32Array || GL_.Int32Array, Uint16Array = window.Uint16Array || GL_.Uint16Array;
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const HAS_DOM = typeof document !== 'undefined';
 const inGame = () => !!window.CAGE_IN_GAME;
 const VG = () => window.VESSEL_GEN;
 const BAY = () => window.BAY_SITE;
 const CG2 = () => window.CAGE2;
+const msNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 // ---------------------------------------------------------------------------
 // THE STATE — a view of spec.energy
@@ -119508,7 +119563,7 @@ function fromSpec(energy, spec) {
   EN.hue = +E.hue || 0;
   EN.tint = E.tint || null;
   EN.vessels = Array.isArray(E.vessels) && E.vessels.length
-    ? E.vessels.map(v => ({ bay: v.bay || 'nose', capacity: +v.capacity || 0,
+    ? E.vessels.map(v => Object.assign({ bay: v.bay || 'nose', capacity: +v.capacity || 0,
         along: v.along == null ? null : +v.along,
         lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
         // a round tank or a squared one — geometry, and the capacity follows
@@ -119522,7 +119577,10 @@ function fromSpec(energy, spec) {
         // says about every tank it carries.
         finish: FINISH[v.finish] ? v.finish : null,
         hue: v.hue == null ? null : +v.hue || 0,
-        tint: v.tint || null }))
+        tint: v.tint || null },
+        // TANK-FIT Part 2: a nose tank fitted to the nose (and the gap under its deck, when the player set one)
+        v.fit === 'auto' ? { fit: 'auto' } : {}, v.gap != null && isFinite(+v.gap) ? { gap: +v.gap } : {},
+        v.room != null && isFinite(+v.room) ? { room: +v.room } : {}))
     : defaultVessels();
   seeded = true;
   savePrefs();
@@ -119542,7 +119600,8 @@ function toSpec() {
              dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
              finish: v.finish || null,
              hue: v.hue == null ? null : v.hue,
-             tint: v.tint || null })) };
+             tint: v.tint || null,
+             ...(v.fit === 'auto' ? { fit: 'auto' } : {}), ...(v.gap != null ? { gap: v.gap } : {}), ...(v.room != null ? { room: v.room } : {}) })) };
 }
 
 // the bench remembers; the game's memory is the spec
@@ -119652,6 +119711,11 @@ function measureBays(S, ctx) {
       if (!(key in FIELD_L)) FIELD_L[key] = r.litresField;
     }
     r.roomL = r.litresField != null ? r.litresField : r.litres;
+    // TANK-FIT case A: a bay the body ends in, continued by a pusher's cowl - its room is the cowl's (the slider's top)
+    if (r.on === 'body' && ctx.mesh && VG() && !legacyFit() && !(r.roomL > 5)) {
+      bayCacheOf(ctx, r, zFwOf());
+      if (r.cowl) r.roomL = cowlLitres(ctx, r, zFwOf());
+    }
     // G2799: a bay that holds a vessel is swept now rather than in the layout
     // (the same sweep, read back there), so the panel drawn before the layout
     // shows its fore/aft slider over the hand's range
@@ -119773,6 +119837,101 @@ function wingSlicer(ctx, inv, plane) {
   };
 }
 
+// TANK-FIT: THE SLICER IS KEPT WHILE THE WING IS THE SAME. A slicer walks every vertex of the wing group per station
+// it is asked (and keeps its answers), and placeAll made a fresh one per layout: the twin's wing tank cost 150 ms of
+// every relayout - every drag tick of any tank - re-slicing a wing that had not moved. Kept per plane, by the wing
+// group itself (a wing row rebuilds it), its placement and the layer frame.
+let SLICERS = { key: null, by: {} };
+function slicerOf(ctx, inv, plane) {
+  const W0 = window.CAGE_WING;
+  const W = (plane && W0 && W0.planes && W0.planes[plane]) ? W0.planes[plane] : W0;
+  if (!W || !W.group || legacyFit()) return wingSlicer(ctx, inv, plane || undefined);
+  W.group.updateMatrixWorld(true);
+  const key = (W0.group ? W0.group.id : 'x') + ':' + matSig(inv);
+  if (SLICERS.key !== key) SLICERS = { key, by: {} };
+  const k = (plane || 0) + ':' + W.group.id + ':' + matSig(W.group.matrixWorld);
+  if (!(k in SLICERS.by)) SLICERS.by[k] = wingSlicer(ctx, inv, plane || undefined);
+  return SLICERS.by[k];
+}
+// THE COWL, MEASURED (TANK-FIT case A). Its reach along the body (axis metres, the ledger's) off the cowl layer's own
+// triangles in the clearance soup, and its inner section at a station by four rays from its axis (up, down, port,
+// starboard) against the cowl's triangles alone - the engine inside it is the clearance's business, not the bay's.
+function layerInv(ctx) {
+  if (!ctx || !ctx.scene || !window.THREE) return null;
+  ctx.scene.updateMatrixWorld(true);
+  return new THREE.Matrix4().copy(ctx.scene.matrixWorld).invert();
+}
+function cowlReach(ctx, zFw) {
+  if (zFw == null) return null;
+  const inv = LAST.inv || layerInv(ctx);
+  if (!inv) return null;
+  const S = surfAll(ctx, ctx.scene, inv);
+  if (S._cowl !== undefined && S._cowlZ === zFw) return S._cowl;
+  const tc = TAG_IX.get('cowl'), b = S.buf, FS = fsOf(ctx);
+  let z0 = Infinity, z1 = -Infinity, n = 0;
+  if (tc != null) for (let i = S.nSheet || 0; i < S.n; i++) {
+    if (S.tag[i] !== tc) continue;
+    const o = i * 15;
+    // the BODY's cowl only: a triangle off the centreline (a wing nacelle's cowl, a prop blade's tip) is not the
+    // body going on (the validated twin floatplane's nacelles read as a cowl past its pod: every cabin bay broke)
+    if (b[o + 9] > 0.25 || b[o + 12] < -0.25) continue;
+    n++;
+    if (b[o + 11] < z0) z0 = b[o + 11]; if (b[o + 14] > z1) z1 = b[o + 14];
+  }
+  // along = metres aft of the datum: zFw (cage units) x FS less the layer's z
+  S._cowlZ = zFw;
+  S._cowl = n ? { x0: zFw * FS - z1, x1: zFw * FS - z0, n } : null;
+  return S._cowl;
+}
+function cowlSection(ctx, zL) {
+  const inv = LAST.inv || layerInv(ctx);
+  if (!inv) return null;
+  const S = surfAll(ctx, ctx.scene, inv), O = obstIndex(S), tc = TAG_IX.get('cowl');
+  if (tc == null || !O.n) return null;
+  // the axis height at this station: the middle of the cowl's own triangles within 3 cm of it
+  const b = S.buf;
+  let y0 = Infinity, y1 = -Infinity;
+  obstEach(O, [-2, -5, zL - 0.03], [2, 5, zL + 0.03], i => {
+    if (S.tag[i] !== tc) return;
+    const o = i * 15;
+    if (b[o + 14] < zL - 0.03 || b[o + 11] > zL + 0.03) return;
+    if (b[o + 10] < y0) y0 = b[o + 10]; if (b[o + 13] > y1) y1 = b[o + 13];
+  });
+  if (!(y1 > y0)) return null;
+  const c = [0, 0.5 * (y0 + y1), zL], far = 2;
+  const hit = (dx, dy) => { const h = obstSeg(O, c, [c[0] + dx * far, c[1] + dy * far, zL], tc); return h ? h.t * far : null; };
+  const up = hit(0, 1), dn = hit(0, -1), lf = hit(-1, 0), rt = hit(1, 0);
+  if (up == null || dn == null || lf == null || rt == null) return null;
+  return { yLo: c[1] - dn, yHi: c[1] + up, xLo: -lf, xHi: rt };
+}
+// the litres the cowl's sections hold over the bay (an ellipse in each section's box, the band's share)
+function cowlLitres(ctx, bay, zFw) {
+  const FS = fsOf(ctx), a0 = Math.max(bay.x0, bay.cowl.x0), a1 = Math.min(bay.cowl.x1, Math.max(bay.x1, bay.hx1 || bay.x1));
+  const lvB = bay.lv || [0, 1];
+  let L = 0;
+  for (let a = a0 + 0.025; a < a1; a += 0.05) {
+    const sc = cowlSection(ctx, zFw * FS - a);
+    if (sc) L += Math.PI / 4 * (sc.xHi - sc.xLo) * (sc.yHi - sc.yLo) * (lvB[1] - lvB[0]) * 0.05 * 1000;
+  }
+  return L;
+}
+// a body vessel in the cowl: bodyPlace's answer (centre, extents, turn), off the cowl's own section
+function cowlPlace(ctx, bay, v, dims, zFw) {
+  const FS = fsOf(ctx), along = v.along != null ? v.along : bay.x0 + dims.L / 2 + 0.02;
+  const zL = zFw * FS - along;
+  const sec = cowlSection(ctx, zL);
+  const out = { on: 'body', ok: false, why: [], cowl: true };
+  if (!sec) { out.why.push('no cowl section at ' + along.toFixed(2) + ' m'); return out; }
+  const lvB = bay.lv || [0, 1], H = sec.yHi - sec.yLo;
+  const bandLo = sec.yLo + lvB[0] * H, bandHi = sec.yLo + lvB[1] * H;
+  const lv = v.lv != null ? v.lv : 0.5;
+  const yc0 = bandLo + lv * (bandHi - bandLo);
+  const yc = Math.max(bandLo + dims.H / 2, Math.min(bandHi - dims.H / 2, yc0)) || 0.5 * (bandLo + bandHi);
+  const rot = (v.rot || 0) * Math.PI / 180;
+  Object.assign(out, { ok: true, c: [0, yc, zL], e: [dims.W / 2, dims.H / 2, dims.L / 2], rot, along, lv,
+    section: { yLo: sec.yLo, yHi: sec.yHi, xLo: sec.xLo, xHi: sec.xHi, band: [bandLo, bandHi] }, outsideHand: 0, inBand: true, fitsSkin: true });
+  return out;
+}
 // A TANK WITH NO STATION TAKES THE USER'S RULE, and then it HAS one: nose bay
 // against the firewall and high, every other bay on the floor against the aft
 // bulkhead (VESSEL_GEN.defaultSpot). The spot is WRITTEN INTO THE VESSEL,
@@ -119791,6 +119950,10 @@ function bayCacheOf(ctx, bay, zFw) {
   // below rewrites x0/x1, and a second vessel in the same bay must not
   // read a different key off the clamped numbers and sweep again
   if (!bay._ck) bay._ck = bayKey(bay, zFw);
+  // the clamps below start from the RULE's limits every call (TANK-FIT: a second call on the same bay object read its
+  // own clamped limits back - the cowl's continuation, asked after a legacy pass, collapsed the bay)
+  if (!bay._rx) bay._rx = [bay.x0, bay.x1];
+  else { bay.x0 = bay._rx[0]; bay.x1 = bay._rx[1]; }
   if (!(bay._ck in BAY_CACHES))
     BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
   const c = BAY_CACHES[bay._ck];
@@ -119800,12 +119963,25 @@ function bayCacheOf(ctx, bay, zFw) {
   // slider both start at a station a tank can actually be at. Every
   // call, not only the sweeping one: BAYS is measured afresh each build
   // and the clamp lives on the bay object, not in the cache.
+  // TANK-FIT case A: ...EXCEPT WHERE THE BODY GOES ON AS A COWL. A cowled pusher's body ends at the bulkhead its
+  // engine stands behind, and the cowl over the engine is the cowl layer's, not the sheet's: the field stops there,
+  // and the twin's 'behind the cabin' bay (1.85-2.15 m) - wholly inside that cowl - was clamped to nothing (0 L,
+  // every tank 'past the body') with the cowl's front half empty. The cowl's own reach aft (cowlReach) continues
+  // the bay: placed there by the cowl's measured section (cowlPlace), judged by the drawn clearance like any tank.
+  const cw = !legacyFit() && c && c.axisMax != null ? cowlReach(ctx, zFw) : null;
+  bay.cowl = null;
+  if (cw && cw.x1 > c.axisMax + 0.05 && bay.x1 > c.axisMax - 0.05) {
+    bay.cowl = { x0: c.axisMax, x1: cw.x1 };
+    if (bay.x0 > c.axisMax - 0.01 && !bay._ruleX) bay._ruleX = [bay.x0, bay.x1];
+    bay.x1 = Math.min(bay.x1, cw.x1 - 0.01);
+    if (bay.x0 >= bay.x1 - 0.05) bay.x0 = Math.max(c.axisMax - 0.3, bay.x1 - 0.3);
+  } else if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
   if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
-  if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
   // G2799: the HAND's range, wider than the rule's (VESSEL_GEN.handRange):
   // the fore/aft slider and the readout read it, the defaults never do
   const h = G.handRange ? G.handRange(bay, c) : null;
   if (h) { bay.hx0 = h[0]; bay.hx1 = h[1]; }
+  if (bay.cowl) bay.hx1 = Math.max(bay.hx1 != null ? bay.hx1 : bay.x1, bay.cowl.x1 - 0.01);
   return c;
 }
 function placeAll(ctx, inv) {
@@ -119823,11 +119999,11 @@ function placeAll(ctx, inv) {
   const FS = fsOf(ctx);
   const W = window.CAGE_WING;
   const semi = W ? (W.semi || (W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi) || 0) : 0;
-  const slice = W ? wingSlicer(ctx, inv) : null;
+  const slice = W ? slicerOf(ctx, inv, 0) : null;
   // G185: the second plane's own semispan and slice, for its bays
   const semiOf = k => (k && W && W.planes && W.planes[k] && W.planes[k].semi) || semi;
   const sliceCache = { 0: slice };
-  const sliceOf = k => { if (!(k in sliceCache)) sliceCache[k] = W ? wingSlicer(ctx, inv, k) : null; return sliceCache[k]; };
+  const sliceOf = k => { if (!(k in sliceCache)) sliceCache[k] = W ? slicerOf(ctx, inv, k) : null; return sliceCache[k]; };
   // the datum the ledger bills against, read off this cage's own rings
   const zFw = G.firewallZ ? G.firewallZ(ctx.spec, CG2()) : null;
   // G1985 (JOIN-PARITY): A SHAPE IS NOT WRITTEN AGAINST A CREW STILL ON THE WIRE. A body tank without its own
@@ -119837,6 +120013,14 @@ function placeAll(ctx, inv) {
   // (The user's Cub booted to a 29 L tank shaped against the waiting crew and loaded from the shelf to 27 L.)
   const crewPending = !FIT_ASKING && typeof window.CAGE_CREW_PENDING === 'function' && window.CAGE_CREW_PENDING();
   for (const v of EN.vessels) {
+    if (v.bay === 'strut' && !BAYS.find(b => b.key === 'strut') && !legacyFit()) {
+      const res0 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
+      results.push({ on: 'strut', ok: false, unmounted: true, pods: [], v, res: res0, needL: res0.installedL, roomL: 0,
+        bay: { key: 'strut', name: 'On the lift struts', on: 'strut', span: [0.25, 0.8] },
+        why: ['this aeroplane has no lift struts to hang it on: the pod is not fitted and carries no fuel (give the wing ' +
+              'its struts back, or move the tank to another bay)'] });
+      continue;
+    }
     const bay = BAYS.find(b => b.key === v.bay) || BAYS.find(b => b.on === 'body');
     if (!bay) continue;
     const prov = crewPending && bay.on === 'body' && (!v.dims || v.along == null || v.lv == null)
@@ -119850,7 +120034,7 @@ function placeAll(ctx, inv) {
     const res = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
                                 v.capacity, vesselKey(), medium());
     let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
-    let pl;
+    let pl, resOver = null, autoY = null;
     if (bay.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared by
       // the pair, an ogive on the strut's own axis at `along` of its length
@@ -119883,8 +120067,14 @@ function placeAll(ctx, inv) {
         // Its centre stays ON the strut, so the frame's billing on the
         // strut's end nodes (61_gen_frame.js, the `along` lever) is still
         // where the pod is drawn.
-        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: [0, 0, 1], L: dims.L, D: dims.W, len, t: t0,
-                    yFoot: s.pin[1], yTop: s.tip[1] });
+        // TANK-FIT (Part 3): THE POD HANGS UNDER THE STRUT, on a short pylon and a clamp round the strut - it was
+        // drawn centred ON the strut's axis, the strut running through it. Its centre is a pylon's height below the
+        // strut at `along` (the frame bills it on the strut's two end nodes by lever: 5-10 cm below them, a
+        // centimetre of CG on a light aeroplane, said here)
+        const hang = legacyFit() ? 0 : dims.W / 2 + PYLON_H;
+        const cp = [c[0], c[1] - hang, c[2]];
+        pods.push({ sign: k === 'L' ? -1 : 1, c: cp, onStrut: c, axis: [0, 0, 1], u, L: dims.L, D: dims.W, len, t: t0,
+                    yFoot: s.pin[1], yTop: s.tip[1], hang });
       }
       if (!pods.length) why.push('no lift strut to hang it on');
       // the clearances, now across the pod's girth: its round body must clear
@@ -119894,6 +120084,11 @@ function placeAll(ctx, inv) {
         if (pd.yTop - (pd.c[1] + pd.D / 2) < 0.05) { why.push('into the wing at the top'); break; }
       }
       pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
+      // ...and against what is drawn there (the fuselage, its gear-legs' fairing in the sheet, the engine, the cowl)
+      if (!legacyFit() && pods.length && ctx.scene) {
+        const pc = podClear(ctx, ctx.scene, inv, pods);
+        if (pc) { pl.ok = false; pl.why.push(pc.why); pl.clash = { at: pc.at, marks: [] }; }
+      }
     } else if (bay.on === 'wing') {
       const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
       // G445.2: THE DRAWN SKIN, top and bottom, at any (span, chord) - the
@@ -119949,6 +120144,26 @@ function placeAll(ctx, inv) {
                               v.along > Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
         v.along = null; v.lv = null;
       }
+      // TANK-FIT Part 2: THE NOSE TANK FITTED TO THE NOSE (noseAuto): its shape, station and level, every layout
+      // (the body moves, the tank follows), written into the vessel - the ledger bills what is drawn
+      if (noseAutoWanted(v, bay) && !FIT_AUTO_SKIP) {
+        const na = noseAuto(ctx, inv, bay, v, zFw, cache);
+        if (na && na.pending) {
+          // the shaping is on its way (sliced): nothing drawn, nothing written; the slice that finishes lays out again
+          results.push({ on: 'body', ok: true, pending: true, why: [], v, bay, res, dims, needL: res.installedL, roomL: bay.roomL, crewHits: 0 });
+          continue;
+        }
+        if (na && na.dims && !na.why) {
+          const same = v.form === 'deck' && v.dims && JSON.stringify(v.dims) === JSON.stringify(na.dims) && v.along === na.along && v.lv === na.lv;
+          if (!same) { v.form = 'deck'; v.dims = na.dims; v.along = na.along; v.lv = na.lv; v.rot = 0; v.fit = 'auto'; wroteBack = true; }
+          v.capacity = capacityFromDims(v.dims, 'deck');
+          v.shaped = 'auto';
+          resOver = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
+          dims = G.vesselDims(vesselKey(), resOver.installedL, v.dims, 'deck');
+          delete v.autoWhy;
+          autoY = na.yc;
+        } else if (na && na.why) v.autoWhy = na.why;
+      }
       // THE CATALOGUE SHAPE CANNOT FIT THIS BAY EITHER WAY ROUND: give the
       // vessel a bay-shaped box instead, litres capped by what fits — the
       // user's "geometry generated, capacity constrained to volume". Decided
@@ -119997,6 +120212,14 @@ function placeAll(ctx, inv) {
           }
         }
       }
+      if ((v.along == null || v.lv == null) && bay.cowl && bay._ruleX && bay._ruleX[0] >= bay.cowl.x0 - 0.05) {
+        // TANK-FIT case A: a bay wholly in a pusher's cowl - the tank stands against the bulkhead it is behind (the
+        // body's aft face, the engine's firewall), mid-height: the rule's 'aft bulkhead' there is the engine
+        const spot = G.defaultSpot(bay, dims);
+        v.along = Math.round((bay.cowl.x0 + (spot.rot ? dims.W : dims.L) / 2 + 0.03) * 1000) / 1000;
+        v.lv = 0.5; v.rot = spot.rot;
+        wroteBack = true;
+      }
       if (v.along == null || v.lv == null) {
         const spot = G.defaultSpot(bay, dims);
         v.along = spot.along; v.rot = spot.rot;
@@ -120009,18 +120232,29 @@ function placeAll(ctx, inv) {
         v.lv = (st && st.settled) ? st.lv : spot.lv;
         wroteBack = true;
       }
-      pl = G.bodyPlace(ctx.mesh, FS, bay, v, dims, 0.035, zFw, cache);
+      if (autoY != null) { AUTO_ZFW = zFw * FS; pl = autoPlace(v, dims, autoY); }
+      else pl = G.bodyPlace(ctx.mesh, FS, bay, v, dims, 0.035, zFw, cache, legacyFit() ? null : { noFit: true });
+      if (!pl.c && bay.cowl && v.along != null && v.along >= bay.cowl.x0 - dims.L / 2) pl = cowlPlace(ctx, bay, v, dims, zFw);
+      // TANK-FIT: the bay fit's corners at a 35 mm wall, the band and the hand's range are KEPT as readings
+      // (pl.rule) and no longer decide: the drawn clearance does (judgeTank, after the placement). A tank the
+      // placement could not put anywhere (no station: past the body) stays red with its reason.
+      if (!legacyFit()) {
+        pl.rule = { ok: pl.ok, why: pl.why.slice() };
+        if (pl.c) { pl.ok = true; pl.why = []; }
+      }
     }
     if (prov) {
       Object.assign(v, prov.keep);
       if (prov.had) v.shaped = prov.shaped; else delete v.shaped;
       wroteBack = prov.wb;
     }
-    pl.v = v; pl.bay = bay; pl.res = res; pl.dims = dims;
-    pl.needL = res.installedL;
+    pl.v = v; pl.bay = bay; pl.res = resOver || res; pl.dims = dims;
+    pl.needL = pl.res.installedL;
+    if (v.autoWhy && noseAutoWanted(v, bay)) { pl.ok = false; pl.why.push(v.autoWhy); }
     pl.roomL = bay.roomL;
     pl.fitsRoom = pl.roomL > 0 && pl.needL <= pl.roomL;
-    if (!pl.fitsRoom) pl.why.push('the bay holds ' + (pl.roomL || 0).toFixed(0) + ' L');
+    // (a body tank's room is what is drawn round it - TANK-FIT - the swept litres are the slider's top, not a verdict)
+    if (!pl.fitsRoom && !(pl.on === 'body' && !legacyFit())) { pl.ok = false; pl.why.push('the bay holds ' + (pl.roomL || 0).toFixed(0) + ' L'); }
     pl.crewHits = 0;
     results.push(pl);
   }
@@ -120082,16 +120316,53 @@ function crewPoints(scene, inv) {
     meshes.push(o); n += pos.count;
   });
   const buf = new Float64Array(n * 3);
+  // TANK-FIT: what each point belongs to (the verdict names it: a crew member, a seat, the controls), by mesh
+  const owner = new Uint16Array(n), words = [];
   let k = 0;
   for (const o of meshes) {
     const pos = o.geometry.getAttribute('position');
+    let nm = (o.userData && o.userData.charPick) ? 'pick' : '';
+    for (let q = o; q && !nm && q !== crew; q = q.parent) if (q.name) nm = q.name;
+    const wi = words.length; words.push(crewWord(nm));
+    // one matrix a mesh (inv x matrixWorld), applied by hand: the same numbers as the two applyMatrix4 calls to the
+    // rounding, at a fraction of the cost (27 000 points a seat)
+    const Mx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld).elements;
+    const A = pos.array, st = pos.isInterleavedBufferAttribute ? pos.data.stride : pos.itemSize, off = pos.offset || 0;
+    const plain = !pos.normalized && A && st >= 3;
     for (let i = 0; i < pos.count; i++) {
-      V.set(pos.getX(i), pos.getY(i), pos.getZ(i))
-        .applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-      buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
+      let x, y, z;
+      if (plain) { const j = i * st + off; x = A[j]; y = A[j + 1]; z = A[j + 2]; }
+      else { x = pos.getX(i); y = pos.getY(i); z = pos.getZ(i); }
+      const w = 1 / (Mx[3] * x + Mx[7] * y + Mx[11] * z + Mx[15]);
+      owner[k / 3] = wi;
+      buf[k++] = (Mx[0] * x + Mx[4] * y + Mx[8] * z + Mx[12]) * w;
+      buf[k++] = (Mx[1] * x + Mx[5] * y + Mx[9] * z + Mx[13]) * w;
+      buf[k++] = (Mx[2] * x + Mx[6] * y + Mx[10] * z + Mx[14]) * w;
     }
   }
-  return { buf, n, grid: crewGrid(buf, n) };
+  return { buf, n, grid: crewGrid(buf, n), word: i => words[owner[i]] || 'the crew', sig: crewSig(crew, inv) };
+}
+// THE CREW IS GATHERED WHEN IT CHANGES (TANK-FIT): relayout dropped the points on every call (27 000 a seat, through
+// two matrices, and their grid, every drag tick). The key: the crew layer's meshes themselves, their vertex counts,
+// where they are, and a few of their vertices (a body re-posed in place moves them).
+function crewSig(crew, inv) {
+  let sg = inv ? String(matSig(inv)) : 'x';
+  crew.traverse(o => {
+    if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
+    const pos = o.geometry.getAttribute('position'); if (!pos) return;
+    let h = 0;
+    for (const i of [0, pos.count >> 1, pos.count - 1]) h = (h * 31 + Math.round(pos.getX(i) * 1e4) * 7 + Math.round(pos.getY(i) * 1e4) * 13 + Math.round(pos.getZ(i) * 1e4)) | 0;
+    sg += '|' + o.id + ':' + pos.count + ':' + matSig(o.matrixWorld) + ':' + h;
+  });
+  return sg;
+}
+function crewFresh(scene, inv) {
+  if (!CREW_PTS || legacyFit()) return false;
+  let crew = null;
+  if (scene) for (const ch of scene.children) if ((ch.name || '') === 'cageLayer:crew') crew = ch;
+  if (!crew) return CREW_PTS.n === 0;
+  crew.updateMatrixWorld(true);
+  return CREW_PTS.sig === crewSig(crew, inv);
 }
 // THE CREW'S POINTS BY CELL (GARAGE-LAG, 27 Oct). Since G3700 the crew is the
 // racer's POSED body - some 27 000 vertices a seat, sitting right beside the
@@ -120104,19 +120375,24 @@ function crewPoints(scene, inv) {
 const CREW_CELL = 0.05;
 function crewGrid(buf, n) {
   if (!n) return null;
-  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < n; i++)
-    for (let a = 0; a < 3; a++) { const v = buf[i * 3 + a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
-  if (![0, 1, 2].every(a => isFinite(lo[a]) && isFinite(hi[a]))) return null;
+  let lx = Infinity, ly = Infinity, lz = Infinity, hx = -Infinity, hy = -Infinity, hz = -Infinity;
+  for (let i = 0, j = 0; i < n; i++, j += 3) {
+    const x = buf[j], y = buf[j + 1], z = buf[j + 2];
+    if (x < lx) lx = x; if (x > hx) hx = x; if (y < ly) ly = y; if (y > hy) hy = y; if (z < lz) lz = z; if (z > hz) hz = z;
+  }
+  if (!(isFinite(lx) && isFinite(hx) && isFinite(ly) && isFinite(hy) && isFinite(lz) && isFinite(hz))) return null;
+  const lo = [lx, ly, lz], hi = [hx, hy, hz];
   const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / CREW_CELL) + 1));
   if (N[0] * N[1] * N[2] > 4e6) return null;          // a crew strewn kilometres apart: walk them all
-  const cellOf = i => {
-    let c = 0;
-    for (let a = 0; a < 3; a++) c = c * N[a] + Math.min(N[a] - 1, Math.floor((buf[i * 3 + a] - lo[a]) / CREW_CELL));
-    return c;
-  };
-  const nc = N[0] * N[1] * N[2], start = new Int32Array(nc + 1), cell = new Int32Array(n);
-  for (let i = 0; i < n; i++) start[(cell[i] = cellOf(i)) + 1]++;
+  // (flat loops, TANK-FIT: a closure a point with three-element arrays was 90 ms a crew of 80 000 points)
+  const N0 = N[0], N1 = N[1], N2 = N[2], ic = 1 / CREW_CELL;
+  const nc = N0 * N1 * N2, start = new Int32Array(nc + 1), cell = new Int32Array(n);
+  for (let i = 0, j = 0; i < n; i++, j += 3) {
+    let cx = Math.floor((buf[j] - lx) * ic), cy = Math.floor((buf[j + 1] - ly) * ic), cz = Math.floor((buf[j + 2] - lz) * ic);
+    if (cx > N0 - 1) cx = N0 - 1; if (cy > N1 - 1) cy = N1 - 1; if (cz > N2 - 1) cz = N2 - 1;
+    const c = (cx * N1 + cy) * N2 + cz;
+    cell[i] = c; start[c + 1]++;
+  }
   for (let c = 0; c < nc; c++) start[c + 1] += start[c];
   const at = start.slice(0, nc), idx = new Int32Array(n);
   for (let i = 0; i < n; i++) idx[at[cell[i]]++] = i;
@@ -120231,39 +120507,51 @@ let SURF_ALL = null;
 // sheet's part is kept with the sheet (a WeakMap on the mesh object, by the scale it was built at: a release keeps the
 // sheet, and its triangles are the same numbers)
 const SHEET_SOUP = new WeakMap();
+// what each triangle IS (TANK-FIT): the sheet's material name, or the layer it came from - the verdict names it
+const TAG_NAMES = [], TAG_IX = new Map();
+function tagOf(name) { let i = TAG_IX.get(name); if (i == null) { i = TAG_NAMES.length; TAG_NAMES.push(name); TAG_IX.set(name, i); } return i; }
 function soupAdd(buf, n, ax, ay, az, bx, by, bz, cx, cy, cz) {
   const o = n * 15;
   buf[o] = ax; buf[o + 1] = ay; buf[o + 2] = az;
   buf[o + 3] = bx - ax; buf[o + 4] = by - ay; buf[o + 5] = bz - az;
   buf[o + 6] = cx - ax; buf[o + 7] = cy - ay; buf[o + 8] = cz - az;
-  buf[o + 9] = Math.min(ax, bx, cx); buf[o + 10] = Math.min(ay, by, cy); buf[o + 11] = Math.min(az, bz, cz);
-  buf[o + 12] = Math.max(ax, bx, cx); buf[o + 13] = Math.max(ay, by, cy); buf[o + 14] = Math.max(az, bz, cz);
+  buf[o + 9] = ax < bx ? (ax < cx ? ax : cx) : (bx < cx ? bx : cx);
+  buf[o + 10] = ay < by ? (ay < cy ? ay : cy) : (by < cy ? by : cy);
+  buf[o + 11] = az < bz ? (az < cz ? az : cz) : (bz < cz ? bz : cz);
+  buf[o + 12] = ax > bx ? (ax > cx ? ax : cx) : (bx > cx ? bx : cx);
+  buf[o + 13] = ay > by ? (ay > cy ? ay : cy) : (by > cy ? by : cy);
+  buf[o + 14] = az > bz ? (az > cz ? az : cz) : (bz > cz ? bz : cz);
 }
 function sheetSoup(M, FS) {
   const k = window.RELEASE_FAST_OFF ? null : SHEET_SOUP.get(M);
   if (k && k.FS === FS) return k;
   let nT = 0;
   for (const f of M.F) { const v = f.v; if (v && v.length >= 3) nT += v.length - 2; }
-  const buf = new Float64Array(nT * 15);
+  const buf = new Float64Array(nT * 15), tag = new Uint16Array(nT);
   let n = 0;
   for (const f of M.F) {
     const v = f.v; if (!v || v.length < 3) continue;
+    const tg = tagOf(f.m || 'sheet');
     for (let i = 1; i + 1 < v.length; i++) {
       const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
+      tag[n] = tg;
       soupAdd(buf, n++, A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
     }
   }
-  const out = { FS, buf, n };
+  const out = { FS, buf, n, tag };
   SHEET_SOUP.set(M, out);
   return out;
 }
+// TANK-FIT (3 Nov): THE SOUP IS KEPT WHILE WHAT IT WAS BUILT OFF IS THE SAME. relayout dropped it on every call, and
+// a tank drag is a relayout per tick: the engine and the cowl walked afresh (a sixth of ugly_bi's 84 ms tick) over
+// meshes that had not moved. The key is the sheet object, the layer meshes themselves (each rebuild of a layer makes
+// new ones) with their placement, and the layer frame (inv) by value.
+const matSig = m => { let h = 0; const e = m.elements; for (let i = 0; i < 16; i++) h = (h * 31 + Math.round(e[i] * 1e5)) | 0; return h; };
 function surfAll(ctx, scene, inv) {
-  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL;
   const M = ctx && ctx.mesh;
-  const sh = (M && M.F && M.V) ? sheetSoup(M, (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1)) : null;
   // the engine's and the cowl's meshes, counted first
   const objs = [];
-  let nL = 0;
+  let nL = 0, sig = inv ? String(matSig(inv)) : 'x';
   if (scene && inv && window.THREE) {
     for (const ch of scene.children) {
       if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
@@ -120272,29 +120560,45 @@ function surfAll(ctx, scene, inv) {
         const pos = o.geometry.getAttribute('position'); if (!pos) return;
         const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
         objs.push(o); nL += Math.floor(nT) === nT ? nT : Math.ceil(nT);
+        sig += '|' + o.id + ':' + pos.count + ':' + matSig(o.matrixWorld);
       });
     }
   }
+  if (SURF_ALL && SURF_ALL.mesh === M && SURF_ALL.sig === sig) return SURF_ALL;
+  const TS0 = msNow();
+  const sh = (M && M.F && M.V) ? sheetSoup(M, (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1)) : null;
   const nS = sh ? sh.n : 0;
-  const buf = new Float64Array((nS + nL) * 15);
-  if (sh) buf.set(sh.buf.subarray(0, nS * 15));
+  const buf = new Float64Array((nS + nL) * 15), tag = new Uint16Array(nS + nL);
+  if (sh) { buf.set(sh.buf.subarray(0, nS * 15)); if (sh.tag) tag.set(sh.tag.subarray(0, nS)); }
   let n = nS;
   if (objs.length) {
-    const V = new THREE.Vector3(), Q = [[], [], []];
+    const Q = new Float64Array(9);
     for (const o of objs) {
       const pos = o.geometry.getAttribute('position');
       const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
+      let top = o; while (top.parent && !HIT_LAYERS.includes(top.name || '')) top = top.parent;
+      const tg = tagOf(top.name === 'cageLayer:eng' ? 'engine' : 'cowl');
+      // one matrix a mesh (inv x matrixWorld), by hand (TANK-FIT: two applyMatrix4 a vertex were most of the soup)
+      const Mx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld).elements;
+      const A = pos.array, st = pos.isInterleavedBufferAttribute ? pos.data.stride : pos.itemSize, off = pos.offset || 0;
+      const plain = !pos.normalized && A && st >= 3, I = idx ? idx.array : null;
       for (let t = 0; t < nT; t++) {
+        tag[n] = tg;
         for (let k = 0; k < 3; k++) {
-          const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
-          V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-          Q[k] = [V.x, V.y, V.z];
+          const vi = I ? I[t * 3 + k] : t * 3 + k;
+          let x, y, z;
+          if (plain) { const j = vi * st + off; x = A[j]; y = A[j + 1]; z = A[j + 2]; }
+          else { x = pos.getX(vi); y = pos.getY(vi); z = pos.getZ(vi); }
+          const w = 1 / (Mx[3] * x + Mx[7] * y + Mx[11] * z + Mx[15]);
+          Q[k * 3] = (Mx[0] * x + Mx[4] * y + Mx[8] * z + Mx[12]) * w;
+          Q[k * 3 + 1] = (Mx[1] * x + Mx[5] * y + Mx[9] * z + Mx[13]) * w;
+          Q[k * 3 + 2] = (Mx[2] * x + Mx[6] * y + Mx[10] * z + Mx[14]) * w;
         }
-        soupAdd(buf, n++, Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
+        soupAdd(buf, n++, Q[0], Q[1], Q[2], Q[3], Q[4], Q[5], Q[6], Q[7], Q[8]);
       }
     }
   }
-  SURF_ALL = { mesh: ctx && ctx.mesh, inv, buf, n };
+  SURF_ALL = { mesh: M, inv, sig, buf, n, tag, ms: msNow() - TS0, nSheet: nS };
   return SURF_ALL;
 }
 // the surfaces a drawn tank must not cross, as triangles in this layer's
@@ -120424,6 +120728,772 @@ function layerHits(scene, inv, results, ctx) {
     r.why.push('through the skin or the frame (' + n + ' drawn points)');
   });
 }
+
+// ===========================================================================
+// THE CLEARANCE, DRAWN AGAINST DRAWN (TANK-FIT, 2026-11-03)
+// ===========================================================================
+// The user, 2 Nov: "the tank collision detection. It is unreliable. I can clearly see that tanks touch nothing and
+// they're still red. There are empty spaces which cannot be accessed." Measured (tools/tank_fit_probe.js, the cases
+// in reports/evidence/TANK-FIT/STATUS.md), the verdict above was four instruments, three of which looked at
+// something other than what is drawn:
+//   - the BAY FIT (bodyPlace): 18-30 corners of the BOX against the bay's sections INSET BY A 35 MM WALL - ugly_bi's
+//     rear tank read "through the skin by 6 mm" with its drawn shell 29 mm clear of the nearest surface;
+//   - the BAND (bodyPlace's inBand) and the HAND'S RANGE (outsideHand): rules, not geometry - nothing drawn there;
+//   - the CREW against the BOX plus 1 cm (crewHits), not the drawn rounded solid;
+//   - the engine and the cowl by vertex-in-box (layerHits), and the drawn shell by segment against the sheet - the
+//     one honest test, and the slowest (60 ms a layout on the 172, redone every drag tick).
+// THIS replaces all of them for a body tank, with one question asked of what is drawn: the tank's own shell, straps,
+// pads and the standoff pieces that stay, against every drawn surface (the sheet: skin, frame, glazing, dash,
+// firewall, bulkheads; the engine; the cowl) and the crew's seated bodies. Red is, and only is:
+//   - a surface THROUGH the tank: a segment from the tank's centre to one of its drawn points crosses a surface
+//     (the depth is how far the point stands past it);
+//   - a surface INSIDE the tank: a surface vertex in the drawn solid;
+//   - NO ROOM: a drawn point closer than CLEAR_GAP to a surface (a tank needs its pads);
+//   - THE CREW: a crew point within CREW_GAP of the drawn solid.
+// Each is reported with its distance and WHAT it meets ("3 mm into the frame (woodFrame), left"), and the contact
+// point rides on the result (r.clash) for the editor's marker. THE SURFACES are indexed once per airframe (a grid of
+// 5 cm cells over the soup, built when the soup is), so a tank asks only the cells it is in: ~1-3 ms a tank, which
+// is what lets a drag be judged every frame.
+// `window.TANK_FIT_LEGACY = true` puts the old four back (the A/B the false-red table was measured with).
+const CLEAR_GAP = 0.005;          // m: a drawn tank closer than this to a drawn surface has no room for its pads
+const CREW_GAP = 0.010;           // m: ...and to a person
+const GRID_CELL = 0.05;           // m
+const NEAR_R = 0.03;              // m: clearances reported up to this; past it the tank is simply clear
+const SAMPLE_STEP = 0.008;        // m: the surfaces round a tank are sampled this fine (under 2 x CLEAR_GAP)
+const legacyFit = () => !!window.TANK_FIT_LEGACY;
+// the words the verdict says for what a tank met (the sheet's material names are the cage's own)
+const TAG_WORDS = { body: 'skin', plywood: 'skin', skin: 'skin', ceilingLoop: 'roof frame', floorLoop: 'floor frame',
+  waistband: 'waist frame', woodFrame: 'frame', joint: 'frame', tube: 'frame', pillarTail: 'pillar', pillarPassenger: 'pillar',
+  pillarCabin: 'pillar', pillarWindow: 'pillar', pillarFront: 'pillar', windshield: 'windscreen', pilotWindow: 'window',
+  pasengerWindow: 'window', skyWindows: 'window', drawnPane: 'window', paneEdge: 'window frame', doorSeal: 'door seal',
+  bulkhead: 'bulkhead', dash: 'dash', dashFace: 'dash', fireProof: 'firewall', firewall: 'firewall', fireSeal: 'firewall',
+  shoulder: 'shoulder', floorBoard: 'floor', seat: 'seat', engine: 'engine', cowl: 'cowl' };
+const tagWord = (ti, p) => {
+  const raw = TAG_NAMES[ti] || 'surface', w = TAG_WORDS[raw] || raw;
+  // the cage's convention (the strut pods: tip x < 0 is L)
+  const side = p && Math.abs(p[0]) > 0.06 ? (p[0] < 0 ? ', left' : ', right') : '';
+  return w + (w !== raw ? ' (' + raw + ')' : '') + side;
+};
+
+// ---- the grid over the soup, TWO LEVELS AND LAZY ------------------------------------------------------------------
+// A full 5 cm grid over an aeroplane's 80-95 000 triangles was 130-175 ms a rebuild (measured, ugly_bi), most of it
+// over cells no tank will ever ask about (the tail, the cowl's front, the engine's far side). So the triangles are
+// dealt into BLOCKS of BLK x BLK x BLK cells (40 cm) once - about one entry a triangle - and a block's own 5 cm cells
+// are built the first time a query reaches it, from its own triangles only. A tank asks a few blocks.
+const BLK = 8;
+let OBST = null;
+let JST = new Float64Array(9 * 256);      // judgeTank's subdivision stack, kept between calls
+function obstIndex(S) {
+  if (OBST && OBST.S === S) return OBST;
+  const T0 = msNow();
+  const b = S.buf, n = S.n;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0, o = 0; i < n; i++, o += 15) for (let a = 0; a < 3; a++) {
+    if (b[o + 9 + a] < lo[a]) lo[a] = b[o + 9 + a];
+    if (b[o + 12 + a] > hi[a]) hi[a] = b[o + 12 + a];
+  }
+  if (!n || ![0, 1, 2].every(a => isFinite(lo[a]) && isFinite(hi[a]))) { OBST = { S, n: 0 }; return OBST; }
+  const cell = GRID_CELL;
+  const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / cell) + 1));
+  const NB = N.map(x => Math.ceil(x / BLK)), nb = NB[0] * NB[1] * NB[2];
+  const l0 = lo[0], l1 = lo[1], l2 = lo[2], ib = 1 / (cell * BLK);
+  const cl = (v, M) => v < 0 ? 0 : v >= M ? M - 1 : v;
+  const bstart = new Int32Array(nb + 1);
+  const rg = new Int32Array(n * 6);
+  for (let i = 0, o = 0; i < n; i++, o += 15) {
+    const k = i * 6;
+    rg[k] = cl(Math.floor((b[o + 9] - l0) * ib), NB[0]); rg[k + 1] = cl(Math.floor((b[o + 12] - l0) * ib), NB[0]);
+    rg[k + 2] = cl(Math.floor((b[o + 10] - l1) * ib), NB[1]); rg[k + 3] = cl(Math.floor((b[o + 13] - l1) * ib), NB[1]);
+    rg[k + 4] = cl(Math.floor((b[o + 11] - l2) * ib), NB[2]); rg[k + 5] = cl(Math.floor((b[o + 14] - l2) * ib), NB[2]);
+    for (let x = rg[k]; x <= rg[k + 1]; x++) for (let y = rg[k + 2]; y <= rg[k + 3]; y++)
+      for (let z = rg[k + 4]; z <= rg[k + 5]; z++) bstart[(x * NB[1] + y) * NB[2] + z + 1]++;
+  }
+  for (let c = 0; c < nb; c++) bstart[c + 1] += bstart[c];
+  const bat = bstart.slice(0, nb), bidx = new Int32Array(bstart[nb]);
+  for (let i = 0; i < n; i++) {
+    const k = i * 6;
+    for (let x = rg[k]; x <= rg[k + 1]; x++) for (let y = rg[k + 2]; y <= rg[k + 3]; y++)
+      for (let z = rg[k + 4]; z <= rg[k + 5]; z++) bidx[bat[(x * NB[1] + y) * NB[2] + z]++] = i;
+  }
+  OBST = { S, n, lo, cell, N, NB, bstart, bidx, blocks: new Array(nb), built: 0, mark: new Int32Array(n), gen: 0,
+           entries: bidx.length, ms: msNow() - T0 };
+  return OBST;
+}
+// a block's own cells (CSR over its BLK^3 cells, local), built on the first ask
+function obstBlock(O, bx, by, bz) {
+  const bi = (bx * O.NB[1] + by) * O.NB[2] + bz;
+  let B = O.blocks[bi];
+  if (B) return B;
+  const b = O.S.buf, ic = 1 / O.cell, x0 = bx * BLK, y0 = by * BLK, z0 = bz * BLK, nC = BLK * BLK * BLK;
+  const start = new Int32Array(nC + 1);
+  const cl = v => v < 0 ? 0 : v >= BLK ? BLK - 1 : v;
+  const k0 = O.bstart[bi], k1 = O.bstart[bi + 1];
+  const rng = new Int32Array((k1 - k0) * 6);
+  for (let k = k0, j = 0; k < k1; k++, j += 6) {
+    const o = O.bidx[k] * 15;
+    rng[j] = cl(Math.floor((b[o + 9] - O.lo[0]) * ic) - x0); rng[j + 1] = cl(Math.floor((b[o + 12] - O.lo[0]) * ic) - x0);
+    rng[j + 2] = cl(Math.floor((b[o + 10] - O.lo[1]) * ic) - y0); rng[j + 3] = cl(Math.floor((b[o + 13] - O.lo[1]) * ic) - y0);
+    rng[j + 4] = cl(Math.floor((b[o + 11] - O.lo[2]) * ic) - z0); rng[j + 5] = cl(Math.floor((b[o + 14] - O.lo[2]) * ic) - z0);
+    for (let x = rng[j]; x <= rng[j + 1]; x++) for (let y = rng[j + 2]; y <= rng[j + 3]; y++)
+      for (let z = rng[j + 4]; z <= rng[j + 5]; z++) start[(x * BLK + y) * BLK + z + 1]++;
+  }
+  for (let c = 0; c < nC; c++) start[c + 1] += start[c];
+  const at = start.slice(0, nC), idx = new Int32Array(start[nC]);
+  for (let k = k0, j = 0; k < k1; k++, j += 6) {
+    const t = O.bidx[k];
+    for (let x = rng[j]; x <= rng[j + 1]; x++) for (let y = rng[j + 2]; y <= rng[j + 3]; y++)
+      for (let z = rng[j + 4]; z <= rng[j + 5]; z++) idx[at[(x * BLK + y) * BLK + z]++] = t;
+  }
+  O.built++;
+  return (O.blocks[bi] = { start, idx });
+}
+// the triangles of one cell (global cell coordinates), handed to fn(i) - each once per query generation g
+function obstCell(O, cx, cy, cz, g, fn) {
+  const B = obstBlock(O, (cx / BLK) | 0, (cy / BLK) | 0, (cz / BLK) | 0);
+  const lc = ((cx % BLK) * BLK + (cy % BLK)) * BLK + (cz % BLK);
+  for (let k = B.start[lc], k1 = B.start[lc + 1]; k < k1; k++) {
+    const i = B.idx[k];
+    if (O.mark[i] === g) continue;
+    O.mark[i] = g; fn(i);
+  }
+}
+// every triangle whose cell meets the box [qlo, qhi], once each, handed to fn(i)
+function obstEach(O, qlo, qhi, fn) {
+  if (!O.n) return;
+  const g = ++O.gen, r = [];
+  for (let a = 0; a < 3; a++) {
+    const c0 = Math.max(0, Math.floor((qlo[a] - O.lo[a]) / O.cell)), c1 = Math.min(O.N[a] - 1, Math.floor((qhi[a] - O.lo[a]) / O.cell));
+    if (c0 > c1) return;
+    r.push(c0, c1);
+  }
+  for (let x = r[0]; x <= r[1]; x++) for (let y = r[2]; y <= r[3]; y++) for (let z = r[4]; z <= r[5]; z++) obstCell(O, x, y, z, g, fn);
+}
+// THE FIRST SURFACE ON THE SEGMENT c -> q (the cells it passes, walked in order - Amanatides & Woo), as the fraction
+// along it, or null. Moller-Trumbore on the soup's own (a, b - a, c - a).
+function obstSeg(O, c, q, only) {
+  if (!O.n) return null;
+  const b = O.S.buf, g = ++O.gen, tg = O.S.tag;
+  const d = [q[0] - c[0], q[1] - c[1], q[2] - c[2]];
+  let best = null;
+  const tri = i => {
+    if (only != null && tg[i] !== only) return;
+    const o = i * 15;
+    const px = d[1] * b[o + 8] - d[2] * b[o + 7], py = d[2] * b[o + 6] - d[0] * b[o + 8], pz = d[0] * b[o + 7] - d[1] * b[o + 6];
+    const det = b[o + 3] * px + b[o + 4] * py + b[o + 5] * pz;
+    if (Math.abs(det) < 1e-14) return;
+    const iv = 1 / det, sx = c[0] - b[o], sy = c[1] - b[o + 1], sz = c[2] - b[o + 2];
+    const u = (sx * px + sy * py + sz * pz) * iv; if (u < 0 || u > 1) return;
+    const qx = sy * b[o + 5] - sz * b[o + 4], qy = sz * b[o + 3] - sx * b[o + 5], qz = sx * b[o + 4] - sy * b[o + 3];
+    const w = (d[0] * qx + d[1] * qy + d[2] * qz) * iv; if (w < 0 || u + w > 1) return;
+    const t = (b[o + 6] * qx + b[o + 7] * qy + b[o + 8] * qz) * iv;
+    if (t > 1e-9 && t < 1 && (!best || t < best.t)) best = { t, i };
+  };
+  // the walk
+  const cell = [0, 1, 2].map(a => Math.floor((c[a] - O.lo[a]) / O.cell));
+  const end = [0, 1, 2].map(a => Math.floor((q[a] - O.lo[a]) / O.cell));
+  const step = [0, 1, 2].map(a => d[a] > 0 ? 1 : d[a] < 0 ? -1 : 0);
+  const tMax = [0, 1, 2].map(a => step[a] === 0 ? Infinity : ((O.lo[a] + (cell[a] + (step[a] > 0 ? 1 : 0)) * O.cell) - c[a]) / d[a]);
+  const tDel = [0, 1, 2].map(a => step[a] === 0 ? Infinity : O.cell / Math.abs(d[a]));
+  for (let guard = 0; guard < 4096; guard++) {
+    if (cell[0] >= 0 && cell[0] < O.N[0] && cell[1] >= 0 && cell[1] < O.N[1] && cell[2] >= 0 && cell[2] < O.N[2])
+      obstCell(O, cell[0], cell[1], cell[2], g, tri);
+    if (cell[0] === end[0] && cell[1] === end[1] && cell[2] === end[2]) break;
+    const a = tMax[0] < tMax[1] ? (tMax[0] < tMax[2] ? 0 : 2) : (tMax[1] < tMax[2] ? 1 : 2);
+    if (tMax[a] > 1 + 1e-9) break;
+    // the hit found so far lies before this boundary: nothing further on can be nearer
+    if (best && best.t <= tMax[a]) break;
+    cell[a] += step[a]; tMax[a] += tDel[a];
+  }
+  return best;
+}
+// the squared distance from p to soup triangle i (Ericson 5.1.5), and the closest point into `out`
+function triD2(b, i, px, py, pz, out) {
+  const o = i * 15;
+  const ax = b[o], ay = b[o + 1], az = b[o + 2];
+  const abx = b[o + 3], aby = b[o + 4], abz = b[o + 5], acx = b[o + 6], acy = b[o + 7], acz = b[o + 8];
+  const apx = px - ax, apy = py - ay, apz = pz - az;
+  const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+  let cx, cy, cz;
+  const set = (x, y, z) => { cx = x; cy = y; cz = z; };
+  if (d1 <= 0 && d2 <= 0) set(ax, ay, az);
+  else {
+    const bpx = apx - abx, bpy = apy - aby, bpz = apz - abz;
+    const d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+    if (d3 >= 0 && d4 <= d3) set(ax + abx, ay + aby, az + abz);
+    else {
+      const vc = d1 * d4 - d3 * d2;
+      if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); set(ax + v * abx, ay + v * aby, az + v * abz); }
+      else {
+        const cpx = apx - acx, cpy = apy - acy, cpz = apz - acz;
+        const d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+        if (d6 >= 0 && d5 <= d6) set(ax + acx, ay + acy, az + acz);
+        else {
+          const vb = d5 * d2 - d1 * d6;
+          if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); set(ax + w * acx, ay + w * acy, az + w * acz); }
+          else {
+            const va = d3 * d6 - d5 * d4;
+            if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) {
+              const w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+              set(ax + abx + w * (acx - abx), ay + aby + w * (acy - aby), az + abz + w * (acz - abz));
+            } else {
+              const den = 1 / (va + vb + vc), v = vb * den, w = vc * den;
+              set(ax + abx * v + acx * w, ay + aby * v + acy * w, az + abz * v + acz * w);
+            }
+          }
+        }
+      }
+    }
+  }
+  if (out) { out[0] = cx; out[1] = cy; out[2] = cz; }
+  return (px - cx) * (px - cx) + (py - cy) * (py - cy) + (pz - cz) * (pz - cz);
+}
+// the nearest surface to p within R: { d, i } or null
+function obstNear(O, p, R) {
+  if (!O.n) return null;
+  const b = O.S.buf;
+  let best = null, R2 = R * R;
+  obstEach(O, [p[0] - R, p[1] - R, p[2] - R], [p[0] + R, p[1] + R, p[2] + R], i => {
+    const o = i * 15;
+    if (b[o + 9] > p[0] + R || b[o + 12] < p[0] - R || b[o + 10] > p[1] + R || b[o + 13] < p[1] - R || b[o + 11] > p[2] + R || b[o + 14] < p[2] - R) return;
+    const d2 = triD2(b, i, p[0], p[1], p[2]);
+    if (d2 < R2) { R2 = d2; best = { d2, i }; }
+  });
+  if (best) best.d = Math.sqrt(best.d2);
+  return best;
+}
+// IN THE DRAWN SOLID BY d (d > 0: that deep inside; d < 0: within -d outside, a box-like swell - the crew's margin)
+function inSolidBy(p, r, sol, d) {
+  if (d >= 0) return inSolid(p, r, sol, d);
+  const VM = window.VESSEL_MESH;
+  if (!sol || !sol.shape || !VM) return false;
+  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw);
+  const dx = p[0] - r.c[0], dy = p[1] - r.c[1], dz = p[2] - r.c[2], m = -d;
+  const X = Math.max(0, Math.abs(dx * cs - dz * sn) - m), Z = Math.max(0, Math.abs(dx * sn + dz * cs) - m);
+  const yy = [dy, dy > 0 ? Math.max(0, dy - m) : Math.min(0, dy + m)];
+  for (const Y of yy) {
+    if (sol.shape.contains) { if (sol.shape.contains(X, Y, Z)) return true; continue; }
+    if (Z > sol.e[2]) continue;
+    const sec = sol.shape.atZ(Z);
+    if (sec && sec.hx > 0 && X <= sec.hx && Math.abs(Y) <= VM.heightAt(sec, X)) return true;
+  }
+  return false;
+}
+// how deep inside (m), bisected to a millimetre (0 when not inside)
+function depthIn(p, r, sol, hi) {
+  if (!inSolid(p, r, sol, 0)) return 0;
+  let a = 0, b = hi || 0.3;
+  for (let k = 0; k < 9; k++) { const m = 0.5 * (a + b); if (inSolid(p, r, sol, m)) a = m; else b = m; }
+  return a;
+}
+// the crew points' names (seat, the occupant's body...) by mesh, gathered with the points
+const crewWord = n => /pick/i.test(n) ? 'a crew member' : /seat/i.test(n) ? 'a seat' : /stick|yoke|wheel/i.test(n) ? 'the controls'
+  : /pedal|rudder/i.test(n) ? 'the pedals' : /panel|dash/i.test(n) ? 'the panel' : 'the crew';
+
+// ONE TANK, JUDGED. r: a body placement (c, e, rot, v) - sets r.ok, r.why, r.clash, r.clear, r.drawn, r.omitted
+// JUDGE.drag: a drag frame's budget (fewer, coarser pieces once red - the release judges whole); JUDGE.fast: stop at
+// the first contact (fitOf's fast search: only the verdict is wanted)
+const JUDGE = { drag: false, fast: false };
+function judgeTank(ctx, scene, inv, r) {
+  const VM = window.VESSEL_MESH;
+  // (a LIGHT solid - the shape alone, no mesh, no hardware: the auto-fit's search, which judges a new size every step
+  //  and built a whole drawn tank for each, 20-60 ms apiece; the drawn tank is judged whole by the layout after)
+  const sol0 = r.lightSolid || vesselSolid(r);
+  if (!sol0 || !(sol0.shell || sol0.light) || !VM) return;
+  const S = surfAll(ctx, scene, inv), O = obstIndex(S), tag = S.tag;
+  const yaw = r.rot + (sol0.yaw || 0);
+  const tj0 = msNow();
+  // 1. THE STANDOFF PIECES (the filler neck, the vent, the outlet, the sump...) are drawn only where they clear:
+  //    each is asked the same two questions (through a surface, or closer than the gap), and one that fails is left
+  //    off the drawing (G1108's rule, now on the same instrument as the tank)
+  //    A piece is a chain of vertices from the shell outward: each (4 mm apart) is asked whether a surface is within
+  //    the gap of it, and whether one lies between the tank's centre and it
+  const drop = [];
+  if (sol0.pieces) for (const pc of sol0.pieces) {
+    if (!STANDOFF.includes(pc.name)) continue;
+    const D = drawnPts(r, sol0, ['hard', 'seal', 'mark'], pc);
+    if (!D.pts.length) continue;
+    const seen = new Set();
+    let far = null, farD = -1, hit = false;
+    for (const q of D.pts) {
+      const d2 = (q[0] - r.c[0]) ** 2 + (q[1] - r.c[1]) ** 2 + (q[2] - r.c[2]) ** 2;
+      if (d2 > farD) { farD = d2; far = q; }
+      const k = Math.round(q[0] / 0.004) + ',' + Math.round(q[1] / 0.004) + ',' + Math.round(q[2] / 0.004);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      // (and a segment from the tank's centre to every one: a pipe crosses a skin between two of its rings with no
+      // vertex near it - GATE TANKMOUNT's pusherPod vent, 34.7 mm out with every vertex over 5 mm from the sheet)
+      if (obstNear(O, q, CLEAR_GAP) || obstSeg(O, r.c, q)) { hit = true; break; }
+    }
+    if (hit || (far && obstSeg(O, r.c, far))) drop.push(pc.name);
+  }
+  const sol = drop.length && VM.omit ? omitMemo(sol0, drop) : sol0;
+  r.solid = sol0; r.drawn = sol; r.omitted = drop;
+  const solAll = VM.omit ? omitMemo(sol0, STANDOFF) : sol0;
+  const tj1 = msNow();
+  // 2. THE SURFACES AROUND THE TANK, SAMPLED, AGAINST THE DRAWN SOLID. The shell's own vertices are too few to ask
+  //    (a box's flat face is two triangles 0.4 m long: a frame tube can cross it between them - the legacy segment
+  //    test was blind there), so the question is turned round: every drawn triangle whose box meets the tank's
+  //    (swollen by NEAR_R) is sampled every SAMPLE_STEP, and each sample asked of the tank's EXACT solid (the shape
+  //    VESSEL_MESH draws, its rounded corners included): inside it (a contact: how deep), within CLEAR_GAP of it
+  //    (no room), or how near (the readout). Exact where it matters, and a few thousand analytic tests a tank.
+  const b = S.buf, bb0 = solAll.light ? lightBox(r, solAll) : drawnPts(r, solAll, ['shell']).bb, R = NEAR_R;
+  const bb = [bb0[0] - R, bb0[1] - R, bb0[2] - R, bb0[3] + R, bb0[4] + R, bb0[5] + R];
+  let inside = null, nInside = 0, nThin = 0, near = [], coarse = Infinity, coarseTag = -1, coarseAt = null, leaves = 0;
+  // the solid's own frame: the slot meshes' centre and turn (inSolid's), and its box (the solid lies inside it, so a
+  // distance to the box is a LOWER bound of the distance to the solid - a piece of surface farther than CLEAR_GAP
+  // from the box is clear, and is not refined)
+  const yw = r.rot + (solAll.yaw || 0), ycs = Math.cos(yw), ysn = Math.sin(yw), c0 = r.c, E3 = solAll.e || r.e;
+  const loc = (x, y, z, out, k) => { const dx = x - c0[0], dz = z - c0[2]; out[k] = dx * ycs - dz * ysn; out[k + 1] = y - c0[1]; out[k + 2] = dx * ysn + dz * ycs; };
+  const Lq = new Float64Array(9), smp = [0, 0, 0], pv = [0, 0, 0], t = new Float64Array(9);
+  // the pieces still to look at, flat (nine numbers each): no array a piece (the allocation was most of the cost)
+  let ST = JST, sp = 0;
+  const push = (a0, a1, a2, b0, b1, b2, c0, c1, c2) => {
+    if ((sp + 1) * 9 > ST.length) { const g = new Float64Array(ST.length * 2); g.set(ST); ST = JST = g; }
+    const k = sp++ * 9; ST[k] = a0; ST[k + 1] = a1; ST[k + 2] = a2; ST[k + 3] = b0; ST[k + 4] = b1; ST[k + 5] = b2; ST[k + 6] = c0; ST[k + 7] = c1; ST[k + 8] = c2;
+  };
+  const inV = k => { pv[0] = t[k]; pv[1] = t[k + 1]; pv[2] = t[k + 2]; return inSolid(pv, r, solAll, 0); };
+  const LEVELS = [CLEAR_GAP, 0.010, 0.020, NEAR_R];
+  const convex = !(solAll.shape && solAll.shape.form === 'deck');
+  const deckTop = !convex && solAll.shape.atZ && solAll.shape.atZ(0) && solAll.shape.atZ(0).topAt ? solAll.shape.atZ(0).topAt : null;
+  const BUDGET = JUDGE.drag ? 600 : 2000, RED_BUDGET = JUDGE.drag ? 120 : 400;
+  let redAt = 0;
+            // leaves a tank: past it the verdict is already red, and its depth is good enough
+  try { obstEach(O, [bb[0], bb[1], bb[2]], [bb[3], bb[4], bb[5]], i => {
+    const o = i * 15;
+    if (b[o + 9] > bb[3] || b[o + 12] < bb[0] || b[o + 10] > bb[4] || b[o + 13] < bb[1] || b[o + 11] > bb[5] || b[o + 14] < bb[2]) return;
+    let triIn = null, triLv = LEVELS.length, triAt = null;
+    sp = 0;
+    push(b[o], b[o + 1], b[o + 2], b[o] + b[o + 3], b[o + 1] + b[o + 4], b[o + 2] + b[o + 5], b[o] + b[o + 6], b[o + 1] + b[o + 7], b[o + 2] + b[o + 8]);
+    while (sp) {
+      sp--; for (let q = 0; q < 9; q++) t[q] = ST[sp * 9 + q];
+      loc(t[0], t[1], t[2], Lq, 0); loc(t[3], t[4], t[5], Lq, 3); loc(t[6], t[7], t[8], Lq, 6);
+      let gap = 0;
+      for (let a = 0; a < 3; a++) {
+        const lo = Math.min(Lq[a], Lq[a + 3], Lq[a + 6]), hi = Math.max(Lq[a], Lq[a + 3], Lq[a + 6]);
+        gap = Math.max(gap, lo - E3[a], -E3[a] - hi);
+      }
+      // A DECK's top falls toward its flanks, under its box's lid: the deck skin over the shoulders is inside the box
+      // and outside the tank, and the box's bound refined all of it to 8 mm leaves (the Cub's fitted tank: 100 ms a
+      // judgement). Its top at the piece's nearest |x| is the highest the tank reaches there - the bound from above.
+      if (deckTop && gap <= CLEAR_GAP) {
+        const xl = Math.min(Lq[0], Lq[3], Lq[6]), xh = Math.max(Lq[0], Lq[3], Lq[6]);
+        const ax = xl <= 0 && xh >= 0 ? 0 : Math.min(Math.abs(xl), Math.abs(xh));
+        if (ax < E3[0]) gap = Math.max(gap, Math.min(Lq[1], Lq[4], Lq[7]) - deckTop(ax));
+      }
+      if (gap > R) continue;
+      if (gap > CLEAR_GAP) { if (gap < coarse) { coarse = gap; coarseTag = tag[i]; coarseAt = [(t[0] + t[3] + t[6]) / 3, (t[1] + t[4] + t[7]) / 3, (t[2] + t[5] + t[8]) / 3]; } continue; }
+      // ALL THREE CORNERS INSIDE: the piece is inside whole (a box and a cylinder are convex; a deck's top bends
+      // in by its profile, and a triangle spanning it is refined as before) - a contact, not refined further
+      if (convex && inV(0) && inV(3) && inV(6)) {
+        nInside += 3;
+        const cen = [(t[0] + t[3] + t[6]) / 3, (t[1] + t[4] + t[7]) / 3, (t[2] + t[5] + t[8]) / 3];
+        if (!triIn || (inSolid(cen, r, solAll, 0.01) && !inSolid(triIn, r, solAll, 0.01))) triIn = cen;
+        continue;
+      }
+      const e1 = Math.hypot(t[3] - t[0], t[4] - t[1], t[5] - t[2]), e2 = Math.hypot(t[6] - t[0], t[7] - t[1], t[8] - t[2]), e3 = Math.hypot(t[6] - t[3], t[7] - t[4], t[8] - t[5]);
+      // a contact is looked for on the way down (the piece's centre), so a red tank switches to the coarse report
+      // after the first one instead of refining the whole crossing at the fine step
+      if (!nInside) {
+        smp[0] = (t[0] + t[3] + t[6]) / 3; smp[1] = (t[1] + t[4] + t[7]) / 3; smp[2] = (t[2] + t[5] + t[8]) / 3;
+        if (inSolid(smp, r, solAll, 0)) { nInside++; triIn = smp.slice(); redAt = leaves; }
+      }
+      // once the tank is known red by a contact, the rest is only its report: 3 cm pieces find the deepest well enough
+      if (Math.max(e1, e2, e3) > (nInside ? 0.032 : SAMPLE_STEP) && leaves < BUDGET && (!nInside || leaves - redAt < RED_BUDGET)) {
+        const ax = (t[0] + t[3]) / 2, ay = (t[1] + t[4]) / 2, az = (t[2] + t[5]) / 2;      // m01
+        const bx = (t[3] + t[6]) / 2, by = (t[4] + t[7]) / 2, bz = (t[5] + t[8]) / 2;      // m12
+        const cx = (t[0] + t[6]) / 2, cy = (t[1] + t[7]) / 2, cz = (t[2] + t[8]) / 2;      // m02
+        push(t[0], t[1], t[2], ax, ay, az, cx, cy, cz);
+        push(ax, ay, az, t[3], t[4], t[5], bx, by, bz);
+        push(cx, cy, cz, bx, by, bz, t[6], t[7], t[8]);
+        push(ax, ay, az, bx, by, bz, cx, cy, cz);
+        continue;
+      }
+      leaves++;
+      for (let k = 0; k < 4; k++) {
+        if (k < 3) { smp[0] = t[k * 3]; smp[1] = t[k * 3 + 1]; smp[2] = t[k * 3 + 2]; }
+        else { smp[0] = (t[0] + t[3] + t[6]) / 3; smp[1] = (t[1] + t[4] + t[7]) / 3; smp[2] = (t[2] + t[5] + t[8]) / 3; }
+        if (inSolid(smp, r, solAll, 0)) {
+          nInside++;
+          if (!triIn || (inSolid(smp, r, solAll, 0.01) && !inSolid(triIn, r, solAll, 0.01))) triIn = smp.slice();
+          continue;
+        }
+        if (triIn || nInside) continue;
+        for (let q = 0; q < triLv; q++) if (inSolidBy(smp, r, solAll, -LEVELS[q])) { triLv = q; triAt = smp.slice(); break; }
+      }
+    }
+    if (triIn) {
+      // measured only when it could be the deepest yet (inside at the depth already found)
+      if (!inside || inSolid(triIn, r, solAll, inside.depth + 0.001)) {
+        const dep = depthIn(triIn, r, solAll, Math.max(r.e[0], r.e[1], r.e[2]));
+        if (!inside || dep > inside.depth) inside = { depth: dep, tag: tag[i], at: triIn };
+      }
+    } else if (triAt) { if (triLv === 0) nThin++; near.push({ lv: triLv, at: triAt, tag: tag[i] }); }
+    if (JUDGE.fast && inside) throw JUDGE;          // the verdict is known: red
+  }); } catch (e) { if (e !== JUDGE) throw e; }
+  // the nearest, to a millimetre: the candidates at the lowest level found, bisected (the swell's own measure)
+  let minD = Infinity, minAt = null, minTag = -1;
+  if (near.length) {
+    const lv0 = Math.min(...near.map(q => q.lv));
+    for (const q of near.filter(q => q.lv === lv0).slice(0, 12)) {
+      let a = lv0 ? LEVELS[lv0 - 1] : 0, z = LEVELS[lv0];
+      for (let k = 0; k < 7; k++) { const m = 0.5 * (a + z); if (inSolidBy(q.at, r, solAll, -m)) z = m; else a = m; }
+      if (z < minD) { minD = z; minAt = q.at; minTag = q.tag; }
+    }
+  }
+  // ...or the coarse bound, where nothing came within the gap (the box's distance: a lower bound, to the box's mm)
+  if (coarse < minD) { minD = coarse; minAt = coarseAt; minTag = coarseTag; }
+  const thin = minD < CLEAR_GAP ? { d: minD, tag: minTag, at: minAt } : null;
+  const through = null, nThrough = 0;
+  const D = { pts: [], bb: bb0 };
+  const tj2 = msNow();
+  const tj3 = msNow();
+  // 4. THE CREW, their seated bodies as drawn (the posed body, G3700), against the drawn solid swollen by CREW_GAP
+  let crew = null, nCrew = 0;
+  if (scene) {
+    if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
+    const P3 = CREW_PTS.buf, m = CREW_GAP, q = [0, 0, 0];
+    crewEach(CREW_PTS, [bb0[0] - m, bb0[1] - m, bb0[2] - m], [bb0[3] + m, bb0[4] + m, bb0[5] + m], i => {
+      q[0] = P3[i * 3]; q[1] = P3[i * 3 + 1]; q[2] = P3[i * 3 + 2];
+      if (q[0] < bb0[0] - m || q[0] > bb0[3] + m || q[1] < bb0[1] - m || q[1] > bb0[4] + m || q[2] < bb0[2] - m || q[2] > bb0[5] + m) return;
+      if (!inSolidBy(q, r, solAll, -m)) return;
+      nCrew++;
+      // the deepest, sampled (a foot through a tank is hundreds of points)
+      if (nCrew <= 48 || nCrew % 16 === 0) {
+        const dep = depthIn(q, r, solAll, Math.max(r.e[0], r.e[1], r.e[2]));
+        if (!crew || dep > crew.depth) crew = { depth: dep, at: q.slice(), who: CREW_PTS.word ? CREW_PTS.word(i) : 'the crew' };
+      }
+    });
+  }
+  r.crewHits = nCrew;
+  r.layerHits = nThrough + nInside;
+  r.jms = { pieces: tj1 - tj0, surf: tj2 - tj1, hard: tj3 - tj2, crew: msNow() - tj3, nIn: nInside, nThin, leaves };
+  const mm = x => Math.max(0, Math.round(x * 1000));
+  const why = [], marks = [];
+  if (through) { why.push(mm(through.depth) + ' mm through the ' + tagWord(through.tag, through.hit) + (nThrough > 1 ? ' (' + nThrough + ' drawn points past it)' : '')); marks.push(through.hit); }
+  if (inside) { why.push(mm(inside.depth) + ' mm into the ' + tagWord(inside.tag, inside.at)); marks.push(inside.at); }
+  if (!through && !inside && thin) { why.push('no room for the pads: ' + mm(thin.d) + ' mm to the ' + tagWord(thin.tag, thin.at) + ' (needs ' + mm(CLEAR_GAP) + ')'); marks.push(thin.at); }
+  if (nCrew) { why.push((crew && crew.depth > 0 ? mm(crew.depth) + ' mm into ' : 'within ' + mm(CREW_GAP) + ' mm of ') + (crew ? crew.who : 'the crew')); if (crew) marks.push(crew.at); }
+  r.clear = minD < Infinity ? minD : NEAR_R;
+  r.clearTo = minTag >= 0 ? tagWord(minTag, minAt) : null;
+  r.clash = why.length ? { at: marks[0], marks: marks.slice(1), through, inside, thin, crew: crew ? { depth: crew.depth, at: crew.at, n: nCrew } : null } : null;
+  if (why.length) { r.ok = false; r.why.push(...why); }
+}
+// THE STRUT PODS' CLEARANCE (TANK-FIT, Part 3): the drawn spindle (r = R (1 - (2u-1)^2)^0.65 on its fore-aft axis)
+// sampled at its lathe's own stations, each point asked for the nearest drawn surface (the sheet, the engine, the
+// cowl - the clearance soup) and whether a surface lies between the pod's axis and it
+const PYLON_H = 0.04;
+function podClear(ctx, scene, inv, pods) {
+  const S = surfAll(ctx, scene, inv), O = obstIndex(S);
+  if (!O.n) return null;
+  for (const pd of pods) {
+    const NP = 12, NR = 16;
+    for (let k = 0; k <= NP; k++) {
+      const u = k / NP, s = 1 - (2 * u - 1) * (2 * u - 1);
+      const rr = Math.max(0.002, 0.5 * pd.D * Math.pow(Math.max(0, s), 0.65)), z = pd.c[2] + (u - 0.5) * pd.L;
+      const ax = [pd.c[0], pd.c[1], z];
+      for (let j = 0; j < NR; j++) {
+        const a = 2 * Math.PI * j / NR, q = [pd.c[0] + rr * Math.cos(a), pd.c[1] + rr * Math.sin(a), z];
+        const h = obstSeg(O, ax, q);
+        if (h) return { why: 'the pod runs into the ' + tagWord(S.tag[h.i], q), at: q };
+        const nb = obstNear(O, q, CLEAR_GAP);
+        if (nb) return { why: 'no room for the pod: ' + Math.round(nb.d * 1000) + ' mm to the ' + tagWord(S.tag[nb.i], q), at: q };
+      }
+    }
+  }
+  return null;
+}
+// THE LIGHT SOLID: VESSEL_MESH.build's own shape for these extents (its canonical turn, its corner radius), and its box
+function lightSolid(r, form, profile) {
+  const VM = window.VESSEL_MESH;
+  if (!VM || !VM.mkShape) return null;
+  const e0 = r.e.map(x => Math.max(0.02, x));
+  const swap = form !== 'deck' && e0[0] > e0[2] * 1.15;
+  const e = swap ? [e0[2], e0[1], e0[0]] : e0;
+  const rBox = EN.kind === 'battery' ? Math.max(0.005, Math.min(0.030, 0.10 * Math.min(e[0], e[1], e[2])))
+                                     : Math.max(0.008, Math.min(0.075, 0.34 * Math.min(e[0], e[1], e[2])));
+  const fm = form === 'cyl' ? 'cyl' : (form === 'deck' && Array.isArray(profile)) ? 'deck' : 'box';
+  return { light: true, shape: VM.mkShape(fm, e, { r: rBox, dome: 0.30, profile }), e, yaw: swap ? Math.PI / 2 : 0, form: fm };
+}
+function lightBox(r, sol) {
+  const yaw = r.rot + (sol.yaw || 0), cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw)), e = sol.e, c = r.c;
+  const ex = cs * e[0] + sn * e[2], ez = sn * e[0] + cs * e[2];
+  return [c[0] - ex, c[1] - e[1], c[2] - ez, c[0] + ex, c[1] + e[1], c[2] + ez];
+}
+// ALL BODY TANKS (the layout's and fitOf's door)
+function judgeAll(scene, inv, results, ctx) {
+  for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
+}
+
+// ===========================================================================
+// THE NOSE TANK, FITTED TO THE NOSE (TANK-FIT Part 2, 2026-11-03)
+// ===========================================================================
+// The user, 2 Nov: "I'm wondering if the nose section shouldn't be a shape auto fit like the wings, taking that
+// space behind the dashboard (10 cm gap), shaped like the top of the nose with a gap, and stopped at the bottom of
+// the dash? That would allow realistic fuel capacities there. Our [current one] always truncates."
+// The wing tank is its spar bay's own section (G445.2); this is the nose bay's: a DECK tank (G1150's form - a flat
+// floor, a top following a profile across the width, the same section along its length) measured off what is drawn,
+// with the clearance's own grid of surfaces:
+//   back    the dash and the instruments standing forward of it (the crew layer's panel), + NOSE_PANEL_ROOM: the
+//           room the instruments are connected in (the user, 3 Nov: "space dash firewall ... could be 5"; the pitot /
+//           static fittings and their hoses' turn, a harness plug: 4-5 cm behind a 3-1/8" case)
+//   front   the firewall (the first surface ahead, low in the space), less NOSE_CLR
+//   floor   just above the pilot's feet and legs, the pedals and the controls under the tank's footprint (+ CREW_GAP):
+//           the user, 3 Nov: it "may [go below the dash], it should just not hit the pilot's feet or legs"; never
+//           below the keel's inner skin (+ NOSE_CLR)
+//   top     each column's ceiling - the deck's inner skin, the lowest over the tank's length - less the GAP (2 cm)
+//   width   the narrowest inner width over the length, at the floor and up the walls, less NOSE_CLR a side
+// then placed and JUDGED like any tank (judgeTank), and made smaller (height, then length) until it clears. The
+// litres are its own (the deck form's capacity: the section's area, the shell's fill): no box, no truncation.
+// It is the shape of a nose tank that says `fit: 'auto'` (a new nose tank, the panel's 'auto-fit' row) and of NONE
+// other... and of a save's nose tank left to the bay rule (no station, no box: the validated Cub's and Jodel's) -
+// the user's call, 3 Nov: "Yes" (`window.TANK_NOSE_AUTO_ALL = false` puts the old shaping back, the A/B).
+const NOSE_AUTO_ON = true;  // the auto-fit itself (TANK-FIT commit 2; commit 1 lands with it off)
+const NOSE_GAP = 0.02;            // m under the deck top (the pads and the straps; the panel's row can change it)
+const NOSE_PANEL_ROOM = 0.05;     // m behind the instruments' cases: their connections (a row too)
+const NOSE_CASE_DEPTH = 0.10;     // m: the instruments' cases behind the panel's face (drawn as faces only)
+const NOSE_CLR = 0.02;            // m to the firewall and the walls (the pads, the straps)
+const NOSE_AUTO = new Map();      // the fitted shape, by body, gap and the crew's points
+function noseAutoWanted(v, bay) {
+  if (!NOSE_AUTO_ON || !bay || bay.key !== 'nose' || legacyFit()) return false;
+  if (v.fit === 'auto') return true;
+  // the user, 3 Nov ("Yes"): the saves' nose tanks left to the bay rule (no station, no box of their own - the
+  // validated Cub's and Jodel's) take the auto shape too; `window.TANK_NOSE_AUTO_ALL = false` is the old rule (the A/B)
+  return window.TANK_NOSE_AUTO_ALL !== false && v.along == null && !v.dims;
+}
+// THE FIRST SHAPING IS SLICED (TANK-FIT, the user via A0 3 Nov: "move the auto-fit's first shaping off the main
+// thread - the phone"). A first shaping is 0.3-1.1 s of rays and judgements (node; once per body change, then cached),
+// which on the phone was a frozen garage. The shaping is a generator that yields after every floor it measures and
+// every candidate it judges; on a page it runs in ~4 ms slices, one per frame (NOSE_JOB), the tank reads "fitting to
+// the nose" meanwhile and is neither drawn nor written back, and the slice that finishes lays the tanks out again (the
+// shape then comes from the cache, drawn and committed). Not a Worker: the shaping asks the layer's own surfaces, the
+// crew's points and the drawn solid (VESSEL_MESH) - all on this thread - and a slice of the same code is the same
+// answer, bit for bit. Under node (the gates, the tools, the load chain: navigator.userAgent 'node') and with
+// window.TANK_AUTO_SYNC it runs to the end at once, as before.
+let NOSE_KEY_LAST = null, NOSE_JOB = null;
+const noseSliced = () => !window.TANK_AUTO_SYNC && typeof navigator !== 'undefined' && !!navigator.userAgent && navigator.userAgent !== 'node';
+const noseSchedule = fn => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+function noseAuto(ctx, inv, bay, v, zFw, cache) {
+  const g = noseAutoGen(ctx, inv, bay, v, zFw, cache);
+  let r = g.next();
+  if (r.done) return r.value;                               // cached, or nothing to shape
+  if (!noseSliced()) { while (!r.done) r = g.next(); return r.value; }
+  const key = NOSE_KEY_LAST;
+  if (NOSE_JOB && NOSE_JOB.key === key) return { pending: true };   // (already on its way: this start is dropped)
+  const job = NOSE_JOB = { key, g, r, t0: msNow() };
+  const tick = () => {
+    if (NOSE_JOB !== job) return;                            // a newer body's shaping took over
+    const t0 = msNow();
+    let st = job.r;
+    while (!st.done && msNow() - t0 < 4) st = job.g.next();
+    job.r = st;
+    if (!st.done) { noseSchedule(tick); return; }
+    NOSE_JOB = null;
+    LAST.noseMs = msNow() - job.t0;
+    try { relayout(); } catch (e) { console.error('energy: the nose shaping', e); }
+  };
+  noseSchedule(tick);
+  return { pending: true };
+}
+function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
+  const FS = fsOf(ctx), M = ctx.mesh;
+  if (!M || zFw == null || !cache) return null;
+  const gap = v.gap != null ? Math.max(0.0, Math.min(0.3, +v.gap)) : NOSE_GAP;
+  const S = surfAll(ctx, ctx.scene, inv), O = obstIndex(S);
+  if (!CREW_PTS || !crewFresh(ctx.scene, inv)) CREW_PTS = crewPoints(ctx.scene, inv);
+  const key = BODY_SIG + '|' + S.sig.length + ':' + S.n + '|' + (CREW_PTS.sig || '').length + ':' + CREW_PTS.n + '|' + gap.toFixed(3) + '|' + (v.room != null ? (+v.room).toFixed(3) : 'r') + '|' + EN.kind + '|' + vesselKey();
+  if (NOSE_AUTO.has(key)) return NOSE_AUTO.get(key);
+  NOSE_KEY_LAST = key;
+  const zOfA = a => zFw * FS - a;
+  // the bay's span along the body, and its section in the middle
+  const aLo = Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0), aHi = Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1);
+  const extMid = VG().bayExtAt(cache, FS, zFw, 0.5 * (bay.x0 + bay.x1));
+  if (!extMid) return null;
+  const lvB = bay.lv || [0, 1];
+  const room = v.room != null ? Math.max(0, Math.min(0.3, +v.room)) : NOSE_PANEL_ROOM;
+  const xh = 0.5 * (extMid.xHi - extMid.xLo), P3 = CREW_PTS.buf, word = i => (CREW_PTS.word ? CREW_PTS.word(i) : 'the crew');
+  // THE PANEL'S BACK: the dash's faces (the sheet's 'dash' / 'dashFace') and the crew layer's panel - its plate and
+  // the instruments' cases standing forward of it - the forward-most of them, plus the room to connect them
+  let back = -Infinity, dashLo = Infinity;
+  for (const f of M.F) {
+    if ((f.m !== 'dash' && f.m !== 'dashFace') || !f.v) continue;
+    for (const k of f.v) {
+      const q = M.V[k], x = q[0] * FS, y = q[1] * FS, z = q[2] * FS;
+      if (z > zOfA(aLo) + 0.05 || z < zOfA(aHi) - 0.3) continue;
+      if (Math.abs(x) < 0.25 && y < dashLo) dashLo = y;
+      if (z > back) back = z;
+    }
+  }
+  const dashBack = back;
+  let caseBack = -Infinity;
+  crewEach(CREW_PTS, [-xh, extMid.yLo - 0.1, zOfA(aHi) - 0.3], [xh, extMid.yHi + 0.1, zOfA(aLo) + 0.05], i => {
+    if (word(i) !== 'the panel') return;
+    const z = P3[i * 3 + 2];
+    if (z < zOfA(aLo) && z > caseBack) caseBack = z;
+  });
+  // THE BACK, TRIED AT A FEW STATIONS (the user, 3 Nov: "space dash firewall ... could be 5 ... you need to connect
+  // the dash instruments, how much do you need for that?"). The instruments are drawn as their faces on the panel
+  // (dashFace); a 3-1/8" case is 8-17 cm deep behind it and wants ~5 cm more for its fittings and plugs, so the tank
+  // stands at least NOSE_CASE_DEPTH + room ahead of the panel's face. Above that the dash's glare-shield runs forward
+  // to the windscreen base (the Cub's: 28 cm ahead of the face): the tank may sit under it, its top then the
+  // shield's - or start ahead of the shield's front edge + room, taller and shorter. The back that holds the most wins.
+  let faceZ = -Infinity;
+  for (const f of M.F) if (f.m === 'dashFace' && f.v) for (const k of f.v) { const z = M.V[k][2] * FS; if (z < zOfA(aLo) && z > zOfA(aHi) - 0.3 && z > faceZ) faceZ = z; }
+  const shieldZ = Math.max(back, caseBack);
+  const back0 = isFinite(faceZ) ? Math.max(faceZ + NOSE_CASE_DEPTH + room, isFinite(caseBack) ? caseBack + room : -Infinity)
+                               : (isFinite(shieldZ) ? shieldZ + room : zOfA(bay.x1) + room);
+  const back1 = isFinite(shieldZ) ? Math.max(back0, shieldZ + room) : back0;
+  const backs = [];
+  for (let k = 0; k <= 3; k++) { const z = back0 + (back1 - back0) * k / 3; if (!backs.some(q => Math.abs(q - z) < 0.01)) backs.push(z); }
+  let front = 0, floor = 0, L0 = 0, zs = null, best = null, fail = null, keel = 0;
+  back = back0;
+  for (const bk of backs) {
+    const e = yield* evalBack(bk);
+    if (e.fail) { if (!fail) fail = e.fail; continue; }
+    if (!best || e.best.vol * e.L0 > best.vol * L0 * 1.001) { best = e.best; back = bk; front = e.front; L0 = e.L0; zs = e.zs; keel = e.keel; }
+  }
+  if (!best) { const r = fail || { why: 'no room between the firewall and the panel' };
+    r.measured = { panelFace: faceZ, shieldFront: dashBack, backs, keel: extMid.yLo, deck: extMid.yHi };
+    LAST.nose = r; NOSE_AUTO.set(key, r); return r; }
+  function* evalBack(back) {
+    // THE FIREWALL: the first surface ahead of the back face, low in the space (a pod's windscreen slopes down over the
+    // panel and meets a ray at panel height a few cm ahead - the tank's top is the ceilings' and the clearance's)
+    const yProbe = [0.15, 0.3, 0.45].map(f => extMid.yLo + f * (extMid.yHi - extMid.yLo));
+    let front = Infinity;
+    for (const y of yProbe) for (const x of [-0.08, 0, 0.08]) {
+      const h = obstSeg(O, [x, y, back], [x, y, back + 1.2]);
+      if (h) front = Math.min(front, back + 1.2 * h.t);
+    }
+    if (!isFinite(front)) front = zOfA(aLo);
+    front -= NOSE_CLR;
+    // THE FLOOR: above the feet, the legs, the pedals and the controls under the footprint, never below the keel
+    const keel = extMid.yLo + NOSE_CLR;
+    const crewTop = (x0, x1) => {
+      let top = -Infinity;
+      crewEach(CREW_PTS, [x0, extMid.yLo - 0.2, back - CREW_GAP], [x1, extMid.yHi + 0.1, front + CREW_GAP], i => {
+        const w = word(i);
+        if (w === 'the panel') return;                      // (the panel is the back's business)
+        const z = P3[i * 3 + 2], x = P3[i * 3], y = P3[i * 3 + 1];
+        if (z < back - CREW_GAP || z > front + CREW_GAP || x < x0 || x > x1) return;
+        if (y > top) top = y;
+      });
+      return top;
+    };
+    let floor = keel;                 // (each candidate floor below rises over the feet its own width covers)
+    // (the panel's plate itself, if the floor would stand under it, is the back's: nothing to do here)
+
+    const L0 = front - back;
+    if (!(L0 > 0.08)) { const r = { why: 'no room between the firewall and the panel (' + Math.round(Math.max(0, L0) * 1000) + ' mm)' }; return { fail: r }; }
+    // THE WIDTH AND THE CEILINGS over the length: rays up from the floor and out from the centreline
+    const NZ = Math.max(3, Math.ceil(L0 / 0.04) + 1), zs = [];
+    for (let k = 0; k < NZ; k++) zs.push(back + 0.005 + (L0 - 0.01) * k / (NZ - 1));
+    const widthAt = fl => {
+      let hw = Infinity;
+      for (const z of zs) for (const yf of [0.01, 0.3, 0.6]) {
+        const y = fl + yf * Math.max(0.02, extMid.yHi - fl - gap);
+        const out = Math.max(0.2, 0.5 * (extMid.xHi - extMid.xLo) + 0.15);
+        for (const sg of [-1, 1]) { const h = obstSeg(O, [0, y, z], [sg * out, y, z]); if (h) hw = Math.min(hw, out * h.t); }
+      }
+      return (isFinite(hw) ? hw : 0.5 * (extMid.xHi - extMid.xLo)) - NOSE_CLR;
+    };
+    // ONE FLOOR, MEASURED: its width (the narrowest over the length, the floor again over that width - the feet
+    // beside a narrower tank do not hold it up - and the width again there), then each column's ceiling
+    const NX = 9;
+    const shapeAt = fl0 => {
+      let fl = fl0, hw = widthAt(fl);
+      if (!(hw > 0.05)) return null;
+      for (let it = 0; it < 2; it++) {
+        const f2 = Math.max(fl0, crewTop(-hw - NOSE_CLR, hw + NOSE_CLR) + CREW_GAP + 0.005);
+        const w2 = widthAt(f2);
+        if (!(w2 > 0.05)) return null;
+        fl = Math.max(f2, crewTop(-w2 - NOSE_CLR, w2 + NOSE_CLR) + CREW_GAP + 0.005);
+        hw = Math.min(w2, widthAt(fl));
+      }
+      if (!(hw > 0.05)) return null;
+      const cl = [];
+      for (let k = 0; k < NX; k++) {
+        const x = hw * k / (NX - 1) * 0.999;
+        let c = Infinity;
+        for (const z of zs) for (const sg of k ? [-1, 1] : [1]) {
+          const up = Math.max(0.1, extMid.yHi + 0.15 - fl);
+          const h = obstSeg(O, [sg * x, fl + 0.002, z], [sg * x, fl + 0.002 + up, z]);
+          c = Math.min(c, h ? fl + 0.002 + up * h.t : extMid.yHi);
+        }
+        cl.push(c - gap);
+      }
+      const H = cl[0] - fl;
+      if (!(H > 0.05)) return { floor: fl, halfW: hw, H, vol: 0 };
+      const pr = cl.map(c => Math.max(0, Math.min(1, (c - fl) / H)));
+      const fr = pr.reduce((a, q, i) => a + (i === 0 || i === pr.length - 1 ? 0.5 : 1) * q, 0) / (pr.length - 1);
+      return { floor: fl, halfW: hw, H, profile: pr, vol: 2 * hw * H * fr };
+    };
+    // THE FLOOR THAT HOLDS THE MOST (the user, 3 Nov: the tank may go below the dash; it must not meet the feet): from
+    // just above the feet (or the keel) upward, 2 cm a step - something low in the front of the bay (the cowl's lower
+    // panel and the engine's accessories behind the firewall, ugly_bi's at 0.44 m below the datum) can make a higher
+    // floor hold more than the lowest one
+    let best = null;
+    for (let fl = floor; fl < extMid.yHi - gap - 0.05; fl += 0.02) {
+      const sh = shapeAt(fl);
+      yield;                                                // (a slice: one floor measured)
+      if (sh && sh.vol > 0 && (!best || sh.vol > best.vol * 1.001)) best = sh;
+    }
+    if (!best) return { fail: { why: 'no height under the deck above the feet (the floor ' + Math.round((floor - extMid.yLo) * 1000) + ' mm over the keel, the gap ' + Math.round(gap * 1000) + ' mm)' } };
+    return { best, front, L0, zs, keel };
+  }
+  floor = best.floor;
+  const halfW = best.halfW, H = best.H, profile = best.profile;
+  // ...placed and judged: smaller until it clears (height first - the deck is what it meets - then the length)
+  let dims = { L: L0, W: 2 * halfW, H, profile }, last = null;
+  for (let it = 0; it < 14; it++) {
+    const zc = 0.5 * (front + back), along = zFw * FS - zc, yc = floor + dims.H / 2;
+    const ext = VG().bayExtAt(cache, FS, zFw, along) || extMid;
+    const bLo = ext.yLo + lvB[0] * (ext.yHi - ext.yLo), bHi = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
+    const lv = Math.max(0, Math.min(1, (yc - bLo) / Math.max(1e-6, bHi - bLo)));
+    const cand = { bay: 'nose', capacity: 1, along: +along.toFixed(4), lv: +lv.toFixed(4), rot: 0, form: 'deck',
+                   dims: { L: +dims.L.toFixed(3), W: +dims.W.toFixed(3), H: +dims.H.toFixed(3), profile: dims.profile.map(p => +p.toFixed(3)) } };
+    const pl = noseJudge(ctx, inv, bay, cand, zFw, cache, yc);
+    yield;                                                  // (a slice: one candidate judged)
+    last = { cand, pl };
+    if (pl && pl.ok) break;
+    if (it % 3 === 2) { const d = Math.min(0.03, dims.L * 0.08); front -= d / 2; back += d / 2; dims.L -= d; }
+    else dims.H *= 0.93;
+    if (dims.L < 0.08 || dims.H < 0.04) break;
+  }
+  const out = last && last.pl && last.pl.ok
+    ? { along: last.cand.along, lv: last.cand.lv, dims: last.cand.dims, litres: capacityFromDims(last.cand.dims, 'deck'), floor, gap, room, yc: last.pl.c[1],
+        measured: { dashBack, caseBack, back, front, floor } }
+    : { why: 'no auto shape clears here: ' + ((last && last.pl && last.pl.why) || []).join('; '), dims: last && last.cand.dims };
+  out.measured = { panelFace: faceZ, shieldFront: dashBack, back, front, floor, keel, room, gap,
+                   faceToFirewall: isFinite(faceZ) ? front + NOSE_CLR - faceZ : null,
+                   shieldToFirewall: isFinite(dashBack) ? front + NOSE_CLR - dashBack : null };
+  LAST.nose = out;                 // (the probe tools read the last measurement)
+  if (NOSE_AUTO.size > 16) NOSE_AUTO.clear();
+  NOSE_AUTO.set(key, out);
+  return out;
+}
+// one candidate's placement and verdict, without the layout (fitOf's way, inside placeAll's own loop)
+function noseJudge(ctx, inv, bay, cand, zFw, cache, yc) {
+  const G = VG(), C = core(), FS = fsOf(ctx);
+  AUTO_ZFW = zFw * FS;
+  const res = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', capacityFromDims(cand.dims, 'deck'), vesselKey(), medium());
+  const dims = G.vesselDims(vesselKey(), res.installedL, cand.dims, 'deck');
+  const pl = autoPlace(cand, dims, yc);
+  pl.v = Object.assign({}, cand); pl.dims = dims;
+  pl.lightSolid = lightSolid(pl, 'deck', cand.dims.profile);
+  // (the search wants the verdict only: stop at the first contact - the drawn tank is judged whole by the layout)
+  JUDGE.fast = true;
+  try { judgeTank(ctx, ctx.scene, inv, pl); } finally { JUDGE.fast = false; }
+  return pl;
+}
+// THE AUTO TANK IS PLACED BY ITS OWN NUMBERS: its floor and its length were measured, so its centre is known - the
+// bay rule's band (bodyPlace's lv) does not reach the firewall face on every body (the Cub's field stops 0.1 m short
+// of it: 'past the body'), and it is not what decided the shape. The level written beside it (`lv`) is the core's
+// reading of the same height, for the ledger's ring.
+function autoPlace(cand, dims, yc) {
+  const zc = AUTO_ZFW - cand.along;
+  return { on: 'body', ok: true, why: [], c: [0, yc, zc], e: [dims.W / 2, dims.H / 2, dims.L / 2], rot: 0,
+           along: cand.along, lv: cand.lv, auto: true, outsideHand: 0, inBand: true, fitsSkin: true };
+}
+let AUTO_ZFW = 0;
 
 // ---------------------------------------------------------------------------
 // DRAWING — THE LOOKS
@@ -120683,6 +121753,15 @@ function fuelMat() {
   m.userData.aeroskin = 1;
   return (fuelMats[key] = m);
 }
+// the contact marker's look: a bead, bright red, drawn over what is in front of it
+let CLASH_GEO = null, CLASH_MAT = null;
+function clashGeo() { return CLASH_GEO || (CLASH_GEO = new THREE.SphereGeometry(0.014, 12, 8)); }
+function clashMat() {
+  if (CLASH_MAT) return CLASH_MAT;
+  CLASH_MAT = new THREE.MeshBasicMaterial({ color: 0xff2a1a, depthTest: false, transparent: true, opacity: 0.95 });
+  CLASH_MAT.userData.aeroskin = 1;
+  return CLASH_MAT;
+}
 let ghostMat = null;
 function ghost() {
   if (ghostMat) return ghostMat;
@@ -120697,13 +121776,17 @@ function ghost() {
 // (centre, then the turn about the vertical). The solid is built in the
 // vessel's own frame and moved here, so nothing has to bake a rotation into
 // geometry that a slider will change again a frame later.
-function slotMesh(group, buf, mat, name, c, rot) {
+function slotMesh(group, buf, mat, name, c, rot, keep) {
   if (!buf || !buf.idx.length) return null;
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(buf.nor, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(buf.uv, 2));
-  g.setIndex(buf.idx);
+  let g = keep && !legacyFit() ? GEOS.get(buf) : null;
+  if (!g) {
+    g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(buf.nor, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(buf.uv, 2));
+    g.setIndex(buf.idx);
+    if (keep && !legacyFit()) { g.userData.keep = 1; GEOS.set(buf, g); }
+  }
   const m = new THREE.Mesh(g, mat);
   m.position.set(c[0], c[1], c[2]);
   m.rotation.y = rot || 0;
@@ -120716,6 +121799,28 @@ function slotMesh(group, buf, mat, name, c, rot) {
 // triangles; the key is the box, the form, the kind and the grain, so moving a
 // tank along the body or up its bay rebuilds nothing at all.
 const solids = new Map();
+// TANK-FIT: A SOLID WITHOUT SOME PIECES IS ALSO KEPT (VESSEL_MESH.omit copies three buffers each call - per drag tick
+// for every tank), by the solid object and the names; and a buffer's GPU geometry is kept with the buffer, so a
+// relayout that moved a tank builds no geometry at all (relayout disposes only what is not kept)
+const OMITS = new WeakMap();
+function omitMemo(sol, names) {
+  if (!sol || !window.VESSEL_MESH || !window.VESSEL_MESH.omit) return sol;
+  let m = OMITS.get(sol);
+  if (!m) OMITS.set(sol, m = new Map());
+  const k = names.slice().sort().join(',');
+  if (!m.has(k)) m.set(k, window.VESSEL_MESH.omit(sol, names));
+  return m.get(k);
+}
+const GEOS = new WeakMap();
+const CONTENTS = new WeakMap();
+function contentsMemo(sol, fill) {
+  const VM = window.VESSEL_MESH;
+  let m = CONTENTS.get(sol);
+  if (!m) CONTENTS.set(sol, m = new Map());
+  const k = fill.toFixed(3);
+  if (!m.has(k)) { if (m.size > 8) m.clear(); m.set(k, VM.contents(sol, fill, 0.008)); }
+  return m.get(k);
+}
 function vesselSolid(r) {
   const VM = window.VESSEL_MESH;
   if (!VM) return null;
@@ -120852,9 +121957,25 @@ function drawResults(group, ctx, results) {
       // top of the vessel's own `rot` and moves nothing the ledger reads.
       const yaw = r.rot + (sol0.yaw || 0);
       let drop = [];
-      try { drop = standoffBlocked(ctx, r, sol0, yaw); } catch (e) { drop = []; }
-      const sol = drop.length && VM.omit ? VM.omit(sol0, drop) : sol0;
+      // TANK-FIT: the drawn clearance already decided which standoff pieces stay (judgeTank, the same instrument)
+      if (r.omitted && r.drawn && !legacyFit()) drop = r.omitted;
+      else try { drop = standoffBlocked(ctx, r, sol0, yaw); } catch (e) { drop = []; }
+      const sol = drop.length && VM.omit ? omitMemo(sol0, drop) : sol0;
       r.drawn = sol; r.omitted = drop;
+      // THE RED SITS WHERE THE CONTACT IS (TANK-FIT): a marker on each contact the verdict names - the deepest
+      // point past a surface, the surface inside, the thinnest gap, the crew - a red bead the builder can see
+      // through which corner to move. A marker, not the aeroplane: the join skips it (edMarker).
+      if (bad && r.clash && window.THREE) {
+        const pts = [r.clash.at].concat(r.clash.marks || []).filter(Boolean);
+        pts.forEach((p, k) => {
+          const m = new THREE.Mesh(clashGeo(), clashMat());
+          m.position.set(p[0], p[1], p[2]);
+          m.name = 'edTankClash_' + i + '_' + k;
+          m.userData.edMarker = 1; m.userData.edUnfit = 1;
+          m.renderOrder = 10;
+          group.add(m);
+        });
+      }
       // THE RED IS THE SHELL'S ALONE. It is four fifths of what you can see,
       // so a tank that does not fit is unmissable either way — and putting the
       // emissive on the straps, the filler and the sump as well turned the
@@ -120862,7 +121983,7 @@ function drawResults(group, ctx, results) {
       // moment the builder needs to see WHICH corner is through the skin.
       for (const slot of ['shell', 'hard', 'seal', 'mark']) {
         const m = slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
-                           'edVessel_' + i + '_' + slot, r.c, yaw);
+                           'edVessel_' + i + '_' + slot, r.c, yaw, true);
         if (m && bad) m.userData.edUnfit = 1;
       }
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
@@ -120871,8 +121992,8 @@ function drawResults(group, ctx, results) {
       // by VOLUME, not by height (VESSEL_MESH.contents). A pack does not
       // drain, so nothing is drawn inside one.
       if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
-        const mf = slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
-                            'edFuel_' + i, r.c, yaw);
+        const mf = slotMesh(group, legacyFit() ? VM.contents(sol, VIEW.fill, 0.008) : contentsMemo(sol, VIEW.fill), fuelMat(),
+                            'edFuel_' + i, r.c, yaw, true);
         if (mf && bad) mf.userData.edUnfit = 1;
       }
     } else if (r.on === 'strut' && r.pods && window.THREE) {
@@ -120889,7 +122010,25 @@ function drawResults(group, ctx, results) {
         m.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L');
         m.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.axis[0], pd.axis[1], pd.axis[2]));
         m.position.set(pd.c[0], pd.c[1], pd.c[2]);
+        if (bad) m.userData.edUnfit = 1;
         group.add(m);
+        // THE MOUNT (TANK-FIT, Part 3): a pylon from the pod's back up to the strut, and a clamp band round the
+        // strut where it meets it - the hardware's steel, part of the tank (it flies with it)
+        if (pd.hang > 0 && pd.onStrut) {
+          const hm = slotMat('hard', false, i, r.v);
+          const ch = Math.max(0.01, pd.hang - pd.D / 2 + 0.01), pw = Math.min(0.5 * pd.L, 0.18);
+          const py = new T3.Mesh(new T3.BoxGeometry(0.018, ch, pw), hm);
+          py.position.set(pd.c[0], pd.c[1] + pd.D / 2 + ch / 2 - 0.01, pd.c[2]);
+          py.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L') + '_pylon';
+          if (bad) py.userData.edUnfit = 1;
+          group.add(py);
+          const cl = new T3.Mesh(new T3.CylinderGeometry(0.03, 0.03, Math.min(0.12, pw * 0.8), 14, 1, true), hm);
+          cl.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.u[0], pd.u[1], pd.u[2]));
+          cl.position.set(pd.onStrut[0], pd.onStrut[1], pd.onStrut[2]);
+          cl.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L') + '_clamp';
+          if (bad) cl.userData.edUnfit = 1;
+          group.add(cl);
+        }
       }
     } else if (r.on === 'wing' && r.sides && VM) {
       // THE WING TANK IS THE SIMPLE ONE, by the user's own ruling: a box in
@@ -120975,6 +122114,7 @@ let group = null;
 // designs' tanks were refitted by asking this (tools/tank_refit.js). The
 // candidate is a copy; the result carries its placement and why.
 let FIT_ASKING = false;
+let FIT_AUTO_SKIP = false;        // (a drag of the auto nose tank's own rows ends its auto fit: the shape is the player's)
 // opts.fast: stop at the first stage that fails (the placement, then the
 // crew, then the surfaces) - a search asks hundreds of candidates and most
 // fail the placement; the verdict is the same, its reasons may be fewer
@@ -120988,11 +122128,18 @@ function fitOf(cand, opts) {
   try {
     EN.vessels = [v];
     const results = placeAll(ctx, inv);
-    if (!(fast && results[0] && !results[0].ok)) crewHits(ctx.scene, inv, results);
-    if (!(fast && results[0] && !results[0].ok)) layerHits(ctx.scene, inv, results, ctx);
+    if (legacyFit()) {
+      if (!(fast && results[0] && !results[0].ok)) crewHits(ctx.scene, inv, results);
+      if (!(fast && results[0] && !results[0].ok)) layerHits(ctx.scene, inv, results, ctx);
+    } else if (!(fast && results[0] && !results[0].ok)) {
+      if (!crewFresh(ctx.scene, inv)) CREW_PTS = null;
+      JUDGE.fast = fast;
+      try { judgeAll(ctx.scene, inv, results, ctx); } finally { JUDGE.fast = false; }
+    }
     const r = results[0];
     return r ? { ok: !!r.ok, why: r.why.slice(), c: r.c, e: r.e, rot: r.rot, on: r.on, v, along: r.along, samples: r.samples, pts: r.pts,
-                 section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0 } : null;
+                 section: r.section, crewHits: r.crewHits || 0, layerHits: r.layerHits || 0, clash: r.clash || null, clear: r.clear, clearTo: r.clearTo,
+                 rule: r.rule || null, pods: r.pods || null, jms: r.jms || null } : null;
   } finally { EN.vessels = keep; FIT_ASKING = false; }
 }
 function relayout() {
@@ -121000,7 +122147,7 @@ function relayout() {
   if (!ctx || !window.THREE) return;
   const { scene } = ctx;
   if (group) {
-    group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    group.traverse(c => { if (c.geometry && c.geometry !== CLASH_GEO && !(c.geometry.userData && c.geometry.userData.keep)) c.geometry.dispose(); });
     scene.remove(group);
     group = null;
   }
@@ -121009,19 +122156,103 @@ function relayout() {
   scene.add(group);
   group.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
-  CREW_PTS = null;              // the crew may have moved since the last layout
-  SURF_ALL = null;              // ...and every layer it asks was drawn afresh
+  const t0 = msNow();
+  const legacy = legacyFit();
+  // the crew may have moved since the last layout, and every layer was perhaps drawn afresh: the legacy path
+  // gathered both again every time; the drawn clearance keeps them while they are the same (crewFresh, surfAll's key)
+  if (legacy || !crewFresh(scene, inv)) CREW_PTS = null;
+  if (legacy) SURF_ALL = null;
   const results = placeAll(ctx, inv);
-  crewHits(scene, inv, results);
-  layerHits(scene, inv, results, ctx);
+  const t1 = msNow();
+  if (legacy) crewHits(scene, inv, results);
+  const t2 = msNow();
+  if (legacy) layerHits(scene, inv, results, ctx);
+  else judgeAll(scene, inv, results, ctx);
+  const t3 = msNow();
   LAYOUT_INV = inv; LAYOUT_SCENE = scene;
   drawResults(group, ctx, results);
+  const t4 = msNow();
   LAST.results = results; LAST.inv = inv; LAST.group = group;
+  LAST.ms = { place: t1 - t0, crew: t2 - t1, surf: t3 - t2, draw: t4 - t3, total: t4 - t0 };
   if (panelBody) syncReadouts();
   if (ctx.stat) {
-    const bad = results.filter(r => !r.ok).length;
+    const bad = results.filter(r => !r.ok).length, off = results.filter(r => r.unmounted).length;
     ctx.stat.textContent += '  ·  energy: ' + results.length + ' vessel' +
-      (results.length === 1 ? '' : 's') + (bad ? ', ' + bad + ' not fitting' : '');
+      (results.length === 1 ? '' : 's') + (bad ? ', ' + bad + ' not fitting' : '') +
+      (off ? ', ' + off + ' on lift struts this wing does not have (not fitted, no fuel)' : '');
+  }
+}
+
+// THE DRAG (TANK-FIT, 2026-11-03). A slider's input ran relayout - every tank placed, every tank's crew and
+// surfaces asked, every mesh rebuilt - per input event: ugly_bi 84 ms a tick (292 ms once the crew and the engine
+// were really found), the twin 153 ms (its wing tank sliced afresh). Now an input asks for ONE frame (coalesced:
+// requestAnimationFrame), and that frame places, judges and redraws only the tank in the hand; the others keep
+// their meshes and their verdicts, which nothing the hand did can change. The release runs the whole relayout
+// (every tank, the readouts, the commit) - the full verdict.
+const DRAG = { raf: 0, i: -1 };
+function dragLayout(now, vi) {
+  if (vi != null) DRAG.i = vi;
+  if (!now) {
+    if (DRAG.raf) return;
+    const go = () => { DRAG.raf = 0; dragLayout(true); };
+    DRAG.raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(go) : setTimeout(go, 16);
+    return;
+  }
+  const ctx = LAST.ctx, i = DRAG.i;
+  if (legacyFit() || !ctx || !group || !LAST.inv || !(i >= 0) || !EN.vessels[i] || LAST.results.length !== EN.vessels.length) { relayout(); return; }
+  const t0 = msNow();
+  const keep = EN.vessels, inv = LAST.inv;
+  let r = null;
+  FIT_ASKING = true;
+  try { EN.vessels = [keep[i]]; r = placeAll(ctx, inv)[0] || null; }
+  finally { EN.vessels = keep; FIT_ASKING = false; }
+  if (!r) { relayout(); return; }
+  if (!crewFresh(ctx.scene, inv)) CREW_PTS = null;
+  JUDGE.drag = true;
+  try { judgeAll(ctx.scene, inv, [r], ctx); } finally { JUDGE.drag = false; }
+  const t1 = msNow();
+  // the tank's own meshes out, its new ones in
+  const mine = new RegExp('^(ed(Vessel|Fuel)_' + i + '(_|L|R|$)|edTankClash_' + i + '_)');
+  for (const c of group.children.slice()) if (mine.test(c.name || '')) {
+    group.remove(c);
+    if (c.geometry && c.geometry !== CLASH_GEO && !(c.geometry.userData && c.geometry.userData.keep)) c.geometry.dispose();
+  }
+  const sel = selected; selected = -1;              // (the bay's ghost stays where the release drew it)
+  try { drawResults(group, ctx, [r]); } finally { selected = sel; }
+  LAST.results[i] = r;
+  if (panelBody) syncReadouts();
+  LAST.dragMs = { place: t1 - t0, draw: msNow() - t1, total: msNow() - t0 };
+}
+// THE FORE / AFT HAND KEEPS THE TANK'S HEIGHT (TANK-FIT). `lv` places a tank as a fraction of the band AT ITS OWN
+// STATION, and the band's top is the section's: at the windscreen base the nose section opens into the cabin, and
+// 3 cm of fore/aft lifted ugly_bi's nose tank 8 cm into the cowl top (-0.114 -> -0.032 m), red, then 4 cm more
+// through the dash - "super twitchy". The slider now writes the level that keeps the tank where it is (as far as the
+// band at the new station allows); a saved tank, which carries its own lv, is placed exactly as before.
+function lvKeepingHeight(i, along) {
+  const v = EN.vessels[i], r = LAST.results[i], ctx = LAST.ctx, G = VG();
+  if (!v || !r || !r.c || r.on !== 'body' || !ctx || !G || !G.bayExtAt) return v ? v.lv : null;
+  const bay = r.bay, c = bay && bay._ck ? BAY_CACHES[bay._ck] : null;
+  const zFw = G.firewallZ ? G.firewallZ(ctx.spec, CG2()) : null;
+  if (!c || zFw == null) return v.lv;
+  const ext = G.bayExtAt(c, fsOf(ctx), zFw, along);
+  if (!ext) return v.lv;
+  const lvB = bay.lv || [0, 1], H = ext.yHi - ext.yLo;
+  const lo = ext.yLo + lvB[0] * H, hi = ext.yLo + lvB[1] * H;
+  if (!(hi - lo > 1e-6)) return v.lv;
+  const lv = (r.c[1] - lo) / (hi - lo);
+  return Math.round(Math.max(lvB[0], Math.min(lvB[1], lv)) * 1000) / 1000;
+}
+// a row's shown value, written without rebuilding the panel (the drag's hand is on another row)
+function syncRow(i, label, value, fmt) {
+  if (!panelBody) return;
+  const det = panelBody.querySelector('details[data-ves="' + i + '"]');
+  if (!det) return;
+  for (const r of det.querySelectorAll('.r')) {
+    const k = r.querySelector('.k');
+    if (!k || k.textContent.trim() !== label) continue;
+    const inp = r.querySelector('input'), val = r.querySelector('.v');
+    if (inp) inp.value = value;
+    if (val) val.textContent = fmt(+value);
   }
 }
 
@@ -121046,8 +122277,13 @@ PAGE.post = ctx => {
   const S = resolvedSpec(ctx);
   BAYS = measureBays(S, ctx);
   // a vessel in a bay this aeroplane does not have (no wing) goes to the nose
+  // TANK-FIT (Part 3): ...except a pod on the lift struts. Sent to the nose, it was SHAPED there and the shape
+  // written back (the Chinook-alike's 38 L pod became a 3 L nose box: GATE TANKMOUNT's KNOWN line) - the builder's
+  // fuel dropped without a word, and on a build whose struts the wing layer had not drawn yet, for good. It keeps its
+  // bay: drawn nowhere, red in the panel with the reason, carrying nothing (the core: `unmounted`), and back on its
+  // struts the moment the aeroplane has them.
   for (const v of EN.vessels)
-    if (!BAYS.find(b => b.key === v.bay)) v.bay = (BAYS[0] || {}).key || 'nose';
+    if (!BAYS.find(b => b.key === v.bay) && !(v.bay === 'strut' && !legacyFit())) v.bay = (BAYS[0] || {}).key || 'nose';
   if (HAS_DOM) { mountPanel(); renderPanel(); }
   relayout();
 };
@@ -121567,6 +122803,10 @@ function bayOptions() {
   for (const b of BAYS)
     out.push([b.key, b.name + ' · ' + (b.roomL || 0).toFixed(0) + ' L' +
       (b.feed === 'gravity' ? ' · gravity fed' : '')]);
+  // TANK-FIT (Part 3): the struts' bay is offered only where the wing has struts (measureBays); a tank still on
+  // them where there are none sees its bay named, and not offered to anything else
+  if (!BAYS.find(b => b.key === 'strut') && EN.vessels.some(v => v.bay === 'strut'))
+    out.push(['strut', 'On the lift struts · this wing has none', true]);
   return out;
 }
 
@@ -121729,20 +122969,43 @@ function renderPanel() {
       'gravity can feed from; the wing bays relieve the spar', bayOptions(),
       v.bay, nb => {
         v.bay = nb; v.along = null; v.lv = null; v.rot = 0;
+        // TANK-FIT Part 2: a tank moved to the nose is fitted to it (the shape row can make it free again)
+        if (nb === 'nose' && NOSE_AUTO_ON && !legacyFit()) { v.fit = 'auto'; v.dims = null; v.form = 'box'; } else delete v.fit;
         selected = i; renderPanel(); relayout(); commit();
       });
 
     // ROUND OR SQUARED, and the litres follow. A wing tank is neither: it is
     // the box between the spars and the row is not offered there.
-    if (bay && bay.on !== 'wing' && bay.on !== 'strut')
+    if (bay && bay.on !== 'wing' && bay.on !== 'strut') {
+      // TANK-FIT Part 2: the nose bay's 'auto-fit' - the tank fills the space behind the panel (noseAuto)
+      const autoOK = NOSE_AUTO_ON && bay.key === 'nose' && !legacyFit();
+      const isAuto = autoOK && noseAutoWanted(v, bay);
       select(box, 'shape', 'a squared shell with radiused corners, or a ' +
         'cylinder with domed ends. The drawn box is the same either way; a ' +
-        'cylinder simply holds less of it, and the capacity says so',
-        [['box', 'squared'], ['cyl', 'cylindrical']], formOf(v), nf => {
-          v.form = nf === 'cyl' ? 'cyl' : 'box';
-          if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v));
+        'cylinder simply holds less of it, and the capacity says so' +
+        (autoOK ? '. AUTO-FIT (the nose): the tank takes the space behind the panel - its floor the bottom of the ' +
+          'dash, its top the deck less a gap, the firewall ahead - and holds what that space holds' : ''),
+        (autoOK ? [['auto', 'auto-fit (behind the panel)']] : []).concat([['box', 'squared'], ['cyl', 'cylindrical']]),
+        isAuto ? 'auto' : (formOf(v) === 'deck' ? 'box' : formOf(v)), nf => {
+          if (nf === 'auto') { v.fit = 'auto'; }
+          else {
+            delete v.fit;
+            // an auto shape left for a free one keeps its size as a squared box of the same footprint
+            v.form = nf === 'cyl' ? 'cyl' : 'box';
+            if (v.dims) { v.dims = { L: v.dims.L, W: v.dims.W, H: v.dims.H }; v.capacity = capacityFromDims(v.dims, formOf(v)); }
+          }
           selected = i; renderPanel(); relayout(); commit();
         });
+      if (isAuto)
+        range(box, 'gap under the deck', 'the room left between the auto tank\'s top and the deck\'s inner skin', 0, 0.2, 0.005,
+          v.gap != null ? v.gap : NOSE_GAP, fmtM,
+          x => { v.gap = x; }, x => { v.gap = x; relayout(); syncCap(); commitSoon(); });
+      if (isAuto)
+        range(box, 'room behind the panel', 'the space left between the panel (its instruments\' backs) and the auto ' +
+          'tank: where the instruments are connected - the pitot and static fittings, the hoses\' turn, the harness plugs',
+          0, 0.2, 0.005, v.room != null ? v.room : NOSE_PANEL_ROOM, fmtM,
+          x => { v.room = x; }, x => { v.room = x; relayout(); syncCap(); commitSoon(); });
+    }
 
     // capacity: as much as the bay can take, less the vessel's own ullage
     const room = bay ? (bay.roomL || 0) : 0;
@@ -121751,12 +123014,12 @@ function renderPanel() {
       const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
       capMax = Math.max(1, Math.floor(room / 1.18 * (cell.WhL * cell.packK) / 1000));
     } else capMax = Math.max(1, Math.floor(room / 1.06));
-    range(box, 'capacity', 'what it holds. The top of the slider is what the ' +
+    if (!(bay && bay.key === 'nose' && noseAutoWanted(v, bay))) range(box, 'capacity', 'what it holds. The top of the slider is what the ' +
       'bay can take; the readout says whether the SHAPE fits. Moving this ' +
       'gives the vessel its catalogue shape again', 1,
       Math.max(capMax, 1), 1, Math.min(v.capacity, Math.max(capMax, 1)), fmtL,
-      x => { v.capacity = x; v.dims = null; relayout(); },
-      x => { v.capacity = x; v.dims = null; commitSoon(); });
+      x => { v.capacity = x; v.dims = null; dragLayout(false, i); },
+      x => { v.capacity = x; v.dims = null; relayout(); commitSoon(); });
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
@@ -121764,23 +123027,25 @@ function renderPanel() {
       // G477: the pod's own length and diameter; the litres (the pair's) follow
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) || { L: 0.8, W: 0.2, H: 0.2 };
       const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
-        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
-        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commitSoon(); });
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; dragLayout(false, i); syncCap(); },
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); commitSoon(); });
       podRow('length', 'L', 0.3, 2.0, 'along the line of flight');
       podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
       range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
         bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
+        x => { v.along = x; dragLayout(false, i); }, x => { v.along = x; relayout(); commitSoon(); });
     }
     if (bay && bay.on !== 'wing' && bay.on !== 'strut') {
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) ||
         { L: 0.5, W: 0.35, H: 0.25 };
+      // (TANK-FIT Part 2: a size row makes an auto nose tank the player's: free, a squared box from then on)
+      const freeIt = () => { if (v.fit === 'auto') { delete v.fit; if (v.form === 'deck') v.form = 'box'; } };
       const sizeRow = (label, key, hi, title) => range(box, label, title, 0.08, hi, 0.01,
         cur()[key], fmtM,
-        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
-               relayout(); syncCap(); },
-        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
-               commitSoon(); });
+        x => { freeIt(); const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
+               dragLayout(false, i); syncCap(); },
+        x => { freeIt(); const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
+               relayout(); renderPanel(); syncCap(); commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
         ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
       sizeRow('length', 'L', Math.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
@@ -121798,24 +123063,30 @@ function renderPanel() {
         'semispan; it runs outboard from here until it holds its litres',
         bay.span[0], bay.span[1], 0.01,
         v.along != null ? v.along : bay.span[0], fmtF,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
+        x => { v.along = x; dragLayout(false, i); }, x => { v.along = x; relayout(); commitSoon(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
       // G2799: the slider spans the HAND's range (the rule's, plus a reach
       // the swept field still measures); a new tank still starts in the bay
       const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
+      // TANK-FIT: the hand moves the tank fore and aft at ITS HEIGHT (lvKeepingHeight), a frame at a time
+      // (dragLayout), and the release lays every tank out and judges it whole
+      // (moving an auto nose tank makes its place the player's: the shape stays, the fit is no longer re-run)
+      const unAuto = () => { if (v.fit === 'auto') delete v.fit; };
+      const foreAft = x => { unAuto(); if (legacyFit()) { v.along = x; return; } const lv = lvKeepingHeight(i, x); v.along = x; if (lv != null) v.lv = lv; };
       range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
         bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m, the tank can go ' +
         hx0.toFixed(2) + ' to ' + hx1.toFixed(2) + ' m', hx0, hx1,
         0.01, v.along != null ? v.along : dflt, fmtM,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
+        x => { foreAft(x); dragLayout(false, i); },
+        x => { foreAft(x); relayout(); if (v.lv != null) syncRow(i, 'up / down', v.lv, fmtF); commitSoon(); });
       const lvB = bay.lv || [0, 1];
       range(box, 'up / down', 'keel to crown, within the bay’s own band', lvB[0],
         lvB[1], 0.01, v.lv != null ? v.lv : 0.5 * (lvB[0] + lvB[1]), fmtF,
-        x => { v.lv = x; relayout(); }, x => { v.lv = x; commitSoon(); });
+        x => { unAuto(); v.lv = x; dragLayout(false, i); }, x => { unAuto(); v.lv = x; relayout(); commitSoon(); });
       range(box, 'turn (yaw)', 'about the vertical: a long tank across a wide bay, ' +
         'or along a narrow one', -90, 90, 1, v.rot || 0, fmtD,
-        x => { v.rot = x; relayout(); }, x => { v.rot = x; commitSoon(); });
+        x => { unAuto(); v.rot = x; dragLayout(false, i); }, x => { unAuto(); v.rot = x; relayout(); commitSoon(); });
     }
     const rd = el('div', 'r note');
     box.appendChild(rd);
@@ -121844,9 +123115,10 @@ function renderPanel() {
       // the first bay with room that is not already taken, else the nose
       const used = new Set(EN.vessels.map(x => x.bay));
       const free = BAYS.find(x => !used.has(x.key) && x.roomL > 20) || BAYS[0];
-      EN.vessels.push({ bay: free ? free.key : 'nose',
+      const nk = free ? free.key : 'nose';
+      EN.vessels.push(Object.assign({ bay: nk,
         capacity: EN.kind === 'battery' ? 6 : 30, along: null, lv: null, rot: 0,
-        form: 'box' });
+        form: 'box' }, nk === 'nose' && NOSE_AUTO_ON && !legacyFit() ? { fit: 'auto' } : {}));
       selected = EN.vessels.length - 1;
       renderPanel(); relayout(); commit();
     };
@@ -121948,25 +123220,29 @@ function syncReadouts() {
   let totCap = 0, totKg = 0, totVes = 0, price = 0;
   rs.forEach((r, i) => {
     const d = READ[i];
-    totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg;
-    price += r.res.price;
+    // a pod with no strut is not aboard (the core's `unmounted`): not in the totals
+    if (!r.unmounted) { totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg; price += r.res.price; }
     if (!d) return;
     const bits = [];
     bits.push('needs ' + r.needL.toFixed(0) + ' of ' + (r.roomL || 0).toFixed(0) + ' L');
     if (r.on === 'body' && r.clear != null && isFinite(r.clear))
-      bits.push((r.clear * 1000).toFixed(0) + ' mm to the skin');
+      bits.push(r.clearTo || legacyFit() ? (r.clear * 1000).toFixed(0) + ' mm to the ' + (r.clearTo || 'skin')
+                                         : 'over ' + (NEAR_R * 1000).toFixed(0) + ' mm clear all round');
     if (r.on === 'wing' && r.spanM != null)
       bits.push(r.spanM.toFixed(2) + ' m of span each side');
     if (r.on === 'strut' && r.pods && r.pods.length)
       bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
+    if (r.unmounted) { d.textContent = '✗ NOT FITTED, CARRIES NO FUEL — ' + r.why.join('; '); d.classList.add('bad'); return; }
+    if (r.pending) { d.textContent = '… fitting the tank to the nose'; d.classList.remove('bad'); return; }
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');
-    if (r.v.shaped) bits.push('shaped to the bay' +
+    if (r.v.shaped === 'auto' && r.v.fit === 'auto') bits.push('fitted to the nose (' + ((r.v.gap != null ? r.v.gap : NOSE_GAP) * 100).toFixed(0) + ' cm under the deck)');
+    else if (r.v.shaped) bits.push('shaped to the bay' +
       (r.v.shaped === 'crew' ? ', height capped above the crew'
        : r.v.shaped === 'band' ? ', height capped by the bay' : ''));
     d.textContent = (r.ok ? '✓ fits · ' : '✗ ') + bits.join(' · ') +
-      (r.ok ? '' : ' — ' + r.why.join('; '));
+      (r.ok ? '' : ' — ' + r.why.join('; ') + ' · it flies, but the bench will not certify it');
     d.classList.toggle('bad', !r.ok);
   });
   if (totalEl)
@@ -121984,7 +123260,11 @@ window.CAGE_ENERGY = {
   // the two columns' doors: structure gets the whole panel, finish gets the
   // look rows (_cage_parts.js `panel` / `panelFinish`)
   panelFinish: lookElement,
-  results: () => LAST.results, bays: () => BAYS,
+  results: () => LAST.results, bays: () => BAYS, last: () => LAST,
+  // TANK-FIT: the drag's one-frame layout (dragLayout(true) runs it now), the fore/aft hand's level, the knobs
+  dragLayout: (now, i) => dragLayout(now, i == null ? DRAG.i : i), lvKeepingHeight,
+  clearance: { CLEAR_GAP, CREW_GAP, SAMPLE_STEP, NEAR_R },
+  index: () => ({ soup: SURF_ALL && { n: SURF_ALL.n, sheet: SURF_ALL.nSheet, ms: SURF_ALL.ms }, grid: OBST && { n: OBST.n, cell: OBST.cell, N: OBST.N, blocks: OBST.blocks && OBST.blocks.length, built: OBST.built, entries: OBST.entries, ms: OBST.ms }, crew: CREW_PTS && { n: CREW_PTS.n } }),
   chart: () => LAST_CHART, view: VIEW,
   // the slim balance job's state, for the probe page and the gates
   balance: () => ({ last: LAST_BAL, seq: balSeq, seen: balSeen, err: balErr, hooked: commitHooked,
@@ -177004,6 +178284,27 @@ function benchDesignHtml(d) {
       '</div>').join('') + '</div>';
 }
 
+// TANK-FIT: the editor's tank verdicts as design-check rows (one FAIL a tank that does not fit; none when they all
+// do, or when no editor is loaded - the core's own rows then stand alone)
+function benchTankRows() {
+  const E = typeof window !== 'undefined' ? window.CAGE_ENERGY : null;
+  let rs = null;
+  try { rs = E && E.results ? E.results() : null; } catch (e) { rs = null; }
+  if (!Array.isArray(rs)) return [];
+  const out = [];
+  rs.forEach((r, i) => {
+    if (!r || r.ok || r.unmounted) return;              // (an unmounted pod is the core's row, wb.tank<i>)
+    // (tier 'safe': the AIRWORTHINESS certificate - DESIGN-AIDS' GEN_CERT_TIER reads r.tier first; an unfit tank is not
+    //  safe to fly a mission in, the user 3 Nov; never `proposed`)
+    out.push({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' fits (' + ((r.bay && r.bay.name) || (r.v && r.v.bay) || 'its bay') + ')',
+               level: 'fail', value: Math.round((r.v && r.v.capacity) || 0), unit: 'L',
+               limit: 'the drawn tank clears every drawn surface by 5 mm and the crew by 10 mm',
+               why: (r.why || []).join('; ') || 'it does not fit',
+               fix: 'move or resize the tank (the red bead marks the contact), or pick the nose bay\'s auto-fit' });
+  });
+  return out;
+}
+
 // G3780: THE WING LOADING'S VERDICT, one function for the rig's last state - the quick run's (the bench's thread,
 // unpaced) and the watched rig's (kept as a DEV tool)
 function benchLoadVerdict(st) {
@@ -177094,6 +178395,11 @@ const BENCH_TESTS = [
         verdict: s.design.verdict,
         rows: s.design.rows.map(r => ({ id: r.id, group: r.group, label: r.label, level: r.level,
                                         value: r.value, unit: r.unit, limit: r.limit, why: r.why, fix: r.fix })) } : null;
+      // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): THE
+      // TANKS AS DRAWN - the editor's own verdict (CAGE_ENERGY, the drawn tank against the drawn aeroplane) - each
+      // tank that does not fit is a FAIL row: the certificate is withheld, the aeroplane still flies as drawn (G3877)
+      if (dsg) for (const r of benchTankRows()) if (!dsg.rows.some(q => q.id === r.id)) dsg.rows.push(r);
+      if (dsg && dsg.rows.some(r => r.level === 'fail')) dsg.verdict = 'fail';
       const dFail = dsg ? dsg.rows.filter(r => r.level === 'fail') : [];
       for (const r of dFail) why.push(r.label.toLowerCase() + ' fails (' + r.value + (r.unit ? ' ' + r.unit : '') + ')');
       const flies = !!s.flyableCircuit, sound = !dFail.length;
