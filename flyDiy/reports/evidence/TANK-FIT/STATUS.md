@@ -1,5 +1,12 @@
 # TANK-FIT — STATUS (cloud, 2026-11-03)
 
+**READY: `claude/ready/tank-fit`** on train 1B (origin/master 1db22c8a), unbuilt (the train builds), for the design
+train L30b. Physics changes, named: the strut pods' drag (62_gen_aero, `gen.drag.strutPods`: the Chinooks), a strut
+pod on a strutless wing billed nowhere (61_gen_frame / 60_gen_spec `unmounted`: no saved build has one), the applied
+nose tanks (the Cub 44 L, the Jodel 53 L, their variants, the camel fixture 25 L, the floatplane card 16 L, the
+validated twin floatplane 8 L in its VALIDATED patch). Gates: below ("Gates on train 1B"). Owed: the JOINPARITY page
+re-capture (A0), a page look at the editor's new rows and the bench's tank rows.
+
 Branch `claude/tank-fit` (rebased 3 Nov 08:32 UTC on `origin/master` 1db22c8a = train 1B: FINISH-4 + PHONE-1b; first
 cut on 0fcf54ef = PH1A). Not rebased on FINISH-4 / CABIN-CRAFT / PHONE-1b yet
 (they were not on master when this was cut: the user's builds were read from `origin/claude/ready/candidates-4b`).
@@ -255,7 +262,7 @@ BENCHTIME, and these three with this tree's rows beside master's:
 * STOL: master fails its standing rows (the null stol record, the slat, the merge); this tree added two in section 6
   (the user's STOL-kit Cub against the stock one: Vref 65.8 vs 63.0 km/h, lift-off 101.2 vs 96.1 m) - the kit loaded
   with today's 44 L fitted tank against master's pinned stock Cub with its 28 L: the gate now flies the kit on the
-  stock's own tank (the kit's effect alone). Re-run: see below.
+  stock's own tank (the kit's effect alone). Re-run: **the same FAIL lines as master 1B, no more**.
 Rows updated with their reason: ACCEPT (the Cub's 44 L), DASH (the box/arch question on the bay-rule tank + "the
 fitted nose tank clears either dash"), TANKMOUNT (the contact markers are not a skin), FLOATS (the landing flown until
 the taxi is read), STOL (section 6 on the stock's tank).
