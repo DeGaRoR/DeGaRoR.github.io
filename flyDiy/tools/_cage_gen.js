@@ -3595,6 +3595,243 @@ function cageInterior(m, S) {
   // edge. Interior components may therefore carry open boundary edges —
   // the strict 2-manifold rule applies to the skin and the joint tubes.
 
+  // ---- the aft wall's rows (AFT-BULKHEAD, 3 Nov) ----------------------------
+  // The plain panel is a flat card cut to the pillar ring. These rows build the wall from the fuselage's own SECTION
+  // instead: rays from a point on the shelf line (x the ring's centre, y the shelf height) out to the skin, inset by
+  // the panel's own INS, at the wall's station - an UPPER arc (0..pi) over the shelf line and a LOWER one under it.
+  // Both are star-shaped about that point, so each face is a fan from it, and the same rays at a station further aft
+  // give the recess. What it draws, by row:
+  //   step     the HAT SHELF, the Cessna's stepped wall: the lower wall stays, a shelf runs AFT from the shelf line
+  //            (aft, so it never meets a rear seat back or a passenger's head: the study found the seat backs 3-9 cm
+  //            off the face, and the Cub's and the twin's rear seats THROUGH it), lined sides and roof up to the upper
+  //            wall, and a bull-nose lip at its front edge - the horizontal line with a shadow under it;
+  //   bevel    the moulded tub: the face set back by `bevel`, a chamfer from the outline to it (round the upper wall,
+  //            and round the lower one too without a shelf);
+  //   twoTone  the upper wall, its bevel and the recess's lining in `bulkTrim` (a light moulded panel), the lower wall
+  //            and the shelf in the bulkhead's own finish;
+  //   net      a cargo net across the upper wall (the recess's mouth with a shelf), webbing in `baggage`;
+  //   sling    tube builds (the Cub family): no wall at all - the open frame and a canvas sling hung on a U of tube
+  //            behind the rear seat.
+  // Returns 'drawn' (the wall is drawn here), 'plain' (the plain panel is to be drawn, tagged) or null (the section
+  // could not be closed: the plain panel, untagged). A one-cycle band (the C172's arch over its rear window: no wall
+  // to rebuild, the study's MEASURE.md) is left alone.
+  function bulkWall(BH, ring, bPos, bcx, INS, SETB, nCyc) {
+    if (nCyc < 2) return null;
+    const ps = BH.ps || 1;
+    let z0 = 0, yTop = -1e9, yBot = 1e9;
+    for (const v of ring) {
+      z0 += V[v][2];
+      const y = bPos.get(v)[1];
+      if (y > yTop) yTop = y;
+      if (y < yBot) yBot = y;
+    }
+    z0 = z0 / ring.length - SETB;               // flat and vertical, at the ring's mean station
+    // the skin's section at a station: every face crossing the plane, as a 2D segment
+    const zr = F.map(f => {
+      let lo = 1e9, hi = -1e9;
+      for (const vi of f.v) { const z = V[vi][2]; if (z < lo) lo = z; if (z > hi) hi = z; }
+      return [lo, hi];
+    });
+    const slice = z => {
+      const seg = [];
+      F.forEach((f, i) => {
+        if (zr[i][0] > z || zr[i][1] < z) return;
+        const pts = [];
+        for (let e = 0; e < f.v.length; e++) {
+          const a = V[f.v[e]], b = V[f.v[(e + 1) % f.v.length]];
+          if ((a[2] - z) * (b[2] - z) > 0 || a[2] === b[2]) continue;
+          const t = (z - a[2]) / (b[2] - a[2]);
+          pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        }
+        if (pts.length >= 2) seg.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+      });
+      return seg;
+    };
+    const ray = (seg, cx, cy, dx, dy) => {
+      let best = Infinity;
+      for (const s of seg) {
+        const ex = s[2] - s[0], ey = s[3] - s[1], den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-12) continue;
+        const wx = s[0] - cx, wy = s[1] - cy;
+        const t = (wx * ey - wy * ex) / den, u = (wx * dy - wy * dx) / den;
+        if (t > 1e-4 && u >= -1e-6 && u <= 1 + 1e-6 && t < best) best = t;
+      }
+      return best;
+    };
+    const NA = 24;
+    // an arc of the section about (cx, cy), a0..a1, inset by INS; null when a ray finds no skin (a pod that ends
+    // here, a section too small to stand a wall in)
+    const arc = (seg, cx, cy, a0, a1) => {
+      const out = [];
+      for (let k = 0; k <= NA; k++) {
+        const th = a0 + (a1 - a0) * k / NA, dx = Math.cos(th), dy = Math.sin(th);
+        const t = ray(seg, cx, cy, dx, dy);
+        if (!isFinite(t) || t - INS < 0.04 / ps) return null;
+        out.push({ dx, dy, t: t - INS });
+      }
+      return out;
+    };
+    const yS = Math.max(yBot + 0.08 / ps, Math.min(yTop - 0.10 / ps, BH.bandY + BH.shelfY / ps));
+    const s0 = slice(z0);
+    const up0 = arc(s0, bcx, yS, 0, Math.PI), lo0 = arc(s0, bcx, yS, Math.PI, 2 * Math.PI);
+    if (!up0 || !lo0) return null;
+    const vtx = (p, k, z) => V.push([bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k), z]) - 1;
+    const row = (A, k, z) => A.map(p => vtx(p, k, z));
+    const strip = (ra, rb, m) => {
+      for (let k = 0; k < ra.length - 1; k++) add.push({ v: [ra[k], ra[k + 1], rb[k + 1], rb[k]], m });
+    };
+    const fan = (A, k, z, m, flag) => {
+      const c = V.push([bcx, yS, z]) - 1, r = row(A, k, z);
+      for (let i = 0; i < r.length - 1; i++)
+        add.push(flag ? { v: [c, r[i], r[i + 1]], m, bhFace: 1 } : { v: [c, r[i], r[i + 1]], m });
+    };
+    const minT = A => Math.min(...A.map(p => p.t));
+
+    // ---- the sling (tube builds): the open frame, no wall ----
+    if (BH.sling) {
+      const ySl = yS;
+      const half = z => {
+        const sg = slice(z);
+        const r = ray(sg, bcx, ySl, 1, 0), l = ray(sg, bcx, ySl, -1, 0), d = ray(sg, bcx, ySl, 0, -1);
+        return isFinite(r) && isFinite(l) && isFinite(d) ? { w: Math.min(r, l) - INS, d: d - INS } : null;
+      };
+      let Ds = BH.shelfD / ps, hA = null;
+      const hF = half(z0);
+      if (!hF) return null;
+      while (Ds > 0.08 / ps && !(hA = half(z0 - Ds))) Ds *= 0.7;
+      if (!hA) return null;
+      const wF = Math.min(0.28 / ps, hF.w - 0.02 / ps), wA = Math.min(wF, hA.w - 0.02 / ps);
+      const H = Math.min(0.26 / ps, Math.min(hF.d, hA.d) - 0.03 / ps);
+      if (!(wF > 0.10 / ps) || !(wA > 0.08 / ps) || !(H > 0.06 / ps)) return null;
+      const zF = z0 - 0.01 / ps, zA = z0 - Ds;
+      // the rim (4 corners, 3 segments a side) lofted down to a smaller bottom, the canvas bellying out between
+      const rimAt = (s) => {
+        const k = 1 - 0.15 * s, sag = 0.02 / ps * Math.sin(Math.PI * s);
+        const pts = [], C = [[wF, zF], [wA, zA], [-wA, zA], [-wF, zF]];
+        const zc = (zF + zA) / 2;
+        for (let c = 0; c < 4; c++) {
+          const a = C[c], b = C[(c + 1) % 4];
+          for (let j = 0; j < 3; j++) {
+            const u = j / 3, x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
+            const lx = x * k, lz = zc + (z - zc) * k, l = Math.hypot(lx, lz - zc) || 1;
+            pts.push([bcx + lx + lx / l * sag, ySl - H * s, lz + (lz - zc) / l * sag]);
+          }
+        }
+        return pts.map(p => V.push(p) - 1);
+      };
+      const rows = [0, 0.35, 0.7, 1].map(rimAt);
+      for (let j = 0; j < rows.length - 1; j++)
+        for (let i = 0; i < 12; i++)
+          add.push({ v: [rows[j][i], rows[j][(i + 1) % 12], rows[j + 1][(i + 1) % 12], rows[j + 1][i]], m: 'baggage' });
+      const cB = V.push([bcx, ySl - H - 0.03 / ps, (zF + zA) / 2]) - 1;
+      for (let i = 0; i < 12; i++) add.push({ v: [rows[3][(i + 1) % 12], rows[3][i], cB], m: 'baggage' });
+      // the U of tube it hangs on: down each side and across the back, on the rim
+      const R = 0.010 / ps, yU = ySl + R;
+      const tube = (a, b) => {
+        const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1;
+        const ux = dx / l, uz = dz / l, A2 = [a[0] - ux * R, a[1], a[2] - uz * R], B2 = [b[0] + ux * R, b[1], b[2] + uz * R];
+        const ra = [], rb = [];
+        for (let k = 0; k < 6; k++) {
+          const th = k * Math.PI / 3, cy = Math.cos(th) * R, cs = Math.sin(th) * R;
+          ra.push(V.push([A2[0] - uz * cs, A2[1] + cy, A2[2] + ux * cs]) - 1);
+          rb.push(V.push([B2[0] - uz * cs, B2[1] + cy, B2[2] + ux * cs]) - 1);
+        }
+        for (let k = 0; k < 6; k++) add.push({ v: [ra[k], ra[(k + 1) % 6], rb[(k + 1) % 6], rb[k]], m: 'tube' });
+      };
+      tube([bcx + wF, yU, zF], [bcx + wA, yU, zA]);
+      tube([bcx + wA, yU, zA], [bcx - wA, yU, zA]);
+      tube([bcx - wA, yU, zA], [bcx - wF, yU, zF]);
+      return 'drawn';
+    }
+
+    // ---- the wall ----
+    let b = Math.max(0, BH.bevel / ps);
+    const rebuild = BH.step || b > 0 || BH.twoTone;
+    let D = BH.step ? BH.shelfD / ps : 0, up1 = null;
+    while (D > 0.05 / ps) {
+      up1 = arc(slice(z0 - D), bcx, yS, 0, Math.PI);
+      if (up1) break;
+      D *= 0.6;
+    }
+    if (!up1) D = 0;
+    const UP = D > 0 ? up1 : up0;
+    b = Math.min(b, minT(UP) - 0.05 / ps, D > 0 ? b : minT(lo0) - 0.05 / ps);
+    if (b < 0.004 / ps) b = 0;
+    const mU = BH.twoTone ? 'bulkTrim' : 'bulkhead', mL = 'bulkhead';
+    const zU = z0 - D;                                          // the upper wall's outline station
+    const zFace = rebuild ? zU - b : z0 + 0.0025;               // its face (the plain panel's front sheet)
+    if (rebuild) {
+      // the recess: lined sides and roof from the wall's outline back to the upper wall's
+      if (D > 0) strip(row(up0, 0, z0), row(up1, 0, zU), mU);
+      // the upper wall: the chamfer, then the face
+      if (b > 0) strip(row(UP, 0, zU), row(UP, b, zU - b), mU);
+      fan(UP, b, zU - b, mU, 1);
+      // the lower wall: under a shelf it stands at the outline; without one it is bevelled like the upper
+      const bL = D > 0 ? 0 : b;
+      if (bL > 0) strip(row(lo0, 0, z0), row(lo0, bL, z0 - bL), mL);
+      fan(lo0, bL, z0 - bL, mL, 0);
+      if (D > 0) {
+        // THE SHELF, in the plane y = yS: the lower wall's top edge back to the upper wall's foot, a bull-nose lip
+        // standing proud of the lower wall at its front
+        const nose = 0.018 / ps, lip = 0.028 / ps;
+        const xR0 = bcx + up0[0].t, xL0 = bcx - up0[NA].t;
+        const xR1 = bcx + up1[0].t, xL1 = bcx - up1[NA].t;
+        const P = (x, y, z) => V.push([x, y, z]) - 1;
+        add.push({ v: [P(xL0, yS, z0), P(xR0, yS, z0), P(xR1, yS, zU), P(xL1, yS, zU)], m: mL });
+        if (b > 0) add.push({ v: [P(xL1, yS, zU), P(xR1, yS, zU), P(xR1 - b, yS, zU - b), P(xL1 + b, yS, zU - b)], m: mL });
+        const e = 0.003 / ps;
+        add.push({ v: [P(xL0 + e, yS, z0 + nose), P(xR0 - e, yS, z0 + nose), P(xR0 - e, yS, z0), P(xL0 + e, yS, z0)], m: mL });
+        add.push({ v: [P(xR0 - e, yS, z0 + nose), P(xL0 + e, yS, z0 + nose),
+                       P(xL0 + e, yS - lip, z0 + nose), P(xR0 - e, yS - lip, z0 + nose)], m: mL });
+        add.push({ v: [P(xR0 - e, yS - lip, z0 + nose), P(xL0 + e, yS - lip, z0 + nose),
+                       P(xL0 + e, yS - lip, z0), P(xR0 - e, yS - lip, z0)], m: mL });
+      }
+    }
+    // ---- the cargo net: across the upper wall, or the recess's mouth ----
+    if (BH.net) {
+      const A = D > 0 ? up0 : UP, kN = (D > 0 ? 0 : b) + 0.02 / ps;
+      const zN = D > 0 ? z0 - 0.012 / ps : zFace + 0.012 / ps;
+      const pt = p => [bcx + p.dx * (p.t - kN), yS + p.dy * (p.t - kN)];
+      const yArc = Math.max(...A.map(p => pt(p)[1]));
+      const yN0 = yS + 0.03 / ps, yN1 = yS + Math.min(0.42 / ps, 0.8 * (yArc - yS));
+      // the half-width the arc leaves at a height, on its narrower side
+      const hw = y => {
+        let w = Infinity;
+        for (const side of [[0, NA / 2], [NA, NA / 2]]) {
+          const st = side[0] < side[1] ? 1 : -1;
+          for (let k = side[0]; k !== side[1]; k += st) {
+            const a = pt(A[k]), c = pt(A[k + st]);
+            if ((a[1] - y) * (c[1] - y) > 0 || a[1] === c[1]) continue;
+            w = Math.min(w, Math.abs(a[0] + (c[0] - a[0]) * (y - a[1]) / (c[1] - a[1]) - bcx));
+            break;
+          }
+        }
+        return w;
+      };
+      let half = 0.46 / ps;
+      for (let j = 0; j <= 6; j++) half = Math.min(half, hw(yN0 + (yN1 - yN0) * j / 6) - 0.02 / ps);
+      if (half > 0.12 / ps && yN1 - yN0 > 0.10 / ps) {
+        const nx = Math.max(3, Math.round(2 * half / (0.13 / ps))), ny = Math.max(2, Math.round((yN1 - yN0) / (0.11 / ps)));
+        const wS = 0.011 / ps, bow = 0.02 / ps;
+        const zAt = x => zN + bow * Math.sin(Math.PI * (x - bcx + half) / (2 * half));
+        const P = (x, y, z) => V.push([x, y, z]) - 1;
+        for (let i = 0; i <= nx; i++) {
+          const x = bcx - half + 2 * half * i / nx, z = zAt(x);
+          add.push({ v: [P(x - wS, yN0, z), P(x + wS, yN0, z), P(x + wS, yN1, z), P(x - wS, yN1, z)], m: 'baggage' });
+        }
+        for (let j = 0; j <= ny; j++) {
+          const y = yN0 + (yN1 - yN0) * j / ny, dz = 0.002 / ps;
+          for (let i = 0; i < nx; i++) {
+            const xa = bcx - half + 2 * half * i / nx, xc = bcx - half + 2 * half * (i + 1) / nx;
+            add.push({ v: [P(xa, y - wS, zAt(xa) + dz), P(xc, y - wS, zAt(xc) + dz),
+                           P(xc, y + wS, zAt(xc) + dz), P(xa, y + wS, zAt(xa) + dz)], m: 'baggage' });
+          }
+        }
+      }
+    }
+    return rebuild ? 'drawn' : 'plain';
+  }
+
   // ---- aft bulkhead --------------------------------------------------------
   if (I.bulk) (() => {
     // group pillarPassenger faces into bands; the aft-most band is the
@@ -3694,6 +3931,16 @@ function cageInterior(m, S) {
       const l = Math.hypot(dx, dy) || 1;
       bPos.set(v, [p[0] + dx/l*INS, p[1] + dy/l*INS, p[2] - SETB]);
     }
+    // THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3 Nov: "focus on the aft bulkhead ... integrated lamps, interesting
+    // bevels"; the study origin/claude/aft-bulkhead-look: the face is seen only from forward of the beam, through the
+    // rear side glass, and almost all of what shows is the band ABOVE the rear seat backs). `I.bh` exists only when a
+    // row is set (G3570): every other build takes the plain panel below, unchanged.
+    let bhFlag = 0;
+    if (I.bh) {
+      const r = bulkWall(I.bh, ring, bPos, bcx, INS, SETB, cycles.length);
+      if (r === 'drawn') return;
+      if (r === 'plain') bhFlag = 1;     // the plain panel, its front sheet tagged for the wall lamp
+    }
     // ladder fill between the two side chains split at top/bottom — the
     // wall gets its OWN vertices at the panel outline positions (exact
     // seam within the component, disjoint from the skin)
@@ -3727,7 +3974,7 @@ function cageInterior(m, S) {
             i2b = Math.round((k + 1) * (c2.length - 1) / K);
       if (i1a === i1b && i2a === i2b) continue;
       add.push({ v: [myF(c1[i1a]), myF(c1[i1b]), myF(c2[i2b]), myF(c2[i2a])],
-                 m: 'bulkhead' });
+                 m: 'bulkhead', ...(bhFlag ? { bhFace: 1 } : {}) });
       add.push({ v: [myB(c2[i2a]), myB(c2[i2b]), myB(c1[i1b]), myB(c1[i1a])],
                  m: 'bulkhead' });
     }
@@ -8512,6 +8759,19 @@ function cageSpec(P) {
                  dashCrown: Math.max(0, P.dashCrown || 0),
                  dashStyle: Math.round(+P.dashStyle || 0),
                  dashLegs: P.dashLegs == null ? 1 : Math.round(+P.dashLegs) };
+  // AFT-BULKHEAD (3 Nov): the aft wall's rows (cageInterior bulkWall), ABSENT at default (G3570): a build that sets
+  // none has no `bh` and draws the plain panel exactly as before. The lamp is the light layer's; it rides here only
+  // for the tag on the face it sits on. The sling is the tube construction's.
+  {
+    const sling = +P.bhSling && consG === 'tube' ? 1 : 0;
+    if (+P.bhStep || +P.bhBevel > 0 || +P.bhTwoTone || +P.bhNet || +P.bhLamp || sling)
+      S.interior.bh = { step: +P.bhStep ? 1 : 0, bevel: Math.max(0, +P.bhBevel || 0),
+                        twoTone: +P.bhTwoTone ? 1 : 0, net: +P.bhNet ? 1 : 0, sling,
+                        // metres: the shelf line over the waist band's top, the recess's depth (the sling's too)
+                        shelfY: P.bhShelfY != null ? +P.bhShelfY : 0.15,
+                        shelfD: Math.max(0.05, P.bhShelfD != null ? +P.bhShelfD : 0.25),
+                        bandY: S.bandY, ps: P.planeScale || 1 };
+  }
   // (S5: the pod interior is LIVE — the pairs loop sweeps belly chines
   // per bay in pod bubble, wsBase filters to the front screen, and the
   // boom machinery idles without its stations. Known v1 gaps in

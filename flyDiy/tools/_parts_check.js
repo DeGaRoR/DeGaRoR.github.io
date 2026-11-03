@@ -244,6 +244,8 @@ const SHAPES = [
   ['aluminium', { intOn: 1, intCons: 3, intDash: 1, intFire: 1, intBulk: 1 }],
   // G3xx: the door inner panel is off by default — its section exists only here
   ['door panel', { intOn: 1, cutParts: 1, doorPanelOn: 1 }],
+  // AFT-BULKHEAD: the aft wall's light upper panel and its net exist only with their rows on
+  ['aft wall', { intOn: 1, intCons: 3, intBulk: 1, bhStep: 1, bhBevel: 0.05, bhTwoTone: 1, bhNet: 1 }],
   // T2.2: the drawn windows' panes exist only when a row draws (the knife
   // runs in cageSheet, so this shape goes through the sheet itself below)
   ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }, 'sheet'],

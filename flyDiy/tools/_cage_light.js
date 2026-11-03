@@ -1352,7 +1352,7 @@ function sites(scene, group, P) {
       const zS = s.zBack + 0.05, yT = A.waistY + 0.66 * (A.roofY - A.waistY), xT = s.x * 0.7;
       const cand = [];
       for (const f of M0.F) {
-        if ((f.m !== 'bulkhead' && f.m !== 'firewall') || f.v.length < 3) continue;
+        if ((f.m !== 'bulkhead' && f.m !== 'bulkTrim' && f.m !== 'firewall') || f.v.length < 3) continue;   // (+ AFT-BULKHEAD's upper panel)
         let cx = 0, cy = 0, cz = 0;
         for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
         cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
@@ -1731,6 +1731,83 @@ PAGE.post = (ctx) => {
     drawn[key] = (drawn[key] || 0) + 1;
     return o;
   };
+  // AFT-BULKHEAD: the wall lamp on the aft wall's tagged face - its station, its top edge sampled across it
+  function wallLamp(mode, paxSites) {
+    const M = window.CAGE_UI && window.CAGE_UI.MS;
+    if (!M || !M.V || !M.F) return;
+    const kU = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) * (P.planeScale || 1);
+    const faces = M.F.filter(f => f.bhFace && f.v.length >= 3);
+    if (!faces.length) return;
+    let zf = 0, n = 0, x0 = 1e9, x1 = -1e9;
+    for (const f of faces) for (const vi of f.v) {
+      const q = M.V[vi];
+      zf += q[2] * kU; n++;
+      if (q[0] * kU < x0) x0 = q[0] * kU;
+      if (q[0] * kU > x1) x1 = q[0] * kU;
+    }
+    zf /= n;
+    const xc = (x0 + x1) / 2, W = x1 - x0;
+    // the face's top at a lateral station: the highest of its edges crossing it
+    const topAt = x => {
+      let y = -Infinity;
+      for (const f of faces) for (let e = 0; e < f.v.length; e++) {
+        const a = M.V[f.v[e]], b = M.V[f.v[(e + 1) % f.v.length]];
+        const ax = a[0] * kU, bx = b[0] * kU;
+        if ((ax - x) * (bx - x) > 0 || ax === bx) continue;
+        y = Math.max(y, (a[1] + (b[1] - a[1]) * (x - ax) / (bx - ax)) * kU);
+      }
+      return y;
+    };
+    const lv = level(P, 'pax'), col = LIGHTS.pax.col;
+    const lensM = lensMat('pax', lv, col), sockM = cupMat(lv, col, reflectOn, 'pax', SOCK_K);
+    if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key: 'pax', kind: 'lens', mat: lensM, lv });
+    if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key: 'pax', kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
+    const ax = [0, 0, 1];
+    // THE STRIP: a shallow channel (the socket's alloy) with a diffuser in it, 35 mm under the top edge, across the
+    // middle 70 % of the face, following the top's own curve
+    if (mode & 2) {
+      const pts = [];
+      for (let i = 0; i <= 10; i++) {
+        const x = xc - 0.35 * W + 0.70 * W * i / 10, yt = topAt(x);
+        if (isFinite(yt)) pts.push([x, yt - 0.035 * sizeK, zf]);
+      }
+      if (pts.length >= 3) {
+        const chan = Bag(sockM), lens = Bag(lensM);
+        const wH = 0.013 * sizeK, wL = 0.009 * sizeK, dH = 0.008 * sizeK;
+        const at = (i, s, h) => {
+          const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+          const tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+          const ux = -ty / l, uy = tx / l;             // in the face, across the strip (up)
+          return [pts[i][0] + ux * s, pts[i][1] + uy * s, pts[i][2] + h];
+        };
+        const rowOf = (bag, s, h) => pts.map((_, i) => bag.v(...at(i, s, h)));
+        const ribbon = (bag, ra, rb) => { for (let i = 0; i < ra.length - 1; i++) bag.quad(ra[i], ra[i + 1], rb[i + 1], rb[i]); };
+        // the channel: back, the two walls
+        const bL = rowOf(chan, -wH, 0.001), bR = rowOf(chan, wH, 0.001);
+        const tL = rowOf(chan, -wH, dH), tR = rowOf(chan, wH, dH);
+        ribbon(chan, bL, bR); ribbon(chan, bL, tL); ribbon(chan, tR, bR);
+        // the diffuser: three facets, a shallow crown
+        const l0 = rowOf(lens, -wL, dH * 0.7), l1 = rowOf(lens, -wL * 0.35, dH * 0.95),
+              l2 = rowOf(lens, wL * 0.35, dH * 0.95), l3 = rowOf(lens, wL, dH * 0.7);
+        ribbon(lens, l0, l1); ribbon(lens, l1, l2); ribbon(lens, l2, l3);
+        for (const m of [chan.mesh(group), lens.mesh(group)]) {
+          if (!m) continue;
+          m.name = 'edLamp_pax';
+          m.userData.lampKey = 'pax';
+        }
+        drawn.pax = (drawn.pax || 0) + 1;
+      }
+    }
+    // THE DOME: a 90 mm fitting in the face's middle, under the strip when both - not where a passenger lamp already
+    // landed on this wall (the bulkhead rung)
+    if (mode & 1) {
+      const yt = topAt(xc);
+      if (!isFinite(yt)) return;
+      const r = 0.045, q = [xc, yt - (mode & 2 ? 0.11 : 0.08) * sizeK, zf];
+      if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
+      lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
+    }
+  }
 
   // ---- OUTSIDE ------------------------------------------------------------
   // (G2796: each one only when it is FITTED - a light the builder took off has
@@ -1748,6 +1825,13 @@ PAGE.post = (ctx) => {
   if (S.flood && fit('flood')) lamp('flood', S.flood);
   if (S.pedal && fit('pedal')) lamp('pedal', S.pedal);
   if (fit('pax')) for (const s of (S.pax || [])) lamp('pax', s);
+  // AFT-BULKHEAD (3 Nov): THE WALL LAMP (`bhLamp`: 1 a dome, 2 an LED strip under the top edge, 3 both), on the
+  // passenger dimmer. The study: the face is seen only through the rear side glass, near-black on most builds because
+  // the cabin's darkness takes every light off an inside section - the lamps' too - and spares only what EMITS. So the
+  // wall's own lamp is the one thing on it that cannot go dark. Its lens, cup and socket are the passenger lamps'
+  // own materials (one bucket each, already there when a passenger lamp is); the face is the generator's
+  // (_cage_gen.js bulkWall tags it `bhFace`).
+  if (fit('pax') && Math.round(+P.bhLamp || 0)) wallLamp(Math.round(+P.bhLamp), S.pax || []);
 
   armRotors();       // the beacon starts turning as soon as it is built
 
