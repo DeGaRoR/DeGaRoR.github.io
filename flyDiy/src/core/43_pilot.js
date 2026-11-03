@@ -3387,7 +3387,19 @@ function makePilot(sim, def, world, opts) {
         pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         // G1938: the point BEHIND the aeroplane (a backtrack from where the landing stopped) is turned to on the spot
         if (!trike && isFinite(RgMin) && (ap.route.from.len || 1100) < 300 && (piv || (Math.abs(e) > 1.4 && Vg < 3 && dist > 3 * RgMin))) {
-          if (!piv) { piv = { hdg: Math.atan2(ddz, ddx), j: 0, t0: ap.t, thr: 0 }; if (!pivSaid) { pivSaid = true; say('pivot', 'the taxi point is behind — turning on the spot'); } }
+          if (!piv) {
+            piv = { hdg: Math.atan2(ddz, ddx), j: 0, t0: ap.t, thr: 0 };
+            // G3912 (TAXICLEAR 11c, 4 Nov): THE WAY ROUND BY CLEARANCE, as turnAtPose's. The shortest way round was the only
+            // rule here, and the CG walks ~2.3 m toward the side the nose turns to: on Jumbo Mine's street the Cub's pivot
+            // left the wing 2.11 m off the clinic, and with tank-fit's 44 L nose tank (a849e1435) 0.07 m. With a solid thing
+            // within the turn's reach (the airframe's reach about the CG + its walk + 3 m) on either side, the turn goes to
+            // the clearer side - the walk away from the nearer thing. With nothing near, the shortest way (to the bit)
+            let reach = 0;
+            for (let i = 0; i < sim.n; i++) reach = Math.max(reach, Math.hypot(sim.p[i * 3] - cg[0], sim.p[i * 3 + 2] - cg[2]));
+            const lf = [-nose[1], nose[0]], pr = 3, sL = solidAt(cg[0] + lf[0] * pr, cg[2] + lf[1] * pr), sR = solidAt(cg[0] - lf[0] * pr, cg[2] - lf[1] * pr);
+            if (Math.min(sL, sR) < reach + 2.6 + TURN_MARGIN) piv.sg = sL >= sR ? 1 : -1;
+            if (!pivSaid) { pivSaid = true; say('pivot', 'the taxi point is behind — turning on the spot' + (piv.sg ? ' (to the ' + (piv.sg > 0 ? 'left' : 'right') + ', the clearer side: ' + (Math.max(sL, sR) === Infinity ? 'open' : Math.max(sL, sR).toFixed(1) + ' m') + ' against ' + Math.min(sL, sR).toFixed(1) + ' m)' : '')); }
+          }
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(e) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { piv = null; SV.relatch(); }
           break;
