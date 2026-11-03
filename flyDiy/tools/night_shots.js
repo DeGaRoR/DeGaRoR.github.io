@@ -47,11 +47,13 @@ const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0);
 const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/night-' + SCENE + '/' + STEP : SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 // the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
 // 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
-// A0 4 Nov (the user: "no light on the plane"): the twin's build fits only li_flood + li_reflect - nav, beacon, landing, taxi
-// and the cabin's pax light are 0, so the cockpit's switches had nothing to light. The photo scenes fit them all on the test copy.
-const ALL_LIGHTS = { lightOn: 1, li_flood: 1, li_pax: 1, li_nav: 1, li_beacon: 1, li_land: 1, li_taxi: 1, li_instr: 1, li_pedal: 1, li_reflect: 1 };
+// A0 4 Nov (the user: "no light on the plane"): the twin's lights are all FITTED (every li_*Fit 1) but their switches were
+// saved off (li_nav, beacon, land, taxi, pax, instr, pedal 0). The user had them switched on in the saved twin
+// (claude/ready/twin4b-lights 705dbaf95), and the photo scenes fly THAT plane: the user's latest twin, _4b (the less swept
+// wings, tipX 0.5, the door fixes), as the ready branch holds it, copied to the notes folder until it lands
 const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_3.json';
-const BUILD = opt('build', SCENE === 'ref' || PHOTO ? TWIN_DEF : null), OVER = JSON.parse(opt('over', PHOTO ? JSON.stringify(ALL_LIGHTS) : 'null'));
+const TWIN_4B = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/Twin_busher_floats_4b.json';
+const BUILD = opt('build', PHOTO ? TWIN_4B : SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
 const SPAWN = opt('spawn', SCENE === 'ref' || PHOTO ? 'mk_sea' : null);
 const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
 // --variants '[{"eye":0},{"eye":1.5}]': each NIGHT view shot once per set of light_rig NIGHT dials (pages that have them;
