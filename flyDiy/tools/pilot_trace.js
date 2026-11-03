@@ -227,6 +227,7 @@ function runTrace(o) {
     const cd = (ap.status && ap.status.conds) || [];
     const g = k => { const q = cd.find(x => x.what === k); return q ? q.have : null; };
     if (ph !== last) {
+      phases.push({ ph, t: r1(t) });
       // G3911: the arrivals - a DOWNWIND opens one, BASE and FINAL mark it, leaving FINAL closes it
       if (last === 'FINAL' && arr && arr.fin) { arr.end = ph; arr.finalT = r1(t - arr.fin.t0); arrivals.push(arr); arr = null; }
       if (ph === 'DOWNWIND') { arr = { dw: true }; dwV = []; }
