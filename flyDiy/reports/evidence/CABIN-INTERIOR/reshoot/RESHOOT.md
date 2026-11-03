@@ -21,8 +21,8 @@ Set-up:
 - Both BEFORE (rows absent) and AFTER (`hdlOn, wallTrimOn, ohConsoleOn = 1`), at day and at the rig dusk (lamps rows
   on, `--dim 0.12`).
 - **Renderer:** the simplified one, the phone material tier `phmat=lite`, on the same SwiftShader rig.
-- **Pictures:** `set2/<build>_<set>_<view>.jpg`, each BEFORE | AFTER. 24 pairs so far; `jodel_dusk_*` is still
-  rendering.
+- **Pictures:** `set2/<build>_<set>_<view>.jpg`, each BEFORE | AFTER: 29 pairs, complete. The Jodel's dusk set has
+  no `inRear` (no rear seat).
 - **Page errors:** none (`"errors": []` in every run).
 
 **Headless first** (`rig/wing_probe2_out.txt`, `rig/probe2_out.txt`):
@@ -48,6 +48,7 @@ Set-up:
 | `set2/twin2_day_roofLampFront` | **The two front roof domes are gone in AFTER** (the lamps are in the console). BEFORE has them. |
 | `set2/twin2_day_roofLampRear` | **The rear pair of domes: still there, BEFORE and AFTER (FAIL).** The reflector cup (below). |
 | `set2/jodel_day_inUp`, `_inLamp`, `_dusk_inUp` | **The clearest headliner of the run.** BEFORE: a plain orange ceiling. AFTER: the quilted headliner, its stitched channels reading as a strong zig-zag across the ceiling round the two roof lamps. The flood's flange (1.34 r) looks large up close. |
+| `set2/jodel_dusk_inUp`, `_dusk_inLamp` | At the rig dusk the Jodel's headliner keeps its channels in the flood's light; BEFORE's orange liner glows warmer. The Jodel's ceiling is not darker with the rows on (its lamps did not move: no console). |
 | `set2/jodel_day_inSide` | The Jodel's upper wall is mostly window frame: little trim to see. |
 | `set2/jodel_day_inRear` | **n/a:** the Jodel has no rear seat. The fallback eye sits behind the seat in the dark (the dusk one was flat: the rig failed it and it was dropped). |
 | `set2/jodel_day_roofHdr`, `_roofLampFront`, `_roofGraze` | **FAIL, BEFORE and AFTER, pre-existing:** two lamp-cup domes on the outer roof (11.3 and 3.9 mm out). Also **the right-seat occupant's black helmet comes up through the roof** at the window's top edge (`details/jodel_roof_helmet_and_lamp_domes.jpg`; lamp at crew (0.091, 0.570, 2.139) = world (-1.813, 1.997, 0.091)). The rows change neither. |
