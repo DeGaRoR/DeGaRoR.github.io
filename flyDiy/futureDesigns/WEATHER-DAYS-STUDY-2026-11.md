@@ -924,3 +924,89 @@ kp     max step per minute 0.0750 at 2026-06-30 3.5h crisp-clear
 rain   max step per minute 0.0087 at 2026-06-27 14.9h the-storm
 mist   max step per minute 0.1244 at 2026-07-03 3.3h sea-fog
 ```
+
+---
+
+## 9. ADDENDUM (3 Nov): the user's calls, the first day, and "4 months on a 14-day loop?"
+
+### 9.1 The calls (relayed by A0, 3 Nov 08:40)
+
+| Q | Ruling |
+|---|---|
+| Q1 season | **Yes**: 20 May → 30 Sep, the winter layup to the next opening |
+| Q2 time acceleration | **No free acceleration.** Later, "skip the cruise" on autopilot legs |
+| Q3 the first day | Ticked "keep 21 June", **with "try mid July maybe for the first day?"**: open, §9.2 |
+| Q4 the loop | 14 days, the same for every career: yes, **but "how can we model 4 months if you loop every 14 days?"**: §9.3 |
+| Q5 the acceptance leg | **Record the air, correct to the standard day.** ("The only live acceptance is first flight, the other tests are offline, so that should not be a major issue.") |
+| Q6 the altimeter | **Always correctly set** (geometric) |
+| W0 the findings | **Fix now** as small fixes (F1 clouds on the effective cover, F2 no veer snap, F3 a temperature ramp at passage, F5 the mist's wind term, F7 the contracts' moon on the effective cover): branch `claude/weather-fixes` |
+
+### 9.2 The first day: 21 June, 15 July or 1 August
+
+From the game's almanac at Jolene (`06_solar` through `DAY`), the aurora by §3.8's law at local solar midnight, the
+moon as it really stands on that date in 2026:
+
+| first day | sunrise | sunset | day | night darker than civil (sun < −6°) | darker than nautical (< −12°) | sun at midnight | aurora Kp 4 / Kp 6 (moon down) | the moon that night |
+|---|---|---|---|---|---|---|---|---|
+| **21 Jun** (today's) | 04:07 | 21:30 | 17.4 h | 4.7 h | **0 h** | −11.5° | 0.33 / 0.66 | 44 %, down |
+| **15 Jul** | 04:28 | 21:16 | 16.8 h | 5.4 h | 2.3 h | −13.4° | 0.46 / **0.92** | **1 %: a new moon (14 Jul)** |
+| **1 Aug** | 04:55 | 20:49 | 15.9 h | 6.5 h | 4.3 h | −17.0° | 0.50 / 1.00 | 93 %, up (Kp 6 drops to 0.54 under it) |
+
+What it means for the career's opening:
+- **21 June** is the luminous night: never darker than nautical twilight, a blue glow in the north all night. The aurora
+  shows at about two-thirds strength. The most daylight to fly in.
+- **15 July** is the best compromise. The days are almost as long (16.8 h, −36 min), the night has a real dark core
+  (2.3 h past −12°), the aurora at Kp 6 reaches 0.92, and **the career's first fortnight runs from a new moon (14 Jul)
+  to a full moon (29 Jul)**: its first nights are the darkest and starriest, its second week moonlit. The air is the
+  summer's warmest (normals 11.5 / 18.5 °C).
+- **1 August** has the darkest nights of the three and the aurora at full strength, but starts under a full moon (which
+  halves a Kp 6 night) and gives up 1.5 h of daylight against 21 June.
+
+**Recommendation: 15 July**, if the user agrees after reading the table. It is a one-constant change
+(`74_career.js` `CAREER_DAY0`, `day_clock.js` `GAME_DAY.date`, and the plan's `EPOCH` so that the first day stays the
+game's own fair-weather cumulus). Only the CAREER's day moves; the sandbox's `GAME_DAY` and every gate keep 21 June.
+The season loses nothing: 15 July → 30 September is 78 days before the first layup, and the next seasons open on
+20 May as ruled.
+
+### 9.3 "How can we model 4 months if you loop every 14 days? That feels too short"
+
+**What already varies a loop without authoring.** The plan's 14 days are not replayed identically. The real date moves
+the sun (17.4 h of day in June, 12.7 h by mid-September; noon 58° → 38°), the moon (the same night alternates near-full
+and near-new, §5.2), the normals (the same "clear high" is 6.5 → 16.3 °C on 25 May and 11.5 → 18.5 °C on 19 July),
+and the night's darkness (the same Kp-6 night reads 0.33-0.64 in June and 0.96 in September, §3.8). A July loop and a
+September loop look and fly differently.
+
+**Is that enough? No, and the user is right.** Over 133 days each crafted day comes back 9-10 times, in the same order.
+By the third loop a player knows "after the fog comes the warm hazy day", and that is the opposite of weather. Worse,
+the REGIMES do not change with the season: a real Southeast-Alaska September has more fronts, more fog mornings and
+longer, darker nights than June; a single loop cannot say so.
+
+**The options, with the cost of each** (authoring = writing the days and checking them through `plan_proto.js`; this
+study's 14 days took about one session-day, so ~0.5 h a day plus a check pass; code = the evaluator's part):
+
+| | Option | Distinct days | Each seen per season | Seasonal regimes | Authoring | Code | Total |
+|---|---|---|---|---|---|---|---|
+| A | one 14-day loop (the study as written) | 14 | 9-10 × | no (the date only) | 0 | 0 | **0** |
+| B | **three seasonal blocks of 14**: early (20 May-2 Jul), high (3 Jul-15 Aug), late (16 Aug-30 Sep), each with its own normals, regimes and storm count, each looping inside its ~44 days | 42 | ~3 × | **yes** | 28 new days: **~2 d** | block lookup + a cross-block check: 0.5 d | **~2.5 d** |
+| C | one longer loop (42 days), no blocks | 42 | ~3 × | no | ~2 d | 0 | **~2 d** |
+| D | **a generated sequence**: the 14 days (and B's 42) as regimes, ordered by a deterministic chain seeded by the date (high → high / front; front → post-frontal → new high), each instance varied by its seed (±1.5 °C, wind direction ±20°, speed ±20 %, cover ±0.05, which nights have aurora) | effectively 133 | once, as variations | yes, if the chain's odds are per block | 0 (or B's) | the chain, the seeded variation, the gates (storms still forecast ≥ 2 days, flyability ≥ 70 %): **~1.5 d** | **~1.5 d** (on A) / **~4 d** (on B) |
+| E | a full authored season | 133 | once | yes | ~9-10 d | 0 | **~10 d** |
+
+What each block of B would carry (a sketch, for the user to change):
+
+| block | dates | normals | regimes | storms per 14 d | nights |
+|---|---|---|---|---|---|
+| **early** | 20 May-2 Jul | 6.5 → 17 °C | long highs, cool clear NW days, the first sea breezes, few fogs, a spring shower day | 1 | white nights: twilight blue, aurora faint, the moon carries the night |
+| **high** | 3 Jul-15 Aug | 11.5 / 18.5 °C | the 14 days of this study: thermal and hazy days, sea fog, the one front | 1 | the dark core returns, aurora from late July |
+| **late** | 16 Aug-30 Sep | 18.5 → 9 °C | more fronts and showers, fog mornings in the valleys, crisp post-frontal days, the first equinox gale | 2 | long dark nights, the Milky Way, aurora at its best (equinox), frost-free |
+
+**Recommendation: B, then D on top of it.** B (~2.5 d) answers the question directly: 42 hand-made days, a
+season that changes character from June's light to September's fronts, and no day seen more than about three times.
+Its 14 high-season days already exist. D later (~1.5 d more) removes the last repetition: each block's days come in a
+seeded order with seeded variations, so the third "clear high" of September is not the second one. The storm still
+lands on a known date and is forecast days ahead. A longer flat loop (C) costs as much as B and buys no seasons; a fully
+authored season (E) costs four times B for little more than B + D gives.
+
+Both fit the design as written: a block is only a different `DAYS` array chosen by the date, and the tracks already
+blend across any two days, so the seam between blocks is as smooth as any midnight (§3.2). With 15 July as the
+first day, the high block's epoch is set so that 15 July is its fair-weather cumulus.
