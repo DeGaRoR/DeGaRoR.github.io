@@ -179,10 +179,12 @@ const optsOf = rowKey => {
 // THE ENGINE MODEL: the family's catalogue engine nearest (in ratio) to the power the class's own seed engine makes,
 // split by the engine count (a twin's engines are each ~0.85 of the single's; three or four, ~0.45 - the shed's
 // Trimotor and four-engine starters ride 912s on a 4-seater). The RC outrunners, the e-PPG and the bench's generic
-// rows are not offered; a family with nothing within a factor 4 of the target is greyed (why: engType).
+// rows are not offered; a family with nothing within a factor 2.5 of the target (4 for the turboprop: the smallest PT6 on
+// the Caravan's 4-seater) is greyed (why: engType). [VAL] 4 let a 190 kW Hirth V onto a microlight, nosed over on its wheels.
 // ---------------------------------------------------------------------------------------------------------------------
 const MODEL_SKIP = new Set(['RC 2212 outrunner', 'RC 6374 outrunner', 'e-PPG 12 kW', 'flat twin', 'flat six',
-                            'custom engine', 'Rolls-Royce Merlin 66', 'P&W R-1830', 'rotax 277']);
+                            'custom engine', 'Rolls-Royce Merlin 66', 'P&W R-1830', 'rotax 277',
+                            'Clerget 9B']);   // (the rotary is the Camel's - validation A: a generated 4-seater on it would not accelerate)
 const COUNT_K = { nose: 1, pusher: 1, wingTop: 1, twin: 0.85, pushPull: 0.85, three: 0.45, four: 0.45 };
 let PW_CACHE = null;
 function powerOf(name) {
@@ -198,13 +200,14 @@ function classPower(cls) {
   return nm ? powerOf(nm) : null;
 }
 const MODEL_CACHE = {};
-function modelFor(cls, family, arch) {
-  const mk = cls + '|' + family + '|' + arch;
+// `k`: a biplane wants 1.3x the monoplane's power (validation A: the Tiger Moth's choices on the eab's 74 kW climbed 0.55 m/s)
+function modelFor(cls, family, arch, k) {
+  const mk = cls + '|' + family + '|' + arch + '|' + (k || 1);
   if (mk in MODEL_CACHE) return MODEL_CACHE[mk];
-  return (MODEL_CACHE[mk] = modelFor0(cls, family, arch));
+  return (MODEL_CACHE[mk] = modelFor0(cls, family, arch, k || 1));
 }
-function modelFor0(cls, family, arch) {
-  const target = (classPower(cls) || 60000) * (COUNT_K[arch] || 1);
+function modelFor0(cls, family, arch, k) {
+  const target = (classPower(cls) || 60000) * (COUNT_K[arch] || 1) * k;
   let best = null, bestR = Infinity;
   for (const o of D().designEngineModels()) {
     if (o.family !== family || MODEL_SKIP.has(o.value)) continue;
@@ -272,7 +275,7 @@ const RULES = [
     if (!c.class) return null;
     const m = modelFor(c.class, f, c.engArch || 'nose');
     if (!m) return 'no ' + f + ' engine in the catalogue';
-    return m.ratio > 4 ? 'the nearest ' + f + ' engine (' + m.name + ') is ' + (m.ratio).toFixed(1) +
+    return m.ratio > (f === 'turbine' ? 4 : 2.5) ? 'the nearest ' + f + ' engine (' + m.name + ') is ' + (m.ratio).toFixed(1) +
       ' times the power this class and layout want' : null;
   }]),
   // [CL] the ultralight's bolted tube is an ultralight's
@@ -550,7 +553,7 @@ const WGPOS = { high: 0, mid: 1, low: 2, parasol: 3, biplane: 3 };
 // choices -> { sel, over, meta } (pure: no table but the declaration's, no build)
 function compose(chIn) {
   const { choices: ch, cleared } = complete(chIn);
-  const model = modelFor(ch.class, ch.engType, ch.engArch);
+  const model = modelFor(ch.class, ch.engType, ch.engArch, ch.wing === 'biplane' ? 1.3 : 1);
   const twin = /^twin/.test(ch.booms);
   const rod = ch.booms === 'rod' || ch.booms === 'twinRod' || ch.body === 'open';
   const open = ch.top === 'open';

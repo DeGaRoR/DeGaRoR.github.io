@@ -17,11 +17,11 @@
 //   margin      the static margin is in the green band (5-40 % of MAC, genMarginBand) at the as-drawn loading
 //   stance      a tricycle sits level to nose-up (deck -0.5..+3 deg), its nose wheel carries 5-40 % of the weight
 //               (GEN_RULES.noseLoad is 0.25: the soft airframe needs it - the textbook 8-15 % is printed beside),
-//               its tip-back angle >= 12 deg (the fit aims at 15, which wins over the 0.25 share when they disagree: 5-40 %); a taildragger's three-point deck is 7-17 deg (GEN_RULES.deckMin/Max
+//               its tip-back angle >= 12 deg (the fit aims at 15, which wins over the 0.25 share when they disagree: 5-40 %); a taildragger's three-point deck is 7-17 deg with its mains 10-30 deg ahead of the CG (GEN_RULES.deckMin/Max
 //               8-15, a degree of slack each side); prop clearance >= 0.18 m (FAR 23.925: 0.229 on a tailwheel,
 //               0.178 on a nose wheel) - floats are judged on the water's own terms and skip it
 //   circuit     the shakedown clears it for a circuit (flyableCircuit)
-//   hop         (opts.hop) the test pilot lifts off and climbs 60 m above the strip inside 120 s, no NaN
+//   hop         (opts.hop) the test pilot lifts off and climbs 60 m above the strip inside 120 s, no NaN (not on floats)
 'use strict';
 const path = require('path');
 const T = __dirname;
@@ -124,10 +124,15 @@ function judge(choicesIn, opts) {
     } catch (e) {}
   } else if (gear === 'taildragger') {
     if (!(sh.deckAngle >= 7 && sh.deckAngle <= 17)) fail('stance', 'three-point deck ' + m.deck + ' deg (7-17)');
+    // the mains ahead of the CG on the ground (the gear layer's 15-18 window, the fit aims at 18.5): 10-30 deg
+    if (!(sh.noseOver >= 10 && sh.noseOver <= 30)) fail('stance', 'mains ' + m.noseOver + ' deg ahead of the CG (10-30)');
   }
   if (gear !== 'floats' && sh.propClear != null && sh.propClear < 0.18) fail('stance', 'prop clearance ' + m.propClear + ' m (>= 0.18)');
   if (!sh.flyableCircuit) fail('circuit', 'climb ' + m.climb + ' m/s, TORun ' + m.TORun + ' m');
-  if (opts.hop && !fails.some(f => /^build/.test(f))) {
+  // (a floatplane starts on the land strip here and cannot take off from it: its hop is GATE SEAPLANE's harness on
+  // the water - judged on the shakedown and the design check alone, said in the metrics)
+  if (opts.hop && gear === 'floats') m.hop = 'n/a (floats: the land strip)';
+  else if (opts.hop && !fails.some(f => /^build/.test(f))) {
     const h = hop(def);
     m.hop = h;
     if (!h.ok) fail('hop', h.why);
@@ -156,7 +161,9 @@ function hop(def) {
     if (tOff == null && maxAlt > 3) tOff = s / 60;
     if (maxAlt >= 60) return { ok: true, tOff: r2(tOff), t60: r2(s / 60) };
   }
-  return { ok: false, why: tOff == null ? 'no lift-off in 120 s (' + ap.phase + ')' : 'climbed ' + Math.round(maxAlt) + ' m in 120 s' };
+  const vd = ap.report && ap.report.verdicts && ap.report.verdicts.length ? ap.report.verdicts[ap.report.verdicts.length - 1] : null;
+  const said = vd ? ' - the pilot: ' + vd.code + (vd.note ? ' (' + String(vd.note).slice(0, 90) + ')' : '') : '';
+  return { ok: false, why: (tOff == null ? 'no lift-off in 120 s (' + ap.phase + ')' : 'climbed ' + Math.round(maxAlt) + ' m in 120 s') + said };
 }
 
 module.exports = { judge, joinedOf, hop, init, NP: () => (init(), NP) };
