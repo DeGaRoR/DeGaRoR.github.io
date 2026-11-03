@@ -11,6 +11,10 @@ Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
 ## 0000. NOW (3 Nov, 17:30 UTC) - the branch is on train L30a (`a8a23ad6`)
 
+**PUSHED to `claude/ready/new-plane`** (3 Nov, 17:40 UTC, on the user's explicit ask) - the same tree as
+`claude/new-plane`. The earlier refusals of a `claude/ready/*` push (sections 000 and below) were this session's
+automatic policy, before the user asked.
+
 - **N1, as the user re-ruled ("make the join measure the fin above the deck"): DONE** - `_cage_join.js` `finTaperAbove`:
   the fin's taper is read on its planform above the highest point of the boom's top line under its chord (the fin
   layer's own `deck`). The FIN_ARCH presets now read 0.46-0.54, the validated Cub 0.59, Jodel 0.69, metal Cessna 0.70,
@@ -60,7 +64,7 @@ SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER**. NEWPLANE-BUILDS once, outs
 PASS**. ARCHETYPES was last run on `0fcf54ef` (one red, standing on master: the Chinook-alike's rejected take-off).
 CONFIG-MATRIX step 4 is a separate ready in the same train: a trial merge on F4 had no conflict.
 
-**Where it is:** the push to `claude/ready/new-plane` was refused by this cloud session's permission policy (a
+**Where it was (1B, superseded):** the push to `claude/ready/new-plane` was refused by this cloud session's permission policy (a
 `claude/ready/*` push reads as a production deploy here). The identical tree is on `claude/new-plane` (an `ours` merge
 over the earlier history, so the push is a fast-forward; `git diff <1B branch head> claude/new-plane` is empty) - A0
 promotes from it, as the original brief had it.
