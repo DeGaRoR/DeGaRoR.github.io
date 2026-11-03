@@ -5114,8 +5114,14 @@ function clampSpec(spec) {
     // hand-written spec land on the same aeroplane.
     if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
+    // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
+    // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
+    // holds nothing here - the litres are the fitted tanks' - and the frame bills it nowhere (it was billed on the
+    // wing's spar pair: a phantom tank, its fuel flown where nothing was drawn).
+    const strutted = !!(S.bracing && S.bracing.type === 'strut');
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
@@ -5147,7 +5153,7 @@ function clampSpec(spec) {
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
         v.tint = null;
-      total += v.capacity;
+      if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
     else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }

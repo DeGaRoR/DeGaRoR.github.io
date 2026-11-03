@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: eb7633a5ed54d9d2
+// body-sha256: d3a4716f411fe9c4
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -13582,8 +13582,14 @@ const OBSTACLES = (() => {
   // opts.base (G844, C2c): a shape rasterised EARLIER from other triangles of the same object, in the same frame, cell and
   // pad (the house worker's raster of a house's own bags): the result is the raster of both soups - the grid is the lattice
   // both share (every grid starts on a multiple of the cell), grown to hold both, the base's columns copied in and the new
-  // triangles marked over them. The same cells, lows and highs one pass over both soups gives, up to a vertex lying
-  // exactly on a lattice line.
+  // triangles marked over them. The same cells, lows and highs one pass over both soups gives.
+  // G844b (HWCOV, 3 Nov): A POINT'S COLUMN IS ITS LATTICE INDEX, NOT AN OFFSET FROM THE GRID'S ORIGIN. floor((x - ox) / cell)
+  // rounds x - ox, and the union's origin is not the one pass's (the worker's bags start a row higher than bags + props):
+  // a vertex on a lattice line fell in one row here and the next row there (s_strip/hut's 4.506 m prop, HOUSEWORKER's one
+  // red). Every index is floor(x / cell) less the grid's integer origin, so a point's column is the same in any grid; SNAP
+  // (a millionth of a cell) only absorbs the last bits of two matrices' products for a vertex lying exactly on a line.
+  const SNAP = 1e-6;
+  const lattice = (x, cell) => Math.floor(x / cell + SNAP);
   function rasterise(pos, idx, cell, opts) {
     const B = opts && opts.base && opts.base.cell === cell ? opts.base : null;
     const nTri = idx ? idx.length / 3 : pos.length / 9;
@@ -13593,20 +13599,23 @@ const OBSTACLES = (() => {
     for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     if (!isFinite(x0) && !B) return null;
     const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
-    let ox = isFinite(x0) ? Math.floor(x0 / cell) * cell - pad * cell : Infinity, oz = isFinite(z0) ? Math.floor(z0 / cell) * cell - pad * cell : Infinity;
-    let nx = isFinite(x0) ? Math.ceil((x1 - ox) / cell) + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil((z1 - oz) / cell) + pad + 1 : 0;
+    // gx, gz: the grid's origin in whole cells (ox = gx * cell)
+    let gx = isFinite(x0) ? lattice(x0, cell) - pad : Infinity, gz = isFinite(z0) ? lattice(z0, cell) - pad : Infinity;
+    let nx = isFinite(x0) ? Math.ceil(x1 / cell - SNAP) - gx + pad + 1 : 0, nz = isFinite(z0) ? Math.ceil(z1 / cell - SNAP) - gz + pad + 1 : 0;
     if (B) {   // the union's grid: its origin the lower of the two (both on the lattice), its far edge the farther
-      const ex = Math.max(isFinite(ox) ? ox + nx * cell : -Infinity, B.ox + B.nx * cell), ez = Math.max(isFinite(oz) ? oz + nz * cell : -Infinity, B.oz + B.nz * cell);
-      ox = Math.min(ox, B.ox); oz = Math.min(oz, B.oz);
-      nx = Math.round((ex - ox) / cell); nz = Math.round((ez - oz) / cell);
+      const bx = Math.round(B.ox / cell), bz = Math.round(B.oz / cell);
+      const ex = Math.max(isFinite(gx) ? gx + nx : -Infinity, bx + B.nx), ez = Math.max(isFinite(gz) ? gz + nz : -Infinity, bz + B.nz);
+      gx = Math.min(gx, bx); gz = Math.min(gz, bz);
+      nx = ex - gx; nz = ez - gz;
     }
+    const ox = gx * cell, oz = gz * cell;
     const lo = new Float32Array(nx * nz).fill(Infinity), hi = new Float32Array(nx * nz).fill(-Infinity);
     if (B) {
-      const di = Math.round((B.ox - ox) / cell), dj = Math.round((B.oz - oz) / cell);
+      const di = Math.round(B.ox / cell) - gx, dj = Math.round(B.oz / cell) - gz;
       for (let j = 0; j < B.nz; j++) for (let i = 0; i < B.nx; i++) { const s = j * B.nx + i, k = (j + dj) * nx + i + di; lo[k] = B.lo[s]; hi[k] = B.hi[s]; }
     }
     const mark = (x, y, z) => {
-      const i = Math.floor((x - ox) / cell), j = Math.floor((z - oz) / cell);
+      const i = lattice(x, cell) - gx, j = lattice(z, cell) - gz;
       if (i < 0 || j < 0 || i >= nx || j >= nz) return;
       const k = j * nx + i;
       if (y < lo[k]) lo[k] = y;
@@ -14118,7 +14127,7 @@ const OBSTACLES = (() => {
     };
     return api;
   }
-  return { rasterise, box, penetration, planDist, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
+  return { rasterise, lattice, box, penetration, planDist, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
 
 // ---- TREE_HITS (G1330, TREE-HITBOX) - THE TREES YOU SEE ARE THE TREES YOU HIT ---------------------------------------
@@ -35736,8 +35745,14 @@ function clampSpec(spec) {
     // hand-written spec land on the same aeroplane.
     if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
+    // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
+    // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
+    // holds nothing here - the litres are the fitted tanks' - and the frame bills it nowhere (it was billed on the
+    // wing's spar pair: a phantom tank, its fuel flown where nothing was drawn).
+    const strutted = !!(S.bracing && S.bracing.type === 'strut');
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
@@ -35769,7 +35784,7 @@ function clampSpec(spec) {
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
         v.tint = null;
-      total += v.capacity;
+      if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
     else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
@@ -41046,9 +41061,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // strut sends the pod to the strut station's spar pair instead
       const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
       const L2 = wf.L, R2 = wf.R;
-      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
-      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
-                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+      const ok = !v.unmounted && L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      // TANK-FIT (Part 3): no strut, no pod - billed nowhere, its fuel not aboard (it was sent to the spar pair at
+      // 0.3 of the span: a phantom tank nobody drew). The resolved spec says so (unmounted) and the editor shows why.
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]] : [];
+      if (!ok) v.unmounted = true;
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
@@ -41066,10 +41083,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // `pair` is a weighted node list [[node, share], ...] — two entries for a
     // wing tank, four for a body tank between rings, sharing to 1.
-    if (r.emptyKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
+    if (r.emptyKg > 0 && pair.length) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
                          spend(r.price); }
     v._pair = pair; v._res = r;
-    fuelTotalM += r.payloadKg;
+    if (pair.length) fuelTotalM += r.payloadKg;
   }
   sec('fuel');
   const fuelM = fuelTotalM;
@@ -43202,6 +43219,29 @@ function genParams(S, fr, strips) {
     cda.fusCdA[1] += pd.crossY; cda.fusCdA[2] += pd.crossZ;
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
+  }
+  // TANK-FIT (Part 3): THE STRUT PODS' DRAG. A pod on each front lift strut (G477) hung in the airstream and cost
+  // nothing - its kilos were billed, its drag was not. Raymer's component build-up (12.5), as the belly pod's: per pod
+  // Cf (the moulded row, genPodCdA's) x FF (1 + 60/f^3 + f/400 on its own fineness) x Q 1.3 (a store hung on a strut,
+  // Raymer's pylon-mounted Q) x Swet (the drawn spindle, r = R (1 - (2u-1)^2)^0.65: 0.75 pi D L, integrated). The
+  // drawn pod's own size: the player's dims (L, the diameter as W), else the litres' at fineness 4 (_vessel_gen.js
+  // vesselDims ogive: V = 0.55 D^2 L, a pod a side holding half). Absent with no pod: not a key, not a term.
+  {
+    let pc = 0;
+    const cdW = (typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS.carbon && GEN_MATERIALS.carbon.cdWet) || 0.0045;
+    for (const v of ((S.energy && S.energy.vessels) || [])) {
+      if (v.bay !== 'strut' || v.unmounted || !(v.capacity > 0)) continue;
+      let L, D;
+      if (v.dims && v.dims.L > 0 && v.dims.W > 0) { L = +v.dims.L; D = +v.dims.W; }
+      else {
+        const inst = (v._res && v._res.installedL) || v.capacity * 1.06;
+        const V = Math.max(0.002, inst / 2 / 1000);
+        D = Math.cbrt(V / (0.55 * 4)); L = 4 * D;
+      }
+      const f = L / Math.max(0.02, D), FF = 1 + 60 / (f * f * f) + f / 400;
+      pc += 2 * cdW * FF * 1.3 * (0.75 * Math.PI * D * L);
+    }
+    if (pc > 0) { cda.fusCdA[0] += pc; cda.drag.strutPods = pc; }
   }
   // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
   // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
@@ -46679,6 +46719,18 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: 'full rudder must hold the sideslip of a 0.2 Vs crosswind at the approach (FAR 23.233): ' + r2(need * 1.944) + ' kt here',
           why: 'full rudder holds ' + r2(bMax * 180 / Math.PI) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h',
           fix: lvl === 'pass' ? '' : 'a bigger rudder (more of the fin\'s chord, or more fin)' });
+  }
+  // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): A POD ON STRUTS
+  // THE WING DOES NOT HAVE is not fitted (60_gen_spec `unmounted`: not billed, not aboard) - the design fails on it.
+  // Absent on every build without one (no row: the check is the bytes it was). The editor's DRAWN fit (a tank through
+  // the skin, the crew) is the bench's to add (bench.js: CAGE_ENERGY's verdict), the core never draws a tank.
+  {
+    const off = ((S && S.energy && S.energy.vessels) || []).map((v, i) => [v, i]).filter(([v]) => v && v.unmounted);
+    for (const [v, i] of off)
+      row({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
+            limit: 'every tank the design carries is fitted to the aeroplane',
+            why: 'it hangs on the lift struts, and this wing has none: not fitted, it carries no fuel',
+            fix: 'give the wing its lift struts back, or move the tank to another bay' });
   }
   const worst = rows.some(r => r.level === 'fail') ? 'fail' : rows.some(r => r.level === 'warn') ? 'warn' : 'pass';
   return { verdict: worst, rows,

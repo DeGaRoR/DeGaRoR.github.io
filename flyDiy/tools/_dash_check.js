@@ -45,13 +45,20 @@ if (argv[0] === '--tank') {
   const W = SH.context().ctx;
   SH.stubCanvas();
   console.error = () => {};
+  // TANK-FIT (the user, 3 Nov): a saved nose tank with no station of its own is now FITTED to the nose (noseAuto),
+  // round whichever dash is drawn - so the box-vs-arch question below is asked of the tank the bay rule shaped (the
+  // old shaping, TANK_NOSE_AUTO_ALL = false), and `auto` children ask the fitted tank of both dashes
+  if (argv[3] !== 'auto') W.TANK_NOSE_AUTO_ALL = false;
   const spec = JSON.parse(JSON.stringify(SH.loadFixture(argv[1]).spec));
   spec.cage = Object.assign({}, spec.cage, { dashStyle: +argv[2], dashV: 1 });   // (G3451: the style stands)
   const def = C.buildGen(JSON.parse(JSON.stringify(spec)));
   W.CAGE_ENERGY.fromSpec(spec.energy, spec);
   SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
-  const rows = (W.CAGE_ENERGY.results() || []).map(r => ({ bay: r.v && r.v.bay, L: r.v && +r.v.capacity,
-    dash: +(((r.why || []).join(' ').match(/through the dash \((\d+)/) || [])[1] || 0) }));
+  const rows = (W.CAGE_ENERGY.results() || []).map(r => ({ bay: r.v && r.v.bay, L: r.v && +r.v.capacity, ok: !!r.ok,
+    // (TANK-FIT: the drawn clearance names the dash by depth - "N mm into the dash" - not by a point count: a
+    // contact with it counts as one)
+    dash: +(((r.why || []).join(' ').match(/through the dash \((\d+)/) || [])[1] || 0) ||
+          (/\d+ mm (?:into|through) the dash|no room for the pads: \d+ mm to the dash/.test((r.why || []).join(' ')) ? 1 : 0) }));
   process.stdout.write(JSON.stringify(rows));
   process.exit(0);
 }
@@ -73,11 +80,11 @@ const rawStyle = (spec, st) => Object.assign(JSON.parse(JSON.stringify(spec)), {
 
 // the tank children run while the geometry is judged here
 const kids = [];
-for (const b of BUILDS.slice(0, 2)) for (const st of [0, 1]) kids.push(new Promise(res => {
-  const ch = spawn(process.execPath, [__filename, '--tank', b, String(st)], { stdio: ['ignore', 'pipe', 'pipe'] });
+for (const b of BUILDS.slice(0, 2)) for (const st of [0, 1]) for (const md of ['', 'auto']) kids.push(new Promise(res => {
+  const ch = spawn(process.execPath, [__filename, '--tank', b, String(st)].concat(md ? [md] : []), { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '', err = '';
   ch.stdout.on('data', d => { out += d; }); ch.stderr.on('data', d => { err += d; });
-  ch.on('close', code => { let j = null; try { j = JSON.parse(out); } catch (e) {} res({ b: path.basename(b), st, code, j, err }); });
+  ch.on('close', code => { let j = null; try { j = JSON.parse(out); } catch (e) {} res({ b: path.basename(b), st: st + md, code, j, err }); });
 }));
 
 // ---- load: the migration at the one door
@@ -201,6 +208,9 @@ Promise.all(kids).then(res => {
     if (!box || !arch) continue;
     check(arch.length > 0 && arch.every(t => t.dash === 0), 'tanks: ' + nm + ' - the real tanks stand clear of the arch', JSON.stringify(arch));
     check(box.some(t => t.dash > 0), 'tanks: ' + nm + ' - the box stood through them (the test is not vacuous)', JSON.stringify(box));
+    // TANK-FIT: the nose tank as the game now draws it (fitted to the nose) clears either dash
+    for (const st of ['0auto', '1auto']) { const A = by[nm + st];
+      if (A) check(A.length > 0 && A.every(t => t.dash === 0 && t.ok), 'tanks: ' + nm + ' - the fitted nose tank clears the ' + (st[0] === '0' ? 'box' : 'arch') + ' and fits', JSON.stringify(A)); }
     console.log('  ' + nm.split('_')[0] + ' tanks: box ' + box.map(t => t.bay + ' ' + t.L + ' L ' + t.dash + ' pts').join(', ') +
                 ' / arch ' + arch.map(t => t.bay + ' ' + t.L + ' L ' + t.dash + ' pts').join(', '));
   }

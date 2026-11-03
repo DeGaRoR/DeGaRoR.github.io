@@ -1407,7 +1407,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       }
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
+      // CONFIG-MATRIX step 4: a T or V tail on twin booms is a greyed combination; a build that holds one loads as it
+      // is, with this notice (the stab flies as drawn and measured)
+      if (+P.boomTwin && (+P.stCant >= 20 || Math.round(+P.stMount || 0) === 2))
+        NOTES.push('tail: ' + (+P.stCant >= 20 ? 'a V-tail' : 'a stab on the fin tip') + ' on twin booms is not a ' +
+                   'configuration the garage builds (its tile is greyed) - it flies as drawn');
       {
+        // CONFIG-MATRIX: an engine the mount lists and the engine layer could not bolt on (no face on this body)
+        // flies at the rule's station where nothing is drawn - an ERROR row, the bench's failed test, never silent
+        const EL = window.CAGE_ENG_LOST;
+        if (EL && EL.got < EL.want)
+          ERRS.push('engine: ' + (EL.want - EL.got) + ' of ' + EL.want + ' not drawn — ' + EL.why +
+                    '; it flies where nothing is drawn');
         const CE = window.CAGE_ENG;
         if (CE && Array.isArray(CE.units) && CE.units.length) {
           M.engUnits = CE.units.map(u =>
@@ -1611,6 +1622,30 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
             return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
           };
+          // THE FIN'S TAPER IS ITS PLANFORM ABOVE THE DECK (NEW-PLANE, the user 3 Nov: "make the join measure the fin
+          // above the deck"). The drawn sheet runs down the tail post to the keel, so its 25 % slice sat at the tail
+          // cone, where fin and rudder span the whole cone: every fin in the shed read 0.15-0.22 (the user's validated
+          // Cub 0.217, every FIN_ARCH preset; even a tip 1.5x its root read 0.34) and flew the envelope's 0.35 clamp,
+          // whatever was drawn. The flown fin is what stands in the air: its span starts at the highest point of the
+          // boom's top line under the sheet's chord (the fin layer's own `deck`, the line its root is projected onto),
+          // and the taper is the 75 % slice over the 25 % of THAT span. No deck (a tube-less sketch) or a sheet wholly
+          // under it: the whole sheet, as before.
+          const finTaperAbove = (m, F) => {
+            const D = F && F.deck;
+            if (!m || !D || typeof D.top !== 'function' || !(m.FS > 0) || !(m.span > 0)) return taperOf(m);
+            const FS = m.FS, zA = m.z0 / FS, zB = m.z1 / FS;
+            let yDeck = -Infinity;
+            for (let i = 0; i <= 16; i++) {
+              const z = zA + (zB - zA) * i / 16;
+              let y = NaN; try { y = +D.top(z); } catch (e) { y = NaN; }
+              if (isFinite(y)) yDeck = Math.max(yDeck, y);
+            }
+            const t0 = (yDeck - m.y0 / FS) * FS;              // metres from the sheet's foot to the deck
+            const above = m.span - t0;
+            if (!isFinite(t0) || t0 <= 0 || above < 0.25 * m.span) return taperOf(m);
+            const a = m.chordAt(t0 + 0.25 * above), b = m.chordAt(t0 + 0.75 * above);
+            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : taperOf(m);
+          };
           if (stabM && stabM.areaTail > 0) {
             if (isV) M.Svt = 2 * stabM.areaTail;
             else M.Sh = 2 * stabM.areaTail + 2 * stabM.rootX * stabM.chordRoot;
@@ -1632,7 +1667,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               M.Sv += (TBj ? 2 : 1) * 0.5 * (1 + tip) * cV * hV * FSv * FSv;
             }
             M.dorsalArea = finM.areaDorsal;
-            M.vTaper = taperOf(finM);
+            M.vTaper = finTaperAbove(finM, FNm);
             if (finM.ctlFrac > 0) M.rudChord = finM.ctlFrac;
             else NOTES.push('tail: the fin is drawn UNCUT — no rudder is drawn, the default rudder chord flies');
           }
