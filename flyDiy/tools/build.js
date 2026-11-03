@@ -719,6 +719,9 @@ const MANIFEST = {
     // THE POST CHAIN, FLAT (G1441): after CAGE_PAGE exists, before the first layer chains PAGE.post - the
     // registrations, the drag preview's skips and the layers' recorded inputs (_cage_chain.js)
     '_cage_chain.js',
+    // THE SEAT LIBRARY (SEATS, 2026-11-02): the calibrated seat presets (seatType 3+); pure, reached by the crew's
+    // buildSeat at call time, so only before the crew
+    '_seat_gen.js',
     '_cage_crew.js',
     // THE INSTRUMENTS (the panel arc, session 2): the fit as a list, the
     // Instruments part's column and the join's `systems` seam; its geometry

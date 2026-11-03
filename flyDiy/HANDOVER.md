@@ -311028,3 +311028,28 @@ The user, 2 Nov: "being able to snap the strut into the cabin pillar, and also t
 - THE REMODEL (the user, 3 Nov): plateInto's outline is the rounded curve in rings (the 9 x 7 grid's staircase edge was the "pixelated" base); stepBoard is a narrow pillar step (a boss, a bent stem, a 64 mm tread, no plate); the door handle is the smoothed U again (the latch lever dropped); plateOval and doorHinged are drawn (a 2 mm seam and flat screws on the skin, no plate - a thin plate in the livery's base colour fought the skin for depth).
 - plane_shot.js: fit:<key>/<az>/<el>/<dist> (one placed fitting, the flank facing the eye) and at:<x>/<y>/<z>/<az>/<el>/<dist> (one framing for two builds). Under ~0.8 m the near plane cuts the skin; on the phone page every still is written _FAIL.png (the hide-the-aeroplane assert reads 0 %).
 - LINE ENDINGS: HANDOVER.md is mixed CRLF / LF on master - edit it as BYTES (an append), never rewrite it through a text-mode read (A0, 3 Nov: a conflict resolved that way normalised 204 k lines).
+## SEATS (2026-11-02, cloud session, the user via A0): the seat library
+Every seat the crew layer draws is `tools/_seat_gen.js`'s (MANIFEST.editor, before `_cage_crew.js`; `buildSeat` is the
+door). 15 calibrated presets on `cage.seatType` 0-14, named by their spirit (the user: "avoiding naming planes"):
+0 Tube & sling (replaced the tube frame), 1 Carbon bucket (replaced the moulded shell), 2 Vintage airliner (replaced the
+airliner seat), 3 Touring, 4 Sculpted sport, 5 Executive leather, 6 Ultralight sling, 7 Aerobatic recline, 8 Vintage
+crew (its cabin: type 2), 9 Heavy-duty work, 10 Woven cane, 11 Reclined tub, 12 Folding canvas, 13 Parachute bucket,
+14 Bush utility. What each is modelled on, its dimensions and mass: docs/SEATS-REFERENCES.md.
+- GEOMETRY: one primitive, `slab` (a lattice rounded box carried on a side-profile spine, with crown / wings / pleat
+  fields); `skin` (an insert laid on a slab's own surface, tucked into a seam channel); piping through the slab's own
+  edge rounding; pads built ON their shell (the underside follows it, the top stays flat - the user); no belts (the
+  user). Width and back height are calibrated (a narrow cabin scales the width, a low roof the back: `fit`); stand
+  height, recline, tilt, fore/aft and layout stay on the rows. Picking a style seeds its own recline/tilt.
+- LEVELS OF DETAIL by REGENERATION (the user: not decimation): 0 hero, 1 mid, 2 phone - every primitive reads the level
+  (lattice rows, sides, segments, path steps) and small features step off. One level per seat build (no THREE.LOD: the
+  join flattens the crew layer): the phone profile builds level 2, else 0; `?seatlod=0|1|2`, `P.seatLod`,
+  `SEAT_GEN.force`. Phone 640-1 320 tris, 4-6 draws a seat; 1-4 ms to generate.
+- MASS (WYSIWYG): `GEN_SEATS` has a row per preset (`GEN_SEAT_TYPES[seatType]`); the crew publishes each drawn seat's kg
+  in `CAGE_CREW.seatsAt`, the join writes `cabin.seatsKg` ONLY when a seat weighs other than the outfit's row (so a
+  Tube & sling cabin - 3.0 kg, the `sling` row - keeps its spec and its certificate), genFrame bills seat by seat.
+- THE CABIN'S SEAT: `cage.paxSeatType` (not in the defaults; absent = -1 = as the pilots', or the preset's `paxType`).
+- FINISH: four livery sections - `seatTrim` (base), `seatAccent`, `seatSeam`, `seatFrame` - the preset's finish/tint
+  are each section's bottom-out (`CAGE_SECMAT(sec, { fin, tint0 })`), a pick wins on every seat.
+- BENCH `tools/_seats.html` (?seat=N), RIG `tools/seat_shot.js` (sheet / close / lod, ~10 s on SwiftShader), GATE SEATS
+  `tools/_seats_check.js` (core: the four tables in one order, honest mass, every preset at every level, the cabin seat,
+  the mass reaching the build). Evidence and the open items: reports/evidence/SEATS/STATUS.md.

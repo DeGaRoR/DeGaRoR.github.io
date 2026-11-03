@@ -1,9 +1,9 @@
 // CAGE CREW — the cockpit occupancy layer (G17; born on the _cage5 bench,
 // now one layer of _cage8.html and the game's editor).
 //
-// Seats (ported from the game's 63_gen_skin.js "2h. SEATS" — frame, pan,
-// cushion, piping, lap belts: leaving any out is what makes a seat read
-// as a box), procedural CONTROLS (pedals, stick/yoke/side-stick, throttle
+// Seats (since SEATS, 2026-11-02, every one is tools/_seat_gen.js's: the seat
+// library, its presets and levels of detail; buildSeat below is the door),
+// procedural CONTROLS (pedals, stick/yoke/side-stick, throttle
 // as wall lever / dash push-pull / console quadrant, optional centre
 // console) and the OCCUPANTS: a 19-joint skeleton with analytic two-bone
 // IK, built to each character's own proportions and dressed by it
@@ -147,216 +147,19 @@ function Bag(mat) {
   };
 }
 
-// ---- TUBING: ONE WELDED RUN WITH ROUNDED CORNERS --------------------------
-// The frames were separate capped cylinders butted at each bend — they
-// never joined, and both end discs showed (user 2026-08-19). A run is
-// now ONE swept tube: corners are FILLETED (quadratic bezier through the
-// corner, arms inset by min(2.2r, 0.4 arm) — the cageRims seal idiom),
-// the section is PARALLEL-TRANSPORTED so it never flips along the run,
-// consecutive rings SHARE vertices so the surface is continuous, and the
-// ends are DOMED. Every tube in this file goes through it.
-const _sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+// ---- the vector kit the controls use (the seats' welded-run tubing moved to tools/_seat_gen.js with them)
 const _len3 = a => Math.hypot(a[0], a[1], a[2]);
 const _nrm3 = a => { const l = _len3(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; };
-const _crs3 = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2],
-                         a[0]*b[1] - a[1]*b[0]];
-const _dot3 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 const _off3 = (p, d, k) => [p[0] + d[0]*k, p[1] + d[1]*k, p[2] + d[2]*k];
 
-function filletPath(pts, r, seg) {
-  if (pts.length < 3) return pts.slice();
-  const out = [pts[0]];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const a = pts[i - 1], b = pts[i], c = pts[i + 1];
-    const d1 = _sub3(b, a), d2 = _sub3(c, b);
-    const l1 = _len3(d1), l2 = _len3(d2);
-    if (l1 < 1e-6 || l2 < 1e-6) continue;
-    const u1 = _nrm3(d1), u2 = _nrm3(d2);
-    if (Math.acos(clamp(_dot3(u1, u2), -1, 1)) < 0.10) { out.push(b); continue; }
-    const d = Math.min(2.2 * r, 0.40 * Math.min(l1, l2));
-    const p0 = _off3(b, u1, -d), p2 = _off3(b, u2, d);
-    const N = seg || 4;
-    for (let k = 0; k <= N; k++) {
-      const t = k / N, m = 1 - t;
-      out.push([m*m*p0[0] + 2*m*t*b[0] + t*t*p2[0],
-                m*m*p0[1] + 2*m*t*b[1] + t*t*p2[1],
-                m*m*p0[2] + 2*m*t*b[2] + t*t*p2[2]]);
-    }
-  }
-  out.push(pts[pts.length - 1]);
-  return out;
-}
-// samples = [{p, rs}] — rs scales the radius, which is how the domed
-// ends are built (a ring at angle th sits r*cos(th) beyond the end with
-// radius r*sin(th))
-function sweepSamples(bag, samples, r, sides) {
-  sides = sides || 10;
-  const P = samples.map(s => s.p);
-  const T = P.map((p, i) =>
-    _nrm3(_sub3(P[Math.min(P.length - 1, i + 1)], P[Math.max(0, i - 1)])));
-  let nrm = Math.abs(T[0][1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
-  const proj = (n, t) => _nrm3(_sub3(n, [t[0]*_dot3(n,t), t[1]*_dot3(n,t),
-                                         t[2]*_dot3(n,t)]));
-  nrm = proj(nrm, T[0]);
-  const rings = [], poles = [];
-  for (let i = 0; i < P.length; i++) {
-    nrm = proj(nrm, T[i]);
-    const bi = _crs3(T[i], nrm);
-    const rr = r * samples[i].rs;
-    if (rr < 1e-5) { rings.push(null); poles.push(bag.v(P[i][0], P[i][1], P[i][2])); continue; }
-    poles.push(-1);
-    const ring = [];
-    for (let k = 0; k < sides; k++) {
-      const a = 2 * Math.PI * k / sides, ca = Math.cos(a), sa = Math.sin(a);
-      ring.push(bag.v(P[i][0] + (nrm[0]*ca + bi[0]*sa) * rr,
-                      P[i][1] + (nrm[1]*ca + bi[1]*sa) * rr,
-                      P[i][2] + (nrm[2]*ca + bi[2]*sa) * rr));
-    }
-    rings.push(ring);
-  }
-  for (let i = 0; i < rings.length - 1; i++) {
-    const a = rings[i], b = rings[i + 1];
-    if (a && b) {
-      for (let k = 0; k < sides; k++) {
-        const k2 = (k + 1) % sides;
-        bag.quad(a[k], a[k2], b[k2], b[k]);
-      }
-    } else if (a && !b) {                     // fan to the closing pole
-      for (let k = 0; k < sides; k++) bag.tri(a[k], a[(k+1)%sides], poles[i+1]);
-    } else if (!a && b) {
-      for (let k = 0; k < sides; k++) bag.tri(poles[i], b[(k+1)%sides], b[k]);
-    }
-  }
-}
-// pts = polyline; ends: 'dome' (default) | 'flat' | 'open'
-function tubeRun(bag, pts, r, sides, ends) {
-  const path = filletPath(pts, r);
-  if (path.length < 2) return;
-  const samples = path.map(p => ({ p, rs: 1 }));
-  if (ends !== 'open') {
-    const t0 = _nrm3(_sub3(path[1], path[0]));
-    const t1 = _nrm3(_sub3(path[path.length-1], path[path.length-2]));
-    const head = [], tail = [];
-    if (ends === 'flat') {
-      head.push({ p: path[0], rs: 0 });
-      tail.push({ p: path[path.length-1], rs: 0 });
-    } else {
-      for (const th of [0, 30, 60]) {         // pole first
-        const a = th * Math.PI / 180;
-        head.push({ p: _off3(path[0], t0, -r * Math.cos(a)), rs: Math.sin(a) });
-      }
-      for (const th of [60, 30, 0])
-        tail.push({ p: _off3(path[path.length-1], t1, r * Math.cos(th*Math.PI/180)),
-                    rs: Math.sin(th * Math.PI / 180) });
-    }
-    samples.unshift(...head); samples.push(...tail);
-  }
-  sweepSamples(bag, samples, r, sides);
-}
-
-// ---- the cushion: a PUFFED SLAB (port of 63_gen_skin's builder) -----------
-// grid whose thickness falls to zero at the rim on a soft power curve,
-// grooved along the seam lines; piping (the welt) swept round the rim.
-function cushion(parent, ctr, ax, al, up, hw, hd, th, flutes, tuck) {
-  const NU = 10, NV = 12;
-  const P3 = (a, b, u) => [
-    ctr[0] + ax[0] * a * hw + al[0] * b * hd + up[0] * u,
-    ctr[1] + ax[1] * a * hw + al[1] * b * hd + up[1] * u,
-    ctr[2] + ax[2] * a * hw + al[2] * b * hd + up[2] * u,
-  ];
-  // 3 / 0.45 is a filled squab; 5 / 0.30 was a board (63_gen_skin)
-  const puff = (a, b) =>
-    Math.pow(Math.max(0, 1 - Math.pow(Math.abs(a), 3)), 0.45) *
-    Math.pow(Math.max(0, 1 - Math.pow(Math.abs(b), 3)), 0.45);
-  const groove = b => {
-    let g = 1;
-    for (let f = 1; f <= flutes; f++) {
-      const bf = -1 + 2 * f / (flutes + 1);
-      const d = (b - bf) / 0.085;
-      g -= 0.30 * Math.exp(-d * d);
-    }
-    return Math.max(0.45, g);
-  };
-  const bag = Bag(M.cushion);
-  const grid = sgn => {
-    const rows = [];
-    for (let i = 0; i <= NU; i++) {
-      const a = -1 + 2 * i / NU, row = [];
-      for (let j = 0; j <= NV; j++) {
-        const b = -1 + 2 * j / NV;
-        const pf = puff(a, b);
-        const u = sgn > 0 ? th * pf * groove(b)
-                          : -th * pf * (tuck ? 0.20 : 0.45);
-        const p = P3(a, b, u);
-        row.push(bag.v(p[0], p[1], p[2]));
-      }
-      rows.push(row);
-    }
-    return rows;
-  };
-  const top = grid(1), bot = grid(-1);
-  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
-    bag.quad(top[i][j], top[i][j + 1], top[i + 1][j + 1], top[i + 1][j]);
-    bag.quad(bot[i][j], bot[i + 1][j], bot[i + 1][j + 1], bot[i][j + 1]);
-  }
-  bag.mesh(parent);
-  // piping round the rim, in the trim colour
-  const rim = [];
-  const NP = 7;
-  for (let j = 0; j <= NP; j++) rim.push([-1, -1 + 2 * j / NP]);
-  for (let i = 1; i <= NP; i++) rim.push([-1 + 2 * i / NP, 1]);
-  for (let j = NP - 1; j >= 0; j--) rim.push([1, -1 + 2 * j / NP]);
-  for (let i = NP - 1; i >= 0; i--) rim.push([-1 + 2 * i / NP, -1]);
-  for (let k = 0; k < rim.length - 1; k++)
-    tube(parent, M.pipe, P3(rim[k][0], rim[k][1], 0),
-         P3(rim[k + 1][0], rim[k + 1][1], 0), 0.009, true);
-}
-
-// ---- lap belt: a flat RIBBON with a roll-over twist (63 port) -------------
-function ribbon(bag, pts, wid, tw) {
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const nrm = v => {
-    const l = Math.hypot(v[0], v[1], v[2]) || 1;
-    return [v[0] / l, v[1] / l, v[2] / l];
-  };
-  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  let prev = null;
-  for (let k = 0; k < pts.length - 1; k++) {
-    const A = pts[k], C = pts[k + 1];
-    const ax = nrm(sub(C, A));
-    let across = nrm(cross(ax, [0, 1, 0]));
-    if (!isFinite(across[0])) across = [0, 0, 1];
-    const th = (tw || 0) * (k / Math.max(1, pts.length - 2));
-    const upv = nrm(cross(across, ax));
-    const e1 = [0, 1, 2].map(c =>
-      across[c] * Math.cos(th) + upv[c] * Math.sin(th));
-    const e2n = nrm(cross(ax, e1));
-    const e2 = [e2n[0] * 0.0035, e2n[1] * 0.0035, e2n[2] * 0.0035];
-    const quadAt = Pt => [0, 1, 2, 3].map(q => {
-      const sW = (q === 0 || q === 3) ? -1 : 1, sT = q < 2 ? 1 : -1;
-      return bag.v(Pt[0] + e1[0] * sW * 0.5 * wid + e2[0] * sT,
-                   Pt[1] + e1[1] * sW * 0.5 * wid + e2[1] * sT,
-                   Pt[2] + e1[2] * sW * 0.5 * wid + e2[2] * sT);
-    });
-    const a4 = prev || quadAt(A), c4 = quadAt(C);
-    bag.quad(a4[0], a4[1], c4[1], c4[0]);
-    bag.quad(a4[3], c4[3], c4[2], a4[2]);
-    bag.quad(a4[0], c4[0], c4[3], a4[3]);
-    bag.quad(a4[1], a4[2], c4[2], c4[1]);
-    prev = c4;
-  }
-}
-
 // ---- THE SEATS ------------------------------------------------------------
-// Three types, ONE interface: every builder returns the numbers the
-// controls and the occupant lace to (panY, floor, szc, hw, backH, rake), so
-// the cockpit works identically whichever is fitted (user 2026-08-19).
-//   0 tube     the light-aircraft welded frame + laced cushions
-//   1 shell    a moulded composite bucket, for the almost-lying position
-//   2 airliner a padded seat with headrest and armrests
-// SP = this seat's own {h, rake, tilt}: the second seat carries its own
-// set, so a tandem back seat can sit lower or more upright than the front.
+// EVERY SEAT IS THE SEAT LIBRARY'S (SEATS, 2026-11-02): tools/_seat_gen.js draws them all - the tube & sling (0),
+// the carbon bucket (1) and the vintage airliner (2) replaced the tube frame, the moulded shell and the airliner seat
+// that were drawn here (the user: "replace both ... also replace the airliner existing seat with the dc3 passenger"),
+// and 3-14 are its other presets. ONE interface either way: the numbers the controls and the occupant lace to
+// (panY, floor, szc, hw, backH, rake), plus the seat's mass for the join (kg).
+// SP = this seat's own {h, rake, tilt}: the second seat carries its own set, so a tandem back seat can sit lower or
+// more upright than the front.
 function seatGeom(A, P, sx, zBack, sbs, SP) {
   const szc = zBack + 0.20;                    // squab centre
   const floor = A.floorAt(szc);                // the DETECTED floor
@@ -368,270 +171,29 @@ function seatGeom(A, P, sx, zBack, sbs, SP) {
   return { szc, floor, panY, rake, tilt, hw, backH, sx };
 }
 
-// ---- 0. THE TUBE SEAT -----------------------------------------------------
-function seatTube(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, floor = g.floor, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const bc = Math.cos(rake), bs = Math.sin(rake);
-  cushion(parent, [sx, panY + 0.5 * 0.22 * Math.sin(tilt), szc],
-          [1, 0, 0], [0, -0.06 - Math.sin(tilt), -Math.cos(tilt)],
-          [0, 1, 0], hw, 0.22, 0.075, 2, true);
-  cushion(parent,
-          [sx, panY + 0.02 + 0.5 * backH * bc, szc - 0.20 - 0.5 * backH * bs],
-          [1, 0, 0], [0, bc, -bs], [0, bs, bc],
-          hw * 0.96, 0.5 * backH, 0.062, 3, false);
-  // THE SUPPORTING STRUCTURE IS TWO NARROW RAILS (user): at most 2/3 of
-  // the seat width, so it lands on the floor of a fuselage that has
-  // narrowed by the belly. Each side is ONE welded run — leg, rail and
-  // back upright in a single filleted sweep.
-  const railHalf = hw * (2 / 3);
-  // G332: drawn alloy tube (the user), and enough sides that a 14 mm tube
-  // seen from 40 cm is round — the seat is the closest hardware there is
-  const bag = Bag(M.seatAlu);
-  for (const s2 of [-1, 1]) {
-    const xx = sx + s2 * railHalf;
-    tubeRun(bag, [[xx, floor, szc + 0.21],
-                  [xx, panY - 0.03, szc + 0.19],
-                  [xx, panY - 0.03, szc - 0.19],
-                  [xx, panY - 0.02 + backH * bc, szc - 0.20 - backH * bs]],
-            0.014, 18);
-    tubeRun(bag, [[xx, floor, szc + 0.21], [xx, panY - 0.03, szc - 0.19]],
-            0.010, 14);
-  }
-  // cross members: run a hair PAST the side rails so the weld closes
-  const xl = sx - railHalf, xr = sx + railHalf, e = 0.010;
-  const X = (y, z, r) => tubeRun(bag, [[xl - e, y, z], [xr + e, y, z]], r, 14);
-  X(panY - 0.03, szc + 0.19, 0.012);
-  X(panY - 0.03, szc - 0.19, 0.012);
-  X(floor, szc + 0.21, 0.011);
-  X(floor, szc - 0.20, 0.011);
-  X(panY - 0.02 + backH * bc, szc - 0.20 - backH * bs, 0.013);
-  bag.mesh(parent);
-}
-
-// ---- 1. THE COMPOSITE SHELL ----------------------------------------------
-// One moulded bucket: a centre-plane profile (front lip, pan, filleted
-// hinge, back, integrated headrest) swept across x with a parabolic
-// bolster, then offset to a real thickness and rimmed. This is the
-// almost-lying seat — set the back recline high and the pilot lies in it.
-function seatShell(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const H = [panY, szc - 0.18];                       // hinge (y, z)
-  const panL = 0.42, bc = Math.cos(rake), bs = Math.sin(rake);
-  const F = [H[0] + panL * Math.sin(tilt), H[1] + panL * Math.cos(tilt)];
-  const hH = backH + 0.16;                            // head above the hinge
-  const B = [H[0] + hH * bc, H[1] - hH * bs];
-  // THE ENDS ROLL AWAY FROM THE BODY (G468, playtest item 47, the user:
-  // "the carbon seat has interior edges at its ends, rendering it
-  // practically unusable, since it would cut the back of the neck and the
-  // legs"). The lip curled UP into the back of the knees and the headrest
-  // curled FORWARD into the neck - both ends pointed at the occupant. A
-  // moulded bucket rolls its edges OUTWARD: the front lip rolls down and
-  // forward under the thighs, the top rolls aft behind the head, and the
-  // cut edge of the shell is a half-round of its own thickness (below),
-  // not an 11 mm saw cut.
-  const prof = [
-    [sx, F[0] - 0.040, F[1] + 0.045],                 // front lip, rolled DOWN and forward
-    [sx, F[0], F[1]],
-    [sx, H[0], H[1]],
-    [sx, B[0], B[1]],
-    [sx, B[0] + 0.030, B[1] - 0.060],                 // the top rolled AFT, behind the head
-  ];
-  const C = filletPath(prof, 0.085, 5);
-  const NU = C.length, NV = 12, TH = 0.011;
-  const uu = [0];
-  for (let i = 1; i < NU; i++)
-    uu.push(uu[i - 1] + _len3(_sub3(C[i], C[i - 1])));
-  const total = uu[NU - 1] || 1;
-  const bag = Bag(M.shellC);
-  const N = [], W = [], BO = [];
-  for (let i = 0; i < NU; i++) {
-    const a = C[Math.max(0, i - 1)], b = C[Math.min(NU - 1, i + 1)];
-    const t = _nrm3(_sub3(b, a));
-    N.push([0, -t[2], t[1]]);                         // toward the occupant
-    const u = uu[i] / total;
-    W.push(hw * (u < 0.45 ? 1.0 : 1.0 - 0.42 * (u - 0.45) / 0.55));
-    BO.push(0.052 * (1 - 0.55 * Math.max(0, (u - 0.5) / 0.5)));
-  }
-  const pt = (i, v, off) => {
-    const w = W[i] * v, r = BO[i] * v * v + (off || 0);
-    return [C[i][0] + w, C[i][1] + N[i][1] * r, C[i][2] + N[i][2] * r];
-  };
-  const IN = [], OUT = [];
-  for (let i = 0; i < NU; i++) {
-    const ri = [], ro = [];
-    for (let j = 0; j <= NV; j++) {
-      const v = -1 + 2 * j / NV;
-      const a = pt(i, v, 0), b = pt(i, v, -TH);
-      ri.push(bag.v(a[0], a[1], a[2]));
-      ro.push(bag.v(b[0], b[1], b[2]));
-    }
-    IN.push(ri); OUT.push(ro);
-  }
-  for (let i = 0; i < NU - 1; i++) for (let j = 0; j < NV; j++) {
-    bag.quad(IN[i][j], IN[i][j + 1], IN[i + 1][j + 1], IN[i + 1][j]);
-    bag.quad(OUT[i][j], OUT[i + 1][j], OUT[i + 1][j + 1], OUT[i][j + 1]);
-  }
-  for (let i = 0; i < NU - 1; i++) {                  // side rims
-    bag.quad(IN[i][0], IN[i + 1][0], OUT[i + 1][0], OUT[i][0]);
-    bag.quad(IN[i][NV], OUT[i][NV], OUT[i + 1][NV], IN[i + 1][NV]);
-  }
-  // the end rims: a HALF-ROUND of the shell's thickness (G468) - three rings
-  // swept round from the inner face to the outer one, past the profile's end
-  // along its tangent, so the edge the thighs and the neck meet is a radius
-  for (const end of [0, NU - 1]) {
-    const i = end, nb = end === 0 ? 1 : NU - 2;
-    const tg = _nrm3(_sub3(C[i], C[nb]));             // outward along the profile
-    const rings = [];
-    for (let k = 0; k <= 4; k++) {
-      const th = Math.PI * k / 4;                     // inner face -> outer face
-      const ext = Math.sin(th) * TH * 0.5, off = -TH * 0.5 + Math.cos(th) * TH * 0.5;
-      const ring = [];
-      for (let j = 0; j <= NV; j++) {
-        const v = -1 + 2 * j / NV;
-        const a = pt(i, v, off);
-        ring.push(bag.v(a[0] + tg[0] * ext, a[1] + tg[1] * ext, a[2] + tg[2] * ext));
-      }
-      rings.push(ring);
-    }
-    for (let k = 0; k < 4; k++) for (let j = 0; j < NV; j++) {
-      if (end === 0) bag.quad(rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]);
-      else bag.quad(rings[k][j], rings[k][j + 1], rings[k + 1][j + 1], rings[k + 1][j]);
-    }
-  }
-  bag.mesh(parent);
-  // a thin cushion pad laid in the bucket, so it is not bare carbon
-  const pad = Bag(M.cushion);
-  const PI = [], PO = [];
-  const i0 = Math.round(NU * 0.10), i1 = Math.round(NU * 0.93);
-  for (let i = i0; i <= i1; i++) {
-    const ri = [], ro = [];
-    for (let j = 1; j < NV; j++) {
-      const v = (-1 + 2 * j / NV) * 0.88;
-      const a = pt(i, v, 0.028 * (1 - Math.abs(v)) + 0.004);
-      const b = pt(i, v, 0.004);
-      ri.push(pad.v(a[0], a[1], a[2]));
-      ro.push(pad.v(b[0], b[1], b[2]));
-    }
-    PI.push(ri); PO.push(ro);
-  }
-  for (let i = 0; i < PI.length - 1; i++)
-    for (let j = 0; j < PI[0].length - 1; j++) {
-      pad.quad(PI[i][j], PI[i][j + 1], PI[i + 1][j + 1], PI[i + 1][j]);
-      pad.quad(PO[i][j], PO[i + 1][j], PO[i + 1][j + 1], PO[i][j + 1]);
-    }
-  pad.mesh(parent);
-  // THE FLOOR SUPPORT (G2799, the user's review of 18 Oct: "the carbon seat
-  // floats about 8 cm over the floor"). Two moulded pedestal ribs under the
-  // pan, their top edge following the shell's outer face from the front of
-  // the pan to the lower back, standing on two fore-aft floor rails - the
-  // airliner seat's pedestal idiom. Drawing only: the shell, the hinge and
-  // every number the crew laces to are unchanged.
-  const rh = hw * 0.45, RT = 0.006, RAIL = 0.012;
-  let ia = 0, ib = NU - 1;
-  while (ia < NU - 1 && C[ia][2] > F[1] + 1e-6) ia++;
-  while (ib > ia && C[ib][1] > H[0] + 0.10) ib--;
-  if (ib - ia >= 1) {
-    const rib = Bag(M.shellC), alu = Bag(M.seatAlu);
-    for (const s2 of [-1, 1]) {
-      const xr = sx + s2 * rh, top = [], bot = [];
-      for (let i = ia; i <= ib; i++) {
-        const p = pt(i, s2 * rh / W[i], -TH);
-        const yB = A.floorAt(p[2]) + 2 * RAIL;
-        top.push([p[1], p[2]]);
-        bot.push([Math.min(yB, p[1] - 0.006), p[2]]);
-      }
-      // a slab RT*2 thick: each face its own vertices, so the shading is flat
-      const n = top.length;
-      for (const xs of [xr - RT, xr + RT]) {
-        const T = top.map(q => rib.v(xs, q[0], q[1]));
-        const Bt = bot.map(q => rib.v(xs, q[0], q[1]));
-        for (let i = 0; i < n - 1; i++)
-          if (xs < xr) rib.quad(T[i], T[i + 1], Bt[i + 1], Bt[i]);
-          else rib.quad(T[i], Bt[i], Bt[i + 1], T[i + 1]);
-      }
-      for (const edge of [top, bot]) {
-        const L = edge.map(q => rib.v(xr - RT, q[0], q[1]));
-        const R = edge.map(q => rib.v(xr + RT, q[0], q[1]));
-        for (let i = 0; i < n - 1; i++) rib.quad(L[i], R[i], R[i + 1], L[i + 1]);
-      }
-      for (const i of [0, n - 1])
-        rib.quad(rib.v(xr - RT, top[i][0], top[i][1]), rib.v(xr + RT, top[i][0], top[i][1]),
-                 rib.v(xr + RT, bot[i][0], bot[i][1]), rib.v(xr - RT, bot[i][0], bot[i][1]));
-      // the rail, a little longer than the rib at both ends
-      const zf = top[0][1] + 0.03, zr = top[n - 1][1] - 0.03;
-      tubeRun(alu, [[xr, A.floorAt(zf) + RAIL, zf], [xr, A.floorAt(zr) + RAIL, zr]], RAIL, 12);
-    }
-    rib.mesh(parent);
-    alu.mesh(parent);
-  }
-}
-
-// ---- 2. THE AIRLINER SEAT -------------------------------------------------
-// Deep squab, thick raked back, a separate headrest on posts, armrests
-// with a rounded rail, on a slim pedestal. Same puffed-slab cushions as
-// the light seat, so the quality reads the same.
-function seatAirline(parent, A, P, g) {
-  const sx = g.sx, szc = g.szc, floor = g.floor, panY = g.panY;
-  const rake = g.rake, tilt = g.tilt, hw = g.hw, backH = g.backH;
-  const bc = Math.cos(rake), bs = Math.sin(rake);
-  const w = hw * 1.02;
-  cushion(parent, [sx, panY + 0.5 * 0.24 * Math.sin(tilt), szc],
-          [1, 0, 0], [0, -0.05 - Math.sin(tilt), -Math.cos(tilt)],
-          [0, 1, 0], w, 0.24, 0.095, 2, true);
-  const bH = backH * 0.86;
-  cushion(parent,
-          [sx, panY + 0.03 + 0.5 * bH * bc, szc - 0.21 - 0.5 * bH * bs],
-          [1, 0, 0], [0, bc, -bs], [0, bs, bc],
-          w * 0.98, 0.5 * bH, 0.085, 3, false);
-  // headrest: its own slab, a gap above the back, curled a touch forward
-  const hy = panY + 0.05 + (bH + 0.10) * bc;
-  const hz = szc - 0.21 - (bH + 0.10) * bs;
-  const hr = rake - 0.14, hc = Math.cos(hr), hs2 = Math.sin(hr);
-  cushion(parent, [sx, hy, hz], [1, 0, 0], [0, hc, -hs2], [0, hs2, hc],
-          w * 0.62, 0.085, 0.070, 1, false);
-  const bag = Bag(M.trim);
-  for (const s2 of [-1, 1]) tubeRun(bag, [
-    [sx + s2 * w * 0.34, hy - 0.10 * hc, hz + 0.10 * hs2],
-    [sx + s2 * w * 0.34, hy - 0.02 * hc, hz + 0.02 * hs2]], 0.011, 8);
-  // armrests: a rounded rail on each side, padded on top
-  const ay = panY + 0.20, az0 = szc + 0.16, az1 = szc - 0.20;
-  for (const s2 of [-1, 1]) {
-    const ax = sx + s2 * (w + 0.055);
-    tubeRun(bag, [[ax, ay - 0.12, az1 - 0.02], [ax, ay, az1 + 0.03],
-                  [ax, ay, az0]], 0.016, 10);
-    cushion(parent, [ax, ay + 0.022, (az0 + az1) / 2 + 0.02],
-            [1, 0, 0], [0, 0, -1], [0, 1, 0],
-            0.042, (az0 - az1) * 0.42, 0.020, 0, true);
-  }
-  // pedestal: two transverse legs onto a floor track
-  const rh = hw * (2 / 3);
-  for (const z of [szc + 0.16, szc - 0.16])
-    tubeRun(bag, [[sx - rh, floor + 0.015, z],
-                  [sx - rh * 0.86, panY - 0.05, z],
-                  [sx + rh * 0.86, panY - 0.05, z],
-                  [sx + rh, floor + 0.015, z]], 0.018, 10);
-  for (const s2 of [-1, 1])
-    tubeRun(bag, [[sx + s2 * rh, floor + 0.015, szc + 0.22],
-                  [sx + s2 * rh, floor + 0.015, szc - 0.22]], 0.014, 8);
-  bag.mesh(parent);
-}
-
-function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
+function buildSeat(parent, A, P, sx, zBack, sbs, SP, pl) {
   const g = seatGeom(A, P, sx, zBack, sbs, SP);
-  const type = Math.round(P.seatType || 0);
-  if (type === 1) seatShell(parent, A, P, g);
-  else if (type === 2) seatAirline(parent, A, P, g);
-  else seatTube(parent, A, P, g);
-  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172: "delete the
-  // option for the hanging safety belts (they got through the fuselage)").
-  // They were off by default since 2026-08-19 and hung through the sides
-  // of any cabin narrower than the stock one; a saved `seatBelt` is read
-  // and ignored.
-  return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw,
-           backH: g.backH, rake: g.rake };
+  const SG = typeof window !== 'undefined' ? window.SEAT_GEN : null;
+  // THE PASSENGERS' OWN SEAT (the user: "maybe that should be a flag too, pilot and passenger seats"): `paxSeatType`
+  // dresses every passenger bay's seat; absent or -1 = as the pilots', or the pilots' preset's own cabin seat
+  // (`paxType`: the vintage crew seat's cabin is the vintage airliner's)
+  const isPax = !!(pl && pl.section && !pl.pilot);
+  if (isPax && SG) {
+    const own = P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
+    const pre = SG.PRESET_OF(P.seatType || 0);
+    const t = own >= 0 ? own : (pre && pre.paxType != null ? pre.paxType : -1);
+    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: t });
+  }
+  const r = SG ? SG.build(parent, A, P, g, Object.assign({}, SP, { pax: isPax }), sbs) : null;
+  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172) and with the seat library no seat carries a belt (the
+  // user, 2 Nov: "drop the seat belts for all"); a saved `seatBelt` is read and ignored.
+  if (r) return { panY: r.panY, floor: r.floor, szc: r.szc, hw: r.hw, backH: r.backH, rake: r.rake, kg: r.kg };
+  // no library on the page (a bench that did not load it): the seat's numbers, nothing drawn, no mass
+  return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw, backH: g.backH, rake: g.rake, kg: 0 };
 }
+// THE SEAT LIBRARY'S DOOR: the seat builder, for the seat bench (tools/_seats.html)
+if (typeof window !== 'undefined')
+  window.CAGE_CREW_SEAT = { buildSeat, seatGeom };
 
 // ---- CONTROLS -------------------------------------------------------------
 // each builder returns { obj (an anchor Object3D placed AT the grip,
@@ -3394,7 +2956,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     group.add(sg);
     const SP = pl.section ? sp2 : sp1;
     return Object.assign({}, pl, { SP },
-      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP));
+      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP, pl));
   });
   const pilot = seats.find(s => s.pilot);
 
@@ -3959,9 +3521,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
+    // SEATS: `kg`, the drawn seat's own mass (its preset's), so the join bills each seat as drawn
     seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
                                 panY: s2.panY, section: s2.section | 0,
-                                filled: !!s2.filled })),
+                                filled: !!s2.filled, kg: s2.kg })),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
