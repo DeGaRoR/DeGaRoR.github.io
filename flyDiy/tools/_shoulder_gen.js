@@ -1100,8 +1100,80 @@ function makeInnerSampler(mesh) {
 // a closed slab over an outline in (z, y): back at baseAbs(y, z) (|x|),
 // thickness T inboard, the front edge chamfered by c. Caps are ring-filled
 // toward the centroid so the faces follow the base. Vertices split per strip.
+// CABIN-CRAFT (2026-11-02, the user on the C172's door from inside: "there is horrible topology seen in the inside
+// door panel there ... that's pretty bad"): THE CAP AS A GRID. The cap was six copies of the outline scaled toward its
+// centroid and a fan to the centre - and the outline carries a point every 1.5 cm up its sides but five across its
+// bottom and four across its top, so the scaled rings were long wedges and the fan threw rays from the centre to
+// every side point (C172: 534 of the doorPanel's 616 triangles were slivers, aspect up to 10 263, and 18 of its quads
+// folded where a stepped edge scaled toward the centroid crossed itself). The panel's outline is MONOTONE IN HEIGHT
+// (the bottom edge, the aft side up, the top edge, the forward side down - corners rounded within their edges), so
+// `monoGrid` aligns the two sides on one set of heights (each side gains the other's heights, on its own polyline),
+// spreads the flat top and bottom into evenly spaced columns (on the same straight lines), and the cap is rows x
+// columns of quads whose boundary IS the outline - the walls and the chamfer keep standing on its points. An outline
+// that is not monotone keeps the rings.
+function monoGrid(pts) {
+  const M = pts.length; if (M < 6) return null;
+  let yMin = 1e9, yMax = -1e9;
+  for (const p of pts) { if (p[1] < yMin) yMin = p[1]; if (p[1] > yMax) yMax = p[1]; }
+  const eps = 1e-7, isB = p => p[1] - yMin < eps, isT = p => yMax - p[1] < eps;
+  // the bottom run: the bottom points, contiguous; the walk starts at its first (forward-most) point
+  let s0 = -1;
+  for (let i = 0; i < M; i++) if (isB(pts[i]) && !isB(pts[(i + M - 1) % M])) { s0 = i; break; }
+  if (s0 < 0) return null;
+  const at = i => pts[(s0 + i) % M];
+  let i = 0; const bot = [];
+  while (i < M && isB(at(i))) bot.push(at(i++));
+  const right = []; while (i < M && !isT(at(i))) right.push(at(i++));
+  const top = []; while (i < M && isT(at(i))) top.push(at(i++));
+  const left = []; while (i < M && !isB(at(i))) left.push(at(i++));
+  if (i !== M || bot.length < 1 || top.length < 1) return null;
+  // counter-clockwise in (z, y): along the bottom z grows, up the aft side y grows, back along the top, down the front
+  const fullR = [bot[bot.length - 1]].concat(right, [top[0]]);
+  const fullL = [top[top.length - 1]].concat(left, [bot[0]]).reverse();         // bottom -> top
+  const mono = ch => { for (let k = 1; k < ch.length; k++) if (ch[k][1] < ch[k - 1][1] - eps) return false; return true; };
+  if (!mono(fullR) || !mono(fullL)) return null;
+  if (bot.length > 1 && bot[bot.length - 1][0] < bot[0][0]) return null;
+  // the heights: every interior height of either side, merged (0.5 mm)
+  const hs = [];
+  for (const q of right.concat(left)) hs.push(q[1]);
+  hs.sort((a, b) => a - b);
+  const H = [yMin];
+  for (const y of hs) if (y - H[H.length - 1] > 5e-4 && yMax - y > 5e-4) H.push(y);
+  H.push(yMax);
+  const onChain = (ch, y) => {                       // the chain's own polyline at height y (its point, if it has one)
+    // (its own point only at its own height: a 0.5 mm snap let two levels 0.8 mm apart take one point - a doubled
+    // outline point, a zero-area wall quad)
+    for (let k = 0; k < ch.length; k++) if (Math.abs(ch[k][1] - y) <= 1e-9) return ch[k];
+    for (let k = 1; k < ch.length; k++) {
+      const a = ch[k - 1], b = ch[k];
+      if ((a[1] - y) * (b[1] - y) <= 0 && Math.abs(b[1] - a[1]) > 1e-12) {
+        const t = (y - a[1]) / (b[1] - a[1]); return [a[0] + (b[0] - a[0]) * t, y];
+      }
+    }
+    return null;
+  };
+  const Lz = H.map(y => onChain(fullL, y)), Rz = H.map(y => onChain(fullR, y));
+  if (Lz.some(q => !q) || Rz.some(q => !q)) return null;
+  // the columns: the widest band in ~6 cm steps, 4..12 - the rows run under a centimetre apart (both sides'
+  // heights), so a cell is at worst ~8:1, and the phone pays fewer quads than the rings it replaces
+  let wMax = 0; for (let k = 0; k < H.length; k++) wMax = Math.max(wMax, Rz[k][0] - Lz[k][0]);
+  const N = Math.max(4, Math.min(12, Math.round(wMax / 0.06)));
+  const row = (a, b, y0, y1) => { const r = []; for (let c = 0; c <= N; c++) r.push([a + (b - a) * c / N, y0 + (y1 - y0) * c / N]); return r; };
+  const L = H.length;
+  const botRow = row(Lz[0][0], Rz[0][0], yMin, yMin), topRow = row(Lz[L - 1][0], Rz[L - 1][0], yMax, yMax);
+  // the new outline: the bottom row, up the aft side, the top row back, down the forward side
+  const out = [], idx = { bot: [], top: [], l: [], r: [] };
+  for (const q of botRow) { idx.bot.push(out.length); out.push(q); }
+  for (let k = 1; k < L - 1; k++) { idx.r[k] = out.length; out.push(Rz[k]); }
+  for (let c = N; c >= 0; c--) { idx.top[c] = out.length; out.push(topRow[c]); }
+  for (let k = L - 2; k >= 1; k--) { idx.l[k] = out.length; out.push(Lz[k]); }
+  idx.l[0] = idx.bot[0]; idx.r[0] = idx.bot[N]; idx.l[L - 1] = idx.top[0]; idx.r[L - 1] = idx.top[N];
+  return { pts: out, N, L, idx };
+}
 function slab(V, NN, A, outline, baseAbs, T, c, side, field, mk) {
   const u = -side;                                   // inboard in x
+  const G = monoGrid(outline);                       // CABIN-CRAFT: the cap's grid (null: the rings, as before)
+  if (G) outline = G.pts;
   const M = outline.length;
   const cen = outline.reduce((s, p) => [s[0] + p[0] / M, s[1] + p[1] / M], [0, 0]);
   const nrmAt = (pts, i) => {                        // outward 2D normal (dz, dy)
@@ -1115,7 +1187,28 @@ function slab(V, NN, A, outline, baseAbs, T, c, side, field, mk) {
   const at = (zy, depth) => [side * (baseAbs(zy[1], zy[0]) - depth), zy[1], zy[0]];
   const put = (p3, n) => { const id = V.push(p3) - 1; NN[id] = n; if (A) A[id] = field(p3); return id; };
   const R = 6;
-  const cap = (pts, depth, nx) => {
+  // the grid cap (CABIN-CRAFT): its boundary is `pts` (the outline or its chamfer inset, point for point); each
+  // inner row runs straight across between its two side points, so the front cap follows the inset exactly too
+  const gridCap = (pts, depth, nx) => {
+    const { N, L, idx } = G, n0 = [u * nx, 0, 0];
+    const rows = [];
+    for (let k = 0; k < L; k++) {
+      const r = [];
+      if (k === 0) for (let c2 = 0; c2 <= N; c2++) r.push(put(at(pts[idx.bot[c2]], depth), n0));
+      else if (k === L - 1) for (let c2 = 0; c2 <= N; c2++) r.push(put(at(pts[idx.top[c2]], depth), n0));
+      else {
+        const a = pts[idx.l[k]], b = pts[idx.r[k]];
+        for (let c2 = 0; c2 <= N; c2++) {
+          const t = c2 / N;
+          r.push(put(at([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], depth), n0));
+        }
+      }
+      rows.push(r);
+    }
+    for (let k = 0; k + 1 < L; k++) for (let c2 = 0; c2 < N; c2++)
+      mk([rows[k][c2], rows[k][c2 + 1], rows[k + 1][c2 + 1], rows[k + 1][c2]]);
+  };
+  const cap = G ? gridCap : (pts, depth, nx) => {
     // rings from the outline down to 30 % of it, then a fan to the centre:
     // the innermost ring keeps the outline's points apart
     const rings = [];
@@ -1302,11 +1395,41 @@ function panelBuild(mesh, spec, opt) {
       if (v == null) v = base0;
       return v - o.gap;
     };
+    // CABIN-CRAFT: A TRIM PANEL IS A BOARD. Its back stood on `baseAbs` vertex by vertex - the innermost surface at
+    // that very spot - so where a frame's or a liner's edge crossed behind the door the panel's face stepped with it
+    // (the C172: a diagonal staircase across the panel, which the cap's fan had smeared into long rays; the least of
+    // each ROW made terraces instead, a frame entering and leaving the band). It stands on ONE SMOOTH SURFACE: x =
+    // a + b y + c y^2 + d z, least squares over the door's base (a sample every ~2 cm up, 9 across), then moved
+    // inboard by its worst excess over any sample - flat across, gently curved up the flank, never into the door
+    const SY = Math.max(6, Math.round((yTop - yBot) / 0.02)), smp = [];
+    for (let i = 0; i <= SY; i++) {
+      const y = yBot + (yTop - yBot) * i / SY, zl = zAt(y, 0) + o.margin, zr = zAt(y, 1) - o.margin;
+      for (let j = 0; j <= 8; j++) { const z = zl + (zr - zl) * j / 8; smp.push([y, z, baseAbs(y, z)]); }
+    }
+    const yc0 = (yBot + yTop) / 2, zc0 = smp.reduce((s2, q) => s2 + q[1], 0) / smp.length;
+    const feat = (y, z) => [1, y - yc0, (y - yc0) * (y - yc0), z - zc0];
+    const NE = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], rhs = [0, 0, 0, 0];
+    for (const [y, z, b] of smp) { const f2 = feat(y, z); for (let r2 = 0; r2 < 4; r2++) { rhs[r2] += f2[r2] * b; for (let c2 = 0; c2 < 4; c2++) NE[r2][c2] += f2[r2] * f2[c2]; } }
+    for (let r2 = 0; r2 < 4; r2++) NE[r2][r2] += 1e-9;              // (a flat door: the curvature row is free)
+    const coef = (() => {                                            // Gauss-Jordan, 4 x 4
+      const Mx = NE.map((row, i) => row.concat([rhs[i]]));
+      for (let c2 = 0; c2 < 4; c2++) {
+        let pv = c2; for (let r2 = c2 + 1; r2 < 4; r2++) if (Math.abs(Mx[r2][c2]) > Math.abs(Mx[pv][c2])) pv = r2;
+        [Mx[c2], Mx[pv]] = [Mx[pv], Mx[c2]];
+        const d = Mx[c2][c2] || 1e-12;
+        for (let k2 = c2; k2 < 5; k2++) Mx[c2][k2] /= d;
+        for (let r2 = 0; r2 < 4; r2++) if (r2 !== c2) { const m2 = Mx[r2][c2]; for (let k2 = c2; k2 < 5; k2++) Mx[r2][k2] -= m2 * Mx[c2][k2]; }
+      }
+      return Mx.map(row => row[4]);
+    })();
+    const fit = (y, z) => { const f2 = feat(y, z); return coef[0] * f2[0] + coef[1] * f2[1] + coef[2] * f2[2] + coef[3] * f2[3]; };
+    let excess = 0; for (const [y, z, b] of smp) excess = Math.max(excess, fit(y, z) - b);
+    const boardAbs = (y, z) => fit(y, z) - excess;
     const zF = Math.max(...outline.map(p => p[0]));
     const field = p3 => [zF - p3[2], p3[1] - yBot, 0.5, 0.5];
     const faces = [];
     const mk = vs => faces.push({ v: vs, m: o.mat, doorPanel: 1 });
-    slab(V, NN, A, outline, baseAbs, o.T, o.chamfer, side, field, mk);
+    slab(V, NN, A, outline, boardAbs, o.T, o.chamfer, side, field, mk);
     let pocket = null;
     if (o.pocket) {
       const h = Math.min(o.pocketH, (yTop - yBot) / 3);
@@ -1314,7 +1437,7 @@ function panelBuild(mesh, spec, opt) {
       const zl = zAt((py0 + py1) / 2, 0) + o.margin, zr = zAt((py0 + py1) / 2, 1) - o.margin;
       const zc = (zl + zr) / 2, hw = (zr - zl) * o.pocketW / 2;
       const pk = roundCorners([[zc - hw, py0], [zc + hw, py0], [zc + hw, py1], [zc - hw, py1]], o.cornerR * 0.6, 4);
-      const pBase = (y, z) => baseAbs(y, z) - o.T + o.pocketEmbed;
+      const pBase = (y, z) => boardAbs(y, z) - o.T + o.pocketEmbed;
       const before = faces.length;
       slab(V, NN, A, pk, pBase, o.pocketProud + o.pocketEmbed, o.pocketChamfer, side, field, mk);
       pocket = { y0: py0, y1: py1, z0: zc - hw, z1: zc + hw, nFaces: faces.length - before };
@@ -1329,7 +1452,7 @@ function panelBuild(mesh, spec, opt) {
       f.doorKey = d.key; f.cutPart = 1; f.cutOff = off;
       F.push(f);
     }
-    parts.push({ side, door: d.key, yTop, yBot, outline, faces, nMain, pocket, off, baseAbs });
+    parts.push({ side, door: d.key, yTop, yBot, outline, faces, nMain, pocket, off, baseAbs: boardAbs });   // (CABIN-CRAFT: the base it stands on)
   }
   const out = Object.assign({}, mesh, { V, F });
   if (A) out.A = A;

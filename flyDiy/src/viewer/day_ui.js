@@ -44,8 +44,9 @@ var DAY_UI = (function () {
     const refresh = () => { if (ctx && ctx.refresh) ctx.refresh(); };
     const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };
     // ---- the conditions ---------------------------------------------------------------
-    const sel = condSel();
-    if (sel && H.select) {
+    // TIME-CONTROLS: the career's weather is the day's (told, not chosen) - no conditions select there
+    const sel = condSel(), career = !!(CK && CK.isCareer && CK.isCareer());
+    if (sel && H.select && !career) {
       head('conditions');
       H.select(host, 'standard day', Array.from(sel.options).map(o => ({ label: o.textContent, value: o.value })),
         () => sel.value, v => { sel.value = v; sel.dispatchEvent(new Event('change')); refresh(); });
@@ -59,6 +60,18 @@ var DAY_UI = (function () {
     // the next day's when it has passed; on the ground only). The sandbox's presets are "set the clock" (they may go
     // back), with "next full moon" beside them; the hour, the date and the rate stay the sandbox's.
     if (CK.isCareer && CK.isCareer()) { careerClock(host, H, CK, head, refresh); return; }
+    freeClock(host, H, CK, head, refresh);
+    // ---- the clouds are next door --------------------------------------------------------
+    if (ctx && ctx.open && typeof CLOUD_FIELD !== 'undefined') {
+      head('clouds');
+      const d = CK.day();
+      const cover = d.cloudCover > 0 ? (d.cloudCover * 100).toFixed(0) + ' % ' + (CLOUD_FIELD.TYPES[d.cloudType] ? CLOUD_FIELD.TYPES[d.cloudType].label : d.cloudType) : 'clear';
+      H.pills(host, [{ label: 'the clouds… (' + cover + ')', value: 'clouds', title: 'The decks, the veil, the look - the CLOUDS flyout' }],
+        () => false, () => ctx.open('clouds'));
+    }
+  }
+  // THE SANDBOX'S CLOCK: set it freely - the presets (they may go back), the next full moon, the hour, the date, the rate
+  function freeClock(host, H, CK, head, refresh) {
     head('set the clock');
     H.pills(host, PRESETS.map(p => ({ label: p.label, value: p.k, title: p.title })),
       o => o.value === CK.nearestPreset(), o => { CK.preset(o.value); refresh(); });
@@ -75,14 +88,62 @@ var DAY_UI = (function () {
       o => o.value === CK.day().rate, o => { CK.rate(o.value); refresh(); });
     H.note(host, 'One clock for the shed and the world. It runs with play; the sun, the sky, the lamps and the ' +
                  'almanac follow it (' + CK.label() + (CK.moonAt ? ' · ' + moonWords(CK) : '') + ').');
-    // ---- the clouds are next door --------------------------------------------------------
-    if (ctx && ctx.open && typeof CLOUD_FIELD !== 'undefined') {
-      head('clouds');
-      const d = CK.day();
-      const cover = d.cloudCover > 0 ? (d.cloudCover * 100).toFixed(0) + ' % ' + (CLOUD_FIELD.TYPES[d.cloudType] ? CLOUD_FIELD.TYPES[d.cloudType].label : d.cloudType) : 'clear';
-      H.pills(host, [{ label: 'the clouds… (' + cover + ')', value: 'clouds', title: 'The decks, the veil, the look - the CLOUDS flyout' }],
-        () => false, () => ctx.open('clouds'));
+  }
+  // ============================================================
+  // TIME-CONTROLS (A0 2 Nov, the user: "proper time controls, including in the garage ... a single new icon on top ...
+  // that pops up a menu, with proper time controls. In flight, in the career, this will replace the time of day and
+  // weather menu"). THE TIME MENU: what day and hour it is, the day's weather (SAID, never set here), and the time
+  // actions the mode allows - the sandbox sets the clock freely (freeClock), the career only goes forward (careerClock:
+  // the waits). Mounted by the garage top bar's time card (editor.js QUICK 'time') and, in the career, by the flight's
+  // conditions button (app.js FL2 slot_time). ctx = { day, refresh, weather?() (the sandbox's door to SET the weather),
+  // forecast?(day) -> [lines] (the career's weather plan, WEATHER-DAYS, once it lands) }
+  function menu(host, H, ctx) {
+    const CK = ctx && ctx.day;
+    const refresh = () => { if (ctx && ctx.refresh) ctx.refresh(); };
+    const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };
+    if (!CK || !CK.day()) { H.note(host, 'This build has no clock.'); return; }
+    const d = CK.day(), career = !!(CK.isCareer && CK.isCareer());
+    // ---- now ------------------------------------------------------------------------------
+    head(career ? 'now · the career' : 'now · the sandbox');
+    H.note(host, [nowWords(d)].concat(CK.label().split(' · ').slice(1)).join(' · ') + (CK.moonAt ? ' · ' + moonWords(CK) : ''));   // (label's own hour and date said once)
+    // ---- the day's weather, said ------------------------------------------------------------
+    head('the weather');
+    for (const l of weatherWords(d)) H.note(host, l);
+    let fc = null;
+    try { fc = ctx.forecast ? ctx.forecast(d) : null; } catch (e) { fc = null; }
+    if (fc && fc.length) { head('the forecast'); for (const l of fc) H.note(host, l); }
+    if (!career && ctx.weather)
+      H.pills(host, [{ label: 'set the weather…', value: 'wx', title: 'The sandbox sets the weather freely: the wind, the air, the front, the clouds' }],
+        () => false, () => ctx.weather());
+    else if (career) H.note(host, 'The career\'s weather comes with the day: it is told here, not chosen.');
+    // ---- the time actions this mode allows ----------------------------------------------------
+    if (career) careerClock(host, H, CK, head, refresh); else freeClock(host, H, CK, head, refresh);
+  }
+  // the date and the hour in words ("Mon 2 Nov 2026, 14:05"), from the day's local date and seconds
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function nowWords(d) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d.localDate || d.date || '');
+    const hm = hhmm(((d.localSeconds || 0) / 3600) % 24);
+    if (!m) return hm;
+    const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return DOW[dt.getUTCDay()] + ' ' + (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] + ', ' + hm;
+  }
+  // the weather in a few lines: the day's preset when it is one, the wind and the air, the sight and the front, the clouds
+  function weatherWords(d) {
+    const WU = typeof WEATHER_UI !== 'undefined' ? WEATHER_UI : null;
+    if (!WU) return ['This build has no weather.'];
+    const out = [];
+    let p = null; try { p = WU.presetOf ? WU.presetOf(d) : null; } catch (e) { p = null; }
+    const P = p && WU.PRESETS ? WU.PRESETS.filter(x => x.k === p)[0] : null;
+    if (P) out.push(P.label + ' - ' + P.title);
+    let L = null; try { L = WU.lines ? WU.lines(d) : null; } catch (e) { L = null; }
+    if (L) {
+      out.push('wind ' + L.wxWind + ' · ' + L.wxCol);
+      out.push('visibility ' + L.wxVis + (L.wxFront && L.wxFront !== 'none' ? ' · the front ' + L.wxFront : ''));
     }
+    if (typeof CLOUD_FIELD !== 'undefined') out.push('clouds ' + (d.cloudCover > 0.02 ? (d.cloudCover * 100).toFixed(0) + ' % ' +
+      (CLOUD_FIELD.TYPES && CLOUD_FIELD.TYPES[d.cloudType] ? CLOUD_FIELD.TYPES[d.cloudType].label : (d.cloudType || '')) : 'clear'));
+    return out.length ? out : ['A standard day.'];
   }
   // the moon in words at the clock's hour ("full moon, up" / "no moon" / "half moon, not up")
   function moonWords(CK) {
@@ -110,7 +171,7 @@ var DAY_UI = (function () {
       H.field(host, 'wait until', i);
     }
   }
-  const API = { PRESETS, mount, hhmm, moonWords };
+  const API = { PRESETS, mount, menu, nowWords, weatherWords, hhmm, moonWords };
   if (typeof window !== 'undefined') window.DAY_UI = API;
   return API;
 })();
