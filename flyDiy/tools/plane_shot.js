@@ -14,7 +14,8 @@
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
-//                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design) -
+//                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design),
+//                                 tw:<az>/<el>/<dist> the eye on the drawn tail contact (G3800) -
 //                                 default q,s,t,f
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
@@ -261,6 +262,22 @@ async function shoot(o) {
             asked = [a * Math.PI / 180, e * Math.PI / 180, d];
             await C.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
             VR.door = v.slice(0, v.indexOf(':')); if (VR.door === 'close') VR.close = true;
+          } else if (/^tw:/.test(v)) {
+            // G3800: THE TAIL CONTACT, CLOSE - the eye on the drawn tail wheel / skid (its leg, fork and wheel meshes, the
+            // gear layer's edLegT / edCastorT / edWheelT and their children: on twin booms both of them)
+            const [a, e, d] = v.slice(3).split('/').map(Number);
+            const pr = await J('(async () => { const root = window.CAGE_UI_SCENE, b = new THREE.Box3(); root.updateMatrixWorld(true);' +
+              ' root.traverse(o => { let q = o, hit = false; for (; q; q = q.parent) if (/^ed(Wheel|Castor|Leg)T/.test(q.name || "")) { hit = true; break; }' +
+              '   if (hit && o.geometry) b.expandByObject(o); });' +
+              ' if (b.isEmpty()) return { err: "no tail contact drawn" };' +
+              ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
+              ' const g = FLIGHT_PROBE.camGet(), c = b.getCenter(new THREE.Vector3());' +
+              ' FLIGHT_PROBE.pan(c.x - g.target[0], c.y - g.target[1], c.z - g.target[2]);' +
+              ' return { centre: c.toArray().map(x => +x.toFixed(3)) }; })()');
+            if (pr.err) throw Object.assign(new Error(pr.err), { code: EXIT.eye });
+            asked = [a * Math.PI / 180, e * Math.PI / 180, d];
+            await C.ev('(() => { FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
+            Object.assign(VR, { centre: pr.centre, close: true }); VR.door = 'tw';
           } else if (/^part:/.test(v)) {
             // THE PART: the editor's own selection names its meshes (hiBuild's overlays, userData.edHi) - their box is
             // the part's; the selection goes back to the whole aeroplane before the still, so no highlight is in it
@@ -388,7 +405,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
     if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^(orbit|close|tw):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');

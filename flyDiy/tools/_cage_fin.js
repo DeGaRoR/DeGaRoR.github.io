@@ -539,6 +539,8 @@ PAGE.post = ctx => {
   dispose(group); group = null;
   dispose(group2); group2 = null;
   if (!P.finOn) return;
+  // G3800 (TAILWHEELS): the inverted V on twin booms (the stab layer's mount 4) IS the tail - no fin stands on the booms
+  if (+P.boomTwin && Math.round(+P.stMount || 0) === 4) return;
 
   const cutMode = Math.round(P.finCut || 0);
   // ROD BOOM (G26.4, harmless clamp): the keel extension wraps the

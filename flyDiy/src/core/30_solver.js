@@ -3847,7 +3847,7 @@ function makeSim(def, world) {
         // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
         // G3800: the steerable tailwheel's springs IN SERIES with its tyre while the pawl holds (TWL, above): 1/C_eff =
         // 1/C_alpha + trail/k, as the inverse-stiffness term (iCn x N is 1/C_alpha). Every other wheel: as before
-        const iCn = !isTW ? iCnM : (TWL && TWL.m === 1 && TWL.st[twQ] === 0 ? iCnT + Fn * TWL.trail / TWL.k : iCnT);
+        const iCn = !isTW ? iCnM : (TWL && TWL.m === 1 && TWL.st[twQ] === 0 && !TYRE_OLD ? iCnT + Fn * TWL.trail / TWL.k : iCnT);
         const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * iCn), m[i]/dt);
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;

@@ -1542,7 +1542,7 @@ const DESIGN_ROWS = [
     // V is live: the stab layer cants its panels (stCant), roots them on the
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
-    read: P => (Math.round(P.stMount) === 4 && +P.boomTwin) ? 'iv'
+    read: P => Math.round(P.stMount) === 4 ? 'iv'
              : +P.stCant >= 20 ? 'v'
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
@@ -1812,7 +1812,7 @@ const DESIGN_ROWS = [
       { value: 3, label: 'Between the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
       { value: 4, label: 'Inverted V', icon: iconSeat(3),
-        hide: P => !+P.boomTwin, writes: { cage: { stMount: 4, stCant: P => Math.max(20, +P.stCant || 35), finOn: 0 } } },
+        hide: P => !+P.boomTwin, writes: { cage: { stMount: 4 } } },
     ] },
   { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',
     group: 'propulsion', status: 'live', slot: true, twin: ['eng_exStyle'],

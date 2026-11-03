@@ -70,6 +70,7 @@ function boomDeck(P) {
 // ---- the fin, as _cage_fin.js builds it -----------------------------------
 function buildFin(P, mesh, L, approx) {
   if (!+P.finOn) return null;
+  if (+P.boomTwin && Math.round(+P.stMount || 0) === 4) return null;   // G3800: the inverted V has no fin (_cage_fin.js)
   const cutMode = Math.round(P.finCut || 0);
   // ROD BOOM (G26.4): no keel wrap, no dorsal on a bare tube
   const S = FIN.finSpec(P.boomStyle ? { ...P, finKeel: 0, finDorsal: 0 } : P);

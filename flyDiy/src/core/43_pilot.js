@@ -2526,10 +2526,13 @@ function makePilot(sim, def, world, opts) {
         case 'TAXI': c.dr = SEL.dr;   // the follower's rudder (da from the governor)
           // G3800 (TAILWHEELS): A CASTORING TAILWHEEL (a lockable one unlocked to taxi, a steerable one broken out)
           // steers nothing: the follower's demand goes to the toe brakes too (brakeD > 0 yaws as dr > 0 does), as the
-          // runway's law does (39b groundSteer). Not one line runs while the wheel steers
+          // runway's law does (39b groundSteer) - WITH the heading's rate: the follower's law has none ("the wheel steers
+          // the heading kinematically"), and a castoring taildragger's heading is a dynamic, unstable one (its CG behind
+          // the mains): undamped, the DC-3 circled on its own stand. Not one line runs while the wheel steers
           { const tws = sim.out && sim.out.twState;
             if (tws && (tws[0] === 1 || tws[1] === 1) && !BX.on)
-              c.brakeD = Math.max(-SERVO_GAINS.brakeCastMax, Math.min(SERVO_GAINS.brakeCastMax, SERVO_GAINS.brakeCastK * SEL.dr / 0.85)); }
+              c.brakeD = Math.max(-SERVO_GAINS.brakeCastMax, Math.min(SERVO_GAINS.brakeCastMax,
+                SERVO_GAINS.brakeCastK * (SEL.dr - SERVO_GAINS.brakeCastD * SV.eR) / 0.85)); }
           break;
         case 'NONE': c.dr = 0; c.da = 0; break;
         default: break;
@@ -3260,12 +3263,32 @@ function makePilot(sim, def, world, opts) {
         }
         if (ap.path && piv) {
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(wrapPi(piv.hdg - Math.atan2(nose[1], nose[0]))) * 57.3), 6, false, 'deg')]);
-          if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; piv = null; SV.relatch(); }
+          if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; if (piv.corner) ap.swPast = { path: ap.path, j: piv.j }; piv = null; SV.relatch(); }
           break;
         }
         if (ap.path) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          // G3800 (TAILWHEELS): A CORNER THE LOCKABLE WHEEL'S PIVOT HAS TURNED STAYS TURNED - pathLocate looks 5 samples back,
+          // and the castoring DC-3 ends its pivot a few metres short of where the steered one did: re-located before the
+          // planner's own cusp at HOME's works stand (a 180 deg doubling back, a curvature of 2e15 at a doubled point) the
+          // speed governor read the cusp ahead and held 0 m/s for good (stuck 9.7 m off the line at 55 s)
+          if (SWIV && ap.swPast && ap.swPast.path === ap.path && L.i < ap.swPast.j) L.i = ap.swPast.j;
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          // G3800 (TAILWHEELS): ...AND A CUSP IN THE ROUTE (the planner's own doubling back: a curvature spike at a doubled
+          // point) is a turn on the spot for the lockable wheel: within 8 m, pivot to the heading the path leaves it on and
+          // take the path up after it - its curvature had read as a speed limit of 0 m/s
+          if (SWIV && !piv) {
+            const P = ap.path.pts; let kc = -1;
+            for (let k = L.i; k < P.length - 1 && P[k].s - P[L.i].s < 8; k++) if (Math.abs(P[k].kap) > 5) { kc = k; break; }
+            if (kc >= 0 && ap.swCusp !== P[kc]) {
+              let k2 = kc; while (k2 < P.length - 1 && (Math.abs(P[k2].kap) > 0.05 || P[k2 + 1].s - P[k2].s < 0.05)) k2++;
+              ap.swCusp = P[kc];
+              piv = { hdg: P[k2].hdg, j: k2, t0: ap.t, thr: 0, sg: 0, corner: true }; pivN++;
+              say('pivot', 'the route doubles back - turning on the spot (the tailwheel castors)');
+              pivotFly(piv.hdg);
+              break;
+            }
+          }
           // G1938: A HAIRPIN THE WHEELS CANNOT STEER is turned on the spot: a bend ahead tighter than 1 / (1.1 RgMin)
           // turning more than 150 deg in all (a U-turn) - stop at its entry, pivot to the heading the path leaves it on, carry on
           // from there (the lane beside is joined on the follower's own cross-track law)
@@ -3292,7 +3315,7 @@ function makePilot(sim, def, world, opts) {
                 let bm = b0, acc = 0; while (bm < b1 && Math.abs(acc) < Math.abs(turn) / 2) { acc += wrapPi(P[bm + 1].hdg - P[bm].hdg); bm++; }
                 if (P[bm].s - P[L.i].s < 1.5) {
                   ap.swCorner = P[b0];
-                  piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
+                  piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1, corner: true }; pivN++;
                   if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg corner tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) - turning on the spot (the tailwheel swivels)'); }
                   pivotFly(piv.hdg);
                   break;
@@ -3376,8 +3399,10 @@ function makePilot(sim, def, world, opts) {
           // airframe's (bigG)
           const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13), pivG = bigG || !trike;
           const drC = SV.taxiRudder(drFF, drMaxG);
-          bsT = pivG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
-          if (bsT > 0.5 && bsN < 6) {
+          // (...a small one when the turn truly refuses: 0.6 rad held 1.5 s on the stop - at the big airframe's 0.35 / 0.5 s
+          // the ultralight pivoted in an ordinary turn off its stand, 2.6-2.9 m off the line against GATE TAKEOFF's 2.5)
+          bsT = pivG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > (bigG ? 0.35 : 0.6) ? bsT + dt : 0;
+          if (bsT > (bigG ? 0.5 : 1.5) && bsN < 6) {
             bsT = 0; bsN++;
             piv = { hdg: hT, j: L.i, t0: ap.t, thr: 0, sg: eH >= 0 ? 1 : -1 }; pivN++;
             if (!bsSaid) { bsSaid = true; say('pivot', 'a turn of ' + Math.round(Math.abs(eH) * 57.3) + ' deg that the wheels (' + RgMin.toFixed(1) + ' m) cannot steer on the route - turning on the spot'); }

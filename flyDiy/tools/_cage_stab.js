@@ -330,12 +330,13 @@ PAGE.post = ctx => {
                 sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
                 inc, incZ: FIN.stabIncZ(m0, rootLine) };
   const ivTips = [];
+  // the lay of each half (side +1 / -1), the one every layer that re-lays the stab must use (_cage_hinge's hinge lines)
+  const layOf = side => IV ? Object.assign({}, lay, { side: -side, rootX: -TB.x / FSd, cant: -cant }) : Object.assign({ side }, lay);
   for (const side of [1, -1]) {
     // G3800: THE INVERTED V - each half laid from ITS boom (rootX the boom's centre plane) down and inboard: the mirror
     // half's lay at the far boom's x with the cant negated, so the panel's upper face stays up (the ruddervator's
     // sense is the elevator's, as on every V) and its winding is the mirror half's own
-    const half = IV ? FIN.finToStab(disp, Object.assign({}, lay, { side: -side, rootX: -TB.x / FSd, cant: -cant }))
-                    : FIN.finToStab(disp, Object.assign({ side }, lay));
+    const half = FIN.finToStab(disp, layOf(side));
     if (IV) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
       let yMin = Infinity; for (const p of half.V) yMin = Math.min(yMin, p[1]);
       let sx = 0, sz = 0, n = 0; for (const p of half.V) if (p[1] < yMin + 0.02) { sx += p[0]; sz += p[2]; n++; }
@@ -406,7 +407,7 @@ PAGE.post = ctx => {
   // group's scale — the sweep once added it to metres unscaled) and the
   // cant/mount the join keys on. _tail_headless.js computes the same
   // object with no page; GATE FIN pins the two.
-  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
+  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay, layOf,
     cant: cantDeg, mount, inc: incDeg,
     measure: Object.assign(
       FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),

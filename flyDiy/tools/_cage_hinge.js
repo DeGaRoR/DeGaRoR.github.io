@@ -366,7 +366,7 @@ function surfaceList(scene, P, FS, mesh) {
     for (const side of [1, -1]) {
       const nm = 'elev' + (side > 0 ? 'R' : 'L');
       if (!objOf[nm]) continue;
-      const lay = Object.assign({}, SB.lay, { side });
+      const lay = SB.layOf ? SB.layOf(side) : Object.assign({}, SB.lay, { side });   // (G3800: the inverted V's own lay)
       const map = p => FIN.finToStab({ V: [p], F: [] }, lay).V[0];
       const laid = L.map(p => V.mul(map([0, p[0], p[1]]), F2));
       // the slab's own normal, through the same map: the fin's thickness

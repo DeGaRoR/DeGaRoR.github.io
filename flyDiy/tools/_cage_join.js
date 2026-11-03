@@ -1565,9 +1565,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // ratio) and the note says so.
         const FNm = window.CAGE_FIN, SBm = window.CAGE_STAB;
         const stOnP = Math.round(P.stOn === undefined ? 1 : P.stOn);
-        const finM = (+P.finOn && FNm && FNm.measure) ? FNm.measure : null;
+        // (G3800: under the inverted V on twin booms the fin layer stands down - the panels are the tail)
+        const finOnJ = +P.finOn && !(+P.boomTwin && Math.round(+P.stMount || 0) === 4);
+        const finM = (finOnJ && FNm && FNm.measure) ? FNm.measure : null;
         const stabM = (stOnP && SBm && SBm.measure) ? SBm.measure : null;
-        if (+P.finOn && !finM)
+        if (finOnJ && !finM)
           ERRS.push('tail: the fin is drawn but not measured — the rule\'s fin flies');
         if (stOnP && !stabM)
           ERRS.push('tail: the stabiliser is drawn but not measured — the rule\'s tailplane flies');

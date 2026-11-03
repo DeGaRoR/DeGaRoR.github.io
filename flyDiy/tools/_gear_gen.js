@@ -1880,7 +1880,8 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
   // the steering arm's two ears — where a spring hooks on — port first
   const ears = [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                                     mul(F(side), s * 0.052)));
-  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears };
+  // (G3800: no link, no ears - a lockable or a fixed wheel has no steering arm for the springs to hook on)
+  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears: showLink ? ears : null };
 }
 
 // ONE STEERING RUN: a coil spring at the wheel end (`e`, the steering arm's

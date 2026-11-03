@@ -85,7 +85,7 @@ const SERVO_GAINS = {
   brakeDK: 1.0, brakeDMax: 0.3,
   // G3800 (TAILWHEELS): the toe brakes as THE steer while the tailwheel castors (groundSteer): per unit of the heading
   // law's rudder demand, and its cap
-  brakeCastK: 1.0, brakeCastMax: 0.5,
+  brakeCastK: 1.0, brakeCastMax: 0.8, brakeCastD: 3.0,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
   waterStepK: 1,
