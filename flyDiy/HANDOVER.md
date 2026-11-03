@@ -311115,7 +311115,8 @@ TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better th
 - Spec `gear.retract` { time 2-20 s, act electric|hydraulic|manual, emerg crank|freefall|pump|blow }: a TRICYCLE's only (clampSpec
   drops it elsewhere), the key only when chosen (G3575's rule) - a fixed build's spec, def, ctl and flight are master's to the bit.
   The `retract` design tile is LIVE (twin of the gear layer's `gearRetract`; rows gearRetract / gearRetT / gearRetAct on the mains
-  part); the join writes the spec. GEN_RULES.retractKg (3.5 % of the gross, >= 12 kg, on the axles) and GEN_PRICES.retract 4200.
+  part, shown on a low wing); the join writes the spec for a LOW-WING TRICYCLE only (`GEAR_RETRACTABLE`; a high wing's body-
+  rooted legs swung aft stood the wheels on edge - the RG's twist-and-tuck is step 3). GEN_RULES.retractKg (3.5 % of the gross, >= 12 kg, on the axles) and GEN_PRICES.retract 4200.
 - Solver (OPTION A - the axle node never moves): ctl.gear (1 down) and the position at 1/time (gearPower: the page's bus is NOT
   wired yet; gearEmergency: crank 25 s / free fall 4 / pump 20 / gas 2); the squat switch; the CONTACT PLANE rises with the wheel
   (rC - (1 - pos) GH, GH the lift to the wheel's members' highest anchor + r) and a wheel ROLLS only down and locked - a gear-up
@@ -311130,6 +311131,8 @@ TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better th
   when out.gear exists); the horn on the stall voice (audio_params gearWarn, airframe_model: 0.3 s on / 0.2 off); the swing -
   the join's `gearSwing` (only on a retract build) and app.js `gearSwingRig`: each unit's leg, wheel and castor under one group
   turned 90 deg about the leg's root (inward on a wing-rooted main, aft otherwise; conjRot), hidden once stowed. No well, no door.
+  The rule is the gear layer's (`CAGE_GEAR.swing`); `tools/quickshot.js --gear 0..1` draws it without the game (the stills:
+  `reports/evidence/RETRACT-1/`, the T-tail tourer at 1 / 0.5 / 0).
 - GATE RETRACT (`tools/_retract_check.js`, core, ~10 min on 4 cores): PASS. JOINPARITY and TECH are red on master e6bcfb36 as
   well (checked on a clean worktree: the same 8 / 1 rows) - not this chantier's.
 - Open (said in the study §7): the cockpit lever and lamps (a `gear` law), the bus -> gearPower, the tech table, the T-tail

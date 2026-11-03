@@ -9,6 +9,7 @@ node tools/quickshot.js builds/cub_2026-09-20_corrected.json /tmp/cub --views si
 node tools/quickshot.js --key camel /tmp/camel --views q                 # an archetype card, born as the shed births it
 node tools/quickshot.js my_build.json /tmp/try --over '{"halfW": 0.6}'    # try a slider without saving
 node tools/quickshot.js my_build.json /tmp/nose --views side --crop 1.5,3.5,-1,1 --w 1400   # a close-up
+node tools/quickshot.js --key ttail /tmp/tt --views front,side --over '{"gearRetract":1}' --gear 0.5   # the gear half up
 ```
 
 Writes `<out-prefix>_<view>.png`. Views:
@@ -27,6 +28,7 @@ Options:
 | `--marks fittings` | rings on the placed fittings |
 | `--marks corners` | rings on quad window corners |
 | `--marks reg` | paints the registration's footprint white |
+| `--gear 0..1` | a retractable gear's position (1 down, 0 up): the units swung by the gear layer's own rule, as in flight (RETRACT-1; the build must retract: `--over '{"gearRetract":1}'` on a low-wing tricycle) |
 
 What it is and is not:
 - Shapes, layers and fittings are exact: the same meshes the bench draws.

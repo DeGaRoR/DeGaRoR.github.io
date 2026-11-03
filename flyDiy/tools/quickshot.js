@@ -10,6 +10,9 @@
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration
+//     --gear 0..1                a retractable gear's position (RETRACT-1: 1 down, 0 up) - each unit (edLeg / edWheel /
+//                                edCastorT) turned about its hinge by the gear layer's own rule (CAGE_GEAR.swing), as the
+//                                flown aeroplane turns it; the build must be retractable (--over '{"gearRetract":1}')
 //   A build is a saved file ({spec} or a bare spec); --key births an archetype card the way the shed does
 //   (designBake + the load door, the cowl fitted once) and draws that.
 'use strict';
@@ -71,6 +74,28 @@ for (const f of sheet.F) {
   }
 }
 let nLayer = 0;
+// RETRACT-1: the gear at --gear (1 down .. 0 up), the units turned about their hinges in the gear layer's frame
+const GEARPOS = opt('gear', null);
+if (GEARPOS != null) {
+  const SW = S.W.CAGE_GEAR && S.W.CAGE_GEAR.swing;
+  if (!SW) console.log('--gear: this build has no retractable gear (gearRetract 0, floats, no nose wheel or not a low wing) - drawn as it is');
+  else {
+    const g = Math.max(0, Math.min(1, +GEARPOS));
+    const turned = [];
+    S.scene.traverse(o => {
+      const m = /^ed(Leg|Wheel)([LRT])$/.exec(o.name || '') || (o.name === 'edCastorT' ? [0, 'Castor', 'T'] : null);
+      const U = m && SW[m[2]];
+      if (!U) return;
+      const h = new THREE.Vector3(...U.hinge), ax = new THREE.Vector3(...U.axis).normalize();
+      const M = new THREE.Matrix4().makeTranslation(h.x, h.y, h.z)
+        .multiply(new THREE.Matrix4().makeRotationAxis(ax, (1 - g) * U.ang))
+        .multiply(new THREE.Matrix4().makeTranslation(-h.x, -h.y, -h.z));
+      o.updateMatrix(); o.matrix.premultiply(M); o.matrix.decompose(o.position, o.quaternion, o.scale);
+      turned.push(o.name + ' ' + U.mode);
+    });
+    console.log('--gear ' + g + ': ' + turned.join(', '));
+  }
+}
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
 S.scene.traverse(o => {

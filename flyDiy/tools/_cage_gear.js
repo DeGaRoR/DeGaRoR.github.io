@@ -162,6 +162,9 @@ const station = (i, name) => [name, [
   ...legRows(i),
 ]];
 
+// RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
+const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 &&
+                                 Math.round(+P.wgPos) === 2);
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -169,14 +172,18 @@ const GROUP = ['9 · undercarriage', [
   // S1 (G451.1): the wheel stations are not there under a float build (one gear kind)
   station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
   station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
-  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR, a tricycle's (the third wheel a
-  // nose wheel: s2Leg not the tailwheel's 3). The join writes spec.gear.retract from these; the flown aeroplane swings
-  // the units (app.js gearSwing) - no well is cut yet, the stowed gear lies inside the skin (step 4 cuts the wells)
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR, a LOW-WING tricycle's (the third
+  // wheel a nose wheel: s2Leg not the tailwheel's 3; the mains rooted on the wing fold inward into its root - the
+  // user's ruling, the low-wing tourer first; a body-rooted main's twist-and-tuck is step 3's). The join writes
+  // spec.gear.retract from these; the flown aeroplane swings the units (app.js gearSwingRig) - no well is cut yet,
+  // the stowed gear lies inside the skin (step 4 cuts the wells). The one predicate: GEAR_RETRACTABLE
   ['retraction', [
-    ['gearRetract', 'retraction', 0, 1, 1, ['fixed', 'retractable']],
+    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable']],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
-  ], { when: P => +P.gearOn && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 }],
+  // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
+  // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
+  ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) * (Math.round(+P.wgPos) === 2 ? 1 : 0) > 0 }],
   // G133: one build material for the whole set of fairings — a set of
   // spats is laid up as one job, and the row exists only when one is worn
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
@@ -644,7 +651,33 @@ PAGE.post = ctx => {
   // G133: say so when the low-wing rule took the legs — the one visible
   // trace of an automatic decision the builder never clicked
   if (onWing) notes.push('mains on wing');
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING, a retractable build's only - per unit (L / R
+  // mains, T the nose) the hinge (the leg's airframe end, `root`), the axis and the angle it turns through, up, in this
+  // layer's own frame (+x port, +y up, +z forward). A main rooted on the wing folds INWARD about the fore-aft axis
+  // (Mooney, Bonanza); one rooted on the body and the nose leg swing AFT and up about the lateral axis (the Cessna RG,
+  // every aft-retracting nose). 90 deg; the sense is PROBED (the axle must move inboard / aft), never assumed. The join
+  // carries it to the flown model (gearSwing, app.js gearSwingRig), quickshot --gear draws it (the one rule, twice read)
+  let swing = null;
+  if (GEAR_RETRACTABLE(P)) {
+    const rod = (v, k, a) => { const c = Math.cos(a), s = Math.sin(a), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+      return [v[0] * c + (k[1] * v[2] - k[2] * v[1]) * s + k[0] * d * (1 - c),
+              v[1] * c + (k[2] * v[0] - k[0] * v[2]) * s + k[1] * d * (1 - c),
+              v[2] * c + (k[0] * v[1] - k[1] * v[0]) * s + k[2] * d * (1 - c)]; };
+    swing = {};
+    for (const u of legUnits) {
+      const key = u.kind === 'T' ? 'T' : u.kind;
+      const ax0 = u.moving || u.axle, h = u.root || ax0;
+      if (!ax0 || !h || swing[key]) continue;
+      const inward = key !== 'T' && u.wing;
+      let k = inward ? [0, 0, 1] : [1, 0, 0];
+      const v = [ax0[0] - h[0], ax0[1] - h[1], ax0[2] - h[2]], w = rod(v, k, 0.2);
+      const good = inward ? Math.abs(h[0] + w[0]) < Math.abs(h[0] + v[0]) : w[2] < v[2];
+      if (!good) k = k.map(c => -c);
+      swing[key] = { hinge: h.slice(), axis: k, ang: Math.PI / 2, mode: inward ? 'inward' : 'aft' };
+    }
+  }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+    ...(swing ? { swing } : {}),
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

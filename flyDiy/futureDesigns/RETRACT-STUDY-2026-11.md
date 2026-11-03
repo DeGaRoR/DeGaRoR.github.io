@@ -878,8 +878,12 @@ planes stand on the ground."
 - **Garage.** The design tile `retract` is LIVE:
   - it twins the gear layer's `gearRetract` row; the retraction rows are `gearRetract`, `gearRetT`, `gearRetAct`
     (`_cage_gear.js`);
-  - they are shown on a wheeled tricycle only and claimed by the mains part (`_cage_parts.js`);
-  - the join writes `spec.gear.retract` (`_cage_join.js`).
+  - they are shown on a LOW WING on wheels (one row from the stock aeroplane, GATE PARTS' reach) and claimed by the
+    mains part (`_cage_parts.js`);
+  - the join writes `spec.gear.retract` only for a low-wing TRICYCLE (`GEAR_RETRACTABLE`, `_cage_gear.js`), the
+    user's "the low-wing tourer first". The physics takes any tricycle (GATE RETRACT flies the high-wing metal Cessna).
+    The garage holds the high wing back because its body-rooted spring legs, swung aft, stood their wheels on edge
+    beside the belly (seen on quickshot): the Cessna RG's twist-and-tuck is step 3's.
 - **Bill.**
   - Mass: `GEN_RULES.retractKg` = 3.5 % of the gross, 12 kg at the least, on the axles (a third each mains, a third the
     nose).
@@ -919,6 +923,11 @@ planes stand on the ground."
     - The sense is probed. A stowed unit is hidden. There is no well yet: it lies inside the skin.
 - **GATE RETRACT** (`tools/_retract_check.js`, core): the spec, the bill, the squat switch, the expert's circuit, the
   drag, the gear-up landing, the power and the emergency, the forgetful person, the horn.
+- **Pictures without the game:** `tools/quickshot.js --gear 0..1` (the user: "use a simple renderer for screenshots,
+  not the game") swings the editor's own gear units by the same rule (`CAGE_GEAR.swing`, which the join also reads).
+  The stills of the T-tail tourer at 1 / 0.5 / 0 (front, side, three-quarter) are in `reports/evidence/RETRACT-1/`.
+  - Half-way, the mains fold inward under the wing roots and the nose swings aft.
+  - Up, the units are inside the skin; a sliver of the nose unit shows under the cowl.
 - **Left for later, said:**
   - the cockpit's own gear lever and lamps (a `gear` law in `cockpit.js`);
   - the bus driving `gearPower`;
