@@ -83,6 +83,11 @@ STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH, NODUMMY, ENGCONFIG the 
 byte-identical to master's. Step 4 rebased (`claude/config-matrix-step4` 1b0225c3d): CAGEFIT, COWL, JOIN, STARTER,
 SAVE, PARTS, DESIGN, UISMOKE PASS; TECH standing.
 
+Rebased on master F4 2f104df85 (steps 2-4 + the push-pull rear fit, 14c8d5513), the thirteen + UISMOKE: GEN (910 s),
+UISMOKE, CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH, NODUMMY, ENGCONFIG FAIL, and
+F4 master itself (a clean worktree) fails the same four with byte-identical FAIL lines (ENGCONFIG re-pinned by F4:
+fewer builds differ, the same ones on both).
+
 The sweeps: `sweep_before.txt`, `sweep_after_steps2-3.txt` (the four XX cells left are step 4's greyed ones, now a
 join error instead of an engine on the nose).
 
