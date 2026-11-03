@@ -9,7 +9,7 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
-## 0000. NOW (3 Nov, 16:20 UTC) - the branch is on train L30a (`a8a23ad6`)
+## 0000. NOW (3 Nov, 17:15 UTC) - the branch is on train L30a (`a8a23ad6`)
 
 - **N1, as the user re-ruled ("make the join measure the fin above the deck"): DONE** - `_cage_join.js` `finTaperAbove`:
   the fin's taper is read on its planform above the highest point of the boom's top line under its chord (the fin
@@ -31,12 +31,22 @@ Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
   the spec (bench, parked, certificate store, procurement) move. The twin floatplane and the certified Rufus are
   unchanged. After the re-capture: **GATE STOL PASS** (with `--selftest`). For the user: a saved build keeps its
   flight; its certificate key is recomputed from the new spec.
-- **The targeted battery** (36 core gates that fly the validated builds or read the tail: GEN, PILOT-side, JOINPARITY,
-  DESIGNCHECK, CGBAND, ACCEPT, TAKEOFF...) is still running at this push; its verdict is added when it ends.
-- **Running (stopped):** the CORE battery on the 1B branch (the flown fin taper moves numbers some gates may pin); any red is
-  compared with master before it is called standing - this STATUS is updated when it ends.
-- **Blocked:** the push to `claude/ready/new-plane` is refused by this cloud session's permission policy (a
-  `claude/ready/*` push reads as a production deploy). Everything lands on `claude/new-plane`; A0 promotes from it.
+- **The targeted battery on this branch** (36 core gates that fly the validated builds or read the tail): **27 PASS**
+  (GEN, STRIPSURF, TAKEOFF, LINEUP, PROFILE, TESTFIELD, DMGDETERMINISM, ROLLSND, CABINLAMP, FIN, NACLAG, DESIGNCHECK,
+  SPECFIX, FLOATKIT, CGBAND, SIMWORKER, SITE, HONESTY, HYDRODYN, FLOATS, ACCEPT, PODEDITOR, DMGPOD, CANDIDATES, PROCURE,
+  TANKMOUNT, DASH) + STOL (PASS after the re-capture). The reds, each checked against master `a8a23ad6` run the same
+  way in this box:
+  | gate | here | master `a8a23ad6` | verdict |
+  |---|---|---|---|
+  | POD | "pod off, the whole def is the base's bytes" (6 builds) | identical lines | standing |
+  | HANDLE | Twin_busher_floats_2: the door handles on the hinge edge (2) | identical | standing |
+  | GPSFACE | "F cub + flat: gauges give way to the screen" | identical | standing |
+  | ENGCONFIG | the validated builds' hashes vs the fixture's "master" pair | red on master for the same builds (its own hashes) | standing (its fixture predates master) |
+  | CREWLOAD | the retry clock (2) | FAIL (3) | standing, timing |
+  | DMGCERTCOST, BENCHTIME | wall-clock ceilings (29-88 s, 6-12 s) on a loaded 4-core box | not compared | timing on this box |
+  | JOINPARITY | 7 FAIL | 3 FAIL | **+4 from this change**: the Cub, Jodel, metal Cessna and Cessna floats, node vs the stored PAGE capture, masses equal to 1e-6 relative ("FIRST: node 0 (S0BL).m 22.084392205587 vs 22.084393101166487") - the capture predates the join change; its own instruction: re-capture with `tools/join_parity_page.js` when the move is meant |
+- **JOINPARITY's page capture is being re-taken** at this push (`node tools/join_parity_page.js --jobs 3`, the real page
+  on SwiftShader); the result is added when it ends.
 
 ## 000. READY (the train-1B branch)
 
