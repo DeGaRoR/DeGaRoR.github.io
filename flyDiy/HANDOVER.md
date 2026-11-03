@@ -310986,3 +310986,9 @@ NOT PUSHED: claude/ready/weather-fixes (the session's push to a ready branch was
   permission classifier (a deploy). The branch claude/weather-fixes is complete; the user (or a session allowed to)
   pushes it to claude/ready/weather-fixes. Messages to A0 from this cloud session are also refused (HTTP 401 /
   untrusted device), so this line is the report.
+- 15 JULY, THE RUN (`--only=`, jobs 2, on 3937e6236): CLOCK CONTRACTS DESTTO (both shards) ECON FLIGHTREC FREIGHT HANGAR
+  MISSIONS NIGHTVISIBILITY PILOTS PLAYER PROCURE ROUTES STOREDRAW CLIMATE DAY SOAR UISMOKE PASS. Red: POD (the frozen
+  _pod_base.json digests), TECH ("pitch:seaplane" has no segment), STORY (the T0 beat card), LAZY (route_draw's first
+  demand) - all four on the F4 entry's list of master's standing reds, none reading the career's date or the weather.
+- THE SEASONAL BLOCKS (option B) are on claude/weather-blocks: 28 new days for the user's review, study §10. No game
+  code yet.
