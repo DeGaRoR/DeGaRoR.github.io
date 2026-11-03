@@ -976,8 +976,14 @@ const AERO_SEC = {
   // The seats follow NOBODY on purpose: a green fuselage does not force
   // green leather. The occupants wear their characters' own clothes (G3700),
   // so the crew has no livery section of its own.
-  seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
+  seatTrim: { parent: null,     fin: 'hide',      label: 'the seats\' base',    // G332: the user's scan
               layer: 'crew' },
+  // SEATS (2026-11-02, the user: "a couple of configurable colors ... base, accent and seam"): a seat preset names its
+  // own finish and tint as each section's bottom-out (tools/_seat_gen.js mat: `fin` / `tint0`), so with nothing picked
+  // every seat wears its calibrated look; a pick here wins on every seat of the aeroplane
+  seatAccent: { parent: null,   fin: 'liner',     label: 'the seats\' accent', layer: 'crew' },
+  seatSeam:   { parent: null,   fin: 'leather',   label: 'the seams',          layer: 'crew' },
+  seatFrame:  { parent: null,   fin: 'trim',      label: 'the seat frames',    layer: 'crew' },
   // G2795 (the user's garage review, 18 Oct: "the floor's material
   // editable"): the cabin floor's boards, plywood until picked
   cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',

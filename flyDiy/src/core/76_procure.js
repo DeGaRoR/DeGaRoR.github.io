@@ -324,6 +324,7 @@ function prWrite(s, row, val) {
     const n = Math.max(1, (c.seats || 2) - 1);
     c.seats = n;
     if (Array.isArray(c.seatsX)) c.seatsX = c.seatsX.slice(0, n);
+    if (Array.isArray(c.seatsKg)) c.seatsKg = c.seatsKg.slice(0, n);
     if (Array.isArray(c.occupied)) c.occupied = c.occupied.slice(0, n);
   }
   if (val.fit) {
