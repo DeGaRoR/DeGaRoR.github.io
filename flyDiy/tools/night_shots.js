@@ -208,7 +208,12 @@ const REPORT = `(() => {
     // the exposure's chain: the schedule's, the declared base, the ease, the eye, the rig row
     exSched: W.LIGHT_RIG ? +W.LIGHT_RIG.exposureFor(d.sunEl).toExponential(3) : null, exBase: W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : null, eyeK: W.GFX && W.GFX.eye ? W.GFX.eye() : null,
     ease: W.LIGHT_EASE ? { on: W.LIGHT_EASE.on, init: W.LIGHT_EASE.init, ex: W.LIGHT_EASE.ex, tEx: W.LIGHT_EASE.tEx, setEx: W.LIGHT_EASE.setEx, applies: W.LIGHT_EASE.applies, writes: W.LIGHT_EASE.writes } : null,
-    rig: w.rig && w.rig.get ? (r => ({ manual: r.manual, exposure: r.exposure, env: r.env }))(w.rig.get()) : null, inGarage: !!(W.FLYDIY_IN_GARAGE) };
+    rig: w.rig && w.rig.get ? (r => ({ manual: r.manual, exposure: r.exposure, env: r.env }))(w.rig.get()) : null, inGarage: !!(W.FLYDIY_IN_GARAGE),
+    // the premises lamps under the pre-exposure (NIGHT-LOOK 3 Nov: the town's windows went dark at P = 2^14)
+    pre: W.LIGHT_RIG && W.LIGHT_RIG.preState ? W.LIGHT_RIG.preState() : null,
+    lamps: (Lm => Lm ? { on: Lm.on, kLit: Lm.kLit, litNow: Lm.litNow, armed: Lm.armed, muted: Lm.muted, glassN: Lm.glass.size, glowKeys: Lm.glowKeys.size,
+      glass: [...Lm.glass].slice(0, 3).map(([u, b]) => [b, u.value]), pool: Lm.pool.map(l => +l.intensity.toExponential(2)) } : null)(w.premises && w.premises.lamps),
+    glow: (() => { try { const out = {}; for (const [k, v] of PROP_GLOW) { const b = PROP_BUILT.get(k), ms = []; if (b) for (const m0 of b.mats) MATLIB.each(m0, m => { if (m.emissive && (m.emissive.r || m.emissive.g || m.emissive.b) && ms.length < 4) ms.push([m.name || m.type, m.userData.emis0, +(+m.emissiveIntensity).toExponential(3), m.emissive.getHexString(), m.toneMapped, m.uuid.slice(0, 6)]); }); out[k] = { k: v, built: !!b, ms }; } return out; } catch (e) { return 'ERR ' + e.message; } })() };
   try {
     const rt = W.FLYDIY_AA && W.FLYDIY_AA.target && W.FLYDIY_AA.target();
     if (rt) {
