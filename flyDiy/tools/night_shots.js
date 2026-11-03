@@ -186,11 +186,11 @@ const SETUP = V => `(async () => {
   if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
   if (aim === 'ref' && agl == null) agl = 2;
-  if (agl != null) { const cg = s.cgPos(), gy = Math.max(w.terrainH(px, pz), w.waterH ? (w.waterH(px, pz) || -1e9) : -1e9) + agl;
+  if (agl != null) { const cg = s.cgPos(), wh = w.waterH ? w.waterH(px, pz) : null, gy = Math.max(w.terrainH(px, pz), Number.isFinite(wh) ? wh : -1e9) + agl;   // the sea's level IS 0 (|| -1e9 sank the plane 13 m)
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
   FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist});
-  const LT = ${JSON.stringify(V.lights || null)}, K = (typeof CK !== 'undefined') ? CK : null, lit = {};
+  const LT = ${JSON.stringify(V.lights || null)}, K = window.FLYDIY_COCKPIT_I || null, lit = {};   // app.js's CK is module-local; the page hands it out as FLYDIY_COCKPIT_I
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
@@ -291,7 +291,7 @@ async function runPage(page) {
     }
     if (SPAWN) { await ev('(window.FLYDIY_ROUTE && FLYDIY_ROUTE.spawn ? FLYDIY_ROUTE.spawn(' + JSON.stringify(SPAWN) + ') : null)'); console.log('night_shots: roll-out from ' + SPAWN); }
     let flying = false;
-    for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART/.test(document.body.innerText) && !!window.FLIGHT_PROBE"); }
+    for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|TAKEOFF|ROLL|DOWNWIND|FINAL|DEPART/.test(document.body.innerText) && !!window.FLIGHT_PROBE"); }
     if (BUILD) await ev("(()=>{const b=document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click(); return 1;})()");   // a float build: held on the water before its pilot starts a take-off run
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
