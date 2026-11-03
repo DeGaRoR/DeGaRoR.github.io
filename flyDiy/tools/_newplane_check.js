@@ -56,6 +56,12 @@ function ruleUnits(np) {
     const ch = np.fromArchetype(a), c = np.complete(ch);
     if (c.cleared.length) (np.authored(a) ? authOut : unreach).push(a.key + ':' + c.cleared.map(k => k + '=' + ch[k]).join('/'));
   }
+  // N4 (the user, 3 Nov): the cards whose disc strikes their wing are no longer generator outputs - named, so a NEW
+  // unreachable card still goes red
+  const N4_OUT = new Set(['mw5', 'pusherPod', 'archaeopteryx']);
+  const n4 = unreach.filter(u => N4_OUT.has(u.split(':')[0]));
+  for (const u of n4) unreach.splice(unreach.indexOf(u), 1);
+  if (n4.length) console.log('           N4 - cards whose disc strikes the wing, greyed by the user\'s call: ' + n4.join('; '));
   t(!unreach.length, 'every non-authored archetype\'s choice set is offered (' + D.ARCHETYPES.filter(a => !np.authored(a)).length + ' cards)', unreach.join('; '));
   if (authOut.length) console.log('           authored cards outside the chooser (kept as cards): ' + authOut.join('; '));
   const gen = D.ARCHETYPES.filter(a => !np.authored(a));
@@ -66,8 +72,9 @@ function ruleUnits(np) {
   t(np.why({ engArch: 'pushPull', class: 'n23' }, 'booms', 'rod'), 'CM: a single rod greyed for a push-pull');
   t(np.why({ booms: 'twin', class: 'n23' }, 'tail', 't') && np.why({ booms: 'twinRod', class: 'n23' }, 'tail', 'v'),
     'CM: T- and V-tails greyed on twin booms');
-  t(np.why({ engArch: 'wingTop', class: 'ul1' }, 'wing', 'low') && !np.why({ engArch: 'wingTop', class: 'ul1' }, 'wing', 'parasol'),
-    'CM: over-the-wing greys the mid and low wing, keeps the parasol');
+  t(np.why({ class: 'ul1' }, 'engArch', 'wingTop') && np.why({ engArch: 'pusher', class: 'ulm' }, 'wing', 'high') &&
+    np.why({ engArch: 'pusher', class: 'ulm' }, 'wing', 'parasol') && !np.why({ engArch: 'pusher', class: 'ulm' }, 'wing', 'low'),
+    'N4: the over-the-wing engine and a pusher under a high wing / parasol greyed (the disc strikes the wing), a low-wing pusher offered');
   t(!np.why({ engArch: 'nose', class: 'eab' }, 'booms', 'lofted'), 'a nose engine keeps the lofted body');
   // a grey reads only EARLIER choices: a later pick never greys an earlier step
   t(!np.why({ class: 'eab', booms: 'twin' }, 'engArch', 'pusher'), 'greys read only earlier steps (the order contract)');
@@ -78,7 +85,7 @@ function ruleUnits(np) {
   t(!bad.length && fam.length === 6, 'one cowl preset per engine type (' + fam.map(f => f + '->' + np.cowlPresetFor({ engType: f, engArch: 'nose' })).join(' ') + ')', bad.join(','));
   t(np.cowlPresetFor({ engType: 'flat', engArch: 'pusher' }) === 'flat@pusher', 'the pusher\'s preset is its type\'s, marked @pusher');
   // the aero nose and the pusher's back cowl
-  for (const arch of ['pusher', 'wingTop', 'twin', 'four']) {
+  for (const arch of ['pusher', 'twin', 'four']) {   // (over the wing: greyed by N4, its nose rule rides the same NOSE_FREE set)
     const cl = arch === 'four' || arch === 'twin' ? 'n23' : 'ulm';
     const c = np.compose({ class: cl, engArch: arch });
     const g = c.over.cage;
@@ -265,8 +272,10 @@ function preJoin(name, ch) {
     for (const [n, ch] of FIXED) judgeFixed(n, ch);
     for (const [n, ch, joined] of fixtures()) { if (joined) judgeFixed(n, ch); else preJoin(n, ch); }
   } else {
-    console.log('3 ONE JOINED BUILD (the tricycle: the user\'s "tricycles that make sense"; the rest: --builds, full tier)');
-    judgeFixed(FIXED[1][0], FIXED[1][1]);
+    // (the LSA tricycle, validation A's nose-high one: two seats, so its fit needs no loading corners - the 4-seat
+    // tricycle and its corners are NEWPLANE-BUILDS', where the minute does not bind)
+    console.log('3 ONE JOINED BUILD (a tricycle: the user\'s "tricycles that make sense"; the rest: --builds, full tier)');
+    judgeFixed('tricycle, LSA', { class: 'lsa', gear: 'trike', engArch: 'nose', engType: 'flat', wing: 'low', planform: 'taper' });
   }
   const seed = +(process.env.NEWPLANE_SEED || ((Date.now() / 86400000) | 0));
   console.log('4 SEEDED RANDOM BUILDS (pre-join) - seed ' + seed + ' (NEWPLANE_SEED=' + seed + ' replays it)');

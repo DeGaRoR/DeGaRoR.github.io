@@ -167,7 +167,8 @@ function renderStart(body) {
   body.appendChild(row);
   // START LIKE A CARD: the shed's generated cards as choice sets (the coverage table, made usable) - to the summary,
   // where every pick is a door back
-  const gen = d.ARCHETYPES.filter(a => !g.authored(a) && !d.archInactive(a));
+  // (a card whose choices the rule table now greys - N4's struck discs - is not offered as a start)
+  const gen = d.ARCHETYPES.filter(a => !g.authored(a) && !d.archInactive(a) && !g.complete(g.fromArchetype(a)).cleared.length);
   if (gen.length) {
     body.insertAdjacentHTML('beforeend', '<div class="npSecH">start like one of the shed\'s designs - the choices filled in, yours to change</div>');
     const gg = document.createElement('div');
