@@ -326,11 +326,13 @@ function careerCertOf(A, fp) {
   return { safe, comm, why: !safe ? 'not airworthy' + (S.why ? ' (' + S.why + ')' : ': the bench check fails')
                                   : !comm ? 'no commercial certificate' + (S.why ? ' (' + S.why + ')' : '') : '' };
 }
-// does any plane of the fleet hold `need` (its signature as it stands: the bench re-signs at every roll-out)
+// does any plane of the fleet hold `need` (its signature as it stands: the bench re-signs at every roll-out). A fleet
+// with no plane at all (a new career before its voucher) is not refused: the voucher buys a maker's plane, and the stop
+// judges every flight
 function careerFleetHolds(doc, need) {
   if (!need) return true;
-  const af = (doc && doc.career && doc.career.airframes) || {};
-  return Object.keys((doc && doc.fleet) || {}).some(n => careerCertOf(af[n])[need]);
+  const af = (doc && doc.career && doc.career.airframes) || {}, F = Object.keys((doc && doc.fleet) || {});
+  return !F.length || F.some(n => careerCertOf(af[n])[need]);
 }
 // the fleet card's line: "airworthy ✓ · commercial ✗ (doors)" / "not certified: run the bench"
 function careerCertLine(A, fp) {

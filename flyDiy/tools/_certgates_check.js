@@ -122,6 +122,8 @@ function run(C, app, menu, log) {
   ok(r1.ok, 'accept: a commercially certified plane takes the job');
   const dF = clone(d0); dF.career.airframes.Mine = { from: 'maker', factory: true, modified: false, fp: 'F1' };
   ok(C.careerAccept(C.careerRefresh(dF), jid).ok, 'accept: a maker\'s plane takes the job');
+  const dE = clone(d0); delete dE.fleet.Mine; delete dE.career.airframes.Mine;
+  ok(C.careerAccept(C.careerRefresh(dE), jid).ok, 'accept: a fleet with no plane at all (a new career before its voucher) is not refused');
 
   // THE STOP (B: the job kept)
   const D = r1.doc, rec = C.careerContract(D, jid), s0 = rec.stages[0].subs[0];

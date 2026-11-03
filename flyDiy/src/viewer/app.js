@@ -9257,7 +9257,7 @@
       const no = d.career.contracts.accepted.filter(id => { const need = contractCertNeed(careerContract(d, id)); return need && !C[need]; });
       if (!no.length) return;
       ecNote = 'Not certified for ' + (no.length === 1 ? 'your accepted job' : no.length + ' of your accepted jobs') + ' (' + (C.why || 'run the bench') + '): you can fly, the job waits for a certified plane';
-      econWalletSync();
+      if (CAREER_DEV) econWalletSync();
     } catch (e) {}
   }
   const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
