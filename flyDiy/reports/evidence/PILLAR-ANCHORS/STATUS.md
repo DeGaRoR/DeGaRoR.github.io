@@ -7,7 +7,7 @@ Branch `claude/pillar-anchors` (cloud session). Asked for by the user on 2 Nov t
 > to go on the door areas, when possible. Pillars should really be the target for all fixation devices and anchors.
 > We know perfectly where they are."
 
-State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). Rebase on FINISH-4: not yet. At the 03:15 UTC check-in, origin/master was still 0fcf54ef9, so there was nothing to rebase onto. Checking again at 05:15 and 09:15 UTC (PHONE-1b).
+State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). **Rebased on FINISH-4 (origin/master 2f104df85) at 05:15 UTC on 3 Nov.** Two conflicts, both resolved by keeping both sides: F4's twin-boom rear float-strut root clamped onto the pod's last frame (the root my pre-F4 render showed hanging in the air), and the ends of HANDOVER.md. The next check-in, at 09:15 UTC, is for PHONE-1b.
 
 ## 1. What was measured first (the trace)
 
@@ -113,18 +113,28 @@ No doors: both chinooks, Rufus, camel, mosquito, stearman, tigermoth and the twi
 | **the wing root over the door's top or sill** (0 mm from 3–13°, "ON the closed door: wing") | Cessnas, Jodels (low wing: the door's bottom on the wing root), Cubs, PA-18, Twin 2, ugly_bi | **no**. This is the user's own _4b fix (wing raised, wgDy −0.12 → 0); _4b's doors now clear the wing by 33–64 mm |
 | the gear leg ON the Cub's door | Cubs, stol_cub_showcase | no |
 
-**_4b** (as saved → snapped):
+**_4b**: the newest one, on `origin/claude/ready/candidates-4b` 291d12bcf, after FLAGSHIP's door fixes (fltStrutAng
+45 → 25, doorSill 0.06 → 0.20, boomNoseLen 0.41 → 0.2). It is not on master after FINISH-4; only
+`review/Twin_busher_floats_4.json` is. As saved → snapped:
 
-- Pilot doors: **RED 0 mm → 38 mm.** The float strut root moved off the door to the B pillar, the lift strut foot from
-  the door's bottom to the B pillar (0 → 49 mm), and the step to the B pillar. The 38 mm left is the step on the pillar
-  beside the door edge.
-- Passenger doors: RED 3 mm @90° → RED 0 mm @78°, against the lift strut.
-- The door handle is the latch lever.
+- **Pilot doors: RED 0 mm → 27 / 36 mm.** FLAGSHIP's fixes already cleared the float struts (171 mm) and the lift strut
+  (66 mm). What still touches the closed door is a fitting on it: the step, the static port and the venturi. The snap
+  moves them, the step onto the B pillar.
+- **Passenger doors: RED 3 mm @90° → RED 0 mm @78°**, against the lift strut. FLAGSHIP's "every door swings clear"
+  holds short of full open. A stop at about 70° (or the strut's wing fittings forward) clears it. The snap makes this
+  one slightly worse, because the foot moves aft onto the B pillar.
+- The older, pre-fix _4b (the renders in section 5): pilot doors RED 0 → 38 mm, the float strut roots off the pilot
+  door.
 
 ## 4. Gates
 
 Run on this branch (`node tools/run_gates.js --only=... --no-build`). Every red was re-run on a clean origin/master
 worktree.
+
+**After the rebase on FINISH-4:** PILLAR and the brief's gates pass: PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS,
+GEN (4 shards), STARTER, plus HINGE and FIT. The reds are the same standing four, in files this branch does not touch:
+HANDLE (Twin_busher_floats_2), CLIP (IFR nav aerial), TECH (pitch:seaplane), and NODUMMY (F4 adds
+`tools/box_render.js` to its list). The rest below is from before the rebase.
 
 **PASS:**
 
