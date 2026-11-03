@@ -4960,7 +4960,8 @@
     const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
-    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record, on the break list at the first break)
+    R.geo = geo; R.geos = [geo];
+    if (noPush) owner.scR = R; else { owner.brkR = R; BRK.recs.push(R); }   // (G2004: a scuff's record waits on owner.scR until the break path makes it - brkMakeRec)
     { const K = model.brk; if (K) { (K.allRecs || (K.allRecs = [])).push(R); K.recLive = true; } }   // (G1859.8: every record, for the heal)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
@@ -5230,6 +5231,12 @@
     const K = model.brk, SB = SKIN_BREAK, geo = K.geoOf.get(pa);
     if (!geo || !geo.index) return null;
     if (own.brkR) return own.brkR;
+    // (3 Nov, GATE DMGPAGEW: THE SCUFF'S RECORD IS THE BREAK PATH'S ONLY WHEN THE BREAK PATH MAKES IT - in its own order
+    // and budget (brkRecOrder, REC_BUDGET), here. Put on the owner at the roll-out, every group counted as made at the first
+    // break: the wall's inheritance bound all of them (47 records on the Cub's trunk, not 8) and an alclad bucket's live
+    // triangle was drawn 6 x its rest. Until then it waits on own.scR, which only the scuff reads)
+    if (own.scR) { const R = own.scR; if (noPush) return R;
+      own.scR = null; own.brkR = R; if (BRK.recs.indexOf(R) < 0) { BRK.recs.push(R); K.recLive = true; } return R; }
     const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
     const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
     for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
@@ -5328,7 +5335,7 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         brkMakeRec(own, pa, base, off, fab, o, inhOn).detached = true;   // (2 Nov: the one recipe, the scuff's too)
       } else {
-        // (G2004: a record the scuff made at the roll-out - its snapshot detached here, at the first break, as brkCage's own)
+        // (G2004: a record not detached yet - its snapshot detached here, as brkCage's own; the scuff's come through brkMakeRec above)
         if (!own.brkR.detached) { brkDetach(pa, geo, base); own.brkR.detached = true; }
         if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
       }
@@ -5445,8 +5452,8 @@
   // the switch flipped under a wreck: every record let go and made again on the other binding (the A/B rig's)
   function brkInhReset(groups) {
     brkRestore();
-    for (const [own] of groups) own.brkR = null;
-    for (const r of model.rigs) r.brkR = null;
+    for (const [own] of groups) { own.brkR = null; own.scR = null; }
+    for (const r of model.rigs) { r.brkR = null; r.scR = null; }
     const K = model.brk; if (K) { K.inhL = null; K.inhSt = null; K.inhIt = null; K.inhGone = -1; K.wallKey = null; }
     BRK.model = model;
   }
