@@ -1,0 +1,10 @@
+{ "v": 1, "id": "showers-sunshine", "name": "Showers and sunshine",
+  "story": "The day behind the front: a fresh northwest wind, towering cumulus with sharp edges, the odd shower trailing grey veils over the sound, and between them the clearest air of the summer. Bumpy, beautiful, a day for an alert pilot.",
+  "fly": "moderate", "forecast": "Northwest 12 kt gusting 22 in the afternoon. Cumulus, scattered showers from noon, base 1400 m. Visibility excellent, 80 km, 5 km in showers. Showers dying at dusk; clear, cold night, strong aurora likely.",
+  "temp": { "min": -2.5, "max": -2 }, "dew": [[4, -6.5], [15, -6.5], [27, -6]],
+  "qnh": [[4, 1014], [15, 1017], [27, 1020]],
+  "wind": [[4, 4, 300, 0.15], [10, 10, 305, 0.3], [15, 13, 310, 0.38], [19, 9, 310, 0.3], [23, 4, 300, 0.15], [27, 2, 300, 0.1]],
+  "rich": { "breeze": 0.3, "terrain": 0.8, "thermals": 0.8 },
+  "low": [[4, 0.05, "cu"], [10, 0.25, "cu"], [14, 0.45, "cu"], [18, 0.35, "cu"], [21, 0.08, "cu"], [24, 0.0, "cu"]],
+  "rain": [[11, 0.0], [13, 0.2], [16, 0.25], [19, 0.08], [21, 0.0]],
+  "turbidity": 2.0, "aurora": [[22, 5], [24, 6], [26, 5], [28, 3]] }

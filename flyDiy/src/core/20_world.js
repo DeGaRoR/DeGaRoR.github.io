@@ -1138,10 +1138,23 @@ function makeWorld(seed, opts) {
     if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
     return atmos;
   }
+  // THE PLAN'S WIND (WEATHER-SEASON): under a weather plan the day's wind is the plan's (day.wind is the EFFECTIVE spec),
+  // so a set naming `plan` or `wind` takes it, and the tick re-resolves the climate whenever the plan's quantised wind
+  // moves (`day.plan.windKey`: 0.1 kt, 1 deg, 0.01 of gust - a few re-resolves an hour). The sea walks after it (the
+  // plan's seaTau). Without a plan every line is as it was.
+  let planWindKey = null;
+  function planWind() {
+    const k = day.plan ? day.plan.windKey : null;
+    if (k === planWindKey) return false;
+    planWindKey = k;
+    setWind(day.wind || null);
+    return true;
+  }
   function setDay(spec) {
     day.set(spec);
     airNow();
-    if (spec && 'wind' in spec) setWind(spec.wind || null);
+    if (day.plan || (spec && 'plan' in spec)) { planWindKey = NaN; planWind(); }   // NaN: equal to no key, so this set always takes the wind (a plan lifted gives the declared one back)
+    else if (spec && 'wind' in spec) setWind(spec.wind || null);
     else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
   }
   // dayTick(dt): the VIEWER's clock step - the day advances and the wind
@@ -1153,7 +1166,8 @@ function makeWorld(seed, opts) {
     const u0 = day.utc;
     day.advance(dt);
     const st1 = day.storm ? day.storm.I : 0;
-    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    if (day.plan && planWind()) { /* the plan's wind moved: setWind re-resolved the column, the front's hand with it */ }
+    else if (st0 !== st1 || (sw && day.storm)) climate.refresh();
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
