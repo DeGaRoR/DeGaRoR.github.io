@@ -200,13 +200,7 @@ async function flowCheck(np) {
 }
 
 // ---- 3 + 4 THE BUILDS -----------------------------------------------------------------------------------------------
-// STANDING (STATUS.md section 4): failures the same aeroplane has on master, named so a new one is not hidden:
-//   the fin presets' drawn taper below the flown envelope (every FIN_ARCH preset; the ttail card on master)
-//   the disc through the wing on a pusher under a high wing / an over-the-wing engine (the Pod-and-boom,
-//   Archaeopteryx and Chinook cards on master: the disc stands over the wing, not behind its trailing edge)
-const STANDING_TAPER = /the drawn [vh]Taper .* is outside the flown envelope/;
-const standingOf = (f, ch) => STANDING_TAPER.test(f) ||
-  (/^join: prop: through the wing/.test(f) && !/through the body/.test(f) && ch && (ch.engArch === 'wingTop' || ch.engArch === 'pusher'));
+// STANDING kinds: _newplane_lib.js standing() - reported, never hiding a new failure
 const FIXED = [
   ['taildragger', { class: 'eab', gear: 'tail', engArch: 'nose', engType: 'flat', wing: 'low', planform: 'taper' }],
   ['tricycle', { class: 'n23', gear: 'trike', engArch: 'nose', engType: 'flat', wing: 'high', planform: 'hershey' }],
@@ -222,7 +216,7 @@ function fixtures() {
 }
 function judgeFixed(name, ch) {
   const r = NL.judge(ch, {});
-  const real = r.fails.filter(f => !standingOf(f, r.choices));
+  const real = NL.realFails(r.fails, r.choices);
   const standing = r.fails.length - real.length;
   ok(!real.length, 'fixed ' + name + ': ' + JSON.stringify(r.m).slice(0, 220) + ' (' + (r.ms / 1000).toFixed(1) + ' s' +
      (standing ? ', ' + standing + ' standing' : '') + ')', real.join(' | '));
