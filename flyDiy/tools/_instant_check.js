@@ -66,6 +66,11 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     W.requestAnimationFrame = () => 0;
     const hash = () => { try { return crypto.createHash('sha1').update(JSON.stringify(W.CAGE_JOIN.export())).digest('hex').slice(0, 16); } catch (e) { return 'ERR ' + e.message; } };
     log('== ' + bk + '  boot spec ' + hash() + '  chain ' + (W.CAGE_CHAIN ? (W.CAGE_CHAIN.ok ? 'ok' : 'NOT OK: ' + W.CAGE_CHAIN.why) + ', ' + W.CAGE_CHAIN.layers.length + ' layers' : 'absent'));
+    // FLOAT-CG (GPS-STALL, 3 Nov): a floatplane's station after the load - GATE JOINPARITY's float row (gear.floats x/y),
+    // the CG the step stood on (CAGE_FLOAT.cgM) and the one last published (FLYDIY_CG_MODEL)
+    try { const g = (W.CAGE_JOIN.export() || {}).gear, f = g && g.type === 'floats' && g.floats, r5 = v => v == null ? '-' : (+v).toFixed(5);
+      if (f) log('   float station x ' + r5(f.x) + ' y ' + r5(f.y) + '  step cgM ' + JSON.stringify(W.CAGE_FLOAT && W.CAGE_FLOAT.cgM || null) +
+        ' (' + (W.CAGE_FLOAT && W.CAGE_FLOAT.cgFrom) + ')  FLYDIY_CG_MODEL ' + JSON.stringify(W.FLYDIY_CG_MODEL || null)); } catch (e) { log('   float station: ' + e.message); }
     // PHONE-EDIT-PERF (2 Nov): THE FLOATS' CG HANDSHAKE (G396). The float layer stands its step on the CG the balance
     // answered for the build before (FLYDIY_CG_MODEL) and the join's datum (CAGE_DATUM); the answer to the short way's
     // last build moves it once more by under 2 cm (no rebuild then, by design), so a long build right after read a newer
