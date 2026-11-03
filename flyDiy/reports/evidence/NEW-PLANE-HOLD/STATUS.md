@@ -25,4 +25,4 @@ closes the chooser itself since NEW-PLANE. All are covered by the page-side rule
 |---|---|
 | CLOUD | **PASS** (current / gamer / ultra: 6 composite draws each, no feedback) — was FAIL (3 of 239) on `e6bcfb36` |
 | NEWPLANE, CARDS, BACKGUARD, UISMOKE, UISMOKE-PHONE, STORY | **PASS** |
-| PARKED | FAIL — node out of memory (`FatalProcessOutOfMemory`), alone too (443 s); being run on master `e6bcfb36` at this push to see if it stands there |
+| PARKED | FAIL — node out of memory (`FatalProcessOutOfMemory`), alone too (443 s). **Standing**: the identical crash on master `e6bcfb36` run the same way in this box (417 s) - this box's memory, not this change |
