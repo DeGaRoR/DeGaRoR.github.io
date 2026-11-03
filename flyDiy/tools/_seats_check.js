@@ -4,7 +4,8 @@
 //     SEAT_STYLES and the panel's SEAT_TYPE_LABELS name the same seats in the same order (the index rides in saves)
 //   2 HONEST MASS: every preset's kg is its GEN_SEATS row's; type 0 bills the `sling` row every saved build bills
 //   3 EVERY PRESET BUILDS, at every level: finite geometry, a seat in a sane box over its floor, the phone level inside
-//     its budget (triangles, draws), each level lighter than the one before
+//     its triangle budget, each level lighter than the one before, the game's levels (mid, phone) at most four draws
+//     a seat (one material per role: base, accent, seams, frame - SEATS-COST)
 //   4 THE SEATING REFERENCE: the interface the occupant laces to is the stance's own (panY, szc), whatever the preset
 //   5 THE CABIN'S SEAT: paxSeatType absent = the pilots' type, or the pilots' preset's own cabin seat (paxType)
 //   6 THE MASS REACHES THE BUILD: cabin.seatsKg moves the built mass by the difference, and absent changes nothing
@@ -57,7 +58,7 @@ check(SG.PRESET_OF(0).key === 'sling' && C.GEN_SEATS.sling.kg === 3.0, 'the defa
 
 console.log('3 every preset builds, at every level');
 const A = { floorAt: () => 0, halfW: 0.6, roofY: 1.45 };
-const BUDGET = { tris: 1500, draws: 7 };
+const BUDGET = { tris: 1500 };
 const table = [];
 for (let t = 0; t < N; t++) {
   const p = SG.PRESET_OF(t), row = [p.key];
@@ -79,10 +80,9 @@ for (let t = 0; t < N; t++) {
     check(r.panY === g.panY && r.szc === g.szc && r.floor === g.floor, p.key + ' L' + L + ' laces the occupant to the stance');
     check(r.tris < prev, p.key + ' L' + L + ' is lighter than the level before', r.tris + ' vs ' + prev);
     prev = r.tris;
-    if (L === 2) {
-      check(r.tris <= BUDGET.tris, p.key + ' phone level inside ' + BUDGET.tris + ' triangles', r.tris);
-      check(r.draws <= BUDGET.draws, p.key + ' phone level inside ' + BUDGET.draws + ' draws', r.draws);
-    }
+    if (L === 2) check(r.tris <= BUDGET.tris, p.key + ' phone level inside ' + BUDGET.tris + ' triangles', r.tris);
+    // SEATS-COST: the levels the game builds wear ONE MATERIAL PER ROLE - at most four draws a seat
+    if (L >= 1) check(r.draws <= 4, p.key + ' L' + L + ' wears at most its four role materials', r.draws + ' draws');
     row.push(r.tris + '/' + r.draws);
   }
   table.push(row.join(' '));
