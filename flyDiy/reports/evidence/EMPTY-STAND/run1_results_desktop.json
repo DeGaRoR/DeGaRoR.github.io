@@ -1,0 +1,434 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "args": [
+  "--only",
+  "desktop"
+ ],
+ "url": "gfx=laptop&tutor=0",
+ "profiles": {
+  "desktop": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "an aeroplane on the stand (FLYDIY_STORE.onStand())",
+       "got": "Rufus"
+      },
+      {
+       "ok": true,
+       "what": "no empty state (body.gEmpty off, no #gEmptyCard)",
+       "got": {
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "a second owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME HOME planes=[]",
+        "w1 w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "story": {
+       "beat": "T0",
+       "cabin": {
+        "aero": "w1",
+        "hangar": "w1"
+       }
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is HOME after Go there",
+       "got": "HOME"
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        470,
+        96,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin w1\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ]
+     }
+    },
+    "3": {
+     "asserts": [
+      {
+       "ok": false,
+       "what": "the card moved with the drag (~ -360, +180)",
+       "got": {
+        "before": [
+         470,
+         96,
+         340,
+         222
+        ],
+        "after": [
+         470,
+         96,
+         340,
+         222
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "the card stays where it was dropped (5 s later)",
+       "got": {
+        "after": [
+         470,
+         96,
+         340,
+         222
+        ],
+        "later": [
+         470,
+         96,
+         340,
+         222
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "still empty after the drag",
+       "got": {
+        "gEmpty": true,
+        "onStand": null
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin w1\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "boxes": {
+       "before": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "afterDrag": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "fiveSecondsLater": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardPos": null
+      }
+     }
+    },
+    "4": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the card lists a plane of yours with Bring here",
+       "got": [
+        "Client Cub",
+        "Rufus"
+       ]
+      }
+     ],
+     "prints": {
+      "bringButtons": [
+       "Client Cub",
+       "Rufus"
+      ]
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "desktop_1_before.jpg",
+     "what": "before: the career's first hangar (the field shed at Cabin Strip), its aeroplane Rufus on the stand"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2x_map_go_row.jpg",
+     "what": "the map's Go row for HOME (before Go there)"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2_empty_stand.jpg",
+     "what": "the map's Go to the main hangar at Jolene AFB 13/31: the stand empty, #gEmptyCard, no Roll out"
+    },
+    {
+     "step": "3",
+     "file": "desktop_3_card_dragged.jpg",
+     "what": "the card dragged down-left by its body (it moved and stays)"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    {
+     "step": "1",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "2",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "3",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "3",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    }
+   ],
+   "runError": "page.click: Timeout 180000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#gEmptyCard button[data-ge=\"bring\"][data-n=\"Client Cub\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" data-ge=\"bring\" data-n=\"Client Cub\">Bring here</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" class=\"npTile\" title=\"low wing, bubble, cantilever alloy, fast\">…</button> from <div id=\"npWrap\" role=\"dialog\" aria-label=\"New aeroplane\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" class=\"npTile\" title=\"low wing, bubble, cantilever alloy, fast\">…</button> from <div id=\"npWrap\" role=\"dialog\" aria-label=\"New aeroplane\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    314 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m        - element is visible, enabled and stable\u001b[22m\n\u001b[2m        - scrolling into view if needed\u001b[22m\n\u001b[2m        - done scrolling\u001b[22m\n\u001b[2m        - <button type=\"button\" class=\"npTile\" title=\"low wing, bubble, cantilever alloy, fast\">…</button> from <div id=\"npWrap\" role=\"dialog\" aria-label=\"New aeroplane\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m      - retrying click action\u001b[22m\n\u001b[2m        - waiting 500ms\u001b[22m\n"
+  }
+ }
+}

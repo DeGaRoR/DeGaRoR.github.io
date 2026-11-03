@@ -209,6 +209,17 @@ async function runProfile(browser, prof, URL0) {
   check('1', s1.gEmpty === false && s1.card === false, 'no empty state (body.gEmpty off, no #gEmptyCard)', { gEmpty: s1.gEmpty, card: s1.card });
   check('1', !!empty, 'a second owned hangar elsewhere that holds no aeroplane', g1.map(g => g.id + ' ' + g.aero + ' planes=' + JSON.stringify(g.planes) + (g.here ? ' (here)' : '')));
   check('1', errsAt('1').length === 0 && errsAt('0').length === 0, 'no page error', P.pageErrors.slice());
+  // FINDING (the first run, 3 Nov): the first-launch chooser came up by itself over the story's cabin shed, held the
+  // render loop and took every pointer (the card under it). Pictured, then its own cancel pressed, as a player would
+  const cs = step('1').prints.chooserAtStart;
+  check('1', !cs.open, 'the first-launch chooser (#npWrap) stays shut on a story career (design_flow.js maybeAutoOpen)', cs);
+  if (cs.open) {
+    await shot('1', '1a_chooser_at_start', 'FINDING: the New aeroplane chooser up by itself over the story\'s first hangar (before its cancel)', { settle: 2000 });
+    await pg.click('#npWrap .npCancel').catch(async () => { await pg.keyboard.press('Escape'); });
+    await sleep(3000);
+    step('1').prints.chooserAfterCancel = await pg.evaluate(() => { const e = document.getElementById('npWrap'); return { open: !!(e && !e.hidden), onStand: FLYDIY_STORE.onStand() }; });
+    await record('1', 'stateAfterCancel');
+  }
   await shot('1', '1_before', 'before: the career\'s first hangar (' + (start && start.name) + '), its aeroplane ' + s1.onStand + ' on the stand', { settle: 5000 });
   if (!empty) { await ctx.close(); return; }
 
