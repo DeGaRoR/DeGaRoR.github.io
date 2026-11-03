@@ -194,27 +194,6 @@ console.log('7. several decks (A6): the field');
   const D = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '07_day.js'), 'utf8');
   yes(/get cloudUpper\(\)/.test(D) && /get cloudLayers\(\)/.test(D) && /slice\(0, 2\)/.test(D), 'the day publishes cloudUpper (sanitised, two at most) and cloudLayers');
 }
-console.log('7a. the sky you see is the effective one (WEATHER-FIXES F1, 2026-11-03)');
-{
-  // a plain day (no effective fields) and a 07_day day with no front: the declared deck, to the bit
-  const plain = { cloudCover: 0.37, cloudType: 'cuh', cloudBase: 1200 };
-  yes(F.layers(plain)[0].cover === 0.37 && F.layers(plain)[0].type === 'cuh', 'no effective fields: the declared cover and type, exactly');
-  yes(F.layers(Object.assign({ cloudCoverEff: 0.37, cloudTypeEff: 'cuh' }, plain))[0].cover === 0.37, 'an effective cover equal to the declared: the declared, exactly');
-  // a front: its overcast and its cumulonimbus reach the drawn deck
-  const front = Object.assign({}, plain, { cloudCoverEff: 0.95, cloudTypeEff: 'cb' }), L = F.layers(front);
-  yes(L[0].type === 'cb' && Math.abs(L[0].cover - 0.97) < 1e-9 && F.layer(front).thick === F.TYPES.cb.thick,
-      `a front's overcast and its cumulonimbus are the drawn low deck (0.37 cuh -> ${L[0].cover.toFixed(2)} ${L[0].type})`);
-  // ...in steps above the declared, so a front's ramp re-fits the map a handful of times, not every few seconds
-  const seen = new Set();
-  for (let e = 0.37; e <= 0.95 + 1e-9; e += 0.001) seen.add(F.layers(Object.assign({}, plain, { cloudCoverEff: e }))[0].cover.toFixed(6));
-  const steps = [...seen].map(Number).sort((a, b) => a - b);
-  yes(steps.length <= 14 && steps.every((v, i) => i === 0 || Math.abs(v - steps[i - 1] - F.LOW_EFF_STEP) < 1e-9),
-      `a 0.37 -> 0.95 ramp in 0.001s draws ${steps.length} covers, ${F.LOW_EFF_STEP} apart (the map re-fits on each)`);
-  yes(F.layers(Object.assign({}, plain, { cloudCoverEff: 0.38 }))[0].cover === 0.37, 'a front barely begun leaves the declared deck alone');
-  yes(F.layers(Object.assign({}, plain, { cloudCoverEff: 1.4 }))[0].cover === 1, 'clamped to 1');
-  const cj = src('viewer/clouds.js');
-  yes(/CLOUD_FIELD\.layers\(day,/.test(cj), 'clouds.js draws CLOUD_FIELD.layers(day) - the effective sky');
-}
 console.log('7b. several decks + the look: the march (static)');
 {
   const cj = src('viewer/clouds.js');

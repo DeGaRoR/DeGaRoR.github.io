@@ -32,12 +32,8 @@
 // with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
 // (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
 const CAREER_V = 2;
-// the career's first day: 15 JULY, 16:00 AKDT, as UT (WEATHER-DAYS, the user's call of 3 Nov via A0: a new moon on the
-// 14th, so the career's first fortnight runs from the darkest, starriest nights to a full moon on the 29th; 16.8 h of
-// day, a dark core of 2.3 h past -12 deg, the aurora near full strength - futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
-// §9.2). The hour is the game's own (viewer/day_clock.js GAME_DAY, 16:00 local, the sun side-lighting the island); the
-// DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
-const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub

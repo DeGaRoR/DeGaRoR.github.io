@@ -57,12 +57,6 @@ var DAY = (function () {
   // no fields moves nothing and `storm: null` is exactly today's day.
   const STORM_D = Object.freeze({ pre: 5400, dur: 2700, post: 7200, windK: 2.2, gustK: 2.5,
                                   veerDeg: 55, dTemp: -6, dQnh: -900, cover: 0.95, type: 'cb' });
-  const STORM_DT_RAMP = 600;                         // s: a front's temperature drop, centred on its `at` (F3)
-  // THE WIND MIXES THE MIST AWAY (WEATHER-FIXES F5): radiation fog lies only in near-calm air - full under MIST_CALM_KT[0]
-  // of surface wind, gone by MIST_CALM_KT[1] (it lifts into a stratus deck: the deck is the cloud's business, not this
-  // layer's). Read on the DECLARED 10 m wind times a front's windK - the day's own number, not a local sample.
-  const MIST_CALM_KT = [3, 10];
-  const KT_MS = 0.514444;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -137,18 +131,9 @@ var DAY = (function () {
                     windK: 1 + (( st.windK != null ? +st.windK : STORM_D.windK) - 1) * I * I0,
                     gustK: 1 + (( st.gustK != null ? +st.gustK : STORM_D.gustK) - 1) * I * I0,
                     // the wind VEERS through the passage, not through the approach
-                    // ...and BACKS OFF WITH THE FRONT as it clears (WEATHER-FIXES F2, 2026-11-03): the veer held its
-                    // full value through `post` and the climate dropped it the tick I reached 0 (09_climate stormOf is
-                    // null at I = 0) - a 55 deg snap of the wind's direction at the end of every front. Times I from
-                    // the end of the passage, so it fades as the wind and the gusts do; the approach and the passage
-                    // are unchanged.
                     veer: (st.veerDeg != null ? +st.veerDeg : STORM_D.veerDeg) * I0
-                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)) * (t < at + dur ? 1 : I),
-                    // THE DROP IS A RAMP, NOT A STEP (WEATHER-FIXES F3): it was `t > at ? 1 : 0` - the whole dTemp (-6 K
-                    // by default) in one tick at the passage, sigma ~2 % and the cloud base hundreds of metres in a frame.
-                    // A cold front's drop takes minutes: STORM_DT_RAMP centred on `at`, so the front is half through its
-                    // drop at the declared instant and all of it five minutes later.
-                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * smf((t - at) / STORM_DT_RAMP + 0.5) * I,
+                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)),
+                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * (t > at ? 1 : 0) * I,
                     dQnh: (st.dQnh != null ? +st.dQnh : STORM_D.dQnh) * I0 * I,
                     cover: st.cover != null ? +st.cover : STORM_D.cover,
                     type: st.type || STORM_D.type,
@@ -226,15 +211,7 @@ var DAY = (function () {
       const cov = clamp(d.cloudCoverEff != null ? d.cloudCoverEff : 0, 0, 1);
       const burn = clamp((d.sunElLag - 5) / 20, 0, 1) * (1 - cov);
       d.mistBurn = burn;
-      // ...and THE WIND (F5): the storm day's gale drew 1.4 /km of ground fog before this - `mistCalm` is what the wind
-      // leaves of the layer (1 in still air and on every day that declares no wind, so those are bit-identical)
-      const w = s.wind || null;
-      const wKt = !w ? 0 : w.kts != null ? +w.kts : w.mps != null ? +w.mps / KT_MS
-                : Array.isArray(w.base) ? Math.hypot(+w.base[0] || 0, +w.base[2] || 0) / KT_MS : 0;
-      const wEff = (Number.isFinite(wKt) ? wKt : 0) * (d.storm ? d.storm.windK : 1);
-      const q = clamp((wEff - MIST_CALM_KT[0]) / (MIST_CALM_KT[1] - MIST_CALM_KT[0]), 0, 1);
-      d.mistCalm = 1 - q * q * (3 - 2 * q);
-      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn) * d.mistCalm;
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -349,7 +326,6 @@ var DAY = (function () {
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
                      'mistBurn',                                                       // F3c: how much of the layer the morning has taken
-                     'mistCalm',                                                       // WEATHER-FIXES F5: how much of it the wind leaves
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }

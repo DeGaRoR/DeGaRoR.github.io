@@ -615,26 +615,6 @@ console.log('11. the front');
   let worst = 0, prev = null;
   for (let t = -3600; t <= 22000; t += 60) { const r = read(t); if (prev) worst = Math.max(worst, Math.abs(r.spd - prev)); prev = r.spd; }
   yes(worst < 3, `and it arrives smoothly: never more than ${worst.toFixed(2)} m/s of change in a minute of the clock`);
-  // ...AND IN ITS DIRECTION AND ITS TEMPERATURE (WEATHER-FIXES F2 / F3, 2026-11-03). The check above read the speed
-  // only, and the front ended with a 55 deg snap of the direction (the veer held through `post`, dropped at I = 0) and
-  // dropped its 6 K in one tick at the passage. Walked a minute at a time through the whole front and out of it.
-  { let dWorst = 0, dAt = 0, tWorst = 0, tAt = 0, p = null;
-    for (let t = -3600; t <= 22000; t += 60) {
-      const r = read(t);
-      if (p) { let dd = Math.abs(r.dir - p.dir); dd = Math.min(dd, 360 - dd); if (dd > dWorst) { dWorst = dd; dAt = t; }
-               const dT = Math.abs(r.oat - p.oat); if (dT > tWorst) { tWorst = dT; tAt = t; } }
-      p = r;
-    }
-    yes(dWorst < 6, `the wind's direction never moves more than ${dWorst.toFixed(1)} deg in a minute (the worst at ${(dAt / 60).toFixed(0)} min) - no snap as it clears`);
-    yes(tWorst < 1.0, `the temperature never moves more than ${tWorst.toFixed(2)} K in a minute (at ${(tAt / 60).toFixed(0)} min) - a ramp at the passage, not a step`);
-    const half = read(AT - 18 * 3600);
-    yes(Math.abs((calm.oat - half.oat) - 3) < 0.6, `and the front is half through its drop at its declared instant (${(calm.oat - half.oat).toFixed(2)} K of 6)`);
-    // (F1) the drawn deck at the passage is the front's: its overcast and its cumulonimbus
-    read(3900); const Lpass = CLOUD_FIELD.layers(W4.day);
-    yes(Lpass[0].type === 'cb' && Lpass[0].cover >= 0.9, `the clouds the renderer draws at the passage are the front's (${Lpass[0].cover.toFixed(2)} ${Lpass[0].type})`);
-    read(20000); const Lgone = CLOUD_FIELD.layers(W4.day);
-    yes(Lgone[0].cover === W4.day.cloudCover && Lgone[0].type === W4.day.cloudType, 'and the declared sky once it has cleared');
-  }
   // the SWING, which is the day's own and not a front's
   const W5 = makeWorld();
   W5.setDay({ date: '2026-06-21', oatC: 15, diurnalC: 12, dewC: 5 });
