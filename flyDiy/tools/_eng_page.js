@@ -241,6 +241,11 @@ const PRESETS = {
     liquid: 1, geared: 1, blower: 2, boost: 2.22, critAlt: 1765,
     bore: 0.1372, stroke: 0.1524, rpm: 3000, exStyle: 4, exPair: 1, exDrop: 1.2,
     mountGap: 6.9 },    // the bay behind the banks (blower, header tank): the firewall 2.35 m aft of the prop
+  // FLAGSHIP (2 Nov, the user: "add the 916 iS engine row"): the 915's block (84 x 61 mm, 5 800 rpm, flyrotax.com) at
+  // 117 kW for the 915's 105; Rotax publishes no boost figure, so the bench's is the 915's 1.35 x 117/105
+  'rotax 916 iS': { bore: 0.084, stroke: 0.061, rpm: 5800, liquid: 1,
+    geared: 1, injected: 1, airStyle: 1, blower: 1, boost: 1.50,
+    critAlt: 4600 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -428,7 +433,7 @@ const CUSTOM_ENGINE = 'custom engine';
 // THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
 // engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
 // Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
-const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66'];
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS'];
 function presetNames() {
   const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
   return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],

@@ -565,6 +565,7 @@ const MANIFEST = {
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
               'pavement.js',
+              'ground_tier.js',   // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane - render_world.js drives it
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
@@ -645,6 +646,9 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
+              // G2803 (AVIONICS-GPS phase 2): the GPS unit's screen - window.FLYDIY_GPS at eval; app.js binds it with
+              // the cockpit and ticks it after CK.frame (it paints at 4 Hz); after cockpit.js, before app.js
+              'gps_face.js',
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
@@ -680,6 +684,7 @@ const MANIFEST = {
               'wreck_debris.js',
               // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
               'dmg_glass.js',
+              'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -719,6 +724,9 @@ const MANIFEST = {
     // Instruments part's column and the join's `systems` seam; its geometry
     // comes in session 3. Reads the crew's anchors, so after the crew.
     '_panel_gen.js', '_cage_panel.js',
+    // THE FURNISHING (G2806, AVIONICS-GPS phase 2): the seats' kind and the trim as billed rows - a column and the
+    // join's `outfit` seam, no geometry of its own (the seats it names are the crew's)
+    '_cage_furnish.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.

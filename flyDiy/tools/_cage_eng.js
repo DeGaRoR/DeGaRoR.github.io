@@ -41,6 +41,9 @@ if (!EM || !EP || !CW || !EP.GROUPS) {
   console.error('cage engine layer: _eng_mesh/_eng_page/_cowl_gen not loaded');
   return;
 }
+// CABIN-CRAFT, the FIREWALL RULE (_cage_cowl.js engineFaces): a cowled pusher - or a push-pull, whose aft unit is
+// one - stands on the pod's face whatever the block rows say
+const cowledPusherRow = P => (P.cowlOn == null || +P.cowlOn) && [1, 4].includes(Math.round(+P.engMount || 0));
 
 // ---- the parameter surface ------------------------------------------------
 // bench keys that do NOT become rows here: the per-element polycounts
@@ -466,7 +469,25 @@ const DEAD_SPIN = new Set(['shaftR', 'shaftLen']);
 // that cannot change the aeroplane is not a row.
 const ROW_WHEN = {
   inlineAim: P => archOf(P) === 'inline' || archOf(P) === 'vee',
+  // G2802 (AVIONICS-GPS phase 2, E4): THE BAY'S ELECTRICS ARE THE FIT'S. With the Instruments layer present the
+  // battery box, the generator and the starter are drawn from its electrics (bayElec below), so these three rows
+  // would be switches that do nothing: they stand only where there is no fit to follow (a page without the panel)
+  battOn: P => !bayElec(),
+  genOn: P => !bayElec(),
+  starter: P => !bayElec(),
 };
+// what the fit puts in the bay - battery / generator / starter, from the Instruments column's resolved electrics
+// (genSystemsResolve's own parts: GEN_ELEC_PARTS), or null with no panel layer (the rows then stand as they were)
+function bayElec() {
+  const CP = window.CAGE_PANEL;
+  if (!CP || typeof CP.resolve !== 'function') return null;
+  let R = null;
+  try { R = CP.resolve(); } catch (e) { return null; }
+  if (!R || !R.elec) return null;
+  const part = k => (R.parts || []).find(q => q.key === k) || null;
+  return { battOn: R.elec.battery !== 'none' ? 1 : 0, genOn: R.elec.alternator !== 'none' ? 1 : 0,
+           starter: R.elec.starter === 'yes' ? 1 : 0, batt: part('battery'), gen: part('alternator') };
+}
 // bench groups -> cage subgroups, every row, same labels + ranges
 const engRow = r => {
   const [k, label, m3, a, b, ] = r;
@@ -555,10 +576,12 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   // ...on the pusher too (G461, the Chinook: its engine sits over the wing's
   // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
+  // (CABIN-CRAFT, the FIREWALL RULE - _cage_cowl.js: a cowled pusher, or a push-pull's aft unit, stands on the pod's
+  // face; fore / aft it is the stand (eng_mountGap) and the cowl length, so the block rows go where they move nothing)
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
@@ -917,6 +940,13 @@ function engPlace(ctx, prev) {
   // (G31 — the mount spread, backing pads and service entries land on the
   // real firewall)
   const spec = engSpecOfP(P);
+  // G2802: the bay's battery, generator and starter are the fit's (bayElec): drawn when billed, at the catalogue
+  // part's own size - a ride-through key the mesh reads, never the resolve (an install row: GATE ENGID §11)
+  const BE = bayElec();
+  if (BE) {
+    spec.battOn = BE.battOn; spec.genOn = BE.genOn; spec.starter = BE.starter;
+    if (BE.batt && BE.batt.dims) spec.battDims = BE.batt.dims.slice();
+  }
   spec.quality = Math.max(0.3, P.engDetail || 0.8);
   spec.screws = P.eng_screws ? 1 : 0;
   // the genuine firewall is the cage's — off the body (a pylon, a nacelle)

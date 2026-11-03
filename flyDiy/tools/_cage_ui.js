@@ -75,7 +75,7 @@ const P = JSON.parse(JSON.stringify(DEFAULTS));
 
 const BASE_GROUPS = [
   ['layout', [
-    ['paxCount',  'pax bays',      0, 4, 1],
+    ['paxCount',  'pax bays',      0, 12, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
     ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],
@@ -2777,7 +2777,8 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     // reads differently (the engine row reads by power).
     let order = names.map((n, i) => i);
     if (typeof opts.optOrder === 'function') {
-      try { const o = opts.optOrder(); if (Array.isArray(o) && o.length === names.length) order = o; }
+      // (G3575: a SUBSET shows only those - the third wheel's steering row hides 'fixed'; every index still means its name)
+      try { const o = opts.optOrder(); if (Array.isArray(o) && o.length >= 1 && o.length <= names.length && o.every(i => Number.isInteger(i) && i >= 0 && i < names.length)) order = o; }
       catch (e) {}
     }
     sel.innerHTML = order.map(i =>
@@ -3034,6 +3035,10 @@ function applySpec(spec, what, steps) {
   if (window.CAGE_PANEL && window.CAGE_PANEL.fromSpec)
     try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }
     catch (e) { console.error('instruments from spec:', e); }
+  // ...AND ITS FURNISHING (G2806): the seats' kind and the trim the build chose
+  if (window.CAGE_FURNISH && window.CAGE_FURNISH.fromSpec)
+    try { window.CAGE_FURNISH.fromSpec(spec && spec.outfit); }
+    catch (e) { console.error('furnishing from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
   syncSliders();
   if (steps) return (function* () { yield* buildSteps(); if (what && $('stat')) $('stat').textContent = what; })();

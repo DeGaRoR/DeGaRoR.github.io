@@ -458,6 +458,10 @@ window.CAGE_PAGE = {
       // T2.3 (84): the bottom's own ease (-1 = the deck's)
       ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
+      // G3579 (DC3-2, the user 28 Oct): THE NOSE'S ROUNDNESS, one dial from a cone (0, the loft as it always was) to a
+      // soft dome (1: the rings on a quarter-ellipse, spaced along the arc); with the tip collapsed and 'tip sharpness' 0
+      // the tip has no point and no crease. Absent 0: every build before, ring for ring
+      ['noseDome',  'nose roundness (cone → dome)', 0, 1, 0.01, { when: P => +P.noseFinish, absent: 0 }],
     ]],
     ['4 · cabin', [
       ['dimensions', [
@@ -474,7 +478,10 @@ window.CAGE_PAGE = {
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
-        ['bubble',    'bubble glass',   0, 1, 1,
+        // G3579 (DC3-2, the user 28 Oct: "the not so well-named 'bubble canopy' ... rename that option ... into 'glass
+        // ceiling'"): the label only - the key stays `bubble` (it rides every saved build), and the canopy's own
+        // 'bubble' (canopy 3) is the one that builds a bubble canopy
+        ['bubble',    'glass ceiling',  0, 1, 1,
          { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
@@ -958,7 +965,8 @@ window.CAGE_PAGE = {
       ], {}],
     ]],
     ['5 · passengers', [
-      ['paxCount',  'pax bays',        0, 4, 1],
+      // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)
+      ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
@@ -1002,6 +1010,22 @@ window.CAGE_PAGE = {
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
       ['paxOcc4',   'bay 4 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
+      ['paxOcc5',   'bay 5 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 5, absent: 0 }],
+      ['paxOcc6',   'bay 6 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 6, absent: 0 }],
+      ['paxOcc7',   'bay 7 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 7, absent: 0 }],
+      ['paxOcc8',   'bay 8 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 8, absent: 0 }],
+      ['paxOcc9',   'bay 9 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 9, absent: 0 }],
+      ['paxOcc10',  'bay 10 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 10, absent: 0 }],
+      ['paxOcc11',  'bay 11 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 11, absent: 0 }],
+      ['paxOcc12',  'bay 12 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 12, absent: 0 }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The

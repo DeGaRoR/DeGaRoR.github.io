@@ -1,0 +1,191 @@
+[
+ {
+  "case": "home",
+  "lim": "phys",
+  "phases": [
+   "TAXI@0",
+   "STOP@326",
+   "HOLD@328",
+   "LINEUP@330",
+   "STOP@335",
+   "HOLD@337",
+   "LINEUP@339",
+   "STOP@343",
+   "HOLD@344",
+   "ROLL@346",
+   "LIFTOFF@364",
+   "CLIMB@374",
+   "CROSSWIND@385",
+   "DOWNWIND@409",
+   "BASE@480",
+   "FINAL@518",
+   "FLARE@614",
+   "ROLLOUT@619",
+   "GOAROUND@620",
+   "CROSSWIND@650",
+   "DOWNWIND@677",
+   "BASE@745",
+   "FINAL@783",
+   "FLARE@879",
+   "ROLLOUT@884",
+   "GOAROUND@885",
+   "CROSSWIND@916",
+   "DOWNWIND@942",
+   "BASE@1011",
+   "FINAL@1049",
+   "FLARE@1145",
+   "ROLLOUT@1150",
+   "STOPPED@1196"
+  ],
+  "touchdowns": [
+   {
+    "t": 618.5,
+    "sink": 2.2,
+    "V": 35.5
+   },
+   {
+    "t": 883.85,
+    "sink": 2.39,
+    "V": 35.31
+   },
+   {
+    "t": 1149.83,
+    "sink": 2.28,
+    "V": 35.42
+   },
+   {
+    "t": 1153.48,
+    "sink": 3.71,
+    "V": 32.7
+   },
+   {
+    "t": 1155.7,
+    "sink": 2.19,
+    "V": 31.42
+   }
+  ],
+  "contacts": [],
+  "clear": {
+   "out": {
+    "t": 80.52,
+    "d": 9.7,
+    "node": "WR",
+    "what": "billboard reg232",
+    "at": [
+     171.46,
+     689.71
+    ]
+   },
+   "back": {
+    "t": 1426.18,
+    "d": 6.12,
+    "node": "WR",
+    "what": "aircraft reg43",
+    "at": [
+     -138.16,
+     659.27
+    ]
+   }
+  },
+  "stand": {
+   "x": -113.2,
+   "z": 671.9
+  },
+  "goArounds": [
+   "bounced 1.0 m off the touch at 32.5 m/s",
+   "bounced 1.0 m off the touch at 32.4 m/s"
+  ],
+  "stopped": true,
+  "taxiBack": {
+   "route": "out[0]",
+   "joinAt": 3.34,
+   "turn": {
+    "kind": "pivot"
+   },
+   "parked": true,
+   "s": 236.75,
+   "metres": 790,
+   "endFromStand": 2.47
+  },
+  "pivots": [
+   "67.6 s: a 49 deg corner tighter than the wheels steer (26.0 m) - turning on the spot (the tailwheel swivels)"
+  ],
+  "trunkHits": 0,
+  "dmg": {
+   "crashed": false,
+   "reason": null,
+   "at": null,
+   "yields": 0,
+   "breaks": 0,
+   "primary": 0,
+   "firstYield": null,
+   "firstBreak": null,
+   "firstPrimary": null,
+   "brokeUp": null,
+   "gPeak": 3.47,
+   "groups": []
+  },
+  "worst": [
+   {
+    "r": 0.68,
+    "broken": false,
+    "bi": 304,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WF",
+    "L": 2.72
+   },
+   {
+    "r": 0.65,
+    "broken": false,
+    "bi": 216,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WF",
+    "L": 2.72
+   },
+   {
+    "r": 0.63,
+    "broken": false,
+    "bi": 515,
+    "cls": "wire",
+    "grp": 4,
+    "a": "HTR",
+    "b": "TPT",
+    "L": 4.19
+   },
+   {
+    "r": 0.57,
+    "broken": false,
+    "bi": 347,
+    "cls": "fus",
+    "grp": -1,
+    "a": "ENGL",
+    "b": "MNTL",
+    "L": 2.4
+   },
+   {
+    "r": 0.57,
+    "broken": false,
+    "bi": 365,
+    "cls": "fus",
+    "grp": -1,
+    "a": "ENGR",
+    "b": "MNTR",
+    "L": 2.4
+   },
+   {
+    "r": 0.4,
+    "broken": false,
+    "bi": 520,
+    "cls": "tail",
+    "grp": -1,
+    "a": "HR",
+    "b": "HR",
+    "L": 0.24
+   }
+  ]
+ }
+]

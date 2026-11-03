@@ -391,7 +391,8 @@ function cowlSite(row, P) {
   if (n[0] * c[0] + n[1] * (c[1] - cy) < 0) n = [-n[0], -n[1], -n[2]];
   // the group's own offset: the cowl's origin is its firewall, and the layer
   // moves it onto the nose aperture (_cage_cowl.js:488)
-  const off = [0, CC.face.yc, CC.face.z + (P.cowlGap || 0)];
+  // (FIREWALL RULE, _cage_cowl.js: the stand-off applies off the body only)
+  const off = [0, CC.face.yc, CC.face.z + (CC.face.synthetic ? (P.cowlGap || 0) : 0)];
   return { p: [c[0] + off[0], c[1] + off[1], c[2] + off[2]], n,
            sL: 0, sC: 0, st: 0, lv: 0, mat: 'cowl',
            side: c[0] < 0 ? 'port' : 'star' };
@@ -594,6 +595,9 @@ PAGE.post = ctx => {
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                    xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
         : undefined,
+      // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
+      items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,
+      vac: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).vac : undefined,
       material: GS.fuselage && GS.fuselage.material,
       cargo: GS.cargo && GS.cargo.len,
     };

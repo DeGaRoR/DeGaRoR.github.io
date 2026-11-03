@@ -249,7 +249,28 @@ function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
   // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made)
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0];
+  // G2001 (DMG-SCUFF): the slide work, a FOURTH signature of its own in coarse steps (each ~19 % more work, from 1 J) -
+  // never in the sets' (sS: the sets' timing, and DMG-WALL's wall key, stay the base's); '0' with nothing slid. (The
+  // third is DMG-SCAR's G2357 version: the scuff took it on its own branch, 6 Oct, before the scar came)
+  const q = D.scW >= 1 ? Math.floor(4 * Math.log2(D.scW)) + 1 : 0;
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0, String(q)];
+}
+// G2001 (DMG-SCUFF): WHAT THE SKIN'S DAMAGE RECORDS READ, beside the sets - each member's plastic work (D0's DMG.wB, J)
+// and each node's slide work with its direction, the side it was pushed from (both in the body frame) and its share on
+// soft ground (30_solver.js scuffAdd) - the slide records under `sl` (`sc` is DMG-SCAR's primitives). Sparse, rounded; absent (no key) when there is none, so a payload of the base's
+// kind is the base's bytes
+function simDmgScuff(sim, out) {
+  const D = sim.damage(), wb = [], sl = [];
+  if (D.wB) for (let bi = 0; bi < D.wB.length; bi++) if (D.wB[bi] >= 0.05) wb.push(bi, Math.round(D.wB[bi] * 10) / 10);
+  if (D.sW) for (let i = 0; i < D.sW.length; i++) {
+    const w = D.sW[i];
+    if (!(w >= 0.05)) continue;
+    const r = x => Math.round(x / w * 1000) / 1000;
+    sl.push(i, Math.round(w * 10) / 10, r(D.sD[i*3]), r(D.sD[i*3+1]), r(D.sD[i*3+2]), r(D.sN[i*3]), r(D.sN[i*3+1]), r(D.sN[i*3+2]), r(D.sG[i]));
+  }
+  if (wb.length) out.wb = wb;
+  if (sl.length) out.sl = sl;
+  return out;
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -290,7 +311,7 @@ function simDmgBends(sim) {
   sim.beams.forEach((b, bi) => { if (b.dOn && b.dk > SIM_DMG_BEND_MIN) bd.push(bi, q(b.kt1), q(b.dk), q(b.dNx), q(b.dNz)); });
   return bd;
 }
-// hop: { sB, sS, sC, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
+// hop: { sB, sS, sC, t, sF, tF } - what the page holds (sF / tF: G2001 the scuff's signature and clock); `win` the set window (s; 0 inline). Returns a payload, or null
 function simDmgHop(sim, hop, coreNode, win) {
   const sg = simDmgSigs(sim);
   if (!sg) return null;
@@ -300,16 +321,21 @@ function simDmgHop(sim, hop, coreNode, win) {
     hop.sC = sg[2];
     out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
   }
+  const W = win == null ? SIM_DMG_SET_S : win;
   if (sg[0] !== hop.sB) {
-    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
+    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t; hop.sF = sg[3]; hop.tF = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
-    out = Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
+    out = simDmgScuff(sim, Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) }));   // G2001: + wb / sl
     if (D.how) { out.hw = D.broken.map(bi => D.how[bi]); out.bd = simDmgBends(sim); }   // G3770
     if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
-  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
-    hop.sS = sg[1]; hop.t = sim.t;
-    out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
+  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < W)) {
+    hop.sS = sg[1]; hop.t = sim.t; hop.sF = sg[3]; hop.tF = sim.t;
+    out = simDmgScuff(sim, Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) }));   // G2001: + wb / sl
     if (sim.damage().how) out.bd = simDmgBends(sim);   // G3770: a trunk's dent moves the bends, not the broken list
+  } else if (sg[3] !== (hop.sF || '0') && !(sim.t - (hop.tF == null ? -Infinity : hop.tF) < W)) {
+    // G2001 (DMG-SCUFF): the slide moved on, nothing else - its records only (wb, sl), on a clock of its own
+    hop.sF = sg[3]; hop.tF = sim.t;
+    out = simDmgScuff(sim, Object.assign(out || {}, { sF: sg[3] }));
   } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
@@ -1065,4 +1091,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
-                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S, simOccHop };
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, simDmgScuff, SIM_DMG_SET_S, simOccHop };
