@@ -11,6 +11,7 @@
 // user's door, no GARAGE_SPEC.set, no localStorage seeding), and one PNG per named view with the UI hidden.
 //
 //   node flyDiy/tools/plane_shot.js --build <file.json>[,<file2.json>...] --out <dir>
+//                                 (G3800: an entry stock:<name> is the garage's own stock design, e.g. 'stock:piper cub')
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
@@ -383,7 +384,17 @@ async function shoot(o) {
     const fileNode = (await C.cmd('DOM.querySelector', { nodeId: doc.result.root.nodeId, selector: '#gFile' })).result.nodeId;
     if (!fileNode) throw Object.assign(new Error('no #gFile on the page (the fleet\'s Import)'), { code: EXIT.run });
 
-    for (const file of o.builds) {
+    // G3800: 'stock:*' - every stock design the garage offers (GARAGE_SPEC.stock())
+    if (o.builds.includes('stock:*')) { const names = await J('(GARAGE_SPEC.stock() || [])'); o.builds = o.builds.flatMap(b => b === 'stock:*' ? names.map(n => 'stock:' + n) : [b]); log('stock designs', JSON.stringify(names)); }
+    for (let file of o.builds) {
+      // G3800 (thumb_bake.js): 'stock:<name>' is the garage's own stock design - its spec written to a build file in --out
+      // and brought in through the same door as any file
+      if (/^stock:/.test(file)) {
+        const nm = file.slice(6), sp = await J('(GARAGE_SPEC.stockSpec(' + JSON.stringify(nm) + ') || null)');
+        if (!sp || !sp.cage) { log('no stock design', JSON.stringify(nm)); continue; }
+        file = path.join(o.out, 'stock_' + nm.replace(/[^\w.-]+/g, '-') + '.json');
+        fs.writeFileSync(file, JSON.stringify({ what: 'flydiy-build', stock: nm, spec: sp }));
+      }
       const tb = Date.now(), base = path.basename(file).replace(/\.json$/i, '');
       // (NEW-PLANE: a fresh profile's first launch opens the new-aeroplane chooser a moment after the boot, and the chooser
       // holds the frames behind it - closed before every build, as the player's cancel would)
@@ -649,6 +660,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
   // the arguments, before anything is launched (--dry stops here)
   if (!builds.length) bail(EXIT.run, '--build <file.json>[,<file2.json>]: which aeroplane(s)');
   for (const b of builds) {
+    if (/^stock:./.test(b)) continue;   // G3800: a stock design, read from the page
     if (!fs.existsSync(b)) bail(EXIT.build, 'no such build file: ' + b);
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
     // the garage's own rule (garage.js unwrap: a spec with a cage), not the export's label - the pool's NEW-SHAPES files

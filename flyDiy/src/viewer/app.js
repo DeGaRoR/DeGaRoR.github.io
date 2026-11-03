@@ -9036,14 +9036,15 @@
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { aero, x: p.x, z: p.z, hdg: -p.ry, spot: p.spot } : null;
     } catch (e) { return null; }
   }
-  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
-  // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
+  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; the side
+  // profile when one is drawn (G3800 PLANE_THUMB; else PARKED.fleetThumb, none yet - else the card draws its glyph)
   function storeCard(name) {
     let spec = null;
     try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
     const c = typeof playerCardOf === 'function' ? playerCardOf(name, spec) : { name, gear: 'wheels', seats: 0 };
     let thumb = null;
-    try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
+    try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}
+    try { if (!thumb && window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
     return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
   }
   // G3587 (the playtest 24 Oct, item 10: "the storage interface ... says the Cub is on the stand while the ultralight

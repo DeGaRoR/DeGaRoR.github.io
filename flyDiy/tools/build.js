@@ -611,8 +611,11 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'garage.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'garage.js', 'plane_thumb.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
+    // plane_thumb.js (G3800, the user's VIGNETTE) after garage.js: window.PLANE_THUMB, the plane cards' side profile -
+    // drawn by the page's renderer once a saved build stands still (garage.js saveAs / loadSlot), the stock / candidate
+    // pictures baked into media/thumbs/ (tools/thumb_bake.js); storage_ui.js and app.js's storeCard ask it lazily.
     // ap_why.js (G3560 AP-HONEST) before app.js: the autopilot's reasons in a player's words (window.AP_WHY, pure) - app.js
     // shows them as the pilot says them (#apWhy) and on the arrival card
               'ap_why.js',
