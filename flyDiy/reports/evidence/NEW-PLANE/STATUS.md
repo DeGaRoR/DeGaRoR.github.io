@@ -20,6 +20,22 @@ editor on STRUCTURE with every slider. The prop's blade count is no longer a cho
 - **The browser run:** the chooser opens on a first launch, 0 composes / 0 loads / 0 editor builds while choosing, one
   bake at Generate, then the editor on STRUCTURE with 831 sliders; no page error.
 
+## 0b. The files
+
+- NEW `src/viewer/new_plane.js` — the full-screen chooser (renders, declares nothing); `editor.css` / `phone.css` its look.
+- NEW `tools/_new_plane.js` — the generator's declaration: the steps, the static rule table (`why`), the defaults, the
+  compose over `_cage_design.js`, the cowl preset per engine type, the stance and balance fit.
+- NEW `tools/_newplane_lib.js` — one generated aeroplane judged (bake, join, fit, shakedown, design check, stance, hop) +
+  the `standing()` kinds. NEW `tools/_newplane_check.js` — GATE NEWPLANE (+ `--builds`, `--selftest`), in `run_gates.js`.
+- NEW `tools/newplane_validate.js` — the one-time validation (NOT in the battery). NEW `tools/fixtures/newplane/`.
+- `tools/_cage_design.js` — WING_ARCH + the `wingArch` starter row (beside `finArch`), `iconPlan`, a few API exports.
+- `tools/_cage_cowl.js` — `CAGE_COWL_BIRTH_PRESET` (a preset that survives the birth load).
+- `src/viewer/design_flow.js` — NEW opens the chooser (the old overlay stays as the fallback; its Custom build is no
+  longer reachable from NEW). `src/viewer/app.js` — the render hold (`FLYDIY_UI_HOLD` + `NEW_PLANE.isOpen()`).
+- `tools/build.js` (MANIFEST), `tools/_cards_check.js` (the allow-list), `tools/plane_shot.js` (`idle=0`, closes the
+  chooser).
+- Saved builds are untouched: nothing in the load path changed (GATE SAVE, JOIN pass).
+
 ## 1. Today's flow (master `0fcf54ef`), and why it traps
 
 - **Doors:** the garage ribbon's NEW (`garage.js` → `DESIGN_FLOW.openBirth`), and a first launch with no build ever
@@ -226,6 +242,10 @@ REAL kinds:
   hop: hop: NaN at # s (ROLL)                       1  pair:51
 ```
 
+Note: the builds that passed in pass 1 were not re-run after the catalogue rule tightened (2.5x): a few of them (the
+extremes' "vee elliptic", some pairwise V engines on light classes) used a choice the chooser now greys — they stand as
+evidence that the combination built, not as offered options.
+
 **What validation A found and fixed** (each saved as a fixture in `tools/fixtures/newplane/` or a rule unit):
 
 | found | fix |
@@ -356,7 +376,27 @@ the 3/4 view); the pictures themselves are whole aeroplanes.
 
 ## 7. Gates
 
-__GATES__
+Node, cloud, this branch (`--no-build` over the branch's own build), all named gates:
+
+| gate | result |
+|---|---|
+| STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER | **PASS** (all nine) |
+| NEWPLANE (new, core) | **PASS** — 45 checks, 51 s |
+| NEWPLANE-BUILDS (new, full) | **PASS** — 11 checks, 230 s |
+| ARCHETYPES (full, 4 shards) | FAIL (1) — **standing**: "Chinook-alike: the circuit completes — rejected-takeoff", the identical line on master `0fcf54ef` (`--only=chinook` run on both trees). The other 30 live cards pass; the card is a stock design this branch does not touch |
+
+**The browser runs** (Playwright, SwiftShader, `index.html`, a fresh profile):
+
+- **phone** (360 x 780): the chooser opens by itself on the first launch; **0 renderer frames in 3 s while it is up**
+  (54 in 4 s after the hand-over); 0 composes / 0 loads / 0 editor builds over 14 steps; Generate: 1 bake + the birth
+  load + 3 fit loads (~42 s on SwiftShader, behind the spinner), then STRUCTURE with 831 sliders; 0 page errors.
+- **desktop** (1400 x 900): the same flow, the same counts, 0 page errors. The renderer counter read 82 in the 3 s just
+  after the boot with the chooser up — more than the shed loop ever draws here (11 in 4 s after the hand-over), i.e.
+  the world's background bakes finishing after the boot screen lifted; the phone run (no world) is the clean count.
+- One fix the runs found: a first launch can open the chooser before app.js has published its hold, and the shed drew
+  behind it (36 frames) — the loop now asks the chooser itself (`NEW_PLANE.isOpen()`).
+
+Not run here: the rest of the battery (`run_gates.js --all`), left to the train.
 
 ## 8. "Anything else critical?" — proposals
 
@@ -381,7 +421,7 @@ __GATES__
    for saved builds), or redraw the presets' tips blunter (only new births change). Which?
 2. **One build, or one build plus the stance fit?** Generate loads the aeroplane once; when the drawn legs or the
    wing's station miss the rules, it loads again with the corrected rows (1-3 extra loads, behind the same spinner; the
-   browser run measured the whole Generate at ~10 s on SwiftShader). The alternative - no fit - leaves trikes sitting
+   browser run measured the whole Generate at ~42 s on SwiftShader with three fit passes; a phone GPU is several times faster). The alternative - no fit - leaves trikes sitting
    nose-high/down and taildraggers the pilot will not take off in. Is the extra load acceptable?
 3. **Big cabins at their loading corners.** With 3-4 bays the full-cabin corner's CG runs behind the neutral point
    whatever the wing station (the Caravan, DA62, twin bush hauler and Beaver cards on master too: the design check's
