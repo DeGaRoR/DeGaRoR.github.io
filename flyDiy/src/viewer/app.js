@@ -12170,15 +12170,17 @@
   }
   // G3906b: line segments (V, C: 6 floats a segment) as square prisms t across, their ends run on by t/2 so a cross joins
   function prismGeo(V, C, t) {
-    const P = [], Q = [], h = t / 2, a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(),
-          u = new THREE.Vector3(), v = new THREE.Vector3();
+    // plain arrays, no Vector3 maths (the UI smoke's THREE is a stub: G3906b's first cut threw there)
+    const P = [], Q = [], h = t / 2;
+    const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    const unit = (p, k) => { const n = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0] / n * k, p[1] / n * k, p[2] / n * k]; };
     for (let s = 0; s + 5 < V.length; s += 6) {
-      a.set(V[s], V[s + 1], V[s + 2]); b.set(V[s + 3], V[s + 4], V[s + 5]);
-      d.subVectors(b, a); const L = d.length(); if (!(L > 0)) continue; d.divideScalar(L);
-      if (Math.abs(d.y) < 0.9) u.set(0, 1, 0); else u.set(1, 0, 0);
-      u.cross(d).normalize().multiplyScalar(h); v.crossVectors(d, u).normalize().multiplyScalar(h);
-      a.addScaledVector(d, -h); b.addScaledVector(d, h);
-      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u.x * i + v.x * j, o.y + u.y * i + v.y * j, o.z + u.z * i + v.z * j]);
+      let d = [V[s + 3] - V[s], V[s + 4] - V[s + 1], V[s + 5] - V[s + 2]];
+      const L = Math.hypot(d[0], d[1], d[2]); if (!(L > 0)) continue; d = [d[0] / L, d[1] / L, d[2] / L];
+      const u = unit(cross(Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], d), h), v = unit(cross(d, u), h);
+      const a = { x: V[s] - d[0] * h, y: V[s + 1] - d[1] * h, z: V[s + 2] - d[2] * h },
+            b = { x: V[s + 3] + d[0] * h, y: V[s + 4] + d[1] * h, z: V[s + 5] + d[2] * h };
+      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u[0] * i + v[0] * j, o.y + u[1] * i + v[1] * j, o.z + u[2] * i + v[2] * j]);
       const A = ring(a), B = ring(b), col = [C[s], C[s + 1], C[s + 2]];
       const tri = (p, q, r) => { P.push(...p, ...q, ...r); for (let k = 0; k < 3; k++) Q.push(...col); };
       for (let k = 0; k < 4; k++) { const k2 = (k + 1) & 3; tri(A[k], A[k2], B[k2]); tri(A[k], B[k2], B[k]); }
