@@ -61,6 +61,7 @@
 (function () {
 
 const D2R = Math.PI / 180;
+const CORE_SIN = Math.sin;
 
 // ---- small vectors ---------------------------------------------------------
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -185,6 +186,21 @@ function ringSide(P, s, o) {
   const onS = y => s.b + (y - s.yc) * tf;      // the side's z at y
   const yCs = s.yc + Math.min(2.2 * tC, 0.35 * (s.yd - s.yc)) * cf;
   push(yCs, onS(yCs), nS[0], nS[1]);
+  // FLOATS-CLASSIC: THE EDO DOME - the side runs to its support under the shoulder, then the quarter ellipse from the
+  // deck edge (vertical, the side's own tangent) to the crown on the centreline: the same point count as the gunwale
+  // round + margin + centre below (NG + 4), so a ring is a ring whatever the style and the loft stays one grid
+  if (P.crownK) {
+    const c = Math.max(0, s.yt - s.yd);
+    const yGs = Math.max(yCs + 1e-4, s.yd - Math.min(Math.max(0.25 * c, 0.004), 0.35 * (s.yd - s.yc)) * cf);
+    push(yGs, onS(yGs), nS[0], nS[1]);
+    const nD = NG + 3;
+    for (let i = 0; i < nD; i++) {
+      const a = (Math.PI / 2) * i / (nD - 1);
+      const ny = CORE_SIN(a) / Math.max(1e-6, c), nz = Math.cos(a) / Math.max(1e-6, s.bd), nl = Math.hypot(ny, nz) || 1;
+      push(s.yd + c * CORE_SIN(a), i === nD - 1 ? 0 : s.bd * Math.cos(a), ny / nl, nz / nl);
+    }
+    return pts;
+  }
   // the gunwale: between the side (normal nS) and the deck (normal up)
   const iD = [-1, 0];
   const bisG = [iS[0] + iD[0], iS[1] + iD[1]]; const gl = Math.hypot(bisG[0], bisG[1]) || 1; bisG[0] /= gl; bisG[1] /= gl;
@@ -218,7 +234,8 @@ function ringAt(P, HY, x, o, xEval) {
   // the bow tip is ONE point (the keel round would lift K a tenth of a
   // millimetre off the deck point and leave a 0.1 mm ring the weld cannot
   // close: two open edges on every hull)
-  const side = s.b < 1e-4 ? ringSide(P, s, o).map(() => [s.yd, 0, -1, 0]) : ringSide(P, s, o);
+  const yTip = s.yt != null ? s.yt : s.yd;   // (a dome's crown; a flat deck's yd)
+  const side = s.b < 1e-4 ? ringSide(P, s, o).map(() => [yTip, 0, -1, 0]) : ringSide(P, s, o);
   const R = [], N = [];
   for (const q of side) { R.push([x, q[0], q[1]]); N.push([0, q[2], q[3]]); }
   for (let i = side.length - 2; i >= 1; i--) { const q = side[i]; R.push([x, q[0], -q[1]]); N.push([0, q[2], -q[3]]); }
@@ -390,8 +407,10 @@ function buildBumper(P, HY, hull, o, sc) {
   const bag = Bag(true);
   const K = HY.keelOf(P);
   const Nrm = vertexNormals(hull.bag);
-  const t = 0.012 * sc;
-  const xEnd = -P.xs + 0.04 * sc;                  // the cap's depth along the nose: the stem and the start of the round
+  // FLOATS-CLASSIC: an EDO's bumper is a fat black rubber cap bolted through the bow bulkhead, reaching back over the
+  // nose round (o.bumperT / o.bumperL); a Wipline's is the thin cap it was
+  const t = (o.bumperT || 0.012) * sc;
+  const xEnd = -P.xs + (o.bumperL || 0.04) * sc;   // the cap's depth along the nose: the stem and the start of the round
   const use = hull.rings.map((r, i) => ({ r, i })).filter(q => q.r.x <= xEnd);
   if (use.length < 2) return bag;
   const rows = use.map(q => q.r.R.map((p, k) => {
@@ -554,6 +573,52 @@ function buildDeck(P, HY, o, sc) {
   return { deck, hard, rig, details };
 }
 
+// FLOATS-CLASSIC: THE EDO DECK. Bare alloy, no non-skid coating (the deck bag stays empty: the layer draws nothing for
+// it, so the board option takes its place in the draw count); simpler fittings than a Wipline's, from photographs of
+// EDO 2000s on Super Cubs and Cherokees and the owners' repair threads: a round hand-hole cover per bay on the crown, a
+// pump-out cup per bulkhead on the outboard shoulder, a horn cleat bow and stern, the spreader-bar saddles and the strut
+// fittings at the two rigging stations - every one sat on the DOME (HYDRO.deckYAt), not on a flat deck line.
+function buildDeckEdo(P, HY, o, sc) {
+  const deck = Bag(true), hard = Bag(false);
+  const xs = P.xs, LA = P.L - P.xs;
+  const K = HY.keelOf(P);
+  const sAt = x => HY.sectionOf(P, x === 0 ? -1e-9 : x);
+  const yOn = (x, z) => HY.deckYAt(P, sAt(x), z) + 0.0005;
+  const nBay = Math.max(6, Math.round(P.L / (0.62 * sc)));
+  const rN = HY.noseRof ? HY.noseRof(P) : K.rN;
+  const xBow = -xs + rN + 0.25 * sc, xSt = LA - o.rTransom - 0.10 * sc;
+  const details = { covers: [], cups: [] };
+  for (let i = 0; i < nBay; i++) {
+    const x = xBow + (xSt - xBow) * (i + 0.5) / nBay, s = sAt(x);
+    // the hand-hole cover: a round plate on the crown (where the dome is flattest), its ring of screws
+    const w = 0.15 * sc;
+    if (w > 1.2 * s.bd) continue;
+    plateOnDeck(hard, x, 0, yOn(x, 0.5 * w), w, w, 0.49 * w, 0.003 * sc);
+    for (let k = 0; k < 8; k++) { const a = 2 * Math.PI * (k + 0.5) / 8, rr = 0.5 * w - 0.014 * sc; screw(hard, x + rr * Math.cos(a), yOn(x, Math.abs(rr * Math.sin(a))) + 0.003 * sc, rr * Math.sin(a), 0.003 * sc); }
+    details.covers.push([x, w]);
+    // the pump-out cup at the bulkhead, outboard on the shoulder (the layer mirrors the port float)
+    const xb = xBow + (xSt - xBow) * i / nBay, sb = sAt(xb), zc = 0.62 * sb.bd;
+    if (zc > 0.05 * sc) { cyl(hard, [xb, yOn(xb, zc) - 0.002 * sc, zc], [0, 1, 0], 0.018 * sc, 0.006 * sc, 10); details.cups.push([xb, zc]); }
+  }
+  // the cleats, bow and stern, on the crown
+  const xc0 = -xs + rN + 0.16 * sc, xc1 = LA - o.rTransom - 0.22 * sc;
+  cleat(hard, xc0, yOn(xc0, 0), 0, 0.11 * sc, sc);
+  cleat(hard, xc1, yOn(xc1, 0), 0, 0.11 * sc, sc);
+  // THE RIGGING STATIONS: a saddle under each spreader bar's end and the strut fitting beside it, on the shoulder
+  const rig = { fwd: -P.flatK * xs, aft: o.xAft };
+  for (const x of [rig.fwd, rig.aft]) {
+    const s = sAt(x);
+    for (const sd of [-1, 1]) {
+      const z = s.bd - 0.06 * sc, y = yOn(x, z);
+      boxAt(hard, [x, y + 0.012 * sc, sd * z], [0.05 * sc, 0.018 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      const z2 = s.bd - 0.05 * sc, y2 = yOn(x + 0.12 * sc, z2);
+      boxAt(hard, [x + 0.12 * sc, y2 + 0.003 * sc, sd * z2], [0.045 * sc, 0.006 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      boxAt(hard, [x + 0.12 * sc, y2 + 0.022 * sc, sd * z2], [0.02 * sc, 0.02 * sc, 0.005 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+  }
+  return { deck, hard, rig, details };
+}
+
 // a plate from an outline in (x, y), between z0 - t/2 and z0 + t/2; the
 // outline may be given in either sense (it is made counter-clockwise)
 function plateXY(bag, outl, z0, t) {
@@ -656,13 +721,15 @@ function build(P, opts) {
     margin: 0.035 * sc,
     xAft: opts.xAft != null ? opts.xAft : 0.36 * sc,
     nF: opts.nF, nA: opts.nA,
+    // FLOATS-CLASSIC: the EDO's fat rubber bow cap (Wipline: the 12 mm cap 4 cm deep it always was)
+    bumperT: P.crownK ? 0.022 : 0.012, bumperL: P.crownK ? 0.13 : 0.04,
   };
   const hull = buildHull(P, HY, o);
   const out = { hull: hull.bag.out(), sc, rig: { fwd: -P.flatK * P.xs, aft: o.xAft }, stats: meshStats(hull.bag) };
   if (opts.detail !== 0) {
     out.protrusions = buildProtrusions(P, HY, o, sc).out();
     out.bumper = buildBumper(P, HY, hull, o, sc).out();
-    const dk = buildDeck(P, HY, o, sc);
+    const dk = P.crownK ? buildDeckEdo(P, HY, o, sc) : buildDeck(P, HY, o, sc);
     out.deck = dk.deck.out(); out.hard = dk.hard.out(); out.details = dk.details;
   }
   if (opts.rudder !== 0) {
@@ -710,7 +777,7 @@ const REF = {
   },
 };
 // a section's full area (keel to deck, both sides: secAreaTo returns the pair)
-function secArea(HY, P, s) { return HY.secAreaTo(P, s, s.yd + 1); }
+function secArea(HY, P, s) { return HY.secAreaTo(P, s, (s.yt != null ? s.yt : s.yd) + 1); }
 function measure(P, HY) {
   const LA = P.L - P.xs;
   const sF = HY.sectionOf(P, -1e-6), sA = HY.sectionOf(P, 1e-6), sT = HY.sectionOf(P, LA - 1e-6);

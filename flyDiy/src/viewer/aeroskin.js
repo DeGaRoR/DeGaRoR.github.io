@@ -157,6 +157,13 @@ const AERO_FINISH = {
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
                fld: 0.0025, fldL: 0.90, fldR: 0.4 },
+  // FLOATS-CLASSIC: OLD FLOAT ALLOY - an EDO that has seen forty summers: skins replaced one at a time (the
+  // `panels` bake: a few sheets a tile, each its own shade and sheen, a lapped seam between them), oxide-dulled (less
+  // metal, more rough than new bare alloy), a slow field of dents (fld). One sheet texture like every finish's
+  agedAlu:   { name: 'aged float alloy', base: 0xa9afb4, tile: 1.20,
+               rough: 0.46, metal: 0.62, nrm: 0.55, alb: 0.42,
+               hs: 0.9, bs: 1.5, bake: 'panels',
+               fld: 0.0030, fldL: 0.55, fldR: 0.55 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
                hs: 0.9, bs: 0.8, bake: 'sheet',
@@ -930,6 +937,13 @@ const AERO_SEC = {
   // or black); the painted margin at the gunwale is the float's
   floatDeck: { parent: 'float', fin: 'rubberGrip', label: 'the float decks (non-skid)',
               layer: 'gear', noDec: true, tintOwn: true },
+  // FLOATS-CLASSIC (2026-11-03): an EDO-style float is BARE, AGED ALLOY whatever the aeroplane wears (the user's red
+  // and white Cub sits on grey floats) - its own pinned finish and its own colour, paintable on its own row; and the
+  // deck board laid across the spreader bars, spruce
+  floatBare: { parent: 'float', fin: 'agedAlu', label: 'the floats (EDO bare alloy)',
+              layer: 'gear', tintOwn: true },
+  floatBoard: { parent: 'float', fin: 'spruce', label: 'the float deck board',
+              layer: 'gear', noDec: true, tintOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -1333,6 +1347,22 @@ function aeroHeight(kind, S, row) {
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
+      }
+      case 'panels': {
+        // FLOATS-CLASSIC: MISMATCHED SKINS. A tile holds 3 x 2 sheets (fore-aft x round), each a constant offset
+        // drawn from a fixed hash - the B channel carries it into the roughness and the albedo (bs, alb), so one
+        // sheet reads a shade duller or brighter than its neighbour, the way a re-skinned float does - a shallow lap
+        // groove along every seam (the normal turns there: the seam catches the light), and the mill grain and a
+        // few long scuffs over the lot. Periodic in S like every term here (the cells divide the tile).
+        const cu = Math.floor(x / (S / 3)), cv = Math.floor(y / (S / 2));
+        const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
+        const shade = (hsh(cu * 7 + cv * 13 + 1) - 0.5) * 0.9;
+        const fu = (x % (S / 3)) / (S / 3), fv = (y % (S / 2)) / (S / 2);
+        const dEdge = Math.min(fu, 1 - fu, fv * 1.5, (1 - fv) * 1.5);
+        const lap = -0.35 * Math.exp(-Math.pow(dEdge / 0.012, 2));
+        const scuff = 0.12 * Math.max(0, Math.sin(u * 3 + v * 1 + 0.7)) * Math.pow(Math.max(0, Math.sin(v * 41 + Math.sin(u * 7) * 2.0)), 24);
+        return shade + lap - scuff + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+             + 0.02 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
       case 'pleat': {
         // PLEATED UPHOLSTERY (the door panel, G3xx): `pleats` rounded rolls
