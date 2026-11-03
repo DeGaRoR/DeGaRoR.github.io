@@ -4617,7 +4617,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='6051f2c08e4b';window.FLYDIY_BUILD_DATE='2026-11-03T18:56:27.244Z';</script>
+<script>window.FLYDIY_BUILD='6b3078823014';window.FLYDIY_BUILD_DATE='2026-11-03T20:46:35.916Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -30409,8 +30409,9 @@ const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // is the hot path: halfBeamAt runs per wet vertex per substep).
 function keelTable(P) {
   const xs = P.xs, H = P.H;
-  const rN = P.noseR * H, sLen = P.stemK * H, rk = P.rake * D2R;
-  const Ht = H * (1 + (P.sheerK || 0));        // the deck at the tip, with the sheer
+  const rN = noseRof(P), sLen = P.stemK * H, rk = P.rake * D2R;
+  let Ht = H * (1 + (P.sheerK || 0));          // the deck at the tip, with the sheer
+  if (P.bowDrop) Ht *= 1 - P.bowDrop;          // FLOATS-CLASSIC: the EDO deck curving down to its nose (bowFade(1) = 1)
   const yFoot = Ht - rN - sLen;                // the stem's foot (the rocker's end)
   const xFoot = -xs + sLen * Math.tan(rk);     // ...raked aft of the tip
   const xF = -P.flatK * xs;                    // the flat's forward end
@@ -30437,13 +30438,26 @@ function keelTable(P) {
   return { at, xFoot, yFoot, xF, rN };
 }
 const keelOf = P => (P._keel && P._keel.P === P) ? P._keel.T : (P._keel = { P, T: keelTable(P) }).T;
+// FLOATS-CLASSIC (2026-11-03, the user: "another model of floats. A rougher one, with rounded top, feels more home
+// made ... use the same controls"): THE EDO-STYLE DECK. Three numbers a classic record carries (absent on every Wipline,
+// so a Wipline hull is the one it was, to the bit): `crownK`, the deck's DOME - the centreline stands at the deck line
+// (the H row, so the box is the rows' box) and the deck edge crownK H below it, the two joined by a quarter ellipse
+// that leaves the side vertical and arrives level on the centreline (the rounded shoulder of an EDO 2000); `bowDrop`,
+// the deck curving down over the forebody's forward half to a nose that much lower (an EDO's deck line rolls into its
+// bow where a Wipline's sheer climbs to a high blunt one); `noseMul`, the nose round's radius times this (the soft
+// deck-to-stem curve that carries the rubber bumper). The bottom - the deadrises, the keel flat, the step, the
+// afterbody - is the rows' and the Wipline's; the rocker meets the lower nose, and the physics reads all of it (the
+// panels and levelVolume are this section). `style` ('edo') rides as a string beside them for the drawing.
+const noseRof = P => (P.noseMul ? P.noseR * P.noseMul : P.noseR) * P.H;
+const bowFade = t => { const u = Math.max(0, Math.min(1, (t - 0.5) / 0.5)); return u * u * (3 - 2 * u); };
 // the deck's line: level at H aft of the step, a sheer rising toward the
 // bow over the forebody (H sheerK t^2), rounding down into the stem over
 // the last noseR
 function deckAt(P, x) {
-  const rN = P.noseR * P.H, s = x + P.xs;
+  const rN = noseRof(P), s = x + P.xs;
   const t = x < 0 ? Math.min(1, -x / P.xs) : 0;
-  const Hd = P.H * (1 + (P.sheerK || 0) * t * t);
+  let Hd = P.H * (1 + (P.sheerK || 0) * t * t);
+  if (P.bowDrop) Hd *= 1 - P.bowDrop * bowFade(t);
   if (s >= rN) return Hd;
   const q = rN - Math.max(0, s);
   return Hd - rN + Math.sqrt(Math.max(0, rN * rN - q * q));
@@ -30491,20 +30505,40 @@ function sectionOf(P, x) {
   const hc = b * Math.tan(beta * D2R);
   const yc = yk + hc;
   // (the bow tip is a POINT: the 4 mm the deck keeps over the chine dies with the beam)
-  const yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
+  let yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
+  // FLOATS-CLASSIC: the dome - `yt` the centreline's top (the deck line), `yd` the deck EDGE crownK H under it (dying
+  // with the beam at the bow, never more than 0.6 of the side); a Wipline's yt is its yd
+  const yt = yd;
+  if (P.crownK) yd = yt - Math.min(P.crownK * P.H * Math.min(1, b / (0.08 * P.B)), 0.6 * (yt - yc));
   // the deck edge: the side flares outward by a CONSTANT offset (the flare
   // angle over the side's height at the step — a chine that rises aft of
   // the step must not kink the gunwale line), dying with the beam so the
   // bow's plan closes to its point
   const bd = b + (P.H - bS * Math.tan(P.beta * D2R)) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B));
-  return { x, yk, b, bd, beta, hc, body, yc, yd };
+  return { x, yk, b, bd, beta, hc, body, yc, yd, yt };
 }
 // the section as a closed polygon in (y, z), keel to deck, starboard side
 // listed z >= 0 then mirrored: K, C, E (the gunwale's chamfer foot), D (the
 // deck edge). The PHYSICS loft and levelVolume both read exactly this.
 function secPoly(P, s) {
+  // FLOATS-CLASSIC: a domed deck is the quarter ellipse from the deck edge (E, the side's top) through D (30 deg) and
+  // M (60 deg) to T on the centreline - no chamfer, the shoulder IS the dome
+  if (P.crownK) {
+    // D and M sit DOME_K out along their radius so the three facets hold the area of the drawn dome (six facets a
+    // side, FLOAT_GEN ringSide): (2k + k^2) / 4 = 3 sin 15 deg, k = 1.0263 - the WYSIWYG volume to 0.3 %
+    const c = s.yt - s.yd, dm = a => [s.yd + DOME_K * c * CORE_MATH.sin(a), DOME_K * s.bd * CORE_MATH.cos(a)];
+    return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd, s.bd], D: dm(Math.PI / 6), M: dm(Math.PI / 3), T: [s.yt, 0], bv: 0, dome: true };
+  }
   const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
   return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
+}
+const DOME_K = Math.sqrt(1 + 12 * Math.sin(Math.PI / 12)) - 1;   // 1.0263
+// the deck's height at a lateral offset z (the drawing's fittings, the deck hardware): a flat deck is yd; a dome is
+// its ellipse (the shoulder beyond the deck edge reads the edge)
+function deckYAt(P, s, z) {
+  if (!P.crownK) return s.yd;
+  const u = Math.min(1, Math.abs(z) / Math.max(1e-9, s.bd));
+  return s.yd + (s.yt - s.yd) * Math.sqrt(Math.max(0, 1 - u * u));
 }
 
 function makeFloat(over = {}) {
@@ -30529,8 +30563,11 @@ function makeFloat(over = {}) {
     // in from D — the drawn float rounds it (rGun); one facet in the physics
     s.Em = push([s.x, q.E[0], -q.E[1]]); s.Ep = push([s.x, q.E[0], q.E[1]]);
     s.Dm = push([s.x, q.D[0], -q.D[1]]); s.Dp = push([s.x, q.D[0], q.D[1]]);
+    // FLOATS-CLASSIC: the dome's 60 deg pair and its crown on the centreline (a flat deck has neither)
+    if (q.dome) { s.Mm = push([s.x, q.M[0], -q.M[1]]); s.Mp = push([s.x, q.M[0], q.M[1]]); s.T = push([s.x, q.T[0], 0]); }
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
+  const dome = !!P.crownK;
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
   // different slopes, so it is split on its diagonal into two triangles
   // (the clip is then exact, and the pressure's direction with it); the
@@ -30561,7 +30598,12 @@ function makeFloat(over = {}) {
       quad('side', s0.Ep, s1.Ep, s1.Dp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
       tri('side', s0.Em, s1.Em, s1.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       tri('side', s0.Ep, s1.Ep, s1.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
-      quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, { side: 0, body: 'A', beta: 0, ref: rs });
+      if (dome) {
+        for (const [a, b, sd] of [['Dm', 'Mm', -1], ['Dp', 'Mp', 1]]) {
+          quad('deck', s0[a], s1[a], s1[b], s0[b], { side: sd, body: 'A', beta: 0, ref: rs });
+          quad('deck', s0[b], s1[b], s1.T, s0.T, { side: sd, body: 'A', beta: 0, ref: rs });
+        }
+      } else quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, { side: 0, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
@@ -30572,7 +30614,12 @@ function makeFloat(over = {}) {
     quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
     quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
     quad('bevel', s0.Ep, s1.Ep, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
-    quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
+    if (dome) {
+      quad('deck', s0.Dm, s1.Dm, s1.Mm, s0.Mm, Object.assign({ side: -1, beta: 0 }, m));
+      quad('deck', s0.Dp, s1.Dp, s1.Mp, s0.Mp, Object.assign({ side: 1, beta: 0 }, m));
+      quad('deck', s0.Mm, s1.Mm, s1.T, s0.T, Object.assign({ side: -1, beta: 0 }, m));
+      quad('deck', s0.Mp, s1.Mp, s1.T, s0.T, Object.assign({ side: 1, beta: 0 }, m));
+    } else quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
   }
   { // bow cap and stern transom
     const s = sta[0];
@@ -30580,10 +30627,12 @@ function makeFloat(over = {}) {
     tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
+    if (dome) { quad('bow', s.Dm, s.Dp, s.Mp, s.Mm, { side: 0, body: 'F', beta: 0, ref: rb }); tri('bow', s.Mm, s.Mp, s.T, { side: 0, body: 'F', beta: 0, ref: rb }); }
     const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
     tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
+    if (dome) { quad('stern', e.Dm, e.Dp, e.Mp, e.Mm, { side: 0, body: 'A', beta: 0, ref: re }); tri('stern', e.Mm, e.Mp, e.T, { side: 0, body: 'A', beta: 0, ref: re }); }
   }
   // orient every panel OUTWARD (its normal away from the section's interior
   // point), and record the rest normal, area and centroid in the float frame
@@ -30603,7 +30652,7 @@ function makeFloat(over = {}) {
   const m = P.mFloat + P.mLoad;
   const cg = [0, 0, 0];
   for (let k = 0; k < 3; k++) cg[k] = (P.mFloat * P.cgFloat[k] + P.mLoad * P.cgLoad[k]) / m;
-  const H = Math.max(...sta.map(s => s.yd)) - Math.min(...sta.map(s => s.yk));
+  const H = Math.max(...sta.map(s => s.yt)) - Math.min(...sta.map(s => s.yk));   // (yt: a dome's crown; a flat deck's yd)
   const If = [P.mFloat / 12 * (H * H + P.B * P.B), P.mFloat / 12 * (P.L * P.L + P.B * P.B), P.mFloat / 12 * (P.L * P.L + H * H)];
   const I = [0, 0, 0];
   const shift = (mm, c, Ii) => {
@@ -30639,10 +30688,10 @@ function makeFloat(over = {}) {
 // polygon at y = hw, sharing nothing with the 3D clipper
 function secAreaTo(P, s, hw) {
   const q = secPoly(P, s);
-  const top = Math.min(hw, s.yd);
+  const top = Math.min(hw, s.yt);
   if (top <= s.yk) return 0;
-  // the starboard half-polygon keel -> C -> E -> D, then the centreline back
-  const pts = [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  // the starboard half-polygon keel -> C -> E -> D, then the centreline back (FLOATS-CLASSIC: a dome's M and its crown)
+  const pts = q.dome ? [q.K, q.C, q.E, q.D, q.M, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -31903,7 +31952,45 @@ const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
 const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 'aftAngle', 'aftCurve', 'flatK', 'stemK',
                          'rake', 'noseR', 'planK', 'bStern', 'flare', 'bevel', 'rChine', 'rGun', 'rLip', 'rTransom',
                          'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
-                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow'];
+                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow',
+                         // FLOATS-CLASSIC: the EDO deck (present on a classic record only; `style` rides as a string)
+                         'crownK', 'bowDrop', 'noseMul'];
+// ---- FLOATS-CLASSIC: THE EDO FAMILY (2026-11-03) ----------------------------------------------------------------------
+// The user's reference photos (a PA-18 over a fjord, a PA-28 on grass) wear EDO floats: the PA-18S's type certificate
+// (FAA TCDS 1A2) lists "Edo 89-2000 floats", and the PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963). An EDO
+// is riveted aluminium with a ROUNDED deck, a bow that rolls down into a rubber bumper bolted through the bow bulkhead,
+// pump-out cups at the bulkheads, simple tube struts and spreader bars. ONE STYLE over the same rows (the Wipline's
+// bottom, step and afterbody; `EDO_STYLE` is the deck and the bow above the water, see deckAt / sectionOf) and a
+// catalogue of its own, kept apart from FLOAT_PRESETS so the Wipline row indices, the advisor and every saved build
+// stay what they were. The model number is the float's buoyancy in pounds fully submerged (the EDO convention), so
+// `flot` (the hull's volume to the deck, what the fit honours) IS the model number in kilograms; `disp` is taken as
+// flot / 1.1 (the Wipline sheets' ratio). SOURCED: the 89-2000's 16 ft bumper to transom (EDO book, quoted on
+// supercub.org) and its 263 lb installed pair (PA-18S); the 1320's ~15 ft; the Model 78 (C-47C / XC-47C, 1943, and N130Q
+// today): 42 ft, 5 ft 8 in of beam, 29,000 lb a float, about a ton each. EVERY OTHER DIMENSION IS est: L and B scaled
+// from the displacement along the Wipline line (L ~ 0.55, B ~ 0.070 x disp^1/3), H then SOLVED so the fit lands at
+// fineness 0.1 - 23 deg of deadrise at the step, inside NACA TN-716's 20-25 deg for V-bottom floats (the Wipline line's
+// heights put an EDO at 32-34 deg: a box too big for its buoyancy). See
+// reports/evidence/FLOATS-CLASSIC/README.md for the links.
+const EDO_STYLE = { style: 'edo', crownK: 0.16, bowDrop: 0.12, noseMul: 1.8 };
+const EDO_PRESETS = {
+  'EDO 1320':     { L: 4.57, B: 0.63, H: 0.45, disp: 545,  flot: 599,   mSys: 59,   gross: 590,   est: true,
+                    for: 'Piper J-3 / PA-11 (sourced: ~15 ft; J-3C-65S 1,300 lb)' },
+  'EDO 1650':     { L: 4.70, B: 0.66, H: 0.50, disp: 680,  flot: 748,   mSys: 75,   gross: 700,   est: true,
+                    for: 'Cessna 140, PA-11, PA-18 (the 2000 is a 1650 with a plug ahead of the step)' },
+  'EDO 2000':     { L: 4.88, B: 0.70, H: 0.54, disp: 825,  flot: 907,   mSys: 119,  gross: 798,   est: true,
+                    for: 'Piper PA-18S Super Cub, PA-28S-180 Cherokee, Cessna 170 (sourced: 16 ft, 263 lb a pair installed, PA-18S 1,760 lb)' },
+  'EDO 2440':     { L: 5.30, B: 0.73, H: 0.58, disp: 1006, flot: 1107,  mSys: 150,  gross: 1043,  est: true,
+                    for: 'Cessna 172 (248B-2440), 170B' },
+  'EDO 2870':     { L: 5.60, B: 0.77, H: 0.61, disp: 1183, flot: 1302,  mSys: 180,  gross: 1447,  est: true,
+                    for: 'Cessna 180 / 182 (sourced: 3,190 lb seaplane gross)' },
+  'EDO 4580':     { L: 6.50, B: 0.90, H: 0.72, disp: 1888, flot: 2077,  mSys: 290,  gross: 2313,  est: true,
+                    for: 'de Havilland DHC-2 Beaver' },
+  'EDO 7170':     { L: 7.60, B: 1.05, H: 0.83, disp: 2956, flot: 3252,  mSys: 460,  gross: 3629,  est: true,
+                    for: 'de Havilland DHC-3 Otter, Noorduyn Norseman' },
+  'EDO 78-28000': { L: 12.80, B: 1.73, H: 1.26, disp: 11958, flot: 13154, mSys: 2100, gross: 12700,
+                    for: 'Douglas C-47C / DC-3 (sourced: 42 ft, 5 ft 8 in beam, 29,000 lb a float, ~1 t each; H, mSys and gross est.)' },
+};
+const EDO_PRESET_NAMES = Object.keys(EDO_PRESETS);
 // THE FINENESS. The catalogue's three dimensions and its flotation are
 // four facts; the family at the 2350's proportions fills its box to 49 %
 // and the 2350 needs 49 % — but the taller hulls (H/B 0.9 against the
@@ -31949,13 +32036,17 @@ function fineParams(P, f) {
 // mass is 0.40 of the pair's system weight (the struts, spreaders and
 // wires are billed by the frame).
 function presetParams(name, over) {
-  const R = FLOAT_PRESETS[name];
+  // FLOATS-CLASSIC: an EDO row is the same fit in the EDO style (its deck and bow); its H is the dome's top at the
+  // step (an EDO deck has no sheer to speak of over the bow drop: the overall height is near the step's)
+  const edo = !FLOAT_PRESETS[name] && EDO_PRESETS[name];
+  const R = FLOAT_PRESETS[name] || EDO_PRESETS[name];
   if (!R) return null;
   const k = R.L / DEF.L;
   // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
   // where the sheer tops out — so the family's H (at the step) is that over
   // (1 + sheerK)
-  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp }));
+  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp },
+                                                edo ? EDO_STYLE : null));
   const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
   // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
   // wider transom — the small Wiplines, whose overall height leaves little
@@ -32677,6 +32768,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              EDO_STYLE, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
@@ -47416,31 +47508,37 @@ function clampSpec(spec) {
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
     const f = S.gear.floats;
+    // FLOATS-CLASSIC (2026-11-03): an EDO-style record ('edo', the only style a record names - a Wipline carries none)
+    // may be an EDO Model 78 (the DC-3's: 12.8 m, 1.73 m of beam, ~1 t a hull), so ITS length, beam, hull mass and
+    // rudder depth get room the Wipline line never needed; every other record keeps the bounds it had, to the bit
+    if (f.style != null && f.style !== 'edo') delete f.style;
+    const big = f.style === 'edo';
     // G451: THE WIPLINE FAMILY (32_hydro DEF): the catalogue runs 4.6-9.9 m;
     // every key absent falls to the family's own (scaled to the length) in
     // the frame, so only what is present is clamped. A record from before
     // G451 (yBow, bBow, hSide, xFlat) carries keys the family no longer
     // reads; they ride along harmlessly and the hull is the family's.
-    f.L = genClamp(f.L || 4.3, 2.0, 12.0);
+    f.L = genClamp(f.L || 4.3, 2.0, big ? 16.0 : 12.0);
     f.xs = genClamp(f.xs || 0.553 * f.L, 0.3 * f.L, 0.7 * f.L);
-    f.B = genClamp(f.B || 0.67, 0.3, 1.6);
+    f.B = genClamp(f.B || 0.67, 0.3, big ? 2.2 : 1.6);
     f.beta = genClamp(f.beta == null ? 22 : f.beta, 0, 45);
     f.betaA = genClamp(f.betaA == null ? Math.min(f.beta, 18) : f.betaA, 0, 45);
     f.hs = genClamp(f.hs == null ? 0.013 * f.L : f.hs, 0, 0.2);
     f.aftAngle = genClamp(f.aftAngle == null ? 6.5 : f.aftAngle, 0, 15);
     f.bStern = genClamp(f.bStern == null ? 0.42 : f.bStern, 0.15, 1.0);
-    for (const [k, lo, hi] of [['H', 0.2, 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
+    for (const [k, lo, hi] of [['H', 0.2, big ? 2.0 : 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
                                ['rake', 0, 35], ['noseR', 0.02, 0.45], ['planK', 1.0, 5.0], ['flare', 0, 15], ['bevel', 0, 0.08],
                                ['rChine', 0, 0.05], ['rGun', 0, 0.08], ['rLip', 0, 0.04], ['rTransom', 0, 0.06],
                                ['railW', 0, 0.1], ['railT', 0, 0.02], ['keelW', 0, 0.12], ['keelH', 0, 0.03], ['skZ', 0.2, 0.8],
-                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, 0.6], ['wrDepth', 0.05, 0.8], ['mFloat', 5, 600],
-                               ['fineK', -0.7, 1], ['scale', 0.3, 3], ['xAft', 0.05, 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3]])
+                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, big ? 1.2 : 0.6], ['wrDepth', 0.05, big ? 1.4 : 0.8], ['mFloat', 5, big ? 2000 : 600],
+                               ['fineK', -0.7, 1], ['scale', 0.3, big ? 4 : 3], ['xAft', 0.05, big ? 3.0 : 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3],
+                               ['crownK', 0, 0.4], ['bowDrop', 0, 0.4], ['noseMul', 1, 3]])
       if (f[k] != null) f[k] = genClamp(+f[k] || 0, lo, hi);
     if (f.preset != null && typeof f.preset !== 'string') delete f.preset;
-    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, big ? 4.0 : 2.0);
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
-    f.x = f.x == null ? null : genClamp(f.x, -3, 6);
-    f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
+    f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
+    f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
   } else S.gear.floats = null;
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
@@ -63065,7 +63163,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='1f077a1cbd36';window.FLYDIY_BUILD='6051f2c08e4b';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='22ffd271dbc1';window.FLYDIY_BUILD='6b3078823014';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -64418,10 +64516,11 @@ const CAGE_PARTS = [
     when: P => (+P.gearFloats) * (+P.gearOn) > 0,
     gate: 'gearFloats',        // a switched-off part collapses to its switch
     place: { on: 'gearFloats', fore: 'fltZ', out: 'fltTrack', up: 'fltDrop', at: 'the step' },
-    sections: ['float', 'floatDeck'],
+    // (FLOATS-CLASSIC: the EDO style's bare hull and its deck board)
+    sections: ['float', 'floatDeck', 'floatBare', 'floatBoard'],
     groups: [
-      // G451: the Wipline preset (a starter), the details, and the family's rows
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle']],
+      // G451: the Wipline preset (a starter), the details, and the family's rows; FLOATS-CLASSIC: the style, the board
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
@@ -112812,6 +112911,7 @@ PAGE.post = ctx => {
 (function () {
 
 const D2R = Math.PI / 180;
+const CORE_SIN = Math.sin;
 
 // ---- small vectors ---------------------------------------------------------
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -112936,6 +113036,21 @@ function ringSide(P, s, o) {
   const onS = y => s.b + (y - s.yc) * tf;      // the side's z at y
   const yCs = s.yc + Math.min(2.2 * tC, 0.35 * (s.yd - s.yc)) * cf;
   push(yCs, onS(yCs), nS[0], nS[1]);
+  // FLOATS-CLASSIC: THE EDO DOME - the side runs to its support under the shoulder, then the quarter ellipse from the
+  // deck edge (vertical, the side's own tangent) to the crown on the centreline: the same point count as the gunwale
+  // round + margin + centre below (NG + 4), so a ring is a ring whatever the style and the loft stays one grid
+  if (P.crownK) {
+    const c = Math.max(0, s.yt - s.yd);
+    const yGs = Math.max(yCs + 1e-4, s.yd - Math.min(Math.max(0.25 * c, 0.004), 0.35 * (s.yd - s.yc)) * cf);
+    push(yGs, onS(yGs), nS[0], nS[1]);
+    const nD = NG + 3;
+    for (let i = 0; i < nD; i++) {
+      const a = (Math.PI / 2) * i / (nD - 1);
+      const ny = CORE_SIN(a) / Math.max(1e-6, c), nz = Math.cos(a) / Math.max(1e-6, s.bd), nl = Math.hypot(ny, nz) || 1;
+      push(s.yd + c * CORE_SIN(a), i === nD - 1 ? 0 : s.bd * Math.cos(a), ny / nl, nz / nl);
+    }
+    return pts;
+  }
   // the gunwale: between the side (normal nS) and the deck (normal up)
   const iD = [-1, 0];
   const bisG = [iS[0] + iD[0], iS[1] + iD[1]]; const gl = Math.hypot(bisG[0], bisG[1]) || 1; bisG[0] /= gl; bisG[1] /= gl;
@@ -112969,7 +113084,8 @@ function ringAt(P, HY, x, o, xEval) {
   // the bow tip is ONE point (the keel round would lift K a tenth of a
   // millimetre off the deck point and leave a 0.1 mm ring the weld cannot
   // close: two open edges on every hull)
-  const side = s.b < 1e-4 ? ringSide(P, s, o).map(() => [s.yd, 0, -1, 0]) : ringSide(P, s, o);
+  const yTip = s.yt != null ? s.yt : s.yd;   // (a dome's crown; a flat deck's yd)
+  const side = s.b < 1e-4 ? ringSide(P, s, o).map(() => [yTip, 0, -1, 0]) : ringSide(P, s, o);
   const R = [], N = [];
   for (const q of side) { R.push([x, q[0], q[1]]); N.push([0, q[2], q[3]]); }
   for (let i = side.length - 2; i >= 1; i--) { const q = side[i]; R.push([x, q[0], -q[1]]); N.push([0, q[2], -q[3]]); }
@@ -113141,8 +113257,10 @@ function buildBumper(P, HY, hull, o, sc) {
   const bag = Bag(true);
   const K = HY.keelOf(P);
   const Nrm = vertexNormals(hull.bag);
-  const t = 0.012 * sc;
-  const xEnd = -P.xs + 0.04 * sc;                  // the cap's depth along the nose: the stem and the start of the round
+  // FLOATS-CLASSIC: an EDO's bumper is a fat black rubber cap bolted through the bow bulkhead, reaching back over the
+  // nose round (o.bumperT / o.bumperL); a Wipline's is the thin cap it was
+  const t = (o.bumperT || 0.012) * sc;
+  const xEnd = -P.xs + (o.bumperL || 0.04) * sc;   // the cap's depth along the nose: the stem and the start of the round
   const use = hull.rings.map((r, i) => ({ r, i })).filter(q => q.r.x <= xEnd);
   if (use.length < 2) return bag;
   const rows = use.map(q => q.r.R.map((p, k) => {
@@ -113305,6 +113423,52 @@ function buildDeck(P, HY, o, sc) {
   return { deck, hard, rig, details };
 }
 
+// FLOATS-CLASSIC: THE EDO DECK. Bare alloy, no non-skid coating (the deck bag stays empty: the layer draws nothing for
+// it, so the board option takes its place in the draw count); simpler fittings than a Wipline's, from photographs of
+// EDO 2000s on Super Cubs and Cherokees and the owners' repair threads: a round hand-hole cover per bay on the crown, a
+// pump-out cup per bulkhead on the outboard shoulder, a horn cleat bow and stern, the spreader-bar saddles and the strut
+// fittings at the two rigging stations - every one sat on the DOME (HYDRO.deckYAt), not on a flat deck line.
+function buildDeckEdo(P, HY, o, sc) {
+  const deck = Bag(true), hard = Bag(false);
+  const xs = P.xs, LA = P.L - P.xs;
+  const K = HY.keelOf(P);
+  const sAt = x => HY.sectionOf(P, x === 0 ? -1e-9 : x);
+  const yOn = (x, z) => HY.deckYAt(P, sAt(x), z) + 0.0005;
+  const nBay = Math.max(6, Math.round(P.L / (0.62 * sc)));
+  const rN = HY.noseRof ? HY.noseRof(P) : K.rN;
+  const xBow = -xs + rN + 0.25 * sc, xSt = LA - o.rTransom - 0.10 * sc;
+  const details = { covers: [], cups: [] };
+  for (let i = 0; i < nBay; i++) {
+    const x = xBow + (xSt - xBow) * (i + 0.5) / nBay, s = sAt(x);
+    // the hand-hole cover: a round plate on the crown (where the dome is flattest), its ring of screws
+    const w = 0.15 * sc;
+    if (w > 1.2 * s.bd) continue;
+    plateOnDeck(hard, x, 0, yOn(x, 0.5 * w), w, w, 0.49 * w, 0.003 * sc);
+    for (let k = 0; k < 8; k++) { const a = 2 * Math.PI * (k + 0.5) / 8, rr = 0.5 * w - 0.014 * sc; screw(hard, x + rr * Math.cos(a), yOn(x, Math.abs(rr * Math.sin(a))) + 0.003 * sc, rr * Math.sin(a), 0.003 * sc); }
+    details.covers.push([x, w]);
+    // the pump-out cup at the bulkhead, outboard on the shoulder (the layer mirrors the port float)
+    const xb = xBow + (xSt - xBow) * i / nBay, sb = sAt(xb), zc = 0.62 * sb.bd;
+    if (zc > 0.05 * sc) { cyl(hard, [xb, yOn(xb, zc) - 0.002 * sc, zc], [0, 1, 0], 0.018 * sc, 0.006 * sc, 10); details.cups.push([xb, zc]); }
+  }
+  // the cleats, bow and stern, on the crown
+  const xc0 = -xs + rN + 0.16 * sc, xc1 = LA - o.rTransom - 0.22 * sc;
+  cleat(hard, xc0, yOn(xc0, 0), 0, 0.11 * sc, sc);
+  cleat(hard, xc1, yOn(xc1, 0), 0, 0.11 * sc, sc);
+  // THE RIGGING STATIONS: a saddle under each spreader bar's end and the strut fitting beside it, on the shoulder
+  const rig = { fwd: -P.flatK * xs, aft: o.xAft };
+  for (const x of [rig.fwd, rig.aft]) {
+    const s = sAt(x);
+    for (const sd of [-1, 1]) {
+      const z = s.bd - 0.06 * sc, y = yOn(x, z);
+      boxAt(hard, [x, y + 0.012 * sc, sd * z], [0.05 * sc, 0.018 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      const z2 = s.bd - 0.05 * sc, y2 = yOn(x + 0.12 * sc, z2);
+      boxAt(hard, [x + 0.12 * sc, y2 + 0.003 * sc, sd * z2], [0.045 * sc, 0.006 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      boxAt(hard, [x + 0.12 * sc, y2 + 0.022 * sc, sd * z2], [0.02 * sc, 0.02 * sc, 0.005 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+  }
+  return { deck, hard, rig, details };
+}
+
 // a plate from an outline in (x, y), between z0 - t/2 and z0 + t/2; the
 // outline may be given in either sense (it is made counter-clockwise)
 function plateXY(bag, outl, z0, t) {
@@ -113407,13 +113571,15 @@ function build(P, opts) {
     margin: 0.035 * sc,
     xAft: opts.xAft != null ? opts.xAft : 0.36 * sc,
     nF: opts.nF, nA: opts.nA,
+    // FLOATS-CLASSIC: the EDO's fat rubber bow cap (Wipline: the 12 mm cap 4 cm deep it always was)
+    bumperT: P.crownK ? 0.022 : 0.012, bumperL: P.crownK ? 0.13 : 0.04,
   };
   const hull = buildHull(P, HY, o);
   const out = { hull: hull.bag.out(), sc, rig: { fwd: -P.flatK * P.xs, aft: o.xAft }, stats: meshStats(hull.bag) };
   if (opts.detail !== 0) {
     out.protrusions = buildProtrusions(P, HY, o, sc).out();
     out.bumper = buildBumper(P, HY, hull, o, sc).out();
-    const dk = buildDeck(P, HY, o, sc);
+    const dk = P.crownK ? buildDeckEdo(P, HY, o, sc) : buildDeck(P, HY, o, sc);
     out.deck = dk.deck.out(); out.hard = dk.hard.out(); out.details = dk.details;
   }
   if (opts.rudder !== 0) {
@@ -113461,7 +113627,7 @@ const REF = {
   },
 };
 // a section's full area (keel to deck, both sides: secAreaTo returns the pair)
-function secArea(HY, P, s) { return HY.secAreaTo(P, s, s.yd + 1); }
+function secArea(HY, P, s) { return HY.secAreaTo(P, s, (s.yt != null ? s.yt : s.yd) + 1); }
 function measure(P, HY) {
   const LA = P.L - P.xs;
   const sF = HY.sectionOf(P, -1e-6), sA = HY.sectionOf(P, 1e-6), sT = HY.sectionOf(P, LA - 1e-6);
@@ -113593,9 +113759,15 @@ const PRESET_NAMES = HY0 ? HY0.FLOAT_PRESET_NAMES.slice() : ['Wipline 2350'];
 const CUSTOM = 'custom';
 PRESET_NAMES.push(CUSTOM);
 const CUSTOM_IDX = PRESET_NAMES.length - 1;
+// FLOATS-CLASSIC: the EDO rows come AFTER `custom`, so every saved fltPreset index (a Wipline row, or custom at 15)
+// still names what it named; picking one also turns the style row to the classic deck
+const EDO_NAMES = HY0 && HY0.EDO_PRESET_NAMES ? HY0.EDO_PRESET_NAMES.slice() : [];
+PRESET_NAMES.push(...EDO_NAMES);
+const isEdo = n => EDO_NAMES.indexOf(n) >= 0;
+const rowOf = n => HY0 && (HY0.FLOAT_PRESETS[n] || (HY0.EDO_PRESETS && HY0.EDO_PRESETS[n])) || null;
 const PRESET_LABELS = PRESET_NAMES.map(n => {
   if (n === CUSTOM) return 'custom (the dials as they are)';
-  const R = HY0 && HY0.FLOAT_PRESETS[n];
+  const R = rowOf(n);
   return R ? `${n} — ${R.L.toFixed(2)} m, ${R.disp} kg${R.est ? ' (est.)' : ''}` : n;
 });
 
@@ -113612,6 +113784,8 @@ const rowsOfParams = Q => ({
   fltStem: Q.stemK, fltRake: Q.rake, fltNoseR: Q.noseR, fltPlan: Q.planK, fltStern: Q.bStern,
   fltFlare: Q.flare, fltMass: Q.mFloat,
   fltSpreadAft: +(0.28 * (Q.scale || 1)).toFixed(2),      // the aft spreader bar, just aft of the step
+  // FLOATS-CLASSIC: a catalogue row says its own style (an EDO row the classic deck, a Wipline row the flat one)
+  fltStyle: Q.style === 'edo' ? 1 : 0,
 });
 const DEF_ROWS = HY0 ? rowsOfParams(HY0.presetParams('Wipline 1450')) : {};
 // (the preset row itself boots at `custom`: a build saved before G451 must
@@ -113624,9 +113798,12 @@ Object.assign(PAGE.defaults = PAGE.defaults || {}, {
 }, DEF_ROWS, {
   fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
   fltStrutAng: 55, fltSpread: 1, fltSpreadAft: 0.36,
+  // FLOATS-CLASSIC: 0 = the Wipline (every build saved before), 1 = the EDO-style rounded deck; the deck board (EDO)
+  fltStyle: 0, fltBoard: 0,
 });
 
 const on = { when: P => +P.gearFloats };
+const STYLE_NAMES = ['Wipline (flat deck)', 'EDO classic (round top)'];
 const onM = { when: P => +P.gearFloats, dim: 'm' };
 const GROUP = ['9b · floats', [
   // the switch itself, so a builder can reach the floats without the starter
@@ -113634,16 +113811,20 @@ const GROUP = ['9b · floats', [
   // are off while it is on (the join reads the flag before the contacts)
   ['gearFloats', 'floats (instead of wheels)', 0, 1, 1],
   // THE CATALOGUE (G451): a Wipline row writes the hull rows once
-  ['fltPreset', 'Wipline preset (applies once)', 0, Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
+  ['fltPreset', 'float model (applies once)', 0, Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
    { when: P => +P.gearFloats, optLabels: PRESET_LABELS }],
+  // FLOATS-CLASSIC (the user, 3 Nov: "another model of floats. A rougher one, with rounded top ... use the same
+  // controls"): the style is the deck and the bow above the water, the finish and the fittings; every row below drives both
+  ['fltStyle', 'style', 0, 1, 1, STYLE_NAMES, on],
+  ['fltBoard', 'deck board across the spreaders', 0, 1, 1, { when: P => +P.gearFloats && Math.round(+P.fltStyle || 0) === 1 }],
   ['fltDetail', 'details (covers, hatch, cleats, straps, bumper)', 0, 1, 1, on],
   ['fltRudder', 'water rudders', 0, 1, 1, on],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
-    ['fltL',      'length',                        2.5, 11.0, 0.01, onM],
+    ['fltL',      'length',                        2.5, 14.0, 0.01, onM],
     ['fltStep',   'step (fraction from bow)',       0.45, 0.65, 0.005, on],
-    ['fltB',      'hull width (deck)',              0.40, 1.50, 0.01, onM],
-    ['fltH',      'hull height (step keel to deck)', 0.30, 1.30, 0.01, onM],
+    ['fltB',      'hull width (deck)',              0.40, 1.90, 0.01, onM],
+    ['fltH',      'hull height (step keel to deck)', 0.30, 1.50, 0.01, onM],
     ['fltBeta',   'deadrise at the step °',         8, 40, 0.5, on],
     ['fltBetaBow','deadrise at the bow °',          20, 65, 0.5, on],
     ['fltBetaA',  'deadrise (afterbody) °',         8, 35, 0.5, on],
@@ -113657,19 +113838,19 @@ const GROUP = ['9b · floats', [
     ['fltPlan',   'plan fullness',                  1.2, 4.0, 0.05, on],
     ['fltStern',  'stern beam ×',                   0.20, 0.80, 0.01, on],
     ['fltFlare',  'side flare °',                   0, 12, 0.5, on],
-    ['fltMass',   'hull mass (each)',               10, 400, 1, { when: P => +P.gearFloats, dim: 'kg' }],
+    ['fltMass',   'hull mass (each)',               10, 1200, 1, { when: P => +P.gearFloats, dim: 'kg' }],
   ], on],
   ['placement', [
     ['fltZ',     'step fore / aft (from the rule)', -1.5, 1.5, 0.01, onM],
-    ['fltDrop',  'keel below the belly',  0.20, 1.50, 0.01, onM],
+    ['fltDrop',  'keel below the belly',  0.20, 3.00, 0.01, onM],
     ['fltInc',   'keel incidence °',     -5, 10, 0.5, onM],
-    ['fltTrack', 'half track',            0.40, 1.60, 0.01, onM],
+    ['fltTrack', 'half track',            0.40, 3.50, 0.01, onM],
   ], on],
   ['struts', [
-    ['fltStrutR',  'strut thickness',      0.008, 0.040, 0.001, onM],
+    ['fltStrutR',  'strut thickness',      0.008, 0.090, 0.001, onM],
     ['fltStrutAng','strut root angle °',  20, 85, 1, on],
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
-    ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 1.20, 0.01, onM],
+    ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
   ], on],
 ]];
@@ -113690,6 +113871,8 @@ function hullParams(P) {
     // row: the family's; the keel and the stern's beam are the rows above)
     aftHold: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftHold : HY.DEF.aftHold, aftPow: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftPow : HY.DEF.aftPow,
   });
+  // FLOATS-CLASSIC: the EDO deck over the same rows (absent on a Wipline: its record is the one it was)
+  if (Math.round(+P.fltStyle || 0) === 1 && HY.EDO_STYLE) Object.assign(Q, HY.EDO_STYLE);
   Q.scale = k;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
@@ -113717,6 +113900,7 @@ function applyFloatPreset(P, name) {
   if (!Q) return false;
   Object.assign(P, rowsOfParams(Q));
   return true;
+  // (rowsOfParams writes fltStyle: an EDO row turns the classic deck on, a Wipline row the flat one)
 }
 // ---- A LOAD STANDS THE FLOATS WHERE THE FILE SAVED THEM (G3700) ------------
 // The step follows the flown CG (the placement rule above, and the energy
@@ -113791,7 +113975,7 @@ function floatKitCard(ev, P) {
   try {
     let el = document.getElementById('fkCard');
     if (!el) { el = document.createElement('div'); el.id = 'fkCard'; document.body.appendChild(el); }
-    const HY = HYc(), R = HY && ev.model && HY.FLOAT_PRESETS && HY.FLOAT_PRESETS[ev.model];
+    const HY = HYc(), R = HY && ev.model && rowOf(ev.model);
     const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const propOf = q => (q && q.D > 0 ? q.D.toFixed(2) + ' m' + (q.N ? ', ' + q.N + '-blade' : '') + (q.pitch ? ', ' + q.pitch + ' pitch' : '') : 'the previous propeller');
     const lines = [];
@@ -113830,6 +114014,7 @@ if (typeof window !== 'undefined') {
   window.CAGE_FLOAT_KIT_CARD = floatKitCard;
   window.CAGE_FLOAT_PRESETS = PRESET_NAMES;
   window.CAGE_FLOAT_CUSTOM = CUSTOM_IDX;
+  window.CAGE_FLOAT_STYLES = STYLE_NAMES;
   // the energy layer's CG handshake asks before it rebuilds for a moved CG
   window.CAGE_FLOAT_HELD = () => !!held;
 }
@@ -113864,6 +114049,12 @@ const dirCage = m => { const r = rotInc(m); return [-r[2], r[1], -r[0]]; };
 // so a chine and a side wall keep counting), a frame every FLT_FRAME m, a rivet row every FLT_RAIL m. |mz|, so the
 // mirrored port float carries the same field.
 const FLT_FRAME = 0.75, FLT_RAIL = 0.25;
+// FLOATS-CLASSIC: an EDO's bulkheads every ~2 ft (a seam and a rivet row every 0.6 m along, a rivet line every 0.3 m
+// round), growing with the float (x sqrt(scale) past the family's 4.6 m: a 12.8 m Model 78 is not a 2000 with more
+// rows) - the same field, the shader's grammar draws it, nothing new compiles. (0.45 x 0.17 m was tried: every bay
+// is an oil-can dish in the grammar, and that dense a grid read as reptile scales.)
+const EDO_FRAME = 0.60, EDO_RAIL = 0.30;
+let FIELD_FRAME = FLT_FRAME, FIELD_RAIL = FLT_RAIL;
 function hullField(part) {
   const n = part.pos.length / 3, NB = 64;
   let x0 = Infinity, x1 = -Infinity;
@@ -113877,7 +114068,7 @@ function hullField(part) {
   for (let i = 0; i < n; i++) {
     const x = part.pos[i * 3], y = part.pos[i * 3 + 1], z = Math.abs(part.pos[i * 3 + 2]);
     const along = x - x0, around = z + Math.max(0, y - keel[binOf(x)]);
-    a[i * 4] = along; a[i * 4 + 1] = around; a[i * 4 + 2] = along / FLT_FRAME; a[i * 4 + 3] = around / FLT_RAIL;
+    a[i * 4] = along; a[i * 4 + 1] = around; a[i * 4 + 2] = along / FIELD_FRAME; a[i * 4 + 3] = around / FIELD_RAIL;
   }
   return new THREE.BufferAttribute(a, 4);
 }
@@ -113948,6 +114139,9 @@ PAGE.post = ctx => {
   if (!AF) { if (stat) stat.textContent += '  ·  floats: no skin to hang on'; return; }
 
   const HP = hullParams(P);
+  const edo = HP.style === 'edo';
+  const fk = edo ? Math.sqrt(Math.max(1, HP.scale || 1)) : 1;
+  FIELD_FRAME = edo ? EDO_FRAME * fk : FLT_FRAME; FIELD_RAIL = edo ? EDO_RAIL * fk : FLT_RAIL;
   INC = (+P.fltInc || 0) * D2R;
   const F = HY.makeFloat(Object.assign({}, HP, { mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
   // THE STEP STATION: 12 deg aft of the CG at the keel's depth below it,
@@ -113984,10 +114178,16 @@ PAGE.post = ctx => {
   // without one (protrusions, the rudder blade, the deck hardware) stay triplanar - one material never mixes the two
   // branches (_surf_check.js). Both are the 'float' section, so the livery paints them as one, and both alloy: every
   // float preset is a Wipline (riveted aluminium), whatever the fuselage is built of.
-  const hullM = () => (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
-    || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
-  const hullSkinM = () => (SM && SM('float', { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: 0xd8d2c2 }))
+  // FLOATS-CLASSIC: an EDO hull is BARE, AGED ALLOY whatever the aeroplane is painted (the section `floatBare`, its
+  // own finish `agedAlu`: a baked sheet of mismatched skins and seams, rougher and less metallic than a new sheet);
+  // the same two materials a Wipline's hull asks for, one section swapped - no new program, no new draw
+  const HSEC = edo ? 'floatBare' : 'float', HTINT = edo ? 0xa9afb4 : 0xd8d2c2;
+  const hullM = () => (SM && SM(HSEC, { cons: 'alloy', surf: 0, fieldM: 1, tint0: HTINT }))
+    || new THREE.MeshStandardMaterial({ color: HTINT, roughness: edo ? 0.62 : 0.55, metalness: 0.05 });
+  const hullSkinM = () => (SM && SM(HSEC, { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: HTINT }))
     || hullM();
+  const boardM = () => (SM && SM('floatBoard', { surf: 0, fieldM: 1, tint0: 0x8a6a45 }))
+    || new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8, metalness: 0.0 });
   const deckM = () => (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
     || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
   const strutM = () => (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
@@ -114062,7 +114262,8 @@ PAGE.post = ctx => {
       // inboard is the model's -z for the starboard float (toward the
       // centreline at cage +x), which the mirror handles for the port one
       const zm = (inb ? -1 : 1) * zOut * (mirror ? -1 : 1);
-      return toCage([x + 0.12 * sc, s.yd, zm], at);
+      // (FLOATS-CLASSIC: on a dome the fitting sits on the shoulder's own height; a flat deck's is yd)
+      return toCage([x + 0.12 * sc, HY.deckYAt ? HY.deckYAt(HP, s, zOut) : s.yd, zm], at);
     };
     rec.deck[tag] = { fwdIn: fit(rig.fwd, true), fwdOut: fit(rig.fwd, false), aftIn: fit(rig.aft, true), aftOut: fit(rig.aft, false) };
     fits[tag] = rec.deck[tag];
@@ -114126,8 +114327,21 @@ PAGE.post = ctx => {
     }
     rec.members.push({ pin: L.fwdIn, tip: R.fwdIn }, { pin: L.aftIn, tip: R.aftIn });
   }
+  // FLOATS-CLASSIC: THE DECK BOARD - planks laid fore and aft across the two spreader bars between the floats (the
+  // user's photo: "a wooden board across the spreaders"), a loading step; drawn only with the EDO style and the bars.
+  // It takes the draw the EDO's absent non-skid decks gave back (two), so the classic pair is a draw under the Wipline
+  const bdg = GK.Bag();
+  if (edo && +P.fltBoard && +P.fltSpread) {
+    const L = rec.deck.L, R = rec.deck.R, tb = 0.055 * sc;
+    const yTop = Math.max(L.fwdOut[1], R.fwdOut[1], L.aftOut[1], R.aftOut[1]) + 0.5 * tb + 0.002;
+    const zF = 0.5 * (L.fwdOut[2] + R.fwdOut[2]) + 0.12 * sc, zA = 0.5 * (L.aftOut[2] + R.aftOut[2]) - 0.12 * sc;
+    const span = Math.abs(L.fwdIn[0] - R.fwdIn[0]), w = Math.min(0.24, 0.10 * span), th = 0.022;
+    for (const dx of [-1.05 * w, 0, 1.05 * w])
+      GK.boxIn(bdg, [dx, yTop + 0.5 * th, 0.5 * (zF + zA)], [0.5 * w, 0.5 * th, 0.5 * Math.abs(zF - zA) + 0.10 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  }
   const sgp = new THREE.Group(); sgp.name = 'edFloatStruts';
   sg.mesh(sgp, strutM()); wg.mesh(sgp, wireM()); hg.mesh(sgp, hardM());
+  if (bdg.tris > 0) bdg.mesh(sgp, boardM());
   sgp.userData.strutMembers = rec.members.map(m => ({ pin: m.pin.slice(), tip: m.tip.slice() }));
   group.add(sgp);
 
@@ -114155,8 +114369,8 @@ PAGE.post = ctx => {
   rec.gy = gLow;
   window.CAGE_FLOAT = rec;
   if (stat) {
-    const R = HP.preset && HY.FLOAT_PRESETS[HP.preset];
-    stat.textContent += `  ·  floats: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` +
+    const R = HP.preset && rowOf(HP.preset);
+    stat.textContent += `  ·  floats${edo ? ' (EDO classic)' : ''}: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` +
       `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull`;
     // S1 (G451.1): THE SIZING ADVISOR — the flown aeroplane's all-up mass
     // (app.js publishes it with the CG) against the pair that is fitted
@@ -126943,6 +127157,7 @@ function cageJoinSpec(P, M, T) {
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
+      if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
     }
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
@@ -165882,6 +166097,13 @@ const AERO_FINISH = {
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
                fld: 0.0025, fldL: 0.90, fldR: 0.4 },
+  // FLOATS-CLASSIC: OLD FLOAT ALLOY - an EDO that has seen forty summers: skins replaced one at a time (the
+  // `panels` bake: two sheets a 2.4 m tile, each its own shade and sheen, a lapped seam between them), oxide-dulled (less
+  // metal, more rough than new bare alloy), a slow field of dents (fld). One sheet texture like every finish's
+  agedAlu:   { name: 'aged float alloy', base: 0xa9afb4, tile: 2.40,
+               rough: 0.46, metal: 0.62, nrm: 0.55, alb: 0.42,
+               hs: 0.9, bs: 1.5, bake: 'panels',
+               fld: 0.0030, fldL: 0.55, fldR: 0.55 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
                hs: 0.9, bs: 0.8, bake: 'sheet',
@@ -166655,6 +166877,13 @@ const AERO_SEC = {
   // or black); the painted margin at the gunwale is the float's
   floatDeck: { parent: 'float', fin: 'rubberGrip', label: 'the float decks (non-skid)',
               layer: 'gear', noDec: true, tintOwn: true },
+  // FLOATS-CLASSIC (2026-11-03): an EDO-style float is BARE, AGED ALLOY whatever the aeroplane wears (the user's red
+  // and white Cub sits on grey floats) - its own pinned finish and its own colour, paintable on its own row; and the
+  // deck board laid across the spreader bars, spruce
+  floatBare: { parent: 'float', fin: 'agedAlu', label: 'the floats (EDO bare alloy)',
+              layer: 'gear', tintOwn: true },
+  floatBoard: { parent: 'float', fin: 'spruce', label: 'the float deck board',
+              layer: 'gear', noDec: true, tintOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -167058,6 +167287,28 @@ function aeroHeight(kind, S, row) {
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
+      }
+      case 'panels': {
+        // FLOATS-CLASSIC: MISMATCHED SKINS. A tile holds 2 x 1 sheets (fore-aft x round), each its own shade from a
+        // fixed hash - carried by the B channel into the roughness and the albedo (bs, alb), so one sheet reads a
+        // shade duller or brighter than its neighbour, the way a re-skinned float does. The shade EASES across a
+        // tenth of the sheet (smoothstep): the step is colour, not relief - a hard step turned every cell edge into a
+        // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, the
+        // mill grain and a few long scuffs over the lot. Periodic in S like every term here (the cells divide the tile).
+        const NU = 2, NV = 1, cw = S / NU, ch = S / NV;
+        const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
+        const sh = (iu, iv) => (hsh(((iu % NU) + NU) % NU * 7 + (((iv % NV) + NV) % NV) * 13 + 1) - 0.5) * 0.7;
+        const cu = Math.floor(x / cw), cv = Math.floor(y / ch);
+        const fu = (x - cu * cw) / cw, fv = (y - cv * ch) / ch;
+        const ease = t => t * t * (3 - 2 * t);
+        const wu = fu < 0.1 ? 0.5 * ease(fu / 0.1) + 0.5 : fu > 0.9 ? 0.5 * ease((1 - fu) / 0.1) + 0.5 : 1;
+        const nu = fu < 0.5 ? cu - 1 : cu + 1;
+        const shade = wu * sh(cu, cv) + (1 - wu) * sh(nu, cv);
+        const dEdge = Math.min(fu, 1 - fu, fv, 1 - fv);
+        const lap = -0.10 * Math.exp(-Math.pow(dEdge / 0.006, 2));
+        const scuff = 0.08 * Math.max(0, Math.sin(u * 2 + v * 1 + 0.7)) * Math.pow(Math.max(0, Math.sin(v * 37 + Math.sin(u * 5) * 2.0)), 24);
+        return shade + lap - scuff + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+             + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
       case 'pleat': {
         // PLEATED UPHOLSTERY (the door panel, G3xx): `pleats` rounded rolls
