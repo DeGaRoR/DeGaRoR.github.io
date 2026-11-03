@@ -311108,3 +311108,30 @@ HELD: claude/ready/weather-fixes 47815e0a0 - pulled at 20:05 on GATE CLOUD's 3 r
 A0 fixes: HANDOVER.md and tools/plane_shot.js back to master's CRLF bytes (tank-fit and new-plane had normalised them; content unchanged).
 BATTERY (88 gates): 81 PASS. Red: CLOUD 3 of 239 "the clouds live, the composite drawn ... composite 0 draws" on current / gamer / ultra - suspected NEW-PLANE's first-launch chooser holding the render loop on the gate's fresh profile (FLYDIY_UI_HOLD); NEW-PLANE to fix the rig or the hold (rule b or a fix) -> L30d. STOL: the fixture's byte comparison vs the joins tank-fit changes on purpose (Cub/Jodel tanks, the Chinook's pods) - Pilot re-captures. TAXICLEAR 1: the Cub's wing 0.07 m from Jumbo Mine's clinic (11c) - tank-fit's mass or the hut's footprints, owner TANK-FIT/HWCOV. FRAMECOST 8: the boot links (5 -> 39/44) + updateMatrixWorld - the boot cost being dated tonight (HWCOV mb_date 23:05). ASSETS, HANDLE, TECH: master standing.
 TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better than L30b's 114.6 s), nothing new.
+## RETRACT-1 - THE RETRACTABLE GEAR, STEP 1: A TRICYCLE'S THREE WHEELS SWING UP IN FLIGHT (2026-11-03, RETRACT-STUDY for the user via A0, cloud; claude/retract-study + claude/affectionate-edison-fx8582 off master e6bcfb36 = L30c, built)
+- The study and the rulings: `futureDesigns/RETRACT-STUDY-2026-11.md` (§1 the real thing, §2 our code, §3 the steps, §4 the table,
+  §6.1 the user's answers - step 1 first, the low-wing tourer's inward fold; no upkeep cost; hired pilots may forget, rarely;
+  no phone shortcut for doors; every aeroplane on the ground stands on its wheels - §7 as built).
+- Spec `gear.retract` { time 2-20 s, act electric|hydraulic|manual, emerg crank|freefall|pump|blow }: a TRICYCLE's only (clampSpec
+  drops it elsewhere), the key only when chosen (G3575's rule) - a fixed build's spec, def, ctl and flight are master's to the bit.
+  The `retract` design tile is LIVE (twin of the gear layer's `gearRetract`; rows gearRetract / gearRetT / gearRetAct on the mains
+  part); the join writes the spec. GEN_RULES.retractKg (3.5 % of the gross, >= 12 kg, on the axles) and GEN_PRICES.retract 4200.
+- Solver (OPTION A - the axle node never moves): ctl.gear (1 down) and the position at 1/time (gearPower: the page's bus is NOT
+  wired yet; gearEmergency: crank 25 s / free fall 4 / pump 20 / gas 2); the squat switch; the CONTACT PLANE rises with the wheel
+  (rC - (1 - pos) GH, GH the lift to the wheel's members' highest anchor + r) and a wheel ROLLS only down and locked - a gear-up
+  landing is the belly landing the ground pass already had (scrape, scar, prop strike); params.retract.cdA (gen.drag.gear) comes
+  off fusCdA by (1 - pos) + 15 % at mid-transit; 32_hydro's wheel plates ride WB.lift; out.gear / gearMov / gearWow / gearEmerg
+  for the physics worker's snapshot.
+- Pilot: up in CLIMB / GOAROUND over 15 m at +1 m/s, up en route; down for the circuit, an inbound within 4 km, a glide under
+  150 m; the emergency extension after 1.5 cycles + 2 s; GUMPS on final under 60 m (around, twice at most); a belly landing at a
+  standstill goes STOPPED ('gear-up-landing'). PILOT_PROFILES gearForget: club 0.01, student 0.02, ham-fist 0.01, bush 0.005,
+  the expert none (a knob, 0-0.05); `pilotGearDice(seed, k)` the deterministic die ('gear-forgotten').
+- Viewer: input 'gear' (Digit9, UP <-> DOWN) through the worker's hand packet; three lamps on the PFD (cell `gear`, shown only
+  when out.gear exists); the horn on the stall voice (audio_params gearWarn, airframe_model: 0.3 s on / 0.2 off); the swing -
+  the join's `gearSwing` (only on a retract build) and app.js `gearSwingRig`: each unit's leg, wheel and castor under one group
+  turned 90 deg about the leg's root (inward on a wing-rooted main, aft otherwise; conjRot), hidden once stowed. No well, no door.
+- GATE RETRACT (`tools/_retract_check.js`, core, ~10 min on 4 cores): PASS. JOINPARITY and TECH are red on master e6bcfb36 as
+  well (checked on a clean worktree: the same 8 / 1 rows) - not this chantier's.
+- Open (said in the study §7): the cockpit lever and lamps (a `gear` law), the bus -> gearPower, the tech table, the T-tail
+  tourer card as a retract (ARCHETYPES flies the birth spec pre-join: it needs a GEN_DEFAULT field), wells and doors (step 4),
+  the other motions (step 3), the amphibian (step 2).
