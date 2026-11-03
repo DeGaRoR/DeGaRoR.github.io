@@ -311195,3 +311195,7 @@ it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on ED
 - Owed: the user's eye on the dome's height (crownK 0.16) and the bow drop; the classic's own afterbody (it wears the
   Wipline's G1930 plan); the EDO rows' heights are fitted, not measured; the DC-3's floats at the rule station sit 2.1 deg
   nose up - fltZ is the builder's dial.
+- MERGED origin/master e6bcfb36 (train L30c) at the end: master had added plane_shot's &idle=0 itself (NEW-PLANE), kept;
+  the bow view kept. On the merged tree 16 gates PASS (FLOATSCLASSIC, FLOATKIT, FLOATS, WIPLINE, HYDRO, JOIN, SAVE, PARTS,
+  DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE: evidence gates_merged_L30c.txt); the long
+  ones (UISMOKE, HYDRODYN, SEAPLANE, FLOATSCLASSIC-WATER) were green on the pre-merge tree (gates_final.txt).
