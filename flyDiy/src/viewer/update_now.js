@@ -125,7 +125,7 @@ body.mode-fly #updNow { left:auto; right:22px; bottom:76px; transform:none; }
 @media (max-width:760px) { body.mode-fly #updNow { right:12px; bottom:112px; } }
 body.mode-fly.premOpen #updNow { right:auto; top:auto; left:calc((100vw - 436px) / 2); bottom:14px; transform:translateX(-50%); }
 body.shot #updNow { display:none; }
-#updNote { position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:96; pointer-events:none;
+#updNote { position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:96; touch-action:none;
   max-width:calc(100vw - 24px); box-sizing:border-box; padding:10px 16px; border-radius:18px; background:rgba(26,24,21,.94); color:#f4efe6;
   font:500 13px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; box-shadow:0 6px 24px rgba(0,0,0,.4); }
 #updNote[hidden] { display:none; }
