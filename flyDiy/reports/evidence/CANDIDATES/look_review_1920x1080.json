@@ -1,0 +1,1940 @@
+{
+ "size": "1920x1080",
+ "stills": [
+  {
+   "file": "review/1920x1080_Twin_busher_floats_2_q_FAIL.jpg",
+   "what": "review file \"Twin_busher_floats_2.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats\" vs \"Twin busher floats\", slot \"Twin busher floats\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1012/1012 in 19 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.041,
+    -6,
+    6,
+    3.471,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4656,
+    "colours": 1167,
+    "craftShare": 0.1458,
+    "craftBox": [
+     0,
+     319,
+     959,
+     859
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_2_s.jpg",
+   "what": "review file \"Twin_busher_floats_2.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats\" vs \"Twin busher floats\", slot \"Twin busher floats\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1012/1012 in 19 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 11.1 % of 960x1080, box [34,354,865,728], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.041,
+    -6,
+    6,
+    3.471,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.6694,
+    "colours": 836,
+    "craftShare": 0.1113,
+    "craftBox": [
+     34,
+     354,
+     865,
+     728
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_3_q_FAIL.jpg",
+   "what": "review file \"Twin_busher_floats_3.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 3\" vs \"Twin busher floats 3\", slot \"Twin busher floats 3\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 14 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.05,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4558,
+    "colours": 1154,
+    "craftShare": 0.1405,
+    "craftBox": [
+     0,
+     329,
+     868,
+     828
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_3_s.jpg",
+   "what": "review file \"Twin_busher_floats_3.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 3\" vs \"Twin busher floats 3\", slot \"Twin busher floats 3\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 14 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 10.3 % of 960x1080, box [13,366,838,716], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.05,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.692,
+    "colours": 793,
+    "craftShare": 0.1032,
+    "craftBox": [
+     13,
+     366,
+     838,
+     716
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_3b_q_FAIL.jpg",
+   "what": "review file \"Twin_busher_floats_3b.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 3b\" vs \"Twin busher floats 3b\", slot \"Twin busher floats 3b\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 12 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.049,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4558,
+    "colours": 1145,
+    "craftShare": 0.1404,
+    "craftBox": [
+     0,
+     329,
+     868,
+     827
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_3b_s.jpg",
+   "what": "review file \"Twin_busher_floats_3b.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 3b\" vs \"Twin busher floats 3b\", slot \"Twin busher floats 3b\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 12 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 10.3 % of 960x1080, box [13,366,837,716], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.049,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.692,
+    "colours": 788,
+    "craftShare": 0.1032,
+    "craftBox": [
+     13,
+     366,
+     837,
+     716
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_4_q_FAIL.jpg",
+   "what": "review file \"Twin_busher_floats_4.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 4\" vs \"Twin busher floats 4\", slot \"Twin busher floats 4\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 11 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.05,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4538,
+    "colours": 1190,
+    "craftShare": 0.14,
+    "craftBox": [
+     0,
+     327,
+     922,
+     822
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_Twin_busher_floats_4_s_FAIL.jpg",
+   "what": "review file \"Twin_busher_floats_4.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 4\" vs \"Twin busher floats 4\", slot \"Twin busher floats 4\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 11 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.05,
+    -6,
+    6,
+    3.245,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.6909,
+    "colours": 804,
+    "craftShare": 0.1046,
+    "craftBox": [
+     0,
+     366,
+     825,
+     717
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_birdman_q_FAIL.jpg",
+   "what": "review file \"birdman.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"birdman\" vs \"birdman\", slot \"birdman\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "879/905 in 10 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    0.01,
+    -6,
+    6,
+    2.036,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.5122,
+    "colours": 1995,
+    "craftShare": 0.0736,
+    "craftBox": [
+     0,
+     416,
+     959,
+     710
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_birdman_s.jpg",
+   "what": "review file \"birdman.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"birdman\" vs \"birdman\", slot \"birdman\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "879/905 in 10 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 4.6 % of 960x1080, box [258,441,811,647], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    0.01,
+    -6,
+    6,
+    2.036,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7815,
+    "colours": 1456,
+    "craftShare": 0.0463,
+    "craftBox": [
+     258,
+     441,
+     811,
+     647
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v7_twin_2026-09-04_q_FAIL.jpg",
+   "what": "review file \"build_v7_twin_2026-09-04.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "68/69 in 11 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    0.011,
+    -6,
+    6,
+    3.018,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.5044,
+    "colours": 1303,
+    "craftShare": 0.0718,
+    "craftBox": [
+     0,
+     396,
+     941,
+     791
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v7_twin_2026-09-04_s.jpg",
+   "what": "review file \"build_v7_twin_2026-09-04.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "68/69 in 11 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 3.7 % of 960x1080, box [224,384,789,698], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    0.011,
+    -6,
+    6,
+    3.018,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7471,
+    "colours": 1087,
+    "craftShare": 0.037,
+    "craftBox": [
+     224,
+     384,
+     789,
+     698
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v7_ultralight_2026-09-05_q_FAIL.jpg",
+   "what": "review file \"build_v7_ultralight_2026-09-05.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "119/121 in 14 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    0.001,
+    -6,
+    6,
+    2.892,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.501,
+    "colours": 1378,
+    "craftShare": 0.0759,
+    "craftBox": [
+     0,
+     399,
+     959,
+     806
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v7_ultralight_2026-09-05_s.jpg",
+   "what": "review file \"build_v7_ultralight_2026-09-05.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "119/121 in 14 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 4.8 % of 960x1080, box [206,392,845,691], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    0.001,
+    -6,
+    6,
+    2.892,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7397,
+    "colours": 839,
+    "craftShare": 0.0476,
+    "craftBox": [
+     206,
+     392,
+     845,
+     691
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v8_pusher_2026-09-11_q.jpg",
+   "what": "review file \"build_v8_pusher_2026-09-11.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"pusherLight\" vs \"pusherLight\", slot \"pusherLight\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "105/107 in 9 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 6.9 % of 960x1080, box [38,430,948,735], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    0.031,
+    -6,
+    6,
+    2.179,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.5055,
+    "colours": 1920,
+    "craftShare": 0.0685,
+    "craftBox": [
+     38,
+     430,
+     948,
+     735
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_build_v8_pusher_2026-09-11_s.jpg",
+   "what": "review file \"build_v8_pusher_2026-09-11.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"pusherLight\" vs \"pusherLight\", slot \"pusherLight\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "105/107 in 9 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 3.7 % of 960x1080, box [190,445,788,652], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    0.031,
+    -6,
+    6,
+    2.179,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7845,
+    "colours": 1731,
+    "craftShare": 0.0371,
+    "craftBox": [
+     190,
+     445,
+     788,
+     652
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_composite_jodel_2026-10-07_q_FAIL.jpg",
+   "what": "review file \"composite_jodel_2026-10-07.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Jodel D112 glass\" vs \"Jodel D112 glass\", slot \"JodelGlass\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "880/906 in 12 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.143,
+    -6,
+    6,
+    2.347,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.5129,
+    "colours": 1875,
+    "craftShare": 0.0819,
+    "craftBox": [
+     106,
+     445,
+     959,
+     765
+    ],
+    "cut": [
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_composite_jodel_2026-10-07_s.jpg",
+   "what": "review file \"composite_jodel_2026-10-07.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Jodel D112 glass\" vs \"Jodel D112 glass\", slot \"JodelGlass\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "880/906 in 12 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 5.8 % of 960x1080, box [270,420,864,659], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.143,
+    -6,
+    6,
+    2.347,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7663,
+    "colours": 1179,
+    "craftShare": 0.0584,
+    "craftBox": [
+     270,
+     420,
+     864,
+     659
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_cub_quadwin_2026-10_q_FAIL.jpg",
+   "what": "review file \"cub_quadwin_2026-10.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub - quad rear window (WINDOWS-FREE)\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "890/917 in 15 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.244,
+    -6,
+    6,
+    2.511,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4961,
+    "colours": 1607,
+    "craftShare": 0.0846,
+    "craftBox": [
+     0,
+     415,
+     959,
+     745
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_cub_quadwin_2026-10_s.jpg",
+   "what": "review file \"cub_quadwin_2026-10.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub - quad rear window (WINDOWS-FREE)\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "890/917 in 15 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 6.3 % of 960x1080, box [144,407,820,660], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.244,
+    -6,
+    6,
+    2.511,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7535,
+    "colours": 1166,
+    "craftShare": 0.0634,
+    "craftBox": [
+     144,
+     407,
+     820,
+     660
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_flydiy-build_(4)_q_FAIL.jpg",
+   "what": "review file \"flydiy-build (4).json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"twinBoomFail\" vs \"twinBoomFail\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "880/905 in 10 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -9.227,
+    0.073,
+    -6,
+    6,
+    3.362,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.5964,
+    "colours": 831,
+    "craftShare": 0.0634,
+    "craftBox": [
+     0,
+     421,
+     820,
+     742
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_flydiy-build_(4)_s.jpg",
+   "what": "review file \"flydiy-build (4).json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"twinBoomFail\" vs \"twinBoomFail\", slot \"flydiy-build\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "880/905 in 10 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 5.5 % of 960x1080, box [42,483,669,714], door views button"
+    }
+   ],
+   "box": [
+    -9.227,
+    0.073,
+    -6,
+    6,
+    3.362,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7335,
+    "colours": 706,
+    "craftShare": 0.0547,
+    "craftBox": [
+     42,
+     483,
+     669,
+     714
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "review/1920x1080_stol_cub_kit_q_FAIL.jpg",
+   "what": "review file \"stol_cub_kit.json\" imported through #gFile, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub STOL\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "882/909 in 13 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.243,
+    -6,
+    6,
+    2.512,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.4939,
+    "colours": 1589,
+    "craftShare": 0.0889,
+    "craftBox": [
+     0,
+     413,
+     959,
+     745
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "review/1920x1080_stol_cub_kit_s.jpg",
+   "what": "review file \"stol_cub_kit.json\" imported through #gFile, side, UI hidden",
+   "asserts": [
+    {
+     "what": "imported through #gFile",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub STOL\""
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "882/909 in 13 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 6.6 % of 960x1080, box [144,407,820,660], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.243,
+    -6,
+    6,
+    2.512,
+    6
+   ],
+   "picture": {
+    "w": 960,
+    "h": 1080,
+    "topShare": 0.7514,
+    "colours": 988,
+    "craftShare": 0.0658,
+    "craftBox": [
+     144,
+     407,
+     820,
+     660
+    ],
+    "cut": []
+   }
+  }
+ ],
+ "asserts": [
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Twin busher floats\" vs \"Twin busher floats\", slot \"Twin busher floats\""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1012/1012 in 19 s"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_2.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Twin busher floats 3\" vs \"Twin busher floats 3\", slot \"Twin busher floats 3\""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1027/1027 in 14 s"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Twin busher floats 3b\" vs \"Twin busher floats 3b\", slot \"Twin busher floats 3b\""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1027/1027 in 12 s"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_3b.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Twin busher floats 4\" vs \"Twin busher floats 4\", slot \"Twin busher floats 4\""
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1027/1027 in 11 s"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "Twin_busher_floats_4.json: in frame (s)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"birdman\" vs \"birdman\", slot \"birdman\""
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "879/905 in 10 s"
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "5",
+   "what": "birdman.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "68/69 in 11 s"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_twin_2026-09-04.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", slot \"flydiy-build\""
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "119/121 in 14 s"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "5",
+   "what": "build_v7_ultralight_2026-09-05.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"pusherLight\" vs \"pusherLight\", slot \"pusherLight\""
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "105/107 in 9 s"
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: in frame (q)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "build_v8_pusher_2026-09-11.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Jodel D112 glass\" vs \"Jodel D112 glass\", slot \"JodelGlass\""
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "880/906 in 12 s"
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the right edge"
+  },
+  {
+   "step": "5",
+   "what": "composite_jodel_2026-10-07.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub - quad rear window (WINDOWS-FREE)\""
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "890/917 in 15 s"
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "5",
+   "what": "cub_quadwin_2026-10.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"twinBoomFail\" vs \"twinBoomFail\", slot \"flydiy-build\""
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "880/905 in 10 s"
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "5",
+   "what": "flydiy-build (4).json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: imported through #gFile",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Piper Cub\" vs \"Piper Cub\", slot \"piperCub STOL\""
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "882/909 in 13 s"
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "5",
+   "what": "stol_cub_kit.json: in frame (s)",
+   "pass": true,
+   "detail": ""
+  }
+ ],
+ "errors": [],
+ "dialogs": [],
+ "console": [],
+ "browser": "Chrome/153.0.8010.12",
+ "url": "http://localhost:<port>/flyDiy/index.html?profile=phone&gfx=laptop&intro=0&phmat=full&idle=0",
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "profile": "phone",
+ "idleOn": false
+}

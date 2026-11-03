@@ -1,0 +1,1236 @@
+{
+ "size": "360x800",
+ "stills": [
+  {
+   "file": "rack/360x800_rack.jpg",
+   "what": "the fleet rack, scrolled to the candidate group (UI shown)",
+   "asserts": [
+    {
+     "what": "rows = index names in order",
+     "pass": true,
+     "detail": "Stearman-alike | Tiger Moth-alike | Camel-alike | DC-3-alike | STOL Cub | Cub, fittings by hand | Twin busher floats 4b | ugly bi | mosquito"
+    }
+   ]
+  },
+  {
+   "file": "rack/360x800_rack_end.jpg",
+   "what": "the fleet rack, scrolled to its last candidate row (UI shown)",
+   "asserts": [
+    {
+     "what": "rows = index names in order",
+     "pass": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "file": "offered/360x800_stearman_2026-10_q_FAIL.jpg",
+   "what": "offered candidate \"Stearman-alike\" (stearman_2026-10.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1009/1026 in 27 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.009,
+    -6,
+    6,
+    3.005,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4733,
+    "colours": 1265,
+    "craftShare": 0.1388,
+    "craftBox": [
+     2,
+     151,
+     359,
+     299
+    ],
+    "cut": [
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_tigermoth_2026-10_q.jpg",
+   "what": "offered candidate \"Tiger Moth-alike\" (tigermoth_2026-10.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1013/1035 in 18 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 11.4 % of 360x400, box [13,143,348,283], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.035,
+    -6,
+    6,
+    2.725,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4758,
+    "colours": 1406,
+    "craftShare": 0.1139,
+    "craftBox": [
+     13,
+     143,
+     348,
+     283
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "offered/360x800_camel_2026-10_q.jpg",
+   "what": "offered candidate \"Camel-alike\" (camel_2026-10.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1016/1033 in 15 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 9.6 % of 360x400, box [38,147,352,290], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.046,
+    -6,
+    6,
+    2.996,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4849,
+    "colours": 820,
+    "craftShare": 0.0957,
+    "craftBox": [
+     38,
+     147,
+     352,
+     290
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "offered/360x800_dc3_2026-10_q_FAIL.jpg",
+   "what": "offered candidate \"DC-3-alike\" (dc3_2026-10.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"cessnaMetal\" vs \"cessnaMetal\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "998/1016 in 31 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the bottom and left and right edge"
+    }
+   ],
+   "box": [
+    -6.593,
+    -0.301,
+    -14.499,
+    13.469,
+    5.725,
+    14.499
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4333,
+    "colours": 479,
+    "craftShare": 0.4894,
+    "craftBox": [
+     0,
+     104,
+     359,
+     399
+    ],
+    "cut": [
+     "bottom",
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_stol_cub_showcase_q_FAIL.jpg",
+   "what": "offered candidate \"STOL Cub\" (stol_cub_showcase.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"STOL Cub\" vs \"STOL Cub\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "994/1012 in 21 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.206,
+    -6,
+    6,
+    2.718,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4805,
+    "colours": 1105,
+    "craftShare": 0.092,
+    "craftBox": [
+     0,
+     149,
+     359,
+     283
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_cub_fittings_hand_2026-10_q_FAIL.jpg",
+   "what": "offered candidate \"Cub, fittings by hand\" (cub_fittings_hand_2026-10.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Piper Cub\" vs \"Piper Cub\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "884/910 in 13 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left and right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.264,
+    -6,
+    6,
+    2.511,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4961,
+    "colours": 1024,
+    "craftShare": 0.088,
+    "craftBox": [
+     0,
+     153,
+     359,
+     275
+    ],
+    "cut": [
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_Twin_busher_floats_4b_q_FAIL.jpg",
+   "what": "offered candidate \"Twin busher floats 4b\" (Twin_busher_floats_4b.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Twin busher floats 4b\" vs \"Twin busher floats 4b\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1027/1027 in 16 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the left edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.05,
+    -6,
+    6,
+    3.374,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4558,
+    "colours": 921,
+    "craftShare": 0.1492,
+    "craftBox": [
+     0,
+     119,
+     340,
+     307
+    ],
+    "cut": [
+     "left"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_ugly_bi_q.jpg",
+   "what": "offered candidate \"ugly bi\" (ugly_bi.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"ugly bi\" vs \"ugly bi\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1017/1017 in 18 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 10.6 % of 360x400, box [46,147,340,275], door views button"
+    }
+   ],
+   "box": [
+    -6,
+    -0.18,
+    -6,
+    6,
+    2.412,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.489,
+    "colours": 1160,
+    "craftShare": 0.1058,
+    "craftBox": [
+     46,
+     147,
+     340,
+     275
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "offered/360x800_mosquito_q.jpg",
+   "what": "offered candidate \"mosquito\" (mosquito.json) clicked in the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"mosquito\" vs \"mosquito\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "974/987 in 15 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": true,
+     "detail": "aeroplane 7.4 % of 360x400, box [3,202,341,333], door views button"
+    }
+   ],
+   "box": [
+    -7.692,
+    -0.18,
+    -6,
+    6,
+    5.004,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.5638,
+    "colours": 758,
+    "craftShare": 0.0738,
+    "craftBox": [
+     3,
+     202,
+     341,
+     333
+    ],
+    "cut": []
+   }
+  },
+  {
+   "file": "cards/360x800_cards.jpg",
+   "what": "the NEW overlay, scrolled to the candidate heading and cards (UI shown)",
+   "asserts": [
+    {
+     "what": "heading present",
+     "pass": true,
+     "detail": "candidate official \u2014 built, not validated"
+    },
+    {
+     "what": "cards = index names in order",
+     "pass": true,
+     "detail": "Stearman-alike | Tiger Moth-alike | Camel-alike | DC-3-alike | STOL Cub | Cub, fittings by hand | Twin busher floats 4b | ugly bi | mosquito"
+    }
+   ]
+  },
+  {
+   "file": "cards/360x800_cards_end.jpg",
+   "what": "the NEW overlay, scrolled to the last candidate card (UI shown)",
+   "asserts": [
+    {
+     "what": "cards = index names in order",
+     "pass": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "file": "cards/360x800_dc3_card_q_FAIL.jpg",
+   "what": "the DC-3-alike card clicked in the NEW overlay, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"cessnaMetal\" vs \"cessnaMetal\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "998/1016 in 35 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the bottom and left and right edge"
+    }
+   ],
+   "box": [
+    -6.593,
+    -0.301,
+    -14.499,
+    13.469,
+    5.725,
+    14.499
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4333,
+    "colours": 479,
+    "craftShare": 0.4894,
+    "craftBox": [
+     0,
+     104,
+     359,
+     399
+    ],
+    "cut": [
+     "bottom",
+     "left",
+     "right"
+    ]
+   }
+  },
+  {
+   "file": "offered/360x800_export_second_stearman_q_FAIL.jpg",
+   "what": "the second build to save: Stearman-alike from the rack, 3/4 front, UI hidden",
+   "asserts": [
+    {
+     "what": "clicked",
+     "pass": true,
+     "detail": "true"
+    },
+    {
+     "what": "no alert",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "no page error",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "what": "spec name = file's (spec.meta.name)",
+     "pass": true,
+     "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+    },
+    {
+     "what": "spec = file's (>= 90 % cage rows)",
+     "pass": true,
+     "detail": "1009/1026 in 62 s"
+    },
+    {
+     "what": "in frame (eye, not flat, aeroplane > 2 %, not cut)",
+     "pass": false,
+     "detail": "the aeroplane is cut off at the right edge"
+    }
+   ],
+   "box": [
+    -6,
+    -0.009,
+    -6,
+    6,
+    3.119,
+    6
+   ],
+   "picture": {
+    "w": 360,
+    "h": 400,
+    "topShare": 0.4799,
+    "colours": 1190,
+    "craftShare": 0.1376,
+    "craftBox": [
+     2,
+     152,
+     359,
+     302
+    ],
+    "cut": [
+     "right"
+    ]
+   }
+  }
+ ],
+ "asserts": [
+  {
+   "step": "1",
+   "what": "the candidate rows = index.json names, in order",
+   "pass": true,
+   "detail": "9 rows"
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1009/1026 in 27 s"
+  },
+  {
+   "step": "2",
+   "what": "stearman_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the right edge"
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1013/1035 in 18 s"
+  },
+  {
+   "step": "2",
+   "what": "tigermoth_2026-10.json: in frame (q)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1016/1033 in 15 s"
+  },
+  {
+   "step": "2",
+   "what": "camel_2026-10.json: in frame (q)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"cessnaMetal\" vs \"cessnaMetal\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "998/1016 in 31 s"
+  },
+  {
+   "step": "2",
+   "what": "dc3_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the bottom and left and right edge"
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"STOL Cub\" vs \"STOL Cub\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "994/1012 in 21 s"
+  },
+  {
+   "step": "2",
+   "what": "stol_cub_showcase.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Piper Cub\" vs \"Piper Cub\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "884/910 in 13 s"
+  },
+  {
+   "step": "2",
+   "what": "cub_fittings_hand_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left and right edge"
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Twin busher floats 4b\" vs \"Twin busher floats 4b\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1027/1027 in 16 s"
+  },
+  {
+   "step": "2",
+   "what": "Twin_busher_floats_4b.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the left edge"
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"ugly bi\" vs \"ugly bi\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1017/1017 in 18 s"
+  },
+  {
+   "step": "2",
+   "what": "ugly_bi.json: in frame (q)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"mosquito\" vs \"mosquito\", unnamed slot"
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "974/987 in 15 s"
+  },
+  {
+   "step": "2",
+   "what": "mosquito.json: in frame (q)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "3",
+   "what": "the candidate cards = index.json names, in order",
+   "pass": true,
+   "detail": "9 cards"
+  },
+  {
+   "step": "3",
+   "what": "the .dfCandH heading",
+   "pass": true,
+   "detail": "\"candidate official \u2014 built, not validated\""
+  },
+  {
+   "step": "3",
+   "what": "a DC-3-alike row in index.json",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"cessnaMetal\" vs \"cessnaMetal\", unnamed slot"
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "998/1016 in 35 s"
+  },
+  {
+   "step": "3",
+   "what": "dc3_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the bottom and left and right edge"
+  },
+  {
+   "step": "3",
+   "what": "the overlay closed after the card",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "4",
+   "what": "Save As \"candidates-look A\" through the name menu (menu)",
+   "pass": true,
+   "detail": "prompt: Save as:"
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: clicked",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: no alert",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: no page error",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: spec name = file's (spec.meta.name)",
+   "pass": true,
+   "detail": "\"Garage Special\" vs \"Garage Special\", unnamed slot"
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: spec = file's (>= 90 % cage rows)",
+   "pass": true,
+   "detail": "1009/1026 in 62 s"
+  },
+  {
+   "step": "4",
+   "what": "stearman_2026-10.json: in frame (q)",
+   "pass": false,
+   "detail": "the aeroplane is cut off at the right edge"
+  },
+  {
+   "step": "4",
+   "what": "Save As \"candidates-look B\" through the name menu (menu)",
+   "pass": true,
+   "detail": "prompt: Save as:"
+  },
+  {
+   "step": "4",
+   "what": "at least 2 builds saved",
+   "pass": true,
+   "detail": "[\"candidates-look A\",\"candidates-look B\"]"
+  },
+  {
+   "step": "4",
+   "what": "#gExportAll download caught (menu)",
+   "pass": true,
+   "detail": "flydiy-all-aeroplanes-2026-11-03.json"
+  },
+  {
+   "step": "4",
+   "what": "what = \"flydiy-fleet\"",
+   "pass": true,
+   "detail": "\"flydiy-fleet\""
+  },
+  {
+   "step": "4",
+   "what": "v = 1",
+   "pass": true,
+   "detail": "1"
+  },
+  {
+   "step": "4",
+   "what": "builds: one per slot",
+   "pass": true,
+   "detail": "slots [\"candidates-look A\",\"candidates-look B\"] vs localStorage [\"candidates-look A\",\"candidates-look B\"], each with spec.cage: true"
+  },
+  {
+   "step": "4",
+   "what": "import of it: alert starts 'That is an \"export all\" file'",
+   "pass": true,
+   "detail": "alert: That is an \"export all\" file of 2 aeroplanes - import opens one build (export one from its slot)."
+  }
+ ],
+ "errors": [],
+ "dialogs": [
+  {
+   "type": "prompt",
+   "message": "Save as:"
+  },
+  {
+   "type": "prompt",
+   "message": "Save as:"
+  },
+  {
+   "type": "alert",
+   "message": "That is an \"export all\" file of 2 aeroplanes - import opens one build (export one from its slot)."
+  }
+ ],
+ "console": [],
+ "browser": "Chrome/153.0.8010.12",
+ "url": "http://localhost:<port>/flyDiy/index.html?profile=phone&gfx=laptop&intro=0&phmat=full&idle=0",
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "profile": "phone",
+ "idleOn": false,
+ "rackRows": [
+  "Stearman-alike",
+  "Tiger Moth-alike",
+  "Camel-alike",
+  "DC-3-alike",
+  "STOL Cub",
+  "Cub, fittings by hand",
+  "Twin busher floats 4b",
+  "ugly bi",
+  "mosquito"
+ ],
+ "rackDoor": "menu",
+ "exportFile": {
+  "name": "flydiy-all-aeroplanes-2026-11-03.json",
+  "bytes": 47074,
+  "keys": [
+   "what",
+   "v",
+   "date",
+   "builds"
+  ],
+  "date": "2026-11-03",
+  "slots": [
+   "candidates-look A",
+   "candidates-look B"
+  ]
+ }
+}
