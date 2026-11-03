@@ -53,12 +53,7 @@ module.exports = async (page, { frames, shot, log }) => {
       if (water) out.push({ units, max: gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS), names }); }
     return out; });
   log('bay_stage samplers', JSON.stringify(R.samplers));
-  // the free eye (the camera rail's pill), the HUD stays hidden (soft_still's style)
-  await ev(() => { const Rl = window.FLYDIY_RAIL, f = document.getElementById('flFly'); if (Rl) Rl.open(f && !f.hidden ? null : 'camera'); });
-  await new Promise(r => setTimeout(r, 1500));
-  const free = await ev(() => { const p = [...document.querySelectorAll('#flFlyBody .pill')].find(b => b.textContent.trim() === 'free'); if (!p) return 0; p.click(); return 1; });
-  await ev(() => { const Rl = window.FLYDIY_RAIL, f = document.getElementById('flFly'); if (Rl) Rl.open(f && !f.hidden ? null : 'camera'); });
-  if (!free) throw new Error('bay_stage: no free-eye pill');
+  // the free eye: FLIGHT_PROBE.devFree (G1530, the rigs' door - the camera rail's 'free' pill is not offered on the software rung)
   for (const name of views) {
     let P = V[name];
     if (P.lake) { await ev(WP.FIND); const L = await ev(() => window.__WP && __WP.lake ? { x: __WP.lake.x, z: __WP.lake.z, n: __WP.lake.n } : null);
@@ -69,7 +64,8 @@ module.exports = async (page, { frames, shot, log }) => {
     const y = P.agl > 0.5 ? lvl + P.agl : lvl + R.h0 - 0.25;
     await ev(async ([x, y, z]) => { const s = FLIGHT_PROBE.sim(), c = s.cgPos(); await FLIGHT_PROBE.place({ by: [x - c[0], y - c[1], z - c[2]], zeroV: true }); return 1; }, [P.x, y, P.z]);
     const ex = P.eye[0], ey = lvl + P.eye[1], ez = P.eye[2], dx = P.look[0] - ex, dz = P.look[2] - ez, dy = lvl + P.look[1] - ey;
-    await ev(([ex, ey, ez, yaw, pitch]) => { const c = DEV_CAM; c.pos.set(ex, ey, ez); c.yaw = yaw; c.pitch = pitch; return 1; }, [ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))]);
+    R.cam = await ev(([ex, ey, ez, yaw, pitch]) => FLIGHT_PROBE.devFree(ex, ey, ez, yaw, pitch), [ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))]);
+    if (R.cam !== 'free') throw new Error('bay_stage: the free eye did not take (' + R.cam + ')');
     await frames(N);
     const file = path.join(OUT, name + '_' + TAG + '.jpg');
     const A = await shot(file);
