@@ -1131,18 +1131,29 @@ PAGE.post = ctx => {
 // drawn layer (~1 s a door), so it runs when the hand has stopped (an idle callback after the build, dropped when a
 // newer build supersedes it), appends its answer to the status line and leaves it on CAGE_DOORSWING for the join's
 // notes. A page without idle callbacks (node: the gates, the load door) never schedules it - they call the report.
-let swingTok = 0;
+let swingTok = 0, swingIdle = null, swingCtx = null;
 function doorSwingSchedule(ctx, FS) {
   const tok = ++swingTok;
   window.CAGE_DOORSWING = { tok, last: null, P: ctx.P };
+  // ONE PENDING PASS, THE LATEST BUILD'S, AND ONLY IN THE EDITOR: a pass per build queued with its own scene kept
+  // every superseded aeroplane alive until its callback ran (GATE PARKED's page in node captures aeroplane after
+  // aeroplane in the game and ran out of heap); the game's builds (CAGE_IN_GAME: the parked captures, the flown
+  // aeroplane) and a drag tick's preview never ask
+  swingCtx = null;
+  if (swingIdle != null && typeof window.cancelIdleCallback === 'function') { try { window.cancelIdleCallback(swingIdle); } catch (e) {} }
+  swingIdle = null;
   const PSm = window.PILLAR_SITE;
   if (!PSm || !PSm.doorSwingReport || typeof window.requestIdleCallback !== 'function' || !ctx.mesh) return;
-  const { scene, mesh, P, stat, spec } = ctx;
-  window.requestIdleCallback(() => {
-    if (tok !== swingTok) return;
+  if (window.CAGE_IN_GAME || ctx.preview || ctx.defer) return;
+  swingCtx = { ctx, FS };
+  swingIdle = window.requestIdleCallback(() => {
+    swingIdle = null;
+    const SC = swingCtx; swingCtx = null;
+    if (!SC || tok !== swingTok) return;
+    const { scene, mesh, P, stat, spec } = SC.ctx;
     try {
       const R = CG2 && CG2.cageResolve ? CG2.cageResolve(spec || CG2.cageSpec(Object.assign({}, P))) : null;
-      const rep = PSm.doorSwingReport(THREE, scene, mesh, R, FS,
+      const rep = PSm.doorSwingReport(THREE, scene, mesh, R, SC.FS,
         { edge: Math.round(+P.hgDoorEdge || 0), hinges: window.CAGE_HINGE && window.CAGE_HINGE.doors });
       if (tok !== swingTok) return;
       window.CAGE_DOORSWING.last = rep;

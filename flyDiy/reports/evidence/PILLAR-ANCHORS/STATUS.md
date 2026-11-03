@@ -7,7 +7,7 @@ Branch `claude/pillar-anchors` (cloud session). Asked for by the user on 2 Nov t
 > to go on the door areas, when possible. Pillars should really be the target for all fixation devices and anchors.
 > We know perfectly where they are."
 
-State: **work in progress.** Sections below are rewritten as results come in.
+State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). The rebase on FINISH-4 and PHONE-1b is still to do; two check-ins are scheduled for it, at 03:15 and 09:15 UTC on 3 Nov.
 
 ## 1. What was measured first (the trace)
 
@@ -123,7 +123,49 @@ No doors: both chinooks, Rufus, camel, mosquito, stearman, tigermoth and the twi
 
 ## 4. Gates
 
-(running: GEN and the readers of the touched files, see below)
+Run on this branch (`node tools/run_gates.js --only=... --no-build`). Every red was re-run on a clean origin/master
+worktree.
+
+**PASS:**
+
+- the brief's list: PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS, GEN (all 4 shards), STARTER
+- the other gates that read a touched file: FIT, HINGE, BUILD, ENERGY, FRAMES, ROLLANIM, SUBSTEP, BENCH, PROCURE,
+  EDBUGS, LIVERYREACH, NACLAG, WINGROWS, BAY, PODEDITOR, DEFAULT, DASH, HITBOX, TAXICLEAR, TANKMOUNT, SKINMAT,
+  FITMANUAL, SIMWORKER
+- the new **PILLAR**
+
+ROLLANIM was red once, at 64.1 bytes a frame against a bound of 64, while five other node jobs were running. It passes
+alone and passes on master.
+
+**Red, and red on master too (standing), with the same findings:**
+
+| gate | what is red |
+|---|---|
+| CLIP | stock+IFR: the nav aerial 9.2 mm into the fin |
+| TECH | `pitch:seaplane` has no segment |
+| NODUMMY | `_crew_head_probe.js`, `newshapes_build.js`, `quickshot.js` |
+| JOINPARITY | the metal Cessna / Cessna floats node vs page masses; the fixture byte check; the tools that fly a validated build raw |
+| HANDLE | `bugReports/Twin_busher_floats_2.json`: the handle on the hinge edge |
+| ENGCONFIG | IDENTITY digests against its pinned old master 2c2a74459; the three cards differ (same digests on master) |
+| PARKED | out of heap in section 12p (the fleet in the page). Master is out of heap too when run alone; it passed once in a 3-job run |
+
+**HANDLE:** this branch's first run had 45 reds on the cards born with the snap. The new lever's pad stood across the
+window sill, because the conforming surface's axes are not the handle's. Fixed: the pad lies on the tangent plane.
+
+**Memory:** the PARKED hunt led to three changes on this branch, all kept.
+
+- The editor's door-swing pass keeps only the latest build's context, with one pending callback, and never runs for
+  the game's builds or a drag tick's preview.
+- The float layer's snap-off "root on a door" status runs in the editor only.
+- The swing's obstacles are clipped to the doors' reach before they are copied.
+
+**Validated builds (Cub, Jodel, metal Cessna, Cessna floats, the twin floatplane): identical.**
+
+- Their cages carry no `pilSnap` and load with it off.
+- GATE PILLAR checks that every layer's vertices are the same with the pillar module removed. The light layer's beacon
+  differs between any two builds and is subtracted as noise.
+- `flight_core.js` is untouched, so GEN and every physics digest are unchanged.
+- Rufus has no doors and no struts.
 
 ## 5. Renders
 

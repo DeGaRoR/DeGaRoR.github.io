@@ -536,13 +536,22 @@ function sceneObstacles(THREE, scene, opt) {
     const key = layer + ':' + nm;
     let rec = out.get(key);
     if (!rec) out.set(key, rec = { label, layer, cat: catOf(layer, nm), tris: [] });
+    // only what lies inside `opt.box` (the doors' reach): the sweep never looks further, and a whole aeroplane's
+    // triangles as nested arrays are hundreds of megabytes (GATE PARKED's page in node ran out of heap)
+    const B = opt.box;
+    const inB = (x, y, z) => !B || (x >= B[0] && x <= B[3] && y >= B[1] && y <= B[4] && z >= B[2] && z <= B[5]);
+    const q = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     for (let i = 0; i + 2 < n; i += 3) {
-      const t = [];
-      for (let e = 0; e < 3; e++) { v.fromBufferAttribute(p, idx ? idx.getX(i + e) : i + e).applyMatrix4(M); t.push([v.x, v.y, v.z]); }
-      rec.tris.push(t);
+      let any = false;
+      for (let e = 0; e < 3; e++) {
+        v.fromBufferAttribute(p, idx ? idx.getX(i + e) : i + e).applyMatrix4(M);
+        q[3 * e] = v.x; q[3 * e + 1] = v.y; q[3 * e + 2] = v.z;
+        if (inB(v.x, v.y, v.z)) any = true;
+      }
+      if (any) rec.tris.push([[q[0], q[1], q[2]], [q[3], q[4], q[5]], [q[6], q[7], q[8]]]);
     }
   });
-  return [...out.values()];
+  return [...out.values()].filter(r => r.tris.length);
 }
 
 // ---- THE DOOR-SWING CHECK -------------------------------------------------------------------------------------
@@ -554,7 +563,14 @@ const SWING_RED_MM = 20;
 function doorSwingReport(THREE, scene, mesh, R, FS, o) {
   o = o || {};
   const PS = pillarsOf(mesh, R, FS);
-  const obs = sceneObstacles(THREE, scene, o);
+  if (!PS.doors.length) return { doors: [], worst: null, red: false, redMM: SWING_RED_MM };
+  // the box every door's swing can reach: its own box grown by its width / height and the sweep's reach
+  const bx = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (const d of PS.doors) {
+    const g = Math.max(d.w, d.h) + 0.15;
+    for (const t of d.tris) for (const p of t) for (let a = 0; a < 3; a++) { bx[a] = Math.min(bx[a], p[a] - g); bx[a + 3] = Math.max(bx[a + 3], p[a] + g); }
+  }
+  const obs = sceneObstacles(THREE, scene, Object.assign({ box: bx }, o));
   const doors = [];
   for (const d of PS.doors) {
     const sw = swingSweep(d, axesOf(d, o.edge, o.hinges), obs, o);

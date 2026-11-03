@@ -1,20 +1,20 @@
 [
  {
   "build": "bugReports/Twin_busher_floats_2.json",
-  "ms": 33451,
+  "ms": 26850,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pax0:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edFit_longeron",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edFit_longeron"
       },
       "engine": {
        "mm": 78,
@@ -44,18 +44,18 @@
     {
      "key": "pax0:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edFit_longeron",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_longeron"
+      },
       "engine": {
        "mm": 78,
        "deg": 4,
        "who": "cowl"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "hinge": {
        "mm": 2,
@@ -80,28 +80,28 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "float edFloatStruts",
+     "deg": 0,
+     "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "wing strut": {
        "mm": 0,
        "deg": 8,
        "who": "wing edFit_liftstrut"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       }
      },
      "onClosed": {
@@ -113,28 +113,28 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 0,
+       "who": "access edAcc_static_metal"
       },
       "wing strut": {
        "mm": 0,
        "deg": 8,
        "who": "wing edFit_liftstrut"
-      },
-      "anchor": {
-       "mm": 0,
-       "deg": 3,
-       "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       }
      },
      "onClosed": {
@@ -154,13 +154,13 @@
     {
      "key": "pax0:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edFit_longeron",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edFit_longeron"
       },
       "engine": {
        "mm": 78,
@@ -200,18 +200,18 @@
     {
      "key": "pax0:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edFit_longeron",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_longeron"
+      },
       "engine": {
        "mm": 78,
        "deg": 4,
        "who": "cowl"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "hinge": {
        "mm": 2,
@@ -246,12 +246,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -277,12 +277,12 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -314,25 +314,25 @@
  },
  {
   "build": "builds/c172r_wipline2350_landprop_2026-10-20.json",
-  "ms": 23259,
+  "ms": 19692,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
       "wing": {
        "mm": 0,
        "deg": 13,
        "who": "wing"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "anchor": {
        "mm": 0,
@@ -352,9 +352,14 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
       "wing": {
        "mm": 0,
        "deg": 13,
@@ -364,11 +369,6 @@
        "mm": 0,
        "deg": 3,
        "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "wing strut": {
        "mm": 0,
@@ -455,25 +455,25 @@
  },
  {
   "build": "builds/c172r_wipline2350_stcprop_2026-10-20.json",
-  "ms": 22025,
+  "ms": 17214,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
       "wing": {
        "mm": 0,
        "deg": 13,
        "who": "wing"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "anchor": {
        "mm": 0,
@@ -493,9 +493,14 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
       "wing": {
        "mm": 0,
        "deg": 13,
@@ -505,11 +510,6 @@
        "mm": 0,
        "deg": 3,
        "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "wing strut": {
        "mm": 0,
@@ -596,19 +596,19 @@
  },
  {
   "build": "builds/cessna172_2026-09-20.json",
-  "ms": 18008,
+  "ms": 15054,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -629,12 +629,12 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -663,12 +663,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -689,12 +689,12 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -721,7 +721,7 @@
  },
  {
   "build": "builds/cessna172_2026-09-20_corrected.json",
-  "ms": 16931,
+  "ms": 13829,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
@@ -838,7 +838,7 @@
  },
  {
   "build": "builds/chinook_2026-09-21.json",
-  "ms": 7257,
+  "ms": 4720,
   "pillars": "C* B*",
   "saved": {
    "doors": [],
@@ -857,7 +857,7 @@
  },
  {
   "build": "builds/chinook_2026-09-21_corrected.json",
-  "ms": 6170,
+  "ms": 4511,
   "pillars": "C* B*",
   "saved": {
    "doors": [],
@@ -876,24 +876,24 @@
  },
  {
   "build": "builds/composite_jodel_2026-10-07.json",
-  "ms": 15562,
+  "ms": 14008,
   "pillars": "B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -910,17 +910,17 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -945,12 +945,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -971,18 +971,18 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing"
+      },
       "anchor": {
        "mm": 0,
        "deg": 13,
        "who": "access edAcc_static_metal"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 7,
@@ -1003,30 +1003,30 @@
  },
  {
   "build": "builds/cub_2026-09-20.json",
-  "ms": 17797,
+  "ms": 14371,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
-      "wing": {
-       "mm": 0,
-       "deg": 8,
-       "who": "wing"
-      },
       "wing strut": {
        "mm": 0,
-       "deg": 18,
+       "deg": 0,
        "who": "wing edFit_liftstrut"
       },
       "gear": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "gear edLegL"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
       }
      },
      "onClosed": {
@@ -1037,9 +1037,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1049,16 +1059,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1077,9 +1077,19 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegL"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1089,16 +1099,6 @@
        "mm": 60,
        "deg": 3,
        "who": "access edAcc_static_paint"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 0,
-       "deg": 3,
-       "who": "gear edLegL"
       }
      },
      "onClosed": {
@@ -1109,9 +1109,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1121,16 +1131,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
       }
      },
      "onClosed": {
@@ -1147,30 +1147,30 @@
  },
  {
   "build": "builds/cub_2026-09-20_corrected.json",
-  "ms": 17128,
+  "ms": 14132,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
-      "wing": {
-       "mm": 0,
-       "deg": 8,
-       "who": "wing"
-      },
       "wing strut": {
        "mm": 0,
-       "deg": 18,
+       "deg": 0,
        "who": "wing edFit_liftstrut"
       },
       "gear": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "gear edLegL"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
       }
      },
      "onClosed": {
@@ -1181,9 +1181,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1193,16 +1203,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1221,9 +1221,19 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegL"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1233,16 +1243,6 @@
        "mm": 60,
        "deg": 3,
        "who": "access edAcc_static_paint"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 0,
-       "deg": 3,
-       "who": "gear edLegL"
       }
      },
      "onClosed": {
@@ -1253,9 +1253,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1265,16 +1275,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
       }
      },
      "onClosed": {
@@ -1291,24 +1291,24 @@
  },
  {
   "build": "builds/jodel_2026-09-20.json",
-  "ms": 13160,
+  "ms": 11336,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -1325,17 +1325,17 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -1360,12 +1360,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -1386,18 +1386,18 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing"
+      },
       "anchor": {
        "mm": 0,
        "deg": 18,
        "who": "access edAcc_static_metal"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 64,
@@ -1418,24 +1418,24 @@
  },
  {
   "build": "builds/jodel_2026-09-20_corrected.json",
-  "ms": 15359,
+  "ms": 14451,
   "pillars": "B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -1452,17 +1452,17 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "gear": {
@@ -1487,12 +1487,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -1513,18 +1513,18 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing"
+      },
       "anchor": {
        "mm": 0,
        "deg": 13,
        "who": "access edAcc_static_metal"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 7,
@@ -1545,35 +1545,35 @@
  },
  {
   "build": "builds/pa18_floats_2026-10-23.json",
-  "ms": 18143,
+  "ms": 16113,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "float edFloatStruts",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 0,
+       "who": "access edAcc_static_metal"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
        "who": "wing"
-      },
-      "anchor": {
-       "mm": 0,
-       "deg": 8,
-       "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1585,28 +1585,28 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "float edFloatStruts",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
       "anchor": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "wing": {
        "mm": 0,
        "deg": 8,
        "who": "wing"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1626,9 +1626,14 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 8,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -1643,11 +1648,6 @@
        "mm": 158,
        "deg": 3,
        "who": "float edFloatStruts"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1657,9 +1657,14 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
       "anchor": {
        "mm": 0,
        "deg": 8,
@@ -1674,11 +1679,6 @@
        "mm": 158,
        "deg": 3,
        "who": "float edFloatStruts"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -1694,7 +1694,7 @@
  },
  {
   "build": "builds/rufus_2026-10-18_certified.json",
-  "ms": 5071,
+  "ms": 3084,
   "pillars": "B*",
   "saved": {
    "doors": [],
@@ -1713,7 +1713,7 @@
  },
  {
   "build": "builds/candidates/Twin_busher_floats_4b.json",
-  "ms": 25767,
+  "ms": 24485,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
@@ -1778,23 +1778,23 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 0,
+       "who": "access edAcc_static_metal"
+      },
       "wing": {
        "mm": 64,
        "deg": 8,
        "who": "wing"
-      },
-      "anchor": {
-       "mm": 0,
-       "deg": 3,
-       "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "wing strut": {
        "mm": 1,
@@ -1810,28 +1810,28 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "float edFloatStruts",
      "byCat": {
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 0,
+       "who": "access edAcc_static_metal"
+      },
       "wing": {
        "mm": 64,
        "deg": 8,
        "who": "wing"
       },
-      "anchor": {
-       "mm": 0,
-       "deg": 3,
-       "who": "access edAcc_static_metal"
-      },
       "wing strut": {
        "mm": 0,
        "deg": 18,
        "who": "wing edFit_liftstrut"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       }
      },
      "onClosed": {
@@ -1982,7 +1982,7 @@
  },
  {
   "build": "builds/candidates/camel_2026-10.json",
-  "ms": 9671,
+  "ms": 7295,
   "pillars": "B* W",
   "saved": {
    "doors": [],
@@ -2001,30 +2001,30 @@
  },
  {
   "build": "builds/candidates/cub_fittings_hand_2026-10.json",
-  "ms": 15753,
+  "ms": 14155,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
-      "wing": {
-       "mm": 0,
-       "deg": 8,
-       "who": "wing"
-      },
       "wing strut": {
        "mm": 0,
-       "deg": 18,
+       "deg": 0,
        "who": "wing edFit_liftstrut"
       },
       "gear": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "gear edLegL"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
       }
      },
      "onClosed": {
@@ -2035,9 +2035,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -2047,16 +2057,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -2075,9 +2075,19 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegL"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -2087,16 +2097,6 @@
        "mm": 60,
        "deg": 3,
        "who": "access edAcc_static_paint"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 0,
-       "deg": 3,
-       "who": "gear edLegL"
       }
      },
      "onClosed": {
@@ -2107,9 +2107,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -2119,16 +2129,6 @@
        "mm": 0,
        "deg": 8,
        "who": "access edAcc_static_metal"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
       }
      },
      "onClosed": {
@@ -2145,7 +2145,7 @@
  },
  {
   "build": "builds/candidates/dc3_2026-10.json",
-  "ms": 18514,
+  "ms": 13718,
   "pillars": "C* M0 M1 M2 M3 M4 M5 M6 M7 B* A*",
   "saved": {
    "doors": [
@@ -2222,7 +2222,7 @@
  },
  {
   "build": "builds/candidates/mosquito.json",
-  "ms": 5188,
+  "ms": 4111,
   "pillars": "",
   "saved": {
    "doors": [],
@@ -2241,7 +2241,7 @@
  },
  {
   "build": "builds/candidates/stearman_2026-10.json",
-  "ms": 6457,
+  "ms": 4712,
   "pillars": "C* B* W",
   "saved": {
    "doors": [],
@@ -2260,35 +2260,35 @@
  },
  {
   "build": "builds/candidates/stol_cub_showcase.json",
-  "ms": 18676,
+  "ms": 16263,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
-      "wing": {
-       "mm": 0,
-       "deg": 8,
-       "who": "wing"
-      },
-      "anchor": {
-       "mm": 0,
-       "deg": 8,
-       "who": "access edAcc_static_metal"
-      },
       "wing strut": {
        "mm": 0,
-       "deg": 18,
+       "deg": 0,
        "who": "wing edFit_liftstrut"
       },
       "gear": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "gear edLegL"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 0,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
       }
      },
      "onClosed": {
@@ -2300,28 +2300,28 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "anchor": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "access edAcc_static_metal"
       },
       "wing": {
        "mm": 0,
        "deg": 8,
        "who": "wing"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 18,
-       "who": "wing edFit_liftstrut"
       }
      },
      "onClosed": {
@@ -2341,9 +2341,19 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "gear edLegL",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegL"
+      },
       "wing": {
        "mm": 0,
        "deg": 8,
@@ -2353,16 +2363,6 @@
        "mm": 18,
        "deg": 3,
        "who": "access edAcc_static_metal"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 0,
-       "deg": 3,
-       "who": "gear edLegL"
       }
      },
      "onClosed": {
@@ -2373,9 +2373,19 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
-     "who": "access edAcc_static_metal",
+     "deg": 0,
+     "who": "wing edFit_liftstrut",
      "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 0,
+       "who": "gear edLegR"
+      },
       "anchor": {
        "mm": 0,
        "deg": 8,
@@ -2385,16 +2395,6 @@
        "mm": 0,
        "deg": 8,
        "who": "wing"
-      },
-      "wing strut": {
-       "mm": 0,
-       "deg": 13,
-       "who": "wing edFit_liftstrut"
-      },
-      "gear": {
-       "mm": 2,
-       "deg": 3,
-       "who": "gear edLegR"
       }
      },
      "onClosed": {
@@ -2411,7 +2411,7 @@
  },
  {
   "build": "builds/candidates/tigermoth_2026-10.json",
-  "ms": 8264,
+  "ms": 5737,
   "pillars": "C* B* W",
   "saved": {
    "doors": [],
@@ -2430,25 +2430,25 @@
  },
  {
   "build": "builds/candidates/ugly_bi.json",
-  "ms": 14906,
+  "ms": 12311,
   "pillars": "B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing edCap_capRoot",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edCap_capRoot"
+      },
       "wing strut": {
        "mm": 0,
        "deg": 13,
        "who": "brace edFit_wire"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 43,
@@ -2463,18 +2463,18 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing edCap_capRoot",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edCap_capRoot"
+      },
       "wing strut": {
        "mm": 0,
        "deg": 13,
        "who": "brace edFit_wire"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 43,
@@ -2497,18 +2497,18 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing edCap_capRoot",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edCap_capRoot"
+      },
       "wing strut": {
        "mm": 0,
        "deg": 13,
        "who": "brace edFit_wire"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 43,
@@ -2523,18 +2523,18 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
+     "deg": 0,
      "who": "wing edCap_capRoot",
      "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 0,
+       "who": "wing edCap_capRoot"
+      },
       "wing strut": {
        "mm": 0,
        "deg": 13,
        "who": "brace edFit_wire"
-      },
-      "wing": {
-       "mm": 0,
-       "deg": 3,
-       "who": "wing"
       },
       "gear": {
        "mm": 43,
@@ -2555,19 +2555,19 @@
  },
  {
   "build": "metal Cessna (bugReports/cessnaMetal (1).json)",
-  "ms": 16887,
+  "ms": 12249,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "anchor": {
@@ -2588,12 +2588,12 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -2622,12 +2622,12 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -2648,12 +2648,12 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 8,
+     "deg": 0,
      "who": "wing",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 8,
+       "deg": 0,
        "who": "wing"
       },
       "wing strut": {
@@ -2680,24 +2680,24 @@
  },
  {
   "build": "Cessna floats (bugReports/cessnaFloatsWOrks.json)",
-  "ms": 19627,
+  "ms": 15412,
   "pillars": "C* B* A*",
   "saved": {
    "doors": [
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "float edFloatStruts",
+     "deg": 0,
+     "who": "wing edCap_capRoot",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edCap_capRoot"
       },
       "float strut": {
        "mm": 0,
-       "deg": 3,
+       "deg": 0,
        "who": "float edFloatStruts"
       },
       "anchor": {
@@ -2719,23 +2719,23 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "float edFloatStruts",
+     "deg": 0,
+     "who": "wing edCap_capRoot",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edCap_capRoot"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 0,
+       "who": "float edFloatStruts"
       },
       "anchor": {
        "mm": 0,
        "deg": 3,
        "who": "access edAcc_static_metal"
-      },
-      "float strut": {
-       "mm": 0,
-       "deg": 3,
-       "who": "float edFloatStruts"
       },
       "wing strut": {
        "mm": 0,
@@ -2759,13 +2759,13 @@
     {
      "key": "pilot:P",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edCap_capRoot",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edCap_capRoot"
       },
       "anchor": {
        "mm": 35,
@@ -2790,13 +2790,13 @@
     {
      "key": "pilot:M",
      "minMM": 0,
-     "deg": 3,
-     "who": "wing",
+     "deg": 0,
+     "who": "wing edCap_capRoot",
      "byCat": {
       "wing": {
        "mm": 0,
-       "deg": 3,
-       "who": "wing"
+       "deg": 0,
+       "who": "wing edCap_capRoot"
       },
       "anchor": {
        "mm": 8,
@@ -2827,7 +2827,7 @@
  },
  {
   "build": "twin floatplane (tools/fixtures/build_v7_ultralight_2026-09-05.json)",
-  "ms": 6249,
+  "ms": 3761,
   "pillars": "B*",
   "saved": {
    "doors": [],

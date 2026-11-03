@@ -643,7 +643,8 @@ PAGE.post = ctx => {
   }
   // what the roots stand on, for the status line: the pillar, or the door whose skin a root is on (a finding)
   rec.roots = { fwd: pilF ? pilF.key : null, aft: pilA ? pilA.key : null };
-  if (PSx || (PSm && CG2 && CG2.cageResolve && mesh && ctx.spec)) {
+  // (snap off: the editor's status line only - the game's builds never ask)
+  if (PSx || (!window.CAGE_IN_GAME && PSm && CG2 && CG2.cageResolve && mesh && ctx.spec)) {
     try {
       const PSy = PSx || PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS);
       const hit = [];
