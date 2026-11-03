@@ -469,7 +469,9 @@ PAGE.post = ctx => {
 
   const sc = HP.scale;
   const rec = { P: HP, zStep: zc, keelY, track, tetraC: {}, members: [], deck: {}, rud: {}, vol: F.volDeck, cgZ, cgY,
-                cgFrom: (DAT && CGM) ? 'flown' : 'page', preset: HP.preset || null };
+                cgFrom: (DAT && CGM) ? 'flown' : 'page', preset: HP.preset || null,
+                // FLOAT-CG (2 Nov): the model-frame CG this step was stood on - the CG handshake's reference (balanceApply)
+                cgM: (DAT && DAT.fwOk && CGM) ? [CGM[0], CGM[1]] : null };
   const exG = Math.max(0, P.explodeD || 0) * FS;
   const paddleK = Math.round(P.fltPaddle || 0);
   const fits = {};                                 // per side: the deck fitting points (cage)
