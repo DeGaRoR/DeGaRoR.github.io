@@ -1,0 +1,332 @@
+[
+ {
+  "name": "upper_hydro_pilot",
+  "eye": [
+   -437.2,
+   80,
+   -5627.5
+  ],
+  "rel": true,
+  "yaw": 57.2,
+  "pitch": -14.9,
+  "plane": [
+   -185,
+   -5790
+  ]
+ },
+ {
+  "name": "upper_hydro_above",
+  "eye": [
+   -185,
+   110,
+   -5790
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -185,
+   -5790
+  ]
+ },
+ {
+  "name": "bayside_hydro_pilot",
+  "eye": [
+   -1346.2,
+   70,
+   -8500
+  ],
+  "rel": true,
+  "yaw": 131.3,
+  "pitch": -14,
+  "plane": [
+   -1136,
+   -8315
+  ]
+ },
+ {
+  "name": "bayside_hydro_above",
+  "eye": [
+   -1136,
+   90,
+   -8315
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -1136,
+   -8315
+  ]
+ },
+ {
+  "name": "quarry_pilot",
+  "eye": [
+   -2562,
+   60,
+   -7932
+  ],
+  "rel": true,
+  "yaw": -143.1,
+  "pitch": -14.6,
+  "plane": [
+   -2700,
+   -7748
+  ]
+ },
+ {
+  "name": "quarry_above",
+  "eye": [
+   -2700,
+   110,
+   -7748
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -2700,
+   -7748
+  ]
+ },
+ {
+  "name": "gardens_tractors_pilot",
+  "eye": [
+   -2738.4,
+   30,
+   -8282.4
+  ],
+  "rel": true,
+  "yaw": -45,
+  "pitch": -18.4,
+  "plane": [
+   -2802,
+   -8346
+  ]
+ },
+ {
+  "name": "gardens_tractors_above",
+  "eye": [
+   -2802,
+   55,
+   -8346
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -2802,
+   -8346
+  ]
+ },
+ {
+  "name": "cabinlake_camp_pilot",
+  "eye": [
+   2073.6,
+   25,
+   -17323.4
+  ],
+  "rel": true,
+  "yaw": 151.9,
+  "pitch": -15.5,
+  "plane": [
+   2116,
+   -17244
+  ]
+ },
+ {
+  "name": "cabinlake_camp_above",
+  "eye": [
+   2116,
+   45,
+   -17244
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   2116,
+   -17244
+  ]
+ },
+ {
+  "name": "ardent_observatory_pilot",
+  "eye": [
+   9396,
+   50,
+   -5859.1
+  ],
+  "rel": true,
+  "yaw": -84.3,
+  "pitch": -14,
+  "plane": [
+   9197,
+   -5879
+  ]
+ },
+ {
+  "name": "ardent_observatory_above",
+  "eye": [
+   9197,
+   100,
+   -5879
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   9197,
+   -5879
+  ]
+ },
+ {
+  "name": "afb_heating_plant_pilot",
+  "eye": [
+   -600,
+   80,
+   -620
+  ],
+  "rel": true,
+  "yaw": -36.9,
+  "pitch": -14.9,
+  "plane": [
+   -780,
+   -860
+  ]
+ },
+ {
+  "name": "afb_heating_plant_above",
+  "eye": [
+   -780,
+   130,
+   -860
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -780,
+   -860
+  ]
+ },
+ {
+  "name": "afb_f104_pilot",
+  "eye": [
+   -376,
+   20,
+   492
+  ],
+  "rel": true,
+  "yaw": 53.1,
+  "pitch": -15.9,
+  "plane": [
+   -320,
+   450
+  ]
+ },
+ {
+  "name": "afb_f104_above",
+  "eye": [
+   -320,
+   45,
+   450
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -320,
+   450
+  ]
+ },
+ {
+  "name": "coast_bunker_pilot",
+  "eye": [
+   474.2,
+   45,
+   -4168.1
+  ],
+  "rel": true,
+  "yaw": 56,
+  "pitch": -12.7,
+  "plane": [
+   640,
+   -4280
+  ]
+ },
+ {
+  "name": "coast_bunker_above",
+  "eye": [
+   640,
+   80,
+   -4280
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   640,
+   -4280
+  ]
+ },
+ {
+  "name": "coast_skyrest_pilot",
+  "eye": [
+   -1264.4,
+   55,
+   -3169.4
+  ],
+  "rel": true,
+  "yaw": -45,
+  "pitch": -14,
+  "plane": [
+   -1420,
+   -3325
+  ]
+ },
+ {
+  "name": "coast_skyrest_above",
+  "eye": [
+   -1420,
+   100,
+   -3325
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -1420,
+   -3325
+  ]
+ },
+ {
+  "name": "bay_trawler_pilot",
+  "eye": [
+   -1390,
+   30,
+   -8680
+  ],
+  "rel": true,
+  "yaw": -143.1,
+  "pitch": -11.3,
+  "plane": [
+   -1480,
+   -8560
+  ]
+ },
+ {
+  "name": "bay_trawler_above",
+  "eye": [
+   -1480,
+   70,
+   -8560
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -1480,
+   -8560
+  ]
+ }
+]
