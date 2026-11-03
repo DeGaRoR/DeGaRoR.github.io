@@ -47,16 +47,17 @@ everything else the hero; `?seatlod=0|1|2` forces one. 1-4 ms to generate a phon
   seatsX), `_cage_design.js` / `_cage_page5.js` / `_cage_parts.js` / `design_flow.js` (rows), `aeroskin.js` (sections),
   `test_skinmat.js` (its crew-section list), `_cage8.html` / `_bake_joined.js` (load the library), GATE SEATS (new).
 
-## Landing (A0, the user's calls of 3 Nov 08:40)
-- REBASED onto origin/master 1db22c8a (train 1B: PHONE-1b, the knee fix) - the four SEATS source commits replayed
-  (conflicts: only HANDOVER's end, and on F4 the GEN_TRIM / GEN_SEAT_TYPES tables and the node exports - both sides
-  kept), the built files regenerated on top. The rebased, gated branch is claude/affectionate-babbage-cr29gn.
-- PUSHED AS claude/ready/seats (the user approved, 3 Nov) - the landing branch for A0. claude/seats still holds the
-  pre-rebase history of 2 Nov (overwriting it needs a forced push, not done); nothing reads it, A0 may delete it.
+## Landing (A0: for train L30c, 3 Nov 19:00)
+- ON origin/master a8a23ad62 (train L30a, after PHONE-1b and CABIN-CRAFT 3) by a MERGE, not a rebase: claude/ready/seats
+  already carried the 1B rebase, and a merge keeps its update a plain fast-forward (no forced push). Conflicts: the
+  built files (master's taken, then rebuilt) and HANDOVER's end (both entries kept). Pushed as claude/ready/seats.
+- Earlier the same day: rebased onto 1db22c8a (train 1B). claude/seats still holds the pre-rebase history of 2 Nov
+  (overwriting it needs a forced push, not done); nothing reads it, A0 may delete it.
 - S2: no seatLod row on the panel - the profile decides (?seatlod= stays a test override).
-- The four seat finish sections keep their names for CABIN-CRAFT: seatTrim (base), seatAccent, seatSeam, seatFrame.
+- The four seat finish sections keep their names for CABIN-CRAFT's interior: seatTrim (base), seatAccent, seatSeam,
+  seatFrame.
 
-## Gates (on the rebased tree, 1db22c8a + SEATS, built)
+## Gates (on the merged tree, a8a23ad62 + SEATS, built)
 A0's set, ALL PASS: SEATS GEN WEIGHT BUILD JOIN SAVE PARTS DESIGN STARTER PROCURE PILOTS CAGEFIT CABIN FRAMES
 DMGOCCUPANT SKINMAT UISMOKE UISMOKE-PHONE TANKMOUNT PANEL DASH - no red, so nothing to name against master.
 (Outside that set, on the 2 Nov tree: JOINPARITY, LIVERY, CLIP and NODUMMY were red identically on a clean master.)
