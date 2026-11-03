@@ -311100,3 +311100,11 @@ NOT PUSHED: claude/ready/weather-fixes (the session's push to a ready branch was
   demand) - all four on the F4 entry's list of master's standing reds, none reading the career's date or the weather.
 - THE SEASONAL BLOCKS (option B) are on claude/weather-blocks: 28 new days for the user's review, study §10. No game
   code yet.
+
+## A0 - train L30c, 3 Nov 2026 20:10
+
+IN (on L30b master adb2d2a92): claude/ready/story-gate dd06f771f (Game: STORY's T0 row, both hangars yours), claude/ready/config-matrix 71a0b3516 (CONFIG-MATRIX steps 2-4: the switch fixes, the dorsal on rods, the greyed tiles), claude/ready/new-plane 880f0c1a5 (NEW-PLANE: the 14-step chooser, the stance + balance fit; the user's N1-N5), claude/ready/tank-fit a849e1435 (TANK-FIT: the honest clearance, the nose auto-fit, Cub 44 L / Jodel 55 L, strut pods, unfit tank = no certificate), claude/ready/hw-hut 8cbce4702 (HW-COVERAGE: the hut lattice G844b + premises/city/parked cook).
+HELD: claude/ready/weather-fixes 47815e0a0 - pulled at 20:05 on GATE CLOUD's 3 rows, then the re-run WITHOUT it was red the same (not its fault): it goes back in L30d. Its merge is in this history with its files restored to the pre-merge tree (commit "weather-fixes HELD"). Seats (seats-cost), cabin interior: L30d / later by the user's call.
+A0 fixes: HANDOVER.md and tools/plane_shot.js back to master's CRLF bytes (tank-fit and new-plane had normalised them; content unchanged).
+BATTERY (88 gates): 81 PASS. Red: CLOUD 3 of 239 "the clouds live, the composite drawn ... composite 0 draws" on current / gamer / ultra - suspected NEW-PLANE's first-launch chooser holding the render loop on the gate's fresh profile (FLYDIY_UI_HOLD); NEW-PLANE to fix the rig or the hold (rule b or a fix) -> L30d. STOL: the fixture's byte comparison vs the joins tank-fit changes on purpose (Cub/Jodel tanks, the Chinook's pods) - Pilot re-captures. TAXICLEAR 1: the Cub's wing 0.07 m from Jumbo Mine's clinic (11c) - tank-fit's mass or the hut's footprints, owner TANK-FIT/HWCOV. FRAMECOST 8: the boot links (5 -> 39/44) + updateMatrixWorld - the boot cost being dated tonight (HWCOV mb_date 23:05). ASSETS, HANDLE, TECH: master standing.
+TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better than L30b's 114.6 s), nothing new.
