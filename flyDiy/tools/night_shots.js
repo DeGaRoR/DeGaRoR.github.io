@@ -160,30 +160,37 @@ const SETUP = V => `(async () => {
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
   if (aim === 'q3') { const ax = s.axes ? s.axes() : null; if (ax) { const nx = -ax[0][0], nz = -ax[0][2], lx = -ax[2][0], lz = -ax[2][2];   // the nose, the left wing
       const ex = nx * 0.77 + lx * 0.64, ez = nz * 0.77 + lz * 0.64, h = Math.hypot(ex, ez) || 1; look = [-ex / h, -ez / h]; } }   // the eye 40 deg off the nose, port side
-  if (aim === 'ref') {   // THE SCENE SOLVER: the eye 40 deg off the nose (port or starboard), the look fixed by that; the plane
-    // (30, 40 or 50 deg off the nose) anywhere on Cedar Harbour's water (a 100 m sweep of the bay) where the plane, the eye and 150 m ahead are water;
-    // scored on the lit things in the frame's width (250 m - 3.5 km) and the relief's angle (8 deg cap).
+  if (aim === 'ref') {   // THE SCENE SOLVER: the plane anywhere on the water round Cedar Harbour (a 150 m sweep, 11 x 9.5 km) where the
+    // plane, the eye and 150 m ahead are water; the eye 30..150 deg off the nose, port or starboard (the roll-out's heading is the
+    // plane's: the probe moves it, never turns it, so the eye goes round it). Scored on the relief behind (the highest angle over
+    // three rays across the frame, 10 deg cap, x3), the lit things in the frame's width (250 m - 3.5 km, x0.4) and the shore.
     // A0 19:00, the user: "both mountains and some life in the background, but no open sea, frame so you are closer to the plane,
     // lower FOV, and not too much sea" - the lens is the view's fov (26: about twice the plane of the 46 default at 18 m), and
     // every ray across the frame's width must reach land within 2.5 km (landFrac 1: no open sea; a spot short of it pays 30 a ray share)
+    // A0 4 Nov: "a real mountain behind" - diag3's spot had 2.2 deg (a hill) with the eye held 30-50 deg off the nose: the relief
+    // leads the score now, the sweep is wider and the eye goes all round
     if (!window.__refScene) {
       const ax = s.axes(), n = [-ax[0][0], -ax[0][2]], l = [-ax[2][0], -ax[2][2]], LITS = ${JSON.stringify(LITS)}, dist = ${+V.dist || 17};
       const hf = Math.atan(Math.tan((${+V.fov || 46} / 2) / 57.2958) * 16 / 9), cosHf = Math.cos(hf);
       const nn = Math.hypot(n[0], n[1]) || 1; n[0] /= nn; n[1] /= nn; const ll = Math.hypot(l[0], l[1]) || 1; l[0] /= ll; l[1] /= ll;
-      let best = null;
-      for (const side of [1, -1]) for (const off of [30, 40, 50]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
-        for (let px = -5200; px <= -1300; px += 100) for (let pz = -10600; pz <= -8300; pz += 100) {
+      const rot = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
+      let best = null, tried = 0;
+      for (const side of [1, -1]) for (const off of [30, 50, 70, 90, 110, 130, 150]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
+        const rays = [rot(lk, -0.7 * hf), lk, rot(lk, 0.7 * hf)];
+        for (let px = -9000; px <= 2000; px += 150) for (let pz = -14500; pz <= -5000; pz += 150) {
           if (!wet(px, pz) || !wet(px + e[0] * dist, pz + e[1] * dist)) continue;
           let fg = true; for (let k = 20; k <= 150; k += 26) if (!wet(px + lk[0] * k, pz + lk[1] * k)) { fg = false; break; } if (!fg) continue;
+          tried++;
           const ex = px + e[0] * dist, ez = pz + e[1] * dist, ey = (w.waterH(px, pz) || 0) + 1.5;
+          let mt = 0; for (const r of rays) for (let k = 800; k <= 14000; k += 250) { const a = Math.atan2(w.terrainH(ex + r[0] * k, ez + r[1] * k) - ey, k) * 57.2958; if (a > mt) mt = a; }
           let L = 0; for (const p of LITS) { const vx = p[0] - ex, vz = p[1] - ez, dd = Math.hypot(vx, vz); if (dd < 250 || dd > 3500) continue; if ((vx * lk[0] + vz * lk[1]) / dd < cosHf) continue; L += p[2]; }
-          let mt = 0; for (let k = 800; k <= 16000; k += 200) { const a = Math.atan2(w.terrainH(ex + lk[0] * k, ez + lk[1] * k) - ey, k) * 57.2958; if (a > mt) mt = a; }
+          const top = Math.min(mt, 10) * 3 + Math.min(L, 30) * 0.4 - (L < 6 ? 12 : 0);   // "some life": under 6 lit things pays 12 if (best && top <= best.sc) continue;   // the shore can only cost
           let land = 0; for (let r = 0; r < 9; r++) { const a = -hf + 2 * hf * r / 8, ca = Math.cos(a), sa = Math.sin(a), rx = lk[0] * ca - lk[1] * sa, rz = lk[0] * sa + lk[1] * ca;
             for (let k = 60; k <= 2500; k += 40) if (!wet(ex + rx * k, ez + rz * k)) { land++; break; } }
-          const lf = land / 9, sc = Math.min(L, 30) * 0.5 + Math.min(mt, 8) * 2 - (1 - lf) * 30;
+          const lf = land / 9, sc = top - (1 - lf) * 30;
           if (!best || sc > best.sc) best = { sc, side, off, px, pz, look: lk, L, mt: +mt.toFixed(1), lf: +lf.toFixed(2) };
         } }
-      window.__refScene = best || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
+      window.__refScene = best ? Object.assign(best, { tried }) : { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0, tried };
     }
     const R = window.__refScene; px = R.px; pz = R.pz; agl = window.__floatAgl; look = R.look;
   }
@@ -196,13 +203,16 @@ const SETUP = V => `(async () => {
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
   // the lens: the view's fov (the ref scene's 26), every other view the flight's own (46, put back)
+  // the ref scene's eye is the plain orbit (diag3: the night frame sat closer than the blue and dusk ones of the same run, the
+  // flight's own framing between them); camMode first - it puts the orbit's own distance back - then the lens, then the eye
+  if (aim === 'ref' && FLIGHT_PROBE.camMode && FLIGHT_PROBE.camModeNow && FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');
   if (window.FLYDIY_HVIEW && FLYDIY_HVIEW.flyFov) { const cm = FLIGHT_PROBE.camera(); if (window.__fov0 == null) window.__fov0 = cm.fov; FLYDIY_HVIEW.flyFov(${+V.fov || 0} || window.__fov0); }
-  FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist});
+  FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist}); if (aim === 'ref' && FLIGHT_PROBE.camSettle) FLIGHT_PROBE.camSettle();
   const LT = ${JSON.stringify(V.lights || null)}, K = window.FLYDIY_COCKPIT_I || null, lit = {};   // app.js's CK is module-local; the page hands it out as FLYDIY_COCKPIT_I
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
-    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, fov: FLIGHT_PROBE.camera().fov, score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, tried: R.tried, fov: FLIGHT_PROBE.camera().fov, camMode: FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null, eyeDist: (c => +Math.hypot(c.eye[0] - c.target[0], c.eye[1] - c.target[1], c.eye[2] - c.target[2]).toFixed(2))(FLIGHT_PROBE.camGet()), score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
