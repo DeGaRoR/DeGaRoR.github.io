@@ -34,6 +34,7 @@ var MOON_UI = (function () {
     ['desat', 'night colour', 0, 1, 0.01, v => Math.round(v * 100) + ' % grey', 'how far the rods take the colour away where the light is under the cones\' threshold (the Purkinje shift)'],
     ['blue', 'moonlight blue', 0, 1, 0.01, v => Math.round(v * 100) + ' %', 'the blue-grey the rods\' grey is tinted toward'],
     ['colourCd', 'colour vision', 0.3, 30, 0.1, v => 'from ' + v.toFixed(1) + ' cd/m²', 'the luminance over which colour is whole; the rods alone a thousandth of it (CIE mesopic 0.005-5)'],
+    ['lamp', 'lamp colour', 0.05, 2, 0.01, v => 'from ' + v.toFixed(2) + ' on screen', 'the on-screen brightness over which a light keeps its colour (the lamps are authored to the exposure; under a quarter of it the rods take it)'],
   ];
   // reset(row, v, fmt, put): the double-click on the row's name
   function resetOn(r, def, fmt, put) {
