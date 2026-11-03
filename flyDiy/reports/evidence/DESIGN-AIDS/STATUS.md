@@ -271,11 +271,10 @@ L30a. Outside the list, STOL, POD, DMGCERT and BENCHTIME failed the same on clea
 destruction test, wall-clock budgets); POD's shakedown-sheet digests are master's (this branch writes no field into the
 sheet).
 
-**BLOCKED ON A PUSH APPROVAL (A0, 3 Nov ~15:40):** this session's permissions refused the FORCE-push of
-`claude/ready/design-aids` (it holds 3efbc2e56; the rebase is a new history). The rebased, gated tree is pushed WITHOUT
-force to **`claude/ready/design-aids-l30a`** (and fast-forwarded on `claude/design-aids`). Either promote
-`claude/ready/design-aids-l30a`, or the user approves the force-push of `claude/ready/design-aids`. (This cloud
-session cannot message A0: the cross-session post is refused here - this file is the report.)
+**BLOCKED ON A PUSH APPROVAL (3 Nov ~15:40 A0's time):** the rebased, gated tree is committed in the cloud session
+(local branch `design-aids-l30`), but this session's permissions refused the FORCE-push of `claude/ready/design-aids`
+(it holds 3efbc2e56; the rebase is a new history), and a push of the same tree to a new branch name. Waiting for the
+user's decision. (This cloud session cannot message A0: the cross-session post is refused here.)
 
 ## 8. QUESTIONS (answered by the user 3 Nov: D1-D5 above)
 
