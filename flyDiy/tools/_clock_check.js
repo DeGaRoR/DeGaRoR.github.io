@@ -318,6 +318,23 @@ function run(mut) {
       for (let i = 0; i < 1800 * 60; i++) DC.tick(1 / 60);
       ok(J(M.careerDay(doc)) === J({ date: W.day.date, utc: Math.round(W.day.utc) }) || abs(W.day) - abs(M.careerDay(doc)) <= 30.5, 'the flown time reaches the document (the clock\'s 30 s save)');
     }
+    // the career on a profile with NO sandbox day yet (STORY-HOME-LOOK F9, 3 Nov: "the saved day was not readable" on
+    // career boots): its saves write the weather alone (no instant to keep) - that pref is read as it is, never set
+    // aside with a warning, and a later sandbox boot takes the game's day with that weather
+    {
+      const { W } = mkWorld(), P = M.page(), DC = P.DC;
+      DC.bind(W);
+      let doc = M.careerNew({ id: 'f', seed: 'f' }); doc = M.careerDaySet(doc, { date: '2026-06-23', utc: 7200 }).doc;
+      DC.career({ get: () => M.careerDay(doc), put: o => { const r = M.careerDaySet(doc, o); if (r.ok) doc = r.doc; } });
+      const warn0 = console.warn; let warns = 0; console.warn = () => { warns++; };
+      try { for (let i = 0; i < 65 * 60; i++) DC.tick(1 / 60); } finally { console.warn = warn0; }
+      const pref = JSON.parse(P.store.get('flydiy.day.v3') || 'null');
+      ok(pref && pref.date == null && pref.utc == null && pref.cloudCover != null, 'a fresh career saves the weather alone (no sandbox instant to keep)');
+      ok(warns === 0, 'its saves read that pref without a warning (' + warns + ' "not readable")');
+      const s = mkWorld(), S = M.page(); S.store.set('flydiy.day.v3', J(pref)); S.DC.bind(s.W);
+      const f = mkWorld(); M.page().DC.bind(f.W);   // a new player's sandbox: the game's day
+      ok(s.W.day.date === f.W.day.date && s.W.day.utc === f.W.day.utc && s.W.day.cloudCover === pref.cloudCover, 'a sandbox boot on it: the game\'s day (a new player\'s instant), the saved weather');
+    }
   }
   return { fails, checks };
 }
