@@ -9,7 +9,7 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
-## 0000. NOW (3 Nov, 17:15 UTC) - the branch is on train L30a (`a8a23ad6`)
+## 0000. NOW (3 Nov, 17:30 UTC) - the branch is on train L30a (`a8a23ad6`)
 
 - **N1, as the user re-ruled ("make the join measure the fin above the deck"): DONE** - `_cage_join.js` `finTaperAbove`:
   the fin's taper is read on its planform above the highest point of the boom's top line under its chord (the fin
@@ -45,8 +45,10 @@ Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
   | CREWLOAD | the retry clock (2) | FAIL (3) | standing, timing |
   | DMGCERTCOST, BENCHTIME | wall-clock ceilings (29-88 s, 6-12 s) on a loaded 4-core box | not compared | timing on this box |
   | JOINPARITY | 7 FAIL | 3 FAIL | **+4 from this change**: the Cub, Jodel, metal Cessna and Cessna floats, node vs the stored PAGE capture, masses equal to 1e-6 relative ("FIRST: node 0 (S0BL).m 22.084392205587 vs 22.084393101166487") - the capture predates the join change; its own instruction: re-capture with `tools/join_parity_page.js` when the move is meant |
-- **JOINPARITY's page capture is being re-taken** at this push (`node tools/join_parity_page.js --jobs 3`, the real page
-  on SwiftShader); the result is added when it ends.
+- **JOINPARITY: OPEN.** The page capture (`node tools/join_parity_page.js --jobs 3`, the real page on SwiftShader) did
+  not finish in 25 min here and wrote nothing; the 4 new lines stay red until it is re-taken on a machine with a GPU
+  (the tool's own instruction for a meant move of the load chain). The node side of the same builds is held by STOL
+  (bit-identical def, flight, drawing and bench to master).
 
 ## 000. READY (the train-1B branch)
 
