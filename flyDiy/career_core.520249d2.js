@@ -1424,7 +1424,8 @@ function contractPay(rec, fields) {
   const darkAdd = night && NT && NT.dark ? rest * P.darkPct / 100 : 0;
   let total = Math.round((rest + condAdd + nightAdd + darkAdd) / P.round) * P.round;
   // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
-  if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
+  // (CERT-GATES) and the shady job its risk money (76_ econShadyJob: ECON_SHADY.payX the board's pay for the same record)
+  if ((rec.loan || rec.shady) && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
            chain: Math.round(chain), cond: Math.round(condAdd), night: Math.round(nightAdd), dark: Math.round(darkAdd), total };
 }
@@ -3399,6 +3400,8 @@ function careerContract(doc, id) {
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
   // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
   if (/^loan:/.test(id) && typeof econLoanJob === 'function') return econLoanJob(doc, id);
+  // CERT-GATES: the "no questions asked" job, one per refresh (76_ econShadyJob)
+  if (/^shady:/.test(id) && typeof econShadyJob === 'function') return econShadyJob(doc, id);
   return null;
 }
 function careerNeedsOk(doc, rec) {
@@ -3411,6 +3414,75 @@ function careerNeedsOk(doc, rec) {
   if ((N.of || []).some(c => nOf(c) < c.n)) return false;
   if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
   return (N.after || []).every(a => done.includes(a));
+}
+
+// ---- CERT-GATES: WHAT A MISSION NEEDS, WHAT A PLANE HOLDS ----------------------------------------------------------
+// (the user 3 Nov: "you can fly an uncertified plane, but you cannot engage it in any mission in the story mode";
+// "All passenger, freight, competition and order jobs should have it for sure"; A: every board job needs the
+// COMMERCIAL certificate, surveys included; B: an accepted job is KEPT - nothing of it moves until a certified plane
+// flies it. briefs/cert-gates-design-2026-11-03.md)
+// THE CERTIFICATE OF A CAREER PLANE, per slot: career.airframes[slot].sign { fp, safe, comm, when, why } - the bench's
+// signature (app.js careerSignNow) on the build's f3 (bench.js BENCH_FP), its two verdicts from BENCH_STATE() (the
+// airworthiness one: every gating test held; the commercial one: 64b genCertTiers' comm, 'pass' | 'warn' | 'fail' - a
+// warn is still a certificate). A maker's airframe (factory, not modified) and the story's starter (the tutor's
+// "pre-certified") hold both until modified; procureOnSaveCert drops a signature a new f3 outgrew.
+const CERT_NEED_WORDS = { safe: 'an airworthiness certificate', comm: 'a commercial certificate' };
+// a contract record -> 'comm' | 'safe' | null: a shady job ("no questions asked") needs nothing; every board job, the
+// Trust's loan job, every client order, every timed competition, anything that pays, carries or flies people for a
+// client needs the commercial one; what is left (an unpaid flight with nothing aboard) the airworthiness one
+function contractCertNeed(rec) {
+  if (!rec) return null;
+  if (rec.shady) return null;
+  if (rec.kind === 'job' || rec.loan || rec.kind === 'build' || rec.timers) return 'comm';
+  const P = rec.pay || {};
+  const pays = (typeof P.total === 'number' && P.total > 0) || (+P.base || 0) > 0 || (P.bonus || []).length > 0;
+  const carries = contractSubsOf(rec).some(s => s.load && ((+s.load.kg || 0) > 0 || (+s.load.pax || 0) > 0));
+  return pays || carries ? 'comm' : 'safe';
+}
+// an airframe row (+ the fingerprint of the build that flies, when known) -> { safe, comm, why }
+function careerCertOf(A, fp) {
+  if (!A) return { safe: false, comm: false, why: 'not an airframe of the career' };
+  if (!A.modified && (A.factory || (A.from === 'story' && A.story === 'starter')))
+    return { safe: true, comm: true, why: A.factory ? 'the maker\'s certificate' : 'pre-certified' };
+  const S = A.sign;
+  if (!S || !S.fp) return { safe: false, comm: false, why: 'not certified: run the bench' };
+  if (fp != null && fp !== S.fp) return { safe: false, comm: false, why: 'changed since the bench signed it: run the bench' };
+  const safe = S.safe === 'pass' || S.safe === 'warn', comm = safe && (S.comm === 'pass' || S.comm === 'warn');
+  return { safe, comm, why: !safe ? 'not airworthy' + (S.why ? ' (' + S.why + ')' : ': the bench check fails')
+                                  : !comm ? 'no commercial certificate' + (S.why ? ' (' + S.why + ')' : '') : '' };
+}
+// does any plane of the fleet hold `need` (its signature as it stands: the bench re-signs at every roll-out). A fleet
+// with no plane at all (a new career before its voucher) is not refused: the voucher buys a maker's plane, and the stop
+// judges every flight
+function careerFleetHolds(doc, need) {
+  if (!need) return true;
+  const af = (doc && doc.career && doc.career.airframes) || {}, F = Object.keys((doc && doc.fleet) || {});
+  return !F.length || F.some(n => careerCertOf(af[n])[need]);
+}
+// the fleet card's line: "airworthy ✓ · commercial ✗ (doors)" / "not certified: run the bench"
+function careerCertLine(A, fp) {
+  const C = careerCertOf(A, fp);
+  if (!C.safe) return C.why.charAt(0).toUpperCase() + C.why.slice(1);
+  return 'airworthy ✓ · commercial ' + (C.comm ? '✓' : '✗' + (A && A.sign && A.sign.why ? ' (' + A.sign.why + ')' : ''));
+}
+// the bench's state -> a signature (null while the bench has no current check: nothing to sign). Pure: the page hands
+// BENCH_STATE() and BENCH_FP() in. `why` names the commercial fails (their row ids, as the bench reports them)
+function careerSignOfBench(st, fp, when) {
+  if (!st || !fp || !st.comm) return null;
+  const C = st.comm, air = !!st.passed;
+  const fails = (C.fails || []).map(id => String(id).replace(/^[a-z]+\./, ''));
+  return { fp, safe: air ? 'pass' : 'fail', comm: !air ? 'fail' : C.verdict === 'fail' ? 'fail' : C.verdict, when: when || null,
+           why: !air ? 'the airworthiness tests are not all held' : C.verdict === 'fail' ? fails.join(', ') : '' };
+}
+// write it on the slot's airframe (a clone; the same document when it is the same signature)
+function careerSign(doc, slot, sign) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A || !sign) return { ok: false, doc, why: A ? 'nothing to sign' : 'not an airframe of the career' };
+  const S = A.sign;
+  if (S && S.fp === sign.fp && S.safe === sign.safe && S.comm === sign.comm && S.why === sign.why) return { ok: true, doc, why: 'the same signature' };
+  const d = crClone(doc);
+  d.career.airframes[slot].sign = Object.assign({}, sign);
+  return { ok: true, doc: d, why: '' };
 }
 
 // ---- THE OFFERS -------------------------------------------------------------------------------------------------
@@ -3437,6 +3509,9 @@ function careerOfferIds(doc) {
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);
+  // CERT-GATES: the "no questions asked" job, from the second refresh on (76_ econShadyOffer)
+  const shady = typeof econShadyOffer === 'function' ? econShadyOffer(doc) : null;
+  if (shady && !taken.has(shady) && careerContract(doc, shady)) out.push(shady);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
   for (const id of builds) {
@@ -3464,6 +3539,11 @@ function careerAccept(doc, id) {
   if (!careerOfferIds(doc).includes(id)) return crNo(doc, id + ' is not on offer');
   const rec = careerContract(doc, id);
   if (!rec) return crNo(doc, 'no contract ' + id);
+  // CERT-GATES: refused while no plane of the fleet holds the certificate it needs (a client order's plane is built
+  // after the accept: its delivery is judged at the stop)
+  const need = contractCertNeed(rec);
+  if (need && rec.kind !== 'build' && !careerFleetHolds(doc, need))
+    return crNo(doc, 'This job needs ' + CERT_NEED_WORDS[need] + ', and none of your aeroplanes holds one: run the bench');
   const d = crClone(doc), D = d.career.contracts;
   D.accepted.push(id);
   D.live[id] = { stage: 0, subs: rec.stages[0].subs.map(() => false), picked: rec.stages[0].subs.map(() => false), got: {} };
@@ -3513,6 +3593,12 @@ function contractOnStop(doc, contract, stop, hooks) {
   if (!stop || typeof stop !== 'object') return crNo(doc, 'no stop record');
   if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');
   if (!stop.aero) return crNo(doc, 'stopped off an aerodrome: nothing is delivered');
+  // CERT-GATES (B: the job is KEPT): a plane not certified for the job moves nothing of it - no load picked up, nothing
+  // delivered, no step done - and the job waits, accepted, for a certified plane (a stop without the certificate facts
+  // is an older caller's: judged as before)
+  const need = contractCertNeed(rec);
+  if (need && stop.cert && !stop.cert[need])
+    return crNo(doc, 'not certified for this job (it needs ' + CERT_NEED_WORDS[need] + (stop.cert.why ? '; ' + stop.cert.why : '') + '): nothing picked up, nothing delivered');
   const L = C.live[id] || { stage: 0, subs: [], picked: [], got: {} };
   const st = rec.stages[L.stage];
   if (!st) return crNo(doc, id + ' has no stage ' + L.stage);
@@ -3687,6 +3773,16 @@ function careerOnStop(doc, stop, hooks) {
   let C = doc.career.contracts;
   let d = doc, moved = false;
   const events = [], why = {};
+  // CERT-GATES: A CRASH WITH A "NO QUESTIONS ASKED" JOB ACCEPTED fails it, and the word gets around: every provider
+  // loses ECON_SHADY.crashRep (76_)
+  if (stop && stop.wrecked && typeof ECON_SHADY !== 'undefined') for (const id of C.accepted.filter(x => /^shady:/.test(x))) {
+    const f = careerFail(d, id, 'crashed on a job nobody asked questions about');
+    if (!f.ok) continue;
+    d = f.doc; moved = true;
+    for (const p of Object.keys(d.career.providers)) { const P = d.career.providers[p]; P.rep = Math.max(0, +((P.rep || 0) - ECON_SHADY.crashRep).toFixed(3)); }
+    events.push(...f.events, { k: 'rep', id, all: -ECON_SHADY.crashRep, why: 'the word gets around' });
+  }
+  C = d.career.contracts;
   // (MISSIONS-P2) THE FAILURE RULES FIRST (§3.4): a mission in progress on this flight (the tracked one, or one with a
   // step done or a load aboard) whose rules the stop breaks - a crash, someone hurt, the freight harmed, the airframe
   // damaged where it says fail - FAILS, and is offered again (the restart). The page hands a crash's stop here too.
@@ -3932,7 +4028,9 @@ function careerMapRecord(doc, world, opts) {
   };
   const fleet = Object.keys(doc.fleet || {}).sort().map(n => {
     const W = typeof playerWhere === 'function' ? playerWhere(doc, n) : { kind: 'none', aero: null, hangar: null };
-    return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n) };
+    // (CERT-GATES) the fleet card's certificate line (74_ careerCertLine: airworthy ✓ · commercial ✗ (doors))
+    return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n),
+             certLine: typeof careerCertLine === 'function' ? careerCertLine(af[n]) : '' };
   });
   // the designs the mark reads, per airframe: the career's design row (its card), else the shakedown's row
   const cards = opts.cards || {};
@@ -4007,6 +4105,9 @@ function careerStopRecord(o) {
   if (o.spec && typeof o.spec === 'object') out.spec = o.spec;
   if (Array.isArray(o.occ)) out.occ = o.occ.filter(x => x && typeof x === 'object').map(x => ({ name: x.name || null, band: Math.max(0, Math.min(4, Math.round(+x.band || 0))) }));
   if (o.freight && typeof o.freight === 'object') out.freight = { harmed: !!o.freight.harmed };
+  // (CERT-GATES) the flying plane's certificates (74_ careerCertOf off its airframe and the roll-out's fingerprint): a job it
+  // is not certified for moves nothing at this stop (contractOnStop)
+  if (o.cert && typeof o.cert === 'object') out.cert = { safe: !!o.cert.safe, comm: !!o.cert.comm, why: String(o.cert.why || '') };
   // (MISSIONS-P3) who got on and off here ({ on: [person ids], off: [...] } - the crowd's boarding), the flight's local
   // departure hour (else the stop's hour less the flight)
   if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };
@@ -4354,6 +4455,70 @@ function econLoanJob(doc, id) {
   });
   rec.pay = Object.assign(contractPay(rec), { total: econLoanPay(doc ? doc.wallet : 0) });
   return rec;
+}
+
+// ---- CERT-GATES: THE SHADY CONTRACTS ("no questions asked") ---------------------------------------------------------
+// (the user 3 Nov: "a few contracts which are a little more shady where the certification is not required"; C: they
+// pay MORE than normal work - risk money - give NO reputation, and cost reputation on a crash.) At most one per offer
+// refresh, from the second on (epoch >= 1), on the existing board under an unnamed contact (the Field Trust's tab holds
+// the card: no new world content). Never passengers: a parcel with no paperwork (5-20 kg), a survey "for a private
+// client", or a part-built aeroplane ferried (flown, nothing aboard). It leans to the far and the short (a strip of 400 m
+// or less, the longer routes) and to the dark (a night or dawn arrival at 70 %, the board's own night windows).
+// WHY THE CERTIFICATE STAYS WORTH HAVING: one such job per refresh against the board's fifteen; no reputation from it;
+// a crash with one accepted costs EVERY provider 0.5 (rep runs 0-5, a board job gains 0.1: five jobs each); and the
+// stories, the orders and the passengers stay closed to an uncertified plane.
+const ECON_SHADY = { payX: 1.5, crashRep: 0.5, kg: [5, 20], nightP: 0.7, fromEpoch: 1, shortM: 400, tries: 12,
+                     kinds: { parcel: 0.5, survey: 0.3, ferry: 0.2 } };
+const ECON_SHADY_TEXT = {
+  'job.shady.parcel.title': { t: 'No questions asked: a parcel', draft: true },
+  'job.shady.parcel.brief': { t: 'A parcel for {to}, no paperwork, no names. Land, leave it by the hangar, leave.', draft: true },
+  'job.shady.survey.title': { t: 'No questions asked: a look', draft: true },
+  'job.shady.survey.brief': { t: 'A private client wants pictures of {at}. Fly over it, come back, forget the place.', draft: true },
+  'job.shady.ferry.title': { t: 'No questions asked: a ferry', draft: true },
+  'job.shady.ferry.brief': { t: 'Someone\'s half-finished aeroplane has to be at {to}. Fly it there; nobody asks what it is.', draft: true },
+};
+if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_SHADY_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_SHADY_TEXT[k];
+function econShadyOffer(doc) {
+  const c = doc && doc.career;
+  if (!c || doc.mode !== 'career' || typeof contractEpoch !== 'function') return null;
+  const e = contractEpoch(c.contracts.done.length);
+  if (e < ECON_SHADY.fromEpoch) return null;
+  const id = 'shady:' + e;
+  if ((c.contracts.failed || []).some(f => f.id === id)) return null;   // crashed once: not offered again
+  return id;
+}
+function econShadyJob(doc, id) {
+  const m = /^shady:(\d+)$/.exec(id || '');
+  if (!m || typeof contractRng !== 'function') return null;
+  const c = doc && doc.career, seed = c ? c.seed : '';
+  const sky = c && typeof careerOfferSky === 'function' ? careerOfferSky(doc) : undefined;
+  const F = CONTRACT_FIELDS, land = Object.keys(F).filter(k => F[k].surf !== 'water');
+  for (let t = 0; t < ECON_SHADY.tries; t++) {
+    const rng = contractRng(seed + '|' + id + '|' + t);
+    const kind = ctPick(rng, Object.keys(ECON_SHADY.kinds), k => ECON_SHADY.kinds[k]);
+    const from = ctPick(rng, land, k => (F[k].len > ECON_SHADY.shortM ? 1 : 0));
+    // the far and the short: a short strip weighs three times, and every strip by its distance
+    const to = ctPick(rng, land.filter(k => k !== from), k => (F[k].len <= ECON_SHADY.shortM ? 3 : 1) * (contractKm(from, k, F) || 0));
+    if (!from || !to) continue;
+    let stages;
+    if (kind === 'survey') stages = [{ subs: [{ do: 'survey', from, at: to }] }, { subs: [{ do: 'land', to: from }] }];
+    else if (kind === 'ferry') stages = [{ subs: [{ do: 'fly', from, to }] }];
+    else stages = [{ subs: [{ do: 'carry', from, to, load: { kg: ctDraw(rng, ECON_SHADY.kg[0], ECON_SHADY.kg[1], 1, 1), pax: 0 } }] }];
+    if (!contractDoers([].concat(...stages.map(s => s.subs)), F).length) continue;
+    // the dark: a night or dawn arrival at 70 % (the board's own windows, 73_ ctNightOf, drawn until one opens)
+    let nt = null;
+    if (sky !== null && kind !== 'survey' && rng() < ECON_SHADY.nightP)
+      for (let k = 0; k < 16 && !nt; k++) nt = ctNightOf(seed + '|' + id + '|' + t + '|' + k, sky !== undefined ? sky : contractSky(CONTRACT_NIGHT.sky0, 0));
+    if (nt) stages[stages.length - 1].subs[0].when = nt.when;
+    const rec = contractNormalise(Object.assign({
+      id, provider: 'field', kind: 'job', title: 'job.shady.' + kind + '.title', brief: 'job.shady.' + kind + '.brief', shady: kind,
+      stages, pay: { base: 0 }, rep: { provider: 'field', gain: 0 }, repeat: false, seed: String(seed), epoch: +m[1],
+    }, nt ? { night: nt.night } : {}));
+    const P = contractPay(rec, F);
+    rec.pay = Object.assign(P, { total: Math.round(P.total * ECON_SHADY.payX / CONTRACT_PAY.round) * CONTRACT_PAY.round, shadyX: ECON_SHADY.payX });
+    return rec;
+  }
+  return null;
 }
 
 // ---- THE CALIBRATION (stated as data, held by GATE ECON) ---------------------------------------------------------
@@ -5330,6 +5495,7 @@ function procureOnSaveCert(doc, slot, spec, ledger) {
   const d = prClone(doc), R = d.career.airframes[slot];
   if (R.factory) R.withdrawn = { cert: R.cert, why: 'modified in the editor: the maker\'s certificate is withdrawn', at: Math.round(d.clock || 0) };
   R.factory = false; R.modified = true; R.fp = fp; R.cert = null;
+  if (R.sign && R.sign.fp !== fp) delete R.sign;          // CERT-GATES: the bench signed another aeroplane
   if (L1) R.ledger = L1;
   if (cost > 0) playerCharge(d, cost, 'edit', slot);
   return { ok: true, doc: d, modified: true, bill: { cost, lines: B.lines }, why: '' };

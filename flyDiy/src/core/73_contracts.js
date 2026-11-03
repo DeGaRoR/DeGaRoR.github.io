@@ -817,7 +817,8 @@ function contractPay(rec, fields) {
   const darkAdd = night && NT && NT.dark ? rest * P.darkPct / 100 : 0;
   let total = Math.round((rest + condAdd + nightAdd + darkAdd) / P.round) * P.round;
   // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
-  if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
+  // (CERT-GATES) and the shady job its risk money (76_ econShadyJob: ECON_SHADY.payX the board's pay for the same record)
+  if ((rec.loan || rec.shady) && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
            chain: Math.round(chain), cond: Math.round(condAdd), night: Math.round(nightAdd), dark: Math.round(darkAdd), total };
 }

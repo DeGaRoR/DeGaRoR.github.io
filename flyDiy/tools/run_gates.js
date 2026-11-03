@@ -715,6 +715,10 @@ const GATES = [
   // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
   // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
   { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
+  // DESIGN-AIDS (the user 3 Nov): the garage's design aids and the certificate's tiers on the user's twin (_2): the
+  // step ahead of the CG, the floats short, the margin's remedy sized by rebuilt levers; the corners against the
+  // envelope; the tiers only relax; the indicators' menu replaces the reference-cut button; ~40 s
+  { id: 'AIDS', file: '_aids_check.js', tier: 'core', wall: 45 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
@@ -1040,6 +1044,8 @@ const GATES = [
   // rack group / new-aeroplane cards / EXPORT ALL source rows, the core never naming the pool; `--selftest`: eleven
   // breaks, each red. ~1 s static, the load chain ~20 s a candidate uncached (tools/.joincache/ after)
   { id: 'CANDIDATES', file: '_candidates_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },
+  // CERT-GATES (the user 3 Nov): certification gates the career's missions - the need, the plane, accept, the stop, shady
+  { id: 'CERTGATES', file: '_certgates_check.js', argv: ['--selftest'], tier: 'core', wall: 120 },
   // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
   // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
   // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,

@@ -387,6 +387,10 @@ function benchWorkerBody(CORE, BW) {
       } else if (job.kind === 'sheet') {
         // G2920: one sheet, at once - the page aborts a superseded one by terminating this thread (sheet_link.js)
         post(BW.benchSheetRun(CORE, job));
+      } else if (job.kind === 'levers') {
+        // DESIGN-AIDS: the static margin's levers (64c genAidLevers: the aeroplane rebuilt with the wing 0.1 m aft and the
+        // stabiliser 10 % bigger) - two buildGens, off the page; one answer
+        post({ kind: 'levers', seq: job.seq, lv: CORE.genAidLevers ? CORE.genAidLevers(CORE.buildGen(job.spec), null, job.spec) : null });
       } else if (job.kind === 'cert') {
         // G1831: one computation, no pacing - the answer and done (G1891: a case a turn)
         cur = { kind: 'cert', seq: job.seq, it: BW.benchCertSteps(CORE, job) };
@@ -412,7 +416,8 @@ function benchWorkerSource(base, ver, coreVer) {
     'const BW = self.module.exports; self.module = { exports: {} };\n' +
     'importScripts(' + JSON.stringify(base + 'tools/flight_core.js' + q(coreVer)) + ');\n' +
     'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey, genCertify, genCertAttach, GEN_LOAD_ULT, genShakedown,\n' +
-    '  genCertifySteps: typeof genCertifySteps === "function" ? genCertifySteps : null };\n' +
+    '  genCertifySteps: typeof genCertifySteps === "function" ? genCertifySteps : null,\n' +
+    '  genAidLevers: typeof genAidLevers === "function" ? genAidLevers : null };\n' +
     '(' + benchWorkerBody.toString() + ')(CORE, BW);\n';
 }
 
