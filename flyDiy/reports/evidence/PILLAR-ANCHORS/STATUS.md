@@ -1,6 +1,7 @@
 # PILLAR-ANCHORS: status
 
-Branch `claude/pillar-anchors` (cloud session), **rebased on PHONE-1b (origin/master 1db22c8a4)**. Commits: source first,
+Branch `claude/pillar-anchors` = `claude/ready/pillar-anchors` (cloud session), **rebased on L30a (origin/master a8a23ad62)**,
+for L30c. Commits: source first,
 then one "(built)" commit.
 
 **Pushed to `claude/ready/pillar-anchors` too** (the user's go, 3 Nov), for L30b; `claude/pillar-anchors` is the same
@@ -113,7 +114,13 @@ before vs after.
   aeroplane redraws them differently; the camel drawn alone is identical before and after.
 - The remodelled fittings change every build's fittings drawing, snap or not.
 
-## 5. Gates (on PHONE-1b, this branch)
+## 5. Gates
+
+**On L30a (a8a23ad62), 3 Nov 14:42 UTC:** PILLAR, PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS, GEN (4 shards),
+STARTER, HINGE, FIT, FITMANUAL and BUILD pass. HANDLE (Twin_busher_floats_2) and CLIP (the IFR nav aerial) are the same
+standing reds. Nothing is blocking. The rest of this section is the PHONE-1b run.
+
+### On PHONE-1b
 
 **PASS:** PILLAR, PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS, GEN (4 shards), STARTER, HINGE, FIT, FITMANUAL,
 BUILD.
