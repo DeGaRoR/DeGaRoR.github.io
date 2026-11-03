@@ -263,6 +263,77 @@ function finArchWrites(kind) {
   return out;
 }
 
+// THE WING SHAPE PRESETS (NEW-PLANE, the user 2-3 Nov: "Do we have wing shape archetypes? Like we have with the fins
+// and stabs?"). Not a new mechanism: the planform has been three stations since G140 (root chord, crank chord + seat,
+// tip chord + seat) plus the elliptic law (wgPlan, 27 Oct) and the tip treatment, and these are named points in those
+// rows - the same idea as FIN_ARCH, written as the `wingArch` starter row below so the editor offers them too.
+// Every value is a FRACTION of the chord the aeroplane already has (the class's, or the builder's), resolved at the
+// pick: a preset never resizes a wing, it shapes it. Every option writes the WHOLE planform set (the finArch rule: a
+// starter that left the previous pick's crank behind would build half of two wings).
+//   key        tip chord / root   tip aft (m)                crank (at / outer dihedral)   tip       plan
+//   rect       1.00               0                          -                             rounded   straight  (Cub)
+//   taper      0.62               quarter-chord line straight -                            rounded   straight  (RV, DR400 outer)
+//   hershey    0.72               0.30 (the C172's)           0.42 / 3, constant inboard    clipped   straight  (C172)
+//   elliptic   -                  0                          -                             -         elliptic  (Spitfire)
+//   swept      0.55               quarter chord at ~12 deg    -                             clipped   straight  (the Tiger Moth's upper, a sport)
+//   cranked    0.60               quarter-chord line straight 0.60 / 14, the inner flat     rounded   straight  (Jodel D11)
+const tipIdx = k => Math.max(0, Object.keys(gTips() || {}).indexOf(k));
+const qcTipX = (P, k) => +(0.25 * (+P.wgChord - k * +P.wgChord)).toFixed(2);   // the quarter-chord line straight
+const WING_ARCH = {
+  rect:     { label: 'Rectangular', note: 'constant chord, the Cub\'s: cheap, gentle stall',
+              k: 1.00, cage: { wgPlan: 0, wgCrankAt: 0, wgTipX: 0, wgTip: () => tipIdx('rounded') } },
+  taper:    { label: 'Tapered', note: 'straight taper, the RV\'s or the Jodel D112\'s',
+              k: 0.62, cage: { wgPlan: 0, wgCrankAt: 0, wgTipX: P => qcTipX(P, 0.62), wgTip: () => tipIdx('rounded') } },
+  hershey:  { label: 'Constant + taper', note: 'constant chord to the strut, tapered outboard: the C172\'s',
+              k: 0.72, cage: { wgPlan: 0, wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord, wgCrankX: 0,
+                               wgDihedralOut: 3, wgTipX: 0.30, wgTip: () => tipIdx('clipped') } },
+  elliptic: { label: 'Elliptic', note: 'one ellipse root to tip, the Spitfire\'s',
+              k: null, cage: { wgPlan: 1, wgPlanAxis: 0.30, wgCrankAt: 0, wgTipX: 0 } },
+  swept:    { label: 'Swept', note: 'the tips swept back about 12 degrees at the quarter chord',
+              k: 0.55, cage: { wgPlan: 0, wgCrankAt: 0, wgTip: () => tipIdx('clipped'),
+                               wgTipX: P => +Math.min(2.5, qcTipX(P, 0.55) +
+                                 0.21 * Math.max(0, +P.wgSpan / 2 - 0.6)).toFixed(2) } },
+  cranked:  { label: 'Cranked dihedral', note: 'a flat centre and steep outer panels, the Jodel D11\'s',
+              k: 0.60, cage: { wgPlan: 0, wgCrankAt: 0.60, wgCrankChord: P => +P.wgChord, wgCrankX: 0,
+                               wgDihedral: 0, wgDihedralOut: 14, wgTipX: P => qcTipX(P, 0.60),
+                               wgTip: () => tipIdx('rounded') } },
+};
+function wingArchWrites(key) {
+  const a = WING_ARCH[key];
+  const out = Object.assign({}, a.cage);
+  if (a.k != null) out.wgChordTip = P => +(+P.wgChord * a.k).toFixed(2);
+  return out;
+}
+// the plan of the whole wing from above, root chord 14 units, the leading edge at y 10, the stations the preset
+// writes (a 10 m x 1.6 m wing stands in for "the aeroplane's own")
+function iconPlan(key) {
+  const a = WING_ARCH[key], c = 14, semi = 28, y0 = 12;
+  const P = { wgChord: 1.6, wgSpan: 10 };
+  const sc = c / 1.6;
+  const val = (v) => typeof v === 'function' ? v(P) : v;
+  const le = [], te = [];
+  if (a.cage.wgPlan === 1) {
+    for (let i = 0; i <= 10; i++) {
+      const e = i / 10, ch = c * Math.sqrt(Math.max(0, 1 - e * e));
+      le.push([e * semi, y0 + 0.30 * (c - ch)]); te.push([e * semi, y0 + 0.30 * (c - ch) + ch]);
+    }
+  } else {
+    const kt = a.k, tx = val(a.cage.wgTipX) * sc;
+    const cr = val(a.cage.wgCrankAt) || 0;
+    le.push([0, y0]); te.push([0, y0 + c]);
+    if (cr > 0) { le.push([cr * semi, y0]); te.push([cr * semi, y0 + c]); }
+    le.push([semi, y0 + tx]); te.push([semi, y0 + tx + c * kt]);
+  }
+  const half = s => le.map(p => [32 + s * p[0], p[1]]).concat(te.slice().reverse().map(p => [32 + s * p[0], p[1]]));
+  const right = half(1), left = half(-1);
+  const pts = left.slice(0, le.length).reverse().concat(right.slice(0, le.length).slice(1))
+    .concat(right.slice(le.length)).concat(left.slice(le.length).reverse().slice(1));
+  const paths = [{ d: poly(pts) }, { d: 'M30 4 L34 4 L34 38 L30 38 Z', w: 1 }];
+  if (key === 'cranked') paths.push({ d: 'M' + P2(32 - 0.6 * semi, y0 - 3) + ' L' + P2(32 - 0.6 * semi, y0 + c + 3) +
+                                          ' M' + P2(32 + 0.6 * semi, y0 - 3) + ' L' + P2(32 + 0.6 * semi, y0 + c + 3), w: 0.8 });
+  return { vb: '0 0 64 40', paths };
+}
+
 // SIDE VIEW — one parameterised aeroplane profile. `o`: canopy 'screen' |
 // 'half' | 'full' | 'none'; deck 'cabin' | 'turtle'; gear 'tail' | 'trike' |
 // 'none'; tail 'conv' | 't' | 'v' | 'cruci' | 'twin'; pod (rod boom), radial
@@ -1244,6 +1315,15 @@ const DESIGN_ROWS = [
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
       icon: iconTip(k), writes: { cage: { wgTip: i } },
       ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
+
+  // NEW-PLANE: THE WING SHAPE, AS A STARTER (WING_ARCH above) - the finArch idiom on the wing's own rows: once (no
+  // planform can be read back into the preset that drew it), every option writes the whole planform set
+  { key: 'wingArch', label: 'Wing shape', kind: 'starter',
+    group: 'wing', status: 'live', once: true,
+    help: 'a planform to start from, on the chord you have - the stations stay yours to move',
+    read: P => null,
+    options: () => Object.keys(WING_ARCH).map(k => ({ value: k, label: WING_ARCH[k].label, note: WING_ARCH[k].note,
+      icon: iconPlan(k), writes: { cage: wingArchWrites(k) } })) },
 
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['wgFlapType'],
@@ -3220,7 +3300,8 @@ function archInactive(a) {
   return null;
 }
 
-const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions,
+const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions, WING_ARCH, FIN_ARCH,
+              NOSE_AERO, OPEN_TANDEM, BODY_PAINT, CLASS_ROWS, ROLE_ROWS, iconPlan, designPresetNames,
               optionOf, designApply, designSeed, designMerge,
               designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,
