@@ -1,4 +1,4 @@
-# The EDO float measured off the user's plan (round 3, 2026-11-03)
+# The EDO float measured off the user's plan (rounds 3 and 4, 2026-11-03)
 
 **The source.** The user sent a giant-scale (1/4 or 1/5) model plan of EDO floats for a J-3 / PA-11-class Cub (the
 title block reads "GIANT SCALE 1/4 SCALE OR 1/5 SCALE"). It is the kind of plan traced from factory drawings; its own
@@ -23,10 +23,10 @@ bow as the Wipline's. The user caught both.
 
 | former | height / beam | chine / height | deadrise | side lean | shoulder: z / half-beam | shoulder: up the topside | bottom |
 |---|---|---|---|---|---|---|---|
-| A (front spreader station) | 0.81 | 0.22 | 19° | 19.5° | 0.66 | 0.75 | convex: ~8° at the keel, ~31° at the chine |
-| B (aft spreader station) | 0.83 | 0.26 | 23° | 21° | 0.63 | 0.77 | convex: ~14° / ~31° |
+| A (front spreader station) | 0.81 | 0.22 | 19° | 19.5° | 0.66 | 0.75 | fluted (round 4; read as convex in round 3) |
+| B (aft spreader station) | 0.83 | 0.26 | 23° | 21° | 0.63 | 0.77 | fluted |
 | C | 0.75 | 0.31 | 25° | 30° | 0.67 | 0.53 | straight |
-| D | 0.81 | 0.23 | 21° | 23° | 0.69 | 0.59 | convex (wavy) |
+| D | 0.81 | 0.23 | 21° | 23° | 0.69 | 0.59 | fluted |
 | E | 0.74 | 0.35 | 28° | 21° | 0.74 | 0.70 | straight |
 | F | 0.67 | 0.30 | 22° | 26° | 0.73 | 0.60 | straight |
 
@@ -36,9 +36,12 @@ bow as the Wipline's. The user caught both.
 - **Above the shoulder, a round top to the crown.** The plan shows a slight knuckle at the stringer. The model makes
   the arc tangent to a 23 deg lean, which leaves about 10 deg at the shoulder.
 - **No chine lip, no spray strap, no external keelsons.** The formers notch their stringers inside.
-- **The bottom is CONVEX on the big mid-body formers** (A, B, D). It runs nearly flat out from the keel, then rises
-  steeply to the chine; its mid point (half the half-beam out) sits at about half the straight V's height. At the
-  bow's and stern's formers it is a straight V.
+- **The bottom is FLUTED on the big formers ahead of the step** (A, B, D; round 4, the user's reading: "a Batman
+  figure"). Each half of the V is two shallow CONCAVE arcs of about the same radius, keel to a ridge and ridge to the
+  chine, barely meeting. Round 3 read the ridge's cusp as a convex belly; that was wrong.
+  - The ridge sits at 0.55 of the half-beam out, 7.4-9 % of the half-beam below the straight V.
+  - Each arc is cut ~6 % of its chord into the hull.
+  - The smaller formers (C, E, F: toward the bow and aft of the step) are a straight V.
 
 ## The top view
 
@@ -72,10 +75,12 @@ The side view is drawn tilted 4.6 deg; it was read against its own deck line.
 
 - **The section law.**
   - `shoulderZ` 0.69, `crownK` 0.34 (the arc's share of the topside), `tumble` 23.
-  - `belly` 0.5: the mid point's drop. It is full over the middle and fades to a straight V by 0.8 of the forebody and
-    0.9 of the afterbody.
-  - The physics section and the drawing are the same polygon: two bottom facets a side, the leaning side, six arc
-    facets.
+  - `flute` 0.08: the ridge's drop over the half-beam, at 0.55 of it. Each arc's depth is 0.75 of that over its chord
+    (0.06). Full from the step to half the forebody, gone by 0.85 of it; none aft of the step.
+  - The drawing carries the flutes as six points a side: two on the keel's arc, the ridge, three on the chine's. The
+    EDO's keel and chine are sharp, so the Wipline's keel and chine rounds' slots carry them.
+  - The physics' bottom is two facets a side (keel, ridge, chine), its ridge raised by exactly the area the flutes cut
+    in: the same section area, a third of the panels. Drawn and physics volumes agree to 0.09 %.
 - **The side is one skin through the step.** The forebody's chine is a little wider at the step (2-3 cm a side on the
   2000), fading back to the plan's beam by 0.3 of the forebody.
 - **The profile.** The keel flat 0.34 of the forebody, a 45 deg rake (at the fit's xs/H), stem 0.40, nose round 0.15.
@@ -85,8 +90,29 @@ The side view is drawn tilted 4.6 deg; it was read against its own deck line.
   - The afterbody angle is solved for a stern 0.385 deep: 7.9 deg on the small rows, 6.3 on the Model 78.
 - **Planform.** `planK` 5.5; the stern 0.70; the deck level (`sheerK` 0).
 - **Sizes.** The plan's proportions are fixed (L/B 6.65, H/B 0.80) and the whole hull is scaled to the model number's
-  buoyancy. The EDO 2000 comes out 4.67 m (15.3 ft) against the owners' "16 ft bumper to transom" (4.88 m, bumper
+  buoyancy. The EDO 2000 comes out 4.72 m (15.5 ft; the flutes cost volume) against the owners' "16 ft bumper to transom" (4.88 m, bumper
   included). The Model 78 keeps its sourced 42 ft x 5 ft 8 in, and its height is solved: 0.70 of its beam.
+
+## The ventral fin (round 4)
+
+The plan draws a ventral under the tail cone that the user called "a tic-tac shape on one side, and then it just goes
+further toward the fore side". Read off the plan, in fractions of its chord (about 3.0 times its depth at the aft end):
+
+- **The forward point** leaves the belly and sweeps down to the bottom over the first 0.36-0.39. It is a PARABOLA:
+  about 50 deg to the belly at the tip (40, 29, 17 deg below level at a quarter, half and three quarters of the way),
+  meeting the bottom tangent. Round 4's first try was a quarter ellipse, which starts vertical: wrong.
+- **The bottom** is straight and level from 0.36 to 0.82.
+- **The aft end** is ROUND, a half-ellipse as deep as the fin, from 0.82 to 1.0 (the plan's 0.86).
+- **Its area** is 0.841 x chord x depth (the plate's is 0.5 (1 + tip) x chord x depth). The join flies that area.
+
+It is the `ventral shape` row (`finVentralShape` 1, "vintage lobe") on any card. The EDO presets set it, with the chord
+at depth / 0.33.
+
+## The water rudder (round 4)
+
+The plan's blade is a "river stone": a rounded pebble hung off the post by two arms, about 1.15 times as wide as tall.
+The model's is a superellipse, squarer above (n 3) and rounder below (n 2.2). Its foot is the physics' `wrDepth` under
+the stern keel and its area is `wrArea`, so the water still reads what is drawn.
 
 ## Not modelled, and why
 
