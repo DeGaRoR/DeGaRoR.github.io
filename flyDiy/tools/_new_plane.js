@@ -425,21 +425,24 @@ function stanceFit(spec, cage) {
     // the margin as drawn AND at the four loading corners (solo / full cabin x full / reserve fuel, the shakedown's
     // envelope): the wing moves every corner alike, so the band is judged on their spread - the worst corner over 6 %,
     // the most nose-heavy under 40 %, or (a spread wider than the band: a big cabin) the spread centred in it
-    let lo = null, hi = null, sm0 = null;
+    let lo = null, hi = null, sm0 = null, loBand = FIT.smLo;
     try {
       // the corners only where the cabin can load them apart (more than two seats): a two-seater's corners sit within
       // a few per cent of the drawn margin, and each corner is a shakedown (the fit's cost, the gate's minute)
       const seats = +(def.spec && def.spec.seats) || 0;
       const sh = SHK(def, seats > 2 ? {} : { slim: true });
+      // ...and without them the drawn margin keeps 8 points of room for the corners it did not compute (NEWPLANE-BUILDS:
+      // the low-wing microlight pusher drawn at 8 % had its worst corner at 0)
+      if (seats <= 2) loBand = FIT.smLo + 0.08;
       sm0 = sh.staticMargin;
       const sms = [sh.staticMargin].concat(((sh.envelope && sh.envelope.corners) || []).map(k => k.staticMargin))
         .filter(v => typeof v === 'number' && isFinite(v));
       if (sms.length) { lo = Math.min(...sms); hi = Math.max(...sms); }
     } catch (e) { lo = null; }
-    if (lo != null && (lo < FIT.smLo || hi > FIT.smHi)) {
+    if (lo != null && (lo < loBand || hi > FIT.smHi)) {
       let dSm;
-      if (hi - lo > FIT.smHi - FIT.smLo - 0.04) dSm = (FIT.smLo + FIT.smHi) / 2 - (lo + hi) / 2;
-      else if (lo < FIT.smLo) dSm = FIT.smLo + 0.04 - lo;
+      if (hi - lo > FIT.smHi - loBand - 0.04) dSm = (loBand + FIT.smHi) / 2 - (lo + hi) / 2;
+      else if (lo < loBand) dSm = loBand + 0.04 - lo;
       else dSm = FIT.smHi - 0.04 - hi;
       // the aeroplane AS DRAWN stays in the band whatever the corners ask (validation A: centring a 4-bay cabin's
       // spread left the Caravan's choices 70 % nose-heavy as drawn and the full-cabin corner still unstable - that
