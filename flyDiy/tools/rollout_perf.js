@@ -38,6 +38,7 @@
 //          [--chrome-flag '--gpu-program-cache-size-kb=262144'] (G680: an extra Chrome switch, e.g. G584's cache-size test)
 //          [--profile-boot] (G680: a CPU profile of the garage boot, <label>_boot.cpuprofile)
 //          [--trips] (B9 G1023: the round trips timed - the garage's fps fresh and after, a slider's latency, each trip)
+//          [--set mirror=off[,k=v]] (GATE-ANCHOR: graphics options pinned in the garage before the roll-out)
 // THE SETTINGS PROBE (G680, A4-FREEZE: "no freezing ever ... This includes possible setting changes"): after the
 // recording window, each change of the list is made the way a pick in the GRAPHICS menu makes it (gfx_settings.js
 // pick: GFX.set, then FLYDIY_SETTLE - the settings screen), one at a time, each waited out (the screen gone, its
@@ -76,6 +77,14 @@ const SECS = +opt('secs', 150);
 const BUILD = opt('build', null);
 const VARIANT = opt('variant', 'base');
 const GFX = opt('gfx', null);
+// --set k=v[,k=v] (GATE-ANCHOR): graphics options PINNED in the garage before the roll-out, the way the GRAPHICS menu sets them
+// (GFX.set, then the settle screen waited out) - e.g. --set mirror=off: AUTO's switching over the shore adds noise to a timed
+// run. The run's gfx0 is read after, so it records the pin (train_gate's identity takes it from there)
+// GATE-SCREEN: the spans [t0, t1) where a loading screen was up, from the [t, state] changes (a state other than 'gone'; the
+// last one open), and whether (a, b) overlaps one
+const bootSpans = bs => { const o = []; for (let i = 0; i < (bs || []).length; i++) if (bs[i][1] !== 'gone') o.push([bs[i][0], i + 1 < bs.length ? bs[i + 1][0] : Infinity]); return o; };
+const underScreen = (S, a, b) => S.some(s => a < s[1] && b > s[0]);
+const PIN = (opt('set', '') || '').split(',').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), x.slice(i + 1)]; });
 const WORLDN = opt('world', null);
 const PAGE = opt('page', 'index.html');
 // --cam cockpit|chase|... (G1162): the view the flight is measured in - set through FLIGHT_PROBE.camMode once the flight
@@ -164,6 +173,12 @@ const SHOT_EVAL = opt('shot-eval', null);
 // --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
 // recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
 const PROFILE_LIVE = opt('profile-live', null);
+// --trace <secs> (G1998, HWCOV): a Chrome trace of every process (the GPU process's ANGLE work, the compositor, the main
+// thread's tasks) from just before the roll-out click for <secs> s, written beside the JSON as <label>.trace.json (open
+// it in chrome://tracing or Perfetto). For the cold freeze that sits off the main thread (the frames stop, no long task)
+const TRACE = opt('trace', null);
+const TRACE_CATS = 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
+  + 'disabled-by-default-gpu.service,disabled-by-default-gpu.angle,disabled-by-default-gpu.decoder,gpu.capture,__metadata';
 // --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
 // debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
 const PRE = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('pre', null));
@@ -203,6 +218,11 @@ const PROGSRC = flag('progsrc');
 const CPU_THROTTLE = +opt('cpu-throttle', 0) || 0;
 const GPUX = +opt('gpux', 0) || 0;
 const GPUX_AT = opt('gpux-at', null);
+// --town-alloc (G3415, CITY-B): the town meter's allocation probe - ?townalloc=1 (render_world reads Chrome's heap counter round
+// the town's ticks) with Chrome's precise counter (--enable-precise-memory-info); the town ms and the items visited are read
+// every run (render_premises' townFrame, the TOWN line below)
+const TOWN_ALLOC = flag('town-alloc');
+if (TOWN_ALLOC) { q.push('townalloc=1'); CHROME_FLAGS.push('--enable-precise-memory-info'); }
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -237,7 +257,7 @@ function preScript() {
       cut += n - F.layers[k].length;
     }
     console.log('  variant nomet: ' + cut + ' mk_ records removed (rev ' + F.rev + ' kept, so the saved copy wins)');
-    lines.push('try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(JSON.stringify(F)) + ')}catch(e){}');
+    lines.push('try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(JSON.stringify(F)) + ');localStorage.setItem("flydiy.premises.bootWip","1")}catch(e){}');   // (SCENERY VERSIONS: the game boots master; the rigs' door boots the seeded copy)
   } else {
     lines.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   }
@@ -248,6 +268,9 @@ function preScript() {
   // the recorder's early half: long tasks from the first byte (buffered), and the boot's own clock
   lines.push(`(function(){ if (window.__RP) return; var R = window.__RP = { t0: performance.now(), lt: [], ev: [], waterGpu: ${WATER_GPU ? 'true' : 'false'} };
     try { new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ R.lt.push([Math.round(e.startTime), Math.round(e.duration)]); }); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+    // GATE-SCREEN (A0 22 Oct): the loading screen's state every frame from the first - its changes, [t, state] - so a frame or a
+    // task under a screen (the boot, a trip's roll-out screen, a settings screen) is told apart from one the flight shows
+    R.bs = []; var bsL = null; (function bsTick(){ var s = window.BOOT ? String(window.BOOT.state) : 'none'; if (s !== bsL) { R.bs.push([Math.round(performance.now()), s]); bsL = s; } requestAnimationFrame(bsTick); })();
   })();`);
   if (GPUX > 1) lines.push(`(function(){ if (window.__GPUXH || typeof WebGL2RenderingContext === 'undefined') return; window.__GPUXH = 1; window.__GPUX = ${GPUX_AT != null ? 1 : GPUX};
     var P = WebGL2RenderingContext.prototype, BL = 0x0BE2, en = P.enable, dis = P.disable, de = P.drawElements, da = P.drawArrays, dei = P.drawElementsInstanced, dai = P.drawArraysInstanced, dre = P.drawRangeElements;
@@ -267,7 +290,7 @@ function preScript() {
 const INSTALL = `(() => {
   const R = window.__RP; if (R.on) return 'have';
   const P = window.FLYDIY_PACE; if (!P) throw new Error('no FLYDIY_PACE');
-  R.fr = []; R.on = true; R.rev = 0;
+  R.fr = []; R.tw = []; R.on = true; R.rev = 0;
   const endW = P.end.bind(P);
   let wuMs = 0;
   const W = window.WORLD;
@@ -299,10 +322,13 @@ const INSTALL = `(() => {
     const pre = R.airSeen ? 'ldg-' : 'to-';
     return pre + (Vg < 0.5 ? 'afloat' : onG >= 3 ? 'displace' : 'step');
   };
-  let lastNow = 0;
+  let lastNow = 0, heldN = 0;
   const ph = document.getElementById('phName');
   const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
   P.end = function (workMs, physMs, steps, now) {
+    // REVEAL (A0 22 Oct): a frame the loop ran and did NOT draw (holdRender: the trip's links) - its time and its worldUpdate
+    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 29)
+    if (arguments[5]) { heldN++; return endW(workMs, physMs, steps, now, arguments[4], true); }
     const st = P.state();
     let agl = null, x = null, z = null, apPh = '', V = null, onG = null, hAgl = null, wph = '', man = 0;
     try { const s = window.FLIGHT_PROBE && FLIGHT_PROBE.sim(); if (s) { const cg = s.cgPos(); agl = cg[1] - FLIGHT_PROBE.world().terrainH(cg[0], cg[2]); x = cg[0]; z = cg[2];
@@ -316,7 +342,12 @@ const INSTALL = `(() => {
       // G3200 (PERF-LEDGER): the frame's draw calls and triangles over every renderer.render() (the shadow maps' inside), at 29 / 30
       .concat([dcN, trN]));
     R.wph = wph;
-    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; dcN = 0; trN = 0;
+    // G3415 THE TOWN METER of this frame (render_world filled premises.townFrame in this frame's worldUpdate): [town ms, items
+    // visited, KB allocated (null unless --town-alloc), then each part's ms in premises.town.parts' order]
+    { const PRx = W && W.premises, TF = PRx && PRx.townFrame, TP = PRx && PRx.town;
+      R.tw.push(TF ? [+TF[0].toFixed(3), TF[1], TF[2] === TF[2] ? +TF[2].toFixed(2) : null].concat(TP ? Array.from(TP.lastParts, v => +v.toFixed(3)) : []) : null); }
+    R.fr[R.fr.length - 1].push(heldN);
+    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; heldN = 0; dcN = 0; trN = 0;
     return endW(workMs, physMs, steps, now);
   };
   return 'installed';
@@ -378,8 +409,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (!tgt) throw new Error('no page target');
   const ws = new WebSocket(tgt.webSocketDebuggerUrl);
   await new Promise(r => ws.onopen = r);
-  let id = 0; const waits = new Map(); const exc = [];
+  let id = 0; const waits = new Map(); const exc = []; const traceEv = []; let traceEnd = null;
   ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.method === 'Tracing.dataCollected') traceEv.push(...m.params.value); if (m.method === 'Tracing.tracingComplete' && traceEnd) traceEnd();
     if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n')[0]); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async (expr, timeoutMs) => {
@@ -411,12 +443,31 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (let i = 0; i < 10; i++) { const n = await ev(KEEP); await sleep(400); if (!n && i > 3) break; }
   await sleep(1500);
   const gpu = await ev("(()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})()");
+  for (const [k, v] of PIN) {
+    const vv = /^-?[0-9.]+$/.test(v) ? v : JSON.stringify(v);
+    const was = await ev('JSON.stringify(window.GFX ? GFX.get()[' + JSON.stringify(k) + '] : null)');
+    if (was === JSON.stringify(/^-?[0-9.]+$/.test(v) ? +v : v)) { console.log('  pinned ' + k + '=' + v + ' (already)'); continue; }
+    await ev('(() => { GFX.set(' + JSON.stringify(k) + ', ' + vv + '); if (typeof FLYDIY_SETTLE === \'function\') FLYDIY_SETTLE(' + JSON.stringify(k) + '); return 1; })()', 60000);
+    const tEnd = Date.now() + 120000; let quiet = 0;
+    while (Date.now() < tEnd) { await sleep(250); const st = JSON.parse(await ev("JSON.stringify({ s: window.BOOT ? BOOT.state : 'none', b: window.BOOT && BOOT.busy ? BOOT.busy() : false })", 30000));
+      if (st.s === 'gone' && !st.b) { if (++quiet >= 8) break; } else quiet = 0; }
+    console.log('  pinned ' + k + '=' + v + ' (was ' + was + ')');
+  }
   const gfx0 = await ev('JSON.stringify(window.GFX ? GFX.get() : null)');
+  // PERF-1 P1: the browser and the pixel ratio, for train_gate's fixed reference (its identity: a run on another Chrome or DPR does not compare)
+  const ua = await ev('navigator.userAgent'), dpr = await ev('window.devicePixelRatio');
   console.log('  ' + gpu + ' · gfx ' + gfx0);
   // --profile: a CPU profile of the roll-out screen (the click to the reveal), saved next to the JSON and summarised
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  let traceDone = Promise.resolve(0);
+  if (TRACE) {
+    const r = await cmd('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordContinuously', includedCategories: TRACE_CATS.split(',') } });
+    if (r.error) console.log('  trace: ' + JSON.stringify(r.error));
+    else { console.log('  trace on (' + TRACE + ' s from the click)');
+      traceDone = sleep(+TRACE * 1000).then(() => new Promise(res => { traceEnd = () => res(traceEv.length); cmd('Tracing.end'); })); }
+  }
   // G833 (C2a): THE LOADING'S TOWN STEP - its own time (BOOT.log), the long tasks inside it (the main thread's share),
   // and the house worker's account (src/viewer/house_worker.js: its world's init, the recompose, what it generated and
   // what came from its IndexedDB cache). Cold (--cold: an empty cache) vs warm (a second run on the same profile: the
@@ -440,6 +491,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     const loadLt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] <= a0);
     console.log('  LOAD ' + tGarage.toFixed(1) + ' s to the shed · long tasks >= 50 ms (a frame under 20 fps each): ' + loadLt.length + ', over 100 ms: ' + loadLt.filter(x => x[1] > 100).length + ', worst ' + loadLt.reduce((m, x) => Math.max(m, x[1]), 0) + ' ms');
     console.log('  GARAGE fresh ' + JSON.stringify(garageFresh)); }
+  // G3320 (PILOTPAGE): --persona <name> - the shed's #selPersona set and its change fired before the roll-out (as tools/tour_real.js)
+  if (opt('persona', null)) console.log('  persona: ' + await ev("(()=>{if(window.FLYDIY_RAIL&&FLYDIY_RAIL.dev)FLYDIY_RAIL.dev(true);const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT
   const tRoll = Date.now(), clickAt = await ev('performance.now()');
   // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
@@ -660,6 +713,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
+  if (TRACE) { const n = await Promise.race([traceDone, sleep(60000).then(() => -1)]);
+    const f = OUT.replace(/.json$/, '.trace.json'); fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, JSON.stringify({ traceEvents: traceEv })); console.log('  trace: ' + traceEv.length + ' events' + (n < 0 ? ' (no tracingComplete in 60 s)' : '') + ' -> ' + f); }
   let profTop = null;
   if (prof) {
     // self time per node = its samples x the mean interval; aggregated by function (name + script + line) and by script
@@ -680,7 +736,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
   }
-  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, bs: __RP.bs || [], twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
+  R.fr.forEach((r, i) => { r.tw = R.tw ? R.tw[i] || null : null; });   // (G3415: the town meter rides its frame through the filters)
   // G680: the world step's slices (app.js buildWorldSliced) - how many, the longest, the step's wall
   const worldSlices = JSON.parse(await ev('JSON.stringify(window.__WORLD_SLICES || null)').catch(() => 'null'));
   if (worldSlices) console.log('  world step: ' + worldSlices.n + ' yields in ' + worldSlices.ms + ' ms, the longest slice ' + worldSlices.worst + ' ms');
@@ -748,9 +805,20 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
   // the gate numbers
   let run = 0, worstRun = 0; for (const r of fr) { if (r[1] > 1000 / 30) { run += r[1]; worstRun = Math.max(worstRun, run); } else run = 0; }
-  const over100 = fr.filter(r => r[1] > 100);
-  const lt = R.lt.filter(x => settingsT0 == null || x[0] < settingsT0).sort((a, b) => b[1] - a[1]);
-  const lt1s = R.lt.filter(x => x[1] > 1000 && (settingsT0 == null || x[0] < settingsT0));   // a settings change reports on its own line
+  // GATE-SCREEN (A0 22 Oct): A FRAME OR A TASK UNDER A LOADING SCREEN IS THE SCREEN'S, NOT THE FLIGHT'S. A trip that runs steps
+  // after the roll-out shot (a world setting changed in the shed - the gate's own --set pin) holds the draw under its screen:
+  // its held frames folded into one 117-166 ms row read as the flight's over100. Those frames (their interval overlapping a
+  // span where BOOT.state is not 'gone') leave over100, those tasks the worst task (never the 1 s count), and are reported on their own
+  // line (gates.screen: count, worst frame, worst task) with their own slack in the ratchet - a regression there still reds
+  const SPANS = bootSpans(R.bs);
+  const scr = (t0, t1) => underScreen(SPANS, t0, t1);
+  const frScr = fr.filter(r => scr(r[0] - r[1], r[0])), frFree = fr.filter(r => !scr(r[0] - r[1], r[0]));
+  const over100 = frFree.filter(r => r[1] > 100), over100S = frScr.filter(r => r[1] > 100);
+  const ltAll = R.lt.filter(x => settingsT0 == null || x[0] < settingsT0), ltS = ltAll.filter(x => scr(x[0], x[0] + x[1]));
+  const lt = ltAll.filter(x => !scr(x[0], x[0] + x[1])).sort((a, b) => b[1] - a[1]);
+  // (A0 22 Oct, batch A's rule: "no main-thread task over 1 s during any load or settings change" - the loads ARE the screens,
+  // so the 1 s judgment counts EVERY task, a screen's included; only the worst task and the frames split)
+  const lt1s = ltAll.filter(x => x[1] > 1000);   // a settings change reports on its own line
   const premEmptyAt = (() => { const r = fr.find(r => r[8] === 0); return r ? +((r[0] - revealAt) / 1000).toFixed(1) : null; })();
   const standTaxi = fr.filter(r => ['stand', 'taxi', 'to-afloat', 'to-displace', 'to-step'].includes(r.ph));
   const standTaxiFps = standTaxi.length ? 1000 / med(standTaxi.map(r => r[1])) : 0;
@@ -760,7 +828,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     below30run: { sec: +(worstRun / 1000).toFixed(2), pass: worstRun <= 3000 },
     standTaxiMedianFps: { fps: +standTaxiFps.toFixed(1), pass: standTaxiFps >= 50 },
     standTaxiDeliveredFps: { fps: standTaxiRow.fpsDelivered, doubled: standTaxiRow.doubled, dtP90: standTaxiRow.dtP90, dtP99: standTaxiRow.dtP99, pass: standTaxiRow.fpsDelivered >= 50 },   // G993: R3
-    longTask1s: { n: lt1s.length, worst: lt.length ? lt[0][1] : 0, pass: lt1s.length === 0 },
+    longTask1s: { n: lt1s.length, worst: ltAll.reduce((m, x) => Math.max(m, x[1]), 0), pass: lt1s.length === 0 },
+    // (GATE-SCREEN: reported, not passed or failed here - the ratchet holds them to their baseline)
+    screen: { frames: frScr.length, over100: over100S.length, worst: frScr.length ? Math.max(...frScr.map(r => r[1])) | 0 : 0, tasks: ltS.length, taskWorst: ltS.reduce((m, x) => Math.max(m, x[1]), 0), tasks1s: ltS.filter(x => x[1] > 1000).length },
   };
   console.log('  ---- ' + LABEL + ' · garage ' + tGarage.toFixed(1) + ' s · roll-out screen ' + tReveal.toFixed(1) + ' s · premises queue empty at +' + premEmptyAt + ' s');
   const ORDER = HYDRO ? ['to-afloat', 'to-displace', 'to-step', 'climb', 'circuit', 'flare', 'ldg-step', 'ldg-displace', 'ldg-afloat'] : ['stand', 'taxi', 'takeoff', 'air'];
@@ -777,13 +847,33 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     console.log('  pilot phases: ' + apSeq.map(x => x[0] + '@' + x[1]).join(' ')); }
   if (SETTINGS) { const w = settingsRuns.reduce((m, r) => Math.max(m, r.worst), 0), n = settingsRuns.reduce((m, r) => m + r.over1s, 0);
     gates.settingsLongTask1s = { n, worst: w, pass: n === 0 }; }
-  for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
+  for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass === undefined ? 'held under the roll-out screen' : g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));   // (GATE-SCREEN: the screen's line has no verdict here)
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks a frame (render_world's sum round the stream, the patch, the lots' cut and the
+  // premises' tick), the items they visited, the parts (render_premises TM_PARTS), the KB with --town-alloc; and every frame over
+  // 100 ms with the town's share of it (a hitch the town caused has its ms here; one it did not, a small number)
+  const townMeter = (() => {
+    const tw = fr.filter(r => r.tw), ms = tw.map(r => r.tw[0]); if (!tw.length) return null;
+    const parts = R.twParts || [], pm = parts.map((k, i) => [k, +(tw.reduce((a, r) => a + (r.tw[3 + i] || 0), 0) / tw.length).toFixed(3)]).sort((a, b) => b[1] - a[1]);
+    const kb = tw.filter(r => r.tw[2] != null).map(r => r.tw[2]);
+    const o = { frames: tw.length, msMed: +med(ms).toFixed(3), msP90: +pct(ms, 0.9).toFixed(3), msP99: +pct(ms, 0.99).toFixed(3), msMax: +Math.max(...ms).toFixed(2),
+      msMean: +(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(3), over2: +(ms.filter(x => x > 2).length / ms.length).toFixed(4), over5: +(ms.filter(x => x > 5).length / ms.length).toFixed(4),
+      visitsMed: med(tw.map(r => r.tw[1])), visitsMax: Math.max(...tw.map(r => r.tw[1])), parts: pm,
+      kbMean: kb.length ? +(kb.reduce((a, b) => a + b, 0) / kb.length).toFixed(3) : null, kbP99: kb.length ? +pct(kb, 0.99).toFixed(2) : null, kbFrames: kb.length,
+      over100: fr.filter(r => r[1] > 100).map(r => [+((r[0] - revealAt) / 1000).toFixed(2), +r[1].toFixed(0), r.tw ? r.tw[0] : null, r[29] || 0]) };   // (REVEAL: the held frames inside the gap)
+    o.byPhase = {}; for (const k of Object.keys(groups)) { const m = groups[k].filter(r => r.tw).map(r => r.tw[0]); if (m.length) o.byPhase[k] = { msMed: +med(m).toFixed(3), msP99: +pct(m, 0.99).toFixed(3), msMax: +Math.max(...m).toFixed(2) }; }
+    console.log('  TOWN ms/frame: med ' + o.msMed + ' p90 ' + o.msP90 + ' p99 ' + o.msP99 + ' max ' + o.msMax + ' mean ' + o.msMean + ' · over 2 ms ' + (o.over2 * 100).toFixed(2) + ' %, over 5 ms ' + (o.over5 * 100).toFixed(2) + ' % · items visited med ' + o.visitsMed + ' max ' + o.visitsMax
+      + (o.kbMean != null ? ' · KB/frame mean ' + o.kbMean + ' p99 ' + o.kbP99 + ' (' + o.kbFrames + ' frames)' : ''));
+    console.log('  TOWN parts (mean ms/frame): ' + pm.filter(x => x[1] > 0).map(x => x[0] + ' ' + x[1]).join(' · '));
+    if (o.over100.length) console.log('  TOWN share of the frames over 100 ms [s, ms, town ms]: ' + o.over100.slice(0, 30).map(x => x.join('/')).join(' '));
+    return o;
+  })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
-    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
+    bootSpans: SPANS.map(x => [x[0], isFinite(x[1]) ? x[1] : null]), tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),
+    townParts: R.twParts || null, townFrames: fr.map(r => r.tw) };   // G3415: [town ms, items, KB | null, parts...] a frame (townParts' order), frame for frame with `frames`
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
   console.log('  -> ' + OUT);

@@ -1,0 +1,38 @@
+{
+ "tent_hiking": {
+  "title": "Hiking Tent",
+  "author": "rileylane",
+  "licence": "CC BY 4.0",
+  "source": "https://sketchfab.com/3d-models/hiking-tent-441cd8395bf84bf9908375c35e07f809",
+  "line": "\"Hiking Tent\" by rileylane (sketchfab.com/rileylane), CC BY 4.0",
+  "label": "hiking tent",
+  "group": "camp"
+ },
+ "tent_frame": {
+  "title": "Tent",
+  "author": "alexxx_xarchenko",
+  "licence": "CC BY 4.0",
+  "source": "https://sketchfab.com/3d-models/tent-f6fef44f1e11487e8aec68123042cf03",
+  "line": "\"Tent\" by alexxx_xarchenko (sketchfab.com/alexxx_xarchenko), CC BY 4.0",
+  "label": "frame tent with a cot",
+  "group": "camp"
+ },
+ "tent_big": {
+  "title": "Tent",
+  "author": "marsh_tt",
+  "licence": "CC BY 4.0",
+  "source": "https://sketchfab.com/3d-models/tent-e85539fc03a24eb3abc7cdb8699e52f2",
+  "line": "\"Tent\" by marsh_tt (sketchfab.com/marsh_tt), CC BY 4.0",
+  "label": "large camp tent with kit",
+  "group": "camp"
+ },
+ "tent_small": {
+  "title": "Tent",
+  "author": "Tactical_Gamer",
+  "licence": "CC BY 4.0",
+  "source": "https://sketchfab.com/3d-models/tent-9006af5d7af4491dbb573fdddaf8b30b",
+  "line": "\"Tent\" by Tactical_Gamer (sketchfab.com/Tactical_Beard), CC BY 4.0",
+  "label": "small ridge tent",
+  "group": "camp"
+ }
+}

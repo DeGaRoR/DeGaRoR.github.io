@@ -604,13 +604,17 @@ const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
 // key ('stock:', 'mine:') gets the default, an 12 m-span single. The world's obstacle registry holds
 // the real meshes in the browser only; the core plans from these.
 const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
+// (ENGINE-CONFIGS-2: the Skymaster-alike's rear pusher, then its wing and booms 0.5 m aft (25 Oct) - 6.16 m: 6.2)
+// (ENGINE-CONFIGS-2, 27 Oct: the three layout starters - the Push-pull starter 0.79 / 6.12 m, the Trimotor 0.76 /
+// 5.93, the Four-engine starter 0.51 / 6.01; all inside the table's envelope, so FLEET_SPOT_FOOT does not move)
 const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
-  cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.4], pittsAlike: [3.3, 0.9, 4.4],
+  cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.5], pittsAlike: [3.3, 0.9, 4.4],
   sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
   rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
   motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
-  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 5.7],
-  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
+  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
+  camel: [4.3, 0.9, 5.1],      // NEW-SHAPES-1 (the Stearman's tail to 5.5: its re-matched boom, 5.45 m)
 };
 const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
 function parkedFoot(p) {
@@ -1103,7 +1107,18 @@ function fleetSpots(aero, site, opts) {
   // the site's hangar (the garage's shed), as the circle round its box: whatever way it is turned
   const hang = site && site.hangar && site.hangar.HW ? site.hangar : null;
   const hangarD = (x, z) => (hang ? Math.hypot(x - hang.x, z - hang.z) - Math.hypot(hang.HW, hang.HD) : Infinity);
-  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0 };
+  // G3097 (the Cabin Strip, L19b): THE SITE'S PLOTS - a building's place (the shed you may buy there) keeps the spots `gap` off
+  // its footprint (the offer's widest shell, GATE TAXICLEAR 12's box); a plot without an offer is not held
+  const plotBoxes = [];
+  if (site && Array.isArray(site.plots) && typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero.id] && typeof SHELLS !== 'undefined')
+    for (const p of site.plots) {
+      const P = !p.main && BASE_OFFERS[aero.id].plots[p.id]; if (!P) continue;
+      let HW = 0, HD = 0; for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } }
+      if (HW > 0 && HD > 0) plotBoxes.push({ x: p.x, z: p.z, c: CORE_MATH.cos(p.hdg || 0), s: CORE_MATH.sin(p.hdg || 0), HW, HD });
+    }
+  const plotD = (x, z) => { let m = Infinity; for (const b of plotBoxes) { const dx = x - b.x, dz = z - b.z, u = dx * b.c + dz * b.s, v = -dx * b.s + dz * b.c;
+    m = Math.min(m, Math.hypot(Math.max(Math.abs(u) - b.HD, 0), Math.max(Math.abs(v) - b.HW, 0))); } return m; };
+  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0, plot: 0 };
   const no = (sp, w, d) => { why[w]++; if (o.trace) o.trace.push({ id: sp.id, why: w, d: d === undefined ? null : +(+d).toFixed(2) }); return false; };
   // the runway's keep-out: a paved runway's strip (rwyClr past its edge); a narrow strip's own edge + rwyNarrow (an 11 m span
   // rolling on its centreline clears a spot there by its half-span and more); on water, off the lane's centreline
@@ -1119,6 +1134,7 @@ function fleetSpots(aero, site, opts) {
     if (o.ground && !water) { const h = C.concat([[sp.x, sp.z]]).map(q => o.ground(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); if (d > F.flatTol) return no(sp, 'flat', d); }
     const pts = fleetSpotPts(sp, F.step, true);
     for (const q of pts) { const d = Math.min(hangarD(q[0], q[1]), solid ? solid(q[0], q[1], margin + 1) : Infinity); if (d < margin) return no(sp, 'solid', d); }
+    if (plotBoxes.length) for (const q of pts) { const d = plotD(q[0], q[1]); if (d < F.gap + 0.05) return no(sp, 'plot', d); }
     const rr = Math.max(sp.half, sp.fwd, sp.aft) + need + 2;
     for (const q of routes) if (Math.abs(q.x - sp.x) < rr && Math.abs(q.z - sp.z) < rr) { const d = fleetSpotDist(sp, q.x, q.z); if (d < need) return no(sp, 'route', d); }
     for (const b of ok) {

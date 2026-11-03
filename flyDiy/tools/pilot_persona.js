@@ -14,6 +14,9 @@
 //   approach   the slope's rms (m) and the speed's rms about Vref (m/s) on the captured final
 //   landing    the touchdown sink (m/s), V/Vs, metres past the aim, the BOUNCES (off the surface >= 0.15 s after the
 //              first touch), the go-arounds, the outcome
+//   stab       (G2460) the stabilised approach (43 PILOT_STAB): the go-arounds it called; '+U' an unstable final landed
+//              after the two go-arounds (committed), '+T' one unstable past the expert's dwell that a late decider
+//              (decisionK > 1) landed - both named in the output
 //   hands      control reversals per minute (GATE PILOTACT's counter, aileron | rudder) - the worst phase group and the
 //              final's
 //
@@ -104,6 +107,8 @@ function runOne(cell, extra) {
     for (const a of WEATHER[cell.weather] || []) args.push(a);
     if (cell.csv) args.push('--csv', cell.csv);
     if (cell.seed != null) args.push('--seed', String(cell.seed));
+    // G2460: a go-around is another circuit - the clock is the persona's, not the trace's one-circuit 420 s
+    if (!extra.includes('--max')) args.push('--max', '1500');
     for (const a of extra) args.push(a);
     const p = spawn(process.execPath, args, { cwd: T, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
@@ -136,6 +141,8 @@ const COLS = [
   ['aim m', 5, r => r.landing ? r.landing.pastAim : '-'],
   ['bnc', 3, r => r.landing ? r.bounces : '-'],
   ['GA', 3, r => r.goArounds || 0],
+  // G2460: the stabilised approach - the go-arounds IT called, 'U' an unstable final landed once committed (named below)
+  ['stab', 6, r => !r.stab ? '-' : (r.stab.ga ? 'GA' + r.stab.ga : 'ok') + (r.stab.committed ? '+U' : r.stab.tolerated ? '+T' : '')],
   ['rev/min', 13, r => { const w = actWorst(r); return w ? w.g + ' ' + w.v : '-'; }],
   ['fin da|dr', 9, r => r.activity && r.activity.final ? r.activity.final.da + '|' + r.activity.final.dr : '-'],
   ['outcome', 9, r => r.error ? 'ERROR' : r.outcome],
@@ -191,6 +198,10 @@ if (require.main === module) {
                                const b = r.error ? [] : inBand(r, r.prof); if (b.length) off.push(BUILDS[r.build].label + ' / ' + r.prof + ': ' + b.join('; ')); }
     for (const x of off) console.log('  ~ out of band  ' + x);
     for (const x of findings) console.log('  X FINDING      ' + x);
+    // G2460: EVERY UNSTABLE FINAL GOES ROUND OR IS NAMED - the finals landed unstabilised (committed after two go-arounds)
+    for (const r of results) if (r.stab && r.stab.committed) console.log('  U UNSTABLE LANDED  ' + BUILDS[r.build].label + ' / ' + r.prof + (r.seedN != null ? ' s' + r.seedN : '') + ': ' + r.stab.committed);
+    // ...and '+T': unstable past the expert's dwell, landed because the person decides late (decisionK > 1)
+    for (const r of results) if (r.stab && r.stab.tolerated) console.log('  T UNSTABLE TOLERATED  ' + BUILDS[r.build].label + ' / ' + r.prof + (r.seedN != null ? ' s' + r.seedN : '') + ': ' + r.stab.tolerated);
     console.log('wall ' + Math.round((Date.now() - t0) / 1000) + ' s');
     if (opt('out', null)) fs.writeFileSync(opt('out'), JSON.stringify({ when: new Date().toISOString(), weather: wx, results }, null, 1));
     if (opt('md', null)) fs.writeFileSync(opt('md'), markdown(results) + '\n');

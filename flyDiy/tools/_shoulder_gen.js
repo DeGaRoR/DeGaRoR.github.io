@@ -154,7 +154,29 @@ function shoulderLimits(mesh, spec, opt, CAGE) {
     const cabB = ring('pilCabB'), paxA = ring('pilPaxA');
     if (o.run === 'cabin') {
       if (paxA) zAft = paxA.lv.waist.z;
-      else if (mirrorZ != null && cabB) zAft = 2 * mirrorZ - cabB.lv.waist.z;
+      else if (mirrorZ != null && cabB) {
+        // THE MIRRORED POD'S WHOLE CABIN (G2783, the user: "sill shoulder whole
+        // cabin does not work with the mosquito"). This was 2 * mirrorZ - cabB:
+        // the pilot pillar reflected, which is the ARCEAU'S aft edge — 0.1 m
+        // aft of the pilot run's own limit, with the aft cabin's whole sill
+        // behind it. Measured on the Mosquito: the aft transition runs
+        // 0.449..1.898, the limit sat at 1.898, and 'whole cabin' built what
+        // 'pilot bay' built. The aft cabin is the front one reflected (or a
+        // second emission of it, config.mirrorAftSpec), so its limit is the
+        // front limit's own image: the same distance aft of the aft half's
+        // reflected windscreen ring as the dash gap is aft of the front's —
+        // cageBodyZones' reflection constant, the per-half spec's windscreen.
+        const SA = spec.config && spec.config.mirrorAftSpec;
+        const RA = SA ? CAGE.cageResolve(SA) : R;
+        const ringA = n => RA.rings.find(r => r.name === n);
+        const w = spec.cabinPillarW || 0;
+        const cabBA = ringA('pilCabB'), wsA = ringA('wsFront'), ws = ring('wsFront');
+        const zBs = cabBA ? cabBA.lv.waist.z : null;
+        const CZ = zBs != null ? (mirrorZ + w / 2) - w + zBs : 2 * mirrorZ;
+        const zArc = 2 * mirrorZ - cabB.lv.waist.z;          // the arceau's aft edge
+        if (ws && wsA && zDash != null) zAft = Math.min(zArc, (CZ - wsA.lv.waist.z) + (ws.lv.waist.z - (zDash - o.gap)));
+        else zAft = zArc;
+      }
       else if (cabB) zAft = cabB.lv.waist.z;
     } else if (cabB) zAft = cabB.lv.waist.z;
   }
@@ -942,6 +964,9 @@ const CONFIGS = [
   ['open canopy', { canopy: 2, doorOn: 0 }],
   ['mirrored pod', { mirror: 1 }],
   ['pod + bubble', { mirror: 1, canopy: 3 }],
+  // G2783: the mirrored pod's whole cabin (the Mosquito's), both cabins' sills
+  ['pod, cabin run', { mirror: 1 }, { run: 'cabin' }],
+  ['pod + bubble, cabin run', { mirror: 1, canopy: 3 }, { run: 'cabin' }],
   ['no door', { doorOn: 0 }],
   ['sill down', { winSillPilot: 0.3 }],
   ['exploded', { explodeD: 0.25 }],

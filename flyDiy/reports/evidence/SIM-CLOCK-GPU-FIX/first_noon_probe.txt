@@ -1,0 +1,31 @@
+gfx {"preset":"retro","build":"retro","pv":8,"fps":30,"fpsOwn":false,"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","own":false,"hw":null,"town":"nearby"}
+garage wait dusk true
+held true
+stand waiting {"holdRender":false,"rollHold":true,"craftAway":0,"inGarage":false,"running":true}
+programs on the stand at dusk 500
+
+== wait night true sunEl -11.5: 0 new programs
+
+== wait dawn true sunEl -6.0: 0 new programs
+
+== wait noon true sunEl 58.4: 5 new programs
+   (siblings 436) differs at 53:8388689->8388691
+   (siblings 436) differs at 52:8522771->8393747
+   (siblings 436) differs at 52:8522771->8389651
+   (siblings 436) differs at 35:10->2
+   (siblings 436) differs at 51:8388608->8388611
+  worn by: NOTHING in the world / garage scenes (a pass of its own: a depth / shadow / post / sky program)
+  fresh 530 key head: physical,STANDARD,,highp,srgb-linear,306,1024,uv,false,false,false,false,uv,false,uv,uv,uv,false,false,false,false,false,false,false,false,false,false,false,fal
+  fresh 531 key head: basic,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,fal
+  fresh 532 key head: basic,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,fal
+  fresh 533 key head: basic,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,fal
+  fresh 534 key head: depth,highp,srgb-linear,false,,uv,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,
+
+== wait dusk true sunEl -6.0: 1 new programs
+   (siblings 441) differs at 51:8388608->8388611
+  worn by: NOTHING in the world / garage scenes (a pass of its own: a depth / shadow / post / sky program)
+  fresh 535 key head: depth,highp,srgb-linear,false,,uv,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,
+
+== wait noon true sunEl 58.4: 0 new programs
+
+lights now {"dir":0,"point":0,"spot":0,"hemi":0,"shadowDir":0}

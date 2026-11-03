@@ -87,7 +87,8 @@ const PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-350
   // a right-click deletes the third, a touch long-press (pointerType touch, held 0.8 s) deletes the first
   // (the roll-out shot may still be playing on SwiftShader: its skip takes the first click or key, by design - rollanim.js)
   await page.keyboard.press('Space'); await sleep(1500);
-  await ev("(()=>{ ROUTE_DRAW.setOn(true); ROUTE_DRAW.load({ name: 'gestures', pts: [] }); return 1; })()");
+  // G3070 (ROUTE-LAZY): the drawing is its own file, fetched on first demand - awaited before it is driven
+  await ev("ROUTE_DRAW.ready().then(() => { ROUTE_DRAW.setOn(true); ROUTE_DRAW.load({ name: 'gestures', pts: [] }); return 1; })");
   await sleep(2500);
   const mm = await page.$('#mm'), bb = await mm.boundingBox();
   const at = (fx, fy) => [bb.x + bb.width * fx, bb.y + bb.height * fy];

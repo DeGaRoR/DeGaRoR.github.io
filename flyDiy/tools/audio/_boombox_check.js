@@ -312,7 +312,8 @@ function checkPanel(S) {
     const ranges = [...q(doc, '#bbPanel input[type=range]')];
     const rowOf = el => el.parentNode && el.parentNode.querySelector('.k') && el.parentNode.querySelector('.k').textContent;
     const rng = k => ranges.find(r => rowOf(r) === k);
-    for (const [k, v] of [['music', 30], ['master', 55], ['engine', 70]]) {   // (G1722: the engine beside the music)
+    if (rng('engine') && rng('engine').max !== '200') F.push('the engine slider stops at ' + rng('engine').max + ' % (G1728: 200 %)');
+    for (const [k, v] of [['music', 30], ['master', 55], ['engine', 70], ['engine', 180]]) {   // (G1722: the engine beside the music; G1728: past 100 %)
       const r = rng(k);
       if (!r) { F.push('no ' + k + ' slider'); continue; }
       r.value = String(v); r.dispatchEvent(ev(pg, 'input'));
@@ -633,12 +634,13 @@ const MUT = [
     '    S.inv.copy(o.matrixWorld).invert();\n    S.ray.copy(ray);\n    if (!S.ray.intersectBox(localBox(o, S.box).applyMatrix4(o.matrixWorld), S.p)) return -1;\n    S.p.applyMatrix4(S.inv);', 'BB_HIT'],
   ['no cursor', 'boombox', "cueCanvas.style.cursor = on ? 'pointer' : '';", "cueCanvas.style.cursor = '';", 'BB_HIT'],
   ['the frame works while closed', 'boombox', '  function frame(camera, getObj) {\n    if (!panel) return;\n', '  function frame(camera, getObj) {\n', 'BB_HIT'],
-  ['the click after the editor', 'app', "      if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }\n      else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);",
-    "      if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);\n      else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }", 'BB_HIT'],
+  ['the click after the editor', 'app', "      else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }\n      else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);",
+    "      else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);\n      else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }", 'BB_HIT'],
   ['the frame call gone', 'app', '    if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);', '', 'BB_HIT'],
   ['mobileProp by the wrong name', 'hangar', "if (o.name === 'prop:' + key) return o;", 'if (o.name === key) return o;', 'BB_HIT'],
   ['the music slider sets the master', 'boombox', "v => A.set('music', v));", "v => A.set('master', v));", 'BB_PANEL'],
-  ['the engine slider sets the music', 'boombox', "v => A.set('engine', v))", "v => A.set('music', v))", 'BB_PANEL'],
+  ['the engine slider sets the music', 'boombox', "v => A.set('engine', v), 2)", "v => A.set('music', v), 2)", 'BB_PANEL'],
+  ['the engine slider stops at 100 %', 'boombox', "v => A.set('engine', v), 2)", "v => A.set('engine', v))", 'BB_PANEL'],
   ['a station button without the garage music', 'boombox', "() => (k === 'off' ? radio.off() : radio.listen(k))", "() => (k === 'off' ? radio.off() : MU().setStation(k))", 'BB_PANEL'],
   ['no Esc', 'boombox', "function onKey(e) { if (e && e.key === 'Escape')", 'function onKey(e) { if (false)', 'BB_PANEL'],
   ['a press outside ignored', 'boombox', "      Dc.addEventListener('pointerdown', onDown, true);\n", '', 'BB_PANEL'],

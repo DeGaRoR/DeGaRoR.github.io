@@ -32,6 +32,7 @@ const CAGE_JOIN_ENGINES = {
   'rotax 582': 'rotax582_ivo',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
+  'Clerget 9B': 'clerget9b_wood',          // NEW-SHAPES-1: the Camel's rotary
   'P&W R-985': 'r985_hs2b20',
   'P&W R-1830': 'r1830_hs23e50',
   // THE TWO G165 IN-LINES WERE ORPHANS until 2026-09-05: neither had a row
@@ -43,12 +44,14 @@ const CAGE_JOIN_ENGINES = {
   // the aero Vs (2026-09-05, the V test)
   'Hirth HM 508D': 'hirth508_wood',
   'Argus As 10C': 'argus10c_wood',
+  'Rolls-Royce Merlin 66': 'merlin66_rotol4',   // the Spitfire's V12 (27 Oct)
   // the coverage fill (2026-09-05)
   'lycoming O-320': 'o320_mccauley',
   'lycoming O-540': 'o540_hartzell',
   'continental IO-550': 'io550_hartzell3',
   'lycoming IO-720': 'io720_hartzell3',
   'rotax 915 iS': 'rotax915_carbon',
+  'rotax 916 iS': 'rotax916_carbon',   // FLAGSHIP (2 Nov)
   'Ranger L-440': 'ranger440_wood',
   'Continental W-670': 'w670_hs2b',
   'Jacobs R-755': 'r755_hs2b',
@@ -176,6 +179,7 @@ function cageJoinPlane2(P, T) {
     span: P.w2Span, chord: P.w2Chord,
     taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
     tipX: +P.w2TipX || 0,
+    plan: +P.w2Plan === 1 ? 'elliptic' : null, planAxis: +P.w2Plan === 1 ? +P.w2PlanAxis : null,
     dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
     naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
     panels: Math.round(P.w2Panels),
@@ -221,6 +225,8 @@ function cageJoinSpec(P, M, T) {
       // resolved wing derives sweepEff from what the stations do), and
       // tipX 0 is a real value: straight
       tipX: +P.wgTipX || 0,
+      // the elliptic planform (genPlanLaw), the wing layer's own two fields
+      plan: +P.wgPlan === 1 ? 'elliptic' : null, planAxis: +P.wgPlan === 1 ? +P.wgPlanAxis : null,
       dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
@@ -239,6 +245,13 @@ function cageJoinSpec(P, M, T) {
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),
+      // G2820: THE STOL WING (60_gen_spec genStolCage) - STATED in both
+      // states (A3): the record, or null when every device is off, so the
+      // garage's per-key merge can take a slat back off. A P without the
+      // rows (a headless caller) says nothing. null never reaches the
+      // resolved spec (clampWing drops it) nor the certificate's hash
+      // (bench.js benchStripCosmetic).
+      ...((st => st === undefined ? {} : { stol: st })(typeof genStolCage === 'function' ? genStolCage(P) : undefined)),
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
       // the aeroplane's own material, which is what every build before this
       // field existed already meant. 1..4 in intCons's display order.
@@ -282,14 +295,23 @@ function cageJoinSpec(P, M, T) {
     // drawn; a wing pair is two entries. Absent measurements = the spec's
     // own derivation for that mount.
     engines: (() => {
-      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)]
-               || 'nose';
+      // G2790 ENGINE-CONFIGS: 4 push-pull / 5 three / 6 four are LAYOUTS
+      // (60_gen_spec GEN_ENG_LAYOUTS) — one entry per drawn unit, in the
+      // order engineFaces lists them, each entry's own mount
+      const mK = Math.round(P.engMount || 0);
+      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : null;
+      // the mounts of each layout, GEN_ENG_LAYOUTS' own lists (the join runs
+      // as a node module in GATE JOIN, where the core's globals are not)
+      const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
+                     quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
+      // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
+      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
       const aimK = Math.round(P.engAim || 0);
       const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
-      const one = i => ({
+      const one = (i, mk) => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
@@ -309,9 +331,10 @@ function cageJoinSpec(P, M, T) {
         // disc 2.4 cm INTO the ground at rest where the drawn disc clears
         // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
         // flange's y rides out with its x (the cowl, the mount and the nose
-        // leg read engY, now the drawn thrustline).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
-          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
+        // leg read engY, now the drawn thrustline). G2790: unit i's own
+        // flange (a layout's nose is unit 0, so a single reads EU[0] as before).
+        ...(mk === 'nose' && EU[i] && isFinite(EU[i].x)
+          ? Object.assign({ x: EU[i].x }, isFinite(EU[i].y) ? { y: EU[i].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -332,10 +355,14 @@ function cageJoinSpec(P, M, T) {
         // G194: the hand, seen from behind (+1 clockwise). A pair's row says
         // same hand / tops inward / tops outward; tops inward is port +1,
         // starboard -1 (down-going blades inboard). A single mount is +1.
+        // G2790: a layout's pairs take the row per pair (port first); a
+        // push-pull's rear hand is the clamp's (the nose's mirror)
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
-          ? ((i === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
+          ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
-      return mk === 'wing' ? [one(0), one(1)] : [one(0)];
+      const wingK = i => LAY ? LAYM.slice(0, i).filter(m => m === 'wing').length : i;
+      if (LAY) return LAYM.map((m, i) => one(i, m));
+      return mk === 'wing' ? [one(0, mk), one(1, mk)] : [one(0, mk)];
     })(),
     // ---- G132: THE PROPELLER FLIES AS DRAWN. spec.prop is the thrust
     // model's whole input (Tstatic, kV2, disc, mass all derive from D,
@@ -409,6 +436,10 @@ function cageJoinSpec(P, M, T) {
     // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
+    // G3575: THE FULL-SWIVEL THIRD WHEEL - the steering row's third type (GEAR_PAGE.STEERS[2]) reaches the physics; the
+    // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
+    // and the def are what they were, to the bit
+    if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -442,6 +473,29 @@ function cageJoinSpec(P, M, T) {
   // 'cabin.glazing') - written only when off, an open cockpit stayed open in
   // the file through the garage's merge after the row came back on
   if (P.glazeOn != null) cabin.glazing = +P.glazeOn ? 'glass' : 'none';
+  // G3511: EVERY SEATED SECTION OPEN IS AN OPEN COCKPIT — the drawn holes are
+  // the flown ones: the drag's open-cockpit term (the hole + a head per seat,
+  // genFusCdA) instead of a closed cabin's screen step. A section left closed
+  // (a cabin ahead of an open rear seat) keeps the cabin's glazing.
+  {
+    const r = k => Math.round(+P[k] || 0);
+    // G3515: with the pilot in bay 1 (a tandem), bay 1 is the pilot's section
+    // and the cockpit is seated only when bay 1's row says the second person
+    // is aboard
+    const rear = r('pilotRear') > 0 && r('paxCount') >= 1 && r('seatLayout') !== 1 && !r('mirror');
+    const seated = rear ? [['paxOpen1', 1]].concat(r('paxOcc1') > 0 ? [['cpOpen', 1]] : [])
+                        : [['cpOpen', 1]];
+    for (let n = rear ? 2 : 1; n <= Math.min(4, r('paxCount')); n++)
+      if (r('paxOcc' + n) > 0) seated.push(['paxOpen' + n, 1]);
+    if (cabin.glazing === 'glass' && (r('cpOpen') > 0 || r('paxOpen1') > 0)
+        && seated.every(([k]) => r(k) > 0)) {
+      cabin.glazing = 'none';
+      // G3516: the screens are still glass - their area, measured off the sheet (on an all-open aeroplane the glass
+      // the sheet carries is the screens'), billed by the frame
+      const UIo = typeof window !== 'undefined' ? window.CAGE_UI : null;
+      if (UIo && UIo.glazedM2 > 0) cabin.screenM2 = +UIo.glazedM2.toFixed(3);
+    }
+  }
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)
@@ -563,8 +617,9 @@ function cageJoinSpec(P, M, T) {
   if (M.vHeight > 0) tl.vHeight = M.vHeight;
   if (M.vChord > 0) tl.vChord = M.vChord;
   if (M.vX > 0) tl.vX = M.vX;
-  if (M.vSweep === 0) tl.vSweep = 0;
+  if (typeof M.vSweep === 'number' && isFinite(M.vSweep)) tl.vSweep = M.vSweep;   // G2640: the measured rake
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  if (typeof M.vRootDrop === 'number' && isFinite(M.vRootDrop)) tl.vRootDrop = M.vRootDrop;   // G2640: the KEEL row
   // THE AREAS (TAIL CHANTIER 2 P1): the sheets' own, by assignment like the
   // rows above — resolveSpec's volume rule is `put` and stands down (G115).
   // Sh gross, Sv dorsal-free, Svt a V's panels; the dorsal measured apart.
@@ -1072,6 +1127,47 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     });
     return B.n > 20 ? B : null;
   };
+  // A LAYER CUT AT A HEIGHT (G2640): the points where the plane y = yCut
+  // (mount frame) crosses the layer's faces, near the centreline (|x| < xMax).
+  // Faces, not vertices: a lofted sheet has vertices only at its ribs, so a
+  // height between two ribs has none. Returns the cut's fore and aft extremes
+  // (z1 the leading edge, nose at +z; z0 the trailing edge) or null.
+  const layerCutY = (layerName, yCut, xMax) => {
+    const mnt = edMount();
+    if (!mnt || typeof THREE === 'undefined') return null;
+    mnt.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    let grp = null;
+    mnt.traverse(o => { if (!grp && o.name === layerName) grp = o; });
+    if (!grp) return null;
+    let z0 = 1e9, z1 = -1e9, n = 0;
+    grp.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      if (o.userData && (o.userData.edHi || o.userData.edHw)) return;
+      const g = o.geometry, p = g.attributes.position;
+      if (!p) return;
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      const V = new Float64Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
+        V[3 * i] = v.x; V[3 * i + 1] = v.y; V[3 * i + 2] = v.z;
+      }
+      const ix = g.index ? g.index.array : null;
+      const nT = ix ? ix.length / 3 : p.count / 3;
+      for (let t = 0; t < nT; t++) for (let e = 0; e < 3; e++) {
+        const a = ix ? ix[3 * t + e] : 3 * t + e, b = ix ? ix[3 * t + (e + 1) % 3] : 3 * t + (e + 1) % 3;
+        const ya = V[3 * a + 1] - yCut, yb = V[3 * b + 1] - yCut;
+        if ((ya > 0) === (yb > 0) || ya === yb) continue;
+        const u = ya / (ya - yb);
+        const x = V[3 * a] + (V[3 * b] - V[3 * a]) * u;
+        if (Math.abs(x) > xMax) continue;
+        const z = V[3 * a + 2] + (V[3 * b + 2] - V[3 * a + 2]) * u;
+        n++; if (z < z0) z0 = z; if (z > z1) z1 = z;
+      }
+    });
+    return n >= 4 ? { z0, z1, n } : null;
+  };
   // WHAT THE MEASUREMENT COULD NOT TAKE (G64). One list, refilled by every
   // measure(), read by the engineering bench. A join that cannot measure the
   // build must not hand back a plausible aeroplane in silence — that is a
@@ -1126,20 +1222,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // tail arm. The ws rings SLOPE (roof z is aft of keel z), so the
       // base is their WAIST/KEEL z, not their roof. Ring z is cage
       // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
-      let zFw = AF.z1, fwOk = false, zPost = null;
+      let zFw = AF.z1, fwOk = false, zPost = null, zPodRoot = null;
       let zOf2 = () => null;               // named-ring z lookup, metres
       try {
         const C2 = window.CAGE2;
-        const R = C2.cageResolve(C2.cageSpec({ ...P }));
+        const CSp = C2.cageSpec({ ...P });
+        const R = C2.cageResolve(CSp);
         const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
-        zOf2 = (name) => {
-          const r = R.rings.find(q => q.name === name);
-          const l = r && r.lv && (r.lv.waist || r.lv.keel);
-          return l && isFinite(l.z) ? l.z * FS : null;
-        };
-        const fw = zOf2('wsFront') != null ? zOf2('wsFront')
-                 : zOf2('wsAft') != null ? zOf2('wsAft')
-                 : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
+        zOf2 = C2.cageNamedZ(R, FS);
+        const fw = C2.cageFirewallZ(zOf2);        // G3050: one home with the wing layer
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
         // G295 (TWIN-BOOM-2 §3): a twin-boom POD has no post either — it ends
@@ -1149,6 +1240,29 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // body was not the drawn pod). The pod's own aft extreme (the skin's
         // z0, the aero aft's tip) is the profile's end on twin booms.
         if (zPost == null && +P.boomTwin && isFinite(AF.z0)) zPost = AF.z0;
+        // G2640 (DESIGN-TRUST, the user's 'mosquito'): A TURTLEDECK HAS A TAIL
+        // POST TOO. The mirrored pod (cage.mirror, the 'Turtledeck' body)
+        // emits no tail rings - _cage_gen's table stops at pilCabB and the
+        // boom is lofted from the reflected aperture - so zPost stayed null and
+        // the whole aft body went unmeasured: the tail datum, the post's
+        // section, the profile, the fin's station and height, the stab's seat.
+        // The merge kept whatever an earlier build had written (the mosquito
+        // flew the Cub's boom and a fin 0.6-0.8 m ahead of the drawn one).
+        // But the pod's boom HAS the regular tail's stations (buildCage2: "the
+        // pod's boom is the boom without the top part - it needs the same
+        // pillar"): a smooth run, the tail pillar band at tPost, the cone over
+        // the rest to the capped tip. The post is that band, measured back
+        // from the drawn tip; the body's full section ends at the FIREWALL
+        // REFLECTED (the aft half is the front half mirrored about mirrorZ).
+        if (zPost == null && Math.round(+P.mirror || 0) === 1 && !+P.boomTwin &&
+            Math.round(+P.boomStyle || 0) !== 1 && isFinite(AF.z0) &&
+            CSp.boom && CSp.tail && isFinite(R.mirrorZ)) {
+          const FSp = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+          const dzB = (CSp.boom.len || 0) + (CSp.tail.len || 0);
+          const tPost = dzB > 0 ? Math.min(0.92, CSp.boom.len / dzB) : 1;
+          if (dzB > 0) zPost = AF.z0 + (1 - tPost) * dzB * FSp;
+          if (fwOk) zPodRoot = 2 * R.mirrorZ * FSp - zFw;
+        }
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
         // block below — the cabin's x-extent, the gear station and ride
@@ -1178,7 +1292,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // front-spar node onto its anchor (deck / waist / belly band, plus
       // the up/down nudge); read it back in the frame's own y
       if (W && W.anchor && typeof W.anchor.yAnchor === 'number')
-        M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
+        M.wingY = W.anchor.yAnchor + (typeof W.anchor.dy === 'number' ? W.anchor.dy : (+P.wgDy || 0)) - yD;   // G3050: the drawn nudge
       // ...and the second plane's, off its own drawn root front-spar node
       // (the wing layer publishes each plane's rootY in cage metres)
       if (W && W.planes && W.planes[1] && typeof W.planes[1].rootY === 'number')
@@ -1187,7 +1301,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
         M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
-      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0) && Math.abs(+P.rodIncl || 0) > 0.05) {
+      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0)) {
         // G477 (the playtest's 130, the user: "the rod inclination impacts
         // the position of everything related to the tail wheel"): A ROD
         // BOOM HAS A TAIL END TOO. With no tail rings the datum stayed the
@@ -1207,6 +1321,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // swung 180 deg and aborted (GATE SEAPLANE). The card is one of the
         // unvalidated ones and the drawn tail is the honest one - that
         // fixture is owed a look before the level rod follows the drawing.
+        // G2640 (DESIGN-TRUST, 10 Oct): THE LOOK, AND THE LEVEL ROD FOLLOWS.
+        // The geometry-parity row measured that fixture (the user's validated
+        // 'twin on floats'): its flown fin 0.61-0.87 m aft of the drawn one,
+        // its stab 0.28 m below the drawn one. The user's standing ruling (8
+        // Oct): "accept the new thing, WYSIWYG always" - every rod, level or
+        // inclined, takes its tip's section as the tail datum now.
         const zTipIn = AF.z0 + Math.min(0.05, 0.25 * Math.max(0.02, AF.z1 - AF.z0));
         const bot = AF.surf(zTipIn, 0), top = AF.surf(zTipIn, Math.PI);
         if (bot && top && isFinite(bot[1]) && isFinite(top[1]) && top[1] > bot[1]) {
@@ -1299,7 +1419,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // actually anchors the FRONT SPAR: the cage's `ring` station
       // (+ the panel's dx), minus sparFront x chord back to the LE.
       if (fwOk) {
-        const zCabF = zOf2('pilCabB'), zCabA = zOf2('pilPaxA');
+        // (G2640: a turtledeck's full section ends at its reflected firewall)
+        const zCabF = zOf2('pilCabB'),
+              zCabA = zOf2('pilPaxA') != null ? zOf2('pilPaxA') : zPodRoot;
         if (zCabF != null && zFw > zCabF) M.noseGap = zFw - zCabF;
         if (zCabF != null && zCabA != null && zCabF > zCabA)
           M.cabLen = zCabF - zCabA;
@@ -1339,10 +1461,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (zRing != null) {
           const sparF = (typeof GEN_RULES !== 'undefined' &&
                          GEN_RULES.sparFront) || 0.15;
-          M.wingXLE = (zFw - zRing - (P.wgDx || 0))
+          // G3050: the nudge the wing layer DREW (it holds the drawn
+          // leading edge inside the flown envelope), the row's when absent
+          const dxW = W && W.anchor && typeof W.anchor.dx === 'number' ? W.anchor.dx : (P.wgDx || 0);
+          M.wingXLE = (zFw - zRing - dxW)
                     - sparF * (P.wgChord || 1.5);
+          // (G3503: a wing drawn past the envelope's span is held by its `big` one - the core's genWingEnv rule)
+          const EW = typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null;
           const cut = cageWingStationCut(M.wingXLE,
-            typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+            EW && EW.big && +P.wgSpan > EW.span[1] ? Object.assign({}, EW, EW.big) : EW);
           if (cut) ERRS.push(cut);                                       // G1283
         }
         // G54: the SHAPE FAMILY — the PATH of the boom between the
@@ -1555,8 +1682,48 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // the lattice leans the apex aft a second time.
             M.vX = zFw - fB.topZ;
             M.vSweep = 0;
+            // G2640 (DESIGN-TRUST): ...but the STRIPS stand on that line too,
+            // and a SWEPT fin is not vertical under its top point. The
+            // lattice lays the fin's sections at vX + tan(vSweep)·dy +
+            // (spar - 0.5)·chord, dy up from the tail top — its MID-CHORD
+            // line, raked. Measured with the geometry-parity row: the Jodel's
+            // swept fin flew 0.33-0.50 m aft of the one drawn, the mosquito's
+            // lower half 0.31 m. So the line is measured where it is drawn:
+            // the fin sheet cut at 30 % and 80 % of its height (above any
+            // dorsal, below the tip's bow), the mid-chord of each cut, the
+            // line through them carried down to the tail top (vX) with its
+            // rake (vSweep). A straight unswept fin reads the old answer;
+            // the apex then sits on the mid-chord line at the top, not on
+            // the drawn top vertex (a rounded tip's vertex is not where the
+            // fin's lift is).
+            {
+              const yAt = u => yD + M.tailTop + u * (finTop - M.tailTop);
+              const xB = Math.max(0.32, (M.tailW || 0.2) + 0.08);
+              const ca = layerCutY('cageLayer:fin', yAt(0.30), xB);
+              const cb = layerCutY('cageLayer:fin', yAt(0.80), xB);
+              const dy = 0.5 * (finTop - M.tailTop);
+              // G2640 (the KEEL row): WHERE THE DRAWN FIN ROOTS. The truss
+              // stood on the tail post's top; a fin drawn rooting BELOW it (a
+              // turtledeck's fin on its narrow boom: 0.15 m on the Cub's) had
+              // its area spread over too short a height - aspect 0.78 for the
+              // drawing's 1.08, chords 30 % wide. The proper sheet's own span
+              // (keel tab excluded) says where its root is: the drop below the
+              // post's top, within the tail's own depth; 0 where the sheet
+              // roots on or above the post (every build before this).
+              M.vRootDrop = finM && finM.span > 0
+                ? Math.max(0, Math.min(M.tailTop - M.tailBot, M.tailTop - (finTop - finM.span))) : 0;
+              if (ca && cb && dy > 0.05) {
+                const ma = zFw - 0.5 * (ca.z0 + ca.z1), mb = zFw - 0.5 * (cb.z0 + cb.z1);
+                const rake = (mb - ma) / dy;
+                if (isFinite(rake) && Math.abs(rake) < 1.5) {
+                  // the line carried down to the truss's root (the drop below the post's top)
+                  M.vX = ma - rake * (0.30 * (finTop - M.tailTop) + M.vRootDrop);
+                  M.vSweep = Math.atan(rake) * 180 / Math.PI;
+                }
+              }
+            }
             if (typeof M.stabY === 'number' && finTop > tailYm + 0.1)
-              M.stabH = Math.max(0, Math.min(1,
+              M.stabH = Math.max(-0.5, Math.min(1,             // G2640: below the cone's mid too
                 (M.stabY - tailYm) / (finTop - tailYm)));
           } else if (fB && !tailDatum) {
             NOTES.push('tail: no tail rings (a rod boom or a pod) — the fin\'s area is the drawn one, its height and the tailplane\'s seat are the rule\'s');
@@ -1570,7 +1737,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // flown envelope cuts is said, never cut in silence. The envelope
           // is the spec's own (GEN_TAIL_ENVELOPE, one home, clampSpec reads
           // the same numbers).
-          const ENV = (typeof GEN_TAIL_ENVELOPE !== 'undefined') ? GEN_TAIL_ENVELOPE : null;
+          // (G3503: a wing drawn past the wing envelope's span is a big aeroplane's, and its tail the big envelope's -
+          // the core's genBig rule)
+          const ENV0 = (typeof GEN_TAIL_ENVELOPE !== 'undefined') ? GEN_TAIL_ENVELOPE : null;
+          const ENV = ENV0 && ENV0.big && typeof GEN_WING_ENVELOPE !== 'undefined' && +P.wgSpan > GEN_WING_ENVELOPE.span[1]
+            ? Object.assign({}, ENV0, ENV0.big) : ENV0;
           if (ENV) for (const [k, key, unit] of [['hSpan', 'hSpan', 'm'], ['hChord', 'hChord', 'm'],
               ['vHeight', 'vHeight', 'm'], ['vChord', 'vChord', 'm'],
               ['elevChord', 'elevChord', ''], ['rudChord', 'rudChord', ''],
@@ -1591,7 +1762,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // into flew as a two-seater and weighed like one.
     //
     // The bays are the capacity now. The LOADING is still what the cage
-    // shows: the pilot always, the second dummy when it is drawn, and the
+    // shows: the pilot always, the second occupant when drawn, and the
     // rest of the seats empty — `cabin.pax` is a loading number and an
     // aeroplane is not flown full because it could be.
     //
@@ -1612,7 +1783,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // T2.3 (132): the bays' own abreast when the row says so
     const paxAb0 = Math.round(+P.paxAbreast || 0);
     const perRow = abreast ? 2 : 1;
-    const perBay = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    // (G3573: 4-7 an aisle's two blocks - 2 + 1, 2 + 2, 3 + 2, 3 + 3 - and `paxRows` rows of them; the crew layer's own
+    // count, which also drops a row past the bay's front ring, is the one the drawn path below reads)
+    const perAb = paxAb0 >= 4 && paxAb0 <= 7 ? [3, 4, 5, 6][paxAb0 - 4] : paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    const perBay = perAb * Math.max(1, Math.round(+P.paxRows || 1));
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';
@@ -1623,8 +1797,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (drawn) {
       M.seats = drawn.length;
       M.occupied = drawn.map(s => s.filled ? 1 : 0);
-      M.pilots = drawn.filter(s => !s.section && s.filled).length;
-      M.pax = drawn.filter(s => s.section && s.filled).length;
+      // (G3515: a rear pilot sits in bay 1 and is still the pilot)
+      M.pilots = drawn.filter(s => (s.pilot || !s.section) && s.filled).length;
+      M.pax = drawn.filter(s => !s.pilot && s.section && s.filled).length;
     } else {
       M.seats = perRow + perBay * bays;
       const occ = [1];
@@ -1665,6 +1840,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       try { M.systems = window.CAGE_PANEL.toSpec(); }
       catch (e) { ERRS.push('the instruments could not be written to the build: '
                             + e.message); }
+    // ...AND THE FURNISHING (G2806), the Furnishing column's answer: the seats' kind and the trim (the trim only
+    // when one was chosen - an unset row writes no key, so a save that never opened it keeps its bytes)
+    if (window.CAGE_FURNISH && window.CAGE_FURNISH.toSpec)
+      try { const o = window.CAGE_FURNISH.toSpec(); if (o) M.outfit = o; }
+      catch (e) { ERRS.push('the furnishing could not be written to the build: '
+                            + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.
     // A throw here is a real report, same rule as the shape and the finish.
@@ -1687,7 +1868,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   const tables = () => ({
     TIP_KEYS: typeof GEN_TIPS !== 'undefined' ? Object.keys(GEN_TIPS) : [],
     FLAP_KEYS: typeof GEN_FLAPS !== 'undefined' ? Object.keys(GEN_FLAPS) : [],
-    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
+    // the saved order (ENG_PAGE.presetNames, NEW-SHAPES-1): the custom engine's slot maps to no registry row, as before
+    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.presetNames) ? window.ENG_PAGE.presetNames()
+      : (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
       ? Object.keys(window.ENG_PAGE.PRESETS).filter(n => n !== 'bare engine')
       : [],
   });
@@ -1719,7 +1902,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     window.CAGE_UI.build();
     return true;
   };
+  // G3715 (COWL-RES): the capture's eye-sheet hold is let go FIRST, so the build below raises no eye sheet for a
+  // capture that is over (eyeHold is declared with snapshot, further down)
+  let eyeHeld = 0;
   const viewRestore = () => {
+    if (eyeHeld) { eyeHeld--; eyeHold(false); }
     if (!viewWas) return;
     const was = viewWas; viewWas = null;    // once, even if this throws
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
@@ -2062,18 +2249,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // A MARKER IS NOT THE AEROPLANE either (the panel arc, session 4):
       // the crew layer's eye ball is a sizing instrument, not a part
       if (o.userData && o.userData.edMarker) return;
-      // A TANK THAT DOES NOT FIT IS NOT FLOWN (G1108): the energy layer draws
-      // it red in the editor and stamps it; its fuel rides the ledger, not
-      // this mesh. CAGE_JOIN_TAKE_UNFIT is GATE TANKMOUNT's A/B switch only.
-      if (o.userData && o.userData.edUnfit && !window.CAGE_JOIN_TAKE_UNFIT) return;
+      // A TANK THAT DOES NOT FIT IS FLOWN AS DRAWN (G3877, the user, 29 Oct: "the reservoir draws when valid, does
+      // not if invalid. That's not a proper way to handle that" - G1108 dropped it here, so the flown aeroplane lost
+      // a tank whose fuel it still carried). The garage's red is the editor's warning only: the game rebuilds the
+      // shell from CAGE_ENERGY.material, so it flies in its own finish. CAGE_JOIN_DROP_UNFIT is GATE TANKMOUNT's A/B.
+      if (o.userData && o.userData.edUnfit && window.CAGE_JOIN_DROP_UNFIT) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
-      // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2, the user: 'I only
-      // see the dummies in bright white'). The crew layer keeps a dressed
-      // dummy's ATD shells as the click/silhouette proxy under a material
-      // with `visible: false` — which this walk took, because it asked the
-      // OBJECT and never the material, and MeshBasicMaterial's default colour
-      // is white. Six white mannequins flew inside six people.
+      // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2: six white figures
+      // once flew inside six people). The crew layer keeps each character's
+      // posed body (_cage_char.js pickBody) as the click and clearance proxy
+      // under a material with `visible: false` — which this walk would take
+      // if it asked the OBJECT and never the material, MeshBasicMaterial's
+      // default colour being white.
       if (matList.every(m => m && m.visible === false)) return;
       // A LIVE OCCUPANT IS NOT BAKED (live crew, 2026-09-11): the crew layer
       // stamps the skinned meshes of whoever flies as a skeleton, and they
@@ -2209,6 +2397,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
+            // G2228: AN INSIDE-ONLY SHELL IS ITS OWN BUCKET - the cowl's back twin wears exactly the colour of its
+            // two-sided lining (the throats, the lofts), and merged into it the `inner` flag was the lining's (none).
+            // READ OFF THE MESH (the cowl's innerTwin) as well as the material: in the game every lit material is
+            // understudied (_cage_ui.js uniOf: userData { cageUni, cageUniOf } only), so a material flag never got here
+            ((kud.aeroInner || (o.userData && o.userData.innerTwin)) ? 'Y' : '') +
             // ...AND A TANK IS NOT THE AEROPLANE. The vessel materials are
             // the second factory in the capture, and their whites (a painted
             // shell is 0xffffff over the sheet) would otherwise merge into
@@ -2301,6 +2494,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroFieldLK ? { fieldLK: ud.aeroFieldLK } : {}),   // G217
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
+          // G2228: an INSIDE-ONLY shell (the cowl's inside twin): a baked aeroplane leaves it out (parked.js isInterior)
+          ...((ud.aeroInner || (o.userData && o.userData.innerTwin)) ? { inner: 1 } : {}),
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
           // it from CAGE_CHAR.flatMaterial, maps and all
           ...(ud.charKey ? { char: ud.charKey, charMat: ud.charMat | 0 } : {}),
@@ -2619,6 +2814,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.axis = hinge.axis;
         out2.drive = hinge.drive; out2.sgn = hinge.sgn;
         if (hinge.drive2) { out2.drive2 = hinge.drive2; out2.sgn2 = hinge.sgn2; }
+        // G2820: DROOPING AILERONS - plane 0's ailerons also answer the flap
+        // lever, trailing edge down as a flap's goes (the flap's own sign),
+        // `droop` of a plain flap's travel
+        const st0 = spec && spec.wings && spec.wings[0] && spec.wings[0].stol;
+        if (/^ail[RL]$/.test(pt.surf) && st0 && st0.droop > 0 && typeof genTravel === 'function') {
+          out2.drive2 = 'flap'; out2.sgn2 = -1; out2.k2 = st0.droop * genTravel('flap', 'plain');
+        }
         // G237: THE TRAVEL, DECLARED (GEN_TRAVEL). `k` scales the linkage's
         // [-1, 1] to radians of surface, and it was 1 — 57.3 degrees at full
         // stick, on every cage build since G59. It is the table's number now,
@@ -2691,6 +2893,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             out2.ctl.perSI = c.per / S.k;              // one turn per this much SI
           }
           if (c.steps) out2.ctl.steps = c.steps;
+          if (c.padR) out2.ctl.padR = c.padR;          // G2802: a small part's own pick pad (a breaker at a 16 mm pitch)
         }
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirA(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
@@ -2733,7 +2936,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // THE LIVE CREW (2026-09-11): whoever the crew layer marked flies as a
     // SKELETON. Everything the flown solve needs, in the frames app.js has:
     // `cageM` is the bake's own cage -> model map as one matrix, `figM` the
-    // fig in the mount's frame, the solved ATD locals, and per job the grip
+    // fig in the mount's frame, the solved chain locals, and per job the grip
     // anchor in its MOVING PART's flown frame (the part group sits at its
     // pivot with the model's axes, so: the anchor in model axes, less the
     // pivot) with the pole the editor chose, in the fig's frame.
@@ -2746,14 +2949,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
             pa = new THREE.Vector3(), pg = new THREE.Vector3(),
             qa = new THREE.Quaternion(), sa = new THREE.Vector3();
-      for (const dum of LIVE) {
-        const L = dum.live;
-        if (!L || !dum.fig || !dum.char) continue;
-        dum.fig.updateWorldMatrix(true, true);
-        const figM = new THREE.Matrix4().multiplyMatrices(inv, dum.fig.matrixWorld)
+      for (const occ of LIVE) {
+        const L = occ.live;
+        if (!L || !occ.fig || !occ.char) continue;
+        occ.fig.updateWorldMatrix(true, true);
+        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
           .toArray();
         const bones = {};
-        for (const bn in dum.bones) bones[bn] = dum.bones[bn].quaternion.toArray();
+        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
         const jobs = [];
         for (const j of L.jobs) {
           if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
@@ -2771,8 +2974,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       // G468: where this rig's sole sits, in the anchor's frame
                       fixF: j.fixF ? j.fixF.toArray() : null });
         }
-        people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
-                      fist: L.fist, anim: L.anim, figM, bones, jobs });
+        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
+                      fist: L.fist, anim: L.anim, figM, bones, jobs },
+                    // G2797: each hand's own fist and grip, when the hands are set apart
+                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
+                                        palmL: L.palmL, palmR: L.palmR } : {}));
       }
     } catch (e) { console.warn('live crew:', e); }
     // the panel arc (session 4): the positions the light switches were
@@ -2782,8 +2988,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const Pl = window.CAGE_UI && window.CAGE_UI.P;
       if (Pl) {
         lights.on = !!+Pl.lightOn;
-        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'pedal', 'pax'])
-          lights[k] = +Pl['li_' + k] || 0;
+        // G2796: a light the builder took off is OFF and named, so the flight
+        // puts no load for it on the bus; a build with every light fitted
+        // exports exactly what it always did (no `unfit` at all)
+        const unfit = [];
+        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'pedal', 'pax']) {
+          const f = Pl['li_' + k + 'Fit'] == null || !!+Pl['li_' + k + 'Fit'];
+          lights[k] = f ? (+Pl['li_' + k] || 0) : 0;
+          if (!f) unfit.push(k);
+        }
+        if (unfit.length) lights.unfit = unfit;
+        // G2808 (W7): the beacon's rate, which the flight flashed at a fixed 45 rpm (written only off the default)
+        if (Pl.li_beaconRpm != null && +Pl.li_beaconRpm !== 45) lights.beaconRpm = +Pl.li_beaconRpm;
       }
     } catch (e) {}
     // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in
@@ -2884,15 +3100,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
              poseK: BK.slice() };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
+  // G3715 (COWL-RES): the flown visual is the EYE SHEET when a variant is on (_cage_ui.js eyeHold: the level-2 mesh
+  // stashed for the capture, back before the view is) - the cockpit and the chase both fly it, the user's one visual
+  const eyeHold = on => { try { const U = window.CAGE_UI; return !!(U && U.eyeHold && U.eyeHold(on)); } catch (e) { console.error('eye hold:', e); return false; } };
   const snapshot = spec => {
-    try { return snapshotAt(spec); }
+    try { eyeHeld++; eyeHold(true); return snapshotAt(spec); }
     finally { viewRestore(); }
   };
   // G680: THE SAME CAPTURE IN THREE TASKS (app.js syncBuildSteps, under the roll-out screen): the view neutralised
   // (a build), the snapshot, the view back (a build) - 1.2-1.9 s in one task on the click of "roll out". Its
   // caller drives it to the end (the finally is the view's way back, as above).
   function* snapshotSteps(spec) {
-    try { if (viewNeutral()) yield 'view'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
+    try { if (viewNeutral()) yield 'view'; eyeHeld++; if (eyeHold(true)) yield 'eye'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
     finally { viewRestore(); }
   }
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").

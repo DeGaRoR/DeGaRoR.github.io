@@ -1,0 +1,217 @@
+[
+ {
+  "case": "home",
+  "lim": "phys",
+  "phases": [
+   "TAXI@0",
+   "STOP@326",
+   "HOLD@328",
+   "LINEUP@330",
+   "STOP@347",
+   "HOLD@348",
+   "LINEUP@350",
+   "STOP@353",
+   "HOLD@354",
+   "ROLL@356",
+   "LIFTOFF@373",
+   "CLIMB@384",
+   "CROSSWIND@395",
+   "DOWNWIND@418",
+   "BASE@492",
+   "FINAL@530",
+   "FLARE@630",
+   "ROLLOUT@635",
+   "GOAROUND@636",
+   "CROSSWIND@665",
+   "DOWNWIND@689",
+   "BASE@760",
+   "FINAL@797",
+   "FLARE@897",
+   "ROLLOUT@903",
+   "GOAROUND@904",
+   "CROSSWIND@932",
+   "DOWNWIND@957",
+   "BASE@1027",
+   "FINAL@1065",
+   "FLARE@1165",
+   "ROLLOUT@1170",
+   "STOPPED@1214"
+  ],
+  "touchdowns": [
+   {
+    "t": 635.05,
+    "sink": 2.56,
+    "V": 34.85
+   },
+   {
+    "t": 635.73,
+    "sink": -1.79,
+    "V": 33.84
+   },
+   {
+    "t": 641.67,
+    "sink": 3.8,
+    "V": 42.38
+   },
+   {
+    "t": 902.8,
+    "sink": 2.56,
+    "V": 34.8
+   },
+   {
+    "t": 909.1,
+    "sink": 3.91,
+    "V": 42.52
+   },
+   {
+    "t": 1170.4,
+    "sink": 2.41,
+    "V": 34.79
+   },
+   {
+    "t": 1174.55,
+    "sink": 4.7,
+    "V": 31.74
+   },
+   {
+    "t": 1175.28,
+    "sink": -1.5,
+    "V": 31.06
+   },
+   {
+    "t": 1177.3,
+    "sink": 3.45,
+    "V": 30.52
+   },
+   {
+    "t": 1178.87,
+    "sink": 0.81,
+    "V": 29.7
+   }
+  ],
+  "contacts": [],
+  "clear": {
+   "out": {
+    "t": 73.77,
+    "d": 9.04,
+    "node": "WR",
+    "what": "billboard reg232",
+    "at": [
+     172.03,
+     690.17
+    ]
+   },
+   "back": {
+    "t": 1391.2,
+    "d": 6.15,
+    "node": "WR",
+    "what": "aircraft reg43",
+    "at": [
+     -138.14,
+     659.25
+    ]
+   }
+  },
+  "stand": {
+   "x": -113.2,
+   "z": 671.9
+  },
+  "goArounds": [
+   "bounced 1.5 m off the touch at 31.6 m/s",
+   "bounced 1.0 m off the touch at 32.1 m/s"
+  ],
+  "stopped": true,
+  "taxiBack": {
+   "route": "out[0]",
+   "joinAt": 2.65,
+   "turn": {
+    "kind": "pivot"
+   },
+   "parked": true,
+   "s": 183.98,
+   "metres": 750,
+   "endFromStand": 2.49
+  },
+  "pivots": [
+   "61.7 s: a 49 deg corner tighter than the wheels steer (29.3 m) - turning on the spot (the tailwheel swivels)",
+   "330.5 s: lined up 71 deg off the take-off heading, 17.3 m off the centreline - turning on the spot onto a 16 deg intercept (the tailwheel swivels)"
+  ],
+  "trunkHits": 0,
+  "dmg": {
+   "crashed": false,
+   "reason": null,
+   "at": null,
+   "yields": 0,
+   "breaks": 0,
+   "primary": 0,
+   "firstYield": null,
+   "firstBreak": null,
+   "firstPrimary": null,
+   "brokeUp": null,
+   "gPeak": 4.24,
+   "groups": []
+  },
+  "worst": [
+   {
+    "r": 0.83,
+    "broken": false,
+    "bi": 278,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WF",
+    "L": 4.76
+   },
+   {
+    "r": 0.71,
+    "broken": false,
+    "bi": 207,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WF",
+    "L": 4.76
+   },
+   {
+    "r": 0.51,
+    "broken": false,
+    "bi": 276,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WB",
+    "L": 5.19
+   },
+   {
+    "r": 0.48,
+    "broken": false,
+    "bi": 205,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WB",
+    "b": "WB",
+    "L": 5.19
+   },
+   {
+    "r": 0.47,
+    "broken": false,
+    "bi": 320,
+    "cls": "fus",
+    "grp": 2,
+    "a": "MNTL",
+    "b": "WB",
+    "L": 3.36
+   },
+   {
+    "r": 0.47,
+    "broken": false,
+    "bi": 277,
+    "cls": "wing",
+    "grp": -1,
+    "a": "WF",
+    "b": "WB",
+    "L": 4.66
+   }
+  ]
+ }
+]

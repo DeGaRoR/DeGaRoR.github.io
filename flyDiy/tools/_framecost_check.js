@@ -76,6 +76,24 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G3340-G3341 (DASH-REDESIGN, the user validated it 18 Oct): the arch dash and the flexible dial layout - the Cub's
+  // garage seed walks +704 matrix updates (17652 -> 18356, +4 %) and its restore +28 (778 -> 806): the dash's new pieces
+  // and the dials that now fit the plate instead of overflowing (this branch is master + the dash alone; the
+  // Cessna's restore 2269 -> 4553 is master's own, not admitted here)
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 900, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 40, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  // G2802 (AVIONICS-GPS phase 2, the user 22 Oct: "the electrics as real 3D parts ... breakers"): the breaker row on the
+  // dash - five scene objects a breaker (its seat on the plate, the collar, the moving button group, the button, the
+  // band), 9 on the Cub (45 objects) and 15 on the Cessna (75), walked ~28 times in the garage seed. Measured 22 Oct on
+  // the same box against a clean origin/master worktree: the Cub's seed 18356 (master, G3340 admitted) -> 19625
+  // (+1269), its restore 806 -> 853 (+47); the Cessna's seed ~25365 (master, in tolerance) -> 27361 (+1996). The
+  // Cessna's restore (master 4553, here 4841) stays master's own red, not admitted here (G3340's note).
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 2050, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +704)', g: 'G2802' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 90, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +28)', g: 'G2802' },
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2100, why: 'the breaker row as real parts (G2802): 15 breakers, 75 objects', g: 'G2802' },
+  // G2808.2 (the user 25 Oct: "Fix everything. Wysiwyg"): the billed things drawn on the Cessna's dash - the NAV head and
+  // the hour meter (two dials with their bezels, posts and screws), the slip ball, the ammeter's needle, the tapes
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2750, why: 'the breakers (G2802, 2100) and the NAV head, the hour meter, the slip ball, the ammeter needle drawn (G2808.2)', g: 'G2808' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
@@ -95,6 +113,22 @@ const ALLOW = [
   { key: 'boot/garage:town/links', build: '*', rise: 1, why: 'the wet-body spray pool linked by the town step world compile', g: 'G2090' },
   { key: 'boot/garage:snapshot/links', build: '*', rise: 2, why: 'the wet-body spray pool in the snapshot compile states', g: 'G2090' },
   { key: 'boot/garage:snapshot/gl.calls', build: '*', rise: 30, why: 'the same two links', g: 'G2090' },
+  // G2115-G2119 (TERRAIN-MATCH, 2026-10-06): the 1 m contact tier under the aeroplane (ground_tier.js: one draw of the patch's
+  // material at the stand and the taxi pin - its maps bound, its uTier and the hook's uniforms), its per-frame read of the ground
+  // under the craft, and at the world step the pavement rows refined where the ground curves (pavement.js REFINE: heightAt at
+  // every tested midpoint) and the over-runs' patch chunks. Measured against a base with an equally stale parked cook (A0
+  // re-cooks at the train; the stale cook alone is the other 24 rows on any source branch). The patch's skirts between the
+  // chunks of a block went (bufferData -9.8 MB at the world step; tris down)
+  { key: 'stand/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'taxi/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'stand/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'taxi/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'stand/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'taxi/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'boot/garage:frames/world.terrainH', build: '*', rise: 10, why: 'the contact tier\'s per-frame read of the ground under the craft (its height over it)', g: 'G2118' },
+  { key: 'boot/garage:frames/bytes.uniforms', build: '*', rise: 30000, why: 'the contact tier\'s draw in the garage step\'s frames', g: 'G2118' },
+  { key: 'boot/garage:world/world.terrainH', build: '*', rise: 75000, why: 'the pavement rows refined where the ground curves (REFINE\'s tested midpoints) and the over-runs\' chunks', g: 'G2117' },
+  { key: 'boot/garage:world/world.grHeight', build: '*', rise: 240000, why: 'the same reads through the premises raster', g: 'G2117' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },
@@ -329,9 +363,157 @@ const ALLOW = [
   { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 3875, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
   { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 4850, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
   { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  // G2830 (WATER-STEADY, the user 10 Oct: "turn it on for game and ultra, off for the rest, and not auto switching"): THE LIVE
+  // MIRROR on gamer - the capture's draws, uniforms, matrices and its few per-object hooks (grHeight); measured 13 Oct 11:25 with
+  // gamer = ON. Since the user's 13 Oct ruling gamer is AUTO (master's behaviour: a capture only with water under the eye or
+  // the CG) - if the stand / taxi views read no capture the rows below are dead: drop them at the next --update
+  { key: 'stand/bytes.uniforms', build: 'cub', rise: 213115, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/draws.other', build: 'cub', rise: 892, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.bindFramebuffer', build: 'cub', rise: 17, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.bindTexture', build: 'cub', rise: 708, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.calls', build: 'cub', rise: 8097, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.generateMipmap', build: 'cub', rise: 6, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.texSubImage2D', build: 'cub', rise: 72, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1fv', build: 'cub', rise: 19, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1i', build: 'cub', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1iv', build: 'cub', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform3f', build: 'cub', rise: 1130, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform4fv', build: 'cub', rise: 651, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniformMatrix3fv', build: 'cub', rise: 388, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniformMatrix4fv', build: 'cub', rise: 1605, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.renders', build: 'cub', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.updateMatrix', build: 'cub', rise: 2258, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.updateMatrixWorld', build: 'cub', rise: 8328, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/tris.other', build: 'cub', rise: 9177763, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/world.grHeight', build: 'cub', rise: 6, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/draws.other', build: 'cub', rise: 902, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/draws.total', build: 'cub', rise: 829, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindFramebuffer', build: 'cub', rise: 19, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindTexture', build: 'cub', rise: 730, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindVertexArray', build: 'cub', rise: 753, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.calls', build: 'cub', rise: 10743, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.generateMipmap', build: 'cub', rise: 6, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.texSubImage2D', build: 'cub', rise: 113, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform1fv', build: 'cub', rise: 19, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform1iv', build: 'cub', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform2f', build: 'cub', rise: 48, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform3f', build: 'cub', rise: 1019, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniformMatrix3fv', build: 'cub', rise: 395, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniformMatrix4fv', build: 'cub', rise: 1643, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.useProgram', build: 'cub', rise: 131, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.renders', build: 'cub', rise: 8, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.updateMatrix', build: 'cub', rise: 2648, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.updateMatrixWorld', build: 'cub', rise: 8702, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/tris.other', build: 'cub', rise: 8632705, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/bytes.uniforms', build: 'cessna', rise: 215441, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/draws.other', build: 'cessna', rise: 904, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.bindFramebuffer', build: 'cessna', rise: 17, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.bindTexture', build: 'cessna', rise: 712, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.calls', build: 'cessna', rise: 8150, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.generateMipmap', build: 'cessna', rise: 6, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.texSubImage2D', build: 'cessna', rise: 73, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1fv', build: 'cessna', rise: 19, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1i', build: 'cessna', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform1iv', build: 'cessna', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform3f', build: 'cessna', rise: 1115, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform4f', build: 'cessna', rise: 11, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniform4fv', build: 'cessna', rise: 664, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniformMatrix3fv', build: 'cessna', rise: 384, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/gl.uniformMatrix4fv', build: 'cessna', rise: 1622, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.renders', build: 'cessna', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.updateMatrix', build: 'cessna', rise: 2365, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/three.updateMatrixWorld', build: 'cessna', rise: 8449, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/tris.other', build: 'cessna', rise: 9310181, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/world.grHeight', build: 'cessna', rise: 8, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/draws.other', build: 'cessna', rise: 912, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/draws.total', build: 'cessna', rise: 832, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindFramebuffer', build: 'cessna', rise: 17, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindTexture', build: 'cessna', rise: 732, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.bindVertexArray', build: 'cessna', rise: 756, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.calls', build: 'cessna', rise: 8394, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.generateMipmap', build: 'cessna', rise: 6, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.texSubImage2D', build: 'cessna', rise: 114, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform1fv', build: 'cessna', rise: 19, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform1iv', build: 'cessna', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform2f', build: 'cessna', rise: 54, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniform3f', build: 'cessna', rise: 1004, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniformMatrix3fv', build: 'cessna', rise: 388, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.uniformMatrix4fv', build: 'cessna', rise: 1655, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/gl.useProgram', build: 'cessna', rise: 131, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.renders', build: 'cessna', rise: 7, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.updateMatrix', build: 'cessna', rise: 2750, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/three.updateMatrixWorld', build: 'cessna', rise: 8811, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'taxi/tris.other', build: 'cessna', rise: 8755562, why: 'the LIVE water mirror on the gamer pin: the capture (a second scene draw into its target, mips) runs every frame here - the recording GL answers no occlusion query, so THE WATER SEEN never skips it (on a GPU it runs only while water is drawn)', g: 'G2830' },
+  { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  // TRAIN 52ab (A0 14 Oct, the split run 04:20 on master 750d85b86: 45 rows red, the water branch alone 28 - none from card-source):
+  // the user's rev 28 HOME (the stand moved among the airfield's props, taxiOut1 along the apron past the club) + the parked
+  // aircraft by the stand (five within 71 m, three moved onto the pad by SCENERY-ED-1's patch G2893). The strict light gate
+  // PASSED 52ab: the frame time is in slack. upTo = the measured value + 5 %.
+  // PERF LEAD (A0, for the Metlakatla chantier, not chased now): taxi gl.uniform4fv x8 (626 -> 5176), uniform4f 6 -> 484,
+  // bytes.uniforms 187 k -> 646 k - per-draw uniforms at HOME's taxi, likely the parked aircraft / props' materials uploaded a draw
+  // PERF-1 P3a (17 Oct, FRAMECOST_UNIFORMS on 85857a1e8): GONE - the 54 master already read 524 (D:/Dev/m54_gates.log), tonight
+  // 530, every one of the three split runs 5176: the whole step (draws, shadow, every uniform kind) came and went at once - most
+  // likely the stale-cook signature (parked aeroplanes captured live in the split trees; not proven), not content. Its uniform / draw / call
+  // ALLOWs (28) are taken out: they would admit a x8 again. Tonight's 530: uMist[] 192 + uCloudP[] 188 (the atmosphere's and the
+  // cloud shadow's vec4 arrays, the same values in every program, re-sent at every material switch) - the next uniform lever
+  { key: 'stand/three.updateMatrix', build: 'cub', upTo: 4363, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (3429 -> 4155)', g: 'G3020' },
+  { key: 'stand/three.updateMatrixWorld', build: 'cub', upTo: 13338, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8349 -> 12702)', g: 'G3020' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 619497, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (288108 -> 589997)', g: 'G3020' },
+  { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 4750, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (3803 -> 4523.5)', g: 'G3020' },
+  { key: 'taxi/three.updateMatrixWorld', build: 'cub', upTo: 13722, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8727 -> 13068.5)', g: 'G3020' },
+  { key: 'taxi/tris.shadow', build: 'cub', upTo: 3483411, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1782437 -> 3317534)', g: 'G3020' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
+  { key: 'boot/garage:landing/bytes.bufferData', build: 'cub', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 5782, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (4782 -> 5506)', g: 'G3020' },
+  { key: 'stand/three.updateMatrixWorld', build: 'cessna', upTo: 13916, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8902 -> 13253)', g: 'G3020' },
+  { key: 'stand/world.grHeight', build: 'cessna', upTo: 24, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (15 -> 21.5)', g: 'G3020' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 626217, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (294508 -> 596397)', g: 'G3020' },
+  { key: 'taxi/three.updateMatrix', build: 'cessna', upTo: 6169, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (5156 -> 5874.5)', g: 'G3020' },
+  { key: 'taxi/three.updateMatrixWorld', build: 'cessna', upTo: 14301, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (9280 -> 13619.5)', g: 'G3020' },
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
+  { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3534 (HANGARS-LOOK, A0 25 Oct): the garage room wears HANGAR_GEN's polish, uploaded once at compile (bakeHangarEnv's
+  // render of the room); proven by A/B - the polish off in source gives master's 1559360 back; upTo = measured + 5 %
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  // G3543 (VEHICLE PRINTS, A0 26 Oct): the traffic's prints follow the posed cars, only the drawn matrices uploaded (an update
+  // range): 544 -> 768 B a frame at the bench, both builds; upTo 800
+  { key: 'stand/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
+  // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
+  // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
+  { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
+  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
+  // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
+  // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' },
+  // G2991 (WORLD-LOOK debris, the user 26 Oct "keep the 131 debris"): the cover ring's debris are BatchedMeshes with
+  // perObjectFrustumCulled (G585) - each uploads its visible-instance list at every draw, per camera (main + cascades):
+  // taxi ~588 K -> ~779 K bytes a frame (Cub, 23:55 fold measure); upTo = measured + 5 %. The fix is ticket debris-batch-uploads
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 818000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 825000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
+function ringsIdle(fill) {
+  for (const key of ['cover', 'grass']) {
+    const ring = fill && typeof fill[key] === 'function' ? fill[key]() : null;
+    const s = ring && ring.stat ? ring.stat() : null;
+    if (s && (s.queued > 0 || s.dirty > 0 || s.building || s.tierUp > 0)) return false;
+  }
+  return true;
+}
+async function settleUploads(frames, idle, uploaded, cap = 120, quietFrames = 30) {
+  let more = 0, quiet = 0, previous = uploaded();
+  while (more < cap && quiet < quietFrames) {
+    await frames(1); more++;
+    const current = uploaded();
+    quiet = idle() && current === previous ? quiet + 1 : 0;
+    previous = current;
+  }
+  return more; // A permanent allocation still reaches the original cap and is measured/reported, never exempted.
+}
 async function census(build) {
   const { openPage } = require('./_page_node.js');
   const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
@@ -345,7 +527,8 @@ async function census(build) {
   // FRAMECOST_WORKERS=1 (G830): the page's house worker on (the harness's Worker shim and a fake IndexedDB in a fresh
   // directory - a cold cache), as the browser runs it; without it the page takes its no-Worker path, the inline build
   const wk = process.env.FRAMECOST_WORKERS ? { workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(require('os').tmpdir(), 'fc-idb-')), workerWaitMs: 900000 } : {};
-  const Q0 = process.env.FRAMECOST_QUERY || '';
+  // (METLA-ON: the census is the field's - Metlakatla cut, as its baseline was taken - unless the query names the town itself)
+  const Q0 = (q => /(^|&)town=/.test(q) ? q : (q ? q + '&' : '') + 'town=0')(process.env.FRAMECOST_QUERY || '');
   const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: FLEETQ ? (Q0 ? Q0 + '&' : '') + 'fleet=1' : Q0 }, wk));
   const W = P.win;
   const snap = bootMark.snap;
@@ -353,7 +536,7 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); if (C.uni) { C.uni.on = !!rows; if (rows && !rows.length) { C.uni.t = {}; C.uni.n = 0; } if (rows) C.uni.n++; } wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
     else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; if (C.shadowPass) Object.assign(C.lastPasses, shadowPassList(C.drawnShadow, C.shadowPass)); } }
   });
   let FP = null;
@@ -382,8 +565,7 @@ async function census(build) {
   // for many frames: at WARM 6 the counts measured where that transient happened to stand - the taxi's gl.bufferData 15 on
   // master, 30.5 with the reveal's eye placed right (G1119), 0 / 0 at WARM 60 (four Cub censuses, parkcook=0). So after its
   // WARM frames a view warms on until the ring's queue is empty and no block is left to rebuild, 120 frames at most
-  const ringIdle = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const s = r && r.stat ? r.stat() : null;
-    return !s || (!(s.queued > 0) && !(s.dirty > 0) && !s.building); } catch (e) { return true; } };
+  const ringIdle = () => ringsIdle(W.TREE_FILL);
   // FRAMECOST_SETTLE=<max frames> (off by default: the gate's own counts are unchanged): LIKE WITH LIKE. The census runs on
   // a virtual clock, so a tree whose boot does more (a warm draw, a compile) reaches the view with the world's streaming
   // elsewhere - the houses and props drawn at the counted frame differ (C4b's cockpit census: houses 4 vs 2, props 9 vs 8,
@@ -405,12 +587,13 @@ async function census(build) {
   };
   let viewTag = 'stand';
   const measure = async (warm, frames) => { rows = null; FP.camSettle(); await settle(viewTag); await P.frames(warm === undefined ? WARM : warm);
-    let more = 0; while (more < 120 && !ringIdle()) { await P.frames(1); more++; }
-    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for the cover ring to go idle)');
+    const more = await settleUploads(n => P.frames(n), ringIdle, () => P.rec.bytes.bufferData || 0);
+    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for both cover rings to go idle)');
     rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
+  if (UNIFORMS) uniInstall(P, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   // FRAMECOST_PROBE=<file.js> (G1531, a debugging aid, never the gate's): module.exports = async (W, P, FP) => ..., run here, before
   // the views - a repro's live switch and its read-back (stderr)
@@ -547,6 +730,7 @@ async function census(build) {
   detail.patch = (() => { let g = null; if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!g && o.name === 'premises:patch' && o.userData && o.userData.blocks) g = o; });
     return g ? { tris0: g.userData.tris, trisAll: g.userData.trisAll, blocks: g.userData.blocks, sunk: g.userData.sunk, sinkDeep: g.userData.sinkDeep } : null; })();
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
+  if (UNIFORMS) process.stderr.write('UNIFORMS ' + JSON.stringify(Object.fromEntries(Object.entries(detail).map(([v, d]) => [v, d && d.uniforms])), null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
   // AS6 (G937): THE CREW at the stand (reported, never ratcheted): the characters seated in the flown aeroplane, the
@@ -617,6 +801,7 @@ function pageHooks(C, getCam) {
 //   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
 //   FRAMECOST_VILLAGE=1 a third view, `village`: the aeroplane by the thickest cluster of the premises' repeated
 //                       dressing props (G934's instancer) - for a --compare, never in the verdict
+//   FRAMECOST_UNIFORMS=1  every uniform upload of the measured frames by call, uniform, pass, program and drawn object
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
 async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
@@ -699,7 +884,37 @@ function drawnDetail(C) {
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
       const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
-  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined, uniforms: uniDetail(C) };
+}
+// FRAMECOST_UNIFORMS=1 (PERF-1 P3a, a debugging aid, never in the verdict): WHO SENDS THE UNIFORMS. Every uniform* call of
+// the measured frames, tagged by the call, the uniform's name, the pass, the program (its SHADER_NAME) and the object three
+// was drawing - the last one whose onBeforeRender / onBeforeShadow it read: three uploads a draw's uniforms right after
+// (a program's first draw in a pass also carries the camera's and lights' uniforms). Per frame (calls, bytes), rolled up
+// several ways, in the census's detail.<view>.uniforms and on stderr ('UNIFORMS'). The question it answers: the taxi's
+// gl.uniform4fv 626 -> 5176 at 52ab (three re-uploads a vec4 ARRAY uniform at every material switch, with no value cache).
+const UNIFORMS = !!process.env.FRAMECOST_UNIFORMS;
+function uniInstall(P, C) {
+  C.uni = { on: false, n: 0, t: {} };
+  P.rec.onUni = (name, b, loc) => {
+    const U = C.uni; if (!U.on) return;
+    const o = C.cur, m = o && [].concat(o.material)[0], pth = [];
+    for (let q = o; q && pth.length < 3; q = q.parent) if (q.name) pth.unshift(q.name);
+    const k = [name, loc && loc.name ? loc.name.replace(/\[0\]$/, '[]') : '?', P.rec.phase, loc ? P.rec.progNames.get(loc.p) || '?' : '?',
+      o ? famOf(o) : '-', pth.join('/') || (o ? o.type : '-'), m ? m.name || m.type : '-'].join('\t');
+    const e = U.t[k] || (U.t[k] = [0, 0]); e[0]++; e[1] += b || 0;
+  };
+}
+// the tally rolled up by some of its fields ([calls, bytes] a frame, the top `top` by calls); `only` keeps those calls
+function uniDetail(C) {
+  const U = C.uni; if (!U || !U.n) return undefined;
+  const roll = (idx, top, only) => { const r = {};
+    for (const [k, [c, b]] of Object.entries(U.t)) { const f = k.split('\t'); if (only && !only.test(f[0])) continue;
+      const kk = idx.map(i => f[i]).join(' | '), e = r[kk] || (r[kk] = [0, 0]); e[0] += c; e[1] += b; }
+    return Object.fromEntries(Object.entries(r).sort((a, b) => b[1][0] - a[1][0]).slice(0, top).map(([k, [c, b]]) => [k, [+(c / U.n).toFixed(1), Math.round(b / U.n)]])); };
+  const V4 = /^uniform4f/;
+  return { frames: U.n, fields: 'call | uniform | pass | program | family | path | material', byCall: roll([0], 30), byCallPass: roll([0, 2], 40),
+    v4ByFamily: roll([0, 2, 4], 40, V4), v4ByUniform: roll([0, 1], 60, V4), v4ByProgramUniform: roll([0, 3, 1], 60, V4),
+    v4ByPathMaterial: roll([0, 2, 5, 6], 80, V4), v4Rows: roll([0, 1, 2, 3, 4, 5, 6], 150, V4), allByFamily: roll([2, 4], 40) };
 }
 // FRAMECOST_SHADOW_PASSES=1 (G1125, NEAR-LAYER; a debugging aid, never in the verdict): the last measured frame's shadow
 // draws BY PASS (each pass as the last measured frame that drew it had it: the far map draws every 2nd frame) - the light and the viewport three asked getCamera for ('sun:0' the world's far map, 'sunNear:0' the
@@ -739,7 +954,7 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
+      get() { const f = this[slot]; if (pick) C.cur = this; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
         if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
         if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
@@ -1155,4 +1370,4 @@ async function main() {
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
-if (require.main !== module) module.exports = { census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });
+if (require.main !== module) module.exports = { ringsIdle, settleUploads, census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });

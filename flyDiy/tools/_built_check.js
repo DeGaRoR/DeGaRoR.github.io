@@ -43,8 +43,9 @@ try {
   } else console.log('  the working tree\'s outputs = the fresh build (' + B.OUTPUTS.length + ' files)');
   // G2685 (CAREER-LAZY): the career core is named by its hash - one career_core.<h8>.js in the tree, this build's (a
   // superseded one left beside it would be served to nobody and committed by mistake)
-  const strays = B.careerCoreNames(ROOT).filter(f => !B.OUTPUTS.includes(f));
-  if (strays.length) { console.log('  a superseded career core in the working tree: ' + strays.join(', ') + ' (run node tools/build.js: it sweeps them)'); fail('stray ' + strays.join(', ')); }
+  // G3070 (ROUTE-LAZY): the drawn route's drawing (route_draw.<h8>.js) the same
+  const strays = B.careerCoreNames(ROOT).concat(B.routeDrawNames(ROOT)).filter(f => !B.OUTPUTS.includes(f));
+  if (strays.length) { console.log('  a superseded career core / route drawing in the working tree: ' + strays.join(', ') + ' (run node tools/build.js: it sweeps them)'); fail('stray ' + strays.join(', ')); }
 
   // (2) HEAD
   const git = (args, buf) => execFileSync('git', args, { cwd: ROOT, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'], encoding: buf ? null : 'utf8' });

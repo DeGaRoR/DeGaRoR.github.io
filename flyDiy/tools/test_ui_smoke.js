@@ -46,6 +46,10 @@ const bootBlock = pick('window.BOOT = B', 'boot');
 // first, on ?profile=phone, ahead of the graphics menu and app.js, exactly as the page orders them; the boot must then
 // be the garage's alone, and the gate ends after the phone's own checks (the flight half has no world to fly in)
 const PHONE = process.argv.includes('--phone');
+// G3791 (PHONE-TESTFLIGHT): `--phonefly` - the phone's TEST FLIGHT page (?profile=phone&testflight=1: profile.js's flight
+// variant): the world's boot rows on the test field (no parked aeroplanes), the roll-out on the pilot as the boot lifts,
+// the hand refused, and the way back to the shed is the garage page again (PROFILE.flyEnd). UISMOKE-PHONEFLY in run_gates
+const PHONEFLY = process.argv.includes('--phonefly');
 const profileBlock = pick('W.PROFILE = {', 'profile');
 if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
@@ -70,17 +74,22 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
     throw new Error('the welcome block: a rig on localhost / ?mode=sandbox must skip every screen as the sandbox (' + rig.FLYDIY_MODE + ', ' + pages.FLYDIY_MODE + ')');
   console.log("the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held");
   // G2320 (CAREER-WIRE): ?career=1 IS THE DEV CAREER - the career mode for the page's game code (a rig, localhost, a real
-  // host), the menu's New career row still "coming" (READY.career false; ?mode=career still boots the sandbox); a near
-  // miss (?career=10, ?career=0) is the sandbox
+  // host); a near miss (?career=10, ?career=0) is the sandbox. G2740 (CAREER-ON, the user 13 Oct): the career is READY -
+  // ?mode=career boots the career, and the menu's New career / Continue choose it
   const nav = { userAgent: 'Mozilla/5.0 Chrome/141' };
   for (const [q, host, n, want] of [['?career=1', 'localhost', { webdriver: true, userAgent: 'HeadlessChrome/141' }, 'career'], ['?career=1', 'degaror.github.io', nav, 'career'],
                                      ['?audio=0&career=1&map=1', 'degaror.github.io', nav, 'career'], ['?career=10', 'localhost', nav, 'sandbox'], ['?career=0', 'localhost', nav, 'sandbox'],
-                                     ['?mode=career', 'degaror.github.io', nav, 'sandbox'], ['', 'localhost', nav, 'sandbox']]) {
+                                     ['?mode=career', 'degaror.github.io', nav, 'career'], ['', 'localhost', nav, 'sandbox']]) {
     const b = run(q, host, n);
     if (b.FLYDIY_MODE !== want || b.FLYDIY_WELCOME) throw new Error('the welcome: ' + q + ' on ' + host + ' -> FLYDIY_MODE ' + b.FLYDIY_MODE + ', expected ' + want + ' with no screen');
-    if (b.WELCOME.READY.career !== false) throw new Error("the welcome: the menu's New career row is no longer \"coming\" (READY.career)");
+    if (b.WELCOME.READY.career !== true) throw new Error("the welcome: the career is not READY (G2740 CAREER-ON: New career / Continue are live)");
+    // G3360 (CAREERS): the career a load plays is FLYDIY_CAREER_ID - ?mode=career chooses one (the last played; none saved
+    // here, so a new 'c' id); ?career=1 (the dev career) and the sandbox choose none
+    const cid = b.FLYDIY_CAREER_ID, dev = /career=1(&|$)/.test(q);
+    if (want === 'career' && !dev ? !/^c[0-9a-z]{1,16}$/.test(cid || '') : cid !== undefined)
+      throw new Error('the welcome: ' + q + ' on ' + host + ' -> FLYDIY_CAREER_ID ' + cid + (want === 'career' && !dev ? ', expected a new career id' : ', expected none'));
   }
-  console.log("the career flag: ?career=1 -> FLYDIY_MODE 'career' (a rig, localhost, a real host; no screen); ?career=10 / ?career=0 / ?mode=career -> the sandbox; the menu's New career row still \"coming\"");
+  console.log("the career flag: ?career=1 and ?mode=career -> FLYDIY_MODE 'career' (no screen); ?career=10 / ?career=0 -> the sandbox; the career READY (G2740); ?mode=career chooses a career (FLYDIY_CAREER_ID), ?career=1 none (G3360)");
 }
 // G2320 (CAREER-WIRE): NO CAREER CODE RUNS WITHOUT THE FLAG - in app.js, every call into the career's page half outside that
 // half is guarded by CAREER_DEV (the half itself defines functions and the window.FLYDIY_CAREER door, under the flag)
@@ -91,10 +100,18 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bcareer[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
   const loose = outside.filter(l => !/CAREER_DEV/.test(l));
   if (loose.length) throw new Error('app.js calls the career outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
-  if (!/const CAREER_DEV = \(\(\) => \{ try \{ return \/\[\?&\]career=1\(&\|\$\)\/\.test\(window\.location\.search/.test(app)) throw new Error('app.js: CAREER_DEV is not ?career=1 alone');
-  if (!/const PLAYER_KEY = CAREER_DEV \? careerKey\('dev'\) : 'flydiy\.player';/.test(app)) throw new Error("app.js: the dev career's key is not flydiy.career.dev, or the sandbox's not flydiy.player");
+  // G2740 (CAREER-ON): the career is ?career=1 (the dev career, flydiy.career.dev) OR the welcome's choice (FLYDIY_MODE
+  // 'career': the player's career); the sandbox keeps flydiy.player. G3360 (CAREERS): the player's career is the one the
+  // welcome chose (FLYDIY_CAREER_ID: 'main' or a 'c' id, each flydiy.career.<id>; 'main' without one), ?career=1 'dev'
+  if (!/const CAREER_DEVFLAG = \(\(\) => \{ try \{ return \/\[\?&\]career=1\(&\|\$\)\/\.test\(window\.location\.search/.test(app)) throw new Error('app.js: the dev flag is not ?career=1 alone');
+  if (!/const CAREER_DEV = \(CAREER_DEVFLAG \|\| \(typeof window !== 'undefined' && window\.FLYDIY_MODE === 'career'\)\)/.test(app)) throw new Error("app.js: CAREER_DEV is not the dev flag or the welcome's career");
+  if (!/const CAREER_PICK = \(\(\) => \{ try \{ const v = window\.FLYDIY_CAREER_ID; return typeof v === 'string' && \/\^\(main\|c\[0-9a-z\]\{1,16\}\)\$\/\.test\(v\) \? v : 'main'; \} catch \(e\) \{ return 'main'; \} \}\)\(\);/.test(app) ||
+      !/const CAREER_ID = CAREER_DEVFLAG \? 'dev' : CAREER_PICK;/.test(app) || !/const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(app))
+    throw new Error("app.js: the career's key is not flydiy.career.dev / the welcome's chosen id (main or a 'c' id, never 'dev'), or the sandbox's not flydiy.player");
+  // the retired G2740 backup: a New career is a new id, nothing in app.js moves a career document aside
+  if (/flydiy\.career\.fresh|PLAYER_KEY \+ '\.prev'/.test(app.replace(/\/\/[^\n]*/g, ''))) throw new Error('app.js: the retired fresh flag / .prev backup is still read');
   if (!/\nif \(CAREER_DEV\) window\.FLYDIY_CAREER = |  if \(CAREER_DEV\) window\.FLYDIY_CAREER = /.test(app)) throw new Error('app.js: window.FLYDIY_CAREER is not behind the flag');
-  console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 alone; flydiy.career.dev, the sandbox keeps flydiy.player)');
+  console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 -> flydiy.career.dev; the welcome career -> flydiy.career.<FLYDIY_CAREER_ID>; the sandbox keeps flydiy.player)');
 }
 // G2260 (ECONOMY): THE WALLET ONLY IN A CAREER - in app.js every call into the economy outside its page half is guarded by
 // CAREER_DEV (the half defines the functions and window.FLYDIY_ECON, under the flag); garage.js's save asks the page
@@ -110,6 +127,22 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (!/canSave: \(name, isNew\) => \(CAREER_DEV \? econSaveWhy\(name, isNew\) : ''\)/.test(app)) throw new Error("app.js: the save's price door answers the sandbox");
   if (!/if \(api\.canSave\) \{ const why = api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\); \}/.test(gar)) throw new Error('garage.js: the save does not ask the page first');
   console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
+}
+// G2742 (STORY-PAGE): THE STORY ONLY IN THE PLAYER'S CAREER - in app.js every call into the story (79_story.js) outside its
+// page half is behind CAREER_DEV; the half itself is STORY_PAGE = CAREER_DEV && CAREER_ID not 'dev' (G3360: every player
+// career, each its own story; the dev career ?career=1
+// keeps none: every gate's fixture career stays rail-free), its doors (window.FLYDIY_STORY, the bench's hook) behind it
+{
+  const app = pick('function setAircraft', 'app');
+  const i0 = app.indexOf("G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  if (i0 < 0 || i1 < 0) throw new Error("app.js: the story's page half is not where this gate reads it");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  if (loose.length) throw new Error('app.js calls the story outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
+  if (!/const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';/.test(app)) throw new Error("app.js: the story is not the player's careers' alone (STORY_PAGE: never the dev career)");
+  const half = app.slice(i0, i1);
+  if (!/  if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) || !/  if \(STORY_PAGE\) \{\n/.test(half)) throw new Error("app.js: the story's doors are not behind STORY_PAGE");
+  console.log('the story in app.js: ' + outside.length + ' calls into the story outside its page half, every one behind CAREER_DEV; the half behind STORY_PAGE (the player\'s career; ?career=1 keeps none)');
 }
 // G2345 (FREIGHT-LOAD): THE LOADING VIEW ONLY UNDER ITS FLAGS - its page half is FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV),
 // FREIGHT_DEV ?freight=1 alone; its door, its entry's timer and the lazy view behind it; the stop record reads the
@@ -366,6 +399,7 @@ function el(id) {
   };
 }
 const els = {};
+const routeFetched = [];   // G3070: the drawing's file, each time route_lazy.js asked for it
 let ceN = 0;
 let rafCb = null, rafCount = 0;
 const sandbox = {
@@ -423,11 +457,134 @@ sandbox.window.ASSET_FETCH = url => {
 vm.createContext(sandbox);
 
 const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; rafCb = null; cb(); } };
+// ---- G2690 HANGAR-STORAGE: THE PAGE'S STORAGE DOORS AND THE PANEL (both profiles) --------------------------------------
+// FLYDIY_STORE on this page (app.js): the view of `here`'s building, the ONE move written to the document (a refusal with
+// its reason), a Fly's start per kind; storage_ui.js run from its own source over a small DOM: opened from the shelf's
+// #gStore, a card TAPPED then a column tapped (the phone's way) moves it, a card DROPPED on a slot moves it there, Fly asks
+// first; on the phone (no world) Fly is refused with its reason and the button is off; on the desktop the confirmed Fly
+// rolls out through the garage's own roll-out - inside -> the lined-up start, no door shot.
+function storageChecks() {
+  const W = sandbox.window, PL = W.FLYDIY_PLAYER, S = W.FLYDIY_STORE;
+  if (!S || ['view', 'move', 'fly', 'flyStart', 'card', 'workOn', 'where'].some(k => typeof S[k] !== 'function')) throw new Error('FLYDIY_STORE is missing its doors (G2690)');
+  const d0 = PL.doc();
+  const doc = JSON.parse(JSON.stringify(d0));
+  const foot = { half: 5.4, fwd: 1.3, aft: 5.5, h: 2.0 };
+  doc.fleet = { Cub: { hangar: null, aero: 'HOME', kind: 'outside', slot: 0, foot }, Jodel: { hangar: 'HOME', aero: 'HOME', kind: 'long', foot },
+                Twin: { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: 0, foot } };
+  PL.set(doc);
+  const v = S.view();
+  if (!v || v.hangar !== 'HOME' || v.inside.N !== 2 || v.inside.slots[0] !== 'Twin' || v.outside.slots[0] !== 'Cub' || v.long.join() !== 'Jodel')
+    throw new Error('the storage view of HOME: ' + JSON.stringify(v));
+  const r0 = S.move('Jodel', { kind: 'inside', slot: 0 });
+  if (r0.ok || !/taken/.test(r0.why)) throw new Error('a move onto a taken inside slot was not refused with its reason: ' + JSON.stringify(r0));
+  if (S.flyStart('Twin').start !== 'lineup' || S.flyStart('Cub').start !== 'stand' || S.flyStart('Jodel').ok) throw new Error('the Fly starts per kind: ' + ['Twin', 'Cub', 'Jodel'].map(n => JSON.stringify(S.flyStart(n))).join(' '));
+  // THE PANEL over a small DOM
+  const all = [];
+  const cls = e => ({ add: (...c) => { for (const x of c) if (!cls.has(e, x)) e.className = (e.className + ' ' + x).trim(); }, remove: (...c) => { e.className = e.className.split(/\s+/).filter(x => !c.includes(x)).join(' '); },
+    contains: x => cls.has(e, x), toggle: (x, on) => { if (on === undefined ? !cls.has(e, x) : on) e.classList.add(x); else e.classList.remove(x); } });
+  cls.has = (e, x) => (' ' + e.className + ' ').includes(' ' + x + ' ');
+  const match = (e, sel) => sel[0] === '#' ? e.id === sel.slice(1) : sel[0] === '.' ? cls.has(e, sel.slice(1)) : e.tagName === sel.toUpperCase();
+  const mk = tag => {
+    const e = { tagName: String(tag).toUpperCase(), id: '', children: [], parentNode: null, className: '', dataset: {}, style: {}, attrs: {}, on: {}, hidden: false, disabled: false, title: '', type: '', tabIndex: 0, _t: '',
+      get textContent() { return this._t + this.children.map(c => c.textContent).join(''); }, set textContent(x) { this._t = String(x); this.children = []; },
+      set innerHTML(x) { this.children = []; this._t = ''; }, get innerHTML() { return ''; },
+      setAttribute(k, v2) { this.attrs[k] = v2; }, getAttribute(k) { return this.attrs[k]; },
+      addEventListener(k, f) { (this.on[k] || (this.on[k] = [])).push(f); },
+      appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+      querySelectorAll(sel) { const out = []; const w = n => { for (const c of n.children) { if (match(c, sel)) out.push(c); w(c); } }; w(this); return out; },
+      querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
+      closest(sel) { let n = this; while (n) { if (match(n, sel)) return n; n = n.parentNode; } return null; },
+      getContext: () => null, fire(k, ev) { const E = Object.assign({ target: this, preventDefault() {}, stopPropagation() { E.stopped = true; } }, ev || {}); let n = this; while (n && !E.stopped) { for (const f of (n.on[k] || [])) f(E); n = n.parentNode; } return E; } };
+    e.classList = cls(e); all.push(e); return e;
+  };
+  const body = mk('body'), head = mk('head');
+  const shelfBtn = mk('button'); shelfBtn.id = 'gStore'; body.appendChild(shelfBtn);
+  const doc2 = { readyState: 'complete', body, head, createElement: mk, createTextNode: t => { const n = mk('#text'); n._t = String(t); return n; },
+                 getElementById: id => body.querySelectorAll('#' + id)[0] || null, addEventListener() {} };
+  const ctx = { window: W, document: doc2, getComputedStyle: () => ({ getPropertyValue: () => '' }), confirm: () => true, console };
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'storage_ui.js'), 'utf8'), ctx, { filename: 'storage_ui.js' });
+  if (!W.STORAGE_UI) throw new Error('storage_ui.js published no STORAGE_UI');
+  shelfBtn.fire('click');
+  const root = body.querySelector('#hsStore');
+  if (!root || root.hidden) throw new Error('#gStore did not open the storage panel');
+  const cardOf = n => root.querySelectorAll('.hsCard').find(c => c.dataset.name === n);
+  const colOf = k => root.querySelectorAll('.hsCol').find(c => c.dataset.col === k);
+  const heads = root.querySelectorAll('.hsColH').map(h => h.textContent).join(' | ');
+  if (!/inside1\/2/.test(heads.replace(/\s/g, '')) || !/outside1\/6/.test(heads.replace(/\s/g, '')) || !/long-term1/.test(heads.replace(/\s/g, '')))
+    throw new Error('the panel\'s columns: ' + heads);
+  // the phone's way: tap the card, then the column
+  cardOf('Cub').fire('click');
+  colOf('long').fire('click');
+  if (S.where('Cub').kind !== 'long') throw new Error('tap a card, then a column: the Cub is ' + JSON.stringify(S.where('Cub')));
+  // drag and drop onto a numbered slot
+  const slot1 = root.querySelectorAll('.hsSlot').find(e => e.dataset.slot === '1' && e.parentNode && e.parentNode.dataset.col === 'inside');
+  slot1.fire('drop', { dataTransfer: { getData: () => 'Jodel' } });
+  if (S.where('Jodel').kind !== 'inside' || S.where('Jodel').slot !== 1) throw new Error('a drop on inside slot 2: the Jodel is ' + JSON.stringify(S.where('Jodel')));
+  const msg = root.querySelector('.hsMsg').textContent;
+  // a long-term card has no Fly; a shown one asks first
+  if (cardOf('Cub').querySelector('.hsFly')) throw new Error('a long-term card offers Fly');
+  const fb = cardOf('Twin').querySelector('.hsFly');
+  if (!fb) throw new Error('an inside card offers no Fly');
+  const flown = [];
+  const keepFly = S.fly;
+  if (PHONE) {
+    if (!fb.disabled || S.canFly() || S.fly('Twin').ok) throw new Error('the phone garage offers Fly (no world to fly in)');
+    PL.set(d0);
+    console.log('STORAGE (phone): the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly off');
+    return;
+  }
+  // the desktop: the confirmed Fly rolls out through the garage's own roll-out, lined up (no door shot)
+  let onStand = null;
+  const keepG = W.GARAGE_SPEC;
+  W.GARAGE_SPEC = Object.assign({}, keepG || {}, { name: () => onStand, open: n => { onStand = n; } });
+  try {
+    handlers['selAc']({ target: { value: 'gen' } });
+    fb.fire('click');
+    const ask = root.querySelector('.hsAsk');
+    if (!ask || ask.hidden || !/lined up/.test(ask.textContent)) throw new Error('Fly did not ask first, saying where it starts: ' + (ask && ask.textContent));
+    S.fly = n => { flown.push(n); return keepFly(n); };
+    root.querySelector('.hsGo').fire('click');
+    frames(10);
+    const st = S.start();
+    if (flown.join() !== 'Twin' || !st || st.start !== 'lineup' || onStand !== 'Twin' || sandbox.garageApi.inGarage())
+      throw new Error('the confirmed Fly: flown ' + flown.join() + ', start ' + JSON.stringify(st) + ', on the stand ' + onStand + ', in the garage ' + sandbox.garageApi.inGarage());
+    if (S.where('Twin').kind !== 'inside') throw new Error('flying from inside moved the Twin in the document: ' + JSON.stringify(S.where('Twin')));
+    const trip = (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').pop();
+    if (trip && trip.anim && !/away|none|cannot/.test(trip.anim)) throw new Error('an inside Fly played the door shot: ' + trip.anim);
+  } finally { S.fly = keepFly; W.GARAGE_SPEC = keepG; handlers['selAc']({ target: { value: 'gen' } }); PL.set(d0); }
+  const anim = (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness';
+  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + anim + ')');
+}
 // ---- G2104: THE PHONE PROFILE'S OWN CHECKS (UISMOKE-PHONE) -------------------------------------------------------------
 // The boot above ran the garage alone; here: nothing of the world or the flight was made, the roll-out is refused, the
 // picture is the lightest preset, and phone.css is the phone's alone, selector by selector (the desktop's pixels cannot
 // move through it). phone.js needs a laid-out document (the knob reads the scale's box) - tools/phone_still.js --checks
 // drives it with real touch events in a real browser.
+// G3791: THE PHONE'S TEST FLIGHT PAGE - out on the test field on the pilot as the boot lifted, the bench's arming, the hand
+// refused, and the shed's button reloads the garage page (the intent gone, ?testflight=1 dropped)
+function phoneFlyChecks() {
+  const W = sandbox.window, G = sandbox.garageApi, P = W.FLIGHT_PROBE;
+  if (!W.FLYDIY_PHONE_FLY || !W.FLYDIY_PHONE_FLY.started) throw new Error('the phone test flight did not start as the boot lifted (' + JSON.stringify(W.FLYDIY_PHONE_FLY) + ')');
+  frames(10);
+  if (G.inGarage()) throw new Error('the phone test flight is still in the garage after its start');
+  const wd = P && P.world && P.world();
+  if (!wd || wd.flat !== true || wd.aerodromes.length !== 1) throw new Error('the phone test flight is not on the test field (flat ' + (wd && wd.flat) + ')');
+  if (!W.TEST_FLIGHT || !W.TEST_FLIGHT.armed()) throw new Error('the phone test flight is not armed (the bench certificate would not follow the arrival)');
+  P.setManual(true, 'rig');
+  if (P.manual()) throw new Error('the hand took the phone test flight (no hand flying in v1)');
+  const de = W.document && W.document.documentElement;   // (the sandbox's document may carry none: then profile.js set none)
+  if (de && de.classList && !de.classList.contains('phfly')) throw new Error('html.phfly is not set on the flight page');
+  console.log('the phone test flight: out on the test field (flat, HOME alone), armed, the hand refused, html.phfly');
+  // the way back: the shed button -> PROFILE.flyEnd -> the garage page (the URL without ?testflight=1)
+  let went = null;
+  W.location = { search: '?profile=phone&testflight=1', pathname: '/flyDiy/', hash: '', replace: u => { went = u; }, reload: () => { went = 'reload'; } };
+  if (typeof handlers['bHangar2'] !== 'function') throw new Error('#bHangar2 is not wired');
+  handlers['bHangar2']();
+  delete W.location;
+  if (went !== '/flyDiy/?profile=phone') throw new Error('the shed button on the phone test flight went to ' + went + ', expected the garage page /flyDiy/?profile=phone');
+  console.log('the way back: the shed button loads ' + went + ' (the garage page, no world in memory)');
+}
 function phoneChecks() {
   const W = sandbox.window, G = sandbox.garageApi;
   if (W.FLYDIY_SIMW) throw new Error('the phone garage made the sim worker');
@@ -443,7 +600,8 @@ function phoneChecks() {
   console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
   // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  if (!html.includes('html.phone #phTabs button.on')) throw new Error('index.html does not carry phone.css');
+  // (the selector carries the test flight's stand-down since PHONE-1b, html.phone:where(:not(.phfly)) - G3910)
+  if (!/html\.phone(:where\(:not\(\.phfly\)\))? #phTabs button\.on/.test(html)) throw new Error('index.html does not carry phone.css');
   const OWN = /^(#phTabs|#phBubble(\.fine|\[hidden\])?|\.phKnob|\.phStep)$/;
   const bad = [], seen = [];
   // a selector list split at its top-level commas (the ones inside :is( ) belong to their selector)
@@ -498,18 +656,20 @@ try {
   // flight recorder is not executed (its hooks would ride the loop); its two rows stand in for it, no attach.
   sandbox.window.requestAnimationFrame = () => 0;
   sandbox.setInterval = () => 0; sandbox.clearInterval = () => {};
-  sandbox.window.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }];
-  sandbox.window.FLYDIY_WORLD = 'none';
+  sandbox.window.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }].concat(PHONEFLY ? [{ id: 'testfield', name: 'Test field' }] : []);
+  sandbox.window.FLYDIY_WORLD = PHONEFLY ? 'testfield' : 'none';   // (G3791: the loader's pick on the flight page)
   sandbox.window.FLIGHT_REC = {
     mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
     mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
     mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
   // G2104: the profile, before the graphics menu (its preset) and app.js (its boot) - the desktop's on the plain run
-  sandbox.window.location = { search: PHONE ? '?profile=phone' : '' };
+  sandbox.window.location = { search: PHONEFLY ? '?profile=phone&testflight=1' : PHONE ? '?profile=phone' : '' };
   vm.runInContext(profileBlock, sandbox, { filename: 'profile.js' });
   delete sandbox.window.location;
-  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE ? 'phone' : 'desktop'))
-    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE ? 'phone' : 'desktop'));
+  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE || PHONEFLY ? 'phone' : 'desktop'))
+    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE || PHONEFLY ? 'phone' : 'desktop'));
+  if (!!(sandbox.window.PROFILE && sandbox.window.PROFILE.flight) !== PHONEFLY || (PHONEFLY && !sandbox.window.PROFILE.is('boot', 'testfield')))
+    throw new Error('profile.js: the flight variant is ' + (sandbox.window.PROFILE.flight ? 'on' : 'off') + ' (boot ' + sandbox.window.PROFILE.get('boot') + '), expected ' + (PHONEFLY ? 'on, boot testfield' : 'off'));
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
                   sandbox, { filename: 'gfx_settings.js' });
   // THE SOUND (G1600): audio_params.js and audio.js ride the RENDER block too - run from their own source, so the rail's
@@ -519,6 +679,13 @@ try {
   // THE CLOCK (G2650 SIM-CLOCK): day_clock.js rides the RENDER block too - run from its own source so app.js binds the
   // real DAY_CLOCK (no storage, no location here: the game's day) and the route rows carry its clock line and wait select
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8'), sandbox, { filename: 'day_clock.js' });
+  // G3070 (ROUTE-LAZY): the drawn route's door (route_lazy.js) rides the RENDER block - run from its own source, with
+  // the page's file name (index.html's ROUTE_LOADER) and a fetch that records the drawing's file and never answers (the
+  // drawing itself is GATE ROUTE's); any other fetch is what it was here, absent
+  sandbox.window.FLYDIY_ROUTE_SRC = (/var SRC = window\.FLYDIY_ROUTE_SRC = "(route_draw\.[0-9a-f]{8}\.js)";/.exec(html) || [])[1];
+  if (!sandbox.window.FLYDIY_ROUTE_SRC) throw new Error("index.html's route loader names no route_draw.<h8>.js (G3070)");
+  sandbox.fetch = u => { if (String(u) !== sandbox.window.FLYDIY_ROUTE_SRC) throw new ReferenceError('fetch is not defined'); routeFetched.push(String(u)); return new Promise(() => {}); };
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'route_lazy.js'), 'utf8'), sandbox, { filename: 'route_lazy.js' });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -536,7 +703,8 @@ try {
     const want = PHONE   // G2100: the phone garage boots the garage alone (profile.js boot 'garage': the study's §1.2 table)
       ? ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'snapshot', 'spec', 'restore', 'compile', 'firstFrame', 'recheck']
       : ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
-      'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
+      'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck']
+        .filter(id => !(PHONEFLY && id === 'parked'));   // (G3791: the phone's test field parks no aeroplane)   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
     if (B.log.some(e => e.k === 'fail')) throw new Error('the loading screen gave up: ' + JSON.stringify(B.log.filter(e => e.k === 'fail')));
@@ -552,10 +720,18 @@ try {
   // G2400 (FREIGHT-STRAP): ...and no strapped load: no FLYDIY_STRAP, the lazy drawing never fetched
   if (sandbox.window.FLYDIY_STRAP !== undefined || sandbox.window.FREIGHT_STRAP_VIEW !== undefined) throw new Error('the sandbox booted with the strapped load (FLYDIY_STRAP / FREIGHT_STRAP_VIEW) without ?career=1 or ?freight=1');
   console.log('the sandbox without the flags: no FLYDIY_STRAP, no strap drawing');
+  // G3070 (ROUTE-LAZY): ...and no route drawing: the door is up, the drawing's file never asked for
+  {
+    const RD = sandbox.window.ROUTE_DRAW;
+    if (!RD || !RD.attach || RD.loaded()) throw new Error('the drawn route\'s door (route_lazy.js window.ROUTE_DRAW) is not up, or the drawing is already there');
+    if (routeFetched.length) throw new Error('the boot asked for the route drawing (' + routeFetched.join(', ') + ') with no route armed');
+    console.log('the boot without an armed route: the door up (window.ROUTE_DRAW), ' + sandbox.window.FLYDIY_ROUTE_SRC + ' never asked for');
+  }
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
-  if (PHONE) { phoneChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
+  if (PHONE) { phoneChecks(); storageChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
+  if (PHONEFLY) { phoneFlyChecks(); console.log('GATE UISMOKE-PHONEFLY: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
   // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while
@@ -591,7 +767,16 @@ try {
       throw new Error('a held ArrowDown did not reach sim.ctl.de under manual (' + P.sim().ctl.de + ')');
     P.input().press('ArrowDown', false);
     frames(30);
+    // G2480 (HAND-CONTROLS): the LEFT toe brake reaches sim.ctl as the solver's differential brake (brakeD > 0: the
+    // +z main, the left), and handing back takes it off the aeroplane
+    P.input().press('Semicolon', true);
+    frames(30);
+    if (!(P.sim().ctl.brakeD > 0.3))
+      throw new Error('a held [ (the left toe brake) did not reach sim.ctl.brakeD under manual (' + P.sim().ctl.brakeD + ')');
     P.setManual(false);
+    P.input().press('Semicolon', false);
+    if (P.sim().ctl.brakeD !== 0 || P.sim().ctl.wr !== null)
+      throw new Error('setManual(false) left the hand\'s brakeD / wr on the aeroplane (' + P.sim().ctl.brakeD + ', ' + P.sim().ctl.wr + ')');
     frames(60);
     if (P.manual()) throw new Error('setManual(false) did not take');
     if (typeof P.ap().phase !== 'string') throw new Error('the AP came back with no phase');
@@ -669,6 +854,24 @@ try {
     R.to('CIRCUIT');
     frames(30);
     console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
+  }
+  // ---- G3078 FLOATS-FIX: THE PLAYER'S TO SURVIVES A FIT ----
+  // A To this build may not fly (a water lane, on wheels) is FITTED to the circuit for the flight, but the player's choice
+  // (`want`) is kept through every refit and saved, so the floats build gets Metlakatla back (the user's route to mk_sea
+  // came out as the circuit: the boot's fit on the bench's wheeled build overwrote it)
+  {
+    const P = sandbox.window.FLIGHT_PROBE, R = sandbox.window.FLYDIY_ROUTE, W = P.world();
+    const lane = W.aerodromes.find(a => a.kind === 'water' || a.water || +a.surface === 4);
+    if (!lane) console.log('the To of the player kept through a fit: no water lane in the smoke world - not judged');
+    else {
+      if (!('want' in R.get())) throw new Error('FLYDIY_ROUTE.get() carries no `want` (G3078)');
+      R.to(lane.id); R.sync(); R.sync();
+      const g = R.get();
+      if (g.want !== lane.id) throw new Error(`the player's To was overwritten by the fit: want ${g.want} (wanted ${lane.id}, G3078)`);
+      if (g.to !== 'CIRCUIT') throw new Error(`a wheeled build was sent to the water lane ${lane.id}: to ${g.to} (the fit must give CIRCUIT)`);
+      R.to('CIRCUIT'); frames(10);
+      console.log(`the player's To kept through a fit: ${lane.id} wanted, the wheels fly the circuit (G3078)`);
+    }
   }
   // ---- G2650 SIM-CLOCK: THE ROUTE ROW'S CLOCK + WAIT IT OUT ----
   // Both route rows (the shed's, the roll-out screen's) carry the clock line ("16:00 · 21 Jun") and a "wait until…"
@@ -781,6 +984,7 @@ try {
     console.log(`PREM-S2: the sandbox's base line "${rowR.labels[0]}"; two hangars -> a select (${rowG.options.join(', ')}), picking moves the garage; ` +
       `the popup: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there?" moved the garage to ${other.id}`);
   }
+  storageChecks();   // G2690 HANGAR-STORAGE
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the
@@ -1047,6 +1251,22 @@ try {
     if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
     if (!b.disabled) throw new Error('#bSkip still offered at the hold');
     console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+    // G3325 (AP-TOGGLE): the permanent toggle - in sight in flight, the autopilot by default, handed over and back through
+    // the published state (the story's cards read it), the button's words following
+    {
+      const AP = sandbox.window.FLYDIY_AP, bAP = els['bAP'];
+      if (!AP) throw new Error('FLYDIY_AP is not published (G3325)');
+      if (!bAP) throw new Error('#bAP, the autopilot toggle, is missing (G3325)');
+      if (!AP.autopilot()) throw new Error('the flight did not start on the autopilot (G3120 / G3325)');
+      if (bAP.hidden) throw new Error('#bAP is hidden in flight (G3325: always in sight)');
+      AP.set(false);
+      if (!AP.manual()) throw new Error('FLYDIY_AP.set(false) did not hand the aeroplane over');
+      if (!/^Manual/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
+      AP.set(true);
+      if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
+      if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
+      console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
+    }
   }
 
   // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------
@@ -1071,11 +1291,12 @@ try {
       if (!R.home(k) && !items.some(i => i.k === k)) throw new Error('the old rail item / section `' + k + '` has no home');
     // what each item must reach (a row or a pill each) - one or more per old item, and the moved rows
     const WANT = {
-      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
-            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
-            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
-      view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
+      fly: ['from', 'to', 'taxi out', 'draw on the map',   // G3070: FLY > drawn route, through route_lazy.js's door
+            'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
+            // G3324: the personality row moved to DEV (PERSONA_ROWS below - the player's autopilot is the expert)
+            ],
+      view: ['field of view', 'level horizon', 'lead the turn', 'small',   // G3646: 'free' with DEV on only (below)
+             'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
       audio: ['sound', 'master', 'engine', 'airframe', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js); G1722: the engine apart, 'aircraft' is the airframe
@@ -1084,6 +1305,10 @@ try {
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
     const skinShown = els['bSkin'] && els['bSkin'].style.display !== 'none';
     if (skinShown) WANT.dev.push('the covering', 'covered', 'frame', 'overlay');
+    // G2085 (PILOT-PERSONA) -> G3324 (the user, 19 Oct: the player's autopilot is ALWAYS the expert, the persona DEV's): the
+    // personality row, every person, and the custom person's knobs (the census opens the fold) - reached with DEV on only
+    const PERSONA_ROWS = ['personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+                          'unsteadiness', 'over-rotation', 'flare height', 'decisions', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];   // G2460 (t66): + decisions
     const reached = { rows: [], pills: [] };
     for (const it of items) {
       const c = R.census(it.k);
@@ -1097,7 +1322,33 @@ try {
       console.log('rail ' + it.k + (it.dev ? ' (behind the dev toggle)' : '') + ': ' + c.sections.join(' / ') + ' - ' + c.rows.length + ' rows, ' + c.pills.length + ' pills' +
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
     }
+    // G3324: with DEV off the player's FLY has no personality row and the autopilot handed is the expert; with DEV on the
+    // whole person is there (every person and the custom person's knobs)
+    {
+      const c0 = R.census('fly'), h0 = new Set(c0.rows.concat(c0.pills));
+      if (h0.has('personality')) throw new Error('the personality row is in the player FLY with DEV off (G3324: the player flies the expert)');
+      const P = sandbox.window.FLYDIY_PERSONA;
+      if (P && P.get().profile !== 'expert') throw new Error('DEV off: the autopilot handed is ' + JSON.stringify(P.get().profile) + ', not the expert (G3324)');
+      // G3646 (GAME-MENUS; the user 25 Oct: the eye is chase / interior, the free camera DEV's): VIEW's 'free' pill with DEV on only
+      const v0 = R.census('view');
+      if (v0.pills.includes('free')) throw new Error('the free camera is in the player VIEW with DEV off (G3646: DEV only)');
+      R.dev(true);
+      const c1 = R.census('fly'), h1 = new Set(c1.rows.concat(c1.pills));
+      const v1 = R.census('view');
+      R.dev(false);
+      if (!v1.pills.includes('free')) throw new Error('DEV on: VIEW does not reach the free camera (G3646)');
+      reached.pills.push('free');
+      const miss = PERSONA_ROWS.filter(x => !h1.has(x));
+      if (miss.length) throw new Error('DEV on: FLY does not reach the persona: ' + miss.join(', '));
+      reached.rows.push(...c1.rows); reached.pills.push(...c1.pills);
+      console.log('the persona (G3324): DEV off - none, the expert flies; DEV on - ' + PERSONA_ROWS.length + ' rows and pills');
+    }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
+    // G3070 (ROUTE-LAZY): FLY > drawn route unfolded (the census opens every fold) is the drawing's first demand: its file
+    // asked for, once (route_lazy.js asks in a microtask: let it)
+    await new Promise(r => setImmediate(r));
+    if (routeFetched.join() !== sandbox.window.FLYDIY_ROUTE_SRC) throw new Error('FLY > drawn route opened: the drawing\'s file asked for ' + routeFetched.length + ' times (' + routeFetched.join(', ') + '), once expected');
+    console.log('FLY > drawn route opened: ' + routeFetched[0] + ' asked for once (its first demand)');
     if (R.dev() !== false) throw new Error('the census of DEV put DEV on the rail (a census saves nothing)');
     // NO GRAPHICS ROW LOST: the menu as the one flat list it was, counted, against the rows the rail reaches
     {
@@ -1408,10 +1659,11 @@ try {
     need('#phNext\'s two lines do not fill its height exactly', fN && Math.abs(2 * fN[1] - px(NX.height)) < 0.01);
     need('#phPlan is not one clipped line', PL['white-space'] === 'nowrap' && PL.overflow === 'hidden' && PL['text-overflow'] === 'ellipsis' && fP && Math.abs(fP[1] - px(PL.height)) < 0.01);
     need('#phWhy does not hold its two lines + the plan line', px(WY.height) >= px(NX.height) + px(PL.height) + (px(PL['margin-top']) || 0));
-    // 6. no text-driven state takes a line out: only the small PFD (the player's choice) may hide the area
+    // 6. no text-driven state takes a line out: only the player's choices may hide the area - the small PFD, and in the
+    // fl2 layout the autopilot's words folded (G3640s, the user: collapsed by default, a tap on the phase line unfolds them)
     for (const r of rules) for (const sl of r.sels) {
       if (!/#phNext|#phPlan|#phWhy|#phName|#rail\b|\.rd b|\.rd i/.test(sl)) continue;
-      if (r.decl.display === 'none' && !/\.small|\[hidden\]/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` sets display:none on a text-driven state (use visibility)');
+      if (r.decl.display === 'none' && !/\.small|\[hidden\]|^body\.fl2:not\(\.fl2Ap\) #ui #phWhy$/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` sets display:none on a text-driven state (use visibility)');
       if (/:empty/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` styles a line by its emptiness');
     }
     need('the held status line must hide by visibility', D('#rail.held + #phWhy #phNext').visibility === 'hidden');

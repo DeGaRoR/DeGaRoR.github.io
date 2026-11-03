@@ -272,7 +272,7 @@ function build(P0, lod) {
   }
   // top plates
   for (const z of [cz0, cz1]) {
-    if (z > 0 && P.openFront && Q.lod !== 0) continue;
+    // (both lods: the far mesh of an open-fronted shed lost its front plate, and the eye went up under the roof - GATE LODS)
     beam(bags.trim, [cx0 - mw, wallTop(0, z) + j(0.01), z],
          [cx1 + mw, wallTop(0, z) + j(0.01), z], mw, mw * 0.8, [0, 1, 0],
          0, { swap: true, uv: [z * 5, 0] });
@@ -428,10 +428,13 @@ function build(P0, lod) {
     if (wi === 1 && winHole) holes.push(winHole);
     const topOf = s => wallTop(A[0] + dir[0] * s, A[1] + dir[2] * s);
     if (Q.lod !== 0) {
-      // the far shed is a panel, like the house: same boards, no members
+      // the far shed is a panel, like the house: same boards, no members - and
+      // CLOSED like the house's (LODS-2026-10): its inner skin and its top, or
+      // through an open front (the wood shed, the lean-to) the eye met the
+      // back of a one-sided panel and saw through the shed (GATE LODS)
       wall(bags.siding, { A: A, B: B, y0: yF - 0.05, t: 0.045,
-                          topAt: s => topOf(s), holes: [], inner: false,
-                          capTop: false, capBot: false,
+                          topAt: s => topOf(s), holes: [], inner: true,
+                          capTop: true, capBot: false,
                           endCap: [false, false] });
       continue;
     }
@@ -639,8 +642,10 @@ const makeFinish = () => HG.makeFinish();
 
 // every plank-by-plank shed is a SHED (G393's categories: HOUSE_GEN.CATEGORIES)
 const catOf = () => 'shed';
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
 window.SHED_GEN = {
-  catOf,
+  catOf, LOD_DETAIL: /^(post|pile|logend|pane)/,   // (trim stays: a shed's corner posts and plates are its frame)
   DEF: DEF, ROWS: ROWS, PRESETS: PRESETS, BAGS: BAGS, MAT: HG.MAT,
   build: build, randomShed: randomShed, applyFinish: applyFinish, makeFinish,
   libSets: HG.libSets, isShed: true,

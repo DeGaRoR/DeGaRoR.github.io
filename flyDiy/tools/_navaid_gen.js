@@ -454,7 +454,9 @@ function buildHydro(P, lod, F) {
 function applyFinish(P, F) { return TW.applyFinish(Object.assign({}, TW.DEF, DEF, P || {}, { derelict: 0 }), F); }
 function finishReport() { return TW.finishReport(); }
 
-window.NAVAID_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SET_IDX, CATS, catOf, build, applyFinish, makeFinish, finishReport };
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
+window.NAVAID_GEN = { LOD_DETAIL: /^(trim|sock)$/, DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SET_IDX, CATS, catOf, build, applyFinish, makeFinish, finishReport };
 // THE CATALOGUE: a landmark; the foot is the counterpoise's circle and the shelter west of it; the ground levelled
 // under the whole foot (a DVOR wants flat ground round it), the way in from the west (the access road)
 window.NAVAID_GEN.CATALOGUE_V = 1;

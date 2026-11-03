@@ -125,6 +125,11 @@ body.mode-fly #updNow { left:auto; right:22px; bottom:76px; transform:none; }
 @media (max-width:760px) { body.mode-fly #updNow { right:12px; bottom:112px; } }
 body.mode-fly.premOpen #updNow { right:auto; top:auto; left:calc((100vw - 436px) / 2); bottom:14px; transform:translateX(-50%); }
 body.shot #updNow { display:none; }
+#updNote { position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:96; pointer-events:none;
+  max-width:calc(100vw - 24px); box-sizing:border-box; padding:10px 16px; border-radius:18px; background:rgba(26,24,21,.94); color:#f4efe6;
+  font:500 13px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; box-shadow:0 6px 24px rgba(0,0,0,.4); }
+#updNote[hidden] { display:none; }
+html.phone #updNote { bottom:calc(var(--ph-tab, 48px) + 12px); }
 html.updNowUp #bootPanel { bottom:84px; }
 @media (min-width:901px) { html.updNowUp #bootCard { bottom:84px; } }
 #bootBuild { margin-top:3px; font:400 10.5px/1.2 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing:.06em; color:#8f887b; }
@@ -206,7 +211,60 @@ html.updNowUp #bootPanel { bottom:84px; }
   };
   const regain = () => { if (visible() && Date.now() - S.last >= REGAIN) check(); };
 
-  W.UPDATE_NOW = { state: S, check, render, update, saveAll, onBeforeUpdate, updateUrl, stripUrl, stamp, day, newer,
+  // ---- FORCE SYNC (G3910, PHONE-1b; the user 2 Nov, the installed app coming: "Please have a force sync explicit option,
+  // and check your service worker settings carefully, caching can be painful with installed PWA") - the menu's two rows
+  // (app.js), the phone's and the desktop's:
+  //   checkNow()     "Check for update": the worker asked to update itself and version.json fetched past every cache (the
+  //                  one check above); a newer build shows the pill (an earlier x forgotten), the same build says so for
+  //                  3 s, no answer says that
+  //   cleanReload()  "Clean download & reload": asked first, the cost named; then the work saved, every Cache Storage entry
+  //                  named flydiy* deleted, THIS FOLDER's worker unregistered (the origin, degaror.github.io, hosts other
+  //                  apps: their workers and caches are not ours), and the page replaced by itself under ?v=. localStorage
+  //                  - the aeroplanes, the careers, the settings - is never touched (GATE PWA W5)
+  let noteEl = null, noteT = null;
+  function note(text, ms) {
+    const d = doc(); if (!d || !d.createElement) return;
+    sheet();
+    if (!noteEl || !noteEl.isConnected) { noteEl = d.createElement('div'); noteEl.id = 'updNote'; noteEl.setAttribute('role', 'status'); (d.body || d.documentElement).appendChild(noteEl); }
+    noteEl.textContent = text; noteEl.hidden = false;
+    if (noteT && typeof W.clearTimeout === 'function') W.clearTimeout(noteT);
+    if (typeof W.setTimeout === 'function') noteT = W.setTimeout(() => { noteT = null; if (noteEl) noteEl.hidden = true; }, ms || 3000);
+  }
+  const swOf = () => { try { return nav.serviceWorker || null; } catch (e) { return null; } };
+  function checkNow() {
+    const sw = swOf();
+    const reg = sw && typeof sw.getRegistration === 'function' ? sw.getRegistration().catch(() => null) : Promise.resolve(null);
+    return reg.then(r => (r && typeof r.update === 'function' ? r.update().catch(() => null) : null))
+      .then(() => { try { W.sessionStorage.removeItem(DISMISS); } catch (e) {} return check(); })
+      .then(b => {
+        if (!b) note('No answer from the server - nothing changed', 4000);
+        else if (!newer()) note('Up to date \u00b7 ' + stamp(), 3000);
+        return { server: b, newer: newer() };
+      });
+  }
+  function cleanReload(opts) {
+    if (S.going) return Promise.resolve(null);
+    const mb = W.STORAGE && W.STORAGE.state && W.STORAGE.state.cachedMB;
+    const ask = 'Clean download and reload?\n\nEverything flyDiy keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
+      (mb > 0 ? ' (about ' + Math.round(mb) + ' MB)' : '') + '.\nYour aeroplanes, careers and settings are kept.';
+    const yes = (opts && opts.confirm === false) || (typeof W.confirm === 'function' ? !!W.confirm(ask) : true);
+    if (!yes) return Promise.resolve(false);
+    S.going = true;
+    saveAll();
+    let base = null; try { base = new URL('./', loc().href).href; } catch (e) {}
+    const C = W.caches, sw = swOf();
+    const caches = C && typeof C.keys === 'function' ? C.keys().then(ks => Promise.all(ks.filter(k => /^flydiy/.test(k)).map(k => C.delete(k).then(() => k)))).catch(() => []) : Promise.resolve([]);
+    const workers = sw && typeof sw.getRegistrations === 'function' ? sw.getRegistrations()
+      .then(rs => Promise.all(rs.filter(r => base && r && typeof r.scope === 'string' && r.scope.indexOf(base) === 0).map(r => r.unregister().catch(() => false)))).catch(() => []) : Promise.resolve([]);
+    return Promise.all([caches, workers]).then(([c, w]) => {
+      let to = null; try { to = updateUrl(loc().href, 'c' + Date.now().toString(36)); } catch (e) {}
+      if (pill) pill.hidden = true;
+      if (to && typeof loc().replace === 'function') loc().replace(to); else if (typeof loc().reload === 'function') loc().reload();
+      return { caches: c, workers: w.length, to };
+    });
+  }
+
+  W.UPDATE_NOW = { state: S, check, render, update, saveAll, onBeforeUpdate, updateUrl, stripUrl, stamp, day, newer, checkNow, cleanReload, note,
                    onChange: f => { if (typeof f === 'function') listeners.push(f); }, PARAM, EVERY, REGAIN, RIG, enabled };
 
   stampBoot();

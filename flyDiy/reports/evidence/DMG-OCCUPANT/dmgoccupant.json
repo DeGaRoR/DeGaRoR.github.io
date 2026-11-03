@@ -1,0 +1,3996 @@
+{
+ "builds": [
+  {
+   "key": "cub",
+   "label": "Cub",
+   "cases": [
+    {
+     "id": "taxi",
+     "label": "a 3 m/s taxi into a trunk (TREECRASH's, the throttle shut)",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.8779407946610465,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 1.4887122226140965,
+        "xPk": 3.524355223633603,
+        "yPk": 9.179839895937624e-10,
+        "zPk": 1.5934465465981251,
+        "dvX": 3.071792306470734,
+        "dvZ": 0.21496853721758816,
+        "eibX": {
+         "vol": 0.08868222315443963,
+         "mod": 0.05739377812459554,
+         "wV": 0.04,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 3.798256436064276e-12,
+         "mod": 2.3739102725401725e-12,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.0876825127691623,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9989102442873053,
+        "cell": 1.001667784445263,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1399,
+        "spaceAt": {
+         "t": 2.7333333333333463,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 2.7333333333333463,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 33.364
+    },
+    {
+     "id": "noseover",
+     "label": "the nose-over: 12 m/s into a 35 cm stump (DMG-TUNE's)",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a gear member broke",
+      "gPeak": 2.706866315004163,
+      "breaks": 7
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.878472773524539,
+        "xPk": 9.581411289732724,
+        "yPk": 0.053593458982533954,
+        "zPk": 5.007774914986758,
+        "dvX": 2.948454032389348,
+        "dvZ": 2.0930731925647628,
+        "eibX": {
+         "vol": 0.11559603922874964,
+         "mod": 0.07706402615249976,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.0014565532298959371,
+         "mod": 0.0009103457686849606,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.7540113497939767,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9975290773951279,
+        "cell": 1.004441702564445,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 2749,
+        "spaceAt": {
+         "t": 4.133333333333858,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 3.6166666666671707,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.878472773524539,
+        "xPk": 9.581411289732724,
+        "yPk": 0.053593458982533954,
+        "zPk": 5.007774914986758,
+        "dvX": 2.948454032389348,
+        "dvZ": 2.0930731925647628,
+        "eibX": {
+         "vol": 0.11559603922874964,
+         "mod": 0.07706402615249976,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.0014565532298959371,
+         "mod": 0.0009103457686849606,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.7540113497939767,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9975290773951279,
+        "cell": 1.004441702564445,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 2749,
+        "spaceAt": {
+         "t": 4.133333333333858,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 3.6166666666671707,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 19.177
+    },
+    {
+     "id": "far473",
+     "label": "the drop at FAR 23.473's limit sink, V_S0 forward, no lift",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.1440926598255623,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.7281339504481354,
+        "xPk": 0.4035691537389826,
+        "yPk": 2.0646698548813277e-11,
+        "zPk": 2.8683038777587693,
+        "dvX": 0.35026568200117253,
+        "dvZ": 1.2941279236830332,
+        "eibX": {
+         "vol": 0.009746992632473871,
+         "mod": 0.006497995088315914,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 8.11083516754279e-14,
+         "mod": 5.0692719797142436e-14,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.32700512297035245,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9990778797201026,
+        "cell": 1.0029827998947152,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1049,
+        "spaceAt": {
+         "t": 4.616666666666494,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.733333333332992,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 16.332
+    },
+    {
+     "id": "hard",
+     "label": "the drop at 1.5 x FAR 23.473's limit sink (DMG-TUNE's hard landing)",
+     "want": null,
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.028801821687174,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 6.516305349348043,
+        "xPk": 1.5419372414046015,
+        "yPk": 1.8039324961187776e-11,
+        "zPk": 4.81993224271481,
+        "dvX": 0.6573668758927691,
+        "dvZ": 4.3104223486363535,
+        "eibX": {
+         "vol": 0.03320999681036307,
+         "mod": 0.02213999787357538,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 1.0070725965490218e-13,
+         "mod": 6.294203728431386e-14,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.748249524374766,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9976932651817642,
+        "cell": 1.0032276846034505,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1183,
+        "spaceAt": {
+         "t": 4.08333333333393,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.133333333333858,
+         "edge": 2
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 15.889
+    },
+    {
+     "id": "trunk0",
+     "label": "a trunk at 30 m/s, the centreline, 4 m AGL",
+     "want": "severe",
+     "D": {
+      "crashed": true,
+      "reason": "broke up: the fuselage parted (TPB off the core)",
+      "gPeak": 26.08816738456286,
+      "breaks": 118
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 23.765759681496938,
+        "xPk": 248.12635078972949,
+        "yPk": 4.9923399474390315,
+        "zPk": 171.3531173644442,
+        "dvX": 18.58576386046382,
+        "dvZ": 11.621026881849989,
+        "eibX": {
+         "vol": 1.069033332333719,
+         "mod": 0.7126888882224793,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.03536942945486077,
+         "mod": 0.02210589340928798,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 11.929783446674119,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0,
+        "cell": 19.068632074842732,
+        "parted": true,
+        "by": "space",
+        "rows": {
+         "dri": 3,
+         "eibandX": 1,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 0,
+         "space": 4,
+         "cell": 4,
+         "parted": 4
+        },
+        "samples": 2199,
+        "spaceAt": {
+         "t": 1.5833333333331234,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.499999999999883,
+         "edge": 11
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 7.906
+    },
+    {
+     "id": "trunk25",
+     "label": "a trunk at 30 m/s, the wing 2.5 m out, 4 m AGL",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a wing member broke",
+      "gPeak": 14.08553911300185,
+      "breaks": 56
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 2,
+       "crit": {
+        "dri": 5.760854610856268,
+        "xPk": 20.684263149777596,
+        "yPk": 17.564113374532457,
+        "zPk": 19.300135574169,
+        "dvX": 10.365134525387752,
+        "dvZ": 4.911952911162464,
+        "eibX": {
+         "vol": 0.48493686774996425,
+         "mod": 0.30859618856815907,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "eibY": {
+         "vol": 0.6875171146012412,
+         "mod": 0.4267347607869773,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "far562": false,
+        "restraint": {
+         "load": 16.97279037124875,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.7461338735784442,
+        "cell": 1.238467484924083,
+        "parted": false,
+        "by": "cell",
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 1,
+         "cell": 2,
+         "parted": 0
+        },
+        "samples": 3683,
+        "spaceAt": {
+         "t": 2.6999999999999944,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.749999999999635,
+         "edge": 10
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 2
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 7.739
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "50655c6e",
+     "recOff": "50655c6e",
+     "again": "50655c6e",
+     "recOffHasOcc": false,
+     "sameBands": true
+    },
+    "intact": {
+     "hasOcc": true,
+     "buf": false,
+     "events": 0,
+     "pays": 0,
+     "armedN": 0,
+     "y": 439.46111036333747
+    }
+   }
+  },
+  {
+   "key": "jodel",
+   "label": "Jodel",
+   "cases": [
+    {
+     "id": "taxi",
+     "label": "a 3 m/s taxi into a trunk (TREECRASH's, the throttle shut)",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.7547626075291674,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 2.0176474059024065,
+        "xPk": 3.077008088055323,
+        "yPk": 0.2671677716091433,
+        "zPk": 2.063241648866889,
+        "dvX": 3.3667322666063315,
+        "dvZ": 0.5703621033739724,
+        "eibX": {
+         "vol": 0.08181320967490266,
+         "mod": 0.05206295161130169,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "eibY": {
+         "vol": 0.010503166584054207,
+         "mod": 0.00656447911503388,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.863462338621593,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9985476752445884,
+        "cell": 1.0077728148811063,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1399,
+        "spaceAt": {
+         "t": 2.9833333333337526,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 2.8500000000003984,
+         "edge": 11
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 66.682
+    },
+    {
+     "id": "noseover",
+     "label": "the nose-over: 12 m/s into a 35 cm stump (DMG-TUNE's)",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a gear member broke",
+      "gPeak": 2.660234835121627,
+      "breaks": 3
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 5.727259868343484,
+        "xPk": 7.5836339930713335,
+        "yPk": 2.420175777961485,
+        "zPk": 5.029487536603845,
+        "dvX": 1.9299462969960297,
+        "dvZ": 1.2631093595141516,
+        "eibX": {
+         "vol": 0.14331564055764515,
+         "mod": 0.09554376037176343,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.09020904685131624,
+         "mod": 0.05638065428207265,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 4.828381045132128,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9945719854487337,
+        "cell": 1.0092955555714869,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 4249,
+        "spaceAt": {
+         "t": 3.6500000000005235,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.0500000000004297,
+         "edge": 1
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 5.727259868343484,
+        "xPk": 7.5836339930713335,
+        "yPk": 2.420175777961485,
+        "zPk": 5.029487536603845,
+        "dvX": 1.9299462969960297,
+        "dvZ": 1.2631093595141516,
+        "eibX": {
+         "vol": 0.14331564055764515,
+         "mod": 0.09554376037176343,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.09020904685131624,
+         "mod": 0.05638065428207265,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 4.828381045132128,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9945719854487337,
+        "cell": 1.0092955555714869,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 4249,
+        "spaceAt": {
+         "t": 3.6500000000005235,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.0500000000004297,
+         "edge": 1
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 27.906
+    },
+    {
+     "id": "far473",
+     "label": "the drop at FAR 23.473's limit sink, V_S0 forward, no lift",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.18131304517097,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 7.526307927529738,
+        "xPk": 0.5815570209039898,
+        "yPk": 0.20764268652643142,
+        "zPk": 5.660154565558871,
+        "dvX": 0.4309499485103073,
+        "dvZ": 2.653084657912383,
+        "eibX": {
+         "vol": 0.012868771960767184,
+         "mod": 0.008579181307178123,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.006417915816405738,
+         "mod": 0.004011197385253586,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.3838016791108472,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9980993386820427,
+        "cell": 1.002684745791891,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1116,
+        "spaceAt": {
+         "t": 4.083333333333658,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.083333333333658,
+         "edge": 2
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 24.103
+    },
+    {
+     "id": "hard",
+     "label": "the drop at 1.5 x FAR 23.473's limit sink (DMG-TUNE's hard landing)",
+     "want": null,
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 4.560659749572807,
+      "breaks": 0
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 10.497210385493524,
+        "xPk": 0.7453437247464849,
+        "yPk": 0.38969742989201683,
+        "zPk": 7.781645618826863,
+        "dvX": 0.4920758790058447,
+        "dvZ": 4.635032313805762,
+        "eibX": {
+         "vol": 0.01570727594538849,
+         "mod": 0.010471517296925659,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.011947951966759279,
+         "mod": 0.0074674699792245496,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.4859326498004982,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9975211029991898,
+        "cell": 1.0033817619272265,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1999,
+        "spaceAt": {
+         "t": 4.966666666664305,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.100000000000274,
+         "edge": 2
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 10.497210385493524,
+        "xPk": 0.7453437247464849,
+        "yPk": 0.38969742989201683,
+        "zPk": 7.781645618826863,
+        "dvX": 0.4920758790058447,
+        "dvZ": 4.635032313805762,
+        "eibX": {
+         "vol": 0.01570727594538849,
+         "mod": 0.010471517296925659,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.011947951966759279,
+         "mod": 0.0074674699792245496,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.4859326498004982,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9975211029991898,
+        "cell": 1.0036627669673828,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1999,
+        "spaceAt": {
+         "t": 4.966666666664305,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.066666666667042,
+         "edge": 2
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 18.667
+    },
+    {
+     "id": "trunk0",
+     "label": "a trunk at 30 m/s, the centreline, 4 m AGL",
+     "want": "severe",
+     "D": {
+      "crashed": true,
+      "reason": "a fus member broke",
+      "gPeak": 38.041723935968875,
+      "breaks": 135
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 21.006572993706662,
+        "xPk": 215.774595919852,
+        "yPk": 54.28318198392513,
+        "zPk": 119.36489214047047,
+        "dvX": 38.71932591439041,
+        "dvZ": 8.55445941287906,
+        "eibX": {
+         "vol": 2.4437052400125454,
+         "mod": 1.6291368266750301,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 1.6363559583290037,
+         "mod": 1.0227224739556273,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 74.97073650009729,
+         "strength": 17.955000000000002,
+         "failed": true
+        },
+        "space": 0.95972792434868,
+        "cell": 1.203026416118338,
+        "parted": false,
+        "by": "eibandX",
+        "rows": {
+         "dri": 2,
+         "eibandX": 4,
+         "eibandY": 3,
+         "far562": 2,
+         "restraint": 2,
+         "space": 0,
+         "cell": 2,
+         "parted": 0
+        },
+        "samples": 1266,
+        "spaceAt": {
+         "t": 1.416666666666841,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 1.3833333333335025,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 9.91
+    },
+    {
+     "id": "trunk25",
+     "label": "a trunk at 30 m/s, the wing 2.5 m out, 4 m AGL",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a wing member broke",
+      "gPeak": 6.923838013964077,
+      "breaks": 111
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.404939376042744,
+        "xPk": 14.098812357002775,
+        "yPk": 8.636442848707615,
+        "zPk": 9.22108465762139,
+        "dvX": 6.905294234366313,
+        "dvZ": 6.746564782949136,
+        "eibX": {
+         "vol": 0.14769124850177506,
+         "mod": 0.0984608323345167,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.27540067952447417,
+         "mod": 0.17212542470279635,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 4.999529613595099,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.8859243220475481,
+        "cell": 1.018108244898086,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 4116,
+        "spaceAt": {
+         "t": 4.466666666665826,
+         "by": -65
+        },
+        "cellAt": {
+         "t": 2.4166666666669974,
+         "edge": 8
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.404939376042744,
+        "xPk": 14.098812357002775,
+        "yPk": 8.636442848707615,
+        "zPk": 9.22108465762139,
+        "dvX": 6.905294234366313,
+        "dvZ": 6.746564782949136,
+        "eibX": {
+         "vol": 0.14769124850177506,
+         "mod": 0.0984608323345167,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.27540067952447417,
+         "mod": 0.17212542470279635,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 4.999529613595099,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.8859243220475481,
+        "cell": 1.018108244898086,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 4116,
+        "spaceAt": {
+         "t": 4.466666666665826,
+         "by": -65
+        },
+        "cellAt": {
+         "t": 2.4166666666669974,
+         "edge": 8
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 13.958
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "611c4905",
+     "recOff": "611c4905",
+     "again": "611c4905",
+     "recOffHasOcc": false,
+     "sameBands": true
+    },
+    "intact": {
+     "hasOcc": true,
+     "buf": false,
+     "events": 0,
+     "pays": 0,
+     "armedN": 0,
+     "y": 365.8406403344652
+    }
+   }
+  },
+  {
+   "key": "metal",
+   "label": "metal Cessna",
+   "cases": [
+    {
+     "id": "taxi",
+     "label": "a 3 m/s taxi into a trunk (TREECRASH's, the throttle shut)",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.144102469038477,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 1.4432122635303046,
+        "xPk": 2.463498623835171,
+        "yPk": 0.33403185100995564,
+        "zPk": 1.4165250115842765,
+        "dvX": 2.9866632436391716,
+        "dvZ": 0.5661843080019476,
+        "eibX": {
+         "vol": 0.06903932930637267,
+         "mod": 0.04418517075607851,
+         "wV": 0.04,
+         "wM": 0.04
+        },
+        "eibY": {
+         "vol": 0.003224747838671372,
+         "mod": 0.0020154673991696075,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.371460869714678,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9955095382577511,
+        "cell": 1.0019089133475643,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1433,
+        "spaceAt": {
+         "t": 2.8666666666670677,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.8666666666670677,
+         "edge": 3
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 1.4432122635303173,
+        "xPk": 2.4634986238351715,
+        "yPk": 0.3340318486594563,
+        "zPk": 1.41652501161684,
+        "dvX": 2.986663243639146,
+        "dvZ": 0.5661843080019416,
+        "eibX": {
+         "vol": 0.06903932930637266,
+         "mod": 0.0441851707560785,
+         "wV": 0.04,
+         "wM": 0.04
+        },
+        "eibY": {
+         "vol": 0.0032247478456321,
+         "mod": 0.0020154674035200624,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.3714608697146775,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9955095382577829,
+        "cell": 1.0019089133475643,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1433,
+        "spaceAt": {
+         "t": 2.8666666666670677,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.8666666666670677,
+         "edge": 3
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 61.873
+    },
+    {
+     "id": "noseover",
+     "label": "the nose-over: 12 m/s into a 35 cm stump (DMG-TUNE's)",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a gear member broke",
+      "gPeak": 4.99670901065136,
+      "breaks": 7
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.2573638317409204,
+        "xPk": 15.392555541045354,
+        "yPk": 2.64297559587577,
+        "zPk": 5.982429674393574,
+        "dvX": 3.9770802240557166,
+        "dvZ": 1.7636659471009593,
+        "eibX": {
+         "vol": 0.15711458105054707,
+         "mod": 0.10474305403369805,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.040092987432015725,
+         "mod": 0.02505811714500983,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.9719651829475042,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9966019407622158,
+        "cell": 1.0113003802705314,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1649,
+        "spaceAt": {
+         "t": 4.249999999999818,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.4000000000004844,
+         "edge": 8
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.25694913083427,
+        "xPk": 15.386617366666822,
+        "yPk": 2.676120347221287,
+        "zPk": 5.977743169371413,
+        "dvX": 3.9775290619495296,
+        "dvZ": 1.7637352175705918,
+        "eibX": {
+         "vol": 0.15681407295824754,
+         "mod": 0.10454271530549836,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.0437912731955542,
+         "mod": 0.027369545747221377,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.975782821652356,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9966018831682982,
+        "cell": 1.0113003802705314,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1649,
+        "spaceAt": {
+         "t": 4.249999999999818,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.4000000000004844,
+         "edge": 8
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       },
+       {
+        "name": "Co-pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.2573638317409204,
+        "xPk": 15.392555541045354,
+        "yPk": 2.64297559587577,
+        "zPk": 5.982429674393574,
+        "dvX": 3.9770802240557166,
+        "dvZ": 1.7636659471009593,
+        "eibX": {
+         "vol": 0.15711458105054707,
+         "mod": 0.10474305403369805,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.040092987432015725,
+         "mod": 0.02505811714500983,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.9719651829475042,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9966019407622158,
+        "cell": 1.0113003802705314,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1649,
+        "spaceAt": {
+         "t": 4.249999999999818,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.4000000000004844,
+         "edge": 8
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.25694913083427,
+        "xPk": 15.386617366666822,
+        "yPk": 2.676120347221287,
+        "zPk": 5.977743169371413,
+        "dvX": 3.9775290619495296,
+        "dvZ": 1.7637352175705918,
+        "eibX": {
+         "vol": 0.15681407295824754,
+         "mod": 0.10454271530549836,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.0437912731955542,
+         "mod": 0.027369545747221377,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.975782821652356,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9966018831682982,
+        "cell": 1.0113003802705314,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1649,
+        "spaceAt": {
+         "t": 4.249999999999818,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 3.4000000000004844,
+         "edge": 8
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 25.956
+    },
+    {
+     "id": "far473",
+     "label": "the drop at FAR 23.473's limit sink, V_S0 forward, no lift",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.639285048920735,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 6.096615038271451,
+        "xPk": 1.0099788106034946,
+        "yPk": 0.22968792135519364,
+        "zPk": 4.3550651533453175,
+        "dvX": 0.6742668851724414,
+        "dvZ": 2.7396852799698728,
+        "eibX": {
+         "vol": 0.025443849368104367,
+         "mod": 0.016284063595586797,
+         "wV": 0.04,
+         "wM": 0.04
+        },
+        "eibY": {
+         "vol": 0.0035194528265711624,
+         "mod": 0.0021996580166069764,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.8797358238959236,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.996126533272276,
+        "cell": 1.0042222279526922,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1616,
+        "spaceAt": {
+         "t": 4.11666666666689,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 6.096615038271451,
+        "xPk": 1.0099788106034946,
+        "yPk": 0.22968792135519459,
+        "zPk": 4.3550651533453175,
+        "dvX": 0.6742668851724414,
+        "dvZ": 2.7396852799698728,
+        "eibX": {
+         "vol": 0.02544384936810435,
+         "mod": 0.016284063595586783,
+         "wV": 0.04,
+         "wM": 0.04
+        },
+        "eibY": {
+         "vol": 0.0035194528265711906,
+         "mod": 0.002199658016606994,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.8797358238959236,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9967918783192148,
+        "cell": 1.0042222279526922,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1616,
+        "spaceAt": {
+         "t": 4.100000000000274,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 21.148
+    },
+    {
+     "id": "hard",
+     "label": "the drop at 1.5 x FAR 23.473's limit sink (DMG-TUNE's hard landing)",
+     "want": null,
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 5.047217768606076,
+      "breaks": 0
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.558117841275319,
+        "xPk": 2.0728105665699585,
+        "yPk": 0.3216619533337755,
+        "zPk": 6.200051810349391,
+        "dvX": 1.2118127548151538,
+        "dvZ": 4.823705453718853,
+        "eibX": {
+         "vol": 0.04145749537313076,
+         "mod": 0.02763833024875384,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.004584552831602586,
+         "mod": 0.002865345519751616,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 1.2354098219657081,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9946126876365363,
+        "cell": 1.0060518387180999,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1816,
+        "spaceAt": {
+         "t": 4.100000000000274,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.558117841275319,
+        "xPk": 2.0728105665699585,
+        "yPk": 0.3216619533337782,
+        "zPk": 6.200051810349391,
+        "dvX": 1.2118127548151536,
+        "dvZ": 4.823705453718853,
+        "eibX": {
+         "vol": 0.04145749537313076,
+         "mod": 0.02763833024875384,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.00458455283160291,
+         "mod": 0.002865345519751819,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 1.2354098219657081,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9960510168266523,
+        "cell": 1.0060518387180999,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1816,
+        "spaceAt": {
+         "t": 4.100000000000274,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       },
+       {
+        "name": "Co-pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.558117841275319,
+        "xPk": 2.0728105665699585,
+        "yPk": 0.3216619533337755,
+        "zPk": 6.200051810349391,
+        "dvX": 1.2118127548151538,
+        "dvZ": 4.823705453718853,
+        "eibX": {
+         "vol": 0.04145749537313076,
+         "mod": 0.02763833024875384,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.004584552831602586,
+         "mod": 0.002865345519751616,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 1.2354098219657081,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9946126876365363,
+        "cell": 1.0060518387180999,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1816,
+        "spaceAt": {
+         "t": 4.100000000000274,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.558117841275319,
+        "xPk": 2.0728105665699585,
+        "yPk": 0.3216619533337782,
+        "zPk": 6.200051810349391,
+        "dvX": 1.2118127548151536,
+        "dvZ": 4.823705453718853,
+        "eibX": {
+         "vol": 0.04145749537313076,
+         "mod": 0.02763833024875384,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.00458455283160291,
+         "mod": 0.002865345519751819,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 1.2354098219657081,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9952475768552309,
+        "cell": 1.0060518387180999,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1816,
+        "spaceAt": {
+         "t": 4.083333333333658,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.11666666666689,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 21.028
+    },
+    {
+     "id": "trunk0",
+     "label": "a trunk at 30 m/s, the centreline, 4 m AGL",
+     "want": "severe",
+     "D": {
+      "crashed": true,
+      "reason": "a fus member broke",
+      "gPeak": 36.95653251411728,
+      "breaks": 166
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 52.46540106851127,
+        "xPk": 247.11813020095866,
+        "yPk": 46.052495131177785,
+        "zPk": 157.43617606207528,
+        "dvX": 26.61849778255199,
+        "dvZ": 12.60830495449057,
+        "eibX": {
+         "vol": 2.268225209185039,
+         "mod": 1.5121501394566925,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.6595048211017546,
+         "mod": 0.4121905131885966,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 20.73128692312245,
+         "strength": 17.955000000000002,
+         "failed": true
+        },
+        "space": 0,
+        "cell": 5.434376670294653,
+        "parted": true,
+        "by": "dri",
+        "rows": {
+         "dri": 4,
+         "eibandX": 4,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 2,
+         "space": 4,
+         "cell": 4,
+         "parted": 4
+        },
+        "samples": 1133,
+        "spaceAt": {
+         "t": 1.416666666666841,
+         "by": 4
+        },
+        "cellAt": {
+         "t": 1.8833333333335807,
+         "edge": 9
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 4,
+       "crit": {
+        "dri": 53.9014659882008,
+        "xPk": 243.1956795211113,
+        "yPk": 45.30212995280326,
+        "zPk": 159.14212175166702,
+        "dvX": 26.175964651837152,
+        "dvZ": 12.946788153187667,
+        "eibX": {
+         "vol": 2.3300706751490114,
+         "mod": 1.553380450099341,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.4413783291894061,
+         "mod": 0.27586145574337884,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 20.65442270044016,
+         "strength": 17.955000000000002,
+         "failed": true
+        },
+        "space": 0,
+        "cell": 5.434376670294653,
+        "parted": true,
+        "by": "dri",
+        "rows": {
+         "dri": 4,
+         "eibandX": 4,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 2,
+         "space": 4,
+         "cell": 4,
+         "parted": 4
+        },
+        "samples": 1133,
+        "spaceAt": {
+         "t": 1.416666666666841,
+         "by": 4
+        },
+        "cellAt": {
+         "t": 1.8833333333335807,
+         "edge": 9
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       },
+       {
+        "name": "Co-pilot",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 10.016
+    },
+    {
+     "id": "trunk25",
+     "label": "a trunk at 30 m/s, the wing 2.5 m out, 4 m AGL",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a wing member broke",
+      "gPeak": 4.843498075805329,
+      "breaks": 30
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 9.419649819553767,
+        "xPk": 13.31447441531492,
+        "yPk": 4.942294010682485,
+        "zPk": 9.412637345567832,
+        "dvX": 4.543694425350442,
+        "dvZ": 5.620807090137103,
+        "eibX": {
+         "vol": 0.18026798218855636,
+         "mod": 0.1201786547923709,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.11322291230020451,
+         "mod": 0.07076432018762782,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.4303389171352094,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9187709584403227,
+        "cell": 1.0156070133079529,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3749,
+        "spaceAt": {
+         "t": 4.499999999999058,
+         "by": -56
+        },
+        "cellAt": {
+         "t": 1.6500000000002109,
+         "edge": 9
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.449222687875773,
+        "xPk": 11.292572978998427,
+        "yPk": 4.246757859437045,
+        "zPk": 8.127299999184252,
+        "dvX": 4.654010966653867,
+        "dvZ": 5.440579816103791,
+        "eibX": {
+         "vol": 0.17148500212899584,
+         "mod": 0.1143233347526639,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.14832854896613615,
+         "mod": 0.09270534310383509,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.0540625705692745,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9898874840393482,
+        "cell": 1.0156070133079529,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3749,
+        "spaceAt": {
+         "t": 2.1333333333336197,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 1.6500000000002109,
+         "edge": 9
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       },
+       {
+        "name": "Co-pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 9.419649819553767,
+        "xPk": 13.31447441531492,
+        "yPk": 4.942294010682485,
+        "zPk": 9.412637345567832,
+        "dvX": 4.543694425350442,
+        "dvZ": 5.620807090137103,
+        "eibX": {
+         "vol": 0.18026798218855636,
+         "mod": 0.1201786547923709,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.11322291230020451,
+         "mod": 0.07076432018762782,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.4303389171352094,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9187709584403227,
+        "cell": 1.0156070133079529,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3749,
+        "spaceAt": {
+         "t": 4.499999999999058,
+         "by": -56
+        },
+        "cellAt": {
+         "t": 1.6500000000002109,
+         "edge": 9
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 8.449222687875773,
+        "xPk": 11.292572978998427,
+        "yPk": 4.246757859437045,
+        "zPk": 8.127299999184252,
+        "dvX": 4.654010966653867,
+        "dvZ": 5.440579816103791,
+        "eibX": {
+         "vol": 0.17148500212899584,
+         "mod": 0.1143233347526639,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.14832854896613615,
+         "mod": 0.09270534310383509,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 3.0540625705692745,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9898874840393482,
+        "cell": 1.0156070133079529,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3749,
+        "spaceAt": {
+         "t": 2.1333333333336197,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 1.6500000000002109,
+         "edge": 9
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 15.579
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "34cb1bae",
+     "recOff": "34cb1bae",
+     "again": "34cb1bae",
+     "recOffHasOcc": false,
+     "sameBands": true
+    },
+    "intact": {
+     "hasOcc": true,
+     "buf": false,
+     "events": 0,
+     "pays": 0,
+     "armedN": 0,
+     "y": 472.8793226180098
+    }
+   }
+  },
+  {
+   "key": "floats",
+   "label": "Cessna floats",
+   "cases": [
+    {
+     "id": "far473w",
+     "label": "the drop onto the water at FAR 23.473's limit sink",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.386034994064226,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.4988583460613225,
+        "xPk": 2.5662173716562915,
+        "yPk": 0.2614366784157669,
+        "zPk": 2.9830909477721734,
+        "dvX": 3.013933203162019,
+        "dvZ": 3.765965363888709,
+        "eibX": {
+         "vol": 0.06058515785377259,
+         "mod": 0.04039010523584839,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.011449161917466158,
+         "mod": 0.007155726198416349,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.0024887562683626,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9874421266159201,
+        "cell": 1.0026509186307955,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1399,
+        "spaceAt": {
+         "t": 5.616666666662328,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 5.5166666666626325,
+         "edge": 3
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.49885927221695,
+        "xPk": 2.5662203244396626,
+        "yPk": 0.261425491583743,
+        "zPk": 2.9830922644007742,
+        "dvX": 3.0139306149317537,
+        "dvZ": 3.7659625559890646,
+        "eibX": {
+         "vol": 0.06058509878467002,
+         "mod": 0.04039006585644668,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.011448684378060826,
+         "mod": 0.0071554277362880165,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.002493134308787,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9874421752954075,
+        "cell": 1.0026509186307955,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1399,
+        "spaceAt": {
+         "t": 5.616666666662328,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 5.5166666666626325,
+         "edge": 3
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 86.497
+    },
+    {
+     "id": "float-nosein",
+     "label": "the float nose-in (90 km/h, 5 m/s, 20 deg; DMGWRECK's)",
+     "want": null,
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.6133966422280768,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.863838687979968,
+        "xPk": 1.1018784373313193,
+        "yPk": 0.18885489061396246,
+        "zPk": 4.211680951895673,
+        "dvX": 1.1173520566659614,
+        "dvZ": 4.3108685283306905,
+        "eibX": {
+         "vol": 0.027776100547824548,
+         "mod": 0.01767570034861562,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "eibY": {
+         "vol": 0.006407145753277788,
+         "mod": 0.004004466095798617,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.9721635191738591,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9838929276455511,
+        "cell": 1.0030286532490849,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1216,
+        "spaceAt": {
+         "t": 1.9333333333335885,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 1.9333333333335885,
+         "edge": 3
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.86383808300252,
+        "xPk": 1.1018784777948476,
+        "yPk": 0.1888540311447178,
+        "zPk": 4.211681329673007,
+        "dvX": 1.1173520800211068,
+        "dvZ": 4.310868430694527,
+        "eibX": {
+         "vol": 0.02777610891052907,
+         "mod": 0.017675705670336682,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "eibY": {
+         "vol": 0.0064071548952779455,
+         "mod": 0.004004471809548716,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.9721638118685174,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9838929285435498,
+        "cell": 1.0030286532490849,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1216,
+        "spaceAt": {
+         "t": 1.9333333333335885,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 1.9333333333335885,
+         "edge": 3
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 22.236
+    },
+    {
+     "id": "nosein-water",
+     "label": "a severe float nose-in (150 km/h, 10 m/s, 60 deg; DMGWRECK's)",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a gear member broke",
+      "gPeak": 35.32040780931116,
+      "breaks": 152
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 20.261751893928107,
+        "xPk": 160.63192509217274,
+        "yPk": 44.203152528586784,
+        "zPk": 64.37201509519207,
+        "dvX": 36.404871238958535,
+        "dvZ": 9.324869693025196,
+        "eibX": {
+         "vol": 2.1517625960666793,
+         "mod": 1.4345083973777863,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.5296469248167762,
+         "mod": 0.3310293280104851,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 9.169356219284197,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0,
+        "cell": 4.075341363906057,
+        "parted": false,
+        "by": "space",
+        "rows": {
+         "dri": 2,
+         "eibandX": 3,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 0,
+         "space": 4,
+         "cell": 4,
+         "parted": 0
+        },
+        "samples": 3433,
+        "spaceAt": {
+         "t": 1.7500000000002265,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.1166666666669505,
+         "edge": 9
+        }
+       }
+      },
+      {
+       "name": "Co-pilot",
+       "band": 4,
+       "crit": {
+        "dri": 16.25832353681192,
+        "xPk": 174.54640967523727,
+        "yPk": 30.757551703277166,
+        "zPk": 55.814485224688866,
+        "dvX": 34.89572170406122,
+        "dvZ": 9.240379790877617,
+        "eibX": {
+         "vol": 2.051690101086778,
+         "mod": 1.3677934007245185,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.905548652990209,
+         "mod": 0.5659679081188806,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 17.310981201362708,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0,
+        "cell": 4.075341363906057,
+        "parted": false,
+        "by": "space",
+        "rows": {
+         "dri": 1,
+         "eibandX": 3,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 0,
+         "space": 4,
+         "cell": 4,
+         "parted": 0
+        },
+        "samples": 3433,
+        "spaceAt": {
+         "t": 1.9500000000002577,
+         "by": 4
+        },
+        "cellAt": {
+         "t": 2.1166666666669505,
+         "edge": 9
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       },
+       {
+        "name": "Co-pilot",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot",
+      "Co-pilot"
+     ],
+     "secs": 14.728
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "6b6be27",
+     "recOff": "6b6be27",
+     "again": "6b6be27",
+     "recOffHasOcc": false,
+     "sameBands": true
+    }
+   }
+  },
+  {
+   "key": "twinFloats",
+   "label": "twin floatplane",
+   "cases": [
+    {
+     "id": "far473w",
+     "label": "the drop onto the water at FAR 23.473's limit sink",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 3.017100015787055,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 3.890044865701046,
+        "xPk": 1.0468319001750641,
+        "yPk": 0.03633983575669983,
+        "zPk": 2.861576929886294,
+        "dvX": 1.5233743795303614,
+        "dvZ": 2.362748676030516,
+        "eibX": {
+         "vol": 0.023268295957774146,
+         "mod": 0.015512197305182765,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.0008039882997505938,
+         "mod": 0.0005024926873441211,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.745275620176024,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.99764330547442,
+        "cell": 1.0044095833656697,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1033,
+        "spaceAt": {
+         "t": 5.249999999996777,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 5.249999999996777,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 83.956
+    },
+    {
+     "id": "float-nosein",
+     "label": "the float nose-in (90 km/h, 5 m/s, 20 deg; DMGWRECK's)",
+     "want": null,
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 5.617749425446131,
+      "breaks": 0
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 5.538281695872949,
+        "xPk": 7.034240925745204,
+        "yPk": 0.06778196770915426,
+        "zPk": 4.821791941669446,
+        "dvX": 9.663748933969384,
+        "dvZ": 11.208781837708885,
+        "eibX": {
+         "vol": 0.1826676181964545,
+         "mod": 0.10644911345472931,
+         "wV": 0.1,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.003216757579759018,
+         "mod": 0.002010473487349386,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 5.5588896544779605,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9942219903480962,
+        "cell": 1.0120420655592723,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 2149,
+        "spaceAt": {
+         "t": 0.16666666666666238,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 0.16666666666666238,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 5.538281695872949,
+        "xPk": 7.034240925745204,
+        "yPk": 0.06778196770915426,
+        "zPk": 4.821791941669446,
+        "dvX": 9.663748933969384,
+        "dvZ": 11.208781837708885,
+        "eibX": {
+         "vol": 0.1826676181964545,
+         "mod": 0.10644911345472931,
+         "wV": 0.1,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.003216757579759018,
+         "mod": 0.002010473487349386,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 5.5588896544779605,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.99057139476191,
+        "cell": 1.0201724728517194,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 2149,
+        "spaceAt": {
+         "t": 0.1333333333333305,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 0.1333333333333305,
+         "edge": 4
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 23.729
+    },
+    {
+     "id": "nosein-water",
+     "label": "a severe float nose-in (150 km/h, 10 m/s, 60 deg; DMGWRECK's)",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "broke up: the fuselage parted (TPB off the core)",
+      "gPeak": 25.253126491975195,
+      "breaks": 138
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 16.324314621449226,
+        "xPk": 81.60835093021902,
+        "yPk": 32.485491634215435,
+        "zPk": 139.97793556671357,
+        "dvX": 14.22214146190129,
+        "dvZ": 30.659953844167163,
+        "eibX": {
+         "vol": 1.4887482307289321,
+         "mod": 0.9924988204859547,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.3545911175180015,
+         "mod": 0.22161944844875092,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 28.602788932006863,
+         "strength": 17.955000000000002,
+         "failed": true
+        },
+        "space": 0,
+        "cell": 3.436994865594178,
+        "parted": false,
+        "by": "space",
+        "rows": {
+         "dri": 1,
+         "eibandX": 2,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 2,
+         "space": 4,
+         "cell": 4,
+         "parted": 0
+        },
+        "samples": 3049,
+        "spaceAt": {
+         "t": 1.416666666666841,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 1.8166666666669036,
+         "edge": 9
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot"
+     ],
+     "secs": 15.477
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "581d594c",
+     "recOff": "581d594c",
+     "again": "581d594c",
+     "recOffHasOcc": false,
+     "sameBands": true
+    }
+   }
+  },
+  {
+   "key": "cubFull",
+   "label": "Cub, the rear seat filled",
+   "cases": [
+    {
+     "id": "taxi",
+     "label": "a 3 m/s taxi into a trunk (TREECRASH's, the throttle shut)",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.6500505236360343,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 1.4874646471006874,
+        "xPk": 3.0183456844246033,
+        "yPk": 9.021576629560843e-10,
+        "zPk": 1.3622389870897718,
+        "dvX": 3.1031569526228457,
+        "dvZ": 0.212131613100343,
+        "eibX": {
+         "vol": 0.08158082676396612,
+         "mod": 0.05191507157706935,
+         "wV": 0.02,
+         "wM": 0.02
+        },
+        "eibY": {
+         "vol": 5.450378190942354e-12,
+         "mod": 3.4064863693389717e-12,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.855328936738814,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9988381254761695,
+        "cell": 1.0019965221126736,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1416,
+        "spaceAt": {
+         "t": 2.9999999999993014,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 2.9999999999993014,
+         "edge": 4
+        }
+       }
+      },
+      {
+       "name": "Passenger",
+       "band": 0,
+       "crit": {
+        "dri": 2.1546491280748192,
+        "xPk": 2.794696876704611,
+        "yPk": 2.389574164300759e-10,
+        "zPk": 2.27964076251563,
+        "dvX": 3.0432883080731266,
+        "dvZ": 0.9029429505804126,
+        "eibX": {
+         "vol": 0.07781418635054382,
+         "mod": 0.04980107926434805,
+         "wV": 0.04,
+         "wM": 0.04
+        },
+        "eibY": {
+         "vol": 4.67573865732033e-12,
+         "mod": 2.9223366608252064e-12,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 2.5698417220260903,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9993187691810886,
+        "cell": 1.0019965221126736,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1416,
+        "spaceAt": {
+         "t": 2.716666666666226,
+         "by": 5
+        },
+        "cellAt": {
+         "t": 2.9999999999993014,
+         "edge": 0
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Passenger"
+     ],
+     "secs": 38.46
+    },
+    {
+     "id": "far473",
+     "label": "the drop at FAR 23.473's limit sink, V_S0 forward, no lift",
+     "want": "unharmed",
+     "D": {
+      "crashed": false,
+      "reason": null,
+      "gPeak": 2.173239262769254,
+      "breaks": 0
+     },
+     "seats": null,
+     "restraint": null,
+     "restraintDefault": null,
+     "seatType": null,
+     "events": 0,
+     "open": false,
+     "wire": [],
+     "wireN": 0,
+     "resetPay": [],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 5.010171575587988,
+        "xPk": 0.7895285047811179,
+        "yPk": 1.3229966794503471e-11,
+        "zPk": 3.767333549930413,
+        "dvX": 0.4458394037079644,
+        "dvZ": 2.9129881004474654,
+        "eibX": {
+         "vol": 0.011908426918195011,
+         "mod": 0.007938951278796675,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 5.4763657116857806e-14,
+         "mod": 3.422728569803613e-14,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.3133454078126494,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9990184305839005,
+        "cell": 1.0033229624144637,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1116,
+        "spaceAt": {
+         "t": 4.63333333333115,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 4.533333333331241,
+         "edge": 4
+        }
+       }
+      },
+      {
+       "name": "Passenger",
+       "band": 0,
+       "crit": {
+        "dri": 6.081562926372286,
+        "xPk": 0.9104181523612225,
+        "yPk": 7.68794665485803e-12,
+        "zPk": 5.0597927915249885,
+        "dvX": 0.5082156147257257,
+        "dvZ": 2.9187209600382706,
+        "eibX": {
+         "vol": 0.015059512814195663,
+         "mod": 0.010039675209463776,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 2.0145424750472756e-13,
+         "mod": 1.2590890469045472e-13,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 0.41291040996399153,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9991895324574164,
+        "cell": 1.0033229624144637,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 1116,
+        "spaceAt": {
+         "t": 4.08333333333165,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 4.533333333331241,
+         "edge": 0
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Passenger"
+     ],
+     "secs": 12.632
+    },
+    {
+     "id": "trunk0",
+     "label": "a trunk at 30 m/s, the centreline, 4 m AGL",
+     "want": "severe",
+     "D": {
+      "crashed": true,
+      "reason": "broke up: the fuselage parted (TPB off the core)",
+      "gPeak": 25.373246877498342,
+      "breaks": 122
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 4,
+       "crit": {
+        "dri": 30.475590872727626,
+        "xPk": 301.83723942315675,
+        "yPk": 43.183876149832486,
+        "zPk": 195.90095439636045,
+        "dvX": 19.015185618943185,
+        "dvZ": 11.683017632578656,
+        "eibX": {
+         "vol": 0.9066298973588625,
+         "mod": 0.604419931572575,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.21246268919138536,
+         "mod": 0.13278918074461585,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 4.15048484786065,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0,
+        "cell": 16.35073358304332,
+        "parted": true,
+        "by": "dri",
+        "rows": {
+         "dri": 4,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 0,
+         "space": 4,
+         "cell": 4,
+         "parted": 4
+        },
+        "samples": 983,
+        "spaceAt": {
+         "t": 1.6000000000001484,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.2166666666666806,
+         "edge": 11
+        }
+       }
+      },
+      {
+       "name": "Passenger",
+       "band": 4,
+       "crit": {
+        "dri": 10.73465160250699,
+        "xPk": 133.18975057954057,
+        "yPk": 18.62154106150593,
+        "zPk": 40.25977538980021,
+        "dvX": 14.046216246803166,
+        "dvZ": 16.50156002049282,
+        "eibX": {
+         "vol": 0.7183099480910135,
+         "mod": 0.4788732987273423,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.13249225111567853,
+         "mod": 0.08280765694729908,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": true,
+        "restraint": {
+         "load": 18.99355489951192,
+         "strength": 17.955000000000002,
+         "failed": true
+        },
+        "space": 0,
+        "cell": 15.1131590508232,
+        "parted": true,
+        "by": "space",
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 2,
+         "restraint": 2,
+         "space": 4,
+         "cell": 4,
+         "parted": 4
+        },
+        "samples": 983,
+        "spaceAt": {
+         "t": 1.4166666666667864,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.2166666666666806,
+         "edge": 3
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 4
+       },
+       {
+        "name": "Passenger",
+        "band": 4
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": null,
+     "seatsAboard": [
+      "Pilot",
+      "Passenger"
+     ],
+     "secs": 8.677
+    },
+    {
+     "id": "trunk25",
+     "label": "a trunk at 30 m/s, the wing 2.5 m out, 4 m AGL",
+     "want": null,
+     "D": {
+      "crashed": true,
+      "reason": "a wing member broke",
+      "gPeak": 9.598515897118116,
+      "breaks": 54
+     },
+     "seats": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.88242080733271,
+        "xPk": 13.341764118905104,
+        "yPk": 11.532449452029102,
+        "zPk": 6.985389300516034,
+        "dvX": 6.986938768078512,
+        "dvZ": 2.7064909944424635,
+        "eibX": {
+         "vol": 0.294831206867848,
+         "mod": 0.19655413791189866,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.5180163296270462,
+         "mod": 0.3237602060169039,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 8.831390536192313,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.8574171929801542,
+        "cell": 1.008548680059238,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3733,
+        "spaceAt": {
+         "t": 2.5499999999997107,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 2.683333333332923,
+         "edge": 11
+        }
+       }
+      },
+      {
+       "name": "Passenger",
+       "band": 0,
+       "crit": {
+        "dri": 6.015441299828171,
+        "xPk": 15.919573137486854,
+        "yPk": 13.39525766082896,
+        "zPk": 6.576132006955973,
+        "dvX": 7.051238842601301,
+        "dvZ": 3.8809607461566964,
+        "eibX": {
+         "vol": 0.33956090746379414,
+         "mod": 0.2263739383091961,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.5086093338501323,
+         "mod": 0.3178808336563327,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 10.371720859325592,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9841622527372486,
+        "cell": 1.055569192302,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3733,
+        "spaceAt": {
+         "t": 2.683333333332923,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.749999999999529,
+         "edge": 11
+        }
+       }
+      }
+     ],
+     "restraint": "harness",
+     "restraintDefault": true,
+     "seatType": "sling",
+     "events": 1,
+     "open": false,
+     "wire": [
+      [
+       {
+        "name": "Pilot",
+        "band": 0
+       },
+       {
+        "name": "Passenger",
+        "band": 0
+       }
+      ]
+     ],
+     "wireN": 1,
+     "resetPay": [
+      null
+     ],
+     "measured": [
+      {
+       "name": "Pilot",
+       "band": 0,
+       "crit": {
+        "dri": 4.88242080733271,
+        "xPk": 13.341764118905104,
+        "yPk": 11.532449452029102,
+        "zPk": 6.985389300516034,
+        "dvX": 6.986938768078512,
+        "dvZ": 2.7064909944424635,
+        "eibX": {
+         "vol": 0.294831206867848,
+         "mod": 0.19655413791189866,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.5180163296270462,
+         "mod": 0.3237602060169039,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 8.831390536192313,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.8574171929801542,
+        "cell": 1.008548680059238,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3733,
+        "spaceAt": {
+         "t": 2.5499999999997107,
+         "by": 3
+        },
+        "cellAt": {
+         "t": 2.683333333332923,
+         "edge": 11
+        }
+       }
+      },
+      {
+       "name": "Passenger",
+       "band": 0,
+       "crit": {
+        "dri": 6.015441299828171,
+        "xPk": 15.919573137486854,
+        "yPk": 13.39525766082896,
+        "zPk": 6.576132006955973,
+        "dvX": 7.051238842601301,
+        "dvZ": 3.8809607461566964,
+        "eibX": {
+         "vol": 0.33956090746379414,
+         "mod": 0.2263739383091961,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "eibY": {
+         "vol": 0.5086093338501323,
+         "mod": 0.3178808336563327,
+         "wV": 0.01,
+         "wM": 0.01
+        },
+        "far562": false,
+        "restraint": {
+         "load": 10.371720859325592,
+         "strength": 17.955000000000002,
+         "failed": false
+        },
+        "space": 0.9841622527372486,
+        "cell": 1.055569192302,
+        "parted": false,
+        "by": null,
+        "rows": {
+         "dri": 0,
+         "eibandX": 0,
+         "eibandY": 0,
+         "far562": 0,
+         "restraint": 0,
+         "space": 0,
+         "cell": 0,
+         "parted": 0
+        },
+        "samples": 3733,
+        "spaceAt": {
+         "t": 2.683333333332923,
+         "by": 0
+        },
+        "cellAt": {
+         "t": 2.749999999999529,
+         "edge": 11
+        }
+       }
+      }
+     ],
+     "seatsAboard": [
+      "Pilot",
+      "Passenger"
+     ],
+     "secs": 14.665
+    }
+   ],
+   "rows": {
+    "off": {
+     "hasOcc": false,
+     "occKey": false,
+     "pay": 0,
+     "crashed": false
+    },
+    "bits": {
+     "on": "5a9a559b",
+     "recOff": "5a9a559b",
+     "again": "5a9a559b",
+     "recOffHasOcc": false,
+     "sameBands": true
+    },
+    "intact": {
+     "hasOcc": true,
+     "buf": false,
+     "events": 0,
+     "pays": 0,
+     "armedN": 0,
+     "y": 422.5073338708738
+    }
+   }
+  }
+ ],
+ "page": {
+  "fault": "",
+  "t": {
+   "garage": 247318,
+   "crash": 12143
+  },
+  "errors": [],
+  "live": true,
+  "occView": true,
+  "over": true,
+  "simT": 10.37,
+  "occAt": 3.73,
+  "occ": [
+   {
+    "name": "Pilot",
+    "band": 4
+   }
+  ],
+  "verdict": "broke up: the fuselage parted (TPB off the core)",
+  "cardHidden": false,
+  "cardWreck": true,
+  "rows": [
+   [
+    "outcome",
+    "broke up"
+   ],
+   [
+    "Pilot",
+    "Fatal injuries"
+   ],
+   [
+    "flight time",
+    "10 s"
+   ],
+   [
+    "distance",
+    "0.0 km"
+   ],
+   [
+    "peak strain",
+    "11925.24 %"
+   ]
+  ],
+  "rowsHTML": "<div><span>outcome</span><b>broke up</b></div><div><span>Pilot</span><b>Fatal injuries</b></div><div><span>flight time</span><b>10 s</b></div><div><span>distance</span><b>0.0 km</b></div><div><span>peak strain</span><b class=\"warn\">11925.24 %</b></div>",
+  "cardText": "\n    Short of Jolene AFB 13/31broke up\n    outcomebroke upPilotFatal injuriesflight time10 sdistance0.0 kmpeak strain11925.24 %\n    \n    \n      Log the flight\n      What went wrong\n    \n  ",
+  "strays": 0,
+  "werr": [],
+  "mem": 3875,
+  "pageTextChars": 72276
+ }
+}

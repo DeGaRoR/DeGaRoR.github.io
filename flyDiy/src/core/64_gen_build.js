@@ -67,7 +67,11 @@ function genClMax(def, flap) {
   // negative, and the ATTITUDE the peak occurs at is now a return value.
   // Numerically inert for CLmax — -2 + 16*0.25 lands exactly on the old 2, so
   // the grid is identical and nothing below the stall can out-lift the peak.
-  for (let a = -2; a <= 22; a += 0.25) {
+  // G2820: a STOL wing (slats, VGs, a cuff) stalls past 22 deg - the sweep
+  // runs on to the devices' cap, on that wing only (every other wing's grid
+  // is the one it always had)
+  const aTop = def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0)) ? 22 + Math.ceil(GEN_STOL.dAsMax * 180 / Math.PI) : 22;
+  for (let a = -2; a <= aTop; a += 0.25) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * CORE_MATH.cos(al), -V * CORE_MATH.sin(al), 0]);
     const L = -r.Fx * CORE_MATH.sin(al) + r.Fy * CORE_MATH.cos(al);
@@ -106,8 +110,9 @@ function genTrim(def) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   // G185: the lowest of the planes' stall angles bounds the trim search
+  // G2822: each plane's stall angle as it flies (its STOL devices' gain on it; the section's own without)
   const aMax = 0.85 * (def.params.polarWings || [def.params.polarWing])
-    .reduce((m, p) => Math.min(m, p.aStall), Infinity);
+    .reduce((m, p, k) => Math.min(m, def.params.polarWings ? genStallAngle(def, p, k) : genStallAngle(def, p)), Infinity);
   // through the SIM, so the sheet and the aeroplane cannot disagree about how
   // much thrust there is in this air (G72). Identical at the datum.
   const Tav = v => sim.thrustAt(v, 1);
@@ -179,6 +184,8 @@ function genTrim(def) {
     def.params.gen.liftSplit = fin.r.planeFy.map(v => (v || 0) / tot);
   }
 
+  // G2826: a STOL wing's approach is flown at the speed its elevator can hold (measured on the stab trim just solved)
+  genStolHeld(def);
   // ---- THE APPROACH, MEASURED --------------------------------------------
   // The glideslope, the approach throttle and the pitch floor used to be the
   // Cub's three constants (gs 0.0786, thrAppr 0.35, vsFloor -0.08) on every
@@ -236,11 +243,12 @@ function genTrim(def) {
     // the five validated builds only that Cub moves (the C172-alike sits at -0.153: inside, by 0.001 - flown, its
     // final holds -0.07). The budget a trim de is judged against:
     const trimBudget = de => 0.18 * (de < 0 ? -SERVO_GAINS.deMin / SERVO_GAINS.deMax : 1);
-    const rat = g.Vs / Math.max(1e-6, g.VsFlap);          // back onto the clean stall
+    const rat = g.Vs / Math.max(1e-6, g.VsFlapAP || g.VsFlap);   // back onto the clean stall (G2826: from the held one)
     const landFlapless = () => {
       def.params.flaps.ldg = 0;          // the AP's flap schedule reads this
       A.VAppr *= rat; A.VApprShort *= rat;
       g.VsFlap = g.Vs; g.landsFlapless = true;
+      if (g.VsFlapAP !== undefined) { delete g.VsFlapAP; delete g.VsHeld; }   // G2826: flapless, the held flap speed goes
       return genTrim(def);               // re-measure the lot at the new config
     };
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr) && ldg > 0) {
@@ -266,7 +274,7 @@ function genTrim(def) {
     if (ldg > 0) {
       const flapWas = sim.ctl.flap;
       sim.ctl.flap = ldg;
-      const Vtd = 1.10 * g.VsFlap;
+      const Vtd = 1.10 * (g.VsFlapAP || g.VsFlap);       // G2826: a STOL wing's held touchdown
       g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
       if (g.deFlare > 0.35) {
         sim.ctl.flap = 0;
@@ -279,11 +287,21 @@ function genTrim(def) {
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr)) g.apprTrimFail = g.deAppr;
     g.W = W;
     g.alphaAppr = aA;
+    // G2811: THE APPROACH POINT ON THE CLEAN WING. The pilot's trim-attitude fit runs through (VCruise, alphaCruise)
+    // and the approach point (VAppr, alphaAppr) - the LANDING configuration's - and flew it in every configuration. A
+    // notch build's take-off read it low (the Jodel on 0.7: its approach 24.2 m/s at 0.032 rad, flapless 27.4 at 0.111):
+    // the ground-effect run-up let the nose down and it hopped off three times. The clean point - the approach speed on
+    // the clean stall (the same instrument: VsMeas over VsFlap) and the clean wing's attitude there - is what the pilot
+    // flies until the flap goes past its take-off setting (43_pilot tAlphaAt). A flapless lander's is its own exactly
+    if (ldg > 0) {
+      g.VApprClean = Va * (g.VsMeas || g.Vs) / Math.max(1e-6, g.VsFlap);
+      sim.ctl.flap = 0; g.alphaApprClean = genAlphaForLift(sim, g.VApprClean, W, aMax); sim.ctl.flap = ldg;
+    } else { g.VApprClean = Va; g.alphaApprClean = aA; }
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
     g.dragAppr = rA.drag;
     g.TavailAppr = Tav(Va);
     // arrival attitude, for the flare ceiling
-    g.alphaTD = genAlphaForLift(sim, 1.10 * g.VsFlap, W, aMax);
+    g.alphaTD = genAlphaForLift(sim, 1.10 * (g.VsFlapAP || g.VsFlap), W, aMax);
     sim.ctl.flap = 0;
     // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
     g.gammaClimb = Math.max(0.004, genClimbAt(sim, def, W, aMax));
@@ -308,10 +326,13 @@ function genTrim(def) {
 // ---------------------------------------------------------------------------
 
 // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
-function genClimbAt(sim, def, W, aMax) {
+// (G3461, BELLY-POD-2: `cdaOff` m2 of drag area taken off the probe - the aeroplane WITHOUT its belly pod, the pod
+// sheet's own comparison; absent, nothing is subtracted and the number is the one it always was)
+function genClimbAt(sim, def, W, aMax, cdaOff) {
   const A = def.params.ap;
   const Vc = A.VClimb / sim.probeAir().easK;      // the EAS, flown as a TAS
   const rc = genProbeAt(sim, Vc, genAlphaForLift(sim, Vc, W, aMax));
+  if (cdaOff) rc.drag -= 0.5 * RHO * Vc * Vc * cdaOff;
   // RAW, and deliberately allowed to go negative. genTrim floors it at 0.004
   // because the autopilot's circuit geometry divides by it; a CEILING search
   // has to be able to see the gradient reach zero and pass through it, and a
@@ -343,8 +364,11 @@ function genClimbAt(sim, def, W, aMax) {
 // The roll used to integrate at ZERO body alpha ("conservative, deliberately");
 // since PERF STUDY chantier 3 it integrates at the attitude the pilot runs
 // it (three-point to VTailUp, then A.thTailUp) — see the loop.
-function genTORunAt(sim, def, W) {
+// (G3461, BELLY-POD-2: `cut` = { cda, m } - the roll of the same aeroplane with `cda` m2 less drag area and `m` its
+// mass: the belly pod's sheet asks it WITHOUT the pod; absent, the roll it always was)
+function genTORunAt(sim, def, W, cut) {
   const A_ = def.params.ap;
+  const cutQ = cut && cut.cda ? 0.5 * RHO * cut.cda : 0, mRoll = cut && cut.m > 0 ? cut.m : sim.totalM;
   // THE ROLL HAPPENS IN GROUND EFFECT (G159), and leaving it out was worth
   // 8 % of lift and therefore 15 % of the roll. The wheels are on the ground:
   // h/b is the aeroplane's own geometry, not the terrain's, so this is not the
@@ -382,8 +406,9 @@ function genTORunAt(sim, def, W) {
     const Vi = Vun * (i + 0.5) / NS;
     const Ti = sim.thrustAt(Vi, 0);
     const ri = genProbeAt(sim, Vi, thRest > 0 && Vi < vTU ? thRest : thRun);
+    if (cutQ) ri.drag -= cutQ * Vi * Vi;
     const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
-    const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
+    const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / mRoll);
     sRoll += Vi * (Vun / NS) / ai;
   }
   // AIR SEGMENT, unstick to 2.5 m — DERIVED now (G115; the review's S7: the
@@ -396,6 +421,7 @@ function genTORunAt(sim, def, W) {
   // leaving, and the ROLL rejection is the number that matters.
   const W2 = W, Vscr = 1.15 * Vun;
   const rm = genProbeAt(sim, 1.10 * Vun, 0.06);
+  if (cutQ) rm.drag -= cutQ * 1.21 * Vun * Vun;
   const grad = Math.max(0.015,
     (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
   const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
@@ -424,7 +450,7 @@ function genShakedown(def, opts) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   const V = def.params.ap.VCruise;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
   const a = genAlphaForLift(sim, V, W, aMax);
   const r0 = genProbeAt(sim, V, a), r1 = genProbeAt(sim, V, a + 0.02);
   // THE GLIDE RATIO, MEASURED (G179.4, the user: "I struggle to pass the
@@ -635,6 +661,18 @@ function genShakedown(def, opts) {
     out.propClear = ((S.engAt ? Math.min(...S.engAt.map(e => e.y)) : S.engY)
                      - S.propR) - ground;
     out.engMount = S.engAt ? S.engAt[0].mount : 'nose';
+    // G2790 ENGINE-CONFIGS: THE REAR DISC BETWEEN THE BOOMS. A push-pull's
+    // pusher turns between the twin booms (the Skymaster's whole layout):
+    // the clearance is each boom's inner face (its station less its drawn
+    // radius) less the disc's radius, and the stab sits that many metres
+    // aft of the disc. Said only for a layout, so no other plaque moves.
+    if (S.engLayout === 'pushPull') {
+      const t = S.tail, pu = S.engAt.find(e => e.mount === 'pusher');
+      const tb = t.type === 'twinBoom' && t.boomX > 0 && t.boomLen > 0;
+      out.engLayout = S.engLayout;
+      out.propBoomClear = tb ? t.boomX - Math.max(0.04, t.boomR || 0.09) - S.propR : null;
+      out.propStabClear = (tb && pu && t.hX != null) ? t.hX - pu.x : null;
+    } else if (S.engLayout === 'tri' || S.engLayout === 'quad') out.engLayout = S.engLayout;
     out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
@@ -756,6 +794,23 @@ function genShakedown(def, opts) {
       out.pod.cruise = { vWith, vWithout, dV: vWith - vWithout, dPct: vWithout > 0 ? (vWith / vWithout - 1) : 0,
                          dClimb: -0.5 * RHO * Vc * Vc * Vc * pd.cda / Math.max(1, W),
                          dRangePct: vWithout > 0 ? (vWith / vWithout - 1) : 0 };
+      // G3461 (BELLY-POD-2): THE PENALTY ON THE PERFORMANCE SHEET - this aeroplane against the SAME aeroplane with no
+      // pod at all (its drag area AND its shell's kilograms taken off; the freight in it, if any, stays aboard: it
+      // would ride somewhere), each by the sheet's own rule: the take-off to 2.5 m (genTORunAt, the roll in ground
+      // effect with the take-off notch), the climb at VClimb (genClimbAt x VClimb), the cruise (the rule above, at the
+      // lighter weight too). Deterministic: the probe is.
+      {
+        const m0 = Math.max(1, sim.totalM - R.shellKg), W0 = m0 * 9.81, vc = ap0.VClimb ? ap0.VClimb / sim.probeAir().easK : 0;
+        const to1 = genTORunAt(sim, def, W), to0 = genTORunAt(sim, def, W0, { cda: pd.cda, m: m0 });
+        const cl1 = genClimbAt(sim, def, W, aMax) * vc, cl0 = genClimbAt(sim, def, W0, aMax, pd.cda) * vc;
+        const dragAt0 = v => genProbeAt(sim, v, genAlphaForLift(sim, v, W0, aMax)).drag - 0.5 * RHO * v * v * pd.cda;
+        let lo = Math.max(1.05 * Vs0, out.VbestLD || 0), hi = 4 * Vs0, v0;
+        if (dragAt0(lo) >= 0.65 * sim.thrustAt(lo, 1)) v0 = lo;
+        else { for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt0(m) < 0.65 * sim.thrustAt(m, 1)) lo = m; else hi = m; } v0 = 0.5 * (lo + hi); }
+        out.pod.perf = { toWith: to1.TORun, toWithout: to0.TORun, dTO: to1.TORun - to0.TORun,
+                         climbWith: cl1, climbWithout: cl0, dClimb: cl1 - cl0,
+                         cruiseWith: vWith, cruiseWithout: v0, dCruise: vWith - v0, shellKg: R.shellKg };
+      }
     }
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the
@@ -820,9 +875,9 @@ function genShakedown(def, opts) {
     } catch (e) {}
   }
   // THE CG ENVELOPE (2026-09-03). Every balance number above is quoted at
-  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of dummies the
-  // cage has switched on, `pax` the seats they fill, fuel as specified. A
-  // builder who leaves the second dummy on reads the two-up margin, and one
+  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of occupants the
+  // cage has seated, `pax` the seats they fill, fuel as specified. A
+  // builder who seats the second occupant reads the two-up margin, and one
   // who switches it off reads the solo margin — and neither is the number a
   // real aeroplane is certified on, which is a RANGE. (The user, on finding
   // both reference builds reading negative: "are we gathering the numbers
@@ -883,6 +938,17 @@ function genShakedown(def, opts) {
   }
   // G2410: the pod loaded to its rated load - the CG it makes, against the corners' range and the neutral point
   if (out.pod && P && P.pod) out.pod.balance = genPodBalance(out, P.pod);
+  // G2640 DESIGN-TRUST: THE DESIGN CHECK (64b_gen_design.js) - the derivatives,
+  // the modes, the rows with their pointers, off this same sim; read by the
+  // bench check and CERT-SLIM. ~3 ms; not on a slim sheet (the corners, the
+  // reserve) and never fatal to the sheet it rides on.
+  if (!(opts && opts.slim) && typeof genDesignCheck === 'function') {
+    try { out.design = genDesignCheck(def, out, sim); } catch (e) { out.design = null; }
+  }
+  // STOL-PILOT: WHAT THE STOL DEVICES BUY (genStolGain, below) rides the sheet the page builds post-idle or in its worker -
+  // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
+  // gets the key; every other shakedown is the same object as before
+  if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
   return out;
 }
 
@@ -965,7 +1031,7 @@ function buildGen(specIn) {
     if (S.gear[k] === null || S.gear[k] === undefined) S._auto['gear.' + k] = true;
     S.gear[k] = v;
   }
-  const strips = genStrips(S, fr);
+  const strips = genStripsLayout(S, fr, genStrips(S, fr));   // (ENGINE-CONFIGS-2: a layout's strips name their disc)
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;
@@ -1035,6 +1101,82 @@ function buildGen(specIn) {
   return def;
 }
 
+// G2826 (STOL-WING-2): THE SLOWEST SPEED THE ELEVATOR CAN HOLD THE LANDING CONFIGURATION AT - on a STOL wing only.
+// A slat, a slot, VGs or a cuff move the wing's stall to a higher angle than the clean wing's, and so a lower
+// measured Vs0; the autopilot's ladder (Vref = 1.30 Vs0, the touchdown at 1.10 Vs0) then asks the flare for an
+// attitude the elevator may not reach. G970's flare budget catches exactly that - and its cure, land FLAPLESS, is the
+// wrong one here: measured on the user's Cub with a VG row, the flapped flare needed more than the stop at the new
+// 1.10 Vs0, the rule sent it in flapless at the clean stall and its landing roll went from 62 m to 160. A pilot keeps
+// the flap and flies the approach at what the elevator can hold (the Storch, the Courier: their tails are sized for
+// the slat; a Cub with slats needs the elevator it has to say how slow). So: prop off, the landing flap, the CG as
+// built, the cruise stab trim genTrim has just solved (the trim's own conditions), alpha swept up to the trim's cap; the highest attitude the elevator holds at
+// DE_HOLD (0.349: G970's budget, the AP's 0.35 stop) is the touchdown attitude, its lift the touchdown speed
+// Vheld, and the autopilot's Vs0 becomes Vheld / 1.10 (gen.VsFlapAP; the approach scales with it). The STALL stays
+// the measured one (gen.VsFlap - the plaque, the bench, the design check's ctl.flare says the gap). A wing whose
+// elevator reaches its slatted stall, and every wing without a stall-angle device, gets no key: the same bits.
+function genStolHeld(def) {
+  if (!def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return;
+  const P = def.params, g = P.gen, A = P.ap;
+  if (g.VsFlapAP !== undefined || g.landsFlapless) return;      // once (genTrim re-enters after a flapless verdict)
+  const ldg = P.flaps ? (P.flaps.ldg ?? 1) : 0;
+  const Vs0 = ldg > 0 ? g.VsFlap : (g.VsMeas || g.Vs);
+  if (!(Vs0 > 0)) return;
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  sim.ctl.flap = ldg;
+  const W = sim.totalM * 9.81, V = 1.10 * Vs0, DE_HOLD = 0.349;   // G970: the flare budget is the stop, 0.35
+  const aMax = 0.85 * genStallAngle(def);
+  const deAt = a => {
+    sim.ctl.de = 0; const r0 = genProbeAt(sim, V, a);
+    sim.ctl.de = 0.20; const m1 = genProbeAt(sim, V, a).pitchUp;
+    sim.ctl.de = 0;
+    const d = (m1 - r0.pitchUp) / 0.20;
+    return { de: Math.abs(d) < 1e-9 ? 0 : -r0.pitchUp / d, Fy: r0.Fy };
+  };
+  if (deAt(aMax).de <= DE_HOLD) return;                 // the elevator reaches the wing's whole range
+  // the attitude where the elevator runs out (bisection: de rises with alpha on a stable aeroplane)
+  let lo = 0, hi = aMax;
+  if (deAt(lo).de > DE_HOLD) return;                    // not even level: G970's budget says it, not this
+  for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (deAt(m).de <= DE_HOLD) lo = m; else hi = m; }
+  const Fy = deAt(lo).Fy;
+  if (!(Fy > 0)) return;
+  const Vheld = V * Math.sqrt(W / Fy);                  // the speed at which that attitude carries the weight
+  const VsAP = Vheld / 1.10;
+  if (!(VsAP > Vs0)) return;
+  A.VAppr *= VsAP / Vs0;
+  A.VApprShort *= VsAP / Vs0;
+  g.VsFlapAP = VsAP;
+  g.VsHeld = Vheld;
+}
+
+// STOL-PILOT (27 Oct): WHAT THE DEVICES BUY THE LANDING - the stall speed the same wing would have WITHOUT its STOL
+// devices, in the landing configuration: the highest lift each wing makes over a sweep of attitudes (prop off, the
+// landing flap, 0.5 deg steps to 35 deg), the device-less one off the same def with every strip's `stol` key taken off.
+// Returns { gain, VsPlain0 } - gain = sqrt(Lmax plain / Lmax with the devices) (the slot + VGs of the showcase Cub
+// 0.85), VsPlain0 = the measured flapped stall / gain - or null on a wing without a stall-angle device (genStolHeld's
+// own test). Carried on the shakedown (`stolGain`, genShakedown) for the autopilot (43_pilot stolSheet); writes nothing on
+// the def
+function genStolGain(def) {
+  if (!def.strips || !def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return null;
+  const P = def.params, g = P.gen || {};
+  const ldg = P.flaps ? (P.flaps.ldg ?? 1) : 0;
+  const Vs0 = ldg > 0 && !g.landsFlapless ? g.VsFlap : (g.VsMeas || g.Vs);
+  if (!(Vs0 > 0)) return null;
+  const lmax = d => {
+    const sim = makeSim(d, null);
+    sim.reset(0);
+    sim.ctl.flap = ldg;
+    let m = 0;
+    for (let a = 0; a < 0.611; a += 0.0087) m = Math.max(m, genProbeAt(sim, 15, a).Fy);
+    return m;
+  };
+  const plain = Object.assign({}, def, { strips: def.strips.map(st => { if (!st.stol) return st; const o = Object.assign({}, st); delete o.stol; return o; }) });
+  const Ld = lmax(def), Lp = lmax(plain);
+  if (!(Ld > 0 && Lp > 0)) return null;
+  const gain = Math.sqrt(Lp / Ld);
+  return { gain, VsPlain0: Vs0 / gain };
+}
+
 // ---------------------------------------------------------------------------
 // THE DENSITY-ALTITUDE SHEET (G72) — the bench's second instant test.
 //
@@ -1073,7 +1215,7 @@ function genDensityAlt(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
 
   const at = (h, dISA) => {
     sim.setAtmos(dISA ? makeAtmos({ dISA }) : ATMOS_ISA, h);

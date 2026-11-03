@@ -1,0 +1,36 @@
+=== PILOT ===
+--- shard 0/3 (523.9 s) ---
+  ok     box: NAV closes on the waypoint (2228 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+--- shard 1/3 (346.8 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+--- shard 2/3 (404.9 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+=== TAKEOFF ===
+crosswind limit 3.5 m/s (band 12.5 m, roll 9.4 m at the limit; first failure 4 m/s, 17.17 m) in 26.5 s CPU, 39.1 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.3 (1.08 Vs)  lifts 1 (first at 17.3)  touch-after 0  qMax 3.8 deg/s  run 105 m  to 15 m 313 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -3.4 deg/s  run 176 m  to 15 m 484 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof - (0.00 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax -12.5 deg/s  run - m  to 15 m - m  ABORT wont-climb
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.7 (1.13 Vs)  lifts 1 (first at 27.7)  touch-after 0  qMax 7.0 deg/s  run 321 m  to 15 m 461 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 21.1 (1.31 Vs)  lifts 1 (first at 21.1)  touch-after 0  qMax -9.0 deg/s  run 87 m  to 15 m 175 m
+  twinf  water  Vs 18.4 Vr 18.7 Vlof 28.3 (1.54 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 7.6 deg/s  run 182 m  to 15 m 309 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.3 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 26.3 s; max |cross| 3.1 m, past an end -5.1 m, off the surface 0.0 s; LIFTOFF (airborne); backtrack,pivot,committed-takeoff
+  FAIL technique c172: airborne — ABORT
+GATE TAKEOFF: FAIL
+(exit code 1)
+
+──────── summary ────────
+PILOT     PASS   523.9 s  [3 shards]
+TAKEOFF   FAIL   624.5 s
+total           1148.4 s
+wall             971.3 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.

@@ -1,0 +1,226 @@
+{
+ "cub": {
+  "name": "cub",
+  "flat": true,
+  "bad": false,
+  "phase": "STOPPED",
+  "outcome": "completed",
+  "t": 249,
+  "at": "HOME",
+  "sink": 1.4,
+  "V": 50,
+  "crashed": false,
+  "reason": null,
+  "phases": [
+   [
+    0,
+    "ROLL"
+   ],
+   [
+    11,
+    "LIFTOFF"
+   ],
+   [
+    22,
+    "CLIMB"
+   ],
+   [
+    39,
+    "CROSSWIND"
+   ],
+   [
+    57,
+    "DOWNWIND"
+   ],
+   [
+    124,
+    "BASE"
+   ],
+   [
+    145,
+    "FINAL"
+   ],
+   [
+    233,
+    "FLARE"
+   ],
+   [
+    239,
+    "ROLLOUT"
+   ],
+   [
+    249,
+    "STOPPED"
+   ]
+  ],
+  "wallMs": 38662
+ },
+ "cubA": {
+  "name": "cubA",
+  "flat": false,
+  "bad": false,
+  "phase": "STOPPED",
+  "outcome": "completed",
+  "t": 249,
+  "at": "HOME",
+  "sink": 1.4,
+  "V": 50,
+  "crashed": false,
+  "reason": null,
+  "phases": [
+   [
+    0,
+    "ROLL"
+   ],
+   [
+    11,
+    "LIFTOFF"
+   ],
+   [
+    23,
+    "CLIMB"
+   ],
+   [
+    39,
+    "CROSSWIND"
+   ],
+   [
+    57,
+    "DOWNWIND"
+   ],
+   [
+    124,
+    "BASE"
+   ],
+   [
+    145,
+    "FINAL"
+   ],
+   [
+    233,
+    "FLARE"
+   ],
+   [
+    239,
+    "ROLLOUT"
+   ],
+   [
+    249,
+    "STOPPED"
+   ]
+  ],
+  "wallMs": 40470
+ },
+ "c172": {
+  "name": "c172",
+  "flat": true,
+  "bad": false,
+  "phase": "STOPPED",
+  "outcome": "completed",
+  "t": 328,
+  "at": "HOME",
+  "sink": 1.13,
+  "V": 80,
+  "crashed": false,
+  "reason": null,
+  "phases": [
+   [
+    0,
+    "ROLL"
+   ],
+   [
+    18,
+    "LIFTOFF"
+   ],
+   [
+    32,
+    "CLIMB"
+   ],
+   [
+    57,
+    "CROSSWIND"
+   ],
+   [
+    88,
+    "DOWNWIND"
+   ],
+   [
+    166,
+    "BASE"
+   ],
+   [
+    202,
+    "FINAL"
+   ],
+   [
+    302,
+    "FLARE"
+   ],
+   [
+    308,
+    "ROLLOUT"
+   ],
+   [
+    328,
+    "STOPPED"
+   ]
+  ],
+  "wallMs": 118229
+ },
+ "jodel": {
+  "name": "jodel",
+  "flat": true,
+  "bad": false,
+  "phase": "STOPPED",
+  "outcome": "completed",
+  "t": 353,
+  "at": "HOME",
+  "sink": 1,
+  "V": 78,
+  "crashed": false,
+  "reason": null,
+  "phases": [
+   [
+    0,
+    "ROLL"
+   ],
+   [
+    16,
+    "LIFTOFF"
+   ],
+   [
+    32,
+    "CLIMB"
+   ],
+   [
+    58,
+    "CROSSWIND"
+   ],
+   [
+    80,
+    "DOWNWIND"
+   ],
+   [
+    193,
+    "BASE"
+   ],
+   [
+    213,
+    "FINAL"
+   ],
+   [
+    327,
+    "FLARE"
+   ],
+   [
+    332,
+    "ROLLOUT"
+   ],
+   [
+    353,
+    "STOPPED"
+   ]
+  ],
+  "wallMs": 123788
+ }
+}

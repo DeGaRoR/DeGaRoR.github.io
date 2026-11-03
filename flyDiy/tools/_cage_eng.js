@@ -41,6 +41,9 @@ if (!EM || !EP || !CW || !EP.GROUPS) {
   console.error('cage engine layer: _eng_mesh/_eng_page/_cowl_gen not loaded');
   return;
 }
+// CABIN-CRAFT, the FIREWALL RULE (_cage_cowl.js engineFaces): a cowled pusher - or a push-pull, whose aft unit is
+// one - stands on the pod's face whatever the block rows say
+const cowledPusherRow = P => (P.cowlOn == null || +P.cowlOn) && [1, 4].includes(Math.round(+P.engMount || 0));
 
 // ---- the parameter surface ------------------------------------------------
 // bench keys that do NOT become rows here: the per-element polycounts
@@ -56,7 +59,10 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
                    // bulkhead, 2 over the wing (one engine, high wing, a pylon
                    // engPylonH tall), 3 a wing pair at engNacAt of the semispan
-                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30,
+                   // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
+                   // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
+                   // wing pairs (inner at engNacAt, outer at engNacAt2)
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -147,7 +153,7 @@ const INSTALL_ROWS = new Set([
   // where the outlet leaves are made FOR THE AIRFRAME, by the builder, and
   // are the first thing changed on a real installation. A turboprop's
   // stacks are the same choice, so `stackStyle` rides here with them.
-  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ',
+  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ', 'exPair',
   'stackStyle',
   // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
   // cones, or none at all. (`injected` is NOT here — carburettor or
@@ -343,9 +349,11 @@ window.CAGE_ENG_SOUND = (P) => {
 // the installation rows (mount, firewall, services, radiator) stay the
 // builder's. Appended, so every saved index still names the same engine.
 const CUSTOM_ENGINE = EP.CUSTOM_ENGINE || 'custom engine';
-const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-  .concat([CUSTOM_ENGINE]);
-const CUSTOM_IDX = PRESET_NAMES.length - 1;
+// (NEW-SHAPES-1: the saved order is ENG_PAGE.presetNames() - the custom engine keeps slot 41, the presets added since
+// it took that slot follow it, so no saved index moves; the menu still lists it last, by power, PRESET_ORDER)
+const PRESET_NAMES = EP.presetNames ? EP.presetNames()
+  : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([CUSTOM_ENGINE]);
+const CUSTOM_IDX = PRESET_NAMES.indexOf(CUSTOM_ENGINE);
 const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
 // the type a preset belongs to, from its own table row (null for custom)
 const presetArch = name => {
@@ -434,7 +442,11 @@ if (typeof window !== 'undefined') {
 }
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
-const LBL = { noseOff: 'fore / aft (base off the flange)' };
+// THE PROPELLER'S SHAFT (the user, 27 Oct: "ensure the propeller can be offset from the engine using a slider for
+// length of shaft"): the cone's base off the flange IS the extension shaft - the cone grows its own hub back to the
+// engine (G244), and the blades ride the cone - so the row says so, and reaches 1.5 m (an extension-shaft nose, a
+// long-nosed inline); negative tucks the cone back over the flange as before
+const LBL = { noseOff: 'shaft length (prop off the engine)' };
 const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
   { rows: [] }).rows
   .filter(r => CW.P[r.k] !== undefined && !DEAD_SPIN.has(r.k))
@@ -457,7 +469,25 @@ const DEAD_SPIN = new Set(['shaftR', 'shaftLen']);
 // that cannot change the aeroplane is not a row.
 const ROW_WHEN = {
   inlineAim: P => archOf(P) === 'inline' || archOf(P) === 'vee',
+  // G2802 (AVIONICS-GPS phase 2, E4): THE BAY'S ELECTRICS ARE THE FIT'S. With the Instruments layer present the
+  // battery box, the generator and the starter are drawn from its electrics (bayElec below), so these three rows
+  // would be switches that do nothing: they stand only where there is no fit to follow (a page without the panel)
+  battOn: P => !bayElec(),
+  genOn: P => !bayElec(),
+  starter: P => !bayElec(),
 };
+// what the fit puts in the bay - battery / generator / starter, from the Instruments column's resolved electrics
+// (genSystemsResolve's own parts: GEN_ELEC_PARTS), or null with no panel layer (the rows then stand as they were)
+function bayElec() {
+  const CP = window.CAGE_PANEL;
+  if (!CP || typeof CP.resolve !== 'function') return null;
+  let R = null;
+  try { R = CP.resolve(); } catch (e) { return null; }
+  if (!R || !R.elec) return null;
+  const part = k => (R.parts || []).find(q => q.key === k) || null;
+  return { battOn: R.elec.battery !== 'none' ? 1 : 0, genOn: R.elec.alternator !== 'none' ? 1 : 0,
+           starter: R.elec.starter === 'yes' ? 1 : 0, batt: part('battery'), gen: part('alternator') };
+}
 // bench groups -> cage subgroups, every row, same labels + ranges
 const engRow = r => {
   const [k, label, m3, a, b, ] = r;
@@ -528,22 +558,30 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
-  ['engMount',  'mount', 0, 3, 1,
+  ['engMount',  'mount', 0, 6, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
-    'wing nacelles (twin)'], { when: P => +P.engOn }],
+    'wing nacelles (twin)', 'nose + pusher (push-pull)',
+    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)'],
+   { when: P => +P.engOn }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2 }],
+   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
+  // G2790: the four's outer pair (kept 0.10 of the semispan outboard of
+  // the inner one by engineFaces)
+  ['engNacAt2', 'outer nacelle station (semispan)', 0.30, 0.90, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 6 }],
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
-   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   // ...on the pusher too (G461, the Chinook: its engine sits over the wing's
   // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
+  // (CABIN-CRAFT, the FIREWALL RULE - _cage_cowl.js: a cowled pusher, or a push-pull's aft unit, stands on the pod's
+  // face; fore / aft it is the stand (eng_mountGap) and the cowl length, so the block rows go where they move nothing)
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
@@ -864,7 +902,8 @@ PAGE.post = ctx => {
   const EW = window.CAGE_WING_EARLY;
   if (EW) EW.place('eng', ctx, engPlace, () => {
     const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
-    if (!+P.engOn || (m !== 2 && m !== 3) || !NF || !NF.engineFaces) return null;
+    // (ENGINE-CONFIGS-2: the three's and the four's nacelles stand on the wing too - mounts 5 and 6)
+    if (!+P.engOn || ![2, 3, 5, 6].includes(m) || !NF || !NF.engineFaces) return null;
     const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
     return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
   });
@@ -889,7 +928,8 @@ function engPlace(ctx, prev) {
     if (stat) stat.textContent += '  ·  engine: ' +
       (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
      : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
-     : mountK === 3 ? 'no wing to hang the nacelles on'
+     : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
+     : mountK === 4 ? 'a push-pull needs the pod to end at the aft bulkhead (rod or twin booms)'
      : 'no engine face on this body');
     return null;
   }
@@ -900,6 +940,13 @@ function engPlace(ctx, prev) {
   // (G31 — the mount spread, backing pads and service entries land on the
   // real firewall)
   const spec = engSpecOfP(P);
+  // G2802: the bay's battery, generator and starter are the fit's (bayElec): drawn when billed, at the catalogue
+  // part's own size - a ride-through key the mesh reads, never the resolve (an install row: GATE ENGID §11)
+  const BE = bayElec();
+  if (BE) {
+    spec.battOn = BE.battOn; spec.genOn = BE.genOn; spec.starter = BE.starter;
+    if (BE.batt && BE.batt.dims) spec.battDims = BE.batt.dims.slice();
+  }
   spec.quality = Math.max(0.3, P.engDetail || 0.8);
   spec.screws = P.eng_screws ? 1 : 0;
   // the genuine firewall is the cage's — off the body (a pylon, a nacelle)
@@ -1025,7 +1072,17 @@ function engPlace(ctx, prev) {
     // engine block and prop seem to be attached to the body, while the
     // support is attached to the wing nacelle structure")
     ug.name = 'edEng' + sfx;
-    const engMesh = meshFrom(M);
+    // G2790: a layout mixes the nose (the cage's own firewall) with faces
+    // off the body (a nacelle, the bulkhead of a push-pull drawn plain):
+    // a unit whose face is synthetic when the first unit's is not draws
+    // its own mount plate, sized to its face
+    let MU = M;
+    if (!!f.synthetic !== !!face.synthetic) {
+      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic ? 1 : 0,
+        fwW: Math.max(0.2, Math.min(2.2, 2 * f.halfW)), fwH: Math.max(0.2, Math.min(2.2, 2 * f.halfH)) })); }
+      catch (e) { MU = M; }
+    }
+    const engMesh = meshFrom(MU);
     ug.add(engMesh);
     const ng = new THREE.Group();
     ng.add(new THREE.Mesh(spinGeo, propMat('spinner')));
@@ -1128,8 +1185,12 @@ function engPlace(ctx, prev) {
       const o = W.overAt(x, z), un = W.underAt(x, z);
       return !!(o && un && o.y - un.y > 0.005 && y > un.y - 0.02 && y < o.y + 0.02);
     };
-    const inBody = (x, y, z) => {
+    const inBody = (x, y, z, aft) => {
       if (!AF || !AF.surf) return false;
+      // ENGINE-CONFIGS-2: a disc on the aft bulkhead turns behind the pod's END when no rod carries on (the
+      // push-pull's twin booms): AF.surf holds the last section past AF.z0, which read the whole disc behind a
+      // blunt pod as inside it. A rod boom is part of AF (its z0 is the rod's end), so a pusher on a rod reads as before
+      if (aft && isFinite(AF.z0) && z < AF.z0 - 1e-3) return false;
       let lo, hi;
       try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
       if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;
@@ -1152,7 +1213,7 @@ function engPlace(ctx, prev) {
         // the body from 0.6 R out: the innermost ring sits inside the
         // spinner and the cowl's nose on every tractor by construction (the
         // stock Cub read 6 hits there, the 172 twelve, all at the hub)
-        else if (k >= 0.6 && inBody(x, y, z)) bodyHits++;
+        else if (k >= 0.6 && inBody(x, y, z, u.aft)) bodyHits++;
       }
       const why = [];
       if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');

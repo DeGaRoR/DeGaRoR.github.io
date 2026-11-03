@@ -97,6 +97,69 @@ function genFlapRef(S) {
   }
   return null;
 }
+// G2820: the plane the flap record is written from (genFlapRef's), or -1
+function genFlapRefK(S) {
+  const CT0 = S.controls;
+  if (CT0 && CT0.flap && GEN_FLAPS[CT0.flap.type] && GEN_FLAPS[CT0.flap.type].dCl > 0) return 0;
+  for (let k = 1; k < (S.wings || []).length; k++) {
+    const c = S.wings[k] && S.wings[k].controls;
+    if (c && c.flap && GEN_FLAPS[c.flap.type] && GEN_FLAPS[c.flap.type].dCl > 0) return k;
+  }
+  return -1;
+}
+// G2820: THE STOL DEVICES ON ONE STRIP. `ST` is the plane's normalised
+// record (60_gen_spec genStolOf), [zLo, zHi] the strip's own sub-span and
+// `zc` its centre; returns the strip's keys, or null when nothing covers it
+// (the strip then carries no new key and flies its old bits). Coverage is a
+// FRACTION, as the flap's is: a slat band ending mid-strip gives that strip
+// its share. Where the fences stand is the drawing's too (genStolFences).
+function genStolFences(ST, semi, zRoot, aStart, ailSpan) {
+  if (!ST || !ST.fences) return [];
+  const z1 = ailSpan > 0 && aStart > zRoot + 0.2 ? aStart : zRoot + 0.6 * (semi - zRoot);
+  return ST.fences >= 2 ? [0.5 * (zRoot + z1), z1] : [z1];
+}
+function genStolStrip(ST, semi, zLo, zHi, fences) {
+  if (!ST) return null;
+  const cov = (a, b) => Math.max(0, Math.min(zHi, b) - Math.max(zLo, a)) / Math.max(1e-9, zHi - zLo);
+  let dAs = 0, dCl = 0, cd = 0, sa = 0, scd = 0;
+  if (ST.slat) {
+    const SL = GEN_SLATS[ST.slat], f = cov((1 - ST.slatSpan) * semi, semi + 1);
+    if (SL.open) { sa += f * SL.dAs; scd += f * SL.cdOut; cd += f * SL.cd; }
+    else { dAs += f * SL.dAs; cd += f * SL.cd; }
+  }
+  if (ST.vg) { const f = cov(0, semi + 1); dAs += f * GEN_STOL.vg.dAs; cd += f * GEN_STOL.vg.cd; }
+  if (ST.cuff) {
+    const f = cov((1 - ST.cuffSpan) * semi, semi + 1);
+    dAs += f * GEN_STOL.cuff.dAs; dCl += f * GEN_STOL.cuff.dCl; cd += f * GEN_STOL.cuff.cd;
+  }
+  if (fences && fences.length) dAs += cov(Math.min(...fences), semi + 1) * GEN_STOL.fence.dAs;
+  if (!(dAs > 0 || dCl > 0 || cd > 0 || sa > 0)) return null;
+  const o = { dAs, dCl, cd, mx: GEN_STOL.dAsMax };
+  if (sa > 0) { const SL = GEN_SLATS.auto; o.sa = sa; o.scd = scd; o.so = SL.open; o.sb = SL.band; }
+  return o;
+}
+// G2822 (STOL-WING-2): THE WING'S STALL ANGLE AS IT FLIES - the section's own
+// (`P.aStall`, the clean wing's) plus the STOL devices' stall-angle gain,
+// area-weighted over the plane's wing strips (an automatic slat counts OUT:
+// at the stall it is). Every solver of an attitude near the stall - the trim's
+// alpha cap (64_gen_build), the flare budget, the design check's sweeps - caps
+// at a fraction of THIS: on a slatted wing the clean section's angle is a wall
+// the wing does not have, and an approach "trimmed" against it is trimmed at
+// the wrong attitude. No STOL strip on the plane: the section's own number,
+// the same bits. `k` the plane (undefined: every plane's strips).
+function genStallAngle(def, P, k) {
+  P = P || def.params.polarWing;
+  const mine = st => st.kind === 'wing' && (k === undefined || (st.plane | 0) === k);
+  if (!def.strips || !def.strips.some(st => st.stol && mine(st))) return P.aStall;
+  let A = 0, Ag = 0;
+  for (const st of def.strips) {
+    if (!mine(st)) continue;
+    A += st.area;
+    const r = st.stol;
+    if (r) Ag += st.area * Math.min(r.mx, r.dAs + (r.sa || 0));
+  }
+  return P.aStall + (A > 0 ? Ag / A : 0);
+}
 function genStrips(S, fr) {
   const P = fr.parts, R = GEN_RULES, strips = [];
   // G134: the resolved row (custom dials outrank the preset), and the wash
@@ -124,7 +187,26 @@ function genStrips(S, fr) {
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;
-  const tailWash = mount === 'wing' ? 0 : 1;
+  let tailWash = mount === 'wing' ? 0 : 1;
+  // G2790 ENGINE-CONFIGS: a LAYOUT blows from every disc it has — a nose
+  // engine washes the centre and inboard wing as above, each wing nacelle
+  // that pulls washes the wing about its own station (the strongest wake a
+  // strip sits in), the pusher of a push-pull blows on nothing ahead of it;
+  // the tail flies in the centreline wake whenever there is one (a nose or
+  // a pusher), between the nacelles' wakes not at all.
+  const LAYS = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  let wingWashL = wingWash, cWashL = null;
+  if (LAYS) {
+    const nose = S.engAt.some(e => e.mount === 'nose');
+    const nacZ = S.engAt.filter(e => e.mount === 'wing' && e.side < 0 && !e.pushes).map(e => e.z);
+    wingWashL = z => {
+      let w = nose ? washAt(z) : 0;
+      for (const zn of nacZ) { const u = (Math.abs(z) - zn) / Reff; w = Math.max(w, 1 - u * u); }
+      return Math.max(0, w);
+    };
+    cWashL = nose ? 1 : 0;
+    tailWash = S.engAt.some(e => e.mount === 'nose' || e.mount === 'pusher') ? 1 : 0;
+  }
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
@@ -169,6 +251,39 @@ function genStrips(S, fr) {
   const dy0 = Math.abs((PLANES[0].wingY0 != null ? PLANES[0].wingY0 : yProp) - yProp);
   const dyk = Math.abs((PL.wingY0 != null ? PL.wingY0 : yProp) - yProp);
   const fyk = k === 0 ? 1 : Math.max(0, 1 - Math.pow(Math.max(0, dyk - dy0) / Reff, 2));
+  // G2820: the plane's STOL record (null on every aeroplane without one, and
+  // then not one key below is written)
+  const ST = wk.stol || null;
+  const stFences = genStolFences(ST, semi, PL.zRoot, aStart, CT.aileron.span);
+  // drooping ailerons: a plain flap's increment at the aileron's own chord,
+  // `droop` of its travel, on the flap lever - only on an aeroplane that HAS
+  // a flap lever (a flap record to drive it)
+  const stDroop = (ST && ST.droop > 0 && flapRef && CT.aileron.span > 0) ? (() => {
+    const kc = genFlapTau(CT.aileron.chord) / genFlapTau(GEN_FLAP_CREF), dCl = GEN_FLAPS.plain.dCl * kc * ST.droop;
+    // G2822: ...and its SECTION STALLS EARLIER, as a plain flap's does: at constant alpha a plain flap shifts the
+    // section's lift by ~1.8x what it adds to Clmax, so the stall angle comes down by ~0.8 dClmax / a0 (Abbott & von
+    // Doenhoff, Theory of Wing Sections, the plain-flap section data, as recalled: a 20 % plain flap at 20 deg buys
+    // ~0.5 of Clmax and stalls ~3-4 deg sooner). Here dAs = 0.8 dCl / (0.9 x 2 pi): 1.9 deg at the editor's 10 deg
+    // of droop, 3.9 at 20. The down-going aileron of a drooped pair is the one nearest its stall - the roll the
+    // owners of drooped kits say they lose (the design check's ctl.droop measures what is left)
+    return { dCl, dCd: GEN_FLAPS.plain.cd * kc * ST.droop, dCm: GEN_FLAP_CM * dCl, dAs: 0.8 * dCl / (0.9 * 2 * Math.PI) };
+  })() : null;
+  // Fowler area growth: the chord the surface adds per unit of flap
+  const stGrow = (ST && ST.grow && fEnd >= 0 && GEN_FLAPS[CT.flap.type].slide > 0)
+    ? GEN_FLAPS[CT.flap.type].slide * CT.flap.chord : 0;
+  // G2822 (STOL-WING-2): WHAT HANGS IN THE AIR ON THE WING - each fence's two faces (h x c, Cf 0.008) and the
+  // endplate's (the plate, Cf 0.006) - priced on the STRIP it stands on, as a profile drag over that strip's area:
+  // it flies where the device is, and when the damage layer takes the wing (or the tip) off, its drag goes with it
+  // (G2820 hung it on the fuselage's axial CdA, which a wingless wreck kept). genParams reports the same sum as
+  // gen.drag.stol; it is no longer in the body's term.
+  const TIPk = GEN_TIPS[wk.tip] || GEN_TIPS.rounded;
+  // (per side: one plate, one fence each - both faces; genParams' sum is both sides)
+  const stPlate = TIPk.plate ? 2 * (TIPk.plate[0] * PL.chordAt(semi)) * (TIPk.plate[1] * PL.chordAt(semi)) * 0.006 : 0;
+  const stXcd = (zLo, zHi, tip) => {
+    let a = tip ? stPlate : 0;
+    for (const zf of stFences) if (zf >= zLo && zf < zHi) { const c = PL.chordAt(zf); a += 2 * (GEN_STOL.fence.h * c) * c * GEN_STOL.fence.cf; }
+    return a;
+  };
 
   const zAll = [PL.zRoot, ...PL.zs];
   for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
@@ -176,13 +291,22 @@ function genStrips(S, fr) {
       const zi = zAll[b], zo = zAll[b + 1];
       for (const t of [0.28, 0.78]) {
         const zc = zi + (zo - zi) * t;
-        const ch = PL.chordAt(zc);
         // Each strip is HALF a bay, so it has a real sub-span, and `flap` is a
         // FRACTION rather than a flag: how much of this strip carries a flap.
         // With a bare flag the span slider quantised — 0.50 and 0.62 produced
         // the identical aeroplane because they caught the same strip centres.
         const zLo = t < 0.5 ? zi : 0.5 * (zi + zo);
         const zHi = t < 0.5 ? 0.5 * (zi + zo) : zo;
+        // AN ELLIPTIC WING'S STRIP IS ITS OWN INTEGRAL (genPlanLaw): one chord
+        // sample per half bay reads a curved planform's outer bay 10-20 % off,
+        // so the strip's chord is its mean over its own sub-span (the strips
+        // then sum to the spec's Sw). Every straight-line wing samples as before.
+        let ch = PL.chordAt(zc);
+        if (PL.ell) {
+          let a = 0; const nI = 16, hI = (zHi - zLo) / nI;
+          for (let j = 0; j < nI; j++) a += PL.chordAt(zLo + (j + 0.5) * hI) * hI;
+          ch = a / Math.max(1e-9, zHi - zLo);
+        }
         const fFrac = fEnd <= zLo ? 0
                     : fEnd >= zHi ? 1
                     : (fEnd - zLo) / (zHi - zLo);
@@ -192,13 +316,24 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          wash: k === 0 ? wingWashL(zc) : wingWashL(zc) * fyk,
           ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
           // reads the strip's own numbers, never a single aeroplane-wide one
           plane: k, sparSpacing: PL.sparSpacing, cf,
         });
+        const xcd = (ST || stPlate > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
+        if (ST || xcd > 0) {
+          // G2820: keys only where a device reaches - every other strip is
+          // the object it always was
+          const last = strips[strips.length - 1];
+          const sr = genStolStrip(ST, semi, zLo, zHi, stFences) || (xcd > 0 ? { dAs: 0, dCl: 0, cd: 0, mx: GEN_STOL.dAsMax } : null);
+          if (sr && xcd > 0) sr.cd += xcd / last.area;
+          if (sr) last.stol = sr;
+          if (stDroop && zc > aStart) last.dr = stDroop;
+          if (stGrow > 0 && fFrac > 0) last.fg = stGrow;
+        }
       }
     }
   }
@@ -206,7 +341,8 @@ function genStrips(S, fr) {
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
   const cL = PL.wf.L, cR2 = PL.wf.R;
-  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
+  const cWash = cWashL != null ? cWashL
+    : mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   // G274: the strip is what the centre construction leaves of the bay's
   // skin — a half cut lifts on 62 % of the chord, 'removed' on none (the
   // strip is dropped: two half-wings on a bare carry-through)
@@ -305,6 +441,47 @@ function genStrips(S, fr) {
   return strips;
 }
 
+// ENGINE-CONFIGS-2 (G3490, 2026-10-22): WHOSE WAKE A LAYOUT'S STRIP FLIES IN. The solver's wash is the MEAN disc
+// (T / nE) - fine while every engine runs, wrong the moment one stops: a dead nose left half the wash on the tail, a
+// dead nacelle half the wash on its own wing. A layout's every strip names its disc (`washE`): the engine whose wake
+// is the strongest at the strip (the nose's or a pulling nacelle's of the strip's own side, by the same laws
+// genStrips blew them with), the tail the nose's - or, on a push-pull, -2: THE CENTRELINE IN SERIES, the two coaxial
+// discs' thrust through one disc (the pusher swallows the nose's slipstream and accelerates it again). -1 is a strip
+// no disc reaches (the mean, which it multiplies by a zero wash). A twin boom's fins stand outside a push-pull's
+// centreline wake (the booms are set the rear disc's radius + 0.30 m out): they lose it. Called only for a layout,
+// so every other def's strips are the objects they were.
+function genStripsLayout(S, fr, strips) {
+  const LAY = S.engLayout;
+  if (!(LAY === 'pushPull' || LAY === 'tri' || LAY === 'quad')) return strips;
+  const R = GEN_RULES, PP = S.pplant || POWERPLANTS[S.engine];
+  const Reff = ((S.prop && S.prop.D ? S.prop.D : PP.prop.D) / 2) * R.washSpread;
+  const N = fr.nodes, zOf = st => {
+    let z = 0, ws = 0;
+    for (const [i, w] of st.w) { z += N[i].p[2] * w; ws += w; }
+    return ws > 0 ? z / ws : 0;
+  };
+  const iNose = S.engAt.findIndex(e => e.mount === 'nose');
+  const nac = [];
+  S.engAt.forEach((e, i) => { if (e.mount === 'wing' && !e.pushes) nac.push({ i, z: e.z, side: e.side }); });
+  const tailE = LAY === 'pushPull' ? -2 : iNose;
+  for (const st of strips) {
+    if (st.kind === 'wing') {
+      const z = zOf(st), az = Math.abs(z), sd = z < 0 ? -1 : 1;
+      let best = -1, bw = 0;
+      if (iNose >= 0) { bw = Math.max(0, 1 - (az / Reff) * (az / Reff)); if (bw > 0) best = iNose; }
+      for (const n of nac) if (n.side === sd) {
+        const u = (az - n.z) / Reff, w = 1 - u * u;
+        if (w > bw) { bw = w; best = n.i; }
+      }
+      st.washE = best;
+    } else {
+      if (st.kind === 'fin' && LAY === 'pushPull' && Math.abs(zOf(st)) > Reff) st.wash = 0;
+      st.washE = st.wash > 0 ? tailE : -1;
+    }
+  }
+  return strips;
+}
+
 // THE WETTED BODY (PERF STUDY chantier 2, 2026-09-15). The surface the air
 // rubs on, from the DECLARED loft — the frame's station table (x, half
 // width, floor, deck) closed by the spec's own section curve (genSect at
@@ -317,12 +494,14 @@ function genFusSwet(S, ST) {
   const nT = genCrownToN(fu.crownTop == null ? 0.72 : fu.crownTop);
   const nB = genCrownToN(fu.crownSide == null ? 0.07 : fu.crownSide);
   const N = 32;
-  const per = (halfW, h, nTop, nBot) => {
+  // (CABIN-CRAFT: `w` - the cowl's width by level, genCowlWidths - only on the cowl's own stations)
+  const per = (halfW, h, nTop, nBot, w) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let L = 0, prev = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
+                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) L += Math.hypot(q[0] - prev[0], q[1] - prev[1]);
       prev = q;
     }
@@ -330,12 +509,13 @@ function genFusSwet(S, ST) {
   };
   // ...and the section's AREA, the same walk closed by the shoelace (G461,
   // the body's own pitching moment needs the volume)
-  const area = (halfW, h, nTop, nBot) => {
+  const area = (halfW, h, nTop, nBot, w) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let a = 0, prev = null, first = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
+                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) a += prev[0] * q[1] - q[0] * prev[1];
       prev = q; if (!first) first = q;
     }
@@ -351,9 +531,11 @@ function genFusSwet(S, ST) {
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
     const K = 8; let prevP = null, prevA = null;
+    const cwW = genCowlWidths(S);                  // CABIN-CRAFT: the drawn firewall's width by level (null = as before)
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      const ww = cwW ? { top: cwW.top + (1 - cwW.top) * c.t, bot: cwW.bot + (1 - cwW.bot) * c.t } : null;
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww);
       if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
       prevP = pc; prevA = ac;
     }
@@ -400,10 +582,14 @@ function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  // the nose and the cabin bays are the forward body: rings 0-2, or to the cabin's rear ring when a long cabin has
+  // frames along it (G3504, 61_gen_frame iCabR; GEN_RULES.cabBayMax)
+  const cabLen = S.cab && S.cab.len, iCR = (GEN_RULES.cabBayMax > 0 && cabLen > GEN_RULES.cabBayMax + 1e-6)
+    ? Math.max(2, ST.findIndex(s => Math.abs(s.x - (S.cab.noseGap + cabLen)) < 1e-6)) : 2;
   for (let i = 0; i < ST.length - 1; i++) {
     const a = ST[i], b = ST[i + 1];
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
-    if (i < 2) sFwd += A; else sAft += A;
+    if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
   const wet = genFusSwet(S, ST);
@@ -674,7 +860,17 @@ function genTuneAP(def) {
   const gsIdle = g.dragAppr / g.W - A.thrFloor * g.TavailAppr / g.W;
   // gs/gsIdle across the fleet: 0.574 +/- 0.13, or 0.532 +/- 0.10 excluding the
   // flapless Cub — whose 0.822 is exactly why it floats 90 m off a 340 m strip.
-  A.gs = r3(cl(0.55 * gsIdle, 0.035, 0.10));
+  // G3305 (AP-ADAPT, the user 18 Oct: the Mosquito "struggles a lot maintaining altitude"): A NORMAL APPROACH WHERE THE
+  // AEROPLANE CAN FLY ONE. 0.55 gsIdle on a clean L/D-14.8 airframe is 2.1 deg: a 5.4 km final and a 5.5 km downwind,
+  // which at w3 ran into the 560-773 m ground beyond Tamgas Hill (the plan climbed over it, the final began 1.5-2.3x
+  // high, a go-around every time). The slope is floored at the shallowest VALIDATED approach (0.045, 2.6 deg: the metal
+  // Cessna's and the Cessna on floats' own - so the validated set flies the slopes it did; 0.052 was measured first and
+  // landed the metal Cessna at w3 firmer, 1.75 -> 2.31 m/s) as far as 0.8 of the aeroplane's own idle
+  // gradient at the approach allows (gsIdle: the flapped approach drag, the idle thrust - the AIR's gradient; the
+  // arrival lands into wind, a one-way strip's tailwind is the pilot's own vref-raised / go-around); a clean glider
+  // that cannot descend at 3 deg keeps the slope it can fly. Every build whose 0.55 gsIdle is already 0.052 or more
+  // flies the slope it did
+  A.gs = r3(Math.max(cl(0.55 * gsIdle, 0.035, 0.10), Math.min(0.045, 0.8 * gsIdle)));
   // thrAppr is EXACT, not a fit: it is the throttle that trims the approach.
   // Every fiche's hand value sits within speedThrottle's +-0.30 integrator band
   // of its true one — "close enough by hand". A generated build whose true
@@ -854,7 +1050,7 @@ function genTuneAP(def) {
     // the PA-18's documented cure: flap lift plus the nose-down dCm0 make a
     // tail-up wheel-landing hold noseover-prone, so pin the tail from touchdown
     A.VTailDown = 99;
-    A.VPinFull = Math.round(1.05 * g.VsFlap * 10) / 10;
+    A.VPinFull = Math.round(1.05 * (g.VsFlapAP || g.VsFlap) * 10) / 10;   // G2826: a STOL wing's held Vs0
   }
   return A;
 }
@@ -1279,7 +1475,29 @@ function genParams(S, fr, strips) {
   // air (RHO), not in the air the aeroplane happens to be in. G72 only made
   // that explicit — the literal used to say 1.225 as if it were a fact about
   // the sky rather than the definition of the yardstick.
-  const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
+  // G2820: THE STOL DEVICES' CLmax, area-weighted over each plane's wing
+  // strips (the stall-angle gain on the plane's own lift slope, plus the
+  // cuff's camber; an automatic slat is OUT at the stall, so it counts
+  // whole). The analytic Vs the AP's speed ladder hangs off must know the
+  // wing it flies; the tunnel's measured stall (64 genClMax) sees the strips
+  // directly. No STOL strip, no term: the sum is not even formed.
+  let ClMax3Dx = ClMax3D;
+  if (strips.some(st => st.stol)) {
+    let gainS = 0;
+    S.wings.forEach((wk, k) => {
+      let A = 0, Ag = 0;
+      for (const st of strips) {
+        if (st.kind !== 'wing' || (st.plane | 0) !== k) continue;
+        A += st.area;
+        const r = st.stol;
+        if (r) Ag += st.area * (polarWings[k].a3d * Math.min(r.mx, r.dAs + (r.sa || 0)) + r.dCl);
+      }
+      const Sk = polarWings.length === 1 ? G.Sw : G.planes[k].Sw;
+      gainS += Sk * (A > 0 ? Ag / A : 0);
+    });
+    ClMax3Dx = ClMax3D + gainS / G.Sw;
+  }
+  const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3Dx));
   const cda = genFusCdA(S, fr);
   // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
   // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
@@ -1345,6 +1563,28 @@ function genParams(S, fr, strips) {
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
   }
+  // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
+  // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
+  // 0.006), both sides. G2822: the force rides the strips they stand on
+  // (genStrips stXcd); this is the same sum, REPORTED (gen.drag.stol) for
+  // the drag build-up's readers. Absent on every aeroplane without them.
+  {
+    let sd = 0;
+    S.wings.forEach((wk, k) => {
+      const PL = (fr.parts.planes && fr.parts.planes[k]) || fr.parts;
+      const semi = k === 0 ? S.geom.semi : (PL.semi != null ? PL.semi : 0.5 * wk.span);
+      const cAt = z => (PL.chordAt || fr.parts.chordAt)(z);
+      const TIP = GEN_TIPS[wk.tip] || GEN_TIPS.rounded;
+      if (TIP.plate) { const c = cAt(semi); sd += 2 * 2 * (TIP.plate[0] * c) * (TIP.plate[1] * c) * 0.006; }
+      const CTk = k === 0 ? S.controls : wk.controls;
+      const aSt = CTk && CTk.aileron ? (1 - CTk.aileron.span) * semi : semi;
+      for (const zf of genStolFences(wk.stol, semi, PL.zRoot, aSt, CTk && CTk.aileron ? CTk.aileron.span : 0)) {
+        const c = cAt(zf);
+        sd += 2 * 2 * (GEN_STOL.fence.h * c) * c * GEN_STOL.fence.cf;
+      }
+    });
+    if (sd > 0) cda.drag.stol = sd;      // G2822: reported; the force rides the strips (genStrips stXcd)
+  }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -1368,6 +1608,13 @@ function genParams(S, fr, strips) {
     const dCl0 = FL.dCl * kc;
     flaps = { to: GEN_FLAP_TO, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };
+    // G2820: FOWLER AREA GROWTH on the record's plane - the camber is the
+    // slotted row's, the rest is the chord the strips grow (`fg`, genStrips)
+    const rk = genFlapRefK(S), rw = rk >= 0 ? S.wings[rk] : null;
+    if (rw && rw.stol && rw.stol.grow && FL.slide > 0) {
+      const d2 = GEN_FLAPS[GEN_STOL.growCamber].dCl * kc;
+      flaps.dCl0 = d2; flaps.dCm0 = GEN_FLAP_CM * d2; flaps.grow = 1;
+    }
   }
   const P0 = { polarWing, polarTail, elevTau, ailTau };
   const ap = genAP(S, Vs, mass);
@@ -1397,7 +1644,9 @@ function genParams(S, fr, strips) {
     // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.
-    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
+    // G2080: + I, the disc's polar moment (the gyroscopic couple), from the blades' own mass
+    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2,
+            I: S.prop.mass > 0 ? GEN_PROP_IK * S.prop.mass * (S.prop.D / 2) * (S.prop.D / 2) : 0 },
     // THE PANEL ARC (session 1): what the burn drains and the fuel gauge
     // reads in. A liquid aeroplane's litres come out of the drained `mFuel`
     // through its fuel's density; a pack has a capacity and a state of
@@ -1444,18 +1693,20 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
+    // G3575: the full-swivel third wheel (30_solver's breakout law) - the key only when chosen
+    ...(S.gear.twSwivel === true ? { twSwivel: 1 } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
     // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
     // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver
-    // has always flown it (the cage's 'castor' row is the picture's: a castering wheel needs differential brakes,
-    // which no pilot here flies - HANDOVER G1844, open)
+    // has always flown it - but the gear page's 'full swivel' (G3575: 30_solver twSwivel, the breakout law; the row's old
+    // 'castor' was the picture's only)
     tyre: (() => {
       const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));
       return { main: TYRE_CN[prof === 1 ? 'tundra' : prof === 2 ? 'slim' : 'standard'],
                tw: TYRE_CN[S.gear.type === 'tricycle' ? 'nosewheel' : 'tailwheel'] };
     })(),
     ap,
-    gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
+    gen: { Vs, ClMax3D: ClMax3Dx, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
            Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, tailBraceDCdA, plant: pl,
            drag: cda.drag,          // chantier 2: the body's build-up, piece by piece
            // G185: the planes' own numbers beside the combined ones, the

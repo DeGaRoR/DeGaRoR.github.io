@@ -50,10 +50,11 @@ const GEN_DRIVE = {
     o540_hartzell: { cyl: 6 }, io550_hartzell3: { cyl: 6 }, io720_hartzell3: { cyl: 8 }, vw2180_wood: { cyl: 4 },
     jabiru2200_std: { cyl: 4 }, mikron3_wood: { cyl: 4 }, gipsymajor1_wood: { cyl: 4 }, ranger440_wood: { cyl: 6 },
     hirth508_wood: { cyl: 8 }, argus10c_wood: { cyl: 8 },
-    rotax912_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 },
+    rotax912_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 }, rotax916_carbon: { cyl: 4 },
     rotax582_ivo: { cyl: 2, rpmMax: 6800 }, rotax503_wood: { cyl: 2 }, rotax277_pusher: { cyl: 1 },
     r1830_hs23e50: { cyl: 14 }, r985_hs2b20: { cyl: 9 }, r1340_hs12d40: { cyl: 9 }, r755_hs2b: { cyl: 7 }, w670_hs2b: { cyl: 7 },
-    m14p_v530: { cyl: 9 }, verner7u_wood: { cyl: 7 }, rotec3600_std: { cyl: 9 },
+    m14p_v530: { cyl: 9 }, verner7u_wood: { cyl: 7 }, rotec3600_std: { cyl: 9 }, clerget9b_wood: { cyl: 9 },
+    merlin66_rotol4: { cyl: 12 },
   },
   famCyl: { four: 4, two: 2 },        // a custom engine's count when the row says nothing (a radial: 7)
   // OVERSPEED: the bands on the ratio engine rpm / max (SB 369 as recalled), the filter (s), the failure dose (a GAME

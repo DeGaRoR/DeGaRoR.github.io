@@ -265,8 +265,10 @@ for (let k = 0; k < 3; k++) {
   GG.wheel(bags2, ctr, [1, 0, 0], st.R,
            { brake: true, inboard: 1, P: st.P });
   const g2dark = readBag(bags2.dark);
-  check(!!g2dark && radial(g2dark) > 0.8 * st.R,
-    'the negative control cannot see the pipe in dark — instrument blind');
+  // (G3851c: the proposal's disc is 1.28 x the rim, not 1.48 x, so the caliper sits nearer the axle; the control
+  // proves the 0.62 R line above would catch the pipe - it must stand past THAT line, with a margin)
+  check(!!g2dark && radial(g2dark) > 0.66 * st.R,
+    'the negative control cannot see the pipe in dark — instrument blind', g2dark ? (radial(g2dark) / st.R).toFixed(2) + ' R' : 'no dark');
 }
 
 // ---------------------------------------------------------------------------
@@ -915,6 +917,193 @@ for (const f of fail) console.log('  FAIL ' + f);
     const b2 = { alloy: K.Bag(), steel: K.Bag() };
     GG.padOn(b2, stubAF, { z: -3, mount: () => mount() }, -3, 0, 0.1, 0.1, {});
     check(b2.alloy.tris > 0, 'a plain mount frame lost its flat plate');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// G3549b A BUSH TYRE IS NEVER A SLICK (the user, 27 Oct: the tundras "suck in their geometry and thread"): the
+// torus wears low lugs for whTread 1 and 2 (procure's tundra writes 1), the drawing following the carcass - whTread is
+// a hashed cage row and moves nowhere. The lugs are the only thing that stands proud of the radius bought: their tops
+// sit BUSH_LUG.h (1.6 % R) off the crown, low as a Bushwheel's 3/16" on 31". A 31" tundra (R 0.394).
+{
+  const axle = [0.8, -1.0, 2.0], axis = [1, 0, 0], R = 0.394;
+  const tyreOf = P => { const b = freshBags(); GG.wheel(b, axle, axis, R, { inboard: 1, P }); return readBags(b).tyre; };
+  const rMaxOf = g => { let m = 0;
+    for (let i = 0; i < g.pos.length; i += 3) m = Math.max(m, Math.hypot(g.pos[i + 1] - axle[1], g.pos[i + 2] - axle[2]));
+    return m; };
+  const t1 = tyreOf({ whProfile: 1, whTread: 1 }), t2 = tyreOf({ whProfile: 1, whTread: 2 });
+  const t0 = tyreOf({ whProfile: 1, whTread: 0 }), s1 = tyreOf({ whProfile: 0, whTread: 1 });
+  const s0 = tyreOf({ whProfile: 0, whTread: 0 }), s2 = tyreOf({ whProfile: 0, whTread: 2 });
+  if (check(!!(t1 && t2 && t0 && s1 && s0 && s2), 'G3549b: a tyre was not drawn')) {
+    const h = (rMaxOf(t1) - R) / R;
+    check(h > 0.008 && h < 0.024, 'G3549b: the tundra\'s lugs do not stand low and proud of the carcass (0.8-2.4 % R)', (h * 100).toFixed(2) + ' % R');
+    // G3852: the carcass decides the tread, whatever whTread a file carries (0, 1 or 2 draw one tyre)
+    for (const [a, b, what] of [[t1, t2, 'tundra 1/2'], [t1, t0, 'tundra 1/0'], [s0, s1, 'standard 0/1'], [s0, s2, 'standard 0/2']])
+      check(a.nt === b.nt && Math.abs(rMaxOf(a) - rMaxOf(b)) < 1e-9,
+        'G3852: whTread changed the drawn tyre (' + what + ': the carcass decides, not the hashed row)', a.nt + ' vs ' + b.nt + ' tris');
+    check(rMaxOf(s0) <= R * 1.001, 'G3852 NEGATIVE: the standard carcass stands something proud - the instrument cannot tell lugs',
+      ((rMaxOf(s0) / R - 1) * 100).toFixed(2) + ' % R');
+    // G3852 THE SMOOTH TUNDRA (the user: "I also want a Tundra tyre with no pattern"): whSlick 1 draws the plain
+    // balloon - nothing proud of the radius, fewer tris than the lugged one; absent or 0 = the lugs (every file on
+    // record); a standard carcass ignores it
+    const k1 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 1 }), k0 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 0 });
+    const ks = tyreOf({ whProfile: 0, whTread: 1, whSlick: 1 });
+    if (check(!!(k1 && k0 && ks), 'G3852: a whSlick tyre was not drawn')) {
+      check(rMaxOf(k1) <= R * 1.001 && k1.nt < t1.nt, 'G3852: the smooth tundra (whSlick 1) still wears lugs',
+        ((rMaxOf(k1) / R - 1) * 100).toFixed(2) + ' % R, ' + k1.nt + ' vs ' + t1.nt + ' tris');
+      check(k0.nt === t1.nt && Math.abs(rMaxOf(k0) - rMaxOf(t1)) < 1e-9, 'G3852: whSlick 0 is not the tundra on file (the lugs)',
+        k0.nt + ' vs ' + t1.nt + ' tris');
+      check(ks.nt === s1.nt, 'G3852: whSlick changed a standard tyre (it is the tundra\'s row)', ks.nt + ' vs ' + s1.nt + ' tris');
+    }
+    console.log('  tundra 31": lugs ' + (h * 100).toFixed(2) + ' % R proud, ' + t1.nt + ' tris (standard ' + s0.nt +
+      ', smooth tundra ' + (k1 ? k1.nt : '-') + ')');
+  }
+}
+
+// ---- 15: THE TYRES PROPOSAL HOLDS THE STUDY'S TABLE (G3851) --------------
+// futureDesigns/TYRES-2026-10.md: the user, 27 Oct, "fitting huge wheels is
+// really all the rage today, so these need to look good". The proposal is
+// DISPLAY ONLY and OFF BY DEFAULT (GEAR_GEN.TYRE_LOOK.on); these rows hold
+// tyreLook() to the study's section 3 targets, the drawn wheel (switch on) to
+// tyreLook() through the bags' own output path, and the targets to the
+// measured tyres of section 1 within the family's spread. Node only.
+const TYRE_TARGETS = [
+  // [label, R m, kind, W/D, rim/D, tread, grooves]
+  ['tiny 5.5"', 0.07, 'tiny', 0.36, 0.50, 'ribs', 2],
+  ['tailwheel 8"', 0.10, 'tiny', 0.36, 0.50, 'ribs', 2],
+  ['11x4.00-5', 0.135, 'normal', 0.36, 0.43, 'ribs', 3],
+  ['5.00-5', 0.18, 'normal', 0.36, 0.37, 'ribs', 3],
+  ['6.00-6', 0.222, 'normal', 0.36, 0.34, 'ribs', 3],
+  ['8.00-6', 0.243, 'normal', 0.39, 0.33, 'ribs', 4],
+  ['8.50-6', 0.28, 'normal', 0.40, 0.31, 'ribs', 4],
+  ['tundra 26"', 0.33, 'tundra', 0.46, 0.23, 'lugs', 0],
+  ['tundra 29"', 0.368, 'tundra', 0.45, 0.21, 'lugs', 0],
+  ['tundra 31"', 0.394, 'tundra', 0.42, 0.19, 'lugs', 0],
+  ['tundra 35"', 0.445, 'tundra', 0.43, 0.28, 'lugs', 0],
+];
+// section 1's measured tyres: [label, R m, profile, W/D, rim/D]
+const TYRE_MEASURED = [
+  ['Scott 8" 2.80/2.50-4', 0.1016, 0, 0.35, 0.50], ['4.00-4', 0.1535, 0, 0.33, 0.33],
+  ['11x4.00-5', 0.1359, 0, 0.34, 0.47], ['13x5.00-6', 0.160, 0, 0.38, 0.48],
+  ['5.00-5', 0.1765, 0, 0.34, 0.36], ['6.00-6', 0.2178, 0, 0.36, 0.35],
+  ['8.00-6', 0.2426, 0, 0.40, 0.31], ['8.50-6', 0.2807, 0, 0.40, 0.27],
+  ['Bushwheel 26x12x6', 0.3302, 1, 0.46, 0.23], ['Bushwheel 29x13x6', 0.3683, 1, 0.45, 0.21],
+  ['Bushwheel 31x13x6', 0.3937, 1, 0.42, 0.19], ['Bushwheel 35x15x10', 0.4445, 1, 0.43, 0.29],
+];
+{
+  const TL = GG.tyreLook, LOOK = GG.TYRE_LOOK;
+  if (check(typeof TL === 'function' && !!LOOK, 'G3851: GEAR_GEN.tyreLook / TYRE_LOOK not published')) {
+    // G3851c (2 Nov): the accepted normal / tiny proposal is the default; ?tyres=old turns it off
+    const LOOK_ON0 = LOOK.on;
+    check(LOOK.on === 1 && !LOOK.lugs, 'G3851c: the accepted proposal is not the default, or the bevelled lugs are on for every tundra');
+    // G3851b (the user: "the [slick] one stays as-is"): the proposal leaves the tundra row's drawing alone (today: the
+    // bush lugs, G3549b), the same to the micrometre; the bevelled lugs are a variant (whSlick 2 or TYRE_LOOK.lugs) only
+    for (const R of [0.10, 0.33, 0.394, 0.445]) {
+      check(TL(R, 1) === null, `G3851b R ${R}: tyreLook answers a tundra without the lugged variant asked`);
+      const draw = () => { const b = freshBags(); GG.wheel(b, [0, 0, 0], [1, 0, 0], R, { brake: true, P: { whProfile: 1, whTread: 1 } }); const g = readBags(b); return Object.keys(g).map(n => n + digest(g[n])).join(); };
+      LOOK.on = 0; const off = draw(); LOOK.on = 1; let on; try { on = draw(); } finally { LOOK.on = LOOK_ON0; }
+      check(on === off, `G3851b R ${R}: the proposal moved the tundra's own drawing`);
+    }
+    // G3851b landed as an option (A0, 2 Nov): the tundra row's third value (whSlick 2, 'bevelled lugs') draws the
+    // variant with the proposal off, exactly as ?tyres=new&lugs=1 draws it; 0 and 1 (bush lugs, smooth) stay as they
+    // were; a standard tyre ignores the row
+    for (const R of [0.33, 0.394, 0.445]) {
+      const draw = P => { const b = freshBags(); GG.wheel(b, [0, 0, 0], [1, 0, 0], R, { brake: true, P }); const g = readBags(b); return Object.keys(g).map(n => n + digest(g[n])).join(); };
+      const v2 = draw({ whProfile: 1, whTread: 1, whSlick: 2 });
+      LOOK.on = 1; LOOK.lugs = 1; let viaPage; try { viaPage = draw({ whProfile: 1, whTread: 1 }); } finally { LOOK.on = LOOK_ON0; LOOK.lugs = 0; }
+      check(v2 === viaPage, `G3851b R ${R}: whSlick 2 does not draw the bevelled-lug variant`);
+      check(v2 !== draw({ whProfile: 1, whTread: 1 }) && v2 !== draw({ whProfile: 1, whTread: 1, whSlick: 1 }),
+        `G3851b R ${R}: whSlick 2 draws the same as the bush lugs or the smooth tundra`);
+      check(draw({ whProfile: 0, whTread: 1, whSlick: 2 }) === draw({ whProfile: 0, whTread: 1 }), `G3851b R ${R}: whSlick 2 changed a standard tyre`);
+    }
+    // (a) the study's targets
+    for (const [lab, R, kind, wd, rimD, tread, grooves] of TYRE_TARGETS) {
+      const L = TL(R, kind === 'tundra' ? 1 : 0, { lugs: 1 });
+      check(L.kind === kind, `G3851 ${lab}: carcass kind`, L.kind + ' vs ' + kind);
+      check(Math.abs(L.wd - wd) <= 0.02, `G3851 ${lab}: W/D off the table`, L.wd.toFixed(3) + ' vs ' + wd);
+      check(Math.abs(L.rimD - rimD) <= 0.03, `G3851 ${lab}: rim/D off the table`, L.rimD.toFixed(3) + ' vs ' + rimD);
+      check(L.tread === tread, `G3851 ${lab}: tread kind`, L.tread + ' vs ' + tread);
+      if (tread === 'ribs') check(L.grooves === grooves, `G3851 ${lab}: groove count`, L.grooves + ' vs ' + grooves);
+      else check(L.lugH / (2 * R) >= 0.005 && L.lugH / (2 * R) <= 0.010 && L.lugPairs >= 16 && L.lugPairs <= 24 && L.lugShare >= 0.30 && L.lugShare <= 0.50,
+        `G3851 ${lab}: the lugs are not low (0.5-1 % of D), not ~20 pairs or the voids not wide (lug 30-50 % of the pitch)`,
+        (100 * L.lugH / (2 * R)).toFixed(2) + ' % D, ' + L.lugPairs + ' pairs, lug ' + L.lugShare);
+    }
+    // (b) the real tyres: the targets inside each family's spread (W/D 0.05, rim/D 0.09 - the 13x5.00-6 on its 6"
+    // rim and the 4.00-4 on its 4" are the smooth rim's worst misses)
+    for (const [lab, R, prof, wd, rimD] of TYRE_MEASURED) {
+      const L = TL(R, prof, { lugs: 1 });
+      check(Math.abs(L.wd - wd) <= 0.05 && Math.abs(L.rimD - rimD) <= 0.09,
+        `G3851 ${lab}: the proposal left the real tyre's shape`, 'W/D ' + L.wd.toFixed(3) + ' vs ' + wd + ', rim/D ' + L.rimD.toFixed(3) + ' vs ' + rimD);
+    }
+    // (c) THE DRAWN WHEEL, switch on, measured through the bags: W/D and rim/D as tyreLook says, the grooves counted
+    // on the crown's profile, the tundra's lugs counted round the tyre and their height measured; the brake disc no
+    // bigger than 1.3 x the rim, the hub inside the tyre's bead on a tiny wheel
+    LOOK.on = 1; LOOK.lugs = 1;
+    try {
+      for (const [lab, R, kind] of TYRE_TARGETS) {
+        const prof = kind === 'tundra' ? 1 : 0, L = TL(R, prof, LOOK);
+        const bags = freshBags();
+        GG.wheel(bags, [0, 0, 0], [1, 0, 0], R, { brake: true, P: { whProfile: prof, whTread: 1, whRibs: 5 } });
+        const g = readBags(bags);
+        if (!check(!!g.tyre, `G3851 ${lab}: no tyre drawn`)) continue;
+        const T = g.tyre.pos;
+        let rMax = 0, rMin = 1e9, zMax = 0;
+        for (let i = 0; i < T.length; i += 3) {
+          const r = Math.hypot(T[i + 1], T[i + 2]);
+          rMax = Math.max(rMax, r); rMin = Math.min(rMin, r); zMax = Math.max(zMax, Math.abs(T[i]));
+        }
+        const Rc = L.tread === 'lugs' ? R : rMax;   // the carcass's own radius (the lugs stand on it)
+        check(Math.abs(zMax / Rc - L.wd) <= 0.02, `G3851 ${lab}: the drawn W/D is not tyreLook's`, (zMax / Rc).toFixed(3) + ' vs ' + L.wd.toFixed(3));
+        check(Math.abs(rMin / Rc - L.rimD * 1.03) <= 0.02, `G3851 ${lab}: the drawn bead is not on tyreLook's rim`, (rMin / Rc).toFixed(3) + ' vs ' + (L.rimD * 1.03).toFixed(3));
+        if (L.tread === 'ribs') {
+          // the profile at angle 0 (+y, the revolve's first column): crown vertices, sorted across the tyre
+          const prof0 = [];
+          for (let i = 0; i < T.length; i += 3) if (Math.abs(T[i + 2]) < 1e-7 && T[i + 1] > 0.85 * R) prof0.push([T[i], T[i + 1]]);
+          prof0.sort((a, b) => a[0] - b[0]);
+          // the flank's last point and the crown's first are the same vertex twice: one station each
+          for (let i = prof0.length - 1; i > 0; i--) if (Math.abs(prof0[i][0] - prof0[i - 1][0]) < 1e-6) prof0.splice(i, 1);
+          let n = 0;
+          for (let i = 1; i < prof0.length - 1; i++)
+            if (prof0[i][1] < prof0[i - 1][1] && prof0[i][1] <= prof0[i + 1][1] &&
+                Math.max(...prof0.filter(p => Math.abs(p[0] - prof0[i][0]) < 0.25 * R * L.wd).map(p => p[1])) - prof0[i][1] > 0.01 * R) n++;
+          check(n === L.grooves, `G3851 ${lab}: grooves counted on the crown`, n + ' vs ' + L.grooves);
+        } else {
+          check(rMax - R >= 0.6 * L.lugH && rMax - R <= 1.2 * L.lugH, `G3851 ${lab}: the lugs do not stand their height off the crown`, ((rMax - R) * 1000).toFixed(1) + ' mm vs ' + (L.lugH * 1000).toFixed(1));
+          for (const side of [-1, 1]) {
+            const th = [];
+            // the lugs' crown ends only (|x| under a tenth of the half-width: the bars slant, so further out their angles
+            // overlap the next bar's); each end is two corners 0.40 pitch apart, the voids 0.60 pitch
+            for (let i = 0; i < T.length; i += 3) if (Math.sign(T[i]) === side && Math.abs(T[i]) < 0.1 * L.wd * R && Math.hypot(T[i + 1], T[i + 2]) > R + 0.2 * L.lugH) th.push(Math.atan2(T[i + 2], T[i + 1]));
+            th.sort((a, b) => a - b);
+            for (let i = th.length - 1; i > 0; i--) if (th[i] - th[i - 1] < 1e-6) th.splice(i, 1);   // a corner is in three faces
+            const gap = 0.5 * 2 * Math.PI / L.lugPairs;
+            let n = th.length ? 1 : 0;
+            for (let i = 1; i < th.length; i++) if (th[i] - th[i - 1] > gap) n++;
+            if (th.length > 1 && th[0] + 2 * Math.PI - th[th.length - 1] < gap) n--;   // one lug across +-pi
+            check(n === L.lugPairs, `G3851 ${lab}: lugs counted round the ${side < 0 ? 'left' : 'right'} row`, n + ' vs ' + L.lugPairs);
+            // the lug's width and the void's, as drawn: each lug's crown end is a run of points (its section) closer than
+            // half a pitch; its extent is the lug, the rest of the pitch the void
+            const pitch = 2 * Math.PI / L.lugPairs, ext = [];
+            let lo = th[0];
+            for (let i = 1; i <= th.length; i++)
+              if (i === th.length || th[i] - th[i - 1] > gap) { ext.push((th[i - 1] - lo) / pitch); lo = th[i]; }
+            const wMean = ext.reduce((a, b) => a + b, 0) / Math.max(1, ext.length);
+            check(Math.abs(wMean - L.lugShare) < 0.06,
+              `G3851 ${lab}: the drawn lug / void is not tyreLook's ${L.lugShare} / ${(1 - L.lugShare).toFixed(2)}`, wMean.toFixed(2) + ' / ' + (1 - wMean).toFixed(2) + ' of the pitch');
+          }
+        }
+        if (g.brake) {
+          let bMax = 0; const B = g.brake.pos;
+          for (let i = 0; i < B.length; i += 3) bMax = Math.max(bMax, Math.hypot(B[i + 1], B[i + 2]));
+          check(bMax <= 1.30 * L.rimD * R + 1e-6, `G3851 ${lab}: the brake disc is bigger than 1.3 x the rim`, (bMax / (L.rimD * R)).toFixed(2) + ' x');
+        }
+        if (kind === 'tiny') {
+          let hMax = 0; const H = g.hub.pos;
+          for (let i = 0; i < H.length; i += 3) hMax = Math.max(hMax, Math.hypot(H[i + 1], H[i + 2]));
+          check(hMax <= 0.66 * R, `G3851 ${lab}: a hub with a ring of rubber (the hub reaches ${(hMax / R).toFixed(2)} R)`);
+        }
+      }
+    } finally { LOOK.on = LOOK_ON0; LOOK.lugs = 0; }
   }
 }
 

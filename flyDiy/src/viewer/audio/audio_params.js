@@ -56,6 +56,10 @@ var AUDIO_PARAMS = (function () {
     // measured landing-flap stall (gen.aStallLdg) by ctl.flap / flaps.ldg; a flapless setting moves it by the polar's
     // own dAStall x flap. 0 = this build has no measured stall (nothing warns).
     'aStall',
+    // THE DAMAGE (G1740, SND-CRASH): what the crash sounds are made of, read at AP_CONTACT_HZ - the members broken, the
+    // members bent (yields + dents), the pieces off the body (the pieces past the core). The physics worker's damage
+    // state (sim.dmgState(), sim_view.js: sent on change) else the inline solver's own record (sim.damage()); 0 whole
+    'dmgBrk', 'dmgSet', 'dmgPc',
   ];
   const AP_ENGINE = ['rpm', 'rpmEng', 'thr', 'running', 'crank', 'key', 'thrustPer',
                      'cyl', 'twoStroke', 'blades', 'D', 'gear', 'family',
@@ -79,7 +83,8 @@ var AUDIO_PARAMS = (function () {
     const block = new Float32Array(LEN);
     // clk[0]: the seconds since the contacts were last read (a typed slot: a double in an object field is a fresh box per write)
     // clk[1]: the seconds since the height above ground was last read (G1672)
-    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2),
+    // dmgS: the worker's last 'yields:dents' string read (G1740: parsed only when it changes)
+    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2), dmgS: null,
                   // the stall's per-def constants: clean, landing-flap, the landing notch, the polar's dAStall (G1630)
                   stall: new Float64Array(4) };
     AP_ENGINE.forEach((k, j) => { out[k] = block.subarray(NS + j * AP_MAX_ENG, NS + (j + 1) * AP_MAX_ENG); });
@@ -137,6 +142,7 @@ var AUDIO_PARAMS = (function () {
     out.stall[2] = FL && FL.ldg > 0 ? FL.ldg : 0;
     out.stall[3] = FL && FL.dAStall > 0 ? FL.dAStall : 0;
     out.s[I.nEng] = nE;
+    out.s[I.dmgBrk] = out.s[I.dmgSet] = out.s[I.dmgPc] = 0; out.dmgS = null;   // G1740
     out.nE = nE; out.def = def; out.clk[0] = 1e9; out.clk[1] = 1e9;   // a new aeroplane reads its contacts on its first frame
   }
 
@@ -219,6 +225,17 @@ var AUDIO_PARAMS = (function () {
       s[I.surf0] = m0 ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[0])) : -1;
       s[I.surf1] = m1 ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[1])) : -1;
       s[I.surfT] = tw ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[2])) : -1;
+      // G1740 THE DAMAGE: the worker's state (an object it keeps: no allocation; its 'yields:dents' string parsed only
+      // when a new one arrives) else the inline solver's record (its counters)
+      const D = sim && typeof sim.dmgState === 'function' ? sim.dmgState() : null;
+      if (D && D.br) {
+        s[I.dmgBrk] = D.br.length; s[I.dmgPc] = D.nPc > 1 ? D.nPc - 1 : 0;
+        if (D.sS !== out.dmgS) { out.dmgS = D.sS; const t = String(D.sS), k = t.indexOf(':'); s[I.dmgSet] = k > 0 ? (+t.slice(0, k) || 0) + (+t.slice(k + 1) || 0) : 0; }
+      } else {
+        const G = sim && typeof sim.damage === 'function' ? sim.damage() : null;
+        if (G && typeof G.breaks === 'number') { s[I.dmgBrk] = G.breaks; s[I.dmgSet] = (G.yields | 0) + (G.dents | 0); s[I.dmgPc] = G.cl ? G.cl.length : 0; }
+        else s[I.dmgBrk] = s[I.dmgSet] = s[I.dmgPc] = 0;
+      }
     }
     // the height above ground (G1672), at AP_AGL_HZ: the altitude less the higher of the terrain and the water under
     // the first main (or node 0), sampled at whole metres. Written here, in the hot function: a helper called twice a

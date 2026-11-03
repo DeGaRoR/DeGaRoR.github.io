@@ -68,6 +68,8 @@ const FILES = {
   engw: 'src/viewer/audio/engine_worklet.js', propw: 'src/viewer/audio/prop_worklet.js',
   // SND-AMB-1 (G1650-G1654): the ambience's numbers and its source
   ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
+  // G1656-G1658 (SND-AMB-1, the user's SOUND section): the record's layer, the world editor, its marks
+  core27: 'src/core/27_premises.js', premui: 'src/viewer/premises_ui.js', rprem: 'src/viewer/render_premises.js',
   // SND-AMB-2 (G1660-G1666): the emitters' numbers, the emitters, the premises renderer's read-only accessor
   emmodel: 'src/viewer/audio/emitters_model.js', em: 'src/viewer/audio/emitters.js', prem: 'src/viewer/render_premises.js',
   // SND-ANIMALS (G1705-G1709): the animals' behaviours and their read-only reader
@@ -537,7 +539,16 @@ function checkMix(S) {
     if (!ra || ra[3] !== 'airframe' || !/wind/.test(ra[4])) F.push('the "aircraft" row is not the airframe (' + JSON.stringify(ra) + ')');
     if (re && ra && !(R.indexOf(re) < R.indexOf(ra))) F.push('the engine row does not come before the airframe');
     A.set('engine', 0.55);
-    if (pg.store['flydiy.audio.engine'] !== '0.55') F.push('the engine volume is not persisted as flydiy.audio.engine (' + pg.store['flydiy.audio.engine'] + ')'); }
+    if (pg.store['flydiy.audio.engine'] !== '0.55') F.push('the engine volume is not persisted as flydiy.audio.engine (' + pg.store['flydiy.audio.engine'] + ')');
+    // G1728 (SND-MIX-2, "even at max"): the engine goes to 200 % (+6 dB); every other volume still stops at 100 %
+    if (!re || re[5] !== 2) F.push('the engine row has no 200 % top (' + JSON.stringify(re) + ')');
+    A.set('engine', 1.8);
+    if (A.get('engine') !== 1.8 || pg.store['flydiy.audio.engine'] !== '1.8') F.push('the engine at 180 % reads ' + A.get('engine') + ' (stored ' + pg.store['flydiy.audio.engine'] + ')');
+    A.set('engine', 7); if (A.get('engine') !== 2) F.push('the engine set to 700 % reads ' + A.get('engine') + ' (want the 200 % top)');
+    A.set('aircraft', 1.5); A.set('music', 1.5);
+    if (A.get('aircraft') !== 1 || A.get('music') !== 1) F.push('another volume passed 100 % (airframe ' + A.get('aircraft') + ', music ' + A.get('music') + ')');
+    const p2 = makePage(S, { quiet: true, store: { 'flydiy.audio.engine': '1.6', 'flydiy.audio.music': '1.6' } });
+    if (p2.A.get('engine') !== 1.6 || p2.A.get('music') !== 1) F.push('stored 160 % reads engine ' + p2.A.get('engine') + ', music ' + p2.A.get('music') + ' (want 1.6 / 1)'); }
   // A STORED 'aircraft' (it scaled the engine and the airframe) moves neither: the engine takes its value, and keeps it
   { const st = { 'flydiy.audio.aircraft': '0.4' }, pg = makePage(S, { quiet: true, store: st });
     if (pg.A.get('engine') !== 0.4 || pg.A.get('aircraft') !== 0.4 || st['flydiy.audio.engine'] !== '0.4') F.push('a stored aircraft 0.4 left the engine at ' + pg.A.get('engine') + ' (stored ' + st['flydiy.audio.engine'] + '): the player would hear the engine move');
@@ -565,6 +576,12 @@ function checkMix(S) {
     A.set('engine', 1); A.set('aircraft', 0.25); pg.frame(false);
     if (ins().some(v => !near(v, kE, 1e-9))) F.push('the airframe slider moved the engine (' + ins() + ')');
     if (!near(gA.ins[3].gain.value, 0.25 * kA, 1e-9) || !near(G.afIn.gain.value, 0.25 * kA, 1e-9)) F.push('the airframe slider at 25 % left the airframe at ' + gA.ins[3].gain.value.toFixed(3) + ' / ' + G.afIn.gain.value.toFixed(3));
+    // G1728: the engine at 200 % out of the shed doubles the inputs; the shed holds them at 100 % (the garage as ruled)
+    A.set('aircraft', 1); A.set('engine', 2); pg.frame(false);
+    if (ins().some(v => !near(v, 2 * kE, 1e-9))) F.push('the engine at 200 % out of the shed left the inputs at ' + ins().map(v => v.toFixed(3)) + ' (want ' + (2 * kE).toFixed(3) + ')');
+    pg.frame(true);
+    if (ins().some(v => !near(v, 1, 1e-9))) F.push('the engine at 200 % reached the shed (' + ins().map(v => v.toFixed(3)) + '): the garage must not move');
+    A.set('engine', 1); pg.frame(false);
     // both perspectives: each input feeds its directivity (outside) and the cabin (inside: the side, the tonal through its trim)
     const to = (n, d) => n.edges.some(e => e.d === d);
     for (let k = 0; k < 3; k++) if (!to(g0.ins[k], g0.dirs[k]) || !(to(g0.ins[k], g0.side) || (g0.tonalCab && to(g0.ins[k], g0.tonalCab)))) F.push('engine input ' + k + ' does not reach both the exterior chain and the cabin');
@@ -646,10 +663,21 @@ function checkWiring(S) {
   const ip = list.indexOf("'audio/audio_params.js'"), ia = list.indexOf("'audio/audio.js'"), iw = list.indexOf("'app.js'");
   if (!(ip >= 0 && ia > ip && iw > ia)) F.push('build.js MANIFEST.viewer.scripts does not list audio/audio_params.js, audio/audio.js before app.js');
   if (!/audio: \{ modules: \[/.test(S.build) || !/window\.FLYDIY_AUDIO_SRC=\$\{JSON\.stringify\(AUDIO_SRC\)\}/.test(S.build)) F.push('build.js does not publish MANIFEST.audio.modules as FLYDIY_AUDIO_SRC');
+  // GARAGE-RATTLE (the user's playtest 24 Oct: a continuous rattle in the shed after a flight): the return to the shed
+  // leaves sim.out at rest - nothing steps there, and the last flight's speed / rpm fed the airframe and the engine
+  { const g = S.app.indexOf('  function enterGarage() {'), r = S.app.indexOf('    sim.reset(0);\n', g), z = S.app.indexOf('simOutAtRest(sim.out);', r);
+    const f = S.app.indexOf('  function simOutAtRest(o) {'), body = f >= 0 ? S.app.slice(f, S.app.indexOf('\n  }\n', f)) : '';
+    if (!(g >= 0 && r > g && z > r && z - r < 40)) F.push('enterGarage does not set sim.out at rest right after sim.reset(0) (GARAGE-RATTLE: the last flight’s speed sounds in the shed)');
+    if (!/o\.V = 0;/.test(body) || body.indexOf("'rpm', 'rpmEng', 'thrustPer'") < 0) F.push('simOutAtRest does not zero the speed and the engines’ rpm (GARAGE-RATTLE)'); }
+  // G1730 THE SHUTTER: audio.js listens for photo mode's 'flydiy:shutter' (GAME-MENUS G3744 fires it at the take - the
+  // round shutter and FLYDIY_PHOTO.take both); where photo mode exists (app.js photoTake) the event must be fired
+  if (S.audio.indexOf("W.addEventListener('flydiy:shutter', () => { shutter(); });") < 0) F.push('audio.js does not listen for photo mode’s flydiy:shutter (G1730)');
+  { const t = S.app.indexOf('const photoTake = () => {');
+    if (t >= 0 && S.app.indexOf("'flydiy:shutter'") < 0) F.push('photo mode (app.js photoTake) never fires flydiy:shutter: the shot is silent (G1730 / GAME-MENUS G3744)'); }
   const calls = S.app.split('AUDIO.update(').length - 1;
   if (calls !== 1) F.push('app.js calls AUDIO.update ' + calls + ' times (want 1)');
   const lp = S.app.indexOf('  function loop(ts) {'), le = S.app.indexOf('\n  }\n', lp);
-  const at = S.app.indexOf('AUDIO.update(', lp), rr = S.app.indexOf('renderer.render(inGarage', lp), pe = S.app.indexOf('PACE.end(', lp);
+  const at = S.app.indexOf('AUDIO.update(', lp), rr = S.app.indexOf('renderer.render(inGarage', lp), pe = S.app.lastIndexOf('PACE.end(', le);   // (REVEAL: the drawn frame's - a held frame reports earlier in the loop, flagged held)
   if (!(lp > 0 && at > rr && rr > lp && at < pe && pe < le)) F.push('app.js: AUDIO.update is not in loop() between the render and PACE.end');
   if (!/\{ k: 'audio', label: 'sound'[^\n]*secs: \['sound'\]/.test(S.app) || !/\n\s+sound: b => \(window\.AUDIO \? window\.AUDIO\.mount\(/.test(S.app)) F.push('the flight rail has no `audio` item mounting AUDIO');
   // SND-AIRFRAME: the model, the slots and the source after audio.js, before app.js; the worklet a served module
@@ -3049,7 +3077,7 @@ function ambWorld(o) {
     surface: (x, z) => (x > 850 && x <= 900 ? 7 : x < -300 && z < 0 ? 3 : 0),
     hydro: { distW: (x, z) => { const dl = Math.round(Math.sqrt((x - AMB_LAKE[0]) * (x - AMB_LAKE[0]) + (z - AMB_LAKE[1]) * (z - AMB_LAKE[1]))) - AMB_LAKE[2];
                                 const ds = 900 - x, d = dl < ds ? dl : ds; return d > 0 ? d : 0; } },
-    premises: { rec: { layers: { zones: [{ kind: 'residential', poly: [[200, -1200], [600, -1200], [600, -800], [200, -800]] },
+    premises: { rec: { layers: { sounds: o.sounds || [], zones: [{ kind: 'residential', poly: [[200, -1200], [600, -1200], [600, -800], [200, -800]] },
                                         { kind: 'forest', poly: [[-1500, -1500], [-300, -1500], [-300, 0]] }] } },
                 overlay: { frame: { toWorld: (x, z) => [x, z] } } },
     aerodromes: [{ x: 300, z: 900, hdg: 0, len: 600, wid: 30, kind: 'strip' }, { x: 1200, z: 0, hdg: 0, len: 1500, wid: 200, kind: 'water' }],
@@ -3238,7 +3266,9 @@ function ambPage(S, o) {
   pg.sim = stubSim(fb, { mains: [true, true], tw: false, water: false }); pg.def = fb.def;
   pg.camera = { position: { x: 0, y: 22, z: 500 } }; pg.cam = { mode: 'chase' };
   pg.R = R;
-  pg.world = ambWorld();
+  // G1656: two drawn sounds on the alloc walk's path (x -700, z -260..160): the loons on 200 m east of it, the forest's
+  // day bed OFF over a strip of it - every frame of that walk runs the drawn sounds' code
+  pg.world = ambWorld({ sounds: AMB_DRAWN });
   pg.go = () => pg.A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, !!pg.garage, pg.world);
   pg.settle = async n => { for (let i = 0; i < n; i++) { pg.go(); if (i % 4 === 0) await null; } for (let i = 0; i < 8; i++) await null; };
   pg.at = (x, z, h) => { const W = pg.world; pg.camera.position.x = x; pg.camera.position.z = z; pg.camera.position.y = Math.max(W.terrainH(x, z), W.waterH(x, z)) + h; };
@@ -3429,6 +3459,133 @@ function checkAmbSamples(S) {
   });
 }
 // THE WIRING: the build lists the two files after samples.js; AUDIO publishes the world; the ambience is on its bus
+
+// ---- G1656-G1658: THE SOUNDS DRAWN IN THE WORLD EDITOR ---------------------------------------------------------------
+const AMB_DRAWN = [{ id: 'a1', kind: 'sound', x: -500, z: 0, key: 'amb.loons', on: true },
+                   { id: 'a2', kind: 'sound', poly: [[-800, -200], [-600, -200], [-600, -100], [-800, -100]], key: 'amb.forest.day', on: false }];
+// the model: a point is at full at its core and gone at its reach; an area at full inside and gone a reach outside; OFF
+// silences; a ground bed still fades with height and a wind does not; the record's frame is honoured; the live record
+// (the editor's, AMBIENCE.soundsChanged) replaces the composed one
+function checkAmbDrawn(S) {
+  const F = [], M = ambModelOf(S);
+  const T = (st, k) => st.t[M.BEDS.findIndex(b => b[0] === k)];
+  const Rl = M.reachOf('amb.loons'), Rh = M.reachOf('amb.harbour');
+  if (!(Rl > 0 && Rh > 0) || M.reachOf('amb.nothing') !== M.REACH_DEF) F.push('the reach table: loons ' + Rl + ', harbour ' + Rh + ', an unknown bed ' + M.reachOf('amb.nothing'));
+  const sounds = [{ id: 'a1', kind: 'sound', x: 0, z: 500, key: 'amb.loons', on: true },
+                  { id: 'a2', kind: 'sound', poly: [[300, 300], [500, 300], [500, 500], [300, 500]], key: 'amb.harbour', on: true },
+                  { id: 'a3', kind: 'sound', poly: [[-1100, -900], [-700, -900], [-700, -600], [-1100, -600]], key: 'amb.forest.day', on: false },
+                  { id: 'a4', kind: 'sound', x: -400, z: 600, key: 'amb.wind.storm', on: true },
+                  { id: 'bad', kind: 'sound', x: 0, z: 0, key: 'amb.nothing', on: true }];
+  const W = ambWorld({ sounds });
+  const at = (x, z, h) => ambAt(M, W, x, z, h || 1.7);
+  // the loons by day on the meadow: none by the rules, 1 at the point, partial half a reach out, 0 past the reach
+  const l0 = T(at(0, 500), 'amb.loons'), lh = T(at(0, 500 + Rl / 2), 'amb.loons'), lf = T(at(0, 500 + Rl + 20), 'amb.loons');
+  if (!(l0 >= 0.99 && lh > 0.1 && lh < 0.9 && lf <= 1e-6)) F.push('a point sound (loons): ' + l0.toFixed(2) + ' at it, ' + lh.toFixed(2) + ' half a reach out, ' + lf.toFixed(3) + ' past its reach (want 1, between, 0)');
+  // the harbour's area: 1 inside, partial half a reach outside, 0 past
+  const h0 = T(at(400, 400), 'amb.harbour'), hh = T(at(500 + Rh / 2, 400), 'amb.harbour'), hf = T(at(500 + Rh + 20, 400), 'amb.harbour');
+  if (!(h0 >= 0.99 && hh > 0.1 && hh < 0.9 && hf <= 1e-6)) F.push('a sound area (harbour): ' + h0.toFixed(2) + ' inside, ' + hh.toFixed(2) + ' half a reach out, ' + hf.toFixed(3) + ' past (want 1, between, 0)');
+  // OFF over the forest: the forest's day bed silenced inside, itself again past the reach
+  const fIn = T(at(-900, -750), 'amb.forest.day'), fOut = T(at(-900, -750 + 400 + M.reachOf('amb.forest.day')), 'amb.forest.day');
+  const fFree = T(ambAt(M, ambWorld(), -900, -750, 1.7), 'amb.forest.day');
+  if (!(fFree > 0.7 && fIn <= 0.01)) F.push('an OFF area over the forest: forest.day ' + fIn.toFixed(2) + ' inside (the forest alone ' + fFree.toFixed(2) + ')');
+  if (!(fOut > 0.5)) F.push('past an OFF area\'s reach the forest is still ' + fOut.toFixed(2));
+  // height: the loons' point at 200 m AGL silent (a ground bed), the storm's at 300 m still there (a wind)
+  const lHigh = T(at(0, 500, 200), 'amb.loons'), sHigh = T(at(-400, 600, 300), 'amb.wind.storm');
+  if (!(lHigh <= 1e-6 && sHigh >= 0.99)) F.push('height: the loons\' point at 200 m reads ' + lHigh.toFixed(3) + ' (want 0), the storm\'s at 300 m ' + sHigh.toFixed(2) + ' (want 1)');
+  // an unknown bed is dropped, not an error; the count
+  const st = M.ambienceState(), n = M.ambienceSounds(st, { layers: { sounds } }, null);
+  if (n !== 4) F.push('ambienceSounds kept ' + n + ' of 5 (want 4: the unknown bed dropped)');
+  // the frame: a record whose anchor is 1000 m east puts its point there
+  const fr = { toWorld: (x, z) => [x + 1000, z] };
+  M.ambienceSounds(st, { layers: { sounds: [sounds[0]] } }, fr);
+  if (!(st.sd[4] === 1000 && st.sd[5] === 500)) F.push('the frame not honoured: the point at ' + st.sd[4] + ', ' + st.sd[5] + ' (want 1000, 500)');
+  // the live record replaces the composed one, and a later composition's record is read again
+  const W2 = ambWorld({ sounds: [] }), st2 = M.ambienceState(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock();
+  P.s[P.I.listenerX] = 0; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 500;
+  M.ambienceStep(st2, P, W2, 1 / 60);
+  M.ambienceSounds(st2, { layers: { sounds: [sounds[0]] } }, null);
+  for (let i = 0; i < 60; i++) M.ambienceStep(st2, P, W2, 1 / 60);
+  const live = T(st2, 'amb.loons');
+  W2.premises.rec = { layers: { zones: W2.premises.rec.layers.zones, sounds: [] } };   // a composition: a new record, no sound
+  for (let i = 0; i < 60; i++) M.ambienceStep(st2, P, W2, 1 / 60);
+  if (!(live >= 0.99 && T(st2, 'amb.loons') <= 1e-6)) F.push('the live record\'s point read ' + live.toFixed(2) + ', after a new composition ' + T(st2, 'amb.loons').toFixed(2) + ' (want 1, then 0)');
+  return F;
+}
+// the record: the layer, its prefix, its issues; and INERT - the same premises composed with and without sounds give the
+// same ground, the same surfaces, the same aerodromes, the same raster signatures
+function checkAmbRecord(S) {
+  const F = [];
+  // (F4: 27_premises calls CORE_MATH - 00_registry's, which the bundle defines first; T41b's helper gives the same closure)
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} }, CORE_MATH: require(path.join(ROOT, 'tools', '_core_math_global.js')) };
+  vm.runInNewContext(S.core27 + '\n;module.exports = typeof PREMISES_GEN !== "undefined" ? PREMISES_GEN : null;', c, { filename: '27_premises.js' });
+  const PG = c.module.exports || FC.PREMISES_GEN;
+  if (PG.LAYERS.indexOf('sounds') < 0) F.push('the record has no sounds layer');
+  const r = PG.normalise({ layers: { sounds: [{ id: 'a1', kind: 'sound', x: 1, z: 2, key: 'amb.loons', on: true }] } });
+  if (!r.layers.sounds || r.layers.sounds.length !== 1 || PG.newId(r, 'sounds') !== 'snd1') F.push('normalise / newId: ' + JSON.stringify(r.layers.sounds) + ' next ' + PG.newId(r, 'sounds'));
+  if (!PG.findById(r, 'a1') || PG.findById(r, 'a1').layer !== 'sounds') F.push('findById does not reach a sound');
+  const iss = PG.issues(PG.normalise({ layers: { sounds: [{ id: 'a1', kind: 'sound', poly: [[0, 0], [10, 0]], key: 'amb.loons' }, { id: 'a2', kind: 'sound', x: 0, z: 0, key: 'loons' }, { id: 'a3', kind: 'sound', key: 'amb.loons' }] } })).filter(i => /^sound/.test(i));
+  if (iss.length !== 3) F.push('issues() on three bad sounds: ' + JSON.stringify(iss));
+  if (PG.issues(r).some(i => /^sound/.test(i))) F.push('a good sound has an issue: ' + PG.issues(r).filter(i => /^sound/.test(i)));
+  // INERT, on THIS text's compose: a small premises (a raise, a road, a surface patch) over the analytic world with and
+  // without sounds on top of it - the same composed heights, surfaces and ground modifiers (AMBINERT does Jolene whole)
+  const W = FC.makeWorld(0);
+  const base = { seed: 3, layers: { terrain: [{ id: 't1', kind: 'raise', poly: [[0, 0], [80, 0], [80, 80], [0, 80]], dh: 4, falloff: 12 }],
+    roads: [{ id: 'r1', pts: [[-50, 40], [150, 40]], w: 4, cls: 'gravel', graded: true, falloff: 6 }], surface: [{ id: 'y1', poly: [[100, 100], [140, 100], [140, 140], [100, 140]], surface: 6 }] } };
+  const withS = JSON.parse(JSON.stringify(base)); withS.layers.sounds = [{ id: 'a1', kind: 'sound', x: 40, z: 40, key: 'amb.loons', on: true }, { id: 'a2', kind: 'sound', poly: [[0, 0], [120, 0], [120, 120]], key: 'amb.village', on: false }];
+  const sig = rr => { const O = PG.compose(PG.normalise(rr), W, { pool: () => [], globals: {} }), out = [];
+    for (let i = 0; i < 30; i++) { const x = -40 + i * 7, z = -20 + i * 6; out.push(O.terrainAt(x, z).toFixed(4), O.surfaceAt ? O.surfaceAt(x, z) : ''); }
+    return out.join(',') + '|' + (O.n || 0); };
+  const a = sig(base), b = sig(withS);
+  if (a !== b) F.push('the compose of THIS text: two sounds moved the composed ground or surfaces');
+  return F;
+}
+function checkAmbInert() {
+  const F = [];
+  if (!JOLENE) JOLENE = require(path.join(ROOT, 'tools', 'audio', 'ambience_render.js')).loadJolene();
+  const W = JOLENE, PG = FC.PREMISES_GEN, rec0 = W.premises.rec;
+  const sig = () => {
+    const O = W.premises.overlay, out = [];
+    for (let i = 0; i < 40; i++) { const x = -2000 + i * 97, z = 800 - i * 113; out.push(W.terrainH(x, z).toFixed(4), W.surface(x | 0, z | 0)); }
+    out.push(W.aerodromes.length, O && O.records ? O.records.items.length : -1, O && O.rasterCellSig ? O.rasterCellSig(0, 0) + O.rasterCellSig(-2, -4) : '');
+    return out.join(',');
+  };
+  const a = sig();
+  const withS = Object.assign({}, rec0, { layers: Object.assign({}, rec0.layers, { sounds: [{ id: 'a1', kind: 'sound', x: -100, z: 640, key: 'amb.loons', on: true },
+    { id: 'a2', kind: 'sound', poly: [[150, -700], [450, -700], [450, -400], [150, -400]], key: 'amb.harbour', on: false }] }) });
+  W.premises.set(withS);
+  const b = sig();
+  W.premises.set(rec0);
+  if (a !== b) F.push('two sounds in Jolene\'s record moved its ground, surfaces, aerodromes or raster signatures');
+  // the control: a terrain modifier does move them (the probe can see a change)
+  W.premises.set(Object.assign({}, rec0, { layers: Object.assign({}, rec0.layers, { terrain: rec0.layers.terrain.concat([{ id: 'tx', kind: 'raise', poly: [[-1900, 700], [-1500, 700], [-1500, 400], [-1900, 400]], dh: 9, falloff: 10 }]) }) }));
+  const c = sig();
+  W.premises.set(rec0);
+  if (c === a) F.push('the control (a 9 m raise) moved nothing: the probe is blind');
+  return F;
+}
+// the editor: the SOUND section and its two tools, the drawn area's layer, a sound edit composing nothing and moving no
+// ground, the ambience told, the marks drawn, a point sound draggable and pickable
+function checkAmbEditor(S) {
+  const F = [], U = S.premui, Rr = S.rprem;
+  const need = (src, re, what) => { if (!re.test(src)) F.push(what); };
+  need(U, /\{ k: 'sounds',\s+label: 'SOUND',\s+icon: '[^']*',\s+tools: \['select', 'soundpt', 'soundarea', 'probe'\] \}/, 'the editor has no SOUND section with its two tools');
+  need(U, /soundarea: 'sounds' \}/, 'the sound area is not a polygon tool of the sounds layer');
+  need(U, /if \(layer === 'sounds'\) return false;/, 'a sound edit is not ground-free (the game would re-sample its ground)');
+  need(U, /window\.AMBIENCE\.soundsChanged\(rec\)/, 'the editor does not tell the ambience');
+  // a sound's id unique over EVERY layer (the real page's first proof: Jolene's animal hotspots are a1.., and findById
+  // answered the elk herd for the point sound a1)
+  need(U, /function soundId\(\) \{ for \(let i = 1; ; i\+\+\) \{ const id = 'snd' \+ i; if \(!PG\.findById\(rec, id\)\) return id; \} \}/, 'a sound\'s id is not unique over every layer');
+  if ((U.match(/id: soundId\(\), kind: 'sound'/g) || []).length !== 2) F.push('the point and the area do not both take soundId()');
+  need(U, /\(e\.kind === 'sound' && !e\.poly\)\) \{ drag = /, 'a point sound cannot be dragged');
+  need(Rr, /if \(dirty && dirty\.layer === 'sounds' && O\) \{\n      if \(o\.editing\(\)\) \{ soundOutlines\(\); buildHandles\(\); \}/, 'a sound edit recomposes the world (or redraws every outline)');
+  need(Rr, /const OUTLINE_LAYERS = \[[^\]]*'sounds'\];/, 'the renderer does not draw the sounds');
+  // (the kept outlines, G3084: the marks are made AFTER the sweep that takes off every line not seen - before it, they go)
+  need(Rr, /if \(!seen\.has\(k\)\) lineGone\(k\);[^\n]*\n    for \(const e of rec\.layers\.sounds \|\| \[\]\) soundMarks\(e\);/, 'the sounds have no marks (pin, rings, reach), or they are made before the outlines\' sweep takes them off');
+  need(Rr, /for \(const so of rec\.layers\.sounds \|\| \[\]\) if \(!so\.poly/, 'a point sound cannot be picked');
+  { const h = Rr.indexOf('function hitAll('), h1 = Rr.indexOf('function pickR(', h); if (h < 0 || !/layer: 'sounds', entry: so/.test(Rr.slice(h, h1))) F.push('the pick cycle (hitAll, G3006) never offers a point sound: a click cannot select it'); }
+  need(U, /else if \(section === 'sounds'\) soundsPalette\(d\);/, 'the SOUND tab has no palette drawer (the bed to draw, the probe)');
+  return F;
+}
 function checkAmbWiring(S) {
   const F = [];
   const i0 = S.build.indexOf("'audio/samples.js'"), i1 = S.build.indexOf("'audio/ambience_model.js'"), i2 = S.build.indexOf("'audio/ambience.js'"), i3 = S.build.indexOf("'world_boot.js', 'app.js'");
@@ -4407,7 +4564,178 @@ function checkVoiceWiring(S) {
   return F;
 }
 
-const CHECKS = { MIX: checkMix, NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+// G1730 THE SHUTTER (photo mode's shot, GAME-MENUS G3741/G3742): synthesized (no file), under 0.3 s, at the interface
+// volume, round the fade straight into the limiter (it plays in the pause; the paused mix stays silent; no bus moves:
+// nothing ducks the engine), the context put back to sleep after it, the noise buffer made once
+function checkShutter(S) {
+  const F = [], made = [];
+  const pg = livePage(S, { ctx: (P, C) => {
+    const nd = o => Object.assign({ to: [], connect(d) { this.to.push(d); return d; }, disconnect() {} }, o);
+    const prm = v => ({ value: v, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} });
+    const g0 = P.createGain;
+    P.createGain = function () { const g = g0.call(this); g.to = []; g.connect = d => { g.to.push(d); return d; }; made.push(g); return g; };
+    P.createBuffer = (n, len, sr) => { C.bufs = (C.bufs || 0) + 1; const d = new Float32Array(len); return { length: len, sampleRate: sr, getChannelData: () => d }; };
+    P.createBufferSource = () => { const s = nd({ ends: [], start(t, off, dur) { s.ends.push((+t || 0) + (dur || 0)); } }); made.push(s); return s; };
+    P.createBiquadFilter = () => { const b = nd({ type: '', frequency: prm(350), Q: prm(1) }); made.push(b); return b; };
+    P.createOscillator = () => { const o = nd({ ends: [], frequency: prm(440), start() {}, stop(t) { o.ends.push(+t || 0); } }); made.push(o); return o; };
+  } });
+  const A = pg.A, go = () => A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, pg.world);
+  if (typeof A.shutter !== 'function') return ['AUDIO.shutter is missing (G1730: photo mode\'s shot)'];
+  go();
+  const LIM = A.bus('limiter'), FADE = A.bus('fade');
+  const BUS = ['master', 'aircraft', 'aircraft.ext', 'aircraft.int', 'ambience', 'music', 'ui'];
+  const evs = () => BUS.map(b => A.bus(b) ? A.bus(b).gain.ev.length : -1).join(',');
+  const shot = () => { made.length = 0; const e0 = evs(), ok = A.shutter(); return { ok, moved: evs() !== e0, nodes: made.slice() }; };
+  // in flight: plays, into the limiter alone, short, at the interface volume, no bus scheduled
+  A.set('interface', 0.5);
+  const s1 = shot(), mine = new Set(s1.nodes);
+  if (!s1.ok || !s1.nodes.length) F.push('the shutter did not play in flight (' + s1.ok + ', ' + s1.nodes.length + ' nodes)');
+  const outs = s1.nodes.filter(n => n.to.indexOf(LIM) >= 0);
+  if (outs.length !== 1) F.push('the shot does not reach the limiter by exactly one gain (' + outs.length + ')');
+  const stray = s1.nodes.filter(n => n.to.some(d => d !== LIM && !mine.has(d)));
+  if (stray.length) F.push('the shot connects past its own nodes to a bus (' + stray.length + ' nodes: through master/fade it would sleep in the pause or duck)');
+  if (outs[0] && !near(outs[0].gain.value, A.get('master') * 0.5 * 0.32, 1e-6)) F.push('the shot is not at master x interface x 0.32 (' + outs[0].gain.value + ')');
+  const end = Math.max(0, ...s1.nodes.map(n => n.ends ? Math.max(0, ...n.ends) : 0));
+  if (!(end > 0.05 && end < 0.3)) F.push('the shot lasts ' + end.toFixed(3) + ' s (want 0.05 .. 0.3)');
+  if (s1.moved) F.push('the shot scheduled a bus gain (the engine must not duck)');
+  // the interface at 0: nothing made
+  A.set('interface', 0); const s0 = shot(); A.set('interface', 0.7);
+  if (s0.ok || s0.nodes.length) F.push('the interface at 0 still made a shot (' + s0.nodes.length + ' nodes)');
+  // the pause (photo mode holds the flight): suspended, the shot wakes the context, the fade stays shut, back to sleep after
+  pg.win.FLYDIY_HELD = true; go(); pg.runTimers();
+  if (A.state !== 'suspended') F.push('the pause did not silence before the shot (state ' + A.state + ')');
+  const r0 = pg.C.resume, u0 = pg.C.suspend, s2 = shot();
+  if (!s2.ok || pg.C.resume !== r0 + 1) F.push('the shot in the pause did not wake the context (' + s2.ok + ', resumes +' + (pg.C.resume - r0) + ')');
+  if (FADE.gain.value !== 0 || A.state !== 'suspended') F.push('the shot in the pause opened the paused mix (fade ' + FADE.gain.value + ', state ' + A.state + ')');
+  pg.runTimers();
+  if (pg.C.suspend !== u0 + 1) F.push('the context did not go back to sleep after the shot in the pause (suspends +' + (pg.C.suspend - u0) + ')');
+  // the shot inside the pause's 0.2 s fade: the silence's own suspend (and its event) still comes
+  pg.win.FLYDIY_HELD = false; go();
+  let evSusp = 0; A.onEvent('suspend', () => evSusp++);
+  pg.win.FLYDIY_HELD = true; go(); shot(); pg.runTimers();
+  if (A.state !== 'suspended' || evSusp !== 1) F.push('a shot inside the pause\'s fade lost the suspend (state ' + A.state + ', events ' + evSusp + ')');
+  if (pg.C.bufs !== 1) F.push('the noise buffer was made ' + pg.C.bufs + ' times (once)');
+  // photo mode's event plays it (GAME-MENUS G3744 fires flydiy:shutter at the take)
+  pg.win.FLYDIY_HELD = false; go(); made.length = 0; pg.winEvent('flydiy:shutter');
+  if (!made.length) F.push('the flydiy:shutter event made no shot');
+  return F;
+}
+
+// ---- G1740 SND-CRASH: THE CRASH'S SOUNDS (the user, 29 Oct: "crashes silent") --------------------------------------
+// THE NUMBERS: audio_params reads the damage layer's counts (the worker's state, else the inline solver's record).
+// THE MODEL: a member broken snaps (+ a crunch), a piece off tears (the snap at full, a = 1), a member bent crunches, a
+// reset (the counts back to 0) and an aeroplane loaded broken say nothing; an impact is nz off its mean by > impG near
+// the ground (a hard landing's 2.5 g alone stays the thump's; with the structure giving, > impGd is an impact); the wreck
+// scrapes while it slides (damaged, low, not on its two mains whole), never parked, never whole on its wheels, never in
+// the water; the material is the build's. THE VOICE: each crash event's energy orders with its severity, finite, under
+// the ceiling; the scrape rises with its level and metal's is brighter than wood's.
+function checkCrash(S, report) {
+  const F = [], AP = loadParams(S.params), M = modelOf(S), W = voiceOf(S), I = AF_I, E = M.AF_EV;
+  // THE NUMBERS
+  { const out = AP.audioParamsBlock(), b = FLOWN[0];
+    const wk = { out: b.sim.out, ctl: b.sim.ctl, eng: b.sim.eng, wheelContacts: () => null, dmgState: () => ({ br: [4, 9], nPc: 2, sS: '3:1' }) };
+    AP.audioParams(wk, { mode: 'chase' }, b.def, out, null, 1 / 60);
+    const J = AP.I, got = [out.s[J.dmgBrk], out.s[J.dmgSet], out.s[J.dmgPc]].join();
+    if (got !== '2,4,1') F.push('the worker\'s damage state read as broken / bent / pieces ' + got + ' (want 2,4,1)');
+    const il = { out: b.sim.out, ctl: b.sim.ctl, eng: b.sim.eng, wheelContacts: () => null, damage: () => ({ breaks: 1, yields: 2, dents: 1, cl: [] }) };
+    const out2 = AP.audioParamsBlock();   // (a fresh block reads on its first frame: the damage is read at AP_CONTACT_HZ)
+    AP.audioParams(il, { mode: 'chase' }, b.def, out2, null, 1 / 60);
+    const g2 = [out2.s[J.dmgBrk], out2.s[J.dmgSet], out2.s[J.dmgPc]].join();
+    if (g2 !== '1,3,0') F.push('the inline solver\'s damage read as ' + g2 + ' (want 1,3,0)'); }
+  // THE MODEL: a sequence of frames [n, {brk, set, pc, nz, Vg, agl, main0, main1, water}] -> the events and the last targets
+  const run = (seq, def) => {
+    const st = M.airframeState(), Q = synthP(def || CUB().def), ev = []; let tg = null;
+    for (const [n, o] of seq) for (let f = 0; f < n; f++) {
+      Q.s[I.dmgBrk] = o.brk || 0; Q.s[I.dmgSet] = o.set || 0; Q.s[I.dmgPc] = o.pc || 0;
+      Q.s[I.nz] = o.nz != null ? o.nz : 1; Q.s[I.Vg] = Q.s[I.V] = o.Vg || 0; Q.s[I.agl] = o.agl != null ? o.agl : 0.8;
+      for (const k of ['main0', 'main1', 'water']) Q.s[I[k]] = o[k] ? 1 : 0;
+      Q.s[I.surf0] = o.main0 ? 0 : -1; Q.s[I.surf1] = o.main1 ? 0 : -1;
+      tg = M.airframeStep(Q, st, 1 / 60);
+      for (let k = 0; k < st.evN[0]; k++) ev.push(Array.from(st.ev.subarray(k * 4, k * 4 + 4)));
+      st.evN[0] = 0;
+    }
+    return { ev, tg: Array.from(tg) };
+  };
+  const of = (r, e) => r.ev.filter(x => x[0] === e);
+  let r = run([[10, { Vg: 20 }], [5, { Vg: 20, brk: 1 }]]);
+  const one = r.ev.length === 1 && of(r, E.SNAP).length === 1 ? of(r, E.SNAP)[0][1] : -1;
+  if (r.ev.length !== 1 || of(r, E.SNAP).length !== 1 || of(r, E.SNAP)[0][2] !== 0) F.push('a member broken: ' + JSON.stringify(r.ev) + ' (want ONE event: a snap, a = 0 - no crunch beside it)');
+  r = run([[10, { Vg: 20, brk: 1 }], [5, { Vg: 20, brk: 3, pc: 1 }]]);
+  { const sn = of(r, E.SNAP); if (r.ev.length !== 1 || sn.length !== 1 || sn[0][2] !== 1 || !(sn[0][1] > one)) F.push('a piece off: ' + JSON.stringify(r.ev) + ' (want one snap, a = 1, over a single break\'s ' + one + ')'); }
+  // LEGIBLE (A0 for the user, 2 Nov: "not many sounds at once?"): a hundred members in one frame are ONE snap, near full
+  r = run([[10, { Vg: 20 }], [1, { Vg: 20, brk: 100, set: 40 }], [20, { Vg: 20, brk: 100, set: 40 }]]);
+  if (r.ev.length !== 1 || !(r.ev[0][1] >= 0.95)) F.push('a 100-member frame gave ' + JSON.stringify(r.ev) + ' (want ONE snap, severity >= 0.95)');
+  // the impact masks the structure's events for CR_MASK s after it (its own frame's too), not after
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, agl: 1.2, nz: 7, brk: 2 }], [5, { Vg: 25, agl: 1.2, brk: 2 }], [1, { Vg: 25, agl: 1.2, brk: 3 }], [20, { Vg: 25, agl: 1.2, brk: 3 }], [1, { Vg: 25, agl: 1.2, brk: 4 }]]);
+  if (r.ev.map(e => e[0]).join() !== [E.IMPACT, E.SNAP].join()) F.push('an impact with breaks in its frame, 0.1 s and 0.45 s after: ' + JSON.stringify(r.ev) + ' (want the impact, then only the late snap)');
+  // A 3-SECOND WRECK: members breaking and bending every frame, pieces off, hits every 1/3 s - within the budget
+  { const st = M.airframeState(), Q = synthP(FLOWN[3].def), T0 = []; let nb = 0, ns = 0, np = 0;
+    for (let f = 0; f < 240; f++) {
+      if (f >= 30) { nb += f % 2; ns += 2; if (f % 37 === 0) np++; }
+      Q.s[I.dmgBrk] = nb; Q.s[I.dmgSet] = ns; Q.s[I.dmgPc] = np; Q.s[I.Vg] = Q.s[I.V] = Math.max(0, 30 - f / 8); Q.s[I.agl] = 0.8;
+      Q.s[I.nz] = f >= 30 && f % 20 === 0 ? 8 : 1; Q.s[I.surf0] = Q.s[I.surf1] = Q.s[I.surfT] = -1;
+      M.airframeStep(Q, st, 1 / 60);
+      for (let k = 0; k < st.evN[0]; k++) { const e = st.ev[k * 4]; if (e >= E.CRUNCH) T0.push([f / 60, e]); }
+      st.evN[0] = 0;
+    }
+    let worst1 = 0, worst0 = 0, snapGap = 9;
+    for (let i = 0; i < T0.length; i++) {
+      worst1 = Math.max(worst1, T0.filter(q => q[0] >= T0[i][0] && q[0] < T0[i][0] + 1).length);
+      worst0 = Math.max(worst0, T0.filter(q => q[1] !== E.IMPACT && q[0] >= T0[i][0] && q[0] < T0[i][0] + 0.1).length);
+      if (T0[i][1] === E.SNAP) { const nx = T0.find(q => q[1] === E.SNAP && q[0] > T0[i][0]); if (nx) snapGap = Math.min(snapGap, nx[0] - T0[i][0]); }
+    }
+    if (!(T0.length >= 6) || worst1 > 5 || worst0 > 2 || snapGap < 0.149) F.push('a 3-second wreck: ' + T0.length + ' crash events, at most ' + worst1 + ' in a second (want <= 5), ' + worst0 + ' within 0.1 s (want <= 2), snaps ' + snapGap.toFixed(3) + ' s apart (want >= 0.15)');
+    if (report) report.push('a 3-second wreck: ' + T0.length + ' crash events, the busiest second ' + worst1 + ', ' + T0.filter(q => q[1] === E.IMPACT).length + ' impacts'); }
+  r = run([[10, { Vg: 20 }], [5, { Vg: 20, set: 2 }]]);
+  if (of(r, E.CRUNCH).length !== 1 || of(r, E.SNAP).length) F.push('a member bent: ' + JSON.stringify(r.ev) + ' (want one crunch, no snap)');
+  if (run([[10, { Vg: 0, brk: 5, set: 4, pc: 1 }], [10, { Vg: 0 }], [10, { Vg: 0 }]]).ev.length) F.push('an aeroplane loaded broken, then reset whole, made a crash event');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 6 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }]]);
+  if (of(r, E.IMPACT).length !== 1) F.push('a 5 g hit on the ground made ' + of(r, E.IMPACT).length + ' impacts (want 1)');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 3.5 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }]]);
+  if (of(r, E.IMPACT).length) F.push('a hard landing\'s 2.5 g, the structure whole, made an impact (the thump\'s)');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 3.5, set: 1 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2, set: 1 }]]);
+  if (of(r, E.IMPACT).length !== 1) F.push('2.5 g with a member bent in that frame made ' + of(r, E.IMPACT).length + ' impacts (want 1)');
+  r = run([[60, { Vg: 40, agl: 200 }], [1, { Vg: 40, agl: 200, nz: 7 }]]);
+  if (of(r, E.IMPACT).length) F.push('a 6 g pull at 200 m made an impact (the ground is not near)');
+  // the scrape
+  const T = M.T, scr = o => run([[20, o]]).tg[T.scrape];
+  const sl = scr({ Vg: 15, brk: 2, agl: 0.8 }), park = scr({ Vg: 0, brk: 2, agl: 0.8 }), whole = scr({ Vg: 15, main0: 1, main1: 1, agl: 1.2 }),
+        wet = scr({ Vg: 15, brk: 2, agl: 0.8, water: 1, main0: 1 }), high = scr({ Vg: 15, brk: 2, agl: 30 }), dented = scr({ Vg: 15, set: 1, main0: 1, main1: 1, agl: 1.2 });
+  if (!(sl > 0.5)) F.push('a broken aeroplane sliding at 15 m/s scrapes at ' + sl + ' (want > 0.5)');
+  if (park || whole || wet || high || dented) F.push('a scrape where none is: parked ' + park + ', whole on its wheels ' + whole + ', in the water ' + wet + ', 30 m up ' + high + ', dented rolling on its two mains ' + dented);
+  { const s1 = scr({ Vg: 5, brk: 1, agl: 0.8 }), s2 = scr({ Vg: 18, brk: 1, agl: 0.8 }); if (!(s2 > s1 + 0.2)) F.push('the scrape does not rise with the speed: ' + s1 + ' at 5 m/s, ' + s2 + ' at 18'); }
+  { const mOf = b => run([[3, { Vg: 15, brk: 1 }]], b.def).tg[T.metal];
+    const cub = mOf(CUB()), met = mOf(FLOWN[3]);
+    if (cub !== 0 || met !== 1) F.push('the wreck\'s material: the Cub ' + cub + ', ' + FLOWN[3].name + ' ' + met + ' (want 0, 1)'); }
+  // THE VOICE
+  const enOf = (e, s, a, b) => { const x = renderAt(W, {}, 0.6, [[0.01, e, s, a || 0, b || 0]]); let pk = 0; for (const y of x.ext) { if (!Number.isFinite(y)) return NaN; pk = Math.max(pk, Math.abs(y)); } return [dbOf(rmsOf(x.ext, 0, x.ext.length)), pk]; };
+  const line = [];
+  for (const [e, nm, b] of [[E.IMPACT, 'impact', 0], [E.CRUNCH, 'crunch wood', 0], [E.CRUNCH, 'crunch metal', 1], [E.SNAP, 'snap wood', 0], [E.SNAP, 'snap metal', 1]]) {
+    const lo = enOf(e, 0.2, 0, b), hi = enOf(e, 0.9, 0, b);
+    if (!(hi[0] > lo[0] + 2) || !(hi[1] < 0.99)) F.push('the ' + nm + '\'s energy at severity 0.2 / 0.9: ' + lo[0].toFixed(1) + ' / ' + hi[0].toFixed(1) + ' dB, peak ' + hi[1].toFixed(2) + ' (want +2 dB, under 0.99)');
+    line.push(nm + ' ' + lo[0].toFixed(1) + '/' + hi[0].toFixed(1));
+  }
+  // the impact DUCKS the snaps and crunches still sounding (their voices' amplitude), never the impact's own
+  { const v = AFR.makeAirframe(W, 11), V = v.proc.v, amps = () => { const o = []; for (let i = 0; i < V.length / 16; i++) if (V[i * 16] !== 0) o.push(+V[i * 16 + 3].toFixed(5)); return o; };
+    v.proc.message({ t: 'ev', e: E.SNAP, s: 0.9, a: 0, b: 0, k: 0 }); v.proc.message({ t: 'ev', e: E.CRUNCH, s: 0.9, a: 0, b: 1, k: 0 });
+    v.proc.process(v.inputs, v.outputs, v.params);
+    const before = amps(); v.proc.message({ t: 'ev', e: E.IMPACT, s: 0.9, a: 0, b: 0, k: 0 }); const after = amps();
+    const ducked = before.every((a, i) => after[i] < a * 0.5);
+    if (before.length !== 4 || after.length !== 7 || !ducked) F.push('an impact over a snap and a crunch: their voices ' + before.join(' ') + ' -> ' + after.slice(0, before.length).join(' ') + ' (want each under half), ' + after.length + ' voices (want 4 + the impact\'s 3)'); }
+  { const sOff = enOf(E.SNAP, 0.6, 0, 0), sTear = enOf(E.SNAP, 0.6, 1, 0); if (!(sTear[0] > sOff[0] + 2)) F.push('a piece off is not louder than a member broken: ' + sTear[0].toFixed(1) + ' vs ' + sOff[0].toFixed(1) + ' dB'); }
+  // a crash beside a touchdown: the impact at full over the hardest touchdown
+  { const td = enOf(E.TD, 1, 0, 0), im = enOf(E.IMPACT, 1, 0, 0); if (!(im[0] > td[0] + 6)) F.push('an impact at full (' + im[0].toFixed(1) + ' dB) is not 6 dB over the hardest touchdown (' + td[0].toFixed(1) + ')'); line.push('touchdown at full ' + td[0].toFixed(1)); }
+  { const a = renderAt(W, { scrape: 0.3, gndS: 0 }, 1.2), b = renderAt(W, { scrape: 1, gndS: 0 }, 1.2), m = renderAt(W, { scrape: 1, metal: 1, gndS: 0 }, 1.2);
+    const ea = rmsOf(a.ext, 12000, a.ext.length), eb = rmsOf(b.ext, 12000, b.ext.length);
+    if (!(dbOf(eb) > dbOf(ea) + 4)) F.push('the scrape at 1 is not 4 dB over 0.3: ' + dbOf(eb).toFixed(1) + ' / ' + dbOf(ea).toFixed(1) + ' dB');
+    const cw = centroid(b.ext, W.sr), cm = centroid(m.ext, W.sr);
+    if (!(cm > cw * 1.3)) F.push('metal\'s scrape (' + Math.round(cm) + ' Hz) is not brighter than wood\'s (' + Math.round(cw) + ' Hz)');
+    line.push('scrape 0.3/1 ' + dbOf(ea).toFixed(1) + '/' + dbOf(eb).toFixed(1) + ' dB, centroid wood ' + Math.round(cw) + ' / metal ' + Math.round(cm) + ' Hz'); }
+  if (report) report.push('the crash (dB rms, severity 0.2/0.9): ' + line.join(' | '));
+  return F;
+}
+
+const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4415,19 +4743,21 @@ const CHECKS = { MIX: checkMix, NUMBERS: checkNumbers, CONTACTS: checkContacts, 
                  RADIO_STATIONS: checkRadioStations, RADIO_PICKER: checkRadioPicker,
                  RADIO_TALK: checkRadioTalk, RADIO_BUDGET: checkRadioBudget, RADIO_WIRING: checkRadioWiring, RADIO_CLIPS: checkRadioClips,
                  RADIO_LINT: checkRadioLint, RADIO_HORIZON: checkRadioHorizon, RADIO_WX: checkRadioWx, RADIO_XFADE: checkRadioXfade, VOICE_LICENCE: checkVoiceLicence,
-                 AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
+                 AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource, CRASH: checkCrash,
                  SAMPLES: checkSamples, INERT: checkInert,
                  SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
                  SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft,
                  AMBPLACES: checkAmbPlaces, AMBJOLENE: checkAmbJolene, AMBSMOOTH: checkAmbSmooth, AMBAGL: checkAmbAgl, AMBLUFS: checkAmbLufs,
                  AMBGESTURE: checkAmbGesture, AMBBUDGET: checkAmbBudget, AMBALLOC: checkAmbAlloc, AMBMUFFLE: checkAmbMuffle,
                  AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring,
+                 AMBDRAWN: checkAmbDrawn, AMBRECORD: checkAmbRecord, AMBINERT: checkAmbInert, AMBEDITOR: checkAmbEditor,
                  EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
                  EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
                  EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
                  ANIMAP: checkAniMap, ANIBLOW: checkAniBlow, ANIELK: async S => checkAniElk(S).concat(await checkAniElkReal(S)),
                  ANILAND: checkAniLand, ANIGULL: checkAniGull, ANIMILL: checkAniMill, ANIPLAY: checkAniPlay, ANIALLOC: checkAniAlloc,
-                 VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
+                 VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring,
+                 SHUTTER: checkShutter };
 const REPORTS = { RADIO_HORIZON: 1, VOICE_CAT: 1, BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1, ANIALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
@@ -4450,6 +4780,11 @@ const MUT = [
   ['the gesture listeners kept', 'audio', '  if (ctx || api.state === \'off\') { disarm(); return; }\n    disarm();', '  if (ctx || api.state === \'off\') { return; }', 'GESTURE'],
   ['a hidden tab plays', 'audio', 'const want = hidden || held ||', 'const want = held ||', 'SILENCE'],
   ['the suspend never comes', 'audio', 'suspendTimer = setTimeout(doSuspend,', 'suspendTimer = setTimeout(() => {},', 'SILENCE'],
+  ['the shot through master', 'audio', 'out.gain.value = v; out.connect(N.limiter);', 'out.gain.value = v; out.connect(N.master);', 'SHUTTER'],
+  ['the shot asleep in the pause', 'audio', 'if (silent) {   // the pause', 'if (false) {   // the pause', 'SHUTTER'],
+  ['the shot too long', 'audio', 'tick(t0 + 0.09, 2500', 'tick(t0 + 0.39, 2500', 'SHUTTER'],
+  ['the shot deaf to the interface volume', 'audio', 'const v = set.master * set.interface * SHUT.out;', 'const v = set.master * SHUT.out;', 'SHUTTER'],
+  ['the shutter event unheard', 'audio', "W.addEventListener('flydiy:shutter', () => { shutter(); });", '', 'SHUTTER'],
   ['the settings not persisted', 'audio', "prefSet(PREF + '.' + k, set[k]);", '', 'SETTINGS'],
   ['the headset in the open', 'audio', 'const hs = interior && set.headset && !sp ? HEADSET_K : 1;', 'const hs = set.headset && !sp ? HEADSET_K : 1;', 'SETTINGS'],
   ['music in flight by default', 'audio', "set.music * (flying ? (set.musicFlight ? MIXK.music : 0) : 1)", 'set.music * (flying ? MIXK.music : 1)', 'SETTINGS'],
@@ -4472,10 +4807,31 @@ const MUT = [
   ['the Cub gets a horn', 'model', "return { kind: AF_STALL.none, source: (mat || 'unknown')", "return { kind: AF_STALL.reed, source: (mat || 'unknown')", 'AFMODEL'],
   ['the reed without airflow', 'model', 'if (kind === AF_STALL.reed) sw = Math.min(1, Math.max(0, m)) * airflow;', 'if (kind === AF_STALL.reed) sw = Math.min(1, Math.max(0, m));', 'AFMODEL'],
   ['the model allocates a frame', 'model', '    s[SI.first] = 0;\n', '    s[SI.first] = 0; st.lastFrame = [s[SI.t]];\n', 'AFALLOC'],
-  ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck'];", "'stallK', 'creak', 'flapM', 'open', 'duk'];", 'AFVOICE'],
+  ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck',\n                        'scrape', 'metal'];", "'stallK', 'creak', 'flapM', 'open', 'duk',\n                        'scrape', 'metal'];", 'AFVOICE'],   // (G1740: re-anchored on the scrape's two)
+  // G1740 SND-CRASH: each break of the crash's sounds, red on CRASH
+  ['the damage never read', 'params', '      if (D && D.br) {\n        s[I.dmgBrk] = D.br.length;', '      if (D && D.br) {\n        s[I.dmgBrk] = 0;', 'CRASH'],
+  ['the inline damage never read', 'params', "if (G && typeof G.breaks === 'number') { s[I.dmgBrk] = G.breaks;", "if (G && typeof G.breaks === 'number') { s[I.dmgBrk] = 0;", 'CRASH'],
+  ['a break is silent', 'model', 'else if (dB > 0) { s[SI.esev] = Math.min(1, 0.35 + 0.15 * Math.log2(1 + dB)); emit(st, AF_EV.SNAP, 0, mt); }', '', 'CRASH'],
+  ['a piece off is a plain break', 'model', 'emit(st, AF_EV.SNAP, 1, mt); }   // a piece off: the tear', 'emit(st, AF_EV.SNAP, 0, mt); }   // a piece off: the tear', 'CRASH'],
+  ['an aeroplane loaded broken crashes', 'model', '    if (!first) {\n      // the impact first', '    if (true) {\n      // the impact first', 'CRASH'],
+  // (legible: A0 for the user, 2 Nov)
+  ['a break crunches too', 'model', '      else if (dS > 0) { s[SI.esev]', '      if (dS > 0 || dB > 0) { s[SI.esev]', 'CRASH'],
+  ['a big frame is a burst', 'model', 'emit(st, AF_EV.SNAP, 0, mt); }   // members broken', 'emit(st, AF_EV.SNAP, 0, mt); emit(st, AF_EV.CRUNCH, 0, mt); emit(st, AF_EV.CRUNCH, 1, mt); }   // members broken', 'CRASH'],
+  ['a big frame no louder', 'model', 'Math.min(1, 0.35 + 0.15 * Math.log2(1 + dB))', '0.5', 'CRASH'],
+  ['no crash budget a second', 'model', 'if (n1 >= CR_SEC || (n0 >= CR_AT', 'if (false || (n0 >= CR_AT', 'CRASH'],
+  ['the impact masks nothing', 'model', '      if (type !== AF_EV.IMPACT && t < st.s[SI.mask]) return;\n', '\n', 'CRASH'],
+  ['the snaps back to every frame', 'model', 'const AF_RATE = [0, 0.25, 0.4, 0.2, 0.3, 0.35, 0.1, 0.15, 0.35];', 'const AF_RATE = [0, 0.25, 0.4, 0.2, 0.3, 0.35, 0.1, 0.01, 0.35];', 'CRASH'],
+  ['a hard landing is an impact', 'model', '(dev > A.impG || (gave && dev > A.impGd))', '(dev > A.impGd)', 'CRASH'],
+  ['the impact far from the ground', 'model', 'if (near && (dev > A.impG', 'if ((dev > A.impG', 'CRASH'],
+  ['a whole aeroplane scrapes on its wheels', 'model', '(!(m0 && m1) || nB > 0)', 'true', 'CRASH'],
+  ['the scrape deaf to the speed', 'model', 'tg[T.scrape] = slide ? Math.pow(Math.min(1, Vg / A.scrapeV), 0.7) : 0;', 'tg[T.scrape] = slide ? 1 : 0;', 'CRASH'],
+  ['the impact deaf to its severity', 'worklet', "} else if (e === AF_E_IMPACT) {   // G1740: the hit - a low boom, the structure's crunch, the ground thrown (b: its row)\n", "} else if (e === AF_E_IMPACT) {   // G1740: the hit - a low boom, the structure's crunch, the ground thrown (b: its row)\n      s = 0.5;\n", 'CRASH'],
+  ['metal scrapes like wood', 'worklet', 'SCR_BAND = [[1100, 0.9, 0.9, 0.5], [2300, 2.5, 2.0, 0.25]]', 'SCR_BAND = [[1100, 0.9, 0.9, 0.5], [1100, 0.9, 0.9, 0.5]]', 'CRASH'],
+  ['the scrape unheard', 'worklet', '    const doScr = scrape > 0 || pScr > 0;', '    const doScr = false;', 'CRASH'],
+  ['the impact ducks nothing', 'worklet', 'const CR_DUCK = 0.25;', 'const CR_DUCK = 1;', 'CRASH'],
   ['gravel sounds like scree', 'worklet', '[0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],', '[0.95, 0.30, 1500, 0.8, 12, 1900, 9, 0],', 'AFVOICE'],
-  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.05 + 0.15 * s)', 'this.voice(VK_LOW, 1, 1.1, k * 0.25, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.12', 'AFVOICE'],
-  ['the horn outside', 'worklet', 'io += dS * 0.12 * sp *', 'ext += dS * 0.12 * sp *', 'AFVOICE'],
+  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 0.45, k * (0.035 + 0.15 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.02 + 0.06 * s)', 'this.voice(VK_LOW, 1, 0.45, k * 0.11, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.05', 'AFVOICE'],   // (G1726: re-anchored on the tamed levels)
+  ['the horn outside', 'worklet', 'io += dS * STALL_REED * sp *', 'ext += dS * STALL_REED * sp *', 'AFVOICE'],
   ['the closed cabin as loud as the open', 'worklet', '(1 - op) * 2.2 * z[Z_CABW]', '(1 - op) * 22 * z[Z_CABW]', 'AFVOICE'],
   ['the NaN unguarded', 'worklet', "if (!(yE === yE) || !(yI === yI) || !(yR === yR) || !(yO === yO)) { nanHit = 1; yE = 0; yI = 0; yR = 0; yO = 0; }", '', 'AFVOICE'],
   ['process() allocates', 'worklet', '    this.stats[3]++;\n', '    this.stats[3]++; this.lastBlock = [n];\n', 'AFALLOC'],
@@ -4512,7 +4868,13 @@ const MUT = [
   ['the engine slider moves the airframe', 'space', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[1]);', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[0]);', 'MIX'],
   ['the airframe\'s interior layers deaf to its volume', 'space', 'st(G.afIn.gain, lv[1]);', '', 'MIX'],
   ['a stored aircraft silently moves the engine', 'audio', "if (a != null && +a === +a) ls.setItem(PREF + '.engine', String(a));", '', 'MIX'],
-  ['the garage gets the flight trims', 'audio', 'lv[0] = set.engine * (world ? MIXK.engine : 1);', 'lv[0] = set.engine * MIXK.engine;', 'MIX'],
+  ['the garage gets the flight trims', 'audio', 'lv[0] = world ? set.engine * MIXK.engine : Math.min(1, set.engine);', 'lv[0] = set.engine * MIXK.engine;', 'MIX'],
+  // G1728 (SND-MIX-2): the engine's 200 % top
+  ['the engine slider stops at 100 %', 'audio', "'the engine and the propeller', 2],", "'the engine and the propeller'],", 'MIX'],
+  ['set() clamps the engine at 100 %', 'audio', 'Math.max(0, Math.min(TOP[k], +v || 0));', 'Math.max(0, Math.min(1, +v || 0));', 'MIX'],
+  ['a stored 160 % read as 100 %', 'audio', 'Math.max(0, Math.min(TOP[k], v))) : DEF[k];', 'Math.max(0, Math.min(1, v))) : DEF[k];', 'MIX'],
+  ['every volume to 200 %', 'audio', 'TOP[r[0]] = r[5] > 0 ? r[5] : 1;', 'TOP[r[0]] = 2;', 'MIX'],
+  ['the shed gets the engine past 100 %', 'audio', 'Math.min(1, set.engine);   // G1728', 'set.engine;   // G1728', 'MIX'],
   ['the shed\'s ambience trimmed', 'audio', '* (world ? MIXK.ambience : 1) * kRun,', '* MIXK.ambience * kRun,', 'MIX'],
   ['the prop\'s tonal untrimmed in the cabin', 'spcfg', 'const CABIN_TONAL_DB = -10;', 'const CABIN_TONAL_DB = 0;', 'MIX'],
   ['the engine\'s frame tau ignored', 'engine', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;', 'const tau = TAU;', 'MIX'],
@@ -4524,6 +4886,8 @@ const MUT = [
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
   ['the shed back to full', 'ambmodel', 'const GARAGE_K = Math.pow(10, -12 / 20);', 'const GARAGE_K = 1;', 'AMBPLACES'],
+  ['the shed keeps the flight’s speed', 'app', '    simOutAtRest(sim.out);            // GARAGE-RATTLE', '    void 0;                           // GARAGE-RATTLE (the call lost)', 'WIRING'],
+  ['the shed keeps the flight’s rpm', 'app', "for (const k of ['rpm', 'rpmEng', 'thrustPer'])", "for (const k of ['thrustPer'])", 'WIRING'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
   ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_CRUISE ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
   ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
@@ -4671,6 +5035,23 @@ const MUT = [
   ['the talk through Web Audio', 'radio', '  function makeSpeaker(env) {\n', '  function makeSpeaker(env) {\n    const ac = E => new E.AudioContext();\n', 'RADIO_WIRING'],
   ['the build loses the ambience', 'build', "'audio/ambience_model.js', 'audio/ambience.js',", "'audio/ambience_model.js',", 'AMBWIRING'],
   ['AUDIO keeps the world to itself', 'audio', '    api.world = world || null;\n', '', 'AMBWIRING'],
+  // G1656-G1658 (SND-AMB-1): the sounds drawn in the world editor
+  ['a drawn point carries twice as far', 'ambmodel', '            R = R - sd[o + 3];\n', '            R = 2 * R;\n', 'AMBDRAWN'],
+  ['an OFF sound plays', 'ambmodel', "st.sd[o + 1] = e.on === false ? 0 : 1;", 'st.sd[o + 1] = 1;', 'AMBDRAWN'],
+  ['a drawn ground bed heard at 200 m', 'ambmodel', 'const on = son[b] * (NOFADE[b] ? 1 : g);', 'const on = son[b];', 'AMBDRAWN'],
+  ['the record\'s frame ignored', 'ambmodel', "        const w = F0 ? F0.toWorld(+e.x, +e.z) : [+e.x, +e.z];", "        const w = [+e.x, +e.z];", 'AMBDRAWN'],
+  ['the live record never read', 'ambmodel', '    ambienceSounds(st, rec, ov && ov.frame);\n', '\n', 'AMBDRAWN'],
+  ['no sounds layer', 'core27', "'areas', 'junctions', 'sounds'];", "'areas', 'junctions'];", 'AMBRECORD'],
+  ['a sound with no bed passes', 'core27', "if (typeof e.key !== 'string' || !/^amb\\./.test(e.key)) out.push(what + ': no ambience bed (amb.*)');", '', 'AMBRECORD'],
+  ['a sound composes ground', 'core27', "  const mods = [];\n  for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }", "  const mods = [];\n  for (const m of rec.layers.terrain.concat((rec.layers.sounds || []).filter(q => q.x !== undefined).map(q => ({ id: 'snd', kind: 'raise', poly: [[q.x - 30, q.z - 30], [q.x + 30, q.z - 30], [q.x + 30, q.z + 30], [q.x - 30, q.z + 30]], dh: 2, falloff: 8 })))) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }", 'AMBRECORD'],
+  ['a sound id unique to its layer only', 'premui', "e = { id: soundId(), kind: 'sound', poly, key, on: true }; }", "e = { id: PG.newId(rec, 'sounds'), kind: 'sound', poly, key, on: true }; }", 'AMBEDITOR'],
+  ['no SOUND section', 'premui', "tools: ['select', 'soundpt', 'soundarea', 'probe'] },", "tools: ['select', 'probe'] },", 'AMBEDITOR'],
+  ['a sound edit re-samples the ground', 'premui', "    if (layer === 'sounds') return false;   // G1656", "    if (layer === 'soundz') return false;   // G1656", 'AMBEDITOR'],
+  ['the ambience never told', 'premui', 'if (window.AMBIENCE && window.AMBIENCE.soundsChanged) window.AMBIENCE.soundsChanged(rec);', '', 'AMBEDITOR'],
+  ['a sound edit recomposes', 'rprem', "if (dirty && dirty.layer === 'sounds' && O) {", "if (dirty && dirty.layer === 'soundz' && O) {", 'AMBEDITOR'],
+  ['no marks', 'rprem', "    for (const e of rec.layers.sounds || []) soundMarks(e);   // G1656", '    // G1656', 'AMBEDITOR'],
+  ['a point sound out of the pick cycle', 'rprem', "if (d < 3) put(0, d, { id: so.id, layer: 'sounds', entry: so }); }", "if (d < 3) put(0, d, null); }", 'AMBEDITOR'],
+  ['no SOUND palette', 'premui', "    else if (section === 'sounds') soundsPalette(d);   // G1656", '', 'AMBEDITOR'],
   // SND-AMB-2 (G1660-G1666): each break of the emitters, red on its check
   ['owls by day', 'emmodel', '    w[3] = night * forest * ak;', '    w[3] = day * forest * ak;', 'EMITHABITAT'],
   ['gulls inland', 'emmodel', "q = (ac - 60) / 240; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", "q = (ac - 60) / 24000; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", 'EMITHABITAT'],

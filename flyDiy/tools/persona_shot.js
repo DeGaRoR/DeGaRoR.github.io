@@ -61,6 +61,7 @@ const QS = opt('qs', '');   // e.g. --qs=?simw=0 (the inline pilot)
     for (let i = 0; i < 300; i++) {
       await sleep(2000);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click()); return 1;})()", 0);
+      await ev("(()=>{ const h=document.getElementById('edRoute'); if (h && !h.offsetParent && document.getElementById('edDest') && window.FLYDIY_MENU && FLYDIY_MENU.page && (!window.BOOT || !BOOT.state || BOOT.state === 'gone')) FLYDIY_MENU.page('dest'); return 1; })()", 0);   // G3743: #edRoute is the menu's Destination page now
       const ok = (await ev("(()=>{const h=document.getElementById('edRoute'); const s=h&&h.querySelector('select.persona'); return !!(s&&h.offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone');})()", false)) === true;
       if (ok) return true;
     }

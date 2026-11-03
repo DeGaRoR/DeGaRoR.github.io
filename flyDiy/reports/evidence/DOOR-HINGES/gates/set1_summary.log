@@ -1,0 +1,14 @@
+──────── summary ────────
+DEFAULT   PASS     9.4 s
+FIT       PASS    25.3 s
+CLIP      PASS    60.8 s
+JOIN      PASS    11.4 s
+SAVE      PASS     0.8 s
+BENCH     PASS   164.3 s
+PARTS     PASS     8.2 s
+DESIGN    PASS    30.9 s
+PROCURE   PASS   377.8 s
+total            688.9 s
+wall             377.8 s  (jobs 2)
+
+BATTERY: PASS

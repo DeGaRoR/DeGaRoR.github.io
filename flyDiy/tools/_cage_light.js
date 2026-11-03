@@ -145,15 +145,25 @@ const defaults = { lightOn: 1, lightSw: 1,
   li_reflect: 1 };
 for (const k of EXT) defaults['li_' + k] = 0;
 for (const k of INT) defaults['li_' + k] = 0;
+// G2796 (the user's garage review, 18 Oct: "lights installable individually,
+// not all on/off"): one FITTED row per light, every one fitted by default (the
+// set `lightOn` has always fitted). Unfitted, a light has no lamp, no real
+// light, no panel switch and no load on the flight's bus. The wing bay's cut
+// stays on the master (A0's ruling): the flown wing is unchanged.
+for (const k of EXT.concat(INT)) defaults['li_' + k + 'Fit'] = 1;
+const fitted = (P, k) => P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 const items = [
   ['lightOn', 'lights', 0, 1, 1],
   ['lightSw', 'draw the switches', 0, 1, 1, { when: P => +P.lightOn }],
-  ['outside', EXT.map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 1]),
+  ['fitted, one by one', EXT.concat(INT.filter(k => !LIGHTS[k].later))
+    .map(k => ['li_' + k + 'Fit', LIGHTS[k].name, 0, 1, 1]),
+   { when: P => +P.lightOn }],
+  ['outside', EXT.map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 1, { when: P => fitted(P, k) }]),
    { when: P => +P.lightOn }],
   ['inside (dimmers)', INT.filter(k => !LIGHTS[k].later)
-    .map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 0.05]),
+    .map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 0.05, { when: P => fitted(P, k) }]),
    { when: P => +P.lightOn }],
   ['the wing bay', [
     ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
@@ -1140,7 +1150,59 @@ function sites(scene, group, P) {
     // the wing about itself, and hang the lamp from that with its axis along
     // the surface's own inward normal. Then it is right for a high wing, a low
     // wing and a parasol without knowing which it is on.
-    const ceilAt = (x, z, rad) => {
+    // CABIN-CRAFT (2026-11-02, the user: "the placement of interior lights remains funny, it probably needs stronger
+    // rules; find flat faces, try and stick on the ceiling, but not where there are windows. Never stick on bubble
+    // canopies or any sort of glass. Stick to the aft bulkhead if no other option, or into the shoulder").
+    // Measured before (tools/_cabinlamp_probe.js over the CABINLAMP set): 11 of 21 cabin lamps on glass or within reach
+    // of it - the Jodel's and Rufus's touched the pilot window, the float Cessna's and the skylight build's the sky
+    // windows, the bubble's arch lamp the windscreen. THE GLASS, ONCE PER BUILD: every glazed face of the sheet
+    // (CAGE_GLASS_MATS - the panes, the screens, the skylights, a knife's drawn panes), in metres, so a rung can ask
+    // whether a spot is clear of it -
+    //   clear   no glass vertex within the lamp's own radius + 10 cm (not BESIDE a window: at 5 cm the twin's lamps
+    //           still hugged the windscreen's rear corners), and no glass face along the surface's outward normal
+    //           within 0.5 m (not UNDER a skylight or a bubble)
+    const GLM = (window.CAGE2 && window.CAGE2.CAGE_GLASS_MATS) ||
+      new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+    const GL = { tri: [], pts: [] };
+    {
+      const M = window.CAGE_UI && window.CAGE_UI.MS;
+      const k = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) *
+                ((window.CAGE_UI && window.CAGE_UI.P && window.CAGE_UI.P.planeScale) || 1);
+      if (M && M.V && M.F) for (const f of M.F) {
+        if (!GLM.has(f.m) || f.v.length < 3) continue;
+        const q = f.v.map(vi => [M.V[vi][0] * k, M.V[vi][1] * k, M.V[vi][2] * k]);
+        for (const v of q) GL.pts.push(v);
+        for (let i = 1; i + 1 < q.length; i++) GL.tri.push([q[0], q[i], q[i + 1]]);
+      }
+    }
+    const rayHit = (o, d, T) => {              // Moller-Trumbore: the ray's distance to the triangle, or null
+      const a = T[0], e1 = [T[1][0] - a[0], T[1][1] - a[1], T[1][2] - a[2]], e2 = [T[2][0] - a[0], T[2][1] - a[1], T[2][2] - a[2]];
+      const pv = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]];
+      const det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2];
+      if (Math.abs(det) < 1e-12) return null;
+      const inv = 1 / det, tv = [o[0] - a[0], o[1] - a[1], o[2] - a[2]];
+      const u = (tv[0] * pv[0] + tv[1] * pv[1] + tv[2] * pv[2]) * inv;
+      if (u < 0 || u > 1) return null;
+      const qv = [tv[1] * e1[2] - tv[2] * e1[1], tv[2] * e1[0] - tv[0] * e1[2], tv[0] * e1[1] - tv[1] * e1[0]];
+      const v = (d[0] * qv[0] + d[1] * qv[1] + d[2] * qv[2]) * inv;
+      if (v < 0 || u + v > 1) return null;
+      const t = (e2[0] * qv[0] + e2[1] * qv[1] + e2[2] * qv[2]) * inv;
+      return t > 1e-4 ? t : null;
+    };
+    const clearOfGlass = (p, nIn, kind) => {
+      const r = (LIGHTS[kind || 'flood'].w / 2) * Math.max(0.2, +P.li_lampSize || 1) + 0.10;
+      for (const q of GL.pts) if (Math.abs(q[0] - p[0]) < r && Math.abs(q[1] - p[1]) < r && Math.abs(q[2] - p[2]) < r &&
+                                  Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) < r) return false;
+      if (nIn) {
+        const up = [-nIn[0], -nIn[1], -nIn[2]];
+        for (const T of GL.tri) { const t = rayHit(p, up, T); if (t != null && t < 0.5) return false; }
+      }
+      return true;
+    };
+    // A CEILING IS FLAT ENOUGH TO TAKE A LAMP: its downward normal within ~37 degrees of plumb (|n.y| >= 0.80; the
+    // G296 roof test, 0.55, kept the cabin SIDES out and let a curved roof's flank, beside the window, in)
+    const CEIL_FLAT = 0.80;
+    const ceilAt = (x, z, rad, kind) => {
       const M = window.CAGE_UI && window.CAGE_UI.MS;
       if (!M || !M.V || !M.F) return null;
       const k = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) *
@@ -1176,10 +1238,13 @@ function sites(scene, group, P) {
         if (!(nl > 1e-12) || Math.abs(ny / nl) < 0.55) continue;
         // the face's INWARD normal (down into the cabin), for the lamp's axis
         const sg = ny > 0 ? -1 : 1;
-        near.push({ y: cy, x: cx, z: cz,
+        near.push({ y: cy, x: cx, z: cz, flat: Math.abs(ny / nl),
                     n: [sg * (uy * vz - uz * vy) / nl, sg * ny / nl, sg * (ux * vy - uy * vx) / nl] });
       }
       if (!near.length) return null;
+      // (CABIN-CRAFT: the crown is the structure's - every roof face counts; the lamp's own face must then be flat
+      // enough and clear of glass: over a skylight the crown is the glass's frame, and the liner face under it is
+      // refused)
       // THE CROWN FIRST, THEN THE LINER UNDER IT. Taking the LOWEST qualifying
       // face was the first cut and it was wrong twice over: `body` is the whole
       // fuselage skin, not just its roof, so a high SIDE panel qualifies, and
@@ -1188,9 +1253,18 @@ function sites(scene, group, P) {
       // liner, when the interior built one, is the first surface under it.
       let crown = -1e9;
       for (const q of near) if (q.y > crown) crown = q.y;
-      let best = null;
-      for (const q of near)
-        if (q.y > crown - 0.06 && (!best || q.y < best.y)) best = q;
+      // (CABIN-CRAFT: ...and THE LINER IS THE LOWEST LAYER WHERE IT IS, not the lowest face anywhere in the band. On a
+      // curved roof the lowest face of the band is its flank, at the window head, which is where the twin's and the
+      // Cessnas' lamps went - "funny". So a face is the liner when nothing of the band lies under it within 4 cm
+      // across; of those, flat enough and clear of glass, the one nearest over the seat)
+      const band = near.filter(q => q.y > crown - 0.06);
+      let best = null, bd = 1e9;
+      for (const q of band) {
+        if (q.flat < CEIL_FLAT) continue;
+        if (band.some(o => o !== q && o.y < q.y - 0.005 && Math.hypot(o.x - q.x, o.z - q.z) < 0.04)) continue;
+        const d = Math.hypot(q.x - x, q.z - z);
+        if (d < bd - 1e-9 && clearOfGlass([q.x, q.y, q.z], q.n, kind)) { bd = d; best = q; }
+      }
       return best;
     };
     // WHERE A CABIN LAMP MOUNTS IS WHAT THE CABIN'S TOP IS (G296, the user:
@@ -1227,29 +1301,13 @@ function sites(scene, group, P) {
       return q ? [q.x * kU, q.y * kU, q.z * kU] : null;
     };
     const M0 = window.CAGE_UI && window.CAGE_UI.MS;
-    // the ceiling-loop rail nearest a seat, with its centre and the aim
-    const frameAt = s => {
-      if (!M0 || !M0.V || !M0.F) return null;
-      let best = null;
-      for (const f of M0.F) {
-        if (f.m !== 'ceilingLoop' || f.v.length < 3) continue;
-        let cx = 0, cy = 0, cz = 0;
-        for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
-        cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
-        if (cy < (A.waistY + A.roofY) / 2) continue;               // the rail, not a lower band
-        if (Math.abs(cz - (s.zBack + 0.15)) > 0.30) continue;      // this seat's bay
-        if (Math.sign(cx) !== Math.sign(s.x) && Math.abs(s.x) > 0.05) continue;   // the seat's own side
-        const d = Math.hypot(cx - s.x, cz - s.zBack - 0.15);
-        if (!best || d < best.d) best = { p: [cx, cy, cz], d };
-      }
-      if (!best) return null;
-      const ax = aimAt(best.p, headOf(s));
-      return { p: off(best.p, ax, sink(s.kind)), ax, onCeiling: true, rung: 'frame' };
-    };
+    // (CABIN-CRAFT: the ceiling-loop rail beside a skylight - G296's frame rung - left the ladder: it stands beside the glass)
     const roofAt = s => {
       // a face DIRECTLY over the seat (16 cm), and the lamp on that face —
       // not at the seat's own x under whatever the wider search found
-      const cl = ceilAt(s.x, s.zBack + 0.12, 0.16);
+      // (CABIN-CRAFT: ...or, when every face over the seat is flank, or beside or under glass, the nearest clear one
+      // within 0.45 m: a skylight cabin's lamp moves to the solid roof fore or aft of the pane)
+      const cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind) || ceilAt(s.x, s.zBack + 0.12, 0.45, s.kind);
       if (!cl) return null;
       const ax = cl.n || [0, -1, 0];
       return { p: off([cl.x, cl.y, cl.z], ax, sink(s.kind)), ax, onCeiling: true, rung: 'roof' };
@@ -1286,6 +1344,75 @@ function sites(scene, group, P) {
       const q = [s.x * 0.5, yR, zA + 0.02], ax = aimAt(q, headOf(s));
       return { p: off(q, ax, sink(s.kind)), ax, onCeiling: false, rung: 'arch' };
     };
+    // CABIN-CRAFT: THE AFT BULKHEAD - the interior's own (`bulkhead`, intBulk) or, on a pusher pod, the aft firewall -
+    // the first one aft of the seat: its cabin face (normal along the axis), two thirds up from the waist to the roof
+    // on the seat's own side, clear of glass, aimed at the seat's lap
+    const bulkheadAt = s => {
+      if (!M0 || !M0.V || !M0.F) return null;
+      const zS = s.zBack + 0.05, yT = A.waistY + 0.66 * (A.roofY - A.waistY), xT = s.x * 0.7;
+      const cand = [];
+      for (const f of M0.F) {
+        if ((f.m !== 'bulkhead' && f.m !== 'firewall') || f.v.length < 3) continue;
+        let cx = 0, cy = 0, cz = 0;
+        for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
+        cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
+        if (cz > zS || cy < A.waistY || cy > A.roofY) continue;       // aft of the seat, between the waist and the roof
+        const a = M0.V[f.v[0]], b = M0.V[f.v[1]], c = M0.V[f.v[2]];
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        const n = nrm([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]);
+        if (Math.abs(n[2]) < 0.8) continue;                            // a wall across the cabin, not its rim
+        cand.push({ p: [cx, cy, cz], n: n[2] < 0 ? [-n[0], -n[1], -n[2]] : n,   // the cabin side faces forward
+                    poly: f.v.map(vi => [M0.V[vi][0] * kU, M0.V[vi][1] * kU, M0.V[vi][2] * kU]) });
+      }
+      if (!cand.length) return null;
+      let zB = -1e9;
+      for (const q of cand) if (q.p[2] > zB) zB = q.p[2];             // the first bulkhead aft of the seat
+      // AT THE SEAT'S OWN SPOT, not a face's centre: a bulkhead is a few big faces, and their centres put the pilot's
+      // and the right seat's lamps in one place - the face whose outline holds (xT, yT), the point on its plane
+      const inPoly = (poly, x, y) => { let c = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const a = poly[i], b = poly[j];
+          if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+        }
+        return c; };
+      let best = null, bd = 1e9;
+      for (const q of cand) {
+        if (q.p[2] < zB - 0.08) continue;
+        if (inPoly(q.poly, xT, yT)) {
+          const o = q.poly[0], zP = o[2] - (q.n[0] * (xT - o[0]) + q.n[1] * (yT - o[1])) / q.n[2];
+          const at = { p: [xT, yT, zP], n: q.n };
+          if (clearOfGlass(at.p, at.n, s.kind)) { best = at; bd = -1; break; }
+        }
+        const d = Math.hypot(q.p[0] - xT, q.p[1] - yT);
+        if (d < bd && clearOfGlass(q.p, q.n, s.kind)) { bd = d; best = q; }
+      }
+      if (!best) return null;
+      const ax = aimAt(best.p, [s.x, A.waistY - 0.05, s.zBack + 0.45]);
+      return { p: off(best.p, ax, sink(s.kind)), ax, onCeiling: false, rung: 'bulkhead' };
+    };
+    // CABIN-CRAFT: INTO THE SHOULDER - the sill trim's vertical leg (_shoulder_gen.js, `shoulder` faces) on the
+    // seat's own side, at its head station, high on the leg: the lamp set in its cabin face, aimed across the cabin
+    const shoulderAt = s => {
+      if (!M0 || !M0.V || !M0.F) return null;
+      const sd = s.x < -0.02 ? -1 : 1, zH = s.zBack + 0.15;
+      let best = null;
+      for (const f of M0.F) {
+        if (!f.shoulder || f.v.length < 3) continue;
+        let cx = 0, cy = 0, cz = 0;
+        for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
+        cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
+        if (Math.sign(cx) !== sd || Math.abs(cz - zH) > 0.25) continue;
+        const a = M0.V[f.v[0]], b = M0.V[f.v[1]], c = M0.V[f.v[2]];
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        const n = nrm([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]);
+        if (Math.abs(n[0]) < 0.8) continue;                            // the leg's cabin face, not the lip's top
+        const nIn = n[0] * sd > 0 ? [-n[0], -n[1], -n[2]] : n;         // pointing into the cabin
+        const score = Math.abs(cz - zH) - 0.5 * cy;                    // near the head station, high on the leg
+        if ((!best || score < best.score) && clearOfGlass([cx, cy, cz], nIn, s.kind)) best = { p: [cx, cy, cz], n: nIn, score };
+      }
+      if (!best) return null;
+      return { p: off(best.p, best.n, sink(s.kind)), ax: best.n, onCeiling: false, rung: 'shoulder' };
+    };
     const coamingAt = s => {
       if (A.dashTop == null || A.dashAftZ == null) return null;
       const yT = A.dashTopAt ? A.dashTopAt(s.x, 0.05, A.dashAftZ - 0.01, A.dashAftZ + 0.06) : A.dashTop;
@@ -1295,9 +1422,18 @@ function sites(scene, group, P) {
     // G442.3 (the user: "when bubble mode is activated, position the flood
     // lighting in the aft bulkhead if available, and otherwise don't draw it
     // at all"): the bubble's ladder is the arch alone - no coaming fallback
+    // CABIN-CRAFT (2026-11-02, the user's rule, in its order): a flat ceiling clear of glass (the roof rung, glass-
+    // aware now; the skylight bay's frame rail stands beside the glass and left the ladder), then the AFT BULKHEAD,
+    // then THE SHOULDER. A convertible keeps its windscreen header first (G296: its top comes off); an open cockpit
+    // its coaming map light; a bubble has no ceiling that is not glass, so it starts at the bulkhead - G442.3's "aft
+    // bulkhead if available" - then the arch (only clear of the glass now), then the user's last resort. No rung is
+    // ever on glass: each asks clearOfGlass.
+    const archClear = s => { const m = archAt(s); return m && clearOfGlass(m.p, null, s.kind) ? m : null; };
     const LADDER = {
-      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt]],
-      pax:   [[roofAt, frameAt], [frameAt], [], []],
+      flood: [[roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
+              [coamingAt, bulkheadAt, shoulderAt], [bulkheadAt, archClear, shoulderAt]],
+      pax:   [[roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
+              [bulkheadAt, shoulderAt]],
     };
     const mountAt = (kind, s) => {
       const s2 = Object.assign({}, s, { kind });
@@ -1334,6 +1470,17 @@ function sites(scene, group, P) {
     // the passenger lights are over every seat that is not the pilot's,
     // on the same ladder
     out.pax = seats.filter(s => !s.pilot).map(s => mountAt('pax', s)).filter(Boolean);
+    // CABIN-CRAFT: ONE LAMP PER SPOT - on a bulkhead or a shoulder a front and a rear seat on the same side ask for the
+    // same place, and two fittings would stand in each other; the first (the flood, then seat order) serves both
+    {
+      const taken = out.flood ? [[out.flood.p, LIGHTS.flood.w]] : [];
+      out.pax = out.pax.filter(m => {
+        if (taken.some(([q, w]) => Math.hypot(m.p[0] - q[0], m.p[1] - q[1], m.p[2] - q[2]) < (w + LIGHTS.pax.w) / 2 + 0.02))
+          return false;
+        taken.push([m.p, LIGHTS.pax.w]);
+        return true;
+      });
+    }
     // (the coaming strip's site went with the `panel` light — session 4b)
   }
   return out;
@@ -1350,6 +1497,10 @@ let group = null, board = null;
 // `lampMats` is rebuilt with the group; `driveLevels` outlives a rebuild (a slider dragged
 // at night rebuilds the lamps, and they must come back lit).
 let lampMats = [], driveLevels = null;
+// G2787: the light sets the shed has linked programs for ('points,spots' of the layer's lights in the count)
+const LINKED = new Set(['0,0']);
+const LINKING = new Map();            // sig -> the prep under way (a second build of the same set waits on it)
+const CUR_ON = new Map();             // sig -> the newest build's lights of that set (what that set's prep dresses in)
 const LENS_K = 2.4, CUP_K = 0.55;
 function applyDrive() {
   const L = driveLevels;
@@ -1367,7 +1518,7 @@ function applyDrive() {
   }
 }
 const level = (P, k) => {
-  if (!+P.lightOn) return 0;
+  if (!+P.lightOn || !fitted(P, k)) return 0;
   const v = +P['li_' + k];
   return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
 };
@@ -1375,7 +1526,9 @@ const level = (P, k) => {
 const prevPost = PAGE.post;
 PAGE.post = (ctx) => {
   if (prevPost) prevPost(ctx);
-  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
+  // G1303: a drag tick - built when the hand stops. G2782: the LAMPS hide, the real lights stay: a hidden group
+  // takes its lights out of three's count and every lit program in the shed re-keys at the drag's first tick
+  if (ctx.defer) { if (group) for (const c of group.children) if (!c.isLight) c.visible = false; return; }
   const { scene, P, stat } = ctx;
   if (group) {
     group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -1572,18 +1725,21 @@ PAGE.post = (ctx) => {
   };
 
   // ---- OUTSIDE ------------------------------------------------------------
-  if (S.navR) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
-  if (S.navT) lamp('nav', S.navT, S.navT.col);       // G295: the tail's white
-  if (S.beacon) lamp('beacon', S.beacon);
-  if (S.beacon2) lamp('beacon', S.beacon2);         // G267: the other fin's
+  // (G2796: each one only when it is FITTED - a light the builder took off has
+  // no lamp, no real light and no switch)
+  const fit = k => fitted(P, k);
+  if (S.navR && fit('nav')) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
+  if (S.navT && fit('nav')) lamp('nav', S.navT, S.navT.col);       // G295: the tail's white
+  if (S.beacon && fit('beacon')) lamp('beacon', S.beacon);
+  if (S.beacon2 && fit('beacon')) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
-    lamp('taxi', S.wingLampL);
-    lamp('land', S.wingLampR);
+    if (fit('taxi')) lamp('taxi', S.wingLampL);
+    if (fit('land')) lamp('land', S.wingLampR);
   }
   // ---- INSIDE -------------------------------------------------------------
-  if (S.flood) lamp('flood', S.flood);
-  if (S.pedal) lamp('pedal', S.pedal);
-  for (const s of (S.pax || [])) lamp('pax', s);
+  if (S.flood && fit('flood')) lamp('flood', S.flood);
+  if (S.pedal && fit('pedal')) lamp('pedal', S.pedal);
+  if (fit('pax')) for (const s of (S.pax || [])) lamp('pax', s);
 
   armRotors();       // the beacon starts turning as soon as it is built
 
@@ -1598,8 +1754,18 @@ PAGE.post = (ctx) => {
   // picture rather than merely being visible: the landing lamp, which throws a
   // beam, and the cabin flood, which is the only interior source with anything
   // to light. Neither casts a shadow.
+  //
+  // IN THE COUNT ONLY WHEN LIT, AND ONLY ONCE ITS PROGRAMS LINKED (G2782 -> G2787, the user: "lights -> inside
+  // dimmer -> flood. Moving that froze my interface for a few seconds"). three keys every lit program on the scene's
+  // COUNT of point and spot lights, so the dimmer's first notch off 0 linked the whole shed again in one frame.
+  // G2782 kept every fitted lamp's light in the count at 0 (the flight's rule) - and the shed's boot compiles, which
+  // take the cage down (G1027 / G1085), keyed without them: train 52b's 10 s boot freeze. So G1340's law, the shed's
+  // side: a fitted lamp's light is MADE whatever its level, but it is in the count (visible) only while its row reads
+  // > 0, and a light set the shed has not linked yet is first linked in the background (app.js GARAGE_LIGHTS_PREP,
+  // the room compiled with the new lights dressed in, a task at a time) and SHOWN when that resolves - the lamp's lens
+  // glows at once, its light follows. With every dimmer at 0 the count is the pre-G2782 count, boot included.
   const lit = [];
-  if (S.wingLampR && level(P, 'land') > 0) {
+  if (S.wingLampR && fit('land')) {
     const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
@@ -1607,8 +1773,10 @@ PAGE.post = (ctx) => {
     l.castShadow = false;
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
-  if (S.flood && level(P, 'flood') > 0) {
-    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
+  if (S.flood && fit('flood')) {
+    // G3449 (the user 22 Oct, Rufus's cabin at T0: "flood *4 looks good"): 4x the lamp (0.9 -> 4.0) and its reach
+    // 2.4 -> 4.5 m - at 0.9 / 2.4 the cabin flood on an open ultralight under a 9.8 m wing did not show in the shed
+    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 4.0, 4.5, 1.6);
     l.position.set(...S.flood.p);
     l.castShadow = false;
     group.add(l); lit.push(['flood', l]);
@@ -1616,11 +1784,33 @@ PAGE.post = (ctx) => {
   // ...and the pedalier (G308): the flight has had it since G296; the shed
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
-  if (S.pedal && level(P, 'pedal') > 0) {
+  if (S.pedal && fit('pedal')) {
     const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
     l.position.set(...S.pedal.p);
     l.castShadow = false;
     group.add(l); lit.push(['pedal', l]);
+  }
+  // G2787: which of them are in the count. `LINKED` (module scope, it outlives a rebuild) holds the light sets the
+  // shed has programs for, by their point / spot count; the dimmers-at-0 set is the boot's own
+  {
+    const on = lit.filter(([k]) => level(P, k) > 0).map(x => x[1]);
+    const sig = on.filter(l => l.isPointLight).length + ',' + on.filter(l => l.isSpotLight).length;
+    for (const [, l] of lit) l.visible = false;
+    const show = () => { for (const l of on) l.visible = true; };
+    CUR_ON.set(sig, on);
+    if (LINKED.has(sig)) show();
+    else {
+      const prep = window.GARAGE_LIGHTS_PREP;
+      // the dress shows the NEWEST build's lights (a prep a later build joined compiles on, after this group is gone)
+      const dress = f => { const L = CUR_ON.get(sig) || [], was = L.map(l => l.visible); for (const l of L) l.visible = true; try { return f(); } finally { L.forEach((l, i) => { l.visible = was[i]; }); } };
+      const pr = LINKING.get(sig) || (typeof prep === 'function' ? prep(dress) : null);
+      if (pr) LINKING.set(sig, pr);
+      if (!pr) { LINKED.add(sig); show(); }            // no room to compile (the bench, before the hangar): as before
+      else {
+        const mine = group;
+        pr.then(() => { LINKED.add(sig); LINKING.delete(sig); if (group === mine) show(); });
+      }
+    }
   }
 
   // ---- THE SWITCHBOARD ----------------------------------------------------

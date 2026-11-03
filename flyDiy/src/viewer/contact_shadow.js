@@ -29,7 +29,8 @@
 // The data is the physics' own: the wheel node, its drawn radius and the ground - terrainH in the world, the shed's
 // floor in the garage. No shadow-map work.
 //
-//   CONTACT_SHADOW.make(THREE)                     -> the mesh (the caller adds it to its scene)
+//   CONTACT_SHADOW.make(THREE, max?)               -> the mesh (the caller adds it to its scene); max instances (MAX: an aeroplane's;
+//                                                  G3619: the crowd's feet, one draw for the whole line, asks more)
 //   CONTACT_SHADOW.update(THREE, mesh, blobs)      blobs: [{ kind, x, z, gy, n: [nx, ny, nz], ax: [x, z], len, wid, a, core?, cu?, cv? }]
 //   CONTACT_SHADOW.blobsFor(sim, def, world, o)    the blobs of one aeroplane (the wheels + the body), or []
 //                                                  o: { axis: [x, z], tyreW: { node: width m } }
@@ -82,19 +83,20 @@
     '  gl_FragColor = vec4(0.0, 0.0, 0.0, a);',
     '}'].join('\n');
 
-  function make(THREE) {
+  function make(THREE, max) {
+    const N = Math.max(1, max | 0 || MAX);
     const g = new THREE.PlaneGeometry(1, 1);
     g.rotateX(-Math.PI / 2);                                 // lies in x-z, faces +y
-    const A = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4);
+    const A = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4);
     if (A.setUsage && THREE.DynamicDrawUsage) A.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('aS', A);
     const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false,
       fog: false, toneMapped: false });
-    const mesh = new THREE.InstancedMesh(g, m, MAX);
+    const mesh = new THREE.InstancedMesh(g, m, N);
     mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
     mesh.renderOrder = 4; mesh.name = 'contact:blobs'; mesh.matrixAutoUpdate = false;
     mesh.visible = false;
-    mesh.userData.aS = A;
+    mesh.userData.aS = A; mesh.userData.max = N;
     return mesh;
   }
 
@@ -103,7 +105,7 @@
   const M16 = new Float32Array(16);
   function update(THREE, mesh, blobs) {
     if (!mesh) return;
-    const A = mesh.userData.aS, n = Math.min(MAX, blobs ? blobs.length : 0);
+    const A = mesh.userData.aS, n = Math.min(mesh.userData.max || MAX, blobs ? blobs.length : 0);
     let k = 0;
     for (let i = 0; i < n; i++) {
       const b = blobs[i];

@@ -1,0 +1,437 @@
+[run_gates] 0/1 jobs done · running FRAMECOST 30 s
+[run_gates] 0/1 jobs done · running FRAMECOST 60 s
+[run_gates] 0/1 jobs done · running FRAMECOST 90 s
+[run_gates] 0/1 jobs done · running FRAMECOST 120 s
+[run_gates] 0/1 jobs done · running FRAMECOST 150 s
+[run_gates] 0/1 jobs done · running FRAMECOST 180 s
+[run_gates] 0/1 jobs done · running FRAMECOST 210 s
+[run_gates] 0/1 jobs done · running FRAMECOST 240 s
+[run_gates] 0/1 jobs done · running FRAMECOST 270 s
+[run_gates] 0/1 jobs done · running FRAMECOST 300 s
+[run_gates] 0/1 jobs done · running FRAMECOST 331 s
+[run_gates] 0/1 jobs done · running FRAMECOST 361 s
+=== FRAMECOST ===
+GATE FRAMECOST
+  ok   S3 source: a side hangar is HOME's build - merged by material, its coarse rung and LOD (shedNodeAt), ~ the club shed's draws each
+  ok   S3 source: at most two side sheds, never HOME's twice
+  ok   S3 source: a shed is built again only when its place, dims, shell or dress change (nothing per frame)
+  ok   S3 source: nothing of it runs in the frame loop
+  ok   S3 source: no resident is drawn by the world's sheds (shut doors: premResidentsDrawn is FLEET-PROPS' to call)
+  ok   cub: the page booted, rolled out and rendered its views  (garage 217.4 s, roll-out 63.9 s, total 347.1 s wall; 391 programs; page errors 55)
+       memory after the roll-out (MiB, reported): {"heapUsed":705.2,"arrayBuffers":2320.5,"external":2387.6,"rss":3598}; at the end {"heapUsed":709.1,"arrayBuffers":2329.5,"external":2396.5,"rss":3666}
+       reads (reported): garage 1439 fetches 226.0 MiB, 227 images 46.8 MiB, canvas drawImage 492 / getImageData 455 (488.0 MiB); roll-out 0 fetches 0.0 MiB, 0 images 0.0 MiB, canvas drawImage 1 / getImageData 0 (0.0 MiB)
+       KTX2 (reported): ground packs 3 KTX2 (96 planes transcoded, 0 lent, 22.5 MiB) / 0 raw; fallbacks 0; target format 36492, 966 worker messages
+       crew (reported, AS6): 1 character(s) (ch22), 2 materials (2 on the budget set), 4 textures (4 KTX2, 0 images, 0 pending): 5.3 MiB on the GPU (ch22 5.3)
+  ok   cub: both views measured (stand, taxi)  (taxi at 263.5 727.6 0.716 route 29.1 m off)
+  info cub the hybrid warm: {"n":259,"drawn":259,"sameModel":true,"live":126}
+  ok   cub: the hybrid's crossing (near, band, back: 3 frames each) links, creates and uploads nothing past the taxi's frame  (per frame bufferData 0/0/0/0/0/0/0/0/0 (taxi 0), texImage 0/0/0/0/0/0/0/0/0 (taxi 0), links 0/0/0/0/0/0/0/0/0; bufferSubData KB 1/1/1/1/1/1/1/1/1)
+  info cub near (the hybrid, forced): the aeroplane draws 195 main + 68 shadow + 0 other (54 skinned), 136 materials, 17 programs
+  info cub band (the hybrid, forced): the aeroplane draws 202 main + 0 shadow + 0 other (58 skinned), 138 materials, 20 programs
+  info cub stand: the aeroplane draws 76 main + 0 shadow + 0 other (10 skinned), 59 materials, 13 programs, 93 meshes
+  info cub taxi: the aeroplane draws 76 main + 0 shadow + 0 other (10 skinned), 59 materials, 13 programs, 93 meshes
+  ok   cub: the scene is the page's - Jolene, its premises composed with Metlakatla cut, the ground raster on  (world jolene, premises true, 218 mk_ entries cut, raster true, depth reversed)
+  ok   cub: graphics gamer, shadows full  ({"preset":"gamer","shadows":"full"})
+  ok   cub: the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)  ({"n":4,"big":4,"heldAfterRollout":0,"classWeights":false,"rederived":4,"heldAfterRestore":4,"heldAfterReupload":0})
+  ok   cub: no script, timer or frame of the page threw
+  ok   cub: no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)  (0 feedback draws, first [])
+  ok   cessna: the page booted, rolled out and rendered its views  (garage 253.6 s, roll-out 101.1 s, total 372.1 s wall; 387 programs; page errors 55)
+       memory after the roll-out (MiB, reported): {"heapUsed":737.8,"arrayBuffers":2361.3,"external":2428.3,"rss":3660.8}; at the end {"heapUsed":740.3,"arrayBuffers":2370.2,"external":2437.3,"rss":3661.7}
+       reads (reported): garage 1443 fetches 229.8 MiB, 227 images 46.8 MiB, canvas drawImage 489 / getImageData 455 (488.0 MiB); roll-out 0 fetches 0.0 MiB, 0 images 0.0 MiB, canvas drawImage 1 / getImageData 0 (0.0 MiB)
+       KTX2 (reported): ground packs 3 KTX2 (96 planes transcoded, 0 lent, 22.5 MiB) / 0 raw; fallbacks 0; target format 36492, 972 worker messages
+       crew (reported, AS6): 2 character(s) (ch22, ch42), 4 materials (4 on the budget set), 7 textures (7 KTX2, 0 images, 0 pending): 9.3 MiB on the GPU (ch42 4.0, ch22 5.3)
+  ok   cessna: both views measured (stand, taxi)  (taxi at 263.5 727.6 0.716 route 29.1 m off)
+  info cessna the hybrid warm: {"n":279,"drawn":279,"sameModel":true,"live":136}
+  ok   cessna: the hybrid's crossing (near, band, back: 3 frames each) links, creates and uploads nothing past the taxi's frame  (per frame bufferData 0/0/0/0/0/0/0/0/0 (taxi 0), texImage 0/0/0/0/0/0/0/0/0 (taxi 0), links 0/0/0/0/0/0/0/0/0; bufferSubData KB 1/1/1/1/1/1/1/1/1)
+  info cessna near (the hybrid, forced): the aeroplane draws 215 main + 78 shadow + 0 other (63 skinned), 144 materials, 17 programs
+  info cessna band (the hybrid, forced): the aeroplane draws 222 main + 0 shadow + 0 other (67 skinned), 146 materials, 19 programs
+  info cessna stand: the aeroplane draws 86 main + 0 shadow + 0 other (16 skinned), 63 materials, 12 programs, 103 meshes
+  info cessna taxi: the aeroplane draws 86 main + 0 shadow + 0 other (16 skinned), 63 materials, 12 programs, 103 meshes
+  ok   cessna: the scene is the page's - Jolene, its premises composed with Metlakatla cut, the ground raster on  (world jolene, premises true, 218 mk_ entries cut, raster true, depth reversed)
+  ok   cessna: graphics gamer, shadows full  ({"preset":"gamer","shadows":"full"})
+  ok   cessna: the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)  ({"n":4,"big":4,"heldAfterRollout":0,"classWeights":false,"rederived":4,"heldAfterRestore":4,"heldAfterReupload":0})
+  ok   cessna: no script, timer or frame of the page threw
+  ok   cessna: no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)  (0 feedback draws, first [])
+  ok   SELF-TEST a_onBeforeRender_x100 turns the gate red  (1 counters: cb.onBeforeRender 2 -> 102)
+  ok   SELF-TEST b_uniformPerFrame_x950 turns the gate red  (5 counters: bytes.uniforms 146134 -> 148646; gl.uniform1f 188 -> 199; gl.uniform3f 55 -> 174)
+  ok   SELF-TEST c_matrixAutoUpdate_x10633 turns the gate red  (1 counters: three.updateMatrix 4230 -> 8490)
+  cub · stand · per frame: counter, baseline, now
+    stand/bytes.bufferSubData                           544        640  ALLOW
+    stand/bytes.texSubImage2D                         54616      70082  ALLOW
+    stand/bytes.uniforms                             205152     146134  down
+    stand/cb.onAfterRender                                1          2  
+    stand/cb.onBeforeRender                               1          2  
+    stand/draws.main                                    914        708  down
+    stand/draws.other                                    14         15  
+    stand/draws.shadow                                169.5      104.5  down
+    stand/draws.total                                1119.5      849.5  down
+    stand/gl.bindTexture                                809        623  down
+    stand/gl.bindVertexArray                           1039        791  down
+    stand/gl.bufferSubData                                2          2  
+    stand/gl.calls                                   7803.5     5725.5  down
+    stand/gl.texSubImage2D                               82       74.5  down
+    stand/gl.uniform1f                                  327        188  down
+    stand/gl.uniform1fv                                  24         20  down
+    stand/gl.uniform1i                                   10          6  down
+    stand/gl.uniform2f                                   49         18  down
+    stand/gl.uniform3f                                   74         55  down
+    stand/gl.uniform4fv                                 741        580  down
+    stand/gl.uniformMatrix3fv                           375      144.5  down
+    stand/gl.uniformMatrix4fv                          1454     1000.5  down
+    stand/gl.useProgram                               217.5        159  down
+    stand/programs                                       98         85  down
+    stand/three.frustumTests                         1352.5     1657.5  ALLOW
+    stand/three.renders                                  15         16  
+    stand/three.updateMatrix                           3429       4230  ALLOW
+    stand/three.updateMatrixWorld                      8349      12532  ALLOW
+    stand/tris.main                                17487823   10866720  down
+    stand/tris.shadow                             3205542.5  2679093.5  down
+    stand/world.grHeight                                 17         20  ALLOW
+    stand/world.terrainH                                 65       38.5  down
+  cub · taxi (263.5, 727.6, 0.716, route 29.1 m off) · per frame: counter, baseline, now
+    taxi/bytes.bufferSubData                            544        640  ALLOW
+    taxi/bytes.texSubImage2D                         288108     587437  ALLOW
+    taxi/bytes.uniforms                              187496     142556  down
+    taxi/cb.onAfterRender                                 1          2  
+    taxi/cb.onBeforeRender                                1          2  
+    taxi/draws.main                                     844        760  down
+    taxi/draws.other                                     14         15  
+    taxi/draws.shadow                                 100.5        100  
+    taxi/draws.total                                  980.5        883  down
+    taxi/gl.bindBuffer                                    2          7  ALLOW
+    taxi/gl.bindTexture                               763.5      659.5  down
+    taxi/gl.bindVertexArray                           905.5      815.5  down
+    taxi/gl.bufferSubData                                 2          2  
+    taxi/gl.calls                                      7310     5992.5  down
+    taxi/gl.texSubImage2D                             141.5      119.5  down
+    taxi/gl.uniform1f                                   257        189  down
+    taxi/gl.uniform1fv                                   24         20  down
+    taxi/gl.uniform1i                                     6          2  down
+    taxi/gl.uniform2f                                    45         14  down
+    taxi/gl.uniform3f                                    62         44  down
+    taxi/gl.uniform4fv                                  626        538  down
+    taxi/gl.uniformMatrix3fv                            315        124  down
+    taxi/gl.uniformMatrix4fv                         1420.5     1033.5  down
+    taxi/gl.useProgram                                  164        144  down
+    taxi/programs                                      81.5         78  down
+    taxi/three.frustumTests                            1272       1639  ALLOW
+    taxi/three.renders                                   15         16  
+    taxi/three.updateMatrix                            3803       4598  ALLOW
+    taxi/three.updateMatrixWorld                       8727    12906.5  ALLOW
+    taxi/tris.main                                 13043865   11880141  down
+    taxi/tris.shadow                                1782437  3497266.5  ALLOW
+    taxi/world.grHeight                                  15         20  ALLOW
+    taxi/world.terrainH                                  70       38.5  down
+  cub · boot steps: counter, baseline, now
+    boot/garage:aircraft/gl.calls                         0          0  
+    boot/garage:aircraft/world.grHeight                 588        463  down
+    boot/garage:aircraft/world.terrainH                3105       2973  down
+    boot/garage:bake/gl.calls                         37263      37254  
+    boot/garage:bake/links                               81         84  ALLOW
+    boot/garage:compile/bytes.bufferData            1519232    1559360  ALLOW
+    boot/garage:compile/bytes.uniforms              2156884    1136420  down
+    boot/garage:compile/draws.total                   14448       6664  down
+    boot/garage:compile/gl.calls                      93960      44697  down
+    boot/garage:compile/links                             5          5  
+    boot/garage:compile/three.frustumTests            32106      10898  down
+    boot/garage:compile/three.updateMatrixWorld       19455      16210  down
+    boot/garage:craft/bytes.bufferData             13118688   13590336  ALLOW
+    boot/garage:craft/gl.calls                        13391      13336  
+    boot/garage:craft/links                               2          2  
+    boot/garage:craft/three.updateMatrixWorld         55274      85865  ALLOW
+    boot/garage:craft/world.terrainH                      0         15  ALLOW
+    boot/garage:editor/bytes.bufferData            22772608   23117604  ALLOW
+    boot/garage:editor/bytes.uniforms                 31976      32304  ALLOW
+    boot/garage:editor/gl.calls                        2424       2483  ALLOW
+    boot/garage:editor/three.updateMatrixWorld         3460       2470  down
+    boot/garage:firstFrame/bytes.uniforms           1166132     669824  down
+    boot/garage:firstFrame/draws.total                 6994       4855  down
+    boot/garage:firstFrame/gl.calls                   68607      45927  down
+    boot/garage:firstFrame/three.frustumTests          8871       5463  down
+    boot/garage:firstFrame/three.updateMatrixWorld       3136       2404  down
+    boot/garage:firstFrame/world.grHeight                 8          5  down
+    boot/garage:frames/bytes.bufferData           335680129  398394822  ALLOW
+    boot/garage:frames/bytes.uniforms                967588     994464  ALLOW
+    boot/garage:frames/draws.total                     4677       5121  ALLOW
+    boot/garage:frames/gl.calls                       85575      94312  ALLOW
+    boot/garage:frames/links                              2          1  
+    boot/garage:frames/three.frustumTests              7916      10044  ALLOW
+    boot/garage:frames/three.updateMatrixWorld        47807      73085  ALLOW
+    boot/garage:frames/world.grHeight                  5543      64043  ALLOW
+    boot/garage:frames/world.terrainH                  5927      57722  ALLOW
+    boot/garage:garage/gl.calls                        2080       2080  
+    boot/garage:garage/links                              2          2  
+    boot/garage:garage/three.updateMatrixWorld         3870       3144  down
+    boot/garage:images/bytes.uniforms                   128       4096  ALLOW
+    boot/garage:images/draws.total                        2         46  ALLOW
+    boot/garage:images/gl.calls                          42        214  ALLOW
+    boot/garage:images/three.updateMatrixWorld            6        481  ALLOW
+    boot/garage:images/world.grHeight                    83         33  down
+    boot/garage:images/world.terrainH                    43         16  down
+    boot/garage:landing/bytes.uniforms              3498036    2009984  down
+    boot/garage:landing/draws.total                   20982      14565  down
+    boot/garage:landing/gl.calls                     121508      72926  down
+    boot/garage:landing/three.frustumTests            26613      16389  down
+    boot/garage:landing/three.updateMatrixWorld        9921       7725  down
+    boot/garage:parked/gl.calls                           0          0  
+    boot/garage:parking/gl.calls                          0          0  
+    boot/garage:parking/three.updateMatrixWorld        3911       4196  ALLOW
+    boot/garage:recheck/gl.calls                          0          0  
+    boot/garage:recheck/three.updateMatrixWorld         777       2415  ALLOW
+    boot/garage:restore/gl.calls                          0          0  
+    boot/garage:restore/three.updateMatrixWorld         778        806  ALLOW
+    boot/garage:ring/gl.calls                             0          0  
+    boot/garage:ring/world.grHeight                  729569     497373  down
+    boot/garage:ring/world.terrainH                  724259     787870  ALLOW
+    boot/garage:scripts/gl.calls                         39         39  
+    boot/garage:scripts/world.terrainH                 3106       2974  down
+    boot/garage:seed/gl.calls                             0          0  
+    boot/garage:seed/three.updateMatrixWorld          17652      18356  ALLOW
+    boot/garage:settle/bytes.bufferData            19619220   27186480  ALLOW
+    boot/garage:settle/bytes.uniforms               1179552     748060  down
+    boot/garage:settle/draws.total                    13881       8534  down
+    boot/garage:settle/gl.calls                       85469      53344  down
+    boot/garage:settle/house.build0                       0          2  new
+    boot/garage:settle/house.tris0                        0      34664  new
+    boot/garage:settle/links                             22         25  ALLOW
+    boot/garage:settle/three.frustumTests              1055         31  down
+    boot/garage:settle/three.updateMatrixWorld        59279      39240  down
+    boot/garage:settle/world.grHeight              11095806   10012425  down
+    boot/garage:settle/world.terrainH               8905391    9184003  ALLOW
+    boot/garage:snapshot/gl.calls                      1337       1403  ALLOW
+    boot/garage:snapshot/links                           80         86  ALLOW
+    boot/garage:snapshot/three.updateMatrixWorld      23325      25739  ALLOW
+    boot/garage:spec/bytes.uniforms                   31912      32240  ALLOW
+    boot/garage:spec/gl.calls                          2563       2595  ALLOW
+    boot/garage:spec/links                              139        141  
+    boot/garage:spec/three.updateMatrixWorld           8345       8884  ALLOW
+    boot/garage:spec/world.grHeight                    2862       2733  down
+    boot/garage:spec/world.terrainH                    3105       2988  down
+    boot/garage:town/gl.calls                           780        831  ALLOW
+    boot/garage:town/house.build0                        86         34  down
+    boot/garage:town/house.build1                        96         45  down
+    boot/garage:town/house.tris0                    1092742     412916  down
+    boot/garage:town/house.tris1                     102536      38622  down
+    boot/garage:town/links                               41         44  ALLOW
+    boot/garage:town/three.updateMatrixWorld           6453       3155  down
+    boot/garage:treeBins/gl.calls                         0          0  
+    boot/garage:trees/gl.calls                            0          0  
+    boot/garage:upload/gl.calls                        3233       3662  ALLOW
+    boot/garage:world/bytes.bufferData            227693304  521503928  ALLOW
+    boot/garage:world/bytes.uniforms                1832544    1946728  ALLOW
+    boot/garage:world/draws.total                     10433      12022  ALLOW
+    boot/garage:world/gl.calls                       116397     150095  ALLOW
+    boot/garage:world/links                              13         14  
+    boot/garage:world/three.frustumTests              10415      11057  ALLOW
+    boot/garage:world/three.updateMatrixWorld         76265      85671  ALLOW
+    boot/garage:world/world.grHeight                3974088    6000594  ALLOW
+    boot/garage:world/world.terrainH                3742378     463595  down
+    boot/garage:worldCompile/gl.calls                   124        127  ALLOW
+    boot/garage:worldCompile/links                        6          6  
+    boot/garage:worldCompile/three.updateMatrixWorld          6        282  ALLOW
+    boot/garage:worldCompile/world.grHeight              51         92  ALLOW
+    boot/garage:worldCompile/world.terrainH              42         15  down
+    boot/rollout:click/bytes.uniforms             329814648  133537168  down
+    boot/rollout:click/draws.total                  1748144     392767  down
+    boot/rollout:click/gl.calls                     9179824    3231596  down
+    boot/rollout:click/links                              0          1  
+    boot/rollout:click/three.frustumTests           2803700     219393  down
+    boot/rollout:click/three.updateMatrixWorld      1726804    1840598  ALLOW
+    boot/rollout:click/world.grHeight                  3784       4615  ALLOW
+    boot/rollout:click/world.terrainH                  3376       5467  ALLOW
+  cessna · stand · per frame: counter, baseline, now
+    stand/bytes.bufferSubData                           544        640  ALLOW
+    stand/bytes.texSubImage2D                         61016      76482  ALLOW
+    stand/bytes.uniforms                             208782     149042  down
+    stand/cb.onAfterRender                                1          2  
+    stand/cb.onBeforeRender                               1          2  
+    stand/draws.main                                    925        718  down
+    stand/draws.other                                    14         15  
+    stand/draws.shadow                                176.5      104.5  down
+    stand/draws.total                                1137.5      859.5  down
+    stand/gl.bindTexture                                813        627  down
+    stand/gl.bindVertexArray                           1057        801  down
+    stand/gl.bufferSubData                                2          2  
+    stand/gl.calls                                     7929     5819.5  down
+    stand/gl.texSubImage2D                               83       75.5  down
+    stand/gl.uniform1f                                  337        198  down
+    stand/gl.uniform1fv                                  24         20  down
+    stand/gl.uniform1i                                   10          6  down
+    stand/gl.uniform2f                                   55         24  down
+    stand/gl.uniform3f                                 76.5         57  down
+    stand/gl.uniform4fv                                 753        590  down
+    stand/gl.uniformMatrix3fv                           381      147.5  down
+    stand/gl.uniformMatrix4fv                          1483     1023.5  down
+    stand/gl.useProgram                               219.5        160  down
+    stand/programs                                     96.5         84  down
+    stand/three.frustumTests                         1353.5     1657.5  ALLOW
+    stand/three.renders                                  15         16  
+    stand/three.updateMatrix                           4782       5580  ALLOW
+    stand/three.updateMatrixWorld                      8902      13081  ALLOW
+    stand/tris.main                                17610628   10975699  down
+    stand/tris.shadow                             3336196.5  2678542.5  down
+    stand/world.grHeight                                 15         20  ALLOW
+    stand/world.terrainH                                 65       38.5  down
+  cessna · taxi (263.5, 727.6, 0.716, route 29.1 m off) · per frame: counter, baseline, now
+    taxi/bytes.bufferSubData                            544        640  ALLOW
+    taxi/bytes.texSubImage2D                         294508     593837  ALLOW
+    taxi/bytes.uniforms                              190892     145828  down
+    taxi/cb.onAfterRender                                 1          2  
+    taxi/cb.onBeforeRender                                1          2  
+    taxi/draws.main                                     854        770  down
+    taxi/draws.other                                     14         15  
+    taxi/draws.shadow                                 106.5         86  down
+    taxi/draws.total                                  996.5        893  down
+    taxi/gl.bindTexture                               767.5        659  down
+    taxi/gl.bindVertexArray                           921.5      825.5  down
+    taxi/gl.bufferSubData                                 2          2  
+    taxi/gl.calls                                      7423     6093.5  down
+    taxi/gl.texSubImage2D                             142.5      120.5  down
+    taxi/gl.uniform1f                                   267        199  down
+    taxi/gl.uniform1fv                                   24         20  down
+    taxi/gl.uniform1i                                     6          2  down
+    taxi/gl.uniform2f                                    51         20  down
+    taxi/gl.uniform3f                                    64         46  down
+    taxi/gl.uniform4fv                                  638        548  down
+    taxi/gl.uniformMatrix3fv                            320        128  down
+    taxi/gl.uniformMatrix4fv                         1446.5     1060.5  down
+    taxi/gl.useProgram                                  166      141.5  down
+    taxi/programs                                      80.5         76  down
+    taxi/three.frustumTests                          1260.5       1639  ALLOW
+    taxi/three.renders                                   15         16  
+    taxi/three.updateMatrix                            5156       5947  ALLOW
+    taxi/three.updateMatrixWorld                       9280      13455  ALLOW
+    taxi/tris.main                                 13164382   12007093  down
+    taxi/tris.shadow                                1908541    3250826  ALLOW
+    taxi/world.grHeight                                17.5         20  ALLOW
+    taxi/world.terrainH                                  70       38.5  down
+  cessna · boot steps: counter, baseline, now
+    boot/garage:aircraft/gl.calls                         0          0  
+    boot/garage:aircraft/world.grHeight                 716        469  down
+    boot/garage:aircraft/world.terrainH                3121       2979  down
+    boot/garage:bake/gl.calls                         39857      39890  
+    boot/garage:bake/links                               81         84  ALLOW
+    boot/garage:compile/bytes.bufferData            1519232    1559360  ALLOW
+    boot/garage:compile/bytes.uniforms              2156820    1136356  down
+    boot/garage:compile/draws.total                   14448       6664  down
+    boot/garage:compile/gl.calls                      94028      44765  down
+    boot/garage:compile/links                             5          5  
+    boot/garage:compile/three.frustumTests            32106      10898  down
+    boot/garage:compile/three.updateMatrixWorld       22731      19304  down
+    boot/garage:craft/gl.calls                        14205      14057  down
+    boot/garage:craft/links                               2          2  
+    boot/garage:craft/three.updateMatrixWorld         56085      87993  ALLOW
+    boot/garage:craft/world.grHeight                      0          3  ALLOW
+    boot/garage:craft/world.terrainH                      0         15  ALLOW
+    boot/garage:editor/bytes.bufferData            22772608   23117604  ALLOW
+    boot/garage:editor/bytes.uniforms                 31976      32304  ALLOW
+    boot/garage:editor/gl.calls                        2424       2483  ALLOW
+    boot/garage:editor/three.updateMatrixWorld         3460       2470  down
+    boot/garage:firstFrame/bytes.uniforms           1338360     805484  down
+    boot/garage:firstFrame/draws.total                 8296       5832  down
+    boot/garage:firstFrame/gl.calls                   85697      59053  down
+    boot/garage:firstFrame/three.frustumTests         10442       6899  down
+    boot/garage:firstFrame/three.updateMatrixWorld       3889       2862  down
+    boot/garage:firstFrame/world.grHeight                 8          5  down
+    boot/garage:frames/bytes.bufferData           343598641  406075926  ALLOW
+    boot/garage:frames/bytes.uniforms                987752    1009740  ALLOW
+    boot/garage:frames/draws.total                     4804       5221  ALLOW
+    boot/garage:frames/gl.calls                       86462      94936  ALLOW
+    boot/garage:frames/links                              2          1  
+    boot/garage:frames/three.frustumTests              7916      10034  ALLOW
+    boot/garage:frames/three.updateMatrixWorld        48485      74008  ALLOW
+    boot/garage:frames/world.grHeight                  5542      65828  ALLOW
+    boot/garage:frames/world.terrainH                  5927      59507  ALLOW
+    boot/garage:garage/gl.calls                        2080       2080  
+    boot/garage:garage/links                              2          2  
+    boot/garage:garage/three.updateMatrixWorld         3870       3144  down
+    boot/garage:images/bytes.uniforms                   128       4096  ALLOW
+    boot/garage:images/draws.total                        2         46  ALLOW
+    boot/garage:images/gl.calls                          42        214  ALLOW
+    boot/garage:images/three.updateMatrixWorld            6        750  ALLOW
+    boot/garage:images/world.grHeight                    83         33  down
+    boot/garage:images/world.terrainH                    43         16  down
+    boot/garage:landing/bytes.uniforms              4072036    2470932  down
+    boot/garage:landing/draws.total                   24888      17496  down
+    boot/garage:landing/gl.calls                     145893      90980  down
+    boot/garage:landing/three.frustumTests            31326      20697  down
+    boot/garage:landing/three.updateMatrixWorld       12693       9612  down
+    boot/garage:parked/gl.calls                           0          0  
+    boot/garage:parking/gl.calls                          0          0  
+    boot/garage:parking/three.updateMatrixWorld        9543       9915  ALLOW
+    boot/garage:recheck/gl.calls                          0          0  
+    boot/garage:recheck/three.updateMatrixWorld        1134       3414  ALLOW
+    boot/garage:restore/gl.calls                          0          0  
+    boot/garage:restore/three.updateMatrixWorld        2269       4553  RED
+    boot/garage:ring/gl.calls                             0          0  
+    boot/garage:ring/world.grHeight                  729569     497373  down
+    boot/garage:ring/world.terrainH                  724259     787870  ALLOW
+    boot/garage:scripts/gl.calls                         39         39  
+    boot/garage:scripts/world.terrainH                 3106       2974  down
+    boot/garage:seed/gl.calls                             0          0  
+    boot/garage:settle/bytes.bufferData            19619220   27186480  ALLOW
+    boot/garage:settle/bytes.uniforms               1179552     748060  down
+    boot/garage:settle/draws.total                    13881       8534  down
+    boot/garage:settle/gl.calls                       85469      53344  down
+    boot/garage:settle/house.build0                       0          2  new
+    boot/garage:settle/house.tris0                        0      34664  new
+    boot/garage:settle/links                             22         25  ALLOW
+    boot/garage:settle/three.frustumTests              1055         31  down
+    boot/garage:settle/three.updateMatrixWorld        59989      40564  down
+    boot/garage:settle/world.grHeight              11095806   10012425  down
+    boot/garage:settle/world.terrainH               8905391    9184003  ALLOW
+    boot/garage:snapshot/gl.calls                      1337       1403  ALLOW
+    boot/garage:snapshot/links                           80         86  ALLOW
+    boot/garage:snapshot/three.updateMatrixWorld      36344      38704  ALLOW
+    boot/garage:spec/bytes.uniforms                   31912      32240  ALLOW
+    boot/garage:spec/gl.calls                          2522       2554  ALLOW
+    boot/garage:spec/links                              135        137  
+    boot/garage:spec/three.updateMatrixWorld          10567      12325  ALLOW
+    boot/garage:spec/world.grHeight                    2878       2743  down
+    boot/garage:spec/world.terrainH                    3121       2998  down
+    boot/garage:town/gl.calls                           780        831  ALLOW
+    boot/garage:town/house.build0                        86         34  down
+    boot/garage:town/house.build1                        96         45  down
+    boot/garage:town/house.tris0                    1092742     412916  down
+    boot/garage:town/house.tris1                     102536      38622  down
+    boot/garage:town/links                               41         44  ALLOW
+    boot/garage:town/three.updateMatrixWorld           7163       3155  down
+    boot/garage:treeBins/gl.calls                         0          0  
+    boot/garage:trees/gl.calls                            0          0  
+    boot/garage:upload/gl.calls                        3233       3662  ALLOW
+    boot/garage:world/bytes.bufferData            227693304  521503928  ALLOW
+    boot/garage:world/bytes.uniforms                1800632    1914488  ALLOW
+    boot/garage:world/draws.total                     10195      11782  ALLOW
+    boot/garage:world/gl.calls                       115403     149091  ALLOW
+    boot/garage:world/links                              13         14  
+    boot/garage:world/three.frustumTests              10192      10832  ALLOW
+    boot/garage:world/three.updateMatrixWorld         92025     102289  ALLOW
+    boot/garage:world/world.grHeight                3973249    5999863  ALLOW
+    boot/garage:world/world.terrainH                3739273     460622  down
+    boot/garage:worldCompile/gl.calls                   124        127  ALLOW
+    boot/garage:worldCompile/links                        6          6  
+    boot/garage:worldCompile/three.updateMatrixWorld          6        551  ALLOW
+    boot/garage:worldCompile/world.grHeight              51         92  ALLOW
+    boot/garage:worldCompile/world.terrainH              42         15  down
+    boot/rollout:click/bytes.uniforms             344873436  141514984  down
+    boot/rollout:click/draws.total                  1816754     422051  down
+    boot/rollout:click/gl.calls                     9579905    3439341  down
+    boot/rollout:click/links                              0          1  
+    boot/rollout:click/three.frustumTests           2856600     222423  down
+    boot/rollout:click/three.updateMatrixWorld      2251914    2460940  ALLOW
+    boot/rollout:click/world.grHeight                  3841       4660  ALLOW
+    boot/rollout:click/world.terrainH                  3395       5510  ALLOW
+  FAIL cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553
+  ok   the baseline exists (tools/perf/framecost_baseline.json; --update writes it)
+  ratchet down: 168 counters fell below the baseline - run `node tools/_framecost_check.js --update` to keep the gain
+  ALLOWED: 125 rises admitted by the ALLOW list
+  wall 372.9 s
+  HINT: stand/taxi draws.shadow/main, uniforms up after an app.js / viewer edit? run `node tools/parked_cook.js --check` first - a STALE cook captures the parked aeroplanes live (re-cook with parked_cook.js; the train re-cooks on its final build)
+GATE FRAMECOST: FAIL (1)
+(exit code 1)
+
+──────── summary ────────
+FRAMECOST FAIL   372.9 s
+total            372.9 s
+wall             372.9 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

@@ -166,7 +166,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
 // Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
-const WIRE_BUDGET_MIB = 4.21;   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+// MEDIA-BUDGET (A0 2 Nov, rule b - the user 14 Oct: no page-size work): 4.6 -> 5.0. Red on master since L28c: 4.68 MiB on L29f
+// d1a754b94 (4.79 with L29g's FINISH-3 on top). Checked first for something heavy inlined by mistake - none: data: still 118 KB
+// (the same four woff2 fonts as L25c), no ref model, the packs fetched (premises_packs / crowd_pack never inlined); the
+// growth is CODE: L28-0 (missions p0, 73b), L28a (+187 KB raw: missions p1/p3/props, menus, story, hire, people), L28b
+// (+281 KB raw: people-crowd, dmg-looks / dmg_members, bench, cert-rule, float-kit), L28c-L29f (+80 KB raw); app.js alone +153 KB
+// since L25c. 5.0 = today + FINISH-3 + ~0.2 MiB of headroom. The per-train STEP row stays the heavy-move tripwire.
+const WIRE_BUDGET_MIB = 5.0;   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -188,7 +194,14 @@ const DATA_BUDGET_KB = 400;
 // G2685 (CAREER-LAZY): the career-only core is its own file (career_core.<h8>.js, fetched only by a career / ?map=1 /
 // ?freight=1 boot), measured here beside index.html and never counted in it. Its own tripwire: 305 KB at the split
 // (8 Oct, train 43's nine modules); a career module past this ceiling is something heavy moving into the career's boot.
-const CAREER_BUDGET_KB = 512;
+// MEDIA-BUDGET (A0 2 Nov, rule b): 512 -> 640. Red since L28a: 444 KB (L28-0) -> 553 KB (L28a: missions p1 - 73c_mission_run.js
+// +454 lines, demo_p1.json +799, 74_career / 79_story / 73_contracts / 72_accept; all career CODE and mission data) -> 556.9 KB
+// (L29f) -> 567.1 KB (L29g, belly-pod-2's 75_career_wire / 76_freight / 76_procure). 640 = that + ~70 KB of headroom.
+const CAREER_BUDGET_KB = 640;   // was 512
+// G3070 (ROUTE-LAZY): the drawn route's drawing is its own file too (route_draw.<h8>.js, fetched on first demand or at
+// boot for an armed route), measured beside index.html and never counted in it. Its tripwire: 31 KB at the split (12
+// Oct, route_draw.js as train 44 landed it); past this, something heavy is riding the drawing.
+const ROUTE_BUDGET_KB = 64;
 
 // ---------------------------------------------------------------------------
 // the manifests that may reference media/ — one list, so a new externalized
@@ -252,6 +265,10 @@ function manifestFiles() {
     return fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')).map(f => path.join(ROOT, 'src', dir, f)) : []; };
   const scenery = kitPacks('scenery', 'scenery_packs.json');
   const cars = kitPacks('cars', 'cars_packs.json');
+  // the camping kit and the infrastructure kit (ASSETS-OCT G3140-G3149): the tents (tools/camp_kit.py: media/geo/camp,
+  // camp_lod, media/tex/camp) and the pylons (tools/infra_gen.js: media/geo/infra, no maps) - lazy like the scenery
+  const camp = kitPacks('camp', 'camp_packs.json');
+  const infra = kitPacks('infra', 'infra_packs.json');
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -268,6 +285,16 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$|^chars_ktx2\.js$/.test(f))   // + AS6's budget table (G935)
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
+  // THE CROWD (CHARACTERS G2970): src/chars/crowd_pack.json names the clips' bins, the cast's budget KTX2 and each cast
+  // member's manifest - a media file itself (media/chars/<key>.<h8>.json), read as a manifest too (its bin, its maps)
+  const crowdP = path.join(ROOT, 'src', 'chars', 'crowd_pack.json');
+  if (fs.existsSync(crowdP)) {
+    chars.push(crowdP);
+    try {
+      for (const c of JSON.parse(fs.readFileSync(crowdP, 'utf8')).cast || [])
+        if (c.man && fs.existsSync(path.join(ROOT, c.man))) chars.push(path.join(ROOT, c.man));
+    } catch (e) {}
+  }
   // the animals (2026-09-22): the baked skins and their clip libraries, plus
   // the levels pack tools/animal_lod.js cuts - every manifest on disk, the
   // same catalogue-not-publish-list reasoning as the models above
@@ -295,6 +322,8 @@ function manifestFiles() {
   if (fs.existsSync(path.join(ROOT, 'src', 'core', 'premises_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'premises_packs.json'));
   // the parked aeroplanes' cook (G805): tools/parked_cook.js owns media/parked (one gzip stream per arch: / stock: key)
   if (fs.existsSync(path.join(ROOT, 'src', 'core', 'parked_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'parked_packs.json'));
+  // the cooked towns (CITY-A, G3400): tools/city_cook.js owns media/city/<island>/<town> and names every cell here
+  if (fs.existsSync(path.join(ROOT, 'src', 'core', 'city_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'city_packs.json'));
   // the town kit (G850): the archetype pack and the instance tables, baked by tools/town_kit.js --media (not
   // shipped yet - the manifest appears with the first bake the user approves)
   const townkit = fs.existsSync(path.join(ROOT, 'src', 'core', 'townkit_pack.json'))
@@ -303,6 +332,8 @@ function manifestFiles() {
   // (the coordinator's prep owns media/audio/music) - each named by its inlined catalogue
   const sound = ['sfx_catalogue.json', 'music_catalogue.json', 'voice_catalogue.json'].map(f => path.join(ROOT, 'src', 'viewer', 'audio', f))
     .filter(f => fs.existsSync(f));
+  // G3380 (STORY-INTRO): the opening's track (an OGG, CC0) is named by its lazy module (src/viewer/story_intro.js MUSIC)
+  if (fs.existsSync(path.join(ROOT, 'src', 'viewer', 'story_intro.js'))) sound.push(path.join(ROOT, 'src', 'viewer', 'story_intro.js'));
   // G1701 (SND-RADIO-3): Radio Jolene's takes are named by the broadcast script the voice catalogue points at (a media
   // file itself, fetched lazily by the game): it is read as a manifest too
   try {
@@ -312,17 +343,26 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  // THE PEOPLE (G3615 / G3620): tools/portrait_prep.py owns media/people; its generated tables name each file BARE
+  // (72_people.js prefixes PEOPLE_FACE_DIR), so collectRefs reads them through BARE_DIRS below
+  const people = ['72_people_faces.js', '72_people_bgs.js'].map(f => path.join(ROOT, 'src', 'core', f)).filter(f => fs.existsSync(f));
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380)
+
+// the manifests that name their files bare, under one media directory (the generated table: '<key>': '<file>')
+const BARE_DIRS = { '72_people_faces.js': 'media/people/', '72_people_bgs.js': 'media/people/' };
+const BARE_RE = /'([A-Za-z0-9_\-.]+?\.(?:jpg|png|webp))'/g;
 
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it
   for (const f of files) {
-    const txt = fs.readFileSync(f, 'utf8');
+    const txt = fs.readFileSync(f, 'utf8'), dir = BARE_DIRS[path.basename(f)];
     for (const m of txt.match(REF_RE) || [])
       if (!refs.has(m)) refs.set(m, path.relative(ROOT, f));
+    if (dir) for (const m of txt.matchAll(BARE_RE))
+      if (!refs.has(dir + m[1])) refs.set(dir + m[1], path.relative(ROOT, f));
   }
   return refs;
 }
@@ -448,7 +488,15 @@ function checkArtifact() {
     career = { name: cn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
     check(career.kb <= CAREER_BUDGET_KB, `${cn[0]} is ${career.kb.toFixed(1)} KB against the career core's ${CAREER_BUDGET_KB} KB`);
   }
-  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career };
+  // G3070: the drawn route's drawing, separately (one file, this build's)
+  const rn = fs.readdirSync(ROOT).filter(n => /^route_draw\.[0-9a-f]{8}\.js$/.test(n));
+  let route = null;
+  if (check(rn.length === 1, `one route_draw.<h8>.js beside index.html (${rn.join(', ') || 'none'})`)) {
+    const c = noCR(fs.readFileSync(path.join(ROOT, rn[0])));
+    route = { name: rn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
+    check(route.kb <= ROUTE_BUDGET_KB, `${rn[0]} is ${route.kb.toFixed(1)} KB against the route drawing's ${ROUTE_BUDGET_KB} KB`);
+  }
+  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career, route };
 }
 
 // ---------------------------------------------------------------------------
@@ -457,7 +505,27 @@ for (const f of files)
   check(fs.existsSync(f), `manifest ${path.relative(ROOT, f)} does not exist`);
 const refs = collectRefs(files.filter(f => fs.existsSync(f)));
 const present = walkMedia(MEDIA);
+// SCENERY VERSIONS (ED-2, 25 Oct): media/scenery/<island>/index.json is the scenery editor's list of named versions - world_boot.js
+// fetches it by the island's id (no literal path to scan) - and it names its own version files (tools/scenery_version.js add)
+{ const WB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_boot.js'), 'utf8');
+  const fetches = /getSync\('media\/scenery\/' \+ ISL_ID \+ '\/index\.json'\)/.test(WB);
+  for (const rel of present.filter(r => /^media\/scenery\/[a-z0-9_-]+\/index\.json$/.test(r))) {
+    if (fetches && !refs.has(rel)) refs.set(rel, 'src/viewer/world_boot.js (SCN.versions)');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && Array.isArray(J.versions)), `${rel} is a scenery versions index ({versions: [...]})`);
+    for (const v of (J && J.versions) || []) { const f = rel.slice(0, -'index.json'.length) + (v && v.file); if (v && v.file && !refs.has(f)) refs.set(f, rel); } } }
 checkStore(refs, present);
+// MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
+// grows it is a new ask, not a silent pass)
+const MEDIA_ACCEPTED = [
+  { file: 'media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg', upToBytes: 479530,
+    name: "G3380 STORY-INTRO: the opening's music, 'Sunset Plains' by Yoiyami (CC0), 40 s Ogg Vorbis, 468 KB - the user via the Game coordinator, 20 Oct ~16:30: \"Sunset plains is good\"" },
+];
+for (const a of MEDIA_ACCEPTED) {
+  const f = path.join(ROOT, ...a.file.split('/'));
+  check(fs.existsSync(f) && fs.statSync(f).size <= a.upToBytes, `${a.file}: accepted by name up to ${a.upToBytes} B (${a.name}) - ` +
+    (fs.existsSync(f) ? fs.statSync(f).size + ' B now' : 'not on disk'));
+}
 checkNoCreep(files.filter(f => fs.existsSync(f)));
 const art = checkArtifact();
 
@@ -543,7 +611,8 @@ console.log(`  ${refs.size} references from ${files.length} manifests, ` +
            : `step not measured: ${art.base.why}, `) +
          `data: ${art.kb.toFixed(0)} KB (budget ${DATA_BUDGET_KB})` : ''));
 if (art) console.log(`  index.html ${art.bytes} B (${(art.bytes / 1024).toFixed(1)} KB, ${(art.gzBytes / 1024).toFixed(1)} KB gzipped)` +
-  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : ''));
+  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : '') +
+  (art.route ? ` · the route drawing ${art.route.name} ${art.route.kb.toFixed(1)} KB (${art.route.gzKb.toFixed(1)} KB gzipped; budget ${ROUTE_BUDGET_KB} KB), fetched when the drawing is opened or a route is armed` : ''));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE MEDIA: FAIL');

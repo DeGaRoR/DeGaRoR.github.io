@@ -1,0 +1,654 @@
+{
+ "tree": "9546d2ee31",
+ "dirty": true,
+ "mode": "node (cloud), the flat world at 300 m (PIVOT, TAKEOFF); makeSimHost on the analytic world (WORKER)",
+ "pivot": [
+  {
+   "key": "cub",
+   "mode": "steer",
+   "side": "right",
+   "t180": 8.7,
+   "radius": 9.5,
+   "maxEx": 18.9,
+   "path": 29.2,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "cub",
+   "mode": "toe",
+   "side": "right",
+   "t180": 9.3,
+   "radius": 1.3,
+   "maxEx": 2.7,
+   "path": 4.2,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "cub",
+   "mode": "brakeSteer",
+   "side": "right",
+   "t180": 9.3,
+   "radius": 1.3,
+   "maxEx": 2.7,
+   "path": 4.2,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "cub",
+   "mode": "steer",
+   "side": "left",
+   "t180": 8.9,
+   "radius": 9.4,
+   "maxEx": 18.7,
+   "path": 28.7,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "cub",
+   "mode": "toe",
+   "side": "left",
+   "t180": 8.3,
+   "radius": 1.3,
+   "maxEx": 2.5,
+   "path": 4,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "cub",
+   "mode": "brakeSteer",
+   "side": "left",
+   "t180": 8.3,
+   "radius": 1.3,
+   "maxEx": 2.5,
+   "path": 4,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "right",
+   "t180": 5.3,
+   "radius": 5.1,
+   "maxEx": 10.2,
+   "path": 15.8,
+   "sense": "right",
+   "turnedDeg": 181,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "right",
+   "t180": 6.2,
+   "radius": 5,
+   "maxEx": 10,
+   "path": 15.4,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "right",
+   "t180": 5.7,
+   "radius": 5,
+   "maxEx": 10.1,
+   "path": 15.7,
+   "sense": "right",
+   "turnedDeg": 181,
+   "thr": 0.7,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "right",
+   "t180": 6.2,
+   "radius": 5,
+   "maxEx": 10,
+   "path": 15.4,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "left",
+   "t180": 5.1,
+   "radius": 5,
+   "maxEx": 10,
+   "path": 14.7,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "left",
+   "t180": 5.8,
+   "radius": 4.5,
+   "maxEx": 9.1,
+   "path": 12.9,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "left",
+   "t180": 5.5,
+   "radius": 4.9,
+   "maxEx": 9.7,
+   "path": 14.3,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "left",
+   "t180": 5.8,
+   "radius": 4.5,
+   "maxEx": 9.1,
+   "path": 12.9,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "right",
+   "t180": 8,
+   "radius": 5,
+   "maxEx": 10.1,
+   "path": 15.7,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.35,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "right",
+   "t180": null,
+   "radius": null,
+   "maxEx": 7.3,
+   "path": 10.5,
+   "sense": null,
+   "turnedDeg": 164,
+   "thr": 0.35,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "right",
+   "t180": 11.8,
+   "radius": 4.9,
+   "maxEx": 9.7,
+   "path": 15.2,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.35,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "right",
+   "t180": null,
+   "radius": null,
+   "maxEx": 7.3,
+   "path": 10.5,
+   "sense": null,
+   "turnedDeg": 164,
+   "thr": 0.35,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "left",
+   "t180": 7.7,
+   "radius": 5,
+   "maxEx": 9.9,
+   "path": 15.5,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.35,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "left",
+   "t180": 35.8,
+   "radius": 3.3,
+   "maxEx": 6.5,
+   "path": 10.2,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.35,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "left",
+   "t180": 11.1,
+   "radius": 4.7,
+   "maxEx": 9.5,
+   "path": 14.6,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.35,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "left",
+   "t180": 35.8,
+   "radius": 3.3,
+   "maxEx": 6.5,
+   "path": 10.2,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.35,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "right",
+   "t180": 15.4,
+   "radius": 5,
+   "maxEx": 10,
+   "path": 15.6,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.2,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "right",
+   "t180": null,
+   "radius": null,
+   "maxEx": 4.5,
+   "path": 4.8,
+   "sense": null,
+   "turnedDeg": 78,
+   "thr": 0.2,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "right",
+   "t180": null,
+   "radius": null,
+   "maxEx": 5.8,
+   "path": 6.5,
+   "sense": null,
+   "turnedDeg": 94,
+   "thr": 0.2,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "right",
+   "t180": null,
+   "radius": null,
+   "maxEx": 4.5,
+   "path": 4.8,
+   "sense": null,
+   "turnedDeg": 78,
+   "thr": 0.2,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "steer",
+   "side": "left",
+   "t180": 14,
+   "radius": 4.9,
+   "maxEx": 9.8,
+   "path": 15.3,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.2,
+   "brakeDmax": 0
+  },
+  {
+   "key": "metal",
+   "mode": "toe",
+   "side": "left",
+   "t180": null,
+   "radius": null,
+   "maxEx": 4.6,
+   "path": 5.2,
+   "sense": null,
+   "turnedDeg": -97,
+   "thr": 0.2,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "metal",
+   "mode": "toe50",
+   "side": "left",
+   "t180": null,
+   "radius": null,
+   "maxEx": 6,
+   "path": 7.1,
+   "sense": null,
+   "turnedDeg": -115,
+   "thr": 0.2,
+   "brakeDmax": 0.25
+  },
+  {
+   "key": "metal",
+   "mode": "brakeSteer",
+   "side": "left",
+   "t180": null,
+   "radius": null,
+   "maxEx": 4.6,
+   "path": 5.2,
+   "sense": null,
+   "turnedDeg": -96,
+   "thr": 0.2,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "jodel",
+   "mode": "steer",
+   "side": "right",
+   "t180": 8.4,
+   "radius": 7.7,
+   "maxEx": 15.5,
+   "path": 24.3,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "jodel",
+   "mode": "toe",
+   "side": "right",
+   "t180": 10.7,
+   "radius": 1.4,
+   "maxEx": 2.8,
+   "path": 4.5,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "jodel",
+   "mode": "brakeSteer",
+   "side": "right",
+   "t180": 10.7,
+   "radius": 1.4,
+   "maxEx": 2.8,
+   "path": 4.5,
+   "sense": "right",
+   "turnedDeg": 180,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "jodel",
+   "mode": "steer",
+   "side": "left",
+   "t180": 8.5,
+   "radius": 7.7,
+   "maxEx": 15.5,
+   "path": 24.2,
+   "sense": "left",
+   "turnedDeg": -180,
+   "thr": 0.7,
+   "brakeDmax": 0
+  },
+  {
+   "key": "jodel",
+   "mode": "toe",
+   "side": "left",
+   "t180": 7.7,
+   "radius": 1.3,
+   "maxEx": 2.5,
+   "path": 4,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  },
+  {
+   "key": "jodel",
+   "mode": "brakeSteer",
+   "side": "left",
+   "t180": 7.7,
+   "radius": 1.3,
+   "maxEx": 2.5,
+   "path": 4,
+   "sense": "left",
+   "turnedDeg": -181,
+   "thr": 0.7,
+   "brakeDmax": 0.5
+  }
+ ],
+ "takeoff": [
+  {
+   "key": "cub",
+   "trimSteps": 0,
+   "trimR": 0,
+   "liftT": 13,
+   "rollOff": 5.09,
+   "rollDrMean": -0.125,
+   "climb": {
+    "secs": 30,
+    "dr": 0,
+    "betaMean": 7.01,
+    "bankMean": -0.5,
+    "hdgDrift": -11.2,
+    "hdgRate": -0.37,
+    "vs": 2.63,
+    "V": 21.2
+   }
+  },
+  {
+   "key": "cub",
+   "trimSteps": 7,
+   "trimR": 0.07,
+   "liftT": 13.1,
+   "rollOff": 2.96,
+   "rollDrMean": -0.132,
+   "climb": {
+    "secs": 30,
+    "dr": -0.07,
+    "betaMean": 3.75,
+    "bankMean": -0.3,
+    "hdgDrift": -7,
+    "hdgRate": -0.23,
+    "vs": 2.67,
+    "V": 21.1
+   }
+  },
+  {
+   "key": "cub",
+   "trimSteps": 14,
+   "trimR": 0.14,
+   "liftT": 13.1,
+   "rollOff": 0.82,
+   "rollDrMean": -0.138,
+   "climb": {
+    "secs": 30,
+    "dr": -0.14,
+    "betaMean": 0.47,
+    "bankMean": -0.2,
+    "hdgDrift": -2.8,
+    "hdgRate": -0.09,
+    "vs": 2.69,
+    "V": 21.1
+   }
+  },
+  {
+   "key": "cub",
+   "trimSteps": 20,
+   "trimR": 0.2,
+   "liftT": 13.1,
+   "rollOff": 1.02,
+   "rollDrMean": -0.144,
+   "climb": {
+    "secs": 30,
+    "dr": -0.2,
+    "betaMean": -2.35,
+    "bankMean": 0,
+    "hdgDrift": 0.8,
+    "hdgRate": 0.03,
+    "vs": 2.69,
+    "V": 21.2
+   }
+  }
+ ],
+ "worker": {
+  "tmplKeys": [
+   "de",
+   "da",
+   "dr",
+   "thr",
+   "brake",
+   "brakeD",
+   "wr",
+   "flap"
+  ],
+  "hostKeys": [
+   "de",
+   "da",
+   "dr",
+   "thr",
+   "brake",
+   "brakeD",
+   "flap"
+  ],
+  "cases": [
+   {
+    "label": "cub: toe brakes through the worker",
+    "log": [
+     {
+      "k": 79,
+      "phase": "TAXI",
+      "manual": true,
+      "hostBrake": 0.5,
+      "hostBrakeD": 0.5,
+      "hostWr": null,
+      "handBrakeD": 0.5
+     },
+     {
+      "k": 139,
+      "phase": "TAXI",
+      "manual": true,
+      "hostBrake": 0.5,
+      "hostBrakeD": -0.5,
+      "hostWr": null,
+      "handBrakeD": -0.5
+     },
+     {
+      "k": 160,
+      "phase": "TAXI",
+      "manual": true,
+      "hostBrake": 0,
+      "hostBrakeD": 0,
+      "hostWr": 0,
+      "handBrakeD": 0
+     },
+     {
+      "k": 175,
+      "phase": "TAXI",
+      "manual": false,
+      "hostBrake": 0,
+      "hostBrakeD": 0,
+      "hostWr": null,
+      "handBrakeD": 0
+     }
+    ]
+   },
+   {
+    "label": "floats: the water rudders' handle through the worker",
+    "log": [
+     {
+      "k": 199,
+      "hostWr": null,
+      "wrDown": [
+       1,
+       1
+      ],
+      "V": 1.91
+     },
+     {
+      "k": 399,
+      "hostWr": 0,
+      "wrDown": [
+       0,
+       0
+      ],
+      "V": 3.34
+     },
+     {
+      "k": 599,
+      "hostWr": 1,
+      "wrDown": [
+       1,
+       1
+      ],
+      "V": 3.74
+     },
+     {
+      "k": 799,
+      "hostWr": null,
+      "wrDown": [
+       1,
+       1
+      ],
+      "V": 3.82
+     }
+    ]
+   }
+  ]
+ }
+}

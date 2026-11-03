@@ -209,24 +209,32 @@ function reach() {
   const TP = ctx.TREE_PACK, all = TP.collections.map(c => c.name);
   const fx = fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'), U = C.PREMISES_GEN.unwrap(fx);
   const cut = C.PREMISES_GEN.envelope(U.name, C.PREMISES_GEN.dropPlaces(U.rec, ['mk_']).rec, U.plaque, U.log);
-  const out = {};
+  const out = {}, named = {};
   for (const [nm, rec] of [['cut', cut], ['town', fx]]) {
     const W = IN.islandWorld('jolene', { premises: rec });
     const got = ctx.treeReachOf(W);
+    // what the premises itself names (a cover polygon's own or named biome, a forest zone's palette, a placed tree): the user's
+    // record may bring a census-unplantable species in on purpose (rev 27, 12 Oct: cover a16's own deciduous mix names ash)
+    { const O = W.premises && W.premises.overlay, L = W.premises && W.premises.rec && W.premises.rec.layers, Bp = ctx.BIOMES.make(ctx.TREE_PACK), S = named[nm] = new Set();
+      if (O && O.vegPolys) for (const v of O.vegPolys) { const M = v.mix && (Bp.mixOf(v.mix) || (O.vegMixes && O.vegMixes[v.mix])); if (M && M.species) for (const sp of Object.keys(M.species)) S.add(sp); }
+      if (L) { for (const z of L.zones || []) if (z.kind === 'forest' && z.palette) for (const k of z.palette) S.add(String(k).split('|')[0]);
+               for (const ob of L.objects || []) if (ob.kind === 'tree' && ob.key) S.add(String(ob.key).split('|')[0]); } }
     if (!got) { fail.push('reach: treeReachOf answered null on Jolene (' + nm + ')'); continue; }
     out[nm] = all.filter(n => !got.includes(n));
     // every species of every mix a code on this map names
     const B = ctx.BIOMES.make(TP), T = W.island.ttype, seen = new Set(); for (let k = 0; k < T.length; k++) seen.add(T[k]);
-    for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
+    for (const [a, d] of [[6, 12], [8, 13], [7, 14], [1, 18]]) if (seen.has(a)) seen.add(d);   // (18: a lake's shore band, G3430)
     const miss = [];
     for (const c of seen) { const m = B.mixAt(c); if (m) for (const sp of Object.keys(B.mixOf(m).species || {})) if (all.includes(sp) && !got.includes(sp)) miss.push(c + ':' + sp); }
     for (const c of TP.collections) if (['rock', 'debris', 'cliff'].includes(c.kind) && !got.includes(c.name)) miss.push(c.kind + ':' + c.name);
     if (!got.includes('grass_dry')) miss.push('grass_dry');
     if (miss.length) fail.push('reach (' + nm + '): a reachable species is not reached: ' + miss.join(', '));
   }
+  // the six the asset census found unplantable on the map's own biomes; the cut's expectation drops those its premises names
   const six = ['ash', 'birch_autumn', 'grass_plates', 'grass_scan', 'maple', 'pine_lampi.glb'];
+  const sixCut = six.filter(n => !(named.cut && named.cut.has(n)));
   const outCut = (out.cut || []).slice().sort();
-  if (JSON.stringify(outCut) !== JSON.stringify(six)) fail.push('reach: with Metlakatla cut the unreached should be exactly ' + six.join(', ') + ' - got ' + outCut.join(', '));
+  if (JSON.stringify(outCut) !== JSON.stringify(sixCut)) fail.push('reach: with Metlakatla cut the unreached should be exactly ' + sixCut.join(', ') + ' (the census six less what the premises names: ' + (six.filter(n => !sixCut.includes(n)).join(', ') || 'none') + ') - got ' + outCut.join(', '));
   if (!out.town || out.town.includes('maple')) fail.push('reach: with the town on, `borders` (code 15) should reach maple');
   if (ctx.treeReachOf({ island: null }) !== null) fail.push('reach: the analytic world should answer null (the whole pack)');
   // the narrowing and the growth

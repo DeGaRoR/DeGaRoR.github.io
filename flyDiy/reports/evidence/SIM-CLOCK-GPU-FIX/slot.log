@@ -1,0 +1,25 @@
+11:46:58 preflight ok; armed, waiting for 2026-10-13 06:45 (stop 2026-10-13 07:00)
+06:45:08 boxlock show:
+
+boxlock: GPU taken by SIMCLK
+06:45:08 CLOCKBAKE verdict: FAIL -> measuring c38a5e99f
+tools/flight_core.js (2868.0 KB), index.html (12164.9 KB), dev.html (112.5 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 503a32c63d21 (341 named inputs), 702 ms
+06:45:09 GPU taken; build {"build":"503a32c63d21","date":"2026-10-13T04:45:09.626Z"}
+06:45:10 step 1: jumps
+06:50:45 rig exit 0
+06:50:45 step 2a: the reference picture (master)
+06:52:04 ref exit 0
+06:52:04 step 2b: the branch picture
+06:53:21 branch exit 0
+reap: nothing of mine running
+boxlock: GPU released by SIMCLK
+06:53:22 GPU dropped
+06:53:22 back on claude/sim-clock-fix-g2662 c86d4e321
+SUMMARY
+JUMPS garage: 9/9 ok, worst frame 100 ms, longest task 107 ms, programs +0, LUT 0, back 9/9, hitches: dusk 100ms night 83.3ms dawn 100ms noon 83.4ms dusk 83.4ms night 83.4ms dawn 83.5ms noon 83.3ms fullmoon 83.4ms
+JUMPS stand: 9/9 ok, worst frame 517 ms, longest task 517 ms, programs +5, LUT 0, back 9/9, hitches: night 283.5ms dawn 283.5ms noon 517ms dusk 383.5ms night 283.5ms dawn 366.9ms noon 316.7ms dusk 300.1ms fullmoon 300.1ms
+DEFAULT PICTURE (pixel check, no clock set, ref vs branch): garage: differ - max 254, mean 1.163 levels, 2.844 % of pixels over 2 levels, 2.152 % over 8; world: differ - max 206, mean 0.665 levels, 0.730 % of pixels over 2 levels, 0.618 % over 8
+06:53:24 done
+reap: nothing of mine running
+boxlock: SIMCLK holds no GPU lock
+06:53:24 EXIT: lock dropped

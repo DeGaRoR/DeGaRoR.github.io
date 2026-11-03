@@ -249,7 +249,28 @@ function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
   // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made)
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0];
+  // G2001 (DMG-SCUFF): the slide work, a FOURTH signature of its own in coarse steps (each ~19 % more work, from 1 J) -
+  // never in the sets' (sS: the sets' timing, and DMG-WALL's wall key, stay the base's); '0' with nothing slid. (The
+  // third is DMG-SCAR's G2357 version: the scuff took it on its own branch, 6 Oct, before the scar came)
+  const q = D.scW >= 1 ? Math.floor(4 * Math.log2(D.scW)) + 1 : 0;
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0, String(q)];
+}
+// G2001 (DMG-SCUFF): WHAT THE SKIN'S DAMAGE RECORDS READ, beside the sets - each member's plastic work (D0's DMG.wB, J)
+// and each node's slide work with its direction, the side it was pushed from (both in the body frame) and its share on
+// soft ground (30_solver.js scuffAdd) - the slide records under `sl` (`sc` is DMG-SCAR's primitives). Sparse, rounded; absent (no key) when there is none, so a payload of the base's
+// kind is the base's bytes
+function simDmgScuff(sim, out) {
+  const D = sim.damage(), wb = [], sl = [];
+  if (D.wB) for (let bi = 0; bi < D.wB.length; bi++) if (D.wB[bi] >= 0.05) wb.push(bi, Math.round(D.wB[bi] * 10) / 10);
+  if (D.sW) for (let i = 0; i < D.sW.length; i++) {
+    const w = D.sW[i];
+    if (!(w >= 0.05)) continue;
+    const r = x => Math.round(x / w * 1000) / 1000;
+    sl.push(i, Math.round(w * 10) / 10, r(D.sD[i*3]), r(D.sD[i*3+1]), r(D.sD[i*3+2]), r(D.sN[i*3]), r(D.sN[i*3+1]), r(D.sN[i*3+2]), r(D.sG[i]));
+  }
+  if (wb.length) out.wb = wb;
+  if (sl.length) out.sl = sl;
+  return out;
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -281,7 +302,16 @@ function simDmgSets(sim) {
   });
   return st;
 }
-// hop: { sB, sS, sC, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
+// G3770 (DMG-LOOKS): what the page draws a member by, at an event only - each broken member's code (30_solver.js
+// DMG.how: hw, in the broken list's order) and the BENDS: [bi, kt1, dk, nx, nz, ...] for every member bent by a trunk
+// (dk past 1.5 cm: the drawn hinge's station, its depth, the push's horizontal direction), quantised to 0.1 mm / 1e-4
+const SIM_DMG_BEND_MIN = 0.015;
+function simDmgBends(sim) {
+  const bd = [], q = x => Math.round(x * 1e4) / 1e4;
+  sim.beams.forEach((b, bi) => { if (b.dOn && b.dk > SIM_DMG_BEND_MIN) bd.push(bi, q(b.kt1), q(b.dk), q(b.dNx), q(b.dNz)); });
+  return bd;
+}
+// hop: { sB, sS, sC, t, sF, tF } - what the page holds (sF / tF: G2001 the scuff's signature and clock); `win` the set window (s; 0 inline). Returns a payload, or null
 function simDmgHop(sim, hop, coreNode, win) {
   const sg = simDmgSigs(sim);
   if (!sg) return null;
@@ -291,14 +321,21 @@ function simDmgHop(sim, hop, coreNode, win) {
     hop.sC = sg[2];
     out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
   }
+  const W = win == null ? SIM_DMG_SET_S : win;
   if (sg[0] !== hop.sB) {
-    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
+    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t; hop.sF = sg[3]; hop.tF = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
-    out = Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
+    out = simDmgScuff(sim, Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) }));   // G2001: + wb / sl
+    if (D.how) { out.hw = D.broken.map(bi => D.how[bi]); out.bd = simDmgBends(sim); }   // G3770
     if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
-  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
-    hop.sS = sg[1]; hop.t = sim.t;
-    out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
+  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < W)) {
+    hop.sS = sg[1]; hop.t = sim.t; hop.sF = sg[3]; hop.tF = sim.t;
+    out = simDmgScuff(sim, Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) }));   // G2001: + wb / sl
+    if (sim.damage().how) out.bd = simDmgBends(sim);   // G3770: a trunk's dent moves the bends, not the broken list
+  } else if (sg[3] !== (hop.sF || '0') && !(sim.t - (hop.tF == null ? -Infinity : hop.tF) < W)) {
+    // G2001 (DMG-SCUFF): the slide moved on, nothing else - its records only (wb, sl), on a clock of its own
+    hop.sF = sg[3]; hop.tF = sim.t;
+    out = simDmgScuff(sim, Object.assign(out || {}, { sF: sg[3] }));
   } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
@@ -319,6 +356,24 @@ function simDrvOf(sim) {
   return R.map(x => ({ os: x.os, osPeak: x.osPeak, osSec: x.osSec, osExc: x.osExc, strike: x.strike, strikeAt: x.strikeAt, bladeLost: x.bladeLost, gearbox: x.gearbox,
     failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN,
     crush: x.crush || 0, crushOf: x.crushOf || 0, crushLayer: x.crushLayer || null }));
+}
+
+// G2373 (DMG-OCCUPANT): THE OCCUPANTS' BANDS, TO THE PAGE, ONCE - when the solver closes an event (34_occupant.js: a
+// crash's at its end), its wire ({ name, band } per occupied seat: the criteria stay in the worker); null again after a
+// reset. A sim with no occupants' record (the damage layer off, no cabin) makes no hop: simOccHop returns null and the
+// meta never asks. hop: { v } the version the page holds; returns undefined (nothing new) or the payload (array | null)
+function simOccHop(sim) {
+  const O = sim.occupants && sim.occupants();
+  if (!O) return null;
+  const hop = { v: 0 };
+  const fn = () => {
+    const D = sim.damage(), v = D.occ ? O.state.ver : 0;
+    if (v === hop.v) return undefined;
+    hop.v = v;
+    return v && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
+  fn.forget = () => { hop.v = 0; };
+  return fn;
 }
 
 // the pilot's fields that are big and change rarely: sent when the object
@@ -543,12 +598,21 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // INP.write's door: the hand's axes every step it is on; an engine lever only where the aeroplane has one
+  // G2480 (HAND-CONTROLS): the toe brakes' brakeD and the water rudders' wr with them - before G2480 the hand's
+  // packet stopped at the flaps, and a differential brake the page set never reached the worker's sim. wr's null is a
+  // value (THE RULE), so it is written whenever the packet carries the field
+  const HAND_KEYS = ['de', 'da', 'dr', 'thr', 'brake', 'brakeD', 'flap'];
+  H.HAND_KEYS = HAND_KEYS;
   function writeHand(h) {
     const c = sim.ctl;
-    for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (h[k] != null) c[k] = h[k];
+    for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
+    if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
+  // G2480: what only the hand writes leaves with it - the toe brakes' split (the pilot clears brakeD every update
+  // anyway, outside the box) and the water rudders' handle (the pilot never knew it: THE RULE again)
+  function handOff(c) { c.brakeD = 0; c.wr = null; }
   function apply(c) {
     const ap = H.ap;
     switch (c.cmd) {
@@ -565,6 +629,7 @@ function makeSimHost(CORE, init, keptWorld) {
         H.manual = !!c.on;
         if (H.manual) H.end.still = 0;           // app.js setManual(true): stillT = 0
         if (!H.manual) {
+          handOff(sim.ctl);                       // app.js setManual(false): the hand's own fields off the aeroplane (G2480)
           if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
           if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
         }
@@ -693,12 +758,21 @@ function makeSimHost(CORE, init, keptWorld) {
   let dmgHop = simDmgHop0();
   const dmgCore = (def.refs && def.refs.noseFrame && def.refs.noseFrame.length) ? def.refs.noseFrame[0] : 0;
   H.dmgBytes = 0; H.dmgSends = 0; H.dmgMs = 0;   // the hop's cost, read by GATE DMGSKIN
+  const occHop = simOccHop(sim);                   // G2373: null with no occupants' record (the layer off)
   H.meta = () => {
     const ap = H.ap, A = {};
     // G820 (C1c): a NEW PILOT (Fly on's leg, the skip's) - every field again, and the view starts its copy afresh
     const apNew = H.apGen !== genSent;
     if (apNew) { genSent = H.apGen; for (const k of Object.keys(rare)) delete rare[k]; }
     for (const k of Object.keys(ap)) {
+      // G3560 (AP-HONEST): THE NAVIGATOR'S READOUTS (38_nav.js: mode, the active leg, arrived, `last` - the box's NAV
+      // mode), sent only when `last` is a new object (the navigator writes one per update while it flies a leg); a
+      // navigator at rest (last null) sends nothing at all, so a flight off the box carries what it always carried
+      if (k === 'nav') {
+        const N = ap.nav, L = N ? N.last : null;
+        if (L !== (rare.navLast === undefined ? null : rare.navLast)) { rare.navLast = L; A.nav = N ? { mode: N.mode, active: N.active, arrived: !!N.arrived, last: simHostPlain(L, 3) || null } : null; }
+        continue;
+      }
       if (SIM_HOST_AP_SKIP.indexOf(k) >= 0) continue;
       const d = Object.getOwnPropertyDescriptor(ap, k);
       if (!d || d.get || typeof d.value === 'function') continue;
@@ -719,17 +793,21 @@ function makeSimHost(CORE, init, keptWorld) {
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
     const drv = simDrvOf(sim);                      // G1826
     const struct = sim.damage ? sim.damage().structural : null;   // DMG-D4b (train 41): only once damaged (nothing sent for a whole aeroplane)
+    const occ = occHop ? occHop() : undefined;      // G2373: once, at an event's close
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
       // G1470: the crash's verdict for the page's card (why), once it is one
-      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, brokeUp: d.brokeUp || null, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
+      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, rest: d.rest, fall: d.fall, brokeUp: d.brokeUp || null, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
       fuel: simHostPlain(sim.fuel, 3),
       // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
       // drew nothing for 16 s). They stay here: the page refills W from the mirrored nodes (ctx.fill), and gets the
       // WET panels the spray reads, flat (simHostPanels)
-      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
+      // G2834 (WATER-FX-FIX, objective 5): and h, the float's water level - only the hydro pass writes it (32_hydro.js
+      // hydroSolverCompute), so under the worker the page's was never set and every spray particle and chine sheet was
+      // emitted at y = NaN: no touchdown splash, no spray on float landings (the user, HWCOV's runs)
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, h: fx.h, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       // G2090 (WATER-LOOK): the wet body's contacts (32_hydro.js wetFx), only while any - a dry flight sends nothing
       wet: simHostWet(sim),
@@ -738,10 +816,11 @@ function makeSimHost(CORE, init, keptWorld) {
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
       ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
       ...(struct && struct.damaged ? { struct } : {}),   // DMG-D4b (train 41): the aeroplane's integrity, once damaged
+      ...(occ !== undefined ? { occ } : {}),   // G2373: the occupants' bands, once (null: a reset took them)
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
-  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); };   // (G1850: a new view holds nothing)
+  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); if (occHop) occHop.forget(); };   // (G1850: a new view holds nothing)
   H.ready = () => ({ kind: 'ready', n, substeps: def.params.substeps, withV, len: LEN, fuelIdx: fuelIdx.slice(),
                      slots: SIM_SNAP, dt: SIM_HOST_DT, defSig: simHostDefSig(def), epoch: H.epoch });
   return H;
@@ -1012,4 +1091,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
-                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S };
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, simDmgScuff, SIM_DMG_SET_S, simOccHop };

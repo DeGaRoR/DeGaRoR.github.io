@@ -1180,7 +1180,10 @@ function randomBig(seed) {
   return P;
 }
 
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
 window.BIG_GEN = {
+  LOD_DETAIL: /^(beam|metal)$/,   // (the sign, the awning and the shop front's trim stay: a store without them is a hole)
   DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, ROLE_SETS, SET_IDX, setNames,
   build, randomBig, applyFinish, makeFinish, finishReport, signTexture, CATS, catOf,
   billboard, billboardFinish, signMeta, signKeys, billboardTexture, rwySign, designatorTexture,

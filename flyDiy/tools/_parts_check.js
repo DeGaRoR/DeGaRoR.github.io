@@ -98,7 +98,7 @@ function loadPanel() {
   // the game bundle's editor list, in order (tools/build.js MANIFEST.editor),
   // minus _cage_ui.js which is the only one that needs a document
   for (const f of ['_cage_parts.js', '_cage_page5.js', '_cage_gen.js',
-    '_cage_crew.js', '_panel_gen.js', '_cage_panel.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
+    '_cage_crew.js', '_panel_gen.js', '_cage_panel.js', '_cage_furnish.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     '_cage_gear.js', '_float_gen.js', '_cage_float.js', '_fit_site.js', '_fit_gen.js', '_hinge_gen.js', '_rod_fit.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
@@ -533,6 +533,12 @@ function checkExistence(P) {
     try { sawFalse = !p.when(off); } catch (e) {}
     try { sawTrue = !!p.when(on); } catch (e) {}
     try { sawTrue = sawTrue || !!p.when(hi); } catch (e) {}
+    // G2770: ...or the other way round - a part that exists EXCEPT at an
+    // enum's top end (the pilot door, gone under a bubble canopy = canopy 3)
+    // is true at 0 and false at the row's maximum. Still a `when` that
+    // changes; a constant one is caught exactly as before.
+    try { sawTrue = sawTrue || !!p.when(off); } catch (e) {}
+    try { sawFalse = sawFalse || !p.when(hi); } catch (e) {}
     ok = check(sawTrue && sawFalse,
       'part `when` does not discriminate (always on, or always off)',
       `${p.key} on=${sawTrue} off=${sawFalse}`) && ok;
@@ -683,13 +689,17 @@ function checkNoDeadEnds(P) {
       if (P.cagePartParams(q).indexOf(k) >= 0) return q;
     return null;
   };
-  const isExpertRow = k => {
+  const inFlagged = (k, flag) => {
     const o = ownerOf(k);
     if (!o) return false;
     for (const g of (o.groups || []))
-      if (g[2] === PARTS.EXPERT && g[1].indexOf(k) >= 0) return true;
+      if (g[2] === flag && g[1].indexOf(k) >= 0) return true;
     return false;
   };
+  const isExpertRow = k => inFlagged(k, PARTS.EXPERT);
+  // G2760: a HIDDEN row is never drawn (a choice the user RULED — the fin's
+  // volume and root loops), so it is never reachable either
+  const isHiddenRow = k => inFlagged(k, PARTS.HIDDEN);
   const rowShown = (r, S, expert) => {
     if (r.opts && r.opts.level === 'expert' && !expert) return false;
     return (r.opts.when ? [r.opts.when] : []).concat(r.whens)
@@ -698,7 +708,7 @@ function checkNoDeadEnds(P) {
   // CAN A BUILDER TOUCH THIS KEY, in this state, with expert rows on or off?
   const reach = (k, S, expert) => {
     const rows = PANELROWS.get(k) || [];
-    if (!rows.length) return false;
+    if (!rows.length || isHiddenRow(k)) return false;
     if (isExpertRow(k) && !expert) return false;
     const part = ownerOf(k);
     let partOk = true;
@@ -727,6 +737,11 @@ function checkNoDeadEnds(P) {
   const doors = [], dead = [];
   for (const expert of [false, true]) {
     for (const S of DISC) {
+      // G2760: a ruled (HIDDEN) row is no switch at all; and with expert rows
+      // off, an EXPERT switch (the passenger run's profile, the firewall lip)
+      // is reached by the expert pill, which is always on the panel — the
+      // expert pass below holds it to both traps like any other switch
+      if (isHiddenRow(S) || (!expert && isExpertRow(S))) continue;
       if (reach(S, PLANE, expert)) {
         for (let v = 0; v <= 3; v++) {
           const St = Object.assign({}, PLANE); St[S] = v;
@@ -798,8 +813,13 @@ checkNoDeadEnds(PARTS);
     check(PARTS.cagePartParams(p).length === 0,
       'a `panel` part also claims parameters — the column would show both',
       p.key);
-    check(!(p.sections || []).length && !p.zone,
-      'a `panel` part claims a mesh section or a body zone', p.key);
+    // G2677 (BELLY-POD-2): ...EXCEPT THE PAINT OF ITS OWN MESH. The belly pod is a panel part (its rows write the game's
+    // spec, not the cage's) that its own layer DRAWS: its section is worn through the livery like any other, so the
+    // finish column and the click find it. A panel part may claim a section only when that section's AERO_SEC row
+    // names the part's own layer - never the cage's sections, never a zone.
+    const ownSecs = (p.sections || []).every(sn => { const row = AS && AS.AERO_SEC && AS.AERO_SEC[sn]; return !!(row && p.layer && row.layer === p.layer && p.layer !== 'cage'); });
+    check(ownSecs && !p.zone,
+      'a `panel` part claims a mesh section (not its own layer\'s) or a body zone', p.key);
     let where = null;
     for (const [f, src] of files) {
       const i = src.indexOf('window.' + p.panel + ' = {');

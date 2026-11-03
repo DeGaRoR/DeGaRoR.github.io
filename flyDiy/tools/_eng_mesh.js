@@ -92,7 +92,8 @@ const EM = (() => {
     headFins: 8,       // fin plates on the head barrel
     intake: 1,         // intake risers, sump plenum -> head bottom aft
     exStyle: 1,        // 0 none · 1 short stacks · 2 collector per side
-    exDrop: 1.5,       // stack drop below the sump, / bore
+    exDrop: 1.5,       // stack drop below the sump, / bore (the ejector stubs' reach)
+    exPair: 0,         // ejector stubs (exStyle 4): one stub per pair of cylinders
     // G155: WHERE THE EXHAUST LEAVES. The collector's tailpipe used to end at
     // one hardcoded point — down and aft — which is where it goes on most
     // aeroplanes and nowhere near where it goes on the rest. These four say it
@@ -2537,6 +2538,40 @@ const EM = (() => {
             { capA: true, capB: true, sides: S.pipe });
     }
 
+    // ---- EJECTOR STUBS (the Spitfire's Merlin, 27 Oct): each head's port runs
+    // straight out through its bank's flank and turns aft - the short stubs a
+    // liquid V12 pushes through the sides of its cowl (they add a little
+    // thrust; nothing hangs below). `exPair` joins neighbouring cylinders into
+    // one stub (the fishtail pairs, three a side on a six-a-bank V). The reach
+    // is the stack row's `exDrop`, in bores out of the port.
+    if (P.exStyle === 4 && !radial && !(inline && P.twoStroke) && cyls.length) {
+      const reach = P.exDrop * b;
+      for (const sx of [-1, 1]) {
+        const side = cyls.filter(c => c.sx === sx).sort((p, q) => p.z - q.z);
+        const step = P.exPair ? 2 : 1;
+        for (let k = 0; k < side.length; k += step) {
+          const gp = side.slice(k, k + step);
+          const root = [0, 1, 2].map(j => gp.reduce((a, c) => a + c.exhaustP[j], 0) / gp.length);
+          const out = nrm([sx, -0.15, 0]);
+          const stubA = add(root, mul(out, 0.12 * b));
+          const knee = add(root, mul(out, 0.60 * reach));
+          const tip = add(add(root, mul(out, reach)), [0, -0.05 * reach, -0.55 * reach]);
+          gp.forEach((c, j) => {
+            part('exhaust' + c.i, 'tube');
+            // the first of a group carries the stub; a pair's second runs into its root
+            const path = j === 0 ? fillet([c.exhaustP, stubA, knee, tip], 0.45 * b)
+                                 : [c.exhaustP, stubA];
+            const rr = path.map((_, q) => (P.exPair ? 0.20 : 0.16) * b *
+                                          (j === 0 && q >= path.length - 2 ? 1.18 : 1));
+            artery('exhaust' + c.i, 'head' + c.i, j === 0 ? 'tip' : 'stub',
+              sweep(path, rr, ENGM_MAT.exhaust,
+                    j === 0 ? { capA: true, lipB: true, sides: S.pipe }
+                            : { capA: true, capB: true, sides: S.pipe }));
+          });
+        }
+      }
+    }
+
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------
     if (P.exStyle === 2 && !(inline && P.twoStroke) && !radial) {
       // G155: ONE COLLECTOR OR TWO. Two (the default) is a can under each
@@ -3033,17 +3068,25 @@ const EM = (() => {
     // battery is 17 x 13 cm whatever engine sits ahead of it. (Fuseboxes
     // live in the cabin; the harness is a later chantier.)
     if (fwPlane && P.battOn) {
+      // G2802: the case at the fitted battery's own size when the fit names it (`battDims`, GEN_ELEC_PARTS:
+      // [length, width, height]: standing on the plate, its length across, its height up the plate, its width
+      // out of it); without, the 17 x 13 x 11.5 cm box it always was, byte for byte
+      const bd = Array.isArray(P.battDims) && P.battDims.length === 3 ? P.battDims : null;
+      const bW = bd ? bd[0] : 0.17, bH = bd ? bd[2] : 0.13, bD = bd ? bd[1] : 0.115;
+      const zTop = bd ? bD - 0.005 : 0.11, sA = bd ? bD - 0.011 : 0.104, sB = bd ? bD + 0.003 : 0.118;
+      // ...and LOW on the plate, where the frame bills it (61_gen_frame: the firewall ring's lower pair)
+      const yC = bd ? Math.min(-0.10 * P.fwH, -0.5 * P.fwH + 0.5 * bH + 0.03) : -0.10 * P.fwH;
       part('battBox', 'box');
-      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
-            roundRect(0.17, 0.13, 0.012), zFw - 0.005, zFw + 0.11,
+      prism([0.30 * P.fwW, yC, 0], Z, X, Y,
+            roundRect(bW, bH, 0.012), zFw - 0.005, zFw + zTop,
             ENGM_MAT.puck, true, true, 0.006);
       part('battStrap', 'box');
-      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
-            roundRect(0.176, 0.03, 0.008), zFw + 0.104, zFw + 0.118,
+      prism([0.30 * P.fwW, yC, 0], Z, X, Y,
+            roundRect(bd ? bW + 0.006 : 0.176, 0.03, 0.008), zFw + sA, zFw + sB,
             ENGM_MAT.flange, true, true);
       part('battTerm', 'solid', 2);
       for (const tx of [-1, 1])
-        lathe([0.30 * P.fwW + tx * 0.055, -0.10 * P.fwH + 0.045, zFw + 0.11],
+        lathe([0.30 * P.fwW + tx * (bd ? 0.32 * bW : 0.055), yC + (bd ? 0.35 * bH : 0.045), zFw + zTop],
               Z, { u: X, w: Y }, [
           { t: -0.006, r: 0.011 }, { t: 0.020, r: 0.009 },
         ], ENGM_MAT.flange, false, true, S.detail);

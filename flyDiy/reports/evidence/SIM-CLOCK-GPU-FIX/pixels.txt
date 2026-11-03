@@ -1,0 +1,2 @@
+PIXELS garage: differ - max 254, mean 1.163 levels, 2.844 % of pixels over 2 levels, 2.152 % over 8
+PIXELS world: differ - max 206, mean 0.665 levels, 0.730 % of pixels over 2 levels, 0.618 % over 8

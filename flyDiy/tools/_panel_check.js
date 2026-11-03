@@ -329,6 +329,33 @@ function run() {
       const L8 = G.layout(A8, { items: ['asi', 'alt', 'tacho', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: false } });
       check(L8.dials.filter(d => !d.coaming).every(d => d.cx + d.r <= 0.14 + 1e-9), 'keep-out: no dial under the shadow either (the tacho took a hole)', L8.dials.map(d => d.k + '@' + d.cx.toFixed(2)).join());
     }
+    // G3341 THE FLEXIBLE LAYOUT (the garage review's item 12), on the arch
+    // dash's record (`flexLayout`): a short WIDE plate the standard rule
+    // empties (38 mm reserved under every dial, the T two deep) takes every
+    // dial on one row, the T's order kept, the switches beside them; a plate
+    // the standard rule fills is laid out exactly as before
+    {
+      const fx = (top, lip, halfW, flex) => ({ dashTop: top, dashLip: lip, dashAftZ: 2, zDash: 2, halfW, floorAt: () => 0, flexLayout: flex });
+      const its = ['asi', 'alt', 'vsi', 'aiE', 'turn', 'dg', 'compass', 'clock', 'tacho', 'oilP', 'oilT', 'fuel', 'volts'];
+      const lo = { items: its, side: 'pilot', pilotX: 0.2, radios: ['com'], elec: { hasBus: true, altA: 20 },
+                   extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr'] };
+      const Ls = G.layout(fx(0.215, 0.10, 0.80, false), lo), Lf = G.layout(fx(0.215, 0.10, 0.80, true), lo);
+      // (G2808: the standard rule still empties it, but a dial off the dash is a dial not billed, so the packer takes
+      // over whatever the rules leave off - with flexLayout or without)
+      check(Ls.overflow.length === 0 && Ls.glass, 'flex / G2808: without flexLayout the short wide plate the standard rule empties is packed, every dial on it', Ls.overflow.join());
+      check(Lf.overflow.length === 0, 'flex: every dial on the short wide plate', Lf.overflow.join());
+      const Df = Lf.dials.filter(d => !d.coaming), byf = {}; for (const d of Df) byf[d.k] = d;
+      check(Math.max(...Df.map(d => d.cy)) - Math.min(...Df.map(d => d.cy)) < 0.03, 'flex: one row', Df.map(d => d.cy.toFixed(3)).join());
+      check(byf.asi.cx > byf.aiE.cx && byf.aiE.cx > byf.alt.cx, 'flex: the T\'s order along the row - ASI, AI, altimeter');
+      let ov = null;
+      for (let i = 0; i < Df.length; i++) for (let j = i + 1; j < Df.length; j++) if (Math.hypot(Df[i].cx - Df[j].cx, Df[i].cy - Df[j].cy) < Df[i].r + Df[j].r - 1e-6) ov = Df[i].k + '/' + Df[j].k;
+      check(!ov, 'flex: no two dials overlap', ov);
+      const hit = Lf.switches.find(s => Df.some(d => Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - 0.028 + 1e-9 && s.y < d.cy + d.r));
+      check(Lf.switches.length === 10 && !hit, 'flex: the switch row beside the dials, under none of them', hit && hit.k);
+      check(Lf.switches.every(s => Math.abs(s.x) <= Lf.xLim), 'flex: the switches on the plate');
+      const Lt0 = G.layout(fx(0.86, 0.52, 0.55, false), lo), Lt1 = G.layout(fx(0.86, 0.52, 0.55, true), lo);
+      check(Lt0.overflow.length === 0 && JSON.stringify(Lt0) === JSON.stringify(Lt1), 'flex: a plate the standard rule fills is laid out as before');
+    }
     // the layout: the standard T on three cabins, nothing overlapping, all
     // inside, the compass on the coaming, the switches along the bottom
     const A = (halfW, top, lip) => ({ dashTop: top, dashLip: lip, dashAftZ: 2.0, zDash: 2.0, halfW, floorAt: () => 0 });
@@ -359,7 +386,12 @@ function run() {
       if (by.compass) check(by.compass.coaming && by.compass.cy > a.dashTop, 'layout ' + nm + ': the compass on the coaming');
       // 12 since G318: key, master, alt, AVIONICS (a radio is fitted on every fixture), four throws, four dimmers
       check(L.switches.length === 12 && L.switches[0].k === 'key' && L.switches[3].k === 'avionics' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, the avionics master fourth, inside', L.switches.length);
-      check(L.switches.every(s => s.y < Math.min(...D.filter(d => !d.coaming).map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
+      // (G2808: a plate the packer laid out - the narrow one, whose radios the standard rule left off - has its switch
+      // row on the lowest clear run, under or beside the dials: under none of them)
+      const Dp = D.filter(d => !d.coaming);
+      if (L.glass) check(!L.switches.some(s => Dp.some(d => Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - 0.028 + 1e-9 && s.y < d.cy + d.r)),
+        'layout ' + nm + ': (packed) the switches under or beside the dials, under none of them');
+      else check(L.switches.every(s => s.y < Math.min(...Dp.map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
       check(D.length + L.overflow.length >= full.length - 1, 'layout ' + nm + ': every dial placed or reported (' + L.overflow.join(',') + ')');
     }
     // the painters write only: a no-op context (UISMOKE's) must not throw
@@ -426,15 +458,16 @@ function run() {
     check(/['edCtl_throttle2', 'thr1', inb * 0.056]/.test(crewSrc) && /twinDx: rods.length > 1/.test(crewSrc) && /const dx2 = thr.twinDx || 0;/.test(crewSrc),
       'crew: a twin gets two push-pull rods, and the keep-out spans both');
     check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
-    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step
-    check(/function rollInScreen\(after\) \{[\s\S]{0,900}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
+    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step (the window 1200:
+    // G3791's phone test-flight return line sits ahead of it, PHONE-1b)
+    check(/function rollInScreen\(after\) \{[\s\S]{0,1200}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
     // G446.2: the yoke's hub stands yokeGap off the PLATE (not off the seat back), the collar stays on the plate whatever the stick offsets; the row is on the cabin page
     check(/const zHub = zCol - YOKE_FRONT - gap;/.test(crewSrc) && /const gap = P\.yokeGap != null \? Math\.max\(0\.04, \+P\.yokeGap\) : 0\.16;/.test(crewSrc)
           && /tube\(g0, K \? M\.frame : M\.ctrl, \[sx, yY, zCol \+ 0\.05\], \[sx \+ off\[0\], yY \+ off\[1\], zHub \+ off\[2\]\], 0\.0125\);/.test(crewSrc),
       'crew: the yoke hub is yokeGap off the plate; the collar and column live outside the stick shift');
     {
       const p5 = fs.readFileSync(path.join(__dirname, '_cage_page5.js'), 'utf8');
-      check(/yokeGap: 0\.16/.test(p5) && /\['yokeGap', +'yoke off the dash', 0\.04, 0\.40, 0\.005/.test(p5), 'page5: the yoke-off-the-dash row, 0.16 m by default');
+      check(/yokeGap: 0\.16/.test(p5) && /\['yokeGap', +'yoke off the dash', 0\.02, 0\.80, 0\.005/.test(p5), 'page5: the yoke-off-the-dash row, 0.16 m by default');   // (G3573: its range widened for the big cabins)
     }
     // G446.2: the key's ring - the bow read mod 180; a ring in the key's own group at its six o'clock tells OFF from BOTH
     check(/const ring = new THREE\.Mesh\(new THREE\.TorusGeometry\(R, T, 8, 28\), matFor\('barrel'\)\);[\s\S]{0,200}g\.add\(ring\);/.test(fs.readFileSync(path.join(__dirname, '_cage_panel.js'), 'utf8')),
@@ -696,7 +729,8 @@ function run() {
       const INP = require(path.join(__dirname, '..', 'src', 'viewer', 'input.js'));
       const A = (INP.ACTIONS || (INP.make && INP.make({ win: {} }).ACTIONS) || []);
       const dash = A.filter(a => a.group === 'dash');
-      check(dash.length === 11 && dash.every(a => a.kind === 'step' && a.keys && a.keys.key), 'input.js: eleven dash steps, each with a default key', dash.length);
+      // G2480 (HAND-CONTROLS, TORQUE-RETUNE-66): + the alternator (E), the avionics master (X) and the pedal light (Y) - 11 -> 14
+      check(dash.length === 14 && dash.every(a => a.kind === 'step' && a.keys && a.keys.key), 'input.js: fourteen dash steps, each with a default key', dash.length);
       const used = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF', 'KeyG', 'KeyB', 'KeyA', 'KeyC']);
       check(dash.every(a => !used.has(a.keys.key)), 'input.js: no dash key collides with the head or the flying set');
     }

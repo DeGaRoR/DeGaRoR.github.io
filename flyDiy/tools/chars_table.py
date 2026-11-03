@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """chars_table.py — THE DECLARED CHARACTER TABLE.
 
-One row per rigged character the crew layer may seat in place of the ATD-01
-crash-test dummy. This file is the single authority: `tools/char_prep.py`
+One row per rigged character the crew layer may seat (the pilot is always
+ch20, the racer - G3700). This file is the single authority: `tools/char_prep.py`
 bakes exactly these rows (GLB -> media/geo/chars + media/tex/chars + one
 src/chars/<key>_char.js manifest each, plus src/chars/chars_index.json in
-this order), and the editor's "pilot model" select lists them in this order
-after the ATD. Nothing downstream discovers characters by scanning a dir.
+this order), and the editor's co-pilot select lists them in this order
+after 'mixed crew'. Nothing downstream discovers characters by scanning a dir.
 
 The import path is FBX (Mixamo) -> GLB (tools/fbx_to_glb.py, Blender
 headless, as-is) -> bake. `assets/chars/` is gitignored: the FBX and the GLB
 are the source, the media store and the manifest are what ships.
 
 Each row:
-  key     game-side name, lowercase, stable forever (a saved spec's dumModel
-          index counts through this table)
+  key     game-side name, lowercase, stable forever (a saved spec's co-pilot
+          pick, `cabWho`, counts through this table)
   label   what the editor shows a human
   glb     the converted GLB under assets/chars/
   src     the delivered file it came from (for the manifest's provenance line)
@@ -57,7 +57,108 @@ ANIMS = [
          credit='"Piloting" animation by Adobe Mixamo (mixamo.com), Mixamo licence'),
 ]
 
-# THE TEXTURE BUDGET (AS6, G935; the user's yes 2026-09-29: "modifying texture
+# THE CAST (CHARACTERS G2970, the user 11 Oct: "animated passengers"). The
+# people who walk from the terminal to the aeroplane's door, queue, and board
+# (a fade from standing at the door to seated). LAZY, unlike CHARS above: a
+# cast member's manifest is a content-hashed media file (media/chars/<key>.<h8>
+# .json) named by src/chars/crowd_pack.json, which src/viewer/crowd.js fetches
+# the first time passengers appear - nothing of the cast is in index.html or
+# in a boot <script> (GATE MEDIA's WIRE budget, GATE CHARS check 6). The crowd
+# registers a member into CHAR_REG.chars WITHOUT CHAR_REG.order, so the editor's
+# co-pilot select and the crew layer's passenger cycle never see them (a
+# saved spec's co-pilot pick and the flown model stay what they were).
+# Each row: key/label/glb/src/credit as CHARS; `reuse` names a CHARS row
+# already baked for the crew (its boot manifest serves: nothing re-baked).
+# The source FBX (the user's 14, Mixamo 'name_ChNN_nonPBR.fbx') are under
+# assets/chars/people/, converted by tools/fbx_to_glb.py into assets/chars/glb/.
+def _mixamo(name):
+    return '"%s" character by Adobe Mixamo (mixamo.com), Mixamo licence' % name
+
+
+# THE SET (the user, 12 Oct: "ensure you have inclusivity"): read off the 14
+# characters' own colour maps - the default six had five light skin tones, so
+# kate (Ch21) and brian (Ch02), both light-skinned in jeans like megan, gave
+# way to elizabeth (Ch26: brown skin, a striped casual top) and james (Ch06:
+# dark brown skin, streetwear). Three women, three men; light, light-medium,
+# medium-tan, brown and dark brown skin; a blouse and denim, a stripe, a navy
+# smart-casual, streetwear, a suit and tie, dark smart clothes. The user's
+# word on these six: final.
+CAST = [
+    dict(key='ch22', reuse=True),                       # megan (Ch22): the crew's
+    dict(key='elizabeth', label='Elizabeth', glb='assets/chars/glb/elizabeth.glb',
+         src='elizabeth_Ch26_nonPBR.fbx', credit=_mixamo('Ch26')),
+    dict(key='james', label='James', glb='assets/chars/glb/james.glb',
+         src='james_Ch06_nonPBR.fbx', credit=_mixamo('Ch06')),
+    dict(key='martha', label='Martha', glb='assets/chars/glb/martha.glb',
+         src='martha_Ch27_nonPBR.fbx', credit=_mixamo('Ch27')),
+    dict(key='leonard', label='Leonard', glb='assets/chars/glb/leonard.glb',
+         src='leonard_Ch31_nonPBR.fbx', credit=_mixamo('Ch31')),
+    dict(key='david', label='David', glb='assets/chars/glb/david.glb',
+         src='david_Ch28_nonPBR (1).fbx', credit=_mixamo('Ch28')),
+    # G3617 (PEOPLE, the user 25 Oct): the bodies src/core/72_people.js names by
+    # these keys - a client each (adam, kate, pete) and a passenger (jody)
+    dict(key='adam', label='Adam', glb='assets/chars/glb/adam.glb',
+         src='adam_Ch08_nonPBR.fbx', credit=_mixamo('Ch08')),
+    dict(key='jody', label='Jody', glb='assets/chars/glb/jody.glb',
+         src='jody_Ch37_nonPBR.fbx', credit=_mixamo('Ch37')),
+    dict(key='kate', label='Kate', glb='assets/chars/glb/kate.glb',
+         src='kate_Ch21_nonPBR.fbx', credit=_mixamo('Ch21')),
+    dict(key='pete', label='Pete', glb='assets/chars/glb/pete.glb',
+         src='pete_worker_Ch17_nonPBR.fbx', credit=_mixamo('Ch17')),
+]
+
+# THE CROWD'S CLIPS (G2970): baked once, shared by every character by joint name
+# (as ANIMS). Unlike ANIMS they are LAZY too (their manifests ride in
+# crowd_pack.json, their bins in media/geo/chars/) and they keep the Hips'
+# TRANSLATION as two numbers the crowd needs: `rootV` - the clip's forward
+# travel per second (the walk moves the person by exactly that, so the feet do
+# not skate) - and `bob`, the Hips' height per frame about its mean (m). Rows:
+#   key, role ('walk' | 'idle' | 'queue'), glb/src/credit as ANIMS, fps.
+# The SEATED end of a boarding is ANIMS' 'sitidle': the crew's own clip.
+def _clip(name):
+    return '"%s" animation by Adobe Mixamo (mixamo.com), Mixamo licence' % name
+
+
+CROWD_CLIPS = [
+    dict(key='walk', role='walk', glb='assets/chars/glb/anim_walk.glb',
+         src='Walking.fbx', fps=30, credit=_clip('Walking')),
+    dict(key='idle', role='idle', glb='assets/chars/glb/anim_idle.glb',
+         src='Neutral Idle.fbx', fps=15, credit=_clip('Neutral Idle')),
+    dict(key='lookabout', role='queue', glb='assets/chars/glb/anim_lookabout.glb',
+         src='Look Around.fbx', fps=15, credit=_clip('Look Around')),
+    dict(key='texting', role='queue', glb='assets/chars/glb/anim_texting.glb',
+         src='Texting While Standing.fbx', fps=15, credit=_clip('Texting While Standing')),
+    # G3619 (THE QUEUE, the user 25 Oct): the waiting line's idles, from the user's
+    # 33 under assets/chars/anims/. 'pace' keeps the Hips' ground track as `drift`
+    # (metres per frame about the first, the character's own axes): the one at the
+    # line's back walks it, everyone else stands
+    dict(key='phone', role='queue', glb='assets/chars/glb/anim_phone.glb',
+         src='Talking On A Cell Phone.fbx', fps=12, credit=_clip('Talking On A Cell Phone')),
+    dict(key='briefcase', role='queue', glb='assets/chars/glb/anim_briefcase.glb',
+         src='Standing W_Briefcase Idle.fbx', fps=15, credit=_clip('Standing W_Briefcase Idle')),
+    dict(key='happy', role='queue', glb='assets/chars/glb/anim_happy.glb',
+         src='Happy Idle.fbx', fps=15, credit=_clip('Happy Idle')),
+    dict(key='sad', role='queue', glb='assets/chars/glb/anim_sad.glb',
+         src='Sad Idle.fbx', fps=15, credit=_clip('Sad Idle')),
+    dict(key='swat', role='queue', glb='assets/chars/glb/anim_swat.glb',
+         src='Swatting Bugs.fbx', fps=15, credit=_clip('Swatting Bugs')),
+    dict(key='pacing', role='pace', glb='assets/chars/glb/anim_pacing.glb',
+         src='female_Pacing And Talking On A Phone.fbx', fps=15,
+         credit=_clip('Pacing And Talking On A Phone')),
+]
+CROWD_SIT = 'sitidle'
+
+# THE CROWD'S BUDGET (GATE CHARS check 5): what one cast member and the whole
+# cast may cost on the wire (geometry .gz.bin + the KTX2 budget set it draws),
+# a clip's bin, and a member's triangles (the distance ladder draws each
+# person skinned under 60 m and a frozen copy past it - no decimation yet).
+# G3617 (A0 25 Oct): castMiB 30 -> 36 for the four new bodies - a job fetches only
+# its own passengers' bodies (three at most in a C172), nothing at boot.
+# Measured at the bake (26 Oct): 41.36 MiB for ten, adam 6.01 -> A0 26 Oct:
+# castMiB 42, memberMiB 6.1 (a lazy ceiling: ~13 MiB fetched for three seats)
+CROWD_BUDGET = dict(memberMiB=6.1, castMiB=42.0, clipKiB=400, tris=60000)
+
+# THE TEXTURE BUDGET (AS6, G935;the user's yes 2026-09-29: "modifying texture
 # sizes and formats is perfectly OK ... provided that a dedicated asset prep
 # session is used"). What the GAME's copy of a character's maps may cost; the
 # author's GLB under assets/chars/ and the 2048 maps char_prep writes from it

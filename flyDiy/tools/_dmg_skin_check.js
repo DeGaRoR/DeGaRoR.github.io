@@ -251,6 +251,7 @@ if (argv[0] === '--build') {
       S.settleSteps = still; }
     for (let j = 0; j < 7; j++) { simW.step(1 / 60); simI.step(1 / 60); const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI); const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); }
     S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
+    S.flushLost = S.settleSteps >= 8 && !S.setsEnd;   // (G2640, Deform's welcome: unequal after the inline held still a whole window = the host's trailing flush lost)
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
     const Dm = simI.damage();
     S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason; S.groups = Dm.groups.map(g => g.key);
@@ -320,7 +321,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       const S = c.S;
       console.log('  ' + c.label + ': ' + (S.crashed ? 'CRASHED (' + S.reason + ')' : 'no crash') + ', ' + S.nb + ' broken, ' + S.breakFrames + ' frames with a new break, the skin checked on ' + S.frames + ' frames; pieces up to ' + S.pieces);
       yes(S.mismatch === 0, 'the hop: inline and through the worker the same broken list and pieces at every one of ' + S.steps + ' steps' + (S.firstMis ? ' - FIRST MISMATCH ' + JSON.stringify(S.firstMis) : ''));
-      yes(S.setsEnd && S.setMis === 0, 'the hop: the sets the same whenever the host sends them, and at the end past its window');
+      yes(S.setsEnd && S.setMis === 0, 'the hop: the sets the same whenever the host sends them, and at the end past its window' + (S.flushLost ? ' - THE HOST NEVER FLUSHED ITS LAST SET (the inline quiet past its window, the host behind)' : ''));
       yes(S.piecesMis === 0, 'the hop\'s pieces are DMG-D1b\'s (the gate\'s own union-find of the live members and clusters) on every frame');
       yes(S.hop.sends > 0 && S.hop.bytes > 0, 'the hop\'s cost in the crash: ' + S.hop.sends + ' payloads over ' + S.steps + ' snapshots, ' + S.hop.bytes + ' bytes (' + S.hop.perSend + ' a payload), ' + S.hop.ms + ' ms building them');
       if (S.frames) {

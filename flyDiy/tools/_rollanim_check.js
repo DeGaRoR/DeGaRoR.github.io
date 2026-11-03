@@ -398,12 +398,15 @@ async function pageCheck() {
       check(h.plan.fresh && h.plan.bad === 0 && calls === 1, name + ': an eye inside the aeroplane starts from the boot framing and plays', JSON.stringify({ fresh: h.plan.fresh, bad: h.plan.bad, calls }));
     }
   }
-  // the framing table IS flRevealStart's (app.js): read the source, so a change there breaks this
+  // the framing table IS flRevealStart's (app.js): read the source, so a change there breaks this. Since REVEAL-HITCH
+  // (dbd8cc8e9) the pose lives in revealPoseOf, shared with flRevealStart, which takes az / el / dist from it
   {
     const src = require('fs').readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-    const i0 = src.indexOf('function flRevealStart'), body = src.slice(i0, src.indexOf('flReveal = FL_REVEAL_FRAMES;', i0));
-    check(/az = tgt \+ s \* 0\.45; el = 0\.16; dist = D \* 1\.7;/.test(body) && /astern \+ \(cam\.mode === 'orbit' \? s \* 0\.55 : 0\)/.test(body)
-          && /cam\.mode === 'wing' \? hdg - Math\.PI \/ 2/.test(body),
+    const i0 = src.indexOf('function revealPoseOf'), body = i0 < 0 ? '' : src.slice(i0, src.indexOf('function flRevealStart', i0));
+    const j0 = src.indexOf('function flRevealStart'), start = j0 < 0 ? '' : src.slice(j0, src.indexOf('flReveal = FL_REVEAL_FRAMES;', j0));
+    check(/az: tgt \+ s \* 0\.45, el: 0\.16, dist: D \* 1\.7/.test(body) && /astern \+ \(cam\.mode === 'orbit' \? s \* 0\.55 : 0\)/.test(body)
+          && /cam\.mode === 'wing' \? hdg - Math\.PI \/ 2/.test(body)
+          && /= revealPoseOf\(/.test(start) && /az = P\.az; el = P\.el; dist = P\.dist;/.test(start),
       'G1039 flRevealStart still frames the stand as standFraming assumes (tgt + s*0.45, el 0.16, 1.7 D; orbit +0.55, wing -PI/2)');
   }
 

@@ -8,45 +8,56 @@
 // app.js calls FLYDIY_WORLD_COMPOSE itself, at the same point as before.
 window.FLYDIY_WORLD_COMPOSE = function () {
   'use strict';
-  // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
-  // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
+  // THE PREMISES (G386): the shipped record (master) composes into the world at boot - since SCENERY VERSIONS never
+  // the editor's saved copy (localStorage flydiy.premises.game, below) - or ?premises=<name> for a
   // fixture from tools/fixtures (a test's door; read synchronously because the world is made
   // here, during the script's own evaluation)
   // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
   // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
-  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
+  // (G3790: the test field keeps its own, so nothing edited there composes onto the analytic world)
+  const TESTFIELD = typeof window !== 'undefined' && window.FLYDIY_WORLD === 'testfield';
+  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : TESTFIELD ? '.testfield' : '');
+  // SCENERY VERSIONS (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some
+  // sort of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor,
+  // there is an option to load a version, and that's the only place where scenery can be loaded"). So THE GAME BOOTS MASTER: the
+  // shipped record (tools/fixtures/island_<island>.json; the analytic world's premises_v1_official). The editor's working copy
+  // (localStorage WIP_KEY) is never read here and never deleted (the old rev check's removeItem is gone): the scenery editor's
+  // FILE > 'load a version' offers it, with master and the named versions of media/scenery/<island>/index.json (SCN.versions).
+  // The test doors stay a rig's, never the player's: ?premises=<name> (a premises_v1_ fixture) and the rigs' localStorage
+  // 'flydiy.premises.bootWip' = '1' (boot the seeded working copy: rollout_perf's variants, editor_perf's candidate)
+  const ISL_ID = (typeof window !== 'undefined' && window.ISLAND_BOOT) ? window.ISLAND_BOOT.id : null;
+  const getSync = url => { try { const x = new XMLHttpRequest(); x.open('GET', url, false); x.send(); return x.status === 200 ? x.responseText : null; } catch (e) { return null; } };
+  const SCN = { id: 'master', name: 'Master', island: ISL_ID, master: null,
+    // the named versions (the index, read when the editor asks - never at boot) and one version's record text
+    versions() { if (!ISL_ID) return []; const t = getSync('media/scenery/' + ISL_ID + '/index.json'); try { const J = t ? JSON.parse(t) : null; return J && Array.isArray(J.versions) ? J.versions.map(v => ({ id: v.id, name: v.name || v.id, date: v.date || null, file: v.file })) : []; } catch (e) { return []; } },
+    versionText(v) { return v && v.file && ISL_ID ? getSync('media/scenery/' + ISL_ID + '/' + v.file) : null; } };
   const premisesAtBoot = (() => {
     try {
       const q = new URLSearchParams(location.search).get('premises');
-      if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
-      if (q === 'none') return null;
-      const saved = localStorage.getItem(WIP_KEY);
-      // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
-      // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
-      // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
-      // (G404: a stale first version had shadowed the field)
-      let fixture = null;
-      if (window.ISLAND_BOOT) {
-        if (typeof window.ISLAND_BOOT.premFixture === 'string') fixture = window.ISLAND_BOOT.premFixture;   // G998: the loader fetched it with the island
-        else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
-      }
-      // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, the user: "a new airport somewhere, with
-      // scenery ... that should impact the real game, and become a new official airport"): Skarvik,
-      // authored in the editor, shipped as a fixture and composed at every boot; its strip is an
-      // aerodrome of the world, so it is a destination like any other
-      else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
-      if (saved && fixture) {
-        try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
-          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem(WIP_KEY); return fixture; } } catch (e) {}
-      }
-      return saved || fixture;
+      if (q) { const t = getSync('tools/fixtures/premises_v1_' + q + '.json'); if (t) { Object.assign(SCN, { id: 'test:' + q, name: 'test ' + q }); return t; } }
+      if (q === 'none') { Object.assign(SCN, { id: 'none', name: 'none' }); return null; }
+      // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD SHIPS NO PREMISES - the analytic HOME's own strip and hangar on flat
+      // ground (20_world.js opts.flat); Skarvik's record is the analytic world's, not this one's
+      if (TESTFIELD) { Object.assign(SCN, { id: 'testfield', name: 'Test field' }); return null; }
+      // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE PREMISES composes every
+      // premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field. G998: the loader fetched it with the island.
+      // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3): Skarvik, shipped as a fixture and composed at every boot
+      const fixture = window.ISLAND_BOOT ? (typeof window.ISLAND_BOOT.premFixture === 'string' ? window.ISLAND_BOOT.premFixture : getSync('tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json'))
+        : getSync('tools/fixtures/premises_v1_official.json');
+      SCN.master = fixture;
+      let rig = false; try { rig = localStorage.getItem('flydiy.premises.bootWip') === '1'; } catch (e) {}
+      if (rig) { let t = null; try { t = localStorage.getItem(WIP_KEY); } catch (e) {} if (t) { Object.assign(SCN, { id: 'rig:wip', name: 'the seeded working copy' }); return t; } }
+      return fixture;
     } catch (e) { return null; }
   })();
+  if (typeof window !== 'undefined') window.FLYDIY_SCENERY = SCN;
   // THE TOWN SWITCH (G590, the 2026-09-26 playtest): Metlakatla (every `mk_` entry of the record) held the Jolene
   // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
   // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
   const TOWN = (() => {
-    const T = { all: false, off: ['mk_'], cut: null, n: 0 };
+    // (METLA-WRAPUP: the seaplane base stands with the town off - PREMISES_GEN.TOWN_OFF, the cook's 'default' variant's)
+    const TO = typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.TOWN_OFF;
+    const T = { all: false, off: TO ? TO.drop.slice() : ['mk_'], keep: TO ? TO.keep.slice() : [], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
       // G1526 (POTATO-DEEP): the row under the build budget's cap - potato / laptop / the software rung never build Metlakatla
       T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
@@ -54,7 +65,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   })();
   let premisesPlaced = (() => {
     if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
-    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
+    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off, TOWN.keep);
       if (!D.n) return premisesAtBoot;
       TOWN.cut = D.cut; TOWN.n = D.n;
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
@@ -71,8 +82,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const S = { tracks: null, key: 'sandbox', view: null, text: null };
     try {
       if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
-      if (/[?&]career=1(&|$)/.test(location.search || '') && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
-        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey('dev')) || 'null'); } catch (e) {}
+      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off its own
+      // document - G3360 (CAREERS): the one welcome.js chose (FLYDIY_CAREER_ID, app.js's same reading; 'main' without one);
+      // a New career has no document yet: every track at 0
+      const devC = /[?&]career=1(&|$)/.test(location.search || ''), mainC = !devC && typeof window !== 'undefined' && window.FLYDIY_MODE === 'career';
+      if ((devC || mainC) && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
+        const pick = (v => (typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'))(typeof window !== 'undefined' ? window.FLYDIY_CAREER_ID : null);
+        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : pick)) || 'null'); } catch (e) {}
         S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
         // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
         // for this load only (nothing is written; with ?career=1 alone)
@@ -100,8 +116,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
   // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
   // (ASSETS-OCT G2909) the navaids' generator the same way: asked for when the record names a navaid/ key
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine|navaid|utility)\//.test(premisesPlaced)) {
-    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen'].concat(/"(navaid|utility)\//.test(premisesPlaced) ? ['_navaid_gen'] : []));
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine|navaid|utility|meteo)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen'].concat(/"(navaid|utility)\//.test(premisesPlaced) ? ['_navaid_gen'] : [], /"meteo\//.test(premisesPlaced) ? ['_meteo_gen'] : []));   // G3660: the meteo station
     if (window.HOUSE_KIT) gens();
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
@@ -109,7 +125,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
   // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
   try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
-    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n));
+    // (G3140-G3149: the camping kit's and the infrastructure kit's packs ride the same rule)
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n));
     if (sc.length) window.FLYDIY_LAZY(sc);
   } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
@@ -123,7 +140,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // fixture's text is the record composed below. The grids stay: they ARE the island's (the same arrays), read by
   // the core and the viewer for the session. The physics worker fetches its own boot (sim_host.js simHostFetchBoot).
   if (islandAtBoot) { const B = window.ISLAND_BOOT; B.topo = B.payload = null; if (B.far) B.far.topo = B.far.payload = null; B.premFixture = null; }
-  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
+  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot, flat: window.FLYDIY_WORLD === 'testfield' });
   // THE HOUSES' OWN THREAD (G830, src/viewer/house_worker.js): it makes this same world from the same premises text and
   // the island's own files - its ~5 s beside the garage's boot - so the town step finds it ready to generate
   try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id, hydro: window.ISLAND_BOOT.hydro }); } catch (e) { console.warn('house worker:', e && e.message); }
@@ -131,5 +148,5 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // in, the town filter applied) says which species can stand; every tree fetch after this line (the garage's, the
   // roll-out's) asks for those alone. The analytic world answers null: the whole pack, as before
   try { if (typeof treeReach === 'function' && typeof treeReachOf === 'function') treeReach(treeReachOf(world)); } catch (e) { console.warn('trees: the reach', e); }
-  return { WIP_KEY, premisesAtBoot, TOWN, STAGE, premisesWhole, premisesPlaced, islandAtBoot, world };
+  return { WIP_KEY, SCN, premisesAtBoot, TOWN, STAGE, premisesWhole, premisesPlaced, islandAtBoot, world };
 };

@@ -90,7 +90,9 @@ async function pageFlown(o) {
     const t2 = performance.now(), ms = t2 - t1; t1 = t2;
     const SB2 = window.FLYDIY_SKINBREAK_STATS(), M = SB2.ms, DS = window.FLYDIY_DMG_STATE ? window.FLYDIY_DMG_STATE() : null, nb = DS && DS.br ? DS.br.length : 0;
     if (nb > 0 && first < 0) first = trace.length;
-    trace.push({ t: +sim.t.toFixed(3), ms: +ms.toFixed(2), brk: M.lastT === sim.t ? +(M.last || 0).toFixed(2) : 0, gpu: M.lastT === sim.t ? +(M.lastGpu || 0).toFixed(2) : 0, broken: nb });
+    trace.push({ t: +sim.t.toFixed(3), ms: +ms.toFixed(2), brk: M.lastT === sim.t ? +(M.last || 0).toFixed(2) : 0, gpu: M.lastT === sim.t ? +(M.lastGpu || 0).toFixed(2) : 0, broken: nb,
+      // (G3022: the break frame's split - the records, the events, the node frames, the pose + tear + index)
+      rec: M.lastT === sim.t ? +(M.lastRec || 0).toFixed(2) : 0, ev: M.lastT === sim.t ? +(M.lastEv || 0).toFixed(2) : 0, fr: M.lastT === sim.t ? +(M.lastFrames || 0).toFixed(2) : 0, pose: M.lastT === sim.t ? +(M.lastPose || 0).toFixed(2) : 0 });
   }
   const SB3 = window.FLYDIY_SKINBREAK_STATS();
   return { first, trace, reason: P.damage && P.damage() ? P.damage().reason : null, broken: trace.length ? trace[trace.length - 1].broken : 0, progs: [progs0, R3.info.programs.length],

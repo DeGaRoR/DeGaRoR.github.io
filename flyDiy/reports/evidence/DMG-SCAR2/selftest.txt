@@ -1,0 +1,20 @@
+-- the record disabled:
+GATE DMGSCAR (795 s, 3 builds, the certificate stamped; THE RECORD DISABLED (selftest))
+  FAIL  1 a circuit (completed): not one ground contact recorded, no scar
+  FAIL  1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  FAIL  1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  FAIL  2 a severe drop onto the wheels at 6 m/s: a crash (a gear member broke) - it scars (0 craters, 0 gouges)
+  FAIL  2 a nose-over at 4 m/s: the propeller's slot (0 primitives)
+  FAIL  2 30 m/s into a trunk, the centreline: a scar (0 craters, 0 gouges, 0 sweep; 0.0 m2 torn, 0.0 m2 with the sweep)
+  FAIL  2 30 m/s into a trunk, 2.5 m out: a scar (0 craters, 0 gouges, 0 sweep; 0.0 m2 torn, 0.0 m2 with the sweep)
+  FAIL  4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 0 scar payload(s) (one a sealed event), 0 B of scar in 53 damage payloads (69549 B in all)
+  FAIL  5 reset: the scar empty under a new version (v0), sent once, the page's scar empty
+  FAIL  1 a circuit (null): not one ground contact recorded, no scar
+  FAIL  1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+-- the join disabled:
+GATE DMGSCAR (793 s, 3 builds, the certificate stamped; THE JOIN DISABLED (selftest))
+  FAIL  2J 30 m/s into a trunk, the centreline: 2 skipping run(s) the reader saw (5, 4 touchdowns) - each 80 % or more in ONE gouge, at most one crater on it - node 40 (4 touchdowns): 67 % in one gouge, 0 craters on it
+  FAIL  2J the join: a node skipping 8 times along the ground (blows of 600 J, under eBlow 970 J) is ONE gouge of 8 slides (8 gouge(s) of 1, 0.69 m wide, 0.272 m deep), no crater (0)
+  FAIL  2J the join: skipping with blows of 1.5 kJ on the way and a 3 kJ one that stops: one gouge (7) and ONE crater where it stopped (8, r 0.56 m at x 36.75)
+GATE DMGSCAR: FAIL (3 of 104)
+SELFTEST DMGSCAR: PASS (the gate goes red with the scar disabled, and red on the join's checks with the join disabled)

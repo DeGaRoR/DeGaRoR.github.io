@@ -1,0 +1,5 @@
+  store:cub inside: lineup from runway HOME: HOLD>ROLL>LIFTOFF>CLIMB in 29 s
+  store:cub outside: stand from stand HOME: TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB in 198 s
+  store:cub: ok (178 s)
+DESTTO: 0 failure(s), 178 s
+GATE DESTTO: PASS

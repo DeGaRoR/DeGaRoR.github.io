@@ -52,12 +52,16 @@ const ENGINE_SOUND_TABLE = {
   io550_hartzell3:   { cyl: 6,  arch: 'flat',   twoStroke: 0, dispL: 9.05 },
   io720_hartzell3:   { cyl: 8,  arch: 'flat',   twoStroke: 0, dispL: 11.83 },
   rotax915_carbon:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.35 },
+  rotax916_carbon:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.35 },   // the 915's block (1 352 cm3, flyrotax.com)
   ranger440_wood:    { cyl: 6,  arch: 'inline', twoStroke: 0, dispL: 7.23 },
   w670_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 10.94 },
   r755_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 12.42 },
   m14p_v530:         { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 10.13 },
   r1340_hs12d40:     { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 22.02 },
   rotax503_wood:     { cyl: 2,  arch: 'inline', twoStroke: 1, dispL: 0.59 },
+  // NEW-SHAPES-1: the Camel's rotary and the Spitfire's V-12 (their presets in tools/_eng_page.js)
+  clerget9b_wood:    { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 16.29 },
+  merlin66_rotol4:   { cyl: 12, arch: 'vee',    twoStroke: 0, dispL: 27.04 },
 };
 const ENGINE_SOUND_DEFAULT = { cyl: 4, arch: 'flat', twoStroke: 0, dispL: 2.8 };
 const ENGINE_SOUND_ARCHS = ['flat', 'inline', 'vee', 'radial'];

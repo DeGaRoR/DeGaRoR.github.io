@@ -31,6 +31,7 @@
 //   node tools/perf/mobile_phone_cdp.js [--url http://localhost:8700/flyDiy/index.html?gfx=potato] [--build cub|metal]
 //        [--cold] [--rows wgSpan,wgChord,stSpan,paxLen] [--reps 3] [--ticks 4] [--frames 10] [--soak 10] [--skip boot,drag,frames,soak]
 //        [--port 9222] [--out tools/perf/phone_<build>_<stamp>.json]
+//        [--shot <jpg>] [--shot2 <jpg> --shot2-js '<the page script, run before the second still>'] [--shot3 <jpg> --shot3-js '<...>']
 //   --build puts that validated build in flydiy.wip before the page's first script (the phone opens on it).
 //   --cold clears the origin's cache and storage first (a first visit); otherwise a warm load (run it twice: the first warms).
 //   When the garage-only entry exists (MOBILE-GARAGE phase M1), point --url at it: the same rig, the same table.
@@ -41,6 +42,13 @@
 // orbit, a pinch - and a screenshot of the garage (phone_<build>_<stamp>_garage.jpg). The S20 run for A0:
 //   node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?profile=phone" --build cub --cold --soak 10
 // (ADB: the PATH's adb, else D:/Dev/platform-tools/adb.exe, else ADB=<path>.)
+// G3727 (PHONE-GARAGE, 25 Oct): THE BOX'S A/B OF THE PHONE GARAGE, a desktop Chrome on the box's GPU dressed as a phone.
+//   --size WxH (default 412x915, the S20 FE) and --dpr D (2.625) for --emulate; --no-adb (no adb call at all: a phone on
+//   the cable would otherwise take the forward of --port); --shot <file.jpg> the page after the boot, with the VIEW's share
+//   of the screen (the canvas box / the viewport) and the frame's draw calls / triangles (FLYDIY_RENDERER.info) in R.view;
+//   --cpu-throttle N (CDP's main thread N x slower, set AFTER the boot and the shot: the phone's CPU, roughly).
+//   --desk: the DESKTOP garage instead (--size at --dpr, no mobile, no touch, no touch checks; the orbit is a mouse drag) -
+//   the user, 25 Oct: the new top bar is for every version, so the desktop garage is measured the same way.
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -61,7 +69,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MiB = x => +(x / 1048576).toFixed(1);
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))].toFixed(1) : null; };
 const med = a => pct(a, 0.5);
-const adb = (...a) => { try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
+const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), SHOT2 = opt('shot2', null), SHOT2JS = opt('shot2-js', null), SHOT3 = opt('shot3', null), SHOT3JS = opt('shot3-js', null), THROTTLE = +opt('cpu-throttle', 0);
+const adb = (...a) => { if (flag('no-adb')) return ''; try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 const log = s => console.log(s);
 
 // ---- the phone's side: memory, temperature ----
@@ -87,15 +96,27 @@ async function connect() {
   const base = 'http://127.0.0.1:' + PORT;
   const ver = await (await fetch(base + '/json/version')).json().catch(() => null);
   if (!ver) throw new Error('no DevTools on :' + PORT + ' - is Chrome open on the phone and USB debugging allowed? (adb devices)');
-  const tab = await (await fetch(base + '/json/new?about:blank', { method: 'PUT' })).json();
-  const ws = new WebSocket(tab.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
-  let id = 0; const waits = new Map(); const S = { crashed: false, closed: false, exc: [] };
+  // G3904 (PHONE-EDIT-PERF, 2 Nov): THE PAGE THROUGH THE BROWSER'S OWN SOCKET - the user's S20 FE (Chrome 156 Android) answers
+  // PUT /json/new with "Could not create new page"; Target.createTarget + attachToTarget (flatten) works on the phone and on
+  // a desktop Chrome alike. Every page command carries the session; only that session's messages are read
+  const ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+  let id = 0, sid = null; const waits = new Map(); const S = { crashed: false, closed: false, exc: [] };
   ws.onmessage = e => { const m = JSON.parse(e.data);
-    if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); return; }
+    if (m.method === 'Target.detachedFromTarget' && m.params && m.params.sessionId === sid) { S.closed = true; for (const f of waits.values()) f({ error: { message: 'detached' } }); waits.clear(); }
+    if (sid && m.sessionId !== sid) return;
     if (m.method === 'Inspector.targetCrashed') S.crashed = true;
     if (m.method === 'Runtime.exceptionThrown') S.exc.push(((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text || '').split('\n')[0]); };
   ws.onclose = () => { S.closed = true; for (const f of waits.values()) f({ error: { message: 'closed' } }); waits.clear(); };
-  const cmd = (method, params) => S.closed ? Promise.resolve({ error: { message: 'closed' } }) : new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
+  const raw = (method, params, session) => S.closed ? Promise.resolve({ error: { message: 'closed' } }) : new Promise(r => { const i = ++id; waits.set(i, r);
+    ws.send(JSON.stringify(Object.assign({ id: i, method, params: params || {} }, session ? { sessionId: session } : {}))); });
+  const made = await raw('Target.createTarget', { url: 'about:blank' });
+  if (made.error) throw new Error('Target.createTarget: ' + made.error.message);
+  const tab = { id: made.result.targetId };
+  const at = await raw('Target.attachToTarget', { targetId: tab.id, flatten: true });
+  if (at.error) throw new Error('Target.attachToTarget: ' + at.error.message);
+  sid = at.result.sessionId;
+  const cmd = (method, params) => raw(method, params, sid);
   const ev = async (expr, ms = 60000) => {
     const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }), sleep(ms).then(() => ({ error: { message: 'timeout' } }))]);
     if (r.error) throw new Error(r.error.message); const d = r.result; if (d.exceptionDetails) throw new Error((d.exceptionDetails.exception || {}).description || d.exceptionDetails.text);
@@ -103,9 +124,10 @@ async function connect() {
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable'); await cmd('Performance.enable');
   // --emulate (G2103): a desktop Chrome / headless Chromium dressed as the S20 FE (412 x 915 at 2.625, touch) - the cloud's
   // smoke test of this rig, and the box's before the phone is plugged in. Never on the phone itself
-  if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+  if (flag('desk')) await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: false });
+  else if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: true });
     await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
-  return { ver, tab, cmd, ev, S, close: async () => { try { await fetch(base + '/json/close/' + tab.id); } catch (e) {} } };
+  return { ver, tab, cmd, ev, S, close: async () => { try { await raw('Target.closeTarget', { targetId: tab.id }); } catch (e) {} try { ws.close(); } catch (e) {} } };
 }
 
 // G2103: THE PHONE GARAGE'S TOUCH CHECKS on the phone's own screen (CSS px coordinates, as the page reports them)
@@ -159,9 +181,111 @@ async function touchChecks(C) {
       const coarse = fdx / Math.max(40, r.w - 26) * (r.hi - r.lo);
       say('fine', { ok: f.v !== r.v && Math.abs(f.v - r.v) <= Math.abs(coarse) * 0.15 + r.st, key: r.key, from: r.v, to: f.v, coarseWouldBe: +coarse.toFixed(3) });
       r = await probe();
-      const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
-      await tap(pl); const p = await valOf(r.key);
-      say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+      // THE ROW'S + (G3900: on line 2 of a fixed grid, 40 px), then the value's editor (G3901: a tap on the value) and its +
+      // (the row's own - / + only show with html.ph-pm; the compact row has them in the editor alone)
+      const rowSteps = await J('PHONE_UI.steps ? PHONE_UI.steps() : true');
+      let p = { v: r.v };
+      if (rowSteps) {
+        const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+        await tap(pl); p = await valOf(r.key);
+        say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+      } else say('stepper', { ok: true, skipped: 'compact row: - / + in the editor' });
+      await tap(await centre('#edRows .r[data-k="' + r.key + '"] .v'));
+      const open = await J('PHONE_UI.editing()');
+      await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+      await tap(await J('(() => { const b = document.querySelector("#phEdit .phPlus").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()'));
+      const q = await valOf(r.key);
+      say('editor', { ok: open === r.key && Math.abs(q.v - Math.min(r.hi, p.v + r.st)) < r.st * 0.01 + 1e-9 && q.ev.change === 1, key: r.key, opened: open, from: p.v, to: q.v });
+      // TYPED: the editor's number, Enter - the row's typed path (v_<k> change), no drag events on the range
+      const want = +(r.lo + (r.hi - r.lo) * 0.37).toFixed(6);
+      await J('(__ev = { down: 0, input: 0, change: 0 }, document.querySelector("#phEdit .phEin").select(), 1)');
+      await C.cmd('Input.insertText', { text: String(want) });
+      await C.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await C.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(600);
+      const ty = await valOf(r.key), closed = await J('PHONE_UI.editing()');
+      say('typed', { ok: Math.abs(ty.v - want) <= r.st + 1e-9 && ty.ev.down === 0 && closed === null, key: r.key, want, got: ty.v, events: ty.ev, editorAfter: closed });
+      // THE SIGN KEY (A0 2 Nov: Samsung Keyboard's decimal pad has no '-'): a row that goes negative, 0.3 typed, +/- , Enter
+      { const k = await J('(() => { const r = [...document.querySelectorAll("#edRows .r.phSlider")].find(r => r.offsetParent && +r.querySelector("input[type=range]").min < 0 && !r.querySelector("input[type=range]").disabled); if (!r) return null; r.scrollIntoView({ block: "center" }); return r.dataset.k; })()');
+        if (!k) say('sign', { ok: true, skipped: 'no row that goes negative on this part' });
+        else {
+          await tap(await centre('#edRows .r[data-k="' + k + '"] .v'));
+          await J('(document.querySelector("#phEdit .phEin").select(), 1)');
+          await C.cmd('Input.insertText', { text: '0.3' });
+          await tap(await J('(() => { const b = document.querySelector("#phEdit .phEsign").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()'));
+          const typed = await J('document.querySelector("#phEdit .phEin").value');
+          await C.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+          await C.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(600);
+          const sv = await valOf(k), lo = await J('+document.getElementById("p_' + k + '").min');
+          say('sign', { ok: typed === '-0.3' && Math.abs(sv.v - Math.max(lo, -0.3)) < 0.011, key: k, typed, got: sv.v });
+        }
+      }
+      // HIT AREAS >= 44 px (A0 2 Nov, PHONE-UI-GUIDELINES): the page's own hit test 22 px out from each control's centre - the
+      // value's target is its ROW (a tap anywhere on a compact row opens the editor; the chip sits on line 1 of a 44 px row, so
+      // 21 px above its centre is the row above): the row >= 44 px, 21 px either side of the chip, the row's top and foot under
+      // the chip's x - and no knob over any of them (the row above's overhangs line 1 by 10 px)
+      { const h = await J('(() => { const hit = (x, y, ok) => { const e = document.elementFromPoint(x, y); return !!e && ok(e); }; const out = {};' +
+          ' const around = (b, ok) => { const cx = b.left + b.width / 2, cy = b.top + b.height / 2; return [[0, -21], [0, 21], [-21, 0], [21, 0]].every(([dx, dy]) => hit(cx + dx, cy + dy, ok)); };' +
+          ' const row = [...document.querySelectorAll("#edRows .r.phSlider")].find(r => { const q = r.getBoundingClientRect(); const s = document.getElementById("edProps").getBoundingClientRect(); return q.top > s.top + 60 && q.bottom < s.bottom - 60; });' +
+          ' if (row) { const v = row.querySelector(".v"), kb = row.querySelector(".phKnob"), cb = row.querySelector(":scope > input[type=checkbox]");' +
+          '   const vb = v.getBoundingClientRect(), rb = row.getBoundingClientRect(), vx = vb.left + vb.width / 2, vin = e => row.contains(e) && !e.closest(".phKnob");' +
+          '   out.value = rb.height >= 44 && [[vx - 21, vb.top + vb.height / 2], [vx + 21, vb.top + vb.height / 2], [vx, rb.top + 2], [vx, rb.bottom - 2]].every(([x, y]) => hit(x, y, vin)) ? "ok" : "small";' +
+          '   out.knob = around(kb.getBoundingClientRect(), e => e === kb) ? "ok" : "small"; out.rowPx = Math.round(row.getBoundingClientRect().height);' +
+          '   if (cb) out.switch = around(cb.getBoundingClientRect(), e => e === cb) ? "ok" : "small"; out.key = row.dataset.k;' +
+          '   const pl = row.querySelector(".phPlus"), mi = row.querySelector(".phMinus"); if (pl && pl.offsetParent !== null) { out.plus = around(pl.getBoundingClientRect(), e => e === pl) ? "ok" : "small"; out.minus = around(mi.getBoundingClientRect(), e => e === mi) ? "ok" : "small"; } }' +
+          ' const dv = document.getElementById("phDiv"); if (dv) { const b = dv.getBoundingClientRect(); out.divider = (b.height >= 44 || b.width >= 44) && hit(b.left + b.width / 2 + 30, b.top + b.height / 2, e => e === dv) ? "ok" : "small"; out.dividerPx = Math.round(Math.min(b.height, b.width)); }' +
+          ' return out; })()');
+        say('hit44', Object.assign({ ok: h.value === 'ok' && h.knob === 'ok' && h.divider === 'ok' && (!h.switch || h.switch === 'ok') && (!h.plus || (h.plus === 'ok' && h.minus === 'ok')) }, h));
+      }
+      // PRECISION: up 160 px from the scale, then sideways - the gain is 40 / 160
+      r = await probe();
+      const pdx = r.x + 100 < r.x1 ? 100 : -100, up = Math.max(20, r.y - 160) - r.y;
+      { const t0 = Date.now() / 1000; await touch('touchStart', [[r.x, r.y]], t0);
+        for (let i = 1; i <= 6; i++) { await touch('touchMove', [[r.x, r.y + up * i / 6]], t0 + 0.03 * i); await sleep(30); }
+        for (let i = 1; i <= 10; i++) { await touch('touchMove', [[r.x + pdx * i / 10, r.y + up]], t0 + 0.18 + 0.03 * i); await sleep(30); }
+        await touch('touchEnd', [], t0 + 0.6); await sleep(400); }
+      const pr = await valOf(r.key), coarseP = pdx / Math.max(40, r.w - 22) * (r.hi - r.lo), g = 40 / Math.abs(up);
+      say('precise', { ok: pr.v !== r.v && Math.abs(pr.v - r.v) <= Math.abs(coarseP) * g * 1.4 + r.st && Math.abs(pr.v - r.v) < Math.abs(coarseP) * 0.6, key: r.key, from: r.v, to: pr.v, coarseWouldBe: +coarseP.toFixed(3), gain: +g.toFixed(3) });
+    }
+    // THE SPLIT (G3900): half and half by default; the divider moves it on release; a double tap puts it back
+    {
+      const s0 = await J('({ s: PHONE_UI.split(), c: document.getElementById("c").getBoundingClientRect().height, h: innerHeight, w: innerWidth })');
+      const land = s0.s.o === 'l', size = land ? s0.w : s0.h, at = Math.round(size * s0.s.f), to = Math.round(size * 0.4);
+      const mid = land ? [at, s0.h / 2] : [s0.w / 2, at];
+      await swipe(mid, land ? [to, s0.h / 2] : [s0.w / 2, to], 8);
+      await sleep(500);
+      const s1 = await J('({ s: PHONE_UI.split(), c: document.getElementById("c").getBoundingClientRect() })');
+      { const q = land ? [to, s0.h / 2] : [s0.w / 2, to];   // a double tap (two presses inside 320 ms)
+        await touch('touchStart', [q]); await touch('touchEnd', []); await sleep(90); await touch('touchStart', [q]); await touch('touchEnd', []); await sleep(500); }
+      const s2 = await J('PHONE_UI.split()');
+      say('split', { ok: Math.abs(s0.s.f - 0.5) < 0.01 && Math.abs(s1.s.f - 0.4) < 0.02 && Math.abs((land ? s1.c.width : s1.c.height) - to) < 6 && Math.abs(s2.f - 0.5) < 0.01,
+        before: s0.s, canvas0: Math.round(land ? s0.w * s0.s.f : s0.c), after: s1.s, canvas1: Math.round(land ? s1.c.width : s1.c.height), backTo: s2 });
+      await J('(PHONE_UI.setSplit(0.5), 1)');
+    }
+    // DENSITY (G3900): how many slider rows the controls show at once under one group head - the sheet's scroller (the
+    // rows' own scrolling ancestor, not #edProps by name - the 2 Nov rig read 0 rows through #edProps), less a sticky
+    // head, over the rows' common height (a shown note left out, as in the shape); `seen` counts the rows wholly below the
+    // head with a mid row scrolled to the top - groups' own heads make it the lower bound
+    {
+      const d = await J('(() => { const all = [...document.querySelectorAll("#edRows .r.phSlider")].filter(r => r.offsetParent !== null && r.getBoundingClientRect().height > 0); if (!all.length) return { rows: 0, why: "no slider rows" };' +
+        ' let sc = all[0].parentElement; while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement; if (!sc) return { rows: 0, why: "no scroller" };' +
+        ' const hs = all.map(r => { const n = r.querySelector(":scope > .rn"); return Math.round(r.getBoundingClientRect().height - (n && n.offsetParent !== null ? n.getBoundingClientRect().height : 0)); }).sort((a, b) => a - b), rowPx = hs[hs.length >> 1];' +
+        ' const hd = document.querySelector("#edRows .edH"), headPx = hd ? Math.round(hd.getBoundingClientRect().height) : 0, sheet = Math.round(sc.clientHeight);' +
+        ' const mid = all[all.length >> 1], s0 = sc.scrollTop; sc.scrollTop += mid.getBoundingClientRect().top - sc.getBoundingClientRect().top - headPx; const b = sc.getBoundingClientRect();' +
+        ' const seen = all.filter(r => { const q = r.getBoundingClientRect(); return q.top >= b.top + headPx - 1 && q.bottom <= b.top + sc.clientHeight + 1; }).length; sc.scrollTop = s0;' +
+        ' return { rows: Math.floor((sheet - headPx) / rowPx), seen, sheet, headPx, rowPx, scroller: sc.id || sc.className }; })()');
+      say('density', Object.assign({ ok: d.rows >= (await J('PHONE_UI.steps ? PHONE_UI.steps() : false') ? 5 : 7) }, d));   // (compact ~40 px rows: 7-8 in half a 360x800 screen; with the row's - / + ~58 px: 5-6)
+      // THE SHAPE (G3900; the user's 13:02-13:03 stills: rows wrapped, - / + on lines of their own, stray marks): every slider
+      // row of the sheet one height, its - / scale / + on one line, nothing past the row's right edge, the knob on the thumb
+      const g = await J('(() => { const out = { rows: 0, heights: {}, offLine: [], overflow: [], knobErr: 0 }; for (const r of document.querySelectorAll("#edRows .r.phSlider")) {' +
+        ' const rb = r.getBoundingClientRect(); if (!rb.height || r.offsetParent === null) continue; out.rows++; const rn = r.querySelector(":scope > .rn"), nh = rn && rn.offsetParent !== null ? rn.getBoundingClientRect().height : 0; if (nh) out.notes = (out.notes || 0) + 1; const h = Math.round(rb.height - nh); out.heights[h] = (out.heights[h] || 0) + 1;' +
+        ' const m = r.querySelector(".phMinus").getBoundingClientRect(), pl = r.querySelector(".phPlus").getBoundingClientRect(), g = r.querySelector("input[type=range]"), gb = g.getBoundingClientRect();' +
+        ' const mid = q => q.top + q.height / 2; if (m.width && pl.width && (Math.abs(mid(m) - mid(gb)) > 3 || Math.abs(mid(pl) - mid(gb)) > 3 || m.right > gb.left + 1 || pl.left < gb.right - 1)) out.offLine.push(r.dataset.k);' +
+        ' for (const c of r.children) { if (c.classList.contains("phKnob") || c.classList.contains("rn")) continue; const cb = c.getBoundingClientRect(); if (cb.width && (cb.right > rb.right + 1 || cb.left < rb.left - 1 || cb.bottom > rb.bottom + 1)) { out.overflow.push(r.dataset.k + ":" + (c.className || c.tagName)); break; } }' +
+        ' if (!g.disabled) { const f = (g.value - g.min) / ((g.max - g.min) || 1), tc = gb.left + 11 + f * (gb.width - 22), kb = r.querySelector(".phKnob").getBoundingClientRect(); out.knobErr = Math.max(out.knobErr, Math.round(Math.abs(kb.left + kb.width / 2 - tc) + Math.abs(kb.top + kb.height / 2 - mid(gb)))); } }' +
+        ' out.offLine = out.offLine.slice(0, 6); out.overflow = out.overflow.slice(0, 6); return out; })()');
+      const tallest = Math.max(...Object.keys(g.heights).map(Number)), common = +Object.entries(g.heights).sort((x, y) => y[1] - x[1])[0][0];
+      say('shape', Object.assign({ ok: g.rows > 0 && !g.offLine.length && !g.overflow.length && g.knobErr <= 3 && tallest <= common + 18 }, g));
+      await J('(document.getElementById("edProps").scrollTop = 0, 1)');
     }
     // THE VIEW
     const vb = await J('(() => { const b = document.getElementById("c").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()');
@@ -183,7 +307,7 @@ async function touchChecks(C) {
   const C = await connect(); R.chrome = C.ver.Browser; log('phone ' + R.device + ' (Android ' + R.android + '), ' + R.chrome + '; battery ' + R.thermalsAtStart.batteryC + ' C');
   const save = () => fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
   // the pre-script: the build in flydiy.wip; a rig flag the page already honours nowhere else is NOT set (the phone is the subject)
-  const wip = fs.readFileSync(path.join(ROOT, BUILDS[BK] || BK), 'utf8');
+  const wip = fs.readFileSync(path.isAbsolute(BUILDS[BK] || BK) ? (BUILDS[BK] || BK) : path.join(ROOT, BUILDS[BK] || BK), 'utf8');
   await C.cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try { if (!sessionStorage.getItem("mp.wip")) { localStorage.setItem("flydiy.wip", ' + JSON.stringify(wip) + '); sessionStorage.setItem("mp.wip", "1"); } } catch (e) {}' });
   if (flag('cold')) { await C.cmd('Network.enable'); await C.cmd('Network.clearBrowserCache');
     await C.cmd('Storage.clearDataForOrigin', { origin: new URL(URL0).origin, storageTypes: 'all' }); }
@@ -221,6 +345,22 @@ async function touchChecks(C) {
     while (Date.now() - t0 < 900000) { await sleep(2000); let st = 'x'; try { st = await C.ev('window.BOOT ? BOOT.state : (document.readyState === "complete" ? "gone" : "x")', 5000); } catch (e) {} if (st === 'gone') break; }
     await sleep(3000);
   }
+  // ---- G3727: THE VIEW (its share of the screen, the frame's draws) and the still, then the CPU throttle ----
+  try { await sleep(3000);
+    R.view = JSON.parse(await C.ev(`new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const c = document.getElementById('c'), b = c ? c.getBoundingClientRect() : null, R0 = window.FLYDIY_RENDERER, inf = R0 && R0.info ? R0.info.render : {};
+      r(JSON.stringify({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio, canvas: b ? [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)] : null,
+        viewShare: b ? +((b.width * b.height) / (innerWidth * innerHeight)).toFixed(3) : null, calls: inf.calls, triangles: inf.triangles,
+        programs: R0 && R0.info && R0.info.programs ? R0.info.programs.length : null, textures: R0 && R0.info ? R0.info.memory.textures : null }));
+    })))`, 60000)); log('view: ' + JSON.stringify(R.view)); save(); } catch (e) { R.view = { error: String(e) }; }
+  if (SHOT) { try { const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT, Buffer.from(sh.result.data, 'base64')); log('shot -> ' + SHOT); } catch (e) { log('shot failed: ' + e); } }
+  // G3728/G3729: a second still after a script of the page's own (--shot2-js: open a panel, scroll a row into view)
+  if (SHOT2) { try { if (SHOT2JS) await C.ev('(async () => { ' + SHOT2JS + ' })()', 30000); await new Promise(r => setTimeout(r, 2500));
+    const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT2, Buffer.from(sh.result.data, 'base64')); log('shot2 -> ' + SHOT2); } catch (e) { log('shot2 failed: ' + e); } }
+  // G3904: a third still after a script (PHONE-EDIT-LAYOUT: the value's editor open on a row)
+  if (SHOT3) { try { if (SHOT3JS) await C.ev('(async () => { ' + SHOT3JS + ' })()', 30000); await new Promise(r => setTimeout(r, 2500));
+    const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT3, Buffer.from(sh.result.data, 'base64')); log('shot3 -> ' + SHOT3); } catch (e) { log('shot3 failed: ' + e); } }
+  if (THROTTLE > 1) { await C.cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE }); R.cpuThrottle = THROTTLE; log('CPU throttle x' + THROTTLE); }
   // ---- SHARE + STORAGE PROBE (G1517): can this phone's share sheet carry a build FILE, and will its storage keep it ----
   // Chrome shares only a permitted list of file types (JSON is not believed to be on it: the .txt twin is the fallback);
   // persisted() / estimate() say whether a build saved on the phone survives storage pressure.
@@ -279,9 +419,11 @@ async function touchChecks(C) {
     const vp = JSON.parse(await C.ev('JSON.stringify([innerWidth, innerHeight])'));
     const fp = C.ev('__MP.frames(' + FRAMES + ').then(JSON.stringify)', FRAMES * 1000 + 30000);
     const y = vp[1] * 0.35, x0 = vp[0] * 0.3, x1 = vp[0] * 0.7, tEnd = Date.now() + FRAMES * 1000;
-    await C.cmd('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] });
-    for (let i = 0; Date.now() < tEnd; i++) { const u = (Math.sin(i / 15) + 1) / 2; await C.cmd('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * u, y }] }); await sleep(16); }
-    await C.cmd('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const DESK = flag('desk'), mouse = (type, x) => C.cmd('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1 });
+    if (DESK) await mouse('mousePressed', x0); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] });
+    for (let i = 0; Date.now() < tEnd; i++) { const u = (Math.sin(i / 15) + 1) / 2, x = x0 + (x1 - x0) * u;
+      if (DESK) await mouse('mouseMoved', x); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] }); await sleep(16); }
+    if (DESK) await mouse('mouseReleased', x1); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     R.frames.orbit = stat(JSON.parse(await fp));
     log('frames at rest: ' + JSON.stringify(R.frames.rest) + '\nframes orbiting: ' + JSON.stringify(R.frames.orbit)); save();
   }

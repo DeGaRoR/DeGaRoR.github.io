@@ -874,6 +874,9 @@ function siteToAF(AF, site) {
 // access layer's forms take: p, n and the door's key as its material.
 function doorHandleSite(rec, o) {
   o = o || {};
+  // DOOR-HINGES-2: with the sheet in hand, the handle goes on the door's solid
+  // skin (doorHandleOnSkin, below) - null means nowhere clear, never the glass
+  if (o.mesh) return doorHandleOnSkin(rec, o);
   // a gull door (hinged on top) carries its handle LOW on the aft edge —
   // the sill's own run turns under the belly and a site walked up from it
   // sat 36 mm inside the flank
@@ -906,7 +909,204 @@ function doorHandleSite(rec, o) {
            side: rec.sgn > 0 ? 'star' : 'port', doorKey: rec.doorKey };
 }
 
+// ---------------------------------------------------------------------------
+// A HANDLE IS NEVER ON THE GLASS (DOOR-HINGES-2, 2026-10-27, A0 and the user:
+// "it must NEVER sit on top of a window or any glazing"). The site above put
+// the handle at 0.62 of the opposite run's arc, and a door zone takes its
+// window by design: on the Cub, the Jodel, the stock and the player builds
+// the 115 mm U stood across the sill, a third of it on the glass. The
+// placement now works on the FLANK AS DRAWN: one side of the sheet seen
+// along x - each face a triangle in (z, y) carrying its x, its outward
+// normal and its flags (`win` the glass, `doorKey` the door's own skin) -
+// and the handle's footprint (its long axis, its half-length and half-
+// height, each grown by a clearance) is a rectangle that must land wholly
+// on the faces it is allowed (the door's solid skin, else the frame round
+// it), with no glazed face under any of its samples and no glass vertex
+// inside it. The outermost face under a point is the one it sees (a wing
+// root or a fairing behind the flank does not count).
+const FLANK_SKIP = new Set(['joint', 'doorSeal', 'paneEdge']);
+function flankOf(mesh, sgn, box) {
+  const V = mesh.V, tris = [], glassV = [];
+  for (const f of mesh.F) {
+    if (f.shoulder || f.doorPanel || !f.v || f.v.length < 3) continue;
+    const vs = f.v.map(i => V[i]);
+    let cx = 0, cy = 0, cz = 0;
+    for (const p of vs) { cx += p[0]; cy += p[1]; cz += p[2]; }
+    cx /= vs.length; cy /= vs.length; cz /= vs.length;
+    if (cx * sgn <= 0) continue;
+    if (box && (cz < box.z0 || cz > box.z1 || cy < box.y0 || cy > box.y1)) continue;
+    for (let k = 1; k + 1 < vs.length; k++) {
+      const a = vs[0], b = vs[k], c = vs[k + 1];
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      const L = Math.hypot(n[0], n[1], n[2]);
+      if (L < 1e-12) continue;
+      n = [n[0] / L, n[1] / L, n[2] / L];
+      if (n[0] * sgn < 0) n = [-n[0], -n[1], -n[2]];
+      if (n[0] * sgn < 0.2) continue;                 // seen edge-on from the side: not the flank
+      tris.push({ a, b, c, n, f, glass: !!f.win,
+                  z0: Math.min(a[2], b[2], c[2]), z1: Math.max(a[2], b[2], c[2]),
+                  y0: Math.min(a[1], b[1], c[1]), y1: Math.max(a[1], b[1], c[1]) });
+      if (f.win) glassV.push([a[2], a[1]], [b[2], b[1]], [c[2], c[1]]);
+    }
+  }
+  // the outermost face over (z, y): its point and normal
+  const find = (z, y) => {
+    let best = null;
+    for (const t of tris) {
+      if (z < t.z0 || z > t.z1 || y < t.y0 || y > t.y1) continue;
+      const { a, b, c } = t;
+      const d = (b[2] - a[2]) * (c[1] - a[1]) - (c[2] - a[2]) * (b[1] - a[1]);
+      if (Math.abs(d) < 1e-14) continue;
+      const l1 = ((z - a[2]) * (c[1] - a[1]) - (c[2] - a[2]) * (y - a[1])) / d;
+      const l2 = ((b[2] - a[2]) * (y - a[1]) - (z - a[2]) * (b[1] - a[1])) / d;
+      if (l1 < -1e-9 || l2 < -1e-9 || l1 + l2 > 1 + 1e-9) continue;
+      const x = a[0] + (b[0] - a[0]) * l1 + (c[0] - a[0]) * l2;
+      if (!best || x * sgn > best.x * sgn) best = { x, t };
+    }
+    return best;
+  };
+  return { tris, glassV, find, sgn };
+}
+// does a rectangle centred (cz, cy), long axis `ax` (2-D unit, in z-y), half
+// sizes hl x hh, lie wholly on faces `ok` accepts, off every glazed one?
+function rectClear(FL, cz, cy, ax, hl, hh, ok) {
+  const px = [-ax[1], ax[0]];
+  for (let i = -4; i <= 4; i++) for (let j = -2; j <= 2; j++) {
+    const z = cz + ax[0] * hl * i / 4 + px[0] * hh * j / 2, y = cy + ax[1] * hl * i / 4 + px[1] * hh * j / 2;
+    const h = FL.find(z, y);
+    if (!h || h.t.glass || !ok(h.t.f)) return false;
+  }
+  for (const g of FL.glassV) {
+    const dz = g[0] - cz, dy = g[1] - cy;
+    if (Math.abs(dz * ax[0] + dy * ax[1]) < hl && Math.abs(dz * px[0] + dy * px[1]) < hh) return false;
+  }
+  return true;
+}
+// the site at (z, y) on the flank: the face's point and its outward normal
+// (the handle's long axis rides along, as a 3-D direction in the tangent plane)
+function flankSite(FL, z, y, ax) {
+  const h = FL.find(z, y);
+  if (!h) return null;
+  const n = h.t.n, a3 = [0, ax[1], ax[0]];
+  const d = a3[0] * n[0] + a3[1] * n[1] + a3[2] * n[2];
+  let al = [a3[0] - n[0] * d, a3[1] - n[1] * d, a3[2] - n[2] * d];
+  const L = Math.hypot(al[0], al[1], al[2]) || 1;
+  al = [al[0] / L, al[1] / L, al[2] / L];
+  return { p: [h.x, y, z], n: n.slice(), along: al };
+}
+// the run's z at height y (its polyline, ordered by y)
+function runZAt(run, y) {
+  const pts = (run.pts || [run.A, run.B]).slice().sort((p, q) => p[1] - q[1]);
+  if (y <= pts[0][1]) return pts[0][2];
+  for (let i = 1; i < pts.length; i++) if (y <= pts[i][1]) {
+    const p = pts[i - 1], q = pts[i], u = (y - p[1]) / ((q[1] - p[1]) || 1e-9);
+    return p[2] + (q[2] - p[2]) * u;
+  }
+  return pts[pts.length - 1][2];
+}
+// THE DOOR HANDLE ON THE DOOR'S SOLID SKIN. `o.mesh` the built sheet (cage
+// units), `o.FS` metres a cage unit, `o.size` the form's own sizes (the
+// table's doorHandle row: w the bar's length between its feet, r its rod;
+// a foot is 2 r across). The handle lies ALONG THE CHORD (a pull, the way a
+// Cub's or a Cessna's outside handle lies), on the edge opposite the hinges:
+//   HEIGHT  a hand's - the waist rule G310 kept (0.62 of the door up), but
+//           never above the window's sill less the handle's own half-height
+//           and a clearance: on a door whose window comes down to the waist
+//           the handle stands just under the sill. A gull (top-hinged) door
+//           keeps its handle low (0.22), the old rule
+//   REACH   its near foot `inset` in from the opposite edge (and the bar's
+//           whole half-length at least), so the hand closes on the latch side
+//   NUDGES  the builder's two rows (dSL along the chord, dLV up) move the
+//           TARGET; the search then lands on the nearest clear spot, so no
+//           nudge can put the handle on the glass
+// The search walks out from that target (1 cm steps, nearest first) for the
+// first footprint wholly on the door's own solid faces with every glazed
+// face and glass corner `clr` clear. None on the door (a door that is all
+// glass, a bubble) -> THE FRAME: the handle stands upright on the skin just
+// outside the opposite edge (the pillar the door shuts against), off any
+// glass there too. None there either -> no site (the row is reported
+// unplaced, never drawn on the glass).
+function doorHandleOnSkin(rec, o) {
+  const U = +o.FS || 1, sz = o.size || {};
+  const w = (+sz.w || 0.115) / U, r = (+sz.r || 0.007) / U, clr = 0.015 / U;
+  const hl = w * 0.5 + 2 * r + clr, hh = 2 * r + clr;
+  const e = Math.round(o.edge || 0);
+  const opp = e === 2 ? rec.fwd : rec.aft, hin = e === 2 ? rec.aft : rec.fwd;
+  if (!opp || !hin || !rec.top || !rec.bot) return null;
+  const dir = e === 2 ? -1 : 1;                     // from the opposite edge INTO the door, in z
+  const ys = [].concat(rec.top.pts || [rec.top.A, rec.top.B], rec.bot.pts || [rec.bot.A, rec.bot.B]).map(p => p[1]);
+  const yBot = Math.min(...ys), yTop = Math.max(...ys), H = yTop - yBot;
+  const zs = [].concat(opp.pts || [opp.A, opp.B], hin.pts || [hin.A, hin.B]).map(p => p[2]);
+  const box = { z0: Math.min(...zs) - 0.35 / U, z1: Math.max(...zs) + 0.35 / U, y0: yBot - 0.2 / U, y1: yTop + 0.2 / U };
+  const FL = flankOf(o.mesh, rec.sgn, box);
+  let yT = yBot + (e === 1 ? 0.22 : 0.62) * H;
+  if (e !== 1 && rec.winLo != null) yT = Math.min(yT, rec.winLo - hh - 0.004 / U);
+  yT += +o.dLV || 0;
+  const Wd = Math.abs(runZAt(hin, yT) - runZAt(opp, yT));
+  const dz0 = Math.max(o.inset == null ? 0.06 / U : o.inset, hl) + (+o.dSL || 0);
+  const step = 0.01 / U, base = { side: rec.sgn > 0 ? 'star' : 'port', doorKey: rec.doorKey, sL: 0, sC: 0, st: 0, lv: 0 };
+  const search = (cands, ax, ok, extra) => {
+    cands.sort((p, q) => p.s - q.s);
+    for (const c of cands) if (rectClear(FL, c.z, c.y, ax, hl, hh, ok)) {
+      const s = flankSite(FL, c.z, c.y, ax);
+      if (s) return Object.assign(s, base, extra);
+    }
+    return null;
+  };
+  // on the door
+  const onDoor = f => f.doorKey === rec.doorKey && !FLANK_SKIP.has(f.m);
+  const cD = [];
+  for (let dz = 0; dz <= 0.5 * Wd; dz += step)
+    for (let dy = -0.6 / U; dy <= 0.3 / U + 1e-9; dy += step) {
+      const y = yT + dy;
+      if (y < yBot || y > yTop) continue;
+      cD.push({ z: runZAt(opp, y) + dir * dz, y, s: Math.abs(dz - dz0) + Math.abs(dy) });
+    }
+  const sD = search(cD, [1, 0], onDoor, { mat: 'door', onFrame: false });
+  if (sD) return sD;
+  // on the frame, upright, just outside the opposite edge
+  const offDoor = f => !f.doorKey && !FLANK_SKIP.has(f.m);
+  const cF = [];
+  for (let dz = 0; dz <= 0.2 / U; dz += step)
+    for (let dy = -0.5 / U; dy <= 0.5 / U + 1e-9; dy += step) {
+      const y = yT + dy;
+      cF.push({ z: runZAt(opp, y) - dir * (hh + 0.004 / U + dz), y, s: dz + Math.abs(dy) });
+    }
+  return search(cF, [0, 1], offDoor, { mat: 'body', onFrame: true });
+}
+
+// THE SAME RULE FOR ANY HANDLE ON THE FLANK (the grab handle on a ring, the
+// pillar beside the door): a site whose footprint (`along` its long axis,
+// hl x hh cage units) touches glass is walked to the nearest clear spot on
+// the same side's skin, upright as it was, within `reach`; a site already
+// clear comes back unmoved; null when nothing within reach is clear. Only
+// for a site that faces the side (|n.x| > 0.7) - a roof or keel handle is
+// not seen along x and is returned as it is.
+function handleOffGlass(mesh, site, o) {
+  const n = site.n || [0, 0, 0];
+  if (!mesh || Math.abs(n[0]) < 0.7) return site;
+  const U = +o.FS || 1, sgn = n[0] > 0 ? 1 : -1;
+  const hl = o.hl, hh = o.hh, reach = (o.reach || 0.25) / U, step = 0.005 / U;
+  const p = site.p;
+  const FL = flankOf(mesh, sgn, { z0: p[2] - reach - 0.3 / U, z1: p[2] + reach + 0.3 / U, y0: p[1] - reach - 0.3 / U, y1: p[1] + reach + 0.3 / U });
+  const a = o.along || [0, 1, 0], al = Math.hypot(a[1], a[2]) || 1, ax = [a[2] / al, a[1] / al];
+  const ok = () => true;                        // any skin that is not glass: the pillar band is `joint`
+  const c = [];
+  for (let dz = -reach; dz <= reach + 1e-9; dz += step)
+    for (let dy = -reach * 0.5; dy <= reach * 0.5 + 1e-9; dy += step)
+      c.push({ z: p[2] + dz, y: p[1] + dy, s: Math.abs(dz) + 1.5 * Math.abs(dy) });
+  c.sort((u, v) => u.s - v.s);
+  for (const q of c) if (rectClear(FL, q.z, q.y, ax, hl, hh, ok)) {
+    if (q.s === 0) return site;
+    const s = flankSite(FL, q.z, q.y, ax);
+    return s ? Object.assign({}, site, { p: s.p, n: s.n, offGlass: [q.z - p[2], q.y - p[1]] }) : null;
+  }
+  return null;
+}
+
 const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt, doorHandleSite,
+              doorHandleOnSkin, handleOffGlass, flankOf, rectClear,
               sectionArc, AX_RAIL, crownSite, crownRings, crownAtZ, geoMesh,
               NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 

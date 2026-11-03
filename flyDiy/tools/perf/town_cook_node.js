@@ -81,7 +81,7 @@ async function houseWorkerCase(variant) {
 // ---- 2-4. the worlds ------------------------------------------------------------------------------------------------------
 const { C, IN, PG, GENS, CAT } = PC.headless();
 const fixture = fs.readFileSync(PC.fixturePath('jolene'), 'utf8');
-const recOf = V => { let r = PG.unwrap(fixture).rec; if (V.drop.length) r = PG.dropPlaces(r, V.drop).rec; return r; };
+const recOf = V => PC.dropOf(PG, PG.unwrap(fixture).rec, V);
 const cellsOf = (M, variant) => M.raster.cells.filter(c => !variant || !c.in || c.in.indexOf(variant) >= 0)
   .map(c => ({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: new Uint8Array(zlib.gunzipSync(fs.readFileSync(path.join(ROOT, c.src)))) }));
 function worlds(V, cells) {

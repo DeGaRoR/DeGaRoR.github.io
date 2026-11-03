@@ -27,8 +27,17 @@
    lifted out of the layer still has its ground. Adding a token here is the
    only place it has to be added.
    G2445 (MAP-STYLE): the game's map screen (#mapScreen, map_menu.js, a body-level root outside both) reads the SAME
-   block - one look, the garage's, and still one place a token is declared. */
-:is(#wsUI, #edView, #mapScreen) {
+   block - one look, the garage's, and still one place a token is declared.
+   G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
+   G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
+   G3380 (STORY-INTRO): and the opening's Skip (#stIntro, story_intro.js injects its rules: a New career's only).
+   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
+   G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
+   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list).
+   G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level).
+   G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed).
+   G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -390,22 +399,22 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    unchecked toggle uses, and the track is left transparent so a scrollbar over
    the parts column and one over the properties column each sit on their own
    ground rather than on a third one. */
-:is(#wsUI, #edView), :is(#wsUI, #edView) * { scrollbar-width:thin;
+:is(#wsUI, #edView), :is(#wsUI, #edView, #gmPage, #edPopCard) * { scrollbar-width:thin;
   scrollbar-color:var(--ed-off) transparent; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar { width:9px; height:9px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:9px; height:9px; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-track { background:transparent; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-track { background:transparent; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-thumb { background:var(--ed-off);
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-thumb { background:var(--ed-off);
   border:2px solid transparent; background-clip:padding-box;
   border-radius:6px; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd);
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd);
   background-clip:padding-box; }
 
 /* the corner where two bars meet, which defaults to the same pale grey */
-:is(#wsUI, #edView) ::-webkit-scrollbar-corner { background:transparent; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-corner { background:transparent; }
 
 #edRows { flex:1; overflow-y:auto; overflow-x:hidden;
   padding:2px 16px 14px 12px; min-height:0; }
@@ -492,6 +501,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    line under its widgets; the note spans the row */
 #edRows .r.noted { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
 #edRows .r > .rn { flex:none; width:100%; font-size:10px; color:#e0a23a; padding-left:6px; line-height:12px; }
+/* G3230 TECH-MASK: the machine shop's reason, written under the row it greys (nothing hover-only) */
+#edRows .r.tech { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
+#edRows .r > .rn.edTech { color:var(--ed-warn); }
 
 /* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
    user: "everything in the menu needs indentation"). One step, the same step
@@ -531,7 +543,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edWrap .r > span:not(.k):not(.v):not(.lt) { color:var(--ed-faint) !important;
   font:400 10px/1 'IBM Plex Sans' !important; }
 
-:is(#wsUI, #edView) .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
   outline-offset:2px; }
 
 /* THE CHANGED DOT (P8 §6). It sits in the row's own left gutter rather than
@@ -545,7 +557,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* ---------------------------------------------------------------------------
    THE CONTROLS ARE SCOPED TO THE ROW, NOT TO THE PLACE THE ROW IS STANDING
    ---------------------------------------------------------------------------
-   Every block below read `#edRows .r ...` and now reads `:is(#wsUI, #edView) .r ...`, and
+   Every block below read `#edRows .r ...` and now reads `:is(#wsUI, #edView, #gmPage, #edPopCard) .r ...`, and
    that one prefix is the whole of the styling pass HANDOVER measured and
    handed over unwritten (2026-08-31, "THE STYLING PASS - NOT DONE").
    THE DEFECT, in one sentence: this editor MOVES ITS ROWS. The same element
@@ -579,41 +591,41 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    --------------------------------------------------------------------------- */
 
 /* the slider: 3 px track, accent fill at .55, an 11 px accent thumb */
-:is(#wsUI, #edView) .r input[type=range] { flex:1; min-width:30px; height:18px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { flex:1; min-width:30px; height:18px;
   -webkit-appearance:none; appearance:none; background:transparent;
   cursor:pointer; }
 
-:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-runnable-track { height:3px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:3px;
   border-radius:2px; background:var(--ed-track); }
 
-:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
   appearance:none; width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
   border:none; border-radius:50%; background:var(--ed-acc); }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-progress { height:3px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-progress { height:3px;
   border-radius:2px; background:rgba(230,219,201,.55); }
 
 /* the checkbox, drawn as the design's toggle: 30 x 16 track, 10 px knob in
    the PANEL colour (a white knob reads as a second state) */
-:is(#wsUI, #edView) .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
   flex:none; width:30px; height:16px; margin:0; border-radius:9px;
   background:var(--ed-off); border:1px solid var(--ed-off-bd);
   position:relative; cursor:pointer; transition:background .12s ease; }
 
-:is(#wsUI, #edView) .r input[type=checkbox]::after { content:''; position:absolute;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]::after { content:''; position:absolute;
   top:2px; left:2px; width:10px; height:10px; border-radius:50%;
   background:var(--ed-panel); transition:left .12s ease; }
 
-:is(#wsUI, #edView) .r input[type=checkbox]:checked { background:var(--ed-acc);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]:checked { background:var(--ed-acc);
   border-color:var(--ed-acc); }
 
-:is(#wsUI, #edView) .r input[type=checkbox]:checked::after { left:16px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]:checked::after { left:16px; }
 
 /* G1322 — THE FOLLOW TOGGLE LIVES IN THE LABEL'S COLUMN (the user: the frame
    rows' on/off "shrinks the slider until unusable"). A frame row (`follow`)
@@ -624,39 +636,39 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    toggle take exactly the label column and the slider is as wide as on
    every other row. `tog` is the row class _cage_ui.js puts on such rows. */
 #edRows .r.tog > span.k { width:calc(var(--ed-lab) - 28px); }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox] {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox] {
   width:22px; height:12px; margin-left:calc(6px - var(--ed-gap)); }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]::after {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox]::after {
   top:1px; left:1px; width:8px; height:8px; }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]:checked::after { left:11px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox]:checked::after { left:11px; }
 
-:is(#wsUI, #edView) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
   text-align:left; }
 
-:is(#wsUI, #edView) .r select { flex:1; min-width:0; padding:5px 8px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r select { flex:1; min-width:0; padding:5px 8px;
   font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
   border-radius:7px; }
 
-:is(#wsUI, #edView) .r select option { background:var(--ed-panel); color:var(--ed-ink); }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r select option { background:var(--ed-panel); color:var(--ed-ink); }
 
 /* ---- the finish view's own controls ----------------------------------
    The colour well is a native input because a colour well is one of the two
    things the platform does better than we would; it is given the panel's
    own frame so it reads as part of the row and not as an escapee. */
-:is(#wsUI, #edView) .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
   border:1px solid var(--ed-border); border-radius:4px; background:none;
   cursor:pointer; }
 
-:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
 
-:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch { border:0;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color]::-webkit-color-swatch { border:0;
   border-radius:2px; }
 
-:is(#wsUI, #edView) .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
   'IBM Plex Sans'; color:var(--ed-dim); }
 
-:is(#wsUI, #edView) .r input[type=file]::-webkit-file-upload-button {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=file]::-webkit-file-upload-button {
   margin-right:8px; padding:4px 9px; border:1px solid var(--ed-border);
   border-radius:4px; background:var(--ed-plate); color:var(--ed-dim);
   cursor:pointer; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.1em;
@@ -665,12 +677,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* THE THREE DIALS BELONG TO THE SECTION ABOVE THEM. An indent and a lighter
    label is the whole grammar — they multiply the finish's own numbers, so
    they are a detail of the row above and never a row of their own. */
-:is(#wsUI, #edView) .r.dial > .k { padding-left:12px; color:var(--ed-faint);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial > .k { padding-left:12px; color:var(--ed-faint);
   font-size:10px; }
 
-:is(#wsUI, #edView) .r.dial { min-height:26px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial { min-height:26px; }
 
-:is(#wsUI, #edView) .r.dial + .r:not(.dial) { margin-top:10px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial + .r:not(.dial) { margin-top:10px; }
 
 /* the empty case: a part whose finish is somewhere else, and the way there */
 #edRows > .refNote { margin:22px 0 0; padding:14px 15px;
@@ -679,12 +691,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edRows > .refNote .pill { display:block; margin-top:11px; }
 
-:is(#wsUI, #edView) .r button { flex:none; padding:5px 9px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r button { flex:none; padding:5px 9px;
   font:500 10px/1 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-dim); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:7px; cursor:pointer; }
 
-:is(#wsUI, #edView) .r button:hover { border-color:rgba(255,255,255,.3); }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r button:hover { border-color:rgba(255,255,255,.3); }
 
 /* ---- pills, the one button shape ------------------------------------ */
 #edWrap .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
@@ -867,6 +879,18 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   justify-content:center; }
 #gFleet[hidden] { display:none; }
 
+/* DROP-JSON (G2799, the user 18 Oct): 'drop to import' over the workshop
+   while a file is dragged onto it - the scenery editor's .pr-drop, the
+   garage's tokens */
+#gDrop { position:fixed; inset:12px; z-index:70; display:none;
+  flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border:2px dashed var(--ed-acc); border-radius:10px;
+  background:color-mix(in srgb, var(--ed-panel) 82%, transparent);
+  color:var(--ed-ink); pointer-events:none; }
+#gDrop.on { display:flex; }
+#gDrop b { font:600 15px/1 'IBM Plex Sans'; letter-spacing:.06em; }
+#gDrop span { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+
 .gfBox { width:min(560px, 94vw); max-height:82vh; overflow:auto;
   background:var(--ed-panel); border:1px solid var(--ed-hair);
   border-radius:10px; padding:18px 20px 16px; }
@@ -884,7 +908,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
   padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
 
-.gfMine, .gfStock { display:flex; flex-direction:column; gap:4px; }
+.gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
+/* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
+.gfCandRow .gfLoad { border-style:dashed; }
 
 .gfRow { display:flex; align-items:stretch; gap:4px; }
 
@@ -1004,6 +1030,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo #plaque.on { display:block; margin-top:20px;
   background:rgba(0,0,0,.16); border:1px solid var(--ed-hair);
   border-radius:9px; padding:12px 14px 13px; }
+/* G2920: the last build's numbers while this one's sheet computes on its thread */
+#edInfo #plaque.on.stale { opacity:.45; }
 
 #edInfo #plaque header { display:flex; gap:9px; align-items:baseline;
   margin:0 0 8px; }
@@ -1257,6 +1285,62 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #fbName.unsaved { color:var(--ed-warn); font-weight:500; }
 
+/* G3720-G3725 (PHONE-GARAGE; the user, 25 Oct: "Unsaved becomes a simple disk button and the other icons are on the top
+   row, in line with the button ... left rail goes completely" - and the top bar "for all versions, not just mobile").
+   THE NAME BECOMES A DISK: the same #fbName and its shelf (save, save as, new, load, storage, import, export), drawn as
+   one 34 x 32 icon on the quick bar's own plate; garage.js still writes the name (now in the title, and read by the
+   rigs); unsaved is an amber dot on the disk. The quick actions follow it on the same row, not at the far end. */
+#edFleet #fbName { width:34px; height:32px; max-width:none; padding:0; font-size:0; color:var(--ed-dim);
+  position:relative; text-indent:-999px; }
+#edFleet #fbName::before { content:''; position:absolute; left:8px; top:7px; width:18px; height:18px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Cpath d='M3 3.4a.9.9 0 0 1 .9-.9h8.6l2.5 2.5v8.6a.9.9 0 0 1-.9.9H3.9a.9.9 0 0 1-.9-.9Z'/%3E%3Cpath d='M5.6 2.5v3.6h5.8V2.5M5.4 15v-4.6h7.2V15'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Cpath d='M3 3.4a.9.9 0 0 1 .9-.9h8.6l2.5 2.5v8.6a.9.9 0 0 1-.9.9H3.9a.9.9 0 0 1-.9-.9Z'/%3E%3Cpath d='M5.6 2.5v3.6h5.8V2.5M5.4 15v-4.6h7.2V15'/%3E%3C/svg%3E") center / 18px 18px no-repeat; }
+#edFleet #fbName::after { content:none; }
+#edFleet #fbName.unsaved { color:var(--ed-dim); }
+#edFleet #fbName.unsaved::after { content:''; position:absolute; right:4px; top:4px; width:7px; height:7px; margin:0;
+  border-radius:50%; background:var(--ed-warn); }
+#edFleet #fbName:hover, #edFleet #fbName.open { color:var(--ed-ink); }
+/* G3728 (the user, 26 Oct: "a burger menu on the top leftmost, before the disk icon"): the menu's own icon, the disk's
+   twin on the same plate; app.js's MENU pill stands down while it shows */
+#edFleet #edMenu { position:relative; display:block; width:34px; height:32px; padding:0; border:0; border-radius:7px;
+  background:transparent; color:var(--ed-dim); cursor:pointer; transition:background .12s ease; }
+#edFleet #edMenu::before { content:''; position:absolute; left:8px; top:7px; width:18px; height:18px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5h12M3 9h12M3 13.5h12'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5h12M3 9h12M3 13.5h12'/%3E%3C/svg%3E") center / 18px 18px no-repeat; }
+#edFleet #edMenu:hover { background:rgba(255,255,255,.07); color:var(--ed-ink); }
+#edFleet #edMenu[aria-expanded="true"] { background:rgba(255,255,255,.09); color:var(--ed-ink); }
+/* G3729 (the user, 26 Oct, the tank panel: "get rid of the frame, we use that nowhere else. Keep the warning, but not the
+   container"): a tank (_cage_energy.js details[data-ves], its finish twin [data-veslook]) is a flat group like the
+   instruments' (UI-STYLE G3736) - no box, its summary the group's heading, the picked one in the selection colour; its
+   red line (.r.note.bad, --ed-bad) stays as it is. The pick is a class now, not an inline outline (UI-STYLE G3730's own
+   _cage_energy.js lines, word for word) */
+.edRoot details:is([data-ves], [data-veslook]) { border:0; border-radius:0; padding:0; margin:0; }
+.edRoot details:is([data-ves], [data-veslook]) > summary { padding:18px 0 6px; }
+.edRoot details:is([data-ves], [data-veslook]).on > summary { color:var(--ed-acc); }
+#edTopBar { flex-wrap:nowrap; gap:6px; }
+/* G3743 (the user, 27 Oct: "the 2 buttons group on the left, and the rest on the right"): the burger + disk at the left,
+   the quick icons at the right, and at the far right the destination (app.js #edDest: the To + wait until, a MENU page -
+   off the main screen, so #edRoute does not stand beside ROLL OUT any more) */
+#edTopBar #edQuick { margin-left:auto; }
+#edDest { display:flex; align-items:center; padding:5px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px; }
+#edActs > #edRoute { display:none; }
+#gmPage #edRoute { flex-direction:column; align-items:stretch; gap:10px; padding:4px 2px 2px; }
+#gmPage #edRoute label { justify-content:space-between; gap:10px; min-height:36px; }
+#gmPage #edRoute select { max-width:62%; }
+/* the rail is gone from the screen (its items are MENU pages, editor.js gmRows); the table, its flyout host and the
+   element stay for GATE VIEW, the rigs and the gates' stub DOM */
+#edBotBar { display:none !important; }
+/* THE TOP BAR'S CARD (G3722): the explode slider - the rail flyout's plate, fixed under its button, a FLYDIY_DRAG card */
+#edPopCard { position:fixed; z-index:58; width:280px; max-width:calc(100vw - 16px); max-height:calc(100vh - 80px); overflow-y:auto;
+  padding:10px 12px 12px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  box-shadow:0 10px 28px rgba(0,0,0,.35); font-style:normal; }
+#edPopCard[hidden] { display:none; }
+#edPopCard .edPopHead { display:flex; align-items:center; justify-content:space-between; cursor:grab;
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid var(--ed-hair); }
+#edPopCard .edPopX { border:0; background:transparent; color:var(--ed-faint); font:400 16px/1 'IBM Plex Sans'; padding:0 2px; cursor:pointer; }
+#edPopCard .edPopX:hover { color:var(--ed-ink); }
+
 #gNew { color:var(--ed-acc); }
 
 /* THE LOOK RIBBON, UP THE LEFT EDGE (2026-09-03, the user: "the display
@@ -1320,51 +1404,51 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   padding-bottom:9px; margin-bottom:4px;
   border-bottom:1px solid var(--ed-hair); }
 
-#edFlyBody .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r { display:flex; gap:10px; align-items:center; margin:7px 0;
   min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#edFlyBody .r > span.k { width:104px; flex:none; overflow:hidden;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r > span.k { width:104px; flex:none; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 
-#edFlyBody .r > .v { width:48px; flex:none; text-align:right; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r > .v { width:48px; flex:none; text-align:right; }
 
 /* 2026-09-20: a section head inside the flyout (the clouds panel's decks / veil / look / render) - the flight rail's .fsec */
-#edFlyBody .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
-#edFlyBody .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
-#edFlyBody .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
 
 /* G760: THE FOLDS - the flight rail's (flight.css), in this flyout: a head that is a button, a caret that turns */
-#edFlyBody .rsec { border-top:1px solid var(--ed-hair); }
-#edFlyBody .rsec:first-child { border-top:0; }
-#edFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec { border-top:1px solid var(--ed-hair); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec:first-child { border-top:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
   width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
   cursor:pointer; text-align:left; color:var(--ed-dim); }
-#edFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
   border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
   transition:transform .12s ease; }
-#edFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
-#edFlyBody .rsecHead:hover { color:var(--ed-ink); }
-#edFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
-#edFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
-#edFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
-#edFlyBody .rsecBody { padding:0 0 10px; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead:hover { color:var(--ed-ink); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecBody { padding:0 0 10px; }
 /* the notes the shared panels write here (the graphics menu's readout and explanation, the clouds' and the
    day's) had no rule in this flyout and came out at the page's 16 px; the flight flyout's .fnote, in this one */
-#edFlyBody .note { margin-top:10px; padding-top:9px; border-top:1px solid var(--ed-hair);
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .note { margin-top:10px; padding-top:9px; border-top:1px solid var(--ed-hair);
   font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
 
-#edFlyBody input[type=range] { flex:1; min-width:30px; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) input[type=range] { flex:1; min-width:30px; }
 
-#edFlyBody select { flex:1; min-width:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) select { flex:1; min-width:0; }
 
 /* 2026-09-20: the day panel's date field, dressed as the row select */
-#edFlyBody .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
   color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
 
-#edFlyBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
-#edFlyBody #dims { position:static !important; margin:4px 0 0;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) #dims { position:static !important; margin:4px 0 0;
   padding:0 !important; background:none !important; border:0 !important;
   font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
 
@@ -1483,6 +1567,66 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edInfo .note:first-child { margin-top:0; }
 
+/* G3730-G3737 UI-STYLE (the user, 25 Oct: the tank and the instruments
+   panels "still carry styling which is not in line with the styling of the
+   other menus"). What those two panels wrote inline — a yellow selection
+   outline, a cold red, an 11 px readout cssText, a blue-green CG bar, a
+   second 6 px indent — is a class here, on the column's tokens. Only where
+   a CG mark stands (its `left`) is still written by the code. */
+
+/* the instruments column is a panel-owned root like the shed's and the
+   tanks' (G136): its outer fold is flattened and its rows hang one indent in */
+.edRoot > details[data-g="instruments"] { border:0; border-radius:0;
+  padding:0; margin:0; }
+.edRoot > details[data-g="instruments"] > summary { display:none; }
+#edRows .edRoot > details[data-g="instruments"] > div { margin-left:var(--ed-indent); }
+/* G3739: its sub-groups (looks, dials, bill) are SECTIONS, not objects: no
+   box, the heading is the column's group heading at the .edH rhythm (24 above,
+   6 below, the Wings reference measured) and the rows stand at the same indent
+   as every part's rows, not 11 px further in */
+.edRoot > details[data-g="instruments"] details { border:0; border-radius:0;
+  padding:0; margin:0; }
+.edRoot > details[data-g="instruments"] details > summary { padding:24px 0 6px; }
+
+/* the tank a click on the solid picked: the tree's selection colour */
+.edRoot details.on { border-color:var(--ed-acc); }
+
+/* a READOUT row: a sentence, not a control — it wraps and grows, where a
+   control row is the fixed 30 px rhythm (and the phone's tap height) */
+#edRows .edRoot .r.note { display:block; height:auto; min-height:0;
+  padding:4px 0 6px; white-space:normal;
+  font:400 12px/1.5 'IBM Plex Sans'; color:var(--ed-dim); }
+/* G3739: a value here is the label's size (12 px; the 11 px faint span.v
+   read as "smaller and more packed", the user). A slider's value is the
+   column's value (ink, 500, the 64 px column); a readout after a label or a
+   switch takes the row's free width on one line - in the 64 px column
+   `350 cr · 0.40 kg` broke in two inside the 30 px row */
+#edRows .edRoot .r > span.v { font:400 12px/1 'IBM Plex Sans'; color:var(--ed-dim); }
+#edRows .edRoot .r > input[type=range] + span.v { font-weight:500; color:var(--ed-ink); }
+#edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v { flex:1; width:auto;
+  min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.phone #edRows .edRoot .r.note,
+html.phone #edRows .edRoot .r > span.v { font-size:13.5px; }
+/* the phone's label takes the row's width first: a readout wraps, never an ellipsis */
+html.phone #edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v {
+  white-space:normal; overflow:visible; line-height:1.3; }
+#edRows .edRoot .r.note .noteH { font:var(--ed-t-group); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ed-faint); margin:4px 0 4px; }
+#edRows .edRoot .bad, #edRows .edRoot .r.note.bad,
+  #edRows .edRoot .r > .v.bad { color:var(--ed-bad); }
+
+/* a verb that is the whole row (+ add a tank, remove this tank) */
+#edRows .r button.wide { flex:1; }
+
+/* the CG envelope bar: corner to corner in % MAC, the CG's mark on it */
+.cgBar { position:relative; height:10px; margin:4px 0 6px;
+  border:1px solid var(--ed-hair); border-radius:3px; background:var(--ed-track); }
+.cgBar > i { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px;
+  background:var(--ed-dim); }
+.cgBar > i.cg { width:4px; margin-left:-2px; background:var(--ed-acc); }
+.cgChart { display:block; width:100%; height:170px; margin:4px 0 6px;
+  border-radius:4px; background:var(--ed-track); }
+
 /* A ROOT THAT BUILDS ITS OWN PANEL (G108). The shed's is an accordion of its
    own — ten material sub-groups under nine plain rows — so it is the one thing
    in this column with real nesting, and the nesting is ALL it needs: the row
@@ -1524,22 +1668,22 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 .edRoot .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
-.edRoot .lt button.tg, #edFlyBody .lt button.tg {
+.edRoot .lt button.tg, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg {
   padding:3px 7px; font:400 10px/1.2 'IBM Plex Sans'; flex:none;
   color:var(--ed-acc); background:transparent;
   border:1px solid var(--ed-border); border-radius:5px; cursor:pointer; }
 
-.edRoot .lt button.tg.off, #edFlyBody .lt button.tg.off {
+.edRoot .lt button.tg.off, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.off {
   color:var(--ed-faint); opacity:.55; text-decoration:line-through; }
 
 /* the ALL / NONE masters are VERBS, not states: they never wear the `off`
    look, because they are not a source. They read as a pair set apart from
    the switches they drive. */
-.edRoot .lt button.tg.alt, #edFlyBody .lt button.tg.alt {
+.edRoot .lt button.tg.alt, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.alt {
   color:#c8b48c; border-color:rgba(200,180,140,.34);
   background:rgba(200,180,140,.07); letter-spacing:.04em; }
 
-.edRoot .lt button.tg.alt:hover, #edFlyBody .lt button.tg.alt:hover {
+.edRoot .lt button.tg.alt:hover, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.alt:hover {
   background:rgba(200,180,140,.16); }
 
 /* ---- THE GAME'S BOTTOM BAR is gone in the garage (G78). The two verbs
@@ -1676,12 +1820,12 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .dfTile > span { font:500 10px/1.25 'IBM Plex Sans'; text-align:center; }
 .dfTile:hover { border-color:rgba(255,255,255,.3); }
 .dfTile.on { border-color:var(--ed-acc); color:var(--ed-ink); }
-/* an armed starter is a question, and wears the warn colour until answered */
-.dfTile.arm { border-color:var(--ed-warn); color:var(--ed-warn); }
 /* an option that exists in the design and not in the code: greyed, its
    reason in the title — never simply absent (absence hides the backlog) */
 .dfTile:disabled { opacity:.35; cursor:not-allowed; }
 .dfTile:disabled:hover { border-color:var(--ed-btn-bd); }
+.dfTile.tech:disabled { opacity:.6; }
+.dfTile .dfTech { font:400 9px/1.2 'IBM Plex Sans'; color:var(--ed-warn, #d8a07a); text-align:center; }   /* G3230: the reason in the tile */
 
 .dfField, .dfList { background:var(--ed-btn-bg); color:var(--ed-ink);
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:6px 8px;
@@ -1696,6 +1840,33 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 /* G132: the seed pill — a label row's explicit "apply the starting
    values" action, under its grid, never inside a tile */
 .dfSeed { display:block; margin:6px 0 2px; align-self:flex-start; }
+
+/* G2760: A TILE IN ITS ROW'S SLOT — the big buttons that replaced a
+   drop-down sit where the drop-down was, indented like a row; the changed
+   dot rides the tile's own heading */
+#edRows > .edTilesHead { margin-left:var(--ed-indent); }
+#edRows > .dfSlot { position:relative; }
+#edRows > .dfSlot .dfRowH { margin-top:4px; }
+#edRows > .dfSlot.chg .dfRowH > span::before { content:'●'; position:absolute;
+  left:-11px; font-size:7px; color:var(--ed-acc); }
+
+/* G2760: THE AXIS MARKS (the user: "a clear icon for fore-aft, up-down,
+   in-out, and for length, width and height, as visual anchors"). editor.js
+   sets data-ax on a row once; the mark sits before the label in the faint
+   ink: an arrow for a place, a dimension line for a size — along, up, and
+   across (oblique, as the third axis is drawn on paper). */
+#edRows .r[data-ax]:not([data-ax='']) > span.k { padding-left:17px;
+  box-sizing:border-box; }
+#edRows .r[data-ax]:not([data-ax=''])::after { content:''; position:absolute;
+  left:0; top:50%; width:13px; height:13px; transform:translateY(-50%);
+  background:var(--ed-faint); -webkit-mask:var(--ax) center / contain no-repeat;
+  mask:var(--ax) center / contain no-repeat; pointer-events:none; }
+#edRows .r[data-ax='fore'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2 8h12M5 5L2 8l3 3M11 5l3 3-3 3'/></svg>"); }
+#edRows .r[data-ax='up'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v12M5 5l3-3 3 3M5 11l3 3 3-3'/></svg>"); }
+#edRows .r[data-ax='out'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 13L13 3M3 9v4h4M9 3h4v4'/></svg>"); }
+#edRows .r[data-ax='len'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2 8h12M2 4v8M14 4v8'/></svg>"); }
+#edRows .r[data-ax='high'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v12M4 2h8M4 14h8'/></svg>"); }
+#edRows .r[data-ax='wide'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 13L13 3M1 11l4 4M11 1l4 4'/></svg>"); }
 
 /* ---- the birth overlay ------------------------------------------------- */
 #dfBirth { position:fixed; inset:0; z-index:60;
@@ -1733,6 +1904,7 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .dfKindH { grid-column:1 / -1; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
   text-transform:uppercase; color:var(--ed-dim); margin:8px 0 2px; }
 .dfArch.dfReal b::after { content:' ·'; color:var(--ed-dim); }
+.dfArch.dfCand { border-style:dashed; }
 /* the design tiles sprinkled into the STRUCTURE view, by part */
 .dfWrap.dfInline { margin:0 0 10px; padding-bottom:8px;
   border-bottom:1px solid rgba(255,255,255,.08); }
@@ -1758,3 +1930,162 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    EDITOR_PICK), so a colour on screen is never an unreachable one */
 #edWrap .secFlash { animation: edSecFlash 1.5s ease-out; }
 @keyframes edSecFlash { 0%, 35% { box-shadow: inset 0 0 0 2px var(--ed-acc); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+/* G2742 (STORY-PAGE): THE STORY'S BEAT CARD - small, in the top-left corner, never centred (the user's rule: no card in
+   the middle of the view, a crash's least of all); the garage's look: the --ed-* tokens, IBM Plex Sans upright, no serif,
+   no italics. Its head folds it to one line (the step and the beat's title), kept folded for that beat. In the garage at
+   1280 px it stands over the bench column's head (every edge of the garage carries a column there). */
+#stCard { position:fixed; left:12px; top:72px; z-index:40; width:min(296px, calc(100vw - 24px)); max-height:calc(100vh - 160px); overflow:auto; box-sizing:border-box;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:10px; padding:8px 12px 10px;
+  font:400 12px/1.4 'IBM Plex Sans', sans-serif; font-style:normal; color:var(--ed-ink); box-shadow:0 6px 18px rgba(0,0,0,.35); }
+#stCard[hidden] { display:none; }
+#stCard * { font-style:normal; font-family:'IBM Plex Sans', sans-serif; box-sizing:border-box; }
+#stCard .stHead { all:unset; display:flex; align-items:baseline; gap:8px; width:100%; cursor:pointer; flex-wrap:wrap; }
+#stCard .stStep { font:500 10px/1.3 'IBM Plex Sans', sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--ed-faint); width:100%; }
+#stCard .stTitle { font:600 13.5px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink); flex:1; }
+#stCard .stN { font:500 11px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#stCard .stBrief { margin:6px 0 0; color:var(--ed-dim); }
+#stCard .stRows { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:3px; }
+#stCard .stRows li { display:flex; gap:7px; align-items:baseline; color:var(--ed-dim); }
+#stCard .stRows li.ok { color:var(--ed-ink); }
+#stCard .stTick { flex:0 0 13px; height:13px; border:1px solid var(--ed-btn-bd); border-radius:3px; font:600 10px/12px 'IBM Plex Sans', sans-serif;
+  text-align:center; color:var(--ed-acc-ink); position:relative; top:2px; }
+#stCard .stRows li.ok .stTick { background:var(--ed-acc); border-color:var(--ed-acc); }
+#stCard .stNote { margin:8px 0 0; color:var(--ed-warn); font-size:11.5px; }
+#stCard .stLine { margin:8px 0 0; color:var(--ed-ink); }
+#stCard .stBtns { display:flex; justify-content:flex-end; margin-top:8px; }
+#stCard .stOk { min-width:64px; min-height:32px; padding:0 14px; border-radius:16px; border:1px solid var(--ed-acc); background:var(--ed-acc);
+  color:var(--ed-acc-ink); font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.06em; cursor:pointer; }
+#stCard.min .stBody { display:none; }
+:root.phone #stCard .stOk { min-height:48px; }
+
+/* G3350 (STORY-TIM): Tim's band at the bottom (never centred, never over the middle) and the editor's story lock */
+#stTim { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 720px;
+  /* G3356 (the user 23 Oct: Tim's lines "should render on top of everything"): over the HUD bar, the rails and the
+     corner cards - every game layer; only the map screen's own menu (2147483000) stays above */
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 2147482500;
+  background: var(--ed-plate); color: var(--ed-ink);
+  border: 1px solid var(--ed-border); border-radius: 10px;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
+#stTim[hidden] { display: none; }
+/* G3357: the beat card is a dev's view (?storycard=1); Tim's band carries the beat, its checklist and a chip when closed */
+body.stNoCard #stCard { display: none !important; }
+#stTim .stTimRows { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--ed-dim, #8a8d91); }
+#stTim .stTimRows li.ok { color: var(--ed-ink, #e8e4dc); }
+#stTim.min { right: auto; padding: 4px; gap: 0; }
+#stTim .stTimChip { all: unset; cursor: pointer; display: block; line-height: 0; }
+#stTim .stTimFace { width: 48px; height: 48px; flex: none; }
+#stTim .stTimFace circle:first-child { fill: var(--ed-btn-bg, #2a2d31); stroke: var(--ed-acc, #d9a441); stroke-width: 1.5; }
+#stTim .stTimFace .h { fill: var(--ed-dim, #8a8d91); }
+#stTim .stTimTxt { flex: 1; min-width: 0; }
+#stTim .stTimTxt small { color: var(--ed-dim, #8a8d91); }
+#stTim .stTimTxt p { margin: 2px 0 0; }
+#stTim .stTimBtn { flex: none; min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--ed-acc, #d9a441);
+  background: var(--ed-acc-soft, rgba(217,164,65,.15)); color: inherit; font: inherit; cursor: pointer; }
+/* G3370 (TUTO-FLIGHT): T1's ladder in Tim's band - the text on a TRANSPARENT ground (GAME-PLAN §R2), held legible over
+   the world by its shadow; and the Skip at the bottom edge (left, never centred), the band standing above it */
+#stTim.lad { background: transparent; border-color: transparent; text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.6); }
+#stTim.lad .stLadT { color: var(--ed-acc, #d9a441); margin-right: 4px; }
+#stTim.lad .stTimTxt small { color: var(--ed-ink, #f4efe6); }
+#stTim .stLadImg { flex: none; max-height: 72px; max-width: 120px; }
+#stSkip { position: fixed; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; min-height: 36px; padding: 0 16px;
+  border-radius: 18px; border: 1px solid var(--ed-border); background: var(--ed-plate); color: var(--ed-ink); cursor: pointer;
+  font: 500 13px/1.2 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; }
+#stSkip:focus-visible { border-color: var(--ed-acc); outline: none; }
+#stSkip[hidden] { display: none; }
+body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+:root.phone #stSkip { min-height: 48px; }
+:root.phone body.stSkipOn #stTim { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* G3580 (STORY-TUTOR): a step that waits for the player's action - the band's accent edge, no Next (only its pass, when it
+   has one); the lit control is written per step by app.js (#stTutCss: an outline on the step's own selectors) */
+#stTim.tut { border-color: var(--ed-acc, #d9a441); box-shadow: 0 0 0 1px var(--ed-acc-soft, rgba(217,164,65,.25)); }
+body.stTut { cursor: default; }
+.edTab.locked { opacity: .45; cursor: not-allowed; }
+#edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
+#stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }
+
+/* G3445 THE FLOAT KIT CARD (the user: "have a popup or something when we choose floats, it says what else it
+   changes"): an editor card, top right of the shed (never in flight), on the body - so the tokens are redeclared as
+   bench.css does for its cards. Buttons, no hover-only state. */
+#fkCard { position: fixed; top: 96px; right: 24px; z-index: 60; width: min(360px, calc(100vw - 48px));
+  --ed-plate: rgba(32,29,26,.95); --ed-ink: #f4efe6; --ed-dim: #c0b8ac; --ed-faint: #97907f;
+  --ed-acc: #e6dbc9; --ed-acc-ink: #221f1b; --ed-border: rgba(255,248,236,.14);
+  --ed-btn-bg: rgba(255,255,255,.06); --ed-btn-bd: rgba(255,255,255,.18);
+  background: var(--ed-plate); color: var(--ed-ink); border: 1px solid var(--ed-border); border-radius: 10px;
+  padding: 14px 16px 12px; font-size: 13px; line-height: 1.4; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+#fkCard[hidden] { display: none; }
+#fkCard .fkT { font-weight: 600; letter-spacing: .02em; margin-bottom: 8px; }
+#fkCard .fkR { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--ed-border); }
+#fkCard .fkK { flex: 0 0 96px; color: var(--ed-faint); }
+#fkCard .fkV { flex: 1; color: var(--ed-dim); }
+#fkCard .fkV b { color: var(--ed-ink); font-weight: 600; }
+#fkCard .fkB { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+#fkCard button { min-height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--ed-btn-bd);
+  background: var(--ed-btn-bg); color: var(--ed-ink); font: inherit; cursor: pointer; }
+#fkCard #fkOk { background: var(--ed-acc); color: var(--ed-acc-ink); border-color: var(--ed-acc); }
+/* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
+body.stNoBench #edBench { display: none !important; }
+#stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }
+
+/* G3520 (GAME-MENUS, the 24 Oct playtest): THE MENU - one small panel under the MENU pill at the screen's top edge (the
+   right in flight, under the pills in the shed), never a card in the centre. The garage's plate, its sans, no italics;
+   every row a 48 px target (R1). Under the input panel (60) it opens, over the story's band and card (40). */
+#gmPanel { position:fixed; z-index:59; width:260px; max-width:calc(100vw - 24px); max-height:calc(100vh - 90px); overflow:auto;
+  box-sizing:border-box; padding:8px; display:flex; flex-direction:column; gap:4px;
+  background:var(--ed-plate); color:var(--ed-ink); border:1px solid var(--ed-border); border-radius:10px;
+  box-shadow:0 10px 28px rgba(0,0,0,.45); font:400 13px/1.3 'IBM Plex Sans', system-ui, sans-serif; font-style:normal; }
+#gmPanel[hidden] { display:none; }
+#gmPanel * { font-style:normal; box-sizing:border-box; }
+#gmPanel .gmHead { display:flex; align-items:baseline; justify-content:space-between; padding:4px 6px 6px;
+  font:600 11px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-dim); }
+#gmPanel .gmSec { padding:8px 6px 2px; font:500 10px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--ed-faint); }
+#gmPanel .gmRule { height:1px; margin:6px 2px; background:var(--ed-hair); }
+#gmPanel .gmRow { all:unset; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; width:100%; min-height:48px;
+  padding:0 12px; border-radius:7px; border:1px solid transparent; cursor:pointer; color:var(--ed-ink);
+  font:500 13.5px/1.2 'IBM Plex Sans', sans-serif; }
+#gmPanel .gmRow:hover { background:var(--ed-acc-soft); }
+#gmPanel .gmRow:focus-visible { border-color:var(--ed-acc); }
+#gmPanel .gmRow.pri { background:var(--ed-acc); color:var(--ed-acc-ink); font-weight:600; }
+#gmPanel .gmKey { font:500 10px/1 'IBM Plex Mono', monospace; letter-spacing:.06em; color:var(--ed-faint); padding:3px 5px;
+  border:1px solid var(--ed-border); border-radius:4px; text-transform:none; }
+#gmPanel .gmAsk { padding:6px 8px 2px; color:var(--ed-dim); font-size:12.5px; line-height:1.4; }
+#gmPanel .gmPair { display:flex; gap:6px; }
+#gmPanel .gmPair .gmRow { justify-content:center; }
+/* G3740: a PAGE of the menu - the rail's own rows (flight.css styles them under #gmPage as under the flyout), wider, with
+   its way back in the header (the header is still the drag handle; the button is a control, so a press on it never drags) */
+#gmPanel.page { width:312px; }
+#gmPanel .gmBack { all:unset; box-sizing:border-box; display:inline-flex; align-items:center; min-height:40px; margin:-8px 0 -8px -6px;
+  padding:0 8px; border-radius:7px; cursor:pointer; color:var(--ed-ink); font:600 11px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.16em; }
+#gmPanel .gmBack:hover { background:var(--ed-acc-soft); }
+#gmPanel .gmBack:focus-visible { outline:1px solid var(--ed-acc); }
+#gmPanel #gmPage { padding:0 6px 4px; }
+body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
+/* P1 CG-COLOURS: the CG / neutral point tooltip (the garage, never in flight) - the --ed look, the band's colour on its
+   edge and title; on the body, so the tokens are redeclared as #fkCard does */
+#cgTip { position: fixed; z-index: 61; width: min(320px, calc(100vw - 16px)); pointer-events: none;
+  --ed-plate: rgba(32,29,26,.95); --ed-ink: #f4efe6; --ed-dim: #c0b8ac; --ed-faint: #97907f; --ed-border: rgba(255,248,236,.14);
+  background: var(--ed-plate); color: var(--ed-ink); border: 1px solid var(--ed-border); border-left-width: 4px; border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+#cgTip[hidden] { display: none; }
+#cgTip.b-red { border-left-color: #ff6b5b; } #cgTip.b-orange { border-left-color: #ffa13d; } #cgTip.b-green { border-left-color: #6fd08a; }
+#cgTip .cgT { font-weight: 600; margin-bottom: 4px; }
+#cgTip.b-red .cgT { color: #ff8d80; } #cgTip.b-orange .cgT { color: #ffb866; } #cgTip.b-green .cgT { color: #8fdca3; }
+#cgTip .cgW { color: var(--ed-dim); }
+#cgTip .cgF { color: var(--ed-ink); margin-top: 6px; }
+#cgTip .cgB { color: var(--ed-faint); margin-top: 6px; font-size: 11px; }
+/* THE BELLY POD'S SECTION (G2675, BELLY-POD-2): the panel part's rows are the editor's own; its outer fold is
+   flattened like the tanks', its quiet group labels are the type ladder's, and the readouts below them are facts,
+   not controls - dim labels, ink values, the one place they shout is a bound crossed (--ed-bad / --ed-warn) */
+.edRoot > details[data-g="pod"] { border:0; border-radius:0; padding:0; margin:0; }
+.edRoot > details[data-g="pod"] > summary { display:none; }
+#edRows .edRoot > details[data-g="pod"] .podBody { margin-left:var(--ed-indent); }
+.edRoot .podG { font:var(--ed-t-group); letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint);
+  padding:10px 0 4px; }
+.edRoot .podNote { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); padding:4px 0 8px; }
+.edRoot .podL { display:flex; gap:var(--ed-gap); font:400 11.5px/1.5 'IBM Plex Sans'; min-width:0; }
+.edRoot .podL .podK { width:var(--ed-lab); flex:none; color:var(--ed-dim); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+.edRoot .podL .podV { color:var(--ed-ink); flex:1; min-width:0; }
+.edRoot .podL.dim .podV, .edRoot .podL.dim { color:var(--ed-faint); }
+.edRoot .podL.bad .podV, .edRoot .podWhy.bad { color:var(--ed-bad); }
+.edRoot .podL.warn .podV, .edRoot .podWhy.warn { color:var(--ed-warn); }
+.edRoot .podWhy { font:500 11px/1.45 'IBM Plex Sans'; padding-top:3px; }

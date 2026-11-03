@@ -120,11 +120,14 @@ const PAVEMENT = (() => {
   const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
   // G1395: a soft / grass side's spread at -1 is the edge zone's edgeSoft (2.6 m: the old torn edge, reaching ~3 x it out);
   // the paved one's the edge zone's sideW
-  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA'];
+  // (G3018, the user 12 Oct: 'the saturation control is missing from the pavement edition') a tenth knob, SAT: the surface's
+  // saturation, a factor on every surface set's own grade saturation (grade[1]) - 1 = the sets as graded (today, byte for
+  // byte), 0 grey; the side keeps its own look
+  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA', 'Sat'];
   const LOOK_KEYS = [];
   for (const g in LOOK_GROUPS) for (const k of LOOK_K) {
     LOOK_KEYS.push(g + k);
-    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
+    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0, Sat: 1 }[k];
   }
   // THE GRASS STRIP WEARS THE GROUND (GRASS-DENSE G2570; the user, 12 Oct, on the Cub at Skyline Altiport from above: "We really
   // need to adjust the color of the grassy runway, to something similar to the surrounding colors"). The strip drew its own lawn
@@ -175,6 +178,7 @@ const PAVEMENT = (() => {
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
       ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
+      [g + 'Sat', 'surface saturation (1 = the sets as graded, 0 = grey)', 0, 2, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
       [g + 'SideW', g === 'pv' ? "side width (m past the edge zone, -1 = the edge zone's)" : "side spread (m: the torn edge reaches ~3 x it; -1 = edgeSoft)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
@@ -259,7 +263,13 @@ const PAVEMENT = (() => {
   // ground, master -> now): runways and strips 0 -> 0; road edge 257 -> 220, side 2862 -> 2625, band 19 -> 75; apron
   // edge 6 -> 18 (terrain curvature on the roads' grade blends). --grid, past liftIn: the drawn surface over terrainH
   // on the roads 67 -> 0 mm mean, p5..p95 -4..4 (HANDOVER G1001; GATE CONTACT holds both).
-  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5, liftIn: 1.5, pre: 0.07 };   // pad, fall: G660's, unused since G1001
+  // G2115 (TERRAIN-MATCH): `tl` - A GRASS ROAD's margin. Its mesh is drawn only where the wheels wore it (the tracks: the
+  // shader's gPavA *= worn) and the world's grass - the patch - is seen between them; the patch was 7 cm (the pre-sink) + 2 cm
+  // (the drop) under there, so a tyre on a grass track read 9 cm afloat over the grass beside it. Under one (translucent:
+  // translucent(cls, kind)) the patch drops `tl` and the road stands `tl` over the ground past its lift: the two 2 cm apart
+  // (G1541's margin for a layer drawn over the ground) and each within 1 cm of the wheels
+  const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5, liftIn: 1.5, pre: 0.07, tl: 0.01 };   // pad, fall: G660's, unused since G1001
+  const translucent = (cls, kind) => cls === 'grass' && kind === 'road';
   const ss01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   // G1391 (RUNWAY-LOOK): a soft edge tears as deep as a paved edge chips (edgeChip) and no deeper, a grass STRIP's too (a
   // grass road, an apron of grass: still the world's grass with tracks in it - translucent, never sunk). `kind` is pavedAt's ('strip' | 'road' | 'poly'); without it a grass pavement keeps the safe Infinity.
@@ -272,27 +282,80 @@ const PAVEMENT = (() => {
     return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
   // (G1542: `dPre`, when given, is the depth the pre-sink reads - a road's dead end holds its deep sink a cell back, not its 7 cm)
-  const sinkAt = (dE, d0, dPre) => Math.max(SINK.pre * ss01(0, SINK.liftIn, dPre !== undefined ? dPre : dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
+  // (G2115: `tl` > 0 - a translucent pavement's - the patch drops tl from the edge in, by the same law: no pre-sink, no deep one)
+  const sinkAt = (dE, d0, dPre, tl) => tl > 0 ? tl * ss01(0, SINK.liftIn, dPre !== undefined ? dPre : dE)
+    : Math.max(SINK.pre * ss01(0, SINK.liftIn, dPre !== undefined ? dPre : dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
   const liftK = (dE, d0) => 1 - ss01(0, SINK.liftIn, dE);   // G1001: d0 no longer delays it (kept in the signature)
   // a builder's lift at a vertex: o.sinkD0 (the caller's opaqueDepth) says the ground under it is sunk
-  const liftOf = (o, lift, dE) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? lift * liftK(dE, o.sinkD0) : lift);
+  // G2115 (TERRAIN-MATCH): and o.liftAt(x, z) (liftOver below), when given, takes the lift off where the vertex lies on ANOTHER
+  // pavement's interior - an apron's, a taxiway's, a road's edge drawn over a runway (or the runway's over them) stood 5-7 cm
+  // over the surface the wheels roll on (tools/terrain_match.js: HOME's strip, 859 points to +62 mm); there the ground under
+  // both is sunk by the deeper one and the pavements write no depth: nothing for the lift to stand over
+  // (`tl`: a translucent pavement's lift falls to tl, not 0 - sinkAt's tl above)
+  const liftOf = (o, lift, dE, x, z, tl) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? (tl > 0 ? tl + (lift - tl) * liftK(dE, o.sinkD0) : lift * liftK(dE, o.sinkD0)) * (o.liftAt ? o.liftAt(x, z) : 1) : lift);
+  // liftOver(pavedAt, id): the builder's liftAt off the premises' pavedAt (27_premises: its `skip`) - 1 off every other
+  // pavement, falling to 0 over SINK.liftIn inside one (the other's own lift law: past liftIn it is drawn at terrainH)
+  const liftOver = (pavedAt, id) => (x, z) => { const q = pavedAt(x, z, 0, id); return q ? 1 - ss01(0, SINK.liftIn, q.d) : 1; };
+  // G2115 (TERRAIN-MATCH): THE ROWS EARN THEIR SPACING. Past its lift (G1001) a pavement on the premises' patch is drawn at
+  // the ground the wheels stand on - at its VERTICES; between them it is the straight chord, and where the ground curves
+  // the chord stood off it: tw_ski's ski strip 51 mm between its 6 m rows on the profile's crest, the aprons 36-44 mm, a
+  // taxiway 26 mm (tools/terrain_match.js). A builder's stations along an axis (a strip's u and v, a road's s, a polygon's x
+  // and z) are bisected where heightAt strays more than REFINE.tol from the drawn surface between two of them - at the
+  // span's midpoint on any row across, or at a quad's centre against the drawn diagonal (every builder's quad splits
+  // (i + 1, j) - (i, j + 1)) - and only INSIDE the pavement (its side's fade lies over the patch's own ground); never
+  // closer than REFINE.min. A grid stays a grid (an inserted row runs the pavement's whole length or width): the
+  // triangles' order, winding and diagonal are the builder's own. Only where the ground is sunk under it (o.sinkD0: the
+  // game's premises) - the analytic world's strips keep their constant lift and their rows - and on a strip, or a road or a
+  // polygon the caller marks (o.refine: render_premises, the aerodromes' own - within REFINE_NEAR of a runway); every
+  // pavement refined cost 355 k triangles over Jolene's village roads and harbour aprons, for no wheel
+  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true };   // (roadV: a road's rows across too - 13 k more over Jolene for one 14 mm crease at HOME's lane: off)
+  // refineAxis(A, B, H, inside): A, B the two axes' stations (sorted); H(a, b) the ground at a on A's axis, b on B's;
+  // inside(a, b) the point is paved. -> A with stations inserted
+  function refineAxis(A, B, H, inside, tol) {
+    const T = tol > 0 ? tol : REFINE.tol;
+    const out = [A[0]];
+    const span = (a0, a1) => {
+      if (a1 - a0 >= 2 * REFINE.min) {
+        const m = (a0 + a1) / 2; let e = 0;
+        for (let j = 0; j < B.length && e <= T; j++) {
+          const b = B[j];
+          if (inside(m, b)) e = Math.max(e, Math.abs(H(m, b) - (H(a0, b) + H(a1, b)) / 2));
+          // the quad's centre on its diagonal ((a1, b) - (a0, b'), whichever axis A indexes first)
+          if (j + 1 < B.length) { const b1 = B[j + 1], bm = (b + b1) / 2; if (inside(m, bm)) e = Math.max(e, Math.abs(H(m, bm) - (H(a1, b) + H(a0, b1)) / 2)); }
+        }
+        if (e > T) { span(a0, m); span(m, a1); return; }
+      }
+      out.push(a1);
+    };
+    for (let i = 1; i < A.length; i++) span(A[i - 1], A[i]);
+    return out;
+  }
+  const memo2 = f => { const M = new Map(); return (a, b) => { const k = a + ',' + b; let y = M.get(k); if (y === undefined) { y = f(a, b); M.set(k, y); } return y; }; };
   function stripGeometry(THREE, o) {
     const cls = CLASSES.indexOf(o.cls || 'concrete'), seed = o.seed || 0, shW = o.shoulderW !== undefined ? o.shoulderW : 12;
     const lift = o.lift !== undefined ? o.lift : 0.07, resU = o.resU || 6, resV = o.resV || 3;
     const band = o.band !== undefined ? o.band : CLASS_DEF[CLASSES[cls]].band, fadeW = o.fadeW !== undefined ? o.fadeW : R.fadeW;
     const F = stripFrame(o), halfL = F.halfL, halfW = F.halfW, len = o.len;
-    const V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
+    let V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
     const nu = Math.max(2, Math.ceil((len + 2 * shW) / resU));
-    const U = []; for (let i = 0; i <= nu; i++) U.push(-shW + (len + 2 * shW) * i / nu);
-    // the pavement's own ends pinned too (u = 0 and u = len rows)
-    for (const p of [0, len]) if (!U.some(x => Math.abs(x - p) < 1e-6)) U.push(p);
+    let U = []; for (let i = 0; i <= nu; i++) U.push(-shW + (len + 2 * shW) * i / nu);
+    // the pavement's own ends pinned too (u = 0 and u = len rows) - and (G2115) where the lift ends inside each, as rowsAcross
+    // pins it inside the sides (G1001's inPin): the ends' 7 cm fell to 0 over the first 6 m row, not SINK.liftIn (tw_ski: +52 mm
+    // 1.5 m inside its start, +14 at 4 m)
+    const pinU = [0, len].concat(o.sinkD0 !== undefined && o.sinkD0 !== null && SINK.liftIn < len / 2 ? [SINK.liftIn, len - SINK.liftIn] : []);
+    for (const p of pinU) if (!U.some(x => Math.abs(x - p) < 1e-6)) U.push(p);
     U.sort((a, b) => a - b);
+    if (o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine !== false) {   // G2115: the rows where the ground curves
+      const H = memo2((u, v) => { const w = F.toWorld(u, v); return o.heightAt(w[0], w[1]); }), Hv = (v, u) => H(u, v);
+      U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0);
+      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0);
+    }
     const nV = V.length, nU = U.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
     let k = 0;
     for (let i = 0; i < nU; i++) for (let j = 0; j < nV; j++, k++) {
       const u = U[i], v = V[j], w = F.toWorld(u, v);
-      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len));
+      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len), w[0], w[1]);
       pos[k * 3] = w[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = w[1];
       pav[k * 4] = u; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sdBox(u, v, halfL, halfW, len); pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfL;
@@ -327,12 +390,18 @@ const PAVEMENT = (() => {
     const road = o.road, w = o.w !== undefined ? o.w : road.w, cls = CLASSES.indexOf(o.cls || 'gravel'), seed = o.seed || 0;
     const shW = o.shoulderW !== undefined ? o.shoulderW : 3, lift = o.lift !== undefined ? o.lift : 0.06, step = o.step || 3, resV = o.resV || 1.5;
     const band = o.band !== undefined ? o.band : CLASS_DEF[CLASSES[cls]].band, fadeW = o.fadeW !== undefined ? o.fadeW : Math.min(R.fadeW, shW * 0.6);
-    const halfW = w / 2, V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
+    const halfW = w / 2, tlM = translucent(CLASSES[cls], 'road') && o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.tl : 0;   // (G2115: a grass road's margin)
+    let V = rowsAcross(halfW, shW, band, fadeW, resV, o.sinkD0 !== undefined && o.sinkD0 !== null ? SINK.liftIn : 0);
     const L = road.length, nu = Math.max(1, Math.ceil(L / step));
-    const S = []; for (let i = 0; i <= nu; i++) S.push(L * i / nu);
+    let S = []; for (let i = 0; i <= nu; i++) S.push(L * i / nu);
     for (const s of road.s) if (!S.some(x => Math.abs(x - s) < 1e-6)) S.push(s);   // the polyline's own nodes
     S.sort((a, b) => a - b);
     const tw = o.toWorld || ((x, z) => [x, z]);
+    if (o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine) {   // G2115: the stations and the rows where the ground curves
+      const H = memo2((s, v) => { const A = road.at(s), wp = tw(A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v); return o.heightAt(wp[0], wp[1]); }), Hv = (v, s) => H(s, v);
+      S = refineAxis(S, V, H, (s, v) => Math.abs(v) <= halfW);
+      if (REFINE.roadV) V = refineAxis(V, S, Hv, (v, s) => Math.abs(v) <= halfW);   // (a taxiway's grade meeting a runway's crosses it: 4 m rows on a 24 m road)
+    }
     const nV = V.length, nU = S.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
     let k = 0;
@@ -343,7 +412,7 @@ const PAVEMENT = (() => {
       const tx = p1[0] - p0[0], tz = p1[1] - p0[1], tl = Math.hypot(tx, tz) || 1;
       for (let j = 0; j < nV; j++, k++) {
         const v = V[j], lp = [A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v], wp = tw(lp[0], lp[1]);
-        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v));
+        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v), wp[0], wp[1], tlM);
         pos[k * 3] = wp[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = wp[1];
         pav[k * 4] = S[i]; pav[k * 4 + 1] = v; pav[k * 4 + 2] = halfW - Math.abs(v); pav[k * 4 + 3] = shW;
         pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = L / 2;
@@ -382,16 +451,24 @@ const PAVEMENT = (() => {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const p of poly) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     x0 -= shW; z0 -= shW; x1 += shW; z1 += shW;
-    const nx = Math.max(2, Math.ceil((x1 - x0) / res)), nz = Math.max(2, Math.ceil((z1 - z0) / res)), n = (nx + 1) * (nz + 1);
-    const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+    let nx = Math.max(2, Math.ceil((x1 - x0) / res)), nz = Math.max(2, Math.ceil((z1 - z0) / res));
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, halfW = Math.max(x1 - x0, z1 - z0) / 2;
     const inP = (x, z) => { let inside = false; for (let i = 0, m = poly.length, j = m - 1; i < m; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside; } return inside; };
     const dSeg = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9; const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)); return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t)); };
     const sd = (x, z) => { let d = Infinity; for (let i = 0; i < poly.length; i++) d = Math.min(d, dSeg(x, z, poly[i], poly[(i + 1) % poly.length])); return inP(x, z) ? d : -d; };
+    let X = [], Z = []; for (let i = 0; i <= nx; i++) X.push(x0 + (x1 - x0) * i / nx); for (let j = 0; j <= nz; j++) Z.push(z0 + (z1 - z0) * j / nz);
+    if (REFINE.poly && o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine) {   // G2115: the columns and rows where the ground curves
+      const H = memo2((x, z) => o.heightAt(x, z)), Hz = (z, x) => H(x, z), inq = memo2((x, z) => inP(x, z));
+      const tol = o.refine > 0 && o.refine !== true ? o.refine : REFINE.tol;   // (a caller's own tolerance: render_premises' grass polygons)
+      X = refineAxis(X, Z, H, (x, z) => inq(x, z), tol); Z = refineAxis(Z, X, Hz, (z, x) => inq(x, z), tol);
+      nx = X.length - 1; nz = Z.length - 1;
+    }
+    const n = (nx + 1) * (nz + 1);
+    const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
     let k = 0;
     for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++, k++) {
-      const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz, dE = sd(x, z);
-      const y = (o.heightAt ? o.heightAt(x, z) : 0) + liftOf(o, lift, dE);
+      const x = X[i], z = Z[j], dE = sd(x, z);
+      const y = (o.heightAt ? o.heightAt(x, z) : 0) + liftOf(o, lift, dE, x, z);
       const dx = x - cx, dz = z - cz, u = dx * c + dz * sn, v = -dx * sn + dz * c;
       pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
       pav[k * 4] = u + halfW; pav[k * 4 + 1] = v; pav[k * 4 + 2] = dE; pav[k * 4 + 3] = shW;
@@ -593,12 +670,12 @@ const PAVEMENT = (() => {
       if (TAB.mat && SHARED === L) { const U = TAB.mat.uniforms; U.uPavA.value = L.texA; U.uPavN.value = L.texN; U.uPavOn.value = 1; }   // G925: the one material
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
       for (const w of L.waiters || []) w(L); if (L.waiters) L.waiters.length = 0;   // (headless the library calls back at once, before `waiters`)
-      if (onReady) onReady(L);
+      GC_V++; if (onReady) onReady(L);
     }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
     lib.waiters = lib.waiters || [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }
-    SHARED = lib;
+    SHARED = lib; GC_V++;
     if (lib.ready && TAB.mat) { const U = TAB.mat.uniforms; U.uPavA.value = lib.texA; U.uPavN.value = lib.texN; U.uPavOn.value = 1; }   // (headless: ready at once)
     return lib;
   }
@@ -1307,8 +1384,8 @@ float pvTread(float u, float x, float w, float seed) {
   function applyAll(THREE) { for (const m of MATS) applyOne(THREE, m); }
   // a set's mean colour graded as the shader grades it (gain, tint, saturation): linear rgb, what the
   // eye sees of that set on average - the far tier's uMean and the cover ring's `col` (v1.17)
-  function gradedMean(key, r, lib) {
-    const g = (r.grade && r.grade[key]) || [1, 1], t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
+  function gradedMean(key, r, lib, satK) {
+    const g0 = (r.grade && r.grade[key]) || [1, 1], g = satK === undefined || satK === 1 ? g0 : [g0[0], g0[1] * satK].concat(g0.slice(2)), t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
     const mean = (lib && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
     const c = [mean[0] * g[0] * t[0], mean[1] * g[0] * t[1], mean[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     return [l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1]];
@@ -1316,7 +1393,21 @@ float pvTread(float u, float x, float w, float seed) {
   // groundColor(cls, recipe): the drawn ground's linear colour beside a pavement of this class - its
   // BAND set (the cleared earth, the crushed stone) graded by the recipe (the premises' over the
   // module's); a tuft standing there takes it (the cover ring, v1.17)
+  // REVEAL-HITCH (19 Oct): MEMOISED. The cover ring asks it for every tuft of a cell beside a pavement (render_world coverAt),
+  // and each call deep-copied the whole module recipe (JSON parse + stringify): the first world frame after the roll-out
+  // planted the stand's grass cells at ~100 ms of it, and ~50 ms of the garbage it left. The answer depends on the class, the
+  // recipe given (a premises' pavement: the editor replaces it, never edits it in place - one answer per object), the
+  // module's R, the look overlay LIVE and the shared library's means: GC_V moves whenever one of the last three does.
+  let GC_V = 0;
+  const GC_MEMO = new WeakMap(), GC_NONE = { v: -1, m: new Map() };
   function groundColor(cls, recipe) {
+    let e = recipe && typeof recipe === 'object' ? GC_MEMO.get(recipe) : GC_NONE;
+    if (!e) { e = { v: GC_V, m: new Map() }; GC_MEMO.set(recipe, e); }
+    if (e.v !== GC_V) { e.v = GC_V; e.m.clear(); }
+    if (e.m.has(cls)) return e.m.get(cls);
+    const c = groundColor0(cls, recipe); e.m.set(cls, c); return c;
+  }
+  function groundColor0(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
@@ -1333,7 +1424,7 @@ float pvTread(float u, float x, float w, float seed) {
     const r = recipe || R, g = groupOf(cls), q = k => (LIVE && LIVE[g + k] !== undefined ? +LIVE[g + k] : (r[g + k] !== undefined ? +r[g + k] : RECIPE[g + k]));
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
-    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')), sat: isFinite(q('Sat')) ? Math.max(0, q('Sat')) : 1,
       match: g === 'gr' ? Math.max(0, Math.min(1, q('Match'))) : 0, mowA: g === 'gr' ? Math.max(0, Math.min(1, q('MowA'))) : 0,   // G2570
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
@@ -1349,6 +1440,7 @@ float pvTread(float u, float x, float w, float seed) {
   // look(THREE, o): the live overlay - an object of LOOK_KEYS (a key at undefined/null leaves it), null clears it;
   // returns the overlay. Every pavement in the page is re-applied (a row repack each: no rebuild)
   function look(THREE, o) {
+    GC_V++;
     if (o === null) LIVE = null;
     else if (o && typeof o === 'object') {
       const n = Object.assign({}, LIVE);
@@ -1398,10 +1490,11 @@ float pvTread(float u, float x, float w, float seed) {
     U.uLayer2.value.set(lay('tracks'), lay('moss'), lay('macro'), 0);
     U.uTile.value.set(met('base'), met('damage'), met('shoulder'), met('grass'));
     U.uTile2.value.set(met('tracks'), met('moss'), met('macro'), 0);
-    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
+    const SURF = { base: 1, damage: 1, tracks: 1, moss: 1, macro: 1 };   // (G3018: the surface's sets - the side and the grass keep their own)
+    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], SURF[s] && lk.sat !== 1 ? g[1] * lk.sat : g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
     U.uClass.value.set(CLASSES.indexOf(d.cls), cls.lanes, cls.rut, d.poly ? 2 : (d.road ? 1 : 0));
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
-    { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
+    { const c = gradedMean(cls.base, r, lib, lk.sat); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
     U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, d.road ? 0 : lk.match);   // .w (G2570): a grass STRIP shows the ground (its match)
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
@@ -1715,8 +1808,8 @@ float pvTread(float u, float x, float w, float seed) {
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
   const shoulderFor = (band, recipe) => Math.max(1, band + (recipe || R).fadeW + 1);
-  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } applyAll(THREE); }
-  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); applyAll(THREE); }
+  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } GC_V++; applyAll(THREE); }
+  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); GC_V++; applyAll(THREE); }
   function debug(v) { DBG.value = v; }
   // ---- THE A/B (G928): `?pave=old` or `?pave=new` at load, PAVE_AB('old' | 'new') live, or a click on the box -----
   // The box (top centre, under PAVTEST's) names what is drawn. Live, each builder that registered a rebuild
@@ -1933,7 +2026,7 @@ float pvTread(float u, float x, float w, float seed) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },

@@ -1,0 +1,25 @@
+[   0.3 s] plane_shot: 1 build(s) x loc:hinge/0.372/0.013/2.267/62/6/0.8 at 1600x900 on SwiftShader with /opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+[   0.9 s] browser Chrome/153.0.8010.12 (SwiftShader)
+[   1.2 s] page http://localhost:43825/flyDiy/index.html?profile=phone&gfx=laptop&intro=0
+[ 166.8 s] garage up 166.5 s, 11 steps, on ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) - profile phone room shed preset laptop
+[ 282.7 s] cub_user loaded in 61.3 s, 892/905 cage rows equal, box [-6,-0.244,-6,6,2.511,6]
+[ 824.6 s] cub_user loc:hinge/0.372/0.013/2.267/62/6/0.8 ok 541.9 s, aeroplane 78.7 % of 1200x900 -> ../../../../tmp/claude-0/sp/a2/cub_user_loc-hinge-0.372-0.013-2.267-62-6-0.8.png
+[   0.4 s] plane_shot: 1 build(s) x loc:hinge/0.325/-0.547/2.193/62/-8/0.8,loc:access/0.366/0.094/1.400/78/6/0.8 at 1600x900 on SwiftShader with /opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+[   0.9 s] browser Chrome/153.0.8010.12 (SwiftShader)
+[   1.1 s] page http://localhost:39445/flyDiy/index.html?profile=phone&gfx=laptop&intro=0
+[ 174.7 s] garage up 143.6 s, 11 steps, on ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) - profile phone room shed preset laptop
+[ 260.6 s] cub_clamshell loaded in 56.7 s, 892/905 cage rows equal, box [-6,-0.244,-6,6,2.511,6]
+[ 723.8 s] cub_clamshell loc:hinge/0.325/-0.547/2.193/62/-8/0.8 ok 463.1 s, aeroplane 60.9 % of 1200x900 -> ../../../../tmp/claude-0/sp/a2/cub_clamshell_loc-hinge-0.325--0.547-2.193-62--8-0.8.png
+[1279.3 s] cub_clamshell loc:access/0.366/0.094/1.400/78/6/0.8 ok 555.5 s, aeroplane 93.3 % of 1200x900 -> ../../../../tmp/claude-0/sp/a2/cub_clamshell_loc-access-0.366-0.094-1.400-78-6-0.8.png
+[   0.5 s] plane_shot: 1 build(s) x loc:hinge/0.372/0.013/2.267/62/6/0.8,loc:access/0.366/0.094/1.400/78/6/0.8,orbit:72/8/3.2 at 1600x900 on SwiftShader with /opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+[   1.1 s] browser Chrome/153.0.8010.12 (SwiftShader)
+[   1.2 s] page http://localhost:46589/flyDiy/index.html?profile=phone&gfx=laptop&intro=0
+[ 160.9 s] garage up 158.6 s, 11 steps, on ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) - profile phone room shed preset laptop
+[ 287.3 s] stol_cub_showcase loaded in 77.6 s, 1012/1012 cage rows equal, box [-6,-0.206,-6,6,2.717,6]
+[ 819.7 s] stol_cub_showcase loc:hinge/0.372/0.013/2.267/62/6/0.8 ok 532.5 s, aeroplane 78.8 % of 1200x900 -> ../../../../tmp/claude-0/sp/a2/stol_cub_showcase_loc-hinge-0.372-0.013-2.267-62-6-0.8.png
+[1377.4 s] stol_cub_showcase loc:access/0.366/0.094/1.400/78/6/0.8 ok 557.6 s, aeroplane 93.8 % of 1200x900 -> ../../../../tmp/claude-0/sp/a2/stol_cub_showcase_loc-access-0.366-0.094-1.400-78-6-0.8.png
+[1697.1 s] FAIL stol_cub_showcase orbit:72/8/3.2: the aeroplane is cut off at the bottom and left and right edge
+[   0.5 s] plane_shot: 1 build(s) x loc:hinge/0.375/-0.205/2.268/62/6/0.8,loc:access/0.371/-0.193/1.400/78/6/0.8 at 1600x900 on SwiftShader with /opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+[   1.0 s] browser Chrome/153.0.8010.12 (SwiftShader)
+[   1.1 s] page http://localhost:39555/flyDiy/index.html?profile=phone&gfx=laptop&intro=0
+[ 176.4 s] garage up 176.3 s, 11 steps, on ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) - profile phone room shed preset laptop

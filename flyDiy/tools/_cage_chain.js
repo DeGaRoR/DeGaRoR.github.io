@@ -31,11 +31,11 @@
   // ui's understudy pass is the last). A page whose files register in another order (a stack that names them says
   // so) gets no plans: CAGE_CHAIN.ok false, every build whole.
   const ORDER = ['crew', 'panel', 'cowl', 'cowlAft', 'eng', 'wing', 'brace', 'gear', 'float', 'fin', 'stab', 'access',
-    'light', 'energy', 'hinge', 'ext'];
+    'light', 'energy', 'hinge', 'pod', 'ext'];
   const FILE = { crew: '_cage_crew', panel: '_cage_panel', cowl: '_cage_cowl', cowlAft: '_cage_cowl', eng: '_cage_eng',
     wing: '_cage_wing', brace: '_cage_brace', gear: '_cage_gear', float: '_cage_float', fin: '_cage_fin',
     stab: '_cage_stab', access: '_cage_access', light: '_cage_light', energy: '_cage_energy', hinge: '_cage_hinge',
-    ext: '_cage_ui' };
+    pod: '_cage_pod', ext: '_cage_ui' };
   // A LAYER THAT RAN MAKES THESE RUN (the forward reads: what each file reads off window.* that an EARLIER file
   // publishes in its post - the crew's CAGE_CREW / CAGE_PANEL, the cowl's CAGE_NOSE / CAGE_COWL, the wing's
   // CAGE_WING / CAGE_BOOMS / CAGE_WING_BAY, the gear's CAGE_GEAR, the fin's CAGE_FIN*, the stab's CAGE_STAB; the
@@ -45,10 +45,13 @@
   const FEEDS = {
     crew: ['light', 'energy'],
     cowl: ['eng', 'access'], cowlAft: [], eng: ['access'],
-    wing: ['brace', 'gear', 'float', 'fin', 'stab', 'access', 'light', 'energy', 'hinge'],
-    brace: [], gear: ['float', 'fin', 'stab', 'access', 'hinge'], float: [],
+    // (PHONE-EDIT-PERF, 2 Nov: no wing > float - the float layer reads no wing global (its step stands on the CG and the
+    // airframe skin, its legs on the gear's: gear > float holds that); it re-ran on every wing tick, ~45 ms a tick on the
+    // user's S20 FE, and a floatplane's release runs it anyway (_cage_ui: the float layer forced, the CG))
+    wing: ['brace', 'gear', 'fin', 'stab', 'access', 'light', 'energy', 'hinge', 'pod'],
+    brace: [], gear: ['float', 'fin', 'stab', 'access', 'hinge', 'pod'], float: [],
     fin: ['stab', 'access', 'light', 'hinge'], stab: ['access', 'light', 'hinge'],
-    access: [], light: [], energy: [], hinge: [], panel: [], ext: [],
+    access: [], light: [], energy: [], hinge: [], pod: [], panel: [], ext: [],
   };
   // an edge that holds only while its reader uses it: the gear reads the wing for the legs it roots ON the wing (the
   // low-wing rule; CAGE_GEAR.onWing, its last run's count) - a high wing's gear stands on the fuselage alone
@@ -62,7 +65,7 @@
   // and the cowl's meshes (HIT_LAYERS). A layer that ran under a drag's defer returned early (G1303: hidden, its reads
   // not taken) and is STALE until it runs whole.
   const REL_FEEDS = { wing: ['eng', 'cowl'], gear: ['eng'], eng: ['energy'], cowl: ['energy'] };
-  const REL_WHEN = { 'wing>cowl': P => Math.round(+(P && P.engMount) || 0) >= 2 };
+  const REL_WHEN = { 'wing>cowl': P => [2, 3, 5, 6].includes(Math.round(+(P && P.engMount) || 0)) };
   const DEFERS = new Set(['access', 'light', 'energy', 'hinge']);
   let SEQ = 0;
   const L = [];

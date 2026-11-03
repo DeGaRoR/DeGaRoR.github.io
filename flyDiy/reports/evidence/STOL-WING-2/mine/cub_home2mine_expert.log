@@ -1,0 +1,20 @@
+piperCub (file tail) HOME -> mn_strip calm · normal
+  ROLL@0 LIFTOFF@13.3 CLIMB@21.1 ENROUTE@52.3 DOWNWIND@607.3 BASE@664.3 FINAL@693.3 FLARE@797.2 ROLLOUT@801.8 STOPPED@811.1
+  take-off: run 5 m, lift-off 17.2 m/s (1 lift-off, rotation 5.5 deg/s) · crosswind turn at null m
+  circuit tracking: cross-track rms 0.5 m on the straights · bounces 0
+  ENROUTE   overshoot    3 m  settle 13.6 s  roll reversals 0.1/min
+  DOWNWIND  overshoot    3 m  settle 8 s  roll reversals 0.2/min
+  BASE      overshoot    4 m  settle 10.4 s  roll reversals 0.7/min
+  final: captured at 750.2 s · above-slope rms 1.3 m · V-VAppr rms 0.15 (mean 0.02) · thr 0.23..0.28
+  flare: from 9.17 m at -2.41 m/s, 4.6 s
+  departure: normal · Vx 19.3 m/s · run needed 142 m of 2325
+  circuit: left-hand at 110 m, join straight
+  approach: short · Vref 16.1 m/s · aim 122 m in · flap 1 · run needed 98 m of 250
+  landing: sink 1.08 m/s · 14.1 m/s = 1.05 Vs · 16 m past the aim · 0 m off · run 60 m
+  control reversals /min (da dr de): takeoff 12 24 14 · climb 3.9 1.9 7.7 · legs 0.8 0.8 0.6 · downwind 0 3.2 2.1 · base 36 8 6 · final 9.8 5.2 2.3 · landing 0 8 10
+  rollout: max heading 4.6 deg, 0 reversals, rudder 0.46 · 0 m off at the stop
+  stabilised approach: gate 66 m, 1 final judged, 0 go-arounds · worst / limit vLo 0.04 vHi 0 dev 0.09 sink 0.67 xt 0
+  ! 21.2s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear
+  ! 52.3s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.4 deg to an aim 122 m in
+  completed at 811.1 s (239 s wall)
+{"key":"builds/cub_2026-09-20_corrected.json","name":"piperCub","from":"HOME","to":"mn_strip","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":811.1,"phases":["ROLL@0","LIFTOFF@13.3","CLIMB@21.1","ENROUTE@52.3","DOWNWIND@607.3","BASE@664.3","FINAL@693.3","FLARE@797.2","ROLLOUT@801.8","STOPPED@811.1"],"goArounds":0,"verdicts":["21.2s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear","52.3s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.4 deg to an aim 122 m in"],"takeoff":{"run":5,"Vlo":17.2,"lifts":1,"qMax":5.5},"climb":{"hTurn":null,"vsMean":2.86},"legs":[{"name":"ENROUTE","overshoot":3,"settleT":13.6,"rollRev":0.1},{"name":"DOWNWIND","overshoot":3,"settleT":8,"rollRev":0.2},{"name":"BASE","overshoot":4,"settleT":10.4,"rollRev":0.7}],"final":{"captureT":750.2,"aboveRms":1.3,"vRms":0.15,"vErrMean":0.02,"thrMin":0.23,"thrMax":0.28},"flare":{"entryAgl":9.17,"entryVs":-2.41,"t0":797.1833333333333,"dur":4.6},"track":{"xtRms":0.5,"n":36398},"bounces":0,"pitchMax":8.2,"stab":{"gateH":66,"finals":1,"ga":0,"committed":null,"worst":{"vLo":0.04,"vHi":0,"dev":0.09,"sink":0.67,"xt":0}},"landing":{"sink":1.08,"V":14.1,"VoverVs":1.05,"pastAim":16,"off":0,"run":60,"three":false,"drift":-0.1},"activity":{"takeoff":{"s":21,"da":12,"dr":24,"de":14},"climb":{"s":31,"da":3.9,"dr":1.9,"de":7.7},"legs":{"s":555,"da":0.8,"dr":0.8,"de":0.6},"downwind":{"s":57,"da":0,"dr":3.2,"de":2.1},"base":{"s":29,"da":36,"dr":8,"de":6},"final":{"s":104,"da":9.8,"dr":5.2,"de":2.3},"landing":{"s":14,"da":0,"dr":8,"de":10}},"rollout":{"maxE":4.6,"zeroX":0,"maxDr":0.46,"xtEnd":0},"Vs":16.1,"VsLanding":13.5,"VAppr":16.1,"appr":{"technique":"short","Vref":16.1,"Vbase":16.1,"gust":0,"aimIn":122,"flap":1,"len":250,"surface":6,"runNeed":98,"displaced":122,"gs":0.148,"reqGs":0.271},"dep":{"technique":"normal","Vx":19.3,"runNeed":142,"len":2325,"surface":5},"circuit":{"hand":"left","hC":110,"join":"straight","declared":null},"mass":458,"sheet":{"Vs":15.72,"Vs0":13.45,"Vref":17.49,"Vrot":15.9,"Vx":19.31,"Vy":22.2,"Vbg":22.24,"Vms":16.9,"Vcruise":31.5,"climbMax":3.13,"sinkMin":2.07,"LDbest":9.44,"TORun":142,"LDGrun":97.89,"mass":460.7},"tecs":true,"path":true,"wall":239}

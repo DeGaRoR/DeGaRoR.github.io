@@ -155,10 +155,9 @@
     D.vaoW = gl.createVertexArray(); gl.bindVertexArray(D.vaoW);
     gl.bindBuffer(gl.ARRAY_BUFFER, D.inId); gl.enableVertexAttribArray(0); gl.vertexAttribIPointer(0, 1, gl.UNSIGNED_INT, 0, 0);
     gl.bindVertexArray(null);
-    // (wBuf takes the feedback; rBuf - never bound for it - is copied from it on the GPU and read: WebGL refuses to map a
-    // buffer bound for transform feedback, and Chrome lost the whole context over it on the box)
+    // (wBuf takes the feedback; the read buffer - G.rAll, shared by the drawers (G3022), never bound for it - is copied from it
+    // on the GPU and read: WebGL refuses to map a buffer bound for transform feedback, and Chrome lost the whole context over it on the box)
     D.wBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wBuf); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, np) * 12, gl.STREAM_COPY);
-    D.rBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.rBuf); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, np) * 12, gl.STREAM_READ);
     D.wSink = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wSink); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, np) * 12, gl.STREAM_COPY);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     D.Wp = new Float32Array(np * 3); D.wSeq = 0; D.wantW = false;
@@ -231,6 +230,19 @@
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.nd);
     gl.enable(gl.RASTERIZER_DISCARD);
     let draws = 0;
+    // G3022 (DMG-IMPACT-LAG): THE TEAR'S READ IS ONE FOR ALL THE DRAWERS. The places passes asked this frame are copied side
+    // by side into one read buffer under one fence, read once (poll) and handed out by slice. A read a drawer was a GPU round
+    // trip each - 39 drawers on the user's Cub, a sample every 3 frames: 1.3-1.5 s of the crash's main thread on the box
+    // (14 Oct profile, Cub and metal Cessna). No new pass while a read is in flight (the asking drawers join the next)
+    const batch = []; let bN = 0, bOff = 0;
+    if (!G.pendAll) {
+      for (const D of F.drawers) if (D.wantW && D.np && D.vao && !D.off) bN += D.np;
+      if (bN && !(G.rAll && G.rAllN >= bN)) {
+        if (G.rAll) gl.deleteBuffer(G.rAll);
+        G.rAllN = Math.ceil(bN * 1.25); G.rAll = gl.createBuffer();
+        gl.bindBuffer(gl.COPY_WRITE_BUFFER, G.rAll); gl.bufferData(gl.COPY_WRITE_BUFFER, G.rAllN * 12, gl.STREAM_READ); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
+      }
+    }
     for (const D of F.drawers) {
       // the stale records: packed (whole after an event, by place after a step of the binding) and sent by rows
       const [r0, r1] = packStale(D, F.SB, F.rest, F.base);
@@ -278,7 +290,7 @@
       // THE PLACES MODE, asked by the tear (D.wantW) with none in flight: every place's world position into wBuf, fenced -
       // read when the fence has passed (poll), never waited on
       let wPass = false;
-      if (D.wantW && !D.pend && D.np) {
+      if (D.wantW && !G.pendAll && D.np && bOff + D.np <= bN) {
         gl.uniform1i(L.mode, 1);
         gl.bindVertexArray(D.vaoW);
         gl.bindBufferRange(gl.TRANSFORM_FEEDBACK_BUFFER, 0, D.wBuf, 0, D.np * 12);
@@ -292,14 +304,19 @@
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
       gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
       gl.bindVertexArray(null);
-      // the places, out of the feedback's buffer into the one read (a GPU copy), fenced: poll reads it once the fence passed
+      // the places, out of the feedback's buffer into the shared read (a GPU copy, at this drawer's slice)
       if (wPass) {
-        gl.bindBuffer(gl.COPY_READ_BUFFER, D.wBuf); gl.bindBuffer(gl.COPY_WRITE_BUFFER, D.rBuf);
-        gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, 0, D.np * 12);
+        gl.bindBuffer(gl.COPY_READ_BUFFER, D.wBuf); gl.bindBuffer(gl.COPY_WRITE_BUFFER, G.rAll);
+        gl.copyBufferSubData(gl.COPY_READ_BUFFER, gl.COPY_WRITE_BUFFER, 0, bOff * 12, D.np * 12);
         gl.bindBuffer(gl.COPY_READ_BUFFER, null); gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
-        D.pend = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t: performance.now(), tag: F.tag };   // (tag: the frame sampled - G1818 t41)
+        batch.push({ D, off: bOff, np: D.np }); bOff += D.np;
         if (chk) chk('places copied');
       }
+    }
+    // one fence for the frame's places (tag: the frame sampled - G1818 t41); poll reads it once the fence has passed
+    if (batch.length) {
+      const P = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t: performance.now(), tag: F.tag, list: batch, n: bOff, read: false, gen: 0 };
+      G.pendAll = P; for (const e of batch) e.D.pend = P;
     }
     gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
     gl.disable(gl.RASTERIZER_DISCARD);
@@ -312,14 +329,29 @@
   }
   // THE TEAR'S POSITIONS: a places pass whose fence has passed is read (no stall: the GPU is done with it) into D.Wp;
   // D.wSeq counts the reads. Returns true when one was read
+  // (G3022: the frame's places are read ONCE, by the first drawer polled after the fence passed, into G.WAll; each drawer then
+  // takes its slice. A slice of an older read - G.WAll since overwritten - or of a drawer laid out again since is dropped:
+  // the tear asks again)
   function poll(D) {
     const gl = G.gl, P = D.pend;
     if (!P) return false;
-    const st = gl.getSyncParameter(P.sync, gl.SYNC_STATUS);
-    if (st !== gl.SIGNALED) return false;
-    gl.deleteSync(P.sync); D.pend = null;
-    gl.bindBuffer(gl.COPY_READ_BUFFER, D.rBuf); gl.getBufferSubData(gl.COPY_READ_BUFFER, 0, D.Wp, 0, D.np * 3); gl.bindBuffer(gl.COPY_READ_BUFFER, null);
-    D.wSeq++; D.wTag = P.tag; G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
+    if (!P.read) {
+      const st = gl.getSyncParameter(P.sync, gl.SYNC_STATUS);
+      if (st !== gl.SIGNALED) return false;
+      gl.deleteSync(P.sync); P.read = true; if (G.pendAll === P) G.pendAll = null;
+      if (!G.WAll || G.WAll.length < P.n * 3) G.WAll = new Float32Array(Math.ceil(P.n * 1.25) * 3);
+      const tr = performance.now();
+      gl.bindBuffer(gl.COPY_READ_BUFFER, G.rAll); gl.getBufferSubData(gl.COPY_READ_BUFFER, 0, G.WAll, 0, P.n * 3); gl.bindBuffer(gl.COPY_READ_BUFFER, null);
+      const dr = performance.now() - tr, S = G.stats;   // (G3022 v2: a read's own time and size - the stall against the bytes)
+      S.wReadMs = (S.wReadMs || 0) + dr; S.wReadMax = Math.max(S.wReadMax || 0, dr); S.wBytes = (S.wBytes || 0) + P.n * 12; S.wBytesMax = Math.max(S.wBytesMax || 0, P.n * 12);
+      P.gen = G.wGen = (G.wGen | 0) + 1;
+      G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
+    }
+    D.pend = null;
+    const e = P.list.find(x => x.D === D);
+    if (!e || P.gen !== G.wGen || e.np !== D.np) return false;
+    D.Wp.set(G.WAll.subarray(e.off * 3, (e.off + e.np) * 3));
+    D.wSeq++; D.wTag = P.tag; G.stats.wSlices = (G.stats.wSlices || 0) + 1;
     return true;
   }
   // THREE'S GL STATE KEPT: every binding this module touches is read before and put back after (the program, the vertex
@@ -366,7 +398,8 @@
     const gl = G.gl;
     if (D.vao) gl.deleteVertexArray(D.vao); if (D.inPl) gl.deleteBuffer(D.inPl); if (D.inN) gl.deleteBuffer(D.inN);
     if (D.vaoW) gl.deleteVertexArray(D.vaoW); if (D.inId) gl.deleteBuffer(D.inId); if (D.wBuf) gl.deleteBuffer(D.wBuf); if (D.rBuf) gl.deleteBuffer(D.rBuf); if (D.wSink) gl.deleteBuffer(D.wSink);
-    if (D.pend) gl.deleteSync(D.pend.sync);
+    if (D.pend) { const P = D.pend; P.list = P.list.filter(e => e.D !== D);   // (G3022: the shared fence goes with its last drawer)
+      if (!P.read && !P.list.length) { gl.deleteSync(P.sync); P.read = true; if (G.pendAll === P) G.pendAll = null; } }
     if (D.tex) for (const t of D.tex) gl.deleteTexture(t);
     D.vao = D.inPl = D.inN = D.tex = D.vaoW = D.inId = D.wBuf = D.rBuf = D.wSink = D.pend = null; D.wSeq = 0;
     if (inputsOnly) return;

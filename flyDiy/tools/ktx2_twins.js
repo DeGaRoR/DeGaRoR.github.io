@@ -39,6 +39,7 @@ const FAMILIES = {
   props: { packs: 'src/props/props_packs.json', dir: 'media/tex/props' },
   scenery: { packs: 'src/scenery/scenery_packs.json', dir: 'media/tex/scenery' },   // ASSETS-OCT G2904
   cars: { packs: 'src/cars/cars_packs.json', dir: 'media/tex/cars' },              // ASSETS-OCT G2908
+  camp: { packs: 'src/camp/camp_packs.json', dir: 'media/tex/camp' },              // ASSETS-OCT G3145 (the tents)
 };
 const WANT = opt('family', Object.keys(FAMILIES).join(',')).split(',').filter(f => FAMILIES[f]);
 // which slot kinds get twins (--kinds color: the colour maps only - their wire is the JPEG's; normal and data twins

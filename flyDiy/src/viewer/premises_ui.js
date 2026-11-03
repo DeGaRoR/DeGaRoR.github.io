@@ -45,6 +45,9 @@ const SECTIONS = [
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
   { k: 'life',       label: 'LIFE',       icon: '☺',  tools: [] },   // SCENERY LIFE: the record's life block (last: the 1-9 keys keep their sections)
+  // G1656 THE SOUNDS (SND-AMB-1, the user: "drop a point sound, draw a polygon sound"): the record's `sounds` layer -
+  // what the ambience hears there (a bed, on or off); how far it carries is the ambience's. After LIFE: no key moves.
+  { k: 'sounds',     label: 'SOUND',      icon: '♪',  tools: ['select', 'soundpt', 'soundarea', 'probe'] },
 ];
 // the sections' icons in the flight ribbon's own grammar (18 x 18, stroked paths, '|' between them)
 const ICONS = {
@@ -60,9 +63,10 @@ const ICONS = {
   file: 'M5 2h6l3 3v11H5Z|M11 2v3h3|M7 9h4|M7 12h4',
   view: 'M2 9s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z|M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
   life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
+  sounds: 'M2.5 7h3l4-3.5v11l-4-3.5h-3Z|M12 6.5a3.5 3.5 0 0 1 0 5|M14 4.5a6.3 6.3 0 0 1 0 9',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
+const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe', soundpt: 'a point sound', soundarea: 'a sound area' };
 const TOOL_HELP = {
   // G2890 (the user: "I don't know how to edit an existing polygon"): the shape's whole grammar, said where the tool is
   select: 'click a feature to select it. Its shape: drag an orange disc to move a corner, a faint one to add a corner there, click its edge to add one; click a corner (white) and Del removes it - Del with no corner picked deletes the feature. A smooth road: drag a cyan disc to bend it',
@@ -96,9 +100,11 @@ const TOOL_HELP = {
   prop: 'pick a prop in the inspector, click the ground to stand it there (on the ground, tilted to it); drag its disc to move it',
   billboard: 'pick a painted sign in the inspector, click the verge to stand it on its posts; turn it in the inspector',
   aircraft: 'pick a build in the inspector (an archetype, a stock design, one of yours), click the apron to park it there, nose along its turn; captured through the workshop, so a moment to stand',
+  soundpt: 'pick a sound in the inspector, click the ground: it is heard there, fading out over its own reach (the ring); on / off in the inspector - off silences that sound around the point',
+  soundarea: 'pick a sound in the inspector, click the corners of the area, close: heard at full inside, fading out over its reach (the outer line); off silences it inside',
   animal: 'pick a species in the inspector and click the ground (or the water, for a whale): ONE record is a HOTSPOT - how many live there and over what radius. The land animals wander between idle bouts, a pod swims a circuit and dives, a flock circles. Drag the disc to move the lot.',
 };
-const POLY_TOOLS = { area: 'areas', flatten: 'areas', raise: 'areas', ramp: 'areas', surface: 'areas', apron: 'areas', material: 'areas', concrete: 'areas', dock: 'areas', hatch: 'areas', zone: 'zones', forest: 'zones', clear: 'areas', biome: 'areas' };
+const POLY_TOOLS = { area: 'areas', flatten: 'areas', raise: 'areas', ramp: 'areas', surface: 'areas', apron: 'areas', material: 'areas', concrete: 'areas', dock: 'areas', hatch: 'areas', zone: 'zones', forest: 'zones', clear: 'areas', biome: 'areas', soundarea: 'sounds' };   // (G1656: a sound area is the sounds' own - never an AREA: nothing composes it)
 // the PBR sets the page has (the lot's and the site's texture sets), read at call time - a name each
 function materialSets() {
   const S = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
@@ -112,6 +118,15 @@ let PALETTE_KEY = null;   // the building the 'building' tool stands
 let SITE_THEME = null;    // the site theme the 'theme' tool stands (VILLAGE_GEN.THEMES; G393.3)
 let PALETTE_CAT = null;   // the category the palette shows (v9)
 let ITEM_FOCUS = null;    // the site item whose rows are open in the inspector (G398.1: a list, one row per item)
+// G1656 THE SOUNDS: the ambience's beds (AMBIENCE_MODEL.BEDS, read at call time: the editor loads without the sound),
+// each with the loader's own words for it (AUDIO_SAMPLES.KEYS[key].what) and the reach the ambience gives it
+let SOUND_PICK = null;    // the bed the sound tools draw
+function soundBeds() {
+  const M = window.AMBIENCE_MODEL, K = (window.AUDIO_SAMPLES && window.AUDIO_SAMPLES.KEYS) || {};
+  if (!M || !M.BEDS) return [];
+  return M.BEDS.map(b => [b[0], b[0].slice(4).replace(/\./g, ' ') + (K[b[0]] && K[b[0]].what ? ' · ' + K[b[0]].what : '')]);
+}
+const soundReach = key => { const M = window.AMBIENCE_MODEL; return M && M.reachOf ? M.reachOf(key) : 120; };
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // THE BIOMES AND THE SPECIES a vegetation polygon may name (G1385): the live handle's (the world rail edits it), else
@@ -174,9 +189,27 @@ function mount(host, ctx) {
   // the module's window listeners answer only while this mount is ACTIVE (the game closes and
   // reopens the editor; a closed one must not eat the flight's keys)
   let active = true;
-  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; wipOwn = true; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  // SCENERY VERSIONS (ED-2, 25 Oct): the game's editor opens on MASTER (the game boots it), not on the last autosave - so before the
+  // first write of a session whose record did not come from that autosave, the autosave is KEPT as a slot 'my edits before <date>'
+  // (FILE > 'load a version' / 'load slot' list it; the same text is never kept twice, the last KEEP_N kept). Nothing is wiped
+  let wipOwn = false, recBase = ctx.scenery ? 'master' : 'this record';
+  const KEEP_PRE = 'flydiy.premises.slot.my edits before ', KEEP_N = 4;
+  const writeWip = t => {
+    if (!wipOwn) { wipOwn = true; try { const old = storage.getItem(LS_WIP);
+      if (old && old !== t) { const ks = []; let dup = false; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.indexOf(KEEP_PRE) === 0) { ks.push(k); if (storage.getItem(k) === old) dup = true; } }
+        if (!dup) { const d = new Date(), p2 = v => String(v).padStart(2, '0'); storage.setItem(KEEP_PRE + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()), old);
+          ks.sort(); while (ks.length >= KEEP_N) storage.removeItem(ks.shift()); } } } catch (e) { console.warn('premises: keeping the last edits', e.message); } }
+    storage.setItem(LS_WIP, t); };
+  // THE EDITOR IN THE FLIGHT LOG (G3082 EDITOR-PERF; A0: "measure every editor action on the user's file"): every command's
+  // rebuild, a select, a drag's moves, the autosave, the checks, the open - an 'edit' event with its time and what ran
+  // (the composition, the renderer's steps, the game's ground re-sample, the inspector), which tools/analyze_log.js lists
+  // under EDITOR. Nothing is logged without the recorder
+  const PERF = typeof performance !== 'undefined' ? performance : Date;
+  const logEdit = (ms, what) => { try { const F = typeof window !== 'undefined' && window.FLIGHT_REC; if (F && F.event && !F.off) F.event('edit', +(+ms).toFixed(1), what); } catch (e) {} };
+  let LAST = '';
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} snapshot(); }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { writeWip(PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
   // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
   // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
   // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
@@ -200,7 +233,7 @@ function mount(host, ctx) {
   }
   // G1535 (UPDATE-NOW): the "Update" pill reloads the page - an edit still inside the autosave's second is written first
   if (typeof window !== 'undefined' && window.UPDATE_NOW && window.UPDATE_NOW.onBeforeUpdate)
-    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} });
+    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { writeWip(PG.envelope(recName, rec)); } catch (e) {} });
 
   // ---- undo / redo: commands over the record --------------------------------
   const undoS = [], redoS = [];
@@ -217,6 +250,7 @@ function mount(host, ctx) {
     if (entry.poly) { const b = PG.polyBBox(entry.poly), AP = entry.props || {}; const f = (+entry.falloff || +(AP.terraform && AP.terraform.falloff) || 0) + (AP.draw ? 12 : 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.pts) { const b = PG.polyBBox(entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts);   /* (G2890: a spline bows off its points) */ const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
+    if (entry.kind === 'sound') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };   // (a sound area has its poly above)
     if (entry.c && entry.len) { const r = Object.assign({}, PG.RUNWAY_DEF, entry); return PG.polyBBox(PG.runwayBox(r, PG.runwayShoulder(r) + 30)); }   // (G2960: its grade's shoulder and its tree clearance - the box the game re-samples)
     if (entry.at && entry.items) { const SF = PG.siteFrame(entry); let b = null; for (const it of entry.items) { const q = SF.toLocal(it.x || 0, it.z || 0); const bb = { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }; b = b ? { x0: Math.min(b.x0, bb.x0), z0: Math.min(b.z0, bb.z0), x1: Math.max(b.x1, bb.x1), z1: Math.max(b.z1, bb.z1) } : bb; } return b || { x0: entry.at.x - 10, z0: entry.at.z - 10, x1: entry.at.x + 10, z1: entry.at.z + 10 }; }
     return null;
@@ -267,9 +301,9 @@ function mount(host, ctx) {
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
     dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd), objsOf(cmd));
-    strip.status('' + cmd.label);
+    strip.status('' + cmd.label); LAST = String(cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; LAST = 'undo: ' + c.label; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -279,11 +313,12 @@ function mount(host, ctx) {
     mutate(e);
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
-      last.after = clone(e); coalesce.t = Date.now();
+      last.after = clone(e); coalesce.t = Date.now(); LAST = String(label);
       soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf({ layer, before, after: e }));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
+    LAST = String(label);
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
@@ -334,8 +369,12 @@ function mount(host, ctx) {
   // G2917 (the user: "changing the traffic amount freezes it for a while - maybe 3 minutes"): A ROAD'S TRAFFIC IS NOT ITS
   // GROUND either - its traffic, its guardrail, its power line, its life, its name make no modifier and move no cover: no
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
-  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
+  // (G3089 EDITOR-PERF, the user's rev 28 timed 13 Oct: r1's wear sliders - paint age, cracks, wet, moss - were 11.7 s each,
+  //  8 s of it the fine patch re-sampled along r1's whole corridor) nor its WEAR: `pav` is carried to the renderer's pavement
+  //  and read by nothing of the ground (27_premises: roadObjs.pav, the issues; the patch's sink reads the premises' recipe)
+  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1, pav: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
+    if (layer === 'sounds') return false;   // G1656: a sound moves no ground (and the game skips its ground re-sample)
     if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
@@ -345,34 +384,53 @@ function mount(host, ctx) {
   };
   function dirty(layer, bbox, ground, objs) {
     if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
+    const t0 = PERF.now(), label = LAST || (layer || 'all'); LAST = '';
     R.setRecord(rec);
+    // G1656: the ambience hears a sound edit at once (nothing composes for it: the renderer redraws its marks alone)
+    if (layer === 'sounds' || !layer) { try { if (window.AMBIENCE && window.AMBIENCE.soundsChanged) window.AMBIENCE.soundsChanged(rec); } catch (e) {} }
     // (G3001) only placed objects changed: the renderer makes them alone
     if (objs && R.objectEdit && R.objectEdit(objs)) {
       FAST.n++;
+      const t1 = PERF.now();
       inspector.refresh();
+      const t2 = PERF.now();
       autosave();
       ctx.onRebuilt && ctx.onRebuilt('objects', false, bbox || null);
       ctx.redraw && ctx.redraw();
       clearTimeout(chkT); chkT = setTimeout(checks, 500);
       plaque();
+      logEdit(PERF.now() - t0, label + ' · object ' + (t1 - t0).toFixed(0) + ' · inspector ' + (t2 - t1).toFixed(0));
       return;
     }
     FAST.full++;
-    if (!layer) R.rebuild(null);
-    else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
-    else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    let st = null;
+    if (!layer) st = R.rebuild(null);
+    else if (groundLayer(layer) && ground !== false) st = R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
+    else st = R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    const t1 = PERF.now();
     inspector.refresh();
+    const t2 = PERF.now();
     autosave();
     ctx.onRebuilt && ctx.onRebuilt(layer || null, ground, layer ? bbox || null : null);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was; G2917: and the box it moved, in the premises frame)
+    const t3 = PERF.now();
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
+    const steps = st && st.steps ? Object.keys(st.steps).filter(k => st.steps[k] >= 1).map(k => k + ' ' + Math.round(st.steps[k])).join(', ') : '';
+    logEdit(PERF.now() - t0, label + ' · rebuild ' + (t1 - t0).toFixed(0) + (st && st.composeMs ? ' (compose ' + Math.round(st.composeMs) + (steps ? '; ' + steps : '') + ')' : steps ? ' (' + steps + ')' : '') +
+      (st && st.outlines ? ' · outlines ' + Math.round(st.outlines.ms) + ' (' + st.outlines.made + ' made)' : '') + ' · inspector ' + (t2 - t1).toFixed(0) + ' · ground ' + (t3 - t2).toFixed(0) + (ground === false ? ' (none)' : bbox ? '' : ' (all)'));
   }
   function checks() {
+    const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
-    const iss = PG.issues(rec);
-    if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
+    const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
+    if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
+    // (the user, 24 Oct: "remove the long log list at the bottom left") - the panel says only what is wrong: a failed check,
+    // the first issue, the warnings' count; all well, it is empty (and hidden, flight.css #premChk:empty)
+    const bad = lines.filter(l => !l.ok);
+    if (els.chk) els.chk.innerHTML = [bad.length ? '<span class="bad">✗ ' + bad[0].label + (bad.length > 1 ? ' (+' + (bad.length - 1) + ')' : '') + '</span>' : '',
+      iss.length ? '<span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '',
+      wrn.length ? '<span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships)</span>' : ''].filter(Boolean).join('<br>');
     return lines;
   }
   function plaque() {
@@ -681,6 +739,15 @@ function mount(host, ctx) {
     strip.status('plot ' + p.id + ': fence ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
     return true;
   }
+  // a plot's CARS switched (the user, 24 Oct): its id in the zone's noCar - the fence's twin
+  function togglePlotCar(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noCar) ? r2.noCar.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noCar = l; else delete r2.noCar; x.rules = r2; }, 'cars of plot ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noCar || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': cars ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
+    return true;
+  }
   function ghostFeature() {
     if (!T.pts.length) return null;
     if (tool === 'pad' && T.pts.length >= 2) return { poly: PG.roundPoly({ c: T.pts[0], r: Math.max(1, Math.hypot(T.pts[1][0] - T.pts[0][0], T.pts[1][1] - T.pts[0][1])) }) };
@@ -803,6 +870,7 @@ function mount(host, ctx) {
     let e;
     if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
+    else if (tool === 'soundarea') { const key = soundPick(); if (!key) { strip.status('no sound to draw: the ambience is not loaded'); cancelTool(); return; } e = { id: soundId(), kind: 'sound', poly, key, on: true }; }
     // (G2910) every other polygon is ONE AREA, the tool's properties attached
     else e = { id: PG.newId(rec, 'areas'), poly, props: areaPreset(tool, poly) };
     run({ layer, id: e.id, before: null, after: e, label: (e.kind || (layer === 'areas' ? TOOL_LABEL[tool] || 'area' : layer)) + ' ' + e.id });
@@ -852,7 +920,7 @@ function mount(host, ctx) {
 
   // ---- selection, handles, dragging -------------------------------------------------
   let selected = null, drag = null;
-  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); }
+  function select(id) { const t0 = PERF.now(), was = selected; if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); const t1 = PERF.now(); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); const ms = PERF.now() - t0; if (id !== was || ms >= 8) logEdit(ms, 'select ' + (id || 'none') + ' · renderer ' + (t1 - t0).toFixed(0) + ' · inspector ' + (PERF.now() - t1).toFixed(0)); }
   function onDown(ev) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
@@ -863,9 +931,27 @@ function mount(host, ctx) {
         if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
         return false;
       }
-      return startDrag(h, !!ev.altKey);
+      if (startDrag(h, !!ev.altKey)) return true;
     }
+    // G2891 (c1): a press on a strip's club hangar or its stand grabs it - the strip selected, that handle in the hand
+    if (tool === 'select' && T.state !== 'drawing' && !(ev.ctrlKey || ev.metaKey)) { const g = ctx.ground(ev.clientX, ev.clientY); if (g && grabStrip(g, !!ev.altKey)) return true; }
     return false;
+  }
+  // G2891 (SCENERY-ED-1 c1; the user, 12 Oct: "there is a lot I can't displace" at HOME): the club hangar and the stand are a
+  // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
+  // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
+  // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  let GRAB_KEY = null;
+  function grabStrip(g, alt) {
+    if (!R.grabAt) return false;
+    const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
+    const top = R.hitAll ? R.hitAll(g[0], g[2])[0] : null;
+    if (top && top.kind === 'object') return false;
+    if (selected !== gb.id) select(gb.id);
+    if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    GRAB_KEY = gb.key;   // (G3096: R turns a grabbed hangar)
+    strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
+    return true;
   }
   // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
   function startDrag(h, alt) {
@@ -874,7 +960,7 @@ function mount(host, ctx) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
-        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
+        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft' || (e.kind === 'sound' && !e.poly)) { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         if (found.layer === 'runways') {
           if (h.key.indexOf('hold:') === 0) {
             // the pattern becomes AUTHORED the moment a hold is touched: the derived graph, saved verbatim, the hold moved along the centreline
@@ -931,6 +1017,9 @@ function mount(host, ctx) {
   }
   // the drag's hand: the WORLD ground point moves the handle's record
   function moveDrag(g) {
+    const tm = PERF.now(); try { return moveDrag0(g); } finally { if (drag) { const d = PERF.now() - tm; drag.mvN = (drag.mvN || 0) + 1; drag.mvSum = (drag.mvSum || 0) + d; drag.mvMax = Math.max(drag.mvMax || 0, d); } }
+  }
+  function moveDrag0(g) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
     if (drag.hold) {
@@ -953,6 +1042,14 @@ function mount(host, ctx) {
       }
     }
     // (G1400: `drag.runway &&` - a polygon's or a road's corner has no runway key, and its drag threw here on every move: no corner could be dragged)
+    else if (drag.runway && (drag.runway.indexOf('pl:') === 0 || drag.runway.indexOf('ps:') === 0)) {
+      // (G3091, objective 1) A BASE PLOT's disc moves the plot (its stand and its way out with it); its stand's disc the stand alone
+      const e = found.entry, p = (e.plots || []).find(q => q && q.id === drag.runway.slice(3));
+      if (p && drag.runway[1] === 'l') { const dx = +L[0].toFixed(2) - p.x, dz = +L[1].toFixed(2) - p.z; p.x = +L[0].toFixed(2); p.z = +L[1].toFixed(2);
+        if (p.stand) { p.stand.x = +(p.stand.x + dx).toFixed(2); p.stand.z = +(p.stand.z + dz).toFixed(2); }
+        for (const k of ['taxiOut', 'taxiOut1']) if (Array.isArray(p[k])) p[k] = p[k].map((q, i, a) => i === a.length - 1 ? q : [+(q[0] + dx).toFixed(2), +(q[1] + dz).toFixed(2)]); }
+      else if (p && p.stand) { p.stand.x = +L[0].toFixed(2); p.stand.z = +L[1].toFixed(2); }
+    }
     else if (drag.runway && (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0)) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
@@ -1021,6 +1118,7 @@ function mount(host, ctx) {
   }
   function onUp() {
     if (!drag) return false;
+    if (drag.mvN) logEdit(drag.mvMax, 'drag ' + drag.id + ' ' + (drag.key || '') + ' · ' + drag.mvN + ' moves, worst ' + drag.mvMax.toFixed(0) + ' ms, mean ' + (drag.mvSum / drag.mvN).toFixed(1));
     if (R.snapHint) R.snapHint(null);
     const found = PG.findById(rec, drag.id);
     // (G2890: a disc clicked and not moved - the corner picked - is no command and no rebuild)
@@ -1028,7 +1126,7 @@ function mount(host, ctx) {
     if (found && (drag.co || drag.snap || drag.detach)) { joinUp(found); drag = null; return true; }   // (G2950)
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
-      undoS.push(cmd); redoS.length = 0;
+      undoS.push(cmd); redoS.length = 0; LAST = 'release ' + drag.id;
       dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry), objsOf(cmd));
     }
     drag = null;
@@ -1043,7 +1141,7 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
-    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : T.pickWhat === 'car' ? togglePlotCar : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
       // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
@@ -1063,6 +1161,14 @@ function mount(host, ctx) {
       select(h ? h.id : null);
       if (list.length > 1) strip.status((CYC.i + 1) + ' of ' + list.length + ': ' + (h.kind || h.layer) + ' ' + h.id + (h.item ? ' (' + h.item + ')' : '') + ' - click again for the next');
       return;
+    }
+    if (tool === 'probe' && section === 'sounds') { soundProbe(g); return; }
+    if (tool === 'soundpt') {
+      const key = soundPick();
+      if (!key) { strip.status('no sound to place: the ambience is not loaded'); return; }
+      const e = { id: soundId(), kind: 'sound', x: +L[0].toFixed(2), z: +L[1].toFixed(2), key, on: true };
+      run({ layer: 'sounds', id: e.id, before: null, after: e, label: 'sound ' + e.id + ' (' + key + ')' });
+      select(e.id); return;
     }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
@@ -1141,16 +1247,8 @@ function mount(host, ctx) {
     if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
       const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
-      const AN0 = (typeof window !== 'undefined' && window.ANIMALS) || null;
-      const kind0 = (AN0 && AN0.reg(key)) ? AN0.reg(key).kind : 'land';
-      const e = tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
+      const e = tool === 'animal' ? animalRecord(key, L) : tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
               : tool === 'aircraft' ? { id: PG.newId(rec, 'objects'), kind: 'aircraft', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }
-              // the defaults are the species' own: a bear alone on 60 m, a herd
-              // of four on 120, a POD OF FIVE on 300 (orca travel in pods of
-              // four or five, and one whale is one whale), a flock of six on 220
-              : tool === 'animal' ? { id: PG.newId(rec, 'objects'), kind: 'animal', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0,
-                                      n: kind0 === 'sea' ? (key === 'whale' ? 1 : 5) : kind0 === 'air' ? 6 : (key === 'bear' ? 1 : 4),
-                                      r: kind0 === 'sea' ? 300 : kind0 === 'air' ? 220 : (key === 'bear' ? 60 : 120), dy: 0 }
                                 : { id: PG.newId(rec, 'objects'), kind: 'billboard', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, w: 3.6 };
       run({ layer: 'objects', id: e.id, before: null, after: e, label: tool + ' ' + e.id });
       select(e.id);
@@ -1178,6 +1276,9 @@ function mount(host, ctx) {
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     // R turns 15 degrees: the placer's ghost, a selected site or model / object
+    else if ((ev.key === 'r' || ev.key === 'R') && tool === 'select' && GRAB_KEY === 'hangar' && selected && (PG.findById(rec, selected) || {}).layer === 'runways' && PG.findById(rec, selected).entry.hangar) {
+      // (G3096) the grabbed hangar turned 15 deg (shift: the other way)
+      const k = ev.shiftKey ? -1 : 1; edit(selected, 'runways', x => { const a = (+x.hangar.hdg || 0) + k * Math.PI / 12; x.hangar.hdg = +Math.atan2(Math.sin(a), Math.cos(a)).toFixed(4); }, 'hangar of ' + selected, 'hangarHdg'); ev.preventDefault(); }
     else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
     else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected, 'yaw');   /* (G3005: a run of R presses, one rebuild when they stop) */ else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
@@ -1236,7 +1337,7 @@ function mount(host, ctx) {
   // displayed action buttons, the right zone being a generic inspector" · "provide more info on selection. Clicking on a
   // polygon leaves very little options". The plate's head says what is selected; nothing selected, it is the scenery's
   // outline (every feature by kind, a click selects and frames it). The tabs' own rows are the palette's (palette below).
-  const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover' };
+  const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover', sounds: 'sound' };
   let CYC = null;   // (G3006) the pick cycle: { at (the world point clicked), sig (what lay under it), i, n, id }
   function selHead(kind, id, label) {
     const d = $('div', { class: 'pr-selhd' });
@@ -1254,7 +1355,7 @@ function mount(host, ctx) {
     rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tab, a tool, and click the ground');
     const groups = [['areas', 'AREAS', e => PG.areaLabel(e)], ['runways', 'RUNWAYS', e => e.name || ''], ['roads', 'ROADS', e => (e.cls || '') + ' ' + (+e.w || 3.6).toFixed(1) + ' m'], ['zones', 'ZONES', e => e.kind],
                     ['sites', 'SITES', e => e.name || ''], ['objects', 'OBJECTS', e => e.kind + ' ' + (e.key || '')], ['terrain', 'TERRAIN (lines and the rest)', e => e.kind], ['surface', 'SURFACES', e => ''], ['material', 'MATERIALS', e => e.look || e.set || ''],
-                    ['exclude', 'EXCLUSIONS', e => (e.what || []).join(', ')], ['ttype', 'COVERS', e => ''], ['links', 'LINKS', e => e.kind]];
+                    ['exclude', 'EXCLUSIONS', e => (e.what || []).join(', ')], ['ttype', 'COVERS', e => ''], ['links', 'LINKS', e => e.kind], ['sounds', 'SOUNDS', e => String(e.key).slice(4) + (e.on === false ? ' (off)' : '')]];
     for (const [k, title, lab] of groups) {
       const L = rec.layers[k] || []; if (!L.length) continue;
       const d = $('details', { class: 'pr-outline' }); d.appendChild($('summary', { text: title + ' · ' + L.length })); insp.appendChild(d);
@@ -1274,6 +1375,62 @@ function mount(host, ctx) {
     rows.note(insp, 'select a feature on the map (or above) to see everything about it here; the tabs on the left hold the tools and their palettes');
   }
   let OUTLINE_OPEN = null;
+  // ---- G1656 THE SOUNDS: the bed to draw, and WHAT IS HEARD at a spot (the ambience's own targets there) -------------
+  // a sound's id, unique over EVERY layer (findById answers the first layer that has an id: an authored record's animal
+  // hotspots are a1.. - the first proof in the real page dragged an elk herd for a point sound)
+  function soundId() { for (let i = 1; ; i++) { const id = 'snd' + i; if (!PG.findById(rec, id)) return id; } }
+  function soundPick() {
+    const beds = soundBeds();
+    if (!beds.length) return null;
+    if (!SOUND_PICK || !beds.some(b => b[0] === SOUND_PICK)) SOUND_PICK = beds[0][0];
+    return SOUND_PICK;
+  }
+  let PROBE_AT = null;   // the last spot the SOUND tab's probe read (local x, z)
+  function soundsPalette(P) {   // (the SOUND tab's palette drawer: the bed to draw, the probe's reading)
+    const beds = soundBeds();
+    if (!beds.length) { rows.note(P, 'the ambience is not loaded on this page (sound off, ?audio=0): nothing to draw', 'bad'); return; }
+    soundPick();
+    rows.select(P, 'sound to draw', beds, () => SOUND_PICK, v => { SOUND_PICK = v; palette.refresh(); });
+    rows.note(P, 'heard to ~' + soundReach(SOUND_PICK) + ' m from a point or around an area. A POINT SOUND: click the ground. A SOUND AREA: click its corners, close. On puts the sound there, off silences it there (a sea wall, a quiet glade).');
+    rows.note(P, 'the probe reads what is heard where you click: every bed the ambience plays there, by day, with your sounds.');
+    if (PROBE_AT) soundProbeRows(PROBE_AT, P);
+  }
+  function soundProbe(g) {
+    const L = R.overlay.frame.toLocal(g[0], g[2]);
+    PROBE_AT = [L[0], L[1]];
+    palOpen = true; palette.refresh();
+    strip.status('heard at x ' + L[0].toFixed(0) + ' z ' + L[1].toFixed(0) + ': the list in the sound palette');
+  }
+  // the ambience model run at the spot (1.7 m above the ground, the world's own day and wind, the record's live sounds):
+  // its targets, the loudest first, as bars - the evidence charts' lanes at one place and one moment
+  function heardAt(lx, lz) {
+    const M = window.AMBIENCE_MODEL, AP = window.AUDIO_PARAMS;
+    if (!M || !AP) return null;
+    const F = R.overlay.frame, w = F.toWorld(lx, lz), P = AP.audioParamsBlock(), st = M.ambienceState();
+    P.s[P.I.listenerX] = w[0]; P.s[P.I.listenerY] = R.heightAt(w[0], w[1]) + 1.7; P.s[P.I.listenerZ] = w[1];
+    M.ambienceStep(st, P, world, 1 / 60);   // (its first frame reads the world: the zones, the fences)
+    M.ambienceSounds(st, rec, F);           // the editor's record, not yet composed into the world
+    for (let i = 0; i < 40; i++) M.ambienceStep(st, P, world, 1 / 60);
+    return M.BEDS.map((b, i) => [b[0], st.t[i]]).filter(q => q[1] > 0.01).sort((a, b) => b[1] - a[1]);
+  }
+  function soundProbeRows(lp, into) {
+    const H = lp ? heardAt(lp[0], lp[1]) : null;
+    if (!H) return;
+    rows.section(into, 'HEARD HERE');
+    if (!H.length) { rows.note(into, 'nothing: too high, under water, or silenced'); return; }
+    const box = $('div', { class: 'r', style: 'display:block' });
+    for (const [k, v] of H) {
+      const row = $('div', { style: 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px' });
+      row.appendChild($('span', { text: k.slice(4), style: 'flex:0 0 112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }));
+      const bar = $('span', { style: 'flex:1 1 auto;height:8px;background:rgba(255,255,255,.08);border-radius:2px;position:relative' });
+      bar.appendChild($('span', { style: 'position:absolute;left:0;top:0;bottom:0;width:' + Math.round(v * 100) + '%;background:#e07bd8;border-radius:2px' }));
+      row.appendChild(bar);
+      row.appendChild($('span', { text: v.toFixed(2), style: 'flex:0 0 30px;text-align:right;opacity:.75' }));
+      box.appendChild(row);
+    }
+    into.appendChild(box);
+  }
+
   const inspector = { refresh() {
     insp.innerHTML = '';
     const f = selected && PG.findById(rec, selected);
@@ -1299,12 +1456,13 @@ function mount(host, ctx) {
     }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
-        rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'level (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level,   // (G3019 (2): an absolute level is a height - the user's up to 709 m)
+          v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
       else if (e.kind === 'ramp') {
         if (e.slope === undefined || e.slope === null) { const c = PG.polyCentroid(e.poly), pl = e.plane || [0, 0, 0]; e.level = +(pl[0] * c[0] + pl[1] * c[1] + pl[2]).toFixed(2); e.slope = +Math.hypot(pl[0], pl[1]).toFixed(4); e.hdg = +(Math.atan2(pl[0], pl[1]) * 180 / Math.PI).toFixed(0); }
-        rows.slider(insp, 'height at the middle (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'height at the middle (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => v.toFixed(1) + ' %');
         rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((e.hdg || 0) + 360) % 360, v => ed(x => { x.hdg = v; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
@@ -1314,7 +1472,9 @@ function mount(host, ctx) {
       }
       rows.slider(insp, 'falloff (m)', 1, 120, 1, () => e.falloff, v => ed(x => { x.falloff = v; }, 'falloff of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
     } else if (layer === 'surface') {
-      rows.select(insp, 'surface', SURF_OPTS, () => String(e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel"): an old
+      // file's surface entry - a feel drawn nowhere - is kept as it is and said, never offered (an AREA draws and feels as one)
+      rows.note(insp, 'an old file\'s surface: the wheels feel ' + (PG.SURFACE_NAMES[+e.surface] || '?').toLowerCase() + ' here, nothing drawn - kept as it was');
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
     } else if (layer === 'material') {
       const sets = materialSets();
@@ -1332,9 +1492,12 @@ function mount(host, ctx) {
     else if (layer === 'exclude') rows.check(insp, 'no trees', () => e.what.indexOf('trees') >= 0, v => ed(x => { x.what = v ? ['trees'] : []; }, 'exclude of ' + id));
     else if (layer === 'roads') {
       rows.slider(insp, 'width (m)', 2, 30, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');   // (G434: to 30 - a taxiway is a road)
-      rows.select(insp, 'class', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel', v => ed(x => { x.cls = v; }, 'class of ' + id));
-      // THE LOOK (v1.16): the pavement drawn - derived from the class when not said
-      rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => e.look || '', v => ed(x => { x.look = v || null; }, 'look of ' + id));
+      // ONE SURFACE (18 Oct): the class is what the road is - drawn and felt; picking one drops a look that feels otherwise
+      rows.select(insp, 'surface', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel',
+        v => ed(x => { x.cls = v; delete x.surface; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
+      // THE LOOK (v1.16): the pavement drawn - only the variants that feel as the class (paved: asphalt, concrete, old concrete)
+      { const feel = PG.roadFeel(e), alts = Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls && PG.lookFeelsAs(k, feel));
+        if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id)); }
       pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
       rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
@@ -1414,7 +1577,7 @@ function mount(host, ctx) {
         { const TH = PG.themeOf(rec), rule = (TH.plots || {})[e.kind] || {}, own = (e.rules && Array.isArray(e.rules.cats)) ? e.rules.cats : [];
           const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'draws from', title: 'the categories this zone\'s plots draw from' }));
           const w = $('span', { class: 'pills' });
-          for (const c of TH.categories || PG.CATEGORIES) { const on = own.length ? own.indexOf(c) >= 0 : (rule.cats || []).indexOf(c) >= 0; const b = $('button', { class: 'pill' + (on ? ' on' : ''), text: c, type: 'button', title: own.length ? 'this zone\'s own list' : 'the ' + TH.name + ' theme\'s list for a ' + e.kind + ' zone' }); b.onclick = () => ed(x => { const cur = (x.rules && Array.isArray(x.rules.cats) && x.rules.cats.length) ? x.rules.cats.slice() : (rule.cats || []).slice(); const i = cur.indexOf(c); if (i >= 0) cur.splice(i, 1); else cur.push(c); x.rules = Object.assign({}, x.rules, { cats: cur }); }, 'categories of ' + id); w.appendChild(b); }
+          for (const c of zoneCats(TH)) { const on = own.length ? own.indexOf(c) >= 0 : (rule.cats || []).indexOf(c) >= 0; const b = $('button', { class: 'pill' + (on ? ' on' : ''), text: c, type: 'button', title: own.length ? 'this zone\'s own list' : 'the ' + TH.name + ' theme\'s list for a ' + e.kind + ' zone' }); b.onclick = () => ed(x => { const cur = (x.rules && Array.isArray(x.rules.cats) && x.rules.cats.length) ? x.rules.cats.slice() : (rule.cats || []).slice(); const i = cur.indexOf(c); if (i >= 0) cur.splice(i, 1); else cur.push(c); x.rules = Object.assign({}, x.rules, { cats: cur }); }, 'categories of ' + id); w.appendChild(b); }
           d.appendChild(w); insp.appendChild(d);
           if (own.length) rows.button(insp, 'back to the theme\'s categories', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.cats; x.rules = r2; }, 'categories of ' + id));
           else if (rule.tag) rows.note(insp, 'a ' + e.kind + ' zone stands what the theme tags ' + rule.tag + ' (' + (ctx.catalogue ? ctx.catalogue.byTag(rule.tag).length : 0) + ' in the catalogue)');
@@ -1437,7 +1600,7 @@ function mount(host, ctx) {
           rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
             () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
           if (RU0.ground !== false) {
-            rows.button(insp, T.plotPick === id && T.pickWhat !== 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat !== 'fence' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'ground' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat === 'ground' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
           } }
         // THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): every plot's
@@ -1449,6 +1612,15 @@ function mount(host, ctx) {
             rows.button(insp, T.plotPick === id && T.pickWhat === 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s fence', () => { const on = !(T.plotPick === id && T.pickWhat === 'fence'); T.plotPick = on ? id : null; T.pickWhat = on ? 'fence' : null; strip.status(on ? 'click a plot of ' + id + ' to take its fence off or put it back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offF) { rows.note(insp, offF + ' plot' + (offF === 1 ? '' : 's') + ' without a fence'); rows.button(insp, 'every plot\'s fence back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noFence; x.rules = r2; }, 'plot fences of ' + id)); }
           } }
+        // THE PLOTS' CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+        // ones"): every plot's parked cars as built, or none - for the whole zone, or plot by plot (the fence switch's twin)
+        { const RU2 = e.rules || {}, offC = Array.isArray(RU2.noCar) ? RU2.noCar.length : 0;
+          rows.pills(insp, 'plot cars', [['auto', 'as built', 'each plot\'s parked cars as the village plans them'], ['off', 'none', 'no car parked on any plot of this zone']],
+            () => (RU2.cars === false ? 'off' : 'auto'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.cars = false; else delete r2.cars; x.rules = r2; }, 'plot cars of ' + id));
+          if (RU2.cars !== false) {
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'car' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s cars', () => { const on = !(T.plotPick === id && T.pickWhat === 'car'); T.plotPick = on ? id : null; T.pickWhat = on ? 'car' : null; strip.status(on ? 'click a plot of ' + id + ' to take its cars off or put them back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offC) { rows.note(insp, offC + ' plot' + (offC === 1 ? '' : 's') + ' without cars'); rows.button(insp, 'every plot\'s cars back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noCar; x.rules = r2; }, 'plot cars of ' + id)); }
+          } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
         rows.slider(insp, 'plot max (m)', 16, 60, 1, () => RU.plotMax, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMax: v }); }, 'plots of ' + id, 'plotMax'), v => v.toFixed(0) + ' m');
@@ -1456,25 +1628,39 @@ function mount(host, ctx) {
         const np = (R.plots ? R.plots() : []).filter(p => p.zone === id).length;
         rows.note(insp, np + ' plot' + (np === 1 ? '' : 's') + ' sown' + (np ? '' : ' — trace a road through the zone'));
       } else rows.note(insp, 'no tree grows here');
-      rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
+      rows.slider(insp, 'seed', 0, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed,   // (G3019 (2): 0 is 'auto', every zone's)
+        v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
     } else if (layer === 'runways') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'centre x (m)', () => e.c[0], v => ed(x => { x.c = [+v.toFixed(2), x.c[1]]; }, 'centre of ' + id, 'cx'), metres);
+      numRow(insp, 'centre z (m)', () => e.c[1], v => ed(x => { x.c = [x.c[0], +v.toFixed(2)]; }, 'centre of ' + id, 'cz'), metres);
       rows.slider(insp, 'length (m)', 150, 3000, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
-      rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
+        v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
-      // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
-      // the surface row below may still overrule (a paved look on a grass class is a painted strip)
-      rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
-        v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
-      rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // THE SURFACE (v9; ONE SURFACE, 18 Oct): what the strip is drawn as IS what the wheels feel - the look sets both
+      // ('markings only' keeps the feel it had: the ground under the paint)
+      // WATER-LANE-ED (the user, 18 Oct: their OWN water runways): 'water' is a surface like the others - a floats lane on the
+      // water's own level (SURFACE.WATER, look 'none': the composer grades, paints and excludes nothing, the sandbox flies a
+      // float plane to it); its land rows (altiport, profile, shoulder, lights) are not shown. Back to a land surface: the
+      // strip's lights come back
+      const WATER = PG.runwayIsWater(Object.assign({}, PG.RUNWAY_DEF, e));
+      rows.pills(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]).concat([['water', 'water (floats)', 'a floats lane on the water: nothing graded, painted or lit']]), () => (WATER ? 'water' : e.look || 'grass'),
+        v => ed(x => {
+          if (v === 'water') { x.surface = PG.SURFACE.WATER; x.look = 'none'; x.papi = [false, false]; x.profile = null; x.slope = 0; x.crossfall = 0; x.falloff = null; delete x.altiport; return; }
+          const wasW = +x.surface === PG.SURFACE.WATER; x.look = v; const L = PG.RUNWAY_LOOKS[v];
+          if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; else if (wasW) x.surface = PG.SURFACE.GRASS;
+          if (wasW) x.papi = [true, true];
+        }, 'look of ' + id));
+      if (WATER) rows.note(insp, 'a floats lane: on the water\'s own level - nothing graded, painted or lit; the floats land on it, the slips (its plots) stand on the shore');
       if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
       // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
-      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+      if (!WATER) rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));
@@ -1494,14 +1680,14 @@ function mount(host, ctx) {
       }
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
-      profileGraph(insp, e, ed);
+      if (!WATER) profileGraph(insp, e, ed);
       // THE SHOULDER (v9): the strip's radius of terraforming - the grade's falloff either side of the
       // box, the band the composed ground takes to come back to the terrain; outlined when selected
-      rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
-      rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
+      if (!WATER) rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      if (!WATER) rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
       // THE GLIDESLOPE LIGHTS (G434): a PAPI (four units), a two-bar VASI or none at each end; both are set
       // to the approach's own slope (the lights show the glideslope the pilot flies)
-      for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
+      if (!WATER) for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
         () => { const v = (e.papi || [true, true])[k]; return v === 'vasi' ? 'vasi' : v ? 'papi' : 'none'; },
         v => ed(x => { const p = (x.papi || [true, true]).slice(); p[k] = v === 'vasi' ? 'vasi' : v === 'papi'; x.papi = p; }, 'lights of ' + id));
       const A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === id);
@@ -1517,16 +1703,29 @@ function mount(host, ctx) {
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
       if (e.stand && e.taxiOut) {
         rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
-        rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
-        if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
-        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
-      } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+        // (G3091, objective 1; the user: "the main hangar rotation, position, taxiways, spawn points ... will need to be redone")
+        numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
+        numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
+        standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
+        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
+        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
+        else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
+        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; delete x.taxiOutVia; delete x.taxiOut1Via; }, 'stand of ' + id));
+      } else {
+        rows.button(insp, 'give it a stand and a way out', () => ed(x => { standUp(x); }, 'stand of ' + id));   // (G3094 TAXI-ALL)
+        rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+      }
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
       // out of (the reveal shot keeps out of it); placed behind the stand facing it, then dragged by its disc
       // and turned here. Its size is the player's (the sliders in the shed), never the record's.
       if (e.hangar) {
-        rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
+        rows.note(insp, 'THE MAIN HANGAR (the club hangar: your career\'s main shed, drawn at your shed\'s own size): its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; press on it to drag it, R / shift-R turn it 15°');
+        if (PG.hangarSquare) { const sq = PG.hangarSquare(rec, e, e.stand, R.overlay && R.overlay.frame ? R.overlay.frame.yaw : 0);
+          if (sq !== null && Math.abs(Math.atan2(Math.sin(sq - (+e.hangar.hdg || 0)), Math.cos(sq - (+e.hangar.hdg || 0)))) > 0.01)
+            rows.button(insp, 'square to the buildings, door toward the stand', () => ed(x => { x.hangar.hdg = sq; }, 'hangar of ' + id)); }
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
+        numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
+        numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
         rows.button(insp, 'remove the club hangar', () => ed(x => { x.hangar = null; }, 'hangar of ' + id));
       } else if (e.stand) {
         rows.button(insp, 'stand the club hangar behind the stand', () => ed(x => {
@@ -1534,10 +1733,13 @@ function mount(host, ctx) {
           x.hangar = { x: +(x.stand.x - 34 * Math.cos(h)).toFixed(2), z: +(x.stand.z - 34 * Math.sin(h)).toFixed(2), hdg: +h.toFixed(4) };
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
+      plotRows(insp, e, id, ed);   // (G3091: the base plots)
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'x (m)', () => e.at.x, v => ed(x => { x.at = Object.assign({}, x.at, { x: +v.toFixed(2) }); }, 'place of ' + id, 'atx'), metres);
+      numRow(insp, 'z (m)', () => e.at.z, v => ed(x => { x.at = Object.assign({}, x.at, { z: +v.toFixed(2) }); }, 'place of ' + id, 'atz'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       const items = e.items || [];
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
@@ -1563,6 +1765,8 @@ function mount(host, ctx) {
         insp.appendChild(d);
         if (!open) continue;
         if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        numRow(insp, 'x in the site (m)', () => it.x || 0, v => ed(x => { x.items.find(q => q.id === it.id).x = +v.toFixed(2); }, 'place of ' + it.id, 'ix:' + it.id), metres);
+        numRow(insp, 'z in the site (m)', () => it.z || 0, v => ed(x => { x.items.find(q => q.id === it.id).z = +v.toFixed(2); }, 'place of ' + it.id, 'iz:' + it.id), metres);
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         // (v1.35, G2890) the lot's ground under it: drawn (never under the water line), or the island's own
         rows.check(insp, 'its lot\'s ground drawn', () => !(it.P && it.P.plotGround === false), v => ed(x => { const q = x.items.find(o => o.id === it.id); q.P = Object.assign({}, q.P); if (v) delete q.P.plotGround; else q.P.plotGround = false; }, 'lot ground of ' + it.id));
@@ -1583,6 +1787,8 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
@@ -1594,10 +1800,24 @@ function mount(host, ctx) {
         rows.note(insp, 'drag its disc to move it; R turns it 15 degrees (Shift+R back)');
       } else if (e.kind === 'billboard') rows.slider(insp, 'width (m)', 2, 6, 0.1, () => e.w || 3.6, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1));
     } else if (layer === 'ttype') vegRows(e, id, ed);
+    else if (layer === 'sounds') {
+      const beds = soundBeds();
+      if (beds.length) rows.select(insp, 'sound', beds, () => e.key, v => ed(x => { x.key = v; }, 'sound of ' + id));
+      else rows.note(insp, 'the ambience is not loaded here: ' + e.key, 'bad');
+      rows.pills(insp, 'here', [['on', 'on', 'this sound at full here, fading out over its reach'], ['off', 'off', 'this sound silenced here, coming back over its reach']],
+        () => (e.on === false ? 'off' : 'on'), v => ed(x => { x.on = v !== 'off'; }, (v === 'off' ? 'silence ' : 'sound ') + id));
+      const R0 = soundReach(e.key), core = Math.max(6, 0.2 * R0);
+      rows.note(insp, e.poly ? 'inside the area at full; it fades out over ' + R0 + ' m outside (the faint outer line)'
+                             : 'at full within ' + core.toFixed(0) + ' m; it fades out to ' + R0 + ' m (the faint ring)');
+      rows.note(insp, 'how far a sound carries is the ambience\'s (each sound its own reach); the ground\'s sounds still fade above ~150 m, the winds do not');
+      soundProbeRows(e.poly ? PG.polyCentroid ? PG.polyCentroid(e.poly) : e.poly[0] : [e.x, e.z], insp);
+    }
     else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
     shapeRows(e, id);
@@ -1616,6 +1836,8 @@ function mount(host, ctx) {
     } else if (PG.rectOk(e.rect)) {
       const Q = e.rect, setQ = (patch, label, key) => ed(x => { x.rect = Object.assign({}, x.rect, patch); x.poly = PG.rectPoly(x.rect); }, label + ' of ' + id, key);
       rows.section(insp, 'SHAPE · RECTANGLE');
+      numRow(insp, 'centre x (m)', () => Q.c[0], v => setQ({ c: [+v.toFixed(2), Q.c[1]] }, 'centre', 'qcx'), metres);
+      numRow(insp, 'centre z (m)', () => Q.c[1], v => setQ({ c: [Q.c[0], +v.toFixed(2)] }, 'centre', 'qcz'), metres);
       rows.slider(insp, 'length (m)', 3, 400, 0.5, () => 2 * Q.hw, v => setQ({ hw: v / 2 }, 'length', 'qw'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'width (m)', 3, 400, 0.5, () => 2 * Q.hd, v => setQ({ hd: v / 2 }, 'width', 'qd'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (+Q.yaw || 0) * 180 / Math.PI, v => setQ({ yaw: +(v * Math.PI / 180).toFixed(4) }, 'turn', 'qy'), v => v.toFixed(0) + '°');
@@ -1647,7 +1869,10 @@ function mount(host, ctx) {
     const P = a.props || {}, poly = a.poly || [];
     if (k === 'terraform') { const lv = medianLevel(poly); return { kind: 'flatten', level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
     if (k === 'wheels') { const L = P.draw && P.draw.look && PG.RUNWAY_LOOKS[P.draw.look]; return { surface: L && L.surface !== null && L.surface !== undefined ? +L.surface : PG.SURFACE.GRAVEL }; }
-    if (k === 'draw') return { look: 'concrete', z: 0 };
+    if (k === 'draw') {   // (ONE SURFACE: an area that feels already is drawn as it feels - gravel wheels draw gravel; concrete else)
+      const s = P.wheels ? +P.wheels.surface : null, k2 = s === null ? null : ['concrete', 'gravel', 'grass', 'sand'].concat(Object.keys(PG.RUNWAY_LOOKS)).find(q => PG.RUNWAY_LOOKS[q] && PG.RUNWAY_LOOKS[q].cls && +PG.RUNWAY_LOOKS[q].surface === s);
+      return { look: k2 || 'concrete', z: 0 };
+    }
     if (k === 'marks') return { kind: 'parking' };
     if (k === 'exclude') return { what: ['trees'] };
     if (k === 'cover') { const bs = biomeNames(); return { code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
@@ -1660,7 +1885,7 @@ function mount(host, ctx) {
       x.props = Object.assign({}, x.props);
       x.props[k] = propDefault(x, k);
       // the defaults follow the draw: a pavement wheels its class, marks want a pavement (concrete) turned to the long side
-      if (k === 'draw' && !x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED };
+      if (k === 'draw' && !x.props.wheels) { const L = PG.RUNWAY_LOOKS[x.props.draw.look]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }   // (ONE SURFACE: a new draw brings the wheels it implies; wheels already there are kept - the draw was picked to feel as they do)
       if (k === 'marks') {
         if (!lookCls(x.props.draw)) { x.props.draw = Object.assign({ z: 0 }, x.props.draw || {}, { look: 'concrete' }); delete x.props.draw.set; if (!x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED }; }
         if (x.props.draw.yaw === undefined) { const ed0 = PG.rectOk(x.rect) ? null : longestEdge(x.poly); x.props.draw.yaw = PG.rectOk(x.rect) ? +((x.rect.yaw || 0) + (x.rect.hw >= x.rect.hd ? 0 : Math.PI / 2)).toFixed(4) : ed0 ? +Math.atan2(ed0[1][1] - ed0[0][1], ed0[1][0] - ed0[0][0]).toFixed(4) : 0; }
@@ -1731,7 +1956,8 @@ function mount(host, ctx) {
       rows.pills(insp, 'kind', [['flatten', 'flat', 'the ground inside at one level'], ['raise', 'raise / lower', 'the ground lifted or dropped by a height'], ['ramp', 'slope', 'a constant slope through a height at the middle']], () => t.kind,
         v => edT(q => { const lv = medianLevel(poly); if (v === 'flatten') { q.kind = 'flatten'; if (!isFinite(+q.level)) q.level = lv; delete q.dh; } else if (v === 'raise') { q.kind = 'raise'; if (!isFinite(+q.dh)) q.dh = 2; } else { q.kind = 'ramp'; if (!isFinite(+q.level)) q.level = lv; if (!isFinite(+q.slope)) q.slope = 0.02; if (!isFinite(+q.hdg)) q.hdg = 0; } }, 'terraform'));
       if (t.kind === 'flatten' || t.kind === 'ramp') {
-        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, 80, 0.1, () => +t.level || 0, v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, t.abs ? 1500 : 80, 0.1, () => +t.level || 0,   // (G3019 (2): absolute = a height, a29 530.6 m)
+          v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!t.abs, v => edT(q => { q.abs = v; }, 'absolute'));
         rows.button(insp, 'level to the ground under it (its median)', () => edT(q => { q.level = medianLevel(poly); q.abs = false; }, 'level'));
       }
@@ -1746,7 +1972,11 @@ function mount(host, ctx) {
     if (P.wheels) {
       const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
       sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
-      rows.select(insp, 'the wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand'], ['1', 'rock'], ['2', 'scree'], ['3', 'forest floor']], () => String(+w.surface), v => edW(q => { q.surface = +v; }, 'wheels'));
+      // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there (an old file's other feel is converted on load:
+      // FEEL FOLLOWS THE LOOK, 27_premises normalise)
+      { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase();
+        if (!P.draw) rows.note(insp, 'an old file\'s: the wheels feel ' + nm + ' and nothing is drawn - kept as it was; add a DRAW to set both');
+        else rows.note(insp, L ? 'the wheels feel the drawn surface (DRAW sets both)' : 'the wheels feel ' + nm + ' under the texture'); }
       rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
       rows.slider(insp, 'priority', -5, 5, 1, () => +w.z || 0, v => edW(q => { if (v) q.z = v; else delete q.z; }, 'priority', 'wz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
       if (HARD.indexOf(+w.surface) >= 0) rows.note(insp, 'a hard surface: no tree grows and no plot is sown inside (always so - shown in WHAT IT DOES)');
@@ -1759,7 +1989,7 @@ function mount(host, ctx) {
         v => edD(q => { if (v === 'pave') { q.look = q.look && PG.RUNWAY_LOOKS[q.look] && PG.RUNWAY_LOOKS[q.look].cls ? q.look : 'concrete'; } else { delete q.look; q.set = q.set || (materialSets()[0] || ['cracked'])[0]; if (q.fade === undefined) q.fade = 4; } }, 'draw'));
       if (pave) {
         rows.select(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => d.look,
-          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (!x.props.wheels && L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }, 'surface'));
+          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }, 'surface'));   // (ONE SURFACE: the wheels follow, the apron flag kept)
         rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (+d.yaw || 0) * 180 / Math.PI, v => edD(q => { q.yaw = v * Math.PI / 180; }, 'yaw', 'yaw'), v => v.toFixed(0) + '°');
         rows.button(insp, 'turn the lanes along its longest side', () => { const e0 = longestEdge(poly); if (e0) edD(q => { q.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw'); });
         // (the band, the wear and the paint's age - the pavement's rows, on this draw)
@@ -1831,7 +2061,7 @@ function mount(host, ctx) {
       rm('cover');
     }
     // + ADD A PROPERTY
-    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside');   // (a roadside apron is made from its road's waypoint)
+    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside' && k !== 'wheels');   // (a roadside apron is made from its road's waypoint; ONE SURFACE: the wheels come with DRAW)
     if (missing.length) rows.select(insp, '+ add a property', missing.map(k => [k, PROP_TITLE[k].toLowerCase() + ' - ' + PROP_WHY[k]]), () => '', v => { if (v) addProp(id, v); });
   }
 
@@ -1858,6 +2088,7 @@ function mount(host, ctx) {
     else if (section === 'sites') sitesPalette(d);
     else if (section === 'objects') objectsPalette(d);
     else if (section === 'assets') assetsPalette(d);
+    else if (section === 'sounds') soundsPalette(d);   // G1656
     else if (PAL_NOTE[section]) rows.note(d, PAL_NOTE[section]);
     else pal.innerHTML = '';
   } };
@@ -1865,7 +2096,11 @@ function mount(host, ctx) {
   // its generator's word); 'all' lists the whole catalogue - and the site themes the theme tool stands
   function sitesPalette(P) {
     if (!ctx.catalogue) { rows.note(P, 'no catalogue - no generator loaded'); return; }
-    const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+    // G2891 (the user, 12 Oct: "there are many categories of sites that the filters do not cover"): the theme's categories,
+    // then every category the catalogue's entries carry that the theme does not name (the airfield's 'airport xs / s / m':
+    // the pilot hut, the field sheds, the club hangars, the towers, the terminal - 19 entries only 'all' reached)
+    const TH = PG.themeOf(rec), cats = (TH.categories || PG.CATEGORIES).slice();
+    { const extra = new Set(); const E = ctx.catalogue.entries; if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); }); for (const c of Array.from(extra).sort()) cats.push(c); }
     const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
     const nOf = c => keysOf(c).length;
     if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
@@ -1879,6 +2114,14 @@ function mount(host, ctx) {
     const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
     if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(P, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
   }
+  // G2893 (the user: "there are many categories of sites that the filters do not cover"): a zone may draw from every
+  // category the catalogue carries - the theme's first, then the others its entries name (the airfield's 'airport xs / s
+  // / m': a zone of field sheds, a row of club hangars)
+  function zoneCats(TH) {
+    const cats = (TH.categories || PG.CATEGORIES).slice(), E = ctx.catalogue && ctx.catalogue.entries, extra = new Set();
+    if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); });
+    return cats.concat(Array.from(extra).sort());
+  }
   function objectsPalette(P) {
     for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
       const keys = objectKeys(kind, rec);
@@ -1890,6 +2133,15 @@ function mount(host, ctx) {
     rows.note(P, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
   }
 
+  // AN ANIMAL HOTSPOT (G2893: the OBJECTS tool's and the model placer's one record). The defaults are the species' own: a
+  // bear alone on 60 m, a herd of four on 120, a POD OF FIVE on 300 (orca travel in pods of four or five, and one whale is
+  // one whale), a flock of six on 220; `n` / `r` given (the placer's scatter) win
+  function animalRecord(key, L, yaw, n, r) {
+    const AN = (typeof window !== 'undefined' && window.ANIMALS) || null, kind = (AN && AN.reg && AN.reg(key)) ? AN.reg(key).kind : 'land';
+    return { id: PG.newId(rec, 'objects'), kind: 'animal', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(+yaw || 0).toFixed(4),
+             n: n || (kind === 'sea' ? (key === 'whale' ? 1 : 5) : kind === 'air' ? 6 : (key === 'bear' ? 1 : 4)),
+             r: r || (kind === 'sea' ? 300 : kind === 'air' ? 220 : (key === 'bear' ? 60 : 120)), dy: 0 };
+  }
   // ---- THE MODEL PLACER (G2914; the user: "A generic asset visualizer allowing me to drop models from the available bank") --
   // The bank is the prop registry (PROP_REG: every baked pack registers there - the hangar's, the pier kit, the scenery
   // packs ASSETS-OCT G2900 prepares - so nothing here names a key, contract rule 13); its groups are the pills, a search
@@ -1900,10 +2152,61 @@ function mount(host, ctx) {
   // (R, the inspector) and scaled (the inspector) like any prop, and saved with the premises.
   const ASSET = { key: null, group: 'all', q: '', yaw: 0, s: 1, level: false, n: 8, r: 12, seed: 1, jitter: 0.15, thumbs: new Map(), queue: [], busy: false };
   const propRegOf = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null));
+  // G2893 THE BANK'S TILES (the user: "I did not succeed placing animals"; A0: the parts hidden, the ALMA one placeable).
+  // A tile is a MODEL (a prop of the registry), an ASSEMBLY (its parts placed together: ONE prop record, its head part's key
+  // and the others in `with` - the ALMA's base, fork and dish were baked in one frame) or an ANIMAL (a herd record, the
+  // OBJECTS tool's). Hidden: an assembly's parts, a prop its pack flags `part: true`, and - until the packs flag them - the
+  // groups that are a kit's pieces (the panel's buttons, keys, knobs and switches, the airframe in build, the driveable
+  // car's body, wheels and steering). The assemblies: the packs' own `asm` / `asmParent` when they carry them, else the
+  // committed src/scenery/scenery_assembly.json (tools/scenery_prep.py's), read once when the palette first opens.
+  const PART_GROUPS = { button: 1, key: 1, knob: 1, switch: 1, airframe: 1, car: 1 };
+  const ASM = { file: null, tried: false };
+  function asmFetch() {
+    if (ASM.tried || typeof XMLHttpRequest === 'undefined') return;
+    ASM.tried = true;
+    const go = (urls) => { if (!urls.length) return; const x = new XMLHttpRequest(); x.open('GET', urls[0]);
+      x.onload = () => { if (x.status === 200) { try { ASM.file = JSON.parse(x.responseText); if (section === 'assets') palette.refresh(); } catch (e) {} } else go(urls.slice(1)); };
+      x.onerror = () => go(urls.slice(1)); x.send(); };
+    go(['src/scenery/scenery_assembly.json', '../src/scenery/scenery_assembly.json']);
+  }
+  // { id: [{ key, parent }] } - every assembly the bank can stand whole
+  function assemblies() {
+    const PR = propRegOf(), out = {};
+    if (!PR || !PR.props) return out;
+    for (const k of PR.order || Object.keys(PR.props)) { const p = PR.props[k]; if (p && p.asm) (out[p.asm] = out[p.asm] || []).push({ key: k, parent: p.asmParent || null }); }
+    const F = ASM.file || (typeof window !== 'undefined' && window.SCENERY_ASSEMBLY) || null;
+    if (F) for (const id in F) if (!out[id] && F[id] && Array.isArray(F[id].parts)) {
+      const parts = F[id].parts.filter(q => PR.props[q.row]);
+      if (parts.length === F[id].parts.length && parts.length) out[id] = parts.map(q => ({ key: q.row, parent: q.parent || null }));
+    }
+    return out;
+  }
+  function bankTiles() {
+    const PR = propRegOf(), out = [], inAsm = new Set();
+    if (PR && PR.props) {
+      const A = assemblies();
+      for (const id in A) {
+        const parts = A[id], head = parts.find(q => !q.parent) || parts[0], hp = PR.props[head.key];
+        for (const q of parts) inAsm.add(q.key);
+        out.push({ k: 'asm:' + id, kind: 'asm', key: head.key, with: parts.filter(q => q !== head).map(q => q.key), group: hp.group, label: (hp.label || id).replace(/\s*\(?base\)?$/i, '') + ' (' + parts.length + ' parts)', thumb: head.key, dim: hp.dim, nt: parts.reduce((a, q) => a + ((PR.props[q.key] || {}).nt || 0), 0) });
+      }
+      for (const k of PR.order || Object.keys(PR.props)) {
+        const p = PR.props[k];
+        if (!p || p.lodOf || p.part === true || inAsm.has(k) || PART_GROUPS[p.group]) continue;
+        out.push({ k, kind: 'prop', key: k, group: p.group, label: p.label || k, thumb: k, dim: p.dim, nt: p.nt });
+      }
+    }
+    const AN = (typeof window !== 'undefined' && window.ANIMALS) || null;
+    if (AN && AN.list) for (const a of AN.list()) {
+      let lod = null; if (PR && PR.props) for (const k of PR.order || []) { const p = PR.props[k]; if (p && p.lodOf === a.key && (!lod || (+p.lodDist || 0) < (+PR.props[lod].lodDist || 0))) lod = k; }
+      out.push({ k: 'animal:' + a.key, kind: 'animal', key: a.key, group: 'animals', label: (a.label || a.key) + ' (a herd)', thumb: lod, dim: a.length ? [a.length] : null, nt: a.nt });
+    }
+    return out;
+  }
+  const tileOf = k => bankTiles().find(t => t.k === k) || null;
   function assetKeys() {
-    const PR = propRegOf(); if (!PR || !PR.props) return [];
     const q = ASSET.q.trim().toLowerCase();
-    return (PR.order || Object.keys(PR.props)).filter(k => { const p = PR.props[k]; if (!p || p.lodOf) return false; if (ASSET.group !== 'all' && p.group !== ASSET.group) return false; return !q || (k + ' ' + (p.label || '') + ' ' + (p.group || '')).toLowerCase().indexOf(q) >= 0; });
+    return bankTiles().filter(t => (ASSET.group === 'all' || t.group === ASSET.group) && (!q || (t.k + ' ' + t.label + ' ' + (t.group || '')).toLowerCase().indexOf(q) >= 0)).map(t => t.k);
   }
   // a thumbnail: the host's renderer draws the prop into a small target once its bytes are here (ctx.thumb), one a frame
   function thumbOf(key, img) {
@@ -1923,11 +2226,13 @@ function mount(host, ctx) {
   }
   function assetsPalette(P) {
     const PR = propRegOf();
-    if (!PR || !PR.props || !(PR.order || []).length) { rows.note(P, 'no model bank on this page (the prop registry is empty)'); return; }
+    asmFetch();
+    const TL = bankTiles();
+    if (!TL.length) { rows.note(P, 'no model bank on this page (the prop registry is empty)'); return; }
     const srch = $('input', { type: 'text', placeholder: 'search the bank', value: ASSET.q }); srch.className = 'pr-name';
     srch.oninput = () => { ASSET.q = srch.value; fillGrid(); };
     P.appendChild(srch);
-    const groups = (PR.groups || []).filter(g => (PR.order || []).some(k => PR.props[k] && !PR.props[k].lodOf && PR.props[k].group === g[0]));
+    const groups = ((PR && PR.groups) || []).filter(g => TL.some(t => t.group === g[0])).concat(TL.some(t => t.kind === 'animal') ? [['animals', 'animals (a herd)']] : []);
     rows.pills(P, 'group', [['all', 'all', 'every model of the bank']].concat(groups.map(g => [g[0], g[1] || g[0]])), () => ASSET.group, v => { ASSET.group = v; fillGrid(); });
     const grid = $('div', { class: 'pr-assets' }); P.appendChild(grid);
     const info = $('div', { class: 'note' }); P.appendChild(info);
@@ -1935,11 +2240,12 @@ function mount(host, ctx) {
       grid.innerHTML = '';
       const ks = assetKeys();
       for (const k of ks.slice(0, 240)) {
-        const p = PR.props[k], b = $('button', { class: 'pr-asset' + (k === ASSET.key ? ' on' : ''), type: 'button', title: k + (p.dim ? ' · ' + p.dim.map(v => (+v).toFixed(1)).join(' x ') + ' m' : '') + (p.nt ? ' · ' + p.nt.toLocaleString() + ' tris' : '') });
+        const p = tileOf(k); if (!p) continue;
+        const b = $('button', { class: 'pr-asset' + (k === ASSET.key ? ' on' : ''), type: 'button', title: k + (p.dim ? ' · ' + p.dim.map(v => (+v).toFixed(1)).join(' x ') + ' m' : '') + (p.nt ? ' · ' + p.nt.toLocaleString() + ' tris' : '') });
         const img = $('img', { alt: '' }); b.appendChild(img); b.appendChild($('span', { text: p.label || k }));
         b.onclick = () => { ASSET.key = k; if (tool !== 'place' && tool !== 'scatter') setTool('place'); else armGhost(); fillGrid(); b.blur && b.blur(); };
         grid.appendChild(b);
-        thumbOf(k, img);
+        if (p.thumb) thumbOf(p.thumb, img);
       }
       info.textContent = ks.length + ' model' + (ks.length === 1 ? '' : 's') + (ks.length > 240 ? ' (the first 240 shown - search to narrow)' : '') + (ASSET.key ? ' · picked: ' + ASSET.key : ' · pick one, then click the ground');
     };
@@ -1958,15 +2264,25 @@ function mount(host, ctx) {
   let ghostAt = null;
   function armGhost(g) {
     if (g) ghostAt = g;
-    if ((tool !== 'place' && tool !== 'scatter') || !ASSET.key || !ghostAt) { if (R.ghostModel) R.ghostModel(null); return; }
-    if (R.ghostModel) R.ghostModel({ key: ASSET.key, x: ghostAt[0], z: ghostAt[2], yaw: ASSET.yaw + (R.overlay ? R.overlay.frame.yaw : 0), s: ASSET.s, level: ASSET.level, r: tool === 'scatter' ? ASSET.r : 0 });
+    const T0 = ASSET.key ? tileOf(ASSET.key) : null;
+    if ((tool !== 'place' && tool !== 'scatter') || !T0 || !ghostAt || T0.kind === 'animal') { if (R.ghostModel) R.ghostModel(null); return; }
+    if (R.ghostModel) R.ghostModel({ key: T0.key, x: ghostAt[0], z: ghostAt[2], yaw: ASSET.yaw + (R.overlay ? R.overlay.frame.yaw : 0), s: ASSET.s, level: ASSET.level, r: tool === 'scatter' ? ASSET.r : 0 });
     ctx.redraw && ctx.redraw();
   }
   // ONE drop: a prop record at a premises point (the place tool's click, a script's)
   function placeAsset(L, key, yaw, s, level, only) {
-    const k = key || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return null; }
+    const tk = key || ASSET.key; if (!tk) { strip.status('pick a model in the palette first'); return null; }
+    const T0 = tileOf(tk) || { kind: 'prop', key: tk };
+    if (T0.kind === 'animal') {
+      const e = animalRecord(T0.key, L, yaw === undefined ? ASSET.yaw : yaw);
+      if (only) return e;
+      run({ layer: 'objects', id: e.id, before: null, after: e, label: 'animals ' + e.id + ' (' + T0.key + ')' });
+      return e.id;
+    }
+    const k = T0.key;
     const e = { id: PG.newId(rec, 'objects'), kind: 'prop', key: k, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(yaw === undefined ? ASSET.yaw : yaw).toFixed(4), dy: 0, on: (level === undefined ? ASSET.level : level) ? 'flat' : 'ground' };
     const sc = s === undefined ? ASSET.s : s; if (Math.abs(sc - 1) > 1e-3) e.s = +sc.toFixed(3);
+    if (T0.kind === 'asm' && T0.with && T0.with.length) e.with = T0.with.slice();   // (G2893: the assembly's other parts, stood with it)
     if (only) return e;
     run({ layer: 'objects', id: e.id, before: null, after: e, label: 'model ' + e.id + ' (' + k + ')' });
     return e.id;
@@ -1975,6 +2291,8 @@ function mount(host, ctx) {
   // each its own record (select one and Del takes it out alone); the scatter is one undo step
   function scatterAsset(L, o) {
     const k = (o && o.key) || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return []; }
+    // (G2893: an animal's scatter IS its herd - one hotspot of that many within that radius)
+    { const T0 = tileOf(k); if (T0 && T0.kind === 'animal') { const e = animalRecord(T0.key, L, ASSET.yaw, Math.max(1, Math.min(24, (o && o.n) || ASSET.n)), (o && o.r) || ASSET.r); run({ layer: 'objects', id: e.id, before: null, after: e, label: 'animals ' + e.id + ' (' + T0.key + ')' }); strip.status(e.n + ' ' + T0.key + ' within ' + e.r.toFixed(0) + ' m'); return [e.id]; } }
     const n = (o && o.n) || ASSET.n, r = (o && o.r) || ASSET.r, rnd = PG.mulberry32(PG.hash32((o && o.seed) || ASSET.seed, PG.fnv(k + ':' + L[0].toFixed(1) + ':' + L[1].toFixed(1)))), jit = o && o.jitter !== undefined ? o.jitter : ASSET.jitter;
     const many = [];
     for (let i = 0; i < n; i++) {
@@ -2019,9 +2337,10 @@ function mount(host, ctx) {
       note.className = 'note' + (iss.length ? ' bad' : '');
     };
     const near = ev => { const rct = cv.getBoundingClientRect(), px = (ev.clientX - rct.left) * W / rct.width, py = (ev.clientY - rct.top) * H / rct.height; const P = pts(); let best = -1, bd = 9; P.forEach((q, i) => { const d = Math.hypot(X(q[0]) - px, Y(q[1]) - py); if (d < bd) { bd = d; best = i; } }); return { i: best, px, py }; };
-    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; draw(); ev.preventDefault(); ev.stopPropagation(); });
+    let prof0 = null;   // (objective 1: the profile as it was at the press - the release's ed() must see the change, the terraform with it)
+    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; if (dragging) prof0 = e.profile === undefined ? undefined : JSON.parse(JSON.stringify(e.profile)); draw(); ev.preventDefault(); ev.stopPropagation(); });
     addEventListener('mousemove', ev => { if (!dragging || sel < 0 || !active) return; const n = near(ev); const P = pts().map(q => q.slice()); const t = (sel === 0) ? 0 : (sel === P.length - 1) ? 1 : Math.max(P[sel - 1][0] + 0.01, Math.min(P[sel + 1][0] - 0.01, tOf(n.px))); P[sel] = [+t.toFixed(3), +dyOf(n.py).toFixed(2)]; e.profile = P; R.setRecord(rec); draw(); });
-    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
+    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); if (prof0 === undefined) delete e.profile; else e.profile = prof0; prof0 = null; ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
     cv.addEventListener('dblclick', ev => { const n = near(ev); if (n.i >= 0) return; const P = pts().map(q => q.slice()); const t = +tOf(n.px).toFixed(3); const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P })); P.push([t, +pr.at(t * e.len).toFixed(2)]); P.sort((a, b) => a[0] - b[0]); ed(x => { x.profile = P; }, 'profile point of ' + e.id); ev.stopPropagation(); });
     const btns = $('div', { style: 'display:flex;gap:6px;margin-top:4px' });
     const del = $('button', { class: 'btn pill', type: 'button', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
@@ -2043,6 +2362,32 @@ function mount(host, ctx) {
     const ta = $('textarea', { placeholder: 'paste an envelope or a bare record here, then import', rows: '4' }); ta.className = 'pr-paste';
     P.appendChild(ta);
     rows.button(P, 'import', () => { try { load(ta.value); ta.value = ''; } catch (e) { strip.status('import refused: ' + e.message); } });
+    // SCENERY VERSIONS (ED-2; the user, 25 Oct: 'when getting into the scenery editor, there is an option to load a version, and that's the
+    // only place where scenery can be loaded'): master (what the game boots), the last autosave ('my edits'), and the named versions
+    // of the repo (media/scenery/<island>/index.json). A load replaces the record and composes it into this session's world; the next
+    // boot is master again. 'save as a version' downloads the record stamped as a version (tools/scenery_version.js add commits it)
+    const SC = ctx.scenery || null;
+    if (SC) {
+      const VS = SC.versions(), hasWip = !!(storage && (() => { try { return storage.getItem(LS_WIP); } catch (e) { return null; } })());
+      const opts = [['', 'running: ' + recBase], ['master', 'Master (the shipped scenery)']].concat(hasWip ? [['wip', 'My edits (the last autosave)']] : [], VS.map(v => ['v:' + v.id, v.name + (v.date ? ' (' + v.date + ')' : '')]));
+      rows.select(P, 'load a version', opts, () => '', v => {
+        if (!v) return;
+        try { let t = null, nm = v;
+          if (v === 'master') { t = SC.master; nm = 'master'; }
+          else if (v === 'wip') { t = storage.getItem(LS_WIP); nm = 'my edits'; }
+          else { const V = VS.find(q => 'v:' + q.id === v); t = V ? SC.versionText(V) : null; nm = V ? V.name : v; }
+          if (!t) { strip.status('load refused: ' + nm + ' is not in this build'); return; }
+          load(SC.prep ? SC.prep(t) : t); recBase = nm; if (v === 'wip') wipOwn = true;
+          strip.status('loaded ' + nm + ' - this session only: the game boots master'); palette.refresh();
+        } catch (e) { strip.status('load refused: ' + e.message); } });
+      rows.button(P, 'save as a version (download)', () => {
+        const d = new Date(), p2 = q => String(q).padStart(2, '0'), date = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+        const name = ((typeof prompt === 'function' ? prompt('A name for this version:', (recName || 'my scenery') + ' ' + date) : null) || '').trim(); if (!name) return;
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'version';
+        const o = JSON.parse(PG.envelope(recName, rec)); o.scenery = { id, name, date, base: recBase, island: SC.island || null };
+        const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(o)); a.download = 'scenery_' + id + '.json'; a.click();
+        strip.status('saved ' + name + ' as a version (downloaded)'); });
+    }
     if (storage) {
       const slots = [];
       for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith('flydiy.premises.slot.')) slots.push(k.slice(21)); }
@@ -2079,8 +2424,14 @@ function mount(host, ctx) {
   function pavRows(e, id, layer, ed, lookRow) {
     if (!PAVM) return;
     const L = lookRow || null;
-    rows.slider(insp, 'band (m)', 0, 60, 0.5, () => (e.band === null || e.band === undefined) ? -0.5 : e.band, v => ed(x => { x.band = v < 0 ? null : v; }, 'band of ' + id, 'band'),
-      v => v < 0 ? "the look's" : v.toFixed(1) + ' m');
+    // (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look never comes back" -
+    //  the row's minimum was 0, so its "the look's" notch at -0.5 could not be reached, and a road's declared band 0 is not its
+    //  side: it drew the band's 6 m fade. Now the notch is reachable, and on a ROAD 0 or less takes the band away - the road's
+    //  own side again; on a strip or an apron 0 stays "no cleared earth")
+    const road = layer === 'roads';
+    rows.slider(insp, 'band (m)', -0.5, 60, 0.5, () => (e.band === null || e.band === undefined || (road && !(+e.band > 0))) ? -0.5 : e.band,
+      v => ed(x => { if (v < 0 || (road && !(v > 0))) delete x.band; else x.band = v; }, 'band of ' + id, 'band'),
+      v => v < 0 ? (road ? "none (the road's own side)" : "the look's") : v.toFixed(1) + ' m');
     rows.note(insp, 'the band is the ground drawn beside the pavement - the cleared earth beside a strip, the gravel beside a road - fading into the terrain past it');
     const RS = PAVM.resolve(e, rec, L);
     const label = { paintAge: 'paint age', crackK: 'cracks', rubberK: 'rubber (touchdown)', laneW: 'lane width (m)', wet: 'wet', mossK: 'moss', patchK: 'patches' };
@@ -2111,6 +2462,98 @@ function mount(host, ctx) {
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
     }
   }
+  // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
+  const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  // (G3091, objective 1) THE BASE ZONE'S ROWS. A stand's PARKED HEADING: its own `hdg` (radians) or, null, toward its first taxi
+  // point (placeAtStand's rule) - the row shows the heading it parks at either way; 'toward the way out' gives it back
+  const DEG = 180 / Math.PI, wrapDeg = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const standHdg = (st, way) => (st.hdg !== null && st.hdg !== undefined && isFinite(+st.hdg)) ? +st.hdg : (way && way.length ? Math.atan2(way[0][1] - st.z, way[0][0] - st.x) : 0);
+  function standHeading(p, st, way, apply, pre) {
+    pre = pre || '';
+    rows.slider(p, pre + 'parked heading (°)', -180, 180, 1, () => wrapDeg(standHdg(st, way) * DEG), v => apply(s => { s.hdg = +(v / DEG).toFixed(4); }), v => v.toFixed(0) + '°' + (st.hdg === null || st.hdg === undefined ? ' (toward the way out)' : ''));
+    if (st.hdg !== null && st.hdg !== undefined) rows.button(p, pre + 'parked heading: toward the way out', () => apply(s => { s.hdg = null; }));
+  }
+  // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
+  // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
+  const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
+  // (G3093 TAXI-ALL) `pick` takes the way's holder out of the strip being edited (the strip itself, or one of its plots), `pre`
+  // names a plot's rows apart; FOLLOWS ROAD: a road near the stand (80 m) the composition builds the way from (27_premises
+  // wayFrom) - the drawn taxiway and the pilot's route one thing; the points below stay the way's own, used when it follows none
+  function wayRows(p, e, key, label, id, ed, pick, pre) {
+    pick = pick || (x => x); pre = pre || '';
+    const W = e[key]; if (!Array.isArray(W) || !W.length) return;
+    rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    const vk = key + 'Via', near = e.stand ? (rec.layers.roads || []).filter(q => q && q.pts && q.pts.length >= 2 && PG.roadDist(q, e.stand.x, e.stand.z) < 80) : [];
+    if (near.length || e[vk]) {
+      rows.select(p, pre + 'follows road', [['', 'none (its own points)']].concat(near.map(q => [q.id, (q.name || q.id) + ' (' + q.id + ')'])).concat(e[vk] && !near.some(q => q.id === e[vk]) ? [[e[vk], e[vk] + ' (far)']] : []),
+        () => e[vk] || '', v => ed(x => { const H = pick(x); if (v) H[vk] = v; else delete H[vk]; }, 'way out of ' + id));
+      if (e[vk]) rows.note(p, 'follows road ' + e[vk] + ': edit the road - the pilot follows it; the points below are this way\'s own, used again when it follows none');
+    }
+    W.forEach((q, i) => {
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = pick(x)[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, pre + key + i + k);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, pre + 'add a point after point ' + (i + 1), () => ed(x => { const T = pick(x)[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, pre + 'remove point ' + (i + 1), () => ed(x => { pick(x)[key].splice(i, 1); }, 'way out of ' + id));
+    });
+    if (key === 'taxiOut1' && !pre) rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; delete x.taxiOut1Via; }, 'way out of ' + id));
+  }
+  // (G3094 TAXI-ALL) A STAND AND A WAY OUT for a strip that has none: when a road MEETS the strip (an end within its half width +
+  // 20 m of the centreline, inside its length, the other end out past half width + 10 m) the stand at the road's far end and the
+  // way following it; else the stand 40 m off the side at the middle and a straight way to the centreline
+  function standUp(x) {
+    const R0 = Object.assign({}, PG.RUNWAY_DEF, x), E = PG.runwayEnds(R0), hw = R0.wid / 2;
+    const al = q => (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1], of = q => Math.abs(-(q[0] - x.c[0]) * E.d[1] + (q[1] - x.c[1]) * E.d[0]);
+    let best = null;
+    for (const q of rec.layers.roads || []) {
+      if (!q || !q.pts || q.pts.length < 2) continue;
+      const A = q.pts[0], B = q.pts[q.pts.length - 1];
+      for (const [a, b] of [[A, B], [B, A]]) if (Math.abs(al(a)) <= R0.len / 2 && of(a) <= hw + 20 && of(b) > hw + 10 && (!best || of(a) < best.d)) best = { q, far: b, d: of(a) };
+    }
+    if (best) {
+      x.stand = { x: +best.far[0].toFixed(2), z: +best.far[1].toFixed(2), hdg: null };
+      x.taxiOut = PG.wayFrom(R0, x.stand, best.q); x.taxiOutVia = best.q.id; return best.q.id;
+    }
+    x.stand = { x: +(x.c[0] + E.n[0] * (hw + 40)).toFixed(2), z: +(x.c[1] + E.n[1] * (hw + 40)).toFixed(2), hdg: null };
+    x.taxiOut = [[+(x.c[0] + E.n[0] * (hw + 15)).toFixed(2), +(x.c[1] + E.n[1] * (hw + 15)).toFixed(2)], [+x.c[0].toFixed(2), +x.c[1].toFixed(2)]];
+    return null;
+  }
+  // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
+  function wayToward(x, st, k) {
+    const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), P = onLine(x, [st.x, st.z]), sg = k ? 1 : -1;
+    const entry = onLine(x, [P[0] + E.d[0] * 60 * sg, P[1] + E.d[1] * 60 * sg]);
+    return [[+((st.x + P[0]) / 2).toFixed(2), +((st.z + P[1]) / 2).toFixed(2)], entry];
+  }
+  // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
+  // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
+  // added beside the stand, removed
+  function plotRows(p, e, id, ed) {
+    const P = Array.isArray(e.plots) ? e.plots : [];
+    rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));
+    P.forEach((q, i) => {
+      const pid = q.id, upd = (f, k) => ed(x => f(x.plots[i]), 'plot ' + pid + ' of ' + id, k ? 'p' + i + k : undefined);
+      rows.note(p, 'PLOT ' + pid);
+      numRow(p, pid + ' x (m)', () => q.x, v => upd(o => { o.x = +v.toFixed(2); }, 'x'), metres);
+      numRow(p, pid + ' z (m)', () => q.z, v => upd(o => { o.z = +v.toFixed(2); }, 'z'), metres);
+      rows.slider(p, pid + ' heading (°)', -180, 180, 1, () => wrapDeg((+q.hdg || 0) * DEG), v => upd(o => { o.hdg = +(v / DEG).toFixed(4); }, 'h'), v => v.toFixed(0) + '°');
+      if (q.stand) {
+        numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
+        numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
+        standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
+        // (G3095 TAXI-ALL) its own way out: the same rows as the strip's (typed, added, removed, following a road), or one given
+        if (Array.isArray(q.taxiOut) && q.taxiOut.length) wayRows(p, q, 'taxiOut', pid + ' way out', id, ed, x => x.plots[i], pid + ' ');
+        else rows.button(p, pid + ': give it its own way out', () => ed(x => { const o = x.plots[i]; o.taxiOut = wayToward(x, o.stand, 0); }, 'plot ' + pid + ' of ' + id));
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; delete o.taxiOutVia; }));
+      } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
+      rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
+    });
+    if (e.stand) rows.button(p, 'add a base plot beside the stand', () => ed(x => {
+      const ids = new Set((x.plots || []).map(q => q.id)); let n = 2; while (ids.has(id + '.' + n)) n++;
+      const h = standHdg(x.stand, x.taxiOut);
+      x.plots = (x.plots || []).concat([{ id: id + '.' + n, x: +(x.stand.x - 40 * Math.sin(h)).toFixed(2), z: +(x.stand.z + 40 * Math.cos(h)).toFixed(2), hdg: +h.toFixed(4) }]);
+    }, 'plot of ' + id));
+  }
+  const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
     if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']].concat(ctx.cameras.flyOk && ctx.cameras.flyOk() ? [['fly', 'fly (WASD / ZQSD, R / F, right-drag looks)']] : []), () => ctx.cameras.mode(), v => { ctx.cameras.set(v); palette.refresh(); });
@@ -2187,7 +2630,7 @@ function mount(host, ctx) {
     if (!storage) return;
     const n = name || recName || 'premises';
     recName = n; rec.name = rec.name || n;
-    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); storage.setItem(LS_WIP, PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
+    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); writeWip(PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
     if (section === 'file') palette.refresh();
   }
   // (G2910) the editor holds every polygon as an AREA: a record still carrying foldable v1 entries (a v1 file the migrator
@@ -2196,12 +2639,48 @@ function mount(host, ctx) {
   function load(txt) {
     const U = PG.unwrap(txt);
     rec = foldIn(U.rec); recName = U.name; undoS.length = 0; redoS.length = 0;
+    recBase = U.name || 'an import';   // (SCENERY VERSIONS: what the record was loaded from - 'load a version' names it after)
     select(null); dirty(null);
     strip.status('loaded ' + (recName || '(unnamed)'));
   }
 
   // ---- wire up ---------------------------------------------------------------------
   const view = ctx.viewEl;
+  // DROP-JSON (the user, 18 Oct): a .json dragged ANYWHERE onto the scenery editor imports - a scenery record or envelope
+  // (load: the paste's own path) or a world look ({ flydiy_world_look }: the world rail's import, applied and kept); 'drop to
+  // import' covers the page while a file is dragged. Capture phase, stopped there: the garage's own drop (UX-A) never sees a
+  // drop meant for the scenery editor while it is open
+  function importText(txt, name) {
+    let J = null;
+    try { J = JSON.parse(txt); } catch (e) { strip.status('import refused: ' + name + ' is not JSON'); return false; }
+    if (J && J.flydiy_world_look) {
+      const WR = typeof window !== 'undefined' ? window.WORLD_RAIL : null;
+      if (WR && WR.importLook) { WR.importLook(J); strip.status('world look imported: ' + name); return true; }
+      strip.status('import refused: no world rail on this page'); return false;
+    }
+    try { load(txt); return true; } catch (e) { strip.status('import refused: ' + e.message); return false; }
+  }
+  let dropDepth = 0, dropEl = null;
+  const fileDrag = ev => !!(ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') >= 0);
+  const dropShow = on => {
+    if (on && !dropEl && typeof document !== 'undefined') {
+      dropEl = document.createElement('div'); dropEl.className = 'pr-drop';
+      dropEl.innerHTML = '<b>drop to import</b><span>a scenery .json (the record or its envelope) or a world look</span>';
+      (document.getElementById('ui') || document.body).appendChild(dropEl);
+    }
+    if (dropEl) dropEl.style.display = on ? 'flex' : 'none';
+  };
+  addEventListener('dragenter', ev => { if (!active || !fileDrag(ev)) return; dropDepth++; dropShow(true); ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
+  addEventListener('dragover', ev => { if (!active || !fileDrag(ev)) return; ev.preventDefault(); ev.stopImmediatePropagation(); if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'; }, true);
+  addEventListener('dragleave', ev => { if (!active || !fileDrag(ev)) return; ev.stopImmediatePropagation(); dropDepth = Math.max(0, dropDepth - 1); if (!dropDepth) dropShow(false); }, true);
+  addEventListener('drop', ev => {
+    if (!active || !fileDrag(ev)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); dropDepth = 0; dropShow(false);
+    const f = ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f) return;
+    if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) { strip.status('import refused: ' + f.name + ' is not a .json'); return; }
+    f.text().then(t => importText(t, f.name));
+  }, true);
+
   let downAt = null, swallowClick = false;
   view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
   addEventListener('mousemove', ev => { if (active) onMove(ev); });
@@ -2213,7 +2692,10 @@ function mount(host, ctx) {
   if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = foldIn(U.rec); recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
   else if (!ctx.fresh && loadWip()) rec = foldIn(rec);
   buildRail(); buildStrip(); palette.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
-  R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
+  // (G3083 EDITOR-PERF) the record the renderer already stands (the game hands the editor its world's): only the editor's
+  // own drawing (R.editStart: the outlines, the handles, the strips' patterns); else, or a renderer that cannot, the rebuild
+  { const t0 = PERF.now(), fast = !!(R.editStart && R.editStart(rec)); R.setRecord(rec); if (!fast) R.rebuild(null); const t1 = PERF.now();
+    inspector.refresh(); checks(); plaque(); logEdit(PERF.now() - t0, 'open · ' + (fast ? 'the world as it stands ' : 'rebuild ') + (t1 - t0).toFixed(0)); }
   // (G2914) Alt + wheel scales the placer's ghost - before the host's wheel zooms (capture, the same element)
   if (view.addEventListener) view.addEventListener('wheel', ev => { if (!active || !ev.altKey || (tool !== 'place' && tool !== 'scatter')) return; ASSET.s = Math.max(0.25, Math.min(4, ASSET.s * (ev.deltaY < 0 ? 1.06 : 1 / 1.06))); armGhost(); ev.preventDefault(); ev.stopImmediatePropagation(); }, { capture: true, passive: false });
 
@@ -2223,6 +2705,8 @@ function mount(host, ctx) {
     cmd: (name, args) => {
       if (name === 'siteTheme') { SITE_THEME = args.key; return SITE_THEME; }   // the theme tool's pick, scriptable (G393.3)
       if (name === 'palette') { PALETTE_KEY = args.key; PALETTE_CAT = 'all'; return PALETTE_KEY; }   // the building tool's pick, scriptable (G393.3)
+      if (name === 'soundPick') { SOUND_PICK = args.key; palette.refresh(); return soundPick(); }   // G1656: the sound tools' bed, scriptable
+      if (name === 'heard') return heardAt(args.x, args.z);   // G1656: what the ambience plays at a local (x, z), loudest first
       if (name === 'add') { const e = Object.assign({ id: PG.newId(rec, args.layer) }, args.entry); run({ layer: args.layer, id: e.id, before: null, after: e, label: 'add ' + e.id }); return e.id; }
       if (name === 'set') { edit(args.id, PG.findById(rec, args.id).layer, x => Object.assign(x, args.patch), 'set ' + args.id); return true; }
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }
@@ -2244,6 +2728,8 @@ function mount(host, ctx) {
       }
       // G1400: the drag in its three beats, for a bench that times the hand's moves apart from its release
       // (tools/perf/editor_lag.js): the same startDrag / moveDrag / onUp the mouse runs, the ground point given
+      // G2891: a press at a premises point on a strip's own things (the club hangar, the stand) - what the mouse's does
+      if (name === 'grab') { const w = R.overlay.frame.toWorld(args.x, args.z); return grabStrip([w[0], R.heightAt(w[0], w[1]), w[1]], !!args.alt); }
       if (name === 'dragStart') { if (!selected) throw new Error('premises: nothing selected'); const h = R.handles(selected).find(q => q.key === args.key); if (!h) return false; return startDrag({ id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' }); }
       if (name === 'dragMove') { if (!drag) return false; const w = R.overlay.frame.toWorld(args.x, args.z); return moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]); }
       if (name === 'dragEnd') return onUp();
@@ -2265,8 +2751,10 @@ function mount(host, ctx) {
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
       if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
+      if (name === 'plotCar') { return togglePlotCar(args.zone, [args.x, args.z]); }
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
+      if (name === 'importText') { return importText(String(args.text || ''), args.name || 'the drop'); }   // (DROP-JSON: a dropped file's text, headless)
       if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }
       if (name === 'setProp') { const id = args.id || selected; edit(id, 'areas', x => { x.props = Object.assign({}, x.props); x.props[args.prop] = Object.assign({}, x.props[args.prop] || {}, args.patch); }, args.prop + ' of ' + id); return true; }
       if (name === 'pick') { ASSET.key = args.key; if (args.yaw !== undefined) ASSET.yaw = args.yaw; if (args.s !== undefined) ASSET.s = args.s; if (args.level !== undefined) ASSET.level = !!args.level; return ASSET.key; }
@@ -2276,7 +2764,9 @@ function mount(host, ctx) {
       if (name === 'fold') { const n = PG.foldAreas(rec); dirty(null); return n; }
       if (name === 'paletteEl') { return pal; }
       if (name === 'snapshot') { return snapshot(true); }
+      if (name === 'saveNow') { clearTimeout(saveT); saveT = 0; if (storage) writeWip(PG.envelope(recName, rec)); return !!storage; }   // (SCENERY VERSIONS: the autosave's write, now - GATE SCENERYED 38)
       if (name === 'inspector') { return insp; }
+      if (name === 'bank') { return bankTiles().map(t => ({ k: t.k, kind: t.kind, key: t.key, with: t.with || null, group: t.group })); }   // G2893
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);

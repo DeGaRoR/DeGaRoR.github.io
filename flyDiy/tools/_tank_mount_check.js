@@ -320,21 +320,21 @@ for (const a of cards) {
                          return { ves: Object.keys(v.mats || {}).filter(k => v.mats[k].ves).length, verts: n }; };
     let J1, J2, joined;
     try {
-      W.CAGE_JOIN_TAKE_UNFIT = false; J1 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
+      // G3877: the unfit tank FLIES as drawn (the user, 29 Oct); J1 = the old drop (CAGE_JOIN_DROP_UNFIT), J2 = the flown
+      W.CAGE_JOIN_DROP_UNFIT = true; J1 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
       joined = BJ.merge(spec, J1);
       const s1 = snap();
-      W.CAGE_JOIN_TAKE_UNFIT = true; J2 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
+      W.CAGE_JOIN_DROP_UNFIT = false; J2 = JSON.parse(JSON.stringify(W.CAGE_JOIN.export()));
       const s2 = snap();
-      W.CAGE_JOIN_TAKE_UNFIT = false;
-      row.flown = { ves: s1.ves, verts: s1.verts, vesIfTaken: s2.ves, vertsIfTaken: s2.verts };
+      row.flown = { ves: s2.ves, verts: s2.verts, vesIfTaken: s2.ves, vertsIfTaken: s2.verts, vesIfDropped: s1.ves, vertsIfDropped: s1.verts };
       const allUnfit = RES.length > 0 && RES.every(rr => !rr.ok);
-      if (allUnfit) check(s1.ves === 0, a.key + ' x' + kCap + ': the flown aeroplane carries no tank that does not fit', s1.ves + ' vessel materials');
-      if (anyUnfit) check(s2.verts > s1.verts, a.key + ' x' + kCap + ': the A/B switch is real (the unfit tank is there when taken)', s1.verts + ' vs ' + s2.verts);
+      if (allUnfit) check(s2.ves > 0, a.key + ' x' + kCap + ': the flown aeroplane carries the tank that does not fit, as drawn (G3877)', s2.ves + ' vessel materials');
+      if (anyUnfit) check(s2.verts > s1.verts, a.key + ' x' + kCap + ': the A/B switch is real (the unfit tank is gone only when dropped)', s1.verts + ' vs ' + s2.verts);
       else check(s2.verts === s1.verts, a.key + ' x' + kCap + ': with every tank fitting, nothing is left out', s1.verts + ' vs ' + s2.verts);
       const H = j => require('crypto').createHash('sha1').update(JSON.stringify((d => [d.nodes, d.beams, d.refs])(C.buildGen(BJ.merge(spec, j))))).digest('hex').slice(0, 12);
       row.phys = [H(J1), H(J2)];
       check(row.phys[0] === row.phys[1], a.key + ' x' + kCap + ': the physics is the same with and without the unfit tank drawn', row.phys.join(' vs '));
-    } catch (e) { W.CAGE_JOIN_TAKE_UNFIT = false; check(false, a.key + ' x' + kCap + ': the join runs over the scene', (e && e.message || String(e)).split('\n')[0]); }
+    } catch (e) { W.CAGE_JOIN_DROP_UNFIT = false; check(false, a.key + ' x' + kCap + ': the join runs over the scene', (e && e.message || String(e)).split('\n')[0]); }
   }
   rows.push(row);
   console.log('  ' + (a.key + ' x' + kCap).padEnd(18) + ' vessels ' + row.vessels + '  mount meshes ' + row.mount +

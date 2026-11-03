@@ -14,12 +14,16 @@
 //   world's terrainH), in all and step by step (the steps' rows, FRAMECOST's marks). THE VERDICT:
 //   - the boot ran the world's steps (world .. frames) and the aeroplane's programs in the world's light ('craft');
 //   - the FIRST roll-out after the boot, and the THIRD (no change), run NO step and link NO program;
-//   - the SECOND (a slider moved) runs only the aircraft's steps (snapshot, [bake], spec, craft) - no world step;
+//   - the SECOND (a slider moved) runs only the aircraft's steps (snapshot, [bake], spec, craft, [shedWarm]) - no world step;
 //   - NOTHING TICKS THE WORLD IN THE SHED: over every stretch spent in the shed (after each roll-in, the slider's
 //     rebuild included) the world's update door (WF.worldUpdate), the premises' tick and the world scene's
-//     updateMatrixWorld are counted and must be 0 (and are > 0 in flight: the counters can see);
+//     updateMatrixWorld are counted and must be 0 (and are > 0 in flight: the counters can see) - BUT the hangar view's
+//     own capture (G3630, L29f: hviewCapture's first face runs the world's update once, from the room's centre, by design),
+//     counted apart by its stack and allowed one world update a stretch;
+//   - ALLOW (rule c, below): costs measured, named in flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md, for the user's veto;
 //   - every way back to the shed is logged, and runs no world step.
-// CHILD `setup` (a second first boot, the loading screen TOUCHED):
+// CHILD `setup` (a second first boot, the loading screen TOUCHED) - on the OLD layout, ?flui=old (G3649: the flight layout fl2,
+// the default since L28a, has no rail and so no setup panel; the `trips` children assert the default boot is fl2):
 //   - ONE REGISTRY: every section the setup screen mounts is the rail's (FLYDIY_RAIL), every row and pill of it is
 //     reached through the rail's own census of that item, every graphics option that does not reload is on it, and
 //     the options that reload (towns, colour management, the map, the storage's refresh) are not;
@@ -44,16 +48,32 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 
 const newC = () => ({ who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, pick: null });
-const AIRCRAFT = ['snapshot', 'bake', 'spec', 'craft'];
+// (W6b, 2 Nov: shedWarm - the roll-out shot's shadow pass warmed under the craft phase's screen; keyed on the aeroplane, part 'craft')
+const AIRCRAFT = ['snapshot', 'bake', 'spec', 'craft', 'shedWarm'];
 const WORLD = ['world', 'town', 'parking', 'trees', 'ring', 'settle', 'images', 'upload', 'worldCompile', 'frames'];
+// ALLOW - A0's rule (c), 2 Nov: a real cost not fixed today passes ONLY up to the amount measured, named here, in
+// flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md and in the row's detail (ALLOWED ...), for the user to veto. Not a slack: the
+// bar is the old one the moment the cause is gone (links1: the programs warmed; terrainH2: the view off or fixed)
+const ALLOW = {
+  // PERF-WEEK W8 (since L29c, also with ?hview=0): three programs - a basic and two physical/STANDARD with the cube
+  // envMap (CUBEUV 1024), no material name - compiled for the output colour space 'srgb' (the screen's; every other
+  // flight program is the AA target's 'srgb-linear'): something drawn straight to the canvas on the first take-off, unwarmed
+  links1: { max: 3, why: 'PERF-WEEK W8: 3 programs for the screen colour space (srgb) first linked on the first take-off, since L29c, owner open' },
+  // PERF-WEEK W7 (G3630, L29f): hviewCapture stands the MAIN camera at the room's centre for its world update, so the
+  // cover ring builds its cells round the room (cover_ring buildField / subGrid, render_world okField); the flight builds
+  // them back at the stand: ~+18 000 terrainH a roll-out (Cub 27 223, Cessna 27 276 on d1a754b94; ?hview=0 ~9 000)
+  terrainH2: { max: 30000, why: 'PERF-WEEK W7: G3630 hangar view (L29f) - its capture moves the cover ring to the room, the flight builds it back' },
+};
+// the hangar view's own work (G3630): a call made from inside app.js's hviewCapture, by its stack (deep: the world's walk)
+const inView = () => { const l = Error.stackTraceLimit; Error.stackTraceLimit = 200; const s = new Error().stack || ''; Error.stackTraceLimit = l; return /\bhviewCapture\b/.test(s); };
 const COST = ['links', 'gl.calls', 'draws.total', 'bytes.bufferData', 'bytes.bufferSubData', 'bytes.texImage2D', 'bytes.texImage3D', 'world.terrainH', 'three.updateMatrixWorld'];
 const pick = r => { const o = {}; for (const k of COST) if (r && r[k]) o[k] = r[k]; return o; };
 
 // ---- the page, with FRAMECOST's counters and the world's tick counters --------------------------------------------
-async function openCounted(extraHooks) {
+async function openCounted(extraHooks, query) {
   const { openPage } = require('./_page_node.js');
   const C = FC.bootMark.C = newC();
-  const T = { watch: false, wu: 0, prem: 0, worldUmw: 0, scene: null };
+  const T = { watch: false, attr: false, wu: 0, prem: 0, worldUmw: 0, wuView: 0, premView: 0, umwView: 0, scene: null };
   const base = FC.pageHooks(C, () => null);
   const hooks = {
     beforeScript(name, P) { base.beforeScript(name, P); if (extraHooks && extraHooks.beforeScript) extraHooks.beforeScript(name, P); },
@@ -62,7 +82,7 @@ async function openCounted(extraHooks) {
       if (name === 'vendor/three.min.js') {
         // the world scene's matrices, counted while watched (a walk to the root per call: the shed's stretches only)
         const O = P.win.THREE.Object3D.prototype, umw = O.updateMatrixWorld;
-        O.updateMatrixWorld = function (f) { if (T.watch && T.scene) { let r = this; while (r.parent) r = r.parent; if (r === T.scene) T.worldUmw++; } return umw.call(this, f); };
+        O.updateMatrixWorld = function (f) { if (T.watch && T.scene) { let r = this; while (r.parent) r = r.parent; if (r === T.scene) { T.worldUmw++; if (T.attr && inView()) T.umwView++; } } return umw.call(this, f); };
       }
       if (extraHooks && extraHooks.afterScript) extraHooks.afterScript(name, P);
     },
@@ -71,15 +91,15 @@ async function openCounted(extraHooks) {
   const storage = {}; if (process.env.ROUNDTRIP_BUILD) storage['flydiy.wip'] = fs.readFileSync(path.resolve(process.env.ROUNDTRIP_BUILD), 'utf8');
   // G820 (C1c): THE PHYSICS WORKER IS THE PAGE'S OWN DEFAULT (app.js SIMW_DEFAULT): the harness gives the page its Worker
   // (the G815 shim, a real thread) so the round trips run what ships; ROUNDTRIP_QUERY=simw=0 flies them inline
-  const P = await openPage({ quiet: true, storage, hooks, query: process.env.ROUNDTRIP_QUERY || '', workers: /sim_host\.js/ });
+  const P = await openPage({ quiet: true, storage, hooks, query: [process.env.ROUNDTRIP_QUERY || '', query || ''].filter(Boolean).join('&'), workers: /sim_host\.js/ });
   const W = P.win;
   // the world's doors, wrapped as the world comes to exist (the boot builds it now): its update, the premises' tick
   const wrapWorld = () => {
     const WF = W.WORLD; if (!WF) return;
     if (!WF.__rt) { WF.__rt = true; T.scene = WF.scene;
-      const wu = WF.worldUpdate; WF.worldUpdate = function () { T.wu++; return wu.apply(this, arguments); }; }
+      const wu = WF.worldUpdate; WF.worldUpdate = function () { T.wu++; if (T.attr && inView()) T.wuView++; return wu.apply(this, arguments); }; }
     const PR = WF.premises;   // the premises' renderer (its trams, traffic, animals and the scenery's life: tick)
-    if (PR && !PR.__rt && typeof PR.tick === 'function') { PR.__rt = true; const tk = PR.tick; PR.tick = function () { T.prem++; return tk.apply(this, arguments); }; }
+    if (PR && !PR.__rt && typeof PR.tick === 'function') { PR.__rt = true; const tk = PR.tick; PR.tick = function () { T.prem++; if (T.attr && inView()) T.premView++; return tk.apply(this, arguments); }; }
   };
   P.onFrame(ph => { if (ph === 'start') wrapWorld(); });
   const snap = () => ({ rec: P.rec.snapshot(), c: Object.assign({}, C, { pick: null, drawn: null, lastDrawn: null }) });
@@ -116,9 +136,9 @@ const firstDiff = (a, b) => { if (a === b) return null; if (typeof a !== 'string
 // a stretch of frames in the shed, the world's ticks counted
 async function shedStretch(ctx, n, during) {
   const { P, T } = ctx;
-  T.watch = true; T.wu = 0; T.prem = 0; T.worldUmw = 0;
-  try { if (during) await during(); await P.frames(n); } finally { T.watch = false; }
-  return { frames: n, worldUpdate: T.wu, premTick: T.prem, worldUmw: T.worldUmw };
+  T.watch = true; T.attr = true; T.wu = 0; T.prem = 0; T.worldUmw = 0; T.wuView = 0; T.premView = 0; T.umwView = 0;
+  try { if (during) await during(); await P.frames(n); } finally { T.watch = false; T.attr = false; }
+  return { frames: n, worldUpdate: T.wu, premTick: T.prem, worldUmw: T.worldUmw, view: { worldUpdate: T.wuView, premTick: T.premView, worldUmw: T.umwView } };
 }
 // a slider of the editor moved by a step, as a drag does (its oninput: the parameter, the rebuild, CAGE_ON_BUILD)
 function moveSlider(W) {
@@ -186,6 +206,8 @@ async function childTrips() {
   const SWs = W.FLYDIY_SIMW && !W.FLYDIY_SIMW.dead() ? W.FLYDIY_SIMW.state() : null;
   out.simw = SWs ? { flights: SWs.flights, inline: SWs.inline, reason: SWs.reason, phase: SWs.phase, placeOk: SWs.placeOk, wvBad: SWs.wvBad, strays: SWs.strays,
                      errors: SWs.errors, prewarmed: SWs.prewarmed, worldMs: SWs.worldMs, readyWaitFrames: SWs.readyWaitFrames } : null;
+  out.fl2 = !!(W.FLYDIY_FL2 && W.FLYDIY_FL2.on);   // G3649: the flight layout (the default) - its loading screen has no setup panel
+  out.hview = !!(W.FLYDIY_HVIEW && W.FLYDIY_HVIEW.stats && W.FLYDIY_HVIEW.stats());   // G3630: the hangar view made (ALLOW.terrainH2)
   if (WHO) process.stderr.write('GARAGE_SPEC.update calls:\n' + WHO.map(x => '  ' + x).join('\n') + '\n');
   out.errors = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 8);
   return out;
@@ -204,7 +226,9 @@ function pillsOf(host, label) {
 }
 const onOf = ps => (ps.find(b => b.classList.contains('on')) || {}).textContent;
 async function childSetup() {
-  const ctx = await openCounted();
+  // G3649 (GAME-MENUS UI, live since L28a): the flight layout fl2 - the default - drops the setup panel (setupOpen returns:
+  // its rows were the rail's, and fl2 has no rail). The setup screen is the OLD layout's (?flui=old): this child runs there
+  const ctx = await openCounted(null, 'flui=old');
   const { P, W, snap } = ctx;
   const doc = W.document, out = { errors: [] };
   const box = () => doc.getElementById('bootSetup');
@@ -265,6 +289,7 @@ async function childSetup() {
   out.afterLift = pick(FC.diff(b, snap()));
   out.afterLiftProgs = W.FLYDIY_RENDERER.info.programs.filter(p => !progs0.has(p)).map(p => p.name + ' ' + String(p.cacheKey).slice(0, 60)).slice(0, 30);
   out.setupHidden = box().hidden;
+  out.fl2 = !!(W.FLYDIY_FL2 && W.FLYDIY_FL2.on);
   out.errors = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 8);
   return out;
 }
@@ -301,6 +326,7 @@ async function main() {
     if (!R.failed) {
       ok(WORLD.every(id => R.boot.ran.includes(id)) && R.boot.ran.includes('craft'), 'the ONE LOADING ran the world\'s steps and the aeroplane\'s programs in its light', 'ran ' + R.boot.ran.join(' '));
       ok(!R.boot.log.includes('hold') && !R.boot.log.includes('waiting'), 'untouched, the loading screen lifted by itself (no hold, no wait)', R.boot.log.join(' '));
+      ok(R.fl2 === true, 'G3649: the default boot runs the flight layout fl2 - no setup panel on its loading screen (the setup screen is the old layout, ?flui=old)', 'FLYDIY_FL2.on ' + R.fl2);
       console.log('  the world settled at the stand: ' + JSON.stringify(R.settle));
       console.log('  boot rows (the world\'s, now in the one loading):');
       for (const id of WORLD.concat(['craft', 'compile', 'firstFrame'])) { const r = R.boot.rows['garage:' + id]; if (r) console.log('    ' + id.padEnd(14) + fmt(r)); }
@@ -312,16 +338,24 @@ async function main() {
         for (const [k, v] of Object.entries(t.rows)) console.log('      ' + k.padEnd(22) + fmt(v));
         ok(t.ok, n + ': done');
       }
-      ok(t1.ran.length === 0 && !(t1.total.links > 0), 'roll-out 1 after the boot runs NO step and links nothing', 'ran ' + (t1.ran.join(' ') || 'none') + ', links ' + (t1.total.links || 0));
+      ok(t1.ran.length === 0 && !((t1.total.links || 0) > ALLOW.links1.max), 'roll-out 1 after the boot runs NO step and links nothing', 'ran ' + (t1.ran.join(' ') || 'none') + ', links ' + (t1.total.links || 0) +
+         (t1.total.links > 0 ? ' - ALLOWED up to ' + ALLOW.links1.max + ' (rule c): ' + ALLOW.links1.why : ''));
       ok(t3.ran.length === 0 && !(t3.total.links > 0), 'roll-out 3 with no change runs NO step and links nothing', 'ran ' + (t3.ran.join(' ') || 'none') + ', links ' + (t3.total.links || 0));
       ok(!!R.slider, 'a slider of the editor was moved in the shed', R.slider ? R.slider.key + ' ' + R.slider.from + ' -> ' + R.slider.to : 'no slider found');
       ok(t2.ran.includes('snapshot') && t2.ran.includes('spec') && t2.ran.includes('craft') && t2.ran.every(id => AIRCRAFT.includes(id)),
          'roll-out 2 (a slider moved) runs ONLY the aircraft\'s steps', 'ran ' + t2.why.join(' '));
       ok(!t2.ran.some(id => WORLD.includes(id)), 'roll-out 2 runs no world step', t2.ran.filter(id => WORLD.includes(id)).join(' ') || 'none');
       // (the aeroplane's own placement reads the ground under its wheels: ~3 100 terrainH a placement; the ring alone is ~700 000)
-      ok(!(t2.total['bytes.texImage2D'] > 0) && !(t2.total['world.terrainH'] > 20000), 'roll-out 2 uploads no world texture and samples no ground en masse', fmt(t2.total));
+      const th2 = R.hview ? ALLOW.terrainH2.max : 20000;
+      ok(!(t2.total['bytes.texImage2D'] > 0) && !(t2.total['world.terrainH'] > th2), 'roll-out 2 uploads no world texture and samples no ground en masse', fmt(t2.total) +
+         (t2.total['world.terrainH'] > 20000 && R.hview ? ' - terrainH ALLOWED up to ' + th2 + ' (rule c): ' + ALLOW.terrainH2.why : ''));
       for (const t of [i1, i2]) ok(t.ran.every(id => ['shed', 'board', 'frames'].includes(id)), 'the way back runs the shed\'s three steps only', t.ran.join(' '));
-      for (const s of R.shed) ok(s.worldUpdate === 0 && s.premTick === 0 && s.worldUmw === 0, 'NOTHING TICKS THE WORLD IN THE SHED - ' + s.at, 'worldUpdate ' + s.worldUpdate + ', premises tick ' + s.premTick + ', world updateMatrixWorld ' + s.worldUmw + ' over ' + s.frames + ' frames');
+      // (rule b, G3630 L29f: the hangar view's capture runs the world's update once from the room's centre, by design - its
+      // own share apart, at most one world update a stretch; every other tick of the world in the shed is still a red)
+      for (const s of R.shed) { const v = s.view || { worldUpdate: 0, premTick: 0, worldUmw: 0 };
+        ok(s.worldUpdate - v.worldUpdate === 0 && s.premTick - v.premTick === 0 && s.worldUmw - v.worldUmw === 0 && v.worldUpdate <= 1,
+          'NOTHING TICKS THE WORLD IN THE SHED - ' + s.at, 'worldUpdate ' + s.worldUpdate + ', premises tick ' + s.premTick + ', world updateMatrixWorld ' + s.worldUmw + ' over ' + s.frames + ' frames' +
+          (v.worldUpdate || v.premTick || v.worldUmw ? ' - of them the hangar view\'s own capture (G3630): ' + v.worldUpdate + ' / ' + v.premTick + ' / ' + v.worldUmw : '')); }
       for (const r of R.reveal || []) { console.log('  the first 40 frames ' + r.at + ': ' + fmt(r.cost) + (r.progs.length ? '; new programs: ' + r.progs.join(' | ') : ''));
         if (r.who && r.who.length) console.log('      worn by: ' + r.who.join(' ; '));
         for (const d of (r.keyDiffs || [])) console.log('      old key -> new key: ' + d);
@@ -342,12 +376,13 @@ async function main() {
   }
   if (S) {
     ok(!S.failed, 'setup: the page booted touched and lifted on Fly', S.failed);
+    ok(S.fl2 === false, 'G3649: the setup child runs the old layout (?flui=old), where the setup screen lives', 'FLYDIY_FL2.on ' + S.fl2);
     if (!S.failed) {
       ok(S.setup.sections.length > 0 && !S.setup.errors.length, 'the setup screen mounts the rail\'s sections', S.setup.sections.join(' ') + '; ' + S.setup.rows + ' rows, ' + S.setup.pills + ' pills' + (S.setup.errors.length ? '; errors ' + S.setup.errors.join(' | ') : ''));
       ok(!S.missingInRail.sections.length && !S.missingInRail.rows.length && !S.missingInRail.pills.length, 'ONE REGISTRY: every section, row and pill of the setup screen is the rail\'s', JSON.stringify(S.missingInRail));
       ok(!S.gfxMissing.length, 'every graphics option that does not reload is on the setup screen', S.gfxMissing.join(', ') || 'all');
       ok(!S.reloadPresent.length && !S.reloadRail.length, 'the options that reload the page are LEFT OUT of the setup screen (the rail keeps them)', 'present ' + (S.reloadPresent.join(', ') || 'none') + '; missing from the rail ' + (S.reloadRail.join(', ') || 'none'));
-      const want = { fly: ['route', 'start', 'engines', 'controls'], view: ['camera', 'instruments', 'map', 'trace', 'screen'], sky: ['night', 'weather'], graphics: ['graphics'], audio: ['sound'] };   // train 30: SOUND's rail section
+      const want = { fly: ['route', 'drawn', 'start', 'engines', 'controls'], view: ['camera', 'instruments', 'map', 'trace', 'screen'], sky: ['night', 'weather'], graphics: ['graphics'], audio: ['sound'] };   // train 30: SOUND's rail section
       ok(JSON.stringify(S.items) === JSON.stringify(Object.entries(want).map(([k, secs]) => ({ k, secs }))), 'the setup screen\'s sections: FLY route/start/engines/controls, VIEW, SKY & WORLD time/weather, GRAPHICS', JSON.stringify(S.items));
       ok(!S.touchBefore.touched && S.touched && S.holdLogged, 'a touch on the setup screen holds the auto-start', 'before ' + JSON.stringify(S.touchBefore) + ', hold logged ' + S.holdLogged);
       ok(!S.touchBefore.pulse && S.touchAfter && S.touchAfter.pulse && S.after60.pulse, 'G1065 Fly pulses once the setup is touched (not before; still when the load is done and it waits)', 'before ' + JSON.stringify(S.touchBefore) + ', after ' + JSON.stringify(S.touchAfter) + ', 60 frames on ' + JSON.stringify(S.after60));

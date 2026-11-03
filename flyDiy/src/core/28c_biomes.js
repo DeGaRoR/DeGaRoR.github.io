@@ -20,6 +20,10 @@
 //     B.mixAt(code)   the mix name or null (no biome here: sea, snow, built...)
 //     B.mixHere(code, x, z)  the same at a point, a premises polygon's own vegetation first (B.over)
 //     B.mixOf(name)   the mix record
+//     B.SHORE / B.shore / B.shoreHere(x, z)   18 LAKESHORE (G3430): the land within shoreReach m of a
+//                     drawn lake's line under the bank's slope - the renderer sets B.shore (the lake field
+//                     lives there); shoreHere is it where no premises polygon speaks and map[18] names a mix.
+//                     The COVER RING's band (tufts, flowers, bushes); the trees keep their own code's mix
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
 //   The derivation's thresholds are the splat's knobs (GROUND_FIELDS.RECIPE
@@ -28,11 +32,15 @@
 // ===========================================================================
 'use strict';
 const BIOMES = (() => {
-  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5 };
+  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5, shoreReach: 12, shoreJit: 0.35 };   // shoreSlope: the bank's bankLo unless set
+  // 18 LAKESHORE (G3430, the user 25 Oct: "a proper biome with its mask, and we can paint it and everything, like the
+  // other"): a VEGETATION code - the band along the drawn lakes is its mask, a premises polygon paints it (or erases it)
+  // like any biome; the ground under it stays its own code's (no splat row: NCODE 17)
+  const SHORE = 18;
   // 15 LUSH is AUTHORED, not classified: a premises `cover` polygon stamps it into the island's ttype grid
   // (the route BIOMES-IN-GAME-2026-09-20 L5 proposed), and it carries the `borders` mix - the deciduous
   // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees', 18: 'lake shore' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};
@@ -52,6 +60,8 @@ const BIOMES = (() => {
       if (tt === 7 && r < smooth(K.denseLo, K.denseHi, canopyM)) return 14;
       return tt;
     };
+    B.SHORE = SHORE; B.shore = null;
+    B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
     // A POLYGON'S OWN VEGETATION (G1385 EDITOR-VEG, contract v1.31): `over(x, z)` - set by the renderer from the
@@ -68,7 +78,7 @@ const BIOMES = (() => {
     B.export = () => JSON.stringify({ biomes: B.map, mixes: B.mixes }, null, 1);
     return B;
   }
-  return { make, NAMES, KNOBS };
+  return { make, NAMES, KNOBS, SHORE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = BIOMES;
 if (typeof window !== 'undefined') window.BIOMES = BIOMES;

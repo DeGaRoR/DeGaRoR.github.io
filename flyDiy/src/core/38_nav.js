@@ -54,8 +54,9 @@ function navLegGeom(A, B, x, z) {
 // ANN: the Annette Island VOR/DME, FAA-published 55 03'37.471"N 131 34'42.238"W, elevation 174 ft (H class, DVOR,
 // 117.1 MHz); x / z by tools/geo.py lonlat_to_game at the PUBLISHED point, as a chart gives it (the 3D model,
 // navaid/DVOR-DME, stands at the disc's centre on the imagery, ~8 m from it).
+// (G3240 NAMES) the name it SHOWS is the names table's (01_names.js); the id stays.
 const NAV_FIXES = [
-  { id: 'ANN', name: 'Annette Island VOR/DME', kind: 'VOR/DME', freq: 117.1, lat: 55.060409, lon: -131.578399,
+  { id: 'ANN', name: GAME_NAMES.vor, kind: 'VOR/DME', freq: 117.1, lat: 55.060409, lon: -131.578399,
     x: -1004.8, z: -1669.4, elev: 53 },
 ];
 

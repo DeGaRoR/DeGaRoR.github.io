@@ -1,0 +1,390 @@
+=== CLIMATE ===
+  ok   the sea can be re-applied without being redrawn, and walks after the wind
+  ok   the felt band is the draw’s, never re-decided
+GATE CLIMATE: PASS
+=== CLOUD ===
+1. the cover is the cover
+  ok   st cover 0.1: covered fraction 0.100
+  ok   st cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.3: covered fraction 0.300
+  ok   st cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.5: covered fraction 0.500
+  ok   st cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.7: covered fraction 0.700
+  ok   st cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.9: covered fraction 0.900
+  ok   st cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   sc cover 0.1: covered fraction 0.100
+  ok   sc cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.3: covered fraction 0.300
+  ok   sc cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.5: covered fraction 0.500
+  ok   sc cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.7: covered fraction 0.700
+  ok   sc cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.9: covered fraction 0.900
+  ok   sc cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   cuh cover 0.1: covered fraction 0.100
+  ok   cuh cover 0.1: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.3: covered fraction 0.300
+  ok   cuh cover 0.3: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.5: covered fraction 0.500
+  ok   cuh cover 0.5: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.7: covered fraction 0.700
+  ok   cuh cover 0.7: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.9: covered fraction 0.900
+  ok   cuh cover 0.9: coverage in [0,1], height in [0.55,1]
+  ok   cu cover 0.1: covered fraction 0.100
+  ok   cu cover 0.1: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.3: covered fraction 0.300
+  ok   cu cover 0.3: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.5: covered fraction 0.500
+  ok   cu cover 0.5: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.7: covered fraction 0.700
+  ok   cu cover 0.7: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.9: covered fraction 0.900
+  ok   cu cover 0.9: coverage in [0,1], height in [0.5,1]
+  ok   cb cover 0.1: covered fraction 0.100
+  ok   cb cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.3: covered fraction 0.300
+  ok   cb cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.5: covered fraction 0.500
+  ok   cb cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.7: covered fraction 0.700
+  ok   cb cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.9: covered fraction 0.900
+  ok   cb cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   ac cover 0.1: covered fraction 0.100
+  ok   ac cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.3: covered fraction 0.300
+  ok   ac cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.5: covered fraction 0.500
+  ok   ac cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.7: covered fraction 0.700
+  ok   ac cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.9: covered fraction 0.900
+  ok   ac cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.1: covered fraction 0.100
+  ok   as cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.3: covered fraction 0.300
+  ok   as cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.5: covered fraction 0.500
+  ok   as cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.7: covered fraction 0.700
+  ok   as cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.9: covered fraction 0.900
+  ok   as cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   cover 0: no cloud anywhere
+  ok   cover 1: cloud everywhere
+  ok   the mean coverage rises with the cover
+2. the profile
+  ok   st: the profile is 0 at the base and the top, in [0,1] between
+  ok   st: the profile fills the column somewhere (peak 1.00)
+  ok   st: a half-height column is nowhere fuller than a full one
+  ok   st: the mean fill is a sane constant (0.725)
+  ok   sc: the profile is 0 at the base and the top, in [0,1] between
+  ok   sc: the profile fills the column somewhere (peak 1.00)
+  ok   sc: a half-height column is nowhere fuller than a full one
+  ok   sc: the mean fill is a sane constant (0.820)
+  ok   cuh: the profile is 0 at the base and the top, in [0,1] between
+  ok   cuh: the profile fills the column somewhere (peak 1.00)
+  ok   cuh: a half-height column is nowhere fuller than a full one
+  ok   cuh: the mean fill is a sane constant (0.850)
+  ok   cu: the profile is 0 at the base and the top, in [0,1] between
+  ok   cu: the profile fills the column somewhere (peak 1.00)
+  ok   cu: a half-height column is nowhere fuller than a full one
+  ok   cu: the mean fill is a sane constant (0.870)
+  ok   cb: the profile is 0 at the base and the top, in [0,1] between
+  ok   cb: the profile fills the column somewhere (peak 1.00)
+  ok   cb: a half-height column is nowhere fuller than a full one
+  ok   cb: the mean fill is a sane constant (0.910)
+  ok   ac: the profile is 0 at the base and the top, in [0,1] between
+  ok   ac: the profile fills the column somewhere (peak 1.00)
+  ok   ac: a half-height column is nowhere fuller than a full one
+  ok   ac: the mean fill is a sane constant (0.775)
+  ok   as: the profile is 0 at the base and the top, in [0,1] between
+  ok   as: the profile fills the column somewhere (peak 1.00)
+  ok   as: a half-height column is nowhere fuller than a full one
+  ok   as: the mean fill is a sane constant (0.750)
+  ok   the types thicken st < sc < cu < cb
+3. the layer
+  ok   the day's base, the type's thickness
+  ok   the base is clamped to 120..5000 m
+  ok   an unknown type (or no day) is cumulus
+  ok   the overrides are honoured
+4. the column
+  ok   the summed column optical depth rises with the cover
+  ok   a clear map has no column
+  ok   the map tiles over the span
+  ok   a drift of one span is the same map
+  ok   a full column's optical depth is the profile's fill x the height x sigma (47.4)
+5. determinism
+  ok   the same seed, cover and type is the same map to the bit
+  ok   a different seed is a different map
+6. the splice rules
+  ok   clouds.js has no hook of its own (the shadow rides ATMO.inject)
+  ok   the shadow is spliced into exactly the two lights chunks, in install(): SC.lights_pars_begin SC.lights_fragment_begin
+  ok   the sun's colour is multiplied by the cloud transmittance under the CLOUD_SHADOW define
+  ok   the shadow tile is read from the aerial-perspective atlas - no sampler added to the world's programs
+  ok   the atlas carries the tile above the AP rows and publishes its geometry
+  ok   ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows
+  ok   the trees' own leaf terms take the cloud shadow
+  ok   the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame's depth, with THIS frame's camera (G650)
+  ok   app.js marches before the scene and dims the flare by the column
+  ok   the composite is a quad IN the world scene at the cloud's depth (reversed float or log, as the renderer runs - PERF 2026-09-23), last, tested per MSAA sample (the 1-px line round the aeroplane)
+  ok   the composite filters premultiplied (an empty texel must not darken its neighbour)
+  ok   the pass carries its own GPU timer
+  ok   one march text serves the fullscreen pass and the dome (the probe, the shed)
+  ok   the world's probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)
+  ok   ATMO.makeProbe takes the decorator and the dirty test (with the live cap beside it - the ground under the craft, 2026-09-22)
+  ok   the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)
+  ok   the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)
+  ok   the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow's scalars)
+  ok   the dome carries the cirrus veil
+  ok   the mist takes the in-cloud slab (the ONE copy of the mist GLSL)
+  ok   clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)
+  ok   ?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL
+  ok   the clouds panel carries the low deck's cover and type
+  ok   the day slot no longer draws the cover itself; the day panel opens the clouds flyout
+  ok   the WORLD editor carries the cover and the type
+  ok   the OVERCAST mood follows the day's cover (moodFor), it does not set it
+  ok   the march is GLSL3 (a sampler3D needs it)
+  ok   the composite is tone-mapped and encoded by three's own chunks (the target is display-space)
+  ok   the march takes the aerial perspective and the mist from ATMO (one splice, shared)
+  ok   and applies them at the cloud's own mean distance
+  ok   no wall clock: the drift is the day's seconds
+  ok   the pass samples the core's maps and layers (one field)
+  ok   the GLSL profile is the core's profile, verbatim (per deck)
+  ok   render_world retired the billboard puffs and hands the day to the clouds
+  ok   the GRAPHICS menu has the clouds row in every preset
+  ok   the resolve pass carries the depth texture and the overlay hook
+  ok   both files are in the build
+7. several decks (A6): the field
+  ok   layers(): the low deck first, the upper decks after, in order
+  ok   the first deck is layer(day): the dewpoint base, the day's cover
+  ok   an upper deck without a base takes its type's alt
+  ok   the decks never overlap: each base above the deck below plus the gap (a base of 100 m is lifted)
+  ok   at most MAX_LAYERS decks
+  ok   no cloudUpper: one deck, layer() itself
+  ok   a deck over a cumulonimbus rides above its 4 km top, under 12 km
+  ok   type st carries erode, period and alt
+  ok   type sc carries erode, period and alt
+  ok   type cuh carries erode, period and alt
+  ok   type cu carries erode, period and alt
+  ok   type cb carries erode, period and alt
+  ok   type ac carries erode, period and alt
+  ok   type as carries erode, period and alt
+  ok   the sheets erode less than the heaps (stratus < stratocumulus < cumulus)
+  ok   altocumulus and altostratus are types (the upper decks' own)
+  ok   upperWith() births a missing deck and patches the named one
+  ok   upperWith() on no decks
+  ok   the day publishes cloudUpper (sanitised, two at most) and cloudLayers
+7b. several decks + the look: the march (static)
+  ok   the weather maps are one 2D array texture, a slice a deck
+  ok   the per-deck numbers are arrays of MAXL
+  ok   density and weather take the deck
+  ok   the march walks the decks' segments in the order of their entry
+  ok   a deck stands in the softened shadow of the decks above it
+  ok   the shadow tile bakes every deck, an upper deck shifted along the sun to the first deck's middle
+  ok   the array sampler declares its precision (ESSL 3.00 has no default for it)
+  ok   the noise bake is stretched to the byte by its measured percentiles (the slab's cause)
+  ok   the worley fbm erodes by subtraction (the type's erode), never from lf - 1
+  ok   the cover fit: the map inflated until the sky's share (four hemispheres from the ground) is the deck's cover - one step a frame, the read asynchronous
+  ok   the fit waits 300 ms for a slider and runs even with the clock paused
+  ok   erode and period are the type's, scaled / overridden by the dials (G460.4: rounded to divide the span, so the shadow tile wraps without a seam)
+  ok   the deck noise and the detail noise tile over the span (no seam at the shadow tile's wrap)
+  ok   the ambient falls with the depth toward the sun (a core darker than a fringe)
+  ok   sunT sums the column over the decks above the point
+  ok   the probe reports the noise's percentiles (the instrument that found the slab)
+  ok   the clouds panel carries the upper decks (cover, type, base)
+  ok   the flight rail has the clouds item and mounts the panel with the day clock
+  ok   the panel: presets, the decks, the veil, the look, the motion, the render
+  ok   the look is saved as flydiy.clouds and applied at load; the weather is saved with the day
+  ok   clouds_ui.js is in the build
+  ok   the day panel: the conditions through #selCond, the presets ("set the clock", G2650), the hour, the date, the rate through the clock
+  ok   the flight rail's day slot mounts it, the plate refreshed, the clouds a flyout away
+  ok   the shed's night flyout mounts it, the clouds in a fold beside it, the borrowed light rows in their own (the tree's mood select not borrowed)
+  ok   the clouds and the day share the rail's row vocabulary (railRows)
+  ok   #selTime is gone: the presets are pills, DAY_CLOCK the one state
+  ok   the quick bar's time button presses the clock, not the mood
+  ok   day_ui.js is in the build
+  ok   a mood picked by hand moves the hour only - the weather stays the day's (no OVERCAST preset)
+  ok   the tree's OVERCAST mood is offered greyed - it follows the clouds (hangar.moodFor)
+  ok   the flight rail has NIGHT: the day panel, the aeroplane's switches, the world's sources
+  ok   the lights rule: nav, beacon and the panel at night, the landing light low and moving, the taxi light low and slow
+  ok   the rule runs by hand too; a switch the hand set is the hand's until the next sunset or sunrise
+  ok   the pilot no longer carries its own lights (one rule, the cockpit's)
+  ok   the light layer publishes drive(levels) and re-applies it after a rebuild
+  ok   the drive restores the DESIGN's level (recorded from the rows, not from a cached material the night may have driven); the dial faces keep their base
+  ok   the shed applies the pilot's rule (nav, beacon, the panel - no beam from a stand) at night and takes it off at sunrise
+  ok   every land strip stands its lights (standStrip) and the analytic HOME too
+  ok   white lenses down both edges every 60 m, six green ones across each threshold (the core's places, none on another strip or a pavement)
+  ok   the lights are declared on the world switchboard and honour its mute
+  ok   on from two degrees of sun down through the horizon, the level divided back through the exposure schedule, every frame before the sun-moved guard
+  ok   a light is a sharp core of the lens's angular size (1.5 px at least) whose brightness falls with the distance; the fixtures keep their true size and are frustum-culled
+  ok   one instanced fixture mesh and one glow layer a strip; a repainted strip takes both out of the drive
+  ok   a CONSTANT pool of eight point lights on the premises root, assigned within 500 m
+  FAIL the pool is re-assigned every 30 frames to the nearest published lamps; the level is the bench's night divided by the live exposure base
+  ok   every built thing publishes its lamps, its finish's lit panes and its smoke to the pool
+  ok   declared on the world switchboard as lamps, driven each frame by the day (the runway lights' fade), reachable for the F8 dial
+  ok   the chimney smoke is a haze lit by the sky (an unlit column no more)
+  ok   a PAPI unit is a light (its reading the emissive, dark from behind) and the overlays keep their own colour through the exposure
+  ok   the PAPI's lenses take the runway lights' level from the flight loop
+  ok   props.js publishes propSetGlowOf: the author's intensity kept, the levels of detail with it, a prop built later takes the last k
+  ok   the pool drives the published fixtures' glow by the day (the lenses' law) and the mute takes it to nothing
+  ok   the WORLD editor carries the upper decks
+  ok   F8 carries the upper decks, erode and the cover fit
+  ok   the rig that judges the sky (tools/cloud_shot.js) is there
+8. the drift is wrapped to the span before it is uploaded (G1050: the rims re-dealt every clock step)
+  ok   clouds.js defines wrapSpan (drift mod span)
+  ok   the uploaded drift is in [0, span) after a long day (secs 1e7, 3e7)
+  ok   the wrap moves the drift by whole spans only (the field the GPU draws is unchanged)
+  ok   the uploaded drift keeps under 1 cm of float32 (worst 1.19 mm; unwrapped it was 1-16 m)
+  ok   the wrap is ON by default (S.driftWrap 1; 0 = the old upload, an A/B dial)
+  ok   the decks' drift uniforms (uDriftA) are wrapped
+  ok   the shadow tile's drift (uCloudP) is wrapped
+  ok   the wrap's premise: the noise periods divide the span, the shadow tile wraps (fract)
+9. the composite never samples the depth it draws into (G1532: 'current' drew no cloud from train 25 to 38)
+  ok   clouds.js: the clouds' depth is depthFor(r, target), never the target's depth texture directly
+  ok   depthFor: the attachment only when multisampled (the resolve is what is read - the MSAA path unchanged); at zero samples a blitted copy (S.depthCopy 1 by default; 0 = the old read, an A/B dial)
+  ok   the feedback tracker: own depth at 0 samples 3/3 draws, at 4 samples 0, a blitted copy 0 ({"own0":3,"own4":0,"copy0":0})
+  ok   the shipped presets with clouds on, read from gfx_settings.js: current, gamer, ultra
+  ok   current: the clouds live, the composite drawn, no feedback draw (samples 0, composite 6 draws, feedbacks 0, 335 s)
+  ok   gamer: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 293 s)
+  ok   ultra: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 320 s)
+239 checks, 1 failed
+GATE CLOUD: FAIL (1 of 239)
+(exit code 1)
+=== GEN ===
+--- shard 0/4 (654.8 s) ---
+WING (strut-braced, dihedral 3): flap 2.9..3.2 deg | chatter 0.0 deg/s
+QC: 76/76 checks
+GATE GEN: PASS
+--- shard 1/4 (567.8 s) ---
+PARKED PUSHER (10 s, calm): crept 0.070 m at 0.000 m/s | full throttle to the lift-off: V 23.6 m/s, worst pitch on the wheels 0.0 deg, the heading held within 3.9 deg
+QC: 76/76 checks | the circuit (flown in another shard)
+GATE GEN: PASS
+--- shard 2/4 (610.7 s) ---
+PARKED PUSHER (10 s, calm): crept 0.070 m at 0.000 m/s | full throttle to the lift-off: V 23.6 m/s, worst pitch on the wheels 0.0 deg, the heading held within 3.9 deg
+QC: 76/76 checks | the circuit (flown in another shard)
+GATE GEN: PASS
+--- shard 3/4 (589.0 s) ---
+PARKED PUSHER (10 s, calm): crept 0.070 m at 0.000 m/s | full throttle to the lift-off: V 23.6 m/s, worst pitch on the wheels 0.0 deg, the heading held within 3.9 deg
+QC: 77/77 checks | the circuit (flown in another shard)
+GATE GEN: PASS
+=== TAXICLEAR ===
+--- shard 0/4 (445.8 s) ---
+  11 the turn-around [shard 0/4] in 149 s
+  12 the plots: 6 censused, 2 with a way of their own
+GATE TAXICLEAR: PASS
+--- shard 1/4 (62.1 s) ---
+  11c the user's Cub   from the altiport apron after the slope roll-on: airborne at 60 s, the wing 6.49 m off (prop ob:tw_o19 at (314.9, -7807.5) in TAXI, t 32 s), 0 contacts | pivot: turning round here (then the centreline) - the route's swept wings 4.3 m into the 3 m margin of a solid thing at (333, -7849), the turn clear by 2.9 m
+  11 the turn-around [shard 1/4] in 53 s
+GATE TAXICLEAR: PASS
+--- shard 2/4 (263.6 s) ---
+  11c the metal Cessna from the altiport apron after the slope roll-on: airborne at 51 s, the wing 6.40 m off (prop ob:tw_o19 at (315.6, -7808.7) in TAXI, t 23 s), 0 contacts | pivot: turning round here (then the centreline) - the route's swept wings 0.1 m into the 3 m margin of a solid thing at (313, -7811), the turn clear by 2.7 m
+  11 the turn-around [shard 2/4] in 255 s
+GATE TAXICLEAR: PASS
+--- shard 3/4 (93.5 s) ---
+  11c the user's Cub   from Jumbo Mine's street 45 m from its south end: airborne at 94 s, the wing 2.41 m off (item mn_s_mine/clinic at (7255.5, -15346.0) in TAXI, t 25 s), 0 contacts | pivot: turning round 21 m on (then the route) - the route's swept wings 8 m into the 3 m margin of a solid thing at (7255, -15335), the turn clear by 0.5 m
+  11 the turn-around [shard 3/4] in 85 s
+GATE TAXICLEAR: PASS
+=== DMGINST ===
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 11 readers / writers
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  FAIL  every k x 5 in flight (past the integrator's limit): tripped at frame 1 as 'speed' (node 65 at 570.42 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.16 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.09 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.11 m/s off the CG
+  FAIL  the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 9.75 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.42 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 12.45 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.55 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 8.46 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 3.73 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 8.36 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 2.46 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 9.72 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 1.87 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 3.42 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 58.59 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 67.65 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 29.85 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 69.13 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 68.71 m/s off the CG
+  ok    the census: 16 runs, never tripped; the worst 69.13 m/s (the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water), under 3/4 of the guard
+3. G1802: the plastic work per beam
+  ok    DMG.wB: a Float64Array, one per beam (404), on sim.damage()
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (30616.483 J against 30616.483 J)
+  ok    69 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 16.0 kJ, engines 5.3 kJ, vessel 3.2 kJ, gear 3.2 kJ, wings 2.5 kJ, tail 0.5 kJ
+  ok    the metal Cessna's: 26617.756 J against 26617.756 J
+  ok    reset() after a crash zeroes every beam's work
+4. G1803: every beam carries its ledger section
+  ok    Cub: 404 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Jodel: 502 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 68, wing > bracing 118, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    metal Cessna: 452 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Cessna floats: 543 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    twin floatplane: 500 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 52, wing > bracing 12, fus > engines 28, tail > tail 180, wire > tail 4, gear > gear 106, fus > vessel 9
+5. G1804: the damage view's colours (src/viewer/dmg_overlay.js)
+  ok    calm: |F| / limit up to 0.25 draws the frame's neutral [0.34,0.49,0.69]
+  ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
+  ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
+  ok    the precedence: broken > set > stress > calm
+  ok    the Cub's 30 m/s crash drawn: {"calm":327,"stress":2,"set":25,"broken":50} - every broken member red, every set member orange / cyan
+  ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
+  ok    the layer off (params.damage false): all 2401 members of the five builds calm
+  ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
+  ok    app.js: the view is off unless ?dmgview=1 or the overlays pill; off, sync() is the strain colouring; dmg_overlay.js is in the page (build.js) before app.js
+        the legend:
+          calm   |F| / limit <= 0.25    rgb 0.340 0.490 0.690  #577db0
+          stress |F| / limit = 0.625    rgb 0.670 0.635 0.405  #aba267
+          stress |F| / limit >= 1       rgb 1.000 0.780 0.120  #ffc71f
+          set    stretched 0.01 %       rgb 0.737 0.556 0.419  #bc8e6b
+          set    stretched >= 3 %       rgb 1.000 0.600 0.240  #ff993d
+          set    crushed 0.01 %         rgb 0.322 0.706 0.822  #52b4d2
+          set    crushed >= 3 %         rgb 0.310 0.850 0.910  #4fd9e8
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  31/33 checks
+GATE DMGINST: FAIL
+(exit code 1)
+=== MEDIA ===
+  3700 references from 100 manifests, 3700 files in media/ · index.html 13.33 MiB, 4.47 MiB gzipped (budget 4.6), +60.7 KB over HEAD (budget 307.2 KB), data: 118 KB (budget 400)
+  index.html 13980078 B (13652.4 KB, 4576.3 KB gzipped) · the career core career_core.9c4643fc.js 430.6 KB (134.0 KB gzipped; budget 512 KB), fetched by a career / ?map=1 / ?freight=1 boot alone · the route drawing route_draw.df5cd4af.js 31.4 KB (10.3 KB gzipped; budget 64 KB), fetched when the drawing is opened or a route is armed
+GATE MEDIA: PASS
+=== BENCH ===
+
+111/111 checks
+GATE BENCH: PASS
+=== SIMWORKER ===
+
+41 checks, 0 failed, 101.4 s
+GATE SIMWORKER: PASS
+=== STORY ===
+  ok   the look: the ladder on a transparent ground; the Skip at the bottom edge (never centred), the garage's look, 48 px on the phone
+all story rows hold
+GATE STORY: PASS
+
+──────── summary ────────
+CLIMATE   PASS    25.0 s
+CLOUD     FAIL   952.6 s
+GEN       PASS   654.8 s  [4 shards]
+TAXICLEAR PASS   445.8 s  [4 shards]
+DMGINST   FAIL   261.3 s
+MEDIA     PASS     2.5 s
+BENCH     PASS    86.2 s
+SIMWORKER PASS   101.7 s
+STORY     PASS     3.7 s
+total           2533.6 s
+wall            1197.6 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

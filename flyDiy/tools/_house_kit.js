@@ -336,10 +336,15 @@ function plate(bag, ring, drop, dir, uvf, opt2) {
     face(bag, top, up, uvf);
     face(bag, bot.slice().reverse(), d, uvf);
   }
+  // THE EDGES FACE OUT (LODS-2026-10): the ring is wound counter-clockwise about
+  // `up`, so an edge's outward side is edge x up - it was edge x drop, the
+  // INWARD side, and every slab's rim faced into the slab. Near, the fascia and
+  // the barge boards cover it; in the far mesh (no boards) the eave line was
+  // a strip you saw through, and GATE LODS's leak caught it on every roof
   for (let i = 0; i < top.length; i++) {
     const j = (i + 1) % top.length;
     if (len(sub(top[j], top[i])) < 1e-6) continue;
-    const eN = nrm(crs(sub(top[j], top[i]), d));
+    const eN = nrm(crs(sub(top[j], top[i]), up));
     face(bag, [top[i], bot[i], bot[j], top[j]], eN,
          uvFrame(top[i], nrm(sub(top[j], top[i])), mul(d, -1)));
   }

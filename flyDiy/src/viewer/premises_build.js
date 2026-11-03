@@ -317,7 +317,7 @@ function makeBuilder(C) {
     if (j.kind === 'house') {
       parts.push(zoneWaterY(x));   // G843
       const z = (rec.layers.zones || []).find(q => q.id === x.zone), rd = O.roads.find(r => r.id === x.road) || O.roads[0];
-      parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, rd.w] : null), groundSig(x.poly, 40));
+      parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, PG.roadLayW ? PG.roadLayW(rd) : rd.w] : null), groundSig(x.poly, 40));
     } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40), x.P && x.P.plotGround === false ? 'noGround' : '');
     else if (j.kind === 'fence') { const pts = []; for (const s of x.fences || []) { if (s.a) pts.push(s.a); if (s.b) pts.push(s.b); } parts.push(groundSig(pts, 10)); }
     return h64(parts.join('\u0001'));
@@ -359,7 +359,7 @@ function makeBuilder(C) {
     const rd = roadOverride || O.roads.find(r => r.id === plot.road) || O.roads[0];
     if (!rd) return D;
     const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
-    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: S.fenced, T, spread: S.spread, plots: O.records.plots, houses: [] };
+    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: PG.roadLayW ? PG.roadLayW(rd) : rd.w }, fenced: S.fenced, T, spread: S.spread, plots: O.records.plots, houses: [] };
     try { VG.finishPlot(vil, plot, house, built); } catch (e) { warn('premises dress', plot.id, e && e.message); return D; }
     D.ok = true;
     const posts = [];
@@ -452,6 +452,12 @@ function makeBuilder(C) {
     const u0 = uniSnap(F);
     const built = GEN.build(it.P, 0, F);
     built.BAGS = built.BAGS || GEN.BAGS;          // a build may carry bags of its own (the hangar shell's, G405.1)
+    // LODS-2026-10 S1: ITS LOD 1 IN THE SAME BUILD, as a plot's house has had since G800 - the generator's own far mesh,
+    // so the far town takes the item whole (its roof, its walls unpierced, its doors) and on its own finish; it was
+    // detailOf's three largest bags of the near mesh (the school's roof was not among them: the user's "houses
+    // without roof and black")
+    let lod1 = null;
+    if (C.lod1 && C.game) { try { lod1 = GEN.build(it.P, 1, F); lod1.BAGS = lod1.BAGS || GEN.BAGS; } catch (e) { warn('premises item lod 1', it.id, e && e.message); } }
     const fin = uniDiff(u0, F);
     let plot = null, dress = null, Tv = null;
     try {
@@ -476,7 +482,7 @@ function makeBuilder(C) {
         dress = genDress(plot, house, built, Vv, Tv, { pts: roadPts, w: 6 });
       }
     } catch (e) { warn('premises site lot', it.id, e && e.message); }
-    return { kind: 'item', built, F, fin, plot, dress, Tv };
+    return { kind: 'item', built, lod1, F, fin, plot, dress, Tv };
   }
 
   // ---- a site's own fences (G393.3), a park's ----
@@ -530,6 +536,9 @@ function makeBuilder(C) {
       r.plot = plain(x, SKIP);
     } else if (R.kind === 'item') {
       r.built = packBuilt(R.built, THREE, tr);
+      // (LODS-2026-10 S1) its lod 1, every attribute, the bags lod1Bags keeps - as a house's (above)
+      r.lod1 = R.lod1 ? packBuilt(R.lod1, THREE, tr, k => { const mt = R.F.MAT[k]; return !!(mt && mt.isMeshStandardMaterial && !mt.transparent); }) : null;
+      if (r.lod1) r.lod1.tris = R.lod1.stats ? R.lod1.stats.tris : 0;
       r.fin = R.fin;
       r.shape0 = shaped(r.built, R.F, (G()[x.gen] || {}).BAGS || [], x);
       r.dress = packDress(R.dress, R.plot);
@@ -571,7 +580,9 @@ function makeBuilder(C) {
     if (r.kind === 'item') {
       const built = unpackBuilt(THREE, r.built);
       if (target && target.P) built.stats.ground = G().HOUSE_GEN.groundFn(target.P);
-      return { kind: 'item', built, F: null, fin: r.fin, plot: r.plot, dress: unDress(r.dress, r.plot), Tv: r.plot ? Tv : null, remote: true, shape0: r.shape0 || null };
+      const lod1 = r.lod1 ? unpackBuilt(THREE, r.lod1) : null;
+      if (lod1) { lod1.stats = { tris: r.lod1.tris }; }
+      return { kind: 'item', built, lod1, F: null, fin: r.fin, plot: r.plot, dress: unDress(r.dress, r.plot), Tv: r.plot ? Tv : null, remote: true, shape0: r.shape0 || null };
     }
     if (r.kind === 'fence') {
       return { kind: 'fence', fence: r.fence ? { bags: { post: RemoteBag(THREE, 'post', r.fence.bags.post), deck: RemoteBag(THREE, 'deck', r.fence.bags.deck) }, props: r.fence.props, n: r.fence.n } : null, Tv, remote: true };

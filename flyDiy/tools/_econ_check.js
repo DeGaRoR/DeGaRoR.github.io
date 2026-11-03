@@ -165,8 +165,8 @@ function run(mut, opts) {
   }
 
   // ==== THE CALIBRATION =============================================================
-  ok(eq(Object.keys(M.ECON_BANDS).sort(), ['airframe', 'arc', 'hangar1', 'hangar2']) && eq(M.ECON_BANDS.hangar1, [6, 10]) && eq(M.ECON_BANDS.airframe, [12, 20])
-     && eq(M.ECON_BANDS.hangar2, [20, 27]) && eq(M.ECON_BANDS.arc, [16, 31]), 'the bands are the brief\'s, as data (G2430: re-derived for the two-leg jobs, the pace in legs unmoved)');
+  ok(eq(Object.keys(M.ECON_BANDS).sort(), ['airframe', 'arc', 'hangar1', 'hangar2']) && eq(M.ECON_BANDS.hangar1, [11, 16]) && eq(M.ECON_BANDS.airframe, [16, 24])
+     && eq(M.ECON_BANDS.hangar2, [24, 33]) && eq(M.ECON_BANDS.arc, [16, 31]), 'the bands are the brief\'s, as data (G2430: re-derived for the two-leg jobs, the pace in legs unmoved)');
   ok(M.ECON_REF.wish.map(w => w.m).join() === 'hangar1,airframe,hangar2' && M.ECON_REF.wish[1].design === 'c172', 'the reference buys a side hangar, the C172-class airframe, a side hangar, in order');
   const cal = M.econCalibration(opts.quick ? { seeds: M.ECON_REF.seeds.slice(0, 2) } : undefined);
   out.cal = cal;
@@ -381,8 +381,8 @@ const BREAKS = [
   ['a class nobody can do', { s73: sub("  bulk:     { test: subs => subs.some(s => s.load && s.load.bulk) },", "  bulk:     { test: subs => subs.some(s => s.load && s.load.bulk) },\n  ferry:    { test: subs => subs.some(s => s.do === 'carry') && false },") }],
   // the calibration
   ['the pay halved', { s73: sub('  baseF: 2.7, story: 2.6,', '  baseF: 1.35, story: 1.3,') }],
-  ['the hangars cheap', { s76: sub('  shells: { field: 1.8,', '  shells: { field: 0.4,') }],
-  ['the bands widened', { s76: sub('  hangar1:  [6, 10],', '  hangar1:  [0, 60],') }],
+  ['the hangars cheap', { s76: sub('  shells: { field: 3.6,', '  shells: { field: 0.4,') }],
+  ['the bands widened', { s76: sub('  hangar1:  [11, 16],', '  hangar1:  [0, 60],') }],
   ['the reference spends the grant first', { s76: sub('  const float = CAREER_GRANT, at = {}', '  const float = 0, at = {}') }],
   // no running cost
   ['a running cost in the ledger', { s74: sub("  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);", "  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);\n  playerCharge(d, 25, 'fuel', rec.id);") }],

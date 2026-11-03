@@ -1,0 +1,4 @@
+  ok   nv_strip > mn_strip    496 s | dep: turned 172.3 deg (U-turn), roll 5.9 m in, lift-off 54.8 m | final 1615.2 m / 378 m, clear 7.6 m (ground) | td sink 1.49 m/s, 13.7 m/s, run 50 m, off -0.2 m | fuel 22.3 L
+    phases LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts backtrack: rolling on to the end of the strip (19 m from it) to turn round 7 m from it - the whole strip for the take-off | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot | committed-takeoff: past the point of stopping at V=16.4 with 92 m left — continuing | vx-climb: ground ahead above the aeroplane — climbing at Vx 19.2 m/s until clear
+    dep {"turned":172.3,"uturn":true,"latMax":2.6,"rollS":5.9,"rollFromEnd":5.9,"toDist":54.8,"taxiT":24.6} (242 s wall)

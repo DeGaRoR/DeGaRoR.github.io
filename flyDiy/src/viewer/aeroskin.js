@@ -587,6 +587,9 @@ const AERO_HARD = {
   // beacon lens really is a moulded polycarbonate, so the honest row is also
   // the working one.
   access: { paint: 'trim', metal: 'bareAlu', lens: 'plastic' },
+  // G3470: the belly pod's hardware (tools/_pod_gen.js group 1 / 2): its stainless - the straps, the piano hinge, the pin
+  // latches, the rivets, the vent - and its black rubber - the joint's seal, the traps' screws, the lock's keyway
+  pod: { steel: 'bareAlu', rubber: 'rubber' },
   // ---- the control hardware (_cage_hinge.js) ------------------------------
   // Hinge straps, pins, horns, bellcranks and rod ends are STEEL — cadmium
   // plated, and the one place on a light aeroplane where nobody uses alloy,
@@ -655,11 +658,11 @@ const AERO_HARD = {
            face: null },
   // ---- the cabin (_cage_crew.js M) ----------------------------------------
   crew: {
-    shell: 'composite', shellC: 'composite',
+    shellC: 'composite',
     cushion: 'leather', pipe: 'leather',
     belt: 'webbing',
     frame: 'steelTube', metal: 'bareAlu',
-    joint: 'plastic', knob: 'plastic', dark: 'plastic',
+    knob: 'plastic', dark: 'plastic',
     ctrl: 'trim', console: 'plasticGrn', trim: 'trim',
     // THE PANEL (G94). A bezel is a painted alloy clamp ring and a needle is
     // painted too — both dielectrics; the dial FACE is a printed plastic disc,
@@ -672,7 +675,6 @@ const AERO_HARD = {
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
     seatAlu: 'bareAlu',           // G345: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
-    marker: null,
   },
 };
 // the propeller's material is a CHOICE on the cowl bench (COWL_GEN.MATERIALS),
@@ -762,7 +764,9 @@ function aeroHardMat(THREE, layer, name, tint, o) {
 // WHICH SECTIONS TAKE A MARKING (G207): the cage's exterior skin by role,
 // the flying surfaces by role, and the two painted layer parts by name.
 const AERO_DEC_ROLES = new Set(['skin', 'rail', 'pillar']);
-const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat']);
+// G3470 (the user: "ensure this reacts to global livery and can get some decals cast onto it"): the belly pod takes
+// markings like the spats - it was declined (a registration painted across a cargo pod); the user wants the pod's own
+const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat', 'pod']);
 function aeroDecOk(section) {
   const row = AERO_SEC[section];
   // G267.1: a row may decline the marking — the twin booms lie outside the
@@ -808,6 +812,10 @@ const AERO_SEC = {
               layer: 'wing' },
   wingFlap: { parent: 'wingSkin', role: 'skin', label: 'the flaps',
               layer: 'wing' },
+  // G2829: the STOL devices (the slat, the cuff, the VGs, the fences, the endplates) - their own paint, the wing's
+  // until repainted (the user: "highlight through a different color the STOL elements")
+  wingStol: { parent: 'wingSkin', role: 'skin', label: 'the STOL devices',
+              layer: 'wing' },
   finSkin:  { parent: 'body',     role: 'skin', label: 'the fin',
               layer: 'fin' },
   finRud:   { parent: 'finSkin',  role: 'skin', label: 'the rudder',
@@ -825,6 +833,9 @@ const AERO_SEC = {
   // cage section this table never had, and fell back to bare white)
   boomSkin: { parent: 'body',     role: 'skin', label: 'the twin booms',
               layer: 'boom', noDec: true },
+  // the wing radiators (27 Oct, the Spitfire's): the wing's paint until repainted
+  radSkin:  { parent: 'wingSkin', role: 'skin', label: 'the wing radiators',
+              layer: 'rad', noDec: true },
   // ---- the hardware the builder paints (phase C) --------------------------
   // A PINNED `fin` says what the part IS unless the builder repaints THAT
   // part: the fin channel stops at the section's own name (see the resolver),
@@ -904,6 +915,10 @@ const AERO_SEC = {
   // actually wears — so the base-colour pick reaches the mains, the nose leg
   // and the tailwheel's castor and spring at last, and a builder who wants
   // bare steel back still has the row.
+  // THE BELLY POD (G2677, BELLY-POD-2): a moulded glassfibre pod, painted with the aeroplane - the spats' rule (trim
+  // material, the body's colour); G3470: it takes markings (the user asked for decals on it - AERO_DEC_LAYER)
+  pod:      { parent: 'body', fin: 'trim',      label: 'the belly pod',
+              layer: 'pod', wears: 'parent' },
   gearLeg:  { parent: 'body', fin: 'steelTube', label: 'the gear legs',
               layer: 'gear', wears: 'parent' },
   // THE FLOATS (H2, G389): a pontoon is skinned like a fuselage and painted
@@ -959,15 +974,13 @@ const AERO_SEC = {
               layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------
   // The seats follow NOBODY on purpose: a green fuselage does not force
-  // green leather. The dummies are the user's "give them a bit of
-  // personality": one suit COLOUR each, the second following the first
-  // (paint the crew once, then differ one) — the suit's MATERIAL stays
-  // pinned composite, because an ATD is an ATD whatever it wears.
+  // green leather. The occupants wear their characters' own clothes (G3700),
+  // so the crew has no livery section of its own.
   seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
               layer: 'crew' },
-  dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
-              layer: 'crew' },
-  dummy2:   { parent: 'dummy1', fin: 'composite', label: 'the pilot',
+  // G2795 (the user's garage review, 18 Oct: "the floor's material
+  // editable"): the cabin floor's boards, plywood until picked
+  cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',
               layer: 'crew' },
 };
 
@@ -1114,7 +1127,11 @@ function aeroFinishLegacy(sections) {
 // follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
 // the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
 // only if it was following. Decals and the registration are not paint and are not touched.
-function aeroBaseReach(map, prev, next, neutral, eq, names) {
+// G3541 (AIRCRAFT-LOOKS, the user's playtest 24 Oct, Rufus: "global paint misses the rod boom and the tube structure"):
+// ...AND WHAT IS OUTSIDE ON A BARE FRAME. The rod boom (boomTube) is never inside anything (aeroIsInside), so the pick
+// repaints it; the welded truss (tube) is the aeroplane's outside only when the fuselage is OPEN (`opts.open`: the
+// cage's skinOn 0, the spec's fuselage.covering 'open') - under a covering it is the cabin's frame and keeps its own.
+function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
   const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
@@ -1147,7 +1164,7 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
     layer.push([k, toBody]);
   }
   for (const nm of names || [])
-    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
+    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm]) || nm === 'boomTube' || (nm === 'tube' && opts && opts.open)) put(nm);
   put('body');
   // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
   // plainly repaints what it covers)
@@ -1159,6 +1176,52 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
     if (toBody || v == null) delete map[k]; else map[k] = v;
   }
   return map;
+}
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"): A PLANE'S CLONE FOLLOWS ITS SOURCE.
+// The second wing wears its own copy of the pooled section material (aeroPlane 2: the join buckets it apart, the game
+// binds it apart - _cage_wing.js wingMat). The garage's repaint (_cage_ui.js) swaps the materials the section requests
+// handed out, and the copy was never one of them: the reach was right, the second wing kept the old paint until the
+// next full build. Each copy remembers its source here; a repaint hands the copy of the source's replacement to every
+// mesh wearing the old copy (or the game's understudy of it), as the cowl's twins do (G1301).
+// G3870 (the user, 29 Oct: "the extra wing in a biplane is not getting the same detailed normal map ... nor could
+// receive the livery"): the copy was m.clone(), and three's Material.copy carries NEITHER the hook nor AEROSKIN's
+// defines - Standard's copy() puts {STANDARD} back over {AEROSKIN_SURF}, and onBeforeCompile is never copied. So the
+// second wing drew as a bare MeshStandardMaterial: no ribs or spars in the normal, no livery field, no weathering, no
+// global dials. Copied here the way app.js's twins are (G680): userData kept out of copy()'s JSON clone (textures),
+// the defines, the hook unwrapped from ATMO's accessor, the cache key - so the copy also shares the first wing's
+// program (no extra link).
+// aeroDupe: THE copy of a hooked material, exported so no layer reaches for clone() again (the same recipe lives
+// hand-rolled in app.js compileXrayVariants, parked.js dupe, flown_bake.js copyMat and shader_warm.js twin).
+const aeroOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+function aeroDupe(m) {
+  const t = new m.constructor();
+  { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
+  if (m.defines) t.defines = Object.assign({}, m.defines);
+  const hook = aeroOwn(m, '_atmoHook') ? m._atmoHook : aeroOwn(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
+  if (hook !== undefined) t.onBeforeCompile = hook;
+  if (aeroOwn(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
+  t.userData = Object.assign({}, m.userData);
+  return t;
+}
+const AERO_PLANE_SRC = new WeakMap();
+function aeroPlaneClone(m, plane) {
+  const m2 = aeroDupe(m);
+  m2.userData.aeroPlane = plane;
+  AERO_PLANE_SRC.set(m2, m);
+  return m2;
+}
+function aeroPlaneRepaint(swap, scene) {
+  const made = new Map();
+  let n = 0;
+  scene.traverse(o => {
+    if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+    const m = o.material, om = (m.userData && m.userData.cageUniOf) || m;
+    const src = AERO_PLANE_SRC.get(om), nu = src && swap.get(src);
+    if (!nu) return;
+    if (!made.has(om)) made.set(om, aeroPlaneClone(nu, om.userData.aeroPlane));
+    o.material = made.get(om); n++;
+  });
+  return n;
 }
 
 // ---------------------------------------------------------------------------
@@ -1469,9 +1532,15 @@ function aeroAtlas(THREE) {
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
-  const g = cv.getContext('2d');
+  // G3798c: A CANVAS OF THE CPU'S. The registration's page is read back on every paint (its distance field), and a canvas
+  // the browser keeps on the graphics card can come back BLANK: under SwiftShader the Cub's registration page was empty on
+  // the first probe (2 Nov 15:40, inputs identical to the RTX's), drawn on the second, whose hook read the canvas back
+  // every 250 ms - which moves it to the CPU. AERO_TEXT_SIG then skipped every repaint. willReadFrequently is the hint
+  // for exactly this canvas (and its readbacks become a copy, not a GPU stall - the phone's); a restore still repaints.
+  const g = cv.getContext('2d', { willReadFrequently: true });
   g.clearRect(0, 0, S, S);
   AERO_ATLAS_CV = cv;
+  if (typeof cv.addEventListener === 'function') cv.addEventListener('contextrestored', () => aeroAtlasRepaint());   // (the gates' mock canvas has none)
   const t = new THREE.CanvasTexture(cv);
   // flipY stays TRUE — the canvas convention this repo uses everywhere except
   // props.js, which sets false because glTF's uv origin is top-left. Mixing
@@ -1594,6 +1663,20 @@ const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
 // only when what is on it changes.
 const AERO_TEXT_SIG = {};
 const AERO_TEXT_ASPECT = {};
+// G3798c: WHAT EACH PAGE LAST WORE, to paint it again when the canvas comes back blank (its context restored): the
+// arguments, not the pixels - a page is repainted by the same call that drew it
+const AERO_PAGE_LAST = {};
+function aeroAtlasRepaint() {
+  for (const p of Object.keys(AERO_PAGE_LAST)) {
+    const L = AERO_PAGE_LAST[p];
+    try {
+      if (L.kind === 'text') { delete AERO_TEXT_SIG[p]; aeroDecalText.apply(null, L.args); }
+      else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
+      else if (L.kind === 'img') aeroDecalImage.apply(null, L.args);
+    } catch (e) {}
+  }
+  if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
+}
 
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
@@ -1604,6 +1687,7 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     return AERO_TEXT_ASPECT[page].aspect;
   }
   AERO_TEXT_SIG[page] = sig;
+  AERO_PAGE_LAST[page] = { kind: 'text', args: [THREE, page, text, colHex, outHex, font] };
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -1702,6 +1786,7 @@ function aeroDecalImage(THREE, page, img) {
   aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
+  AERO_PAGE_LAST[page] = { kind: 'img', args: [THREE, page, img] };
   return img.width / img.height;
 }
 // THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
@@ -1736,6 +1821,7 @@ function aeroDecalImageClear(THREE, page) {
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
   AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
   delete AERO_PAGE_IMG[page];
+  delete AERO_PAGE_LAST[page];
   const t = aeroAtlas(THREE); t.needsUpdate = true;
 }
 function aeroDecalImageFrom(THREE, page, dataURL, cb) {
@@ -1770,6 +1856,33 @@ let AERO_DEC = null;
 // ...and a page may switch it OFF for one load (window.AEROWX_OFF, the bench's
 // ?nowx) — the program key is the hook's source, so the choice is per LOAD
 function aeroWx() { return (typeof AEROWX !== 'undefined' && !(typeof window !== 'undefined' && window.AEROWX_OFF)) ? AEROWX : null; }
+// PHONE-EDIT-PERF (B, the user 2 Nov: "for the phone ... the materials will be the things hitting it ... disabling the most
+// costly ones"): THE PHONE'S MATERIAL TIER. Measured on the user's S20 FE (Adreno 650, the Twin busher on floats, the studio):
+// the full skin 9.2 fps; the weathering compiled out 16.7; + the large-scale field (aeroField: 3 x 4-octave musgrave a
+// fragment) 23.5; + the structure grammar (aeroStructure: members, tapes, laps, rivets) 30 solid (p90 34 ms). The paint, the
+// decals and registration, the detail sheet, the lights, the IBL and the clear coat stay. On the phone profile only, decided
+// once at the first compile (a page is one tier: the hooks' toString stays the program key); ?phmat=full or localStorage
+// flydiy.phoneMat = 'full' keeps the full skin on a phone. The desktop compiles exactly as before
+let AERO_LITE_V = null;
+function aeroLite() {
+  if (AERO_LITE_V !== null) return AERO_LITE_V;
+  AERO_LITE_V = false;
+  try {
+    const W = typeof window !== 'undefined' ? window : null;
+    if (W && W.PROFILE && W.PROFILE.name === 'phone') {
+      const q = (W.location && W.location.search) || '', m = /[?&]phmat=(full|lite)(&|$)/.exec(q);
+      const pref = (() => { try { return W.localStorage && W.localStorage.getItem('flydiy.phoneMat'); } catch (e) { return null; } })();
+      AERO_LITE_V = m ? m[1] === 'lite' : pref !== 'full';
+    }
+    if (W) { W.AERO_LITE = AERO_LITE_V; if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('phmat', null, AERO_LITE_V ? 'lite' : 'full'); }
+  } catch (e) {}
+  return AERO_LITE_V;
+}
+// the lite tier's two cuts in the skin's fragment text (the calls' own lines, AERO_SURFACE_FS)
+function aeroLiteFS(fs) {
+  return fs.replace('vec3 aeroSN = aeroStructure(aeroM, aeroRA);', 'vec3 aeroSN = vec3(0.0, 0.0, 1.0);')
+    .replace(/aeroField\(aeroFC, aeroDF, aeroFR\);/g, '');
+}
 function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
@@ -1801,6 +1914,14 @@ function aeroSharedU0(THREE, z4) {
     // fact about the AEROPLANE and not about any one material — the same
     // reason the decal list is shared.
     uCraftInv: { value: new THREE.Matrix4() },
+    // G3623 (DMG-GLASS): THE IMPACT MARKS ON THE GLAZING, in craft space (src/viewer/dmg_glass.js: where the frame hit a
+    // pane). SHARED for the reason uCraftInv is: a mark is a fact about the aeroplane flown, gated in the glass shader to
+    // fragments within its reach of its point and facing its normal - another aeroplane's glass is metres off in this
+    // frame and never shows it. uCrackN the marks in use (0: the block is skipped), P xyz the point + w the severity,
+    // Q xyz the pane's normal + w the seed
+    uCrackN: { value: 0 },
+    uCrackP: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uCrackQ: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 0)) },
     uInset: { value: 0.02 },
     // THE WEATHERING (G345, src/viewer/aeroweather.js). uWear carries the
     // FOUR MACROS now — x age, y flight, z bush, w rain — and the module
@@ -1961,6 +2082,10 @@ const AERO_DEC_DEF = {
   regMetal: 0, imgMetal: 0, wimMetal: 0,   // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
+  // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
+  // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
+  // in the plan view; off unless a build asks
+  wregOn: 0, wregH: 0.55, wregL: 2.6, wregC: 0.5, wregRot: 0, wregMode: 2,   // plan: L across the span, C fore / aft, radians
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
   imgMode: 0, imgRot: 0, imgLock: 1,
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
@@ -1991,6 +2116,14 @@ const AERO_DEC_ON = [
   { wing: 1, tail: 1 },               // 1 the flying surfaces
   { body: 1, wing: 1, tail: 1 },      // 2 both
   { body: 1, tail: 1 },               // 3 the body and the tail
+  // G2870: one surface on its own — a sunburst FITTED to the flying surfaces
+  // would size itself to the wing and leave the fin a corner of it
+  { wing: 1 },                        // 4 the wings
+  { tail: 1 },                        // 5 the tail
+  // 27 Oct (the liveries: a rudder's tricolour, the fin flash): the fin alone, the stabiliser alone - the
+  // tailplane is its own surface CLASS (3) since, and `tail` still means both (stab follows tail when unset)
+  { tail: 1, stab: 0 },               // 6 the fin
+  { stab: 1 },                        // 7 the stabiliser
 ];
 const AERO_DEC_MODES = ['field', 'side', 'plan'];
 
@@ -2056,8 +2189,64 @@ const AERO_KIT_LDEF = {
   // aeroplane the moment it is switched on, which is what "ready to apply"
   // means; decReframe converts the placement for a builder who wants a box.
   Rot: 0, Tgt: 0, Mode: 0, Flip: 0,
+  // G2870 (LIVERY-PATTERNS): two more knobs for the patterns that need four
+  // (a gradient's angle + start/middle/end, a sunburst's rays + width +
+  // origin), the TRANSPARENT stops as a bit per colour slot (1 = A, 2 = B,
+  // 4 = D), and FIT — the layer sized to its target surface by the editor.
+  // All absent-means-off, so every build saved before them is unchanged.
+  R: null, S: null, Clr: 0, Fit: 0,
 };
 const AERO_KIT_FIELDS = Object.keys(AERO_KIT_LDEF);
+// THE TRANSPARENT STOP (G2870, the user: "a gradient, where transparent can
+// be picked as a color"). A slot whose Clr bit is set hands the draw this
+// string instead of a hex, and `aeroKitInk` turns it into an ERASE rather than
+// a fill of nothing: on a page that already holds a keyline, a see-through
+// band must show the PAINT below the layer, not the keyline drawn under the
+// band. In a gradient it is a stop of alpha 0, so the stop fades into
+// whatever the section is painted — and a global repaint shows through it
+// (A0, 12 Oct: the base colour keeps the patterns; they are markings).
+const AERO_KIT_CLEAR = 'clear';
+function aeroKitInk(g, c) {
+  const t = c === AERO_KIT_CLEAR;
+  g.globalCompositeOperation = t ? 'destination-out' : 'source-over';
+  g.fillStyle = g.strokeStyle = t ? '#000' : c;
+}
+// a gradient stop: its own colour, or — transparent — its NEIGHBOUR's colour
+// at alpha 0. Never rgba(0,0,0,0): a gradient that interpolates unpremultiplied
+// would drag the fade through black on its way to nothing.
+function aeroKitStop(o, slot, near) {
+  const c = o.rgb[slot], n = o.rgb[near];
+  if (!o.clr[slot]) return 'rgb(' + c.join(',') + ')';
+  return 'rgba(' + (o.clr[near] ? c : n).join(',') + ',0)';
+}
+// THE PAGE IS A STRETCHED WINDOW: W metres across, H metres up, drawn square.
+// A direction meant in METRES (a gradient's angle, a sunburst's rays) has to
+// be pre-squashed by the aspect or a 45-degree ray on a 4 m x 1 m wing lands
+// at 76 degrees. `o.asp` is W/H; this returns the page-space unit vector for
+// a metric angle (canvas y runs DOWN, the field's across runs UP).
+function aeroKitDir(o, a) {
+  const x = Math.cos(a) / (o.asp || 1), y = -Math.sin(a);
+  const l = Math.hypot(x, y) || 1;
+  return [x / l, y / l];
+}
+// THE LINEAR GRADIENT BOTH FADES USE. The angle is metric (0 = along: nose to
+// tail on the body, root to tip on a wing or a fin; 90 = across: up the flank,
+// leading edge to trailing edge); start / end are fractions of the page's own
+// extent along that direction, so 0..1 is always edge to edge whatever the
+// angle and the surface. The gradient's direction is the NORMAL of its
+// isolines, and a normal squashes the other way from a ray (x by W/H, not by
+// H/W) — the isolines stay square to the metric angle on the aeroplane.
+function aeroKitGrad(g, P, o, a, t0, t1) {
+  const c = P / 2;
+  const ex = Math.cos(a) * (o.asp || 1), ey = -Math.sin(a), el = Math.hypot(ex, ey) || 1;
+  const e = [ex / el, ey / el];
+  // the page's corners projected on the direction: the full run
+  const pr = [[0, 0], [P, 0], [0, P], [P, P]].map(q => (q[0] - c) * e[0] + (q[1] - c) * e[1]);
+  const lo = Math.min.apply(null, pr), hi = Math.max.apply(null, pr);
+  let s0 = lo + (hi - lo) * t0, s1 = lo + (hi - lo) * t1;
+  if (Math.abs(s1 - s0) < 0.5) s1 = s0 + (t1 >= t0 ? 0.5 : -0.5);
+  return g.createLinearGradient(c + e[0] * s0, c + e[1] * s0, c + e[0] * s1, c + e[1] * s1);
+}
 for (let i = 1; i <= AERO_KIT_LAYERS; i++)
   for (const k of AERO_KIT_FIELDS) AERO_DEC_DEF['m' + i + k] = AERO_KIT_LDEF[k];
 
@@ -2075,8 +2264,8 @@ const AERO_KIT = [
         { n: 'keyline width', lo: 0, hi: 0.40, st: 0.01, def: 0.14 }],
     draw(g, P, o) {
       const h = Math.max(2, o.p * P), y = (P - h) / 2, e = o.q * h * 0.5;
-      if (e >= 0.5) { g.fillStyle = o.b; g.fillRect(-2, y - e, P + 4, h + 2 * e); }
-      g.fillStyle = o.a; g.fillRect(-2, y, P + 4, h);
+      if (e >= 0.5) { aeroKitInk(g, o.b); g.fillRect(-2, y - e, P + 4, h + 2 * e); }
+      aeroKitInk(g, o.a); g.fillRect(-2, y, P + 4, h);
     } },
 
   { name: 'twin stripe', cn: ['upper band', 'lower band', 'keyline'],
@@ -2093,8 +2282,8 @@ const AERO_KIT = [
       // keyline colour, which is a solid three-colour block and not a twin
       // stripe at all.
       const band = (y, col) => {
-        g.fillStyle = o.d; g.fillRect(-2, y - e, P + 4, h + 2 * e);
-        g.fillStyle = col; g.fillRect(-2, y, P + 4, h);
+        aeroKitInk(g, o.d); g.fillRect(-2, y - e, P + 4, h + 2 * e);
+        aeroKitInk(g, col); g.fillRect(-2, y, P + 4, h);
       };
       band(top, o.a);
       band(top + h + gap, o.b);
@@ -2120,9 +2309,9 @@ const AERO_KIT = [
       };
       line();
       g.lineTo(P + 2, P + 4); g.lineTo(-2, P + 4); g.closePath();
-      g.fillStyle = o.a; g.fill();
+      aeroKitInk(g, o.a); g.fill();
       g.lineWidth = Math.max(1.5, P * 0.016);
-      g.strokeStyle = o.b;
+      aeroKitInk(g, o.b);
       line(); g.stroke();
     } },
 
@@ -2140,9 +2329,9 @@ const AERO_KIT = [
         g.lineTo(P * 0.56, yB); g.lineTo(P + 4, yB);
       };
       g.lineCap = 'butt'; g.lineJoin = 'miter'; g.miterLimit = 8;
-      g.strokeStyle = o.b; g.lineWidth = w + Math.max(2, P * 0.03);
+      aeroKitInk(g, o.b); g.lineWidth = w + Math.max(2, P * 0.03);
       path(); g.stroke();
-      g.strokeStyle = o.a; g.lineWidth = w;
+      aeroKitInk(g, o.a); g.lineWidth = w;
       path(); g.stroke();
     } },
 
@@ -2154,11 +2343,143 @@ const AERO_KIT = [
       const nx = Math.max(1, Math.round(o.p)), ny = Math.max(1, Math.round(o.q));
       const cw = P / nx, ch = P / ny;
       for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-        g.fillStyle = ((i + j) & 1) ? o.b : o.a;
+        aeroKitInk(g, ((i + j) & 1) ? o.b : o.a);
         // the half-pixel overlap is not sloppiness: adjacent fills that meet
         // exactly leave an antialiased seam, and a seam through a chequer is
         // a grey grid the builder never asked for
         g.fillRect(i * cw - 0.5, j * ch - 0.5, cw + 1, ch + 1);
+      }
+    } },
+  // ---- G2870, THE USER'S TWO (11 Oct): "a gradient, where transparent can be
+  // picked as a color. And a sunburst pattern, especially nice for the fins
+  // and wings." Both are aspect-aware (`asp: 1`): an angle or a ray is meant
+  // in METRES on the aeroplane, and the page is a square stretched over W x H.
+  // FIT (the layer's own flag) sizes that rectangle to the target surface, so
+  // 0..1 on a knob is edge to edge of the fin or the wing, whatever its size.
+  { name: 'fade', cn: ['from', 'to'], asp: 1,
+    help: 'one colour blending into another. Tick TRANSPARENT on either end ' +
+          'and it fades into the paint below — a global repaint shows through it',
+    k: [{ n: 'angle', lo: -180, hi: 180, st: 5, def: 0 },
+        { n: 'start', lo: 0, hi: 1, st: 0.01, def: 0 },
+        { n: 'end', lo: 0, hi: 1, st: 0.01, def: 1 }],
+    draw(g, P, o) {
+      if (o.clr.a && o.clr.b) return;               // nothing to paint
+      const gr = aeroKitGrad(g, P, o, o.p * Math.PI / 180, o.q, o.r);
+      gr.addColorStop(0, aeroKitStop(o, 'a', 'b'));
+      gr.addColorStop(1, aeroKitStop(o, 'b', 'a'));
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = gr; g.fillRect(-2, -2, P + 4, P + 4);
+    } },
+
+  { name: 'gradient', cn: ['start', 'middle', 'end'], asp: 1,
+    help: 'three stops — any of them TRANSPARENT, so a band can fade in and ' +
+          'out of the paint below, or two colours meet through a clear middle',
+    k: [{ n: 'angle', lo: -180, hi: 180, st: 5, def: 0 },
+        { n: 'start', lo: 0, hi: 1, st: 0.01, def: 0 },
+        { n: 'middle', lo: 0.02, hi: 0.98, st: 0.01, def: 0.5 },
+        { n: 'end', lo: 0, hi: 1, st: 0.01, def: 1 }],
+    draw(g, P, o) {
+      if (o.clr.a && o.clr.b && o.clr.d) return;
+      const gr = aeroKitGrad(g, P, o, o.p * Math.PI / 180, o.q, o.s);
+      gr.addColorStop(0, aeroKitStop(o, 'a', 'b'));
+      // a CLEAR middle is two stops at one offset: each side fades out in its
+      // own colour, so red-to-clear-to-blue never passes through purple
+      if (o.clr.b) {
+        gr.addColorStop(o.r, aeroKitStop(o, 'b', 'a'));
+        gr.addColorStop(o.r, aeroKitStop(o, 'b', 'd'));
+      } else gr.addColorStop(o.r, aeroKitStop(o, 'b', 'b'));
+      gr.addColorStop(1, aeroKitStop(o, 'd', 'b'));
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = gr; g.fillRect(-2, -2, P + 4, P + 4);
+    } },
+
+  { name: 'sunburst', cn: ['rays', 'between'], asp: 1,
+    help: 'rays from one point — the classic fin and wing scheme. The ORIGIN ' +
+          'is a fraction of the layer: along 0 is its forward end (a wing or ' +
+          'fin ROOT), across 0 its bottom (a leading edge). Tick TRANSPARENT ' +
+          'between the rays to let the paint show',
+    k: [{ n: 'rays', lo: 3, hi: 48, st: 1, def: 16 },
+        { n: 'ray width', lo: 0.1, hi: 0.9, st: 0.01, def: 0.5 },
+        { n: 'origin along', lo: 0, hi: 1, st: 0.01, def: 0 },
+        { n: 'origin across', lo: 0, hi: 1, st: 0.01, def: 0.5 }],
+    draw(g, P, o) {
+      const n = Math.max(1, Math.round(o.p)), hw = Math.PI / n * o.q;
+      const ox = o.r * P, oy = (1 - o.s) * P, R = 4 * P;
+      aeroKitInk(g, o.b); g.fillRect(-2, -2, P + 4, P + 4);
+      aeroKitInk(g, o.a);
+      g.beginPath();
+      // wedges cut in METRES: each edge is a metric angle squashed into the
+      // page, so the rays fan evenly on a 9 m wing and a 1 m fin alike
+      for (let i = 0; i < n; i++) {
+        const a = i * 2 * Math.PI / n;
+        const e0 = aeroKitDir(o, a - hw), e1 = aeroKitDir(o, a + hw);
+        g.moveTo(ox, oy);
+        g.lineTo(ox + e0[0] * R, oy + e0[1] * R);
+        g.lineTo(ox + e1[0] * R, oy + e1[1] * R);
+        g.closePath();
+      }
+      g.fill();
+    } },
+  // ---- THE ROUNDEL (27 Oct, the liveries of the Camel, the Tiger Moth and the Stearman): concentric discs - the
+  // RFC's and the RAF's blue / white / red - or the US star (`star` 1: a white five-point star in the blue disc,
+  // the red centre on it, the Army Air Corps' 1919-42 insignia). ONE in the middle of the layer (a fuselage side)
+  // or TWO at the layer's two ends across (a pair of wings seen in plan: one layer, a roundel on each). Circles in
+  // METRES (`asp`): the page is a square stretched over W x H, so each disc is drawn pre-squashed. Polygons, not
+  // arcs: GATE SKINMAT's recording context draws paths.
+  { name: 'roundel', cn: ['outer', 'ring', 'centre'], asp: 1,
+    help: 'national markings: concentric discs, or the US star in its disc. Count 2 puts one at each end of the ' +
+          'layer across - set the layer in plan over both wings and each wing gets its own',
+    k: [{ n: 'count', lo: 1, hi: 2, st: 1, def: 1 },
+        { n: 'ring (of the disc)', lo: 0.3, hi: 0.95, st: 0.01, def: 0.667 },
+        { n: 'centre (of the disc)', lo: 0, hi: 0.9, st: 0.01, def: 0.333 },
+        { n: 'star', lo: 0, hi: 1, st: 1, def: 0 }],
+    draw(g, P, o) {
+      const a = o.asp || 1, two = Math.round(o.p) >= 2;
+      // the disc's radius in units of the layer's HEIGHT, then in pixels along x and y
+      const rh = 0.5 * Math.min(a, two ? 0.5 : 1);
+      const rx = rh / a * P, ry = rh * P;
+      const disc = (cx, cy, k) => {
+        g.beginPath();
+        for (let i = 0; i <= 64; i++) {
+          const t = i / 64 * 2 * Math.PI, x = cx + Math.cos(t) * rx * k, y = cy + Math.sin(t) * ry * k;
+          if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        }
+        g.closePath(); g.fill();
+      };
+      const star = (cx, cy, k) => {
+        g.beginPath();
+        for (let i = 0; i <= 10; i++) {
+          const t = -Math.PI / 2 + i * Math.PI / 5, rr = (i & 1) ? 0.382 * k : k;
+          const x = cx + Math.cos(t) * rx * rr, y = cy + Math.sin(t) * ry * rr;
+          if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        }
+        g.closePath(); g.fill();
+      };
+      const at = two ? [[P / 2, ry], [P / 2, P - ry]] : [[P / 2, P / 2]];
+      for (const [cx, cy] of at) {
+        aeroKitInk(g, o.a); disc(cx, cy, 1);
+        aeroKitInk(g, o.b);
+        if (Math.round(o.s) >= 1) star(cx, cy, 0.98); else disc(cx, cy, o.q);
+        if (o.r > 0.001) { aeroKitInk(g, o.d); disc(cx, cy, o.r); }
+      }
+    } },
+  // ---- THE BANDS (27 Oct): equal bands in one, two or three colours, cycling A, B, D - upright (along the
+  // layer: the RFC's blue / white / red rudder, the RAF's fin flash, a banded fuselage) or lying (across: a US
+  // Army rudder's red and white). A layer's turn is a small trim (+-0.6 rad): an upright stripe is the pattern's
+  // own, as here, not a quarter turn.
+  { name: 'bands', cn: ['first', 'second', 'third'],
+    help: 'equal bands cycling through one, two or three colours - a tricolour rudder or fin flash (3 colours, 3 ' +
+          'bands, upright), striped rudders and banded bodies (2 colours, many bands). Upright bands run fore to aft',
+    k: [{ n: 'bands', lo: 1, hi: 16, st: 1, def: 3 },
+        { n: 'colours', lo: 1, hi: 3, st: 1, def: 3 },
+        { n: 'lying (across)', lo: 0, hi: 1, st: 1, def: 0 }],
+    draw(g, P, o) {
+      const n = Math.max(1, Math.round(o.p)), nc = Math.max(1, Math.min(3, Math.round(o.q)));
+      const lying = Math.round(o.r) >= 1, w = P / n, cols = [o.a, o.b, o.d];
+      for (let i = 0; i < n; i++) {
+        aeroKitInk(g, cols[i % nc]);
+        if (lying) g.fillRect(-2, i * w - 0.5, P + 4, w + 1);
+        else g.fillRect(i * w - 0.5, -2, w + 1, P + 4);
       }
     } },
 ];
@@ -2181,7 +2502,7 @@ function aeroKitKnob(pat, j, v) {
 function aeroKitLayers(D) {
   const out = [];
   if (!D) return out;
-  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(3, +t || 0))];
+  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(AERO_DEC_ON.length - 1, +t || 0))];
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
   for (let i = 0; i < AERO_KIT_LAYERS; i++) {
     const q = 'm' + (i + 1);
@@ -2189,17 +2510,25 @@ function aeroKitLayers(D) {
     const pi = Math.max(0, Math.min(AERO_KIT.length - 1,
                  Math.round(+D[q + 'Pat'] || 0)));
     const pat = AERO_KIT[pi], page = AERO_KIT_PAGE0 + i;
+    const w = Math.max(0.02, +D[q + 'W'] || 0.02),
+          h = Math.max(0.02, +D[q + 'H'] || 0.02);
     out.push({
       page, pat: pi, name: pat.name,
       a: D[q + 'A'], b: D[q + 'B'], d: D[q + 'D'],
       p: aeroKitKnob(pat, 0, D[q + 'P']),
       q: aeroKitKnob(pat, 1, D[q + 'Q']),
+      // G2870: the third and fourth knobs (0 where a pattern has none), the
+      // transparent stops, and the page's metric aspect — 1 for a pattern
+      // that does not read it, so dragging a stripe's length never redraws it
+      r: aeroKitKnob(pat, 2, D[q + 'R']),
+      s: aeroKitKnob(pat, 3, D[q + 'S']),
+      clr: (+D[q + 'Clr'] || 0) & 7,
+      asp: pat.asp ? +(w / h).toFixed(3) : 1,
       flip: D[q + 'Flip'] ? 1 : 0,
       place: {
         page,
         sL: +D[q + 'L'] || 0, sC: +D[q + 'C'] || 0,
-        w: Math.max(0.02, +D[q + 'W'] || 0.02),
-        h: Math.max(0.02, +D[q + 'H'] || 0.02),
+        w, h,
         rot: +D[q + 'Rot'] || 0,
         // a painted stripe is paint on paint: smoother than the weave under
         // it, and by less than a registration's ink is
@@ -2225,14 +2554,26 @@ function aeroKitLayers(D) {
 // recipe, which is the only version of this cache that cannot go stale:
 // anything the draw reads is in it.
 const AERO_KIT_SIG = {};
+// WHAT A DRAW IS HANDED, from a resolved layer — pure, so GATE SKINMAT can
+// run every pattern's draw against a recording context in node (G2870).
+function aeroKitArgs(L) {
+  const hex = v => '#' + ((v == null ? 0 : v) >>> 0).toString(16).padStart(6, '0');
+  const rgb = v => { v = (v == null ? 0 : v) >>> 0; return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
+  const clr = { a: !!(L.clr & 1), b: !!(L.clr & 2), d: !!(L.clr & 4) };
+  return { a: clr.a ? AERO_KIT_CLEAR : hex(L.a), b: clr.b ? AERO_KIT_CLEAR : hex(L.b),
+           d: clr.d ? AERO_KIT_CLEAR : hex(L.d), p: L.p, q: L.q,
+           r: L.r || 0, s: L.s || 0, asp: L.asp || 1, clr,
+           rgb: { a: rgb(L.a), b: rgb(L.b), d: rgb(L.d) } };
+}
 function aeroKitDraw(THREE, L) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
-  const sig = [L.pat, L.a, L.b, L.d, L.p, L.q, L.flip].join('|');
+  const sig = [L.pat, L.a, L.b, L.d, L.p, L.q, L.flip,
+               L.r, L.s, L.clr, L.asp].join('|');
   if (AERO_KIT_SIG[L.page] === sig) return false;
   AERO_KIT_SIG[L.page] = sig;
+  AERO_PAGE_LAST[L.page] = { kind: 'kit', args: [THREE, L] };
   const P = S / N, px = (L.page % N) * P, py = Math.floor(L.page / N) * P;
   const g = AERO_ATLAS_CV.getContext('2d');
-  const hex = v => '#' + ((v == null ? 0 : v) >>> 0).toString(16).padStart(6, '0');
   g.save();
   // CLIPPED, because a pattern overhangs its page on purpose and an overhang
   // that reached the neighbouring page would paint the registration's cell.
@@ -2243,8 +2584,7 @@ function aeroKitDraw(THREE, L) {
   // fore" are one pattern seen two ways, and a second table row for the
   // mirror is a second thing to keep in step with the first.
   if (L.flip) { g.translate(P, 0); g.scale(-1, 1); }
-  AERO_KIT[L.pat].draw(g, P,
-    { a: hex(L.a), b: hex(L.b), d: hex(L.d), p: L.p, q: L.q });
+  AERO_KIT[L.pat].draw(g, P, aeroKitArgs(L));
   g.restore();
   aeroDilate(g, px, py, P, P, Math.round(3 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
@@ -2259,7 +2599,7 @@ function aeroKitDraw(THREE, L) {
 function aeroDecalsFor(THREE, D, opts) {
   opts = opts || {};
   const trim = opts.trim != null ? opts.trim : 0x1b3a5c;
-  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(3, +t || 0))];
+  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(AERO_DEC_ON.length - 1, +t || 0))];
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
   const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
                    D.regCol != null ? D.regCol : trim,
@@ -2289,6 +2629,11 @@ function aeroDecalsFor(THREE, D, opts) {
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
+  if (D.wregOn) {
+    const ww = D.wregH * Math.max(1.2, aspect);
+    list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
+                rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
+  }
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04, metal: +D.imgMetal || 0,
     on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
@@ -2372,7 +2717,8 @@ function aeroSetDecals(THREE, list) {
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
     U.uDecE.value[i].set(d.sdf ? 1 : 0,
       Math.max(0, Math.min(1, +d.metal || 0)),
-      d.one ? 1 : 0, 0);      // y: metallic (G215)  z: one side only
+      d.one ? 1 : 0,
+      (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only  w: the stabiliser (class 3)
   }
 }
 
@@ -2589,7 +2935,7 @@ uniform float uHoleOk;   // 1 on the instrument facia only
 uniform float uDecOk;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
-// 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
+// 1 the wing, 2 the tail (the fin), 3 the stabiliser (27 Oct). Everything that tested > 0.5 for "is this a
 // flying surface" still reads true for both 1 and 2, which is why the widening
 // cost nothing — and the decal loop can finally tell a fin from a wing.
 uniform vec4 uG5;   // x sparFront(chord frac)  y sparSpan  z tipStart  w class
@@ -3154,13 +3500,18 @@ const AERO_ALBEDO_FS = `
   vec3 aeroA = vCraftPos;
   float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
-    if (di >= uDecN) break;
+    // PHONE-EDIT-PERF (2 Nov, A0-approved desktop candidate 1): a section that takes no marking (uDecOk 0: the interior,
+    // the hardware, the booms - aeroDecOk answers 0 or 1) leaves the loop at once. Its weight w was 0 on every pass, so
+    // every pass added nothing (mix(x, dc, 0) is x; the accumulators start at 0): the same pixels, without 8 atlas
+    // fetches and their SDF fwidth a fragment. uDecOk is a uniform, so the flow stays uniform (fwidth below is safe)
+    if (di >= uDecN || uDecOk < 0.5) break;
     // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
     // fuselage/flying/both scalar — the fin belongs with the fuselage and the
     // wing does not, and the old scalar could not say so.
     float cls = uG5.w;
     float onMe = (cls < 0.5) ? uDecD[di].y
-               : (cls < 1.5) ? uDecD[di].z : uDecD[di].w;
+               : (cls < 1.5) ? uDecD[di].z
+               : (cls < 2.5) ? uDecD[di].w : uDecE[di].w;   // 2 the fin, 3 the stabiliser
     // THE FAR FLANK READS BACKWARDS unless its along-body axis is negated —
     // G4.5's trap, arriving by a new route. sL runs aft and is NOT mirrored,
     // so the glyph is laid out in the same physical direction on both sides;
@@ -3201,9 +3552,22 @@ const AERO_ALBEDO_FS = `
     // from the other side that direction crosses the eye the other way.
     // PLAN does not — a plan view has one handedness and a stripe drawn
     // across the span is the same stripe from either wing tip.
-    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * mir,
+    // G3542 (AIRCRAFT-LOOKS, the user's playtest 24 Oct: "a registration on the wing gives mirrored text on the other
+    // side"): ...BUT IT HAS TWO FACES. The plan box paints through the wing, and seen from UNDER it the span crosses the
+    // eye the other way - the letters on the lower face read backwards. A marking that mirrors (letters: uDecC.w 0)
+    // turns its lateral axis about its own centre on a face looking down (the craft normal's z); paint (noMirror)
+    // keeps the one handedness, as before.
+    float pmir = mix((vCraftNrm.z < 0.0) ? -1.0 : 1.0, 1.0, step(0.5, uDecC[di].w));
+    // G3547 (the user, 25 Oct: "the top side and bottom sides should be treated differently, and that should be the same
+    // for the stabs and the fins"): the SIDE box's far flank is the face's, not the position's. Both faces of a fin stand
+    // the same few cm (a twin boom's the same metre) off the craft's plane, so the position mirrored both or neither and
+    // one face read backwards; the normal tells them apart, as aSide does below. Where the face looks up or down (a
+    // fuselage's crown and belly) the position decides, as before, and on a flank the two agree.
+    float nx = vCraftNrm.x / max(1e-4, length(vCraftNrm));
+    float smir = mix((abs(nx) > 0.25) ? sign(nx) : aeroSideF, 1.0, step(0.5, uDecC[di].w));
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * smir,
                         aeroA.z - uDecA[di].y);
-    vec2 planC = vec2(aeroA.x - uDecA[di].x, aeroA.y - uDecA[di].y);
+    vec2 planC = vec2((aeroA.x - uDecA[di].x) * pmir, aeroA.y - uDecA[di].y);
     vec2 boxC = mix(sideC2, planC, step(1.5, mode));
     #if AEROSKIN_SURF == 1
       vec2 dd = mix(fieldC, boxC, step(0.5, mode));
@@ -3398,7 +3762,8 @@ const AEROSKIN_HOOK = function (shader) {
   if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
-  const W = aeroWx();
+  const lite = aeroLite();                   // PHONE-EDIT-PERF: the phone's tier (above)
+  const W = lite ? null : aeroWx();
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
@@ -3426,6 +3791,7 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <clearcoat_normal_fragment_begin>',
              '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')   // USE_CLEARCOAT since r13x (W0.5a)
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
+  if (lite) shader.fragmentShader = aeroLiteFS(shader.fragmentShader);
 };
 
 // THE CABIN'S DARKNESS, IN THE SHADER (G206.1). After every light has been
@@ -3649,8 +4015,62 @@ const GLASS_MATS = {
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 
+// G3623 (DMG-GLASS): THE CRACK MASK, the glass hook's - TEXTUALLY src/viewer/dmg_glass.js GLSL_CRACK (GATE DMGGLASS holds them
+// equal; dmg_glass.js crackJS is its mirror). Here and not read from DMG_GLASS: the glass compiles at roll-out, whatever
+// loads after it
+const AERO_GLASS_CRACK_FS = [
+  "float dgU1(int i, int seed) { uint x = (uint(i) * 0x27d4eb2du) ^ (uint(seed) * 0x165667b1u); x ^= x >> 15u; x *= 0x85ebca6bu; x ^= x >> 13u; x *= 0xc2b2ae35u; x ^= x >> 16u; return float(x) / 4294967296.0; }",
+  "float dgU2(int i, int j, int seed) { return dgU1(int(uint(i) * 73856093u ^ uint(j) * 19349663u), seed); }",
+  "float dgV1(float x, int seed) { float fi = floor(x); int i = int(fi); float f = x - fi; float s = f * f * (3.0 - 2.0 * f); float a = dgU1(i, seed); return a + (dgU1(i + 1, seed) - a) * s; }",
+  "float dgFbm(float x, int seed) { float s = 0.0, a = 0.5, f = 1.0, n = 0.0; for (int o = 0; o < 3; o++) { s += a * (dgV1(x * f, seed + o * 31) * 2.0 - 1.0); n += a; a *= 0.5; f *= 2.03; } return s / n; }",
+  "float dgSm(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }",
+  "float dgLine(float dist, float w, float pw) { float we = max(w, pw); return (1.0 - dgSm(we * 0.5, we, dist)) * (w / we); }",
+  "float dgVor(vec2 p, int seed) { vec2 fl = floor(p); int ix = int(fl.x), iy = int(fl.y); float md = 9.0, mx = 0.0, my = 0.0;",
+  "  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }",
+  "  float e = 9.0;",
+  "  for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;",
+  "    if (ql > 1e-5) e = min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / sqrt(ql)); }",
+  "  return e; }",
+  "vec2 dgCrack(vec2 q, float sev, int seed, float px) {",
+  "  float reach = 0.06 + 0.30 * sev, r = length(q) + 1e-6;",
+  "  if (r > reach * 1.05) return vec2(0.0);",
+  "  float th = atan(q.y, q.x); if (th < 0.0) th += 6.2831853;",
+  "  int NR = 5 + int(floor(dgU1(1, seed) * 5.0)); float cell = th / 6.2831853 * float(NR); int c0 = int(floor(cell));",
+  "  float line = 0.0, haze = 0.0;",
+  "  for (int o = -1; o <= 1; o++) {",
+  "    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;",
+  "    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;",
+  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
+  "    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);",
+  "    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;",
+  "    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;",
+  "    if (r < len) { line = max(line, dgLine(dist, w, px)); haze = max(haze, 0.55 * (1.0 - dgSm(w, max(w * 6.0, px * 2.0), dist))); }",
+  "  }",
+  "  if (sev >= 0.5) {",
+  "    int NG = 1 + int(floor(dgU1(2, seed) * 3.0));",
+  "    for (int j = 0; j < 3; j++) { if (j >= NG) break;",
+  "      float R = (0.03 + 0.02 * dgU1(j, seed + 13)) * pow(2.0, float(j)) * (0.6 + sev);",
+  "      if (dgU2(c0, j, seed + 17) > 0.55 || R > reach) continue;",
+  "      float Rw = R * (1.0 + 0.08 * dgFbm(th * 5.0 + float(j), seed + 19)), dist = abs(r - Rw);",
+  "      line = max(line, dgLine(dist, 0.0004, px)); haze = max(haze, 0.45 * (1.0 - dgSm(0.001, max(0.004, px * 2.0), dist))); }",
+  "  }",
+  "  if (sev >= 0.85) {",
+  "    float cz = 0.9 * (1.0 - dgSm(0.02, 0.06 + 0.06 * sev, r));",
+  "    if (cz > 0.0) { float e = dgVor(q * 60.0, seed + 23); haze = max(haze, cz * (1.0 - dgSm(0.02, 0.07, e)) * 0.8); }",
+  "  }",
+  "  return vec2(line, haze);",
+  "}",
+].join('\n');
+// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1
+const AERO_GLASS_CRACK_PARS = `
+uniform float uCrackN;
+uniform vec4 uCrackP[4];
+uniform vec4 uCrackQ[4];
+vec2 aeroCrack = vec2(0.0);
+` + AERO_GLASS_CRACK_FS + '\n';
+
 const AEROGLASS_HOOK = function (shader) {
-  const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
+  const W = aeroLite() ? null : aeroWx();   // G345, as in AEROSKIN_HOOK (PHONE-EDIT-PERF: none on the phone's tier)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
@@ -3661,7 +4081,9 @@ const AEROGLASS_HOOK = function (shader) {
              '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
-             + '\n#include <common>')
+             + AERO_GLASS_CRACK_PARS + '\n#include <common>')
+    // G3623: the pane is DoubleSide for its cracks only - a back face with no mark in use is gone before anything runs
+    .replace('void main() {', 'void main() {\n  if (!gl_FrontFacing && uCrackN < 0.5) discard;')
     .replace('#include <lights_physical_fragment>',
              '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
     .replace('#include <roughnessmap_fragment>', `
@@ -3704,6 +4126,24 @@ const AEROGLASS_HOOK = function (shader) {
     // THE WEATHERING ON THE PANE (G345): roughness and the clear coat,
     // nothing on the albedo by table — spliced in as text, same for every pane
     ` + (W ? W.AERO_WX_GLASS_FS : '') + `
+    // G3623 (DMG-GLASS): THE IMPACT MARKS (dmg_glass.js) - each mark gated to the fragments of ITS pane: within 4 cm of
+    // its tangent plane and facing its normal; the crack in that plane round its point. A crack roughens the clear coat
+    // (the reflection breaks up along it) and, at the output, scatters the light the pane receives (aeroCrack)
+    if (uCrackN > 0.5) {
+      float dgPx = max(fwidth(vCraftPos.x), max(fwidth(vCraftPos.y), fwidth(vCraftPos.z)));
+      vec3 dgNf = normalize(vCraftNrm);
+      for (int i = 0; i < 4; i++) {
+        if (float(i) >= uCrackN) break;
+        vec3 dgD = vCraftPos - uCrackP[i].xyz;
+        vec3 dgN = uCrackQ[i].xyz;
+        if (abs(dot(dgD, dgN)) > 0.04 || dot(dgNf, dgN) < 0.5) continue;
+        vec3 dgA = abs(dgN.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        vec3 dgT1 = normalize(cross(dgN, dgA));
+        vec3 dgT2 = cross(dgN, dgT1);
+        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx));
+      }
+      roughnessFactor += 0.6 * aeroCrack.x + 0.5 * aeroCrack.y;
+    }
     roughnessFactor = clamp(roughnessFactor, 0.0, 1.0);
   }`)
     .replace('#include <clearcoat_normal_fragment_begin>', `
@@ -3766,7 +4206,13 @@ const AEROGLASS_HOOK = function (shader) {
                  + reflectedLight.indirectSpecular) * aeroGRain;
   vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
                 + totalEmissiveRadiance;
-  gl_FragColor = vec4(aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec, 1.0);`);
+  // G3623 (DMG-GLASS): a crack scatters what the pane receives - the diffuse light over the pane's own colour is its
+  // irradiance (over pi): added near-white along the lines and, fainter, over the crazed haze. Zero without a mark
+  vec3 aeroIrr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.02));
+  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.30 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
+  // (the back face - the pane seen from the seat: the crack alone, nothing where there is none)
+  if (!gl_FrontFacing && aeroCrack.x + aeroCrack.y <= 0.0) discard;
+  gl_FragColor = vec4(gl_FrontFacing ? aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk : aeroCrk, 1.0);`);
 };
 
 // THE MULTIPLY PASS (G206): pass 1 of the glass, see the family header. A
@@ -4316,10 +4762,23 @@ function aeroGlass(THREE, o) {
     // folded into the BASE rather than written on top of it, or the two fight
     // and the last one to run wins.
     envMapIntensity: 1.4 * G('refl'),
-    // FRONT SIDE ONLY: with DoubleSide transparency the far side of a curved
-    // pane rendered through the near one and its limb read as a phantom
-    // circle on the bubble (_cage_ui.js:231, the user's own report).
-    side: THREE.FrontSide,
+    // FRONT SIDE FOR THE GLASS ITSELF: with DoubleSide transparency the far
+    // side of a curved pane rendered through the near one and its limb read
+    // as a phantom circle on the bubble (_cage_ui.js:231, the user's own
+    // report). G3623 (DMG-GLASS, A0's 28 Oct page run: "FLYDIY_GLASS_TEST
+    // returns a mark, NOTHING shows in the cockpit view"): the flown panes are
+    // single sheets wound outward, so from the seat every one of their
+    // triangles faces away and the pane - and a crack on it - was never drawn.
+    // So the pane is DoubleSide, and its back faces draw the CRACK ALONE: the
+    // hook discards a back face first thing while no mark is in use (an
+    // intact pane draws exactly as before, its back faces cost a rasterised
+    // discard), and with a mark writes only the crack's scatter - never the
+    // reflection, so the phantom limb cannot come back. The side is set here,
+    // at roll-out: a crash links no program. ONE pass (three draws a
+    // transparent DoubleSide material back side then front side, two programs
+    // and two draws; the pane adds light - the order is nothing to it)
+    side: THREE.DoubleSide,
+    forceSinglePass: true,
     depthWrite: false,
   });
   m.userData.aeroU = U;
@@ -4712,9 +5171,9 @@ if (typeof window !== 'undefined')
                       AERO_DEC_FONTS,
                       AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
-                      aeroKitKnob, aeroKitLayers, aeroKitDraw,
+                      aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -4739,8 +5198,8 @@ if (typeof module !== 'undefined')
                      // no canvas to draw the other half with.
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
-                     aeroKitKnob, aeroKitLayers,
-                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                     aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk, aeroRestBake };

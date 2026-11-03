@@ -401,7 +401,8 @@
       const R = { el: n, refresh: () => { const P = W.POST_FX; if (!P) { n.textContent = 'no post_fx module'; return; }
         const on = P.KEYS.filter(k => P.S[k] !== 'off');
         n.textContent = !on.length ? 'post fx: all off (no hook, no target)' : 'post fx: ' + on.map(k => k + ' ' + P.S[k] + (P.stats[k + 'Ms'] ? ' ' + P.stats[k + 'Ms'].toFixed(2) + ' ms' : '')).join(' · ')
-          + (P.S.eye !== 'off' ? ' · eye x' + P.stats.eyeK.toFixed(2) + ' (mean ' + P.stats.eyeLum.toFixed(2) + ')' : ''); } };
+          + (P.S.eye !== 'off' ? ' · eye x' + (+P.stats.eyeK || 1).toFixed(2) + ' (mean ' + (+P.stats.eyeLum || 0).toFixed(2) + ', read on demand)' : '');
+        if (P.S.eye !== 'off' && P.eyeRead && !(R.eyeAt > performance.now() - 2000)) { R.eyeAt = performance.now(); P.eyeRead(); } } };   // (EYE-GPU: the panel asks, the frame never does)
       rows.push(R); live.push(R);
       F.appendChild(n);
     }

@@ -58,13 +58,16 @@ var AUDIO = (function () {
   const query = (() => { try { return new URLSearchParams(W.location ? W.location.search : '').get('audio'); } catch (e) { return null; } })();
   const OFF = query === '0' || (query !== '1' && pref(PREF, '1') === '0');
 
-  // THE SETTINGS: [key, default, kind, label, line]
+  // THE SETTINGS: [key, default, kind, label, line, max (a volume's top, 1 when absent)]
   const SETTINGS = [
     ['master', 0.8, 'vol', 'master', 'everything'],
     // G1722 (SND-MIX, the user 2026-10-06: "a slider for the engine noise separately from the rest of the airplane"): the
     // engine and the propeller (every engine group's sources in space.js, outside and through the cabin and the headset; the
     // other aircraft's baked loops too); 'aircraft' (its stored key kept) is now the REST of the aeroplane - the airframe
-    ['engine', 1.0, 'vol', 'engine', 'the engine and the propeller'],
+    // G1728 (SND-MIX-2, the user 2026-10-13: "too faint... even at max"): the engine goes to 200 % (+6 dB) out of the shed
+    // - the limiter stays clean there (mix_render: the loudest state, the cockpit climb, peaks under -1 dBFS at 200 %); the
+    // garage holds it at 100 % (the shed stays as ruled)
+    ['engine', 1.0, 'vol', 'engine', 'the engine and the propeller', 2],
     ['aircraft', 1.0, 'vol', 'airframe', 'the wind, the gear, the touchdown, the stall warning'],
     ['environment', 0.8, 'vol', 'environment', 'the wind, the birds, the sea, the shed'],
     ['music', 0.6, 'vol', 'music', ''],
@@ -78,7 +81,7 @@ var AUDIO = (function () {
     ['headsetAnr', 0, 'bool', 'headset: noise cancelling', 'with the headset on: the active kind - the engine\'s drone goes first'],
     ['hrtf', 0, 'bool', '3D on headphones', 'the outside sounds placed for headphones (HRTF): heavier on the processor'],
   ];
-  const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
+  const DEF = {}, TOP = {}; for (const r of SETTINGS) { DEF[r[0]] = r[1]; TOP[r[0]] = r[5] > 0 ? r[5] : 1; }
   // G1722 A STORED 'aircraft' MUST NOT CHANGE WHAT A PLAYER HEARS: before the split it scaled the engine and the airframe
   // together. A player who set it and has no 'engine' yet gets the same value on BOTH (stored at once, so a later move of the
   // airframe row never drags the engine with it): the engine and the airframe stay exactly where they were.
@@ -88,7 +91,7 @@ var AUDIO = (function () {
   } catch (e) {}
   const readSetting = k => {
     const v = +pref(PREF + '.' + k, DEF[k]);
-    return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, v))) : DEF[k];
+    return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(TOP[k], v))) : DEF[k];
   };
 
   // the rows the menu draws (either rail's kit: row, range, toggle?, note)
@@ -108,7 +111,7 @@ var AUDIO = (function () {
     }
     note(api.stateLine());
     for (const [k, , kind, label] of SETTINGS) {
-      if (kind === 'vol') kit.range(body, label, 0, 100, 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
+      if (kind === 'vol') kit.range(body, label, 0, 100 * TOP[k], 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
       else toggle(label, () => !!api.get(k), on => api.set(k, on ? 1 : 0));
     }
     // G1672: the rows a source adds (music.js: skip track, now playing), each in its own try
@@ -120,7 +123,7 @@ var AUDIO = (function () {
     const stub = { enabled: false, state: 'off', ctx: null, params: null, stats: null,
       update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
       module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {}, lagS: null, space: null,
-      stateLine: () => 'off', unlock() {}, addRows() {}, inGarage: false, welcome: false,
+      stateLine: () => 'off', unlock() {}, addRows() {}, shutter: () => false, inGarage: false, welcome: false,
       enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
       mount(body, kit) { mountRows(stub, body, kit, true); } };
     return stub;
@@ -138,14 +141,16 @@ var AUDIO = (function () {
   //   interior   the aeroplane heard from the cockpit (the viewpoint fader's interior side): the cabin's insulation stays
   //              the build's (ruling s5) - this is the game's listening level for the cockpit, so the cabin is not 9-12 dB
   //              under the chase view at the same throttle
-  //   airframe   the airframe group (the wind, the ground, the events): the wind a clear second, 10-12 dB under the engine
-  //              in the cockpit at cruise (the engine's own trim would otherwise leave it 16 dB under)
+  //   airframe   the airframe group (the wind, the ground, the events): 0 since G1726 (SND-MIX-2, the user 2026-10-13: "your
+  //              engine is quieter than a metal squeal") - was +4; the brakes, the chirp, the rollout tamed at their source
+  //              (airframe_worklet.js); the wind 16-20 dB under the engine in the cockpit at cruise, still the clear second
   //   ambience   the beds and the emitters in the world (a loading screen in the world included), and ambienceRun MORE
   //              while an engine of the flown aeroplane runs (a duck, ramped over ~3 s: an aeroplane parked with its engine
   //              off hears its world at the plain trim; one idling on the stand leads its airfield by ~9 dB)
-  //   music      the music bus in flight (music in flight on): under the engine, not over it; the welcome and the shed keep
+  //   music      the music bus in flight (music in flight on): -10 since G1726 (was -6: 6-8 LU under the engine in the
+  //              cockpit at cruise; now >= 10, GATE MIXLEAD), under the engine, not over it; the welcome and the shed keep
   //              their level. Radio Jolene's voice rides the same bus (it stays ~3 dB over its bed, as before)
-  const MIX = { engine: 8, interior: 6, airframe: 4, ambience: -6, ambienceRun: -10, music: -6 };
+  const MIX = { engine: 8, interior: 6, airframe: 0, ambience: -6, ambienceRun: -10, music: -10 };
   const dBk = d => Math.pow(10, d / 20);
   const MIXK = { engine: dBk(MIX.engine), interior: dBk(MIX.interior), airframe: dBk(MIX.airframe), ambience: dBk(MIX.ambience),
                  ambienceRun: dBk(MIX.ambienceRun), music: dBk(MIX.music) };
@@ -212,7 +217,7 @@ var AUDIO = (function () {
     set(k, v) {
       if (!(k in set)) return;
       const kind = SETTINGS.find(r => r[0] === k)[2];
-      set[k] = kind === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, +v || 0));
+      set[k] = kind === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(TOP[k], +v || 0));
       prefSet(PREF + '.' + k, set[k]);
       applyGains(); silence(); emit('settings', { k, v: set[k] });
     },
@@ -234,6 +239,7 @@ var AUDIO = (function () {
       return modules[stem];
     },
     unlock: () => unlock(),
+    shutter: () => shutter(),   // G1730: photo mode's shot (true = played)
     enable(on) {
       prefSet(PREF, on ? '1' : '0');
       if (on) { if (api.state === 'off') api.state = 'armed'; unlock(); }   // the click on the switch IS a gesture
@@ -381,7 +387,8 @@ var AUDIO = (function () {
     // G1722: with the space the volumes are its groups' (engine: every engine group, airframe: the airframe group and its
     // interior-only layers) and the aircraft bus is unity; without it (no space.js) 'aircraft' stays the group's master
     const world = garage ? 0 : 1, lv = api.levels;
-    lv[0] = set.engine * (world ? MIXK.engine : 1); lv[1] = set.aircraft * (world ? MIXK.airframe : 1); lv[2] = MIX_TAU;
+    lv[0] = world ? set.engine * MIXK.engine : Math.min(1, set.engine);   // G1728: the shed never above 100 %
+    lv[1] = set.aircraft * (world ? MIXK.airframe : 1); lv[2] = MIX_TAU;
     ramp(0, N.master, set.master, GAIN_TAU);
     ramp(1, N.aircraft, (sp ? 1 : set.aircraft) * hs, GAIN_TAU);
     xfade(interior);
@@ -426,6 +433,57 @@ var AUDIO = (function () {
   function onBlur() { focused = false; silence(); }
   function onFocus() { focused = true; silence(); }
 
+  // ---- G1730 THE SHUTTER (A0 for the user, 27 Oct: photo mode's shutter, GAME-MENUS G3741/G3742) ------------
+  // A synthesized SLR shot, no file: the mirror's click (a 3.5 kHz noise tick over a 140 -> 70 Hz thump), the curtain's
+  // swish (noise through a band sweeping 2 -> 6 kHz) and the second curtain's click at +90 ms; ~0.2 s in all, at the
+  // 'interface' volume. Photo mode PAUSES the flight (FLYDIY_HELD: the mix faded to nothing and the context suspended),
+  // so the shot goes round the fade - its own gain straight into the limiter, never through master/fade, so it neither
+  // ducks the engine nor brings the paused mix back - and wakes the context for itself, put back to sleep after it
+  // when the silence still holds. Nodes per shot (a discrete event, not the frame); the noise buffer once.
+  const SHUT = { out: 0.32, len: 0.3 };
+  let noiseBuf = null, shutWake = 0;
+  function shutter() {
+    if (!ctx || !N.limiter || !ctx.createBiquadFilter || !ctx.createOscillator || !ctx.createBuffer) return false;
+    const v = set.master * set.interface * SHUT.out;
+    if (!(v > 0)) return false;
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * SHUT.len), ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (silent) {   // the pause / a hidden tab: wake for the shot (the fade stays at 0: the rest stays silent)
+      clearSuspend(); if (shutWake) clearTimeout(shutWake);
+      try { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+      // back to sleep: the bare suspend when the silence had already suspended (no event: the music stays paused), else
+      // the silence's own (the shot came inside its 0.2 s fade and cleared its timer: the 'suspend' still has to come)
+      shutWake = setTimeout(() => { shutWake = 0; if (!silent || !ctx) return;
+        if (api.state !== 'suspended') doSuspend(); else try { const r = ctx.suspend(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }, 400);
+    }
+    const t0 = ctx.currentTime + 0.005, out = ctx.createGain();
+    out.gain.value = v; out.connect(N.limiter);
+    const tick = (t, f, q, a, d) => {   // a noise tick: attack 1 ms, exponential decay d s
+      const s = ctx.createBufferSource(), b = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noiseBuf; b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.001); g.gain.setTargetAtTime(0, t + 0.001, d / 4);
+      s.connect(b); b.connect(g); g.connect(out); s.start(t, Math.random() * 0.1, d + 0.02); return s;
+    };
+    const thump = (t, f0, f1, a, d) => {   // the body's knock: a falling sine
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.setTargetAtTime(0, t + 0.002, d / 4);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02); return o;
+    };
+    tick(t0, 3500, 1.2, 1, 0.015); thump(t0, 140, 70, 0.6, 0.05);
+    const sw = ctx.createBufferSource(), sb = ctx.createBiquadFilter(), sg = ctx.createGain();   // the curtain's swish
+    sw.buffer = noiseBuf; sb.type = 'bandpass'; sb.Q.value = 0.9;
+    sb.frequency.setValueAtTime(2000, t0 + 0.012); sb.frequency.exponentialRampToValueAtTime(6000, t0 + 0.08);
+    sg.gain.setValueAtTime(0, t0 + 0.012); sg.gain.linearRampToValueAtTime(0.22, t0 + 0.04); sg.gain.linearRampToValueAtTime(0, t0 + 0.085);
+    sw.connect(sb); sb.connect(sg); sg.connect(out); sw.start(t0 + 0.012, 0, 0.08);
+    tick(t0 + 0.09, 2500, 1, 0.8, 0.012);
+    const last = thump(t0 + 0.09, 110, 60, 0.4, 0.04);
+    last.onended = () => { try { out.disconnect(); } catch (e) {} };
+    return true;
+  }
+
   // ---- THE FRAME ------------------------------------------------------------------------------------------
   // sim: the page's sim (the worker's snapshot mirrored, or the inline solver); camera: the THREE camera (the
   // listener's position); dt: the frame's seconds; def: the flown aeroplane (def.spec, def.params, def.refs);
@@ -465,6 +523,9 @@ var AUDIO = (function () {
   }
 
   arm();
+  // G1730: the shot on photo mode's own event (GAME-MENUS G3744 fires 'flydiy:shutter' at the take: the round shutter and
+  // FLYDIY_PHOTO.take) - neither file edits the other's
+  if (W.addEventListener) W.addEventListener('flydiy:shutter', () => { shutter(); });
   return api;
 })();
 if (typeof window !== 'undefined') window.AUDIO = AUDIO;

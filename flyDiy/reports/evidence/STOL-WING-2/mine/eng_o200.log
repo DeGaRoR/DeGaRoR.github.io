@@ -1,0 +1,15 @@
+STOL Cub (file tail) mn_strip calm · normal
+  ROLL@0 LIFTOFF@10 CLIMB@17.3 CROSSWIND@31.7 DOWNWIND@49.9
+  take-off: run 70 m, lift-off 15.7 m/s (1 lift-off, rotation 2.1 deg/s) · crosswind turn at 60 m
+  circuit tracking: cross-track rms 0.5 m on the straights · bounces 0
+  CROSSWIND overshoot    1 m  settle 8 s  roll reversals 0.5/min
+  DOWNWIND  overshoot    0 m  settle 9.1 s  roll reversals 0/min
+  departure: normal · Vx 16.9 m/s · run needed 79 m of 250
+  circuit: left-hand at 100 m, join straight
+  approach: short · Vref 14.5 m/s · aim 111 m in · flap 1 · run needed 80 m of 250
+  control reversals /min (da dr de): takeoff 12 24 10 · climb 2 0 2 · legs 8 10 6 · downwind 0 0 0
+  ! 10s committed-takeoff: past the point of stopping at V=15.7 with 169 m left — continuing
+  ! 17.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear
+  ! 31.7s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in
+  gave-up at 60 s (41 s wall)
+{"key":"/tmp/claude-0/-home-user-DeGaRoR-github-io/3a55678d-42d1-56ae-b636-a49470347b13/scratchpad/mine/eng/eng_o200.json","name":"STOL Cub","from":"mn_strip","to":"mn_strip","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"gave-up","phase":"DOWNWIND","t":60,"phases":["ROLL@0","LIFTOFF@10","CLIMB@17.3","CROSSWIND@31.7","DOWNWIND@49.9"],"goArounds":0,"verdicts":["10s committed-takeoff: past the point of stopping at V=15.7 with 169 m left — continuing","17.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear","31.7s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"],"takeoff":{"run":70,"Vlo":15.7,"lifts":1,"qMax":2.1},"climb":{"hTurn":60,"vsMean":3.26},"legs":[{"name":"CROSSWIND","overshoot":1,"settleT":8,"rollRev":0.5},{"name":"DOWNWIND","overshoot":0,"settleT":9.1,"rollRev":0}],"final":null,"flare":null,"track":{"xtRms":0.5,"n":265},"bounces":0,"pitchMax":11.1,"stab":null,"landing":null,"activity":{"takeoff":{"s":17,"da":12,"dr":24,"de":10},"climb":{"s":14,"da":2,"dr":0,"de":2},"legs":{"s":18,"da":8,"dr":10,"de":6},"downwind":{"s":10,"da":0,"dr":0,"de":0}},"rollout":null,"Vs":14.1,"VsLanding":12.1,"VAppr":14.5,"appr":{"technique":"short","Vref":14.5,"Vbase":14.5,"gust":0,"aimIn":111,"flap":1,"len":250,"surface":6,"runNeed":80,"displaced":111,"gs":0.16,"reqGs":0.271},"dep":{"technique":"normal","Vx":16.9,"runNeed":79,"len":250,"surface":6},"circuit":{"hand":"left","hC":100,"join":"straight","declared":null},"mass":524,"sheet":{"Vs":13.71,"Vs0":12.08,"Vref":15.7,"Vrot":13.9,"Vx":16.88,"Vy":19.4,"Vbg":21.7,"Vms":16.49,"Vcruise":30.9,"climbMax":3.48,"sinkMin":2.31,"LDbest":8.22,"TORun":79,"LDGrun":80.35,"mass":524.26},"tecs":true,"path":true,"wall":41}

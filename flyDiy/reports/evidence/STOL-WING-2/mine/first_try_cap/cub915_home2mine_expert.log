@@ -1,0 +1,7 @@
+piperCub (file tail) HOME -> mn_strip calm · normal
+  ROLL@0 ABORT@9 STOPPED@17.2
+  departure: normal · Vx 19.5 m/s · run needed 68 m of 2325
+  control reversals /min (da dr de): takeoff 26 12 12 · landing 0 0 0
+  ! 9s rejected-takeoff: will not reach Vr: 0.17 m/s^2 needs 604 m more, 736 m left
+  rejected-takeoff at 17.2 s (15 s wall)
+{"key":"/tmp/claude-0/-home-user-DeGaRoR-github-io/3a55678d-42d1-56ae-b636-a49470347b13/scratchpad/mine/eng/stockcub_915.json","name":"piperCub","from":"HOME","to":"mn_strip","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"rejected-takeoff","phase":"STOPPED","t":17.2,"phases":["ROLL@0","ABORT@9","STOPPED@17.2"],"goArounds":0,"verdicts":["9s rejected-takeoff: will not reach Vr: 0.17 m/s^2 needs 604 m more, 736 m left"],"takeoff":null,"climb":{"hTurn":null,"vsMean":null},"legs":[],"final":null,"flare":null,"track":{"xtRms":null,"n":0},"bounces":0,"pitchMax":-99,"stab":null,"landing":null,"activity":{"takeoff":{"s":17,"da":26,"dr":12,"de":12},"landing":{"s":0,"da":0,"dr":0,"de":0}},"rollout":null,"Vs":16.2,"VsLanding":16.2,"VAppr":20.6,"appr":null,"dep":{"technique":"normal","Vx":19.5,"runNeed":68,"len":2325,"surface":5},"circuit":null,"mass":470,"sheet":{"Vs":15.88,"Vs0":15.88,"Vref":20.64,"Vrot":16.1,"Vx":19.49,"Vy":22.4,"Vbg":22.47,"Vms":17.07,"Vcruise":35.7,"climbMax":6.99,"sinkMin":2.11,"LDbest":9.33,"TORun":68,"LDGrun":133.06,"mass":469.98},"tecs":true,"path":true,"wall":15}

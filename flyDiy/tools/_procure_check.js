@@ -58,7 +58,7 @@ function panelEngines() {
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js'])
     require(path.join(__dirname, f));
   const EP = global.window.ENG_PAGE;
-  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  const names = EP.presetNames();     // the saved order (NEW-SHAPES-1): procure's idx are slots in it
   const J = require(path.join(__dirname, '_cage_join.js')).CAGE_JOIN_ENGINES;
   const apply = global.window.CAGE_ENG_APPLY_PRESET;
   delete global.window; delete global.THREE;
@@ -203,7 +203,9 @@ function run(mut, extra) {
         const s = M.procureSpec(mid, j.opts, FILE[design]);
         const rows = ROWS[j.row] || [];
         ok(rows.length && rows.some(p => J(get(s, p)) !== J(get(s0, p))), j.key + ': writes its spec rows (' + rows.join(', ') + ')');
-        ok(M.procureFp(s) !== fp0, j.key + ': the aeroplane changed (the fingerprint moved)');
+        // (G3780 CERT-RULE R2: the avionics are MINOR - a logbook entry and a W&B update, never a new certificate)
+        if (j.row === 'avionics') ok(M.procureFp(s) === fp0, j.key + ': the avionics are minor (the fingerprint holds: G3780 R2)');
+        else ok(M.procureFp(s) !== fp0, j.key + ': the aeroplane changed (the fingerprint moved)');
         if (j.row === 'engine') {
           const E = M.PROCURE_ENGINES[P.opts.engine.vals[j.val].eng], want = {}; PANEL.apply(want, E.preset);
           ok(Object.keys(want).every(k => s.cage[k] === want[k]) && s.cage.engPreset === E.idx, j.key + ': the cage carries the engine\'s own dials (the panel\'s audit keeps it ' + E.preset + ')');
@@ -237,6 +239,9 @@ function run(mut, extra) {
         ok(M.procureFp(s) === fp0, mid + '@' + design + ' finish ' + v + ': the fingerprint is unmoved (cosmetic)');
         ok(M.procurePrice(mid, Object.assign({}, base.opts, { finish: v })).total === M.procurePrice(mid, base.opts).total, mid + ' finish ' + v + ': free');
       }
+      // G3852: a tundra's lugs or smooth (whSlick) is drawing only - the fingerprint is unmoved
+      ok(M.procureFp(Object.assign({}, s0, { cage: Object.assign({}, s0.cage || {}, { whSlick: 1 }) })) === fp0,
+        mid + '@' + design + ' whSlick 1: the fingerprint is unmoved (cosmetic)');
     }
     // the sheet a screen draws: every row a value chosen, words resolved
     const S = M.procureSheet(mid, {});

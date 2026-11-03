@@ -228,7 +228,13 @@ function pool(jobs, n) {
     res.hump = {};
     for (const k of Object.keys(BUILDS)) for (const m of MODES[k]) { const r = runOf(k, m, 0); res.hump[`${k}:${m}`] = r && { hump: r.hump, trimHumpMax: r.trimHumpMax, trimLow: r.trimLow, trimLowV: r.trimLowV, trimHiPre: r.trimHiPre, lift: r.lift, noseOver: r.noseOver, pitchMin: r.pitchMin, waveMax: r.waveMax, curve: r.curve }; console.log(`   ${BUILDS[k]} ${m === 'base' ? '(as built)' : m === 'thrustcg' ? '(INSTRUMENT: thrust at the nose frame, 0.17 m over the CG)' : '(the plough wave ON, kWave 1)'}: ${humpLine(r)}`); }
     const cb = runOf('cessna', 'base', 0), tb = runOf('twin', 'base', 0), ti = runOf('twin', 'thrustcg', 0), tw = runOf('twin', 'wave', 0);
-    verdict(cb && cb.hump && cb.hump.trim >= PLOUGH[0] && cb.hump.trim <= PLOUGH[1], `${BUILDS.cessna}: keel trim at the hump ${cb && cb.hump ? cb.hump.trim.toFixed(1) : '-'} deg inside ${PLOUGH[0]}-${PLOUGH[1]} (bow-up past a planing hull's least-resistance 4-6 deg, Savitsky 1964; under the porpoising top)`);
+    // G3447 (HYDRO-TRIM, decided 25 Oct): THE PLOUGH IS THE BOW'S PEAK OVER THE HUMP RANGE, NOT ITS TRIM AT THE RESISTANCE
+    // MAXIMUM. With the measured wake (32_hydro G3440) and the pilot's stick back through the hump (43_pilot G3444) the
+    // float Cessna's bow rises to 7.5 deg at C_V 2.6 and the pull eases; its resistance maximum is a late plateau at C_V 4
+    // (a 235 hp aeroplane unloading on its wing) where the afterbody in the wake holds it at 5.4-6.1 deg whatever the stick
+    // - the hull has already ploughed. So the band judges the highest keel trim over C_V 1.5-4 (the plough's attitude);
+    // the trim at the resistance maximum is printed beside it
+    verdict(cb && cb.hump && cb.trimHumpMax >= PLOUGH[0] && cb.trimHumpMax <= PLOUGH[1], `${BUILDS.cessna}: the bow's highest keel trim over C_V 1.5-4 ${cb && cb.hump ? cb.trimHumpMax.toFixed(1) : '-'} deg inside ${PLOUGH[0]}-${PLOUGH[1]} (bow-up past a planing hull's least-resistance 4-6 deg, Savitsky 1964; under the porpoising top) - at the resistance maximum ${cb && cb.hump ? cb.hump.trim.toFixed(1) : '-'} deg, C_V ${cb && cb.hump ? cb.hump.Cv.toFixed(2) : '-'}`);
     if (cb && cb.hump) console.log(`NOTE ${BUILDS.cessna}: the recalled tank band ${BAND[0]}-${BAND[1]} deg (no load or CG with it): ${cb.hump.trim >= BAND[0] && cb.hump.trim <= BAND[1] ? 'inside' : 'OUTSIDE'} (${cb.hump.trim.toFixed(1)} deg at C_V ${cb.hump.Cv.toFixed(2)}; the highest over C_V 1.5-4 ${cb.trimHumpMax.toFixed(1)}) - G2032`);
     verdict(cb && cb.trimLow > 0, `${BUILDS.cessna}: never nose-down on the run (lowest keel trim ${cb ? cb.trimLow.toFixed(1) : '-'} deg)`);
     // THE ATTRIBUTION: the twin's floats trim it nose-up through the plough once its thrust couple is taken out

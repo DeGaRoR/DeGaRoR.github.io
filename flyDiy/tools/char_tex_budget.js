@@ -54,8 +54,15 @@ function manifests() {
   const out = [];
   const ctx = { registerChar: c => out.push(c), FLYDIY_ASSET_BASE: '' };
   for (const f of idx) vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'chars', f), 'utf8'), ctx);
+  // THE CAST (CHARACTERS G2970): the crowd's lazy members - their manifests are media files named by crowd_pack.json,
+  // and their rows go back into that pack (ktx2), never into the boot table
+  const P = crowdPack();
+  for (const c of (P && P.cast) || []) if (c.man && fs.existsSync(path.join(ROOT, c.man)))
+    out.push(Object.assign(JSON.parse(fs.readFileSync(path.join(ROOT, c.man), 'utf8')), { cast: 1 }));
   return out;
 }
+const CROWD = path.join(ROOT, 'src', 'chars', 'crowd_pack.json');
+function crowdPack() { try { return JSON.parse(fs.readFileSync(CROWD, 'utf8')); } catch (e) { return null; } }
 // halve until the largest side is `size` (the GPU's generateMipmap: srgb -> the rgb averaged in linear light)
 function cut(im, size, srgb) {
   let r = { w: im.w, h: im.h, data: new Uint8Array(im.data.buffer, im.data.byteOffset, im.data.byteLength) };
@@ -228,7 +235,14 @@ if (require.main !== module) { module.exports = { BAR, DIR, budget, manifests, p
   }
   if (REPORT) { console.log('--report: nothing written'); return; }
   const gone = pruneMedia('tex/ktx2/chars', emitted);
-  const keys = Object.keys(table);
+  const castKeys = new Set(chars.filter(c => c.cast).map(c => c.key));
+  const keys = Object.keys(table).filter(k => !castKeys.has(k));
+  const CP = crowdPack();
+  if (CP) {
+    CP.ktx2 = {};
+    for (const k of castKeys) CP.ktx2[k] = table[k];
+    fs.writeFileSync(CROWD, JSON.stringify(CP, null, 1) + '\n');
+  }
   const body = `// GENERATED FILE - DO NOT EDIT. Built by tools/char_tex_budget.js (AS6, G935) from tools/chars_table.py TEX_BUDGET
 // (size ${TB.size}, diffuse ${TB.color}${TB.colorCodec ? ' ' + TB.colorCodec : ''}, normal ${TB.normal} + gloss in ${TB.gloss}, spec ${TB.spec}; basisu v${K.BASISU_VERSION}):
 // THE CHARACTERS' TEXTURE BUDGET, per character, per material (the manifest's mats, in order) - map / nrm: the KTX2

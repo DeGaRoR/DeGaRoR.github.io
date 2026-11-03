@@ -91,6 +91,56 @@
 // PLACE in the world (x, z, door heading) is the premises record's —
 // session 3 (GAME-PREMISES §5); HOME's is the club hangar G434 stood.
 const BASE_OFFERS = {
+  // G2743 (STORY, the user 18 Oct): THE CABIN STRIP - runway w1 'Cabin Strip' of the user's save 17 (gravel 383 m, an S up
+  // a lake valley, one approach through a mountain gap); its base plot 'w1' at the flat top end (SCENERY-ED-2). The
+  // story's start GRANTS it (79_story.js storyStart): the smallest shed, made comfortable. "The middle of nowhere."
+  w1: {
+    words: 'the Cabin Strip · gravel up a lake valley',
+    // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
+    // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
+    // (G3352, the user 22 Oct: "I liked it messy ... the wing in building, the plane in building, a couple of woodworking
+    // machines and other props") the cabin is the cozy workshop: every kit but the office. The 'bench' KIT is the work
+    // bench (decor); the certification bench (the TOOL) never stands here (app.js storyBenchRule)
+    // (G3352, the user 22 Oct: "If all props do not fit the hangar, you may slightly increase its size") 10 x 11 (20 x 22 m,
+    // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
+    // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
+    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
+                   // (G3537, the user 25 Oct: "The shed should have a door exactly 10m wide, that was the brief and the
+                   // constraint on the cabin strip" - then: "the pair of doors, keep the clutter and you may add a meter or 2
+                   // on each side, for a total of 16-18m. Don't make it longer") the door 10.0 m, a bi-parting PAIR of 5.2 m
+                   // leaves; Rufus's 9.8 m wing passes it with 0.1 m a side (doorClr - the door was cut for it); the width the
+                   // smallest in 16-18 m where the fit drops none of the cozy kit AND the ultralight still parks: 18 m (25 Oct: hangarFit
+                   // places 41 pieces as at 20 m from 17 m up - 16 m loses the engine stand and a propane bottle - but at 17 m the
+                   // ultralight finds no room beside them, hangarRoomFor 0; GATE STORY); 22 m deep, as before
+                   // (G3540, the user 25 Oct: "a hand-painted sign on a wood plank that says 'the Shed' ... hung on a visible
+                   // wall inside the small shed, and also as a sign on top of the door. Ideally, it's a large one, 2m wide")
+                   // the one plank twice: over the door pair, and inside under the eave - on the back wall the stand looks
+                   // at or the flank beside it, wherever the room's fit leaves it clear (hangarSignSpot: never behind the
+                   // hung wing or its straps, the user 25 Oct), from 3.5 m toward the person door outward
+                   // (G3540 v3, the user 26 Oct: "the shed panel can be 4 times bigger, in and out"): 4 m wide, twice the
+                   // first board each way (four times its face); over the door and inside alike
+                   // (G3540 v4, the user 27 Oct: "about 8 meters total, and it should fit on the gambrel. Inside, maybe a
+                   // 6 meters one, and no problem if it hangs low"): 8 m asked over the door - HANGAR_GEN fits it to the
+                   // gable (~5.5 m on this 18 m front, clear of the leaf's track); 6 m inside, hung under the eave
+                   // (G3541/G3542, the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world -
+                   // aligned and the same materials"; "the building is not anchored"): ONE ground for the room and the world
+                   // - the site's dirt, 14 m out of the door and a metre past each flank, a metre round the back, dark at the
+                   // walls and gone a metre out; the walls' foot dark, gone a metre up
+                   takes: 'ul1', dims: { field: { HW: 9, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2,
+                                                  sign: { key: 'the_shed', w: 8.0, inside: 3.5, inW: 6.0 },
+                                                  ground: { set: 'dirt', apron: 14, side: 1, ring: 1, fade: 2.5, ao: 0.55, foot: 0.5 } } },
+                   // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
+                   // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
+                   // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
+  },
   HOME: {
     words: 'Jolene AFB · the WWII field',
     plots: {
@@ -101,7 +151,7 @@ const BASE_OFFERS = {
     },
   },
   w3: {
-    words: 'Tamgas Hill · a strip above the trees',
+    words: GAME_NAMES.hill + ' · a strip above the trees',
     plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
                    dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
   },
@@ -111,17 +161,24 @@ const BASE_OFFERS = {
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   mn_strip: {
-    words: 'Jumbo Mine · a derelict shed on the street',
-    plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
+    words: GAME_NAMES.mine + ' · a derelict shed on the street',
+    plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true, closedShed: true } },
   },
   SEA: {
-    words: 'Annette Dock · a slipway',
+    words: GAME_NAMES.fields.SEA + ' · a slipway',
     plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
                     dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
   mk_sea: {
-    words: 'Metlakatla · the seaplane float',
+    words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
+  // CABIN-LAKE (the user, 25 Oct via A0: "add a seaplane lane on the lake in front of the cabin strip? Where I installed piers?"):
+  // the lake below the Cabin Strip, a slipway shed on the north shore by the user's trestle pier
+  cb_sea: {
+    words: GAME_NAMES.fields.cb_sea + ' · a slipway by the cabin',
+    plots: { cb_sea: { shells: ['field'], kits: ['park'], pf: 0.7, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
 };
@@ -154,6 +211,23 @@ const PREM_SIDE_MAX = 2;
 // mainClub (G2319.1): a CAREER's main hangar that is today's club takes the bay + 1 - its fully kitted floor holds the
 // stand and one more in tandem (the garage's club + 1), never two beside it; the sandbox's ledger keeps `main`
 const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
+// HANGAR-STORAGE (G2690, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, the user's OK of 10 Oct): A BUILDING HAS
+// SLOTS - `inside` (shown, numbered, beside the floor: the garage's residents) and `outside` (its apron: the fleet's
+// tie-down spots) - taken from its SHELL (data, not code) unless the shed itself says otherwise (`sheds[id].slots =
+// { inside?, outside? }`: the hook a derelict hangar uses - 0 inside until restored; nothing builds one yet). PREM_SLOTS
+// above is the S2 table these supersede (kept for an older reader): every held building has ONE floor (the stand)
+// plus its inside slots. Outside, per AERODROME: the sum of its held buildings' aprons, capped by the aerodrome's
+// COOKED fleet spots (`spots`, the counts of src/viewer/fleet_spots_pack.js - GATE STORAGE holds them to the pack) and
+// by `outsideMax` (the drawn cap, FLEET-PROPS' 6). LONG-TERM is unlimited and never drawn. A CAREER's club MAIN hangar
+// has PREM_SLOTS.mainClub (1) inside, not the shell's 2 (G2319.1, the user: keep today's club; the sandbox keeps 2).
+const PREM_STORE = {
+  shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
+  outsideMax: 6,
+  // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
+  // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook)
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12 },
+  kinds: ['floor', 'inside', 'outside', 'long', 'away'],
+};
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
 // stationed outside. `age` carries the chalk and the fade (aeroweather.js
 // AERO_WX_LAYERS: chalk 0.70 x age -> 0.42 at full wear), `rain` the drips.
@@ -169,7 +243,15 @@ function hangarDims(shed) {
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const d = (shed && shed.dims) || {};
   const pick = k => (typeof d[k] === 'number' && isFinite(d[k]) && d[k] > 0) ? d[k] : sh.dims[k];
-  return { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  const out = { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  // G3537: a shed's own door (the cabin's 10 m) and its clearance through it, when it names them
+  if (typeof d.door === 'number' && isFinite(d.door) && d.door > 0) out.door = d.door;
+  if (typeof d.doorClr === 'number' && isFinite(d.doorClr) && d.doorClr >= 0) out.doorClr = d.doorClr;
+  if (d.leaves === 2) out.leaves = 2;   // a bi-parting pair (hangar.js, the timber shed)
+  // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
+  if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
+  if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
 // two cannot drift): nearly the whole gable end; the portal's header takes
@@ -178,7 +260,8 @@ function hangarDoor(shed) {
   const D = hangarDims(shed);
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const timber = sh.frame === 'timber';
-  return { w: Math.max(6, 2 * D.HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names)
+  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
 }
 // What the fit-out stands on the floor: every prop and recipe hangarFit
 // PLACED (an unplaced one stands nowhere), as a plan rectangle at its
@@ -188,7 +271,8 @@ function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
   // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout,
+    omit: shed && shed.omit });   // G3353
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -225,7 +309,9 @@ function parkFoot(f) {
 function hangarDoorWhy(shed, foot) {
   const door = hangarDoor(shed), f = parkFoot(foot);
   const span = 2 * f.half;
-  if (span + 2 * PARK_DOOR_CLR > door.w)
+  // G3537: a door cut for one aeroplane names its own clearance (the cabin's: Rufus's 9.8 m through 10 m)
+  const D = hangarDims(shed), clr = D.doorClr !== undefined ? D.doorClr : PARK_DOOR_CLR;
+  if (span + 2 * clr > door.w)
     return 'the span (' + span.toFixed(1) + ' m) does not pass the ' + door.w.toFixed(1) + ' m door';
   if (f.h && f.h > door.h - 0.1)
     return 'the height (' + f.h.toFixed(1) + ' m) does not pass the ' + door.h.toFixed(1) + ' m door';
@@ -330,6 +416,9 @@ function hangarRoomFor(shed, foot, residents, opts) {
 // ---- THE DOCUMENT -----------------------------------------------------------
 const pbClone = o => JSON.parse(JSON.stringify(o));
 const pbNo = (doc, why) => ({ ok: false, doc, why });
+// G3260 (ROUTES): the refusal every door gives an aeroplane locked on a route (78b_routes.js routeSign; routeEnd frees it)
+const pbOnRoute = (doc, name) => { const e = doc.fleet[name] || {};
+  return name + ' flies the route ' + (e.a || '?') + '-' + (e.b || '?') + ': end the route first (free, no penalty)'; };
 // the hangars held at an aerodrome, sorted (the order a choice is made in)
 function playerHangarsAt(doc, aero) {
   const S = (doc && doc.sheds) || {};
@@ -341,9 +430,11 @@ function playerBaseIds(doc) {
   for (const id of Object.keys(S)) if (S[id] && typeof S[id].base === 'string') out.add(S[id].base);
   return Array.from(out).sort();
 }
+// what stands in a hangar: its floor and its inside slots (G2690: a LONG-TERM row is kept there, never on its floor -
+// the slot cap and the packer do not count it)
 function playerResidents(doc, hangarId) {
   const F = (doc && doc.fleet) || {};
-  return Object.keys(F).filter(n => F[n] && F[n].hangar === hangarId).sort();
+  return Object.keys(F).filter(n => F[n] && F[n].hangar === hangarId && F[n].kind !== 'long').sort();
 }
 function playerFootOf(doc, name, foots) {
   return parkFoot((foots && foots[name]) || (doc && doc.fleet && doc.fleet[name] && doc.fleet[name].foot));
@@ -353,6 +444,8 @@ function playerFootOf(doc, name, foots) {
 function playerWhere(doc, name) {
   const e = doc && doc.fleet && doc.fleet[name];
   if (!e) return { kind: 'none', hangar: null, aero: null };
+  // G3260 (ROUTES): an aeroplane on a route stands nowhere of yours: 'route' (78b_routes.js locks it there)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null };
   if (e.hangar && doc.sheds[e.hangar]) return { kind: 'in', hangar: e.hangar, aero: doc.sheds[e.hangar].base };
   const aero = e.aero || null;
   return { kind: aero && playerHangarsAt(doc, aero).length ? 'out' : 'away', hangar: null, aero };
@@ -392,17 +485,126 @@ function playerSideIds(doc) {
   return Object.keys(S).filter(id => id !== PREM_MAIN && S[id] && typeof S[id] === 'object')
     .sort((a, b) => ((+S[a].since || 0) - (+S[b].since || 0)) || (a < b ? -1 : a > b ? 1 : 0));
 }
-// the slots of a hangar: { bay, parked, total } - the main hangar the build
-// bay + 2 parked, a side hangar 1 (2 for a club shell)
+// the slots of a hangar: { bay, parked, total, inside, outside } - G2690 (HANGAR-STORAGE): every held building its
+// floor (the bay) + its shell's inside slots (playerStoreSlots: the club 1 + 2 = S2's main hangar, a field shed 1 + 0 =
+// S2's side shed; a side club now 1 + 2, a works 1 + 4), and its apron
 function playerSlots(doc, id) {
   const s = doc && doc.sheds && doc.sheds[id];
-  if (!s) return { bay: 0, parked: 0, total: 0 };
-  if (id === PREM_MAIN) {
-    const parked = (doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : PREM_SLOTS.main;
-    return { bay: PREM_SLOTS.bay, parked, total: PREM_SLOTS.bay + parked };
+  if (!s) return { bay: 0, parked: 0, total: 0, inside: 0, outside: 0 };
+  const T = playerStoreSlots(doc, id);
+  return { bay: 1, parked: T.inside, total: 1 + T.inside, inside: T.inside, outside: T.outside };
+}
+// ---- HANGAR-STORAGE (G2690): SLOTS, WHERE, ONE MOVE -----------------------------------------------------------------
+// A building's slots, from its shell (PREM_STORE.shells) unless the shed says otherwise (`slots`, the derelict hook)
+function playerStoreSlots(doc, id) {
+  const s = doc && doc.sheds && doc.sheds[id];
+  if (!s || typeof s !== 'object') return { inside: 0, outside: 0 };
+  const sh = PREM_STORE.shells[s.shell] || PREM_STORE.shells.club;
+  const o = (s.slots && typeof s.slots === 'object') ? s.slots : {};
+  const n = (v, d) => (Number.isInteger(v) && v >= 0) ? v : d;
+  // G2319.1: a career's club MAIN hangar - the stand and one more in tandem (mainClub), the sandbox's club its shell's 2
+  const ins = (id === PREM_MAIN && doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : sh.inside;
+  return { inside: n(o.inside, ins), outside: Math.min(PREM_STORE.outsideMax, n(o.outside, sh.outside)) };
+}
+// the apron of an aerodrome: its held buildings' outside slots, summed, capped by its cooked fleet spots and the drawn
+// cap (0 where nothing is held, or the cook found no spot: the mine's street, the altiport)
+function playerBaseOutside(doc, aero) {
+  const ids = playerHangarsAt(doc, aero);
+  if (!ids.length) return 0;
+  const sum = ids.reduce((a, id) => a + playerStoreSlots(doc, id).outside, 0);
+  const sp = PREM_STORE.spots[aero];
+  // (an aerodrome the cook does not know - another world's, the analytic rigs' - is not capped by it: nothing is drawn
+  // there anyway, FLEET_STAND's pack being Jolene's)
+  return Math.max(0, Math.min(PREM_STORE.outsideMax, sum, Number.isInteger(sp) ? sp : PREM_STORE.outsideMax));
+}
+// the free places (on a document; `except` is the aeroplane being moved, its own place counts as free)
+function pbTakenIn(d, id, except) {
+  const F = d.fleet || {}, t = new Set();
+  for (const n of Object.keys(F)) { const e = F[n]; if (n !== except && e && e.hangar === id && e.kind === 'inside' && Number.isInteger(e.slot)) t.add(e.slot); }
+  return t;
+}
+function pbTakenOut(d, aero, except) {
+  const F = d.fleet || {}, t = new Set();
+  for (const n of Object.keys(F)) { const e = F[n]; if (n !== except && e && !e.hangar && e.aero === aero && e.kind === 'outside' && Number.isInteger(e.slot)) t.add(e.slot); }
+  return t;
+}
+const pbFirstFree = (taken, N) => { for (let k = 0; k < N; k++) if (!taken.has(k)) return k; return null; };
+const pbFreeIn = (d, id, except) => pbFirstFree(pbTakenIn(d, id, except), playerStoreSlots(d, id).inside);
+const pbFreeOut = (d, aero, except) => pbFirstFree(pbTakenOut(d, aero, except), playerBaseOutside(d, aero));
+function pbFloorOf(d, id, except) {
+  const F = d.fleet || {};
+  for (const n of Object.keys(F).sort()) { const e = F[n]; if (n !== except && e && e.hangar === id && e.kind === 'floor') return n; }
+  return null;
+}
+// WHERE AN AEROPLANE IS (exactly one place): { kind: 'floor' | 'inside' | 'outside' | 'long' | 'away' | 'none', hangar,
+// aero, slot }. floor / inside / long: in building `hangar` (the stand, a numbered inside slot, kept long-term);
+// outside: an apron slot of aerodrome `aero` (`hangar` its first held building); away: stopped at a field where nothing
+// is held. Read off the row's `kind` / `slot`, else derived as playerStoreSettle would place it (a hand-made row).
+function playerStoreWhere(doc, name) {
+  const e = doc && doc.fleet && doc.fleet[name];
+  const S = (doc && doc.sheds) || {};
+  if (!e) return { kind: 'none', hangar: null, aero: null, slot: null };
+  // G3260 (ROUTES): ON A ROUTE - the sixth place: no building, no slot; the route's two ends on the row (78b_routes.js)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null, slot: null, route: e.route || null, a: e.a || null, b: e.b || null };
+  const int = v => Number.isInteger(v) ? v : null;
+  if (e.hangar && S[e.hangar]) {
+    const k = (e.kind === 'floor' || e.kind === 'inside' || e.kind === 'long') ? e.kind : 'inside';
+    return { kind: k, hangar: e.hangar, aero: S[e.hangar].base, slot: k === 'inside' ? int(e.slot) : null };
   }
-  const n = s.shell === 'club' ? PREM_SLOTS.sideClub : PREM_SLOTS.side;
-  return { bay: 0, parked: n, total: n };
+  const aero = e.aero || null;
+  if (!aero) return { kind: 'none', hangar: null, aero: null, slot: null };
+  const ids = playerHangarsAt(doc, aero);
+  if (!ids.length) return { kind: 'away', hangar: null, aero, slot: null };
+  return { kind: 'outside', hangar: ids[0], aero, slot: e.kind === 'outside' ? int(e.slot) : null };
+}
+// THE SETTLE (the PLAYER_V 2 -> 3 step, and every normalise after it: a fixpoint). Every row made consistent, in two
+// passes - the rows already in a valid, unique place keep it; the rest are placed by name: IN a building -> an inside
+// slot while one is free, else its floor if it stands empty (a field shed's one aeroplane: it has no inside slot), else
+// long-term there; at an aerodrome where a building is held -> an apron slot while one is free, else long-term in its
+// first building (the wear frozen, as any hangar stop); elsewhere -> away. NOTHING IS LOST: a row only changes place.
+// Mutates `d` (the migrator's and playerNormalise's way) and returns it.
+function playerStoreSettle(d) {
+  if (!d || typeof d !== 'object' || !d.fleet || typeof d.fleet !== 'object' || !d.sheds || typeof d.sheds !== 'object') return d;
+  const F = d.fleet, S = d.sheds;
+  const names = Object.keys(F).sort().filter(n => F[n] && typeof F[n] === 'object');
+  const takenIn = {}, takenOut = {}, floorOf = {}, bad = [];
+  const set = (m, k) => (m[k] || (m[k] = new Set()));
+  for (const n of names) {
+    const e = F[n];
+    if (e.kind === 'route') { e.hangar = null; delete e.slot; continue; }               // G3260: on a route, kept there
+    if (e.hangar && !(S[e.hangar] && typeof S[e.hangar] === 'object')) e.hangar = null;   // a hangar gone: where it stood
+    if (e.hangar) {
+      if (typeof e.aero !== 'string' || e.aero !== S[e.hangar].base) e.aero = S[e.hangar].base;
+      const N = playerStoreSlots(d, e.hangar).inside;
+      if (e.kind === 'long') { delete e.slot; continue; }
+      if (e.kind === 'floor' && !floorOf[e.hangar]) { floorOf[e.hangar] = n; delete e.slot; continue; }
+      if (e.kind === 'inside' && Number.isInteger(e.slot) && e.slot >= 0 && e.slot < N && !set(takenIn, e.hangar).has(e.slot)) {
+        set(takenIn, e.hangar).add(e.slot); continue;
+      }
+      bad.push(n); continue;
+    }
+    if (!e.aero) { delete e.kind; delete e.slot; continue; }
+    if (!playerHangarsAt(d, e.aero).length) { e.kind = 'away'; delete e.slot; continue; }
+    const M = playerBaseOutside(d, e.aero);
+    if (e.kind === 'outside' && Number.isInteger(e.slot) && e.slot >= 0 && e.slot < M && !set(takenOut, e.aero).has(e.slot)) {
+      set(takenOut, e.aero).add(e.slot); continue;
+    }
+    bad.push(n);
+  }
+  for (const n of bad) {
+    const e = F[n];
+    if (e.hangar) {
+      const id = e.hangar, k = pbFirstFree(set(takenIn, id), playerStoreSlots(d, id).inside);
+      if (k != null) { e.kind = 'inside'; e.slot = k; set(takenIn, id).add(k); }
+      else if (!floorOf[id]) { e.kind = 'floor'; delete e.slot; floorOf[id] = n; }
+      else { e.kind = 'long'; delete e.slot; }
+      continue;
+    }
+    const k = pbFirstFree(set(takenOut, e.aero), playerBaseOutside(d, e.aero));
+    if (k != null) { e.kind = 'outside'; e.slot = k; set(takenOut, e.aero).add(k); if (typeof e.outSince !== 'number') e.outSince = Math.round(d.clock || 0); continue; }
+    pbIn(d, n, playerHangarsAt(d, e.aero)[0], 'long');
+  }
+  return d;
 }
 // would this set stand in that hangar? A slot each (the cap), THEN the floor
 // (hangarPark): -> { ok, why, P }
@@ -428,22 +630,47 @@ function playerWearNow(doc, name) {
 }
 // a row stationed outside (on a clone): the wear starts running now, unless
 // it was outside already (it keeps running from when it went out)
-function pbOut(d, name, aero) {
+// G2690: at an aerodrome where a building is held it takes an apron slot (`slot`, else the first free) - with the apron
+// full it is kept LONG-TERM in the first building there instead (nothing is refused: an arrival always lands somewhere);
+// elsewhere it is away. -> the kind it got
+function pbOut(d, name, aero, slot) {
   const e = d.fleet[name];
+  const ids = playerHangarsAt(d, aero);
+  let k = null;
+  if (ids.length) {
+    k = Number.isInteger(slot) ? slot : pbFreeOut(d, aero, name);
+    if (k == null) { pbIn(d, name, ids[0], 'long'); return 'long'; }
+  }
   if (e.hangar || typeof e.outSince !== 'number') e.outSince = Math.round(d.clock || 0);
   e.hangar = null;
   e.aero = aero;
+  e.kind = ids.length ? 'outside' : 'away';
+  if (ids.length) e.slot = k; else delete e.slot;
+  return e.kind;
 }
-// a row put inside (on a clone): the wear freezes where it stands
-function pbIn(d, name, id) {
+// a row put inside (on a clone): the wear freezes where it stands. G2690: `kind` says where in building `id` (floor /
+// inside / long; `slot` for inside); none asked -> an inside slot while one is free, else the floor if it stands empty,
+// else long-term. -> the kind it got
+function pbIn(d, name, id, kind, slot) {
   const e = d.fleet[name];
   if (!e.hangar && typeof e.outSince === 'number') {
     const w = playerWearNow(d, name);
     if (w > 0) e.wearOut = +w.toFixed(4);
   }
   delete e.outSince;
+  if (!kind) {
+    const k = pbFreeIn(d, id, name);
+    if (k != null) { kind = 'inside'; slot = k; }
+    else kind = pbFloorOf(d, id, name) ? 'long' : 'floor';
+  } else if (kind === 'inside' && !Number.isInteger(slot)) {
+    slot = pbFreeIn(d, id, name);
+    if (slot == null) kind = 'long';
+  }
   e.hangar = id;
   e.aero = d.sheds[id].base;
+  e.kind = kind;
+  if (kind === 'inside') e.slot = slot; else delete e.slot;
+  return kind;
 }
 // Repair / Paint: the airframe comes back clean (still outside: it starts again)
 function playerWearReset(doc, name) {
@@ -511,9 +738,11 @@ function playerPlace(doc, name, world) {
   const L = (world && world.aerodromes) || [];
   const a = L.find(x => x.id === W.aero);
   const nm = W.kind === 'away' ? ((a && a.name) || W.aero) : W.aero;
-  const text = W.kind === 'in' ? 'in ' + W.hangar : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
+  const text = W.kind === 'in' ? 'in ' + W.hangar : W.kind === 'route' ? 'on route ' + (doc.fleet[name].a || '') + '-' + (doc.fleet[name].b || '')
+    : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
   const hereBase = doc.sheds[doc.here] ? doc.sheds[doc.here].base : PREM_MAIN;
-  return { kind: W.kind, aero: W.aero, hangar: W.hangar, text, here: W.aero === hereBase, wear: playerWearNow(doc, name) };
+  return { kind: W.kind, aero: W.aero, hangar: W.hangar, text, here: W.aero === hereBase, wear: playerWearNow(doc, name),
+           store: playerStoreWhere(doc, name).kind };     // G2690: floor | inside | outside | long | away
 }
 
 // ---- THE FLEET LIFT (the first load of a v2 game, and every load after) ------
@@ -547,9 +776,12 @@ function playerFleetReconcile(doc, slotNames, opts) {
       if (!d.sheds[id]) continue;
       if (playerFits(d, id, playerResidents(d, id).concat([n]), foots, opts).ok) { at = id; break; }
     }
-    if (at) pbIn(d, n, at); else pbOut(d, n, home);
-    lifted.push({ name: n, kind: at ? 'in' : 'out', hangar: at, aero: home });
+    // G2690: inside (an inside slot, else the floor standing empty), else the apron, else long-term there
+    const got = at ? pbIn(d, n, at) : pbOut(d, n, home);
+    lifted.push({ name: n, kind: got === 'outside' || got === 'away' ? 'out' : 'in', store: got,
+                  hangar: d.fleet[n].hangar || null, aero: home });
   }
+  playerStoreSettle(d);
   return { ok: true, doc: d, lifted, dropped };
 }
 
@@ -559,8 +791,9 @@ function playerStore(doc, name, hangarId, foots, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero !== shed.base) return pbNo(doc, name + ' is at ' + W.aero + ': fly it to ' + shed.base + ' first');
-  if (e.hangar === hangarId) return { ok: true, doc, why: 'already inside' };
+  if (e.hangar === hangarId && e.kind !== 'long') return { ok: true, doc, why: 'already inside' };   // (G2690: long-term comes back in)
   const why = hangarDoorWhy(shed, playerFootOf(doc, name, foots));
   if (why) return pbNo(doc, why);
   const F = playerFits(doc, hangarId, playerResidents(doc, hangarId).concat([name]), foots, opts);
@@ -569,14 +802,12 @@ function playerStore(doc, name, hangarId, foots, opts) {
   pbIn(d, name, hangarId);
   return { ok: true, doc: d, why: '' };
 }
+// G2690: onto an apron slot - refused with the reason when the apron is full (playerMove's 'outside')
 function playerWheelOut(doc, name) {
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!e.hangar) return { ok: true, doc, why: 'already outside' };
-  const d = pbClone(doc), W = playerWhere(doc, name);
-  d.fleet[name].left = e.hangar;
-  pbOut(d, name, W.aero);
-  return { ok: true, doc: d, why: '' };
+  return playerMove(doc, name, { kind: 'outside' });
 }
 
 // ---- MOVING: only by flying it ---------------------------------------------------
@@ -594,7 +825,12 @@ function playerArrive(doc, name, aero, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!aero) return pbNo(doc, 'no aerodrome: an aeroplane stopped off-field is recovered, not arrived');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero === aero && W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'back where it left' };
+  // G2690: back on the apron it left, it is back in its own apron slot (nothing moves while it flies)
+  const SW = playerStoreWhere(doc, name);
+  if (SW.aero === aero && SW.kind === 'outside' && Number.isInteger(SW.slot) && SW.slot < playerBaseOutside(doc, aero))
+    return { ok: true, doc, kind: 'out', hangar: null, why: 'back where it left' };
   const d = pbClone(doc);
   if (W.kind === 'in') d.fleet[name].left = W.hangar;
   if (opts.foots && opts.foots[name]) d.fleet[name].foot = parkFoot(opts.foots[name]);
@@ -603,12 +839,15 @@ function playerArrive(doc, name, aero, opts) {
   for (const id of order) {
     if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
     if (playerFits(d, id, playerResidents(d, id).filter(n => n !== name).concat([name]), opts.foots, opts).ok) {
-      pbIn(d, name, id);
-      return { ok: true, doc: d, kind: 'in', hangar: id, why: '' };
+      const got = pbIn(d, name, id);
+      return { ok: true, doc: d, kind: 'in', store: got, hangar: id, why: '' };
     }
   }
-  pbOut(d, name, aero);
-  return { ok: true, doc: d, kind: ids.length ? 'out' : 'away', hangar: null,
+  // G2690: the apron while a slot is free, else kept long-term in the first building there; no building: away
+  const got = pbOut(d, name, aero);
+  if (got === 'long') return { ok: true, doc: d, kind: 'in', store: 'long', hangar: d.fleet[name].hangar,
+                               why: 'no slot or no room inside, the apron full: kept long-term' };
+  return { ok: true, doc: d, kind: ids.length ? 'out' : 'away', store: got, hangar: null,
            why: ids.length ? 'no slot or no room inside: tied down outside' : 'no hangar of yours here: tied down' };
 }
 // A flight that ended off an aerodrome, in a wreck, or was abandoned: the
@@ -626,27 +865,210 @@ function playerRecover(doc, name, opts) {
 // a wreck), back into the hangar it last left, else the main hangar - a slot
 // free and the floor for it, as any arrival - else stationed outside at
 // HOME. Free and instant in both modes; the recovery line is written at 0.
+// G2743 (STORY): a held shed may be LOCKED - the story's HOME before beat T1 (the user: the start owns ONLY the cabin; the
+// WWII field is the hub you fly to). A locked shed stays in the document (HOME is the main hangar everywhere) but is never a
+// destination: not here, not home, not a send-to, not a move's target. The beat that grants it clears the lock.
+const playerShedLocked = (doc, id) => !!(doc && doc.sheds && doc.sheds[id] && doc.sheds[id].locked);
+// the held, unlocked sheds, the main hangar first (the order "bring it home" falls back through)
+const playerShedsOpen = doc => Object.keys(doc.sheds || {}).filter(id => doc.sheds[id] && typeof doc.sheds[id] === 'object' && !doc.sheds[id].locked)
+  .sort((a, b) => (a === PREM_MAIN ? -1 : b === PREM_MAIN ? 1 : 0));
 function playerBringHome(doc, name, opts) {
   opts = opts || {};
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   const order = [];
-  for (const id of [e.left, PREM_MAIN]) if (id && doc.sheds[id] && !order.includes(id)) order.push(id);
+  // (G2743) a SEND-TO names the one hangar; else the one it left, then the main hangar, then any other open one
+  const cand = opts.to ? [opts.to] : [e.left, PREM_MAIN].concat(playerShedsOpen(doc));
+  for (const id of cand) if (id && doc.sheds[id] && !doc.sheds[id].locked && !order.includes(id)) order.push(id);
+  if (opts.to && !order.length) return pbNo(doc, playerShedLocked(doc, opts.to) ? opts.to + ' is not yours yet' : 'no hangar ' + opts.to);
   // inside a hangar of yours already: it is home (a resident is never shuffled by this door)
-  if (W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
+  // (G2744) a send-to another hangar moves it even from inside one (or long-term in one); bring-home leaves it be
+  if (W.kind === 'in' && (!opts.to || W.hangar === opts.to)) return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
   const d = pbClone(doc);
   let at = null;
   for (const id of order) {
     if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
     if (playerFits(d, id, playerResidents(d, id).concat([name]), opts.foots, opts).ok) { at = id; break; }
   }
-  const homeAero = d.sheds[PREM_MAIN] ? d.sheds[PREM_MAIN].base : PREM_MAIN;
-  if (at) pbIn(d, name, at);
-  else pbOut(d, name, homeAero);
+  // the apron it falls back to: the named hangar's (send-to), else the main hangar's, else the first open hangar's
+  const fall = order[0] && (opts.to || !d.sheds[PREM_MAIN] || d.sheds[PREM_MAIN].locked) ? order[0] : PREM_MAIN;
+  const homeAero = d.sheds[fall] ? d.sheds[fall].base : PREM_MAIN;
+  // G2690: no room inside -> the home apron (its own slot kept when it stands there already), else long-term at home
+  const SW = playerStoreWhere(d, name);
+  const got = at ? pbIn(d, name, at)
+    : (SW.kind === 'outside' && SW.aero === homeAero && Number.isInteger(SW.slot)) ? 'outside' : pbOut(d, name, homeAero);
   playerLedger(d, 'recover', 0, name);
-  return { ok: true, doc: d, kind: at ? 'in' : 'out', hangar: at,
+  if (!at && got === 'long') return { ok: true, doc: d, kind: 'in', store: 'long', hangar: d.fleet[name].hangar,
+    why: 'no slot or no room in ' + (order.join(' or ') || 'a hangar') + ', the apron full: kept long-term at ' + homeAero };
+  return { ok: true, doc: d, kind: at ? 'in' : 'out', store: got, hangar: at,
            why: at ? '' : 'no slot or no room in ' + (order.join(' or ') || 'a hangar') + ': stationed outside at ' + homeAero };
+}
+
+// ---- HANGAR-STORAGE (G2690): THE ONE MOVE -------------------------------------------------------------------------
+// playerMove(doc, name, to, opts) - to = { kind: 'floor' | 'inside' | 'outside' | 'long', hangar?, slot? } - floor /
+// inside / outside / long-term WITHIN THE BASE the aeroplane stands at; free and instant in sandbox and career (nothing
+// charged, no ledger line: a hangar crew's shuffle). Between bases it is a flight, or "bring it home" (unchanged).
+//   floor    the stand of building `hangar` (default: the garage's own, `here`, when it stands at this base; else the
+//            base's first). Always taken: the aeroplane on the floor before goes to the mover's old place (a SWAP - an
+//            inside slot only while the floor still packs, else the apron, else long-term).
+//   inside   a numbered slot of `hangar` (`slot`, else the first free): refused when the building has none, when they
+//            are all taken, when the door is too narrow / low or the floor does not pack (S2's slots ON TOP of geometry).
+//   outside  an apron slot of the base (`slot`, else the first free): refused when the base has no apron or it is full.
+//   long     kept in `hangar`, never drawn; unlimited.
+// A long-term aeroplane comes back only into a free slot (or the floor). An away one cannot move (fly it to a base of
+// yours, or bring it home). Every refusal hands the document back untouched with its reason.
+// -> { ok, doc, why, where (playerStoreWhere after), swapped: { name, where } | null }
+function playerMove(doc, name, to, opts) {
+  opts = opts || {};
+  to = to || {};
+  const e = doc && doc.fleet && doc.fleet[name];
+  if (!e) return pbNo(doc, name + ' is not in the fleet');
+  if (!PREM_STORE.kinds.includes(to.kind) || to.kind === 'away') return pbNo(doc, 'no such place: ' + to.kind);
+  const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
+  if (W.kind === 'away') return pbNo(doc, name + ' is away at ' + W.aero + ': fly it to a base of yours, or bring it home');
+  if (W.kind === 'none') return pbNo(doc, name + ' stands nowhere yet');
+  const base = W.aero, ids = playerHangarsAt(doc, base);
+  const hereB = doc.sheds[doc.here] && doc.sheds[doc.here].base === base ? doc.here : null;
+  const H = to.hangar || (to.kind === 'floor' ? (hereB || ids[0]) : (W.hangar && doc.sheds[W.hangar] && to.kind !== 'outside' && W.kind !== 'outside' ? W.hangar : (hereB || ids[0])));
+  if (to.kind !== 'outside') {
+    if (!doc.sheds[H]) return pbNo(doc, 'no hangar ' + H);
+    if (doc.sheds[H].base !== base) return pbNo(doc, name + ' stands at ' + base + ', ' + H + ' at ' + doc.sheds[H].base + ': fly it there first');
+  }
+  const has = Number.isInteger(to.slot);
+  const same = to.kind === W.kind && (to.kind === 'outside' || W.hangar === H) && (!has || to.slot === W.slot);
+  if (same) return { ok: true, doc, why: 'already there', where: W, swapped: null };
+  const done = (d, swapped) => ({ ok: true, doc: d, why: '', where: playerStoreWhere(d, name), swapped: swapped || null });
+  const foot = n => playerFootOf(doc, n, opts.foots);
+  if (to.kind === 'long') {
+    const d = pbClone(doc);
+    pbIn(d, name, H, 'long');
+    return done(d);
+  }
+  if (to.kind === 'outside') {
+    const M = playerBaseOutside(doc, base);
+    if (!M) return pbNo(doc, 'no apron at ' + base + ': no tie-down spot there');
+    const taken = pbTakenOut(doc, base, name);
+    if (has && (to.slot < 0 || to.slot >= M)) return pbNo(doc, 'the apron at ' + base + ' has slots 1-' + M);
+    if (has && taken.has(to.slot)) return pbNo(doc, 'apron slot ' + (to.slot + 1) + ' at ' + base + ' is taken');
+    const k = has ? to.slot : pbFirstFree(taken, M);
+    if (k == null) return pbNo(doc, 'OUTSIDE at ' + base + ' is full (' + M + '/' + M + ')');
+    const d = pbClone(doc);
+    if (d.fleet[name].hangar) d.fleet[name].left = d.fleet[name].hangar;
+    pbOut(d, name, base, k);
+    return done(d);
+  }
+  if (to.kind === 'inside') {
+    const N = playerStoreSlots(doc, H).inside;
+    if (!N) return pbNo(doc, H + ' has no inside slot (a ' + (doc.sheds[H].shell || 'club') + ' shed: its floor, the apron and long-term)');
+    const taken = pbTakenIn(doc, H, name);
+    if (has && (to.slot < 0 || to.slot >= N)) return pbNo(doc, H + ' has inside slots 1-' + N);
+    if (has && taken.has(to.slot)) return pbNo(doc, 'inside slot ' + (to.slot + 1) + ' of ' + H + ' is taken');
+    const k = has ? to.slot : pbFirstFree(taken, N);
+    if (k == null) return pbNo(doc, 'INSIDE ' + H + ' is full (' + N + '/' + N + ')');
+    const door = hangarDoorWhy(doc.sheds[H], foot(name));
+    if (door) return pbNo(doc, door);
+    const F = playerFits(doc, H, playerResidents(doc, H).filter(n => n !== name).concat([name]), opts.foots, opts);
+    if (!F.ok) return pbNo(doc, F.why);
+    const d = pbClone(doc);
+    pbIn(d, name, H, 'inside', k);
+    return done(d);
+  }
+  // the floor: a swap with the aeroplane standing there
+  const d = pbClone(doc);
+  const O = pbFloorOf(d, H, name);
+  if (O) pbIn(d, O, H, 'long');                    // aside while the mover takes the stand
+  pbIn(d, name, H, 'floor');
+  let swapped = null;
+  if (O) {
+    let put = false;
+    if (W.kind === 'inside' && doc.sheds[W.hangar] && !hangarDoorWhy(d.sheds[W.hangar], foot(O))
+        && playerFits(d, W.hangar, playerResidents(d, W.hangar).filter(n => n !== O).concat([O]), opts.foots, opts).ok) {
+      pbIn(d, O, W.hangar, 'inside', W.slot); put = true;
+    } else if (W.kind === 'floor' && W.hangar !== H) { pbIn(d, O, W.hangar, 'floor'); put = true; }
+    else if (W.kind === 'long') { pbIn(d, O, W.hangar, 'long'); put = true; }
+    else if (W.kind === 'outside') { pbOut(d, O, base, W.slot); put = true; }
+    if (!put) pbOut(d, O, base);                   // the apron, else long-term
+    swapped = { name: O, where: playerStoreWhere(d, O) };
+  }
+  return done(d, swapped);
+}
+// THE STAND FOLLOWS THE GARAGE (the page, on a slot load and a save): the build on the stand goes onto `here`'s floor
+// when it stands at that base (a swap, as any floor move); anything else is left where it is (an aeroplane at another
+// base is flown there, or brought home).
+function playerFloorSync(doc, name, opts) {
+  const e = name && doc && doc.fleet && doc.fleet[name];
+  const h = doc && doc.sheds && doc.sheds[doc.here];
+  if (!e || !h) return { ok: true, doc, why: 'not in the fleet', where: null, swapped: null };
+  const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return { ok: true, doc, why: 'on a route', where: W, swapped: null };
+  if (W.aero !== h.base || W.kind === 'away' || W.kind === 'none') return { ok: true, doc, why: 'at another base', where: W, swapped: null };
+  return playerMove(doc, name, { kind: 'floor', hangar: doc.here }, opts);
+}
+// FLY FROM WHERE IT STANDS: -> { ok, why, kind, start: 'door' | 'lineup' | 'stand', aero, hangar }
+//   floor   'door'    today's roll-out (out of the room's door, the shot; the stand, then the taxi)
+//   inside  'lineup'  LINED UP on the base's runway, the take-off direction by the wind (the pilot's DEPART plan: the
+//                     page's placeLinedUp, G771) - no tow yet
+//   outside 'stand'   from the apron (today's stand logic: cut to the stand, the taxi out)
+//   away    'stand'   where it stopped (PREM-S2's roll-out away)
+//   long    refused   load it first (a free slot or the floor)
+function playerFlyStart(doc, name) {
+  const W = playerStoreWhere(doc, name);
+  const r = (start, why) => ({ ok: !!start, why: why || '', kind: W.kind, start: start || null, aero: W.aero, hangar: W.hangar });
+  if (W.kind === 'none') return r(null, name + ' is not in the fleet');
+  if (W.kind === 'long') return r(null, name + ' is kept long-term: load it first (a free slot, or the floor)');
+  if (W.kind === 'route') return r(null, pbOnRoute(doc, name));
+  return r(W.kind === 'floor' ? 'door' : W.kind === 'inside' ? 'lineup' : 'stand');
+}
+// THE STORAGE SCREEN'S VIEW of a base (the garage's: `here`'s building and its aerodrome): -> { aero, hangar, shell,
+// floor, inside: { N, slots: [name | null] }, outside: { M, slots: [name | null] }, long: [names], others: [names in
+// another building here], routes: [names on a route with an end here (G3260: not movable until the route ends)] }
+function playerStoreView(doc, hangarId) {
+  const id = hangarId || (doc && doc.here);
+  const shed = doc && doc.sheds && doc.sheds[id];
+  if (!shed) return null;
+  const aero = shed.base, F = doc.fleet || {};
+  const N = playerStoreSlots(doc, id).inside, M = playerBaseOutside(doc, aero);
+  const ins = new Array(N).fill(null), outs = new Array(M).fill(null), long = [], others = [], routes = [];
+  let floor = null;
+  for (const n of Object.keys(F).sort()) {
+    const W = playerStoreWhere(doc, n);
+    if (W.kind === 'route') { if (W.a === aero || W.b === aero) routes.push(n); continue; }   // G3260: on a route from here
+    if (W.aero !== aero) continue;
+    if (W.kind === 'outside') { if (Number.isInteger(W.slot) && W.slot < M && !outs[W.slot]) outs[W.slot] = n; else long.push(n); continue; }
+    if (W.kind === 'long') { long.push(n); continue; }
+    if (W.hangar !== id) { others.push(n); continue; }
+    if (W.kind === 'floor') { if (!floor) floor = n; else long.push(n); continue; }
+    if (W.kind === 'inside' && Number.isInteger(W.slot) && W.slot < N && !ins[W.slot]) ins[W.slot] = n; else others.push(n);
+  }
+  return { aero, hangar: id, shell: shed.shell || 'club', floor, inside: { N, slots: ins }, outside: { M, slots: outs }, long, others, routes };
+}
+
+// THE DRAWN RESIDENTS of a building (the garage's L2 props beside the stand, WORKS-COZY): its INSIDE slots in slot
+// order, then the floor's aeroplane when the stand holds another build (it stands in the room too); never the build on
+// the stand, never a long-term one; at most `max`
+function playerResidentsShown(doc, id, stand, max) {
+  const F = (doc && doc.fleet) || {}, ins = [], floor = [];
+  for (const n of Object.keys(F).sort()) {
+    const e = F[n];
+    if (!e || e.hangar !== id || n === stand) continue;
+    if (e.kind === 'inside') ins.push(n);
+    else if (e.kind === 'floor') floor.push(n);
+    else if (e.kind !== 'long' && e.kind !== 'outside' && e.kind !== 'away') ins.push(n);   // an unsettled row: inside
+  }
+  ins.sort((a, b) => ((Number.isInteger(F[a].slot) ? F[a].slot : 99) - (Number.isInteger(F[b].slot) ? F[b].slot : 99)) || (a < b ? -1 : a > b ? 1 : 0));
+  return ins.concat(floor).slice(0, Math.max(0, max == null ? Infinity : max));
+}
+// A STORAGE CARD's words off the saved spec: { name, gear (stripGear: wheels / floats / amphibian / skis), seats (the
+// cabin's capacity, else its seating's crew) }
+function playerCardOf(name, spec) {
+  const cab = (spec && spec.cabin && typeof spec.cabin === 'object') ? spec.cabin : {};
+  const SE = typeof GEN_SEATING !== 'undefined' ? GEN_SEATING : {};
+  const sk = SE[cab.seating] ? cab.seating : 'tandem2';
+  const seats = (Number.isInteger(cab.seats) && cab.seats > 0) ? cab.seats : (SE[sk] ? SE[sk].crew : 2);
+  return { name, gear: typeof stripGear === 'function' ? stripGear(spec || null) : 'wheels', seats };
 }
 
 // ---- HOLDING: acquire, release, upgrade -----------------------------------------
@@ -799,8 +1221,15 @@ function playerUpgrade(doc, hangarId, change, opts) {
 // ---- THE GARAGE'S DOOR, THE CLOCK, THE LABOUR ------------------------------------
 // which hangar the garage opens in (the premises screen's "go there"):
 // instant — the pilot travels with the aeroplanes (GAME-PREMISES Q7)
+// G2743 (STORY, the user 18 Oct: "keep it simple: a 'send to' pick between the owned hangars"): an aeroplane of yours to
+// the named hangar, free and instant like "bring it home" (GQ5) - inside when its door and a slot take it, else that
+// field's apron, else long-term there. Refused: a hangar you do not hold, or one still locked by the story.
+function playerSendTo(doc, name, hangarId, opts) {
+  return playerBringHome(doc, name, Object.assign({}, opts || {}, { to: hangarId }));
+}
 function playerGoTo(doc, hangarId) {
   if (!doc.sheds[hangarId]) return pbNo(doc, 'no hangar ' + hangarId);
+  if (doc.sheds[hangarId].locked) return pbNo(doc, hangarId + ' is not yours yet');
   const d = pbClone(doc);
   d.here = hangarId;
   return { ok: true, doc: d, why: '' };
@@ -857,6 +1286,22 @@ function playerWorldSheds(doc) {
   if (S[PREM_MAIN]) one(PREM_MAIN, true);
   for (const id of playerSideIds(doc).slice(0, PREM_SIDE_MAX)) one(id, false);
   return out.slice(0, PREM_WORLD.maxSheds);
+}
+// CLOSED-SHED (the user 28 Oct: an unowned plot draws "a closed shed", so the mine street reads as a compound): a plot
+// flagged `closedShed` that the player does NOT hold stands its offer's shed, shut - the shed playerAcquire would give
+// (the offer's first shell, the shell's dims under the plot's own), so buying it changes nothing in the world but the
+// dress. Its own list, never in playerWorldSheds' GQ4 count: [{ id, base, shell, dims (hangarDims), closed: true }]
+function playerClosedSheds(doc) {
+  const S = (doc && doc.sheds) || {}, out = [];
+  for (const aero of Object.keys(BASE_OFFERS)) {
+    const O = BASE_OFFERS[aero];
+    for (const id of Object.keys(O.plots)) {
+      const P = O.plots[id], shell = P.shells && P.shells[0];
+      if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
+      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+    }
+  }
+  return out;
 }
 // may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
 function premResidentsDrawn(doorOpen, camDist) {

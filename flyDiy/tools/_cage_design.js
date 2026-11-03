@@ -134,8 +134,43 @@ function iconTip(key) {
   pts.push([semi - bow, y0 + c], [4, y0 + c]);
   const paths = [{ d: poly(pts) }];
   if (t.fin) paths.push({ d: 'M' + P2(semi - 2, y0 + 2) + ' L' + P2(semi + 6, y0 - 8) });
+  // G2820: an ENDPLATE is the plate itself, standing proud of the chord at
+  // the tip; a DROOPED tip shows its front view under the plan, bending down
+  if (t.plate) paths.push({ d: poly([[semi, y0 - 4], [semi + 3, y0 - 4], [semi + 3, y0 + c + 2], [semi, y0 + c + 2]]) });
+  if (t.droop) paths.push({ d: 'M' + P2(4, 34) + ' L' + P2(40, 34) + ' Q' + P2(50, 34) + ' ' + P2(56, 39) });
   return { vb: '0 0 64 40', paths };
 }
+
+// G2820: THE STOL DEVICES' TILES - the leading-edge section (none / the
+// slat standing off the nose / the automatic slat nested on it), and plan-
+// view sketches of the spanwise devices. Drawn, like the flaps.
+function iconSlat(key) {
+  const wing = 'M12 18 Q26 8 46 14 L60 21 Q30 26 12 24 Z';
+  const p = [{ d: wing }];
+  if (key === 'slot') p.push({ d: 'M2 26 Q0 18 9 13 L12 15 Q5 19 6 25 Z' });
+  if (key === 'auto') p.push({ d: 'M8 23 Q6 16 16 12 L18 14 Q10 17 11 23 Z' });
+  return { vb: '0 0 64 40', paths: p };
+}
+function iconStol(kind, on) {
+  // a planform, the device drawn on it when on
+  const p = [{ d: poly([[4, 12], [58, 12], [58, 28], [4, 28]]) }];
+  if (!on) return { vb: '0 0 64 40', paths: p };
+  if (kind === 'vg') for (let x = 8; x <= 54; x += 5) p.push({ d: 'M' + P2(x, 15) + ' L' + P2(x + 2, 18) });
+  if (kind === 'fence') for (const x of (on >= 2 ? [26, 40] : [40])) p.push({ d: poly([[x, 9], [x + 1.5, 9], [x + 1.5, 24], [x, 24]]) });
+  if (kind === 'cuff') p.push({ d: poly([[36, 9], [58, 9], [58, 13], [36, 13]]) });
+  if (kind === 'droop') { p.push({ d: poly([[36, 24], [58, 24], [58, 28], [36, 28]]) }); p.push({ d: 'M' + P2(47, 30) + ' L' + P2(47, 38) + ' M' + P2(44, 35) + ' L' + P2(47, 38) + ' L' + P2(50, 35) }); }
+  if (kind === 'grow') { p.push({ d: poly([[8, 28], [30, 28], [30, 34], [8, 34]]) }); p.push({ d: 'M' + P2(19, 30) + ' L' + P2(19, 39) }); }
+  return { vb: '0 0 64 40', paths: p };
+}
+// G2820: an option the MACHINE SHOP gates (60_gen_spec GEN_STOL.packs): when
+// the page publishes the packs the player owns (window.MACHINE_SHOP_OWNS, an
+// array - the GAME coordinator's to wire), a device whose pack is missing
+// greys with its reason; with no list published nothing is locked
+const stolLock = opt => {
+  const owned = W.MACHINE_SHOP_OWNS;
+  const pk = (typeof genStolLocked === 'function' ? genStolLocked : W.genStolLocked || (() => null))(opt, owned);
+  return pk ? 'needs the ' + pk + ' pack from the machine shop' : undefined;
+};
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -146,6 +181,7 @@ function iconFlap(key) {
   if (key === 'plain') p.push({ d: 'M40 15 L58 24 L40 21 Z' });
   if (key === 'slotted') p.push({ d: 'M43 17 L60 26 L44 23 Z' });
   if (key === 'fowler') p.push({ d: 'M46 20 L63 28 L47 26 Z' });
+  if (key === 'split') p.push({ d: 'M26 24 L40 22 L52 32 Z' });   // the lower skin hinged down
   return { vb: '0 0 64 40', paths: p };
 }
 
@@ -356,7 +392,7 @@ function iconSeats(layout, bays) {
 // wings, and 4 engines on the wings"). Count and placement are ONE fact up
 // here — a twin IS wing-mounted — which is why this row carries the wing-
 // nacelle backlog and the mount row keeps only nose/pusher.
-function iconTopEngines(nose, wingN) {
+function iconTopEngines(nose, wingN, aft) {
   const paths = [];
   paths.push({ d: 'M32 2 Q35 5 35 11 L35 29 L33 37 L31 37 L29 29 L29 11 ' +
                   'Q29 5 32 2 Z' });                       // body
@@ -368,6 +404,12 @@ function iconTopEngines(nose, wingN) {
     paths.push({ d: 'M' + P2(x - 5, 8) + ' L' + P2(x + 5, 8), w: 1.8 });
   };
   if (nose) paths.push({ d: 'M25 2 L39 2', w: 1.8 });      // the nose prop
+  // G2790: the push-pull's pusher, behind the cabin between the booms
+  if (aft) {
+    paths.push({ d: poly([[24, 19], [25, 33], [26, 33], [27, 19]]) });  // port boom
+    paths.push({ d: poly([[37, 19], [38, 33], [39, 33], [40, 19]]) });  // starboard boom
+    paths.push({ d: 'M26 24 L38 24', w: 1.8 });             // the aft prop
+  }
   if (wingN === 2) { eng(17, 0); eng(47, 0); }
   if (wingN === 4) { eng(12, 0); eng(22, 0); eng(42, 0); eng(52, 0); }
   return { vb: '0 0 64 40', paths };
@@ -757,12 +799,125 @@ function designEngineModels() {
 function designPresetNames() {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return [];
-  return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-    .concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  return EP.presetNames ? EP.presetNames()          // NEW-SHAPES-1: the saved order's one keeper (_eng_page.js)
+    : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
 }
 function designPresetIndex(name) {
   const i = designPresetNames().indexOf(name);
   return i >= 0 ? i : null;
+}
+
+// THE PART TILES' DRAWINGS (G2760). Same family as the tiles above — one
+// outline, a few strokes, the renderer's stroke style — each a picture of
+// the choice and not of a whole aeroplane.
+//
+// THE NOSE FRONT (G2770), the body's front end in side view: a flat
+// firewall face (an engine bolts to it) or a faired, domed nose
+function iconNoseFront(aero) {
+  const body = aero ? 'M60 12 L22 12 Q6 13 5 20 Q6 27 22 28 L60 28'
+                    : 'M60 12 L12 12 L12 28 L60 28';
+  const paths = [{ d: body }];
+  if (!aero) paths.push({ d: 'M12 12 L12 28', w: 2.6 });
+  return { vb: '0 0 64 40', paths };
+}
+// THE CUT, on the fin in side view or the stab in plan view (the stab IS
+// the fin laid flat, so it is the same drawing mirrored about its root):
+// uncut is one sheet, hinge only is the sheet split on a straight line,
+// horn balance gives the moving part a horn that reaches forward over the
+// hinge at its tip.
+function iconCut(surf, mode) {
+  // the fin's pieces in side view, root on y = 26, tip at y = 6
+  const whole = [[22, 26], [34, 6], [48, 6], [52, 26]];
+  const front = mode === 2
+    ? [[22, 26], [34, 6], [39, 6], [39, 12], [42.5, 12], [44.5, 26]]
+    : [[22, 26], [34, 6], [42, 6], [44, 26]];
+  const back = mode === 2
+    ? [[41, 6], [48, 6], [52, 26], [46.5, 26], [44.5, 13.5], [41, 13.5]]
+    : [[44, 6], [48, 6], [52, 26], [46, 26]];
+  const pieces = mode === 0 ? [whole] : [front, back];
+  if (surf !== 'stab') {
+    return { vb: '0 0 64 40', paths: [{ d: 'M4 32 L60 32 L60 26 L4 24 Z', w: 1 }]
+      .concat(pieces.map(p => ({ d: poly(p) }))) };
+  }
+  // plan view: the body along y = 20, one panel each side, the root on it
+  const up = p => p.map(([x, y]) => [x, 4 + (y - 6) * 0.72]);
+  const dn = p => p.map(([x, y]) => [x, 36 - (y - 6) * 0.72]);
+  const paths = [{ d: 'M4 18.4 L60 18.4 L60 21.6 L4 21.6 Z', w: 1 }];
+  for (const p of pieces) paths.push({ d: poly(up(p)) }, { d: poly(dn(p)) });
+  return { vb: '0 0 64 40', paths };
+}
+// THE FIN'S EXTRAS: plain, the keel extension (the fin carried on under the
+// tail cone) and the dorsal fillet (the leading edge run forward, low, along
+// the deck)
+function iconFinExtra(kind) {
+  const paths = [{ d: 'M4 30 L60 30 L60 24 L4 22 Z', w: 1 },
+                 { d: poly([[24, 24], [36, 6], [48, 6], [52, 24]]) }];
+  if (kind === 'keel') paths.push({ d: poly([[44, 30], [58, 30], [57, 37], [50, 37]]) });
+  if (kind === 'dorsal') paths.push({ d: 'M8 23 Q18 22 28 18 L24 24 Z' });
+  return { vb: '0 0 64 40', paths };
+}
+// WHERE THE STAB SITS, in side view: on the boom's keel, on its deck, on the
+// fin's tip, or across two booms (the tail seen from behind)
+function iconSeat(mode) {
+  if (mode === 3) return { vb: '0 0 64 40', paths: [
+    { d: 'M12 26 a5 5 0 1 0 0.1 0', w: 1 }, { d: 'M52 26 a5 5 0 1 0 0.1 0', w: 1 },
+    { d: poly([[10, 22], [12, 6], [15, 6], [15, 22]]) },
+    { d: poly([[49, 22], [49, 6], [52, 6], [54, 22]]) },
+    { d: 'M10 25 L54 25 L54 28 L10 28 Z' }] };
+  const y = mode === 0 ? 29 : mode === 1 ? 20 : 4;
+  return { vb: '0 0 64 40', paths: [
+    { d: 'M4 30 L60 30 L60 22 L4 20 Z', w: 1 },
+    { d: poly([[30, 22], [40, 6], [50, 6], [54, 22]]), w: 1 },
+    { d: 'M34 ' + y + ' L62 ' + y + ' L62 ' + (y + 3) + ' L34 ' + (y + 3) + ' Z' }] };
+}
+// THE EXHAUST under a block: nothing, a stub off every port, the ports
+// gathered into one pipe, the two-stroke's fat tuned chamber
+function iconExhaust(mode) {
+  const paths = [{ d: 'M12 8 L44 8 L44 20 L12 20 Z', w: 1 }];
+  if (mode === 1) for (const x of [17, 25, 33, 41]) paths.push({ d: 'M' + x + ' 20 L' + x + ' 30', w: 2.4 });
+  if (mode === 2) paths.push({ d: 'M17 20 Q19 30 30 31 M25 20 Q26 28 30 31 M33 20 Q32 28 30 31 M41 20 Q40 30 30 31', w: 1.6 },
+                             { d: 'M30 31 L58 33', w: 2.4 });
+  if (mode === 3) paths.push({ d: 'M24 20 Q24 28 30 29', w: 2 },
+                             { d: 'M30 26 Q42 23 52 28 Q42 35 30 32 Z' },
+                             { d: 'M52 30 L62 30', w: 1.6 });
+  // the ejector stubs: short pipes swept back off the side, in pairs
+  if (mode === 4) for (const x of [16, 22, 32, 38]) paths.push({ d: 'M' + x + ' 20 L' + (x + 5) + ' 27', w: 2.4 });
+  return { vb: '0 0 64 40', paths };
+}
+// THE LEG, bare or under its streamline shroud
+function iconLegFair(mode) {
+  const paths = [{ d: 'M32 30 a7 7 0 1 0 0.1 0', w: 1 }];
+  if (mode) paths.push({ d: 'M28 4 Q26 14 29 24 L35 24 Q38 14 36 4 Z' });
+  else paths.push({ d: 'M32 4 L32 24', w: 2.4 });
+  return { vb: '0 0 64 40', paths };
+}
+// THE STEERING, the wheel seen from above: fixed (straight, no link), linked
+// (turned, a rod to the pedal), castor (turned, trailing behind its pivot)
+function iconSteer(mode) {
+  const box = (cx, cy, a) => {
+    const c = Math.cos(a), s = Math.sin(a);
+    return poly([[-3, -8], [3, -8], [3, 8], [-3, 8]]
+      .map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c]));
+  };
+  if (mode === 0) return { vb: '0 0 64 40', paths: [
+    { d: box(32, 20, 0) }, { d: 'M20 20 L44 20', w: 1 }] };
+  if (mode === 1) return { vb: '0 0 64 40', paths: [
+    { d: box(24, 20, 0.45) }, { d: 'M27 20 L52 20', w: 1 },
+    { d: 'M52 14 L56 14 L56 26 L52 26 Z', w: 1 }] };
+  return { vb: '0 0 64 40', paths: [
+    { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
+    { d: box(37, 24, 0.4) }] };
+}
+// THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
+// tundra's fat round balloon, a slim one — each round its rim
+function iconCarcass(mode) {
+  const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
+    ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
+  const rx = mode === 1 ? 17 : mode === 2 ? 5 : 9;
+  const ry = mode === 1 ? 17 : 15;
+  return { vb: '0 0 64 40', paths: [{ d: ell(rx, ry) },
+    { d: 'M' + P2(32 - Math.min(rx - 2, 6), 14) + ' L' + P2(32 + Math.min(rx - 2, 6), 14) +
+         ' L' + P2(32 + Math.min(rx - 2, 6), 26) + ' L' + P2(32 - Math.min(rx - 2, 6), 26) + ' Z', w: 1 }] };
 }
 
 // ---------------------------------------------------------------------------
@@ -779,6 +934,25 @@ function designPresetIndex(name) {
 //   options  [{ value, label, icon, note?, writes?, inactive?, def? }]
 //            `def: true` marks the option that IS the current sole live
 //            state and therefore writes nothing (the mount's 'nose').
+//            G2760: `hide(P)` leaves an option off the grid in a state where
+//            it means nothing (it still lights when it is what P holds);
+//            `after()` runs once the writes are in, before the build — a
+//            door into a layer that sizes on the next build (the cowl presets)
+//   twin     (G2760) the panel rows this tile IS. The editor draws the tile
+//            in the first of those rows' slots, shows/hides it by that row's
+//            own rules, and never draws the rows — one control per choice
+//            (the user: "hunt for redundancy between icons and lists ... we
+//            should remove the drop-down equivalent options"). GATE DESIGN
+//            holds every twin key real and written by the tile.
+//   slot     (G2760) a part's detail, drawn only in its twin's slot — never
+//            in the Custom-build grid nor at the head of a column
+//   grid     false: a head-of-column tile the Custom-build grid leaves out
+//   when(P)  the head tile shows only while this holds (twins follow their
+//            row's own rules instead)
+//
+// ONE CLICK APPLIES (G2760, the user: "all buttons should work the same,
+// click and apply, at once"). The starter's second click is gone from the
+// renderer; what stays of the starter contract is the one-step UNDO.
 //
 // NOT ROWS, by ruling:
 //   name             the save-slot name IS meta.name (G65, garage.js — a
@@ -870,7 +1044,7 @@ const DESIGN_ROWS = [
   // is a migration, renaming the LABEL is a string — §5.3's own ruling). The
   // label is the shape, not the mechanism.
   { key: 'mirror', label: 'Body & deck', kind: 'discriminator',
-    group: 'cabin', status: 'live',
+    group: 'cabin', status: 'live', twin: ['mirror'],
     help: 'what the fuselage top does behind the cockpit',
     read: P => Math.round(P.mirror),
     options: [
@@ -900,7 +1074,7 @@ const DESIGN_ROWS = [
 
   // ---- structure ----------------------------------------------------------
   { key: 'intCons', label: 'Construction', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['intCons'],
     help: 'what the aeroplane is made of; each surface can override later',
     read: P => Math.round(P.intCons),
     options: [
@@ -923,7 +1097,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['boomStyle'],
     help: 'the taper section stays its own switch on the slider',
     read: P => Math.round(P.boomStyle),
     options: [
@@ -940,7 +1114,7 @@ const DESIGN_ROWS = [
   // boom"): single, or two booms of the chosen construction off the wing,
   // a fin each, the stab between them
   { key: 'booms', label: 'Booms', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['boomTwin'],
     help: 'two booms leave the wing; the pod ends at the bulkhead',
     read: P => +P.boomTwin ? 'twin' : 'single',
     options: [
@@ -958,7 +1132,7 @@ const DESIGN_ROWS = [
   // because with the skin culled the drawn truss is the interior pass's
   // (nothing else draws a member). JOINED: fuselage.covering.
   { key: 'covering', label: 'Covering', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['skinOn'],
     help: 'an open frame flies lighter and draggier — the truss is the airframe',
     read: P => (P.skinOn == null || +P.skinOn) ? 'skin' : 'open',
     options: [
@@ -989,7 +1163,7 @@ const DESIGN_ROWS = [
 
   // ---- wing ---------------------------------------------------------------
   { key: 'wgPos', label: 'Wing position', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgPos'],
     read: P => Math.round(P.wgPos),
     options: [
       { value: 0, label: 'High', icon: iconFront('high'),
@@ -1005,7 +1179,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'wgBrace', label: 'Bracing', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgBrace'],
     help: 'cantilever buys a real spar box; struts buy their drag',
     read: P => Math.round(P.wgBrace),
     options: [
@@ -1023,21 +1197,20 @@ const DESIGN_ROWS = [
   // arm + seed contract (G132): the seed is a one-shot the panel offers,
   // never a second home for the rows.
   { key: 'planes', label: 'Wings', kind: 'discriminator',
-    group: 'wing', status: 'live', arm: true,
+    group: 'wing', status: 'live', twin: ['w2On'], arm: true,
     help: 'a second plane is a real aeroplane: its truss braces both wings',
-    read: P => !+P.w2On ? 'mono'
-             : (+P.w2Span < 0.8 * +P.wgSpan ? 'sesqui' : 'biplane'),
+    // G3871 (the user, 29 Oct: "I'm not sure we need the 2 options for bi plane and sesquiplane, now that we can
+    // freely set the size of each wing individually"): two planes are ONE option; a sesquiplane is a biplane whose
+    // second span the builder set short (the 'sesqui' design keeps its own spans through over.cage)
+    read: P => !+P.w2On ? 'mono' : 'biplane',
     options: [
       { value: 'mono', label: 'Monoplane', icon: iconFront('high'),
         writes: { cage: { w2On: 0 } } },
-      // the option's own fact is the lower span's RATIO to the upper's (that
-      // is what "biplane" vs "sesquiplane" means, and what `read` derives
-      // it from), so the span it writes is a real write, armed — a custom
-      // equal-or-longer lower plane is kept by max()
+      // the second plane's span is the builder's own row: kept as set, the first plane's when it has none
       { value: 'biplane', label: 'Biplane', icon: iconFront('parasol', 'none', { second: 1 }),
-        note: 'two equal planes, wires and N struts',
+        note: 'two planes, each sized on its own; wires and N struts',
         writes: { cage: { w2On: 1,
-                          w2Span: P => Math.max(+P.w2Span || 0, +(0.8 * +P.wgSpan).toFixed(2)) } },
+                          w2Span: P => +P.w2Span > 0 ? +P.w2Span : +P.wgSpan } },
         seed: { cage: {
           // (biplane audit, 2026-09-21: the seed follows the BAND — a low
           // or mid first plane keeps its band and gets a parasol over it;
@@ -1052,19 +1225,6 @@ const DESIGN_ROWS = [
           wgAilOn: P => Math.round(P.wgPos) === 2 ? 1 : 0,
           w2AilOn: P => Math.round(P.wgPos) === 2 ? 0 : 1,
           bpInter: 0, bpWires: 1, bpCabane: 0 } } },
-      { value: 'sesqui', label: 'Sesquiplane', icon: iconFront('parasol', 'none', { second: 0.7 }),
-        note: 'a short lower plane under a long upper',
-        writes: { cage: { w2On: 1, w2Span: P => +(0.72 * +P.wgSpan).toFixed(2) } },
-        seed: { cage: {
-          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : Math.round(P.wgPos) === 1 ? 1 : 3,
-          wgParaH: 0.45,
-          w2Pos: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? 0 : 2,
-          w2ParaH: 0.45,
-          w2Stagger: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? -0.35 : 0.35,
-          w2Chord: P => +(0.80 * +P.wgChord).toFixed(2),
-          w2ChordTip: P => +(0.80 * +P.wgChordTip).toFixed(2), w2Tip: P => P.wgTip,
-          wgAilOn: 1, w2AilOn: 0,
-          bpInter: 0, bpWires: 1, bpCabane: 0 } } },
     ] },
 
   // G140: THE PLANFORM ROW IS RETIRED (the user: "retire this option from
@@ -1076,23 +1236,75 @@ const DESIGN_ROWS = [
   // G132: one key, faithful read, nothing destroyed — that is a
   // discriminator's contract, whatever a tip's flavour text says
   { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgTip'],
     read: P => Math.round(P.wgTip),
+    // G2820: endplate and drooped APPENDED (the index is the saved value)
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
-                    'winglet'].map((k, i) => ({
+                    'winglet', 'endplate', 'drooped'].map((k, i) => ({
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
-      icon: iconTip(k), writes: { cage: { wgTip: i } } })) },
+      icon: iconTip(k), writes: { cage: { wgTip: i } },
+      ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
 
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgFlapType'],
     read: P => Math.round(P.wgFlapType),
-    options: () => ['none', 'plain', 'slotted', 'fowler'].map((k, i) => ({
-      value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
-      icon: iconFlap(k), writes: { cage: { wgFlapType: i } } })) },
+    // (the split flap, the Spitfire's, 27 Oct: the physics had it, the tile did not; its value is its own
+    // index in GEN_FLAPS, as the row's)
+    options: () => ['none', 'plain', 'slotted', 'fowler', 'split'].map(k => {
+      const i = Math.max(0, Object.keys(gFlaps() || {}).indexOf(k));
+      return { value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
+               icon: iconFlap(k), writes: { cage: { wgFlapType: i } } }; }) },
+
+  // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
+  // Every device off by default; each tile writes its one cage row. The
+  // shape panel's 'STOL devices' group carries the spans. G2823 (STOL-WING-2,
+  // G2760's rule): each is its row's TWIN - the tiles stand in the row's slot
+  // on the wing's panel (one control per choice) and in the Custom-build grid.
+  { key: 'wgSlat', label: 'Leading edge', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgSlat'],
+    help: 'a slat lets the wing fly to a higher angle before it stalls',
+    read: P => Math.round(P.wgSlat || 0),
+    options: () => ['none', 'slot', 'auto'].map((k, i) => ({
+      value: i, label: (((typeof GEN_SLATS !== 'undefined' ? GEN_SLATS : W.GEN_SLATS) || {})[k] || { name: k }).name,
+      icon: iconSlat(k), writes: { cage: { wgSlat: i } },
+      ...(i && stolLock('slat') ? { inactive: stolLock('slat') } : {}) })) },
+  { key: 'wgVG', label: 'Vortex generators', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgVG'],
+    read: P => Math.round(P.wgVG || 0),
+    options: () => [['none', 0], ['VG row', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('vg', v), writes: { cage: { wgVG: v } },
+      ...(v && stolLock('vg') ? { inactive: stolLock('vg') } : {}) })) },
+  { key: 'wgFence', label: 'Wing fences', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgFence'],
+    read: P => Math.round(P.wgFence || 0),
+    options: () => [['none', 0], ['one a side', 1], ['two a side', 2]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('fence', v), writes: { cage: { wgFence: v } },
+      ...(v && stolLock('fences') ? { inactive: stolLock('fences') } : {}) })) },
+  { key: 'wgCuff', label: 'Leading-edge cuff', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgCuff'],
+    read: P => Math.round(P.wgCuff || 0),
+    options: () => [['none', 0], ['outboard cuff', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('cuff', v), writes: { cage: { wgCuff: v } },
+      ...(v && stolLock('cuff') ? { inactive: stolLock('cuff') } : {}) })) },
+  { key: 'wgDroop', label: 'Drooping ailerons', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgDroop'],
+    help: 'the ailerons go down with the flap lever',
+    // G2823: the row is an index into GEN_STOL.droopSteps (0, 10, 20 deg of a plain flap's 40)
+    read: P => Math.round(+P.wgDroop || 0),
+    options: () => [['no droop', 0], ['10 deg with flaps', 1], ['20 deg with flaps', 2]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('droop', v), writes: { cage: { wgDroop: v } },
+      ...(v && stolLock('droop') ? { inactive: stolLock('droop') } : {}) })) },
+  { key: 'wgFowlerGrow', label: 'Fowler area growth', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgFowlerGrow'],
+    help: 'a Fowler flap that adds its chord to the wing as it runs out',
+    read: P => Math.round(P.wgFowlerGrow || 0),
+    options: () => [['camber only', 0], ['area grows', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('grow', v), writes: { cage: { wgFowlerGrow: v } },
+      ...(v && stolLock('grow') ? { inactive: stolLock('grow') } : {}) })) },
 
   // ---- propulsion ---------------------------------------------------------
   { key: 'engFamily', label: 'Powertrain family', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engPower', 'eng_arch'],
     help: 'selects into ENG_ARCH; the model list below follows it',
     read: P => [null, 'electric', 'turbine'][Math.round(P.engPower)]
              || (['flat', 'inline', 'radial', 'vee'][Math.round(P.eng_arch)] || 'flat'),
@@ -1115,9 +1327,11 @@ const DESIGN_ROWS = [
   // engine a high wing — each tile writes what it needs. The pair is the
   // ENGINES row's (count and placement are one fact).
   { key: 'engMount', label: 'Engine mount', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engMount'],
+    // G2790: a layout (4 / 5 / 6) is the Engines row's; no mount tile is lit
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
-             : Math.round(P.engMount) === 2 ? 'wingTop' : 'nose',
+             : Math.round(P.engMount) === 2 ? 'wingTop'
+             : Math.round(P.engMount) >= 4 ? null : 'nose',
     options: [
       // 2026-09-04 (the user): "pusher configs should have no cowl by
       // default, possible to manually reactivate it" — the two pushing
@@ -1185,9 +1399,9 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engMount'],
     help: 'count and placement are one choice — a twin puts them on the wing',
-    read: P => Math.round(P.engMount) === 3 ? 2 : 1,
+    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4 })[Math.round(P.engMount)] || 1,
     options: [
       // one engine: back to the nose unless a single mount is already chosen
       // ...AND THE COUNT DECIDES THE NOSE TOO, because a pair on the wing
@@ -1197,7 +1411,7 @@ const DESIGN_ROWS = [
       // reads the mount this option has just chosen, not the one before it.
       { value: 1, label: 'Single engine', icon: iconTopEngines(true, 0),
         writes: { cage: Object.assign(
-          { engMount: P => Math.round(P.engMount) === 3 ? 0
+          { engMount: P => Math.round(P.engMount) >= 3 ? 0
                          : Math.round(P.engMount || 0) },
           // an IDENTITY on every shape key when the engine is back on the
           // nose: a discriminator may decide what exists, never undo a loft
@@ -1208,16 +1422,40 @@ const DESIGN_ROWS = [
         writes: { cage: Object.assign({ engMount: 3, cw_aftMode: 1,
                                         cw_tailLen: 1.2, aeroAftOn: 1 },
                                       NOSE_AERO) } },
+      // G2790 ENGINE-CONFIGS (the user, 10 Oct: "the configuration nose
+      // engine + pusher engine (Cessna Skymaster) ... activate the 3 and 4
+      // engines configuration"). THE PUSH-PULL: the nose keeps its engine
+      // and cowl, the pod ends at the aft bulkhead where the second engine
+      // pushes, the tail rides twin booms set outboard of the rear disc
+      // (its radius and 0.30 m: the boom and a hand's clearance) — the
+      // Skymaster's own answer to "where does the tail go". Centreline
+      // thrust: an engine out yaws the aeroplane by its drag, not by a lever.
+      { value: 'pushPull', label: 'Push-pull (nose + pusher)', icon: iconTopEngines(true, 0, true),
+        note: 'one engine in the nose, one behind the cabin pushing, the tail on twin booms (the Skymaster): centreline thrust',
+        writes: { cage: { engMount: 4, cowlOn: 1, noseFinish: 0, aeroAftOn: 0,
+                          cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)),
+                          boomTwin: 1, taperOn: 1, stMount: 3, stX: 0, stCant: 0, finOn: 1,
+                          boomX: P => Math.max(+P.boomX || 1.2, 0.5 * (+P.cw_propD || 1.8) + 0.30) } } },
+      // THE THREE: the nose engine and a tractor nacelle a side (the Ford
+      // Trimotor / Ju 52) — the nose keeps its cowl, the nacelles wear the
+      // same cowl scaled to their faces with a nacelle tail
       { value: 3, label: 'Three (nose + wings)', icon: iconTopEngines(true, 2),
-        inactive: 'wing nacelles: ROADMAP P7' },
+        note: 'the nose engine and a tractor nacelle a side',
+        writes: { cage: Object.assign({ engMount: 5, cowlOn: 1, noseFinish: 0,
+                                        cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1,
+                                        cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) }) } },
+      // THE FOUR: two tractor pairs, inner and outer (the Heron / DC-4)
       { value: 4, label: 'Four (wings)', icon: iconTopEngines(false, 4),
-        inactive: 'wing nacelles: ROADMAP P7' },
+        note: 'two tractor nacelles a side, inner and outer',
+        writes: { cage: Object.assign({ engMount: 6, engNacAt: 0.30, engNacAt2: 0.62,
+                                        cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1 },
+                                      NOSE_AERO) } },
     ] },
 
   // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
   // or puller ... the same for the dual wing mounted engines")
   { key: 'engAim', label: 'Wing engines face', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engAim'],
     help: 'over the wing pushes and a pair pulls unless told otherwise',
     read: P => Math.round(P.engAim) === 1 ? 'puller'
              : Math.round(P.engAim) === 2 ? 'pusher' : 'mount',
@@ -1321,10 +1559,10 @@ const DESIGN_ROWS = [
         note: 'two canted panels, no fin — ruddervators',
         writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
                           finOn: 0 } } },
-      { value: 'twin', label: 'Twin boom',
-        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'twin' }),
-        inactive: 'needs a twin tail CARRIER, not a new tail — the one ' +
-          'empennage that is a boom question (ROADMAP-adjacent, unclaimed)' },
+      // 'Twin boom' was a greyed tile here ("needs a twin tail CARRIER") and
+      // the user read it as a stab option that did nothing: "either deleted
+      // or made to work". It works where it belongs — the Booms tile (G271
+      // seats the stab between the booms) — so it is deleted here (G2760).
     ] },
 
   // THE TAIL'S OUTLINE, AS A STARTER (TAIL CHANTIER 2 P3, TAIL-ARCHETYPES
@@ -1443,13 +1681,17 @@ const DESIGN_ROWS = [
   // never wrote it. Three options, three leg families, and the shock row
   // stays for the one family that really has a shock to choose.
   { key: 'suspension', label: 'Suspension', kind: 'starter',
-    group: 'undercarriage', status: 'live',
+    group: 'undercarriage', status: 'live', twin: ['s1Leg'],
     // G132: the join measures the drawn leg back into the spec, so the
     // mains' own rows can no longer fly a bungee wearing an oleo — the pair
     // is what _join_check proves
     pair: [{ cage: 's1Leg', spec: 'gear.suspension', via: 'join' },
            { cage: 's1_shockKind', spec: 'gear.suspension', via: 'join' }],
-    read: (P, S) => S && S.gear && S.gear.suspension || null,
+    // G2760: read off the LEG the tile writes (the join measures the same leg
+    // back into the spec), because the tile now stands in the leg row's own
+    // slot and must light whatever the row holds — a spec read lit nothing
+    // until the next join
+    read: P => ['spring', 'bungee', 'oleo'][Math.round(P.s1Leg)] || null,
     options: [
       { value: 'spring', label: 'Spring steel blade', icon: ICON.suspSpring,
         note: 'the leg IS the spring — a tapered blade off a belly saddle',
@@ -1479,6 +1721,159 @@ const DESIGN_ROWS = [
       { value: 2, label: 'Full trousers', icon: ICON.fairFull,
         writes: { cage: { s1Fair: 2, s2Fair: 2 } } },
     ] },
+
+  // ---- the part tiles (G2760) ---------------------------------------------
+  // THE BIG BUTTONS THAT TAKE A ROW'S SLOT (the user's slider review, 10 Oct:
+  // "big buttons for fin / rudder (horn balance, etc)", "the keel extension
+  // and the leading edges could be big buttons with drawings", "buttons for
+  // the type of cut" on the stabs, "exhaust should have big buttons", "a
+  // couple more big buttons, for the leg fairing, the steering and the wheel
+  // carcass. We should remove the drop-down equivalent options").
+  //
+  // Each is ONE ROW'S CHOICES AS TILES: `twin` names the row, every option
+  // writes that row's own value and nothing else, and the read is the row's
+  // value — so the tile IS the row, drawn bigger. `slot: true` keeps them out
+  // of the Custom-build grid (they are a part's detail, not a birth choice);
+  // the editor draws each one where its row was, and the row is not drawn.
+  // G2770 (the user: "The main option is nose front; either firewall or
+  // aerodynamic. this should definitely be one of the main options"): the
+  // nose part's TYPE, as tiles in its row's slot
+  { key: 'noseFrontT', label: 'Nose front', kind: 'discriminator',
+    group: 'structure', status: 'live', slot: true, twin: ['noseFinish'],
+    read: P => Math.round(P.noseFinish || 0),
+    options: [
+      { value: 0, label: 'Firewall', icon: iconNoseFront(false),
+        note: 'a flat face for an engine on the nose', writes: { cage: { noseFinish: 0 } } },
+      { value: 1, label: 'Aerodynamic', icon: iconNoseFront(true),
+        note: 'a faired, domed nose: nothing is bolted to it', writes: { cage: { noseFinish: 1 } } },
+    ] },
+  { key: 'finCutT', label: 'Fin / rudder', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finCut'],
+    read: P => Math.round(P.finCut || 0),
+    options: [
+      { value: 0, label: 'Uncut', icon: iconCut('fin', 0),
+        note: 'one sheet, no moving rudder drawn', writes: { cage: { finCut: 0 } } },
+      { value: 1, label: 'Hinge only', icon: iconCut('fin', 1),
+        note: 'the rudder hangs on a straight hinge line', writes: { cage: { finCut: 1 } } },
+      { value: 2, label: 'Horn balance', icon: iconCut('fin', 2),
+        note: 'the rudder\'s top reaches forward of the hinge', writes: { cage: { finCut: 2 } } },
+    ] },
+  { key: 'finKeelT', label: 'Keel extension', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finKeel'],
+    read: P => Math.round(P.finKeel || 0),
+    options: [
+      { value: 0, label: 'None', icon: iconFinExtra(null),
+        writes: { cage: { finKeel: 0 } } },
+      { value: 1, label: 'Keel extension', icon: iconFinExtra('keel'),
+        note: 'the fin runs on under the tail cone', writes: { cage: { finKeel: 1 } } },
+    ] },
+  { key: 'finDorsalT', label: 'Leading edge', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finDorsal'],
+    read: P => Math.round(P.finDorsal || 0),
+    options: [
+      { value: 0, label: 'Plain', icon: iconFinExtra(null),
+        writes: { cage: { finDorsal: 0 } } },
+      { value: 1, label: 'Dorsal fillet', icon: iconFinExtra('dorsal'),
+        note: 'a long low fillet runs the leading edge forward along the deck',
+        writes: { cage: { finDorsal: 1 } } },
+    ] },
+  { key: 'stCutT', label: 'Stab / elevator', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['stCut'],
+    read: P => Math.round(P.stCut || 0),
+    options: [
+      { value: 0, label: 'Uncut', icon: iconCut('stab', 0), writes: { cage: { stCut: 0 } } },
+      { value: 1, label: 'Hinge only', icon: iconCut('stab', 1), writes: { cage: { stCut: 1 } } },
+      { value: 2, label: 'Horn balance', icon: iconCut('stab', 2), writes: { cage: { stCut: 2 } } },
+    ] },
+  // THE SEAT. 'Between the booms' is the Booms tile's own seat (it writes 3
+  // with the twin booms) and only a twin-boom build shows it — on one boom
+  // it put the stab through the boom's middle (G2760, A0's ruling on the
+  // user's "make it work or delete it"). A saved 3 still loads and lights.
+  { key: 'stMountT', label: 'Stab sits', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['stMount'],
+    read: P => Math.round(P.stMount || 0),
+    options: [
+      { value: 0, label: 'On the keel', icon: iconSeat(0), writes: { cage: { stMount: 0 } } },
+      { value: 1, label: 'On the deck', icon: iconSeat(1), writes: { cage: { stMount: 1 } } },
+      { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
+      { value: 3, label: 'Between the booms', icon: iconSeat(3),
+        hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
+    ] },
+  { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',
+    group: 'propulsion', status: 'live', slot: true, twin: ['eng_exStyle'],
+    read: P => Math.round(P.eng_exStyle || 0),
+    options: [
+      { value: 0, label: 'None', icon: iconExhaust(0), writes: { cage: { eng_exStyle: 0 } } },
+      { value: 1, label: 'Stacks', icon: iconExhaust(1),
+        note: 'a short pipe off every port', writes: { cage: { eng_exStyle: 1 } } },
+      { value: 2, label: 'Collector', icon: iconExhaust(2),
+        note: 'the ports gathered into one pipe a bank', writes: { cage: { eng_exStyle: 2 } } },
+      { value: 3, label: 'Expansion', icon: iconExhaust(3),
+        note: 'the two-stroke\'s tuned chamber', writes: { cage: { eng_exStyle: 3 } } },
+      { value: 4, label: 'Ejector stubs', icon: iconExhaust(4),
+        note: 'short stubs swept back off the cowl\'s side (the Merlin\'s)', writes: { cage: { eng_exStyle: 4 } } },
+    ] },
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'FairT',
+    label: 'Fairing', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Fair'],
+    read: P => Math.round(P['s' + i + 'Fair'] || 0),
+    options: [
+      { value: 0, label: 'None', icon: ICON.fairNone, writes: { cage: { ['s' + i + 'Fair']: 0 } } },
+      { value: 1, label: 'Spat', icon: ICON.fairSpat, writes: { cage: { ['s' + i + 'Fair']: 1 } } },
+      { value: 2, label: 'Trousers', icon: ICON.fairFull, writes: { cage: { ['s' + i + 'Fair']: 2 } } },
+    ] })),
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'LegFairT',
+    label: 'Leg fairing', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'LegFair'],
+    read: P => Math.round(P['s' + i + 'LegFair'] || 0),
+    options: [
+      { value: 0, label: 'Bare', icon: iconLegFair(0), writes: { cage: { ['s' + i + 'LegFair']: 0 } } },
+      { value: 1, label: 'Streamlined', icon: iconLegFair(1),
+        writes: { cage: { ['s' + i + 'LegFair']: 1 } } },
+    ] })),
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'SteerT',
+    label: 'Steering', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Steer'],
+    read: P => Math.round(P['s' + i + 'Steer'] || 0),
+    options: [
+      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { ['s' + i + 'Steer']: 0 } } },
+      { value: 1, label: 'Linked', icon: iconSteer(1),
+        note: 'turned by the rudder pedals', writes: { cage: { ['s' + i + 'Steer']: 1 } } },
+      { value: 2, label: 'Castor', icon: iconSteer(2),
+        note: 'free to swivel, trailing its pivot', writes: { cage: { ['s' + i + 'Steer']: 2 } } },
+    ] })),
+  { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
+    read: P => Math.round(P.whProfile || 0),
+    options: [
+      { value: 0, label: 'Standard', icon: iconCarcass(0), writes: { cage: { whProfile: 0 } } },
+      { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
+        note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
+      { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
+    ] },
+
+  // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,
+  // one for each engine configuration" — one per ENGINE TYPE, the user's
+  // answer through A0). A starter: the shape is the preset's, the size is
+  // the FITTED engine's, measured on the next build by the cowl layer's own
+  // door (_cage_cowl.js COWL_PRESETS / CAGE_COWL_PRESET_NEXT — `after`), and
+  // every row is the builder's afterwards. `once`: no shape can be read back
+  // into which preset made it. `writes` is the fit mode the presets share;
+  // the rest lands through the door, and the undo takes the whole panel.
+  // Head-of-column tiles of the Cowl part (`grid: false` keeps them out of
+  // the Custom-build grid: a birth gets its cowl from its engine already).
+  { key: 'cowlPreset', label: 'Cowl preset', kind: 'starter',
+    group: 'propulsion', status: 'live', once: true, grid: false,
+    when: P => +P.cowlOn,
+    help: 'the shape for that kind of engine, sized to the one fitted',
+    read: P => null,
+    options: [['flat', 'Boxer', 'engFlat'], ['inline', 'In-line', 'engInline'],
+              ['vee', 'V engine', 'engVee'], ['faired', 'Faired V (Spitfire)', 'engVee'],
+              ['radial', 'Radial', 'engRadial'],
+              ['electric', 'Electric', 'engElectric'], ['turbine', 'Turboprop', 'engTurbine']]
+      .map(([v, label, ic]) => ({ value: v, label, icon: ICON[ic],
+        writes: { cage: { fitNose: 2 } },
+        after: () => { if (W.CAGE_COWL_PRESET_NEXT) W.CAGE_COWL_PRESET_NEXT(v); } })) },
 
   // ---- livery -------------------------------------------------------------
   // WRITE `paint`, NOT `finish` (§5.9): paint is the generated three-colour
@@ -1544,6 +1939,20 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
                     wgChordTip: P => +(+P.wgChord * 0.72).toFixed(2),
                     wgTipX: 0.30 };
 
+// G3517: the open tandem trainer's rows (the round body, both sections open, the pilot in the rear)
+// THE BODY'S COLOUR AS THE GLOBAL PAINT PICK WRITES IT (aeroskin.js aeroBaseReach, G2750): every exterior cage section
+// - the skin, the rail bands, the pillars - not `body` alone (a tint on `body` left the round body's rails in the
+// fabric's own colour on the bench). The liveries' cards spread it into finish.sections beside spec.paint.base.
+const BODY_PAINT = hex => Object.fromEntries(['body', 'taper', 'taperPanel', 'waistband', 'ceilingLoop', 'floorLoop',
+  'pillarWindow', 'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'pillarTaper'].map(k => [k, { tint: hex }]));
+const OPEN_TANDEM = {
+  aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
+  // the upper plane's centre section cut back at the trailing edge over the cockpit (GEN_CENTRE_KEYS 'cutout': the
+  // PT-17's and the DH.82A's, the way a seated occupant gets in and looks up)
+  wgCentre: 3,
+  cpOpen: 1, paxOpen1: 1, paxCount: 1, pilotRear: 1, cabOcc: 0, paxSeatZ: 0.12,
+  openCut: 0, openFore: 0.12, openAft: 0.12, openRim: 0.022, openScreen: 1, openScreenH: 0.24, openScreenRake: 38,
+};
 const ARCHETYPES = [
   { key: 'cub', kind: 'recreation', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
@@ -1597,37 +2006,277 @@ const ARCHETYPES = [
   // (the DH.82's inverted Gipsy Major had no row in the join's engine map
   // until G195; PERF STUDY chantier 0 (2026-09-15) puts the card on it -
   // the study had flagged its power numbers as not comparable)
+  // G3517 (NEW-SHAPES-1, the user 26 Oct: "Move the archetypes, the current ones are rubbish anyways"): the two
+  // tandem trainers are BORN as what they are - the round body (the aero nose's full rings to the engine face,
+  // topRound 1 over slab sides), both sections open with a coaming and a small screen ahead of each, the pilot in
+  // the REAR seat (as both types are flown solo; the panel and the controls go with them). The rows are the ones
+  // the proofs were measured and flown on (tools/newshapes_build.js, HANDOVER G3510): the keel set so a seated head
+  // stands ~21 cm over the coaming, the mains dropped for a prop clearance over FAR 23.925's 0.229 m.
   { key: 'tigermoth', kind: 'recreation', name: 'Tiger Moth-alike', note: 'wood & fabric biplane, ' +
-      'swept upper plane, lower ailerons, wires, tandem open cockpits, inverted Gipsy Major',
+      'swept upper plane, lower ailerons, wires, round turtle-deck body, tandem open cockpits flown from the rear, inverted Gipsy Major',
     sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'inline', engModel: 'DH Gipsy Major', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
-    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
-                    wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
-                    w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0 },
-            spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
+    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.37,
+                    // G3517: the front cockpit under the centre section, the rear one clear of the trailing edge (the
+                    // DH.82A's), the upper plane higher; the planes' station: measured (STEP 1 below)
+                    wgParaH: 0.58, wgDx: 0.35, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
+                    w2Pos: 2, w2Stagger: 0.56, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM,
+                    halfW: 0.54, roofHalfW: 0.42, roofY: 0.68, keelY: -0.58, waistY: 0.22, floorY: -0.32,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.63, aftKeelY: -0.42, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
+                    pilotLen: 1.04, paxLen: 1.06, s1Drop: 0.6,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
+                    aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 0.91, aeroTipH: 0.95, aeroDroop: 0.025,
+                    // MEASURED (tools/REF_MATCH.md; the user's DH.82 model, Sketchfab 'Dh82' by manilov.ap, CC-BY-4.0, its
+                    // 8.94 m span x 0.98, its length anchored at the type's 7.29 m; every station aft of the prop's plane): the body 2.3 m
+                    // shorter, its sections station by station
+                    boomLen: 3.36, cw_cowlLen: 0.85, cw_taperW: 0.45, cw_taperH: 0.84, engY: 0.21, frCabTopY: 0.64,
+                    frCabBotY: -0.6, frCabWaistW: 0.525, frCabBotW: 0.5, frPaxTopY: 0.66, frPaxBotY: -0.52,
+                    frPaxWaistW: 0.495, frPaxBotW: 0.47, frBoomWaistW: 0.485, frBoomTopW: 0.38, frBoomBotW: 0.45,
+                    tailRoofY: 0.38, tailKeelY: 0.03, tailHalfW: 0.12, boomMidPinch: 1, w2Dy: 0.07,
+                    cw_keelSweep: 0.04, s1X: 0.69, s1R: 0.22, wgDihedral: 3, w2Dihedral: 4,
+                    // the tail outlines fitted (1 - IoU 0.15 / 0.11); the mains: STEP 3 below
+                    s1Z: 2.08, s1AxZ: -0.29, finDorsal: 0, finHeight: 0.8, finChord: 0.85, finChordTip: 1.48,
+                    finSweep: 27.5, finHinge: 0.255, finTipZ: -0.37, finTipY: -0.225, finAftZ: 0.125, finAftY: -0.78,
+                    finBaseZ: -0.5, finBaseY: 0.345, finMidY: -0.155, finUY: -0.19, finLEZ: -0.315, finLEY: -0.02,
+                    finShoulderZ: 0.285, finShoulderY: -0.03, finTopY: 0.085, finTERoot: 0.17, finTEU: -0.175,
+                    finTEMid: -0.025, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0.55, finSharpShoulder: 0.15,
+                    finSharpLE: 1.45, finRootFwd: 0, stTipZ: -0.6, stTipY: -0.675, stAftZ: -0.185, stAftY: -0.71,
+                    stBaseZ: 0.14, stBaseY: 0.01, stMidY: -0.455, stUY: -0.18, stRootFwd: 0, stLEZ: -0.575,
+                    stLEY: -0.15, stShoulderZ: 0.445, stShoulderY: -0.08, stTopY: 0.175, stTERoot: 0.005,
+                    stTEU: -0.195, stTEMid: -0.2, stSharpTip: 0, stSharpAft: 2.25, stSharpBase: 0,
+                    stSharpShoulder: 0.85, stSharpLE: 1.75, stSpan: 1.36, stChord: 1.36, stChordTip: 0.75,
+                    stSweep: 0, stHinge: 0.08,
+                    // STEP 1/2 (prop datum, 27 Oct): the wings 0.44 aft and both swept as measured (LE within 1 cm), the keel
+                    // and deck lines straight to the post, the boom full in plan and closing late (its own plan pinch)
+                    w2TipX: 0.415, boomMidPinchW: 1.55,
+                    // the tips by measurement (fit_tips: clipped 0.093 / 0.108 against rounded 0.135 / 0.147; the type's tip rounds
+                    // its trailing corner, a shape the garage does not offer - the closest taken)
+                    wgTip: 1, w2Tip: 1,
+                    // STEP 3, the gear (prop datum): the V from the lower longeron 1.02 aft (the type's front strut) back to its rear
+                    // leg, the wheel exact (1 mm / 4 mm); the split axle, as the type's hinges on a bracket under the belly
+                    s1Root: 1, s1_linkSpread: 1,
+                    // STEP 3, the cowl, in the user's order (27 Oct): waist and sizes fitted to the nose (fitNose); the top squarer,
+                    // the bottom rounder; the barrel narrowed to the type's tapering nose and DROOPED to it (the face 0.21 under the thrust
+                    // line, the inverted Gipsy's); no front inlet (the type's nose cap is closed); engY puts the thrust line back
+                    cw_lidRise: -0.056, cw_faceRise: 0.006, cw_lidMode: 0, cw_sqFrontTop: 0.62, cw_sqFrontBot: 0.8,
+                    cw_apMode: 0,
+                    // the face by eye against the reference's head-on view: a tombstone - round on top, straight sides, flat bottom
+                    cw_lidSqTop: 0.62, cw_lidSqBot: 0.8 },
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct)
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): an RAF elementary trainer - trainer yellow
+            // overall, the type A roundel (blue / white / red) on the fuselage and on all four wing panels, the fin
+            // flash (red leading, white, blue), the serial in black on the rear fuselage. No trim line.
+            spec: { fuel: { litres: 87 },                                              // 19 imp gal, the centre-section tank
+                    paint: { job: 'full', sweep: 0, base: 0xf2c437, trim: 0xf2c437 },
+                    finish: { decals: {
+                      regL: 4.00, regC: 0.04, regH: 0.24, regCol: 0x20211f, regOutOn: 0,
+                      // the fuselage roundel, between the rear cockpit and the serial
+                      m1On: 1, m1Pat: 8, m1A: 0x23306b, m1B: 0xf4f2ea, m1D: 0xb5342a, m1P: 1, m1Q: 0.667, m1R: 0.333,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.70, m1C: 0.0, m1W: 0.62, m1H: 0.62,
+                      // the wing roundels, one on each panel (field: root to tip, leading to trailing edge)
+                      m2On: 1, m2Pat: 8, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 1, m2Q: 0.667, m2R: 0.333,
+                      m2Tgt: 4, m2Mode: 0, m2L: 3.10, m2C: 0.68, m2W: 1.00, m2H: 1.00,
+                      // the fin flash: three upright bands (red leading, white, blue) on the fin alone (the fin target),
+                      // stood in the side view on the fixed fin ahead of the rudder post
+                      m3On: 1, m3Pat: 9, m3A: 0xb5342a, m3B: 0xf4f2ea, m3D: 0x23306b, m3P: 3, m3Q: 3, m3R: 0,
+                      m3Tgt: 6, m3Mode: 1, m3L: 2.50, m3C: 0.70, m3W: 0.50, m3H: 0.60 },
+                      // trainer yellow on the planes and the tail (the fabric's own cream otherwise)
+                      sections: { ...BODY_PAINT(0xf2c437), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 }, stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: 'T7230' } } } },
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
   // +156 %, V75 +35 % against the type - the engine, not the airframe)
   { key: 'stearman', kind: 'recreation', name: 'Stearman-alike', note: 'radial biplane trainer, ' +
-      'oleo gear, wires and N struts, lower ailerons',
+      'oleo gear, wires and N struts, lower ailerons, round turtle-deck body, tandem open cockpits flown from the rear',
     sel: { class: 'n23', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'radial', engModel: 'Continental W-670', engMount: 'nose',
            prop: 'alu2',                       // chantier 2: a 2.5 m two-blade metal, not the cage's 1.91
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
-           finArch: 'broad', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+           // G3517: the Cub's rounded fin - the 'broad' one read vTaper 0.24 against the flown 0.35 floor (a join
+           // ERRS row on the card itself)
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
-                    wgDx: 0.60,      // wings forward: the R-985 sits on the nose (CG 22 % MAC, margin 21 %)
-                    wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
-                    w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5 },
-            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
+                    // G3517: the cockpits stand AFT of the upper wing as on the PT-17 (the front opening under its trailing
+                    // edge, the rear clear of it - the bench's first picture had the wing over both and the screens
+                    // through its skin): a long forward deck (aeroWsLen), the wings 0.15 forward, the upper plane higher
+                    wgDx: 0.55,      // (the planes' station now follows the shorter forward deck: measured below)
+                    wgParaH: 0.44, w2Span: 9.5, w2Chord: 1.52, w2ChordTip: 1.52,
+                    w2Pos: 2, w2Stagger: 0.66, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
+                    // the PT-17's Continental radial runs UNCOWLED (the user, 27 Oct: "remove the cowl, there's a proper
+                    // option for that" - the cowl part's own switch)
+                    cowlOn: 0,
+                    ...OPEN_TANDEM,
+                    halfW: 0.74, roofHalfW: 0.59, roofY: 0.76, keelY: -0.63, waistY: 0.28, floorY: -0.30,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.76, aftKeelY: -0.5, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
+                    boomMidPinch: 1.2,    // (the class's 0.86 pod pinch sagged the deck and lifted the belly mid-boom)
+                    pilotLen: 1.19, paxLen: 1.23,
+                    // the mains measured (below): the wheel's centre 0.75 m aft of the firewall and 1.24 under the thrust
+                    // line on R 0.285 (G3517's 0.80 drop / 2.30 station stood a 0.20 wheel 0.67 m further aft - the
+                    // prop strike it cured is re-checked by the flown fixture)
+                    s1Drop: 0.69, s1Z: 2.2,
+                    aeroWsLen: 1.18, aeroLen: 0.55, aeroTipW: 0.78, aeroTipH: 0.72, aeroDroop: 0.0,
+                    // MEASURED (tools/REF_MATCH.md; the user's PT-17 model, Sketchfab 'Boeing Stearman PT.17' by helijah,
+                    // CC-BY-4.0, its 9.80 m span x 1.002): the body 0.87 m shorter, the planes 0.6 m forward and the upper
+                    // 0.3 m lower, the wider oval body, bigger wheels (R 0.285) further out, the oleo legs on the fuselage
+                    // side, and the tail outlines fitted (1 - IoU 0.16 / 0.16 against a reference merged by material)
+                    boomLen: 3.5, w2Dy: 0.21, wgDihedral: 0.5, w2Dihedral: 0.5, s1R: 0.285, s1X: 0.87, s1AxZ: 0.23,
+                    s1Root: 1, frBoomWaistW: 0.65, frBoomTopW: 0.52, frBoomBotW: 0.6, tailRoofY: 0.5,
+                    tailKeelY: -0.15, tailHalfW: 0.04, s1_oleoAng: 60, finDorsal: 0, finKeel: 1, finHeight: 0.97,
+                    finChord: 1.04, finChordTip: 0.57, finSweep: -10, finHinge: 0.205, finTipZ: -0.41,
+                    finTipY: -0.645, finAftZ: -0.1, finAftY: -0.85, finBaseZ: -0.11, finBaseY: 0.41,
+                    finMidY: -0.42, finUY: 0.2, finLEZ: -0.03, finLEY: -0.2, finShoulderZ: 0.5,
+                    finShoulderY: -0.055, finTopY: 0.015, finTERoot: -0.25, finTEU: -0.4, finTEMid: -0.195,
+                    finSharpTip: 0, finSharpAft: 1.05, finSharpBase: 0.2, finSharpShoulder: 0.85, finSharpLE: 1.9,
+                    finRootFwd: -0.2, stTipZ: 0.23, stTipY: -0.495, stAftZ: 0.05, stAftY: -0.66, stBaseZ: 0.29,
+                    stBaseY: 0.19, stMidY: -0.8, stUY: -0.115, stRootFwd: 0, stLEZ: -0.69, stLEY: 0.125,
+                    stShoulderZ: 0.265, stShoulderY: -0.095, stTopY: 0.26, stTERoot: 0.055, stTEU: 0.125,
+                    stTEMid: 0.05, stSharpTip: 0, stSharpAft: 0, stSharpBase: 0.55, stSharpShoulder: 1.6, stSharpLE: 0,
+                    stSpan: 1.51, stChord: 1.57, stChordTip: 0.69, stSweep: -10, stHinge: 0.25,
+                    stY: 0.54,
+                    // re-anchored on the published PT-17 (the user: 'sources prevail'): 7.54 m long, the lower plane 31 ft 2 in
+                    engY: -0.08,
+                    s2Z: 0.5, s2Drop: 0.16,
+                    wgTip: 4 },     // the tailplane 0.16 m over the thrust line, on the reference's
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct: "get them out
+            // of the cockpit area"): the default 2.10 m aft of the round body's forward datum lands on the cockpits
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): a US Army PT-17 of 1940 - true blue fuselage,
+            // chrome yellow planes and tail, the rudder's blue upright band at the hinge and the thirteen red and white
+            // stripes aft of it, the white star with its red centre in the blue disc on the wings, the serial in black
+            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },    // 46 US gal in the upper centre section
+                    // the body's blue: the paint's base, and BODY_PAINT's sections (the global pick's reach)
+                    paint: { job: 'full', sweep: 0, base: 0x23306b, trim: 0x23306b },
+                    finish: { decals: {
+                      regL: 4.40, regC: 0.05, regH: 0.26, regCol: 0xf4f2ea, regOutOn: 0,   // white on the blue
+                      // the rudder's stripes, lying (across the layer), on the fin alone, in the side view
+                      m1On: 1, m1Pat: 9, m1A: 0xb5342a, m1B: 0xf4f2ea, m1D: 0xf4f2ea, m1P: 13, m1Q: 2, m1R: 1,
+                      m1Tgt: 6, m1Mode: 1, m1L: 3.60, m1C: 0.62, m1W: 0.44, m1H: 1.56,
+                      // the blue band at the rudder's hinge
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0x23306b, m2D: 0x23306b, m2P: 1, m2Q: 1, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 3.29, m2C: 0.62, m2W: 0.16, m2H: 1.56,
+                      // the wing stars (field: root to tip, leading to trailing edge)
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.22, m3S: 1,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.55, m3C: 0.76, m3W: 1.20, m3H: 1.20 },
+                      sections: { ...BODY_PAINT(0x23306b), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 },
+                                  stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: '40-1749' } } } },
+  // NEW-SHAPES-1 (the user, 27 Oct: "the stearman and the moth are very similar, can you try a sopwith camel as a
+  // third proof? And be careful on matching the actual dimensions as best you could?"): the Sopwith Camel F.1 - the
+  // round body, ONE open cockpit under the upper plane's trailing edge, two equal 8.53 x 1.37 m planes, the upper flat,
+  // the lower at 5 deg and 0.46 m aft, four ailerons, the Clerget 9B rotary up front (its own catalogue entry).
+  // THE SHAPE IS MEASURED, NOT GUESSED (the user's reference model, 27 Oct: "here's a reference 3d model ... once
+  // scaled, it should be the source of all the measurements you need" - Sketchfab 'Sopwith' by stealth86, CC-BY-4.0,
+  // scaled to the 8.53 m span): every number below was read off it in its terms - metres AFT OF THE FIREWALL (the
+  // cowl's back face) and ABOVE THE THRUST LINE - and matched on the built aeroplane by tools/ref_match (the method:
+  // tools/REF_MATCH.md). Every row is a garage row; nothing here is out of a hand's reach.
+  { key: 'camel', kind: 'recreation', name: 'Camel-alike', note: 'rotary scout biplane, ' +
+      'equal planes, flat upper, lower dihedral, one open cockpit, round body',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 2,      // wood: the spruce and ash box girder
+           boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'radial', engModel: 'Clerget 9B', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
+    over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0, cw_propD: 2.59,   // the 8 ft 6 in wooden propeller
+                    w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 3,   // the reference measures 2.8 deg; the row steps 0.5 (the F.1 drawings say 5)
+                    w2Pos: 2, w2Stagger: 0.48, wgAilOn: 1, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
+                    // the upper centre section NOT cut (the user's review)
+                    wgCentre: 0,
+                    // THE WINGS (reference: upper LE 0.08 m AHEAD of the firewall at 1.19 m over the thrust line, lower LE
+                    // 0.41 m aft with its root in the fuselage's bottom line, the gap 1.5 m)
+                    wgDx: 0.4, wgParaH: 0.58, w2Dy: 0.15,   // wgDx: the row's step nearest the reference (the LE 2.6 cm
+                    // aft; the envelope opened 27 Oct no longer holds it); the stagger takes the lower plane to its own station
+                    // THE BODY (cage units, x 0.745 = m; the reference station by station: 1.02 m deep and 0.68 m wide at
+                    // the cockpit, 1.05 m wide at the cowl, the top 0.61 over the thrust line, the bottom flat 0.41 under it
+                    // to the cockpit, then ONE straight taper top and bottom to the tail post 4.50 m aft - the user, 27 Oct:
+                    // "keep the continuous line front to back")
+                    halfW: 0.67, roofHalfW: 0.55, roofY: 0.945, keelY: -0.425, waistY: 0.22, floorY: -0.25,
+                    pilotLen: 1.15, frCabTopY: 0.945, frCabBotY: -0.425, frCabWaistW: 0.45, frCabTopW: 0.37, frCabBotW: 0.45,
+                    paxLen: 0.54, taperOn: 0,
+                    aftRoofY: 0.88, aftKeelY: -0.37, frBoomWaistW: 0.42, frBoomTopW: 0.34, frBoomBotW: 0.42,
+                    boomLen: 3.87, boomMidPinch: 1.25,
+                    tailRoofY: 0.405, tailKeelY: -0.05, tailHalfW: 0.06,
+                    // THE NOSE: the deck rises behind the cowl into the gun hump (the user's sketch), the front ring meets the
+                    // cowl at the top and the sides, the bottom stays flat above the cowl's lower lip, and the sections round
+                    // off toward the front ("blends from rounded rectangle to more fully rounded in the nose section")
+                    // ONE LINE, FEW EXCEPTIONS (the user, 27 Oct: "the nose part of your fuselage has become a little ugly
+                    // with time ... rework that one with as little exceptions as possible"): the cockpit ring carries the
+                    // body's full width, the front holds it to the cowl (no flare, no windscreen-frame widening), and the
+                    // cockpit and boom frames take the one taper aft
+                    aeroWsLen: 0.50, aeroLen: 0.24, aeroTipW: 1.04, aeroTipH: 0.92, aeroDroop: 0.065, aeroRound: 0.5,
+                    // THE COWL: free of the fuselage (it is bigger than the nose it sits on - "in reality, they don't fit in
+                    // size"), ONE diameter fore to aft ("the cowl does not extend in diameter fore"), 1.10 m across (the
+                    // reference's 1.05, and the Clerget's heads need 1.06 + clearance: 0 vertices through), round about the
+                    // thrust line, so it laps the nose's top and sides and hangs below its bottom ("where it hangs lower");
+                    // the engine 6 cm under the face's centre carries the thrust line there
+                    fitNose: 0, cw_aftW: 0.555, cw_aftH: 0.555, cw_deckH: 0.90, cw_keelH: 1.10, cw_waist: -0.10,
+                    cw_taperW: 1.0, cw_taperH: 1.0, cw_cowlLen: 0.34, engY: -0.06,
+                    // the engine drawn back into the barrel (the stand-off the engine bench calls fore / aft): 0 vertices of
+                    // the Clerget outside the cowl, measured
+                    eng_mountGap: 0.40,
+                    // THE TAIL, fitted to the reference's outline (1 - IoU 0.070 side, 0.063 plan; tools/ref_match/fit_tail.js): a small fin and a big D
+                    // rudder hinged on the tail post, no dorsal; a square-ended tailplane with rounded tips, the elevators
+                    // notched at the root. Drawn areas 0.70 m2 (fin + rudder; the Camel's 0.28 + 0.455) and 2.22 m2 (the
+                    // Camel's 1.30 + 0.98). The card states the macro rows, so the birth's seed keeps them.
+                    finDorsal: 0,
+                    finHeight: 0.5, finChord: 1.11, finChordTip: 1.17, finSweep: 14.5, finHinge: 0.21,
+                    finTipZ: -0.37, finTipY: -0.61, finAftZ: 0.075, finAftY: -0.405, finBaseZ: -0.155, finBaseY: -0.045,
+                    finMidY: -0.8, finUY: -0.1, finLEZ: -0.71, finLEY: -0.055, finShoulderZ: 0.425, finShoulderY: -0.1,
+                    finTopY: 0.07, finTERoot: -0.22, finTEU: -0.23, finTEMid: -0.215, finRootFwd: -0.05,
+                    finSharpTip: 0, finSharpAft: 0.3, finSharpBase: 0, finSharpShoulder: 0.1, finSharpLE: 1.15,
+                    stSpan: 1.08, stChord: 1.08, stChordTip: 0.75, stSweep: 0, stHinge: 0.16,
+                    stTipZ: -0.07, stTipY: -0.65, stAftZ: -0.275, stAftY: -0.595, stBaseZ: -0.03, stBaseY: 0.005,
+                    stMidY: -0.12, stUY: -0.14, stLEZ: -0.8, stLEY: -0.2, stShoulderZ: 0.43, stShoulderY: 0.095,
+                    stTopY: 0.04, stTERoot: 0.315, stTEU: -0.185, stTEMid: -0.155, stRootFwd: 0,
+                    stSharpTip: 1.55, stSharpAft: 0.9, stSharpBase: 0.85, stSharpShoulder: 0, stSharpLE: 0.9,
+                    stY: 0.535,     // the tailplane 0.24 m over the thrust line, on the reference's (x 0.745 = m)
+                    // THE GEAR (reference: the wheels' centre 0.35 m aft of the firewall, their bottom 1.46 m under the
+                    // thrust line): big thin wheels (700 x 75 mm, covered) on a V each side and one cross axle, bungee at
+                    // the apexes
+                    // (the wheel placed by itself - s1X / s1AxZ / s1Drop - and the V's roots by the station and its base: the
+                    // user, 27 Oct: "you can manipulate the suspension anchor point and the wheel separately")
+                    // the V on the FUSELAGE (s1Root 1: its feet on the lower longerons, 0.07 and 0.87 m aft of the firewall
+                    // - the low-wing rule would bolt it to the lower plane), the wheel then put back on its own spot
+                    s1Root: 1, s1Z: 2.01, s1_linkSpread: 0.81, s1_linkAng: 43,
+                    s1X: 0.525, s1AxZ: -0.12, s1Drop: 0.70,
+                    s1R: 0.35, whProfile: 2, whBulge: 0.85, whRim: 0, whCap: 2,
+                    // the cross axle and the X of bracing wires between the two V's (the reference's)
+                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1,
+                    // the tips chosen by tools/ref_match/fit_tips.py (elliptic: the closest the garage has, both planes)
+                    wgTip: 3, w2Tip: 3 },
+            // THE LIVERY (27 Oct, the user: "a proper livery for each" - the bands chosen by the user): the PC10 khaki
+            // planes and tail, the fuselage aft of the cockpit in yellow and dark grey bands, the cowl and the front panels
+            // grey, the rudder's RFC tricolour (blue leading, white, red), the type A roundels on the planes
+            spec: { fuel: { litres: 136 },
+                    paint: { job: 'full', sweep: 0, base: 0x8a8d8f, trim: 0x8a8d8f },
+                    finish: { decals: {
+                      regL: 3.75, regC: 0.10, regH: 0.16, regCol: 0xf4f2ea, regOutOn: 0,
+                      // the bands, upright, wrapped round the rear fuselage (field: metres aft of the firewall)
+                      m1On: 1, m1Pat: 9, m1A: 0xf2c437, m1B: 0x3a3d40, m1D: 0x3a3d40, m1P: 8, m1Q: 2, m1R: 0,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.35, m1C: 0.0, m1W: 1.90, m1H: 3.00,
+                      // the rudder's tricolour on the fin alone, aft of the post, in the side view
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 3, m2Q: 3, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 2.33, m2C: 0.40, m2W: 0.62, m2H: 1.10,
+                      // the wing roundels
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.333,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.20, m3C: 0.68, m3W: 1.05, m3H: 1.05 },
+                      sections: { ...BODY_PAINT(0x8a8d8f), cowlSkin: { tint: 0x8a8d8f }, wingSkin: { tint: 0x3d5c40 },
+                                  finSkin: { tint: 0x3d5c40 }, finRud: { tint: 0xf4f2ea }, stabSkin: { tint: 0x3d5c40 } } },
+                    meta: { reg: 'B6313' } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
@@ -1645,7 +2294,7 @@ const ARCHETYPES = [
       'long upper one, leaning struts, wires',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
-           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'sesqui',
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
@@ -1753,6 +2402,42 @@ const ARCHETYPES = [
                     cowl: { halfW: 0.42 },
                     finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
                                         m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
+  { key: 'spitfire', kind: 'recreation', name: 'Spitfire-alike (WIP)', note: 'elliptic-wing fighter, ' +
+      'Merlin V12 on the nose, radiators under the wings, one seat under a blown hood',
+    // THE SPITFIRE LF Mk IX (the user, 27 Oct: "I would want a spitfire"), built to the user's reference model by
+    // tools/REF_MATCH.md (refs/spitfire.json; Sketchfab 'Spitfire Highpoly' by Renafox, CC-BY-4.0), its span on
+    // the published 36 ft 10 in and its length on the museum's 9.5 m. THE BODY: a lofted alloy monocoque, round in
+    // section, its ROOF RUNNING AFT as the high spine to the fin (the cabin body: a turtledeck pod falls away behind
+    // its hood and thins to a boom - the RV's line, not this one's: drawn both, 27 Oct); the windscreen and the blown
+    // hood are the cabin's own glazing (a skylight with the bubble glass over it); the Merlin in a long faired bonnet
+    // WORK IN PROGRESS (the user, 27 Oct: "drop your efforts on the spitfire, we're starting from too far ... deliver
+    // the spitfire as a WIP"): step 1 half done - the firewall, the wing's station and height, the windscreen and
+    // the tail post placed; the sections, the cowl, the tail and the gear are not matched, and it has not been
+    // flown. Blocked from the birth list and the gates until it is.
+    blocked: 'WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown',
+    sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 4, planes: 'mono',
+           engFamily: 'vee', engModel: 'Rolls-Royce Merlin 66', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0x20211f },
+    over: { cage: { // THE ELLIPTIC WING (genPlanLaw): 2.55 m on the centreline, the 30 % chord line straight, 6 deg
+                    wgPlan: 1, wgPlanAxis: 0.30, wgSpan: 11.23, wgChord: 2.55, wgTipX: 0,
+                    wgDihedral: 6, wgIncidence: 2, wgWashout: 2.5, wgCamber: 2, wgThick: 13,
+                    // the windscreen and the hood: the cabin's skylight, bulged
+                    skylight: 1, skyExt: 2, bubble: 1,
+                    // STEP 1 so far (prop datum, refs/spitfire.json): the firewall 2.35 m aft of the prop (the bonnet
+                    // 1.8 m over the Merlin and its bay), the wing's LE 2.0 aft and its chord line 0.60 under the
+                    // thrust line (exact), the windscreen at 3.4, the hood to 4.7, the tail post at 9.24
+                    cw_cowlLen: 1.30, cw_lidLen: 0.50, wgDx: 1.05, wgDy: -0.5, boomLen: 5.22,
+                    halfW: 0.62, roofHalfW: 0.52, roofY: 0.85, keelY: -1.15,
+                    noseLen: 1.40, wsRun: 0.60, pilotLen: 1.10, paxLen: 0.30,
+                    // the radiators under the wings, the Mk IX's pair (the reference's: 0.55 - 0.95 m out)
+                    radMode: 1, radX: 0.75, radAt: 0.35, radLen: 1.30, radW: 0.42, radH: 0.24,
+                    // the Rotol four-blade on the Merlin's reduction
+                    cw_bladeN: 4, cw_material: 0 },
+            spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },
+                    fuel: { litres: 386 } } } },          // 85 imp gal, the two fuselage tanks
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,
@@ -1994,21 +2679,39 @@ const ARCHETYPES = [
                                                   wgDx: 0.08 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
-  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
-  // the rear pusher is push-pull, the mixed-mount list the frame does not loop
-  // over yet — and a small P-38: two pullers on the booms' own stations.
+  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape (its rear pusher since
+  // ENGINE-CONFIGS-2, below) and a small P-38: two pullers on the booms' own
+  // stations.
+  // ENGINE-CONFIGS-2 (G3493, 22 Oct): THE REAR PUSHER IS PAID - the Engines row's Push-pull tile (G2790): the nose engine
+  // and a second IO-360 pushing behind the cabin, its prop between the booms (boomX 1.25 is the rear disc's radius +
+  // 0.31 m), the two turning opposite ways
+  // ENGINE-CONFIGS-2 (the user, 25 Oct: "you can rebalance the skymaster"): THE CARD BALANCES. It read a static margin
+  // of -0.52 as drawn (-0.94 at the worst corner; -0.16 already as a nose-only single on master): paxCount 3 drew a
+  // 2.4 m cabin of EIGHT seats (the note says four) whose full load sat 0.5 m further aft, and the wing stood ahead
+  // of an aeroplane whose 144 kg pusher hangs off the aft bulkhead. Now the note's four seats (paxCount 1, the C172's
+  // 2 + 2) and the wing 0.5 m aft: CG 23-32 % MAC over the four corners, the neutral point 37-38 %, the design check
+  // PASS, the rear disc clear of the wing (0.7 m aft puts the wing into it)
+  // ENGINE-CONFIGS-2 (the user, 27 Oct: "updated archetypes for the push-pull (your twin boom)"): THE SKYMASTER'S
+  // BOOMS, 0.24 x 0.34 m at the wing and 0.16 x 0.22 at the tail (they were 0.18 x 0.27 and 0.126 x 0.189, rods
+  // beside the cabin), a 0.7 m fairing forward. The wing takes LIFT STRUTS: its cantilever already held the bench's
+  // 5.7 g only past yield, and with the real booms' 6 kg more it BROKE UP at 4.9 g at the root fitting (0.21 x 0.30
+  // booms: 5.1 g); strut-braced it holds with no yield, 23 kg lighter. And the stab 1.2 x span / 1.1 x chord: on
+  // the strut wing the rule's stab between the heavier booms yielded from the downwind's 61 m/s on (damage on, 1.1 g
+  // level) until a member kinked at 70 s; this one flies the circuit with no yield (the Push-pull starter's 1.4 /
+  // 1.25 too). Design check PASS, the bench's 5.7 g HELD with no yield
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
-      'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
-    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+      'booms off a strut-braced high wing, four seats, an engine in the nose and one pushing behind the cabin',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
            section: 3,
-           wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
-           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
-                                                   boomWf: 0.18, boomHf: 0.27,
-                                                   boomWa: 0.126, boomHa: 0.189 }),
+                                                   boomWf: 0.24, boomHf: 0.34,
+                                                   boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -2027,6 +2730,47 @@ const ARCHETYPES = [
                                                    boomWf: 0.22, boomHf: 0.33,
                                                    boomWa: 0.154, boomHa: 0.231,
                                                    engNacAt: 0.245 }) } },
+  // THE LAYOUT STARTERS (ENGINE-CONFIGS-2, the user, 27 Oct: "updated archetypes for the push-pull ... and starting
+  // points for 3- and 4-engine layouts"): the Engines row's Push-pull, Three and Four over the C172-alike's own
+  // choices (its tiles, not its stock cage), the straight fin (the swept fin's ventral strake draws detached under a
+  // twin boom's fins). These three cards ARE tools/fixtures/build_v10_engcfg_{pushpull,trimotor,four}_2026-10-22.json
+  // (tools/engconfig_fixtures.js bakes the files from them; GATE ENGCONFIG 9 holds the files to the game's load, the
+  // design check, a circuit with an engine cut and the bench's 5.7 g).
+  // Push-pull: two IO-360s on the Skymaster's booms (0.24 x 0.34 m at the wing, a 0.7 m fairing forward); the wing
+  // 0.45 m aft and the stab 1.40 x span / 1.25 x chord for the pusher's 144 kg behind the cabin (the C172's wing
+  // station left a static margin of -0.16); the wing keeps its struts (a cantilever one broke up at 5.7 g)
+  { key: 'pushPull', kind: 'fiction', name: 'Push-pull starter', note: 'an IO-360 in the ' +
+      'nose and one pushing between twin booms; strut-braced high wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25,
+                    boomWf: 0.24, boomHf: 0.34, boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7 } } },
+  // Three and Four: Rotax 912s, the wing MID and strut-braced: on the C172's high wing the nacelles' thrust line
+  // stands 1.5 m up and full power tips the aeroplane onto its nosewheel; on a low wing the nacelle discs clear the
+  // grass by 2 cm; a cantilever mid wing lets go at its root on the bench's 5.7 g. Each wing a little aft for its
+  // nacelles' mass
+  { key: 'trimotor', kind: 'fiction', name: 'Trimotor', note: 'three Rotax 912s, ' +
+      'one in the nose and one on each wing; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 3,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.15 } } },
+  { key: 'fourEngine', kind: 'fiction', name: 'Four-engine starter', note: 'four ' +
+      'Rotax 912s in wing nacelles, two a side; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 4,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.2 } } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.
@@ -2284,6 +3028,10 @@ function designBake(sel, over) {
   };
   if (tipKeys[Math.round(full.wgTip)])
     wing.tip = tipKeys[Math.round(full.wgTip)];
+  // THE ELLIPTIC PLANFORM is intent (the join's own two fields, and the tip
+  // offset its straight line is swept by)
+  if (+full.wgPlan === 1)
+    Object.assign(wing, { plan: 'elliptic', planAxis: +full.wgPlanAxis || 0.30, tipX: +full.wgTipX || 0 });
   // PERF STUDY chantier 0 (2026-09-15): THE AIRFOIL AND THE INCIDENCE ARE
   // INTENT. The join's own line verbatim (_cage_join.js: naca from
   // wgCamber/wgThick, incidence, washout); without it every card flew
@@ -2331,6 +3079,8 @@ function designBake(sel, over) {
     };
     if (w2.position === 'parasol') w2.cabaneH = +full.w2ParaH || 0.45;
     if (tipKeys[Math.round(full.w2Tip)]) w2.tip = tipKeys[Math.round(full.w2Tip)];
+    if (+full.w2Plan === 1)
+      Object.assign(w2, { plan: 'elliptic', planAxis: +full.w2PlanAxis || 0.30, tipX: +full.w2TipX || 0 });
     wings.push(w2);
     Object.assign(bracing, {
       interplane: ['N', 'I', 'none'][Math.round(full.bpInter || 0)] || 'N',
@@ -2352,11 +3102,17 @@ function designBake(sel, over) {
   // THE MOUNT IS INTENT (2026-09-04): the pre-join spec GATE ARCHETYPES flies
   // must carry the mount the tiles chose, or a pusher archetype flies as a
   // tractor until the page's join runs. A wing pair is two entries.
-  const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(full.engMount || 0)]
-           || 'nose';
+  // G2790: the layouts (4 push-pull, 5 three, 6 four) are one entry per
+  // engine, in the spec's own order (60_gen_spec GEN_ENG_LAYOUTS); a
+  // push-pull's rear hand is the clamp's mirror of the nose's
+  const mK = Math.round(full.engMount || 0);
+  const LAYM = { 4: ['nose', 'pusher'], 5: ['nose', 'wing', 'wing'],
+                 6: ['wing', 'wing', 'wing', 'wing'] }[mK];
+  const mk = ['nose', 'pusher', 'wingTop', 'wing'][mK] || 'nose';
   const eng = Object.assign(engKey ? { type: engKey } : {}, { mount: mk });
   if (mk === 'wingTop') eng.pylon = Math.max(0.05, +full.engPylonH || 0.30);
-  designMerge(out, { engines: mk === 'wing' ? [eng, Object.assign({}, eng)] : [eng] });
+  designMerge(out, { engines: LAYM ? LAYM.map(m => Object.assign({}, eng, { mount: m }))
+                            : mk === 'wing' ? [eng, Object.assign({}, eng)] : [eng] });
   // ...and so is an open frame (G172's joined row)
   if (!(full.skinOn == null || +full.skinOn))
     designMerge(out, { fuselage: { covering: 'open' } });
@@ -2409,8 +3165,18 @@ function designBake(sel, over) {
   // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
-  const seed = (over && over.stock) ? null : designTailSeed(full, out);
-  if (seed) {
+  const seed0 = (over && over.stock) ? null : designTailSeed(full, out);
+  // NEW-SHAPES-1 (the user, 27 Oct, the Camel drawn to a reference model: "I insist on fin/rudder/stabs shapes done
+  // carefully"): A CARD THAT DRAWS A SURFACE ITSELF keeps it. The seed writes the macro height and chord as ONE
+  // number (absolute, not a ratio), which keeps a drawn outline only while the two are equal - a fin fitted to a
+  // reference has height and chord of its own. A card stating a surface's macro rows (finHeight / stSpan in its
+  // cage) keeps its own size for that surface (the seed's cuts still go on); no card stated them before this, so
+  // every other birth is untouched.
+  const oc = (over && over.cage) || {};
+  const seed = seed0 ? Object.fromEntries(Object.entries(seed0).filter(([k]) =>
+    !(/^fin(Height|Chord)$/.test(k) && oc.finHeight != null) &&
+    !(/^st(Span|Chord)$/.test(k) && oc.stSpan != null))) : null;
+  if (seed && Object.keys(seed).length) {
     Object.assign(full, seed);
     out.cage = C2.cageToSpec(full);
   }

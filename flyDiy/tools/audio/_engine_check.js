@@ -120,11 +120,12 @@ function secConfig(brk) {
     // THE TABLE AGAINST THE EDITOR: every piston preset's cyl / arch / stroke /
     // displacement, and the join's sound row equal to it
     const E = editor();
-    const PRESET_NAMES = Object.keys(E.ENG_PAGE.PRESETS).filter(n => n !== 'bare engine');
+    // the saved order (ENG_PAGE.presetNames, NEW-SHAPES-1): engPreset is a slot in it, the custom engine's skipped
+    const NAMES = E.ENG_PAGE.presetNames(), PRESET_NAMES = NAMES.filter(n => n !== E.ENG_PAGE.CUSTOM_ENGINE);
     let drift = [], joinBad = [], fantasyOwn = 0, n = 0;
     for (const name of PRESET_NAMES) {
       const key = globalThis.CAGE_JOIN_ENGINES[name];
-      const P = Object.assign({}, E.CAGE_PAGE.defaults, { engOn: 1, engPreset: PRESET_NAMES.indexOf(name) });
+      const P = Object.assign({}, E.CAGE_PAGE.defaults, { engOn: 1, engPreset: NAMES.indexOf(name) });
       E.CAGE_ENG_APPLY_PRESET(P, name);
       const s = E.CAGE_ENG_SOUND(P);
       const pre = Object.assign(E.ENG_PAGE.engDefaults(), E.ENG_PAGE.PRESETS[name]);

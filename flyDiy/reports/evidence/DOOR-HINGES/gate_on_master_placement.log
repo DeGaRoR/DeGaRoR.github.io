@@ -1,0 +1,75 @@
+# GATE HINGE (this branch's _hinge_check.js) run against origin/master d7e181f4e's _cage_hinge.js, patched ONLY to publish each station's {p, ax} - the old placement
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_top barrel does not sit on the skin — -0.5 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_top barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_bot hinges are not co-axial — 31.492 mm off the first barrel's axis
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_bot barrels are not along one axis — 4.44 deg
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_P_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_top barrel does not sit on the skin — -0.5 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_top barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_bot hinges are not co-axial — 31.492 mm off the first barrel's axis
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_bot barrels are not along one axis — 4.44 deg
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: stock Cub (clamshell): door_pilot_M_bot barrel does not sit on the skin — -0.2 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_P hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_P barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_P barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_P barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_M hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_M barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_M barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub showcase: door_pilot_M barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: Jodel: door_pilot_P hinges are not co-axial — 57.105 mm off the first barrel's axis
+  FAIL DOOR AXIS: Jodel: door_pilot_P barrels are not along one axis — 41.31 deg
+  FAIL DOOR AXIS: Jodel: door_pilot_M hinges are not co-axial — 57.105 mm off the first barrel's axis
+  FAIL DOOR AXIS: Jodel: door_pilot_M barrels are not along one axis — 41.31 deg
+  FAIL DOOR AXIS: Cessna 172: door_pilot_P hinges are not co-axial — 105.764 mm off the first barrel's axis
+  FAIL DOOR AXIS: Cessna 172: door_pilot_P barrels are not along one axis — 17.60 deg
+  FAIL DOOR AXIS: Cessna 172: door_pilot_M hinges are not co-axial — 105.764 mm off the first barrel's axis
+  FAIL DOOR AXIS: Cessna 172: door_pilot_M barrels are not along one axis — 17.60 deg
+  FAIL DOOR AXIS: Cessna metal: door_pilot_P hinges are not co-axial — 123.774 mm off the first barrel's axis
+  FAIL DOOR AXIS: Cessna metal: door_pilot_P barrels are not along one axis — 20.67 deg
+  FAIL DOOR AXIS: Cessna metal: door_pilot_M hinges are not co-axial — 123.774 mm off the first barrel's axis
+  FAIL DOOR AXIS: Cessna metal: door_pilot_M barrels are not along one axis — 20.67 deg
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_P hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_P barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_P barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_P barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_M hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_M barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_M barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, tilt 10: door_pilot_M barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: a 10 deg tilt does not turn door_pilot_P by 10 deg — 0.00
+  FAIL DOOR AXIS: a 10 deg tilt does not turn door_pilot_M by 10 deg — 0.00
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_P hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_P barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_P barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_P barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_M hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_M barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_M barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, offset 50 mm: door_pilot_M barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: a 50 mm offset does not move door_pilot_P 50 mm into the door — 0.000,0.000,0.000
+  FAIL DOOR AXIS: a 50 mm offset does not move door_pilot_M 50 mm into the door — 0.000,0.000,0.000
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_P hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_P barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_P barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_P barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_M hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_M barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_M barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, inset 0.3: door_pilot_M barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: a 0.3 inset does not draw door_pilot_P's hinges in
+  FAIL DOOR AXIS: a 0.3 inset does not draw door_pilot_M's hinges in
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_P hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_P barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_P barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_P barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_M hinges are not co-axial — 147.825 mm off the first barrel's axis
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_M barrels are not along one axis — 45.06 deg
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_M barrel does not sit on the skin — -1.0 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: STOL Cub, slide -60 mm: door_pilot_M barrel does not sit on the skin — -0.6 mm clear (r 9.4 mm)
+  FAIL DOOR AXIS: the page defaults do not carry the four rows at 0
+GATE HINGE: FAIL

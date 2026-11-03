@@ -146,6 +146,22 @@ function run(mut) {
   ok(/pl\.pilot\s*=/.test(srcA) && /playerPilot\(\s*playerLoad\(\)/.test(srcA),
      'app.js keeps the personality in the player document (pilot.profile), not a view pref');
 
+  // ---- THE CAREERS (G3360): every career its own document flydiy.career.<id> -
+  // a career under a new 'c' id round-trips with its id and name; renamed as
+  // the welcome renames it (career.name alone) it loads with that name and
+  // nothing else moved; the page keys the document by the welcome's chosen id
+  const cc = CORE.careerNormalise(CORE.careerNew({ id: 'cmgz0a1', seed: 'cmgz0a1', name: 'your career 2', started: '2026-10-20' }));
+  const cr = CORE.careerNormalise(JSON.parse(JSON.stringify(cc)));
+  ok(eq(cr, cc) && cr.career.id === 'cmgz0a1' && cr.career.name === 'your career 2' && CORE.careerKey('cmgz0a1') === 'flydiy.career.cmgz0a1',
+     'a career under a new id survives a JSON round trip (its id, its name, flydiy.career.<id>)');
+  const rn = JSON.parse(JSON.stringify(cc)); rn.career.name = 'Jolene Air';
+  const rl = CORE.careerNormalise(JSON.parse(JSON.stringify(rn)));
+  ok(rl.career.name === 'Jolene Air' && eq(Object.assign({}, rl, { career: Object.assign({}, rl.career, { name: cc.career.name }) }), cc),
+     'a renamed career loads with its new name, nothing else moved');
+  ok(/const CAREER_ID = CAREER_DEVFLAG \? 'dev' : CAREER_PICK;/.test(srcA) && /const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(srcA) &&
+     !/flydiy\.career\.fresh/.test(srcA.replace(/\/\/[^\n]*/g, '')),
+     'app.js keys the career by the welcome\'s chosen id (never moves a document aside: the fresh flag retired)');
+
   // ---- THE WRITE-STOP (source-scanned, the GATE SITE idiom) ---------------
   const code = srcA.replace(/\/\/[^\n]*/g, '');    // comments may TALK about it
   ok(/prefGet\(\s*PLAYER_KEY|prefGet\(\s*'flydiy\.player'/.test(code),

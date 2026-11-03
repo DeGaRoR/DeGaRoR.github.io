@@ -58,7 +58,13 @@ function metrics(j) {
     for (const r of fr) { const k = Math.max(1, Math.round(r[1] / REFRESH)); if (prev !== null) { n++; if (k !== prev) ch++; } prev = k; }
     uneven = n ? ch / n : null;
   }
-  const lt = (j.longTasks || []).map(t => t[1]);
+  // GATE-SCREEN (A0 22 Oct): a task under a loading screen (j.bootSpans, rollout_perf) leaves the WORST task for its own row
+  // (screenTaskWorst); tasks1s / tasks200 count every task - batch A's rule, "no main-thread task over 1 s during any load or
+  // settings change", and the loads are the screens. A run with no spans (before GATE-SCREEN) reads as before
+  const ltAll = (j.longTasks || []).map(t => t[1]);
+  const SP = (j.bootSpans || []).map(s => [s[0], s[1] == null ? Infinity : s[1]]), under = (a, b) => SP.some(s => a < s[1] && b > s[0]);
+  const ltS = (j.longTasks || []).filter(t => under(t[0], t[0] + t[1])).map(t => t[1]);
+  const lt = (j.longTasks || []).filter(t => !under(t[0], t[0] + t[1])).map(t => t[1]);
   const steps = (j.bootLog || []).filter(b => b.k === 'step' || b.k === 'run');
   let compile = null, inRoll = false;   // the roll-out run's compile step (not the garage's, not a settings screen's)
   for (const b of steps) { if (b.k === 'run') { inRoll = b.set === 'rollout'; continue; } if (inRoll && b.id === 'compile') { compile = b.ms; break; } }
@@ -78,9 +84,24 @@ function metrics(j) {
     fps: taxi.fpsDelivered != null ? taxi.fpsDelivered : null,
     uneven, p99: taxi.dtP99 != null ? taxi.dtP99 : null,
     loop: taxi.workMed != null ? taxi.workMed : null, render: taxi.renderMed != null ? taxi.renderMed : null, solver: taxi.physMed != null ? taxi.physMed : null,
+    // PERF-1 P1: the taxi's loop / render tail (p90: what rollout_perf's phases carry) - the fixed reference's cumulative budget reads loopP90
+    loopP90: taxi.workP90 != null ? taxi.workP90 : null, renderP90: taxi.renderP90 != null ? taxi.renderP90 : null,
+    // GATE-ANCHOR (the user, 18 Oct: "frame evenness is the big issue"): EVERY frame after the reveal, whatever the phase - the
+    // share of intervals over 34 ms (a missed 30 fps presentation), the worst interval, the loop's median and p90 over the
+    // whole run (a floatplane's run has no 'taxi' phase: its take-off is these rows), and the longest stretch under 30 fps -
+    // intervals over 34 ms in a row (rollout_perf's below30run counts every interval over 33.33 ms: at the cap a frame of
+    // 33.4 ms is on time, so it reads the cap's jitter)
+    slow34s: all.length ? (() => { let run = 0, w = 0; for (const r of all) { if (r[1] > 34) { run += r[1]; if (run > w) w = run; } else run = 0; } return +(w / 1000).toFixed(3); })() : null,
+    over34: all.length ? all.filter(r => r[1] > 34).length / all.length : null,
+    worst: all.length ? Math.max(...all.map(r => r[1])) : null,
+    loopAll: all.length ? med(all.map(r => r[2])) : null,
+    loopAllP90: all.length ? (s => s[Math.min(s.length - 1, Math.floor(s.length * 0.9))])(all.map(r => r[2]).filter(x => x != null && isFinite(x)).sort((a, b) => a - b)) : null,
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
-    tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
+    tasks1s: ltAll.filter(x => x > 1000).length, tasks200: ltAll.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
+    // GATE-SCREEN: what the loading screens held after the reveal (a trip's roll-out screen) - frames over 100 ms, the worst
+    // frame, the worst task (a run before GATE-SCREEN: null, no row)
+    screenOver100: g.screen ? g.screen.over100 : null, screenWorst: g.screen ? g.screen.worst : null, screenTaskWorst: j.bootSpans ? (ltS.length ? Math.max(...ltS) : 0) : null,
     // G1063.4: rollout_perf's tGarage is seconds from the navigation to the garage, its tReveal seconds from the
     // Roll out click to the flight (the old `tReveal - tGarage` subtracted a click-relative time from a
     // navigation-relative one). The load the player waits for is the FIRST FLIGHT: the garage, then the roll-out
@@ -110,11 +131,24 @@ const RULES = {
   over1s:   { up: false, rel: 0,    abs: 0,    unit: '', info: true },
   loop:     { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   render:   { up: false, rel: 0.10, abs: 0.6,  unit: 'ms' },
+  loopP90:  { up: false, rel: 0.10, abs: 1.0,  unit: 'ms' },   // PERF-1 P1: the taxi's loop and render at p90
+  // GATE-ANCHOR: the evenness rows (every frame after the reveal) and the whole run's loop
+  over34:   { up: false, rel: 0.25, abs: 0.01, unit: '' },     // the share of frames over 34 ms
+  worst:    { up: false, rel: 0.15, abs: 34,   unit: 'ms' },   // the worst interval (two frames' slack: at a 30 cap it moves by 16.7 ms steps)
+  slow34s:  { up: false, rel: 0.25, abs: 0.5,  unit: 's' },    // the longest stretch of intervals over 34 ms in a row (under 30 fps)
+  loopAll:  { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
+  loopAllP90: { up: false, rel: 0.10, abs: 1.0, unit: 'ms' },
+  renderP90:{ up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   solver:   { up: false, rel: 0.15, abs: 0.6,  unit: 'ms' },
   over100:  { up: false, rel: 0,    abs: 1,    unit: '' },
   tasks1s:  { up: false, rel: 0,    abs: 1,    unit: '' },   // a task at ~1 s flips across the line run to run; R4 still wants 0
   tasks200: { up: false, rel: 0.25, abs: 3,    unit: '' },
   taskWorst:{ up: false, rel: 0.15, abs: 150,  unit: 'ms' },
+  // GATE-SCREEN (A0 22 Oct): under a loading screen - slack from the day's gate legs (cessnaMetal cockpit, the shed's mirror pin:
+  // 2 frames over 100 ms, the worst 133-166 ms, the screen's worst task the settle's ~1.0 s)
+  screenOver100:   { up: false, rel: 0,    abs: 2,   unit: '' },
+  screenWorst:     { up: false, rel: 0.25, abs: 50,  unit: 'ms' },
+  screenTaskWorst: { up: false, rel: 0.25, abs: 250, unit: 'ms' },
   slice:    { up: false, rel: 0.15, abs: 150,  unit: 'ms' },
   garage:   { up: false, rel: 0.10, abs: 3,    unit: 's' },   // G1063.4: navigation -> the garage (the one loading since B8+B9)
   rollout:  { up: false, rel: 0.10, abs: 1,    unit: 's' },   // the Roll out click -> the flight

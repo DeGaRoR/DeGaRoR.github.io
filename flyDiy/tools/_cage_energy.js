@@ -198,6 +198,10 @@ function measureBays(S, ctx) {
   const out = [];
   if (!C.BAYS || !C.bayResolve || !S) return out;
   const FS = fsOf(ctx);
+  // the datum, read once for every body bay (G2799: it was read per bay)
+  let zFwM;
+  const zFwOf = () => zFwM !== undefined ? zFwM
+    : (zFwM = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null);
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
@@ -210,7 +214,7 @@ function measureBays(S, ctx) {
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
     if (r.on === 'body' && ctx.mesh && BAY()) {
-      const zFw = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null;
+      const zFw = zFwOf();
       const key = bayKey(r, zFw);
       if (key in FIELD_L) { r.litresField = FIELD_L[key]; }
       else try {
@@ -229,6 +233,11 @@ function measureBays(S, ctx) {
       if (!(key in FIELD_L)) FIELD_L[key] = r.litresField;
     }
     r.roomL = r.litresField != null ? r.litresField : r.litres;
+    // G2799: a bay that holds a vessel is swept now rather than in the layout
+    // (the same sweep, read back there), so the panel drawn before the layout
+    // shows its fore/aft slider over the hand's range
+    if (r.on === 'body' && ctx.mesh && VG() && EN.vessels.some(v => v.bay === k))
+      bayCacheOf(ctx, r, zFwOf());
     out.push(r);
   }
   return out;
@@ -352,6 +361,34 @@ function wingSlicer(ctx, inv, plane) {
 // picture showed the bulkhead: one tank, one place. A grid search that walked
 // the bay for a crew-clear cell lived here for an afternoon; the user's call
 // was that it was too picky, and that the player places the tank themselves.
+// ONE SWEEP PER BAY PER BODY (placeAll's, hoisted for G2799: measureBays asks
+// it first for every bay that holds a vessel, so the panel drawn before the
+// layout already shows the clamped bay and the hand's range; the sweep is the
+// same one, under the same key, so placeAll reads it back and sweeps nothing)
+function bayCacheOf(ctx, bay, zFw) {
+  const G = VG(), FS = fsOf(ctx);
+  if (bay.on !== 'body') return null;
+  // the key is the RULE's limits, taken once per bay object: the clamp
+  // below rewrites x0/x1, and a second vessel in the same bay must not
+  // read a different key off the clamped numbers and sweep again
+  if (!bay._ck) bay._ck = bayKey(bay, zFw);
+  if (!(bay._ck in BAY_CACHES))
+    BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
+  const c = BAY_CACHES[bay._ck];
+  // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
+  // limit is a measured deck length; where the field stops describing
+  // the deck (the firewall face) the bay stops too, so a default and a
+  // slider both start at a station a tank can actually be at. Every
+  // call, not only the sweeping one: BAYS is measured afresh each build
+  // and the clamp lives on the bay object, not in the cache.
+  if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
+  if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
+  // G2799: the HAND's range, wider than the rule's (VESSEL_GEN.handRange):
+  // the fore/aft slider and the readout read it, the defaults never do
+  const h = G.handRange ? G.handRange(bay, c) : null;
+  if (h) { bay.hx0 = h[0]; bay.hx1 = h[1]; }
+  return c;
+}
 function placeAll(ctx, inv) {
   const C = core(), G = VG();
   const results = [];
@@ -363,25 +400,7 @@ function placeAll(ctx, inv) {
   // the layout, a few ms with it hoisted — and then 1.3 s per tick again
   // once every build emptied the map. PAGE.post empties it when the BODY
   // SIGNATURE changes, which is the only time the body changes.
-  const cacheOf = bay => {
-    if (bay.on !== 'body') return null;
-    // the key is the RULE's limits, taken once per bay object: the clamp
-    // below rewrites x0/x1, and a second vessel in the same bay must not
-    // read a different key off the clamped numbers and sweep again
-    if (!bay._ck) bay._ck = bayKey(bay, zFw);
-    if (!(bay._ck in BAY_CACHES))
-      BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
-    const c = BAY_CACHES[bay._ck];
-    // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
-    // limit is a measured deck length; where the field stops describing
-    // the deck (the firewall face) the bay stops too, so a default and a
-    // slider both start at a station a tank can actually be at. Every
-    // call, not only the sweeping one: BAYS is measured afresh each build
-    // and the clamp lives on the bay object, not in the cache.
-    if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
-    if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
-    return c;
-  };
+  const cacheOf = bay => bayCacheOf(ctx, bay, zFw);
   const FS = fsOf(ctx);
   const W = window.CAGE_WING;
   const semi = W ? (W.semi || (W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi) || 0) : 0;
@@ -439,12 +458,21 @@ function placeAll(ctx, inv) {
         const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
         const u = ax.map(q => q / len);
         const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
-        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: u, L: dims.L, D: dims.W, len, t: t0 });
+        // G2793 (the user's garage review, 18 Oct: "strut-mounted tanks: the
+        // ogive's long axis along the line of flight, not along the strut"):
+        // the pod is hung on the strut at `along`, its axis fore-aft (+z).
+        // Its centre stays ON the strut, so the frame's billing on the
+        // strut's end nodes (61_gen_frame.js, the `along` lever) is still
+        // where the pod is drawn.
+        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: [0, 0, 1], L: dims.L, D: dims.W, len, t: t0,
+                    yFoot: s.pin[1], yTop: s.tip[1] });
       }
       if (!pods.length) why.push('no lift strut to hang it on');
+      // the clearances, now across the pod's girth: its round body must clear
+      // the body at the strut's foot and the wing at its top by a hand
       for (const pd of pods) {
-        if (pd.t * pd.len - pd.L / 2 < 0.05) { why.push('into the body at the foot'); break; }
-        if ((1 - pd.t) * pd.len - pd.L / 2 < 0.05) { why.push('into the wing at the top'); break; }
+        if (pd.c[1] - pd.D / 2 - pd.yFoot < 0.05) { why.push('into the body at the foot'); break; }
+        if (pd.yTop - (pd.c[1] + pd.D / 2) < 0.05) { why.push('into the wing at the top'); break; }
       }
       pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
     } else if (bay.on === 'wing') {
@@ -496,7 +524,10 @@ function placeAll(ctx, inv) {
       // before a bay rule moved (the bench kept a nose tank at 1.08 m after
       // the nose bay became the cowl deck) would be reported as "past the
       // body" forever; it takes the rule again instead, like a new vessel.
-      if (v.along != null && (v.along < bay.x0 - dims.L || v.along > bay.x1 + dims.L)) {
+      // (G2799: past the HAND's range, which holds the rule's, so a station
+      // the player put out there is theirs)
+      if (v.along != null && (v.along < Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0) - dims.L ||
+                              v.along > Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
         v.along = null; v.lv = null;
       }
       // THE CATALOGUE SHAPE CANNOT FIT THIS BAY EITHER WAY ROUND: give the
@@ -524,10 +555,11 @@ function placeAll(ctx, inv) {
             const half = { x: bf.W / 2 + 0.02, z: bf.L / 2 + 0.02 };
             const zMid = (zFw != null ? (zFw - mid / FS) * FS : 0);
             let crewTop = -Infinity;
-            for (let i = 0, P3 = CREW_PTS.buf; i < CREW_PTS.n; i++) {
+            const P3 = CREW_PTS.buf;
+            crewEach(CREW_PTS, [-half.x - 1e-6, -Infinity, zMid - half.z - 1e-6], [half.x + 1e-6, Infinity, zMid + half.z + 1e-6], i => {
               const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
               if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
-            }
+            });
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
             if (isFinite(crewTop)) {
@@ -604,7 +636,7 @@ function commitSoon() {
 }
 
 // THE CREW IS IN THE WAY, OR IT IS NOT. Every vertex of everything the crew
-// layer drew — seats, dummies, the panel, the sticks — tested against each
+// layer drew — seats, the occupants' posed bodies, the panel, the sticks — tested against each
 // body vessel's box. A box is convex, so a vertex inside it is a certain
 // intrusion; the memory of G83's false positives says not to use bounding
 // boxes for this, and this is not one.
@@ -622,7 +654,10 @@ function crewPoints(scene, inv) {
   const V = new THREE.Vector3(), meshes = [];
   let n = 0;
   crew.traverse(o => {
-    if (!o.isMesh || !o.geometry) return;
+    // a character's SKINNED mesh holds its bind pose (a T-pose, nowhere near
+    // the seat): its posed body is the plain mesh under it (G3700,
+    // _cage_char.js pickBody), and that is what the tank clears
+    if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position');
     if (!pos) return;
     meshes.push(o); n += pos.count;
@@ -637,7 +672,55 @@ function crewPoints(scene, inv) {
       buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
     }
   }
-  return { buf, n };
+  return { buf, n, grid: crewGrid(buf, n) };
+}
+// THE CREW'S POINTS BY CELL (GARAGE-LAG, 27 Oct). Since G3700 the crew is the
+// racer's POSED body - some 27 000 vertices a seat, sitting right beside the
+// cabin's tanks - and the fit's search (settleLv's clearOfCrew, fitOf) asks
+// crewHits per candidate: every point against every box, a hundred times a
+// drag tick. The points go into 5 cm cells once per layout (a CSR list), and
+// a query walks only the cells a box's axis-aligned extent covers. Exact: a
+// point inside the box is inside that extent, so it is in a walked cell, and
+// each walked point still takes pointInBox - the counts are the same numbers.
+const CREW_CELL = 0.05;
+function crewGrid(buf, n) {
+  if (!n) return null;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n; i++)
+    for (let a = 0; a < 3; a++) { const v = buf[i * 3 + a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
+  if (![0, 1, 2].every(a => isFinite(lo[a]) && isFinite(hi[a]))) return null;
+  const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / CREW_CELL) + 1));
+  if (N[0] * N[1] * N[2] > 4e6) return null;          // a crew strewn kilometres apart: walk them all
+  const cellOf = i => {
+    let c = 0;
+    for (let a = 0; a < 3; a++) c = c * N[a] + Math.min(N[a] - 1, Math.floor((buf[i * 3 + a] - lo[a]) / CREW_CELL));
+    return c;
+  };
+  const nc = N[0] * N[1] * N[2], start = new Int32Array(nc + 1), cell = new Int32Array(n);
+  for (let i = 0; i < n; i++) start[(cell[i] = cellOf(i)) + 1]++;
+  for (let c = 0; c < nc; c++) start[c + 1] += start[c];
+  const at = start.slice(0, nc), idx = new Int32Array(n);
+  for (let i = 0; i < n; i++) idx[at[cell[i]]++] = i;
+  return { lo, N, start, idx };
+}
+// every crew point whose cell meets [qlo, qhi] (layer metres; a bound may be
+// infinite), handed to fn(i) - and every point when there is no grid
+function crewEach(P, qlo, qhi, fn) {
+  const G = P.grid;
+  if (!G) { for (let i = 0; i < P.n; i++) fn(i); return; }
+  const r = [];
+  for (let a = 0; a < 3; a++) {
+    const c0 = Math.max(0, Math.floor((qlo[a] - G.lo[a]) / CREW_CELL));
+    const c1 = Math.min(G.N[a] - 1, Math.floor((qhi[a] - G.lo[a]) / CREW_CELL));
+    if (!(c0 <= c1)) return;
+    r.push(c0, c1);
+  }
+  for (let x = r[0]; x <= r[1]; x++)
+    for (let y = r[2]; y <= r[3]; y++) {
+      // the z cells of one (x, y) row are contiguous in the list
+      const row = (x * G.N[1] + y) * G.N[2];
+      for (let k = G.start[row + r[4]], k1 = G.start[row + r[5] + 1]; k < k1; k++) fn(G.idx[k]);
+    }
 }
 function crewHits(scene, inv, results) {
   const G = VG();
@@ -646,9 +729,14 @@ function crewHits(scene, inv, results) {
   if (!bodies.length) return;
   if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
   const q = [0, 0, 0], B3 = CREW_PTS.buf;
-  for (let i = 0; i < CREW_PTS.n; i++) {
-    q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
-    for (const r of bodies) if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+  // per body, the cells its box (as pointInBox reads it, margin 0.01) covers
+  for (const r of bodies) {
+    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot)), m = 0.01;
+    const ex = [cs * (e[0] + m) + sn * (e[2] + m) + 1e-6, e[1] + m + 1e-6, sn * (e[0] + m) + cs * (e[2] + m) + 1e-6];
+    crewEach(CREW_PTS, [c[0] - ex[0], c[1] - ex[1], c[2] - ex[2]], [c[0] + ex[0], c[1] + ex[1], c[2] + ex[2]], i => {
+      q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
+      if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+    });
   }
   for (const r of bodies) if (r.crewHits) {
     r.ok = false;
@@ -1369,7 +1457,7 @@ function drawResults(group, ctx, results) {
         if (mf && bad) mf.userData.edUnfit = 1;
       }
     } else if (r.on === 'strut' && r.pods && window.THREE) {
-      // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
+      // G477: the ogive pod, a lathe on its axis (fore-aft since G2793) — r = R (1 - (2u-1)^2)^0.65
       const T3 = window.THREE;
       for (const pd of r.pods) {
         const NP = 18, pts = [];
@@ -1715,13 +1803,26 @@ function balanceApply(r) {
   // CG, the CG follows the step (15 % of the mass), and the loop closes in
   // one pass at this threshold
   if (r.cgMX != null && isFinite(r.cgMX) && isFinite(r.cgMY)) {
-    const prev = window.FLYDIY_CG_MODEL;
+    // FLOAT-CG (2 Nov): measured from the CG the step WAS stood on (the float layer's record), not the last one
+    // published - after a load, GARAGE_SPEC.update's rebuild has app.js publish the CG of the aeroplane the answer is
+    // about before the answer arrives, so the answer always read "not moved" and the page kept the second round's
+    // station: the twin floatplane's step 7 cm aft of node's (GATE JOINPARITY). node's load path (3c) measures the same
+    const F = window.CAGE_FLOAT;
+    const prev = (F && F.cgM) || window.FLYDIY_CG_MODEL;
     window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
     const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
     const UI = window.CAGE_UI, P = UI && UI.P;
-    if (moved && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
+    // (a load holds the floats where the file saved them until an edit: no
+    // rebuild for the CG then, G3700 - _cage_float.js CAGE_FLOAT_HELD)
+    const held = typeof window.CAGE_FLOAT_HELD === 'function' && window.CAGE_FLOAT_HELD();
+    if (moved && !held && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
       clearTimeout(balanceApply._t);
-      balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
+      // PHONE-EDIT-PERF: never under a held slider (the drag's own release follows), and as a release's build (buildCg)
+      const go = () => {
+        if (typeof UI.dragging === 'function' && UI.dragging()) { balanceApply._t = setTimeout(go, 250); return; }
+        try { UI.buildWhy = 'cg'; (UI.buildCg || UI.build)(); } catch (e) {}
+      };
+      balanceApply._t = setTimeout(go, 60);
     }
   }
   for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
@@ -1836,7 +1937,7 @@ function applyReadouts(r) {
     const bad = (s.vessels || []).filter(v => !v.fits).length;
     if (bad) t += ' \u00b7 ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
     balEl.textContent = t;
-    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
+    balEl.classList.toggle('bad', s.staticMargin != null && s.staticMargin < 0.05);
   }
   const E = s.envelope;
   const sh = r.fillSh;
@@ -1851,14 +1952,26 @@ function applyReadouts(r) {
       fillEl.textContent = f(r.litres, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
         f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
         ' \u00b7 static margin ' + f(sh.staticMargin, 2);
-      fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
+      fillEl.classList.toggle('bad', sh.staticMargin != null && sh.staticMargin < 0.05);
     } else fillEl.textContent = '';
   }
   drawBar(E, sh ? sh.cgX : null);
   if (r.chart && chartEl && window.BALANCE) {
-    try { window.BALANCE.draw(chartEl, r.chart); LAST_CHART = r.chart; }
+    try { window.BALANCE.draw(chartEl, r.chart, chartStyle()); LAST_CHART = r.chart; }
     catch (e) { console.error('balance chart:', e); }
   }
+}
+// G3734: THE CHART IN THE COLUMN'S PALETTE. balance.js draws in its own cold
+// defaults; here the chrome (text, grid, the corners, the type) and the two
+// limit lines are read off the --ed-* tokens the canvas inherits, so the
+// chart is the garage's. The blue burn line and the yellow dot stay: the
+// tooltip above names them. No token (the bench) keeps balance.js's own.
+function chartStyle() {
+  const cs = chartEl && window.getComputedStyle ? getComputedStyle(chartEl) : null;
+  const t = k => cs ? cs.getPropertyValue(k).trim() : '';
+  if (!t('--ed-ink')) return undefined;
+  return { fg: t('--ed-ink'), dim: t('--ed-faint'), grid: t('--ed-hair'), corner: t('--ed-dim'),
+           np: t('--ed-bad'), caution: t('--ed-warn'), font: "10px 'IBM Plex Sans', sans-serif" };
 }
 // the rows in the panel and the build both ask the same way
 function chartReadout() { readoutsRequest(); }
@@ -1874,22 +1987,24 @@ function drawBar(E, cgX) {
   // still has somewhere to be drawn
   const pad = 0.15 * span, x0 = lo - pad, x1 = hi + pad;
   const at = x => Math.max(0, Math.min(100, (x - x0) / (x1 - x0) * 100));
-  const mark = (x, col, w, t) => {
-    const m = document.createElement('div');
-    m.style.cssText = 'position:absolute;top:0;bottom:0;width:' + w + 'px;background:' + col +
-      ';left:calc(' + at(x).toFixed(1) + '% - ' + (w / 2) + 'px)';
+  // G3733: the look is the sheet's (.cgBar > i, .cgBar > i.cg); only WHERE a
+  // mark stands is computed here, so only `left` is written inline
+  const mark = (x, cls, t) => {
+    const m = document.createElement('i');
+    if (cls) m.className = cls;
+    m.style.left = at(x).toFixed(1) + '%';
     m.title = t; barEl.appendChild(m);
   };
-  mark(lo, '#dfe7f0', 2, 'forward corner \u00b7 ' + E.fwd.label);
-  mark(hi, '#dfe7f0', 2, 'aft corner \u00b7 ' + E.aft.label);
-  if (cgX != null) mark(cgX, '#ffd35a', 4, 'the CG at the fuel aboard');
+  mark(lo, '', 'forward corner \u00b7 ' + E.fwd.label);
+  mark(hi, '', 'aft corner \u00b7 ' + E.aft.label);
+  if (cgX != null) mark(cgX, 'cg', 'the CG at the fuel aboard');
 }
 function loadingTable() {
   if (!tableEl) return;
   const E = LAST_SHAKE && LAST_SHAKE.envelope;
   if (!E || !E.corners) { tableEl.textContent = ''; return; }
   const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
-  tableEl.innerHTML = '<div style="opacity:.7;margin-bottom:2px">loading table \u00b7 % MAC \u00b7 static margin</div>' +
+  tableEl.innerHTML = '<div class="noteH">loading table \u00b7 % MAC \u00b7 static margin</div>' +
     E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
       f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
       ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
@@ -1971,7 +2086,7 @@ function selectVessel(i) {
   if (panelBody) {
     for (const d of panelBody.querySelectorAll('details[data-ves]')) {
       const on = +d.dataset.ves === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   // ...AND IN THE FINISH COLUMN, which is a different element in a different
@@ -1981,7 +2096,7 @@ function selectVessel(i) {
   if (lookBody)
     for (const d of lookBody.querySelectorAll('details[data-veslook]')) {
       const on = +d.dataset.veslook === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   }
@@ -2002,7 +2117,7 @@ function row(parent, label, title) {
 }
 function select(parent, label, title, options, value, onchange) {
   const d = row(parent, label, title);
-  const s = document.createElement('select'); s.style.flex = '1';
+  const s = document.createElement('select');
   for (const [v, name, dis] of options) {
     const o = document.createElement('option');
     o.value = v; o.textContent = name; if (dis) o.disabled = true;
@@ -2017,7 +2132,6 @@ function range(parent, label, title, lo, hi, step, value, fmt, oninput, onchange
   const d = row(parent, label, title);
   const i = document.createElement('input');
   i.type = 'range'; i.min = lo; i.max = hi; i.step = step; i.value = value;
-  i.style.flex = '1';
   const v = el('span', 'v', fmt(+value));
   i.oninput = () => { v.textContent = fmt(+i.value); oninput(+i.value); };
   i.onchange = () => { onchange(+i.value); };
@@ -2078,7 +2192,6 @@ function lookRows(B, i, v) {
   c.type = 'color';
   c.value = tintOf(v) ||
     '#' + ('000000' + (FINISH[fk] || FINISH.alu).col.toString(16)).slice(-6);
-  c.style.flex = '1';
   c.oninput = () => { lookWrite(v, 'tint', c.value); relayout(); };
   c.onchange = () => { lookWrite(v, 'tint', c.value); commit(); };
   if (window.CAGE_RECENT && window.CAGE_RECENT.attach)
@@ -2099,7 +2212,7 @@ function renderLook() {
     const det = document.createElement('details');
     det.open = true;
     det.dataset.veslook = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       (bay ? ' · ' + bay.name.toLowerCase() : '');
@@ -2179,12 +2292,11 @@ function renderPanel() {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS[0];
     const det = document.createElement('details');
     det.open = true;
-    det.style.marginLeft = '6px';
     // the entry a viewport click lands on (see `selectVessel`): the list is
     // rebuilt on every render, so the index rides on the element rather than
     // being remembered as a node
     det.dataset.ves = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');
@@ -2235,7 +2347,7 @@ function renderPanel() {
       const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commitSoon(); });
-      podRow('length', 'L', 0.3, 2.0, 'along the strut');
+      podRow('length', 'L', 0.3, 2.0, 'along the line of flight');
       podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
       range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
         bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
@@ -2252,7 +2364,7 @@ function renderPanel() {
                commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
         ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
-      sizeRow('length', 'L', Math.max(0.4, bay.x1 - bay.x0), 'along the body');
+      sizeRow('length', 'L', Math.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
       sizeRow('width', 'W', secW, 'across the body');
       sizeRow('height', 'H', 1.0, 'up');
     }
@@ -2270,8 +2382,12 @@ function renderPanel() {
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
+      // G2799: the slider spans the HAND's range (the rule's, plus a reach
+      // the swept field still measures); a new tank still starts in the bay
+      const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
       range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
-        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m', bay.x0, bay.x1,
+        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m, the tank can go ' +
+        hx0.toFixed(2) + ' to ' + hx1.toFixed(2) + ' m', hx0, hx1,
         0.01, v.along != null ? v.along : dflt, fmtM,
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
       const lvB = bay.lv || [0, 1];
@@ -2282,8 +2398,7 @@ function renderPanel() {
         'or along a narrow one', -90, 90, 1, v.rot || 0, fmtD,
         x => { v.rot = x; relayout(); }, x => { v.rot = x; commitSoon(); });
     }
-    const rd = el('div', 'r');
-    rd.style.cssText = 'font-size:11px;opacity:.9;white-space:normal;line-height:1.3';
+    const rd = el('div', 'r note');
     box.appendChild(rd);
     READ[i] = rd;
 
@@ -2291,7 +2406,7 @@ function renderPanel() {
       const rm = row(box, '', '');
       const b = document.createElement('button');
       b.textContent = 'remove this ' + (EN.kind === 'battery' ? 'pack' : 'tank');
-      b.style.flex = '1';
+      b.className = 'wide';
       b.onclick = () => { EN.vessels.splice(i, 1); selected = 0;
         renderPanel(); relayout(); commit(); };
       rm.appendChild(b);
@@ -2303,7 +2418,7 @@ function renderPanel() {
     const r = row(B, '', '');
     const b = document.createElement('button');
     b.textContent = '+ add a ' + (EN.kind === 'battery' ? 'pack' : 'tank');
-    b.style.flex = '1';
+    b.className = 'wide';
     b.title = 'two tanks bracketing the CG barely move it as they burn — ' +
       'which is why real aeroplanes carry two';
     b.onclick = () => {
@@ -2326,8 +2441,7 @@ function renderPanel() {
     c.onchange = () => { VIEW.showBay = c.checked ? 1 : 0; relayout(); };
     d.appendChild(c);
   }
-  totalEl = el('div', 'r');
-  totalEl.style.cssText = 'font-size:11px;opacity:.85;white-space:normal;line-height:1.3';
+  totalEl = el('div', 'r note');
   B.appendChild(totalEl);
   // ---- G100: THE CG AS A FUNCTION OF FILL --------------------------------
   // The user, at the start of the arc: "we need to see how the CG is
@@ -2342,19 +2456,16 @@ function renderPanel() {
       x => { VIEW.fill = x; relayout(); },
       x => { VIEW.fill = x; relayout(); fillReadout(); });
   }
-  fillEl = el('div', 'r');
-  fillEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+  fillEl = el('div', 'r note');
   B.appendChild(fillEl);
-  barEl = el('div', 'r');
-  barEl.style.cssText = 'display:block;height:14px;position:relative;margin:2px 0 4px 0;' +
-    'background:linear-gradient(90deg,#2c4a6e,#3b6f4a);border-radius:3px;opacity:.95';
+  barEl = el('div', 'cgBar');
   barEl.title = 'the CG envelope: forward corner to aft corner, in % MAC; the ' +
     'marker is the CG at the fuel aboard';
   B.appendChild(barEl);
   // ---- G101: THE BALANCE CHART, with the loading as what-ifs ---------------
   // Occupants and baggage here are VIEW state: the loading you want to SEE
   // the aeroplane at, not the loading the build carries (that is the crew
-  // layer's dummies and the spec's own baggage). Every point on the chart is
+  // layer's occupants and the spec's own baggage). Every point on the chart is
   // the core's shakedown over genSpecAtFuel — the same door as the reserve
   // sheet, the corners and the slider above.
   if (inGame() && window.BALANCE) {
@@ -2370,8 +2481,7 @@ function renderPanel() {
     range(B, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
       VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; chartReadout(); });
     chartEl = document.createElement('canvas');
-    chartEl.style.cssText = 'display:block;width:100%;height:170px;margin:2px 0 4px 0;' +
-      'background:rgba(0,0,0,.18);border-radius:3px';
+    chartEl.className = 'cgChart';
     chartEl.title = 'weight and balance: CG across (% of the mean chord), mass up. ' +
       'The blue line is the CG walking as the fuel burns at this loading, full ' +
       'to dry, the hollow point at reserves; the yellow dot is the fuel aboard; ' +
@@ -2380,12 +2490,10 @@ function renderPanel() {
       'limit is drawn: the model has no elevator-authority rule to place one.';
     B.appendChild(chartEl);
   }
-  tableEl = el('div', 'r');
-  tableEl.style.cssText = 'display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9';
+  tableEl = el('div', 'r note');
   B.appendChild(tableEl);
   if (inGame()) {
-    balEl = el('div', 'r');
-    balEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+    balEl = el('div', 'r note');
     balEl.title = 'the core’s own shakedown over the spec as committed — the ' +
       'same ledger the flight weighs itself with';
     B.appendChild(balEl);
@@ -2440,7 +2548,7 @@ function syncReadouts() {
        : r.v.shaped === 'band' ? ', height capped by the bay' : ''));
     d.textContent = (r.ok ? '✓ fits · ' : '✗ ') + bits.join(' · ') +
       (r.ok ? '' : ' — ' + r.why.join('; '));
-    d.style.color = r.ok ? '' : '#ff7b6b';
+    d.classList.toggle('bad', !r.ok);
   });
   if (totalEl)
     totalEl.textContent = 'total ' + totCap.toFixed(0) + ' ' + unit() + ' · ' +

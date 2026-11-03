@@ -120,17 +120,24 @@ const station = (i, name) => [name, [
   // is the fitting plus the family's law plus s<i>AxZ (2026-09-04)
   ['s' + i + 'Z',     'fitting fore / aft',
                                      -4, 4, 0.01, sOnM(i)],
-  ['s' + i + 'X',     'in / out (half track)',   0, 1.6, 0.01, sOnM(i)],
+  // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
+  // 1.6 m (metres, unscaled: a DC-3's 2.82 m half track and 1.14 m tyres under the nacelles)
+  ['s' + i + 'X',     'in / out (half track)',   0, 3.2, 0.01, sOnM(i)],
   ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
-  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.40, 0.005, sOnM(i)],
-  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.00, 0.01, sOnM(i)],
+  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.65, 0.005, sOnM(i)],
+  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.60, 0.01, sOnM(i)],
   // the wheel's fore/aft FROM the fitting — the leg's rake, on every family;
   // hidden on a tailwheel, whose spring length already is that knob
+  // NEW-SHAPES-1: the legs' root - no default (an old file keeps the rule it was built by)
+  ['s' + i + 'Root',  'legs root on', 0, 1, 1, ['auto (a wing under the body)', 'the fuselage'],
+   { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3 }],
   ['s' + i + 'AxZ',   'wheel fore / aft (from fitting)', -1.2, 1.2, 0.01,
    { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
      dim: 'm' }],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
-  ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
+  // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
+  // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
+  ['s' + i + 'Steer', 'steering',     i === 2 ? 1 : 0, 2, 1, GP.STEERS, i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2] }) : sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
@@ -165,7 +172,7 @@ const GROUP = ['9 · undercarriage', [
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
    { when: P => +P.gearOn && fairAny(P) }],
   // the wheel dressing — shared rows (G33: this group never made the
-  // cage port; tundra + smooth tread = the bush slick)
+  // cage port; G3852: the tundra's own 'tundra tread' row, lugs or smooth)
   ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
   ['balance + prop', [
     ['cgZ',   'CG station z', -2, 4, 0.01, { dim: 'm' }],
@@ -430,7 +437,9 @@ PAGE.post = ctx => {
       // the fairing's instruments ride the station (G133)
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
                      tail: st.fairTail, rake: st.fairRake, width: st.fairW };
-      const m = wingMount(st, sgn);
+      // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
+      // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
+      const m = st.root === 1 ? null : wingMount(st, sgn);
       // THE OPEN FRAME (2026-09-04, spec §1.7): with no skin the fuselage
       // contract is a surface that is not there — the leg roots on the
       // nearest truss member instead, with a pivot (see openMount); the

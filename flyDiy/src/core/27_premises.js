@@ -61,7 +61,13 @@ const PREMISES_V = 2;   // v2 (contract v1.36, G2910): the polygon entries folde
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions'];   // v1.37: junctions (G2950)
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions', 'sounds'];   // v1.37: junctions (G2950)
+// THE SOUNDS (G1656, SND-AMB-1 for the user): what the ambience hears, drawn on the map. PHYSICS-INERT - nothing composes
+// them (compose reads its layers by name; the raster's signature hashes terrain modifiers, not the record): the ambience
+// (src/viewer/audio/ambience_model.js) is their only reader. An entry is a POINT { id, kind: 'sound', x, z, key, on } or an
+// AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
+// over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
+// the ambience's (AMBIENCE_MODEL.REACH), never the record's.
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -77,7 +83,8 @@ const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official
 // by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
 // rewrite: the same seven categories, other draws.
 const THEMES = {
-  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+  // (G3240 NAMES: the id stays 'alaska' - records name it; the words the editor shows are fictional, GAME-PLAN §13)
+  alaska: { name: 'North Coast', blurb: 'the north coast: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
     categories: CATEGORIES,
     // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
     // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
@@ -530,7 +537,8 @@ function makeModifier0(m, y0) {
         const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * CORE_MATH.sin(hd), b = (+m.slope || 0) * CORE_MATH.cos(hd);
         pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
       } else pl = m.plane || [0, 0, 0];
-      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+      const base = m.abs ? 0 : y0;   // G3660: `abs` - the plane in world heights (siteShelves' ramp pad), as a flatten's level
+      target = (x, z) => base + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
     // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
     // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
@@ -763,7 +771,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [], sounds: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -775,6 +783,23 @@ function migrate(rec) {
     r = m(r) || r; v++; r.v = v;
   }
   return r;
+}
+// FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks" - ONE SURFACE's last step): an old file's split,
+// drawn one way and felt another, is converted where it is read - what the wheels feel is the look's class. A strip that says its
+// look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
+// its class: its own `surface` (the composer reads it first) - its CLASS stays, what the user drew (a track is a dashed path:
+// a track drawn dirt rolls on dirt's gravel friction and stays a track).
+// A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+function feelFollowsLook(r) {
+  const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
+  for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f !== null && roadFeel(rd) !== f) rd.surface = f; }
 }
 function normalise(rec) {
   const d = DEF();
@@ -792,6 +817,11 @@ function normalise(rec) {
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
+  feelFollowsLook(r);
+  // A ROAD'S BAND 0 IS NO BAND (the user, 24 Oct: the editor's band row could not give a road its side back - its minimum was 0,
+  // and a declared band 0 drew the band's 6 m fade): a road read with band 0 or null has its band taken away - its own side
+  // again (Jolene's r45). A strip's or an area's band 0 is kept (no cleared earth).
+  for (const rd of r.layers.roads) if (rd && 'band' in rd && !(+rd.band > 0)) delete rd.band;
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -812,18 +842,25 @@ function unwrap(txt) {
 // village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
 // restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
 // of is the edit's) - so a save made with the place off never deletes it.
-const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
-function dropPlaces(rec, prefixes) {
+// `keep` (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag, the seaplane base standing): ids that stay although
+// their prefix is dropped - TOWN_OFF below, the page's switch (world_boot.js) and the cook's 'default' variant (premises_cook.js)
+const placeOf = (e, prefixes, keep) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)) && !(keep && keep.includes(e.id)));
+function dropPlaces(rec, prefixes, keep) {
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
   let n = 0;
   for (const k of Object.keys(out.layers)) {
     const a = out.layers[k]; if (!Array.isArray(a)) continue;
-    const keep = [], gone = [];
-    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
-    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+    const keep_ = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes, keep) ? gone : keep_).push(e);
+    if (gone.length) { out.layers[k] = keep_; cut[k] = gone; n += gone.length; }
   }
   return { rec: out, cut, n };
 }
+// THE TOWN SWITCHED OFF (G590; METLA-WRAPUP 18 Oct): Metlakatla's every entry (mk_) but its SEAPLANE BASE - the water lane
+// (runway mk_sea, its player plot with it) and the dock it is flown to (the trestle and the float) - which the career's
+// minedock arc, the generated jobs and the floats' routes name (72_contract_data CONTRACT_FIELDS): a standalone site, the
+// town's houses, roads and plots behind the flag. ONE definition: the page's switch and the cook's 'default' variant read it.
+const TOWN_OFF = Object.freeze({ drop: Object.freeze(['mk_']), keep: Object.freeze(['mk_sea', 'mk_mp_air', 'mk_mf_air']) });
 function restorePlaces(rec, cut) {
   if (!cut) return rec;
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
@@ -1044,7 +1081,7 @@ function stageIssues(rec0, maxes) {
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
           if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
-          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+          else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
     }
@@ -1061,7 +1098,7 @@ function stageIssues(rec0, maxes) {
   for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j', sounds: 'snd' };   // (snd: authored records already use a1.. for animal hotspots)
 function newId(rec, layer) {
   // (v1.36: every id of the record, an area's v1 ids too - a migrated area keeps its surface's 'y1', and a new
   // surface must not take it again)
@@ -1095,6 +1132,37 @@ function frameOf(rec, world) {
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
   // c, s: toLocal's own rotation, for a reader that must not allocate (the height query, G611)
   return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0, c, s };
+}
+
+// THE ZONES' MEMO (G2960 RUNWAY-ED-PERF; the user: "editing the runways is the worst lag"; the profile, 12 Oct: a strip moved
+// 2 m paid the island's plot sowing and forest planting again - 0.9 s of the 1.1 s - for zones it never came near). A zone's
+// plots (sowPlots) and its wood (planForest) are KEPT from the previous composition when an EXACT key matches: the zone and
+// every input the sower / planter reads that meets the zone's box (+ ZMEMO_M): the roads (id, points, width), the tree
+// excludes, the keep-outs, the plots (and trees) sown before it, the ground's modifiers in their apply order (source + base),
+// the water level, the seed, the planter's pool. Both are pure (their randomness seeded per zone and road), so a hit is the
+// same answer by construction. ONE MEMO A WORLD (a reload starts empty) AND A GENERATION: the seed, the theme, the catalogue,
+// the trees' mode and the raster flag in its signature - any change starts it over (A0). ?zonememo=0 / FLYDIY_ZONEMEMO =
+// false / env FLYDIY_ZONEMEMO=0 / opts.zoneMemo false: every zone sown as before. O.zoneMemo = { gen, hits, misses }.
+const ZMEMO = typeof WeakMap !== 'undefined' ? new WeakMap() : null, ZMEMO_M = 20;
+const zmClone = typeof structuredClone === 'function' ? v => structuredClone(v) : v => JSON.parse(JSON.stringify(v));
+function zoneMemoOf(world, o, sig) {
+  if (!ZMEMO || !world || typeof world !== 'object' || (o && o.zoneMemo === false)) return null;
+  if (typeof window !== 'undefined' && (window.FLYDIY_ZONEMEMO === false || /[?&]zonememo=0(&|$)/.test((window.location && window.location.search) || ''))) return null;
+  if (typeof process !== 'undefined' && process.env && process.env.FLYDIY_ZONEMEMO === '0') return null;
+  let M = ZMEMO.get(world);
+  if (!M || M.sig !== sig) { M = { sig, gen: M ? M.gen + 1 : 1, sow: new Map(), forest: new Map() }; ZMEMO.set(world, M); }
+  M.hits = 0; M.misses = 0; M.seen = new Set();
+  return M;
+}
+// the memo's answer for a zone (kind 'sow' | 'forest'): the kept output when the key matches, else run() and keep it
+function zoneMemoRun(M, kind, id, keyOf, run) {
+  if (!M) return run();
+  let key = null; try { key = keyOf(); } catch (e) { key = null; }   // (an input that will not serialise: no memo for it)
+  const T = M[kind], had = T.get(id); M.seen.add(kind + ':' + id);
+  if (key !== null && had && had.key === key) { M.hits++; return zmClone(had.out); }
+  const out = run(); M.misses++;
+  if (key !== null) T.set(id, { key, out: zmClone(out) }); else T.delete(id);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -1133,7 +1201,7 @@ function sowPlots(zone, roads, ctx) {
   // corner within `half` of it and no sample of it inside, so the road is skipped
   // with the answer the two tests would have given.
   const boxed = roads.map(rd => {
-    const pr = polyRoad(rd.pts, rd.w || 3.6), half = (rd.w || 3.6) / 2 + 0.5;
+    const pr = polyRoad(rd.pts, roadLayW(rd)), half = roadLayW(rd) / 2 + 0.5;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const p of rd.pts.concat(pr.pts)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const m = half + 1e-3;
@@ -1152,7 +1220,7 @@ function sowPlots(zone, roads, ctx) {
     return false;
   };
   for (const road of roads) {
-    const rd = polyRoad(road.pts, road.w || 3.6);
+    const rd = polyRoad(road.pts, roadLayW(road));   // (the layout width: the plots stand where the town was laid out)
     if (rd.length < 40) continue;
     const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
     const rnd = mulberry32(hash32(zoneSeed, fnv(String(road.id))));
@@ -1376,7 +1444,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 0 };   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
@@ -1398,7 +1466,11 @@ function rwyTreesMode(o) {
   // authored 'no trees' polygon (premises editor). GATE RWYTREES holds 'map' (the paths, the climb-out, the circuit flown)
   // (44.3, 11 Oct: back to 'today' as the default - 'map' moved HOME's calm-air taxi off its V's right arm, GATE LINEUP red with it
   // and green with FLYDIY_RWYTREES=today; 'map' returns with an authored clearing by HOME's taxiways. The ruling stands, the default waits)
-  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
+  // (G3023, 14 Oct - the user: trees cut only on the strip: 'mapx' the default. 'map' lifted the approach FANS too, and the user's
+  //  rev 28 KEEPS x_fan13_0 (they deleted three fans, kept the rest - their own polygons now); without it the trees filled 31's
+  //  climb-out, the pilot left by 13 and GATE LINEUP went red at HOME. 'mapx' lifts the generic 60 / 150 m boxes only: trees to
+  //  the strip's edge, the user's fans and own clears standing)
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'mapx';
 }
 // THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
 // zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -
@@ -1473,6 +1545,26 @@ const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commerc
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
 function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+// ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
+// whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+// A ROAD'S LAYOUT WIDTH (TOWN-ROAD-SIDES, the user 22 Oct: Metlakatla's streets "a smaller side ... the same overall width ...
+// a higher proportion of the road"): `w` is the carriageway DRAWN and felt, `lay` (when set) the width the town was laid out
+// against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing (its poles stand off what it DRAWS). A street that traded its side
+// for carriageway says its old width in `lay`, and nothing beside it moves. Unset: the carriageway, as ever.
+function roadLayW(r) { return r && +r.lay > 0 ? +r.lay : (+(r && r.w) || 3.6); }
+// ...and A TRADED STREET'S GRADE (the 23 Oct survey: GATE CONTACT's road edge / side counted the pavement within 5 mm of the
+// patch where the ground CURVES under it - a bank starting at the drawn edge, under the side's fade): flat under everything it
+// draws that CONTACT sees - the carriageway and ROAD_SIDE_FLAT past each edge (the side's fade reach) - its bank narrower by
+// as much, so the grade's OUTER edge (lay / 2 + falloff) is where it was and no ground past it moves. A road that traded
+// nothing (lay unset or = w): its grade as ever.
+const ROAD_SIDE_FLAT = 1.2;
+function roadGradeW(r, falloff) {
+  const w = +r.w || 3.6, lay = roadLayW(r), ext = Math.max(0, w - lay);
+  if (!(ext > 0)) return { width: lay, falloff };
+  return { width: w + 2 * ROAD_SIDE_FLAT, falloff: Math.max(1, falloff - ext / 2 - ROAD_SIDE_FLAT) };
+}
+function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
+function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
@@ -1542,9 +1634,14 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
+// THE LIMITS WARN, NEVER REFUSE (the user, 18 Oct: "strip 9 stays, the slope rules ... were to be relaxed" - no
+// filtering, the player finds out): every limit below is a WARNING (profileCheck's `warn`: the editor's profile
+// note and checks panel, PG.warnings); only an altiport without its approach is refused (`refuse`: PG.issues).
+// profileIssues is both, the editor's note.
 const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
-function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
+function profileIssues(r) { const c = profileCheck(r); return c.refuse.concat(c.warn); }
+function profileCheck(r) {
+  const out = [], refuse = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
@@ -1554,14 +1651,14 @@ function profileIssues(r) {
   if (alti) {
     if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
     if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
-    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    if (r.approach !== 0 && r.approach !== 1) refuse.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
     else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
-    return out;
+    return { refuse, warn: out };
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
-  return out;
+  return { refuse, warn: out };
 }
 // THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
 // ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
@@ -1613,6 +1710,82 @@ function plotWorld(p, F) {
   }
   return o;
 }
+// WHAT A CLICK ON A STRIP'S OWN THINGS GRABS (G2891 SCENERY-ED-1 c1; the user, 12 Oct, reworking HOME: "there is a lot I
+// can't displace"): the club hangar and the stand are fields of the runway record (`hangar`, `stand`), moved by the strip's
+// discs once the strip is selected - a click on the BUILDING itself picked nothing (it is no record of its own). Given a
+// point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
+// footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
+// or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
+function runwayGrab(rec, lx, lz, dims) {   // (G3096: `dims` the drawn shed's half sizes {HW, HD}, the page's)
+  let best = null;
+  for (const r of (rec && rec.layers && rec.layers.runways) || []) {
+    const h = r.hangar;
+    if (h && isFinite(+h.x) && isFinite(+h.z)) {
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * CORE_MATH.cos(a0) + dz * CORE_MATH.sin(a0), b = -dx * CORE_MATH.sin(a0) + dz * CORE_MATH.cos(a0);
+      const W = dims && +dims.HW > 0 ? +dims.HW : HANGAR_DIMS.HW, D = dims && +dims.HD > 0 ? +dims.HD : HANGAR_DIMS.HD;
+      if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
+    }
+    const st = r.stand;
+    if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
+  }
+  return best;
+}
+// G3096 HANGAR-FIX: A HANGAR SQUARE TO THE BUILDINGS - the heading (the record's, radians) that turns a strip's hangar shell onto
+// the axes of the nearest site building (within 250 m), its door toward `toward` (the stand); the shell is drawn at rotation.y
+// = pi - (hdg - F.yaw) (runwaySite), a site item at at.yaw + pi + item.yaw (placeSite): the shell's turn made congruent to the
+// building's modulo 90 deg, of the four the one whose door (along hdg) points most toward `toward`. No building near: null
+function hangarSquare(rec, r, toward, fyaw) {
+  const h = r && r.hangar; if (!h || !isFinite(+h.x) || !isFinite(+h.z)) return null;
+  let best = null;
+  for (const s of (rec && rec.layers && rec.layers.sites) || []) {
+    const a = s && s.at; if (!a || !isFinite(+a.x) || !isFinite(+a.z)) continue;
+    for (const it of s.items || []) {
+      const c = CORE_MATH.cos(+a.yaw || 0), sn = CORE_MATH.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
+      const d = Math.hypot(x - h.x, z - h.z); if (d > 250 || d < 1) continue;
+      if (!best || d < best.d) best = { d, ry: (+a.yaw || 0) + Math.PI + (+it.yaw || 0) };
+    }
+  }
+  if (!best) return null;
+  const F = +fyaw || 0, t = toward && isFinite(+toward.x) ? [+toward.x - h.x, +toward.z - h.z] : null;
+  let out = null, score = -Infinity;
+  for (let k = 0; k < 4; k++) {
+    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(CORE_MATH.sin(hh + F), CORE_MATH.cos(hh + F));
+    const sc = t ? (CORE_MATH.cos(hh) * t[0] + CORE_MATH.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
+    if (sc > score) { score = sc; out = +hdg.toFixed(4); }
+  }
+  return out;
+}
+// HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
+// parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
+// radius when the page has it) or 6 m x its scale for an aeroplane
+function objectPickR(ob, built) {
+  const s = Math.max(1, +(ob && ob.s) || 1);
+  if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
+  return 2.5 * s;
+}
+// G3092 TAXI-ALL: A WAY OUT THAT FOLLOWS A ROAD. The road's points (the composition's straight line of it, in the premises
+// frame), the end nearer the stand first; its last point taken onto the strip's centreline (within the strip's half width + 1 m
+// of it: replaced by its foot there; farther: the foot appended), clamped to the strip's length
+function wayFrom(r, st, rd) {
+  const P = rd.pts.map(q => [+q[0], +q[1]]), d2 = q => (q[0] - st.x) * (q[0] - st.x) + (q[1] - st.z) * (q[1] - st.z);
+  if (d2(P[P.length - 1]) < d2(P[0])) P.reverse();
+  const E = runwayEnds(r), last = P[P.length - 1];
+  const along = (last[0] - r.c[0]) * E.d[0] + (last[1] - r.c[1]) * E.d[1], off = Math.abs(-(last[0] - r.c[0]) * E.d[1] + (last[1] - r.c[1]) * E.d[0]);
+  const a = Math.max(-r.len / 2, Math.min(r.len / 2, along)), entry = [r.c[0] + E.d[0] * a, r.c[1] + E.d[1] * a];
+  if (off <= r.wid / 2 + 1) P[P.length - 1] = entry; else P.push(entry);
+  // a point ON the stand (a road that starts there) is no leg: the stand faces its first taxi point, which must be away from it
+  while (P.length > 1 && d2(P[0]) < 4) P.shift();
+  return P.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+}
+// the composed copy of a strip with its ways that follow a road built from it (a way whose road is not there keeps its own points)
+function waysVia(r, byId) {
+  const ok = id => typeof id === 'string' && byId.has(id) && byId.get(id).pts && byId.get(id).pts.length >= 2;
+  if (r.stand && ok(r.taxiOutVia)) r.taxiOut = wayFrom(r, r.stand, byId.get(r.taxiOutVia));
+  if (r.stand && ok(r.taxiOut1Via)) r.taxiOut1 = wayFrom(r, r.stand, byId.get(r.taxiOut1Via));
+  if (Array.isArray(r.plots) && r.plots.some(q => q && q.stand && ok(q.taxiOutVia)))
+    r.plots = r.plots.map(q => (q && q.stand && ok(q.taxiOutVia)) ? Object.assign({}, q, { taxiOut: wayFrom(r, q.stand, byId.get(q.taxiOutVia)) }) : q);
+  return r;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -1641,6 +1814,18 @@ function runwaySite(r, F) {
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+// G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
+// pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
+// ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
+function flyWorld(f, F) {
+  if (!f || typeof f !== 'object') return null;
+  const W = L => Array.isArray(L) ? L.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => { const w = F.toWorld(+q[0], +q[1]); return q.length > 2 && isFinite(+q[2]) ? [+w[0].toFixed(2), +w[1].toFixed(2), +q[2]] : [+w[0].toFixed(2), +w[1].toFixed(2)]; }) : null;
+  const o = { dep: W(f.dep), appr: W(f.appr) };
+  if (Array.isArray(f.circuit)) o.circuit = W(f.circuit);
+  if (f.side === 1 || f.side === -1) o.side = f.side;
+  if (f.terrainOk === true) o.terrainOk = true;
+  return o;
+}
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -1657,7 +1842,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
   // ... and every GRADED ROAD (G434): a road's bed is flat across and smoothed along by construction -
   // a taxiway traced as a road is ground a pattern may walk on (the validator asks flat())
-  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: +rd.w || 3.6 }));
+  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: roadLayW(rd) }));
   const onRoad = (x, z) => { if (!roadsL.length) return false; const L = F.toLocal(x, z); return roadsL.some(rd => roadDist(rd, L[0], L[1]) <= rd.w / 2 + 1); };
   const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z)) || onRoad(x, z);
   // the aeroplane is placed at the stand when the strip has one
@@ -1668,10 +1853,13 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
   const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
-  if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
+  // (G3240 NAMES) the name it shows is the names table's (01_names.js fieldName) for a field the table names - the
+  // user's own saved record may still carry an older one - else the record's own (a required-alone 27_ reads the record's)
+  const nm = (dflt) => typeof fieldName === 'function' ? fieldName(r.id, r.name || dflt) : (r.name || dflt);
+  if (runwayIsWater(r)) return { id: r.id, name: nm('sea lane'), kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
            surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
+  return { id: r.id, name: nm('strip'), kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -1687,7 +1875,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null, ...(r.fly ? { fly: flyWorld(r.fly, F) } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1788,6 +1976,26 @@ function siteShelves(site, cat, T) {
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
+    if (entry.ground.need === 'ramp' && typeof entry.ground.outline === 'function') {
+      // G3660 THE RAMP (the meteo station; the user 25 Oct: "Keep the level pad tight around the building. The real one is
+      // positioned slightly on a slope, but a small one"): the pad is the entry's OUTLINE (its own walls + a margin, not the
+      // foot's rectangle), its ground the least-squares PLANE of the ground inside it (a 12 x 12 grid), the slope capped at
+      // ground.maxSlope (0.06 when unsaid) - a 'ramp' modifier with an absolute plane, the bank law's falloff
+      const poly = entry.ground.outline(P).map(q => toWorld(q[0], q[1])), bb = polyBBox(poly), S = [];
+      let mx = 0, mz = 0, mh = 0;
+      for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) { const x = bb.x0 + (i + 0.5) / 12 * (bb.x1 - bb.x0), z = bb.z0 + (j + 0.5) / 12 * (bb.z1 - bb.z0); if (inPoly(poly, x, z)) { const h = T(x, z); S.push([x, z, h]); mx += x; mz += z; mh += h; } }
+      if (S.length < 3) return;   // (an outline smaller than the grid: no pad)
+      mx /= S.length; mz /= S.length; mh /= S.length;
+      let sxx = 0, szz = 0, sxz = 0, sxh = 0, szh = 0;
+      for (const q of S) { const dx = q[0] - mx, dz = q[1] - mz, dh = q[2] - mh; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; sxh += dx * dh; szh += dz * dh; }
+      const det = sxx * szz - sxz * sxz;
+      let a = det > 1e-9 ? (sxh * szz - szh * sxz) / det : 0, b = det > 1e-9 ? (szh * sxx - sxh * sxz) / det : 0;
+      const s0 = Math.hypot(a, b), cap = entry.ground.maxSlope === undefined ? 0.06 : +entry.ground.maxSlope;
+      if (s0 > cap) { a *= cap / s0; b *= cap / s0; }
+      const f = bankFalloff(poly, T, mh, entry.ground.falloff || 6);
+      out.push({ id, kind: 'ramp', abs: true, poly: poly.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]), plane: [+a.toFixed(5), +b.toFixed(5), +(mh - a * mx - b * mz).toFixed(3)], falloff: f, drop: +polyDrop(poly, T, mh, 0).toFixed(2) });
+      return;
+    }
     if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
       const M = entry.ground.shelf(P);
       const ahead = toWorld(0, M.zLevel || 0), level = T(ahead[0], ahead[1]);
@@ -2008,7 +2216,10 @@ function roadHandles(pts, tan) {
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
 // a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
-const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
 // THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
 // long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
 // island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
@@ -2251,6 +2462,13 @@ const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.c
 function plotFenceOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
+}
+// A PLOT'S CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+// ones"): a zone's `rules.cars === false` takes the parked cars off every plot it sows (a house's car and its drive's, a lot's
+// bays), `rules.noCar` [plot ids] off those plots alone (the pad, the drive, the bays and the boat as they were); absent - today's
+function plotCarOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.cars === false || (Array.isArray(R.noCar) && R.noCar.indexOf(plotId) >= 0);
 }
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
@@ -2549,13 +2767,20 @@ function compose(rec0, world, opts) {
     .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
-  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
+  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, lay: roadLayW(r), surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
+    // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
+    // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
+    // them - every road 'auto' whatever the inspector wrote, since the port (G385). Carried when the record says one (a road
+    // without composes as before)
+    typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
+    (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
+  { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
   const aerodromes = [];
   for (const r of runways) {
     const E = runwayEnds(r);
@@ -2563,7 +2788,9 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // (CABIN-LAKE 26 Oct: a lane on a LAKE - the composer's world has the DEM flat at the lake's surface, 1 cm over its level,
+      // and its waterH answers -Infinity there: the lane's elevation is that ground, the lake's own surface - never 0)
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : T1(r.c[0], r.c[1]), [], null), r));
       // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
       r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
       if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
@@ -2620,7 +2847,7 @@ function compose(rec0, world, opts) {
     const BED = bedOf(r);
     let floor = null;
     if (BED) {
-      const hw = (+r.w || 3.6) / 2;
+      const hw = roadGradeW(r, 0).width / 2;   // (the bed's floor under all a traded street draws)
       floor = dense.map((p, i) => {
         const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
         return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
@@ -2683,7 +2910,8 @@ function compose(rec0, world, opts) {
       const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
       for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
     }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: roadGradeW(r, 0).width + (BED ? 2 * BED.shoulder : 0), falloff: roadGradeW(r, BED ? BED.bank : (+r.falloff || 6)).falloff, abs: true }, F.y0);
+    // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -2773,6 +3001,24 @@ function compose(rec0, world, opts) {
   const treeOff = e => RWT !== 'today' && (e.rwy || (RWT === 'map' && (e.shoulder || e.fan)));
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
+  // LOT-CLEAR (the user, 22 Oct, at the old mine: "trees have grown into the building since we allowed them right next to the
+  // runway edge ... I would have expected the buildings themselves to clear their lots"): A BUILDING CLEARS ITS OWN LOT, whatever
+  // the strip's tree rule. The runway's box + 30 m had kept the woods off the buildings near a strip; with the woods to the
+  // strip's edge ('mapx') nothing did - the island's woodland and the viewer's fill read excludeAt(.., 'trees'), and a
+  // building's keep-out reached only its zone's own planting. Every runway plot (a hangar's place: the offer's widest shell,
+  // else a field shed's 9 x 10) and every site item (its foot's box, below) + LOT_M keeps the trees out. Their own kind,
+  // 'lot': read by the woodland's planting and the viewer's fill (excludeAt .. 'lot'), never by a zone's sowing (its plots
+  // keep their places - PREMISES 21d) nor by anything that reads 'trees' alone
+  const LOT_M = 3;
+  for (const r of runways) for (const p of (r.plots || [])) {
+    if (!p || !isFinite(+p.x) || !isFinite(+p.z)) continue;
+    let HW = 0, HD = 0; const OF = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[r.id] && BASE_OFFERS[r.id].plots && BASE_OFFERS[r.id].plots[p.id];
+    if (OF && typeof SHELLS !== 'undefined') for (const sh of OF.shells || []) { const d = (OF.dims && OF.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, +d.HW || 0); HD = Math.max(HD, +d.HD || 0); } }
+    if (!(HW > 0 && HD > 0)) { HW = 9; HD = 10; }
+    const c = CORE_MATH.cos(+p.hdg || 0), sn = CORE_MATH.sin(+p.hdg || 0), A = HD + LOT_M, B = HW + LOT_M;
+    const poly = [[-A, -B], [A, -B], [A, B], [-A, B]].map(q => [+p.x + c * q[0] - sn * q[1], +p.z + sn * q[0] + c * q[1]]);
+    excl.push({ poly, bbox: polyBBox(poly), what: ['lot'], derived: true, lot: r.id + '/' + p.id });
+  }
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
   // never overwritten - the water is not a place's to re-classify - and the codes
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
@@ -2825,7 +3071,7 @@ function compose(rec0, world, opts) {
   // regrows the trees under the pieces it moved, never the whole of an island-long road. Unset: today's road.
   for (const ro of roadObjs) {
     if (ro.runway || !(ro.clear >= 0) || !ro.pts || ro.pts.length < 2) continue;
-    const half = ro.w / 2 + ro.clear;
+    const half = ro.lay / 2 + ro.clear;   // (from the layout edge: the trees stand where they stood)
     // (the pieces are the line's runs through a 200 m grid's cells: an edit changes the runs it moved and no other - an
     // arclength cut would shift every piece past the edit)
     const cellOf = p => Math.floor(p[0] / 200) * 100003 + Math.floor(p[1] / 200);
@@ -3369,10 +3615,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
-    // pavedAt(x, z, reach) -> null | { d, cls, halfW, kind, dPre }: the pavement whose surface the point lies deepest
+    // pavedAt(x, z, reach, skip) -> null | { d, cls, halfW, kind, id, dPre }: the pavement whose surface the point lies deepest
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
-    pavedAt: (x, z, reach) => pavedAt(x, z, reach),
+    pavedAt: (x, z, reach, skip) => pavedAt(x, z, reach, skip),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -3583,12 +3829,34 @@ function compose(rec0, world, opts) {
   }
   // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
   // only the pavement and the band kill)
-  const lawnWater = new Map();   // (v1.35: a zone's water, read once, for its water plots' lawn)
+  const lawnWater = new Map();
+  // Generated plot polygons stay fixed for this composition, like the pavement
+  // index. Keep record order in each cell: overlapping plots still pick the first.
+  const lawnCells = new Map(), lawnEmpty = [];
+  let lawnPlots = null, lawnCount = -1, lawnIndexed = false;
+  function plotsAt(lx, lz) {
+    const plots = O.records.plots;
+    if (plots !== lawnPlots || plots.length !== lawnCount) {
+      lawnPlots = plots; lawnCount = plots.length; lawnCells.clear(); lawnIndexed = true;
+      let cells = 0;
+      for (const p of plots) if (p.poly && p.poly.length) {
+        const b = polyBBox(p.poly);
+        // A cell of halo keeps the broad phase conservative at numerical edges.
+        const box = { x0: b.x0 - GS_C, z0: b.z0 - GS_C, x1: b.x1 + GS_C, z1: b.z1 + GS_C };
+        const bounds = [box.x0, box.z0, box.x1, box.z1].map(x => Math.floor(x / GS_C));
+        cells += (bounds[2] - bounds[0] + 1) * (bounds[3] - bounds[1] + 1);
+        if (!bounds.every(Number.isSafeInteger) || !(cells <= 65536)) { lawnIndexed = false; lawnCells.clear(); break; }
+        gsAddTo(lawnCells, box, p);
+      }
+    }
+    return lawnIndexed && Number.isFinite(lx) && Number.isFinite(lz)
+      ? (lawnCells.get(gsKey(Math.floor(lx / GS_C), Math.floor(lz / GS_C))) || lawnEmpty) : plots;
+  }   // (v1.35: a zone's water, read once, for its water plots' lawn)
   function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
     // (v1.35: a plot whose ground is off is the island's here - no lawn, the biome's own; and a water plot mows no lawn
     // within 30 cm of its zone's water - the shore is the biome's, the user: "they draw grass up till the sea")
-    for (const p of O.records.plots) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
+    for (const p of plotsAt(lx, lz)) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
       const g = zoneGrass(zoneOf(p.zone));
       if (g.kind === 'lawn' && p.side === 'water') {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
@@ -3655,17 +3923,68 @@ function compose(rec0, world, opts) {
     const pts = it.road.pts, dead = p => { const cell = CIDX.query(p[0], p[1]); if (cell) for (const o2 of cell) if (o2 !== it && dEdgeOf(o2, p[0], p[1]) > -0.5) return false; return true; };
     return (it.deadEnds = [dead(pts[0]), dead(pts[pts.length - 1])]);
   }
+  // TERRAIN-MATCH (2 Nov): PAST AN END THAT OPENS ONTO ANOTHER PAVEMENT the road answers nothing either - the other
+  // pavement answers there for itself (its own depth, its own sink). The other one touches the end (roadDeadEnds' half
+  // metre) but need not cover the half disc past it: at w3's over-run, where r40 (16 m, gravel) starts on r5's edge, the
+  // patch was sunk 0.42 m by r40's cap 3-5 m past its square end, under nothing or under r5's edge fade (0.3 m into r5:
+  // tools/terrain_match.js 'patch: a sunk vertex', the tier on that law). Only PAST the end: up to it the road keeps its
+  // own depth (G1542 holding every end back 2 m cost GATE CONTACT's band 33 points)
+  function pastJoinedEnd(it, x, z, reach) {      // true: past an end that is NOT dead
+    const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
+    if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return false;
+    const DE = roadDeadEnds(it), cap = (it.halfW || 0) + Math.max(0, reach) + 0.5;
+    for (let k = 0; k < 2; k++) {
+      if (DE[k]) continue;
+      const p = k ? pts[n - 1] : pts[0], q = k ? pts[n - 2] : pts[1];
+      if (HYP2(x - p[0], z - p[1]) > cap) continue;
+      const dx = p[0] - q[0], dz = p[1] - q[1], l = HYP2(dx, dz);
+      if ((l > 1e-9) && (x - p[0]) * dx + (z - p[1]) * dz > 0) return true;   // (past this end, not along it)
+    }
+    return false;
+  }
   function roadEndIn(it, x, z) {                  // metres inside the nearer DEAD end, along the road (Infinity: not near one)
     const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
     if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
     const DE = roadDeadEnds(it);
     if (!DE[0] && !DE[1]) return Infinity;
-    let best = Infinity, bi = 1, bt = 0;
-    for (let i = 1; i < n; i++) {
-      const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
-      const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
-      const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
-      if (d < best) { best = d; bi = i; bt = t; }
+    let best = Infinity, bi = 1, bt = 0, found = false;
+    // The viewer asks this after roadDist: that query already uses the segment
+    // grid, while this end correction still walked the whole island road.
+    // Reuse the SAME grid. Keep the original segment arithmetic and the walk's
+    // first-segment tie rule; visit another ring on an exact distance boundary
+    // so an equally near earlier segment cannot be missed.
+    const I = roadSegIdx(it.road);
+    if (I) {
+      const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
+      if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
+        const kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3);
+        for (let k = 0; k <= kMax; k++) {
+          for (let i = ci - k; i <= ci + k; i++) {
+            if (i < 0 || i >= I.nx) continue;
+            const edge = i === ci - k || i === ci + k;
+            for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+              if (j < 0 || j >= I.nz) continue;
+              const ids = I.cells.get(i * 65536 + j); if (!ids) continue;
+              for (let m = 0; m < ids.length; m++) {
+                const si = ids[m], a = pts[si - 1], b = pts[si], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+                const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+                const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+                if (d < best || (d === best && si < bi)) { best = d; bi = si; bt = t; }
+              }
+            }
+          }
+          if (best < k * I.C) { found = true; break; }
+        }
+      }
+    }
+    if (!found) {   // short roads, distant/non-finite queries, or no bounded answer: original walk
+      best = Infinity; bi = 1; bt = 0;
+      for (let i = 1; i < n; i++) {
+        const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+        const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+        const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+        if (d < best) { best = d; bi = i; bt = t; }
+      }
     }
     const len = i => HYP2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     let e = Infinity;
@@ -3675,19 +3994,21 @@ function compose(rec0, world, opts) {
   }
   // `reach` (G1541, m, default 0): also a pavement whose edge lies within `reach` OUTSIDE the point (d > -reach) - the
   // patch keeps its 2 cm under a pavement's side, the translucent fade drawn over the ground past the edge
-  function pavedAt(x, z, reach) {
+  // `skip` (G2115, an id): every pavement but that one - a pavement's builder asks whether its edge lies on ANOTHER's interior
+  function pavedAt(x, z, reach, skip) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1], r0 = reach > 0 ? -reach : 0;
     const cell = CIDX.query(lx, lz);
     let best = null;
     if (cell) for (const it of cell) {
+      if (skip !== undefined && skip !== null && it.id === skip) continue;
       let d = dEdgeOf(it, lx, lz), dPre = d;
       if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
         const e = roadEndIn(it, lx, lz);
-        if (e < 0) continue;
+        if (e < 0 || pastJoinedEnd(it, lx, lz, -r0)) continue;
         dPre = Math.min(d, e); d = Math.min(d, e - PAVE_END_IN);
       }
       if (dPre <= r0) continue;
-      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };
+      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, id: it.id, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };   // (G2115: its id)
       else if (dPre > best.dPre) best.dPre = dPre;   // (the deepest pavement for the deep sink; the deepest paved extent for the rest)
     }
     return best;
@@ -3728,6 +4049,23 @@ function compose(rec0, world, opts) {
     // (G2918: a road's clearing keeps the TREES and the grass out, never the plots a zone sows along it - the forest's planting
     // takes it below, the sower does not)
     const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0 && !e.roadClear).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // (G2960) the zones' memo for this composition, and the key of a zone's inputs (see zoneMemoOf)
+    const ZM = zoneMemoOf(world, o, JSON.stringify([rec.seed, themeOf(rec), Object.keys(catS || {}).sort().join(), o.rwyTrees || null, !!o.raster, typeof STAGE_V !== 'undefined' ? STAGE_V : 0]));
+    const zmApart = (a, b) => a.x1 < b.x0 || b.x1 < a.x0 || a.z1 < b.z0 || b.z1 < a.z0;
+    const zmBoxOf = (pts, pad) => { const b = polyBBox(pts); return { x0: b.x0 - pad, z0: b.z0 - pad, x1: b.x1 + pad, z1: b.z1 + pad }; };
+    const zmKey = (z, c, rds, forest) => {
+      const B = zmBoxOf(z.poly, ZMEMO_M), meets = (pts, pad) => !!(pts && pts.length) && !zmApart(zmBoxOf(pts, pad || 0), B);
+      const G = [], seenM = new Set();
+      index.rect(B.x0, B.z0, B.x1, B.z1, M => { if (!seenM.has(M) && !zmApart(M.bbox, B)) { seenM.add(M); G.push(M); } });
+      G.sort((p, q) => p.ord - q.ord);
+      return JSON.stringify([z, c.waterY, c.seed,
+        rds.filter(r => r && meets(r.pts, (+r.w || 3.6) / 2 + 2)).map(r => [r.id, r.pts, r.w]),
+        (c.excludes || []).filter(p => meets(p)), (c.keepOut || []).filter(p => meets(p)),
+        (c.plots || []).filter(p => p && meets(p.poly)).map(p => [p.id, p.poly]),
+        forest ? (c.trees || []).filter(t => t && t.x >= B.x0 - 30 && t.x <= B.x1 + 30 && t.z >= B.z0 - 30 && t.z <= B.z1 + 30) : null,
+        forest ? c.pool : null,
+        G.map(M => [M.def, M.y0])]);   // (in their apply order - the sort - not their place in the whole list: a strip added far away moves every ord)
+    };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -3736,9 +4074,9 @@ function compose(rec0, world, opts) {
         O.records.items.push(it);
         // an item astride a road it was not put on: its pad would re-grade the road (an authoring mistake, named)
         const rit = (st.items || []).find(q => (q.id || '') === it.item) || {};
-        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.w), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.w / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
+        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.lay), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.lay / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
       }
-      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
     O.records.links = solveLinks(rec, O.records.items, 'placed');
@@ -3750,7 +4088,8 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
+        { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
+          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -3803,7 +4142,7 @@ function compose(rec0, world, opts) {
         if (site.items.length) {
           const S = placeSite(site, cat, ctx);
           for (const it of S.items) { it.park = park.id; O.records.items.push(it); park.items.push(it); }
-          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: park.id }); }   // (LOT-CLEAR)
           for (const i of S.issues) O.records.issues.push(i);
         }
         // THE PARK'S DRESSING (placePark's, in the composer): the footpath from the road's verge to the
@@ -3812,7 +4151,7 @@ function compose(rec0, world, opts) {
           const rd = roadObjs.find(r => r.id === p.road);
           const n = p.n, tg = p.tg, w = p.w;
           const prnd = mulberry32(hash32(seed, 0x9a7));
-          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.w / 2 - 0.6) : 0;
+          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.lay / 2 - 0.6) : 0;
           const p0 = [p.front[0] - n[0] * back, p.front[1] - n[1] * back];
           const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
           const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
@@ -3837,7 +4176,9 @@ function compose(rec0, world, opts) {
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
+      { const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
+        for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
+    O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
     // trees, I want to use the normal tree system, and just paint those zones ... never
     // any tree as fixture without its lod system, we take the normal ones, maybe alter
@@ -3939,6 +4280,16 @@ function issues(rec0) {
     if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
+  // THE SOUNDS (G1656): a point or a polygon, a bed key, on / off (which beds exist is the ambience's to say: the page's
+  // AMBIENCE_MODEL when it is loaded)
+  const BEDS = typeof AMBIENCE_MODEL !== 'undefined' && AMBIENCE_MODEL.BEDS ? AMBIENCE_MODEL.BEDS.map(b => b[0]) : null;
+  for (const e of rec.layers.sounds) {
+    const what = 'sound ' + e.id;
+    if (e.poly) { if (e.poly.length < 3) out.push(what + ': a polygon needs three points'); else if (!polySimple(e.poly)) out.push(what + ': the polygon crosses itself'); }
+    else if (!(isFinite(+e.x) && isFinite(+e.z))) out.push(what + ': a point needs x and z');
+    if (typeof e.key !== 'string' || !/^amb\./.test(e.key)) out.push(what + ': no ambience bed (amb.*)');
+    else if (BEDS && BEDS.indexOf(e.key) < 0) out.push(what + ': unknown bed ' + e.key);
+  }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   // v1.37 (G2950): a junction's waypoints lie on one spot (the editor keeps them there; a hand edit may not), its id a string
   { const J = new Map();
@@ -3948,9 +4299,12 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    // (G3098) a drawn flight: dep / appr lists of points, side +-1
+    if (r.fly != null) { const f = r.fly, pts = L => L == null || (Array.isArray(L) && L.every(q => Array.isArray(q) && q.length >= 2 && isFinite(+q[0]) && isFinite(+q[1])));
+      if (typeof f !== 'object' || !pts(f.dep) || !pts(f.appr) || !pts(f.circuit) || (f.side != null && f.side !== 1 && f.side !== -1)) out.push('runway ' + r.id + ': fly is { dep, appr, circuit? (lists of [x, z]), side? +1 / -1, terrainOk? }'); }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
@@ -3964,6 +4318,9 @@ function issues(rec0) {
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
     // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
     // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    // (G3092) a way out that follows a road names one the record has
+    for (const [h, k, who] of [[r, 'taxiOutVia', ''], [r, 'taxiOut1Via', '']].concat((Array.isArray(r.plots) ? r.plots : []).filter(q => q).map(q => [q, 'taxiOutVia', 'plot ' + q.id + ': '])))
+      if (h[k] != null && !(rec.layers.roads || []).some(q => q && q.id === h[k])) out.push('runway ' + r.id + ': ' + who + 'its way out follows road ' + h[k] + ', which is not there');
     if (r.plots != null) {
       if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
       else for (const p of r.plots) {
@@ -3988,7 +4345,12 @@ function issues(rec0) {
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
-  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
+  // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
+  //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
+  //  inside, or side by side, stays an issue)
+  const endsOn = (p, q) => { const E = runwayEnds(p), B = runwayBox(q, 0), i0 = inPoly(B, E.end0[0], E.end0[1]), i1 = inPoly(B, E.end1[0], E.end1[1]);
+    let dh = Math.abs(((p.hdg - q.hdg) % Math.PI + Math.PI) % Math.PI); dh = Math.min(dh, Math.PI - dh); return i0 !== i1 && dh > 20 * Math.PI / 180; };
+  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0)) && !endsOn(rws[i], rws[j]) && !endsOn(rws[j], rws[i])) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
     if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
@@ -4061,6 +4423,13 @@ function curvTol(O, F, lx, lz, c, world) {
 }
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
+// THE WARNINGS (18 Oct): what the editor tells and nothing refuses - a strip's profile past the pilot's or the altiport's
+// limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
+function warnings(rec0) {
+  const rec = expandAreas(normalise(rec0)), out = [];
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  return out;
+}
 function checks(rec0, world, opts) {
   const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
@@ -4169,8 +4538,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN', 'METEO_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine', METEO_GEN: 'meteo' };   // METEO_GEN: the meteo station (G3660)
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -4203,14 +4572,14 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself

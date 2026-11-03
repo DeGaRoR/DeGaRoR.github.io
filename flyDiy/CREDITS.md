@@ -655,6 +655,31 @@ pickups, SUVs, vans, a minibus, box trucks, flatbeds, two semis, a city bus,
 a police 4x4, a rusty saloon); the second, eight-material copy of the police
 4x4 is left out. Imported as-is, selected by node, no scale and no turn.
 
+**The construction machines** (`assets/vehicles/construction/`, ASSETS-OCT,
+the `construction` group of the pier table, baked into
+`src/pier/pier_construction.js`) — **Sketchfab, CC-BY-4.0**, the provenance
+read out of each file's own `asset.extras`; attribution is a condition of the
+licence and must stay visible wherever they are shown. The CAT and JCB marks
+are painted over at the bake (the user, 25 Oct), the crane's GROVE marks with
+them; the delivered files are untouched.
+
+- `machine_excavator` — **"Excavator (CAT)"** by sarvesh12
+  (https://sketchfab.com/3d-models/excavator-cat-5f195244108c46e495a1e78040f02f7e)
+- `machine_backhoe` — **"JCB Backhoe Loader 3CX Tractor"** by Kyle Burton
+  (https://sketchfab.com/3d-models/jcb-backhoe-loader-3cx-tractor-5b2d02e1c1c14deba0f9c8d75fff54b6)
+- `machine_loader` — **"Bulldozer"** (a wheel loader) by RobbyHollister
+  (https://sketchfab.com/3d-models/bulldozer-2137d93b5a804161bc65b44d583aa68e)
+- `machine_crane` — **"Components of Crane"** by Steven Mai
+  (https://sketchfab.com/3d-models/components-of-crane-08b8b4f1bb7a46e9892e08bd9517f992)
+- `machine_loader_rusty` — **"Escavadeira Tractor"** (a wheel loader) by LuizZed36
+  (https://sketchfab.com/3d-models/escavadeira-tractor-7e297dc563d24ae3aa9e95ce899e0f4f)
+- `machine_skidsteer` — **"Skid Steer Loader"** by Adelprince69
+  (https://sketchfab.com/3d-models/skid-steer-loader-09c5ac66e1074d29ae1e7699001555ed)
+- `tractor_farm` — **"Tractor"** by sheldon.bean
+  (https://sketchfab.com/3d-models/tractor-e9e844f2f9364044a181ce8f38a83dc3)
+- `tractor_scan` — **"Tractor"** by selfie 3D scan (bevadek)
+  (https://sketchfab.com/3d-models/tractor-1b258bcc01bf4ed0935ef73e80442c30)
+
 **The clutter** (`assets/propsHouse/`, G293) — **Sketchfab, CC-BY-4.0**,
 attribution required:
 
@@ -817,6 +842,29 @@ licence and must stay visible wherever it is shown:
 Candidates delivered beside it, not shipped yet: "Car Scene" by toivo (car #2, later), "Pickup Truck" by
 00amza (a parked / traffic prop candidate), "Dirty car" by 3D Error 404 (dropped) - all CC-BY-4.0.
 
+## The camping kit (`assets/camp/`, baked and served from media/)
+
+The user's four tents (ASSETS-OCT G3145, 2026-10-13), the first assets through the pipeline's spine: declared
+in `tools/camp_table.py`, baked AS-IS by `tools/camp_kit.py` (the prop baker's runner) into `src/camp/` +
+`media/geo/camp/` + `media/tex/camp/`, their far levels cut by `tools/prop_lod.js --kit camp`, KTX2 twins
+beside the maps; `src/camp/camp_credits.json` carries each line.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) - attribution is a condition of the
+licence and must stay visible wherever it is shown:
+
+- `tent_hiking` - **"Hiking Tent"** by rileylane
+  (https://sketchfab.com/3d-models/hiking-tent-441cd8395bf84bf9908375c35e07f809)
+- `tent_frame` - **"Tent"** by alexxx_xarchenko
+  (https://sketchfab.com/3d-models/tent-f6fef44f1e11487e8aec68123042cf03)
+- `tent_big` - **"Tent"** by marsh_tt (https://sketchfab.com/3d-models/tent-e85539fc03a24eb3abc7cdb8699e52f2)
+- `tent_small` - **"Tent"** by Tactical_Gamer
+  (https://sketchfab.com/3d-models/tent-9006af5d7af4491dbb573fdddaf8b30b)
+
+## The infrastructure kit (procedural, `tools/infra_gen.js`)
+
+The high-voltage pylons (ASSETS-OCT G3140, 2026-10-13) - four lattice towers and a wooden 115 kV H-frame - are
+written by `tools/infra_gen.js` from their dimensions: no source model, nothing to credit.
+
 ## The animals (`assets/animals/`, baked and served from media/)
 
 Six rigged, animated animals for Jolene (2026-09-22): three land animals with
@@ -889,6 +937,15 @@ apply to the PA-18, the C172, the hangar props and their derivatives only.
   (mixamo.com), Mixamo licence; baked as sampled joint rotations
   (`src/chars/*_anim.js`, `media/geo/chars/anim_*.bin`). Ch20 is the preview
   character those downloads carry, imported like the others.
+- **The passengers (G2970, G3617, G3619)**: the crowd's cast, Adobe Mixamo
+  characters Ch26 (Elizabeth), Ch06 (James), Ch27 (Martha), Ch31 (Leonard),
+  Ch28 (David), Ch08 (Adam), Ch37 (Jody), Ch21 (Kate) and Ch17 (Pete), and
+  the clips "Walking", "Neutral Idle", "Look Around", "Texting While
+  Standing", "Talking On A Cell Phone", "Standing W_Briefcase Idle", "Happy
+  Idle", "Sad Idle", "Swatting Bugs" and "Pacing And Talking On A Phone",
+  by Adobe Mixamo (mixamo.com), Mixamo licence; imported as-is like the crew
+  (`tools/chars_table.py` CAST / CROWD_CLIPS, lazy media files named by
+  `src/chars/crowd_pack.json`).
 
 ## Trees, billboards and terrain (`assets/treesRaw/`, W0a — candidates)
 
@@ -1025,6 +1082,12 @@ geometry belongs to evolveduk.
   - source: https://sketchfab.com/3d-models/grass-patches-6952780b80594a31aab2dedf7249a47a
   - 3 cover · 1,910 tris · tallest 129.5 m · **units: x0.0077 to a metre**
 
+- **fern grass 02** — `vegetation/grass/fern_grass_02.glb` (the lake-shore reeds, `reed_marsh`; ASSETS wk44, 2026-10-24)
+  - author: Digital screen official (https://sketchfab.com/ck212575)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/fern-grass-02-93d1f6a261e24b8394d0ea41cf985ef9
+  - 1 cover · 2,128 tris · bakes 0.019 m tall (a x0.001 wrapper): size 62 stands a 1.2 m clump
+
 - **Realtime Grass** — `vegetation/grass/realtime_grass.glb`
   - author: mfhscoobydoo (https://sketchfab.com/mfhscoobydoo)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
@@ -1141,6 +1204,9 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 `media/tex/signs/`. Admiralty Air Taxi, Harbor Fuel & Bait, Kootz Landing
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
+The cabin shed's plank, "The Shed" (G3540), is the user's own too: one sign to
+a file (`assets/billboards/The Shed - sign.png`), cut to its alpha by the same
+`tools/sign_import.py` (its SINGLES table) and shipped as a 1024-wide webp.
 
 ## The world's data — Jolene Island (raw in `assets/island/raw/jolene/` (local, gitignored); SHIPPED as `media/world/jolene/`)
 
@@ -1312,6 +1378,14 @@ The music that ships (57 tracks):
 - "Simple Royalty Free Guitar - "Village on the Lake"" by Matthew C. Wright — CC-BY 4.0 — https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/ (`media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3`; garage, cruise)
 
 <!-- MUSIC:END -->
+
+The story's opening (G3380 STORY-INTRO, the user's pick of 19 Oct; not on the radio - played once, by a New career's
+cinematic, named by `src/viewer/story_intro.js`):
+
+- "Sunset Plains" by Yoiyami — CC0 (licence read on its page on 2026-10-19:
+  http://creativecommons.org/publicdomain/zero/1.0/) — https://opengameart.org/content/sunset-plains
+  (`media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg`: the first 40 s of the 330 s WAV, a 3 s fade-out at its
+  end, Ogg Vorbis 48 kHz stereo ~96 kbps, 480 KB)
 
 The candidates the user picks from (the listening board): all from the **Free Music Archive**, each album's licence line read on its page on 2026-10-04 and each
 track's re-checked at download:

@@ -1,0 +1,902 @@
+[
+ {
+  "build": "cub",
+  "case": "taxi",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 1.49,
+  "eibX": {
+   "vol": 0.08868222315443963,
+   "mod": 0.05739377812459554,
+   "wV": 0.04,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 3.798256436064276e-12,
+   "mod": 2.3739102725401725e-12,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 3.5,
+  "yPk": 0,
+  "zPk": 1.6,
+  "dvX": 3.07,
+  "dvZ": 0.21,
+  "far562": false,
+  "restraint": {
+   "load": 3.0876825127691623,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9989102442873053,
+  "cell": 1.001667784445263,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "cub",
+  "case": "noseover",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 4.88,
+  "eibX": {
+   "vol": 0.11559603922874964,
+   "mod": 0.07706402615249976,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.0014565532298959371,
+   "mod": 0.0009103457686849606,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 9.6,
+  "yPk": 0.1,
+  "zPk": 5,
+  "dvX": 2.95,
+  "dvZ": 2.09,
+  "far562": false,
+  "restraint": {
+   "load": 2.7540113497939767,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9975290773951279,
+  "cell": 1.004441702564445,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "cub",
+  "case": "far473",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 3.73,
+  "eibX": {
+   "vol": 0.009746992632473871,
+   "mod": 0.006497995088315914,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 8.11083516754279e-14,
+   "mod": 5.0692719797142436e-14,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 0.4,
+  "yPk": 0,
+  "zPk": 2.9,
+  "dvX": 0.35,
+  "dvZ": 1.29,
+  "far562": false,
+  "restraint": {
+   "load": 0.32700512297035245,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9990778797201026,
+  "cell": 1.0029827998947152,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "cub",
+  "case": "trunk0",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Fatal injuries",
+  "by": "space",
+  "dri": 23.77,
+  "eibX": {
+   "vol": 1.069033332333719,
+   "mod": 0.7126888882224793,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.03536942945486077,
+   "mod": 0.02210589340928798,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 248.1,
+  "yPk": 5,
+  "zPk": 171.4,
+  "dvX": 18.59,
+  "dvZ": 11.62,
+  "far562": true,
+  "restraint": {
+   "load": 11.929783446674119,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0,
+  "cell": 19.068632074842732,
+  "parted": true,
+  "rows": {
+   "dri": 3,
+   "eibandX": 1,
+   "eibandY": 0,
+   "far562": 2,
+   "restraint": 0,
+   "space": 4,
+   "cell": 4,
+   "parted": 4
+  }
+ },
+ {
+  "build": "cub",
+  "case": "trunk25",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Heavy injuries",
+  "by": "cell",
+  "dri": 5.76,
+  "eibX": {
+   "vol": 0.48493686774996425,
+   "mod": 0.30859618856815907,
+   "wV": 0.02,
+   "wM": 0.02
+  },
+  "eibY": {
+   "vol": 0.6875171146012412,
+   "mod": 0.4267347607869773,
+   "wV": 0.02,
+   "wM": 0.02
+  },
+  "xPk": 20.7,
+  "yPk": 17.6,
+  "zPk": 19.3,
+  "dvX": 10.37,
+  "dvZ": 4.91,
+  "far562": false,
+  "restraint": {
+   "load": 16.97279037124875,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.7461338735784442,
+  "cell": 1.238467484924083,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 1,
+   "cell": 2,
+   "parted": 0
+  }
+ },
+ {
+  "build": "jodel",
+  "case": "taxi",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 2.02,
+  "eibX": {
+   "vol": 0.08181320967490266,
+   "mod": 0.05206295161130169,
+   "wV": 0.02,
+   "wM": 0.02
+  },
+  "eibY": {
+   "vol": 0.010503166584054207,
+   "mod": 0.00656447911503388,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 3.1,
+  "yPk": 0.3,
+  "zPk": 2.1,
+  "dvX": 3.37,
+  "dvZ": 0.57,
+  "far562": false,
+  "restraint": {
+   "load": 2.863462338621593,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9985476752445884,
+  "cell": 1.0077728148811063,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "jodel",
+  "case": "noseover",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 5.73,
+  "eibX": {
+   "vol": 0.14331564055764515,
+   "mod": 0.09554376037176343,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.09020904685131624,
+   "mod": 0.05638065428207265,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 7.6,
+  "yPk": 2.4,
+  "zPk": 5,
+  "dvX": 1.93,
+  "dvZ": 1.26,
+  "far562": false,
+  "restraint": {
+   "load": 4.828381045132128,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9945719854487337,
+  "cell": 1.0092955555714869,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "jodel",
+  "case": "far473",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 7.53,
+  "eibX": {
+   "vol": 0.012868771960767184,
+   "mod": 0.008579181307178123,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.006417915816405738,
+   "mod": 0.004011197385253586,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 0.6,
+  "yPk": 0.2,
+  "zPk": 5.7,
+  "dvX": 0.43,
+  "dvZ": 2.65,
+  "far562": false,
+  "restraint": {
+   "load": 0.3838016791108472,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9980993386820427,
+  "cell": 1.002684745791891,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "jodel",
+  "case": "trunk0",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Fatal injuries",
+  "by": "eibandX",
+  "dri": 21.01,
+  "eibX": {
+   "vol": 2.4437052400125454,
+   "mod": 1.6291368266750301,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 1.6363559583290037,
+   "mod": 1.0227224739556273,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 215.8,
+  "yPk": 54.3,
+  "zPk": 119.4,
+  "dvX": 38.72,
+  "dvZ": 8.55,
+  "far562": true,
+  "restraint": {
+   "load": 74.97073650009729,
+   "strength": 17.955000000000002,
+   "failed": true
+  },
+  "space": 0.95972792434868,
+  "cell": 1.203026416118338,
+  "parted": false,
+  "rows": {
+   "dri": 2,
+   "eibandX": 4,
+   "eibandY": 3,
+   "far562": 2,
+   "restraint": 2,
+   "space": 0,
+   "cell": 2,
+   "parted": 0
+  }
+ },
+ {
+  "build": "jodel",
+  "case": "trunk25",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 8.4,
+  "eibX": {
+   "vol": 0.14769124850177506,
+   "mod": 0.0984608323345167,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.27540067952447417,
+   "mod": 0.17212542470279635,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 14.1,
+  "yPk": 8.6,
+  "zPk": 9.2,
+  "dvX": 6.91,
+  "dvZ": 6.75,
+  "far562": false,
+  "restraint": {
+   "load": 4.999529613595099,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.8859243220475481,
+  "cell": 1.018108244898086,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "taxi",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 1.44,
+  "eibX": {
+   "vol": 0.06903932930637267,
+   "mod": 0.04418517075607851,
+   "wV": 0.04,
+   "wM": 0.04
+  },
+  "eibY": {
+   "vol": 0.003224747838671372,
+   "mod": 0.0020154673991696075,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 2.5,
+  "yPk": 0.3,
+  "zPk": 1.4,
+  "dvX": 2.99,
+  "dvZ": 0.57,
+  "far562": false,
+  "restraint": {
+   "load": 2.371460869714678,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9955095382577511,
+  "cell": 1.0019089133475643,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "taxi",
+  "trigG": 1.5,
+  "seat": "Co-pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 1.44,
+  "eibX": {
+   "vol": 0.06903932930637266,
+   "mod": 0.0441851707560785,
+   "wV": 0.04,
+   "wM": 0.04
+  },
+  "eibY": {
+   "vol": 0.0032247478456321,
+   "mod": 0.0020154674035200624,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 2.5,
+  "yPk": 0.3,
+  "zPk": 1.4,
+  "dvX": 2.99,
+  "dvZ": 0.57,
+  "far562": false,
+  "restraint": {
+   "load": 2.3714608697146775,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9955095382577829,
+  "cell": 1.0019089133475643,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "noseover",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 3.26,
+  "eibX": {
+   "vol": 0.15711458105054707,
+   "mod": 0.10474305403369805,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.040092987432015725,
+   "mod": 0.02505811714500983,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 15.4,
+  "yPk": 2.6,
+  "zPk": 6,
+  "dvX": 3.98,
+  "dvZ": 1.76,
+  "far562": false,
+  "restraint": {
+   "load": 3.9719651829475042,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9966019407622158,
+  "cell": 1.0113003802705314,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "noseover",
+  "trigG": 4,
+  "seat": "Co-pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 3.26,
+  "eibX": {
+   "vol": 0.15681407295824754,
+   "mod": 0.10454271530549836,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.0437912731955542,
+   "mod": 0.027369545747221377,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 15.4,
+  "yPk": 2.7,
+  "zPk": 6,
+  "dvX": 3.98,
+  "dvZ": 1.76,
+  "far562": false,
+  "restraint": {
+   "load": 3.975782821652356,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9966018831682982,
+  "cell": 1.0113003802705314,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "far473",
+  "trigG": 1.5,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 6.1,
+  "eibX": {
+   "vol": 0.025443849368104367,
+   "mod": 0.016284063595586797,
+   "wV": 0.04,
+   "wM": 0.04
+  },
+  "eibY": {
+   "vol": 0.0035194528265711624,
+   "mod": 0.0021996580166069764,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 1,
+  "yPk": 0.2,
+  "zPk": 4.4,
+  "dvX": 0.67,
+  "dvZ": 2.74,
+  "far562": false,
+  "restraint": {
+   "load": 0.8797358238959236,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.996126533272276,
+  "cell": 1.0042222279526922,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "far473",
+  "trigG": 1.5,
+  "seat": "Co-pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 6.1,
+  "eibX": {
+   "vol": 0.02544384936810435,
+   "mod": 0.016284063595586783,
+   "wV": 0.04,
+   "wM": 0.04
+  },
+  "eibY": {
+   "vol": 0.0035194528265711906,
+   "mod": 0.002199658016606994,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 1,
+  "yPk": 0.2,
+  "zPk": 4.4,
+  "dvX": 0.67,
+  "dvZ": 2.74,
+  "far562": false,
+  "restraint": {
+   "load": 0.8797358238959236,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9967918783192148,
+  "cell": 1.0042222279526922,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "trunk0",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Fatal injuries",
+  "by": "dri",
+  "dri": 52.47,
+  "eibX": {
+   "vol": 2.268225209185039,
+   "mod": 1.5121501394566925,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.6595048211017546,
+   "mod": 0.4121905131885966,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 247.1,
+  "yPk": 46.1,
+  "zPk": 157.4,
+  "dvX": 26.62,
+  "dvZ": 12.61,
+  "far562": true,
+  "restraint": {
+   "load": 20.73128692312245,
+   "strength": 17.955000000000002,
+   "failed": true
+  },
+  "space": 0,
+  "cell": 5.434376670294653,
+  "parted": true,
+  "rows": {
+   "dri": 4,
+   "eibandX": 4,
+   "eibandY": 0,
+   "far562": 2,
+   "restraint": 2,
+   "space": 4,
+   "cell": 4,
+   "parted": 4
+  }
+ },
+ {
+  "build": "metal",
+  "case": "trunk0",
+  "trigG": 4,
+  "seat": "Co-pilot",
+  "band": "Fatal injuries",
+  "by": "dri",
+  "dri": 53.9,
+  "eibX": {
+   "vol": 2.3300706751490114,
+   "mod": 1.553380450099341,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.4413783291894061,
+   "mod": 0.27586145574337884,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 243.2,
+  "yPk": 45.3,
+  "zPk": 159.1,
+  "dvX": 26.18,
+  "dvZ": 12.95,
+  "far562": true,
+  "restraint": {
+   "load": 20.65442270044016,
+   "strength": 17.955000000000002,
+   "failed": true
+  },
+  "space": 0,
+  "cell": 5.434376670294653,
+  "parted": true,
+  "rows": {
+   "dri": 4,
+   "eibandX": 4,
+   "eibandY": 0,
+   "far562": 2,
+   "restraint": 2,
+   "space": 4,
+   "cell": 4,
+   "parted": 4
+  }
+ },
+ {
+  "build": "metal",
+  "case": "trunk25",
+  "trigG": 4,
+  "seat": "Pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 9.42,
+  "eibX": {
+   "vol": 0.18026798218855636,
+   "mod": 0.1201786547923709,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.11322291230020451,
+   "mod": 0.07076432018762782,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 13.3,
+  "yPk": 4.9,
+  "zPk": 9.4,
+  "dvX": 4.54,
+  "dvZ": 5.62,
+  "far562": false,
+  "restraint": {
+   "load": 3.4303389171352094,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9187709584403227,
+  "cell": 1.0156070133079529,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ },
+ {
+  "build": "metal",
+  "case": "trunk25",
+  "trigG": 4,
+  "seat": "Co-pilot",
+  "band": "Unharmed",
+  "by": null,
+  "dri": 8.45,
+  "eibX": {
+   "vol": 0.17148500212899584,
+   "mod": 0.1143233347526639,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "eibY": {
+   "vol": 0.14832854896613615,
+   "mod": 0.09270534310383509,
+   "wV": 0.01,
+   "wM": 0.01
+  },
+  "xPk": 11.3,
+  "yPk": 4.2,
+  "zPk": 8.1,
+  "dvX": 4.65,
+  "dvZ": 5.44,
+  "far562": false,
+  "restraint": {
+   "load": 3.0540625705692745,
+   "strength": 17.955000000000002,
+   "failed": false
+  },
+  "space": 0.9898874840393482,
+  "cell": 1.0156070133079529,
+  "parted": false,
+  "rows": {
+   "dri": 0,
+   "eibandX": 0,
+   "eibandY": 0,
+   "far562": 0,
+   "restraint": 0,
+   "space": 0,
+   "cell": 0,
+   "parted": 0
+  }
+ }
+]

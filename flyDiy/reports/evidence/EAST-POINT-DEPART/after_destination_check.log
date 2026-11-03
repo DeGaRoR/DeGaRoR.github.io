@@ -1,0 +1,9 @@
+cub -> nv_strip TAXI null 
+c172 -> nv_strip STOPPED declined strip-too-short: East Point Clearing has 150 m of strip for a 249 m landing run - not going there
+jodel_2026-09-20_corrected.json -> nv_strip STOPPED declined strip-too-short: East Point Clearing has 150 m of strip for a 183 m landing run (and a 206 m take-off) - not going there
+jodel_2026-09-20_corrected.json -> mn_strip TAXI null 
+c172 -> mn_strip TAXI null 
+cub -> mn_strip TAXI null 
+c172 -> w3 TAXI null 
+jodel_2026-09-20_corrected.json -> tw_ski TAXI null 
+c172 -> tw_ski TAXI null 

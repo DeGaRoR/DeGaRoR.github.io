@@ -42,6 +42,10 @@ const REF = [
   { key: 'argus10c_wood', name: 'Argus As 10C', arch: 'vee', cyl: 8,
     vee: 90, inlineAim: 0, bore: 0.120, stroke: 0.140, rpm: 2000,
     mass: 213, powerW: 176000 },
+  // the Spitfire's Merlin 66 (27 Oct): upright, liquid, geared, two-speed blown to +18 lb
+  { key: 'merlin66_rotol4', name: 'Rolls-Royce Merlin 66', arch: 'vee', cyl: 12,
+    vee: 60, inlineAim: 1, bore: 0.1372, stroke: 0.1524, rpm: 3000,
+    mass: 744, powerW: 1283000, geared: 1, liquid: 1, blower: 2, boost: 2.22 },
   // THE COVERAGE FILL (2026-09-05): every new piston row, so the instrument
   // reads the whole ladder — the blown ones through their published boost
   { key: 'o320_mccauley', name: 'Lycoming O-320-E2D', arch: 'flat', cyl: 4,
@@ -55,6 +59,9 @@ const REF = [
   { key: 'rotax915_carbon', name: 'Rotax 915 iS', arch: 'flat', cyl: 4,
     bore: 0.084, stroke: 0.061, rpm: 5800, mass: 84, powerW: 105000,
     geared: 1, liquid: 1, blower: 1, boost: 1.35 },
+  { key: 'rotax916_carbon', name: 'Rotax 916 iS', arch: 'flat', cyl: 4,
+    bore: 0.084, stroke: 0.061, rpm: 5800, mass: 85.8, powerW: 117000,
+    geared: 1, liquid: 1, blower: 1, boost: 1.50 },
   { key: 'ranger440_wood', name: 'Ranger L-440-5', arch: 'inline', cyl: 6,
     inlineAim: 0, bore: 4.125 * IN, stroke: 5.5 * IN, rpm: 2450,
     mass: 170, powerW: 149000 },

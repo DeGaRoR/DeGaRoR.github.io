@@ -66,6 +66,13 @@ const SIM_LINK = (() => {
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
+  // G3560 (AP-HONEST): ...but the ROUTE and the NAVIGATOR are not left as the page planned them. The worker sends the
+  // route as its two aerodrome ids (sim_host.js meta: { from, to }) - a divert (43_pilot.js judgeHeld / goAround) moves
+  // ap.route there, and the page kept the field it rolled out for ("Short of Jumbo Mine Street" on a flight that had
+  // diverted to strip 13; every page reader of ap.route stale). The ids are resolved onto the page's own aerodrome records
+  // when they change (two string compares a snapshot, nothing copied); the navigator's readouts (sim_host.js: `nav` only
+  // when its `last` changes - the box's NAV mode) are written into the page's navigator (app.js flNav), which nothing on
+  // the page steps under the worker
 
   const isPlain = o => o !== null && typeof o === 'object' && !Array.isArray(o) && !ArrayBuffer.isView(o);
   // src's fields into dst (dst's own objects kept, so a reader holding one sees the new numbers)
@@ -87,11 +94,23 @@ const SIM_LINK = (() => {
   // the page has, after three (they build with it at load), so its world composes the premises as the page's did
   const GEN_FILES = { HOUSE_GEN: ['tools/_house_kit.js', 'tools/_house_gen.js'], BIG_GEN: ['tools/_big_gen.js'], SHED_GEN: ['tools/_shed_gen.js'],
                       HANGAR_GEN: ['tools/_hangar_gen.js'], TOWER_GEN: ['tools/_tower_gen.js'], TRAM_GEN: ['tools/_tram_gen.js'],
-                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'] };
+                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'], METEO_GEN: ['tools/_meteo_gen.js'] };
   function catalogueScripts(W) {
     const out = [];
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);
     return out.length ? ['vendor/three.min.js'].concat(out) : out;
+  }
+  // G3610: the worker's route ({ from, to } ids, sim_host meta) onto the page's pilot F.ap, once per change of the worker's
+  // ids (F.routeSeen); true when the page's route was replaced
+  function routeCopy(F, wr, world) {
+    const wSig = wr ? wr.from + '>' + wr.to : null;
+    if (wSig === F.routeSeen) return false;
+    F.routeSeen = wSig;
+    const cur = F.ap.route, A = (world && world.aerodromes) || [], byId = id => A.find(a => a.id === id) || null;
+    const to = wr && byId(wr.to);
+    if (!to || !cur || (cur.to && cur.to.id === wr.to && cur.from && cur.from.id === wr.from)) return false;
+    F.ap.route = { from: byId(wr.from) || cur.from, to };
+    return true;
   }
   const copyEng = e => (Array.isArray(e) ? e.map(x => (x && typeof x === 'object' ? Object.assign({}, x) : x)) : e == null ? null : e);
 
@@ -233,7 +252,7 @@ const SIM_LINK = (() => {
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
-               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat },   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
@@ -423,6 +442,8 @@ const SIM_LINK = (() => {
         const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
       // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
       def('drv', { get: () => V.drv || null });
+      // G2373 (DMG-OCCUPANT): ...and the occupants' bands the worker closed (sim_view's view.occ: [{ name, band }] | null)
+      def('occView', { get: () => V.occ || null });
       // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
       // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
       def('vView', { get: () => V.v || null });
@@ -498,7 +519,7 @@ const SIM_LINK = (() => {
       if (sim.fuel && V.fuel) merge(sim.fuel, V.fuel, 3);
       if (sim.hydro && V.hydro) {
         const H = sim.hydro, h = V.hydro; H.wet = h.wet; H.tick = h.tick;
-        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
+        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; if (Number.isFinite(b.h)) a.h = b.h; merge(a.out, b.out, 2);   /* G2834: the float's water level (the spray's y) */ for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
           // G1180: the world vertices from the nodes just mirrored (sim_host keeps its tables), the wet panels from the worker
           if (a.ctx && a.ctx.fill && a.out.W) a.ctx.fill(a.out.W);
           if (b.per && a.out.per) { for (const o of a.out.per) o.wet = 0;
@@ -516,12 +537,27 @@ const SIM_LINK = (() => {
       }
       merge(F.ap, V.ap, 3, AP_SKIP.concat(AP_WHOLE));
       for (const k of AP_WHOLE) if (k in V.ap && F.ap[k] !== V.ap[k]) F.ap[k] = V.ap[k];
+      // G3610 (the 24 Oct playtest, item 53): THE WORKER'S ROUTE ON THE PAGE. sim_host sends ap.route as its two ids; the
+      // page's route stayed the one it started with, so a divert (43_pilot 'divert') never reached the page's readers - the
+      // arrival card said 'Short of Jumbo Mine Street' long after the plane had gone elsewhere. When the worker's route
+      // CHANGES (not every snapshot: a destination the page has just asked for, not yet stepped there, stays), the page's
+      // route is the worker's, as the page world's own aerodromes
+      if (routeCopy(F, V.ap.route, world)) st.routeCopies = (st.routeCopies || 0) + 1;
+      if (V.ap.nav !== navSeen) { navSeen = V.ap.nav; navIn(F.ap, navSeen); }   // G3560 (AP-HONEST): the navigator's readouts (the route is G3610's routeCopy above)
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
       if (S.F_CRASHED && (f[S.FLAGS] & S.F_CRASHED)) st.crashed = true;   // G1470
       st.dmg = V.dmg || null;
       return step;
+    }
+
+    // G3560 (AP-HONEST): the navigator's readouts (sim_host sends ap.nav only when its `last` changes)
+    let navSeen;
+    function navIn(ap, N) {
+      const P = ap.nav;
+      if (!P || !N || typeof N !== 'object') return;
+      P.mode = N.mode; P.active = N.active; P.arrived = !!N.arrived; P.last = N.last || null;
     }
 
     // ---- THE LOOP'S DOORS -------------------------------------------------------------------------------
@@ -546,7 +582,8 @@ const SIM_LINK = (() => {
         cmd({ cmd: 'over', on: !!S.over, outcome: S.over && F.ap.report ? F.ap.report.outcome || null : null }); F.sent.over = !!S.over;
       }
       if (S.manual && S.INP) {
-        const h = { de: null, da: null, dr: null, thr: null, brake: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
+        // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
+        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }
@@ -666,12 +703,15 @@ const SIM_LINK = (() => {
       return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
     }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
-    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
+    // G3322 (FLIGHTREC-DETAIL): `ctl` - the page sim's OWN ctl object (the one this link mirrors the worker's published ctl
+    // into every frame), a reference: the recorder's probe reads the controls off it, not through sim.ctl's proxy (a trap
+    // a field, a frame). Null when no worker flight is live (then sim.ctl is the real object anyway)
+    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN, ctl: null };
     function perf() {
       const F = flight, f = F && F.live && F.view ? F.view.snapshot() : null;
       P.live = !!f;
-      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; }
-      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; }
+      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; P.ctl = F.realCtl || null; }
+      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; P.ctl = null; }
       return P;
     }
     const api = {
@@ -696,7 +736,7 @@ const SIM_LINK = (() => {
     };
     return api;
   }
-  return { make };
+  return { make, routeCopy };
 })();
 if (typeof window !== 'undefined') window.SIM_LINK = SIM_LINK;
 if (typeof module !== 'undefined' && module.exports) module.exports = { SIM_LINK };

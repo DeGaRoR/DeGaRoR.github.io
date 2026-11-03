@@ -57,9 +57,15 @@ function simViewDefSig(def) {
 //   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
 //   scar     G2357 (DMG-SCAR): the ground's scar - the primitives 34_scar.js sealed (craters, gouges, the sweep); vS bumps
 //            when they changed (the page's grass cull and decal: ground_scar.js, once an event)
+//   how      G3770 (DMG-LOOKS): each member's break code (30_solver.js howCode; 0 whole) - null until a payload brings one
+//   bend     G3770: the trunk bends, a Map bi -> { kt1, dk, nx, nz }; vD bumps when they changed
+//   vF       G2001 (DMG-SCUFF): bumps when the plastic work or the slide work moved (the scuff's event; vS is the scar's); sF its signature
+//   wB       each member's plastic work (J); sW / sD / sN / sG each node's slide work (J), its direction and the side it
+//            was pushed from (unit, body frame: aft, up, right) and its share on soft ground - skin_scuff.js reads them
 function simViewDmgState(n, nb) {
   return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0',
-           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0 };   // G2040 (DMG-FABRIC): the cover ties - null until one is made
+           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0, how: null, bend: null, vD: 0,
+           vF: 0, sF: '0', wB: new Float32Array(nb), sW: new Float32Array(n), sD: new Float32Array(n * 3), sN: new Float32Array(n * 3), sG: new Float32Array(n) };   // G2001 (DMG-SCUFF)   // G2040 (DMG-FABRIC): the cover ties - null until one is made
 }
 // G2040 (DMG-FABRIC): the live cover ties' pairs (tied, a Set of a * n + b, a < b), the torn ones' (torn), and the HELD
 // pieces (pcH: the pieces joined by the live ties - what the covering still holds together; 0 the core's), from a payload
@@ -86,10 +92,24 @@ function simViewDmgApply(D, P) {
     let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
     D.nPc = k + 1; D.vB++; D.sB = P.sB;
     simViewDmgTies(D, P);                           // G2040
+    if (P.hw) { const H = D.how && D.how.length === D.nb ? D.how : (D.how = new Uint8Array(D.nb)); H.fill(0);   // G3770
+      for (let j = 0; j < D.br.length && j < P.hw.length; j++) if (D.br[j] >= 0 && D.br[j] < D.nb) H[D.br[j]] = P.hw[j]; }
+    else if (!D.br.length) D.how = null;
   }
+  if (P.bd) { const M = new Map(); for (let j = 0; j + 4 < P.bd.length; j += 5) M.set(P.bd[j], { kt1: P.bd[j + 1], dk: P.bd[j + 2], nx: P.bd[j + 3], nz: P.bd[j + 4] });
+    D.bend = M.size ? M : null; D.vD++; }   // G3770
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
   if (P.sc) { D.scar = P.sc.slice(); D.sC = P.sC; D.vS++; }   // G2357
+  // G2001: the scuff's inputs, whole each time they come (a payload of the base's kind carries neither key; `sl` the slide records - `sc` is the scar's)
+  if (P.sF != null) D.sF = P.sF;
+  if (P.wb || P.sl || ((P.st || P.sF != null) && D.vF)) {   // (a payload with neither, once there was some: the heal)
+    D.wB.fill(0); D.sW.fill(0); D.sD.fill(0); D.sN.fill(0); D.sG.fill(0);
+    if (P.wb) for (let j = 0; j + 1 < P.wb.length; j += 2) if (P.wb[j] < D.nb) D.wB[P.wb[j]] = P.wb[j + 1];
+    if (P.sl) for (let j = 0; j + 8 < P.sl.length; j += 9) { const i = P.sl[j]; if (!(i < D.n)) continue;
+      D.sW[i] = P.sl[j + 1]; for (let k = 0; k < 3; k++) { D.sD[i*3+k] = P.sl[j + 2 + k]; D.sN[i*3+k] = P.sl[j + 5 + k]; } D.sG[i] = P.sl[j + 8]; }
+    D.vF++;
+  }
   D.v++;
   return D;
 }
@@ -208,7 +228,7 @@ function makeSimView(def, opts) {
     n, p, ctl, def, mismatch,
     v: R.withV ? new Float64Array(N3) : null,
     beams: def.beams,                      // the topology (a, b); the strains stay the host's (stats().smax)
-    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, wet: null, ap: {}, snapCtl: null,
+    out: {}, eng: [], fuel: {}, hydro: null, wheels: null, wet: null, ap: {}, snapCtl: null, occ: null,
     starterOk: null,                       // the cockpit's (the bus) - read when a key turns, sent with it
     get t() { return B ? B.f[S.T] : 0; },
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
@@ -290,6 +310,7 @@ function makeSimView(def, opts) {
       if (M.dmgB) simViewDmgApply(dmgS, M.dmgB);   // G1850: the broken list, on change
       view.drv = M.drv || null;              // G1861.5 (DMG-D4b): DMG-DRIVE's per-engine state (sim_host simDrvOf; absent = none)
       view.struct = M.struct || null;        // DMG-D4b (train 41): the aeroplane's integrity (30_solver DMG.structural; absent = whole)
+      if (M.occ !== undefined) view.occ = M.occ;   // G2373 (DMG-OCCUPANT): the occupants' bands, sent once (sim_host simOccHop)
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;

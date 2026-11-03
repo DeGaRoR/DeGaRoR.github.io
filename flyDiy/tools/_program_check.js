@@ -120,6 +120,21 @@ function warmThenFrame(useOld) {
   const late = keysOf(R).filter(k => !before.has(k));
   ok(late.length === 0, '1 a point light\'s shadow (distance programs) is warmed too', late.length ? late.map(k => k.slice(0, 30)).join(' / ') : undefined);
 }
+// APPROACH (A0 22 Oct; HWCOV): a caster switched off by distance (the town kit past castFar, a far house) carries
+// userData.mayCast - its depth program is warmed though it casts nothing yet, and the frame its shadow comes on links nothing
+{
+  const run = flag => { const B = boot(); B.load(WARM_SRC); const { THREE, renderer: R, ctx } = B;
+    const sc = new THREE.Scene(), dl = new THREE.DirectionalLight(0xffffff, 1); dl.castShadow = true; sc.add(dl);
+    const o = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })); o.castShadow = false; if (flag) o.userData.mayCast = true; sc.add(o);
+    const cam = new THREE.PerspectiveCamera(); cam.position.z = 5; sc.updateMatrixWorld(true);
+    R.compile(sc, cam); const { helper } = ctx.PROG_WARM.depthVariants(THREE, R, [sc]);
+    R.setRenderTarget(new THREE.WebGLRenderTarget(4, 4)); ctx.PROG_WARM.fogless(sc, () => R.compile(helper, cam, sc)); R.setRenderTarget(null);
+    R.render(sc, cam); const before = new Set(keysOf(R));
+    o.castShadow = true; R.render(sc, cam);   // the shadow comes on
+    return keysOf(R).filter(k => !before.has(k) && /^depth/.test(k)).length; };
+  const withFlag = run(true), without = run(false);
+  ok(withFlag === 0 && without >= 1, '1 a caster switched off by distance (userData.mayCast) has its depth program warmed: its shadow coming on links nothing (' + withFlag + '; CONTROL without the flag: ' + without + ')');
+}
 // the stand-in shares the caster's data and never moves the caster
 {
   const B = boot(); B.load(WARM_SRC); const { THREE, renderer: R, ctx } = B; const { sc } = zoo(B);
@@ -184,8 +199,9 @@ function warmThenFrame(useOld) {
   pm.dispose(); const pm2 = new THREE.PMREMGenerator(R); pm2.fromCubemap(cube.texture); const n3 = B.links.length;
   ok(n1 > n0 && n2 === n1 && n3 > n2, '3 a kept PMREMGenerator bakes again on no link; a new one after a dispose links again (three\'s rule the kept one avoids)', (n1 - n0) + ' / ' + (n2 - n1) + ' / ' + (n3 - n2) + ' links');
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-  const body = app.slice(app.indexOf('function bakeHangarEnv()'), app.indexOf('function bakeHangarEnv()') + 12000);
-  ok(!/new THREE\.PMREMGenerator/.test(body) && !/\bpm2?\.dispose\(\)/.test(body), '3 bakeHangarEnv keeps its generators (envGen), none made or disposed per bake');
+  // (G2662: the bake takes a slice argument now - anchored on the name, and the body must be found, or the scan goes quiet)
+  const at = app.indexOf('function bakeHangarEnv('), body = at < 0 ? '' : app.slice(at, at + 12000);
+  ok(body.length > 1000 && !/new THREE\.PMREMGenerator/.test(body) && !/\bpm2?\.dispose\(\)/.test(body), '3 bakeHangarEnv keeps its generators (envGen), none made or disposed per bake', at < 0 ? 'bakeHangarEnv NOT FOUND' : undefined);
 }
 
 // ---- 4. the passes outside the scene are listed and compiled -------------------------------------------
@@ -197,7 +213,27 @@ function warmThenFrame(useOld) {
      '4 the roll-out\'s compile step warms the depth variants in the lit scene and every listed pass');
   // G680: the shed's boot compile warms its own shadow pass and the passes too (the garage's first frame linked them)
   const gc = app.slice(app.indexOf("bootStep('compile'"), app.indexOf("bootStep('compile'") + 3000);
-  ok(/sc = sc \|\| scene/.test(cdv) && /compileDepthVariants\(hangarScene\)/.test(gc), '4 the shed\'s boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))');
+  ok(/sc = sc \|\| scene/.test(cdv) && /compileDepthVariants\(hangarScene(?:, true(?:, probeCompileDress)?)?\)/.test(gc), '4 the shed\'s boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))');
+  const pmWarm = gc.indexOf('shaderProgress(pmremWarmBake()'), placeholder = gc.indexOf('.then(() => { shedEnvKey(); })', pmWarm);
+  const room = gc.indexOf('compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress)', placeholder), depth = gc.indexOf('compileDepthVariants(hangarScene', room);
+  const bake = gc.indexOf('done(); return pass(', depth);
+  ok(pmWarm >= 0 && placeholder > pmWarm && room > placeholder && depth > room && bake > depth,
+     '4 PMREM warms before the placeholder draw; room and shadow programs warm before the cube bake');
+  // The asynchronous compiler dresses only its synchronous slices. No subject or
+  // camera state may remain changed while another task or the live view runs.
+  {
+    const at = app.indexOf('  function probeCompileDress(fn) {'), end = app.indexOf('  // G584: THE GENERATORS ARE KEPT.', at);
+    const craft = { visible: true }, edSit = { visible: true }, refSit = { visible: false }, bpSit = { visible: true };
+    const hangar = { shafts: { visible: true } }, camera = { layers: { mask: 1073741825 } };
+    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false };
+    const dress = at >= 0 && end > at ? vm.runInNewContext('(' + app.slice(at, end) + ')', state) : null;
+    let exact = false, threw = false;
+    if (dress) try { dress(() => { exact = camera.layers.mask === 1 && !hangar.shafts.visible && !craft.visible && !edSit.visible && !refSit.visible && !bpSit.visible; throw new Error('test restoration'); }); } catch (e) { threw = e.message === 'test restoration'; }
+    const restored = craft.visible && edSit.visible && !refSit.visible && bpSit.visible && hangar.shafts.visible && camera.layers.mask === 1073741825;
+    state.craftInProbe = true;
+    const included = dress && dress(() => craft.visible && edSit.visible && !refSit.visible && bpSit.visible);
+    ok(exact && threw && restored && included, '4 probe compile uses cube visibility/layers and restores every field even on failure');
+  }
   // the global's name is its own: app.js already had a `const SHADER_WARM` (the warm-launch localStorage key), which
   // shadowed the module inside app.js's scope - the step threw and warmed nothing (the first census after the change)
   const clash = fs.readdirSync(path.join(ROOT, 'src', 'viewer')).filter(f => f.endsWith('.js') && f !== 'shader_warm.js')

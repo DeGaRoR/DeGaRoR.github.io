@@ -260,13 +260,14 @@ function tailMat(k, sec, boxPlane) {
       // fin without landing on the wing, which is the grouping the user
       // asked for: "the fuselage projection and the fin projection should
       // be one".
-      cons, struct: 1, wing: 2, ribM: TAIL_RIB,
+      // ...and THE STABILISER IS ITS OWN, 3 (27 Oct): a fin flash or a rudder's stripes aimed at the fin alone
+      cons, struct: 1, wing: sec && sec.indexOf('stab') === 0 ? 3 : 2, ribM: TAIL_RIB,
       surf: 1, fieldM: tailFS(), side: THREE.DoubleSide });
     if (m) return m;
   }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
-    grm: cons, struct: 1, wing: 2,     // a flying surface, and class 2
+    grm: cons, struct: 1, wing: sec && sec.indexOf('stab') === 0 ? 3 : 2,   // a flying surface: 2 the fin, 3 the stab
     // BOX-MAPPED MICROSURFACE (G113.3): the sheet comes off a craft-space
     // plane instead of the field. The structure and the wash-out keep the
     // field - they are different consumers of the same attribute.
@@ -547,8 +548,12 @@ PAGE.post = ctx => {
   // diving past the tightening, user report). Rod mode builds without
   // both — as the real tube-boom aeroplanes fly — and the user's
   // finKeel/finDorsal choices return with the loft.
+  // PHONE-EDIT-PERF (2 Nov): the two overrides on an object that reads the rest THROUGH P, not a spread of it - a spread
+  // enumerates every key, and the post chain then records the fin as reading ALL of P (G1441's `all`): every row of
+  // every slider re-ran the fin, the stab, the access fittings, the lights and the hinges (~360 ms a release on the
+  // user's S20 FE, on their twin-boom floatplane). finSpec reads its keys by name: the same values
   const S = FIN.finSpec(P.boomStyle
-    ? { ...P, finKeel: 0, finDorsal: 0 } : P);
+    ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's

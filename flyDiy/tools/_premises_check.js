@@ -49,7 +49,7 @@
 //      class answers inside its width, no forest tree stands within 30 m of
 //      its box, its aerodrome record is in W.aerodromes' shape (siteRunway
 //      derives it, sitePaintStrip paints it) and sitePattern's pattern for it
-//      has no issue; a strip under 150 m or over 5 % is refused.
+//      has no issue; a strip under 150 m is refused, one over 5 % WARNS and ships (18 Oct: no filtering).
 //  11  EXCLUDE: an exclude polygon answers true inside, false outside; a
 //      forest zone plants no tree in an exclude, a clear zone or a plot, and
 //      a hand-placed tree is planted where it was put.
@@ -113,7 +113,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_meteo_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -363,7 +363,7 @@ for (const fx of fixtures) {
       const bad = JSON.parse(JSON.stringify(rec)); bad.layers.runways[0].len = 120;
       check(PG.issues(bad).length > 0, '10 a strip under 150 m is refused');
       const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08; delete steep.layers.runways[0].profile;   // a profile outranks the slope (v8)
-      check(PG.issues(steep).length > 0, '10 a strip over 5 % is refused');
+      check(PG.issues(steep).length === 0 && PG.warnings(steep).some(i => /over 5 %/.test(i)), '10 a strip over 5 % warns and ships (no issue)', PG.issues(steep)[0]);
     }
   }
   // 12 baked vs live
@@ -600,9 +600,11 @@ for (const fx of fixtures) {
     check(worst < 0.05, '10c the centreline is on its profile (5 cm)', worst.toFixed(3) + ' m');
     check(over === 0 && Math.abs(pr.at(300) - 5) < 1e-9, '10c the spline is monotone: no overshoot past the hump\'s point', String(over));
     check(PG.issues(rec).length === 0, '10c a 5 m hump over 600 m passes the pilot\'s limits', PG.issues(rec)[0]);
-    check(PG.issues(mk([[0, 0], [0.5, 12], [1, 0]])).some(i => /over 5 %/.test(i)), '10c a 12 m hump is over 5 % and refused');
-    check(PG.issues(mk([[0, 0], [0.1, 3], [1, 0]])).some(i => /touchdown zone/.test(i)), '10c a hump in the touchdown zone is refused');
-    check(PG.issues(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]])).some(i => /crest/.test(i)), '10c a sharp crest is refused');
+    // (18 Oct, the user: the slope rules relaxed - each limit WARNS, none refuses: the strip ships, the player finds out)
+    const warnOnly = (r, re) => PG.issues(r).length === 0 && PG.warnings(r).some(i => re.test(i)) && PG.profileIssues(Object.assign({}, PG.RUNWAY_DEF, r.layers.runways[0])).some(i => re.test(i));
+    check(warnOnly(mk([[0, 0], [0.5, 12], [1, 0]]), /over 5 %/), '10c a 12 m hump is over 5 %: it warns (editor and PG.warnings) and ships');
+    check(warnOnly(mk([[0, 0], [0.1, 3], [1, 0]]), /touchdown zone/), '10c a hump in the touchdown zone warns and ships');
+    check(warnOnly(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]]), /crest/), '10c a sharp crest warns and ships');
     // the old linear slope still reads as a two-point profile
     const lin = PG.compose(PG.normalise({ seed: 1, layers: { runways: [{ id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, slope: 0.02 }] } }), synth, { noPlace: true });
     check(Math.abs(lin.localH(300, 0) - lin.localH(-300, 0) - 12) < 0.05, '10c a linear slope is a two-point profile', (lin.localH(300, 0) - lin.localH(-300, 0)).toFixed(2));
@@ -753,7 +755,7 @@ for (const fx of fixtures) {
   rw.layers.runways[0].look = 'asphalt';
   check(!PG.issues(rw).some(t => /look/.test(t)), '16 a known look is not');
   const O = PG.compose(rw, synth);
-  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
+  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.PAVED, '16 the aerodrome record carries the look, and feels as it (FEEL FOLLOWS THE LOOK, the user 19 Oct: the class is the look\'s)');
 }
 
 // 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
@@ -991,7 +993,8 @@ if (SELFTEST) {
     }
     // (G3014, A0 + the user's default 12 Oct: two of the user's rev 26 placements stand dry AS DRAWN - kept, and flagged for the
     //  user to move in the editor; any other dry pier, float or wharf is still red)
-    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371'];
+    // (JOLENE-FOLD 25 Oct: the user's AFB (19) seaplane float s37 likewise, its far end on the shore as drawn - A0's rule, flagged)
+    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371', 'marine/seaplane float @2210,-17381'];
     const dryNew = dry.filter(d => DRY_OK.indexOf(d) < 0), dryUser = dry.filter(d => DRY_OK.indexOf(d) >= 0);
     if (dryUser.length) console.log('     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): ' + dryUser.join(' | '));
     check(dryNew.length === 0, '14e a pier, a float and a wharf reaches the water', dryNew.slice(0, 5).join(', '));
@@ -1172,8 +1175,19 @@ if (SELFTEST) {
       check(same && back.layers.objects.some(e => e.id === 'o_g590') && (!mv || back.layers.sites.find(s => s.id === mv.id).at.x === mv.at.x),
             '14q restorePlaces puts every cut entry back and keeps the edit');
       const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8') + fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8');   // G999: the load's composition is world_boot.js's
-      check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
+      check(/off: TO \? TO\.drop\.slice\(\) : \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off, TOWN\.keep\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
             '14q app.js drops the town at load by default and restores it in every editor save');
+      // 14q (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag): the page's switch (PREMISES_GEN.TOWN_OFF) keeps the
+      // SEAPLANE BASE - the lane, its player plot, the trestle and the float - which the career's contracts fly to
+      const TO = PG.TOWN_OFF, K = PG.dropPlaces(rec, TO.drop, TO.keep);
+      const kept = Object.keys(K.rec.layers).reduce((a, k) => a.concat(Array.isArray(K.rec.layers[k]) ? K.rec.layers[k].filter(isMk).map(e => e.id) : []), []).sort();
+      check(JSON.stringify(kept) === JSON.stringify(TO.keep.slice().sort()) && K.n === D.n - TO.keep.length, '14q the switch keeps the seaplane base, and only it', kept.join(',') + ' kept, ' + K.n + ' cut');
+      check(PG.issues(K.rec).length === 0, '14q ...with no issue', PG.issues(K.rec).slice(0, 3).join(' / '));
+      const OK = PG.compose(K.rec, IW, { catalogue: CAT, globals: GENS }), kid = OK.aerodromes.map(a => a.id);
+      check(kid.includes('mk_sea') && ['HOME', 'SEA', 'mn_strip', 'nv_strip', 'tw_ski'].every(id => kid.includes(id)),
+            '14q mk_sea stays a destination (the minedock arc, the jobs, the floats\' routes)', kid.join(','));
+      check(OK.records.items.some(r => r.site === 'mk_mp_air') && OK.records.items.some(r => r.site === 'mk_mf_air') && OK.records.trees.filter(t => /^mk_/.test(String(t.zone || ''))).length === 0,
+            '14q the trestle and the float are placed, no town tree');
     }
 
     // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
@@ -1350,6 +1364,14 @@ if (SELFTEST) {
   const mh = (x, z) => { const w = O.frame.toWorld(x, z); return B.mixHere(8, w[0], w[1]); };
   check(mh(0, 50) === 'conifer' && mh(60, 0) === null && mh(-300, 10) === '@k3' && mh(2000, 0) === 'deciduous' && B.density('@k3') > 0,
     "17 mixHere: the polygon's biome, none, its own mix, the terrain type's elsewhere", [mh(0, 50), mh(60, 0), mh(-300, 10), mh(2000, 0)].map(String).join(' '));
+  // G3430 18 LAKESHORE: the band answers only where map[18] names a mix and no polygon speaks (a polygon paints or erases it)
+  const sh = (x, z) => { const w = O.frame.toWorld(x, z); return B.shoreHere(w[0], w[1]); };
+  B.shore = () => true;
+  const shNoMap = sh(2000, 0);
+  B.map[BIOMES.SHORE] = 'deciduous';
+  check(BIOMES.SHORE === 18 && !shNoMap && sh(2000, 0) === true && sh(0, 50) === false && sh(60, 0) === false && sh(-300, 10) === false,
+    "17 shoreHere: no band without map[18]; the band where no polygon speaks; a polygon's biome, none or own mix wins", [shNoMap, sh(2000, 0), sh(0, 50), sh(60, 0), sh(-300, 10)].map(String).join(' '));
+  delete B.map[BIOMES.SHORE]; B.shore = null;
   // the clearance: the aerodrome carries it (null without), the box and its taper, the outline
   const a1 = O.aerodromes.find(a => a.id === 'w1'), a2 = O.aerodromes.find(a => a.id === 'w2');
   check(a1 && a1.treeClear && a1.treeClear.side === 40 && a1.treeClear.beyond === 200 && a1.treeClear.taper === 0.15 && a1.treeClear.bushes === true && a2 && a2.treeClear === null,
@@ -1491,7 +1513,7 @@ if (SELFTEST) {
               { id: 'a3', round: { c: [300, 0], r: 15 }, props: { draw: { look: 'concrete', z: 0 } } }] } });
     const O = PG.compose(r, synth), at = (x, z) => { const w = O.frame.toWorld(x, z); return O.surfaceAt(w[0], w[1]); };
     check(at(0, 0) === PG.SURFACE.PAVED && at(40, 0) === PG.SURFACE.GRAVEL, '20e a new area composes after the v1 entries (paved over the gravel at the same priority)');
-    check(at(200, 0) === PG.SURFACE.GRAVEL && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s unless the area says its own');
+    check(at(200, 0) === PG.SURFACE.PAVED && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s - an area\'s own other feel converts to it (FEEL FOLLOWS THE LOOK, the user 19 Oct)');
     check(O.rec.layers.surface.map(e => e.id).join() === 'y1,a1~w,a2~w' && O.rec.layers.material.map(e => e.id).join() === 'a2~d,a3~d' && O.rec.layers.material[1].round && !O.rec.layers.material[0].round, '20e the v1 entries an area expands into: ids <area>~w / ~d, the round kept only where it says the wheels', O.rec.layers.material.map(e => e.id + (e.round ? '(r)' : '')).join());
   }
   // 20f the shapes and the ids
@@ -1546,11 +1568,13 @@ if (SELFTEST) {
     const Od = PG.compose(rd, wW), pp = (Od.pavePolys || []).find(q => q.id === 'a1~d');
     check(pp && pp.marks && pp.marks.kind === 'dock' && pp.waterEdges && pp.waterEdges[2] === 1 && pp.waterEdges[0] === 0 && pp.waterEdges[1] === 0, '20h compose finds the quay: the one edge whose outside is water', JSON.stringify(pp && pp.waterEdges));
   }
-  // 20i Jolene's shoulder bands: areas that keep the trees out and draw nothing (the user's "gravel" polygons)
+  // 20i Jolene's shoulder bands: areas that kept the trees out and drew nothing (the user's "gravel" polygons) - (G3020 rev 28)
+  //     dropped with the user's rev 28 (A0 13 Oct: never in a save, they cut HOME's trees at 40 m): none is shipped; an area
+  //     with wheels and no draw is still the inspector's (GATE SCENERYED 6)
   {
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
     const sh = J.layers.areas.filter(a => /^y_sh/.test(a.id));
-    check(sh.length === 4 && sh.every(a => a.props.wheels && a.props.wheels.surface === PG.SURFACE.GRAVEL && !a.props.draw), '20i Jolene\'s four gravel bands are areas with gravel wheels and no draw (the inspector says so)', sh.map(a => a.id).join());
+    check(sh.length === 0, '20i Jolene\'s four gravel bands are gone (rev 28): no y_sh area shipped', sh.map(a => a.id).join());
   }
 }
 
@@ -1620,9 +1644,10 @@ if (SELFTEST) {
     const r2 = base(); r2.layers.roads.push(road({ on: false, bank: 20 }));
     check(JSON.stringify(PG.compose(r2, bumpy).terrainAt(10, 3)) === JSON.stringify(PG.compose(r0, bumpy).terrainAt(10, 3)) && PG.bedOf(r2.layers.roads[0]) === null, '21c a bed `on: false` is no bed');
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
-    // (G3014: the user's rev 27 roads r37 / r38 came with a bed - the editor's default for a new road since G2952; a bed stands only
+    // (G3014: the user's rev 27 roads r37 / r38 came with a bed (rev 28: r39-r45 too) - the editor's default for a new road since G2952; a bed stands only
     //  on a road the user's own save gives one)
-    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev27.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    //  (JOLENE-FOLD: and the user's AFB (19) save - r31 given one, r46 drawn with one)
+    const bedU = new Set(['scenery_user_jolene_rev28.json', 'scenery_user_jolene_afb19.json'].flatMap(f => PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', f), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id)));
     check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
@@ -1649,9 +1674,29 @@ if (SELFTEST) {
     // (G3014: re-taken as this comment's rule says - the user's rev 26 edited Metlakatla's streets, 391 -> 398 plots, sha below.
     //  NOT 'the ids taken off': an id'd waypoint on a straight span is no corner BY DESIGN, so taking the ids off makes those
     //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
-    check(hp === '084d97ba39a234b8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 26)', hp);
+    check(hp === '5a61e780db99fc4b', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 28: train 53, 13 Oct)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
+}
+
+// 22 HLOD-MEANS (A0 22 Oct; HWCOV): THE FAR TOWN'S MEAN COLOURS ARE READ, NEVER MEASURED IN A FRAME. render_premises meanOf drew
+// each map onto a 4 x 4 canvas and read it back on first touch (217-287 ms in a boot settle slice and the reveal's first world
+// frame); the shipped maps' means now come with the page (src/viewer/tex_means.js, tools/tex_means.py)
+{
+  const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP.indexOf('  function meanOf(tex) {'), i1 = i0 >= 0 ? RP.indexOf('\n  }\n', i0) : -1, body = i1 > i0 ? RP.slice(i0, i1) : '';
+  check(!!body && !/drawImage|getImageData/.test(body) && /TEX_MEANS/.test(body), '22 meanOf reads TEX_MEANS and draws / reads back no canvas (a map with none is measured off the frame)');
+  let TM = null;
+  try { TM = new Function(fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'tex_means.js'), 'utf8') + '\nreturn TEX_MEANS;')(); } catch (e) {}
+  const want = new Set();
+  for (const f of ['house_tex.js', 'hangar_walls.js', 'sign_tex.js']) {
+    let t = ''; try { t = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', f), 'utf8'); } catch (e) {}
+    for (const m of t.matchAll(/'(media\/tex\/[^']+\.(?:jpg|jpeg|png|webp))'/g)) if (/\/signs\//.test(m[1]) || /_(diff|paint)_/.test(m[1])) want.add(m[1]);
+  }
+  const miss = TM ? [...want].filter(k => !Array.isArray(TM[k])) : [...want];
+  check(!!TM && want.size > 0 && !miss.length, '22 tex_means.js holds a mean for every albedo map the house, wall and sign sets ship (re-run tools/tex_means.py after a texture prep)',
+    TM ? want.size + ' maps; missing ' + miss.length + ': ' + miss.slice(0, 4).join(', ') : 'no tex_means.js');
+  check(/\['src\/viewer', 'tex_means\.js'\]/.test(fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8')), '22 the world pack loads tex_means.js (tools/build.js)');
 }
 
 // ---------------------------------------------------------------------------

@@ -107,6 +107,18 @@
 //             parameter and no section, so every coverage rule GATE PARTS
 //             holds is about the rows that ARE parameters and stays exactly as
 //             it was.
+//   order     (G2760) the column's head, in the order given: trunk slots by
+//             name ('fitted', 'type', 'position', 'size') and the part's own
+//             groups as 'g:<name>'. Whatever it does not name follows in the
+//             usual order. Absent = the trunk, then the groups.
+//   rename    (G2760) a trunk heading's own words for this part — the fin's
+//             trunk 'size' holds two outline POINTS, not the fin's size.
+//   hidden    (G2760) a part the editor keeps out of the tree and out of
+//             the root's column (dev tools); its rows stay claimed.
+//   layerHome (G2760) the part a click on an unnamed mesh of its layer
+//             lands on, assembly or not (editor.js layerDefault).
+//   a group's third field: EXPERT (shown with expert rows on) or HIDDEN
+//             (never drawn; the value is carried and saved as ever).
 // ---------------------------------------------------------------------------
 'use strict';
 (function () {
@@ -116,6 +128,12 @@
 // switch. The groups named here are the frozen constants — they exist and are
 // inspectable, but they are not what building an aeroplane is about.
 const EXPERT = 'expert';
+// HIDDEN rows (G2760, the user's slider review): claimed, carried, saved and
+// loaded like any other — a build that holds one keeps its value — but never
+// drawn, not even with expert rows on. For a choice the user has RULED
+// ("get rid of volume and root loops (always guard pair)"): the row stays a
+// parameter so nothing that reads it changes, and stops being a question.
+const HIDDEN = 'hidden';
 
 // THE DECLARED FITTINGS, read from GEN_ACCESS itself. `_cage_access.js`
 // generates two nudge rows per key; this claims exactly those, from the same
@@ -227,9 +245,24 @@ const CAGE_PARTS = [
   // reference section stays here (every frame follows it), and selecting
   // Fuselage still shows every frame, part by part (an assembly shows its
   // children's rows).
+  // THE FRAMES, BASIC AND EXPERT (G2760, the user's pick of 12 Oct on the
+  // FRAMES proposal, option 2 + the bottom height — D:/Dev/flydiy-notes/
+  // FRAMES-PROPOSAL-2026-10.md; the user: "My frame thing is too complex. I
+  // think we need it, but in advanced controls. What I was really missing
+  // was a way to control the height of the different sections, so I could
+  // smooth out the top line from fore to aft ... The bottom and top
+  // roundness are important parameters that should be at the top of the
+  // fuselage section"). Every frame shows THREE basic rows — its top
+  // height, its waist half-width, its bottom height — and the rest of it
+  // (waist height, top/bottom widths, the fore/aft offsets, the passenger
+  // run's profile) is the frame's EXPERT 'detail' group under the same part.
+  // The Cabin shows its two frames, windscreen and cabin; the door-post
+  // frame stays expert whole. Keys, values and the hover band untouched:
+  // a saved build is the same build.
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
     place: { at: 'the whole shell' },          // (waistY sits in the reference section since T2.2)
+    order: ['g:roundness'],
     groups: [
       ['reference section', ['roofY', 'keelY', 'waistY', 'halfW', 'roofHalfW']],
       // (the frames' own rows — nose, windscreen, door-post, cabin,
@@ -237,7 +270,10 @@ const CAGE_PARTS = [
       // G1321; selecting Fuselage still shows them all, part by part)
       ['longerons', ['bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
-      ['section', ['topRound', 'botRound', 'topAngCeil', 'topAngRoof']],
+      // G3510: the round body (the aero nose's full rings) is the whole
+      // shell's choice, beside the roundness it is shaped by
+      ['roundness', ['topRound', 'botRound', 'aeroNose']],
+      ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
     ] },
@@ -245,14 +281,22 @@ const CAGE_PARTS = [
   { key: 'nose', name: 'Nose · deck', parent: 'fuselage', layer: 'cage',
     sections: ['pillarFront'],
     zone: 'nose',
-    place: { up: 'noseDroop', wide: 'noseW', high: 'noseH',
-             at: 'forward of the windscreen' },
+    // G2770 (the user's slider review: "for the nose, the length parameter
+    // needs to be promoted out of frame and put back into the size. The main
+    // option is nose front; either firewall or aerodynamic. this should
+    // definitely be one of the main options"): noseLen is the trunk's length,
+    // noseFinish its type (a tile, _cage_design.js `noseFrontT`). The engine
+    // mount tiles already write it with the mount (a pusher or a wing engine
+    // fairs the nose, a nose engine puts the firewall back).
+    place: { type: 'noseFinish', up: 'noseDroop', len: 'noseLen',
+             wide: 'noseW', high: 'noseH', at: 'forward of the windscreen' },
     groups: [
       // (noseLen is the nose FRAME's deck fore/aft since T2.1)
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
-      ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
-                      'noseLen', 'frNoseBotZ']],
+      // (the nose frame has no waist: its width is the deck's half-width)
+      ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen']],
+      ['nose frame, detail', ['frNoseBotW', 'frNoseBotZ'], EXPERT],
       ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
@@ -265,7 +309,10 @@ const CAGE_PARTS = [
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge', 'noseDome']],
+      // G3510: the round body's front — its forward section and the cone to
+      // the engine face (or the point), the rows G19 wrote
+      ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop', 'aeroRound']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
@@ -288,15 +335,16 @@ const CAGE_PARTS = [
       // should sit under cabin, not windshield"): the cabin's front ring - wsRun /
       // wsTopOff its waist / top fore-aft since T2.1 - first, nose to tail; it
       // stays reachable on a glazeOn=0 build (an open cockpit still has the ring)
-      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
-                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
-                            'wsTopOff', 'wsRun', 'frWinBotZ']],
+      // (wsRun stays basic: it is the screen's own rake, not an offset)
+      ['windscreen frame', ['frWinTopY', 'frWinWaistW', 'frWinBotY', 'wsRun']],
+      ['windscreen frame, detail', ['frWinWaistY', 'frWinTopW', 'frWinBotW',
+                                    'wsTopOff', 'frWinBotZ'], EXPERT],
       ['door-post frame', ['frPostTopY', 'frPostWaistY', 'frPostBotY',
                            'frPostTopW', 'frPostWaistW', 'frPostBotW',
                            'frPostTopZ', 'frPostWaistZ', 'frPostBotZ'], EXPERT],
-      ['cabin frame', ['frCabTopY', 'frCabWaistY', 'frCabBotY',
-                       'frCabTopW', 'frCabWaistW', 'frCabBotW',
-                       'frCabTopZ', 'frCabWaistZ', 'frCabBotZ']],
+      ['cabin frame', ['frCabTopY', 'frCabWaistW', 'frCabBotY']],
+      ['cabin frame, detail', ['frCabWaistY', 'frCabTopW', 'frCabBotW',
+                               'frCabTopZ', 'frCabWaistZ', 'frCabBotZ'], EXPERT],
       // mirror + canopy -> `design`: they decide whether there IS a pod and
       // what kind, which is a configuration question. What is left here is
       // the SHAPE of the one you chose.
@@ -305,6 +353,11 @@ const CAGE_PARTS = [
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
+      // opening shares (the coaming is the window joints' strip, the screens
+      // are glazing: their sections stay those parts')
+      ['opening', ['cpOpen', 'openCut', 'openFore', 'openAft', 'openRim',
+                   'openScreen', 'openScreenH', 'openScreenRake']],
     ] },
 
   // the section leaves the design draws under Cabin. Each is a real material
@@ -322,9 +375,12 @@ const CAGE_PARTS = [
       // (the windscreen frame is the CABIN's again - G1321.2)
       ['shape', ['wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
-      ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
+      ['bubble canopy', ['bubble', 'bubH', 'bubAt', 'bubW',
                          'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                          'bubAt3', 'bubW3']],
+      // G2770 (the user: "Arceau fit should always be on, the option should
+      // disappear"): the default is on; a saved build keeps its own value
+      ['always fitted', ['arcFit'], HIDDEN],
       // (the screen base pair's bottom and width = the windscreen FRAME's)
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
@@ -341,11 +397,14 @@ const CAGE_PARTS = [
     groups: [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
-                 'paxWinR3', 'paxWinR4', 'paxWinDepth']],
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth',
+                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
-                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth']],
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth',
+                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
-                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth']],
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth',
+                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y']],
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -361,17 +420,25 @@ const CAGE_PARTS = [
     ] },
 
   // the door is CABIN FIT's (2026-09-04, the user)
+  // G2770 (the user: "pilot door has no effect in bubble canopy mode. It's
+  // good, but then it should be hidden"; "what is deep jamb, and do we need
+  // that?"): the part does not exist under a bubble (the canopy is the
+  // design part's row, so the way back never leaves the tree), and the deep
+  // jamb - the door cut down through the floor band as well as the window
+  // bands (_cage_gen.js, `doors.deep`), on by default - is an expert row
   { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
+    when: P => Math.round(+P.canopy || 0) !== 3,
     sections: ['doorSeal'],                 // G214: the door's own rubber seal
-    place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
+    place: { on: 'doorOn', type: ['doorGone'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
     // `rimW` before, filed under `joints` — so the one control over how
     // visible a door is did not appear when you selected a door, which is
     // exactly what the user reported as "the door gap is too small".
     groups: [
-      ['door', ['doorOn', 'doorSill', 'doorGone', 'doorDeep']],
+      ['door', ['doorOn', 'doorSill', 'doorGone']],
       ['the gap', ['doorRim', 'rimDoor', 'doorDepth']],
+      ['door depth', ['doorDeep'], EXPERT],
     ] },
 
   { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
@@ -417,16 +484,21 @@ const CAGE_PARTS = [
              at: 'aft of the cabin' },
     groups: [
       ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
+      ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
-      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4', 'paxOcc5', 'paxOcc6',
+                  'paxOcc7', 'paxOcc8', 'paxOcc9', 'paxOcc10', 'paxOcc11', 'paxOcc12']],
+      // G3511: each bay open at the top on its own row
+      ['opening', ['paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
-      ['passenger frame', ['frPaxTopY', 'frPaxWaistY', 'frPaxBotY',
-                           'frPaxTopW', 'frPaxWaistW', 'frPaxBotW',
-                           'frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
-                           'frPaxProfile', 'frPaxEase', 'frPaxBias',
-                           'frPaxBulgeH', 'frPaxBulgeW', 'frPaxLoops']],
+      ['passenger frame', ['frPaxTopY', 'frPaxWaistW', 'frPaxBotY']],
+      ['passenger frame, detail', ['frPaxWaistY', 'frPaxTopW', 'frPaxBotW',
+                                   'frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
+                                   'frPaxProfile', 'frPaxEase', 'frPaxBias',
+                                   'frPaxBulgeH', 'frPaxBulgeW', 'frPaxLoops'], EXPERT],
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
@@ -481,13 +553,15 @@ const CAGE_PARTS = [
       ['length', ['boomLen']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
-      ['boom frame', ['aftRoofY', 'frBoomWaistY', 'aftKeelY',
-                      'frBoomTopW', 'frBoomWaistW', 'frBoomBotW',
-                      'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ']],
-      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
+      ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
+      ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
+                              'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
+      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
 
-  { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
+  // G2770 (the user: "The tail cone ... I think it should be a section of
+  // the boom"): a child of the Boom in the tree, its own rows and zone kept
+  { key: 'tailcone', name: 'Tail cone', parent: 'boom', layer: 'cage',
     sections: ['pillarTail'],
     zone: 'tail',
     place: { len: 'tailLen', at: 'the aft extremity' },
@@ -496,24 +570,25 @@ const CAGE_PARTS = [
       ['cone', ['tailLen']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
-      ['tail frame', ['tailRoofY', 'frTailWaistY', 'tailKeelY',
-                      'frTailTopW', 'tailHalfW', 'frTailBotW',
-                      'frTailTopZ', 'frTailWaistZ', 'frTailBotZ']],
+      ['tail frame', ['tailRoofY', 'tailHalfW', 'tailKeelY']],
+      ['tail frame, detail', ['frTailWaistY', 'frTailTopW', 'frTailBotW',
+                              'frTailTopZ', 'frTailWaistZ', 'frTailBotZ'], EXPERT],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
       ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
                     'aeroAftShape', 'aeroAftEdge']],   // G339: the shape and its edge
     ] },
 
-  // THE FITTINGS (G81-G83). They are not a shape you draw — they are what
-  // GEN_ACCESS says this aeroplane must carry, resolved against the built
-  // skin, so there are no position sliders here and there should not be: a
-  // fitting whose station you can drag is decoration, and the table's whole
-  // claim is that each one is where it is because of what it serves.
+  // THE FITTINGS (G81-G83). What GEN_ACCESS says this aeroplane must carry,
+  // resolved against the built skin - the AUTO site, and still the default.
+  // FITTINGS-MANUAL (2026-10-27, the user: "the auto place messes up; every
+  // fitting must be placeable BY HAND ... The move controls should NOT be
+  // hidden under expert rows"): a fore/aft and a height row per fitting in the
+  // normal panel, each following the auto site until it is taken by hand.
   //
-  // The rows are therefore a switch per FAMILY and a fastener density, which
-  // is what somebody actually wants to change. `layer: 'access'` matches the
-  // group _cage_access.js names, so G79's raycast can resolve a hit to it.
+  // Beside them a switch per FAMILY and a fastener density. `layer: 'access'`
+  // matches the group _cage_access.js names, so G79's raycast can resolve a
+  // hit to it.
   { key: 'access', name: 'Fittings', parent: 'fuselage', layer: 'access',
     when: P => +P.accOn, gate: 'accOn',
     sections: ['accPaint'],
@@ -522,6 +597,9 @@ const CAGE_PARTS = [
       ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
                     'accHandling']],
       ['detail', ['accDetail']],
+      // FITTINGS-MANUAL: the hand rows, generated as _cage_access.js generates them (the cowl's oil door has none)
+      ['placement', ACC_FIT_KEYS.filter(k => !(typeof GEN_ACCESS !== 'undefined' && GEN_ACCESS[k] && GEN_ACCESS[k].on === 'cowl'))
+        .reduce((a2, k) => a2.concat(['acc_' + k + '_z', 'acc_' + k + '_h']), [])],
       // THE FINE PLACEMENT (2026-08-31). Two nudges per declared fitting, in
       // GEN_ACCESS's own units — `sL` metres aft of the firewall, `lv` a rail
       // index — GENERATED from the same key list `_cage_access.js` generates
@@ -530,6 +608,13 @@ const CAGE_PARTS = [
       ['fine placement', ACC_FIT_KEYS.reduce((a2, k) =>
         a2.concat(['acc_' + k + '_sL', 'acc_' + k + '_lv']), []), EXPERT],
     ] },
+
+  // THE BELLY POD (G2675, BELLY-POD-2; the user: "it should be a configurable volume from the garage editor"). A
+  // PANEL part like the tanks: its rows write the GAME's spec (spec.pod), not the cage's, so it claims no parameter;
+  // it claims its own paint section (the mesh _cage_pod.js draws, worn in the body's colour) and its layer's click.
+  // No `when`: every aeroplane can take one, and the switch lives in the panel (the way back never leaves the tree).
+  { key: 'pod', name: 'Belly pod', parent: 'fuselage', layer: 'pod',
+    panel: 'CAGE_POD', sections: ['pod'] },
 
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
@@ -551,26 +636,33 @@ const CAGE_PARTS = [
   // asked whether these render read-only until P2 finishes; they do not, and
   // never needed to: the layer is in the bundle with its complete param table.
   // =========================================================================
-  { key: 'wings', name: 'Wings', parent: null, layer: 'wing' },
-
-  { key: 'wingPanel', name: 'Wing panels', parent: 'wings', layer: 'wing',
+  // THE WING IS THE ASSEMBLY (G2760, the user's slider review: "clicking on
+  // wings should lead to wings, not wing panels. No need for wing panels").
+  // The panel part's rows, trunk and sections are the assembly's own now —
+  // the Fuselage shape: an assembly that carries rows AND heads its parts
+  // (struts, control surfaces, the second plane). `layerHome` makes it the
+  // answer to a click on an unnamed wing mesh (editor.js layerDefault),
+  // which used to skip assemblies and would land on the struts.
+  { key: 'wings', name: 'Wings', parent: null, layer: 'wing', layerHome: true,
     when: P => +P.wingOn,
     place: { type: ['wgTip', 'wgCentre', 'wgCons'], count: 'wgPanels',
              fore: 'wgDx', up: ['wgDy', 'wgParaH'], len: 'wgChord', wide: 'wgSpan',
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
-    sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    sections: ['wingSkin', 'wingTip', 'wingLongeron', 'wingStol'],   // G2829: the STOL devices' own paint
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
-                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
+                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
       ['aerofoil', ['wgCamber', 'wgThick']],
       ['structure', ['wgCentre', 'wgCentreW', 'wgBeam', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
+      // G2820: the STOL wing's leading-edge and spanwise devices
+      ['STOL devices', ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
@@ -587,13 +679,23 @@ const CAGE_PARTS = [
       ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
     ] },
 
+  // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
+  // (`cageLayer:rad`, drawn by the wing layer on its lower skin) and their own livery section
+  { key: 'radiators', name: 'Wing radiators', parent: 'wings', layer: 'rad',
+    when: P => +P.wingOn,
+    sections: ['radSkin'],
+    place: { on: 'radMode', out: 'radX', at: 'under the wing, on its lower skin' },
+    groups: [
+      ['radiators', ['radMode', 'radX', 'radAt', 'radLen', 'radW', 'radH', 'radFlap', 'radOilK']],
+    ] },
+
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
     sections: ['wingAil', 'wingFlap'],
     place: { type: 'wgFlapType', at: 'along the trailing edge' },
     groups: [
-      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord']],
-      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord']],
+      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord', 'wgFowlerGrow']],
+      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord', 'wgDroop']],
     ] },
 
   // G185: THE CABANE — the struts a parasol wing (and a biplane's upper
@@ -621,7 +723,7 @@ const CAGE_PARTS = [
     sections: ['wingSkin2', 'wingTip2'],
     groups: [
       ['planform', ['w2Span', 'w2Chord', 'w2ChordTip', 'w2Tip',
-                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
+                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX', 'w2Plan', 'w2PlanAxis']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
       ['structure', ['w2Centre', 'w2CentreW', 'w2Beam', 'w2Panels', 'w2Cons']],
@@ -664,20 +766,32 @@ const CAGE_PARTS = [
   { key: 'tail', name: 'Tail', parent: null, layer: 'fin',
     sections: ['rodSaddle'] },          // G307: the saddles on a tube boom
 
+  // G2760 (the user's slider review, the tail): big buttons for the cut, the
+  // keel extension and the leading edge (their tiles take the rows' slots —
+  // _cage_design.js `twin`); "get rid of volume and root loops (always guard
+  // pair)" — both rows are HIDDEN (the defaults already are solid and the
+  // guard pair, and a saved build keeps whatever it carries); "the last size
+  // section goes up, straight after type", and the trunk's own size (the two
+  // outline points) is renamed and follows it: `order` and `rename` below.
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finSolid', 'finCons', 'finDorsal', 'finKeel', 'finProject', 'finRootGuard'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finKeel', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
+    order: ['fitted', 'type', 'g:size', 'size'],
+    rename: { size: 'outline points' },
     sections: ['finSkin', 'finRud', 'finVentral'],
     groups: [
-      ['fitted', ['finOn', 'finProject', 'finFillet', 'finRootGuard', 'finDorsal',
-                  'finKeel']],
+      // 'root', not a second 'fitted' heading under the trunk's own: what is
+      // left here once the trunk has taken its rows is the root fillet
+      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal',
+                'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`
-      ['thickness', ['finSolid', 'finThick', 'finThickTE']],
+      ['thickness', ['finThick', 'finThickTE']],
+      ['always solid, guard pair', ['finSolid', 'finRootGuard'], HIDDEN],
       // THE OUTLINE, ONE CORNER PER GROUP (2026-09-03, the user: "the elevator
       // and fin geometry is really difficult to set"). The three free corners
       // each get their two axes side by side, the points that ride WITH a corner
@@ -706,16 +820,24 @@ const CAGE_PARTS = [
 
   { key: 'stab', name: 'Stabiliser & elevator', parent: 'tail', layer: 'stab',
     when: P => +P.stOn, gate: 'stOn',
-    place: { on: 'stOn', type: ['stCut', 'stSolid', 'stCons', 'stRootGuard'],
+    // G2760: the fin's remarks laid flat — volume and root loops hidden, the
+    // cut and the seat as big buttons, the macro size straight after type and
+    // the trunk's size (the two outline points) renamed below it
+    place: { on: 'stOn', type: ['stCut', 'stCons'],
              fore: 'stZ', out: 'stX', up: 'stY', len: 'stRootFwd',
              wide: 'stTipY', at: 'on the boom keel' },
+    order: ['fitted', 'type', 'g:size', 'size', 'position'],
+    rename: { size: 'outline points' },
     sections: ['stabSkin', 'stabElev'],
     groups: [
-      ['fitted', ['stOn', 'stRootGuard']],
+      ['fitted', ['stOn']],
       ['construction', ['stCons']],
-      ['position', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
+      // two angles — G2760: no second 'position' heading)
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
-      ['thickness', ['stSolid', 'stThick', 'stThickTE']],
+      ['thickness', ['stThick', 'stThickTE']],
+      ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
       // the fin's outline laid flat — same corners, same order, "in / out"
       // where the fin says "up / down" (the stab IS the fin model laid flat)
       // the macro tier (P3), the fin's words laid flat
@@ -751,7 +873,7 @@ const CAGE_PARTS = [
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
-      ['doors', ['hgDoor', 'hgDoorEdge']],       // G310
+      ['doors', ['hgDoor', 'hgDoorEdge', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
       ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
@@ -780,7 +902,9 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
+      // (G2760: what the trunk leaves here is the thrust line and the mount's
+      // own dials — no second 'fitted' heading under the trunk's)
+      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engRotate', 'engPylonH',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
@@ -810,7 +934,7 @@ const CAGE_PARTS = [
       ['induction + exhaust', ['eng_injected', 'eng_airStyle',
                                'eng_airbox', 'eng_intake', 'eng_exStyle',
                                'eng_exDrop', 'eng_exOut', 'eng_exAim',
-                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ']],
+                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ', 'eng_exPair']],
       ['ignition + accessories', ['eng_leads', 'eng_leadR', 'eng_mags',
                                   'eng_genOn', 'eng_oilFill']],
       ['radiator', ['eng_radX', 'eng_radY', 'eng_radZ', 'eng_radW',
@@ -837,18 +961,25 @@ const CAGE_PARTS = [
     // of the three stations; cheeks; inlets and their lip; the chin scoop;
     // the panel joint, the split line, the camlocs, the oil door; and the
     // nacelle tail cone for a cowl standing off the body.
+    // THE USER'S FITTING ORDER (G2760, the slider review: "type -> size ->
+    // section at the firewall -> nose bowl -> cheeks and cutout -> inlets.
+    // The order should probably reflect that. Firewall lip should be expert
+    // row"). The trunk gives type and size; the groups follow the method —
+    // the waistline, the top and bottom lines and the diamond at the
+    // firewall first, then the bowl, the barrel's taper, the cheeks, the
+    // inlets. The cowl PRESETS (one per engine type) head the column as
+    // tiles (_cage_design.js `cowlPreset`).
     groups: [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
-      ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
-                        'cw_fwLipIn']],
-      ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
-                  'cw_taperH', 'cw_lidRise']],
+      ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
+                                   'cw_sqAftTop', 'cw_sqAftBot',
+                                   'cw_wAftTop', 'cw_wAftBot']],   // CABIN-CRAFT: the width by level
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
-      ['section at the firewall', ['cw_deckH', 'cw_keelH', 'cw_waist',
-                                   'cw_sqAftTop', 'cw_sqAftBot']],
+      ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
+                  'cw_taperH', 'cw_lidRise']],
       ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
@@ -871,6 +1002,8 @@ const CAGE_PARTS = [
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
       ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
+      ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
+                        'cw_fwLipIn'], EXPERT],
     ] },
 
   // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the
@@ -886,11 +1019,14 @@ const CAGE_PARTS = [
       ['fitted', ['propOn']],
       ['nose cone', ['cw_noseOff', 'cw_spinR', 'cw_spinLen',
                      'cw_spinRound', 'cw_bladeStation', 'spinMat']],
+      // G2770 (the user: "For the nose cone, put blades and design point
+      // under expert"): the trunk keeps the blade count, the diameter and
+      // the material; the blade's shape and the design point are expert
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
-                  'cw_cuff', 'cw_shankR']],
-      ['design point', ['cw_rpm', 'cw_tas', 'cw_power', 'cw_slip']],
+                  'cw_cuff', 'cw_shankR'], EXPERT],
+      ['design point', ['cw_rpm', 'cw_tas', 'cw_power', 'cw_slip'], EXPERT],
     ] },
 
   // THE TANKS AND THE PACKS (2026-09-05, the user: "I expect a fuel item in
@@ -946,7 +1082,7 @@ const CAGE_PARTS = [
     groups: [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
-      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Brake',
+      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
@@ -954,7 +1090,7 @@ const CAGE_PARTS = [
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
-                   's1_linkPanel']],
+                   's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
       ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
@@ -992,7 +1128,7 @@ const CAGE_PARTS = [
              type: ['s2Leg', 's2Steer', 's2Brake', 's2Fair', 's2LegFair'],
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
-      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Brake',
+      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],
@@ -1000,7 +1136,7 @@ const CAGE_PARTS = [
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',
                    's2_linkVee', 's2_linkSpread', 's2_linkX',
-                   's2_linkPanel']],
+                   's2_linkPanel', 's2_linkAxle', 's2_linkAxleX']],
       ['shock', ['s2_shockKind', 's2_shockAt', 's2_shockZ', 's2_shockAng',
                  's2_bungeeSpan']],
       ['oleo', ['s2_oleoAng', 's2_oleoDia', 's2_oleoCyl', 's2_oleoScissor',
@@ -1014,19 +1150,19 @@ const CAGE_PARTS = [
   { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
     when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     sections: ['spat'],
-    place: { type: ['whProfile', 'whTread', 'whRim', 'whCap', 'whBrake', 'fairCons'],
+    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'fairCons'],
              count: ['whRibs', 'whBolts'], at: 'every station' },
     groups: [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
-      ['carcass', ['whProfile', 'whTread', 'whBulge', 'whRibs']],
+      ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
       ['fairing build', ['fairCons']],
     ] },
 
   // =========================================================================
   // CABIN FIT — the crew layer (cage5): seats, controls, the dashboard and the
-  // dummy. A disjoint layer over the cage; never in the mesh, the gates or the
+  // occupants. A disjoint layer over the cage; never in the mesh, the gates or the
   // OBJ.
   // =========================================================================
   // 2026-09-04 (the user: "cabin fit should definitely be in cabin")
@@ -1038,7 +1174,7 @@ const CAGE_PARTS = [
     place: { type: ['seatType', 'seatLayout'], fore: 'seatZ', up: 'seatH',
              at: 'on the cabin floor' },
     groups: [
-      ['seating', ['seatType', 'seatLayout', 'seatZ', 'seatH', 'seatRake',
+      ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
       ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
@@ -1046,6 +1182,7 @@ const CAGE_PARTS = [
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
+    sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
       ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
@@ -1053,7 +1190,9 @@ const CAGE_PARTS = [
       ['console', ['consoleOn']],
       ['flaps', ['flapCtl', 'flapX', 'flapZ']],            // G335, T2.3 (18)
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
-      ['floor', ['floorOn', 'floorLift']],                 // G331
+      ['parking brake', ['parkX', 'parkY', 'parkZ']],      // G2791
+      ['fuel selector', ['fselX', 'fselY', 'fselZ']],      // G2791
+      ['floor', ['floorOn', 'floorLift', 'floorUp']],                 // G331
     ] },
 
   { key: 'cockpit', name: 'Cockpit & dash', parent: 'fit', layer: 'cage',
@@ -1065,7 +1204,7 @@ const CAGE_PARTS = [
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
       ['dashboard', ['intDash', 'dashBack', 'dashLip', 'dashDepth',
-                     'dashCrown']],
+                     'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },
 
@@ -1092,17 +1231,17 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
-    sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,
     groups: [
       // G180: the cockpit's occupants and the two poses (a passenger bay's
       // occupancy is the bay's own row, see the Passenger bay part)
-      ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
-      ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
-                      'dumHandGrip', 'dumFist', 'dumIdle']],
-      ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
+      // G3700: the pilot is the racer (no select); the co-pilot picks
+      ['aboard', ['pilOn', 'cabOcc', 'cabWho']],
+      ['pilot pose', ['pilElbows', 'pilKnees', 'pilRecline',
+                      'pilHandGrip', 'pilFist', 'pilStickFwd', 'pilIdle']],
+      ['hands', ['pilHandsApart', 'pilFistL', 'pilFistR', 'pilGripL', 'pilGripR']],   // G2797
+      ['passenger pose', ['paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
-      ['markers', ['dumMarkers']],
     ] },
 
   // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you
@@ -1114,6 +1253,9 @@ const CAGE_PARTS = [
     when: P => +P.lightOn, gate: 'lightOn',
     groups: [
       ['fitted', ['lightOn', 'lightSw']],
+      // G2796: each light on its own
+      ['fitted, one by one', ['li_navFit', 'li_beaconFit', 'li_taxiFit', 'li_landFit',
+                              'li_floodFit', 'li_instrFit', 'li_pedalFit', 'li_paxFit']],
       ['outside (switches)', ['li_taxi', 'li_beacon', 'li_land', 'li_nav']],
       ['inside (dimmers)', ['li_flood', 'li_instr', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
@@ -1136,13 +1278,24 @@ const CAGE_PARTS = [
   { key: 'instruments', name: 'Instruments', parent: 'fit', layer: 'panel',
     panel: 'CAGE_PANEL' },
 
+  // THE FURNISHING (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing accounted accurately, its own
+  // row"). The seats' kind and the cabin's trim as billed choices, through the same door as the Instruments
+  // (`panel: 'CAGE_FURNISH'`, tools/_cage_furnish.js, writing `spec.outfit`); the bill they add up to is the
+  // ledger's own `furnish` row. No parameters, no sections: the seats themselves are the crew layer's.
+  { key: 'furnishing', name: 'Furnishing', parent: 'fit', layer: 'crew',
+    panel: 'CAGE_FURNISH' },
+
   // =========================================================================
   // BUILD — what is true of the aeroplane rather than of one of its parts.
   // Scale is here and not on the fuselage because it is the recalibration
   // tool, not a design parameter (G28's ruling); balance is here because the
   // CG and the prop circle are whole-aeroplane facts the gear reads.
   // =========================================================================
-  { key: 'build', name: 'Build', parent: null },
+  // HIDDEN (G2760, the user's slider review: "The 'build' section should be
+  // completely hidden at this stage, that was dev activity"). The editor
+  // keeps the assembly and its parts out of the tree and out of the root's
+  // column; the rows stay claimed (GATE PARTS) and keep loading and saving.
+  { key: 'build', name: 'Build', parent: null, hidden: true },
 
   { key: 'balance', name: 'Balance & stance', parent: 'build', layer: 'gear',
     groups: [
@@ -1251,7 +1404,7 @@ for (const p of CAGE_PARTS)
     if (g[2] === EXPERT) expertGroup[p.key + '/' + g[0]] = 1;
 
 const API = { CAGE_PARTS, cagePartParams, cagePartsUnder,
-              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT,
+              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT, HIDDEN,
               CAGE_ZONED, CAGE_ZONE_PICK, zoneOwner };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

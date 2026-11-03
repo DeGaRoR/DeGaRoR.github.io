@@ -1,0 +1,4 @@
+# after G3447-G3448 (25 Oct): the three decided gates
+TAKEOFF   PASS   345.5 s
+DMGPLOUGH PASS   188.6 s
+GATE DMGDRIVE: PASS

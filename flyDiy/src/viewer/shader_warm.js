@@ -105,7 +105,9 @@ var PROG_WARM = (() => {
       helper.add(standIn(o, d));
     };
     for (const sc of scenes) if (sc) sc.traverse(o => {
-      if (!(o.isMesh || o.isLine || o.isPoints) || !o.castShadow || !o.material) return;
+      // (APPROACH, A0 22 Oct: a caster switched off by distance - the town kit past castFar, a far house - keys its depth
+      // program all the same: userData.mayCast. It linked in the frame its shadow came on, 0.5-2 s on the approach downwind)
+      if (!(o.isMesh || o.isLine || o.isPoints) || !(o.castShadow || (o.userData && o.userData.mayCast)) || !o.material) return;
       const mats = Array.isArray(o.material) ? (o.geometry && o.geometry.groups && o.geometry.groups.length ? o.geometry.groups.map(g => o.material[g.materialIndex]) : o.material) : [o.material];
       for (const R of mats) {
         if (!R || !R.visible) continue;

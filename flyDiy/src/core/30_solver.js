@@ -436,7 +436,7 @@ function makeSim(def, world) {
   let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
-                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
+                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, rest: null, restFrom: null, fall: false,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
@@ -449,10 +449,55 @@ function makeSim(def, world) {
   // (params.scar === false: no record - GATE DMGSCAR's selftest, the A/B of its cost)
   const SCR = DMG_ON && P_.scar !== false && typeof scarMake === 'function' ? scarMake(def, P_.nEngines || 1) : null;
   if (SCR !== null) DMG.scar = SCR.out;
+  // G3463 (BELLY-POD-2): THE BELLY POD'S FLOOR ON THE GROUND - with the damage layer on and a pod fitted (61_gen_frame's
+  // parts.podFrame: its four nodes), each pod node's scrape is summed as the solver's own contact computes it: the
+  // distance it slid while pressed (m), the friction's work (J) and its peak normal force (N). Read by 60d_gen_pod
+  // genPodDamage (the shell ground through, the freight at risk); never pushed: the bits are the base's. Null without
+  // a pod or with the layer off: one compare in the scrape branch, nothing allocated per frame.
+  const PODS = DMG_ON && def.parts && def.parts.podFrame && def.parts.podFrame.nodes ? new Int8Array(n).fill(-1) : null;
+  if (PODS !== null) { def.parts.podFrame.nodes.forEach((i, k) => { PODS[i] = k; });
+    DMG.pod = { slide: new Float64Array(4), work: new Float64Array(4), fnPeak: new Float64Array(4), tFirst: -1, n: 0 }; }
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
   const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
+  // G3770 (DMG-LOOKS): WHY EACH MEMBER BROKE, per member (the first break's `how` is kept for every member, not only the
+  // flight's first): the page draws a broken member by it (skin_break.js's parting rule, dmg_members.js). Written only at a
+  // break, zeroed by reset(); read by sim_host.js simDmgHop. 0 = whole; HOW_CODE below
+  DMG.how = new Uint8Array(nb);
+  // G2373 (DMG-OCCUPANT, 34_occupant.js): THE OCCUPANTS' RECORD - each filled seat's pulse and space, kept on an event,
+  // judged at its close into one of five bands (DMG.occ). With the layer off (or no cabin) null: nothing of it exists
+  const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
+  const OCS = OCC ? genOccState() : null;
+  if (OCC) DMG.occ = null;
+  // G2001 (DMG-SCUFF): THE SLIDE WORK PER NODE (J) - what the drawing paints as scrapes (skin_scuff.js), recorded only
+  // with the layer on and never read back by the physics (no force, no state the step uses): the ground's friction work
+  // on a node that is not a wheel (Fn's own Coulomb term, kf |v|^2 dt), and a node's rub along a trunk (the trunk's push
+  // has no friction in the solver: rubbed at a nominal mu 0.5 of its push, bark on a skin, for the picture only). Beside
+  // each node's work, in the BODY frame at that substep (aft, up, right: xAft / yUp / zRt): the slide's direction and the
+  // side it was pushed from (into the surface) weighted by the work, and the work done on SOFT ground (grass, forest
+  // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
+  DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
+  DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1];      // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand
+  function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
+    const i3 = i * 3;
+    DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
+    DMG.sD[i3] += w * (dx * xAft[0] + dy * xAft[1] + dz * xAft[2]);
+    DMG.sD[i3+1] += w * (dx * yUp[0] + dy * yUp[1] + dz * yUp[2]);
+    DMG.sD[i3+2] += w * (dx * zRt[0] + dy * zRt[1] + dz * zRt[2]);
+    DMG.sN[i3] += w * (ix * xAft[0] + iy * xAft[1] + iz * xAft[2]);
+    DMG.sN[i3+1] += w * (ix * yUp[0] + iy * yUp[1] + iz * yUp[2]);
+    DMG.sN[i3+2] += w * (ix * zRt[0] + iy * zRt[1] + iz * zRt[2]);
+    if (soft) DMG.sG[i] += w;
+  }
+  // a node pushed off a trunk (normal nx, nz, horizontal) by F: its velocity ALONG the bark (the normal part taken off)
+  function scuffTrunk(i, F, nx, nz, dt) {
+    if (!(F > 0)) return;
+    const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
+    const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
+    if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+  }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -918,9 +963,25 @@ function makeSim(def, world) {
   // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
   const STRUCT_WORDS = { gear: 'the landing gear', wing: 'a wing', tail: 'the tail', fin: 'the tail', fus: 'the fuselage', boom: 'the tail boom',
                          cabane: 'a wing strut', interplane: 'a wing strut', wire: 'a bracing wire', float: 'a float', rod: 'a strut', bridge: 'a float' };
+  // G3463 (BELLY-POD-2): with a pod, its verdict rides here too (60d genPodDamage: scuffed / ground / holed / crushed /
+  // torn off, and its freight safe / at risk / lost) once the pod has touched or let go - a holed, crushed or torn pod
+  // is damage, its words the card's when its members are the first that broke (they are gear-class: "the landing gear
+  // broke" would be a lie). No pod: the record as it was, to the field.
+  const PODM = PODS !== null ? new Set(def.parts.podFrame.hangers.concat(def.parts.podFrame.braces)) : null;
+  // (the verdict kept until the scrape, the breaks or the sets move: the host reads this record every frame, and a pod
+  // at rest after its slide must cost nothing there)
+  let podC = null, podCn = -1, podCb = -1, podCy = -1;
   Object.defineProperty(DMG, 'structural', { configurable: true, enumerable: false, get: () => {
-    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary, damaged = broken > 0 || separated.length > 0;
+    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary;
     const fp = DMG.firstPrimary;
+    if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
+      if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
+      const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
+      const damaged = broken > 0 || separated.length > 0 || podBad;
+      return { damaged, broken, separated, pod,
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+    }
+    const damaged = broken > 0 || separated.length > 0;
     return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
@@ -1017,7 +1078,10 @@ function makeSim(def, world) {
       const Mb = fu * sh * S.EI / (S.E * S.r);
       lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
     } else if (S.kind === 'oval' && fu) {
-      lim = { Mu: fu * sh * S.EIv / (S.E * S.cv), Mv: fu * sh * S.EIl / (S.E * S.cl), T: fu / SQ3 * S.GJ / (G * S.rT), yb: ty / (fu * sh), yt: ty / fu };
+      // G2640: a thin SKIN fails by local buckling long before its material's ultimate (S.sigB, 61_gen_frame's SHELL:
+      // ~0.3 E t / R); absent (the twin boom's tube) the material's, as ever
+      const fb = S.sigB > 0 ? Math.min(fu, S.sigB) : fu, sb = S.sigB > 0 && S.sigB < fu ? 1 : sh;
+      lim = { Mu: fb * sb * S.EIv / (S.E * S.cv), Mv: fb * sb * S.EIl / (S.E * S.cl), T: fb / SQ3 * S.GJ / (G * S.rT), yb: Math.min(1, ty / (fb * sb)), yt: Math.min(1, ty / fb) };
     }
     const inR = S.root ? nodeSet(S.root) : null;
     if (S.kind === 'bolts') {
@@ -1179,6 +1243,27 @@ function makeSim(def, world) {
   // the parts that came off this substep: a ROOT cut's part keeps its cluster on its own nodes (the root's dropped) - a
   // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
   // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
+  // G2640: the omega of a piece of a split tube cluster - its length along the tube's axis (the first ring to the last,
+  // at rest) and its mass against the whole's: om0 sqrt((L / Lp)^3 (M / Mp)), CAPPED AT 3 x om0. Uncapped, a third of
+  // the metal Cessna's shell read 9x: omega dt ~1 at its substep, and the hold - a projection, (omega dt)^2 of the way
+  // a substep - snapped the piece to its rest shape in one substep and broke 32 of the members hanging on it in the
+  // clean part-off (GATE DMGCLUSTERS). 3x holds the piece to under its 10 mm and snaps nothing. A cluster without
+  // rings (a fin, a float) keeps its omega
+  function clOmegaPiece(C, om0, piece) {
+    const R0 = C.rings0;
+    if (!(om0 > 0) || !R0 || R0.length < 2 || !C.idx0) return om0;
+    const cen = r => { const c = [0, 0, 0]; for (const i of r) for (let j = 0; j < 3; j++) c[j] += def.nodes[i].p[j] / r.length; return c; };
+    const a0 = cen(R0[0]), a1 = cen(R0[R0.length - 1]);
+    const ax = [a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]], la = hyp3(ax[0], ax[1], ax[2]);
+    if (!(la > 1e-6)) return om0;
+    const ext = ids => { let lo = Infinity, hi = -Infinity, M = 0;
+      for (const i of ids) { const P = def.nodes[i].p, d = ((P[0] - a0[0]) * ax[0] + (P[1] - a0[1]) * ax[1] + (P[2] - a0[2]) * ax[2]) / la;
+        if (d < lo) lo = d; if (d > hi) hi = d; M += m[i]; }
+      return { L: hi - lo, M }; };
+    const W = ext(C.idx0), Pp = ext(piece);
+    if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
+    return om0 * Math.sqrt(Math.min(9, CORE_MATH.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+  }
   function clApply() {
     for (const k of clQ) {
       const ct = CUTS[k], C = clusters[ct.cl];
@@ -1189,9 +1274,16 @@ function makeSim(def, world) {
         for (const j of C.cuts) CUTS[j].done = true;
         if (other.length) setIdx(C, keep);
       } else {
+        // G2640 (DESIGN-TRUST): A PIECE OF A TUBE IS A SHORTER TUBE. The cluster's omega is its whole length's
+        // cantilever (61_gen_frame: 3 EI / L^3 against the cluster's mass); split at a mid-span station, each piece is
+        // a cantilever of its own length and mass - (L / Lp)^3 stiffer on (M / Mp) less mass. Handed the whole tube's
+        // omega, the metal Cessna's shell's aft piece flexed 12.4 mm in the clean part-off (GATE DMGCLUSTERS' 10 mm)
+        const om0 = C.omega0 || (C.omega0 = C.omega);
+        const oFwd = clOmegaPiece(C, om0, other), oAft = clOmegaPiece(C, om0, keep);
         setIdx(C, other);
+        C.omega = oFwd;
         if (keep.length >= 3) {
-          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega,
+          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: oAft,
                        rings: C.rings0, rk: C.rk0, gj: C.gj, twist: null, off: false, dirty: false, cuts: [], nm: null, ms: false,
                        twL0: C.twL0, twPk: 0, twR: 0, dmgS: null };
           setIdx(C2, keep);
@@ -1219,7 +1311,8 @@ function makeSim(def, world) {
   function clReset() {
     clusters.length = nCl0;
     CUTS.length = nCut0;
-    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false; }
+    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false;
+      if (C.omega0 != null) C.omega = C.omega0; }   // G2640 (Deform's review): a split stub's omega back to the whole tube's
     for (const ct of CUTS) { ct.done = false; ct.rb = ct.rt = ct.Mb = ct.Tq = ct.pk = ct.pkB = ct.pkT = 0; }
     beamCl.set(beamCl0);
     for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
@@ -1241,19 +1334,32 @@ function makeSim(def, world) {
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    DMG.how.fill(0);  // G3770
+    if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
+    if (DMG_ON) { DMG.sW.fill(0); DMG.sD.fill(0); DMG.sN.fill(0); DMG.sG.fill(0); DMG.scN = 0; DMG.scW = 0; }   // G2001
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
+    if (PODS !== null) { DMG.pod.slide.fill(0); DMG.pod.work.fill(0); DMG.pod.fnPeak.fill(0); DMG.pod.tFirst = -1; DMG.pod.n = 0; podC = null; }   // G3463
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
+  // G3770: `how` as a code - 1 tension (or brittle), 2 kink, 3 fold, 4 ragged, 5 group, 6 a cluster's cut ('root-...',
+  // 'station-...'), 7 core, 8 gate
+  function howCode(how) {
+    if (!how || how === 'tension') return 1;
+    switch (how) { case 'kink': return 2; case 'fold': return 3; case 'ragged': return 4; case 'group': return 5; case 'core': return 7; case 'gate': return 8; }
+    return 6;
+  }
   function beamBreak(bi, how) {
     const b = beams[bi];
     if (b.broken) return;
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
+    DMG.how[bi] = howCode(how);                       // G3770
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
@@ -1423,6 +1529,11 @@ function makeSim(def, world) {
   // Under all three a set is a DENT (DMG.dented): the aeroplane taxies on, bent. A prop strike stops its engine and is
   // not a crash on its own (a nose-over on the ground is a crash only if it breaks something).
   const CRASH_G = 9, CRASH_J = 1500;
+  // G3505 (DC3-BUILD, 2026-10-23): ...AND ON A HEAVY AEROPLANE THE WORK IS IN PROPORTION. 1.5 kJ is a light aeroplane's
+  // crushed nose (11 t at 0.5 m/s carries 1.4 kJ): above CRASH_J_KG of mass the threshold grows with it. Every aeroplane
+  // at or under 3 t (the whole fleet): 1500, the same comparison. Set once the mass is summed (below)
+  const CRASH_J_KG = 3000;
+  let crashJ = CRASH_J;
   // G1835 (DMG-D2b): the AIRFRAME's plastic work - the gear's is its energy absorber doing its job (§7.3: a spring-steel
   // leg spreads, an oleo bottoms; a gear joint's crush past its limit is its bracket), not the airframe crushing. Summed
   // only once the total has passed CRASH_J (one pass over the beams, then the answer)
@@ -1442,17 +1553,29 @@ function makeSim(def, world) {
     if (DMG.crashed || !DMG_ON) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
-      : DMG.work > CRASH_J && airWork() > CRASH_J ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
+      : DMG.work > crashJ && airWork() > crashJ ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
     if (why) { DMG.crashed = true; DMG.reason = why; DMG.at = simT; }
   }
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
   // ends it there (app.js endFlight('crashed')), so the card shows the aeroplane bent as it lies, not the first
   // millisecond of the impact
+  // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): ...and the PIECES' rest, for the game's watch
+  // (app.js): DMG.rest = the time every node has been under 0.3 m/s for 0.5 s (null while one moves), DMG.fall = a node
+  // still coming down faster than 3 m/s (a piece in the air: the watch's cap waits for it). The CG's rest
+  // above ends the flight's physics verdict, not the picture: a part flung off, or the halves of a break-up in the air
+  // (over at the parting, 30_solver.js compEvent), still fall when the CG has stopped. Read only after a crash (n nodes)
   function dmgOver() {
-    if (!DMG.crashed || DMG.over) return;
-    let x = 0, y = 0, z = 0;
-    for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
-    if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    if (!DMG.crashed) return;
+    if (!DMG.over) {
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
+      if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    }
+    let v2 = 0, vd = 0;
+    for (let i = 0; i < n * 3; i += 3) { const s = v[i] * v[i] + v[i+1] * v[i+1] + v[i+2] * v[i+2]; if (s > v2) v2 = s; if (-v[i+1] > vd) vd = -v[i+1]; }
+    DMG.fall = vd > 3;
+    if (v2 > 0.09) { DMG.restFrom = null; DMG.rest = null; }
+    else { if (DMG.restFrom === null) DMG.restFrom = simT; if (DMG.rest === null && simT - DMG.restFrom >= 0.5) DMG.rest = simT; }
   }
   const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
   // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
@@ -1603,7 +1726,9 @@ function makeSim(def, world) {
   // a positive rudder (dr > 0) does - measured, scratch pivot. A main's brake is clamp(brake + side x brakeD, 0, 1); brakeD 0 (every caller before
   // this) is the symmetric brake to the bit. The pivot turn at the end of a one-way strip needs it: on the
   // tailwheel's steering alone the user's Cub turns on a 9.4 m radius, and East Point is 12 m wide
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0 };
+  // G2480 (HAND-CONTROLS): `wr` the floats' water-rudder handle - null THE RULE (32_hydro waterRudder), 0 up, 1 down;
+  // only the hand writes it (input.js), and a reset gives it back to the rule
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -1681,6 +1806,7 @@ function makeSim(def, world) {
   }
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
+  if (totalM > CRASH_J_KG) crashJ = CRASH_J * totalM / CRASH_J_KG;   // G3505
 
   // ---- THE PANEL ARC, session 1 (2026-09-11): WHAT THE INSTRUMENTS READ ----
   // Three sources that did not exist — a shaft speed, a burn, a load factor
@@ -2328,6 +2454,8 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    PFO.netF = 0; PFO.mErr = 0;
+    if (TWSW) { TWSW.cast = false; TWSW.ang = 0; }   // G3575: the full swivel steered again, centred
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -2403,6 +2531,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    ctl.wr = null;                                   // G2480: the water rudders back to the rule
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
     // airframe AFTER reset — a strip at heading 0 is the built pose turned
@@ -2481,6 +2610,221 @@ function makeSim(def, world) {
   const ENG_OF = def.refs.engineOf || def.refs.engine.map(() => 0);
   const ENG_CNT = (() => { const nE = def.params.nEngines || 1, c = new Array(nE).fill(0); for (const k of ENG_OF) if (k < nE) c[k]++; return c; })();
   const CW_I = [0, 0, 0, 0], CW_W = [0, 0, 0, 0];
+  // G2080 ENGINE-TORQUE: THE PROPELLER'S OWN MOMENTS. Until here a propeller was a force along the body axis at its
+  // mount nodes and a scalar wash; nothing knew which way it turned (futureDesigns/PROP-EFFECTS-2026-09-05.md). Four
+  // effects, each from the build's own numbers - the shaft law (00_registry genShaftRpm), the disc, the blades' mass,
+  // the hand (`engines[i].sense`, +1 clockwise from behind):
+  //   REACTION TORQUE  the engine's torque on the crankcase, Q = thrEff . powerK . P_rated / omega_rated (at the prop
+  //                    shaft, through the reduction): the airframe rolls against the prop, sense . Q about +xAft
+  //   GYROSCOPIC       the prop's angular momentum H = I_p . Omega . sense . forward, and the airframe pays H x omega_body
+  //                    whenever it turns (the tail-up's yaw, a pitch in a turn)
+  //   P-FACTOR         blade-element theory, a constant-pitch, constant-chord blade (beta . Omega r = p n along the span):
+  //                    an in-plane air velocity u_p at the disc loads the blade advancing into it, and the moment is
+  //                    M = sense . (K p n / 2 + T / (2 Omega)) . u_p  (a VECTOR along u_p: air from below, a right
+  //                    yaw-left for the Lycoming hand). K = N rho c a R^2 / 4 is calibrated on the model's own static
+  //                    point (K = T0 / (Omega0 (p n0 - v_i0)), p = V0 / n_rated the zero-thrust pitch of the synthesis), so
+  //                    no blade constant is invented; K p is weakly p-dependent (the static thrust carries it)
+  //   SWIRL            the slipstream carries the torque's angular momentum: a solid-body rotation omega_s = 2 Q_s /
+  //                    (rho V_w pi R_w^4) inside the contracted wake (R_w from momentum theory), added to the local air
+  //                    of every TAIL strip the wash reaches (st.wash), about the nearest engine's axis - the fin and the
+  //                    stab answer it through their own polars. NOT the wing: in a nacelle's wake the grid has three
+  //                    strips (wash 0.07 / 0.99 / 0.39 on the twin) that are not centred on the axis, so the swirl made
+  //                    a net LIFT there - a false roll couple at the nacelle's 1.65 m arm that leaned the same-hand twin
+  //                    RIGHT under its own left torque (GATE ENGTORQUE, measured). The wing's real de-swirl (it takes
+  //                    back part of the torque's roll) is the named cut that buys
+  // The three moments are PURE COUPLES (no net force) spread over the engine's mount nodes and their beam neighbours -
+  // f_i = (J^-1 M) x r_i, J = sum(|r|^2 I - r r^T), the least-norm set of forces that makes exactly M.
+  // PAR.propFx gates each (1 = on) for the A/B the gates and the evidence read; read once per sim.
+  const PFX = (typeof PAR !== 'undefined' && PAR.propFx) || {};
+  const FX_TQ = PFX.torque !== 0, FX_GY = PFX.gyro !== 0, FX_PF = PFX.pfactor !== 0, FX_SW = PFX.swirl !== 0;
+  const FX_ON = FX_TQ || FX_GY || FX_PF || FX_SW;
+  const ENG_DEF = P_.engines || [];
+  const SENSE = new Float64Array(Math.max(1, ENG_CNT.length));
+  for (let k = 0; k < SENSE.length; k++) SENSE[k] = (ENG_DEF[k] && ENG_DEF[k].sense === -1) ? -1 : 1;
+  // the prop's polar moment (62_gen_aero: k . m . R^2 from the blades' mass) - a def that states none spins nothing
+  const I_PROP = (PR && PR.I > 0) ? PR.I : 0;
+  // the rated torque at the prop shaft
+  const GEAR = (EN && EN.gear > 0) ? EN.gear : 1;
+  const OMEGA_R = 2 * Math.PI * ((EN && EN.rpm > 0 ? EN.rpm : 2300) / GEAR) / 60;
+  const Q_R = ((EN && EN.powerW > 0) ? EN.powerW : 0) / OMEGA_R;
+  // the P-factor's blade constant K . p at the datum air, off the static full-throttle point
+  const PF_KP = (() => {
+    if (!(PR && PR.Tstatic > 0 && PR.kV2 > 0) || typeof genShaftRpm !== 'function') return 0;
+    const n0 = genShaftRpm(EN, PR, 1, 0, 1, 1, true) / 60, nR = OMEGA_R / (2 * Math.PI);
+    const pitch = Math.sqrt(PR.Tstatic / PR.kV2) / nR;
+    const vi0 = 0.5 * Math.sqrt(2 * PR.Tstatic / (RHO * PROPA));
+    const den = 2 * Math.PI * n0 * Math.max(0.2 * pitch * n0, pitch * n0 - vi0);
+    return den > 0 ? PR.Tstatic * pitch / den : 0;
+  })();
+  // each engine's node set: its mount nodes and every node one beam away
+  const ENG_SET = (() => {
+    const sets = [], adj = new Map();
+    for (const b of def.beams) {
+      const a = b.a != null ? b.a : b[0], c = b.b != null ? b.b : b[1];
+      if (!adj.has(a)) adj.set(a, []); if (!adj.has(c)) adj.set(c, []);
+      adj.get(a).push(c); adj.get(c).push(a);
+    }
+    for (let k = 0; k < SENSE.length; k++) {
+      const s = new Set();
+      for (let j = 0; j < ENG_N.length; j++) if (((ENG_OF[j] | 0) < SENSE.length ? ENG_OF[j] | 0 : 0) === k) {
+        s.add(ENG_N[j]); for (const q of (adj.get(ENG_N[j]) || [])) s.add(q);
+      }
+      sets.push(Int32Array.from(s));
+    }
+    return sets;
+  })();
+  // per engine, refreshed by the thrust pass: the hub (mount centroid), the swirl rate, the wake radius, the sense
+  const SW_HUB = new Float64Array(SENSE.length * 3), SW_W = new Float64Array(SENSE.length), SW_R = new Float64Array(SENSE.length);
+  let swirlOn = false;
+  // ENGINE-CONFIGS-2 (G3490): A LAYOUT'S STRIPS NAME THEIR DISC (62_gen_aero genStripsLayout, `washE`: an engine, -2
+  // the push-pull's centreline in series, -1 none). Their wash is that disc's own (its own thrust through momentum
+  // theory, the mean disc's law), so a dead engine takes the wake off what flies behind IT; the swirl at a tail strip
+  // sums every running disc's (the push-pull's counter-rotating pair: the rear prop takes back the front one's). Every
+  // other def has no `washE`: WE is null and the pass is the one it was, to the bit.
+  const WE = def.strips.some(st => st.washE != null) ? Int8Array.from(def.strips, st => st.washE == null ? -1 : st.washE) : null;
+  const WASH_E = WE ? new Float64Array(SENSE.length + 1) : null;   // per engine, then [SENSE.length] the series
+  const WE_C = WE ? Uint8Array.from(SENSE, (_, k) => (ENG_DEF[k] && ENG_DEF[k].side) ? 0 : 1) : null;   // on the centreline (side 0)
+  if (WE) out.washE = WASH_E;   // (published for a layout only: GATE ENGCONFIG reads each disc's wake)
+  // the published moments, body components [along xAft, along yUp, along zRt] per engine (+yUp = nose LEFT,
+  // +xAft = left wing down, +zRt = nose up): `out.propFx`
+  const PFO = { Q: new Float64Array(SENSE.length), rpm: new Float64Array(SENSE.length), H: new Float64Array(SENSE.length),
+                tq: new Float64Array(SENSE.length * 3), gyro: new Float64Array(SENSE.length * 3), pf: new Float64Array(SENSE.length * 3),
+                swirl: SW_W, wakeR: SW_R, rate: [0, 0, 0], netF: 0, mErr: 0 };
+  out.propFx = PFO;
+  const _cm = [0, 0, 0], _wb = [0, 0, 0];
+  // the airframe's angular velocity off the axes' own reference nodes: w = x . xdot + (ydot . (x X y)) x
+  function bodyRate(o) {
+    const ax = def.refs.noseFrame, bx = def.refs.tailMid, ay = def.refs.upLo, by = def.refs.upHi;
+    let lx = 0, ly = 0, lz = 0, dx = 0, dy = 0, dz = 0;
+    for (const i of bx) { lx += p[i*3] / bx.length; ly += p[i*3+1] / bx.length; lz += p[i*3+2] / bx.length; dx += v[i*3] / bx.length; dy += v[i*3+1] / bx.length; dz += v[i*3+2] / bx.length; }
+    for (const i of ax) { lx -= p[i*3] / ax.length; ly -= p[i*3+1] / ax.length; lz -= p[i*3+2] / ax.length; dx -= v[i*3] / ax.length; dy -= v[i*3+1] / ax.length; dz -= v[i*3+2] / ax.length; }
+    let L = hyp3(lx, ly, lz) || 1, xd = dx*xAft[0]+dy*xAft[1]+dz*xAft[2];
+    const xdx = (dx - xd*xAft[0]) / L, xdy = (dy - xd*xAft[1]) / L, xdz = (dz - xd*xAft[2]) / L;
+    lx = ly = lz = dx = dy = dz = 0;
+    for (const i of by) { lx += p[i*3] / by.length; ly += p[i*3+1] / by.length; lz += p[i*3+2] / by.length; dx += v[i*3] / by.length; dy += v[i*3+1] / by.length; dz += v[i*3+2] / by.length; }
+    for (const i of ay) { lx -= p[i*3] / ay.length; ly -= p[i*3+1] / ay.length; lz -= p[i*3+2] / ay.length; dx -= v[i*3] / ay.length; dy -= v[i*3+1] / ay.length; dz -= v[i*3+2] / ay.length; }
+    L = hyp3(lx, ly, lz) || 1;
+    // x X y = -zRt (zRt = up x aft)
+    const wx = -(dx*zRt[0] + dy*zRt[1] + dz*zRt[2]) / L;
+    o[0] = xAft[1]*xdz - xAft[2]*xdy + wx * xAft[0];
+    o[1] = xAft[2]*xdx - xAft[0]*xdz + wx * xAft[1];
+    o[2] = xAft[0]*xdy - xAft[1]*xdx + wx * xAft[2];
+    return o;
+  }
+  // a pure couple M over the node set S: f_i = (J^-1 M) x r_i about the set's centroid
+  function applyCouple(S, Mx, My, Mz) {
+    const ns = S.length; if (ns < 3) return;
+    let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < ns; j++) { const e = S[j] * 3; cx += p[e]; cy += p[e+1]; cz += p[e+2]; }
+    cx /= ns; cy /= ns; cz /= ns;
+    let a = 0, b = 0, c = 0, d = 0, e_ = 0, g = 0;   // J = [[a d e],[d b g],[e g c]]
+    for (let j = 0; j < ns; j++) {
+      const q = S[j] * 3, rx = p[q] - cx, ry = p[q+1] - cy, rz = p[q+2] - cz;
+      a += ry*ry + rz*rz; b += rx*rx + rz*rz; c += rx*rx + ry*ry; d -= rx*ry; e_ -= rx*rz; g -= ry*rz;
+    }
+    const A = b*c - g*g, B = e_*g - d*c, Cc = d*g - b*e_, det = a*A + d*B + e_*Cc;
+    if (!(Math.abs(det) > 1e-12)) return;
+    const D2 = a*c - e_*e_, E2 = d*e_ - a*g, F2 = a*b - d*d;
+    const wx = (A*Mx + B*My + Cc*Mz) / det, wy = (B*Mx + D2*My + E2*Mz) / det, wz = (Cc*Mx + E2*My + F2*Mz) / det;
+    let Fx = 0, Fy = 0, Fz = 0, mx = 0, my = 0, mz = 0;
+    for (let j = 0; j < ns; j++) {
+      const q = S[j] * 3, rx = p[q] - cx, ry = p[q+1] - cy, rz = p[q+2] - cz;
+      const fx = wy*rz - wz*ry, fy = wz*rx - wx*rz, fz = wx*ry - wy*rx;
+      f[q] += fx; f[q+1] += fy; f[q+2] += fz;
+      Fx += fx; Fy += fy; Fz += fz; mx += ry*fz - rz*fy; my += rz*fx - rx*fz; mz += rx*fy - ry*fx;
+    }
+    // what the set really received (GATE ENGTORQUE's COUPLES): its net force and its moment's miss, worst since reset
+    const Mm = hyp3(Mx, My, Mz) || 1;
+    PFO.netF = Math.max(PFO.netF, hyp3(Fx, Fy, Fz) / Mm); PFO.mErr = Math.max(PFO.mErr, hyp3(mx - Mx, my - My, mz - Mz) / Mm);
+  }
+  // the four effects, once per pass after the thrust: the couples onto each engine's nodes, the swirl's state for the
+  // strip loop below. Ti = each engine's thrust (N), Vf the axial airspeed, (wx,wy,wz) the air at the CG.
+  function propMoments(nE, Ti, Vf, rho, sig, wx, wy, wz, powerK) {
+    const nk = Math.min(nE, SENSE.length);
+    let wb = null;
+    if (FX_GY && I_PROP > 0) { wb = bodyRate(_wb); PFO.rate[0] = wb[0]; PFO.rate[1] = wb[1]; PFO.rate[2] = wb[2]; }
+    swirlOn = false;
+    for (let k = 0; k < nk; k++) {
+      const sn = SENSE[k], rp = PFO.rpm[k], Om = 2 * Math.PI * rp / 60, Q = PFO.Q[k], T = Ti[k];
+      const S = ENG_SET[k];
+      let Mx = 0, My = 0, Mz = 0;
+      // the hub and the disc's own velocity (the mount nodes of engine k)
+      let hx = 0, hy = 0, hz = 0, vx = 0, vy = 0, vz = 0, c = 0;
+      for (let j = 0; j < ENG_N.length; j++) if (((ENG_OF[j] | 0) < SENSE.length ? ENG_OF[j] | 0 : 0) === k) {
+        const e = ENG_N[j] * 3; hx += p[e]; hy += p[e+1]; hz += p[e+2]; vx += v[e]; vy += v[e+1]; vz += v[e+2]; c++;
+      }
+      if (c) { hx /= c; hy /= c; hz /= c; vx /= c; vy /= c; vz /= c; }
+      SW_HUB[k*3] = hx; SW_HUB[k*3+1] = hy; SW_HUB[k*3+2] = hz;
+      // REACTION TORQUE: sense . Q about +xAft
+      if (FX_TQ && Q) { Mx += sn * Q * xAft[0]; My += sn * Q * xAft[1]; Mz += sn * Q * xAft[2]; }
+      PFO.tq[k*3] = FX_TQ ? sn * Q : 0; PFO.tq[k*3+1] = 0; PFO.tq[k*3+2] = 0;
+      // GYROSCOPIC: H = I Om sense (-xAft); M = H x w
+      const H = I_PROP * Om; PFO.H[k] = H;
+      if (wb && H) {
+        const hX = -sn * H * xAft[0], hY = -sn * H * xAft[1], hZ = -sn * H * xAft[2];
+        const gx = hY * wb[2] - hZ * wb[1], gy = hZ * wb[0] - hX * wb[2], gz = hX * wb[1] - hY * wb[0];
+        Mx += gx; My += gy; Mz += gz;
+        PFO.gyro[k*3] = gx*xAft[0]+gy*xAft[1]+gz*xAft[2]; PFO.gyro[k*3+1] = gx*yUp[0]+gy*yUp[1]+gz*yUp[2]; PFO.gyro[k*3+2] = gx*zRt[0]+gy*zRt[1]+gz*zRt[2];
+      } else { PFO.gyro[k*3] = PFO.gyro[k*3+1] = PFO.gyro[k*3+2] = 0; }
+      // P-FACTOR: the in-plane air at the disc, M = sense (K p n / 2 + T / (2 Om)) u_p - a running engine only
+      if (FX_PF && Q > 0 && Om > 1) {
+        let ux = wx - vx, uy = wy - vy, uz = wz - vz;
+        const ua = ux*xAft[0] + uy*xAft[1] + uz*xAft[2];
+        ux -= ua * xAft[0]; uy -= ua * xAft[1]; uz -= ua * xAft[2];
+        const kf = sn * (PF_KP * sig * (rp / 60) * 0.5 + T / (2 * Om));
+        Mx += kf * ux; My += kf * uy; Mz += kf * uz;
+        PFO.pf[k*3] = kf*(ux*xAft[0]+uy*xAft[1]+uz*xAft[2]); PFO.pf[k*3+1] = kf*(ux*yUp[0]+uy*yUp[1]+uz*yUp[2]); PFO.pf[k*3+2] = kf*(ux*zRt[0]+uy*zRt[1]+uz*zRt[2]);
+      } else { PFO.pf[k*3] = PFO.pf[k*3+1] = PFO.pf[k*3+2] = 0; }
+      if (Mx || My || Mz) applyCouple(S, Mx, My, Mz);
+      // SWIRL: the torque that goes with the model's thrust (thrust is linear in the lever, the idle's torque makes
+      // none), its angular momentum carried by the contracted wake as a solid-body rotation
+      SW_W[k] = 0; SW_R[k] = 0;
+      if (FX_SW && T > 0 && Q_R > 0) {
+        const lev = Math.max(0, Math.min(1, ctl.thr * LEV(k)));
+        const Qs = lev * powerK * Q_R;
+        const wsh = Math.sqrt(Vf * Vf + 2 * T / (rho * PROPA)) - Vf;
+        const Vw = Math.max(1, Vf + wsh), Rw = (PR.D / 2) * Math.sqrt((Vf + 0.5 * wsh) / Math.max(1e-6, Vf + wsh));
+        if (Qs > 0 && Rw > 0.05) {
+          SW_W[k] = sn * 2 * Qs / (rho * Vw * Math.PI * Rw * Rw * Rw * Rw); SW_R[k] = Rw; swirlOn = true;
+        }
+      }
+    }
+  }
+  // the swirl's air at a strip in the wash (sx,sy,sz), into o: about the nearest engine's axis, solid-body inside the
+  // wake radius, faded to nothing over its last quarter beyond it
+  function swirlAt(sx, sy, sz, o) {
+    o[0] = o[1] = o[2] = 0;
+    if (WE) {   // ENGINE-CONFIGS-2: a layout sums every running disc's, each faded by its own wake radius
+      for (let k = 0; k < SW_W.length; k++) {
+        if (!SW_W[k]) continue;
+        let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+        const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+        dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+        const d = hyp3(dx, dy, dz), Rw = SW_R[k], g = d <= Rw ? 1 : Math.max(0, 1 - (d - Rw) / (0.25 * Rw));
+        if (!g) continue;
+        const w = SW_W[k] * g;
+        o[0] += w * (dy*xAft[2] - dz*xAft[1]); o[1] += w * (dz*xAft[0] - dx*xAft[2]); o[2] += w * (dx*xAft[1] - dy*xAft[0]);
+      }
+      return o;
+    }
+    let best = -1, bd = Infinity, bdx = 0, bdy = 0, bdz = 0;
+    for (let k = 0; k < SW_W.length; k++) {
+      if (!SW_W[k]) continue;
+      let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+      const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+      dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+      const d = hyp3(dx, dy, dz);
+      if (d < bd) { bd = d; best = k; bdx = dx; bdy = dy; bdz = dz; }
+    }
+    if (best < 0) return o;
+    const Rw = SW_R[best], g = bd <= Rw ? 1 : Math.max(0, 1 - (bd - Rw) / (0.25 * Rw));
+    if (!g) return o;
+    // v = sense . w_s . (forward x d) = w_s . (d x xAft) (the sense is in SW_W)
+    const w = SW_W[best] * g;
+    o[0] = w * (bdy*xAft[2] - bdz*xAft[1]); o[1] = w * (bdz*xAft[0] - bdx*xAft[2]); o[2] = w * (bdx*xAft[1] - bdy*xAft[0]);
+    return o;
+  }
+  const _sw = [0, 0, 0];
   function aeroPass(probe) {
     bodyAxes();
     // mean velocity (mass-weighted), and the mean altitude in the same sweep
@@ -2586,12 +2930,23 @@ function makeSim(def, world) {
           const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
+          // G2080: the shaft's torque (the law's own Qe) and speed, per engine
+          if (i < PFO.Q.length) { PFO.rpm[i] = rp; PFO.Q[i] = run ? (IDLE_T + (1 - IDLE_T) * thrE) * PS.power * Q_R : 0; }
           if (DRV) driveRpm(i, Vfwd, sig, PS.power);   // G1826: a seized engine, a sheared drive
         }
       }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      if (WE) {   // ENGINE-CONFIGS-2: each disc's own wash, and the centreline's in series (nose + pusher)
+        let Tc = 0;
+        for (let k = 0; k < WASH_E.length - 1; k++) {
+          const Tk = k < nE ? Ti[k] : 0;
+          WASH_E[k] = Math.sqrt(Vfwd * Vfwd + 2 * Tk / (rho * PROPA)) - Vfwd;
+          if (WE_C[k]) Tc += Tk;
+        }
+        WASH_E[WASH_E.length - 1] = Math.sqrt(Vfwd * Vfwd + 2 * Tc / (rho * PROPA)) - Vfwd;
+      }
       // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
       // force is turned about the lateral axis, forward-and-down at the
       // front of the engine, so a high pusher's line of action passes
@@ -2612,6 +2967,7 @@ function makeSim(def, world) {
           f[e*3+2] -= per * xAft[2];
         }
       }
+      if (FX_ON) propMoments(nE, Ti, Vfwd, rho, sig, wcx, wcy, wcz, PS.power);
       if (DRV && DRV.imb) driveImb();               // G1826: a lost blade's imbalance
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
@@ -2713,8 +3069,10 @@ function makeSim(def, world) {
       let wx_ = wcx, wy_ = wcy, wz_ = wcz;
       if (world && world.wind) { const wv = world.wind(spx, spy, spz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       // relative air velocity = air motion (wash + wind) - node motion
-      const wsh = wash * st.wash;
+      const wsh = (WE && !probe ? (WE[stripIdx] >= 0 ? WASH_E[WE[stripIdx]] : WE[stripIdx] === -2 ? WASH_E[WASH_E.length - 1] : wash) : wash) * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
+      // G2080: the slipstream's swirl, where the wash reaches
+      if (swirlOn && st.wash > 0 && !probe && st.kind !== 'wing') { swirlAt(spx, spy, spz, _sw); rx += _sw[0] * st.wash; ry += _sw[1] * st.wash; rz += _sw[2] * st.wash; }
       // G185.5: ...plus the induced velocity of the other plane and, on a
       // tail flying the vortex model, of the wing. The lift vector is built
       // on the LOCAL wind below, so a downwash tilts it aft and the mutual
@@ -2769,11 +3127,43 @@ function makeSim(def, world) {
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
-      const [Cl, Cd] = fl > 0
-        ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
-        : polar(al, P, sig);
+      let Cl, Cd;
+      if (st.stol === undefined && st.dr === undefined) {
+        [Cl, Cd] = fl > 0
+          ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
+          : polar(al, P, sig);
+      } else {
+        // G2820: THE STOL WING. A slat, a slot, VGs or a cuff move the
+        // STALL ANGLE (dAStall goes negative: the lift curve runs on past
+        // the clean stall) and pay their drag; a cuff adds a little nose
+        // camber. The fixed devices act at positive alpha only (a slot does
+        // nothing for an inverted stall); an automatic slat runs out over
+        // the last `so` rad before the clean stall (`sb` wide) and is only
+        // worth its gain - and its gap drag - once out. Drooped ailerons are
+        // a plain flap on the lever. A strip without these keys never
+        // reaches this branch.
+        let dCl = 0, dCd = 0, dAS = 0;
+        if (fl > 0) { dCl = (FP.dCl0 || 0) * fl; dCd = (FP.dCd0 || 0) * fl; dAS = (FP.dAStall || 0) * fl; }
+        const SR = st.stol;
+        if (SR) {
+          let g = al > 0 ? SR.dAs : 0;
+          dCl += SR.dCl; dCd += SR.cd;
+          if (SR.sa) {
+            const dp = Math.min(1, Math.max(0, (al - (P.aStall - SR.so)) / SR.sb));
+            g += dp * SR.sa; dCd += dp * SR.scd;
+          }
+          dAS -= Math.min(SR.mx, g);
+        }
+        if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; dAS += (st.dr.dAs || 0) * ctl.flap; }
+        [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
+      }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
-      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
+      let q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1);
+      const iv = 1 / Math.sqrt(V2);
+      // G2820: Fowler area growth - the strip's area (and below its chord)
+      // grows with the run-out; `fg` exists only on a grown Fowler's strips
+      const cg = (fl > 0 && st.fg) ? 1 + st.fg * fl : 1;
+      if (cg !== 1) q *= cg;
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -2784,7 +3174,7 @@ function makeSim(def, world) {
         // ev x b, dotted with the normal: the lift of a + circulation A -> B
         const cx = (ry*bz - rz*by), cy = (rz*bx - rx*bz), cz = (rx*by - ry*bx);
         const sgn = (cx*sn[0] + cy*sn[1] + cz*sn[2]) >= 0 ? 1 : -1;
-        Gam[stripIdx] = 0.5 * Cl * st.chord / iv * sgn;
+        Gam[stripIdx] = cg !== 1 ? 0.5 * Cl * st.chord * cg / iv * sgn : 0.5 * Cl * st.chord / iv * sgn;
       }
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
@@ -2804,8 +3194,12 @@ function makeSim(def, world) {
       // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
         // G185: the strip's own plane's Cm0 and spar spacing
-        const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
-                     * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
+        let Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / (st.sparSpacing || P_.sparSpacing);
+        const t = st.t;
+        // G2820: the drooped aileron's own moment, and a grown chord's arm
+        if (st.dr && ctl.flap > 0) Fc += q * st.dr.dCm * ctl.flap * st.chord / (st.sparSpacing || P_.sparSpacing);
+        if (cg !== 1) Fc *= cg;
         CW_I[0] = st.fIn; CW_W[0] = (1-t); CW_I[1] = st.fOut; CW_W[1] = t;
         CW_I[2] = st.rIn; CW_W[2] = -(1-t); CW_I[3] = st.rOut; CW_W[3] = -t;
         for (let q = 0; q < 4; q++) {
@@ -2851,12 +3245,13 @@ function makeSim(def, world) {
     // (GEN_RULES.bodyMunkK); a fiche without the record flies as before.
     if (P_.bodyMunk && P_.bodyMunk.vol > 0 && def.refs.fusDrag && def.refs.fusDragAft) {
       const A = def.refs.fusDrag, Bq = def.refs.fusDragAft;
-      let vx=0, vy=0, vz=0, ax=0, ay=0, bx=0, by=0;
-      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; }
-      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; }
-      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; bx/=Bq.length; by/=Bq.length;
+      let vx=0, vy=0, vz=0, ax=0, ay=0, az=0, bx=0, by=0, bz=0;
+      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; az+=p[i*3+2]; }
+      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; bz+=p[i*3+2]; }
+      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; az/=A.length; bx/=Bq.length; by/=Bq.length; bz/=Bq.length;
       let wx_ = 0, wy_ = 0, wz_ = 0;
-      if (world && world.wind) { const wv = world.wind(ax, ay, 0, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      // G2470: the fore ring's own air (it read the wind at z = 0 - the world's x axis, not the ring)
+      if (world && world.wind) { const wv = world.wind(ax, ay, az, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz;
       const u = rx*xAft[0]+ry*xAft[1]+rz*xAft[2], wn = rx*yUp[0]+ry*yUp[1]+rz*yUp[2];
       const Vr2 = u*u + wn*wn;
@@ -2865,7 +3260,16 @@ function makeSim(def, world) {
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
         const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * CORE_MATH.sin(2 * alB) * 0.5;
-        const L = hyp2(bx - ax, by - ay);
+        // G2470 (JODEL-PITCH): THE COUPLE'S ARM IS THE RINGS' SPACING ALONG THE BODY. Two forces +-F yUp on the rings make
+        // F . (the spacing along xAft) of pitch - so that is the arm M is divided by, and the pair is M on any heading.
+        // It read hyp2(bx - ax, by - ay): the spacing in the WORLD x-y plane, the body's length only while the aeroplane
+        // flies along x (G461 was measured there, HOME's runway). On any other heading the arm shrank by the cosine and
+        // the couple GREW by its inverse (x 1.41 at 45 deg), and within 9 deg of world +-z (the Jodel's rings 1.89 m
+        // apart; L < 0.3) it switched OFF: GATE ROUTE's Jodel on WP4's leg (heading ~ +z) flew 1890 N.m of nose-up couple
+        // for a true 300, the pilot held 0.12 of nose-down elevator against it, then it vanished in one step and the
+        // nose dropped at 9.6 deg/s - the porpoise (the same at 380 s, the couple coming back on). G970's world-z span
+        // was the same mistake in the induction's template
+        const L = Math.abs((bx - ax) * xAft[0] + (by - ay) * xAft[1] + (bz - az) * xAft[2]);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
           for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
@@ -2893,6 +3297,33 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
+  // G3575 (DC3-2): THE FULL-SWIVEL THIRD WHEEL (the gear page's 'full swivel', params.twSwivel; the user, 26 Oct: "do the
+  // swivelling tailwheel"). The steered wheel (every build before) turns with the rudder to twSteer and no further, so its
+  // side force holds the tail: the DC-3 turned 3 deg in 10 s on a locked main, the outside engine full and the inside idle.
+  // A full-swivel wheel (the Scott 3200 kind; the DC-3's own, unlocked for the taxi) STEERS the same way - the rudder's,
+  // the ground's stability on every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi pace
+  // (under twSwV) a split past twSwB (|ctl.brakeD|) breaks it out and it castors - its rolling line follows its own ground
+  // track (no side force but the tyre's lag), the braked wheel and the engines turn the aeroplane round it, a pivot. It
+  // re-engages once the brake is off and its track swings back within twSwE of the body's line or the rudder's (the Scott's
+  // own: it locks into the steering near centre - matched to the rudder's line alone, it rarely did and the DC-3 weaved).
+  // The brake, not the tyre's load, is the trigger: the tailwheel node's side slip is the lattice's jitter as much as a
+  // load (its grip ratio read 30x on a straight roll, more in S-turns than in a braked turn), and a wheel that broke out
+  // on it castored the DC-3 into a weave. Absent (null), not one line below runs: every build that never chose it flies to
+  // the bit
+  const TWSW = P_.twSwivel ? { V: P_.twSwV ?? 5.0, B: P_.twSwB ?? 0.2, E: P_.twSwE ?? 0.12, cast: false, ang: 0 } : null;
+  // the wheel's line this substep, as the angle off the body's line: the rudder's (s), or once broken out its own track
+  function twSwivel(i3, hx, hz, s, Fn) {
+    const S = TWSW, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz), bd = Math.abs(ctl.brakeD || 0);
+    let a = S.ang;
+    if (V > 0.03) {
+      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);            // the track off the body's line
+      if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;   // rolling back: the same line
+    }
+    if (!S.cast) { if (Fn > 0 && bd > S.B && V < S.V) { S.cast = true; S.ang = a; } }
+    else { S.ang = a; if (bd < 0.05 && (Math.abs(a) < S.E || Math.abs(a - s) < S.E)) S.cast = false; }
+    out.twCast = S.cast ? 1 : 0;   // (read by tools/dc3_break.js)
+    return S.cast ? S.ang : s;
+  }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -2933,6 +3364,37 @@ function makeSim(def, world) {
   // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
   // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
   // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  // G3026 (with DAMAGE ON): A LOAD CHANGED MID-FLIGHT LEFT THE RIGID CLUSTERS' REST AT THE OLD MASSES. clusterRest keeps a
+  // cluster's rest shape as offsets from its MASS-weighted centroid, and twistRest each bay's rest twist as the phase between
+  // its rings' mass-weighted centroids - both taken at the reset, with the load aboard. A delivery (setFreight) changed the
+  // masses and not those: the shape projection then pulled the cluster to its rest shape about the wrong point, and the bay's
+  // twist read the mass change as a twist - the metal Cessna's cabin bay broke at a stop (GATE SIMWORKER 2c, 19 Oct: 10
+  // members in the step the mail came off; a 60-step ramp broke 20). Here both are moved by what the mass change alone makes
+  // of them ON THE AS-BUILT GEOMETRY (the def's positions, as the reset took them): the offsets by the centroid's shift, the
+  // rest twist by the phase's - so a plastic set the cluster carries is kept - and the bay's inertias are the new masses'
+  function freightRest(mOld, chg) {
+    if (!clusters.length) return;
+    const hit = clusters.filter(C => C.q && C.idx.some(i => chg[i]));
+    if (!hit.length) return;
+    const P0 = Float64Array.from(p), mNew = Float64Array.from(m);
+    for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i*3] = q[0]; p[i*3+1] = q[1]; p[i*3+2] = q[2]; }
+    const cen = (C, M) => { let x = 0, y = 0, z = 0, W = 0; for (const i of C.idx) { x += p[i*3] * M[i]; y += p[i*3+1] * M[i]; z += p[i*3+2] * M[i]; W += M[i]; } return [x / W, y / W, z / W]; };
+    for (const C of hit) {
+      const c0 = cen(C, mOld), c1 = cen(C, mNew), dx = c0[0] - c1[0], dy = c0[1] - c1[1], dz = c0[2] - c1[2];
+      for (let k = 0; k < C.idx.length; k++) { C.q[k*3] += dx; C.q[k*3+1] += dy; C.q[k*3+2] += dz; }
+      if (C.twist) for (let k = 0; k + 1 < C.rings.length; k++) {
+        const T = C.twist[k]; if (!T) continue;
+        m.set(mOld); const g0 = twistGeom(C.rings[k], C.rings[k + 1]);
+        m.set(mNew); const g1 = twistGeom(C.rings[k], C.rings[k + 1]);
+        if (!g0 || !g1) continue;
+        let d = g1.theta - g0.theta; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+        T.rest += d; T.I0 = g1.I0; T.I1 = g1.I1;
+        const kth = C.gj / Math.max(0.05, g1.L), Ired = (g1.I0 * g1.I1) / Math.max(1e-9, g1.I0 + g1.I1);
+        T.w = Math.sqrt(kth / Math.max(1e-6, Ired));
+      }
+    }
+    m.set(mNew); p.set(P0);
+  }
   function setFreight(list) {
     const want = Array.isArray(list) && list.length ? list : null;
     if (!want && !FRX) return 0;
@@ -2944,6 +3406,7 @@ function makeSim(def, world) {
     }
     FRX = nx;
     FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    const mOld = Float64Array.from(m), chg = new Uint8Array(n);   // (G3026: the masses as they stood, the nodes changed)
     for (let i = 0; i < n; i++) {
       const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
       if (a === b) continue;
@@ -2952,7 +3415,9 @@ function makeSim(def, world) {
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
       rigGround(i, m[i]);
+      if (m[i] !== mOld[i]) chg[i] = 1;
     }
+    freightRest(mOld, chg);
     totalM = 0;
     for (let i = 0; i < n; i++) totalM += m[i];
     return FRL ? FRL.length : 0;
@@ -3214,6 +3679,7 @@ function makeSim(def, world) {
         cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
         if (tkPush !== null) { tkPush[b.a] += fa; tkPush[b.b] += fb; }   // G1883: the instrument (sim.damagePush)
         _tkHits++;
+        if (DMG_ON) scuffTrunk(b.a, fa, nx, nz, dt), scuffTrunk(b.b, fb, nx, nz, dt);   // G2001: the rub along the bark
       }
     }
   }
@@ -3271,7 +3737,7 @@ function makeSim(def, world) {
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
-          const s = P_.twSteer * ctl.dr;   // measured: matches nose-left convention
+          const s = TWSW ? twSwivel(i3, hx, hz, P_.twSteer * ctl.dr, Fn) : P_.twSteer * ctl.dr;   // measured: matches nose-left convention (G3575: a full swivel's own line once broken out)
           const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
@@ -3328,6 +3794,10 @@ function makeSim(def, world) {
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
+          if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
+            if (Fn > P4.fnPeak[k]) P4.fnPeak[k] = Fn; if (P4.tFirst < 0) P4.tFirst = simT; }   // G3463: the pod's scrape, read
+          if (DMG_ON && sp > 0.05) scuffAdd(i, kf * sp * sp * dt, vx / sp, 0, vz / sp, 0, -1, 0,   // G2001: the slide's work
+            SCUFF_SOFT[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0] === 1);
         } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }
@@ -3462,13 +3932,14 @@ function makeSim(def, world) {
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     propWater();                                    // G2105: the disc in the water stops its engine
     armFrame();
+    const occRec = OCC !== null && genOccArm(OCC, OCS, armed);   // G2373 (DMG-OCCUPANT): an armed frame's substeps are recorded
     postLive = (nPost > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4 (G2040: nPost - the floors and the live cover ties)
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
     // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
     // G1883 (DMG-WINDBREAK): an instrument's per-substep reader (sim.onSubstep) takes the second loop; unset, one compare a frame
-    if (nCut0 === 0 && subHook === null) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    if (nCut0 === 0 && subHook === null && !occRec) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
@@ -3476,13 +3947,15 @@ function makeSim(def, world) {
       if (clMs) clCuts();
       if (clQ.length) clApply();
       simT += dt; burn(dt);
+      if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
     dmgOver();
-    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open)) scarFrame(SCR, p, m, world, simT, DMG);   // G2357 (DMG-SCAR)
+    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open || SCR.rest !== null)) scarFrame(SCR, p, m, world, simT, DMG, v);   // G2357 (DMG-SCAR); G2380: the wreck's rest
+    if (occRec && genOccFrame(OCC, OCS, DMG, gF, simT, p, pieces)) DMG.occ = OCS.res;   // G2373: an event closed
   }
 
   // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
@@ -3515,10 +3988,26 @@ function makeSim(def, world) {
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
   // (G1830, DMG-D2a: `live` - the pass as the step makes it, the propeller's thrust and its wash over the tail and the
   // inner wing included; the certificate's flight cases read the node forces it leaves in f. Absent: as ever)
-  function probe(vel, live) {
+  // G2640 (DESIGN-TRUST): `omega` - a body RATE as well [wx, wy, wz] rad/s in
+  // the sim's axes (x aft, y up, z left), about the mass centre: every node
+  // flies vel + omega x (p - cg), so the bench's design check measures the
+  // damping derivatives (roll Lp, yaw Nr, pitch Mq) and the cross terms (Lr,
+  // Np) off the built aeroplane. Absent: the uniform probe, to the bit.
+  function probe(vel, live, omega) {
+    let ocx = 0, ocy = 0, ocz = 0;
+    if (omega) {
+      for (let i = 0; i < n; i++) { ocx += p[i*3]*m[i]; ocy += p[i*3+1]*m[i]; ocz += p[i*3+2]*m[i]; }
+      ocx /= totalM; ocy /= totalM; ocz /= totalM;
+    }
     for (let i = 0; i < n; i++) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
+      if (omega) {
+        const rx = p[i*3] - ocx, ry = p[i*3+1] - ocy, rz = p[i*3+2] - ocz;
+        v[i*3]   += omega[1] * rz - omega[2] * ry;
+        v[i*3+1] += omega[2] * rx - omega[0] * rz;
+        v[i*3+2] += omega[0] * ry - omega[1] * rx;
+      }
     }
     // G185.5: a probe has no history, so the circulation is iterated to a
     // fixed point — a FIXED number of passes (never a tolerance loop: the
@@ -3533,14 +4022,16 @@ function makeSim(def, world) {
     let cgx=0, cgy=0, cgz=0;
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; cgz+=p[i*3+2]*m[i]; }
     cgx/=totalM; cgy/=totalM; cgz/=totalM;
-    let Fx=0, Fy=0, Fz=0, Mz=0, My=0;
+    let Fx=0, Fy=0, Fz=0, Mz=0, My=0, Mx=0;
     for (let i = 0; i < n; i++) {
       Fx+=f[i*3]; Fy+=f[i*3+1]; Fz+=f[i*3+2];
       Mz += (p[i*3]-cgx)*f[i*3+1] - (p[i*3+1]-cgy)*f[i*3];
       My += (p[i*3+2]-cgz)*f[i*3] - (p[i*3]-cgx)*f[i*3+2];
+      Mx += (p[i*3+1]-cgy)*f[i*3+2] - (p[i*3+2]-cgz)*f[i*3+1];
     }
     // nose-up pitch = -Mz ; nose-LEFT yaw = +My  (nose -x, +z is the LEFT side)
-    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz],
+    // G2640: +Mx about the aft axis lifts the right (-z) wing: LEFT roll
+    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, rollLeft: Mx, cg: [cgx, cgy, cgz],
              planeFy: out.planeFy ? out.planeFy.slice() : [] };   // G185
   }
 
@@ -3653,6 +4144,7 @@ function makeSim(def, world) {
      vPrev, hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
      _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] = Sn.S;
     if (vPrev) vPrev = vPrev.slice();
+    if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373: a snapshot is a whole aeroplane - no record carried over
     return true;
   }
   // G121: totalM is a GETTER — it was a copied value, so a mass change via
@@ -3675,7 +4167,11 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // DMG-FALL: each node's piece (the root of its part: the unbroken beams and the clusters, as compEvent reads it) - GATE DMGFALL's
+           pieceOf: () => { const fd = pieces(), r = new Int32Array(n); for (let i = 0; i < n; i++) r[i] = fd(i); return r; },
            damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
+           // G2373 (DMG-OCCUPANT): the seats and the recorder (null with the layer off) - the gates' reader
+           occupants: () => (OCC ? { spec: OCC, state: OCS } : null),
            // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
            // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
            // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked
@@ -3695,7 +4191,7 @@ function makeSim(def, world) {
                                    Mu: c.Mu, Mv: c.Mv, T: c.T, yb: c.yb, yt: c.yt, rb: c.rb, rt: c.rt, Mb: c.Mb, Tq: c.Tq, pk: c.pk, pkB: c.pkB, pkT: c.pkT, done: c.done,
                                    grp: c.grp >= 0 ? DGR[c.grp].key : null, P: Array.from(c.P), X: Array.from(c.X), bay: c.bay })),
                                  twist: clusters.map((C, ci) => C.twL0 ? { cl: ci, tag: C.tag, lim: C.twL0.slice(), r: C.twR, pk: C.twPk } : null).filter(x => x),
-                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx) })) }),
+                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx), omega: C.omega })) }),   // (G2640: omega read out)
            // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
            guard: () => VG, fault: () => VG.fault,
            // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)

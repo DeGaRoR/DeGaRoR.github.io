@@ -28,6 +28,9 @@ const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirnam
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE NAMES (G3240): every person, organisation and place the game shows, ONE table (fictional, GAME-PLAN §13).
+    // Ahead of everything that makes text; it also rides in the BOOT block (the loading screen's cards read it).
+    '01_names.js',
     // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
     // solver — 60_gen_spec synthesises the prop against a density and
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
@@ -102,6 +105,9 @@ const MANIFEST = {
     // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
     // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
     '34_scar.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -165,10 +171,16 @@ const MANIFEST = {
     '62_gen_aero.js',
     '63_gen_wing.js',
     '64_gen_build.js',
+    // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s
+    // probe and 64_'s genAlphaForLift; genShakedown attaches it (not on a slim sheet)
+    '64b_gen_design.js',
     '65_gen_loadtest.js',
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
     '66_gen_cert.js',
+    // THE CERTIFICATE'S RULE (G3780 CERT-RULE): the major/minor row list and the `f3` major fingerprint, ONE list read by
+    // the bench (bench.js), the career's factory certificate (76_procure procureFp) and the acceptance legs; pure
+    '66b_cert_rule.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -179,6 +191,12 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // THE PEOPLE (G3614): the one list of everyone - name, portrait, body, one
+    // role (reserved / client / pilot / passenger). Pure data; in the core (not
+    // the career chunk): the sandbox's passengers board from its pool too.
+    '72_people_faces.js',            // (tools/portrait_prep.py writes it: the portraits' content names)
+    '72_people_bgs.js',              // (tools/portrait_prep.py bgs writes it: the large portraits' backgrounds, G3620)
+    '72_people.js',
     // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
     // the phone may run them), the flown leg's measurement and procedure on the
     // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
@@ -186,7 +204,13 @@ const MANIFEST = {
     '72_accept.js',
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
-    '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    '72_contract_data.js', '73_contracts.js',
+    // THE MISSION PACKS (MISSIONS-P0): src/missions/*.json's format, validator, the conversion into 73_'s record, the
+    // install over CONTRACT_PROVIDERS (a page calls it; nothing at boot yet). THE MISSION RUNTIME (MISSIONS-P1/P2): the
+    // in-flight tracker (points, gates, rings), the timers, the failure rules, an order's preferences / delivery / profit,
+    // the new verbs at a stop, the map's marker data. Pure; GATE MISSIONS. futureDesigns/MISSIONS-2026-10-25.md
+    '73b_missions.js', '73c_mission_run.js',
+    '74_career.js', '75_career_wire.js',
     // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
     // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
     '76_stages.js',
@@ -208,6 +232,17 @@ const MANIFEST = {
     // Accept into the career's record and freightAccepted(doc) for FREIGHT-STRAP; pure, GATE FREIGHT.
     '77_freight_load.js',
     '78_freight_strap.js',          // G2400 (FREIGHT-STRAP): the accepted load as point masses + the straps' geometry
+    // THE ROUTES (G3260 ROUTES): a plane + a hired pilot + an A <-> B schedule - the down payment on signing, the round
+    // trips paid on the sim clock at the player's landings and waits, the plane and the pilot locked until the route
+    // ends; pure, GATE ROUTES. GAME-PLAN-2026-10-15 §R, §3 T6, §5.3.
+    '78b_routes.js',
+    // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
+    // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
+    '79_story.js',
+    // THE TECH MASK (G3230 TECH-MASK): the machine shop's three segments - every build option -> its segment, a design's
+    // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
+    // GAME-PLAN-2026-10-15 §R, §4.
+    '79b_tech.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
@@ -222,8 +257,15 @@ const MANIFEST = {
   // those modes, and the core's own readers (71_ shellPrice / playerUpgradeCost -> 76_economy, 76_stages ->
   // CONTRACT_TRACKS) run only from the career's doors (GATE LAZY). 72_accept and 76_stages stay inline: ACCEPT_REC
   // (accept_rec.js) and the stage host are the page's in every mode. GATE LAZY holds the rule.
-  career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js'],
+  // THE DRAWN ROUTE'S DRAWING (G3070 ROUTE-LAZY, the user's ruling 12 Oct on train 44's page step: "route_draw.js (the FLY
+  // > drawn route UI) as a lazy chunk loaded only when the user opens it, like career_core, giving the bytes back"):
+  // src/viewer/route_draw.js is not inlined; it is written beside the page as route_draw.<h8>.js and run by
+  // route_lazy.js (window.ROUTE_DRAW) on first demand, or by the promote right after the core when an ARMED route is
+  // stored (flydiy.routeDraw { fly: true } - ROUTE_LOADER). The pilot's half is core (38c_route.js, 44_vprofile.js: the
+  // page's pilot and the worker's fly them) and stays inline.
+  routeDraw: 'route_draw.js',
+  career: ['72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '74_career.js', '75_career_wire.js', '76_economy.js',
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):
@@ -307,6 +349,7 @@ const MANIFEST = {
     // landing after the inlined viewer is soon enough.
     ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
+    ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - render_premises meanOf reads them
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     // THE FREIGHT LOADS (G2405, tools/load_table.py): the loads + the camp dressing, slim manifests (bins on demand)
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'loads', 'loads_packs.json'), 'utf8')).map(f => ['src/loads', f]); } catch (e) { return []; } })(),
@@ -331,6 +374,8 @@ const MANIFEST = {
     ['src/viewer', 'premises_build.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
+    // THE NEAR RING (G3416, CITY-B): the list the town's per-frame walks visit (render_premises, scenery_life, townkit.js)
+    ['src/viewer', 'town_ring.js'],
     ['src/viewer', 'render_premises.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // LOADED ON DEMAND (AS1, G909): ~290 KB of the world pack that a flight on the default map never runs - the scenery
@@ -349,14 +394,22 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'],
          // ASSETS-OCT G2909: the radio navaids (the Annette Island DVOR/DME) - asked for when the record names a navaid/ key
          ['tools', '_navaid_gen.js'],
+         ['tools', '_meteo_gen.js'],   // G3660: the meteo station (world_boot asks for it when the record places one)
          // ASSETS-OCT G2904: the scenery kit's packs (src/scenery/, slim manifests - their bins and maps are lazy media
          // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
          // manifest's order (the levels pack last: its rows name the props they stand in for)
          ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scenery', 'scenery_packs.json'), 'utf8')).map(f => ['src/scenery', f]); } catch (e) { return []; } })(),
+         // ASSETS-OCT G3140-G3149: the camping kit (the user's tents, tools/camp_kit.py) and the infrastructure kit (the
+         // high-voltage pylons, tools/infra_gen.js) - the same rule as the scenery's (GATE ASSETBUDGET row 7)
+         ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'camp', 'camp_packs.json'), 'utf8')).map(f => ['src/camp', f]); } catch (e) { return []; } })(),
+         ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'infra', 'infra_packs.json'), 'utf8')).map(f => ['src/infra', f]); } catch (e) { return []; } })(),
          ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
          ['src/viewer', 'diag.js'],
+         // G3380 (STORY-INTRO): a New career's opening (the cinematic over the cabin strip and its music) - asked for by the
+         // story's page half (app.js storyIntroCurtain) when a New career arms it; never by the sandbox, Continue or the phone
+         ['src/viewer', 'story_intro.js'],
          // G2252 (MAP-MENU): THE MAP SCREEN - its projection (map_pack.js, tools/map_bake.js writes it) and the screen; fetched
          // when the MAP entry is pressed, never before (the entry itself exists only with ?map=1 or in the career mode)
          ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
@@ -365,7 +418,10 @@ const MANIFEST = {
          ['src/viewer', 'freight_load.js'],
          // G2400 (FREIGHT-STRAP): THE STRAPPED LOAD'S DRAWING - fetched the first time an accepted load is to be drawn
          // (the stand, a roll-out); never without ?career=1 / ?freight=1 and a load
-         ['src/viewer', 'freight_strap.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'freight_strap.js'],
+         // G2970 (CHARACTERS): THE CROWD - the passengers who walk to the door and board; fetched with the first
+         // passengers at a stand (its cast and clips from src/chars/crowd_pack.json, media/), never before
+         ['src/viewer', 'crowd.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -487,12 +543,17 @@ const MANIFEST = {
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
     // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
     // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'aa_resolve.js',
+    // back_guard.js (G3880, GAME-MENUS) right after them: the browser's Back asks before it leaves the game - it reads
+    // welcome.js's WELCOME.RIG at eval (never on a rig) and app.js's FLIGHT_PROBE only at the player's first input
+    // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
+    // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
+    scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
               'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
+              'studio.js',   // G3726 (PHONE-GARAGE): the black studio in the shed's place (app.js getHangar; the phone's room, a desktop option)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
@@ -504,6 +565,7 @@ const MANIFEST = {
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
               'pavement.js',
+              'ground_tier.js',   // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane - render_world.js drives it
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
@@ -514,6 +576,7 @@ const MANIFEST = {
               // aeroweather.js BEFORE aeroskin.js (G345): the hooks read AEROWX at
               // compile, and r128 keys the program on the hook's source
               'aeroweather.js', 'aeroskin.js', 'hangar.js',
+              'hangar_view.js',   // G3630 (HANGAR-VIEW): the world's view out of the garage door (app.js captures it)
     // refplane.js before editor.js (G89): the editor's tree offers the
     // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel
     // and its boot, so the handle must exist before editorInit runs. It needs
@@ -540,13 +603,18 @@ const MANIFEST = {
     // window.SIM_HOST (the starter, the Blob's source) and window.SIM_VIEW.
     // sim_link.js (G815, C1b) after them and before app.js: the page's glue -
     // app.js flies through it behind ?simw=1 (window.SIM_LINK), default off.
+    // sheet_link.js (G2920, GARAGE-SHEET) before app.js: the performance sheet's thread (bench_worker.js's 'sheet'
+    // job) - when to ask it, one in flight, the newest wins (window.makeSheetLink; app.js makes the one link).
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
-              'sim_host.js', 'sim_view.js', 'sim_link.js',
+              'garage.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
+    // ap_why.js (G3560 AP-HONEST) before app.js: the autopilot's reasons in a player's words (window.AP_WHY, pure) - app.js
+    // shows them as the pilot says them (#apWhy) and on the arrival card
+              'ap_why.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
     // the generators by their URLs) - so it must stay a file the page can fetch, like sim_host.js
@@ -563,9 +631,11 @@ const MANIFEST = {
     // mapping panel over it, opened from both rails; DOM-lazy, built on the
     // first open, so its position only has to precede the two callers.
               'design_flow.js', 'balance.js', 'pattern_vis.js',
-    // route_draw.js before app.js (G2120 ROUTE-DRAW): the route drawn on the map - its gestures, its panel, its
-    // profile strip; DOM-lazy (built when the drawing opens), attached by app.js (window.ROUTE_DRAW)
-              'route_draw.js',
+    // route_lazy.js before app.js (G3070 ROUTE-LAZY over G2120 ROUTE-DRAW): window.ROUTE_DRAW, the drawn route's door -
+    // app.js attaches it and calls it as it called the drawing; the drawing itself (route_draw.js: the map's draw mode,
+    // its gestures, the panel, the profile strip) is MANIFEST.routeDraw, its own file beside the page, run on first
+    // demand (or at boot ahead of app.js when an armed route is stored - ROUTE_LOADER)
+              'route_lazy.js',
     // dev_panel.js (W0c.11): the developer's dials, DOM-lazy, over handles
     // the world publishes at runtime (TREE_*, WORLD_RIG, DEV_CAM) - it only
     // has to be in the page; F8 builds it.
@@ -576,6 +646,9 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
+              // G2803 (AVIONICS-GPS phase 2): the GPS unit's screen - window.FLYDIY_GPS at eval; app.js binds it with
+              // the cockpit and ticks it after CK.frame (it paints at 4 Hz); after cockpit.js, before app.js
+              'gps_face.js',
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
@@ -605,8 +678,13 @@ const MANIFEST = {
               'skin_break.js',
               // G1818 (DMG-SKINGPU): the wreck's skin ridden on the GPU (window.SKIN_GPU; app.js brkGpu - nothing at load)
               'skin_gpu.js',
+              // G3770 (DMG-LOOKS): the wreck's frame members by material - the parting rule's plan and the member pool (window.DMG_MEMBERS; ?dmglook=1)
+              'dmg_members.js',
               // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
               'wreck_debris.js',
+              // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
+              'dmg_glass.js',
+              'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -632,7 +710,7 @@ const MANIFEST = {
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
-    // dummies with — reads CHAR_REG at call time, so only before the crew.
+    // occupants with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
     // call time through the KNIFE_GEN global — before the generator.
     // THE SHOULDER (G325): the sill trim, pure, reached by cageSheet at call
@@ -646,6 +724,9 @@ const MANIFEST = {
     // Instruments part's column and the join's `systems` seam; its geometry
     // comes in session 3. Reads the crew's anchors, so after the crew.
     '_panel_gen.js', '_cage_panel.js',
+    // THE FURNISHING (G2806, AVIONICS-GPS phase 2): the seats' kind and the trim as billed rows - a column and the
+    // join's `outfit` seam, no geometry of its own (the seats it names are the crew's)
+    '_cage_furnish.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
@@ -697,6 +778,11 @@ const MANIFEST = {
     // `edSurf_*` objects those layers drew. Anything after it would traverse
     // a scene with hardware already hanging on the surfaces.
     '_cage_hinge.js',
+    // G2675 / G2677 (BELLY-POD-2): THE BELLY POD - its section (CAGE_POD, a panel part) and its mesh, a layer AFTER the
+    // drawing layers (it reads the gear's AF and the wing's anchor for the join's datums) and before the join.
+    // G3468: the moulded pod's geometry first (POD_GEN: pure, no THREE - the float's _float_gen.js pattern)
+    '_pod_gen.js',
+    '_cage_pod.js',
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
   ],
@@ -727,7 +813,7 @@ const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw
 // that stops being inlined stays an input: [dir, file pattern]
 const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./],
   ['src/viewer/audio', /_catalogue\.json$/], ['src/viewer', /^shots_pack\.json$/]];
-const LAST = { build: null, inputs: null, career: null };
+const LAST = { build: null, inputs: null, career: null, route: null };
 function shippedInputs(texts) {
   const seen = new Map(), queue = [];
   const add = rel => {
@@ -851,6 +937,24 @@ function writeCareerCore(careerBody) {
   return { name, bytes: text.length };
 }
 
+// THE DRAWN ROUTE'S FILE (G3070 ROUTE-LAZY): route_draw.<h8>.js beside the page, the career core's rules - h8 the sha of
+// its bytes (sw.js's cache-first rule rests on it), any other route_draw.*.js in the output folder a superseded build's
+const ROUTE_RE = /^route_draw\.[0-9a-f]{8}\.js$/;
+function writeRouteDraw() {
+  const src = read(path.join(VIEW_DIR, MANIFEST.routeDraw));
+  syntaxCheck(MANIFEST.routeDraw + ' (route_draw.<h8>.js)', src, { served: true });
+  const text = `// GENERATED FILE - DO NOT EDIT. Built from src/viewer/${MANIFEST.routeDraw} by tools/build.js (G3070 ROUTE-LAZY).\n`
+    + `// The drawn route's drawing: run by the page's route_lazy.js on first demand, or by the promote at boot when an armed\n`
+    + `// route is stored. It registers itself (window.ROUTE_DRAW_UI) and declares no global.\n`
+    + src + `\n//# sourceURL=route_draw.js\n`;
+  syntaxCheck('route_draw.<h8>.js', text, { served: true });
+  const name = `route_draw.${sha(text).slice(0, 8)}.js`;
+  for (const f of fs.readdirSync(OUT)) if (ROUTE_RE.test(f) && f !== name) fs.unlinkSync(path.join(OUT, f));
+  fs.writeFileSync(outPath(name), text);
+  LAST.route = name;
+  return { name, bytes: text.length };
+}
+
 function inlineFonts(css) {
   // url(../../vendor/fonts/X.woff2) -> data URI (artifact must be self-contained)
   return css.replace(/url\((['"]?)\.\.\/\.\.\/vendor\/fonts\/([^'")]+)\1\)/g, (_, __, file) => {
@@ -898,9 +1002,13 @@ function buildViewer(core) {
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
-  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+  // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
+  // so the core's own copy re-declares it)
+  const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
     + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
+    + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
@@ -971,6 +1079,29 @@ function buildViewer(core) {
   window.FLYDIY_BOOT = Promise.all([window.FLYDIY_BOOT, load]).then(function (a) { return a[0]; });
 })();
 </script>`;
+  // THE DRAWN ROUTE'S DRAWING (G3070 ROUTE-LAZY): its file, and the rule the boot runs it by - an ARMED route stored
+  // (flydiy.routeDraw { fly: true } with a point: app.js mkPilot hands it to the first flight's pilot, and the map
+  // draws it before the start). Then index.html FETCHES it at boot, in parallel with the island (no welcome to wait
+  // for: the pref is read at once), and the promote runs it right after the core - before route_lazy.js and app.js.
+  // Otherwise nothing is fetched until route_lazy.js's first demand. A failed fetch is said in the console; the
+  // armed route still reaches the pilot (route_lazy.js hands the stored record), the drawing comes on demand.
+  // dev.html carries the file's own tag (data-routedraw), promoted only under the same rule.
+  const ROUTE = writeRouteDraw();
+  const ROUTE_WANT = `window.FLYDIY_ROUTE_WANT = function () { try { var d = JSON.parse(localStorage.getItem('flydiy.routeDraw') || 'null'); return !!(d && d.fly && d.route && d.route.pts && d.route.pts.length); } catch (e) { return false; } };`;
+  const ROUTE_LOADER = `<script>
+(function () {
+  ${ROUTE_WANT}
+  var SRC = window.FLYDIY_ROUTE_SRC = ${JSON.stringify(ROUTE.name)};
+  if (!window.FLYDIY_ROUTE_WANT()) return;
+  var load = fetch(SRC).then(function (r) { if (!r.ok) throw new Error(SRC + ' ' + r.status); return r.text(); }).then(function (t) {
+    window.FLYDIY_ROUTE_TEXT = t;
+    // sw.js keeps it for the next (offline) boot: the worker caches it on this word
+    try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (r) { if (r.active) r.active.postMessage({ flydiy: 'route-draw', src: SRC }); }); } catch (e) {}
+    return true;
+  }, function (e) { console.warn('flyDiy: the route drawing did not load (' + (e && e.message) + '); the armed route is flown, the drawing comes on demand'); return false; });
+  window.FLYDIY_BOOT = Promise.all([window.FLYDIY_BOOT, load]).then(function (a) { return a[0]; });
+})();
+</script>`;
   // THE ISLAND LOADER, shared by BOTH pages (G434.3): it lived in DEV_LOADER alone, so index.html -
   // the page that is played - never booted Jolene, whatever the pref said
   const ISLAND_LOADER = `<script>
@@ -1010,17 +1141,17 @@ function buildViewer(core) {
   // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
   var tq = new URLSearchParams(location.search).get('town'), townOn = true;
   if (tq !== null) townOn = tq === '1' || tq === 'all';
-  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 10); } catch (e) {} }   // (METLA-ON: a 'nearby' saved before pv 10 was the old default - gfx_settings makes it 'all')
   // (G1526, POTATO-DEEP) potato and laptop never build Metlakatla (GFX.BUDGETS town 'nearby'): their page composes the default
   // variant - a ?gfx= in the URL, else the saved preset's build budget (a custom mix keeps its last preset's: gp.build)
   if (tq === null) { try { var gq = new URLSearchParams(location.search).get('gfx'), gs = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');
     var gb = gq || (gs && (gs.build || gs.preset)); if (gb === 'potato' || gb === 'laptop') townOn = false; } catch (e) {} }
   window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
-  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
+  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'mapx', the default (G3023)
   var rt = new URLSearchParams(location.search).get('rwytrees');
   if (rt === null) { try { rt = localStorage.getItem('flydiy.rwytrees'); } catch (e) {} }
-  window.FLYDIY_RWYTREES = rt === 'map' || rt === 'mapx' ? rt : 'today';
+  window.FLYDIY_RWYTREES = rt === 'today' || rt === 'map' ? rt : 'mapx';   // (G3023: 'mapx' the default)
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
@@ -1042,12 +1173,17 @@ function buildViewer(core) {
     // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
     // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
     if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
+    // G3791 (PHONE-TESTFLIGHT): the phone's test flight (profile.js, the flight variant: boot 'testfield') boots the test
+    // field whatever the menu saved - a few KB of world (makeWorld's opts.flat), never the island
+    else if (window.PROFILE && window.PROFILE.is('boot', 'testfield')) { name = 'testfield'; window.FLYDIY_WORLD = 'testfield'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
-    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
+    // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD - the analytic HOME strip and its hangar on endless flat ground (20_world.js
+    // opts.flat, world_boot.js); no file of its own, so it is named here beside the analytic world
+    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }, { id: 'testfield', name: 'Test field' }]);
     var isl = null;
     for (var i = 0; i < all.length; i++) if (all[i].id === name) isl = all[i];
-    if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
+    if (!isl) { window.FLYDIY_WORLD = name === 'testfield' ? 'testfield' : 'none'; window.ISLAND_BOOT = null; return; }
     var keys = Object.keys(isl.files), done = 0, fetched = 0;
     for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
     // G998 (A5-LOAD): THE PREMISES FIXTURE, ALONGSIDE. app.js read it with a SYNCHRONOUS XHR inside its own evaluation
@@ -1136,12 +1272,14 @@ function buildViewer(core) {
 </script>
 ${ISLAND_LOADER}
 <script>${CAREER_WANT}</script>
+<script>${ROUTE_WANT} window.FLYDIY_ROUTE_SRC = ${JSON.stringify('src/viewer/' + MANIFEST.routeDraw + '?v=' + sha(read(path.join(VIEW_DIR, MANIFEST.routeDraw))).slice(0, 8))};</script>
 `;
   const DEV_PROMOTE = `<script>
 window.FLYDIY_BOOT.then(function () {
-  var tags = document.querySelectorAll('script[type="text/x-flydiy"]'), career = window.FLYDIY_CAREER_WANT();
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]'), career = window.FLYDIY_CAREER_WANT(), route = window.FLYDIY_ROUTE_WANT();
   for (var i = 0; i < tags.length; i++) {
     if (tags[i].hasAttribute('data-career') && !career) continue;   // G2685: the career's modules, under its rule alone
+    if (tags[i].hasAttribute('data-routedraw') && !route) continue;   // G3070: the drawing, at boot only for an armed route
     var s = document.createElement('script');
     s.src = tags[i].getAttribute('src'); s.async = false;
     document.body.appendChild(s);
@@ -1198,16 +1336,18 @@ window.FLYDIY_BOOT.then(function () {
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };
@@ -1306,7 +1446,14 @@ const GEO_KEEP = ${GEO_KEEP};
 const CAREER_KEEP = ${JSON.stringify([CAREER.name])};
 const CAREER_RE = /\\/career_core\\.[0-9a-f]{8}\\.js$/;
 const CAREER_URL = /[?&](career|map|freight)=1(&|$)/;
+// G3070 (ROUTE-LAZY): THE DRAWN ROUTE'S DRAWING, this build's (route_draw.<h8>.js) - the same rules: cache-first for
+// this name, cached on the way through and on the page's word (a page that ran it: the drawing opened, or an armed
+// route's boot), so an armed route's next boot has it offline; any other route_draw.*.js swept on activate.
+const ROUTE_KEEP = ${JSON.stringify([ROUTE.name])};
+const ROUTE_RE = /\\/route_draw\\.[0-9a-f]{8}\\.js$/;
 const CACHE = 'flydiy-media-v1';
+const routeCache = () => caches.open(CACHE).then(c => Promise.all(ROUTE_KEEP.map(f => c.match(new URL(f, self.registration.scope).href)
+  .then(hit => hit || c.add(new URL(f, self.registration.scope).href))))).catch(() => {});
 const careerCache = () => caches.open(CACHE).then(c => Promise.all(CAREER_KEEP.map(f => c.match(new URL(f, self.registration.scope).href)
   .then(hit => hit || c.add(new URL(f, self.registration.scope).href))))).catch(() => {});
 self.addEventListener('install', e => {
@@ -1315,14 +1462,18 @@ self.addEventListener('install', e => {
   e.waitUntil(Promise.resolve().then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
     .then(list => (list.some(c => CAREER_URL.test(new URL(c.url).search)) ? careerCache() : null)).catch(() => {}));
 });
-self.addEventListener('message', e => { if (e.data && e.data.flydiy === 'career-core') { const p = careerCache(); if (e.waitUntil) e.waitUntil(p); } });
+self.addEventListener('message', e => {
+  if (e.data && e.data.flydiy === 'career-core') { const p = careerCache(); if (e.waitUntil) e.waitUntil(p); }
+  if (e.data && e.data.flydiy === 'route-draw') { const p = routeCache(); if (e.waitUntil) e.waitUntil(p); }
+});
 self.addEventListener('activate', e => { e.waitUntil((async () => {
   await self.clients.claim();
   try {
-    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP)), careerKeep = new Set(CAREER_KEEP);
+    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP)), careerKeep = new Set(CAREER_KEEP), routeKeep = new Set(ROUTE_KEEP);
     for (const req of await c.keys()) {
       const p = new URL(req.url).pathname;
       if (CAREER_RE.test(p)) { if (!careerKeep.has(p.slice(p.lastIndexOf('/') + 1))) await c.delete(req); continue; }
+      if (ROUTE_RE.test(p)) { if (!routeKeep.has(p.slice(p.lastIndexOf('/') + 1))) await c.delete(req); continue; }
       let i = p.indexOf('/media/world/');
       if (i < 0) i = p.indexOf('/media/geo/');
       if (i >= 0 && !keep.has(p.slice(i + 1))) await c.delete(req);
@@ -1335,7 +1486,9 @@ self.addEventListener('fetch', e => {
   let u; try { u = new URL(req.url); } catch (err) { return; }
   if (u.origin !== self.location.origin) return;
   // G2685: the career's core, this build's name alone - cache-first, cached on the way through
-  if (CAREER_RE.test(u.pathname) && CAREER_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1))) {
+  // G3070: the drawn route's drawing, this build's name alone - the same
+  if ((CAREER_RE.test(u.pathname) && CAREER_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1)))
+      || (ROUTE_RE.test(u.pathname) && ROUTE_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1)))) {
     e.respondWith(caches.open(CACHE).then(c => c.match(u.href).then(hit => hit || fetch(req).then(res => {
       if (res && res.ok) c.put(u.href, res.clone()).catch(() => {});
       return res;
@@ -1425,6 +1578,9 @@ window.FLYDIY_BOOT.then(function () {
   // G2685 (CAREER-LAZY): the career's core, fetched by CAREER_LOADER, runs right after the page's core (its own
   // order in MANIFEST.core: after 72_accept), before anything that asks for it
   if (window.FLYDIY_CAREER_TEXT) { var cs = document.createElement('script'); cs.textContent = window.FLYDIY_CAREER_TEXT; document.body.appendChild(cs); window.FLYDIY_CAREER_TEXT = null; window.FLYDIY_CAREER_RAN = window.FLYDIY_CAREER_SRC; }
+  // G3070 (ROUTE-LAZY): an armed route's drawing, fetched by ROUTE_LOADER, runs here too - before route_lazy.js (which
+  // binds it at its evaluation) and app.js (whose first flight's pilot it hands the route)
+  if (window.FLYDIY_ROUTE_TEXT) { var rs = document.createElement('script'); rs.textContent = window.FLYDIY_ROUTE_TEXT; document.body.appendChild(rs); window.FLYDIY_ROUTE_TEXT = null; window.FLYDIY_ROUTE_RAN = window.FLYDIY_ROUTE_SRC; }
   later(function () {
     try { if (window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined') window.ISLAND_MADE = { boot: window.ISLAND_BOOT, island: ISLAND_GEN.makeIsland(window.ISLAND_BOOT) }; }
     catch (e) { console.warn('flyDiy: the island decode (app.js decodes it again)', e); }
@@ -1442,7 +1598,7 @@ window.FLYDIY_BOOT.then(function () {
   });
 }, function (e) { console.error('flyDiy: the boot did not initialise', e); });
 </script>`;
-    art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + CAREER_LOADER + '\n' + tail + '\n' + promote;
+    art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + CAREER_LOADER + '\n' + ROUTE_LOADER + '\n' + tail + '\n' + promote;
   }
   // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
@@ -1498,6 +1654,11 @@ window.FLYDIY_BOOT.then(function () {
     if (!m || art.includes(m[0])) { console.error(`POST-BUILD ASSERTION FAILED: index.html inlines the career module ${f} (${m ? m[0].slice(0, 60) : 'no declaration'})`); process.exit(1); }
   }
   if (!art.includes('var SRC = window.FLYDIY_CAREER_SRC = ' + JSON.stringify(CAREER.name) + ';')) { console.error('POST-BUILD ASSERTION FAILED: the career loader does not name ' + CAREER.name); process.exit(1); }
+  // G3070 (ROUTE-LAZY): the page carries none of the drawing (its registration line, a signature of its body) and its
+  // loader names this build's route_draw
+  for (const sig of ['G.ROUTE_DRAW_UI = ROUTE_DRAW;', 'function drawProfile() {'])
+    if (art.includes(sig)) { console.error(`POST-BUILD ASSERTION FAILED: index.html inlines the route drawing (${sig})`); process.exit(1); }
+  if (!art.includes('var SRC = window.FLYDIY_ROUTE_SRC = ' + JSON.stringify(ROUTE.name) + ';')) { console.error('POST-BUILD ASSERTION FAILED: the route loader does not name ' + ROUTE.name); process.exit(1); }
   art = swapBuild(art, BUILD_TAG, 'index.html');
 
   // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
@@ -1509,7 +1670,9 @@ window.FLYDIY_BOOT.then(function () {
   dev = fill(dev, 'VENDOR', DEV_LOADER);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => MANIFEST.career.includes(f) ? dref(CORE_DIR, 'src/core', f).replace('<script ', '<script data-career ') : dref(CORE_DIR, 'src/core', f)).join('\n') + '\n' + CORE_SHA);
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
-  const devRender = V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f));
+  const devRender = V.scripts.slice(0, -1).map(f => f === 'route_lazy.js'   // G3070: the drawing's tag ahead of its door, under ROUTE_WANT
+    ? dref(VIEW_DIR, 'src/viewer', MANIFEST.routeDraw).replace('<script ', '<script data-routedraw ') + '\n' + dref(VIEW_DIR, 'src/viewer', f)
+    : dref(VIEW_DIR, 'src/viewer', f));
   devRender.splice(APP_AT, 0, MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n'));
   dev = fill(dev, 'RENDER', [LAZY, LAZY_LOADER]
     .concat(MANIFEST.editor.map(f => dref(__dirname, 'tools', f)))
@@ -1553,6 +1716,7 @@ window.FLYDIY_BOOT.then(function () {
     { file: 'index.html', bytes: art.length },
     { file: 'dev.html', bytes: dev.length },
     { file: CAREER.name, bytes: CAREER.bytes },
+    { file: ROUTE.name, bytes: ROUTE.bytes },
   ];
 }
 
@@ -1562,7 +1726,8 @@ function build(opts) {
   const core = buildCore();
   const viewer = buildViewer(core);
   // G2685: the career core's name is the build's (content-hashed): OUTPUTS names this build's file (GATE BUILT compares it)
-  OUTPUTS.splice(BASE_OUTPUTS.length, OUTPUTS.length, ...(LAST.career ? [LAST.career] : []));
+  // G3070: and the drawn route's drawing (route_draw.<h8>.js), the same
+  OUTPUTS.splice(BASE_OUTPUTS.length, OUTPUTS.length, ...(LAST.career ? [LAST.career] : []), ...(LAST.route ? [LAST.route] : []));
   const outs = [{ file: 'tools/flight_core.js', bytes: core.bytes }, ...viewer];
   if (!(opts && opts.quiet)) console.log(
     outs.map(o => `${o.file} (${(o.bytes / 1024).toFixed(1)} KB)`).join(', ') +
@@ -1578,8 +1743,10 @@ const BASE_OUTPUTS = ['index.html', 'dev.html', 'sw.js', 'tools/flight_core.js',
 const OUTPUTS = BASE_OUTPUTS.slice();
 // the career core in a folder: the one career_core.<h8>.js there (null: none; more than one is an error the gates name)
 const careerCoreNames = dir => fs.readdirSync(dir || ROOT).filter(f => CAREER_RE.test(f)).sort();
+// G3070: the drawn route's drawing in a folder, the same (route_draw.<h8>.js)
+const routeDrawNames = dir => fs.readdirSync(dir || ROOT).filter(f => ROUTE_RE.test(f)).sort();
 
-module.exports = { build, MANIFEST, OUTPUTS, BASE_OUTPUTS, GENERATED, CAREER_RE, careerCoreNames };
+module.exports = { build, MANIFEST, OUTPUTS, BASE_OUTPUTS, GENERATED, CAREER_RE, careerCoreNames, ROUTE_RE, routeDrawNames };
 // node tools/build.js [--out=DIR] [--inputs]   --out writes the five outputs under DIR (the inputs are this tree's);
 // --inputs lists the files the build id hashes beyond the pages (path and content sha)
 if (require.main === module) {

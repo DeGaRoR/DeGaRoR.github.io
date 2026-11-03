@@ -975,6 +975,16 @@ def roads():
     trim_slivers(out)
     snap_ends(out)          # a trimmed end is a new near miss; the trims get their own snap
     thin_stubs(out)
+    # TOWN-ROAD-SIDES (the user, 22 Oct: "a smaller side to the road. The same overall width (including the side), but a
+    # higher proportion of the road. The sides should be between a third and a half of their current width"): every street
+    # with today's 2 m side trades it for carriageway - the side 0.8 m (40 %), the carriageway wider by the difference, so
+    # w + 2 band is what it was; `lay` keeps the width the town is laid out against (the plots, the houses, the bed, the
+    # trees, the poles: 27_premises roadLayW), so nothing beside the street moves
+    for r in out:
+        if r.get('band') == 2:
+            r['lay'] = r['w']
+            r['w'] = round(r['w'] + 2 * (2 - 0.8), 3)
+            r['band'] = 0.8
     return out
 
 

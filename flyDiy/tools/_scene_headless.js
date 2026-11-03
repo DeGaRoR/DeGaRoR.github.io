@@ -68,6 +68,15 @@ function makeContext(opts) {
   // opts.before(ctx): what the page has in scope before the editor's files (G1985: the characters' registry, which
   // _cage_page5.js reads for the default pilot when it loads)
   if (opts && typeof opts.before === 'function') opts.before(ctx);
+  // DC3-2 (G3573): THE FLAT MAP'S TEXTURE (G903, src/viewer/assets.js TEX_FLAT) - the page has it in scope before the
+  // editor's files, and the characters bind it for a flat map (a seated passenger's: without it the crew layer's post
+  // threw 'TEX_FLAT is not defined' and every layer after it - the gear, the join's measures - never ran). The page's own
+  // block, run here as the page runs it
+  {
+    const A = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'assets.js'), 'utf8');
+    const m = /\(\(\) => \{\s*'use strict';\s*const FLAT = new Map\(\);[\s\S]*?G\.TEX_FLAT = texFlat;\s*\}\)\(\);/.exec(A);
+    if (m) vm.runInContext(m[0], ctx, { filename: 'assets.js#TEX_FLAT' });
+  }
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
   const loaded = [], errors = [];
@@ -107,6 +116,11 @@ function sceneBuild(spec, opts) {
   const scene = new C.THREE.Scene();
   const errors = C.errors.slice();
   const stat = { textContent: '' };
+  // CABIN-CRAFT (opt-in, opts.ms): THE SHEET THE PAGE'S LAYERS READ. The editor's build publishes its subdivided sheet
+  // as CAGE_UI.MS before the layers run (_cage_ui.js build: `MS = s`), and the light layer hangs the cabin lamps off it
+  // (ceilAt / frameAt): headless it was never there, so every headless cabin lamp missed the roof. Opt-in, so no
+  // other headless drawing moves.
+  if (opts.ms) W.CAGE_UI = Object.assign({}, W.CAGE_UI || {}, { MS: built.mesh, P });
   if (PAGE.post) {
     try { PAGE.post({ scene, spec: built.spec, mesh: built.sheet, P, stat }); }
     catch (e) { errors.push('post: ' + (e && e.stack || e)); }

@@ -373,9 +373,29 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
 // 4g. THERE IS NO SECOND, UNCONTROLLED ROOM. The studio was a white void with
 // a full-strength hemisphere, a warm fill and a bright-floored dome, none of
 // it switchable, reachable only as a silent fallback.
-check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test(app),
-      'the studio is back — a second light rig with no switches, entered by ' +
-      'accident when the hangar fails to build');
+// G3726 (PHONE-GARAGE, landed in L28a) brought a studio back ON PURPOSE: the
+// black studio (studio.js), the phone's room (PROFILE room 'studio') and a
+// desktop MENU option, OFF by default. The row used to forbid the word; it now
+// forbids the ACCIDENT - a studio built anywhere but behind its switch, the
+// switch turned on by any line but its own, or a failed hangar answered with
+// anything but the empty room and its console line.
+{
+  const studioWrites = (app.match(/\bstudioOn\s*=(?!=)/g) || []).length;
+  const studioBuilds = (app.match(/\bSTUDIO\.build\(/g) || []).length;
+  check(/const STUDIO_PHONE = [^\n]*PROFILE\.is\('room', 'studio'\)/.test(app) &&
+        /let studioOn = STUDIO_PHONE \|\| prefGet\('flydiy\.garageStudio', '0'\) === '1'/.test(app) &&
+        studioWrites === 2 && /function setStudio\(on\) \{[^}]*studioOn = on;/.test(app),
+        'the studio is back — a second light rig with no switches, entered by ' +
+        'accident when the hangar fails to build (its switch is no longer the ' +
+        'phone profile or the MENU option alone: ' + studioWrites + ' writes)');
+  check(studioBuilds === 1 && /if \(studioOn\) \{[^}]{0,200}\bSTUDIO\.build\(/.test(app) &&
+        !/new THREE\.Scene\(\)[^\n]*studio|studio\w*\s*=\s*new THREE\.Scene\(/i.test(app.replace(/\/\/[^\n]*/g, '')),
+        'the studio is built outside its switch (' + studioBuilds + ' builds) — ' +
+        'a room the hangar\'s failure can fall into');
+  check(/function garageScene\(\)[\s\S]{0,400}no fallback room by design[\s\S]{0,120}return hangarScene;/.test(app),
+        'a hangar that fails to build no longer leaves the empty room and says so ' +
+        '— the silent fallback the studio was');
+}
 
 // ---------------------------------------------------------------------------
 // 5. THE AEROPLANE'S OWN LAMPS (2026-08-31, four items from the user's second
@@ -415,7 +435,8 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   // the deck, so a lamp at the roof line and the wing are in the same place
   // and the lamp reads as hung off the wing. Measuring the built ceiling is
   // what makes it right for a high wing, a low wing and a parasol alike.
-  check(/const ceilAt = \(x, z, rad\) =>/.test(lit),
+  // (CABIN-CRAFT: the search takes the lamp's kind too - its radius sets how far it must stay from glass)
+  check(/const ceilAt = \(x, z, rad, kind\) =>/.test(lit),
         'the cabin lamps no longer measure the ceiling they hang from');
   // G296: THE LADDER. A cabin lamp mounts on the first real structure its
   // cabin's top offers — roof face, ceiling-loop rail, windscreen header,
@@ -423,8 +444,17 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   // fallback to the spec's roof line hung a dome in the middle of a
   // skylight, so a lamp position may never come from `A.roofY` again.
   // (G442.3: the bubble's flood mounts on the arch or not at all - no coaming fallback, the user's ruling)
-  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, frameAt\], \[headerAt, frameAt\], \[coamingAt\], \[archAt\]\]/.test(lit),
+  // CABIN-CRAFT (2026-11-02, the user: "find flat faces, try and stick on the ceiling, but not where there are windows.
+  // Never stick on bubble canopies or any sort of glass. Stick to the aft bulkhead if no other option, or into the
+  // shoulder"): the ladder is ceiling -> aft bulkhead -> shoulder (a convertible's header, an open cockpit's coaming
+  // first; a bubble from the bulkhead, its arch only clear of glass) and every rung asks clearOfGlass. GATE
+  // CABINLAMP measures the result on built aeroplanes; this holds the rule's text.
+  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, bulkheadAt, shoulderAt\], \[headerAt, bulkheadAt, shoulderAt\],\s*\[coamingAt, bulkheadAt, shoulderAt\], \[bulkheadAt, archClear, shoulderAt\]\]/.test(lit),
         'the cabin lamps no longer climb the mounting ladder per cabin top (closed / convertible / open / bubble)');
+  check(/const clearOfGlass = \(p, nIn, kind\) =>/.test(lit) && /if \(q\.flat < CEIL_FLAT\) continue;/.test(lit) &&
+        /clearOfGlass\(\[q\.x, q\.y, q\.z\], q\.n, kind\)/.test(lit) &&
+        (lit.match(/clearOfGlass\(/g) || []).length >= 4,
+        'a cabin lamp rung no longer keeps off glass (the ceiling, the bulkhead, the shoulder and the arch each ask clearOfGlass)');
   check(/const mountAt = \(kind, s\) =>/.test(lit) && /mountAt\('flood', pilot\)/.test(lit) && /mountAt\('pax', s\)/.test(lit),
         'the flood or the passenger lamps stopped using the mounting ladder');
   check(!/cl \? cl\.y : A\.roofY/.test(lit) && !/\(cl \? cl\.y : A\.roofY\)/.test(lit),
@@ -454,6 +484,43 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   check(/cupMats\[id\]/.test(lit),
         'the reflector material is not pooled — one material per lamp per ' +
         'dim step is a new program every time a slider moves');
+
+  // 5f. A DIMMER NOTCH NEVER CHANGES THE LIGHT COUNT (G2782, the user: "inside
+  // dimmer -> flood. Moving that froze my interface for a few seconds"). three
+  // keys every lit program on the scene's number of point / spot lights; the
+  // flood's PointLight was made only when its row read > 0, so the first notch
+  // re-linked every lit material in the shed in one frame. A fitted lamp's
+  // light is armed at intensity 0 (the flight's cockpit.js rule), and a drag
+  // tick hides the lamps, never the lights.
+  {
+    const { stripComments } = require('./_src_strip.js');
+    const code = stripComments(lit);
+    const made = code.match(/if \(([^\n]*)\) \{\s*const l = new THREE\.(Point|Spot)Light\(/g) || [];
+    check(made.length >= 3,
+          'the shed\'s real lights (landing spot, flood, pedal) are not found where they are made', String(made.length));
+    const byLevel = made.filter(m => /level\(P/.test(m));
+    check(!byLevel.length,
+          'a real light is made only when its dimmer reads > 0 — the count follows the dimmer and every lit program re-keys on the first notch',
+          byLevel.join(' | '));
+    // G2787: ...and a light at 0 is NOT in the count (G2782 armed them at 0 and the shed's boot compiles, which take
+    // the cage down, keyed without them: train 52b's 10 s boot freeze); a new lit set joins only after the room's
+    // programs linked with it dressed in (app.js GARAGE_LIGHTS_PREP: compileSliced, the depth variants)
+    check(/for \(const \[, l\] of lit\) l\.visible = false;/.test(code) && /if \(LINKED\.has\(sig\)\) show\(\);/.test(code) &&
+          /pr\.then\(\(\) => \{ LINKED\.add\(sig\); LINKING\.delete\(sig\); if \(group === mine\) show\(\); \}\)/.test(code),
+          'a light joins the shed\'s count before its programs linked (or at 0) - the dimmer freeze or the boot freeze is back');
+    check(/const LINKED = new Set\(\['0,0'\]\);/.test(code),
+          'the dimmers-at-0 light set is not the linked default - the boot would wait on a prep for nothing');
+    {
+      const app = stripComments(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8'));
+      const i = app.indexOf('window.GARAGE_LIGHTS_PREP = dress =>');
+      const blk = i >= 0 ? app.slice(i, i + 900) : '';
+      check(/compileSliced\(hangarScene, ensureEnvRT\(\), null, false, dress\)/.test(blk) && /compileDepthVariants\(hangarScene, true, dress\)/.test(blk),
+            'app.js GARAGE_LIGHTS_PREP is gone or does not link the room with the lights dressed in');
+    }
+    check(!/if \(ctx\.defer\) \{\s*if \(group\) group\.visible = false/.test(code) &&
+          /if \(ctx\.defer\) \{ if \(group\) for \(const c of group\.children\) if \(!c\.isLight\) c\.visible = false;/.test(code),
+          'a drag tick hides the whole light group — its lights leave the count and every lit program re-keys at the drag\'s first tick');
+  }
 
   // 5e. THE PLACEMENT ROWS ARE REAL ROWS, not literals with a comment.
   for (const k of ['li_beaconSink', 'li_navSpan', 'li_navChord', 'li_navRise',
@@ -597,8 +664,13 @@ if (process.argv.includes('--selftest')) {
   check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
   // G1080 (SHADOW-EYES): the craft's maps are aimed at the DRAWN aeroplane - the pose model.grp carries, re-read right
   // after poseModel - never at the point worldUpdate is given (the camera under the free camera / the world editor)
+  const poseAimOrder = text => /poseModel\(\);\s*\n(\s*(\/\/.*|if \(sceneSample\) FR\.sceneDetail\.lap\(0\);|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(text);
+  const poseFirst = '    poseModel();', aimLast = "    if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();";
+  const reversedAim = app.replace(poseFirst, '__PERF_POSE__').replace(aimLast, poseFirst).replace('__PERF_POSE__', aimLast);
+  check(!poseAimOrder(reversedAim), 'G1080 negative: moving near-shadow aim before pose is rejected');
+  check(poseAimOrder(app.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '')), 'G1080: removing optional pose timing preserves the wiring');
   check(/S\.aimDrawn && AIM\.hAt && drawnCentre\(\)/.test(near) && /aimDrawn: true/.test(near) && /nearTag\(SHADOW_NEAR\.aimPoint \? SHADOW_NEAR\.aimPoint\(cg\) : cg\)/.test(world)
-    && /poseModel\(\);\s*\n(\s*(\/\/.*|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
+    && poseAimOrder(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
   // (G601: the registry's pass - a caster over NEAR_MIN_R within reach; GATE STAND runs it)
   check(/nearTag = cg =>/.test(world) && /s\[3\] >= NEAR_MIN_R && Math\.sqrt\(dx \* dx \+ dy \* dy \+ dz \* dz\) - s\[3\] < R/.test(world) &&/Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes (over NEAR_MIN_R) within reach of the CG; the map is half the tier\'s far map');
   check(/SHADOW_NEAR\.tagCraft\(craft(, model\.grp)?\)/.test(app), 'app: the craft is tagged when the model joins the world');

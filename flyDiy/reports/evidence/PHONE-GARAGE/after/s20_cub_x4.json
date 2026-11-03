@@ -1,0 +1,584 @@
+{
+ "at": "2026-10-26T14:50:58.413Z",
+ "url": "http://localhost:8619/flyDiy/index.html?profile=phone",
+ "build": "cub",
+ "cold": false,
+ "device": "",
+ "android": "",
+ "thermalsAtStart": {
+  "batteryC": null,
+  "status": null,
+  "temps": {}
+ },
+ "chrome": "Chrome/155.0.8059.85",
+ "boot": {
+  "state": "gone",
+  "sec": 29.6,
+  "rows": [
+   [
+    2211,
+    "reading the model",
+    35.4,
+    53.1
+   ],
+   [
+    3998,
+    "raising the shed",
+    53.8,
+    54.9
+   ],
+   [
+    5049,
+    "your aeroplane on the stand",
+    75.8,
+    91.2
+   ],
+   [
+    6144,
+    "your aeroplane, built",
+    152.6,
+    196.9
+   ],
+   [
+    19898,
+    "busy",
+    189.2,
+    194.7
+   ],
+   [
+    28570,
+    "busy",
+    64.8,
+    169.4
+   ],
+   [
+    29573,
+    "gone",
+    72.6,
+    169.7
+   ]
+  ],
+  "pss": [
+   [
+    2211,
+    "reading the model",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    19898,
+    "busy",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ],
+   [
+    28570,
+    "busy",
+    {
+     "rendererMB": 0,
+     "gpuMB": 0,
+     "browserMB": 0
+    }
+   ]
+  ],
+  "lastStep": "gone",
+  "log": [
+   {
+    "k": "boot.js",
+    "t": 0
+   },
+   {
+    "k": "phase",
+    "t": 0,
+    "id": "scripts"
+   },
+   {
+    "k": "phase",
+    "t": 98,
+    "id": "vendor"
+   },
+   {
+    "k": "phase",
+    "t": 191,
+    "id": "core"
+   },
+   {
+    "k": "phase",
+    "t": 1309,
+    "id": "world"
+   },
+   {
+    "k": "phase",
+    "t": 1345,
+    "id": "renderer"
+   },
+   {
+    "k": "phase",
+    "t": 1559,
+    "id": "aeroplane"
+   },
+   {
+    "k": "run",
+    "t": 2149,
+    "set": "garage",
+    "steps": 11
+   },
+   {
+    "k": "step",
+    "t": 2177,
+    "id": "treeBins",
+    "ms": 0,
+    "programs": 0
+   },
+   {
+    "k": "step",
+    "t": 2195,
+    "id": "aircraft",
+    "ms": 767,
+    "programs": 0
+   },
+   {
+    "k": "step",
+    "t": 2966,
+    "id": "garage",
+    "ms": 366,
+    "programs": 0
+   },
+   {
+    "k": "step",
+    "t": 3652,
+    "id": "editor",
+    "ms": 109,
+    "programs": 0
+   },
+   {
+    "k": "step",
+    "t": 3967,
+    "id": "seed",
+    "ms": 1004,
+    "programs": 0
+   },
+   {
+    "k": "phase",
+    "t": 4218,
+    "id": "seed"
+   },
+   {
+    "k": "landed",
+    "t": 4989,
+    "key": "skin",
+    "ok": true,
+    "what": "Diy/media/tex/skin/leather_aero_512.73449514.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 4990,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/panel_aero_1k.3609dbf2.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 4994,
+    "key": "skin",
+    "ok": true,
+    "what": "yDiy/media/tex/skin/sillAlu_aero_1k.a51b4a39.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 4997,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/foil_aero_512.b96de146.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5001,
+    "key": "skin",
+    "ok": true,
+    "what": "flyDiy/media/tex/skin/hide_aero_512.2e381f49.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5007,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/plasticScr_aero_512.b1bfbee8.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5008,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/plasticGrn_aero_512.a351409b.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5009,
+    "key": "skin",
+    "ok": true,
+    "what": "lyDiy/media/tex/wood/maple_aero_512.2a5e4c9d.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5010,
+    "key": "skin",
+    "ok": true,
+    "what": "media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5011,
+    "key": "skin",
+    "ok": true,
+    "what": "/media/tex/skin/rubberGrip_aero_512.e371d52d.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5022,
+    "key": "crew",
+    "ok": true,
+    "what": "ch22"
+   },
+   {
+    "k": "step",
+    "t": 5033,
+    "id": "snapshot",
+    "ms": 889,
+    "programs": 0
+   },
+   {
+    "k": "phase",
+    "t": 5302,
+    "id": "snapshot"
+   },
+   {
+    "k": "landed",
+    "t": 5740,
+    "key": "crewBuild",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 5757,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8619/flyDiy/media/tex/panelhw/ddee1e364d55.jpg"
+   },
+   {
+    "k": "landed",
+    "t": 5757,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8619/flyDiy/media/tex/panelhw/45b3f5dcacbb.jpg"
+   },
+   {
+    "k": "phase",
+    "t": 5881,
+    "id": "snapshot"
+   },
+   {
+    "k": "landed",
+    "t": 5885,
+    "key": "propTex",
+    "ok": true,
+    "what": "t:8619/flyDiy/media/tex/panelhw/3a60ad7d066c.jpg"
+   },
+   {
+    "k": "step",
+    "t": 5927,
+    "id": "spec",
+    "ms": 173,
+    "programs": 2
+   },
+   {
+    "k": "step",
+    "t": 6111,
+    "id": "restore",
+    "ms": 3,
+    "programs": 2
+   },
+   {
+    "k": "step",
+    "t": 6119,
+    "id": "compile",
+    "ms": 0,
+    "programs": 2
+   },
+   {
+    "k": "step",
+    "t": 6124,
+    "id": "firstFrame",
+    "ms": 13732,
+    "programs": 22
+   },
+   {
+    "k": "frame1",
+    "t": 19856
+   },
+   {
+    "k": "step",
+    "t": 19902,
+    "id": "recheck",
+    "ms": 0,
+    "programs": 22
+   },
+   {
+    "k": "landing",
+    "t": 19908
+   },
+   {
+    "k": "landed",
+    "t": 19984,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20000,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20005,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "landed",
+    "t": 20006,
+    "key": "crewTex",
+    "ok": true
+   },
+   {
+    "k": "ready",
+    "t": 20098
+   },
+   {
+    "k": "gone",
+    "t": 20098
+   }
+  ],
+  "peakHeap": 189.2,
+  "peakAB": 196.9,
+  "peakRenderer": 0,
+  "peakGpu": 0,
+  "steps": [
+   {
+    "step": "reading the model",
+    "t": 2211,
+    "heap": 35.4,
+    "ab": 53.1
+   },
+   {
+    "step": "raising the shed",
+    "t": 3998,
+    "heap": 53.8,
+    "ab": 54.9
+   },
+   {
+    "step": "your aeroplane on the stand",
+    "t": 5049,
+    "heap": 75.8,
+    "ab": 91.2
+   },
+   {
+    "step": "your aeroplane, built",
+    "t": 6144,
+    "heap": 152.6,
+    "ab": 196.9
+   },
+   {
+    "step": "busy",
+    "t": 19898,
+    "heap": 64.8,
+    "ab": 169.4
+   },
+   {
+    "step": "gone",
+    "t": 29573,
+    "heap": 72.6,
+    "ab": 169.7
+   }
+  ],
+  "afterGC": {
+   "heap": 61.3,
+   "ab": 168.4,
+   "pss": {
+    "rendererMB": 0,
+    "gpuMB": 0,
+    "browserMB": 0
+   }
+  }
+ },
+ "view": {
+  "w": 412,
+  "h": 915,
+  "dpr": 2.625,
+  "canvas": [
+   0,
+   0,
+   412,
+   609
+  ],
+  "viewShare": 0.666,
+  "calls": 1,
+  "triangles": 2,
+  "programs": 24,
+  "textures": 65
+ },
+ "cpuThrottle": 4,
+ "share": {
+  "share": true,
+  "canShareUrl": true,
+  "json": true,
+  "txt": true,
+  "flydiy": true,
+  "persisted": false,
+  "estimate": {
+   "quotaMB": 10247,
+   "usageMB": 6.9
+  },
+  "standalone": false,
+  "coarse": true,
+  "dpr": 2.625,
+  "w": 412,
+  "h": 915
+ },
+ "touch": {
+  "page": {
+   "profile": "phone",
+   "steps": "treeBins,aircraft,garage,editor,seed,snapshot,spec,restore,compile,firstFrame,recheck",
+   "world": "none",
+   "preset": "laptop",
+   "w": 412,
+   "h": 915,
+   "dpr": 2.625,
+   "rows": 765
+  },
+  "tabs": {
+   "ok": true,
+   "parts": "parts",
+   "after": {
+    "tab": "props",
+    "name": "Wings"
+   }
+  },
+  "knob": {
+   "ok": true,
+   "key": "wgDx",
+   "from": 0,
+   "to": -1.5,
+   "events": {
+    "down": 1,
+    "input": 3,
+    "change": 1
+   },
+   "ms": 3270
+  },
+  "scale": {
+   "ok": false,
+   "key": "wgDy",
+   "value": -0.1,
+   "afterHorizontal": -1,
+   "afterVertical": -1,
+   "scrolled": [
+    920,
+    920
+   ]
+  },
+  "fine": {
+   "ok": true,
+   "key": "wgChord",
+   "from": 1.7,
+   "to": 1.2,
+   "coarseWouldBe": -4.875
+  },
+  "stepper": {
+   "ok": true,
+   "key": "wgChord",
+   "from": 1.2,
+   "to": 1.25,
+   "step": 0.05
+  },
+  "orbit": {
+   "ok": true,
+   "az": [
+    -2.5,
+    -1.7799999999999994
+   ]
+  },
+  "pinch": {
+   "ok": true,
+   "dist": [
+    14,
+    3.3333333333333335
+   ]
+  }
+ },
+ "drag": [
+  {
+   "key": "wgSpan",
+   "tick": 101.5,
+   "tickDrawn": 126.5,
+   "release": 319.7,
+   "releaseDrawn": 363.1,
+   "why": "{\"n\":7,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft("
+  },
+  {
+   "key": "wgChord",
+   "tick": 100.9,
+   "tickDrawn": 128.3,
+   "release": 301.8,
+   "releaseDrawn": 348.5,
+   "why": "{\"n\":11,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft"
+  },
+  {
+   "key": "stSpan",
+   "tick": 15.4,
+   "tickDrawn": 31.5,
+   "release": 259.6,
+   "releaseDrawn": 292.9,
+   "why": "{\"n\":15,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) "
+  },
+  {
+   "key": "paxLen",
+   "tick": 25.4,
+   "tickDrawn": 42.8,
+   "release": 1122.8,
+   "releaseDrawn": 1199.1,
+   "why": "{\"n\":15,\"whole\":5,\"last\":{\"whole\":\"a deformed drag\"}}"
+  }
+ ],
+ "frames": {
+  "rest": {
+   "n": 600,
+   "fps": 60,
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "over50": 0
+  },
+  "orbit": {
+   "n": 594,
+   "fps": 59.4,
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "over50": 1
+  }
+ },
+ "exceptions": [],
+ "thermalsAtEnd": {
+  "batteryC": null,
+  "status": null,
+  "temps": {}
+ }
+}

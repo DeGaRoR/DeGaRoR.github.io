@@ -214,7 +214,7 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
 // ---- 4: anchors ----------------------------------------------------------------------------------------
 {
   const aa = src('src/viewer/aa_resolve.js'), cl = src('src/viewer/clouds.js'), rw = src('src/viewer/render_world.js'), app = src('src/viewer/app.js'), wa = src('src/viewer/water.js');
-  ok(/if \(S\.pre\) \{ if \(camera\.updateWorldMatrix\) camera\.updateWorldMatrix\(true, false\); S\.pre\(renderer, camera, S\.rt\); \}/.test(aa), '4 aa_resolve: the camera\'s world matrix is made current before the clouds\' pre hook');
+  ok(/if \(S\.pre\) \{ if \(camera\.updateWorldMatrix\) camera\.updateWorldMatrix\(true, false\); S\.pre\(renderer, camera, S\.rt(?:, scene)?\); \}/.test(aa), '4 aa_resolve: the camera\'s world matrix is made current before the clouds\' pre hook');
   ok(/bool thru = tScene < deckEntry\(o, d\);/.test(cl) && /thru \? dzW1\(uDZ\.x > 0\.5 \? 0\.0 : 1\.0\)/.test(cl) && /march\(o, d, thru \? 1e9 : tScene, uDials2\.x\)/.test(cl), '4 clouds: a stale depth nearer than the first deck is sky - marched through, its key the far plane (the composite hides behind this frame\'s scene)');
   ok(/const coverWanted = \(\) => !\(world && world\.island\) \|\| COVER\.island === 'on';/.test(rw) && /if \(!coverWanted\(\)\) \{ COVER\.on\.value = 0;/.test(rw) && /island: 'off' \}/.test(rw), '4 render_world: the canopy cover pass is off on an island by default');
   ok(/userPaused = !running;/.test(app) && /window\.FLYDIY_HELD = !inGarage && !running && userPaused;/.test(app), '4 app: FLYDIY_HELD is the Pause button\'s');

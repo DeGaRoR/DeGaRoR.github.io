@@ -1,0 +1,24 @@
+builds/c172r_wipline2350_landprop_2026-10-20.json: floats L 5.97 B 0.74 step 3.31 m (0.554 L) hs 0.097; prop D 1.905 standard
+  g3390 gross wind 0 m/s | 1157 kg (fuel 212 L, baggage 37 kg) | T/W at 1 s 0.194 | hump R/W 0.175 at 7.6 m/s (T/W 0.193, trim 10.3) | NOT airborne in 90 s | swing 10.2 deg
+  g3390 gross wind 4.12 m/s | 1157 kg (fuel 212 L, baggage 37 kg) | T/W at 1 s 0.193 | hump R/W 0.281 at 7.8 m/s (T/W 0.191, trim 10.2) | NOT airborne in 90 s | swing 9.1 deg
+  g3390 half  wind 0 m/s | 1020 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.220 | hump R/W 0.184 at 9.0 m/s (T/W 0.218, trim 9.2) | AIRBORNE 73.8 s, 33.1 m/s, run 1165 m | swing 9.6 deg
+  g3390 half  wind 4.12 m/s | 1020 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.219 | hump R/W 0.299 at 11.3 m/s (T/W 0.214, trim 8) | AIRBORNE 51.6 s, 28 m/s, run 707 m | swing 8.5 deg
+wrote ../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/246ad153-6e8e-5999-8205-94f7b92f3541/scratchpad/rig3/sea_to_result_landprop_g3390.json
+builds/c172r_wipline2350_landprop_2026-10-20.json: floats L 5.97 B 0.74 step 3.31 m (0.554 L) hs 0.097; prop D 1.905 standard
+  poh   gross wind 0 m/s | 1157 kg (fuel 212 L, baggage 37 kg) | T/W at 1 s 0.194 | hump R/W 0.166 at 7.3 m/s (T/W 0.193, trim 10.4) | NOT airborne in 90 s | swing 5.4 deg
+  poh   gross wind 4.12 m/s | 1157 kg (fuel 212 L, baggage 37 kg) | T/W at 1 s 0.193 | hump R/W 0.255 at 7.4 m/s (T/W 0.191, trim 9.9) | NOT airborne in 90 s | swing 9.3 deg
+  poh   half  wind 0 m/s | 1020 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.220 | hump R/W 0.179 at 8.8 m/s (T/W 0.218, trim 9.2) | AIRBORNE 62.8 s, 25.8 m/s, run 841 m | swing 13.3 deg
+  poh   half  wind 4.12 m/s | 1020 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.219 | hump R/W 0.262 at 11.0 m/s (T/W 0.215, trim 8.2) | AIRBORNE 42.3 s, 20.6 m/s, run 470 m | swing 12.5 deg
+wrote ../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/246ad153-6e8e-5999-8205-94f7b92f3541/scratchpad/rig3/sea_to_result_landprop_poh.json
+builds/c172r_wipline2350_stcprop_2026-10-20.json: floats L 5.97 B 0.74 step 3.31 m (0.554 L) hs 0.097; prop D 2.083 climb
+  g3390 gross wind 0 m/s | 1157 kg (fuel 212 L, baggage 34 kg) | T/W at 1 s 0.271 | hump R/W 0.186 at 9.6 m/s (T/W 0.267, trim 8.4) | AIRBORNE 37.9 s, 34.3 m/s, run 676 m | swing 8.0 deg
+  g3390 gross wind 4.12 m/s | 1157 kg (fuel 212 L, baggage 34 kg) | T/W at 1 s 0.269 | hump R/W 0.278 at 10.6 m/s (T/W 0.260, trim 8.3) | AIRBORNE 31 s, 29.5 m/s, run 477 m | swing 6.2 deg
+  g3390 half  wind 0 m/s | 1022 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.307 | hump R/W 0.185 at 9.8 m/s (T/W 0.302, trim 7.9) | AIRBORNE 25.7 s, 33 m/s, run 444 m | swing 8.0 deg
+  g3390 half  wind 4.12 m/s | 1022 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.304 | hump R/W 0.280 at 12.7 m/s (T/W 0.290, trim 8.1) | AIRBORNE 20.7 s, 27.4 m/s, run 298 m | swing 6.1 deg
+wrote ../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/246ad153-6e8e-5999-8205-94f7b92f3541/scratchpad/rig3/sea_to_result_stcprop_g3390.json
+builds/c172r_wipline2350_stcprop_2026-10-20.json: floats L 5.97 B 0.74 step 3.31 m (0.554 L) hs 0.097; prop D 2.083 climb
+  poh   gross wind 0 m/s | 1157 kg (fuel 212 L, baggage 34 kg) | T/W at 1 s 0.271 | hump R/W 0.176 at 9.0 m/s (T/W 0.268, trim 10) | AIRBORNE 29.4 s, 25.9 m/s, run 419 m | swing 8.9 deg
+  poh   gross wind 4.12 m/s | 1157 kg (fuel 212 L, baggage 34 kg) | T/W at 1 s 0.269 | hump R/W 0.239 at 10.3 m/s (T/W 0.260, trim 8.7) | AIRBORNE 22.8 s, 20.8 m/s, run 265 m | swing 8.6 deg
+  poh   half  wind 0 m/s | 1022 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.307 | hump R/W 0.172 at 8.9 m/s (T/W 0.303, trim 9.5) | AIRBORNE 20.4 s, 26.1 m/s, run 288 m | swing 11.3 deg
+  poh   half  wind 4.12 m/s | 1022 kg (fuel 106 L, baggage 0 kg) | T/W at 1 s 0.304 | hump R/W 0.232 at 12.5 m/s (T/W 0.291, trim 8.4) | AIRBORNE 16.1 s, 21 m/s, run 184 m | swing 10.2 deg
+wrote ../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/246ad153-6e8e-5999-8205-94f7b92f3541/scratchpad/rig3/sea_to_result_stcprop_poh.json

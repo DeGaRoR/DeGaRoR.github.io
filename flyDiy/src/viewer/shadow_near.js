@@ -304,11 +304,50 @@ var SHADOW_NEAR = (function () {
   // shadow maps, and the next render (the mirror, the probes, the next frame) must find the world whole. A renderer
   // without three's WebGL shadow pass (the TSL one) is left alone, and the box is then walked whole.
   const HOOK = { on: false, passes: 0 };
+  // PERF-1 P3b, PARKED AEROPLANES CAST THEIR NEXT RUNG. A parked aeroplane (parked.js: a THREE.LOD named 'parked:<key>',
+  // userData.parked) drew its shadow from the rung it is SEEN at: from 0 m that is L1, the whole exterior (a cooked C172
+  // 182 k triangles, into the far map and the 60 m box both: ~314 k shadow triangles a placement by the stand, 52ab's
+  // five within 71 m). Its shadow on the ground needs the silhouette, not the rivets: inside the shadow pass each parked
+  // LOD drawn this render shows its NEXT rung instead (L1 -> L2, ~12 %; L2 -> L3, ~2.5 %; the last rung stays itself -
+  // the cull's empty group is never cast), and the pass's end shows the seen rung again. Same frame, same material,
+  // same place: the rungs are one mesh decimated (parked.js THE LADDER). The player's aeroplane is no LOD and is never
+  // touched: its shadow, its cascade and its contact cues are as they were. Three updates an LOD (projectObject) before it
+  // draws the shadow maps, so the LODs seen this render announce themselves there (the prototype's update, wrapped once
+  // below - parked.js is left alone: its source is in the cook's signature) and the pass swaps only those.
+  // ?parkshadow=0 (or S.parkShadow = false): every rung casts itself, as before - the A/B.
+  const PARKSH = { live: new Set(), swapped: [], passes: 0, swaps: 0 };
+  const POSED = { at: -1e9 };   // G3619: the last frame a queued passenger casting into the near map was posed (crowd.js)
+  S.posedHz = (m => (m ? +m[1] : 60))(typeof location !== 'undefined' && /[?&]posedhz=(\d+)(?:&|$)/.exec(location.search || ''));
+  const posed = () => { POSED.at = typeof performance !== 'undefined' ? performance.now() : 0; };
+  S.parkShadow = !(typeof location !== 'undefined' && /[?&]parkshadow=0(?:&|$)/.test(location.search || ''));
+  (function lodWatch() {
+    const P = typeof THREE !== 'undefined' && THREE.LOD && THREE.LOD.prototype;
+    if (!P || P.__parkSh) return;
+    const up = P.update; P.__parkSh = true;
+    // (by the NAME parked.js gives its LODs, 'parked:<key>': an animal's LOD carries a userData.parked of its own - animal_run's
+    // out-of-reach flag - and its far rung is a prop mesh with no matrix walk: the 18 Oct GPU A/B drew ~5 M more triangles a
+    // frame at the taxi when the swap took animals too)
+    P.update = function (camera) { up.call(this, camera); if (S.parkShadow && this.name.startsWith('parked:')) PARKSH.live.add(this); };
+  })();
+  function parkIn() {
+    if (!PARKSH.live.size) return;
+    PARKSH.passes++;
+    for (const lod of PARKSH.live) {
+      const L = lod.levels; let k = -1;
+      for (let i = 0; i < L.length; i++) if (L[i].object.visible) { k = i; break; }   // LOD.update shows one rung (none: culled / the fleet's gate)
+      if (k < 0 || k + 1 >= L.length) continue;
+      const a = L[k].object, b = L[k + 1].object;
+      if (!b.children.length) continue;                                                  // the next is the cull's empty group: the seen rung casts
+      a.visible = false; b.visible = true; PARKSH.swapped.push(a, b); PARKSH.swaps++;
+    }
+    PARKSH.live.clear();
+  }
+  function parkOut() { const s = PARKSH.swapped; for (let i = 0; i < s.length; i += 2) { s[i].visible = true; s[i + 1].visible = false; } s.length = 0; }
   function hook(renderer) {
     const SM = renderer && !renderer.isWebGPURenderer ? renderer.shadowMap : null;
     if (!SM || typeof SM.render !== 'function' || SM.__nearHook) return false;
     const r = SM.render;
-    SM.render = function () { HOOK.passes++; try { return r.apply(this, arguments); } finally { unprune(); farUnhide(); } };
+    SM.render = function () { HOOK.passes++; parkIn(); try { return r.apply(this, arguments); } finally { parkOut(); unprune(); farUnhide(); } };
     SM.__nearHook = true; HOOK.on = true;
     return true;
   }
@@ -520,6 +559,11 @@ var SHADOW_NEAR = (function () {
     const eps = CACHE.eps = Math.max(S.poseEps, S.poseEpsTx * 2 * (C1.H || S.half) / (S.size * craftK()));   // a quarter of the craft's texel (3.4 mm for a Cub on the ground at 1024)
     if (!why && partMoved(CACHE.parts, false) > eps) why = 'craft';
     if (!why && partMoved(CACHE.near, false) > eps) why = 'nearMoved';
+    // G3619 (the user 26 Oct: "make the idle shadows smooth if cheap"): a queue's people idle in place - their bones move,
+    // no matrix does - so their shadows wait for the age redraw; while one is posed (crowd.js posed()) the map is redrawn
+    // at S.posedHz (0 = the cache as it was; ?posedhz=N, the A/B). 60 by default since the 27 Oct table: at the stand the
+    // near map was redrawn every frame in every row already (nearDrawn = frames), so smooth idles added no pass
+    if (!why && S.posedHz > 0 && now - POSED.at < 250 && now - CACHE.at >= 1000 / S.posedHz - 2) why = 'posed';
     if (why) {
       CACHE.key.set(CACHE.cur); CACHE.at = now;
       partMoved(CACHE.parts, true);
@@ -750,7 +794,7 @@ var SHADOW_NEAR = (function () {
       return um.apply(this, arguments);
     };
   }
-  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, HOLD, CACHE, due, layout, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, PARKSH, POSED, posed, HOLD, CACHE, due, layout, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();

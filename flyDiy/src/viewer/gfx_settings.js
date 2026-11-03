@@ -29,6 +29,8 @@
   const W = (typeof window !== 'undefined') ? window : null;
   if (!W) return;
   const KEY = 'flydiy.gfx';
+  // (G3240 NAMES) the town's shown name is the names table's (src/core/01_names.js, in the BOOT block); a sandbox without it says 'the town'
+  const TOWN_NAME = (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town';
   // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
   // auto scale, when a player picked it, stands down there unless the URL asks (?autoscale=1)
   // (G1210: welcome.js, evaluated first, asks the same question of the same navigator - its answer when it is there)
@@ -176,9 +178,12 @@
     // (375 houses) held the Jolene taxi at 12-15 fps on the reference 3080 (30 without it): off by default, its record
     // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
     // ?town=1 in the URL wins over the row)
-    { k: 'town', label: 'towns', free: true, reload: true, steps: [
-        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
-        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
+    // METLA-ON (the user, 23 Oct: "Metlakatla ON."): ON BY DEFAULT with the new town host (render_premises CITY) - `def` is the
+    // row's default (a free row's was its first step); this row stays the way to turn it off. The budget's cap still keeps
+    // potato, laptop and the software rung on the field and the sites
+    { k: 'town', label: 'towns', free: true, reload: true, def: 'all', steps: [
+        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the east village and the tramway - ' + TOWN_NAME + ' off - RELOADS the page' },
+        { v: 'all', label: 'with ' + TOWN_NAME, why: TOWN_NAME + ' too (the default): its houses 9 km east of the field, built as you come near - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -200,7 +205,11 @@
         // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain;
         // G1340 SHADER-GUARD took the LIVE one out too; the user, 2026-10-04: "keep the live water mirror option, just
         // disable it by default" - back in the row, OFF on every preset, ultra included)
-        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; off on every preset - yours to switch on)' } ] },
+        // WATER-STEADY (G2830): three ways (the user, 13 Oct): AUTO the default on gamer and ultra - master's behaviour, the
+        // mirror over the water and off over land / high up; ON never switched (no shore, no altitude drops it); off below.
+        // "If it ever gets good enough, it becomes default again"
+        { v: 'auto',     label: 'auto', why: 'the reflection over the water, captured every frame; it switches off over land and fades out from 500 to 900 m up (the default on gamer and ultra)' },
+        { v: 'live',     label: 'on', why: 'the reflection captured every frame wherever you are - never switched by the game (a second scene draw at 0.4 of the frame each way)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -268,8 +277,8 @@
     potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'auto' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'auto' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the
@@ -343,7 +352,7 @@
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 8, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 10, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (9: G2830, gamer's and ultra's auto mirror; 4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -375,12 +384,18 @@
       // pv 7 -> 8 (G1520-G1529, POTATO-DEEP): potato's rows moved (the plain ground, ...) - a player ON potato takes potato as it
       // is now (else the saved rows read 'custom'); every other preset's rows are the ones they were
       if (v && !(v.pv >= 8)) { if (v.preset === 'potato') { for (const o of OPTIONS) if (!o.free) delete v[o.k]; Object.assign(v, PRESETS.potato); } v.pv = 8; }
+      // pv 8 -> 9 (G2830, WATER-STEADY): gamer and ultra default to the AUTO mirror - a player ON either takes it (else the saved
+      // rows read 'custom'); a custom mix keeps its own row (a saved 'live' - the menu's ON - stays on, a saved 'off' stays off)
+      if (v && !(v.pv >= 9)) { if (v.preset === 'gamer' || v.preset === 'ultra') v.mirror = 'auto'; v.pv = 9; }
+      // pv 9 -> 10 (METLA-ON, the user 23 Oct): a stored 'nearby' was the old DEFAULT (every save wrote the free row), not a pick -
+      // it takes the new default, Metlakatla on; a 'nearby' saved from now on (pv 10) is the player's own and stays
+      if (v && !(v.pv >= 10)) { if (v.town === 'nearby') v.town = 'all'; v.pv = 10; }
       v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
-      for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
+      for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.def || o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
-    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
+    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? (o.def || o.steps[0].v) : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
     S.fpsOwn = S.fpsOwn === true;
     if (PRESETS[S.preset]) S.build = S.preset; else if (!BUDGETS[S.build]) S.build = DEFAULT;   // G1230: a custom mix builds to its last preset's budget
@@ -423,7 +438,8 @@
     // the cover ring and the premises (G570): both exist only in the flight world, so they apply when it has them
     const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
     if (cov && cov.set && applied.cover !== S.cover) {
-      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35 }, lean: { on: true, reach: 120, density: 1, castMinH: 1 }, off: { on: false } }[S.cover];
+      // (DEBRIS-SHADOW 26 Oct: castMinDebris - the debris's own shadow floor, the user's "no shadows on small ones")
+      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35, castMinDebris: 1.0 }, lean: { on: true, reach: 120, density: 1, castMinH: 1, castMinDebris: 1.0 }, off: { on: false } }[S.cover];
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
     // THE GRASS FIELD's column (GRASS-DENSE G2563/G2564/G2567, GRASS-STUDY §4.7): full = the gamer row (near 15 m, gone at 90, the AGL
@@ -624,7 +640,7 @@
     if (!(Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length)) return false;
     const cur = W.FLYDIY_WORLD || 'none';
     H.row(body, 'world');
-    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
+    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : w.id === 'testfield' ? 'one runway, its hangar and endless flat ground: the field the test flight flies (G3790)' : 'the island from the data: its own field, dock and village' })),
       o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
     H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the scenery editor’s record).');
     return true;

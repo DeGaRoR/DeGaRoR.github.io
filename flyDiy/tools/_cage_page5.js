@@ -9,20 +9,28 @@
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
-// the crew models the select offers: the ATD first, then every registered
-// character (52_char_codec.js CHAR_REG; empty in a page without them)
-// (G204.1) 0 = 'mixed crew': the characters rotate through the seats, no
-// two alike while there are enough of them; 1 = the ATD; 2.. = one person
-const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
+// who the co-pilot's select offers (G204.1; G3700): 0 = 'mixed crew' (the
+// characters rotate through the seats, no two alike while there are enough
+// of them), 1.. = one registered character (52_char_codec.js CHAR_REG; none
+// in a page without them). The PILOT is not a choice: the racer, always
+// (2026-09-07, the user: 'the car driver in red combi, with the helmet';
+// 25 Oct: 'it will always be them by default') - _cage_crew.js seats them.
+const CAB_NAMES = ['mixed crew (rotate)'].concat(
   typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
-// THE DEFAULT PILOT IS NAMED, NOT NUMBERED (2026-09-07, the user: 'by default,
-// there is only the pilot, [...] the car driver in red combi, with the
-// helmet'): Ch20's position in the registry, whatever order the table is
-// in; mixed crew where no registry is loaded (the node gates)
-const WHO_DEFAULT = (() => {
-  const i = typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.indexOf('ch20') : -1;
-  return i >= 0 ? i + 2 : 0;
-})();
+// WINDOWS-FREE (2026-10-27): THE FREE QUAD'S CORNER ROWS, one station and one height a corner (side view, absolute
+// cage units like the row's own station), in the rounded rectangle's corner order so R1-R4 round them. Each follows
+// the rectangle the row's width / height / top width / top shift draw (_cage_gen.js cageQuadRect) until it is
+// unticked or dragged on the bench (_cage_ui.js: the corner handles); the keys are not defaults, so no file written
+// before them carries them.
+const QUAD_CORNER = ['fwd top', 'aft top', 'aft bottom', 'fwd bottom'];
+const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
+  pre + 'Q' + c + a, 'corner · ' + QUAD_CORNER[c - 1] + (a === 'Z' ? ' · station' : ' · height'),
+  a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
+  { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, dim: 'len',
+    follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
+                    return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
+    followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
+                 'bench - to place this corner (tick again: back to the rectangle)' }]));
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -152,23 +160,29 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
+    parkX: 0, parkY: 0, parkZ: 0,                // G2791: the parking brake's place (offsets; 0 = its dash seat)
+    fselX: 0, fselY: 0, fselZ: 0,                // G2791: the fuel selector's place (offsets; 0 = its wall seat)
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
-    pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
-    dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
-    pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, pilOn: 1,
+    pilElbows: 0.08, pilKnees: 0, pilRecline: 0,
+    cabWho: 0, pilFist: 0.5, pilIdle: 1,
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-    dumHandGrip: 0.075,
+    pilHandGrip: 0.075,
+    pilStickFwd: 0,              // G3875: the stick hand fore/aft (0 = where the grip puts it)
+    // G2797: the hands apart (0 = one setting for both, as always)
+    pilHandsApart: 0, pilFistL: 0.5, pilFistR: 0.5, pilGripL: 0.075, pilGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
-    // there is only the pilot'); it was full — what `dum2On 1` (retired,
-    // migrated in cageFromSpec) drew and billed — until then. A saved
+    // there is only the pilot'); it was full — what the retired all-seats
+    // switch (migrated in cageFromSpec) drew and billed — until then. A saved
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
+    pilotRear: 0,                                // G3515: absent from spec.cage at 0 (CAGE_ZERO_ABSENT)
     paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
-    paxSeatZ: 0, paxSize: 1, paxRecline: 0,
+    paxSeatZ: 0, paxRecline: 0,
   },
 
   // THE CURATED TREE — cage4's game-panel preview + the crew group.
@@ -197,7 +211,9 @@ window.CAGE_PAGE = {
         ['frNoseBotY', 'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'nose.botY' }],
         ['frNoseTopW', 'deck half-width',  0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.topW' }],
         ['frNoseBotW', 'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.botW' }],
-        ['noseLen',    'deck fore/aft (nose length)', 0.20, 2.50, 0.01, { dim: 'len' }],
+        // G2790 (the user's garage review, 18 Oct: "the slider 'deck fore/aft'
+        // is really the section's LENGTH"): the nose's size row, labelled so
+        ['noseLen',    'length', 0.20, 2.50, 0.01, { dim: 'len' }],
         ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
       ], 'open'],
       ['windscreen frame', [
@@ -418,6 +434,21 @@ window.CAGE_PAGE = {
       // the nose (cageSpec), so this row says what a nose-mounted build is
       // and gets out of the way of the ones that have no choice.
       ['noseFinish', 'nose front',    0, 1, 1, ['firewall', 'aerodynamic']],
+      // G3510 (NEW-SHAPES-1): THE ROUND BODY — G19's aero nose, a row again.
+      // The fuselage's full rings run on through the windscreen zone to the
+      // front: no fold, no deck, one shapable cylinder (the frames and the
+      // roundness rows act on every ring of it). A firewall front ends in the
+      // engine face, an aerodynamic one in G19's point. The key keeps its
+      // G19 name (`aeroNose`: it rides every saved build); the label says
+      // what it builds.
+      ['aeroNose',  'body front',     0, 1, 1, ['windscreen fold', 'full rings (round body)']],
+      ['aeroWsLen', 'forward section length', 0.20, 2.50, 0.01, { when: P => +P.aeroNose, dim: 'len' }],
+      ['aeroLen',   'front cone length', 0.10, 2.50, 0.01, { when: P => +P.aeroNose, dim: 'len' }],
+      ['aeroTipW',  'front width ×',  0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
+      ['aeroTipH',  'front height ×', 0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
+      ['aeroDroop', 'front droop',   -0.30, 0.60, 0.005, { when: P => +P.aeroNose, dim: 'len' }],
+      // NEW-SHAPES-1: the front's own bottom roundness (no default: a build that never set it keeps the shell's)
+      ['aeroRound', 'front roundness (bottom)', 0, 1, 0.01, { when: P => +P.aeroNose }],
       // THE CAP'S LOFT, moved out of `2 - engine` with it: how many rings the
       // front closes with, how they ease into the last one and how far they
       // bulge on the way. `cowlLoops` runs to 5 now — an aerodynamic nose is
@@ -427,6 +458,10 @@ window.CAGE_PAGE = {
       // T2.3 (84): the bottom's own ease (-1 = the deck's)
       ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
+      // G3579 (DC3-2, the user 28 Oct): THE NOSE'S ROUNDNESS, one dial from a cone (0, the loft as it always was) to a
+      // soft dome (1: the rings on a quarter-ellipse, spaced along the arc); with the tip collapsed and 'tip sharpness' 0
+      // the tip has no point and no crease. Absent 0: every build before, ring for ring
+      ['noseDome',  'nose roundness (cone → dome)', 0, 1, 0.01, { when: P => +P.noseFinish, absent: 0 }],
     ]],
     ['4 · cabin', [
       ['dimensions', [
@@ -440,7 +475,14 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
-        ['bubble',    'bubble glass',   0, 1, 1],
+        // G2770 (the user: "the bubble glass option is misleading. It's more
+        // like an additional adjourning, that should be hidden in real canopy
+        // bubble mode"): the row hides under a bubble canopy (its value kept)
+        // G3579 (DC3-2, the user 28 Oct: "the not so well-named 'bubble canopy' ... rename that option ... into 'glass
+        // ceiling'"): the label only - the key stays `bubble` (it rides every saved build), and the canopy's own
+        // 'bubble' (canopy 3) is the one that builds a bubble canopy
+        ['bubble',    'glass ceiling',  0, 1, 1,
+         { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
         ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
@@ -500,6 +542,26 @@ window.CAGE_PAGE = {
         ['winDepth',  'window recess',  0.00, 0.06, 0.002,
          { when: P => +P.winFrameW > 0, dim: 'len' }],
       ], 'open'],
+      // G3511 (NEW-SHAPES-1, the user: "the sections holding the pilot and
+      // second person should be identified as proper sections, and the
+      // fuselage openings should be clean"): THE COCKPIT'S OWN OPENING, and the
+      // rows every opening shares (each passenger bay opens on its own row).
+      // (The shared rows show for the cockpit and bays 1-3: a 4th bay opened
+      // alone keeps them hidden — GATE PARTS' one-flip sweep cannot reach a
+      // switch that needs four bays AND reads as a discriminator.)
+      ['opening', [
+        ['cpOpen',    'open at the top', 0, 1, 1, ['closed', 'open']],
+        ['openCut',   'opening cut',    0, 1, 1, ['above the ceiling rail', 'above the waistband'],
+         { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0) }],
+        ['openFore',  'decking ahead',  0.00, 0.60, 0.005, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openAft',   'decking behind', 0.00, 0.60, 0.005, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openRim',   'coaming roll',   0.00, 0.05, 0.001, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openScreen','screens',        0, 1, 1, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0) }],
+        ['openScreenH', 'screen height', 0.05, 0.50, 0.005,
+         { when: P => (P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0))(P) && +P.openScreen, dim: 'len' }],
+        ['openScreenRake', 'screen rake', 0, 70, 1,
+         { when: P => (P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0))(P) && +P.openScreen }],
+      ], 'open'],
       ['doors', [
         ['doorOn',    'pilot door',     0, 1, 1],
         ['doorSill',  'door sill',      0, 0.25, 0.002,
@@ -515,7 +577,9 @@ window.CAGE_PAGE = {
         // reveal's depth when that pass is on)
         ['doorDepth', 'door recess',    0, 0.06, 0.001,
          { when: P => +P.doorOn, dim: 'len' }],
-        ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
+        // G2770: the label says what it does (it was 'deep jamb' - the user
+        // asked what that is): the door cut on down through the floor band
+        ['doorDeep',  'door reaches the floor', 0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung
         ['doorGone',  'door removed',   0, 1, 1,
@@ -530,6 +594,13 @@ window.CAGE_PAGE = {
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashCrown', 'dash crown',     0, 0.30, 0.005,
          { when: P => +P.intOn && +P.intDash }],
+        // G3340 THE ARCH: the glareshield, its lip and two cheeks with a
+        // straight forward edge, open underneath (the default for new
+        // builds); 'box' is the closed dash every older build keeps
+        ['dashStyle', 'dash style',     0, 1, 1, ['box', 'arch'],
+         { when: P => +P.intOn && +P.intDash }],
+        ['dashLegs',  'arch legs',      0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
+         { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
       ]],
       // THE SHOULDER (G325): the sill trim — an L-section sheet from the
       // window transition W inboard and H down, from the dash aft. On for
@@ -596,7 +667,7 @@ window.CAGE_PAGE = {
       ['aftRingWinW','window width',   -1, 0.25, 0.005],
       ['aftRingScrW','screen width',   -1, 0.25, 0.005],
     ], { when: P => +P.mirror }],
-    // THE CREW LAYER (cage5): seats, controls, dummy — a disjoint THREE
+    // THE CREW LAYER (cage5): seats, controls, occupants — a disjoint THREE
     // layer over the cage (never in the mesh, the gates or the OBJ).
     ['4c · crew & controls', [
       ['seats', [
@@ -608,11 +679,20 @@ window.CAGE_PAGE = {
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
         ['seatLayout','row',            0, 1, 1, ['single', 'side-by-side']],
-        ['seatZ',     'fore / aft', -0.50, 0.50, 0.005],
-        ['seatH',     'up / down (squab height)', 0.06, 0.50, 0.005],
-        ['seatRake',  'back recline',   5, 45, 0.5],
-        ['seatTilt',  'squab recline',  0, 30, 0.5],
-        ['seatGap',   'sbs seat gap',   0.18, 0.45, 0.005,
+        // G3515 (NEW-SHAPES-1, the user: "have an option in the seat section to
+        // designate back seat as pilot seat"): a tandem's PILOT IN BAY 1 - the
+        // stick, the pedals, the throttle and the panel go with them; the front
+        // seat takes bay 1's passenger ('bay 1 seated'), with nothing in front
+        ['pilotRear', 'pilot\'s seat', 0, 1, 1, ['the front (cockpit)', 'the rear (bay 1)'],
+         { when: P => +P.seatLayout !== 1 && +P.paxCount >= 1 }],
+        // DC3-2 (G3573, the user 25 Oct: "a very flexible seat height ... for such a big plane, big freedom on the seat
+        // arrangements and sliders"): the ranges a 29 m airliner's cockpit needs (a high cockpit floor, a long one), the
+        // light aeroplanes' values inside them - a range only clamps the slider, so no saved build moves
+        ['seatZ',     'fore / aft', -1.50, 1.50, 0.005],
+        ['seatH',     'up / down (squab height)', 0.00, 1.50, 0.005],
+        ['seatRake',  'back recline',   0, 60, 0.5],
+        ['seatTilt',  'squab recline',  -10, 40, 0.5],
+        ['seatGap',   'sbs seat gap',   0.18, 1.20, 0.005,
          { when: P => +P.seatLayout === 1 }],
       ], 'open'],
       // the second seat's own set — the sentinel (-1 = follows the front
@@ -623,14 +703,22 @@ window.CAGE_PAGE = {
       // above). `paxSeatZ` places the row inside its bay off the bay's own
       // aft ring, the way `seatZ` places the pilot's off the cockpit's.
       ['passenger seats', [
-        ['paxSeatZ',  'fore / aft in bay', -0.50, 0.50, 0.005,
+        ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
-        ['seat2H',    'squab height',  -1, 0.50, 0.005,
+        ['seat2H',    'squab height',  -1, 1.50, 0.005,
          { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
-        ['seat2Rake', 'back recline',  -1, 45, 0.5,
+        ['seat2Rake', 'back recline',  -1, 60, 0.5,
          { link: { sentinel: -1, from: 'seatRake', test: v => v < 0 } }],
-        ['seat2Tilt', 'squab recline', -1, 30, 0.5,
+        ['seat2Tilt', 'squab recline', -1, 40, 0.5,
          { link: { sentinel: -1, from: 'seatTilt', test: v => v < 0 } }],
+        // G3573: ROWS IN A BAY - a bay seated one row (its back off the bay's aft ring) is every build before; an airliner's
+        // bay holds several at a pitch (the DC-3's 0.86-0.97 m, 7 rows of 2 + 1 in 9 m). Rows that would stand past the
+        // bay's front ring are not drawn. NOT IN THE DEFAULTS TABLE (absent = one row, the pitch 0.86 m, the aisle 0.45 m,
+        // a seat 0.50 m wide): a build that never moved them saves no key
+        ['paxRows',   'rows in a bay',  1, 8, 1, { when: P => +P.crewOn && +P.paxCount > 0, absent: 1 }],
+        ['paxPitch',  'row pitch',      0.55, 1.50, 0.005, { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxRows > 1, absent: 0.86 }],
+        ['paxAisle',  'aisle width',    0.20, 1.20, 0.005, { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxAbreast >= 4, absent: 0.45 }],
+        ['paxSeatW',  'seat width',     0.38, 0.80, 0.005, { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxAbreast >= 4, absent: 0.50 }],
       ], { when: P => +P.crewOn && +P.paxCount > 0 }],
       // ONE controls folder (G28: the three position subfolders merged —
       // each control's position rows sit right under its selector,
@@ -641,16 +729,17 @@ window.CAGE_PAGE = {
         ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
                                                   'none']],
-        ['stickX',    'stick left',    -0.45, 0.45, 0.005,
+        // (G3573: the controls follow a seat that may now stand a metre higher and further: their ranges doubled)
+        ['stickX',    'stick left',    -0.90, 0.90, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
-        ['stickY',    'stick up',      -0.30, 0.45, 0.005,
+        ['stickY',    'stick up',      -0.60, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
-        ['stickZ',    'stick fwd',     -0.35, 0.50, 0.005,
+        ['stickZ',    'stick fwd',     -0.80, 1.00, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
-        ['stickLen',  'stick length',   0.18, 0.75, 0.005,
+        ['stickLen',  'stick length',   0.10, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
         // G446.2: the wheel's stand-off from the dash face (the hub's face to the plate)
-        ['yokeGap',   'yoke off the dash', 0.04, 0.40, 0.005,
+        ['yokeGap',   'yoke off the dash', 0.02, 0.80, 0.005,
          { when: P => +P.crewOn && +P.ctlStick === 1 }],
         // a double bend: the grip this much nearer the seat than the base
         ['stickCrank', 'stick crank',   0, 0.20, 0.005,
@@ -661,21 +750,21 @@ window.CAGE_PAGE = {
                                                   'none',
                                                   'on the shoulder',       // G344
                                                   'through the shoulder']],
-        ['thrX',      'throttle left', -0.60, 0.60, 0.005,
+        ['thrX',      'throttle left', -1.20, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
-        ['thrY',      'throttle up',   -0.35, 0.45, 0.005,
+        ['thrY',      'throttle up',   -0.70, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
-        ['thrZ',      'throttle fwd',  -0.45, 0.60, 0.005,
+        ['thrZ',      'throttle fwd',  -1.00, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
-        ['thrLen',    'lever length',   0.06, 0.40, 0.005,
+        ['thrLen',    'lever length',   0.04, 0.80, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
         ['ctlPed',    'pedals',         0, 2, 1, ['none', 'tube on a bar',   // G331
                                                   'pierced alloy plate']],
-        ['pedalZ',    'pedal distance', 0.60, 1.40, 0.005,
+        ['pedalZ',    'pedal distance', 0.40, 2.00, 0.005,
          { when: P => +P.crewOn && +P.ctlPed }],
-        ['pedalH',    'pedal height',   0.02, 0.40, 0.005,
+        ['pedalH',    'pedal height',   0.00, 1.20, 0.005,
          { when: P => +P.crewOn && +P.ctlPed }],
-        ['pedalSpread','pedal spread',  0.05, 0.32, 0.005,
+        ['pedalSpread','pedal spread',  0.05, 0.60, 0.005,
          { when: P => +P.crewOn && +P.ctlPed }],
         ['pedalAngle','pedal angle',    0, 60, 1,
          { when: P => +P.crewOn && +P.ctlPed }],
@@ -684,62 +773,89 @@ window.CAGE_PAGE = {
         // spot beside the seat (+x the pilot's left, +z forward); the height
         // follows the floor at the new station, the base plate stays inside
         // the wall
-        ['flapX',     'flap lever left', -0.40, 0.40, 0.005,
+        ['flapX',     'flap lever left', -0.80, 0.80, 0.005,
          { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
-        ['flapZ',     'flap lever fore', -0.40, 0.40, 0.005,
+        ['flapZ',     'flap lever fore', -0.80, 0.80, 0.005,
          { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
         // G331: the trim wheel's own place (offsets from its wall seat: +x
         // the pilot's left, +y up, +z forward)
-        ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
-        ['trimY',     'trim wheel up',   -0.30, 0.30, 0.005],
-        ['trimZ',     'trim wheel fwd',  -0.45, 0.45, 0.005],
+        ['trimX',     'trim wheel left', -0.60, 0.60, 0.005],
+        ['trimY',     'trim wheel up',   -0.60, 1.20, 0.005],
+        ['trimZ',     'trim wheel fwd',  -0.90, 0.90, 0.005],
+        // G2791 (the user's garage review, 18 Oct: "controls for the parking
+        // brake's location, and for any other dashboard control"): the two
+        // that had no place of their own, as offsets from where they are
+        // drawn today (+x the pilot's left, +y up, +z forward)
+        ['parkX',     'parking brake left', -0.60, 0.60, 0.005, { when: P => +P.crewOn }],
+        ['parkY',     'parking brake up',   -0.40, 0.80, 0.005, { when: P => +P.crewOn }],
+        ['parkZ',     'parking brake fwd',  -0.40, 0.60, 0.005, { when: P => +P.crewOn }],
+        ['fselX',     'fuel selector left', -0.60, 0.60, 0.005, { when: P => +P.crewOn }],
+        ['fselY',     'fuel selector up',   -0.60, 0.80, 0.005, { when: P => +P.crewOn }],
+        ['fselZ',     'fuel selector fwd',  -1.20, 1.20, 0.005, { when: P => +P.crewOn }],
         ['consoleOn', 'centre console', 0, 1, 1],
         // G331: THE FLOOR — cut from the cabin at the sill's height (+ the
         // lift); every seat, pedal and console stands on it
         ['floorOn',   'floor',          0, 1, 1],
         ['floorLift', 'floor over sill', -0.10, 0.20, 0.005,
          { when: P => +P.crewOn && +P.floorOn }],
+        // G3570 (DC3-2, the user 24 Oct: "in such plane, I guess the floor is quite high up in the fuselage, with the
+        // storage below ... a control to get the floor higher up. Right now, pilots and passengers are buried"): THE
+        // CABIN FLOOR'S HEIGHT, metres. It lifts the door sills (so the doors, the floor cut at the sill, every seat,
+        // pedal and occupant on it follow), the step's climb, and the flown occupants' and floor's mass with them
+        // (cabin.floorUp, 61_gen_frame). NOT IN THE DEFAULTS TABLE: a build that never moved it carries no key (G377's
+        // re-save writes every row the page knows - this one only once it is set), so no saved build changes by a byte;
+        // the row shows 0 while it is absent (`absent`, _cage_ui mkRow / syncSliders)
+        ['floorUp',   'cabin floor height', 0, 1.20, 0.005, { when: P => +P.crewOn, absent: 0 }],
       ], 'open'],
       // G180: WHO IS ABOARD is per SECTION. The cockpit's second seat is
-      // here with the pilot dummy; each passenger bay's row is the bay's own
+      // here with the pilot; each passenger bay's row is the bay's own
       // (`5 · passengers` below). A filled seat is a body drawn AND 80 kg
-      // billed where the seat is; `dum2On` (every seat filled or none) is
-      // retired and migrated in cageFromSpec.
+      // billed where the seat is; the retired all-seats switch (every seat
+      // filled or none) is migrated in cageFromSpec.
       ['aboard', [
-        ['dumOn',     'pilot dummy',    0, 1, 1],
-        // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
-        // the same list — mixed crew (the characters rotate through every
-        // seat aboard, the passengers included), the ATD-01, or one declared
-        // character (src/chars/, tools/chars_table.py order — the manifests
-        // load ahead of this page, so the list is read here, once)
-        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES],
+        // the pilot (the racer, G3700: no select) is seated and billed
+        ['pilOn',     'pilot aboard',   0, 1, 1],
+        // WHO SITS BESIDE THEM (G204/G204.1): mixed crew (the characters
+        // rotate through every seat aboard, the passengers included) or one
+        // declared character (src/chars/, tools/chars_table.py order — the
+        // manifests load ahead of this page, so the list is read here, once)
         ['cabOcc',    'co-pilot seated', 0, 1, 1,
          { when: P => +P.crewOn && +P.seatLayout === 1 }],
-        ['copWho',    'co-pilot',       0, WHO_NAMES.length - 1, 1, WHO_NAMES,
+        ['cabWho',    'co-pilot',       0, CAB_NAMES.length - 1, 1, CAB_NAMES,
          { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc }],
       ], 'open', { when: P => +P.crewOn }],
       ['pilot pose', [
-        ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
-                                                  '50th %ile — 1.75 m',
-                                                  '95th %ile — 1.88 m']],
-        ['dumElbows', 'elbows in/out', -0.25, 0.25, 0.005],
-        ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
-        ['dumRecline','recline offset',-15, 25, 0.5],
-        ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        // G3700: no stature row - every character sits at its own height
+        ['pilElbows', 'elbows in/out', -0.25, 0.25, 0.005],
+        ['pilKnees',  'knees in/out',  -0.25, 0.25, 0.005],
+        ['pilRecline','recline offset',-15, 25, 0.5],
+        ['pilHandGrip','hand on grip',  0, 0.16, 0.005,
+         { when: P => !+P.pilHandsApart }],
         // G205: how far the fingers close (0 flat, 1 a fist; a character
         // only), and the pilot's breathing/glancing amplitude off the
         // sitting-idle clip (0 = a statue)
-        ['dumFist',   'fist closed',    0, 1, 0.05],
-        ['dumIdle',   'idle motion',    0, 1, 0.05],
-        ['dumMarkers','eye point',      0, 1, 1],
+        ['pilFist',   'fist closed',    0, 1, 0.05,
+         { when: P => !+P.pilHandsApart }],
+        // G3875 (the user, 29 Oct: "the hand control for the stick should allow for some fore-aft adjustment,
+        // because right now the stick is not perfectly held"): metres along the pilot's own forward, the stick hand only
+        ['pilStickFwd', 'stick hand fore/aft', -0.08, 0.08, 0.005],
+        // G2797 (the user's garage review, 18 Oct: "hand controls applied per
+        // hand"): the two hands set apart - each one's fist and its place on
+        // the grip; off, both follow the two rows above
+        ['pilHandsApart', 'each hand its own', 0, 1, 1],
+        ['pilFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.pilHandsApart }],
+        ['pilFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.pilHandsApart }],
+        ['pilGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.pilHandsApart }],
+        ['pilGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.pilHandsApart }],
+        // G2798 (the user, 19 Oct: "put the movement at 1 by default, and it's
+        // fine"): the pilot's idle motion is 1 in the defaults and every preset
+        // (it was 0.5); a build that saved its own value keeps it
+        ['pilIdle',   'idle motion',    0, 1, 0.05],
       ], 'open', { when: P => +P.crewOn }],
-      // one pose for every passenger (the user: "all the passenger and dummy
-      // positions will be the same for all dummies"); a passenger holds no
-      // control, so the reach rows above do not apply
+      // one pose for every passenger (G180, the user: every passenger sits
+      // the same way); a passenger holds no control, so the reach rows above
+      // do not apply
       ['passenger pose', [
-        ['paxSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
-                                                  '50th %ile — 1.75 m',
-                                                  '95th %ile — 1.88 m']],
         ['paxRecline','recline offset',-15, 25, 0.5],
         // G205: the feet, placed without pedals — fore-aft from the seat
         // back, height over the bay floor, half-spread (metres); and the
@@ -766,9 +882,13 @@ window.CAGE_PAGE = {
       ['row 1', [
         ['paxWinN',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 1 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 1).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['paxWinShape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.paxWinN > 0 }],
+        ['paxWinShape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.paxWinN > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('paxWin'),
         ['paxWinZ',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinPitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.paxWinN > 1, dim: 'len' }],
         ['paxWinY',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
@@ -776,23 +896,27 @@ window.CAGE_PAGE = {
         ['paxWinH',     'height',          0.05, 1.0, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinTopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.paxWinN > 0 && !+P.paxWinShape }],
         ['paxWinSkew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
-        ['paxWinR',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
+        ['paxWinR',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len' }],
         ['paxWinR1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 2 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 2).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['win2Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win2N > 0 }],
+        ['win2Shape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.win2N > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('win2'),
         ['win2Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win2N > 1, dim: 'len' }],
         ['win2Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
@@ -800,23 +924,27 @@ window.CAGE_PAGE = {
         ['win2H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win2N > 0 && !+P.win2Shape }],
         ['win2Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
-        ['win2R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
+        ['win2R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len' }],
         ['win2R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 3 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 3).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['win3Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win3N > 0 }],
+        ['win3Shape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.win3N > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('win3'),
         ['win3Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win3N > 1, dim: 'len' }],
         ['win3Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
@@ -824,26 +952,30 @@ window.CAGE_PAGE = {
         ['win3H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win3N > 0 && !+P.win3Shape }],
         ['win3Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
-        ['win3R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
+        ['win3R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len' }],
         ['win3R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
       ], {}],
     ]],
     ['5 · passengers', [
-      ['paxCount',  'pax bays',        0, 4, 1],
+      // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)
+      ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
       // before (a bay seats the cockpit's row); a single seat behind a
       // side-by-side cockpit, a pair behind a tandem one, or a bench of three
-      ['paxAbreast','bay seating',     0, 3, 1, ['as the cockpit', 'single', 'pair', 'bench of three'],
+      // G3573: AN AIRLINER'S ROW - two blocks either side of an aisle (2 + 1 the DC-3's, 2 + 2, 3 + 2, 3 + 3), the seat width
+      // and the aisle their own rows ('4c · crew & controls' passenger seats); 0-3 are every build before, to the bit
+      ['paxAbreast','bay seating',     0, 7, 1, ['as the cockpit', 'single', 'pair', 'bench of three',
+                                              '2 + 1, an aisle', '2 + 2, an aisle', '3 + 2, an aisle', '3 + 3, an aisle'],
        { when: P => +P.paxCount > 0 }],
       ['winSillPax','win sill',        0, 0.9, 0.01,
        { when: P => +P.paxCount > 0 && !+P.paxWinN }],
@@ -862,14 +994,38 @@ window.CAGE_PAGE = {
       // crew layer clamps, and the join bills the seats actually filled.
       // (T2.3 (132): 'three' fills a bench; the crew layer clamps to the
       // bay's own seating as before)
-      ['paxOcc1',   'bay 1 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
+      // G3511: each bay its own opening (the coaming and the screens are the
+      // cabin's 'opening' rows, shared)
+      ['paxOpen1',  'bay 1 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 1 }],
+      ['paxOpen2',  'bay 2 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 2 }],
+      ['paxOpen3',  'bay 3 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 3 }],
+      ['paxOpen4',  'bay 4 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 4 }],
+      // (G3573: a COUNT, 0-48 - rows x the row's seats - filled from the bay's first row (by its aft ring) forward, each row from the aisle out; the old
+      // dropdown's 0-3 are the same numbers)
+      ['paxOcc1',   'bay 1 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 1 }],
-      ['paxOcc2',   'bay 2 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
+      ['paxOcc2',   'bay 2 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 2 }],
-      ['paxOcc3',   'bay 3 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
+      ['paxOcc3',   'bay 3 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
-      ['paxOcc4',   'bay 4 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
+      ['paxOcc4',   'bay 4 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
+      ['paxOcc5',   'bay 5 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 5, absent: 0 }],
+      ['paxOcc6',   'bay 6 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 6, absent: 0 }],
+      ['paxOcc7',   'bay 7 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 7, absent: 0 }],
+      ['paxOcc8',   'bay 8 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 8, absent: 0 }],
+      ['paxOcc9',   'bay 9 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 9, absent: 0 }],
+      ['paxOcc10',  'bay 10 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 10, absent: 0 }],
+      ['paxOcc11',  'bay 11 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 11, absent: 0 }],
+      ['paxOcc12',  'bay 12 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 12, absent: 0 }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The
@@ -898,7 +1054,10 @@ window.CAGE_PAGE = {
       // G274.1 (the user: "I still miss the option to get the booms fore/aft
       // relative to the wing"): the root's station against the trailing
       // edge, metres, aft positive (the frame reads the drawn root, boomX0)
-      ['boomDz',    'fore / aft (from the trailing edge)', -1.0, 1.0, 0.005,
+      // FLAGSHIP (the user, 2 Nov: "for the twin booms, I need sliders fore-aft going further ... getting the tip of
+      // the boom to the wing leading edge"): -1.0 was a number, not a reason. The slider runs to -3.5; the wing layer
+      // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
+      ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end
@@ -946,7 +1105,7 @@ window.CAGE_PAGE = {
       // (2026-09-04: wherever the pod ENDS at the bulkhead — a rod boom or twin
       // booms of either construction — and no pusher sits on it)
       ['aeroAftOn', 'aero aft',        0, 1, 1,
-       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && Math.round(P.engMount || 0) !== 1 }],
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && ![1, 4].includes(Math.round(P.engMount || 0)) }],
       ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn, dim: 'len' }],
       ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,
@@ -979,6 +1138,10 @@ window.CAGE_PAGE = {
       ['boomMidT',  'pod ring station', 0.1, 0.9, 0.01,
        { when: P => !+P.boomStyle && +P.boomMidOn }],
       ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01,
+       { when: P => !+P.boomStyle && +P.boomMidOn }],
+      // the pinch in plan alone (unset = the pod pinch): a boom whose side lines run straight to the post while its
+      // sides stay full and close late (the DH.82's, measured against its reference model)
+      ['boomMidPinchW','pod pinch (plan)', 0.2, 1.6, 0.01,
        { when: P => !+P.boomStyle && +P.boomMidOn }],
     ]],
     // POLYCOUNT (user, G28): every density dial in one place — grouped,
@@ -1036,8 +1199,8 @@ window.CAGE_PAGE = {
       cowlLoops: 2, crBand: 3, crCap: 3, crNoseCap: 3, crSill: 0,
       crewOn: 1, ctlPed: 1, ctlStick: 0, ctlThr: 2,
       dashBack: 0.1, dashCrease: 3, dashDepth: 0.13, doorSill: 0.094,
-      cabOcc: 0, dumElbows: 0, dumKnees: 0, dumMarkers: 1, dumOn: 1,
-      dumRecline: 0, dumSize: 1, explodeD: 0, halfW: 0.525, intCons: 0,
+      cabOcc: 0, pilElbows: 0, pilKnees: 0, pilOn: 1,
+      pilRecline: 0, explodeD: 0, halfW: 0.525, intCons: 0,
       intOn: 1, mirror: 1, noseCrown: 0.16, noseFinish: 1, noseH: 1.07,
       noseLen: 0.97, noseTip: 0.97, noseW: 0.9, paxLen: 0.91,
       paxPillarW: 0.115, pedalH: 0.27, pedalSpread: 0.09, pedalZ: 0.965,
@@ -1252,12 +1415,13 @@ window.CAGE_PAGE = {
       stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0, trimX: 0,
       trimY: 0, trimZ: 0, flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0,
       thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18,
-      pedalSpread: 0.1, pedalAngle: 25, dumOn: 1, dumSize: 1, dumElbows: 0.08,
-      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 2, copWho: 5,
-      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      pedalSpread: 0.1, pedalAngle: 25, pilOn: 1, pilElbows: 0.08,
+      pilKnees: 0, pilRecline: 0, cabWho: 4,
+      fpLegacy: { pilotWho: 2 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
+      pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-      dumHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
-      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 6.95,
+      pilHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxRecline: 0, fltL: 6.95,
       fltStep: 0.53, fltB: 0.68, fltBeta: 29, fltBetaA: 12.5, fltHs: 0.115,
       fltAft: 8.5, fltFlat: 0.59, fltBow: 0.43, fltBowB: 0.39, fltStern: 0.73,
       fltSide: 0.5, fltZ: -0.22, fltDrop: 1.08, fltInc: -0.5, fltTrack: 0.8,
@@ -1482,12 +1646,13 @@ window.CAGE_PAGE = {
       consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
       trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
       thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.88, pedalH: 0.17,
-      pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1, dumElbows: 0.01,
-      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0, copWho: 0,
-      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      pedalSpread: 0.1, pedalAngle: 47, pilOn: 1, pilElbows: 0.01,
+      pilKnees: 0, pilRecline: 0, cabWho: 0,
+      fpLegacy: { pilotWho: 0 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
+      pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-      dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
-      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 4.3,
+      pilHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxRecline: 0, fltL: 4.3,
       fltStep: 0.54, fltB: 0.67, fltBeta: 20, fltBetaA: 20, fltHs: 0.045,
       fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36, fltBowB: 0.15, fltStern: 0.75,
       fltSide: 0.22, fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.8,
@@ -1704,12 +1869,13 @@ window.CAGE_PAGE = {
       consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
       trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
       thrX: 0.04, thrY: 0.14, thrZ: 0, thrLen: 0.16, pedalZ: 0.945,
-      pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1,
-      dumElbows: 0.01, dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0,
-      copWho: 0, dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0,
+      pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, pilOn: 1,
+      pilElbows: 0.01, pilKnees: 0, pilRecline: 0,
+      cabWho: 0, pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0,
+      fpLegacy: { pilotWho: 0 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
       swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0,
-      paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
-      paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045, paxSize: 1,
+      paxFeetX: 0.14, paxIdle: 1, pilHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
+      paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045,
       paxRecline: 0, fltL: 4.3, fltStep: 0.54, fltB: 0.67, fltBeta: 20,
       fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36,
       fltBowB: 0.15, fltStern: 0.75, fltSide: 0.22, fltZ: 0, fltDrop: 0.55,
@@ -1920,12 +2086,13 @@ window.CAGE_PAGE = {
       yokeGap: 0.16, floorOn: 1, floorLift: 0, trimX: 0, trimY: 0, trimZ: 0,
       flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0,
       thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18, pedalSpread: 0.1, pedalAngle: 25,
-      dumOn: 1, dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0,
-      dumMarkers: 1, pilotWho: 2, copWho: 0, dumFist: 0.75, dumIdle: 0.5,
+      pilOn: 1, pilElbows: 0.08, pilKnees: 0, pilRecline: 0,
+      cabWho: 0, pilFist: 0.75, pilIdle: 1,
+      fpLegacy: { pilotWho: 2 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
       swMaster: 0, swAlt: 0, swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.67,
-      paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.045, cabOcc: 0,
+      paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, pilHandGrip: 0.045, cabOcc: 0,
       paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.185,
-      paxSize: 1, paxRecline: 0, fltPreset: 15, fltDetail: 1, fltPaddle: 1,
+      paxRecline: 0, fltPreset: 15, fltDetail: 1, fltPaddle: 1,
       fltRudder: 1, fltL: 4.3, fltStep: 0.54, fltB: 0.67,
       fltH: 0.45454545454545453, fltBeta: 20, fltBetaBow: 30.21892547607422,
       fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltAftCurve: 0.020273656845092775,
@@ -2415,7 +2582,6 @@ window.CAGE_PAGE = {
           floorLoop: { tint: 16764160 },
           gearLeg: { tint: 16764160 },
           pillarWindow: { tint: 16764160 },
-          dummy2: { tint: 6083612 },
           pillarPassenger: { tint: 16764160 },
           pillarTail: { tint: 16764160 },
           joint: { tint: 7368816 },
@@ -2651,7 +2817,6 @@ window.CAGE_PAGE = {
           floorLoop: { tint: 15854296 },
           gearLeg: { tint: 15854296 },
           pillarWindow: { tint: 15854296 },
-          dummy2: { tint: 14065948 },
           pillarPassenger: { tint: 15854296 },
           pillarTail: { tint: 15854296 },
           joint: { tint: 7368816 },

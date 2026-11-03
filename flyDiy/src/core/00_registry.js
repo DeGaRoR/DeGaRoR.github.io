@@ -500,6 +500,26 @@ const POWERPLANTS = {
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
+  // NEW-SHAPES-1 (the user, 27 Oct: "you may build a new engine ... DO a new model yourself"): THE CLERGET 9B, the
+  // Sopwith Camel's rotary - 130 hp (97 kW) at 1 250 rpm, direct drive, 173 kg, nine cylinders of 120 x 160 mm
+  // (16.3 L); flown as a radial (the case does not turn here, the power, the mass and the prop do). The prop is
+  // DERIVED as the catalogue's are: its static thrust 0.43 of the momentum ideal for 97 kW on a 2.59 m disc, the
+  // Camel's 8 ft 6 in wooden two-blade.
+  clerget9b_wood: {
+    price: 26000,
+    engine: { name: 'Clerget 9B', mass: 173, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 1250 },
+    prop:   { name: '2-blade wood 2.59 m', D: 2.59, Tstatic: 2130, kV2: 0.300 },
+  },
+  // THE ROLLS-ROYCE MERLIN 66 (the user, 27 Oct: "I would want a spitfire" - the Mk IX's engine): 1 720 hp
+  // (1 283 kW) at +18 lb boost, rated to 5 790 ft (1 765 m, the low supercharger gear: the armedconflicts.com
+  // data sheet), 1 640 lb dry (744 kg: the Merlin manual, airpages.ru; aarg.com.au), 3 000 rpm through the
+  // 0.477 reduction (2.096), a 60 deg upright V12 of 5.4 x 6.0 in, liquid cooled. The prop is DERIVED as the
+  // catalogue's are (genPropSynth at four blades, 3.27 m - the Mk IX's 10 ft 9 in Rotol, standard pitch).
+  merlin66_rotol4: {
+    price: 180000,
+    engine: { name: 'Rolls-Royce Merlin 66', mass: 744, powerW: 1283000, aspiration: 'super', critAlt: 1765, family: 'four', cooling: 'liquid', rpm: 3000, gear: 2.096 },
+    prop:   { name: 'Rotol 4-blade 3.27 m', D: 3.27, Tstatic: 17131, kV2: 0.8032 },
+  },
   rotec3600_std: {
     price: 30000,
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },
@@ -588,6 +608,20 @@ const POWERPLANTS = {
     price: 34000,
     engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
+  },
+  // THE 915's BIG BROTHER (FLAGSHIP, the user 2 Nov: "add the 916 iS engine row" - four aboard on floats wanted more
+  // than the 915's T/W 0.24). Rotax's product page (flyrotax.com/products/916-is-c, read 2 Nov 2026): take-off power
+  // 117 kW / 160 hp at 5 800 rpm (5 min; max continuous 101 kW / 137 hp at 5 500), full take-off power to 15 000 ft
+  // (4 600 m, rounded as the 915's), gearbox i = 2.54, 1 352 cm3 (84 x 61 mm, the 915's bore and stroke), 85.8 kg with
+  // the gearbox, overload clutch, turbocharger, intercooler and exhaust (the 915's 84 kg is the same scope).
+  // Wikipedia (en.wikipedia.org/wiki/Rotax_916_iS) rounds the power to 119 kW; the maker's 117 is used. Its fuel flow
+  // (10-20 % under the 915's at the same continuous power, the same page) is not a row: the family's SFC law reads
+  // 'four' for both. The prop is genPropSynth's at 1.80 m, 3 carbon blades, standard pitch, 117 kW (the 915's row
+  // through the same call gives its 2061 / 0.2090 exactly). Price: the game's ladder, the 915's +12 % with the power.
+  rotax916_carbon: {
+    price: 38000,
+    engine: { name: 'Rotax 916 iS', mass: 85.8, powerW: 117000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
+    prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2216, kV2: 0.2090 },
   },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
@@ -900,13 +934,13 @@ const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
   rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
-  verner7u_wood: 0.12, rotec3600_std: 0.12,
+  verner7u_wood: 0.12, rotec3600_std: 0.12, clerget9b_wood: 0.14,
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
   hirth508_wood: 0.35, argus10c_wood: 0.39,
   o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
-  io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
+  io720_hartzell3: 0.42, rotax915_carbon: 0.24, rotax916_carbon: 0.24, ranger440_wood: 0.50,
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
-  r985_hs2b20: 0.15, r1830_hs23e50: 0.16,
+  r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
@@ -940,6 +974,9 @@ const PAR = {
   rudderSign: 1,        // dr>0 = nose-left (probe reading corrected: +My = nose-LEFT)
   twSteer: 0.5,         // tailwheel deg per rudder deg
   fusCdA: [0.55, 1.30, 1.30], // body-axis CdA: axial, vertical, lateral
+  // G2080 ENGINE-TORQUE: the propeller's four moments (30_solver propMoments), each 1 = on, 0 = off; read once per
+  // makeSim, so an A/B sets it before building the sim. All on is the physics; the switch is the evidence's lever.
+  propFx: { torque: 1, gyro: 1, pfactor: 1, swirl: 1 },
 };
 
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;
