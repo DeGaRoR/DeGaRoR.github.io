@@ -106,6 +106,7 @@ const DESIGN_PART = {
   canopy: ['cabin', 'windscreen', 'pilotWindow', 'skylight'],
   mirror: ['fuselage', 'aftDeck', 'aftCabin', 'cabin'],
   seatType: ['seats', 'fit', 'cockpit'],
+  paxSeatType: ['seats', 'fit', 'cockpit'],
   intCons: ['structure', 'fuselage'],
   boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
   booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],
@@ -782,9 +783,25 @@ function closeBirth() {
 // G3384 (STORY-INTRO, the Game coordinator 20 Oct): NOT on a New career with the story - its starter (the user's Rufus) is
 // the aeroplane on the stand and T0's card says what to do (app.js's story half sets FLYDIY_STORY_STARTER; read at the
 // opening, after the boot)
+// NEW-PLANE-HOLD (A0, 3 Nov 20:15): THE RIGS NEVER SEE THE FIRST-LAUNCH CHOOSER. Since NEW-PLANE the front door is the
+// full-screen chooser, which HOLDS the render loop while it is up (app.js: "No rendering while choosing"); a rig boots a
+// FRESH profile (no build ever saved), so the chooser opened by itself over every such run and nothing was drawn behind
+// it - GATE CLOUD's census (FRAMECOST's node page on the Cub, empty storage) read 0 composite draws on current, gamer and
+// ultra. The same test the welcome screen and the back guard use (welcome.js isRig, gfx_settings.js G528: a driven or
+// headless browser - navigator.webdriver or HeadlessChrome - and the node page, which declares webdriver); ?newplane=1
+// forces the door for a rig that wants to look at it. A real first launch is unchanged.
+const isRig = () => {
+  try {
+    if (/[?&]newplane=1(&|$)/.test(window.location.search || '')) return false;
+    if (window.WELCOME && typeof window.WELCOME.RIG === 'boolean') return window.WELCOME.RIG;
+    const n = window.navigator || {};
+    return !!(n.webdriver || /HeadlessChrome/.test(n.userAgent || ''));
+  } catch (e) { return false; }
+};
 function maybeAutoOpen() {
   try {
     if (window.localStorage.getItem('flydiy.wip')) return;
+    if (isRig()) return;
     const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
     ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400));
   } catch (e) {}

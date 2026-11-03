@@ -90,6 +90,13 @@ PAGE.defaults = Object.assign({
   // structure picks (see the strut block below). Zero is the frame's own
   // answer, so a build that never touches them is the one physics asked for.
   wgStrutZ: 0, wgStrutX: 0,
+  // PILLAR-ANCHORS (2026-11-02): THE ANCHORS STAND ON THE PILLARS - the lift strut's foot, the float struts' roots,
+  // the boarding step and its kin, the door handle by its latch (tools/_pillar_site.js). 1 for EVERY build, saved
+  // ones included (the user's call, 3 Nov through A0: "ALL saved builds with doors get pilSnap 1"); absent from
+  // spec.cage at 1 (CAGE_DEFAULT_ABSENT: a saved build keeps every key it had), 0 written only when a builder
+  // turns it off. It moves drawings only: the frame already roots these loads on the pillars' rings
+  pilSnap: 1,
+  wgStrutPil: 0,                   // P4: the lift strut's pillar - 0 auto (the frame's own ring), 1 A, 2 B, 3 C
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   // G185: ailerons are a switch per plane (a biplane's upper plane may carry
@@ -279,6 +286,11 @@ const WING_ITEMS = [
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
     ['wgStrutX', 'in / out (foot)',   -0.25, 0.35, 0.01,
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
+    // PILLAR-ANCHORS: the anchors on the pillars (the strut's foot, the float struts, the step, the handle)
+    ['pilSnap', 'anchors', 0, 1, 1, ['as placed', 'on the pillars']],
+    // P4 (the user, 3 Nov): the lift strut's pillar, picked - the frame follows (bracing.strutAt)
+    ['wgStrutPil', 'strut pillar', 0, 3, 1, ['auto (the frame\'s)', 'A post', 'B pillar', 'C pillar'],
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) && Math.round(+P.pilSnap) === 1 }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -332,7 +344,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
@@ -980,6 +992,7 @@ PAGE.post = ctx => {
   wingPost(ctx);
   early.publish(ctx);
 };
+let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
 const wingPost = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
@@ -2065,6 +2078,40 @@ const wingPost = ctx => {
     const sx = Math.max(band.lo, Math.min(band.hi, want));
     const clamped = Math.abs(sx - want) > 1e-6;
 
+    // PILLAR-ANCHORS (2026-11-02, the user: "being able to snap the strut into the cabin pillar ... Pillars should
+    // really be the target for all fixation devices and anchors. We know perfectly where they are"). The frame
+    // roots the lift strut on a fuselage RING (61_gen_frame G59.2: the ring nearest the front spar, clamped to the
+    // box) and the join measures those rings off the pillars (noseGap ends on the B pillar's ring) - so the strut's
+    // load already goes into a pillar's node. What was not on the pillar was the FOOT AS DRAWN: an offset from this
+    // layer's own map of the node, snapped to the nearest skin (measured on the user's twin _4b: 0.15 m ahead of the
+    // node, on the pilot door's bottom, where the door scraped it). `pilSnap` 1 stands the foot ON the pillar
+    // carrying the frame's root ring (PILLAR_SITE: one record of the pillars for every layer) - the drawing rides
+    // the node it loads, nothing in the physics moves. The fore/aft trim then moves the wing fittings only (the
+    // band still bounds them). 0 (every build saved before the row): the offset, exactly as it was.
+    let pil = null, pilWhy = '';
+    STRUT_PIL = null;
+    const PSm = window.PILLAR_SITE;
+    if (Math.round(+P.pilSnap || 0) === 1 && PSm && CG2 && CG2.cageResolve && mesh) {
+      try {
+        const PSx = PSm.pillarsOf(mesh, CG2.cageResolve(spec), FS);
+        const DAT = window.CAGE_DATUM;
+        let cargoLen = 0;
+        try { const RS = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved(); cargoLen = +(RS && RS.fuse && RS.fuse.cargoLen) || 0; } catch (e) {}
+        const st = PSm.frameStations(PSx, { zFw: PSx.zFw != null ? PSx.zFw : DAT && DAT.fwOk ? DAT.zFw : null, cargoLen });
+        // P4 (the user, 3 Nov): A PICKED PILLAR - the A post, the B or the C pillar - when it carries a frame ring;
+        // the join writes that ring's station into bracing.strutAt and the frame roots the strut there (WYSIWYG
+        // still: the drawing and the load on the one ring). 0 = auto: the frame's own rule, read back
+        const pick = ['', 'A', 'B', 'C'][Math.round(+P.wgStrutPil || 0)] || '';
+        const picked = pick ? PSx.pillars.find(q => q.key === pick && q.frame) : null;
+        if (pick && !picked) pilWhy = 'the ' + pick + ' pillar carries no frame ring here - auto';
+        if (picked) { pil = picked; STRUT_PIL = { key: picked.key, zNode: picked.zNode }; }
+        else {
+          const rs = PSm.strutRootStation(st, nodeCage(refP)[2]);
+          pil = rs && rs.pillar ? rs.pillar : null;
+          pilWhy = (pilWhy ? pilWhy + '; ' : '') + (pil ? '' : rs ? 'its ring (' + rs.tag + ') has no pillar' : 'no pillar');
+        }
+      } catch (e) { pil = null; pilWhy = 'no pillar record'; }
+    }
     if (byRoot.size) {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
       let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0, onFrame = 0;
@@ -2072,8 +2119,12 @@ const wingPost = ctx => {
       STRUTS_OUT = strutMembers;       // G477: the tank layer's strut pods read them
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
-        const site = SG.strutSite(AF, nodeCageBody([rp[0] + sx, rp[1], rp[2]]),
-                                  0, P.wgStrutX || 0);
+        // on the pillar: the seed at the band's middle, the snap held inside the band (its z window the band's
+        // half-width), the lateral trim as before; off it, the frame node plus the trim
+        const seed = nodeCageBody([rp[0] + (pil ? 0 : sx), rp[1], rp[2]]);
+        if (pil) seed[2] = pil.zc;
+        const site = SG.strutSite(AF, seed, 0, P.wgStrutX || 0,
+                                  pil ? { win: Math.max(0.005, 0.5 * (pil.z1 - pil.z0) - 0.004) } : undefined);
         // NO SKIN, NO PLATE (2026-09-05, the user's report: the fittings
         // "look for a plate to attach to ... it fails in some cases,
         // resulting in a distorted mesh, extending into the cabin and the
@@ -2139,6 +2190,7 @@ const wingPost = ctx => {
           // clamped, which are not the same thing: a wing whose band has
           // collapsed clamps a moved slider back to zero, and that is exactly
           // the case the player most needs told about.
+          (Math.round(+P.pilSnap || 0) === 1 ? (pil ? ' · on the ' + pil.label : ' · NOT on a pillar (' + pilWhy + ')') : '') +
           (sx || clamped ? ' · fwd ' + (-sx).toFixed(2) +
                            (clamped ? '!' : '') : '') +
           // ...and whether the foot found skin to bolt a doubler to, or went
@@ -2436,6 +2488,7 @@ const wingPost = ctx => {
   }
   window.CAGE_WING = { surfs,
                        struts: STRUTS_OUT,   // G477: the drawn lift struts, {pin, tip} in cage metres
+                       strutPil: STRUT_PIL,  // PILLAR-ANCHORS P4: the picked pillar { key, zNode } (the join writes its station)
                        def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor, dx, dy, dxWin, dyWin }, group,
                        underAt, overAt, leAt, teAt, box: wbox,

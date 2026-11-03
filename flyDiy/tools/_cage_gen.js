@@ -7960,6 +7960,10 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
 const CAGE_ZERO_ABSENT = ['pilotRear'];
+// PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
+// stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
+// the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
+const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0 };
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 // CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S
@@ -7985,6 +7989,7 @@ function cageToSpec(P) {
     if (P[k] === undefined) continue;
     if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
+    if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -9736,7 +9741,7 @@ function cageFirewallZ(zOf) {
 
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
-                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, CAGE_DEFAULT_ABSENT, cageAnyOpen, cageOpenings,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
@@ -9749,7 +9754,7 @@ if (typeof module !== 'undefined')
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
-                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, CAGE_DEFAULT_ABSENT, cageAnyOpen, cageOpenings,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,

@@ -311018,6 +311018,30 @@ IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-ED
 BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
 TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
 
+## DESIGN-AIDS — THE GARAGE'S DESIGN AIDS, THE INDICATORS MENU, THE TWO-TIER CERTIFICATE (cloud, 3 Nov 2026)
+The user (via A0): "we miss helpers in the garage ... center of lift, thrust vector, something to help with floats";
+"a failed certification should be crystal clear on what fails and what to do"; "Planes get certified when they're safe
+to fly, they get their commercial certification when they're robust and practical". Full write-up, the _2 -> _4b
+answer table and the renders: reports/evidence/DESIGN-AIDS/STATUS.md.
+- `src/core/64c_gen_aids.js` genDesignAids(def, balance, { propOff }): the centre of lift per surface, the thrust line
+  and its pitch moment, the floats (step vs the CG's vertical, the waterline at gross by 32_hydro levelVolume, the
+  reserve, the move that fixes the step), the CG over the four loading corners (the ledger moved seat by seat: equal to
+  genShakedown's envelope CGs on the Cub), tail volumes, the prop's clearance (ground on its three points / water at
+  gross / the structure in the drawn disc's circle with the flaps down - `CAGE_ENG.units[i].propAt`, new), the ground
+  stance. Its rows carry `tier` and `proposed`. genKeyIssues: 3-5 issues, the margin's remedy sized by REBUILDING
+  (genAidLevers: the wing 0.1 m aft, the stab +10 %; on the bench's thread, bench_worker 'levers').
+- `64b` GEN_CERT_TIER / genCertTiers: only a safe, non-proposed fail withholds the bench check. Tail volumes moved to
+  commercial (relaxes); the float step, the float reserve and the prop clearance are PROPOSED safe checks (warnings
+  until the user rules); the CG range, the doors (PILLAR-ANCHORS's CAGE_DOORSWING), the thrust line and the stance are
+  commercial.
+- `app.js` buildAids (the posts' group, built when they are; GARAGE_AIDS + `flydiy.aids`). The posts on a float build
+  are PHONE-1b's (standOffset on the float layer's step keels, CAGE_FLOAT.tetraC): this branch's own copy was dropped at
+  the L30a rebase. On a touch screen the aids draw without words, as the posts do (G3906b). `editor.js`: the reference-cut quick button is the indicators' button
+  (QUICK 'aids'), its menu in #edPopCard (the cut is its last item).
+- `bench.js`: KEY ISSUES first (benchKeyHtml), the full report folded (details.bFull), the commercial line (benchCommLine).
+- GATE AIDS (`tools/_aids_check.js`, ~20 s, core). Tools: `aids_shot.js` (Playwright stills with the marks on),
+  `aids_verdict_shot.js` (the card before / after), `aids_survey.js` (the tiers over a set of builds).
+
 ## TIME-CONTROLS-2 - CLOUD'S QUICK-BAR ROW READS THE TIME BUTTON AS L30a SHIPPED IT (2026-11-03, GAME-MENUS, LOCAL; for L30b; claude/ready/time-controls-2, on master a8a23ad62)
 Why: L30a's battery: GATE CLOUD 1 red of 239, "the quick bar's time button presses the clock, not the mood". TIME-CONTROLS made that button open the time menu (DAY_UI.menu on DAY_CLOCK, in #edPopCard); it no longer cycles DAY_CLOCK's presets. RULE (b): the row reads the new behaviour - the state 'DAY_CLOCK (the time menu)', the EDITOR_QUICK_POP toggle, QPOP_OWN.time building DAY_UI.menu with the rail's rows and dayCtx. The intent stays: the button acts on the clock, never the mood.
 What changed: tools/_cloud_check.js (that row) only.
@@ -311108,6 +311132,7 @@ HELD: claude/ready/weather-fixes 47815e0a0 - pulled at 20:05 on GATE CLOUD's 3 r
 A0 fixes: HANDOVER.md and tools/plane_shot.js back to master's CRLF bytes (tank-fit and new-plane had normalised them; content unchanged).
 BATTERY (88 gates): 81 PASS. Red: CLOUD 3 of 239 "the clouds live, the composite drawn ... composite 0 draws" on current / gamer / ultra - suspected NEW-PLANE's first-launch chooser holding the render loop on the gate's fresh profile (FLYDIY_UI_HOLD); NEW-PLANE to fix the rig or the hold (rule b or a fix) -> L30d. STOL: the fixture's byte comparison vs the joins tank-fit changes on purpose (Cub/Jodel tanks, the Chinook's pods) - Pilot re-captures. TAXICLEAR 1: the Cub's wing 0.07 m from Jumbo Mine's clinic (11c) - tank-fit's mass or the hut's footprints, owner TANK-FIT/HWCOV. FRAMECOST 8: the boot links (5 -> 39/44) + updateMatrixWorld - the boot cost being dated tonight (HWCOV mb_date 23:05). ASSETS, HANDLE, TECH: master standing.
 TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better than L30b's 114.6 s), nothing new.
+<<<<<<< HEAD
 
 ## FLOATS-CLASSIC - THE EDO-STYLE ROUNDED-DECK FLOAT: A STYLE OVER THE SAME ROWS, AN EDO CATALOGUE TO THE DC-3's MODEL 78, THE WIPLINE LINE TO THE BIT (2026-11-03, FLOATS-CLASSIC for A0, a CLOUD session: node + SwiftShader, no GPU; branch claude/floats-classic off master adb2d2a9 = train L30b)
 The user (3 Nov, via A0): "another model of floats. A rougher one, with rounded top, feels more home made ... We have the
@@ -311275,3 +311300,46 @@ two small formers (one with its chine cropped off) and kept the Wipline's bottom
   Wipline 2100s vs on EDO 2000s (its certified float) head on and side by side, the Cessna on EDO 2440s, the DC-3.
 - Not modelled: the formers' station-by-station variation beyond the belly fade (one mean law); the plan's slight
   shoulder knuckle (smoothed to ~10 deg between facets); the internal stringers.
+=======
+## PILLAR-ANCHORS (cloud, 2-3 Nov 2026) - the pillars are the anchor sites, the doors are keep-outs, the door-swing check, the fittings remodelled (claude/ready/pillar-anchors)
+The user, 2 Nov: "being able to snap the strut into the cabin pillar, and also to constrain the handles to go there (they are also modeled poorly) ... Floats struts should also preferably go onto these pillars, and not try to go on the door areas ... Pillars should really be the target for all fixation devices and anchors." 3 Nov (through A0): a door stop per build (75 deg), a blocked door fails the commercial certificate, every saved build snapped, a user-picked pillar, a narrow pillar step, the step / handle / access doors remodelled. Evidence, the per-build table, the gates: reports/evidence/PILLAR-ANCHORS/STATUS.md.
+- THE FINDING (_4b through the load door): the PHYSICS already loads the pillars - the frame roots the lift strut on ring S1 and hangs the float truss on S1 / S2, and the join measures those rings off the pillars (noseGap ends on pilCabB, cabin.len on pilPaxA). The DRAWING did not (the strut foot 0.15 m ahead of its node on the pilot door's bottom; a float strut root on the pilot door's skin). The C172-alike's frame roots its strut on the firewall ring, which stands on the A (windscreen) post.
+- ONE SOURCE: tools/_pillar_site.js (window.PILLAR_SITE; MANIFEST.editor after _fit_site.js): the pillars (bands, the frame ring each carries: 'B' | 'C' | 'F' | null, zNode), the doors (their skin triangles, metres), the firewall station (the join's cageFirewallZ), the frame's own anchor rules over the pillars (frameStations / strutRootStation / floatRootStations), inDoor / inDoorZY (a door's panel, swing or outline), swingSweep / doorSwingReport (the check).
+- pilSnap ('anchors': as placed / on the pillars) is 1 for EVERY build (CAGE_DEFAULT_ABSENT: absent from spec.cage at its default, so no saved build gains a key). It moves drawings only - the flown spec through the load door is identical with it on or off (GATE PILLAR, the validated builds): the strut foot on the pillar carrying the frame's root ring; the float roots on the pillars carrying iFwd / iAft, under the sills; an anchor (step, grab) found on a door to the nearest pillar; any fitting whose FOOTPRINT touches a door off it (outside every door's outline), else wholly onto it, never across its gap; the door handle held to the latch strip.
+- wgStrutPil (P4): auto / A / B / C - the join writes the picked ring's station (bracing.strutAt, metres aft of the firewall) and 61_gen_frame roots the strut on that ring; auto writes nothing (the spec byte for byte as it was); a pick set back to auto clears the stored station.
+- doorStop (the doors' hinge group, 75 deg): the door-swing check turns each door 0 -> its stop about the hinge layer's own line (CAGE_HINGE.doors) against every drawn layer; RED = touching the shut door, or closing in under 20 mm as it opens (what the door moves away from is listed "beside"). The editor runs it in an idle callback (one pending, never in the game); the join only reads CAGE_DOORSWING.last as a note; DESIGN-AIDS' aid.doors (commercial tier) reads the same record (doors[].red, redMM, stopDeg). tools/door_swing_survey.js is the before / after table over the repo.
+- THE REMODEL (the user, 3 Nov): plateInto's outline is the rounded curve in rings (the 9 x 7 grid's staircase edge was the "pixelated" base); stepBoard is a narrow pillar step (a boss, a bent stem, a 64 mm tread, no plate); the door handle is the smoothed U again (the latch lever dropped); plateOval and doorHinged are drawn (a 2 mm seam and flat screws on the skin, no plate - a thin plate in the livery's base colour fought the skin for depth).
+- plane_shot.js: fit:<key>/<az>/<el>/<dist> (one placed fitting, the flank facing the eye) and at:<x>/<y>/<z>/<az>/<el>/<dist> (one framing for two builds). Under ~0.8 m the near plane cuts the skin; on the phone page every still is written _FAIL.png (the hide-the-aeroplane assert reads 0 %).
+- LINE ENDINGS: HANDOVER.md is mixed CRLF / LF on master - edit it as BYTES (an append), never rewrite it through a text-mode read (A0, 3 Nov: a conflict resolved that way normalised 204 k lines).
+## SEATS (2026-11-02, cloud session, the user via A0): the seat library
+Every seat the crew layer draws is `tools/_seat_gen.js`'s (MANIFEST.editor, before `_cage_crew.js`; `buildSeat` is the
+door). 15 calibrated presets on `cage.seatType` 0-14, named by their spirit (the user: "avoiding naming planes"):
+0 Tube & sling (replaced the tube frame), 1 Carbon bucket (replaced the moulded shell), 2 Vintage airliner (replaced the
+airliner seat), 3 Touring, 4 Sculpted sport, 5 Executive leather, 6 Ultralight sling, 7 Aerobatic recline, 8 Vintage
+crew (its cabin: type 2), 9 Heavy-duty work, 10 Woven cane, 11 Reclined tub, 12 Folding canvas, 13 Parachute bucket,
+14 Bush utility. What each is modelled on, its dimensions and mass: docs/SEATS-REFERENCES.md.
+- GEOMETRY: one primitive, `slab` (a lattice rounded box carried on a side-profile spine, with crown / wings / pleat
+  fields); `skin` (an insert laid on a slab's own surface, tucked into a seam channel); piping through the slab's own
+  edge rounding; pads built ON their shell (the underside follows it, the top stays flat - the user); no belts (the
+  user). Width and back height are calibrated (a narrow cabin scales the width, a low roof the back: `fit`); stand
+  height, recline, tilt, fore/aft and layout stay on the rows. Picking a style seeds its own recline/tilt.
+- LEVELS OF DETAIL by REGENERATION (the user: not decimation): 0 hero, 1 mid, 2 phone - every primitive reads the level
+  (lattice rows, sides, segments, path steps) and small features step off. One level per seat build (no THREE.LOD: the
+  join flattens the crew layer): the phone profile builds level 2, else 0; `?seatlod=0|1|2`, `P.seatLod`,
+  `SEAT_GEN.force`. Phone 640-1 320 tris, 4-6 draws a seat; 1-4 ms to generate.
+- MASS (WYSIWYG): `GEN_SEATS` has a row per preset (`GEN_SEAT_TYPES[seatType]`); the crew publishes each drawn seat's kg
+  in `CAGE_CREW.seatsAt`, the join writes `cabin.seatsKg` ONLY when a seat weighs other than the outfit's row (so a
+  Tube & sling cabin - 3.0 kg, the `sling` row - keeps its spec and its certificate), genFrame bills seat by seat.
+- THE CABIN'S SEAT: `cage.paxSeatType` (not in the defaults; absent = -1 = as the pilots', or the preset's `paxType`).
+- FINISH: four livery sections - `seatTrim` (base), `seatAccent`, `seatSeam`, `seatFrame` - the preset's finish/tint
+  are each section's bottom-out (`CAGE_SECMAT(sec, { fin, tint0 })`), a pick wins on every seat.
+- BENCH `tools/_seats.html` (?seat=N), RIG `tools/seat_shot.js` (sheet / close / lod, ~10 s on SwiftShader), GATE SEATS
+  `tools/_seats_check.js` (core: the four tables in one order, honest mass, every preset at every level, the cabin seat,
+  the mass reaching the build). Evidence and the open items: reports/evidence/SEATS/STATUS.md.
+
+## A0 - train L30d, 3 Nov 2026 22:55
+
+IN (on L30c master e6bcfb368): claude/ready/seats-cost a1fc604f7 (SEATS: the 15 seats, the MID level on desktop - the user: "garage + world performance unaffected"; the 22 FRAMECOST reds once blamed on the seats were a stale parked cook), claude/joinparity-fixture-2 33948db43 (GPS-STALL: the twin floatplane + Cub/Jodel page re-captures), claude/gps-gates 40fbf6f3d (GPS-STALL: CREWLOAD + GPSFACE), claude/a0/weather-refix fca404af2 (WEATHER-FIXES re-applied - held from L30c by A0's mistake: the four weather fixes + the career opens 15 July), claude/a0/pillar-m 8f7541c09 (PILLAR-ANCHORS with the remodelled step/handle/hatches, the door stop, the snap on all saved builds with doors; A0 resolved _cage_join.js with SEATS), claude/a0/cert-m2 000773618 (DESIGN-AIDS c509be011 + CERT-GATES + A0's resolutions vs CONFIG-MATRIX (_cage_eng.js unitOut) and TANK-FIT (bench.js: the tank rows are safe-tier FAILs before the tiers decide)), claude/ready/new-plane-hold 82a77c28a (NEW-PLANE: the chooser no longer holds the render on the gates' fresh profile - GATE CLOUD green again), claude/ready/dmg-glass-verdict 92a4be139 (Deform: DMGGLASS's verdict line).
+BATTERY (69): 64 PASS. Red: ROUTE (the Cub capsizes on its roll-out at w2 after 741 s) and WORLD ("13/31 approaches under 4 % both ways") - BOTH RED THE SAME ON L30c MASTER (A0's 22:40 baseline), so L30c's, not this train's: suspects tank-fit's heavier Cub nose with G1971's water on 02/20 (the w2-dry fix 7517f828c gates tonight) and the hut lattice's footprints for 13/31's fans (HWCOV, with TAXICLEAR 11c). DMGSKINGPU (the GPU tear's read-back places) and DMGWRECK (a body corner 11.9 cm inside a live cabin bay) - no baseline run, named for Deform / TANK-FIT. DMGPAGEW (the scuff fix rides Wed), FRAMECOST 5, ASSETS, HANDLE, TECH: standing. BUILT: stale before the push (rebuilt here).
+TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothing new.
+>>>>>>> origin/master

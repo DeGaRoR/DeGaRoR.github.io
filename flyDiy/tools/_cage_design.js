@@ -596,6 +596,25 @@ const ICON = {
   schemeSweep: { vb: '0 0 64 40', paths: [{ d: 'M6 10 L58 10 L58 30 L6 30 Z', w: 1 },
     { d: 'M6 18 Q30 26 58 14 L58 24 Q30 34 6 28 Z' }] },
 };
+// THE SEAT STYLES (SEATS, 2026-11-02): [label, icon, note, recline, squab tilt] per seatType, in SEAT_PRESETS order
+// (tools/_seat_gen.js; GEN_SEAT_TYPES names their mass rows). GATE SEATS holds the three tables to one order.
+const SEAT_STYLES = [
+  ['Tube & sling',      'seatTube',     'a welded tube frame, laced canvas, a loose cushion', 12, 4],
+  ['Carbon bucket',     'seatShell',    'a moulded carbon bucket on two rails', 22, 6],
+  ['Vintage airliner',  'seatAirliner', 'a deep reclining day seat, buttoned, a linen headrest cover', 14, 4],
+  ['Touring',           'seatAirliner', 'cloth and vinyl on a frame running on rails', 13, 4],
+  ['Sculpted sport',    'seatShell',    'a gloss shell, leather bolsters, contrast stitching', 18, 5],
+  ['Executive leather', 'seatAirliner', 'rolled-pleat leather, a headrest on posts, an armrest', 15, 4],
+  ['Ultralight sling',  'seatTube',     'a bent alloy frame and a laced canvas sling', 16, 6],
+  ['Aerobatic recline', 'seatShell',    'a carbon shell lying back, a parachute in it', 38, 10],
+  ['Vintage crew',      'seatShell',    'a riveted bucket with arms; its cabin takes the vintage airliner seat', 14, 4],
+  ['Heavy-duty work',   'seatShell',    'a crash-rated bucket under a sheepskin, on height tracks', 11, 5],
+  ['Woven cane',        'seatShell',    'a rattan tub on ash bearers, a leather cushion', 9, 3],
+  ['Reclined tub',      'seatShell',    'a moulded pan and an adjustable backrest board', 40, 16],
+  ['Folding canvas',    'seatTube',     'a light frame on floor hinges, a canvas seat and strap back', 10, 3],
+  ['Parachute bucket',  'seatShell',    'a deep resin bucket for a seat-pack parachute', 13, 6],
+  ['Bush utility',      'seatTube',     'a tube frame, a pressed back panel, channel-pleated cushions', 12, 4],
+];
 
 // ---------------------------------------------------------------------------
 // THE CLASSES (§5.2). Five live, three declared with the §5.2 decision's own
@@ -1155,18 +1174,17 @@ const DESIGN_ROWS = [
         writes: { cage: { mirror: 1 } } },
     ] },
 
+  // THE SEATS (SEATS, 2026-11-02): the seat library's presets (tools/_seat_gen.js SEAT_PRESETS - the same order, the
+  // index rides in every save). Named by their SPIRIT, not an aeroplane's (the user: "find names avoiding naming
+  // planes"); 0 / 1 / 2 replaced the tube frame, the moulded shell and the airliner seat. A pick writes the type; its
+  // SEED is the preset's own recline and squab tilt (an aerobatic seat lies back, a tourer sits up), offered as the
+  // starting values - the rows keep them.
   { key: 'seatType', label: 'Interior style', kind: 'starter',
     group: 'cabin', status: 'live',
-    help: 'the seats; headliner, console and trim are owed to a later pass',
+    help: 'the seats: each a calibrated model with its own weight; height, recline and place stay on the rows',
     read: P => Math.round(P.seatType),
-    options: [
-      { value: 0, label: 'Tube frame', icon: ICON.seatTube,
-        writes: { cage: { seatType: 0 } } },
-      { value: 1, label: 'Composite shell', icon: ICON.seatShell,
-        writes: { cage: { seatType: 1 } } },
-      { value: 2, label: 'Airliner', icon: ICON.seatAirliner,
-        writes: { cage: { seatType: 2 } } },
-    ] },
+    options: SEAT_STYLES.map((o, i) => ({ value: i, label: o[0], icon: ICON[o[1]], note: o[2],
+      writes: { cage: { seatType: i } }, seed: { cage: { seatRake: o[3], seatTilt: o[4] } } })) },
 
   // ---- structure ----------------------------------------------------------
   { key: 'intCons', label: 'Construction', kind: 'discriminator',

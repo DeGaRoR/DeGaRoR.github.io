@@ -594,6 +594,45 @@ PAGE.post = ctx => {
   const t = +P.fltStrutR;
   // (a twin-boom's rear strut roots on the pod's last frame, never in the air behind it)
   const root = (z, sd) => { const q = AF.surf(twin ? Math.max(AF.z0 + 0.05, z) : z, sd * ang); return [q[0], q[1], q[2]]; };
+  // PILLAR-ANCHORS (2026-11-02, the user: "Floats struts should also preferably go onto these pillars, and not try
+  // to go on the door areas, when possible"). The frame hangs the float truss on two fuselage RINGS (61_gen_frame:
+  // F[iFwd], the last ring more than 0.10 m ahead of the step, and F[iAft], the first more than 0.10 m aft of it) and
+  // those rings are the pillars' (the join measures the cabin off pilCabB / pilPaxA) - but the drawing rooted the
+  // struts at the float's own deck stations, wherever the flank was there (measured on the user's twin _4b: 0.4 m
+  // and 0.2 m from the nodes they ride, the forward root on the pilot door's skin). `pilSnap` 1 roots each end on
+  // the pillar carrying the frame's own ring (PILLAR_SITE.floatRootStations, the frame's rule over the pillars'
+  // stations): raked struts, from the deck fittings up to the pillars, as a real installation is rigged. A ring
+  // with no pillar on it (the firewall's mount, a long cabin's sub-frame) keeps the deck station and says so.
+  let pilF = null, pilA = null, pilWhy = [];
+  const PSm = window.PILLAR_SITE;
+  let PSx = null;
+  if (Math.round(+P.pilSnap || 0) === 1 && PSm && CG2 && CG2.cageResolve && mesh && ctx.spec) {
+    try {
+      PSx = PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS);
+      let cargoLen = 0;
+      try { const RS = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved(); cargoLen = +(RS && RS.fuse && RS.fuse.cargoLen) || 0; } catch (e) {}
+      const st = PSm.frameStations(PSx, { zFw: PSx.zFw != null ? PSx.zFw : DAT && DAT.fwOk ? DAT.zFw : null, cargoLen });
+      const fr = PSm.floatRootStations(st, zc);
+      pilF = fr.fwd && fr.fwd.pillar ? fr.fwd.pillar : null;
+      pilA = fr.aft && fr.aft.pillar ? fr.aft.pillar : null;
+      if (!pilF) pilWhy.push('fwd ' + (fr.fwd ? 'ring ' + fr.fwd.tag : 'no ring') + ' has no pillar');
+      if (!pilA) pilWhy.push('aft ' + (fr.aft ? 'ring ' + fr.aft.tag : 'no ring') + ' has no pillar');
+    } catch (e) { pilF = pilA = null; pilWhy = ['no pillar record']; }
+  }
+  // ON A PILLAR THE ROOT GOES DOWN TO THE FRAME'S LOWER LONGERON, UNDER THE DOORS' SILLS: the frame's node is the
+  // ring's bottom corner (F[i].BL / BR), and a pillar between two deep doors at the row's angle (45 deg on _4b) put
+  // the root at door height, so the raked struts fanned out fore and aft ACROSS the doors' bottoms. The row's angle
+  // is walked toward the keel until the root stands 40 mm under the lowest sill of a door on that flank within reach
+  // of the struts' fan (or 12 deg off the keel, the least a fitting may take)
+  const pilRoot = (z, sd) => {
+    let a = ang;
+    const sills = ((PSx && PSx.doors) || []).filter(dd => dd.sgn === sd && dd.z1 > z - 1.0 && dd.z0 < z + 1.0).map(dd => dd.yLo);
+    if (sills.length) {
+      const yMax = Math.min(...sills) - 0.04;
+      while (a > 12 * D2R && AF.surf(z, sd * a)[1] > yMax) a -= 0.5 * D2R;
+    }
+    const q = AF.surf(z, sd * a); return [q[0], q[1], q[2]];
+  };
   const member = (pin, tip, bag, tt) => { streamlined(bag, pin, tip, tt); rec.members.push({ pin, tip }); };
   const wire = (a, b) => {
     GK.tube(wg, a, b, 0.0025, 6);
@@ -617,7 +656,7 @@ PAGE.post = ctx => {
   const roots = {};
   for (const sd of [-1, 1]) {
     const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag];
-    const rF = root(d.fwdIn[2], sd), rA = root(d.aftIn[2], sd);
+    const rF = pilF ? pilRoot(pilF.zc, sd) : root(d.fwdIn[2], sd), rA = pilA ? pilRoot(pilA.zc, sd) : root(d.aftIn[2], sd);
     roots[tag] = { rF, rA };
     member(rF, d.fwdIn, sg, t);            // front
     member(rF, d.aftIn, sg, t);            // centre
@@ -659,6 +698,20 @@ PAGE.post = ctx => {
     for (const dx of [-1.05 * w, 0, 1.05 * w])
       GK.boxIn(bdg, [dx, yTop + 0.5 * th, 0.5 * (zF + zA)], [0.5 * w, 0.5 * th, 0.5 * Math.abs(zF - zA) + 0.10 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   }
+  // what the roots stand on, for the status line: the pillar, or the door whose skin a root is on (a finding)
+  rec.roots = { fwd: pilF ? pilF.key : null, aft: pilA ? pilA.key : null };
+  // (snap off: the editor's status line only - the game's builds never ask)
+  if (PSx || (!window.CAGE_IN_GAME && PSm && CG2 && CG2.cageResolve && mesh && ctx.spec)) {
+    try {
+      const PSy = PSx || PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS);
+      const hit = [];
+      for (const tag of ['L', 'R']) for (const r of [roots[tag].rF, roots[tag].rA]) {
+        const h = PSm.inDoor(PSy, r, 0.03, { panelOnly: true });
+        if (h && !hit.includes(h.door)) hit.push(h.door);
+      }
+      rec.rootsOnDoor = hit;
+    } catch (e) {}
+  }
   const sgp = new THREE.Group(); sgp.name = 'edFloatStruts';
   sg.mesh(sgp, strutM()); wg.mesh(sgp, wireM()); hg.mesh(sgp, hardM());
   if (bdg.tris > 0) bdg.mesh(sgp, boardM());
@@ -690,7 +743,10 @@ PAGE.post = ctx => {
   window.CAGE_FLOAT = rec;
   if (stat) {
     const R = HP.preset && rowOf(HP.preset);
-    stat.textContent += `  ·  floats${edo ? ' (EDO classic)' : ''}: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` +
+    const pilTxt = Math.round(+P.pilSnap || 0) === 1
+      ? `struts on ${[pilF && pilF.key, pilA && pilA.key].filter(Boolean).join(' + ') || 'no'} pillar${pilF && pilA ? 's' : ''}${pilWhy.length ? ' (' + pilWhy.join(', ') + ')' : ''}, ` : '';
+    const doorTxt = rec.rootsOnDoor && rec.rootsOnDoor.length ? `a strut root ON the ${rec.rootsOnDoor.join(' / ')} door, ` : '';
+    stat.textContent += `  ·  floats${edo ? ' (EDO classic)' : ''}: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` + pilTxt + doorTxt +
       `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull` +
       (HY.floatPrice ? `, ${HY.floatPrice(HP).toLocaleString('en')} credits the pair` : '');
     // S1 (G451.1): THE SIZING ADVISOR — the flown aeroplane's all-up mass
