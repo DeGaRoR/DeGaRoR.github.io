@@ -55,6 +55,8 @@ const SEC = {
   dashFace:        '#7d8896',
   shoulder:        '#b9b6ae',
   doorPanel:       '#6b4a36',
+  headliner:       '#d8cfbd',          // CABIN-INTERIOR T1/T2
+  cabWall:         '#bfb4a0',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
   woodFrame:       '#8a6134',
@@ -299,7 +301,7 @@ const XRAY_A = 0.12;
 VIEW.xrayA = XRAY_A;
 // (G1985: the one list, _cage_gen.js's - cageGlazedM2 measures the same set)
 const GLASSM = G.CAGE_GLASS_MATS;
-const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
+const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele', 'headliner', 'cabWall']);   // + CABIN-INTERIOR's split
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
 // taperPanel = the sheets bolted over the rod's tightening truss (G26). They
@@ -604,15 +606,24 @@ function pkHide() {
   if (pkEl) { pkEl.hidden = true; pkEl.style.display = 'none'; }
   pkFor = null; pkDrag = null;
 }
+// SUGGESTED COLOURS PER SECTION (CABIN-INTERIOR I2, the user 3 Nov: the headliner, wall and trim "paintable by the
+// builder ... with warm tan offered as one swatch"): a section's own suggestions ride ahead of the recent ones, ringed
+// so they read as offered rather than used; the well's section is its row's `data-sec`. A suggestion is only a
+// swatch: nothing is painted until it is clicked.
+const PK_SUGGEST = { headliner: [['#c49a6c', 'warm tan']], cabWall: [['#c49a6c', 'warm tan']] };
 function pkSwatches() {
   pkRow.textContent = '';
-  pkRow.style.display = RECENT.length ? 'flex' : 'none';
-  if (!RECENT.length) return;
-  for (const h of RECENT) {
+  const row = pkFor && pkFor.closest ? pkFor.closest('[data-sec]') : null;
+  const sug = (row && PK_SUGGEST[row.dataset.sec]) || [];
+  const list = sug.map(([h, nm]) => [h, nm + ' (suggested)', 1])
+    .concat(RECENT.filter(h => !sug.some(q => q[0] === h)).map(h => [h, h, 0]));
+  pkRow.style.display = list.length ? 'flex' : 'none';
+  if (!list.length) return;
+  for (const [h, title, offered] of list) {
     const b = document.createElement('button');
-    b.type = 'button'; b.title = h;
+    b.type = 'button'; b.title = title;
     b.style.cssText = 'width:14px;height:14px;padding:0;border-radius:3px;' +
-      'cursor:pointer;border:1px solid rgba(255,255,255,.28);background:' + h;
+      'cursor:pointer;border:1px solid ' + (offered ? '#f0d9a8' : 'rgba(255,255,255,.28)') + ';background:' + h;
     b.onclick = () => {
       [pkH, pkS, pkV] = rgbToHsv(hexToRgb(h));
       pkApply(); pkCommit();
@@ -5582,7 +5593,8 @@ function buildMatPanel() {
     // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
     // every build made from it, and on a bubble it is that dark surround
     waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
-    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band',
+    headliner: 'headliner', cabWall: 'upper wall trim' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],

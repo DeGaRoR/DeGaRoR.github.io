@@ -1048,6 +1048,98 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
 }
 // THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
 // hanging off the box, a bushing, the rod and a T handle; it slides aft.
+// THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
+// the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
+// heads - the 172's and every light twin's: two eyeball vents forward, two reading-lamp seats aft, one each side.
+// THE LAMPS LAND ON IT: its seats go out on the anchors (A.ohc) and the light layer's console rung puts the front
+// row's lamps there (the flood on the pilot's side), so part 2's cabin lamp sits on a real fitting. The ceiling is
+// the sheet's own (the lowest downward liner / headliner / roof face over the station). A closed cabin only, and
+// never under glass: a skylight or a canopy over the station draws no console. Off by default (an absent row). The
+// pod is the crew's dark moulding and its vents the same: buckets the cabin already has, no new draw call.
+function buildOverheadConsole(gRoot, A, P, mesh, front) {
+  A.ohc = null;
+  if (!+P.ohConsoleOn || !front.length || Math.round(+P.canopy || 0) !== 0) return null;
+  if (!mesh || !mesh.V || !mesh.F || !(A.roofY > A.waistY)) return null;
+  const K = window.GEAR_KIT;
+  if (!K) return null;
+  const k = A.k, V = mesh.V;
+  const zS = front.reduce((a, s) => a + s.zBack, 0) / front.length;
+  const ROOF = new Set(['ceilingLoop', 'body', 'plywood', 'cloth', 'composite', 'toele', 'waistband', 'headliner']);
+  const GL = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+  const mid = (A.waistY + A.roofY) / 2;
+  // ITS FRONT IS THE WINDSCREEN'S HEADER: the pod starts 3 cm aft of the windscreen's aft-most edge on the centreline
+  // (a raked screen reaches back over the front row's heads - the twin's by 30 cm), and never more than 47 cm ahead
+  // of the seat backs
+  let zWs = Infinity;
+  for (const f of mesh.F) {
+    if (f.m !== 'windshield') continue;
+    for (const vi of f.v) { const q = V[vi]; if (q[1] * k > mid && Math.abs(q[0] * k) < 0.25) zWs = Math.min(zWs, q[2] * k); }
+  }
+  const LEN = 0.30, W = front.length > 1 ? 0.21 : 0.16, D = 0.045;
+  const zc = Math.min(zS + 0.47, isFinite(zWs) ? zWs - 0.03 : Infinity) - LEN / 2;
+  let yC = Infinity;
+  for (const f of mesh.F) {
+    if (f.v.length < 3) continue;
+    let cx = 0, cy = 0, cz = 0;
+    for (const vi of f.v) { cx += V[vi][0]; cy += V[vi][1]; cz += V[vi][2]; }
+    cx *= k / f.v.length; cy *= k / f.v.length; cz *= k / f.v.length;
+    if (cy < mid) continue;
+    if (GL.has(f.m)) {                                      // glass over the station: no console
+      if (Math.abs(cx) < W / 2 + 0.06 && Math.abs(cz - zc) < LEN / 2 + 0.06) return null;
+      continue;
+    }
+    if (!ROOF.has(f.m) || Math.abs(cx) > 0.08 || Math.abs(cz - zc) > 0.10) continue;
+    const a = V[f.v[0]], b = V[f.v[1]], c = V[f.v[2]];
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const ny = uz * vx - ux * vz, nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
+    if (!(nl > 1e-12) || Math.abs(ny / nl) < 0.55) continue;
+    if (cy < yC) yC = cy;
+  }
+  if (!isFinite(yC)) return null;
+  // the pod: a rounded section lofted fore and aft, easing to the ceiling at both ends (a moulding, not a box);
+  // its top 4 mm into the liner so it is closed against it from every view
+  const pod = K.Bag(), NS = 12, NU = 10, top = yC + 0.004;
+  const ease = t => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * t - 1), 4)), 0.25);
+  const rows = [];
+  for (let i = 0; i <= NS; i++) {
+    const t = i / NS, e = ease(t), z = zc + LEN / 2 - t * LEN, hw = (W / 2) * e, d = D * Math.sqrt(e);
+    const r = [];
+    for (let j = 0; j <= NU; j++) {
+      const th = Math.PI * j / NU;                          // 0 at +x, PI at -x, through the bottom
+      const cs = Math.cos(th), sn = Math.sin(th);
+      const sx = Math.sign(cs) * Math.pow(Math.abs(cs), 0.6), sy = Math.pow(sn, 0.6);
+      r.push(pod.v([hw * sx, top - (d + 0.004) * sy, z]));
+    }
+    rows.push(r);
+  }
+  for (let i = 0; i < NS; i++) for (let j = 0; j < NU; j++)
+    pod.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
+  const tc = pod.v([0, top, zc]);                          // the top, closed against the liner
+  for (let i = 0; i < NS; i++) { pod.tri(tc, rows[i + 1][0], rows[i][0]); pod.tri(tc, rows[i][NU], rows[i + 1][NU]); }
+  const bot = z => top - 0.004 - D * Math.sqrt(ease((zc + LEN / 2 - z) / LEN));
+  // the two eyeball vents forward (a bezel ring and the ball in it), the lamps' bezels aft
+  const fit = K.Bag();
+  const xs = front.length > 1 ? [0.052, -0.052] : [0];
+  const ring = (x, z, r0, r1, h) => {
+    const y = bot(z), N = 14, a = [], b = [];
+    for (let n = 0; n < N; n++) {
+      const t = 2 * Math.PI * n / N, cx = Math.cos(t), cz = Math.sin(t);
+      a.push(fit.v([x + cx * r1, y + 0.002, z + cz * r1]));
+      b.push(fit.v([x + cx * r0, y - h, z + cz * r0]));
+    }
+    for (let n = 0; n < N; n++) fit.quad(a[n], a[(n + 1) % N], b[(n + 1) % N], b[n]);
+    const c = fit.v([x, y - h, z]);
+    for (let n = 0; n < N; n++) fit.tri(b[n], b[(n + 1) % N], c);
+  };
+  for (const x of xs) ring(x, zc + 0.075, 0.016, 0.022, 0.012);    // the vents' bezels and balls
+  for (const x of xs) ring(x, zc - 0.075, 0.020, 0.026, 0.003);    // the reading lamps' bezels (the lamp sits in it)
+  const g = new THREE.Group();
+  g.name = 'edOhConsole';
+  gRoot.add(g);
+  pod.mesh(g, M.dark); fit.mesh(g, M.dark);
+  A.ohc = { zSeat: zS, seats: xs.map(x => ({ sd: Math.abs(x) < 0.01 ? 0 : Math.sign(x), p: [x, bot(zc - 0.075) - 0.003, zc - 0.075] })) };
+  return A.ohc;
+}
 function buildBrakeKnob(gRoot, A, P, sx) {
   const K = window.GEAR_KIT;
   if (!K || A.dashLip == null || A.dashAftZ == null) return null;
@@ -2940,6 +3032,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP, pl));
   });
   const pilot = seats.find(s => s.pilot);
+  // CABIN-INTERIOR G1: the overhead console, over the front row (the pilot's and the seats beside it)
+  try {
+    const front = pilot ? seats.filter(s => Math.abs(s.zBack - pilot.zBack) < 0.15) : [];
+    buildOverheadConsole(group, A, P, mesh, front);
+  } catch (e) { A.ohc = null; console.warn('overhead console:', e); }
 
   // ---- controls ----
   // A STATION PER SEAT. Side-by-side carries DUAL CONTROLS (user

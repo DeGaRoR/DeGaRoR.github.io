@@ -3811,8 +3811,9 @@ function cageInterior(m, S) {
     }
     for (const fi of sel) {
       const f = F[fi];
-      add.push({ v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]),
-                 att: 1 });
+      const fIn = { v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]), att: 1 };
+      if (I.hdl || I.wall) fIn.lin = 1;                // CABIN-INTERIOR: the cabin's visible face (split below)
+      add.push(fIn);
       // the OUTER sheet closes the solid (skin winding — outward)
       add.push({ v: f.v.map(outerOf), m: matF(F[fi]), att: 1 });
       for (let e = 0; e < 4; e++) {
@@ -6542,6 +6543,34 @@ function cageInterior(m, S) {
   // shows the firewall, as the real assembly would. Aero noses carry no
   // capFace marks (nothing to drop); the pusher tail disc (also
   // capFace-marked) is kept — only the front opens.
+  // CABIN-INTERIOR (T1/T2, the user 2-3 Nov: the cabin's top "is currently a box ... let's really target the top
+  // half, what you see through windows"): THE HEADLINER AND THE UPPER WALL TRIM, split off the liner's visible face
+  // inside the cabin (the pilot and passenger sections, zNose0 back to the passenger ring - or, with none, the aft
+  // edge of the side glass). A ceiling face (its inward normal at least 0.8 down - the triplanar's ceiling plane
+  // dominant, so the channels never stripe the flank) is the headliner; the rest above the waistband top (the sill
+  // line, S.bandY) is the trim panel. Only with the rows on: every build without them keeps its one liner.
+  if (I.hdl || I.wall) {
+    const LINM = new Set(['plywood', 'cloth', 'composite', 'toele']);
+    const SIDEG = new Set(['pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+    let zA = zPax0;
+    if (!(zA > -1e8)) {
+      zA = 1e9;
+      for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
+      if (!(zA < 1e8)) zA = zCab0;
+    }
+    for (const f of add) {
+      if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
+      const p = f.v.map(i => V[i]);
+      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+      const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+      const ly = ny / (Math.hypot(nx, ny, nz) || 1);
+      const cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4, cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4;
+      if (cz < zA || cz >= zNose0) continue;
+      if (I.hdl && ly <= -0.8) f.m = 'headliner';
+      else if (I.wall && cy >= S.bandY && ly < 0.5) f.m = 'cabWall';
+    }
+  }
   let FK = F;
   if (I.fire) FK = F.filter(f => {
     if (!f.capFace) return true;
@@ -8495,6 +8524,8 @@ function cageSpec(P) {
                             pilotBelow: consG, pilotAbove: consG,
                             noseBelow: consG, noseAbove: consG },
                  shellT: Math.max(0.005, P.shellT || 0.035),
+                 // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
+                 ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,

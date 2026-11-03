@@ -82,6 +82,12 @@ const SHAPES = [
                      intOn: 1 }],
   // the door inner panel is off by default; its section exists only here
   ['door panel', { doorOn: 1, cutParts: 1, intOn: 1, doorPanelOn: 1 }],
+  // CABIN-INTERIOR: the headliner and the upper wall trim exist only with their rows, one per construction (each
+  // splits a different liner)
+  ['headliner tube', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 1, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner carbon', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 0, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner wood', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 2, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner metal', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 3, hdlOn: 1, wallTrimOn: 1 }],
   // the drawn windows' panes and reveals exist only when a row draws
   ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }],
 ];

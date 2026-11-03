@@ -1210,7 +1210,8 @@ function sites(scene, group, P) {
       // the CEILING is the interior's own liner where there is one and the
       // skin's roof band otherwise — both are named, so neither is guessed
       const ROOF = { ceilingLoop: 1, body: 1, plywood: 1, cloth: 1,
-                     composite: 1, toele: 1, waistband: 1 };
+                     composite: 1, toele: 1, waistband: 1,
+                     headliner: 1, cabWall: 1 };   // CABIN-INTERIOR: the liner's split, still the liner
       // A CEILING FACES DOWN AND IS IN THE UPPER HALF OF THE CABIN. Both
       // halves are needed and the first cut had neither: filtering only on
       // "above the waist" and taking the LOWEST match returned a face 34 mm
@@ -1429,10 +1430,21 @@ function sites(scene, group, P) {
     // bulkhead if available" - then the arch (only clear of the glass now), then the user's last resort. No rung is
     // ever on glass: each asks clearOfGlass.
     const archClear = s => { const m = archAt(s); return m && clearOfGlass(m.p, null, s.kind) ? m : null; };
+    // CABIN-INTERIOR G1: THE OVERHEAD CONSOLE, when the crew drew one (A.ohc, its lamp seats): the front row's lamps
+    // go into its bezels - the flood on the pilot's side, a front passenger's on theirs - first on a closed cabin's
+    // ladder (the console is never under glass: the crew draws none there)
+    const consoleAt = s => {
+      const O = A.ohc;
+      if (!O || !O.seats || !O.seats.length || Math.abs(s.zBack - O.zSeat) > 0.15) return null;
+      const sd = Math.abs(s.x) < 0.05 ? 0 : Math.sign(s.x);
+      const q = O.seats.find(o => o.sd === sd) || (O.seats.length === 1 ? O.seats[0] : null);
+      if (!q) return null;
+      return { p: off(q.p, [0, -1, 0], sink(s.kind)), ax: [0, -1, 0], onCeiling: true, rung: 'console' };
+    };
     const LADDER = {
-      flood: [[roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
+      flood: [[consoleAt, roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
               [coamingAt, bulkheadAt, shoulderAt], [bulkheadAt, archClear, shoulderAt]],
-      pax:   [[roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
+      pax:   [[consoleAt, roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
               [bulkheadAt, shoulderAt]],
     };
     const mountAt = (kind, s) => {

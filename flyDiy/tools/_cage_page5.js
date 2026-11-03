@@ -638,6 +638,15 @@ window.CAGE_PAGE = {
          { when: P => +P.doorPanelOn, dim: 'len' }],
         ['doorPanelPocket', 'map pocket',     0, 1, 1, { when: P => +P.doorPanelOn }],
       ]],
+      // CABIN-INTERIOR (the user 2-3 Nov: "more detail on the top of the cabin, which is currently a box ... what you
+      // see through windows"; the first cut, 3 Nov 08:40: the headliner, the upper wall trim, the overhead console).
+      // NOT IN THE DEFAULTS TABLE (G3570, as floorUp): a build that never turns one on saves no key and draws as before
+      ['headliner', [
+        ['hdlOn',       'headliner',        0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['wallTrimOn',  'upper wall trim',  0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['ohConsoleOn', 'overhead console', 0, 1, 1,
+         { when: P => +P.crewOn && Math.round(+P.canopy || 0) === 0, absent: 0 }],
+      ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,
     // duplicated (user ruling). FOREVER-SPLIT: the aft params take a
