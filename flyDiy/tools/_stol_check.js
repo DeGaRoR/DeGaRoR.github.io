@@ -602,6 +602,11 @@ if (!BENCH_ONLY || process.argv.includes('--cub')) {
   const stockB = FIX.builds && FIX.builds.cub;
   if (!stockB) ok(false, 'the fixture holds the stock Cub (builds.cub)');
   else {
+    // TANK-FIT (3 Nov): THE KIT IS COMPARED ON THE STOCK'S TANK. The kit's nose tank has no station of its own, so it
+    // now takes the nose's auto shape (44 L, the user's ruling) while the stock Cub is master's pinned capture (its
+    // 28 L): 15 kg apart, the kit read a faster Vref and a longer lift-off than the stock - the tank, not the kit.
+    // The kit flies here with the stock's own energy and fuel, everything else its own: the kit's effect alone.
+    if (stockB.spec && stockB.spec.energy) { J.energy = clone(stockB.spec.energy); if (stockB.spec.fuel) J.fuel = clone(stockB.spec.fuel); }
     const dS = C.buildGen(clone(stockB.spec)), dK = C.buildGen(clone(J));
     const gS = dS.params.gen, gK = dK.params.gen;
     const shS = C.genShakedown(dS, { corners: true }), shK = C.genShakedown(dK, { corners: true });
@@ -692,6 +697,11 @@ if (!BENCH_ONLY) {
      `the editor's rows join to the showcase: ${J.engines[0].type}, wheel radius ${J.gear.wheelR.toFixed(3)} m, ${JSON.stringify(J.wings[0].stol)}, tip ${J.wings[0].tip}`);
   if (!stockB) ok(false, 'the fixture holds the stock Cub (builds.cub)');
   else {
+    // TANK-FIT (3 Nov): THE KIT IS COMPARED ON THE STOCK'S TANK. The kit's nose tank has no station of its own, so it
+    // now takes the nose's auto shape (44 L, the user's ruling) while the stock Cub is master's pinned capture (its
+    // 28 L): 15 kg apart, the kit read a faster Vref and a longer lift-off than the stock - the tank, not the kit.
+    // The kit flies here with the stock's own energy and fuel, everything else its own: the kit's effect alone.
+    if (stockB.spec && stockB.spec.energy) { J.energy = clone(stockB.spec.energy); if (stockB.spec.fuel) J.fuel = clone(stockB.spec.fuel); }
     const dS = C.buildGen(clone(stockB.spec)), dK = C.buildGen(clone(J));
     const gS = dS.params.gen, gK = dK.params.gen;
     const mS = C.machineSheet(dS, { shakedown: C.genShakedown(dS, { corners: true }) });

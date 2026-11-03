@@ -1,0 +1,24 @@
+{
+ "why": "validation A pair 3: a twin-tube taildragger sat 17.6 deg three-point, 35-40 deg after the fit nosed it over (the tailwheel leg is s2_twLegDrop)",
+ "choices": {
+  "class": "n23",
+  "mission": "touring",
+  "engArch": "three",
+  "engType": "electric",
+  "body": "roundTop",
+  "booms": "twinRod",
+  "wing": "mid",
+  "planform": "swept",
+  "bracing": "cantilever",
+  "gear": "tail",
+  "tail": "cruci",
+  "fin": "broad",
+  "seats": "single",
+  "top": "open",
+  "bays": 1,
+  "canopy": "screen",
+  "material": 3,
+  "colour": 11875370
+ },
+ "joined": true
+}

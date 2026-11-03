@@ -113,7 +113,7 @@ const DESIGN_PART = {
   section: ['fuselage', 'cabin', 'nose'],
   wgPos: ['wings', 'cabane'], wgBrace: ['wings', 'struts'],
   planes: ['wings', 'wingPanel2', 'wingPanel', 'interplane', 'wires', 'cabane'],
-  wgTip: ['wings'], wgFlapType: ['wingCtl', 'wings'],
+  wgTip: ['wings'], wingArch: ['wings'], wgFlapType: ['wingCtl', 'wings'],
   // G2820: the STOL wing (G2821: 'wingPanel' merged into 'wings' by G2760)
   wgSlat: ['wings'], wgVG: ['wings'], wgFence: ['wings'],
   wgCuff: ['wings'], wgDroop: ['wingCtl', 'wings'], wgFowlerGrow: ['wingCtl', 'wings'],
@@ -204,6 +204,8 @@ function undo() {
 
 function pick(row, opt) {
   if (opt.inactive) return;
+  // CONFIG-MATRIX step 4: a tile greyed in this state (its `off` reason) is never applied
+  if (opt.off) { try { if (opt.off(CU().P)) return; } catch (e) {} }
   // G132: THE PANEL APPLIES THE LIVE WRITES ALONE (seeds:false) — a role or
   // class pick is its label, instantly and non-destructively; the one-shot
   // starting values ride the seed pill below, and the birth flow, which
@@ -310,10 +312,16 @@ function tileGrid(row, cur) {
     if (opt.value === cur) b.classList.add('on');
     if (opt.inactive) { b.disabled = true; b.title = opt.inactive; }
     else if (opt.note) b.title = opt.note;
+    // CONFIG-MATRIX step 4: a combination the garage cannot build (_cage_design.js CM_OFF) - greyed, the reason IN
+    // the tile; the tile the aeroplane already holds stays lit and live
+    let offWhy = null;
+    if (opt.off && P && opt.value !== cur) { try { offWhy = opt.off(P) || null; } catch (e) {} }
+    if (offWhy) { b.disabled = true; b.classList.add('off'); b.title = offWhy;
+                  b.insertAdjacentHTML('beforeend', '<small class="dfTech"></small>'); b.lastChild.textContent = offWhy; }
     b.innerHTML = svgFor(opt.icon) + '<span>' + opt.label + '</span>';
     // G3230 (TECH-MASK): a tile whose writes are above the career's machine shop is greyed with the reason IN the tile
     // (nothing hover-only); the one the aeroplane holds stays lit (an occasion's part: flown, not modified)
-    const tech = !opt.inactive && opt.value !== cur && window.TECH_MASK ? window.TECH_MASK.tileWhy(row, opt) : null;
+    const tech = !opt.inactive && !offWhy && opt.value !== cur && window.TECH_MASK ? window.TECH_MASK.tileWhy(row, opt) : null;
     if (tech) { b.disabled = true; b.classList.add('tech'); b.insertAdjacentHTML('beforeend', '<small class="dfTech"></small>'); b.lastChild.textContent = tech; }
     b.addEventListener('click', () => pick(row, opt));
     g.appendChild(b);
@@ -464,7 +472,7 @@ function fillInline(wrap, rows) {
 const hideCache = new WeakMap();
 const hidersOf = r => {
   if (!hideCache.has(r))
-    hideCache.set(r, (D().rowOptions(r) || []).filter(o => o.hide));
+    hideCache.set(r, (D().rowOptions(r) || []).filter(o => o.hide || o.off));
   return hideCache.get(r);
 };
 function sigOf(rows) {
@@ -476,7 +484,10 @@ function sigOf(rows) {
       try { s += r.key + '=' + r.read(P) + ';'; } catch (e) { s += r.key + '!;'; }
     }
     if (r.when) { try { s += r.when(P) ? '+' : '-'; } catch (e) {} }
-    for (const o of hidersOf(r)) { try { s += o.hide(P) ? 'h' : 'v'; } catch (e) {} }
+    for (const o of hidersOf(r)) {
+      try { if (o.hide) s += o.hide(P) ? 'h' : 'v'; } catch (e) {}
+      try { if (o.off) s += o.off(P) ? 'x' : 'o'; } catch (e) {}   // CONFIG-MATRIX step 4: greyed / live
+    }
   }
   return s;
 }
@@ -719,6 +730,10 @@ function birthFooter() {
 }
 
 function openBirth() {
+  // NEW-PLANE (3 Nov): THE FRONT DOOR IS THE FULL-SCREEN CHOOSER (src/viewer/new_plane.js) - the main choices first,
+  // one build at the end, then the normal editor. The archetype overlay below stays as the fallback for a page without
+  // it (a bench); its "Custom build" card, which parked the builder in the tile grid, is gone with it.
+  if (window.NEW_PLANE && window.NEW_PLANE.open()) return;
   if (!D() || !GS() || !C2()) return;
   if (!birthEl) {
     birthEl = document.createElement('div');

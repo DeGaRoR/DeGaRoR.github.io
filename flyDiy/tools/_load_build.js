@@ -41,7 +41,16 @@ const VALIDATED = {
   metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
-    patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
+    patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });
+      // TANK-FIT case D (the user via A0, 3 Nov: the 10 L refit goes in once FLOATS' taxi is fixed - it was the gate's
+      // 45 s window, not the sim: tools/_floats_check.js): the header tank stood 25 mm aft of the panel's plane, into a
+      // frame tube (15 mm) and the panel (20 mm); no auto shape fits this open pod (the legs reach the nose). The largest
+      // that clears on train 1B (the knee fix moved the legs: the 10 L found on PH1A stood 7 mm into the panel there):
+      // the same cylinder at 0.75 of its size, turned as saved, 3 cm forward - 8 L where 19 L could not be (5 mm clear)
+      if (j.spec.energy && Array.isArray(j.spec.energy.vessels) && j.spec.energy.vessels[0] && j.spec.energy.vessels[0].bay === 'nose')
+        j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.104, lv: 0.6, rot: 90, form: 'cyl',
+          dims: { L: 0.285, W: 0.2318, H: 0.1875 }, capacity: 8 });
+      return j; } },
 };
 
 // ---- the inputs' fingerprint ----------------------------------------------------------------------------------------
@@ -246,6 +255,6 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps };
   // (a diagnostic: FLYDIY_JOIN_PROBE=<file> runs that function body in the page context after the last build)
   if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
-  process.stdout.write('\u0001' + JSON.stringify(out));
-  process.exit(0);
+  // (exit once the pipe has taken it all: a large probe answer was cut at the pipe's 64 KB by an immediate exit)
+  process.stdout.write('\u0001' + JSON.stringify(out), () => process.exit(0));
 })().catch(e => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });

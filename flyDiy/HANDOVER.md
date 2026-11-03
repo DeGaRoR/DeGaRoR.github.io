@@ -311028,6 +311028,86 @@ Gates: CLOUD.
 IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
 BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
 TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.
+## TANK-FIT - THE TANK VERDICT IS THE DRAWN TANK AGAINST THE DRAWN AEROPLANE; DRAGS JUDGE ONE FRAME; THE PUSHER'S COWL IS A BAY; STRUT TANKS HONEST; THE NOSE TANK FITTED TO THE NOSE (2026-11-03, TANK-FIT for A0, cloud; claude/tank-fit off master 0fcf54ef9, unbuilt)
+- The whole report: `reports/evidence/TANK-FIT/STATUS.md` (the cases A-D and their causes, the false-red table, the
+  nose litres, the strut rule, ms before/after, gates, the user's open questions).
+- `_cage_energy.js judgeTank`: red = a drawn surface into the drawn solid / within 5 mm / the crew within 10 mm,
+  named with its depth; the surfaces sampled against the tank's exact solid (a lazy two-level grid over the sheet,
+  the engine, the cowl). The bay fit's 35 mm-wall corners, the band and the hand's range no longer decide.
+  `window.TANK_FIT_LEGACY` = master's tests. The red bead `edTankClash_*` is a marker (edMarker).
+- A slider input asks one frame (`dragLayout`), the release the full layout; the fore/aft hand keeps the tank's height
+  (`lvKeepingHeight`). Caches keyed on the source objects (soup, grid, crew points, wing slicer, geometry).
+- A body bay the body ends in continues into a pusher's cowl (cowlReach / cowlSection / cowlPlace).
+- Strut tanks: never remapped to the nose; `unmounted` in the core when the wing has no struts (not billed, not in
+  fuel.litres); hung under the strut on a pylon; drag `gen.drag.strutPods`.
+- `noseAuto` (fit: 'auto'): a deck tank behind the panel (floor the dash's bottom, top the deck less a 10 cm gap);
+  new nose tanks only; `window.TANK_NOSE_AUTO_ALL` for the saves' no-station nose tanks, pending the user.
+- Tools: `tools/tank_fit_probe.js`, `tools/tank_shot.js` (cutaway renders, `--legacy`).
+## WEATHER-FIXES - A FRONT'S SKY IS DRAWN, ITS END DOES NOT SNAP, ITS DROP IS A RAMP, THE WIND MIXES THE MIST AWAY, THE MOON READS THE EFFECTIVE COVER (2026-11-03, cloud session for the user via A0; branch claude/weather-fixes off origin/master 2f104df85 = train F4)
+The four bugs (and the contracts' moon) found by the WEATHER-DAYS study (futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
+§1.5, branch claude/weather-days-study), fixed as small fixes on the user's call of 3 Nov (study §9.1). Node only.
+- F1 THE CLOUDS READ THE EFFECTIVE SKY. `08_cloud_field.js` `lowOf(day)`: the low deck's cover and type are the day's
+  `cloudCoverEff` / `cloudTypeEff` (a front's overcast, its cumulonimbus at I > 0.5), not the declared ones - before,
+  a front changed the thermals, the breeze, the mist's burn and the radio, never the drawn sky. Bit-identical when
+  nothing moves them (a plain object, a day with no front). The cover moves in LOW_EFF_STEP 0.05 steps above the
+  declared one: clouds.js re-thresholds and re-fits the map on every cover change (mapsFor, keyed to 3 decimals), so
+  a continuous ramp would re-fit every few seconds (CLIMATE §10's "0.05 cover steps"); 0.37 -> 0.95 is 12 covers.
+  KNOWN: the type still switches to `cb` at I 0.5 (07_day's own rule, now visible) - one re-fit, under ~0.6 cover.
+- F2 NO VEER SNAP. `07_day.js` storm `veer` x I from the end of the passage: it held its full value through `post`
+  and 09_climate's stormOf() dropped it at I = 0 - a 55 deg (default veerDeg) snap of the wind's direction at the end
+  of every front. Approach and passage unchanged. Worst direction step now 1.2 deg a minute.
+- F3 THE DROP IS A RAMP. `dTemp x smf((t - at) / STORM_DT_RAMP + 0.5)`, STORM_DT_RAMP 600 s centred on `at` (was
+  `t > at ? 1 : 0`: the whole -6 K, ~2 % of sigma and hundreds of metres of cloud base, in one tick). Half the drop
+  at the declared instant, all of it 5 min later; worst step 0.89 K a minute.
+- F5 THE WIND MIXES THE MIST AWAY. `d.mistCalm` = 1 - smoothstep((kt - 3) / 7) on the DECLARED 10 m wind (kts | mps |
+  a legacy base vector) times a front's windK; `mistRho0` x mistCalm (still ONE line: test_climate's LAW regex
+  holds). 1 with no wind declared, so every gate's day is bit-identical. NOTE: the game's own day (GAME_WIND 8 kt)
+  keeps 0.20 of the layer - a misty morning picked by hand under the default breeze is now thinner; pick calm.
+- F7 THE MOON READS THE EFFECTIVE COVER. `75_career_wire.js` `careerSkyCover(day)` (effective, else declared, else
+  undefined): the map record's night options and both of app.js's `career.cover` stamps.
+GATES: DAY (the calm term: still air exact, monotone, gone by 10 kt, kt = m/s = base vector, a front's windK counts,
+the law one line), CLIMATE 11 (the front walked a minute at a time: direction < 6 deg, temperature < 1 K, half the
+drop at `at`; the drawn deck at the passage is 0.97 cb, the declared sky after), CLOUD 7a (declared exactly when
+nothing moves it, a front's deck, the 0.05 steps, clamped), CONTRACTS (careerSkyCover; the record and both stamps
+through it) + a selftest break ("the moon reads the declared cover").
+NEGATIVE PROOF: the new checks run against master's own code (2f104df85) in a scratch worktree: CLIMATE red on all
+four (a 55.0 deg direction step at minute 225 = the front's end, a 6.00 K step at minute 61, 0.00 K of the drop at
+`at`, the drawn deck 0.20 cu at the passage), DAY red (5: no mistCalm), CONTRACTS selftest catches "the moon reads
+the declared cover".
+RUN: the full core battery does not finish in a cloud container (2 of 295 jobs in 40 min; stopped). Run instead,
+`--only=` every gate that reads the changed code or the page: DAY CLIMATE CLOUD FOG ATMO ATMOS CONTRACTS (+ selftest)
+CLOCK HONESTY NIGHTVISIBILITY UISMOKE WATER ASSETS ECON FREIGHT LAZY MISSIONS PREMISES PROCURE ROUTES STORY BLUEPRINT
+VILLAGE HOUSE MEDIA BUILD: 20 PASS. The six reds, each checked: CLOUD (a browser probe's 600 s timeout under 4 jobs)
+and PREMISES (terrainH / solve timing) PASS alone, --jobs=1; FOG (2: app.js's MAIN camera), ASSETS (5 material
+sites), STORY (the T0 beat card) and LAZY (route_draw's first demand) are red IDENTICALLY on master 2f104df85 - the
+standing reds of the F4 entry above. The train's full battery is the delivery verdict.
+NOT PUSHED: claude/ready/weather-fixes (the session's push to a ready branch was refused as a deploy; the user's call).
+- 15 JULY (the user's call, 3 Nov ~14:35 via A0, study §9.2): the CAREER's first day is 15 Jul 16:00 AKDT -
+  `74_career.js` CAREER_DAY0 { date: '2026-07-16', utc: 0 } (UT), and `73_contracts.js` CONTRACT_NIGHT.sky0
+  '2026-07-15' (documented as the career's first local day). The sandbox's GAME_DAY (day_clock.js, 21 Jun) and every
+  gate's own day are unchanged; day_clock.js needs no edit (in the career the instant is the document's). GATE CLOCK
+  (its career block's dates, and "CAREER_DAY0 is 15 July at the game's hour") and GATE CONTRACTS (the offers' sky
+  date, the night of the next opening) re-dated; both PASS. The other gates that build a career run (DESTTO ECON
+  FLIGHTREC FREIGHT HANGAR LAZY MISSIONS NIGHTVISIBILITY PILOTS PLAYER POD PROCURE ROUTES STOREDRAW STORY TECH CLIMATE
+  DAY SOAR UISMOKE): results in the next entry line.
+- STATUS (3 Nov): BLOCKED ON A PUSH APPROVAL. This cloud session's push to claude/ready/weather-fixes is refused by its
+  permission classifier (a deploy). The branch claude/weather-fixes is complete; the user (or a session allowed to)
+  pushes it to claude/ready/weather-fixes. Messages to A0 from this cloud session are also refused (HTTP 401 /
+  untrusted device), so this line is the report.
+- 15 JULY, THE RUN (`--only=`, jobs 2, on 3937e6236): CLOCK CONTRACTS DESTTO (both shards) ECON FLIGHTREC FREIGHT HANGAR
+  MISSIONS NIGHTVISIBILITY PILOTS PLAYER PROCURE ROUTES STOREDRAW CLIMATE DAY SOAR UISMOKE PASS. Red: POD (the frozen
+  _pod_base.json digests), TECH ("pitch:seaplane" has no segment), STORY (the T0 beat card), LAZY (route_draw's first
+  demand) - all four on the F4 entry's list of master's standing reds, none reading the career's date or the weather.
+- THE SEASONAL BLOCKS (option B) are on claude/weather-blocks: 28 new days for the user's review, study §10. No game
+  code yet.
+
+## A0 - train L30c, 3 Nov 2026 20:10
+
+IN (on L30b master adb2d2a92): claude/ready/story-gate dd06f771f (Game: STORY's T0 row, both hangars yours), claude/ready/config-matrix 71a0b3516 (CONFIG-MATRIX steps 2-4: the switch fixes, the dorsal on rods, the greyed tiles), claude/ready/new-plane 880f0c1a5 (NEW-PLANE: the 14-step chooser, the stance + balance fit; the user's N1-N5), claude/ready/tank-fit a849e1435 (TANK-FIT: the honest clearance, the nose auto-fit, Cub 44 L / Jodel 55 L, strut pods, unfit tank = no certificate), claude/ready/hw-hut 8cbce4702 (HW-COVERAGE: the hut lattice G844b + premises/city/parked cook).
+HELD: claude/ready/weather-fixes 47815e0a0 - pulled at 20:05 on GATE CLOUD's 3 rows, then the re-run WITHOUT it was red the same (not its fault): it goes back in L30d. Its merge is in this history with its files restored to the pre-merge tree (commit "weather-fixes HELD"). Seats (seats-cost), cabin interior: L30d / later by the user's call.
+A0 fixes: HANDOVER.md and tools/plane_shot.js back to master's CRLF bytes (tank-fit and new-plane had normalised them; content unchanged).
+BATTERY (88 gates): 81 PASS. Red: CLOUD 3 of 239 "the clouds live, the composite drawn ... composite 0 draws" on current / gamer / ultra - suspected NEW-PLANE's first-launch chooser holding the render loop on the gate's fresh profile (FLYDIY_UI_HOLD); NEW-PLANE to fix the rig or the hold (rule b or a fix) -> L30d. STOL: the fixture's byte comparison vs the joins tank-fit changes on purpose (Cub/Jodel tanks, the Chinook's pods) - Pilot re-captures. TAXICLEAR 1: the Cub's wing 0.07 m from Jumbo Mine's clinic (11c) - tank-fit's mass or the hut's footprints, owner TANK-FIT/HWCOV. FRAMECOST 8: the boot links (5 -> 39/44) + updateMatrixWorld - the boot cost being dated tonight (HWCOV mb_date 23:05). ASSETS, HANDLE, TECH: master standing.
+TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better than L30b's 114.6 s), nothing new.
 
 ## FLOATS-CLASSIC - THE EDO-STYLE ROUNDED-DECK FLOAT: A STYLE OVER THE SAME ROWS, AN EDO CATALOGUE TO THE DC-3's MODEL 78, THE WIPLINE LINE TO THE BIT (2026-11-03, FLOATS-CLASSIC for A0, a CLOUD session: node + SwiftShader, no GPU; branch claude/floats-classic off master adb2d2a9 = train L30b)
 The user (3 Nov, via A0): "another model of floats. A rougher one, with rounded top, feels more home made ... We have the
