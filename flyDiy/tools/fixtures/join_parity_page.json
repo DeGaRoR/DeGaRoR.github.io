@@ -1,8 +1,8 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-02T20:30:26.210Z",
+ "at": "2026-11-03T08:36:47.054Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "a962b06755b52d347c072b86c6c8923f6ee846fe",
+ "chainSig": "56688802e3e691fbcfd76fbf4ef219daa157c51c",
  "builds": {
   "jodel": {
    "file": "builds/jodel_2026-09-20_corrected.json",
@@ -4728,7 +4728,7 @@
     "n": 134,
     "nb": 543,
     "mass": 949.4822188477656,
-    "build": "d983bc023e7a"
+    "build": "9e373216f00d"
    },
    "spec": {
     "cage": {
@@ -6311,8 +6311,8 @@
    "page": {
     "n": 123,
     "nb": 500,
-    "mass": 487.02175564630664,
-    "build": "d983bc023e7a"
+    "mass": 487.2442285462623,
+    "build": "9e373216f00d"
    },
    "spec": {
     "cage": {
@@ -7661,11 +7661,11 @@
       "sheerK": 0.1,
       "aftHold": 0.2,
       "aftPow": 2,
-      "y": -0.44700975806244336,
+      "y": -0.459731384850257,
       "track": 0.8,
       "volDeck": 0.7239997746977722,
       "inc": 0,
-      "x": 1.28662278775748
+      "x": 1.2143430113743534
      }
     },
     "paint": {
