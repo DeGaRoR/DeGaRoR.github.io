@@ -9,8 +9,10 @@
 //
 // Under node, with the page's own layers (tools/_scene_headless.js, the crew and the characters in, the registry in
 // scope as on the page), the user's Cub, and a CAGE_UI.build that rebuilds the scene and counts:
-//   A  THE KEY THAT NEVER COMES: the asset door rejects every fetch - over 7.5 s, ONE rebuild (the settle), the fetch
-//      tried at 0, +2 and +6 s (the clock), not on every build;
+//   A  THE KEY THAT NEVER COMES: the asset door rejects every fetch - over 9 s, ONE rebuild (the settle), the fetch
+//      tried at 0, +2 and +6 s (the clock) from the FIRST fetch, not on every build (measured from the first fetch, not
+//      the process start: under the battery's --jobs 8 the first build lands late - FINISH-4 had it at 550 ms, the clock
+//      on time behind it, +2.49 / +6.50 s; the next try is +14 s, so 9 s holds three and only three);
 //   B  THE KEY THAT COMES LATE: the first fetch rejects, the retry serves the real bytes (media/geo/chars, gunzipped as
 //      assets.js does) - the settle, then ONE rebuild when it lands, and the character ready;
 //   SELF-TEST  the mutant without charAt's CHAR_FAIL guard (the old behaviour) turns A red.
@@ -59,7 +61,7 @@ if (process.argv.includes('--scenario')) {
     const key = W.CAGE_CHAR && W.CAGE_CHAR.RACER;
     console.log(JSON.stringify({ which, key, builds, tries, ready: !!(W.CAGE_CHAR && W.CAGE_CHAR.ready(key)) }));
     process.exit(0);
-  }, which === 'A' ? 7500 : 3500);
+  }, which === 'A' ? 9000 : 3500);
   return;
 }
 
@@ -77,8 +79,9 @@ check(src.split(GUARD).length === 2, 'charAt skips a failed key until its retry 
 const A = scen('A');
 const sA = 'builds at ' + JSON.stringify(A.builds) + ' ms, fetches at ' + JSON.stringify(A.tries) + ' ms';
 check(A.key === 'ch20' && A.tries.length >= 1, 'A: the pilot\'s character was asked for (the crew layer ran, the registry in scope)', 'key ' + A.key);
-check(A.builds.length === 1, 'A: a key that never comes rebuilds ONCE over 7.5 s (G1985\'s settle), not on every build', sA);
-check(A.tries.length === 3 && A.tries[1] >= 1800 && A.tries[1] <= 3000 && A.tries[2] >= 5600, 'A: it is retried on the clock (0, +2, +6 s)', sA);
+check(A.builds.length === 1, 'A: a key that never comes rebuilds ONCE over 9 s (G1985\'s settle), not on every build', sA);
+const dA = A.tries.map(t => t - A.tries[0]);
+check(A.tries.length === 3 && dA[1] >= 1800 && dA[1] <= 3000 && dA[2] >= 5600 && dA[2] <= 7500, 'A: it is retried on the clock (0, +2, +6 s from the first fetch)', sA);
 check(!A.ready, 'A: and it stays an undressed seat');
 
 const B = scen('B');
@@ -87,6 +90,6 @@ check(B.tries.length === 2 && B.builds.length === 2 && B.builds[1] >= B.tries[1]
 check(B.ready, 'B: and the character is ready');
 
 const M = scen('A', true);
-check(M.builds.length > 5, 'SELF-TEST the mutant without the guard rebuilds on every build (the old loop) and turns A red', 'mutant builds ' + M.builds.length + ' in 7.5 s');
+check(M.builds.length > 5, 'SELF-TEST the mutant without the guard rebuilds on every build (the old loop) and turns A red', 'mutant builds ' + M.builds.length + ' in 9 s');
 console.log('GATE CREWLOAD: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
