@@ -1,217 +1,157 @@
 # PILLAR-ANCHORS: status
 
-Branch `claude/pillar-anchors` (cloud session). Asked for by the user on 2 Nov through A0:
+Branch `claude/pillar-anchors` (cloud session), **rebased on PHONE-1b (origin/master 1db22c8a4)**. Commits: source first,
+then one "(built)" commit.
 
-> "being able to snap the strut into the cabin pillar, and also to constrain the handles to go there (they are also
-> modeled poorly) would be a great addition. Floats struts should also preferably go onto these pillars, and not try
-> to go on the door areas, when possible. Pillars should really be the target for all fixation devices and anchors.
-> We know perfectly where they are."
+**Not pushed to `claude/ready/pillar-anchors`.** A0 asked for that branch (3 Nov). This session's brief, from the user,
+says to push `claude/pillar-anchors` and NOT `claude/ready/*` ("A0 promotes"), and a request from another session cannot
+change that. The branch is ready to promote as it is.
 
-State: **ready for A0's review.** Base: origin/master 0fcf54ef9 (PH1A). **Rebased on FINISH-4 (origin/master 2f104df85) at 05:15 UTC on 3 Nov.** Two conflicts, both resolved by keeping both sides: F4's twin-boom rear float-strut root clamped onto the pod's last frame (the root my pre-F4 render showed hanging in the air), and the ends of HANDOVER.md. The next check-in, at 09:15 UTC, is for PHONE-1b.
+## 0. The user's calls of 3 Nov (through A0), and where each stands
 
-## 1. What was measured first (the trace)
-
-On `_4b` (`builds/candidates/Twin_busher_floats_4b.json` from `origin/claude/ready/candidates-4b`), through the game's
-own load door (`_load_build.js gameSpecFull`) and the editor's layers headless:
-
-- **The physics already loads the pillars.** 61_gen_frame roots the lift strut on fuselage ring S1, and hangs the float
-  truss on S1 and S2. The join measures those rings off the pillars (noseGap ends on `pilCabB`, the cabin's length on
-  `pilPaxA`). So S1 is the B pillar's forward ring (cage z 1.614 m) and S2 the C pillar's aft ring (0.787 m).
-- **The drawing did not.** The lift strut's foot was drawn 0.15 m ahead of its node, on the pilot door's bottom. The
-  float struts were rooted at the float's deck stations, 0.4 m and 0.2 m from the nodes they ride. The forward root was
-  on the pilot door's skin (y −0.525 against a sill at −0.583).
-- **Doors.** The pilot door touches the float strut root from 3° and the lift strut foot at 13–23°. The passenger door
-  touches the lift strut at about 80–90°. The fittings layer had put the boarding step (and a static port and the belly
-  inspection plate) on the pilot door.
-
-## 2. What is built
-
-**One source.** `tools/_pillar_site.js` (`window.PILLAR_SITE`, in the editor manifest after `_fit_site.js`) holds:
-
-- `pillarsOf(mesh, R, FS)`: the pillars as anchor sites, read off the resolved rings and the sheet. A, B, C, the mid
-  pillars and the aero windscreen post, each with its band, its centre, and the frame ring it carries (`frame` and
-  `zNode`). B carries ring 1 and C carries the cabin's rear ring. The A post carries the firewall's ring 0 when the
-  firewall stands on it.
-- The doors: each door's own skin triangles and edge runs, in metres.
-- The firewall's station, by the join's own rule.
-- `frameStations`, `strutRootStation` and `floatRootStations`: the frame's own anchor rules (61_gen_frame) applied to
-  the pillars' stations. A layer that uses them lands on the very ring the physics loads.
-- `inDoor`: is a point on a door's panel, or anywhere in its 0–90° swing.
-- `swingSweep` and `doorSwingReport`: the door-swing check.
-
-**The row.** `pilSnap` ('anchors': as placed / on the pillars), in the lift struts' foot group.
-
-- It is 0 by default, so every saved build loads as it was.
-- It is absent from `spec.cage` at 0 (`CAGE_ZERO_ABSENT`), so a saved build keeps every key it had.
-- A card born in the design flow gets 1 (`_cage_design.js designFull`). That makes the snap the default for new
-  placements and opt-in for existing builds. Nothing moves silently.
-
-**With `pilSnap` 1:**
-
-- **Lift strut foot** (`_cage_wing.js`): stands on the pillar that carries the frame's strut-root ring (B on `_4b`, the
-  A post on the C172-alike, whose frame roots the strut on the firewall ring). The fore/aft trim then moves only the
-  wing fittings. The status line names the pillar, or says why there is none.
-- **Float strut roots** (`_cage_float.js`): on the pillars that carry the frame's iFwd and iAft rings. The struts are
-  raked from the deck fittings up to the pillars. On a pillar the root walks down toward the keel until it is 40 mm
-  under the lowest sill of the doors either side. That is the frame's bottom longeron, where its node is. Without the
-  snap, the status line now names any strut root that sits on a door.
-- **Fittings** (`_cage_access.js`): an anchor (the step, the grab handle) whose site lands on a door's panel goes to
-  the nearest pillar at the same height. Any other fitting on a door's panel moves off it, to the nearest non-door
-  skin aft of the firewall, or stays where it is if no such skin exists. Flush plates ride the door anyway.
-- **The door handle**: a new latch lever (`FIT_GEN.FORMS.handleLever`): an escutcheon with a lever pivoted away from
-  the latch, its grip at the latch edge turned out a finger's depth, and a lock barrel. It is ~230 triangles, against
-  320 for the old U. It sits 25 mm in from the latch edge at the waist, and the two nudges are held to the latch strip
-  (0–0.10 m along, ±0.15 up).
-
-**The door-swing check.**
-
-- Each door is turned 0→90° about its hinge line as the hinge layer draws it (`CAGE_HINGE.doors`, published now),
-  against every drawn layer. The door's own barrels and the fittings lying on it ride with it.
-- It reports the least clearance per door and per kind of obstacle (wing, wing strut, float strut, boom, anchor), and
-  RED under 20 mm.
-- In the editor it runs in an idle callback after a build (~1 s a door) and appends to the status line.
-- The join reads that last answer as a **note** per red door (`door swing: …`). The join never computes it, because
-  export runs on every preview.
-- `tools/door_swing_survey.js` writes the repo-wide table.
-
-**GATE PILLAR** (`tools/_pillar_check.js`, core) holds:
-
-- The sweep against an analytic ruler.
-- Snap-off identity on the validated aeroplanes: every layer's vertices are the same with the module removed.
-- The B and C pillars on the C172-alike.
-- The snapped placements on the C172-alike and the Cessna floats. It also prints their swing table.
-
-## 3. The door-swing table, per build
-
-Full table: `door_swing_table.md`. Every number: `door_swing_survey.json`. Made by:
-
-```bash
-node flyDiy/tools/door_swing_survey.js <builds> --out <prefix>
-```
-
-Each build goes through the load door and is drawn twice: as saved, and with `pilSnap` 1. Each door is swept 0→90°
-about the hinge line the hinge layer draws. RED = under 20 mm. "ON the closed door" lists what already touches the shut
-door.
-
-**Red today (as saved):** every repo build that has doors.
-
-- Twin_busher_floats_2 and _4b
-- both c172r Wiplines, both cessna172 files, the metal Cessna and the Cessna floats
-- both Jodels and composite_jodel
-- both Cubs, cub_fittings_hand, stol_cub_showcase and pa18_floats
-- dc3 (starboard pilot door only) and ugly_bi
-
-No doors: both chinooks, Rufus, camel, mosquito, stearman, tigermoth and the twin floatplane fixture.
-
-**Why they are red**, by obstacle (from the table):
-
-| cause | builds | does the snap fix it |
-|---|---|---|
-| **a float strut root ON the door's skin** | _4b, Twin 2, both c172r Wiplines, pa18_floats, Cessna floats | **yes**. Float struts clear by 36–65 mm on _4b, 49 mm on the Wiplines, 52 mm on the Cessna floats and 158 mm on the PA-18 |
-| **a step or plate on the door** (the step, the inspection plate, the static port, the venturi) | _4b, Twin 2, Jodels, Cessnas, Cubs, PA-18, ugly_bi | **yes**. The step goes to the B pillar; the other fittings move off the door |
-| **the lift strut crossing the door's arc** (0 mm at 13–28°, the _4b passenger door 3 mm at 90°) | Cessnas, Cubs, PA-18, Twin 2, ugly_bi, _4b's passenger doors | **no**. The strut runs from the fuselage to the spar station over the door; the foot moving to the pillar does not take the strut out of the arc. On _4b's passenger door it moves the hit from 90° (3 mm) to 78° (0 mm), because the foot went 0.19 m aft to the B pillar |
-| **the wing root over the door's top or sill** (0 mm from 3–13°, "ON the closed door: wing") | Cessnas, Jodels (low wing: the door's bottom on the wing root), Cubs, PA-18, Twin 2, ugly_bi | **no**. This is the user's own _4b fix (wing raised, wgDy −0.12 → 0); _4b's doors now clear the wing by 33–64 mm |
-| the gear leg ON the Cub's door | Cubs, stol_cub_showcase | no |
-
-**_4b**: the newest one, on `origin/claude/ready/candidates-4b` 291d12bcf, after FLAGSHIP's door fixes (fltStrutAng
-45 → 25, doorSill 0.06 → 0.20, boomNoseLen 0.41 → 0.2). It is not on master after FINISH-4; only
-`review/Twin_busher_floats_4.json` is. As saved → snapped:
-
-- **Pilot doors: RED 0 mm → 27 / 36 mm.** FLAGSHIP's fixes already cleared the float struts (171 mm) and the lift strut
-  (66 mm). What still touches the closed door is a fitting on it: the step, the static port and the venturi. The snap
-  moves them, the step onto the B pillar.
-- **Passenger doors: RED 3 mm @90° → RED 0 mm @78°**, against the lift strut. FLAGSHIP's "every door swings clear"
-  holds short of full open. A stop at about 70° (or the strut's wing fittings forward) clears it. The snap makes this
-  one slightly worse, because the foot moves aft onto the B pillar.
-- The older, pre-fix _4b (the renders in section 5): pilot doors RED 0 → 38 mm, the float strut roots off the pilot
-  door.
-
-## 4. Gates
-
-Run on this branch (`node tools/run_gates.js --only=... --no-build`). Every red was re-run on a clean origin/master
-worktree.
-
-**After the rebase on FINISH-4:** PILLAR and the brief's gates pass: PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS,
-GEN (4 shards), STARTER, plus HINGE and FIT. The reds are the same standing four, in files this branch does not touch:
-HANDLE (Twin_busher_floats_2), CLIP (IFR nav aerial), TECH (pitch:seaplane), and NODUMMY (F4 adds
-`tools/box_render.js` to its list). The rest below is from before the rebase.
-
-**PASS:**
-
-- the brief's list: PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS, GEN (all 4 shards), STARTER
-- the other gates that read a touched file: FIT, HINGE, BUILD, ENERGY, FRAMES, ROLLANIM, SUBSTEP, BENCH, PROCURE,
-  EDBUGS, LIVERYREACH, NACLAG, WINGROWS, BAY, PODEDITOR, DEFAULT, DASH, HITBOX, TAXICLEAR, TANKMOUNT, SKINMAT,
-  FITMANUAL, SIMWORKER
-- the new **PILLAR**
-
-ROLLANIM was red once, at 64.1 bytes a frame against a bound of 64, while five other node jobs were running. It passes
-alone and passes on master.
-
-**Red, and red on master too (standing), with the same findings:**
-
-| gate | what is red |
+| call | state |
 |---|---|
-| CLIP | stock+IFR: the nav aerial 9.2 mm into the fin |
-| TECH | `pitch:seaplane` has no segment |
-| NODUMMY | `_crew_head_probe.js`, `newshapes_build.js`, `quickshot.js` |
-| JOINPARITY | the metal Cessna / Cessna floats node vs page masses; the fixture byte check; the tools that fly a validated build raw |
-| HANDLE | `bugReports/Twin_busher_floats_2.json`: the handle on the hinge edge |
-| ENGCONFIG | IDENTITY digests against its pinned old master 2c2a74459; the three cards differ (same digests on master) |
-| PARKED | out of heap in section 12p (the fleet in the page). Master is out of heap too when run alone; it passed once in a 3-job run |
+| **P1** a door stop per build, default 75°, wing included | **Done.** Row `doorStop` (the doors' hinge group, 45–120°, 75 by default). The door-swing check sweeps each door from 0 to its stop. The wing is an obstacle like any other. |
+| **P2** a blocked door FAILS the commercial certificate (DESIGN-AIDS' row) | **Interface ready; the row is DESIGN-AIDS'.** Their bench row `aid.doors` (tier `comm`, "Doors open fully (egress)", `origin/claude/design-aids` bench.js:205) reads `CAGE_DOORSWING.last`: `doors[].red`, `redMM`, `PILLAR_SITE.swingLine`. This branch keeps those names and adds `stopDeg` (and `doors[].stop`), so their limit text can say "to the 75° stop" instead of "0–90 deg". |
+| **P3** every saved build with doors gets `pilSnap` 1 | **Done.** The row's default is 1 and it is absent from the file at 1 (`CAGE_DEFAULT_ABSENT`), so no saved build gains a key. On the validated builds the physics is unchanged (section 3). Every build whose drawing moves is named in section 4. |
+| **P4** a user-picked pillar, the frame following | **Done, lowest priority as asked.** Row `wgStrutPil`: auto / A post / B pillar / C pillar. The join writes the picked pillar's ring station (`bracing.strutAt`, metres aft of the firewall); 61_gen_frame roots the strut on that ring; the foot is drawn on the pillar. On auto (every saved build) nothing is written, so the spec is byte for byte what it was. A pick set back to auto clears the stored station. GATE PILLAR checks a B pick on the C172-alike; on _4b a C pick puts the root on S2, the C ring. |
+| **P5** the C172-alike's A-post foot | Kept as it is. |
+| **P6** always a narrow pillar step | **Done** (the remodel below). |
+| **the remodel** (the user: "I keep hating the step handle … the pixelated shape used as a base … the access doors … almost a texture job … The old U style would even be better") | **Done.** Pictures in section 6. **The "pixelated" base was `plateInto` itself:** a 9 × 7 grid with the points outside the rounded outline dropped, so every plate's edge was a staircase. It is now rings of the outline curve (smooth at any size, ~280 triangles). **The step:** a narrow pillar step — a turned boss on the post, one round stem bent out and down, and a 64 mm tread disc; no plate, nothing wider than a pillar. **The handle:** the latch lever and its base are gone; it is the table's U again, smoother (rounded feet, 10-sided bar, softer bends), ~640 triangles. **The inspection hatch and the hinged access door:** drawn, not bolted on — no plate at all, the skin's own colour inside, a 2 mm dark seam and flat screw heads (the hinged door keeps a slim hinge and a flat catch). A thin plate was tried first and failed: the fittings' paint is the livery's base colour, not the stripe it lands on, and so close to the skin it fought the skin for depth. |
+| **landing** | Rebased on PHONE-1b; the gates are in section 5. |
 
-**HANDLE:** this branch's first run had 45 reds on the cards born with the snap. The new lever's pad stood across the
-window sill, because the conforming surface's axes are not the handle's. Fixed: the pad lies on the tangent plane.
+## 1. What the snap does (`pilSnap` 1, now every build's default)
 
-**Memory:** the PARKED hunt led to three changes on this branch, all kept.
+The physics already loads the pillars. The frame roots the lift strut on a fuselage ring and hangs the float truss on
+two, and the join measures those rings off the pillars (noseGap ends on `pilCabB`, the cabin's length on `pilPaxA`).
+What was not on the pillars was the drawing. On _4b, the lift strut foot was 0.15 m ahead of its node on the pilot
+door's bottom, and a float strut root sat on the pilot door's skin. The snap draws each anchor on the pillar that
+carries the ring the frame already loads, so the drawing and the load agree and no physics moves:
 
-- The editor's door-swing pass keeps only the latest build's context, with one pending callback, and never runs for
-  the game's builds or a drag tick's preview.
-- The float layer's snap-off "root on a door" status runs in the editor only.
-- The swing's obstacles are clipped to the doors' reach before they are copied.
+- **The lift strut foot** goes on the pillar that carries the frame's strut-root ring, or on the picked one (P4).
+- **The float strut roots** go on the pillars that carry the frame's forward and aft rings. They are lowered below the
+  doors' sills, to the frame's bottom longeron.
+- **An anchor (the step, the grab handle) found on a door** goes to the nearest pillar.
+- **Any other fitting whose footprint touches a door** moves off it, keeping its whole footprint outside every door's
+  outline. Failing that, it goes wholly onto the door, where it rides the door; it never sits across the gap.
+- **The door handle** is held to the latch strip.
 
-**Validated builds (Cub, Jodel, metal Cessna, Cessna floats, the twin floatplane): identical.**
+One source, `tools/_pillar_site.js`, holds the pillars, the doors, the frame's anchor rules and the swing check.
 
-- Their cages carry no `pilSnap` and load with it off.
-- GATE PILLAR checks that every layer's vertices are the same with the pillar module removed. The light layer's beacon
-  differs between any two builds and is subtracted as noise.
-- `flight_core.js` is untouched, so GEN and every physics digest are unchanged.
-- Rufus has no doors and no struts.
+## 2. The door-swing check
 
-## 5. Renders
+Each door is turned from 0 to its **stop** (75°) about the hinge line the hinge layer draws, against every drawn layer.
+The door's own hinges, and the fittings lying flush on it, ride with it.
 
-SwiftShader, `tools/plane_shot.js` from this branch.
+A door is **RED** when:
+- something touches it shut (the "ON the closed door" column), or
+- something it **moves toward** comes within 20 mm as it opens.
+
+Something the door moves away from (a fitting beside its edge, the strut by its hinge side) is listed with "beside" and
+is not a block. This replaced the strict minimum: _4b's passenger doors read 14–20 mm at 3° against the strut foot by
+their hinge and open away from it. Touching is always a block.
+
+The editor runs the check when the hand stops and shows it in the status line. The join shows its last answer as a
+note. DESIGN-AIDS' row makes a red fail the commercial certificate.
+
+## 3. The validated builds: the physics is unchanged
+
+GATE PILLAR, on Cub, Jodel, metal Cessna, Cessna floats and the twin floatplane:
+- no `pilSnap` in their saved cages, and they load with it on;
+- **the flown spec through the load door is identical with the snap on or off** (the frame, the masses and every
+  physics digest are the build's own);
+- with the snap off, every layer draws the same vertices with the pillar module removed.
+
+GEN passes. ENGCONFIG's physics digests for this tree are the same values master produced before this branch (its red
+is standing, see section 5). Rufus has no doors; only its lift strut foot moves.
+
+What the snap moves, per validated build:
+
+| build | layers moved |
+|---|---|
+| Cub | wing (the strut feet), access |
+| Jodel | access |
+| metal Cessna | wing, access |
+| Cessna floats | wing, float, access |
+| twin floatplane | wing, float |
+
+## 4. The door-swing table, before / after, and the drawings that move
+
+`door_swing_table.md` (and every number in `door_swing_survey.json`):
+- 39 build files on master after PHONE-1b, plus `review/flydiy-build (4).json` (no doors; its row is at the end of
+  the table);
+- **BEFORE** = the anchors as placed, swept to 90° (master before this branch);
+- **AFTER** = the snap on, swept to the 75° stop (this branch);
+- per door: the least clearance per kind (wing, wing strut, float strut, boom, anchor), "beside" or not, and what
+  touches the closed door.
+
+**Overall** (the 39 build files): 58 door rows; **RED before 56, after 51.**
+
+**Cleared by the snap and the stop:**
+- **_4b** (now on master): all four doors, least 21 mm (the step on the B pillar, at 8°). The passenger doors' lift
+  strut by their hinge and the wing above them are "beside".
+- **The DC-3's starboard pilot door**: 0 mm at 13° against the OAT probe before; clear after.
+
+**Still red after, by cause** (the doors whose block is under 20 mm):
+
+| cause | doors | builds | what would clear it |
+|---|---|---|---|
+| **the wing root over the door's top or sill**, mostly on the shut door | 56 | the Cessnas and C172 Wiplines, the Jodels, every Cub, the PA-18, Twin 2 / 3 / 3b / 4, ugly_bi | the user's own _4b fix: the wing raised (wgDy) or the door's top lowered |
+| **the lift strut across the door's arc**, closing in | 40 | the same high-wing builds | a smaller stop, or the strut's wing fittings forward; a picked pillar (P4) moves the foot |
+| **an anchor or fitting** the door closes on | 24 | the Cessnas, the Cubs, the Jodels, PA-18, ugly_bi | per fitting, next |
+| **the gear leg** on the Cub's door | 18 | the Cubs, the Jodels | |
+| **float strut** | 6 | Twin 3 / 3b / 4: their aft ring has no pillar, so the root keeps the deck station | |
+
+(A door can have several causes.)
+
+**The drawings that move per build** are listed at the end of `door_swing_table.md`: the layers whose vertices differ
+before vs after.
+- Every build with a lift strut moves its `wing` layer (the strut feet).
+- Every float build moves `float`.
+- Every build whose fittings sat on a door moves `access`.
+- Builds whose drawing does not move: camel, mosquito, stearman, tigermoth, ugly_bi.
+- The engine and cowl layers never read the snap and are left out of the list. One process building aeroplane after
+  aeroplane redraws them differently; the camel drawn alone is identical before and after.
+- The remodelled fittings change every build's fittings drawing, snap or not.
+
+## 5. Gates (on PHONE-1b, this branch)
+
+**PASS:** PILLAR, PARTS, DESIGN, SAVE, JOIN, CAGEFIT, FLOATKIT, FLOATS, GEN (4 shards), STARTER, HINGE, FIT, FITMANUAL,
+BUILD.
+
+**Red, standing:**
+- **HANDLE**: `bugReports/Twin_busher_floats_2.json` — the handle on the hinge edge. Red on master since before this
+  branch.
+- **CLIP**: stock+IFR — the nav aerial 9.2 mm into the fin. Same.
+- **ENGCONFIG**: IDENTITY against its pinned digests, and the three cards. Re-run on a clean PHONE-1b master worktree, it fails
+  the same way **with the same digests** (cub `dbabd0baa8a84577 73e6b8c787a9ed0d`), so this branch's physics digests
+  equal master's.
+
+Earlier runs on this branch (FINISH-4 and before): TECH and NODUMMY were red on master too, in files this branch does
+not touch. PARKED runs out of heap on master too.
+
+## 6. Renders (SwiftShader, `tools/plane_shot.js`)
 
 | file | what it shows |
 |---|---|
-| `4b_doors_side_before_after.jpg` | _4b's port flank between the doors, the same framing (`at:` view), before and after. The lift strut foot moves from the pilot door's bottom to the B pillar. The float struts converge on the B pillar under the door seam. The step moves from the pilot door onto the B pillar. The handles are the new levers. |
-| `4b_pod_aft_C_pillar_before_after.jpg` | The pod's aft end. Before, the rear float strut's root hangs in the air aft of the pod (the float's deck station is past the pod's end). After, it is on the C pillar. |
-| `handle_before_after.jpg` | The door handle close (`fit:doorHandle`): the old 115 mm U grab, then the new latch lever (escutcheon, lever, grip at the latch edge, lock barrel) 25 mm from the latch edge. |
-| `4b_side_before.jpg`, `4b_side_after.jpg` | The side preset. |
-| `c172_born_snap_q.jpg`, `c172_born_snap_door_side.jpg` | The C172-alike born in the design flow (pilSnap 1 by default). Its frame roots the lift strut on the firewall ring, so the foot stands on the A post below the pilot door's hinges, and the lever handle sits by the latch. |
+| `remodel_step_pillar.jpg` | The narrow pillar step on _4b's B pillar: boss, stem and tread, no base plate. |
+| `remodel_handle_U.jpg` | The smoothed U handle by the door's latch edge (the static port moved off the door onto the post beside it). |
+| `remodel_hatch_drawn.jpg` | The belly inspection hatch, drawn: a seam line and flat screws on the skin, its own colour inside. This shot is from before the footprint rule; the hatch now sits clear of the door's bottom edge. |
+| `4b_doors_side_now.jpg` | The newest _4b between its doors as it loads now: the lift strut foot and the float roots low on the B pillar, the step on the post, the U handles. |
+| `4b_doors_side_before_after.jpg`, `4b_pod_aft_C_pillar_before_after.jpg`, `4b_side_before.jpg`, `4b_side_after.jpg` | The 2 Nov pair, on the pre-fix _4b: the foot moving off the pilot door to the B pillar; the rear float root that hung in the air aft of the pod, on the C pillar. The "after" handles there are the dropped lever. |
+| `c172_born_snap_q.jpg`, `c172_born_snap_door_side.jpg` | The C172-alike as born: the foot on the A post. |
 
-Caveats:
+`tools/plane_shot.js` gained two views:
+- `fit:<key>/<az>/<el>/<dist>`: one placed fitting, on the flank facing the eye.
+- `at:<x>/<y>/<z>/<az>/<el>/<dist>`: a point of the cage, the same framing for two builds.
 
-- On today's phone page, plane_shot's own "hide the aeroplane" assert reads 0 % for every view (`CAGE_UI_SCENE.visible`
-  no longer hides the build). Every still is therefore written as `_FAIL.png`. The pictures are good; the assert is a
-  tool/page mismatch for CLOUD-SHOTS.
-- In one browser session, the second build's `at:`/`fit:` target lands about 0.8 m off. Each build was shot in its own
-  run.
-- Under ~0.8 m the camera's near plane cuts the skin.
+Its "hide the aeroplane" check reads 0 % on the phone page, so every still is saved as `_FAIL.png`; the stills are
+good.
 
-## 6. Questions for the user
+## 7. For the user
 
-1. **The check is strict, and today every build with doors is red.** It measures every drawn layer, anywhere in a
-   0–90° swing. Mostly it is the wing root over the doors' tops or sills and the lift strut across the arc. Keep 90°,
-   or give each build a door stop (a real door opens 70–90°)? Should the wing be in it?
-2. **A red is a join NOTE today** (shown in the editor's status line and the join's notes; nothing blocks). Should it
-   be an ERROR (the bench files errors as failed tests)?
-3. **Which saved builds get the snap?** Today it is opt-in per build, through the 'anchors: on the pillars' row in the
-   lift struts' foot group. _4b first: it clears the pilot doors (0 → 38 mm). The passenger door's lift strut stays red
-   (now 78°): a door stop at ~70°, or the strut's wing fittings forward?
-4. **User-picked pillar**: not built. The snap takes the pillar the frame roots the load on, so the drawing tells the
-   truth. Picking another pillar needs the frame to follow, which is a physics change for that build only (a
-   `bracing` field the join writes). Is that wanted?
-5. **The C172-alike** (as born) roots its lift strut on the firewall ring, because its wing sits near the screen, so
-   its foot goes to the A post. Fine, or should the frame root it on the B pillar (new births only)?
-6. **The step on a 75 mm pillar**: its plate (176 mm) is wider than the post. Use a narrow pillar step, or the step on
-   the lift strut, as on a Cessna?
+- **The step on _4b** stands on the B pillar right beside the passenger door's lower hinge leaf. A narrow pillar is
+  shared by the hinge, the strut foot and the step. Lower the step below the hinge, or put it on the strut?
+- **The wing root over the doors** is the most common red (the Cessnas, Jodels, Cubs). Is that wanted as a
+  commercial-certificate failure for those builds, or should the validated builds be fixed first (the wing raised, as
+  on _4b)?
