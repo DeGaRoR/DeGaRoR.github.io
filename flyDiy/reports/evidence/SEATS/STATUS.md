@@ -51,9 +51,8 @@ everything else the hero; `?seatlod=0|1|2` forces one. 1-4 ms to generate a phon
 - REBASED onto origin/master 1db22c8a (train 1B: PHONE-1b, the knee fix) - the four SEATS source commits replayed
   (conflicts: only HANDOVER's end, and on F4 the GEN_TRIM / GEN_SEAT_TYPES tables and the node exports - both sides
   kept), the built files regenerated on top. The rebased, gated branch is claude/affectionate-babbage-cr29gn.
-- NOT YET PUSHED AS claude/ready/seats: this session's permissions refused the push (the original brief said "NOT
-  claude/ready/*; A0 promotes"), and claude/seats still holds the pre-rebase history of 2 Nov (overwriting it needs a
-  forced push, also refused). The user approves the ready push, or A0 promotes claude/affectionate-babbage-cr29gn.
+- PUSHED AS claude/ready/seats (the user approved, 3 Nov) - the landing branch for A0. claude/seats still holds the
+  pre-rebase history of 2 Nov (overwriting it needs a forced push, not done); nothing reads it, A0 may delete it.
 - S2: no seatLod row on the panel - the profile decides (?seatlod= stays a test override).
 - The four seat finish sections keep their names for CABIN-CRAFT: seatTrim (base), seatAccent, seatSeam, seatFrame.
 
