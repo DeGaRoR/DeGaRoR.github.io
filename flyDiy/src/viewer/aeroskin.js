@@ -158,9 +158,9 @@ const AERO_FINISH = {
                hs: 0.8, bs: 0.6, bake: 'sheet',
                fld: 0.0025, fldL: 0.90, fldR: 0.4 },
   // FLOATS-CLASSIC: OLD FLOAT ALLOY - an EDO that has seen forty summers: skins replaced one at a time (the
-  // `panels` bake: a few sheets a tile, each its own shade and sheen, a lapped seam between them), oxide-dulled (less
+  // `panels` bake: two sheets a 2.4 m tile, each its own shade and sheen, a lapped seam between them), oxide-dulled (less
   // metal, more rough than new bare alloy), a slow field of dents (fld). One sheet texture like every finish's
-  agedAlu:   { name: 'aged float alloy', base: 0xa9afb4, tile: 1.20,
+  agedAlu:   { name: 'aged float alloy', base: 0xa9afb4, tile: 2.40,
                rough: 0.46, metal: 0.62, nrm: 0.55, alb: 0.42,
                hs: 0.9, bs: 1.5, bake: 'panels',
                fld: 0.0030, fldL: 0.55, fldR: 0.55 },
@@ -1349,20 +1349,26 @@ function aeroHeight(kind, S, row) {
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
       }
       case 'panels': {
-        // FLOATS-CLASSIC: MISMATCHED SKINS. A tile holds 3 x 2 sheets (fore-aft x round), each a constant offset
-        // drawn from a fixed hash - the B channel carries it into the roughness and the albedo (bs, alb), so one
-        // sheet reads a shade duller or brighter than its neighbour, the way a re-skinned float does - a shallow lap
-        // groove along every seam (the normal turns there: the seam catches the light), and the mill grain and a
-        // few long scuffs over the lot. Periodic in S like every term here (the cells divide the tile).
-        const cu = Math.floor(x / (S / 3)), cv = Math.floor(y / (S / 2));
+        // FLOATS-CLASSIC: MISMATCHED SKINS. A tile holds 2 x 1 sheets (fore-aft x round), each its own shade from a
+        // fixed hash - carried by the B channel into the roughness and the albedo (bs, alb), so one sheet reads a
+        // shade duller or brighter than its neighbour, the way a re-skinned float does. The shade EASES across a
+        // tenth of the sheet (smoothstep): the step is colour, not relief - a hard step turned every cell edge into a
+        // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, the
+        // mill grain and a few long scuffs over the lot. Periodic in S like every term here (the cells divide the tile).
+        const NU = 2, NV = 1, cw = S / NU, ch = S / NV;
         const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
-        const shade = (hsh(cu * 7 + cv * 13 + 1) - 0.5) * 0.9;
-        const fu = (x % (S / 3)) / (S / 3), fv = (y % (S / 2)) / (S / 2);
-        const dEdge = Math.min(fu, 1 - fu, fv * 1.5, (1 - fv) * 1.5);
-        const lap = -0.35 * Math.exp(-Math.pow(dEdge / 0.012, 2));
-        const scuff = 0.12 * Math.max(0, Math.sin(u * 3 + v * 1 + 0.7)) * Math.pow(Math.max(0, Math.sin(v * 41 + Math.sin(u * 7) * 2.0)), 24);
+        const sh = (iu, iv) => (hsh(((iu % NU) + NU) % NU * 7 + (((iv % NV) + NV) % NV) * 13 + 1) - 0.5) * 0.7;
+        const cu = Math.floor(x / cw), cv = Math.floor(y / ch);
+        const fu = (x - cu * cw) / cw, fv = (y - cv * ch) / ch;
+        const ease = t => t * t * (3 - 2 * t);
+        const wu = fu < 0.1 ? 0.5 * ease(fu / 0.1) + 0.5 : fu > 0.9 ? 0.5 * ease((1 - fu) / 0.1) + 0.5 : 1;
+        const nu = fu < 0.5 ? cu - 1 : cu + 1;
+        const shade = wu * sh(cu, cv) + (1 - wu) * sh(nu, cv);
+        const dEdge = Math.min(fu, 1 - fu, fv, 1 - fv);
+        const lap = -0.10 * Math.exp(-Math.pow(dEdge / 0.006, 2));
+        const scuff = 0.08 * Math.max(0, Math.sin(u * 2 + v * 1 + 0.7)) * Math.pow(Math.max(0, Math.sin(v * 37 + Math.sin(u * 5) * 2.0)), 24);
         return shade + lap - scuff + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
-             + 0.02 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
+             + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
       case 'pleat': {
         // PLEATED UPHOLSTERY (the door panel, G3xx): `pleats` rounded rolls

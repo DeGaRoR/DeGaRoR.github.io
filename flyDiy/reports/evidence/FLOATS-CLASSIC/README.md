@@ -145,9 +145,11 @@ The editor's sliders are wider for every style; a slider's range never changes a
   - EDO classic: 17 meshes, 9 materials. The two non-skid decks are gone.
   - EDO with the board: 18 meshes, 10 materials.
 - **Shaders.** No new shader program. The aeroskin hook's source is the program key, and no GLSL changed. The rivets
-  and seams are the existing structure grammar on a denser field (a seam every 0.45 m along, a row every 0.17 m round).
+  and seams are the existing structure grammar at an EDO's bulkhead pitch: a seam every 0.6 m along, a row every 0.3 m
+  round, times the square root of the scale on the big floats. A first cut at 0.45 x 0.17 m read as reptile scales.
 - **The new finish.** The mismatched skins and the wear are a new finish row, `agedAlu`, with one new sheet bake,
-  'panels'. That is one texture.
+  'panels': two skins a 2.4 m tile, each its own shade eased in as colour (not relief), a faint lap seam and a few
+  scuffs. That is one texture.
 - **Phone.** The lite tier drops the rivets and the field, as it does on every skin. The sheet stays: the skin fetched it
   anyway.
 - **Frame time.** No frame was timed: this is SwiftShader, and parked_cook was not needed for a frame measure that was

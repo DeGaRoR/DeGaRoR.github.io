@@ -359,9 +359,11 @@ const dirCage = m => { const r = rotInc(m); return [-r[2], r[1], -r[0]]; };
 // so a chine and a side wall keep counting), a frame every FLT_FRAME m, a rivet row every FLT_RAIL m. |mz|, so the
 // mirrored port float carries the same field.
 const FLT_FRAME = 0.75, FLT_RAIL = 0.25;
-// FLOATS-CLASSIC: an EDO is built of narrower skins on closer bulkheads (a seam and a rivet row every ~0.45 m along,
-// a rivet line every ~0.17 m round): the same field, denser - the shader's grammar draws them, nothing new compiles
-const EDO_FRAME = 0.45, EDO_RAIL = 0.17;
+// FLOATS-CLASSIC: an EDO's bulkheads every ~2 ft (a seam and a rivet row every 0.6 m along, a rivet line every 0.3 m
+// round), growing with the float (x sqrt(scale) past the family's 4.6 m: a 12.8 m Model 78 is not a 2000 with more
+// rows) - the same field, the shader's grammar draws it, nothing new compiles. (0.45 x 0.17 m was tried: every bay
+// is an oil-can dish in the grammar, and that dense a grid read as reptile scales.)
+const EDO_FRAME = 0.60, EDO_RAIL = 0.30;
 let FIELD_FRAME = FLT_FRAME, FIELD_RAIL = FLT_RAIL;
 function hullField(part) {
   const n = part.pos.length / 3, NB = 64;
@@ -448,7 +450,8 @@ PAGE.post = ctx => {
 
   const HP = hullParams(P);
   const edo = HP.style === 'edo';
-  FIELD_FRAME = edo ? EDO_FRAME : FLT_FRAME; FIELD_RAIL = edo ? EDO_RAIL : FLT_RAIL;
+  const fk = edo ? Math.sqrt(Math.max(1, HP.scale || 1)) : 1;
+  FIELD_FRAME = edo ? EDO_FRAME * fk : FLT_FRAME; FIELD_RAIL = edo ? EDO_RAIL * fk : FLT_RAIL;
   INC = (+P.fltInc || 0) * D2R;
   const F = HY.makeFloat(Object.assign({}, HP, { mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
   // THE STEP STATION: 12 deg aft of the CG at the keel's depth below it,

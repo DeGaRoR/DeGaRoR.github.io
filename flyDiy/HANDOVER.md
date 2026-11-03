@@ -311071,10 +311071,12 @@ it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on ED
   coating; a round hand-hole cover a bay on the crown, a pump-out cup a bulkhead on the shoulder, horn cleats bow and
   stern, the spreader saddles and strut fittings ON the dome via HYDRO.deckYAt), the bumper 22 mm thick and 13 cm deep
   (a Wipline's 12 mm x 4 cm). The layer: the hull on the new section `floatBare` (pinned finish `agedAlu`, its own colour:
-  bare grey whatever the aeroplane is painted), the rivet field denser (a seam every 0.45 m, a row every 0.17 m: the same
-  shader grammar), the deck board (`fltBoard`, EDO only: three spruce planks fore and aft across the spreader bars, the
-  section `floatBoard`). `agedAlu` is one new AERO_FINISH row and its sheet bake 'panels' (3 x 2 mismatched skins a 1.2 m
-  tile, each its own shade and sheen, a lap groove along every seam, a few scuffs) - a texture, no new program (the
+  bare grey whatever the aeroplane is painted), the rivet field at an EDO's bulkhead pitch (a seam every 0.6 m, a row
+  every 0.3 m round, x sqrt(scale) on the big floats: the same shader grammar; 0.45 x 0.17 m read as reptile scales -
+  every bay is an oil-can dish in the grammar), the deck board (`fltBoard`, EDO only: three spruce planks fore and aft across the spreader bars, the
+  section `floatBoard`). `agedAlu` is one new AERO_FINISH row and its sheet bake 'panels' (2 mismatched skins a 2.4 m
+  tile, each its own shade and sheen eased across a tenth of the sheet - colour, not relief: a hard step drew a ridge
+  at every cell edge -, a faint lap groove, a few scuffs) - a texture, no new program (the
   hook's source is the program key; nothing in the GLSL moved). DRAWS (the PA-18 build's float layer, headless): Wipline
   19 meshes / 11 materials, EDO classic 17 / 9, with the board 18 / 10 - never more than the Wipline. Phone: the lite tier drops the structure grammar
   (the rivets) and the field as on every skin; the panels sheet stays (one fetch the skin made anyway).
