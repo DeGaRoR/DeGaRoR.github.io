@@ -182,6 +182,31 @@ function renderStart(body) {
     }
     body.appendChild(gg);
   }
+  // CANDIDATE OFFICIAL (FINISH-4, the user 2 Nov: "offered as their own archetype ... labeled as such"): the staging
+  // pool's whole builds (builds/candidates/, garage.js candidates) - a card opens the FILE as built, unnamed and with no
+  // plaque; drawn when the pool's index answers, the same door the old overlay used (GARAGE_SPEC.openCandidate)
+  const g0 = GS();
+  if (g0 && g0.candidates && g0.openCandidate) {
+    const host = document.createElement('div');
+    body.appendChild(host);
+    try {
+      g0.candidates().then(list => {
+        if (!list || !list.length || page !== 'start' || !isOpen()) return;
+        host.insertAdjacentHTML('beforeend', '<div class="npSecH">candidate official — built, not validated</div>');
+        const gc = document.createElement('div');
+        gc.className = 'npGrid npSmall';
+        for (const c of list) {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'npTile';
+          b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
+          b.title = c.file + ': designed and built, not validated - no certificate';
+          b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
+          gc.appendChild(b);
+        }
+        host.appendChild(gc);
+      }, () => {});
+    } catch (e) {}
+  }
   // THE AUTHORED RECREATIONS: hand-made to a reference, baked as they are (one build, the same hand-over)
   const auth = d.ARCHETYPES.filter(a => g.authored(a));
   if (auth.length) {
