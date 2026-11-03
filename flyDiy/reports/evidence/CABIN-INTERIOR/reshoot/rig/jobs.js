@@ -1,6 +1,6 @@
 // CABIN-RESHOOT job list + a small queue (node jobs.js <concurrency> [filter-regex])
 const { spawn } = require('child_process'), fs = require('fs'), path = require('path');
-const S = path.resolve(__dirname, '..'), CODE = path.join(S, 'code/flyDiy'), B = path.join(S, 'b'), OUT = path.join(S, 'shots');
+const S = path.resolve(__dirname, '..'), CODE = path.join(S, 'code/flyDiy'), B = path.join(S, 'b'), OUT = path.join(S, process.env.JOBSET === '2' ? 'shots2' : 'shots');
 const CAB = { q34: 'cab:-125/-4/3.4', side: 'cab:-100/-4/3.6', ws: 'cab:170/2/2.4/0.25/0.05' };
 const ROOF = ['in:roofHdr', 'in:roofHdrLo', 'in:roofGraze'];
 const SEAT = { twin: [0.052, 0.5549, 1.8899], cub: [0, 0.6258, 1.6761], c172: [0.052, 0.7032, 1.7312] };   // AFTER's console lamp seat (headless probe)
@@ -20,6 +20,20 @@ J.push({ id: 'cub_fresh', builds: ['cub_before_fresh', 'cub_after_fresh'], views
 for (const c of ['can1_twin', 'can2_twin', 'can3_mosquito', 'open_tigermoth', 'sky_c172', 'sky_twin']) J.push({ id: 'canopy_' + c, builds: [c], views: [CAB.q34, 'in:inUp'], qs: 'idle=0' });
 // the twin's wing runs through its cabin (ray pick, 3 Nov): the same inside views with the wing layer hidden by the rig
 for (const ba of ['before', 'after']) J.push({ id: 'twin_' + ba + '_wingoff', builds: ['twin_' + ba + '_day'], views: ['in:inUpNW', 'in:inRearNW', 'in:inLampNW/' + [0.052, 0.5549, 1.8899].join('/') + '/inLampNW', 'in:inSideNW'], qs: 'idle=0' });
+if (process.env.JOBSET === '2') {
+  J.length = 0;
+  const T2 = { seat: [0.052, 0.5549, 1.8899], rear: [0.245, 0.614, 0.946], front: [0.245, 0.621, 1.856] };
+  const JD = { flood: [0.088, 0.526, 2.139], front: [0.091, 0.570, 2.139] };
+  const LITE = ['--phmat', 'lite'];
+  const sets = {
+    twin2: { day: [CAB.q34, CAB.ws, 'in:roofHdr', ...at('roofLampRear', T2.rear).slice(0, 1), ...at('roofLampFront', T2.front).slice(0, 1), 'in:inUp', 'in:inSide', 'in:inRear', 'in:inLamp/' + T2.seat.join('/') + '/inLamp'],
+             dusk: [CAB.q34, CAB.ws, 'in:inUp', 'in:inSide', 'in:inRear', 'in:inLamp/' + T2.seat.join('/') + '/inLamp'] },
+    jodel: { day: [CAB.q34, CAB.ws, 'in:roofHdr', 'in:roofGraze', ...at('roofLampFront', JD.front).slice(0, 1), 'in:inUp', 'in:inSide', 'in:inRear', 'in:inLamp/' + JD.flood.join('/') + '/inLamp'],
+             dusk: [CAB.q34, CAB.ws, 'in:inUp', 'in:inSide', 'in:inLamp/' + JD.flood.join('/') + '/inLamp'] },
+  };
+  for (const ba of ['after', 'before']) for (const st of ['day', 'dusk']) for (const k of ['twin2', 'jodel'])
+    J.push({ id: k + '_' + ba + '_' + st, builds: [k + '_' + ba + '_' + st], views: sets[k][st], qs: st === 'dusk' ? 'idle=0&day=dusk' : 'idle=0', extra: st === 'dusk' ? ['--dim', '0.12', ...LITE] : LITE });
+}
 module.exports = J;
 if (require.main === module) {
   const N = +process.argv[2] || 2, re = new RegExp(process.argv[3] || '.');

@@ -1,10 +1,67 @@
 # CABIN-RESHOOT: the cabin interior on the fixed head (3 Nov 2026, cloud, for A0 → the user)
 
-**STATUS: INTERIM.** Pushed at the user's ask ("anything to push to A0?"). The twin is complete. The Cub and C172
-stills, the canopy stills and the twin's wing-hidden inside set are still rendering. The headless measures below cover
-all three builds and every canopy case, and they are final. A later commit completes this file.
+**STATUS: INTERIM 2.**
+- First push: the first twin set, at the user's ask ("anything to push to A0?").
+- This push: SET 2, the twin with its centre section top-only and the Jodel, on the simplified renderer, at the
+  user's ask.
+- The headless measures cover all builds and every canopy case, and they are final.
 
 Evidence only. No game code moved; nothing built is committed.
+
+## SET 2: the twin with its wing's centre section "top only", and the Jodel (the user, 3 Nov ~21:00)
+
+The user: "you've been looking on a plane where the wing goes through the frame, so you did not see anything from your
+work. On the twin Bush, swap the wing center section to top only ... You can also try the jodel. Use the simplified
+renderer for your screenshots."
+
+Set-up:
+- **twin2:** `bugReports/Twin_busher_floats_2.json` with `wgCentre: 2`. That is the row's "open (upper only)"; the
+  saved file has 3, "aft half cut".
+- **jodel:** `builds/jodel_2026-09-20_corrected.json` as saved.
+- Both BEFORE (rows absent) and AFTER (`hdlOn, wallTrimOn, ohConsoleOn = 1`), at day and at the rig dusk (lamps rows
+  on, `--dim 0.12`).
+- **Renderer:** the simplified one, the phone material tier `phmat=lite`, on the same SwiftShader rig.
+- **Pictures:** `set2/<build>_<set>_<view>.jpg`, each BEFORE | AFTER. 24 pairs so far; `jodel_dusk_*` is still
+  rendering.
+- **Page errors:** none (`"errors": []` in every run).
+
+**Headless first** (`rig/wing_probe2_out.txt`, `rig/probe2_out.txt`):
+- **twin2:** the wing now runs ABOVE the headliner from z 1.09 to 1.89 (wing 0.600-0.633 vs headliner 0.603). It
+  still dips under it:
+  - at the front, 2-6 cm at z 1.99-2.09 (the leading edge behind the screen, around the console's nose);
+  - at the rear, 3 cm at z 0.89-0.99.
+
+  Console: every vertex under the skin, 3.5 mm at the closest.
+- **Jodel:** no wing in the cabin (low wing). **No console:** its raked windscreen lies over the console's footprint
+  (6 windshield faces), so `buildOverheadConsole` refuses at `tools/_cage_crew.js:1092` by its own rule. The Jodel
+  shows the headliner and the wall trim only; its lamps stay on the roof rung.
+
+**What the close shots show:**
+
+| pair | what it shows |
+|---|---|
+| `set2/twin2_day_inUp` | **The console reads.** BEFORE: a plain cream liner and the roof flood. AFTER: the dark moulded pod with its two eyeball vents and the two lamp bezels with lit lenses, and the brown quilted headliner to the right. Left of it, in both: a cream surface with a ragged edge, the wing's leading edge still inside the cabin (the 2-6 cm above). A dark vertical strip from the pod to the ceiling, in both. |
+| `set2/twin2_dusk_inUp`, `_inLamp` | At the rig dusk the console's two lamps light the headliner round them; the quilted channels show in the lamp light. `details/twin2_console_lamp_dusk.jpg`: the lamp sits in its bezel (the CABIN-SHOTS fix holds). |
+| `set2/twin2_day_inRear`, `_dusk_inRear` | From the rear seat over the front heads: the console on the ceiling ahead with its two lamps, the headliner over the cabin, the wall trim on both sides. Across the cabin's front, in both: a cream band with a row of rectangular holes, the wing's centre section where it dips under the headliner. **At dusk the AFTER ceiling reads much DARKER than BEFORE's.** BEFORE: two roof lamps wash a cream liner. AFTER: the lamps are in the console and the headliner is a dark brown. This is the "darker ceiling" CABIN-SHOTS named; paint (warm tan) is the suggested answer. |
+| `set2/twin2_day_inSide` | The wall trim (cream → brown vinyl) above the windows, as on the first twin. |
+| `set2/twin2_day_ws`, `_q34` | From outside through the glass the change is small: the console lights the right-seat helmet from above. |
+| `set2/twin2_day_roofLampFront` | **The two front roof domes are gone in AFTER** (the lamps are in the console). BEFORE has them. |
+| `set2/twin2_day_roofLampRear` | **The rear pair of domes: still there, BEFORE and AFTER (FAIL).** The reflector cup (below). |
+| `set2/jodel_day_inUp`, `_inLamp`, `_dusk_inUp` | **The clearest headliner of the run.** BEFORE: a plain orange ceiling. AFTER: the quilted headliner, its stitched channels reading as a strong zig-zag across the ceiling round the two roof lamps. The flood's flange (1.34 r) looks large up close. |
+| `set2/jodel_day_inSide` | The Jodel's upper wall is mostly window frame: little trim to see. |
+| `set2/jodel_day_inRear` | **n/a:** the Jodel has no rear seat. The fallback eye sits behind the seat in the dark (the dusk one was flat: the rig failed it and it was dropped). |
+| `set2/jodel_day_roofHdr`, `_roofLampFront`, `_roofGraze` | **FAIL, BEFORE and AFTER, pre-existing:** two lamp-cup domes on the outer roof (11.3 and 3.9 mm out). Also **the right-seat occupant's black helmet comes up through the roof** at the window's top edge (`details/jodel_roof_helmet_and_lamp_domes.jpg`; lamp at crew (0.091, 0.570, 2.139) = world (-1.813, 1.997, 0.091)). The rows change neither. |
+
+**Roof checks, set 2:**
+- **twin2: FAIL** on the rear lamp domes (BEFORE and AFTER). The front domes are gone with the rows on. No console
+  on the outer skin.
+- **jodel: FAIL** on the front lamp domes and the helmet (BEFORE and AFTER, the rows not involved).
+
+**The rest of the first run** (the Cub and C172 standard set, the canopy stills, the twin's wing-hidden set) was
+paused for this one:
+- Cub BEFORE is complete (full tier); Cub AFTER day is complete.
+- The rest resumes on the lite tier.
+- The canopy asserts (headless) are already final, below.
 
 - **Code shot:** `origin/claude/ready/cabin-interior` 20243a3ed (carries ready/seats 652d927d1 and the CABIN-SHOTS
   fixes 3891d68d5). Checked out in a scratch tree and built with `node tools/build.js` (build f1714111366c).
