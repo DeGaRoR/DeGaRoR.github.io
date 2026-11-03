@@ -1563,6 +1563,29 @@ function genParams(S, fr, strips) {
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
   }
+  // TANK-FIT (Part 3): THE STRUT PODS' DRAG. A pod on each front lift strut (G477) hung in the airstream and cost
+  // nothing - its kilos were billed, its drag was not. Raymer's component build-up (12.5), as the belly pod's: per pod
+  // Cf (the moulded row, genPodCdA's) x FF (1 + 60/f^3 + f/400 on its own fineness) x Q 1.3 (a store hung on a strut,
+  // Raymer's pylon-mounted Q) x Swet (the drawn spindle, r = R (1 - (2u-1)^2)^0.65: 0.75 pi D L, integrated). The
+  // drawn pod's own size: the player's dims (L, the diameter as W), else the litres' at fineness 4 (_vessel_gen.js
+  // vesselDims ogive: V = 0.55 D^2 L, a pod a side holding half). Absent with no pod: not a key, not a term.
+  {
+    let pc = 0;
+    const cdW = (typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS.carbon && GEN_MATERIALS.carbon.cdWet) || 0.0045;
+    for (const v of ((S.energy && S.energy.vessels) || [])) {
+      if (v.bay !== 'strut' || v.unmounted || !(v.capacity > 0)) continue;
+      let L, D;
+      if (v.dims && v.dims.L > 0 && v.dims.W > 0) { L = +v.dims.L; D = +v.dims.W; }
+      else {
+        const inst = (v._res && v._res.installedL) || v.capacity * 1.06;
+        const V = Math.max(0.002, inst / 2 / 1000);
+        D = Math.cbrt(V / (0.55 * 4)); L = 4 * D;
+      }
+      const f = L / Math.max(0.02, D), FF = 1 + 60 / (f * f * f) + f / 400;
+      pc += 2 * cdW * FF * 1.3 * (0.75 * Math.PI * D * L);
+    }
+    if (pc > 0) { cda.fusCdA[0] += pc; cda.drag.strutPods = pc; }
+  }
   // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
   // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
   // 0.006), both sides. G2822: the force rides the strips they stand on

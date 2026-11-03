@@ -311028,3 +311028,18 @@ Gates: CLOUD.
 IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
 BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
 TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.
+## TANK-FIT - THE TANK VERDICT IS THE DRAWN TANK AGAINST THE DRAWN AEROPLANE; DRAGS JUDGE ONE FRAME; THE PUSHER'S COWL IS A BAY; STRUT TANKS HONEST; THE NOSE TANK FITTED TO THE NOSE (2026-11-03, TANK-FIT for A0, cloud; claude/tank-fit off master 0fcf54ef9, unbuilt)
+- The whole report: `reports/evidence/TANK-FIT/STATUS.md` (the cases A-D and their causes, the false-red table, the
+  nose litres, the strut rule, ms before/after, gates, the user's open questions).
+- `_cage_energy.js judgeTank`: red = a drawn surface into the drawn solid / within 5 mm / the crew within 10 mm,
+  named with its depth; the surfaces sampled against the tank's exact solid (a lazy two-level grid over the sheet,
+  the engine, the cowl). The bay fit's 35 mm-wall corners, the band and the hand's range no longer decide.
+  `window.TANK_FIT_LEGACY` = master's tests. The red bead `edTankClash_*` is a marker (edMarker).
+- A slider input asks one frame (`dragLayout`), the release the full layout; the fore/aft hand keeps the tank's height
+  (`lvKeepingHeight`). Caches keyed on the source objects (soup, grid, crew points, wing slicer, geometry).
+- A body bay the body ends in continues into a pusher's cowl (cowlReach / cowlSection / cowlPlace).
+- Strut tanks: never remapped to the nose; `unmounted` in the core when the wing has no struts (not billed, not in
+  fuel.litres); hung under the strut on a pylon; drag `gen.drag.strutPods`.
+- `noseAuto` (fit: 'auto'): a deck tank behind the panel (floor the dash's bottom, top the deck less a 10 cm gap);
+  new nose tanks only; `window.TANK_NOSE_AUTO_ALL` for the saves' no-station nose tanks, pending the user.
+- Tools: `tools/tank_fit_probe.js`, `tools/tank_shot.js` (cutaway renders, `--legacy`).
