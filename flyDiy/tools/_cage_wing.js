@@ -2588,8 +2588,14 @@ const wingPost = ctx => {
       // and below, when the boom is deeper than the wing is thick)
       // G274.1: ...and the builder's fore / aft (aft positive; cage z runs
       // forward, so it comes off the root station)
-      const dz = +P.boomDz || 0;
-      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) - dz, zTip = zRoot - len;
+      // FLAGSHIP (2 Nov): the forward bound is the WING's, not a number - the root may stand up to BOOM_REACH ahead
+      // of the leading edge at the boom's station (a P-38's / an OV-10's booms run forward past it); the root stays
+      // tied to its bay's spars in the frame wherever it stands (61_gen_frame.js, the rigidity test holds it). Every
+      // build saved before sat at -1.0 or aft of it: far behind this bound, so none moves
+      const BOOM_REACH = 1.0;
+      const zTE0 = te.z + 0.35 * (te.yTop - te.yBot), le = leAt && (leAt(x) || leAt(-x));
+      const dz = Math.max(+P.boomDz || 0, le ? zTE0 - le.z - BOOM_REACH : -Infinity);
+      const zRoot = zTE0 - dz, zTip = zRoot - len;
       const rodB = Math.round(P.boomStyle) === 1;
       // G267.1: the INCLINATION (the user: "set inclination for the twin
       // boom ... compared to the body"), degrees, tail up positive, about
