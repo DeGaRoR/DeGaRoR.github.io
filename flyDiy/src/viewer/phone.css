@@ -299,3 +299,15 @@ html.phone #phCg[hidden] { display:none; }
 html.phone #phCg[data-band="green"] { border-left-color:#6fd08a; }
 html.phone #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
 html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
+/* NEW-PLANE (3 Nov): the chooser on the phone - the whole screen, two tiles a row at 360 px, the foot's three verbs
+   a thumb's height (44 px), the step dots wrapping under the title */
+html.phone #npWrap .npHead { flex-wrap:wrap; padding:8px 10px; gap:8px; }
+html.phone #npWrap .npDots { order:3; flex-basis:100%; justify-content:flex-start; }
+html.phone #npWrap .npBody { padding:12px 10px 20px; }
+html.phone #npWrap .npGrid, html.phone #npWrap .npGrid.npSmall { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+html.phone #npWrap .npStartGrid, html.phone #npWrap .npSum { grid-template-columns:1fr; }
+html.phone #npWrap .npTile { padding:8px; }
+html.phone #npWrap .npTile svg { width:60px; height:36px; }
+html.phone #npWrap .npFoot { padding:8px 10px; gap:6px; }
+html.phone #npWrap .npHint { display:none; }
+html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
