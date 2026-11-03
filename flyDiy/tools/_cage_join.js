@@ -440,6 +440,12 @@ function cageJoinSpec(P, M, T) {
     // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
     // and the def are what they were, to the bit
     if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
+    // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a tricycle's only (clampSpec drops it
+    // on any other type); written only when chosen, so a fixed build's spec is what it was, to the bit
+    if (+P.gearRetract && M.gearType === 'tricycle')
+      spec.gear.retract = { time: +P.gearRetT || 6,
+                            act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
+    else delete spec.gear.retract;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -3122,9 +3128,42 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (exhaust.length || wheels.length)
         weather = { exhaust, wheels, engines, floor: footwell ? footwell.zFloor : null };
     } catch (e) {}
+    // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE GEAR'S SWING, a retractable build's only (absent:
+    // the snapshot is what it was, to the byte). Per unit (L / R mains, T the nose) the hinge (the leg's airframe end,
+    // the gear layer's `root`), the axis and the angle the unit turns through, up, in the MODEL frame: a main rooted on
+    // the wing folds INWARD about the fore-aft axis (Mooney, Bonanza); one rooted on the body and the nose leg swing AFT
+    // and up about the lateral axis (the Cessna RG's mains, every aft-retracting nose). 90 deg; the sense is PROBED
+    // (the axle must move inboard / aft and up), never assumed. No well is cut: the stowed unit lies inside the skin
+    let gearSwing = null;
+    try {
+      const PU2 = window.CAGE_UI && window.CAGE_UI.P, GB2 = window.CAGE_GEAR;
+      if (PU2 && +PU2.gearRetract && !+PU2.gearFloats && GB2 && GB2.units && GB2.units.legs) {
+        const rod = (v, k, a) => { const c = Math.cos(a), s = Math.sin(a), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+          return [v[0] * c + (k[1] * v[2] - k[2] * v[1]) * s + k[0] * d * (1 - c),
+                  v[1] * c + (k[2] * v[0] - k[0] * v[2]) * s + k[1] * d * (1 - c),
+                  v[2] * c + (k[0] * v[1] - k[1] * v[0]) * s + k[2] * d * (1 - c)]; };
+        gearSwing = {};
+        for (const u of GB2.units.legs) {
+          const key = u.kind === 'T' ? 'T' : u.kind;
+          const ax0 = u.moving || u.axle, h = u.root || ax0;
+          if (!ax0 || !h || gearSwing[key]) continue;
+          const inward = key !== 'T' && u.wing;
+          let k = inward ? [0, 0, 1] : [1, 0, 0];
+          const v = [ax0[0] - h[0], ax0[1] - h[1], ax0[2] - h[2]], w = rod(v, k, 0.2);
+          // inward: |x| shrinks (cage x is lateral); aft: z shrinks (cage +z is forward)
+          const good = inward ? Math.abs(h[0] + w[0]) < Math.abs(h[0] + v[0]) : w[2] < v[2];
+          if (!good) k = k.map(c => -c);
+          // the hinge in the flown model's frame (through the capture's map, as every pivot); the axis in the TRUE
+          // model frame (x aft, y up, z port) - app.js conjugates the turn by the map (conjRot, G357)
+          gearSwing[key] = { hinge: rotP(-h[2], h[1], h[0]), axis: [-k[2], k[1], k[0]],
+                             ang: Math.PI / 2, mode: inward ? 'inward' : 'aft' };
+        }
+      }
+    } catch (e) { gearSwing = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             ...(gearSwing ? { gearSwing } : {}),
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
              layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major

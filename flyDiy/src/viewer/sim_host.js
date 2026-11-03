@@ -607,6 +607,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const c = sim.ctl;
     for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
     if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
+    if ('gear' in c && (h.gear === 0 || h.gear === 1)) c.gear = h.gear;   // RETRACT-1: the gear handle (a retract build's ctl only)
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }

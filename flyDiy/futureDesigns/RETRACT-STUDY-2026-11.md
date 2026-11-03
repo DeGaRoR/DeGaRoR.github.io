@@ -846,3 +846,85 @@ amphibian.
 4. **The phone tier's doors.** Is drawing closed doors as skin on the phone (no moving doors) acceptable?
 5. **Option B.** Is the CG shift of a real gear swing worth a physics chantier, or is "the contact plane moves, the node
    does not" enough? I recommend that it is enough.
+
+### 6.1 The rulings (the user, 3 Nov 2026, the evening)
+
+"go with step 1, the low-wing tourer first. No upkeep cost, hired pilots might, even though unlikly, no on phone, all
+planes stand on the ground."
+
+1. **Step 1 first, the low-wing tourer's motion first:**
+   - the inward fold of wing-rooted mains;
+   - the amphibian comes second.
+2. **No upkeep cost:** the career keeps G-COST / G2705. A retraction costs its price and its mass, and a gear-up costs
+   the flight.
+3. **Hired pilots may forget, rarely.** The persons carry `gearForget`:
+   - club 1 %, student 2 %, ham-fist 1 %, bush 0.5 % per approach;
+   - the expert never forgets;
+   - hired pilots inherit their base person's value and grow toward their ceiling.
+4. **No to the phone's closed-doors shortcut:** the phone draws what the desktop draws. This is noted for step 4; there
+   are no doors yet.
+5. **"All planes stand on the ground":**
+   - **Read as:** every aeroplane on the ground stands on its wheels. A reset, a spawn, a parked or a stored aeroplane is
+     gear DOWN.
+   - **No retraction on the ground:** the squat switch holds the gear down under a handle raised on the ground.
+   - **No CG-shift physics:** option B stays shelved, which this answer also settles.
+
+## 7. STEP 1 AS BUILT (RETRACT-1, 2026-11-03)
+
+- **Spec.** `gear.retract`:
+  - `{ time 2-20 s (6), act electric | hydraulic | manual, emerg crank | freefall | pump | blow }`;
+  - a tricycle's only: `clampSpec` drops it on any other type (`60_gen_spec.js`, after the floats);
+  - the key only when chosen, the full swivel's rule (G3575).
+- **Garage.** The design tile `retract` is LIVE:
+  - it twins the gear layer's `gearRetract` row; the retraction rows are `gearRetract`, `gearRetT`, `gearRetAct`
+    (`_cage_gear.js`);
+  - they are shown on a wheeled tricycle only and claimed by the mains part (`_cage_parts.js`);
+  - the join writes `spec.gear.retract` (`_cage_join.js`).
+- **Bill.**
+  - Mass: `GEN_RULES.retractKg` = 3.5 % of the gross, 12 kg at the least, on the axles (a third each mains, a third the
+    nose).
+  - Price: `GEN_PRICES.retract` 4200.
+  - Both land on the gear's ledger row (`61_gen_frame.js`).
+- **Physics** (`30_solver.js`, option A: the node never moves):
+  - **Handle and position:** `ctl.gear` (1 down, 0 up) and `pos` moving at 1 / time. The power is `gearPower`, which
+    the page's bus is NOT yet wired to. `gearEmergency()` lowers it at the method's rate: crank 25 s, free fall 4 s,
+    pump 20 s, gas 2 s.
+  - **Squat switch:** no retraction with a wheel within 3 cm of its ground.
+  - **Contact plane:** it rises with the wheel by GH, the lift to the highest of the wheel's own members' anchors plus
+    its radius. A wheel rolls only down and locked (pos > 0.98) and scrapes otherwise. A gear-up landing is the belly
+    landing: the scrape, the scar, the prop strike.
+  - **Drag:** `params.retract.cdA` (`gen.drag.gear`) comes off fusCdA as (1 - pos), plus 15 % of it at mid-transit.
+  - **Water:** the wheels' plough plates in the water ride the same lift (`32_hydro.js` `WB.lift`).
+  - **Published state:** `out.gear` / `gearMov` / `gearWow` / `gearEmerg`, so the physics worker's snapshot carries it.
+- **Pilot** (`43_pilot.js`):
+  - Up in CLIMB / GOAROUND over 15 m with a positive climb (1 m/s).
+  - Up en route.
+  - Down for the circuit, on an inbound within 4 km of the field, and in a glide under 150 m.
+  - The emergency extension if it has not come down in 1.5 cycles + 2 s.
+  - GUMPS: on final under 60 m, not down and locked, it goes around (twice at the most).
+  - `gearForget` per approach, from a deterministic die (`pilotGearDice(seed, k)`) and the person's chance. A forgotten
+    approach never lowers it and says 'gear-forgotten'.
+- **Viewer.**
+  - **Key:** `Digit9` (the 'landing gear' step: UP <-> DOWN).
+  - **Hand packet:** the hand's gear handle rides the worker's packet (`sim_link.js` / `sim_host.js`).
+  - **Lamps:** three on the PFD, green down and locked, red in transit, dark up. The line says the state, 'gear DOWN?'
+    with the handle down and the gear not, and EMERG.
+  - **Horn:** on the stall voice, intermittent 0.3 s on / 0.2 s off. It sounds with the gear not locked down off the
+    ground and either the throttle under 25 % or the flap over 35 % (`audio_params.js` gearWarn,
+    `airframe_model.js`).
+  - **Swing** (`app.js` gearSwingRig, the join's `gearSwing`): each unit's leg, wheel and castor under one group, turned
+    90° about the leg's airframe end, conjugated by the capture's map.
+    - A main rooted on the wing folds INWARD about the fore-aft axis.
+    - A main rooted on the body, and the nose, swing AFT about the lateral axis.
+    - The sense is probed. A stowed unit is hidden. There is no well yet: it lies inside the skin.
+- **GATE RETRACT** (`tools/_retract_check.js`, core): the spec, the bill, the squat switch, the expert's circuit, the
+  drag, the gear-up landing, the power and the emergency, the forgetful person, the horn.
+- **Left for later, said:**
+  - the cockpit's own gear lever and lamps (a `gear` law in `cockpit.js`);
+  - the bus driving `gearPower`;
+  - the career's tech table (retraction as a tech option);
+  - the T-tail tourer card switched to retractable: GATE ARCHETYPES flies a card's birth spec pre-join, and a spec write
+    of `gear.retract` would need a `GEN_DEFAULT` field;
+  - wells and doors (step 4);
+  - the other motions' presets (step 3);
+  - the amphibian (step 2).

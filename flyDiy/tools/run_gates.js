@@ -765,6 +765,10 @@ const GATES = [
   // the tyre reading as a circle, and the leg mirroring vertex for vertex.
   // Runs headless on a THREE stub, which is the only reason it never existed.
   { id: 'GEAR', file: '_gear_check.js', tier: 'core' },
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - the spec, the bill, the squat switch,
+  // the expert's circuit (up in the climb, down for the circuit), the drag, the gear-up landing, the power and the
+  // emergency, the forgetful person, the horn; on the metal Cessna fixture, with retract and without
+  { id: 'RETRACT', file: '_retract_check.js', tier: 'core', wall: 600 },
   // THE WOODEN HOUSE (G229), the settlement's own generator: clean geometry
   // (no NaN, no zero-area triangle, every vertex with a UV in metres), no
   // wall standing through its own roof over four roof families x three

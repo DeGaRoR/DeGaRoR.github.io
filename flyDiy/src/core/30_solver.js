@@ -1522,6 +1522,60 @@ function makeSim(def, world) {
   const NOSE_G = new Uint8Array(n);
   if (DMG_ON) for (const i of (def.refs.noseFrame || []).concat(def.refs.engine || [])) if (i >= 0 && i < n) NOSE_G[i] = 1;
   let noseGnd = false;
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - params.retract, a
+  // tricycle's only (null on every other build: nothing below runs and the flight is master's to the bit). THE NODE DOES
+  // NOT MOVE (the study's option A): the axle stays where the frame built it, and what the gear's position changes is
+  // what the wheel does on the ground and in the air -
+  //   pos    0 up .. 1 down, moving at 1/time while the power is there (`act` electric / hydraulic: GR.power, which the
+  //          page's bus writes; manual: always), at the emergency method's rate once gearEmergency() is pulled
+  //   the CONTACT PLANE rises with the wheel: a wheel node meets the ground at rC - (1 - pos) GH, GH its lift to the
+  //          highest of its own members' anchors plus its radius (stowed, its contact is the belly's own level); it ROLLS
+  //          only down and locked (pos > 0.98) - in transit it scrapes like any node (a gear folding under the load),
+  //          up it never touches before the belly, the flaps and the propeller do: a GEAR-UP LANDING is the belly
+  //          landing the ground pass already has (the scrape, the scar, the prop strike)
+  //   the DRAG: the gear's own CdA (params.retract.cdA, inside fusCdA[0] as on any build) comes off as (1 - pos), plus
+  //          a transit bump (the legs across the flow, the wells open) - the same blob, so a retract build gear-down
+  //          flies exactly as the same build fixed
+  //   the WATER: the wheels' plough plates (32_hydro) see the same lift
+  //   the SQUAT SWITCH: no retraction while a wheel carries the aeroplane (the handle up on the ground holds)
+  //   ctl.gear the handle: 1 down (a reset, every aeroplane on the ground stands on its wheels), 0 up
+  const RET = P_.retract || null;
+  const GR = RET ? { pos: 1, power: true, emerg: false, lift: 0, cda: P_.fusCdA.slice(), wow: true, moving: 0 } : null;
+  const GW = new Uint8Array(n), GH = new Float64Array(n);
+  // the emergency extensions, seconds to down-and-locked: a crank's fifty turns, a free fall, a hand pump, a gas bottle
+  const GEAR_EMERG_T = { crank: 25, freefall: 4, pump: 20, blow: 2 };
+  // the transit's extra drag, x the gear's own at mid-travel (the legs broadside, the wells open) [TUNE]
+  const GEAR_TRANSIT_K = 0.15;
+  if (RET) {
+    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+      if (!(i >= 0 && i < n)) continue;
+      GW[i] = 1;
+      let up = 0;
+      for (const b of beams) if (b.a === i || b.b === i) up = Math.max(up, def.nodes[b.a === i ? b.b : b.a].p[1] - def.nodes[i].p[1]);
+      GH[i] = up + def.nodes[i].r;
+    }
+  }
+  // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
+  const rCe = i => (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]);
+  function gearStep(dtF) {
+    // the squat switch: any wheel within 3 cm of its (effective) ground
+    let wow = false;
+    for (let i = 0; i < n; i++) if (GW[i]) { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; if (p[i*3+1] - rCe(i) - gh < 0.03) { wow = true; break; } }
+    GR.wow = wow;
+    const want = GR.emerg || ctl.gear !== 0 ? 1 : 0;
+    const target = want < GR.pos && wow ? GR.pos : want;
+    const rate = GR.emerg ? 1 / (GEAR_EMERG_T[RET.emerg] || 10)
+               : (RET.act === 'manual' || GR.power) ? 1 / RET.time : 0;
+    const d = Math.max(-rate * dtF, Math.min(rate * dtF, target - GR.pos));
+    GR.moving = d > 0 ? 1 : d < 0 ? -1 : 0;
+    GR.pos += d;
+    if (GR.pos > 1) GR.pos = 1; else if (GR.pos < 0) GR.pos = 0;
+    GR.lift = 1 - GR.pos;
+    GR.cda[0] = P_.fusCdA[0] - RET.cdA * GR.lift + GEAR_TRANSIT_K * RET.cdA * CORE_MATH.sin(Math.PI * GR.pos);
+    if (WB) WB.lift = GH.map((h, i) => GW[i] ? GR.lift * h : 0);
+    // published on `out` (the physics worker's snapshot carries out whole: the page's lamps, horn and swing read these)
+    out.gear = GR.pos; out.gearMov = GR.moving; out.gearWow = wow ? 1 : 0; out.gearEmerg = GR.emerg ? 1 : 0;
+  }
   // THE CRASH (G1470): when a member other than the nose's BREAKS (noseB: the nose crushing round a trunk is a dent), when
   // the contacts' push passes CRASH_G (the impact's g above, over 50 ms; FAR 23.561's 9 g forward ultimate is what the
   // cabin is built to survive, so past it the occupants are in an accident whatever the airframe did), or when the
@@ -1729,6 +1783,7 @@ function makeSim(def, world) {
   // G2480 (HAND-CONTROLS): `wr` the floats' water-rudder handle - null THE RULE (32_hydro waterRudder), 0 up, 1 down;
   // only the hand writes it (input.js), and a reset gives it back to the rule
   const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null };
+  if (RET) ctl.gear = 1;                             // RETRACT-1: the gear handle (a fixed build's ctl carries no such key)
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -2532,6 +2587,8 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
     ctl.wr = null;                                   // G2480: the water rudders back to the rule
+    if (GR) { ctl.gear = 1; GR.pos = 1; GR.lift = 0; GR.emerg = false; GR.moving = 0; GR.cda = P_.fusCdA.slice(); if (WB) WB.lift = null;
+              out.gear = 1; out.gearMov = 0; out.gearWow = 1; out.gearEmerg = 0; }   // RETRACT-1: on the ground, on its wheels
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
     // airframe AFTER reset — a strip at heading 0 is the built pose turned
@@ -3232,7 +3289,7 @@ function makeSim(def, world) {
         f[i*3+2] += k*(CdA[0]*cb[0]*xAft[2] + CdA[1]*cb[1]*yUp[2] + CdA[2]*cb[2]*zRt[2]);
       }
     };
-    blob(def.refs.fusDrag,    P_.fusCdA);
+    blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
     blob(def.refs.fusDragAft, P_.fusCdAAft);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
     // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
@@ -3723,7 +3780,7 @@ function makeSim(def, world) {
       } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
-      const pen = gy + rC[i] - p[i3+1];
+      const pen = gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -3733,7 +3790,7 @@ function makeSim(def, world) {
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === def.refs.tw;
-      if (isMain || isTW) {
+      if ((isMain || isTW) && (GR === null || GR.pos > 0.98)) {   // RETRACT-1: a wheel rolls down and locked; else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -3900,6 +3957,7 @@ function makeSim(def, world) {
   }
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
+    if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
@@ -4057,7 +4115,7 @@ function makeSim(def, world) {
     for (const i of [...def.refs.mains, def.refs.tw]) {
       if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
-      if (p[i*3+1] - rC[i] - gh < 0.03) c++;
+      if (p[i*3+1] - rCe(i) - gh < 0.03) c++;
     }
     return c;
   }
@@ -4065,7 +4123,7 @@ function makeSim(def, world) {
   // ground law can tell one main down (a wing-low touchdown) from the tail
   // still flying; on the water the floats, as above
   function wheelContacts() {
-    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rC[i] - gh < 0.03; };
+    const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rCe(i) - gh < 0.03; };
     if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
     return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? on(def.refs.tw) : false, water: false };
   }
@@ -4206,7 +4264,16 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir,
+           // RETRACT-1: the retractable gear - null on a fixed build. gear(): { pos 0 up..1 down, locked (down and
+           // locked), up (stowed), moving -1/0/1, wow (a wheel on the ground: the squat switch), power, emerg, handle
+           // (ctl.gear) }; gearPower(on) the page's bus; gearEmergency() the emergency extension (down, at its rate,
+           // whatever the power)
+           gear: () => (GR === null ? null : { pos: GR.pos, locked: GR.pos > 0.98, up: GR.pos < 0.02, moving: GR.moving,
+                                              wow: GR.wow, power: GR.power, emerg: GR.emerg, handle: ctl.gear === 0 ? 0 : 1,
+                                              time: RET.time, act: RET.act, emergKind: RET.emerg }),
+           gearPower: on => { if (GR !== null) GR.power = !!on; },
+           gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
   return sim;
 }
 

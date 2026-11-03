@@ -2480,7 +2480,7 @@ function wetCompute(WB, fh, dtH) {
   // THE WHEELS: a bluff plate in the wheel's plane, the disc segment across it, the displaced volume
   for (let wI = 0; wI < WB.wheels.length; wI++) {
     const i = WB.wheels[wI], i3 = i * 3, R = WB.R[i];
-    const d = Math.min(2 * R, H[i] - (p[i3 + 1] - R));
+    const d = Math.min(2 * R, H[i] - (p[i3 + 1] - R) - (WB.lift ? WB.lift[i] : 0));   // RETRACT-1: a retracted wheel rides up (30_solver gearStep)
     if (!(d > 0)) continue;
     const wT = WB_TYRE_W * R;
     const th = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - d / R)));

@@ -3011,8 +3011,10 @@
     const engRigs = [], strutRigs = [];                              // G179.2
     const keyOfMesh = new Map();                                     // G1860 (DMG-D4b): each part mesh's bucket key
     const floatRigs = [];                                            // H2 (G389)
+    const gearTags = [];                      // RETRACT-1: [obj, unit 'L' | 'R' | 'T'] - the parts a retraction swings
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
+    let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
     if (data.cage && Array.isArray(data.parts)) {
       const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
                 : curDef.refs.tw;
@@ -3408,6 +3410,7 @@
           // holds the airframe while the axle end rides the node: the
           // suspension visually compresses and stays lined up.
           grp.add(pg);
+          gearTags.push([pg, pt.kind.slice(3)]);   // RETRACT-1: legL / legR / legT
           pg.traverse(o => {
             if (!o.isMesh || !o.geometry) return;
             const pa = o.geometry.attributes.position;
@@ -3612,6 +3615,7 @@
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
+          gearTags.push([pg, 'T']);                // RETRACT-1
           castorRig = { obj: pg, idx: nodeOf.tw, pivot: pt.pivot,
                         axle: pt.axle, axis: pt.axis,
                         rest0: nodeRest(nodeOf.tw) };
@@ -3620,6 +3624,7 @@
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
+          gearTags.push([pg, pt.kind === 'tw' ? 'T' : pt.kind === 'mainsL' ? 'L' : 'R']);   // RETRACT-1
           const w = { obj: pg, idx: nodeOf[pt.kind], R: pt.R,
                       pivot: pt.pivot, rest0: nodeRest(nodeOf[pt.kind]),
                       prev: null };
@@ -3637,6 +3642,23 @@
             castorRig.axle[1] - castorRig.pivot[1],
             castorRig.axle[2] - castorRig.pivot[2]);
         twWheel.child = true;              // the castor drives its position
+      }
+      // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING. A retractable build's snapshot carries
+      // gearSwing (_cage_join.js: per unit the hinge, the axis in the true frame, the angle); each unit's parts - the
+      // leg (its stretch rig still writes the suspension in its own frame), the wheel, the castor - move under ONE
+      // group per unit, the identity while the gear is down (every vertex where it was), turned about the hinge as the
+      // gear comes up (poseModel: gearPose, off sim.out.gear) and hidden once stowed. No well is cut yet: the stowed
+      // unit lies inside the skin
+      if (data.gearSwing && THREE.Group) {
+        const units = {};
+        for (const [obj, u] of gearTags) {
+          const S = data.gearSwing[u];
+          if (!S || obj.parent !== grp) continue;          // the nose wheel rides inside its castor already
+          if (!units[u]) { const g = new THREE.Group(); g.name = 'gearSwing' + u; g.matrixAutoUpdate = false; grp.add(g);
+                           units[u] = { obj: g, hinge: S.hinge, axis: S.axis, ang: S.ang, a: 0 }; }
+          grp.remove(obj); units[u].obj.add(obj);
+        }
+        gearSwingRig = Object.keys(units).length ? Object.values(units) : null;
       }
     }
     // G58.5 TRIPWIRE: the propeller belongs AHEAD of the nose. If it ever
@@ -4022,6 +4044,7 @@
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
+                        gearSwingRig,                                  // RETRACT-1
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     // G266.1: THE TAIL GAP — the drawn stab (the snapshot's tailRef, in the
@@ -4690,6 +4713,24 @@
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
     // and every vertex moves by its own share of that travel.
+    // RETRACT-1: THE GEAR SWINGS - each unit's group turned about its hinge by (1 - out.gear) of its angle, conjugated
+    // by the capture's map (conjRot, G357); written only when the angle changed (a gear down or up costs nothing a
+    // frame), hidden once stowed (its draws saved in the cruise)
+    if (model.gearSwingRig) {
+      const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
+      for (const U of model.gearSwingRig) {
+        const a = (1 - gp) * U.ang;
+        U.obj.visible = gp > 0.02;
+        if (a === U.a) continue;
+        U.a = a;
+        const R = conjRot(U.axis, a, U.M || (U.M = new Float64Array(9))), h = U.hinge;
+        U.obj.matrix.set(R[0], R[1], R[2], h[0] - (R[0] * h[0] + R[1] * h[1] + R[2] * h[2]),
+                         R[3], R[4], R[5], h[1] - (R[3] * h[0] + R[4] * h[1] + R[5] * h[2]),
+                         R[6], R[7], R[8], h[2] - (R[6] * h[0] + R[7] * h[1] + R[8] * h[2]),
+                         0, 0, 0, 1);
+        U.obj.matrixWorldNeedsUpdate = true;
+      }
+    }
     if (model.linkRigs && !still) for (const r of model.linkRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       if (brkWhole(r)) continue;                                  // G1818
@@ -15439,7 +15480,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -15486,6 +15527,26 @@
     if (txt !== hudW.txt) { hudW.txt = txt; R.wind.textContent = txt; }
     if (lab !== hudW.lab) { hudW.lab = lab; if (R.windU) R.windU.textContent = lab; }
     if (R.windA && rot !== hudW.rot) { hudW.rot = rot; R.windA.style.transform = rot; R.windA.classList.toggle('calm', calm); }
+  }
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE GEAR'S LAMPS - the solver's out.gear (0 up .. 1 down,
+  // a retractable build's only; the physics worker's snapshot carries out whole). Three greens down and locked, three
+  // reds in transit, dark up; the line names the state, the handle against it ('gear DOWN?' while the handle is down
+  // and the gear is not yet), EMERG once the emergency extension was pulled. The cell exists only on such a build
+  // (hudGearOn: flInstApply reads it); written only when it changes
+  let hudGearOn = false, hudGearK = '';
+  function hudGear() {
+    const o = sim && sim.out, on = !!(o && typeof o.gear === 'number');
+    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); }
+    if (!on || !R.gear) return;
+    const pos = o.gear, locked = pos > 0.98, up = pos < 0.02, hd = sim.ctl && sim.ctl.gear === 0 ? 0 : 1;
+    const lamp = locked ? 'g' : up ? '' : 'r';
+    const lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    const k = lamp + '|' + lab;
+    if (k === hudGearK) return;
+    hudGearK = k;
+    for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
+    if (R.gearU) R.gearU.textContent = lab;
+    if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
@@ -15543,6 +15604,7 @@
     }
     hudEnergy();
     hudWind();
+    hudGear();
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
@@ -17206,7 +17268,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }

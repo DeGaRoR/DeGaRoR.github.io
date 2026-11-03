@@ -103,6 +103,10 @@
     // below 12 m/s, up at take-off power) unless the hand says - the handle's three places
     { id: 'waterRudder', kind: 'step', ctl: 'wr', label: 'water rudders', group: 'ground',
       hint: 'AUTO · UP · DOWN round (floats only)', keys: { key: 'KeyV' } },
+    // RETRACT-1: the retractable gear's handle (30_solver ctl.gear: 1 down, 0 up) - UP and DOWN, no AUTO: a real gear
+    // has no rule, only a pilot (and a squat switch: the handle up on the ground holds the gear down)
+    { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying',
+      hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -406,6 +410,7 @@
     let notches = [0], flapI = 0, flapOut = 0, flapRate = 0.15;
     let nEng = 1;
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
+    let gearH = 1;                          // RETRACT-1: the gear handle - 1 down, 0 up (written only on a retract build)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -612,6 +617,7 @@
       trimR = air ? clamp(-fin(c.dr, 0), -TRIM_R_MAX, TRIM_R_MAX) : 0;   // (dr > 0 is nose LEFT: the pilot's right is -dr)
       trimA = air ? clamp(fin(c.da, 0), -TRIM_A_MAX, TRIM_A_MAX) : 0;
       wr = null;
+      gearH = c.gear === 0 ? 0 : 1;          // RETRACT-1: the handle where the aeroplane has it (the AP's or the reset's)
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -726,6 +732,7 @@
         else if (id === 'trimRollL') trimA = clamp(trimA - TRIM_A_STEP, -TRIM_A_MAX, TRIM_A_MAX);
         else if (id === 'trimCentre') { trimR = 0; trimA = 0; }
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
+        else if (id === 'gear') gearH = gearH === 0 ? 1 : 0;                           // RETRACT-1: UP <-> DOWN
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -768,6 +775,7 @@
       ctl.brake = bL === bR ? bL : (bL + bR) / 2;
       ctl.brakeD = bL === bR ? 0 : (bL - bR) / 2;
       ctl.wr = wr;
+      if ('gear' in ctl) ctl.gear = gearH;   // RETRACT-1: a fixed build's ctl has no gear key, and gets none
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -814,6 +822,7 @@
                        if (o.r != null) trimR = clamp(fin(o.r, 0), -TRIM_R_MAX, TRIM_R_MAX);
                        if (o.a != null) trimA = clamp(fin(o.a, 0), -TRIM_A_MAX, TRIM_A_MAX); },
       waterRudder: () => wr,
+      gear: () => gearH,                     // RETRACT-1: the gear handle (1 down, 0 up)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },

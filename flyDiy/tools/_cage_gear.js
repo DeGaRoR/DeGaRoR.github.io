@@ -62,6 +62,8 @@ Object.assign(gearDef, {
   // cage for them yet — the drawn float is H2; in flight the physics hull
   // itself is drawn (app.js).
   gearFloats: 0,
+  // RETRACT-1: fixed (0) by default; the cycle (s) and the actuation (0 electric, 1 hydraulic, 2 manual)
+  gearRetract: 0, gearRetT: 6, gearRetAct: 1,
   shockKind: 1, linkSwing: -42,
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
@@ -167,6 +169,14 @@ const GROUP = ['9 · undercarriage', [
   // S1 (G451.1): the wheel stations are not there under a float build (one gear kind)
   station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
   station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR, a tricycle's (the third wheel a
+  // nose wheel: s2Leg not the tailwheel's 3). The join writes spec.gear.retract from these; the flown aeroplane swings
+  // the units (app.js gearSwing) - no well is cut yet, the stowed gear lies inside the skin (step 4 cuts the wells)
+  ['retraction', [
+    ['gearRetract', 'retraction', 0, 1, 1, ['fixed', 'retractable']],
+    ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
+    ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
+  ], { when: P => +P.gearOn && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 }],
   // G133: one build material for the whole set of fairings — a set of
   // spats is laid up as one job, and the row exists only when one is worn
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
@@ -510,7 +520,8 @@ PAGE.post = ctx => {
       // user's rule: "the spring should elongate or shrink, but both
       // the start and end anchor points remain in original position".
       legUnits.push({ bags: lb, kind: wu.wb.kind, axle: r.axle,
-                      root: r.root || null, moving: r.tip || r.axle });
+                      root: r.root || null, moving: r.tip || r.axle,
+                      wing: !!m });   // RETRACT-1: rooted on the wing (the inward fold) or on the body (aft)
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
@@ -637,7 +648,7 @@ PAGE.post = ctx => {
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,
-                                        root: u.root, moving: u.moving })),
+                                        root: u.root, moving: u.moving, wing: u.wing })),
              castor: castorUnitOut
                ? { top: castorUnitOut.top, ax: castorUnitOut.ax,
                    axle: castorUnitOut.axle,

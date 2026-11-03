@@ -2493,6 +2493,9 @@ const GEN_PRICES = {
   spat: 380,           // one wheel pant (a main or the third wheel)
   trouser: 560,        // one wheel in full trousers (shell + leg shroud)
   legFair: 240,        // one leg's streamline shroud on its own
+  // RETRACT-1: the retraction system - three actuators, the power pack (or the crank), the up- and down-locks, the
+  // squat switch, the lamps and the horn. A real one is ~10-15 % of a light single's price (RETRACT-STUDY §1.9-1.10)
+  retract: 4200,
 };
 
 // FINISH. `paintJob` above used to be spent unconditionally, which made 1800
@@ -3240,6 +3243,10 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
+  // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
+  // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
+  retractKg:   gross => Math.max(12, 0.035 * (gross || 0)),
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -5246,6 +5253,17 @@ function clampSpec(spec) {
     f.x = f.x == null ? null : genClamp(f.x, -3, 6);
     f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
   } else S.gear.floats = null;
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - a tricycle's three wheels
+  // swing up in flight. The key only when chosen (the full swivel's rule, G3575): a fixed build carries none and its spec,
+  // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
+  // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
+  // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
+  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+    const r = S.gear.retract;
+    r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
+    if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
+    if (!['crank', 'freefall', 'pump', 'blow'].includes(r.emerg)) r.emerg = r.act === 'hydraulic' ? 'freefall' : 'crank';
+  } else delete S.gear.retract;
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once

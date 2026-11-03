@@ -187,13 +187,13 @@ const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
-             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false } },
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95, gearForget: 0.01 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5, gearForget: 0.02 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
-             active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
+             active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, quirks: { gearForget: 0.005 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 }, technique: { stol: false } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2, gearForget: 0.01 }, technique: { stol: false } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -207,6 +207,10 @@ const PILOT_PROFILE_KNOBS = [
   { sec: 'skill', k: 'gain', label: 'grip', unit: '×', kind: 'range', lo: 0.3, hi: 1.5, step: 0.05, d: null, nullLabel: 'auto', desc: 'how hard the pilot answers an error (auto: eased to suit the reaction; over 1 over-controls)' },
   { sec: 'quirks', k: 'overRotate', label: 'over-rotation', unit: '°', kind: 'range', lo: 0, hi: 0.07, step: 0.0035, d: 0, toUi: r => r * 180 / Math.PI, desc: 'degrees of extra nose-up at the rotation' },
   { sec: 'quirks', k: 'flareK', label: 'flare height', unit: '×', kind: 'range', lo: 0.6, hi: 1.3, step: 0.05, d: 1, desc: 'under 1 a late flare, over 1 an early one' },
+  // RETRACT-1 (the user, 3 Nov: "hired pilots might, even though unlikely"): THE GEAR FORGOTTEN - the chance, per approach,
+  // that the person never lowers a retractable gear (no GUMPS check either: the horn sounds and goes unheard, the belly
+  // lands). The expert never forgets; the persons a percent or two (the drawn person's, from a fixed seed: deterministic)
+  { sec: 'quirks', k: 'gearForget', label: 'forgets the gear', unit: '', kind: 'range', lo: 0, hi: 0.05, step: 0.005, d: 0, desc: 'the chance, per approach, of never lowering a retractable gear' },
   { sec: 'quirks', k: 'decisionK', label: 'decisions', unit: '×', kind: 'range', lo: 0.5, hi: 3, step: 0.1, d: 1, desc: 'how long an unstable approach is put up with before going round: under 1 sooner, over 1 late' },
   { sec: 'limits', k: 'bankK', label: 'bank', unit: '×', kind: 'range', lo: 0.5, hi: 1.3, step: 0.05, d: 1, desc: 'the circuit\'s bank against the expert\'s' },
   { sec: 'limits', k: 'comfortG', label: 'comfort g', unit: 'g', kind: 'range', lo: 1.05, hi: 2, step: 0.05, d: null, desc: 'the load factor the pilot will pull in a turn (off: the bank limit alone)' },
@@ -219,6 +223,13 @@ const PILOT_PROFILE_KNOBS = [
   // pilot is; a hired pilot earns it growing toward a qualified ceiling (76_pilots: a bool takes the ceiling's at half way)
   { sec: 'technique', k: 'stol', label: 'STOL qualified', kind: 'bool', d: true, desc: 'flies a STOL wing\'s own technique (the slow steep approach, the flare on power, the brakes at once)' },
 ];
+// RETRACT-1: THE FORGOTTEN GEAR'S DIE - approach k of the person drawn from `seed` (makePilot's opts.seed, 1935 unset):
+// a hash in [0, 1), pure and deterministic (every flight of a profile is the same flight; GATE RETRACT reads it)
+function pilotGearDice(seed, k) {
+  let h = (seed | 0) ^ Math.imul(k + 1, 0x9E3779B1);
+  h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B); h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
 function pilotProfile(p) {
   const base = PILOT_PROFILES.expert;
   if (!p) return base;
@@ -227,6 +238,7 @@ function pilotProfile(p) {
   const R = { name: P.name, active: !!P.active,
            reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
            overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1), decisionK: g('quirks', 'decisionK', 1),
+           gearForget: g('quirks', 'gearForget', 0),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false),
            stol: !!g('technique', 'stol', true) };
@@ -825,6 +837,12 @@ function makePilot(sim, def, world, opts) {
   // (G2085: opts.seed - the same person on another day: the hand's sequence from another seed; 1935 when unset)
   const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], y: [0, 0, 0], ref: null, seed: Number.isFinite(opts.seed) ? opts.seed | 0 : 1935 } : null;
   if (PRA) SV.slewK = PRF.smooth;
+  // RETRACT-1 (RETRACT-STUDY §3.1, §3.6): THE GEAR HANDLE - only on a retractable build (def.params.retract); nothing
+  // below runs on any other. gearArm: the gear went up since the last approach (the next want-down is a new approach);
+  // gearForgot: this approach's person forgot it (PRF.gearForget, a hash of the seed and the approach's number)
+  const GEAR = !!(def.params && def.params.retract) && typeof sim.gear === 'function' && !!sim.gear();
+  let gearArm = false, gearForgot = false, gearAppr = 0, gearWait = 0, gearEmSaid = false;   // (the gear starts down: an approach begins once it has been up)
+  const gearDice = k => pilotGearDice(Number.isFinite(opts.seed) ? opts.seed | 0 : 1935, k);
   ap.profile = PRF.name;   // G2085: who flies (the page's evidence, the gates): the profile's name, 'expert' for none
   const humRand = () => { HUM.seed = (HUM.seed + 0x6D2B79F5) | 0; let t = HUM.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   // G2085 (PILOT-PERSONA): THE PERSON'S GAIN (McRuer's crossover model: a human in a loop sets their own gain so the
@@ -3178,6 +3196,37 @@ function makePilot(sim, def, world, opts) {
       if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
     };
+    // RETRACT-1: THE GEAR, by the phase (RETRACT-STUDY §3.6). UP after a positive climb (15 m over the field, climbing at
+    // 1 m/s) in the climb-out and the go-around, and anywhere en route; DOWN for the circuit (downwind, base, final), on an
+    // inbound within 4 km of the field, in a glide under 150 m, and on the ground. A pilot who finds it not coming down
+    // with the handle down (the pump dead) pulls the emergency extension. GUMPS: on final under 60 m and not down and
+    // locked - around (twice at the most: a third is landed as it is). A forgotten approach does none of it.
+    if (GEAR) {
+      const g = sim.gear(), ph = ap.phase;
+      let want = null;
+      if (ph === 'CLIMB' || ph === 'GOAROUND') { if (!g.wow && agl > 15 && vcg[1] > 1) want = 0; }
+      else if (ph === 'CROSSWIND' || ph === 'ENROUTE' || ph === 'ROUTE' || ph === 'LOITER') { if (!g.wow && agl > 15) want = 0; }
+      else if (ph === 'INBOUND') {
+        const to = ap.route && ap.route.to;
+        const dTo = to && Number.isFinite(to.x) ? Math.hypot(to.x - cg[0], to.z - cg[2]) : 0;
+        want = dTo < 4000 ? 1 : (!g.wow && agl > 15 ? 0 : null);
+      }
+      else if (ph === 'GLIDE') want = agl < 150 ? 1 : null;
+      else if (ph === 'LIFTOFF' || ph === 'PUTDOWN') want = null;   // the handle stays where it is through the lift-off
+      else if (!BX.on) want = 1;
+      if (want === 0) gearArm = true;
+      if (want === 1 && gearArm && !g.wow) { gearArm = false; gearForgot = PRA && PRF.gearForget > 0 && gearDice(gearAppr++) < PRF.gearForget;
+        if (gearForgot) say('gear-forgotten', 'the gear was never lowered for this approach'); }
+      if (want === 1 && gearForgot && !g.wow) want = null;
+      if (want !== null) sim.ctl.gear = want;
+      gearWait = sim.ctl.gear === 1 && !g.locked && !g.emerg ? gearWait + dt : 0;
+      if (gearWait > 1.5 * g.time + 2) { sim.gearEmergency(); if (!gearEmSaid) say('gear-emergency', 'the gear did not come down: the emergency extension'); gearEmSaid = true; }
+      if (want === 0) gearEmSaid = false;
+      if (ph === 'FINAL' && !gearForgot && !g.locked && agl < 60 && agl > 5 && (ap.gaN || 0) < 2) goAround('the gear is not down and locked');
+      // A BELLY LANDING ENDS: no wheel ever touches to take the flare to the roll-out, so a final or a flare at a
+      // standstill on the ground with the gear not down is the end of it
+      if ((ph === 'FLARE' || ph === 'FINAL') && !g.locked && agl < 4 && V < 3) { say('gear-up-landing', 'on the belly: the gear was not down'); go('STOPPED'); }
+    }
     if (BX.on) boxFly(); else
     switch (ap.phase) {
       case 'GLIDE': {
