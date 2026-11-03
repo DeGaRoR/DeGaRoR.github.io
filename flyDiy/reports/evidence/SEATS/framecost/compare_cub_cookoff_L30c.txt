@@ -1,0 +1,41 @@
+  cub stand (a -> b, what moved)
+  cub taxi (a -> b, what moved)
+  cub boot (a -> b, what moved)
+    boot/garage:compile/three.updateMatrixWorld       16364      15580  down
+    boot/garage:landing/three.updateMatrixWorld        3014       2566  down
+    boot/garage:parked/three.updateMatrixWorld       116123      93051  down
+    boot/garage:recheck/three.updateMatrixWorld       14671      13775  down
+    boot/garage:restore/three.updateMatrixWorld         810        698  down
+    boot/garage:seed/three.updateMatrixWorld          25262      21118  down
+    boot/garage:settle/three.updateMatrixWorld        42888      42328  down
+    boot/garage:snapshot/three.updateMatrixWorld      35858      31266  down
+    boot/garage:town/three.updateMatrixWorld           4673       4449  down
+    boot/garage:world/three.updateMatrixWorld         97331      88707  down
+    boot/rollout:click/three.updateMatrixWorld         2442       2106  down
+    boot/rollout:craft/bytes.uniforms                809860     798196  down
+    boot/rollout:craft/gl.calls                       25284      25007  down
+    boot/rollout:landing/three.updateMatrixWorld     129896     128216  down
+    boot/rollout:shedWarm/three.updateMatrixWorld      12298      11738  down
+    boot/rollout:snapshot/three.updateMatrixWorld       1628       1404  down
+    boot/rollout:spec/three.updateMatrixWorld          7618       7058  down
+  cub KTX2 (a -> b): {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":96,"ktx2Bytes":23621451,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null} -> {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":96,"ktx2Bytes":23621451,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null}; loader {"files":479,"bytes":83175888,"failed":0,"fallbacks":0,"target":36492,"off":null,"workers":4,"skipped":0}; worker messages 962
+  cub texture upload MiB by step (a -> b): garage:bake 79.0 -> 80.0, total 1401.0 -> 1402.0
+  cub crew at the stand (a -> b): 1 character(s) (ch20), 1 materials (1 on the budget set), 2 textures (2 KTX2, 0 images, 0 pending): 2.7 MiB on the GPU (ch20 2.7)  ->  1 character(s) (ch20), 1 materials (1 on the budget set), 2 textures (2 KTX2, 0 images, 0 pending): 2.7 MiB on the GPU (ch20 2.7)
+  cub memory after rollout (MiB, a -> b): heapUsed 862.3 -> 878.9, arrayBuffers 2705.3 -> 2708.8, external 2772.4 -> 2775.9, rss 3891.4 -> 3879.1
+  cub memory after end (MiB, a -> b): heapUsed 816.1 -> 819.8, arrayBuffers 2853.1 -> 2853.2, external 2920.2 -> 2920.3, rss 4065.9 -> 4054.2
+  cub the aeroplane at stand (a -> b)
+    craft.stand/draws.main                                0          0  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                 0          0  
+    craft.stand/meshes                                  105        105  
+    craft.stand/programs                                  0          0  
+    craft.stand/skinnedDraws                              0          0  
+  cub the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                 0          0  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                  0          0  
+    craft.taxi/meshes                                   105        105  
+    craft.taxi/programs                                   0          0  
+    craft.taxi/skinnedDraws                               0          0  
