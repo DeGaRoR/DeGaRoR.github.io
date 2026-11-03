@@ -32,7 +32,16 @@ that the topside is one ellipse from the chine, and kept the Wipline's bottom, p
 - `pa18_edo2000_q.png` / `_side.png`, `c172_edo2440_*`, `dc3_edo28000_q/side/front.png`.
 - `pa18_wipline_*`, `c172_wipline_*`: the references.
 
-**On the water** (GATE FLOATSCLASSIC-WATER, `floatsclassic_water3.txt`).
+**On the water** (GATE FLOATSCLASSIC-WATER, `floatsclassic_water3.txt`, 13/13):
+
+| build | mass | reserve (1.8 needed) | at rest | lift-off |
+|---|---|---|---|---|
+| PA-18 on EDO 2000s (its certified float) | 744 kg | 2.45 | 0.1 deg, 0.31 m draft | 24.4 s, 232 m |
+| PA-18, its Wipline 2100 rows in EDO style | 754 kg | 2.51 | -0.5 deg | 22.3 s, 221 m |
+| PA-18 on its Wipline 2100s (reference) | 752 kg | 3.12 | -0.9 deg | 22.7 s, 236 m |
+| DC-3 on EDO 78-28000s | 11,112 kg | 2.39 | 2.4 deg, 0.69 m draft | 56.6 s, 997 m |
+
+Each one also taxies (30 s at a quarter throttle). No prop touches the water.
 
 Round 2's weight and price table below still stands.
 
