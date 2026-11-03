@@ -116,11 +116,14 @@ The ranking uses the game's own facts from MEASURE.md and the stills, not only t
 - **The face is seen only from forward of the beam.** On the four closed cabins, the aft passenger pillar hides it
   from the side. From 15-45° forward of the beam, 10-31 % of it shows through the rear side glass, and almost all of
   that is the band **above the rear seat backs**.
-- **It renders near-black.** The bulkhead is an "inside" section (`tools/_cage_ui.js:825`, role `struct` at
-  `src/viewer/aeroskin.js:444`, `:470`). On such a section the cabin shader multiplies every light by
-  1 - uCabin.x, the cabin lamps included (`src/viewer/aeroskin.js:3805-3825`). uCabin.x is 0.81 x coverage
-  (`:3867`, `:3897`), so 19 % is kept at full coverage. The runtime value in the garage was not read; the stills show
-  the panel near-black. Only emissive light is spared.
+- **It renders dark, near-black on most builds.** The bulkhead is an "inside" section (`tools/_cage_ui.js:825`, role
+  `struct` at `src/viewer/aeroskin.js:444`, `:470`).
+  - On such a section the cabin shader multiplies every light by 1 - uCabin.x, the cabin lamps included
+    (`src/viewer/aeroskin.js:3805-3825`). uCabin.x is 0.81 x coverage (`:3867`, `:3897`), so 19 % is kept at full
+    coverage. The runtime value in the garage was not read. Only emissive light is spared.
+  - Its look is the builder's FRAME finish (`struct` per construction, `src/viewer/aeroskin.js:496-516`). In the
+    stills the steel-tube (Cub), alloy (twin) and composite (Mosquito) panels read near-black. The wood ones (Jodel,
+    Tiger Moth: spruce) read as a plain warm-brown or orange board.
 
 So what reads is high on the wall, has a horizontal edge or its own light, and is bright against dark.
 
@@ -139,7 +142,8 @@ So what reads is high on the wall, has a horizontal edge or its own light, and i
 3. **A cargo net in a contrasting colour across the upper wall.** [S presence (Cessna, Cirrus, Diamond, Tecnam), M:
    2.5 cm webbing, 10-15 cm cells, about 90 x 50 cm, sagging]
    - A grid is the one texture that survives 3 m.
-   - Light webbing on the game's dark wall gives the contrast for free.
+   - Light webbing on the game's dark walls (Cub, twin, Mosquito) gives the contrast for free. On the wood walls,
+     dark webbing does the same.
 4. **A bevel into the sidewalls and the roof (the moulded tub).** [S Cirrus box, M bevel 5-10 cm]
    - A chamfer turns a flat card into a volume.
    - The bevel faces catch the lamps at a different angle from the face.
@@ -150,7 +154,8 @@ So what reads is high on the wall, has a horizontal edge or its own light, and i
 6. **An opening into a dark tail cone or baggage tube.** [S DA40 tube, Cub / Husky extended baggage; M 30-45 x 25-40
    cm]
    - It gives depth.
-   - It needs a lit wall around it: on today's near-black panel a black hole has no contrast. Rank it after 5.
+   - It needs a lit wall around it: on today's near-black panels (Cub, twin, Mosquito) a black hole has no
+     contrast. Rank it after 5.
 7. **The tube frame and a canvas sling, instead of a wall (the Cub family).** [S sling and colours, M: tubes 19-25 mm,
    sling 50-60 x 30-40 cm]
    - A real silhouette: triangles of tube, and a sagging off-white or olive-drab trapezoid.

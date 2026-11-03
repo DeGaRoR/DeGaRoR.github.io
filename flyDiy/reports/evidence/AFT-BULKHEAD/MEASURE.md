@@ -218,10 +218,11 @@ at 15, 30 and 45°.
   - `tools/_cage_crew.js:3222` (the pax row's station: aft waist + 5 cm + `paxSeatZ`);
   - the back's rake (`seatGeom`, `tools/_cage_crew.js:360`);
   - the panel's 10 mm setback (`tools/_cage_gen.js:3684`).
-- **Near-black from inside:** the bulkhead is an inside section (`tools/_cage_ui.js:825`, role `struct` at
+- **Dark from inside:** the bulkhead is an inside section (`tools/_cage_ui.js:825`, role `struct` at
   `src/viewer/aeroskin.js:444`). The cabin shader multiplies all its light by 1 - uCabin.x, the lamps included
   (`src/viewer/aeroskin.js:3805-3825`; uCabin.x = 0.81 x coverage, `:3867`, `:3897`). A lamp's emissive lens is
-  spared. Not measured in the page; seen in the stills (README.md).
+  spared. Not measured in the page. In the stills (README.md) the steel-tube, alloy and composite panels read
+  near-black; the wood ones (spruce) read warm brown.
 - **The tube construction's bulkhead finish:** the bulkhead's role `struct` resolves per construction to
   `steelTube` (tube-and-fabric), `spruce` (wood), `bareAlu` (alloy), `composite` or `gelcoat`
   (`src/viewer/aeroskin.js:496-516`). The panel wears its builder's FRAME finish.
