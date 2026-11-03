@@ -43,12 +43,16 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // Codex's night floor): the default aeroplane held 180 m over HOME, the camera behind and above it toward the sunset,
 // the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
-const OUT = path.resolve(opt('out', SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
+const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0);
+const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/night-' + SCENE + '/' + STEP : SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 // the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
 // 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
+// A0 4 Nov (the user: "no light on the plane"): the twin's build fits only li_flood + li_reflect - nav, beacon, landing, taxi
+// and the cabin's pax light are 0, so the cockpit's switches had nothing to light. The photo scenes fit them all on the test copy.
+const ALL_LIGHTS = { lightOn: 1, li_flood: 1, li_pax: 1, li_nav: 1, li_beacon: 1, li_land: 1, li_taxi: 1, li_instr: 1, li_pedal: 1, li_reflect: 1 };
 const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_3.json';
-const BUILD = opt('build', SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
-const SPAWN = opt('spawn', SCENE === 'ref' ? 'mk_sea' : null);
+const BUILD = opt('build', SCENE === 'ref' || PHOTO ? TWIN_DEF : null), OVER = JSON.parse(opt('over', PHOTO ? JSON.stringify(ALL_LIGHTS) : 'null'));
+const SPAWN = opt('spawn', SCENE === 'ref' || PHOTO ? 'mk_sea' : null);
 const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
 // --variants '[{"eye":0},{"eye":1.5}]': each NIGHT view shot once per set of light_rig NIGHT dials (pages that have them;
 // the day views once, with the first set) - the file name carries the set (e.g. _eye1.5)
@@ -70,6 +74,7 @@ const LIT = { flood: 1, nav: 1, beacon: 1, land: 1, taxi: 1, instr: 1, pedal: 1,
 // the reference scene's days (06_solar): 19 Apr 2027 AKDT, the full moon (99.2 %) rising in the ESE as the sun sets in the
 // WNW - at 04:25Z the sun at -4.2 deg and the moon 7.8 deg up at az 126 true (107 grid), over the town and the summit
 const APR_DUSK = { date: '2027-04-20', utc: 4.42 * 3600 }, APR_BLUE = { date: '2027-04-20', utc: 4.75 * 3600 };   // -4.2 / -6.7 deg
+const APR_PM = { date: '2027-04-20', utc: 2.0 * 3600 };   // 18:00 AKDT: the sun ~14 deg up, the afternoon's light (the scout)
 const APR_NIGHT = { date: '2027-04-20', utc: 7 * 3600 };   // 23:00 AKDT: the sun at -19.9, the moon 19.8 deg up at az 162
 // the lit things of the island's premises (the fixture's sites whose items carry lit panes or lamps, and the town's built
 // zones), for the scene solver: [x, z, weight]
@@ -117,7 +122,19 @@ const VIEWS = [
   { user: 1, name: 'jolene_dusk',   day: { date: '2026-11-03', utc: 1.5 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 14 },
   { user: 1, name: 'jolene_dusk6',  day: { date: '2026-11-03', utc: 1.75 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 10 },
   { user: 1, name: 'jolene_night',  day: { date: '2026-11-03', utc: 2.75 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 10 },
-].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !!v.twin === !!BUILD));
+  // --scene scout / photo (A0 4 Nov, the user: "the framing is still wrong, no mountains in the background, no light on the plane,
+  // camera angle poor, bad FOV, bad framing ... try to have them looking nice"): a photographer's frame - the twin on the water
+  // 3/4 front (the eye 35-45 deg off the nose), the eye low (~2.5 m over the water), a long lens (24 deg) at 22 m (the plane ~45 %
+  // of the width), a real peak stacked big behind it (aim 'compose': the plane on the line from the eye to the peak), the town's
+  // lights low in the background, no open sea. scout = three compositions in a clear afternoon (the sun ~14 deg) for the user
+  // to pick; photo = the picked one (--pick N) at dusk, blue hour and night
+  { scout: 1, name: 'scout_a', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 0, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
+  { scout: 1, name: 'scout_b', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 1, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
+  { scout: 1, name: 'scout_c', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 2, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
+  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 14 },
+  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
+  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
+].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'scout' ? !!v.scout : SCENE === 'photo' ? !!v.photo : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !v.scout && !v.photo && !!v.twin === !!BUILD));
 
 // ---- in the page ----
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
@@ -194,6 +211,43 @@ const SETUP = V => `(async () => {
     }
     const R = window.__refScene; px = R.px; pz = R.pz; agl = window.__floatAgl; look = R.look;
   }
+  if (aim === 'compose') {   // THE PHOTOGRAPHER'S FRAME: peaks found on the terrain (400 m grid, 30 km round the roll-out; Mount Ardent always),
+    // the eye 35 or 45 deg off the nose (port or starboard: the probe moves the plane, never turns it, so the LOOK is fixed by the
+    // roll-out's heading and the plane goes on the line from the eye to the peak, 2-18 km short of it). Kept where the plane, the
+    // eye and a 15 m ring are water, the peak is not hidden by nearer ground, and the frame's width reaches land short of the
+    // peak (no open sea); scored on the peak's angle over the eye (10 deg cap, x3; under 3 deg pays 15), the lit things in the
+    // frame (x0.5, 20 cap) and the shore. The best per peak, best first: pick 0, 1, 2 are three different backdrops.
+    if (!window.__compose) {
+      const ax = s.axes(), n = [-ax[0][0], -ax[0][2]], l = [-ax[2][0], -ax[2][2]], LITS = ${JSON.stringify(LITS)}, dist = ${+V.dist || 22};
+      const nn = Math.hypot(n[0], n[1]) || 1; n[0] /= nn; n[1] /= nn; const ll = Math.hypot(l[0], l[1]) || 1; l[0] /= ll; l[1] /= ll;
+      const hf = Math.atan(Math.tan((${+V.fov || 24} / 2) / 57.2958) * 16 / 9), cosHf = Math.cos(hf);
+      const c0 = s.cgPos(), cells = [];
+      for (let x = c0[0] - 30000; x <= c0[0] + 30000; x += 400) for (let z = c0[2] - 30000; z <= c0[2] + 30000; z += 400) { const h = w.terrainH(x, z); if (h > 150 && !wet(x, z)) cells.push([h, x, z]); }
+      cells.sort((a, b) => b[0] - a[0]);
+      const peaks = [[w.terrainH(${ARDENT[0]}, ${ARDENT[1]}), ${ARDENT[0]}, ${ARDENT[1]}, 'Ardent']];
+      for (const q of cells) { if (peaks.length >= 10 || q[0] < 0.4 * (cells[0] ? cells[0][0] : 0)) break; if (peaks.every(p => Math.hypot(p[1] - q[1], p[2] - q[2]) > 3000)) peaks.push([q[0], q[1], q[2], 'peak' + peaks.length]); }
+      const out = [];
+      for (const P of peaks) { let bestP = null;
+        for (const side of [1, -1]) for (const off of [35, 45]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
+          for (let k = 2000; k <= 18000; k += 200) {
+            const px = P[1] - lk[0] * k, pz = P[2] - lk[1] * k, ex = px + e[0] * dist, ez = pz + e[1] * dist;
+            if (!wet(px, pz) || !wet(ex, ez)) continue;
+            let ring = true; for (let r = 0; r < 8 && ring; r++) { const a = r * Math.PI / 4; if (!wet(px + Math.cos(a) * 15, pz + Math.sin(a) * 15)) ring = false; } if (!ring) continue;
+            const ey = (w.waterH(px, pz) || 0) + 2.5, D = k + dist, pa = Math.atan2(P[0] - ey, D) * 57.2958;
+            let hid = false; for (let t = 300; t < D - 1500 && !hid; t += 150) { const g = w.terrainH(ex + lk[0] * t, ez + lk[1] * t); if (Math.atan2(g - ey, t) * 57.2958 > pa - 0.7) hid = true; } if (hid) continue;
+            let land = 0; for (let r = 0; r < 9; r++) { const a = -hf + 2 * hf * r / 8, ca = Math.cos(a), sa = Math.sin(a), rx = lk[0] * ca - lk[1] * sa, rz = lk[0] * sa + lk[1] * ca;
+              for (let t = 60; t <= Math.max(3000, D); t += 60) if (!wet(ex + rx * t, ez + rz * t)) { land++; break; } }
+            let L = 0; for (const q of LITS) { const vx = q[0] - ex, vz = q[1] - ez, dd = Math.hypot(vx, vz); if (dd < 300 || dd > D) continue; if ((vx * lk[0] + vz * lk[1]) / dd < cosHf) continue; L += q[2]; }
+            const lf = land / 9, sc = Math.min(pa, 10) * 3 - (pa < 3 ? 15 : 0) + Math.min(L, 20) * 0.5 - (1 - lf) * 30;
+            if (!bestP || sc > bestP.sc) bestP = { sc, side, off, px, pz, look: lk, L, mt: +pa.toFixed(1), lf: +lf.toFixed(2), peak: P[3], peakAt: [Math.round(P[1]), Math.round(P[2])], peakH: Math.round(P[0]), km: +(D / 1000).toFixed(1) };
+          } }
+        if (bestP) out.push(bestP); }
+      out.sort((a, b) => b.sc - a.sc);
+      window.__compose = { list: out, peaks: peaks.map(p => [p[3], Math.round(p[0]), Math.round(p[1]), Math.round(p[2])]) };
+    }
+    const C = window.__compose.list, R = C[Math.min(${+V.pick || 0}, C.length - 1)] || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
+    window.__refScene = Object.assign({ tried: C.length }, R); px = R.px; pz = R.pz; agl = window.__floatAgl; look = R.look;
+  }
   if (aim === 'toward') { const T = ${JSON.stringify(V.to || [0, 0])}; const tx = T[0] - px, tz = T[1] - pz, h = Math.hypot(tx, tz) || 1; look = [tx / h, tz / h]; }
   if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
   if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
@@ -205,14 +259,14 @@ const SETUP = V => `(async () => {
   // the lens: the view's fov (the ref scene's 26), every other view the flight's own (46, put back)
   // the ref scene's eye is the plain orbit (diag3: the night frame sat closer than the blue and dusk ones of the same run, the
   // flight's own framing between them); camMode first - it puts the orbit's own distance back - then the lens, then the eye
-  if (aim === 'ref' && FLIGHT_PROBE.camMode && FLIGHT_PROBE.camModeNow && FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');
+  if ((aim === 'ref' || aim === 'compose') && FLIGHT_PROBE.camMode && FLIGHT_PROBE.camModeNow && FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');
   if (window.FLYDIY_HVIEW && FLYDIY_HVIEW.flyFov) { const cm = FLIGHT_PROBE.camera(); if (window.__fov0 == null) window.__fov0 = cm.fov; FLYDIY_HVIEW.flyFov(${+V.fov || 0} || window.__fov0); }
-  FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist}); if (aim === 'ref' && FLIGHT_PROBE.camSettle) FLIGHT_PROBE.camSettle();
+  FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist}); if ((aim === 'ref' || aim === 'compose') && FLIGHT_PROBE.camSettle) FLIGHT_PROBE.camSettle();
   const LT = ${JSON.stringify(V.lights || null)}, K = window.FLYDIY_COCKPIT_I || null, lit = {};   // app.js's CK is module-local; the page hands it out as FLYDIY_COCKPIT_I
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
-    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, tried: R.tried, fov: FLIGHT_PROBE.camera().fov, camMode: FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null, eyeDist: (c => +Math.hypot(c.eye[0] - c.target[0], c.eye[1] - c.target[1], c.eye[2] - c.target[2]).toFixed(2))(FLIGHT_PROBE.camGet()), score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, tried: R.tried, peak: R.peak, peakAt: R.peakAt, peakH: R.peakH, peakKm: R.km, peaks: window.__compose ? window.__compose.peaks : undefined, fov: FLIGHT_PROBE.camera().fov, camMode: FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null, eyeDist: (c => +Math.hypot(c.eye[0] - c.target[0], c.eye[1] - c.target[1], c.eye[2] - c.target[2]).toFixed(2))(FLIGHT_PROBE.camGet()), score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
@@ -344,7 +398,10 @@ async function runPage(page) {
       await ev(FRAMES(90)); await sleep((V.settle || 8) * 1000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
       await ev(SETUP(V));                          // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
       await ev(FRAMES(120)); await sleep(1500);
+      if (PHOTO) await ev("(() => { let st = document.getElementById('__nsClean'); if (!st) { st = document.createElement('style'); st.id = '__nsClean'; st.textContent = 'body * { visibility: hidden !important; }'; document.head.appendChild(st); } const cs = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height); if (cs[0]) cs[0].style.setProperty('visibility', 'visible', 'important'); return 1; })()");   // a picture: no HUD, no card
+      await sleep(300);
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
+      if (PHOTO) await ev("(() => { const st = document.getElementById('__nsClean'); if (st) st.remove(); return 1; })()");
       const file = path.join(OUT, V.name + '_' + tag + vt + '.png');
       fs.writeFileSync(file, Buffer.from(png1.result.data, 'base64'));
       const page = JSON.parse(await ev(REPORT)), st = stats(file);
