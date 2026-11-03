@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 1f077a1cbd36632d
+// body-sha256: 83efb2609746fedc
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -50002,12 +50002,30 @@ function playerUpgrade(doc, hangarId, change, opts) {
 function playerSendTo(doc, name, hangarId, opts) {
   return playerBringHome(doc, name, Object.assign({}, opts || {}, { to: hangarId }));
 }
-function playerGoTo(doc, hangarId) {
+// STORY-HOME-LOOK F2 (the user, 3 Nov: "going to HOME rolls out from HOME"): opts.carry = the aeroplane on the stand.
+// A hangar gone to that holds NO aeroplane of its own (no floor, no inside slot) takes the carried one with you - sent
+// there (playerSendTo: free and instant, the store's own send-to) and set on its floor - so its stand is that aeroplane
+// and the roll-out leaves from there (playerRollFrom follows the fleet row). Before, the stand kept the aeroplane of the
+// hangar left behind and the roll-out left from THAT field (an empty HOME rolled out at the cabin). A hangar with an
+// aeroplane of its own keeps the rule it had (that one goes on the stand: the page's gotoGarage); an aeroplane the send
+// refuses (on a route) stays where it was, and the trip still happens. -> { ok, doc, why, carried: name | null }
+function playerGoTo(doc, hangarId, opts) {
   if (!doc.sheds[hangarId]) return pbNo(doc, 'no hangar ' + hangarId);
   if (doc.sheds[hangarId].locked) return pbNo(doc, hangarId + ' is not yours yet');
-  const d = pbClone(doc);
+  let d = pbClone(doc);
   d.here = hangarId;
-  return { ok: true, doc: d, why: '' };
+  const n = opts && opts.carry, F = d.fleet || {};
+  if (!n || !F[n]) return { ok: true, doc: d, why: '', carried: null };
+  const V = playerStoreView(d, hangarId), W = playerWhere(d, n);
+  if (!V || V.floor || V.inside.slots.some(Boolean) || (W.kind === 'in' && W.hangar === hangarId)) return { ok: true, doc: d, why: '', carried: null };
+  const S = playerSendTo(d, n, hangarId, opts);
+  if (!S.ok) return { ok: true, doc: d, why: '', carried: null, carryWhy: S.why || '' };
+  d = S.doc;
+  if (S.kind === 'in' && S.hangar === hangarId) {
+    const M = playerMove(d, n, { kind: 'floor', hangar: hangarId }, opts);
+    if (M.ok) d = M.doc;
+  }
+  return { ok: true, doc: d, why: '', carried: n, carryWhy: S.why || '' };
 }
 // TIME RUNS IN FLIGHT (GAME-LAYER ruling ax): the page hands every flight's
 // seconds here at its end. G-COST (G2230): nothing accrues on them - no rent,
