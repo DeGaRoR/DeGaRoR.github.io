@@ -116,3 +116,36 @@ TESTFIELD, METKIT, AUDIO, STRIPGROUND, FLIGHTREC. **RED, and red on a clean orig
 - VEHICLE: DEF / AIRBORNE; LAKEBED: 02/20's pond rows 2 and 3; WORLD: island approaches 13/31 under 4 %;
 - ASSETS: the `new THREE.*Material` counts (render_premises, app, hangar_view, studio, dmg_members - files not touched here);
 - PARKED: node's heap out of memory building the parked aeroplanes (on master too).
+
+## 5. The pictures (SwiftShader, `tools/soft_still.js --stage tools/perf/bay_stage.js`)
+
+Before = a clean origin/master adb2d2a9 worktree's own `soft_still.js` + `index.html`; after = this branch's `index.html`
+(built, not committed). The software rung's potato preset with the reflections row set to AUTO and the water tier 'simple'
+(gamer's) by the stage, the floatplane `bugReports/cessnaFloats.json`, the sea pinned at the rigs' 5 m/s (A 0.09 m, L 10 m,
+dir 0.4), the run paused, 1280 x 720. One run at a time with the machine to itself (a run sharing the CPU with the gates timed
+out at the garage). Never read a frame time off SwiftShader. `before.json` / `after.json` hold each view's eye, the
+aircraft, the mirror's state and the calm factor.
+
+The water's ripple ridges, measured on the stills (mean |dL/dy| of the luma over the water rows; the whole frame's mean
+|difference| between the two):
+
+| view | mirror weight before -> after | calm at the aircraft | ridges before -> after | frame diff |
+|---|---|---|---|---|
+| `sbay_float` the main south bay afloat, eye 6 m up, up the fjord | 1 -> 1 | 0 | 1.70 -> 1.17 (-31 %) | 1.14 |
+| `sbay_300` the same fjord from 300 m | 0.35 -> 0.52 | 0.055 (the eye over the lower fjord: 0.52) | 1.97 -> 1.75 (-11 %) | 0.29 |
+| `pchest_float` Port Chester afloat | 1 -> 1 | 0.023 | 1.25 -> 0.98 (-22 %) | 2.34 |
+| `lake_float` a drawn lake (the comparison) | 1 -> 1 | - | 1.21 -> 1.20 | 0.03 (JPEG noise) |
+| `open_float` the open sea 3 km off the west coast | 0 -> 0 | 1 | 1.46 -> 1.45 | 0.02 (unchanged) |
+| `open_300` the same open sea from 300 m | 0 -> 0 | 1 | 1.03 -> 1.03 | 0.00 (unchanged) |
+
+- `pair_sbay_float.jpg`: the bay's ridges calm to the lake's level (1.17 against the lake's 1.20) and the floatplane's
+  reflection is one image instead of torn strips; a long low ripple stays - A0's wind ripple (waveK 0.25), so the bay is a
+  calmer sea, not a glass lake, by design.
+- `pair_sbay_300.jpg`: the mirror's weight 0.35 -> 0.52 (the eye stands over the fjord's lower half near the mouth, where the
+  lake rule is partial); the water from this height reflects mostly sky either way, so the change is slight.
+- `pair_pchest_float.jpg`: Port Chester calmer (-22 %), the hillside's reflection steadier.
+- `pair_lake_float.jpg`, `pair_open_float.jpg`, `pair_open_300.jpg`: unchanged (the lake is not the sea's body; the open sea
+  is calm 1, and the AUTO ring keeps it off 3 km out as on master).
+
+The water program's texture units, read off the linked GL program on both runs: master 6 / 8 (without / with the hull's
+reflection), this branch 7 / 9 (+ uWCalm).
