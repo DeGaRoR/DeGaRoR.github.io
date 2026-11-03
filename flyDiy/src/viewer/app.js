@@ -13555,6 +13555,11 @@
     if (model && model.link && typeof model.link.snap === 'function') model.link.snap(sim.ctl);
   }
   let frameWait = null, holdRender = false, worldPrelink = null;
+  // NEW-PLANE (3 Nov): AN OPAQUE PANEL OVER THE SHED HOLDS ITS FRAMES. The full-screen new-aeroplane chooser covers the
+  // whole page while it is up (the user: "No calculations or rendering while choosing"), so the loop draws nothing
+  // behind it; the chooser releases the hold on Generate or Cancel (src/viewer/new_plane.js).
+  let uiHold = false;
+  if (typeof window !== 'undefined') window.FLYDIY_UI_HOLD = on => { uiHold = !!on; };
   // G690: THE STAND WAITS FOR THE PLAYER. `holdRender` only skips the DRAW; the solver, the pilot, the director
   // and the panel kept running under the roll-out screen (30-44 s on the user's box), so a start pressed under it
   // (the rig's second "roll out" click; bGo's fall-through) had the aeroplane taxiing at 4.5 m/s when the screen
@@ -19727,7 +19732,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
+    if (holdRender || uiHold) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
