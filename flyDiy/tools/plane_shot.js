@@ -186,7 +186,7 @@ async function shoot(o) {
     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
     log('page', url);
     await C.cmd('Page.navigate', { url });
     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
@@ -197,7 +197,7 @@ async function shoot(o) {
       ' bootSteps: BOOT.steps.length, hardTimeout: (BOOT.log || []).some(e => e && e.k === "fail") }; })()'));
     log('garage up', R.t.boot + ' s,', R.bootSteps, 'steps, on', R.gpu, '- profile', R.profile, 'room', R.room || 'shed', 'preset', R.preset);
     if (R.hardTimeout) fail(EXIT.boot, 'the boot\'s watchdog lifted the loading screen before the chain ended');
-    await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose")) try { x.click(); } catch (e) {} return 1; })()');
+    await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose, .npCancel")) try { x.click(); } catch (e) {} return 1; })()');
     await frames(3);
 
     const doc = await C.cmd('DOM.getDocument', { depth: 0 });
@@ -206,6 +206,9 @@ async function shoot(o) {
 
     for (const file of o.builds) {
       const tb = Date.now(), base = path.basename(file).replace(/\.json$/i, '');
+      // (NEW-PLANE: a fresh profile's first launch opens the new-aeroplane chooser a moment after the boot, and the chooser
+      // holds the frames behind it - closed before every build, as the player's cancel would)
+      await C.ev('(() => { try { if (window.NEW_PLANE && NEW_PLANE.isOpen()) NEW_PLANE.close(); } catch (e) {} return 1; })()');
       const BR = { file, views: [] }; R.builds.push(BR);
       // THE USER'S DOOR: the fleet's Import input, a real file - garage.js readFile -> unwrap -> loadSpec
       const want = JSON.parse(fs.readFileSync(file, 'utf8'));
