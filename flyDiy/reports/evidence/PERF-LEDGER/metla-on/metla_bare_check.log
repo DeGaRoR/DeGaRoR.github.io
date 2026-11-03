@@ -1,0 +1,4 @@
+BARE {"q":"town=1","town":true,"stats":{"houses":491,"houseTris":3573261,"queued":199,"metlaBare":811,"lotsBatches":16,"lotsBatched":107,"lotsHidden":16,"obstacles":1157},"drained":{"plots":380,"left":199},"lots":{"meshes":270,"tris":1894427,"geoMB":107.6,"mkYards":0,"mkFences":0},"mkRails":0,"errors":[]}
+KEPT {"q":"town=1&metlabare=0","town":true,"stats":{"houses":491,"houseTris":3573261,"queued":199,"lotsBatches":85,"lotsBatched":1356,"lotsHidden":16,"obstacles":1574},"drained":{"plots":380,"left":199},"lots":{"meshes":3368,"tris":21691858,"geoMB":1040,"mkYards":378,"mkFences":0},"mkRails":0,"errors":[]}
+lots: kept 21691858 tris / 1040 MB -> bare 1894427 tris / 107.6 MB
+METLA-BARE: PASS
