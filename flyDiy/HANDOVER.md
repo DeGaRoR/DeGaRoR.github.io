@@ -310521,6 +310521,22 @@ at default (G3570: not in the defaults table, `absent: 0`), part "Headliner & tr
   (a fetch in the program the liner already runs).
 - Gates: CABINLAMP twin2con (the twin + the three rows: console, console, roof, roof - no lamp near glass), LIGHT (the
   ladder text with consoleAt), SKINMAT (one headliner layout per construction).
+- CABIN-SHOTS FIXES (A0's cloud pictures through the glass, origin/claude/cabin-shots, 3 Nov 17:10):
+  - THE POD'S TOP ON THE CEILING UNDER EVERY POINT: one flat top at the lowest roof face's centroid, on the twin's roof
+    falling to its raked screen, put the nose 1.0 cm out through the skin (a black slot on the roof from outside) and
+    left 3.8 cm under the headliner aft (the Cub's nose 1.0 cm out too). Now a ray straight up the sheet's roof faces
+    at every lofted vertex (`yTop`): the top 4 mm into the liner, never more than halfway to the skin; skin alone, 2 mm
+    under it. 456 tris (the top closes along a centreline spine).
+  - THE LAMP IN ITS BEZEL: the bezel's radius is the lamp's (LAMP_R 19 mm, bezel 20/26 mm, A.ohc.r); consoleAt passes
+    `r` and its sink follows it (the 75 mm flood hung under a 52 mm bezel).
+  - A ROOF LAMP'S FLANGE UNDER THE SKIN (_cage_light.js `skinOver`): every point of the flange's rim (1.34 r, PROF.can)
+    needs a sheet face over it, 2 mm clear; a face over the seat that fails is retried 6 / 12 / 18 cm aft before the
+    roof rung gives up. Pre-existing on the twin with the console off: its two front domes through the windscreen frame
+    band; now on the roof 6-12 cm aft. The identity tool: the six validated builds unchanged.
+  - T2 IS THE FINISH ONLY: the wall trim's panel joins are not drawn (a follow-up, with G3 visors / G4 grab handles).
+  - Named: with the rows on the ceiling reads darker (the flood 6 cm lower in the console, no longer grazing the
+    ceiling; the headliner base 0x9d968a) - paint it (warm tan suggested).
+  - GATE PARTS has a headliner shape (the two sections exist only with their rows on).
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
