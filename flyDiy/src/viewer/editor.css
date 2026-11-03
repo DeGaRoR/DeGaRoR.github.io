@@ -2158,3 +2158,6 @@ body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 #npWrap .npSpinBox i { width:20px; height:20px; border-radius:50%; border:2px solid var(--ed-off);
   border-top-color:var(--ed-acc); animation:npSpin .8s linear infinite; }
 @keyframes npSpin { to { transform:rotate(360deg); } }
+#npWrap .npReg { display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--ed-dim); font-size:12px; }
+#npWrap .npReg input { min-height:44px; width:160px; padding:0 10px; border-radius:8px; box-sizing:border-box;
+  background:var(--ed-track); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); font:500 14px/1 'IBM Plex Mono', monospace; }
