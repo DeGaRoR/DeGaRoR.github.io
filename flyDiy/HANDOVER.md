@@ -310920,3 +310920,17 @@ LEGIBLE (same day, A0 for the user: "not many sounds at once? ... otherwise glob
   for 0.2 s (the model) and DUCKS the ones still sounding to 25 % (the worklet's voice slot 15); a TOTAL budget over the
   three: at most 5 a second, at most 2 within 0.1 s (the impact passes that one, counted); the snap's own gap 0.15 s.
   GATE CRASH: a 100-member frame = 1 event; the mask; a 3-second wreck within the budget; the duck; +7 mutations.
+
+## train FINISH-4 (A0, 3 Nov 05:00) - landed on the user's rule "land everything unless a real break"
+In (merge order): w6-shadow-warm 7db971bae, gps-stall 9c41f6252, gps-pfd 64f6ca966, crew-load-backoff bb07de79b, snd-amb1 35e2db5dc, story-1 ecc026ab3, story-smoke d661c3e5f, tyres-2b 468231011, dc3-2 b863394cb, cabin-craft-2 7200c2b11, flagship db284f212, candidates 0aedfdb70, dmg-scuff-2 6cc244c19, dmg-recal2 f87c9cc91, pilot-finish4 0f89c9f1d, terrain-match 20a634828, crash-sound 3105a5240, gpu-trace, grass-dense-g2560, rollrec-fix, a0/finish4-glbrm de4cb0813 (ref .glb out of git).
+OUT: stol-fixture (_stol_check.js:735 /bin/bash ENOENT), perf-ledger-g3200 + ground-look-g2610 (conflicts) -> L30a.
+Battery: 278 core gates, 253 PASS / 38 FAIL; FAILs re-run on the fresh parked cook: same. Master 0fcf54ef9 baseline of the unknown 27 (S1/land_F4_base.log): every one red on master too except AUDIO, DMGPAGEW, STORY.
+MASTER STANDING REDS (not this train): FOG VEHICLE TREEHIT TREECRASH DMGCERT DMGGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGDRIVE DMGDAMP DMGTYRE DMGFABRIC DMGSCAR (master 2/106, F4 1/106) DMGDETERMINISM HOUSEWORKER RWYLIGHTS LAKEBED ASSETS GEO HANDLE INSTANT WORLD DESTTO (flaky on master) + the named CLIP TECH NODUMMY JOINPARITY POD ENGCONFIG RADIALDIV FRAMECOST ROUNDTRIP. The trunk-physics cluster (TREEHIT: the trunk no longer stops the aeroplane) is MASTER's and needs an owner.
+THIS TRAIN'S OWN REDS (no crash, no page error, no stuck UI):
+- AUDIO/AMBRECORD (snd-amb1): the gate's sandbox throws "CORE_MATH is not defined" in 27_premises.js compose - harness misses CORE_MATH, the page has it. Owner: Sound.
+- STORY: one beat-card row (T0 title/brief) - story-1 moved the card off the player page (dev view ?storycard=1); the row is stale. Owner: Game.
+- DMGPAGEW: a drawn fabric sheet stretched 16 cm past rest after the trunk crash (2 records). Owner: Deform.
+- GPSFACE: "F cub + flat: gauges give way to the screen". Owner: GPS-STALL.
+- CREWLOAD: retry clock +2.6/+6.6 s vs +2/+6 under jobs 8 (load). Owner: GPS-STALL.
+- ASSETS: +1 material site in app.js and render_premises.js. MEDIA: index.html +0.35 MiB over 0.3 (train aggregate; 4.88 of 5 MiB gz).
+Timed light gate: killed at its 40 min cap (exit 124), no verdict - perf rows ride, perf week.
