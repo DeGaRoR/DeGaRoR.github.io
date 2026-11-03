@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-11-02",
+   "cooked": "2026-11-03",
    "variants": [
     {
      "name": "default",
@@ -15,38 +15,38 @@
       "mk_mp_air",
       "mk_mf_air"
      ],
-     "record": "c3f6ae151208ebcb",
-     "mods": 107,
+     "record": "719ff225321eebc2",
+     "mods": 113,
      "places": {
-      "things": 304,
-      "cells": 40,
-      "hash": "7d3f7e3181e3d34d",
+      "things": 331,
+      "cells": 47,
+      "hash": "72865d594344587f",
       "failed": 0
      },
      "raster": {
-      "tiles": 30184,
+      "tiles": 30219,
       "cells": 496,
-      "nodes": 43831944,
-      "raw": 351387904,
+      "nodes": 43978955,
+      "raw": 352564832,
       "worstMm": 0.0331
      }
     },
     {
      "name": "town",
      "drop": [],
-     "record": "83bf1d16a2813e68",
-     "mods": 180,
+     "record": "9a23d4b1cc915ba2",
+     "mods": 186,
      "places": {
-      "things": 787,
-      "cells": 70,
-      "hash": "a55bc1f2085e6b47",
+      "things": 816,
+      "cells": 77,
+      "hash": "91368e2f900c677a",
       "failed": 0
      },
      "raster": {
-      "tiles": 34210,
+      "tiles": 34245,
       "cells": 521,
-      "nodes": 58154554,
-      "raw": 466065808,
+      "nodes": 58301565,
+      "raw": 467242736,
       "worstMm": 0.0331
      }
     }
@@ -69,19 +69,19 @@
      "town"
     ],
     "bytes": {
-     "raw": 559422160,
-     "ship": 86503168
+     "raw": 560837680,
+     "ship": 86711392
     },
     "fetched": {
      "default": {
       "cells": 496,
-      "raw": 351387904,
-      "ship": 56293837
+      "raw": 352564832,
+      "ship": 56463153
      },
      "town": {
       "cells": 521,
-      "raw": 466065808,
-      "ship": 70256480
+      "raw": 467242736,
+      "ship": 70425796
      }
     },
     "cells": [
@@ -6437,12 +6437,12 @@
        -5,
        -33
       ],
-      "sig": "g1-38b085894f5baa10",
-      "src": "media/world/jolene/premises/r_m5_m33.9b45a776.bin",
-      "raw": 2187312,
+      "sig": "g1-2711a25f665cba0f",
+      "src": "media/world/jolene/premises/r_m5_m33.d2c7a349.bin",
+      "raw": 2425904,
       "tiles": 121,
       "in": [
-       "town"
+       "default"
       ]
      },
      {
@@ -6450,12 +6450,12 @@
        -5,
        -33
       ],
-      "sig": "g1-e707151c9ae9b763",
-      "src": "media/world/jolene/premises/r_m5_m33.9b45a776.bin",
-      "raw": 2187312,
+      "sig": "g1-2bc0be08cbce940d",
+      "src": "media/world/jolene/premises/r_m5_m33.d2c7a349.bin",
+      "raw": 2425904,
       "tiles": 121,
       "in": [
-       "default"
+       "town"
       ]
      },
      {
@@ -6478,7 +6478,7 @@
        -12
       ],
       "sig": "g1-585e510fdc336d12",
-      "src": "media/world/jolene/premises/r_m5_m12.101914fb.bin",
+      "src": "media/world/jolene/premises/r_m5_m12.67bde55b.bin",
       "raw": 1309296,
       "tiles": 59,
       "in": [
@@ -6492,7 +6492,7 @@
        -11
       ],
       "sig": "g1-748b12a0747727a5",
-      "src": "media/world/jolene/premises/r_m5_m11.4d632237.bin",
+      "src": "media/world/jolene/premises/r_m5_m11.e3b26b66.bin",
       "raw": 277616,
       "tiles": 11,
       "in": [
@@ -6976,7 +6976,7 @@
        -12
       ],
       "sig": "g1-acbe2934ff828031",
-      "src": "media/world/jolene/premises/r_m4_m12.9b17fe93.bin",
+      "src": "media/world/jolene/premises/r_m4_m12.ee517d37.bin",
       "raw": 1421840,
       "tiles": 56,
       "in": [
@@ -6990,7 +6990,7 @@
        -11
       ],
       "sig": "g1-d56a91160f331f30",
-      "src": "media/world/jolene/premises/r_m4_m11.bb11a292.bin",
+      "src": "media/world/jolene/premises/r_m4_m11.ca2487fb.bin",
       "raw": 2352,
       "tiles": 1,
       "in": [
@@ -7711,10 +7711,10 @@
        -1,
        -23
       ],
-      "sig": "g1-18de4d114fff4eae",
-      "src": "media/world/jolene/premises/r_m1_m23.6b9f6f06.bin",
-      "raw": 1479024,
-      "tiles": 67,
+      "sig": "g1-22130f2dcc20612d",
+      "src": "media/world/jolene/premises/r_m1_m23.76b39fb6.bin",
+      "raw": 1686640,
+      "tiles": 75,
       "in": [
        "default",
        "town"
@@ -8090,7 +8090,7 @@
        -12
       ],
       "sig": "g1-8a8e7c9b7e2bbe8b",
-      "src": "media/world/jolene/premises/r_1_m12.56e4a6ec.bin",
+      "src": "media/world/jolene/premises/r_1_m12.acc45a8d.bin",
       "raw": 171472,
       "tiles": 6,
       "in": [
@@ -8299,10 +8299,10 @@
        2,
        -17
       ],
-      "sig": "g1-cebd628cbba3bf26",
-      "src": "media/world/jolene/premises/r_2_m17.6764cfb4.bin",
-      "raw": 704528,
-      "tiles": 32,
+      "sig": "g1-2a2028a225b46ce2",
+      "src": "media/world/jolene/premises/r_2_m17.5ed5302c.bin",
+      "raw": 1022352,
+      "tiles": 44,
       "in": [
        "default",
        "town"
@@ -9391,10 +9391,10 @@
        35,
        -24
       ],
-      "sig": "g1-1c6613a78fb4b015",
-      "src": "media/world/jolene/premises/r_35_m24.4a589869.bin",
-      "raw": 229776,
-      "tiles": 12,
+      "sig": "g1-6e8e858868101f88",
+      "src": "media/world/jolene/premises/r_35_m24.11828d80.bin",
+      "raw": 369744,
+      "tiles": 18,
       "in": [
        "default",
        "town"
@@ -9405,10 +9405,10 @@
        35,
        -23
       ],
-      "sig": "g1-d12f63d79f1d1459",
-      "src": "media/world/jolene/premises/r_35_m23.a3fced71.bin",
-      "raw": 342928,
-      "tiles": 12,
+      "sig": "g1-21039e5548bae277",
+      "src": "media/world/jolene/premises/r_35_m23.8c7f41e5.bin",
+      "raw": 615856,
+      "tiles": 21,
       "in": [
        "default",
        "town"
@@ -9450,9 +9450,19 @@
     "page": "ceb7dd5720406f3f",
     "variants": {
      "default": {
-      "hash": "7d3f7e3181e3d34d",
-      "things": 304,
+      "hash": "72865d594344587f",
+      "things": 331,
       "cells": [
+       {
+        "c": [
+         -1,
+         -23
+        ],
+        "sig": "p1-52b8c290027e82e4",
+        "src": "media/world/jolene/premises/p_m1_m23.7a6255d8.bin",
+        "raw": 9333,
+        "n": 3
+       },
        {
         "c": [
          -1,
@@ -9488,10 +9498,10 @@
          -11,
          -31
         ],
-        "sig": "p1-8fc77e0048184154",
-        "src": "media/world/jolene/premises/p_m11_m31.b8ae3fe2.bin",
-        "raw": 6506,
-        "n": 4
+        "sig": "p1-69e242fdbbe5392d",
+        "src": "media/world/jolene/premises/p_m11_m31.fd6d281f.bin",
+        "raw": 7743,
+        "n": 9
        },
        {
         "c": [
@@ -9535,6 +9545,16 @@
        },
        {
         "c": [
+         -2,
+         1
+        ],
+        "sig": "p1-79196ef24661aa56",
+        "src": "media/world/jolene/premises/p_m2_1.21037f24.bin",
+        "raw": 260,
+        "n": 1
+       },
+       {
+        "c": [
          -3,
          -10
         ],
@@ -9566,6 +9586,16 @@
        {
         "c": [
          -4,
+         -4
+        ],
+        "sig": "p1-34107fdf41252e54",
+        "src": "media/world/jolene/premises/p_m4_m4.e05c8273.bin",
+        "raw": 282,
+        "n": 1
+       },
+       {
+        "c": [
+         -4,
          -7
         ],
         "sig": "p1-3b1cdbaa75dc1c97",
@@ -9578,10 +9608,20 @@
          -5,
          -33
         ],
-        "sig": "p1-349d26f9887ea912",
-        "src": "media/world/jolene/premises/p_m5_m33.be160b5d.bin",
-        "raw": 103614,
-        "n": 50
+        "sig": "p1-39cc46980dd1f1ce",
+        "src": "media/world/jolene/premises/p_m5_m33.3ea85e35.bin",
+        "raw": 110060,
+        "n": 51
+       },
+       {
+        "c": [
+         -6,
+         -13
+        ],
+        "sig": "p1-f34adb95a1cfc8fc",
+        "src": "media/world/jolene/premises/p_m6_m13.d4e137fe.bin",
+        "raw": 268,
+        "n": 1
        },
        {
         "c": [
@@ -9612,6 +9652,16 @@
         "src": "media/world/jolene/premises/p_m6_m33.66af4d8f.bin",
         "raw": 63760,
         "n": 6
+       },
+       {
+        "c": [
+         -6,
+         -34
+        ],
+        "sig": "p1-bbc5df57c893fda4",
+        "src": "media/world/jolene/premises/p_m6_m34.c88213e4.bin",
+        "raw": 273,
+        "n": 1
        },
        {
         "c": [
@@ -9735,6 +9785,16 @@
        },
        {
         "c": [
+         2,
+         -17
+        ],
+        "sig": "p1-961b501ef86407cb",
+        "src": "media/world/jolene/premises/p_2_m17.7a9f9f6f.bin",
+        "raw": 238,
+        "n": 1
+       },
+       {
+        "c": [
          28,
          -59
         ],
@@ -9748,9 +9808,9 @@
          28,
          -60
         ],
-        "sig": "p1-fd3007b16220c10c",
-        "src": "media/world/jolene/premises/p_28_m60.d488bcd7.bin",
-        "raw": 56815,
+        "sig": "p1-f2855a3565cf6736",
+        "src": "media/world/jolene/premises/p_28_m60.5c80ebb8.bin",
+        "raw": 56555,
         "n": 8
        },
        {
@@ -9788,9 +9848,19 @@
          35,
          -23
         ],
-        "sig": "p1-07caf8a07ad0f2fd",
-        "src": "media/world/jolene/premises/p_35_m23.f8ccf2cb.bin",
-        "raw": 21739,
+        "sig": "p1-ded749f00269c656",
+        "src": "media/world/jolene/premises/p_35_m23.a707e416.bin",
+        "raw": 21960,
+        "n": 2
+       },
+       {
+        "c": [
+         35,
+         -24
+        ],
+        "sig": "p1-f622a03850cbcfc6",
+        "src": "media/world/jolene/premises/p_35_m24.81e22a80.bin",
+        "raw": 276,
         "n": 1
        },
        {
@@ -9848,26 +9918,36 @@
          8,
          -68
         ],
-        "sig": "p1-03b02c920df7a435",
-        "src": "media/world/jolene/premises/p_8_m68.b213cc21.bin",
-        "raw": 36856,
-        "n": 8
+        "sig": "p1-a940378bf70668a4",
+        "src": "media/world/jolene/premises/p_8_m68.4616872e.bin",
+        "raw": 39610,
+        "n": 19
        }
       ],
       "bytes": {
-       "raw": 1617854,
-       "ship": 241517
+       "raw": 1639182,
+       "ship": 246312
       },
       "tallies": {
-       "src": "media/world/jolene/premises/t_default.44c35ff9.bin",
-       "n": 304,
-       "hash": "4835aa4467b8e38d"
+       "src": "media/world/jolene/premises/t_default.7a839166.bin",
+       "n": 331,
+       "hash": "bdec883c9c1680fa"
       }
      },
      "town": {
-      "hash": "a55bc1f2085e6b47",
-      "things": 787,
+      "hash": "91368e2f900c677a",
+      "things": 816,
       "cells": [
+       {
+        "c": [
+         -1,
+         -23
+        ],
+        "sig": "p1-52b8c290027e82e4",
+        "src": "media/world/jolene/premises/p_m1_m23.7a6255d8.bin",
+        "raw": 9333,
+        "n": 3
+       },
        {
         "c": [
          -1,
@@ -9913,20 +9993,20 @@
          -11,
          -31
         ],
-        "sig": "p1-d50a877f895c6eea",
-        "src": "media/world/jolene/premises/p_m11_m31.062cd867.bin",
-        "raw": 6757,
-        "n": 5
+        "sig": "p1-e35d67e2354513f9",
+        "src": "media/world/jolene/premises/p_m11_m31.eb8087e2.bin",
+        "raw": 7994,
+        "n": 10
        },
        {
         "c": [
          -11,
          -33
         ],
-        "sig": "p1-d3c79bfed1a1005a",
-        "src": "media/world/jolene/premises/p_m11_m33.88418d28.bin",
-        "raw": 21450,
-        "n": 3
+        "sig": "p1-9c1950532c9270b1",
+        "src": "media/world/jolene/premises/p_m11_m33.4e194eb3.bin",
+        "raw": 21945,
+        "n": 5
        },
        {
         "c": [
@@ -10210,6 +10290,16 @@
        },
        {
         "c": [
+         -2,
+         1
+        ],
+        "sig": "p1-79196ef24661aa56",
+        "src": "media/world/jolene/premises/p_m2_1.21037f24.bin",
+        "raw": 260,
+        "n": 1
+       },
+       {
+        "c": [
          -3,
          -10
         ],
@@ -10241,6 +10331,16 @@
        {
         "c": [
          -4,
+         -4
+        ],
+        "sig": "p1-34107fdf41252e54",
+        "src": "media/world/jolene/premises/p_m4_m4.e05c8273.bin",
+        "raw": 282,
+        "n": 1
+       },
+       {
+        "c": [
+         -4,
          -7
         ],
         "sig": "p1-3b1cdbaa75dc1c97",
@@ -10253,10 +10353,20 @@
          -5,
          -33
         ],
-        "sig": "p1-349d26f9887ea912",
-        "src": "media/world/jolene/premises/p_m5_m33.be160b5d.bin",
-        "raw": 103614,
-        "n": 50
+        "sig": "p1-39cc46980dd1f1ce",
+        "src": "media/world/jolene/premises/p_m5_m33.3ea85e35.bin",
+        "raw": 110060,
+        "n": 51
+       },
+       {
+        "c": [
+         -6,
+         -13
+        ],
+        "sig": "p1-f34adb95a1cfc8fc",
+        "src": "media/world/jolene/premises/p_m6_m13.d4e137fe.bin",
+        "raw": 268,
+        "n": 1
        },
        {
         "c": [
@@ -10287,6 +10397,16 @@
         "src": "media/world/jolene/premises/p_m6_m33.eb1fd5d2.bin",
         "raw": 99432,
         "n": 9
+       },
+       {
+        "c": [
+         -6,
+         -34
+        ],
+        "sig": "p1-bbc5df57c893fda4",
+        "src": "media/world/jolene/premises/p_m6_m34.c88213e4.bin",
+        "raw": 273,
+        "n": 1
        },
        {
         "c": [
@@ -10450,6 +10570,16 @@
        },
        {
         "c": [
+         2,
+         -17
+        ],
+        "sig": "p1-961b501ef86407cb",
+        "src": "media/world/jolene/premises/p_2_m17.7a9f9f6f.bin",
+        "raw": 238,
+        "n": 1
+       },
+       {
+        "c": [
          28,
          -59
         ],
@@ -10463,9 +10593,9 @@
          28,
          -60
         ],
-        "sig": "p1-fd3007b16220c10c",
-        "src": "media/world/jolene/premises/p_28_m60.d488bcd7.bin",
-        "raw": 56815,
+        "sig": "p1-f2855a3565cf6736",
+        "src": "media/world/jolene/premises/p_28_m60.5c80ebb8.bin",
+        "raw": 56555,
         "n": 8
        },
        {
@@ -10503,9 +10633,19 @@
          35,
          -23
         ],
-        "sig": "p1-07caf8a07ad0f2fd",
-        "src": "media/world/jolene/premises/p_35_m23.f8ccf2cb.bin",
-        "raw": 21739,
+        "sig": "p1-ded749f00269c656",
+        "src": "media/world/jolene/premises/p_35_m23.a707e416.bin",
+        "raw": 21960,
+        "n": 2
+       },
+       {
+        "c": [
+         35,
+         -24
+        ],
+        "sig": "p1-f622a03850cbcfc6",
+        "src": "media/world/jolene/premises/p_35_m24.81e22a80.bin",
+        "raw": 276,
         "n": 1
        },
        {
@@ -10563,20 +10703,20 @@
          8,
          -68
         ],
-        "sig": "p1-03b02c920df7a435",
-        "src": "media/world/jolene/premises/p_8_m68.b213cc21.bin",
-        "raw": 36856,
-        "n": 8
+        "sig": "p1-a940378bf70668a4",
+        "src": "media/world/jolene/premises/p_8_m68.4616872e.bin",
+        "raw": 39610,
+        "n": 19
        }
       ],
       "bytes": {
-       "raw": 6551135,
-       "ship": 1030483
+       "raw": 6572958,
+       "ship": 1035433
       },
       "tallies": {
-       "src": "media/world/jolene/premises/t_town.05483cad.bin",
-       "n": 787,
-       "hash": "291e9d2efbe60192"
+       "src": "media/world/jolene/premises/t_town.5fab32eb.bin",
+       "n": 816,
+       "hash": "dfb930773dd05f1b"
       }
      }
     }
