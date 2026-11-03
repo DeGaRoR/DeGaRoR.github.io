@@ -9187,6 +9187,8 @@
       // airframe (77_ freightStopItems); none -> the typed kilos, CAREER-WIRE's fallback
       items: typeof freightStopItems === 'function' ? freightStopItems(d, flSlot) : null,
       row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
+      // CERT-GATES: the flying plane's certificates (a job it is not certified for moves nothing here)
+      cert: careerFlightCert(),
       hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
       // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
       // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
@@ -9222,6 +9224,41 @@
       } catch (e) {}
     }
     return out;
+  }
+  // CERT-GATES (the user 3 Nov: "you can fly an uncertified plane, but you cannot engage it in any mission in the story mode"):
+  // THE BENCH SIGNS the career plane on the stand (74_ careerSignOfBench: its two verdicts on its f3) whenever the bench's
+  // state moves and at every roll-out; nothing to sign while the bench has no current check
+  function careerSignNow() {
+    try {
+      const n = slotOnStand(), d = playerLoad();
+      if (!n || !d || d.mode !== 'career' || !d.career || !d.career.airframes || !d.career.airframes[n] || typeof careerSign !== 'function') return;
+      const st = typeof window.BENCH_STATE === 'function' ? window.BENCH_STATE() : null;
+      if (!st || !st.comm) return;
+      const r = careerSign(d, n, careerSignOfBench(st, typeof window.BENCH_FP === 'function' ? window.BENCH_FP() : null, Math.round(d.clock || 0)));
+      if (r.ok && r.doc !== d) { player = r.doc; playerSave(); }
+    } catch (e) {}
+  }
+  // the flying plane's certificates for the stop record: its airframe's, judged on the fingerprint it rolled out with
+  function careerFlightCert() {
+    try {
+      const d = playerLoad(), A = flSlot && d.career && d.career.airframes ? d.career.airframes[flSlot] : null;
+      return typeof careerCertOf === 'function' ? careerCertOf(A, typeof window.BENCH_FP_OUT === 'function' ? window.BENCH_FP_OUT() : null) : null;
+    } catch (e) { return null; }
+  }
+  // B (the job is KEPT): said before leaving, never a lock - the flight is free, the stop moves nothing of a job this
+  // plane is not certified for (74_ contractOnStop). At the roll-out the stand's plane on the garage's fingerprint; in the
+  // air (the next leg) the flying one on the roll-out's (BENCH_FP_OUT: the editor is closed out there)
+  function careerCertWarn(inAir) {
+    try {
+      const d = playerLoad(), n = inAir ? flSlot : slotOnStand();
+      if (!n || !d || !d.career || typeof careerCertOf !== 'function') return;
+      const F = inAir ? window.BENCH_FP_OUT : window.BENCH_FP, fp = typeof F === 'function' ? F() : null;
+      const C = careerCertOf(d.career.airframes && d.career.airframes[n], fp);
+      const no = d.career.contracts.accepted.filter(id => { const need = contractCertNeed(careerContract(d, id)); return need && !C[need]; });
+      if (!no.length) return;
+      ecNote = 'Not certified for ' + (no.length === 1 ? 'your accepted job' : no.length + ' of your accepted jobs') + ' (' + (C.why || 'run the bench') + '): you can fly, the job waits for a certified plane';
+      econWalletSync();
+    } catch (e) {}
   }
   const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
     // G3260 (ROUTES): the map's lines and planes, each where it is on its route at the world's instant
@@ -13612,6 +13649,7 @@
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
+    if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
@@ -15112,6 +15150,7 @@
   // ROLL OUT reads the certificate but is NEVER locked: it is your aeroplane,
   // and building it wrong and learning why is content, not error.
   function syncGoLabel() {
+    if (CAREER_DEV) careerSignNow();   // CERT-GATES: the bench's change signs the career plane on the stand
     const b = $('bGo');
     if (!b || !inGarage) return;
     const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE()
@@ -15578,6 +15617,7 @@
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
+      if (CAREER_DEV) careerCertWarn(true);   // CERT-GATES: the next leg says it too
     }
     flNextLeg = nextLeg;
     // a To changed in the flare or the roll-out: the leg it asks for begins where the aeroplane stops

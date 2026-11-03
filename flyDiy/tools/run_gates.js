@@ -1034,6 +1034,8 @@ const GATES = [
   // rack group / new-aeroplane cards / EXPORT ALL source rows, the core never naming the pool; `--selftest`: eleven
   // breaks, each red. ~1 s static, the load chain ~20 s a candidate uncached (tools/.joincache/ after)
   { id: 'CANDIDATES', file: '_candidates_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },
+  // CERT-GATES (the user 3 Nov): certification gates the career's missions - the need, the plane, accept, the stop, shady
+  { id: 'CERTGATES', file: '_certgates_check.js', argv: ['--selftest'], tier: 'core', wall: 120 },
   // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
   // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
   // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,

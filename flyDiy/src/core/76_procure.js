@@ -831,6 +831,7 @@ function procureOnSaveCert(doc, slot, spec, ledger) {
   const d = prClone(doc), R = d.career.airframes[slot];
   if (R.factory) R.withdrawn = { cert: R.cert, why: 'modified in the editor: the maker\'s certificate is withdrawn', at: Math.round(d.clock || 0) };
   R.factory = false; R.modified = true; R.fp = fp; R.cert = null;
+  if (R.sign && R.sign.fp !== fp) delete R.sign;          // CERT-GATES: the bench signed another aeroplane
   if (L1) R.ledger = L1;
   if (cost > 0) playerCharge(d, cost, 'edit', slot);
   return { ok: true, doc: d, modified: true, bill: { cost, lines: B.lines }, why: '' };
