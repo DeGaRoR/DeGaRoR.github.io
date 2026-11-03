@@ -1,6 +1,7 @@
 # TANK-FIT — STATUS (cloud, 2026-11-03)
 
-Branch `claude/tank-fit` (base `origin/master` 0fcf54ef = PH1A). Not rebased on FINISH-4 / CABIN-CRAFT / PHONE-1b yet
+Branch `claude/tank-fit` (rebased 3 Nov 08:32 UTC on `origin/master` 1db22c8a = train 1B: FINISH-4 + PHONE-1b; first
+cut on 0fcf54ef = PH1A). Not rebased on FINISH-4 / CABIN-CRAFT / PHONE-1b yet
 (they were not on master when this was cut: the user's builds were read from `origin/claude/ready/candidates-4b`).
 Generated files are NOT committed (the train builds): `node tools/build.js` before any page or gate.
 
@@ -175,7 +176,7 @@ the deck is 2 cm (a row).
 | build | the nose tank before | auto now | firewall to the panel face / to the shield's front |
 |---|---|---|---|
 | Cub (validated) | 28 L shaped, red (46 mm into a crew member) | **44 L** fits (0.275 x 0.605 x 0.352 m) | 0.445 / 0.167 m |
-| Jodel (validated) | 45 L shaped, red (21 mm into a crew member) | **55 L** fits | 0.483 / 0.246 m |
+| Jodel (validated) | 45 L shaped, red (21 mm into a crew member) | **55 L** fits (**53 L** on 1B: the knee fix raised the legs, the floor 11 mm) | 0.483 / 0.246 m |
 | metal Cessna (C172) | 25 L, its own box (fits) | 76 L fits (not applied: its own box) | 0.478 / 0.225 m |
 | ugly_bi | 60 L, its own box (fits) | 104 L fits (not applied: its own box) | 0.572 / 0.213 m |
 | floatplane CARD | 13 L deck, red (3 mm into a tube) | **16 L** fits | - |
