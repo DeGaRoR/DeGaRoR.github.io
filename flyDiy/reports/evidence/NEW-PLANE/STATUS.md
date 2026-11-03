@@ -9,7 +9,7 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
-## 0000. NOW (3 Nov, 15:10 UTC) - the branch is on train L30a (`a8a23ad6`)
+## 0000. NOW (3 Nov, 16:20 UTC) - the branch is on train L30a (`a8a23ad6`)
 
 - **N1, as the user re-ruled ("make the join measure the fin above the deck"): DONE** - `_cage_join.js` `finTaperAbove`:
   the fin's taper is read on its planform above the highest point of the boom's top line under its chord (the fin
@@ -23,7 +23,17 @@ Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
   extended `const API = {` in `_cage_design.js` - so the generator's tables now export on their own line
   (`Object.assign(API, ...)`); the trial merge is then clean. Its `CM_OFF` ids are exported "for NEW-PLANE's chooser":
   the chooser's own rule table already greys the same cells; reading CM_OFF directly is a follow-up once both are on master.
-- **Running:** the CORE battery on the 1B branch (the flown fin taper moves numbers some gates may pin); any red is
+- **GATE STOL went red on the taper, as it should, and its baseline is RE-CAPTURED** (`tools/_stol_samebits.js
+  --root=. --capture`, the gate's own procedure for "a change that moves the physics"). What it measured before the
+  re-capture: the validated Cub, Jodel, metal Cessna and Cessna-on-floats **build, fly 4 s, draw, design-check and
+  bench bit-identically to master** ("def =, 4 s =, drawing =, design check + sheet ="); only their JOINED SPEC
+  differs - `tail.vTaper`, now their measured 0.59-0.70 where it was 0.22 under the clamp - and so the keys hashed off
+  the spec (bench, parked, certificate store, procurement) move. The twin floatplane and the certified Rufus are
+  unchanged. After the re-capture: **GATE STOL PASS** (with `--selftest`). For the user: a saved build keeps its
+  flight; its certificate key is recomputed from the new spec.
+- **The targeted battery** (36 core gates that fly the validated builds or read the tail: GEN, PILOT-side, JOINPARITY,
+  DESIGNCHECK, CGBAND, ACCEPT, TAKEOFF...) is still running at this push; its verdict is added when it ends.
+- **Running (stopped):** the CORE battery on the 1B branch (the flown fin taper moves numbers some gates may pin); any red is
   compared with master before it is called standing - this STATUS is updated when it ends.
 - **Blocked:** the push to `claude/ready/new-plane` is refused by this cloud session's permission policy (a
   `claude/ready/*` push reads as a production deploy). Everything lands on `claude/new-plane`; A0 promotes from it.
