@@ -76,8 +76,9 @@ function pw() { for (const p of ['playwright', '/opt/node-tools/node_modules/pla
     await page.evaluate(() => { document.body.classList.add('shot'); if (window.SHOT_MODE) try { SHOT_MODE.enter(); } catch (e) {} return 1; });
     for (let k = 0; k < 3; k++) await page.evaluate(() => new Promise(r => requestAnimationFrame(() => { window.__fwsEye && window.__fwsEye(); r(1); })));
     const f = path.join(OUT, NAME + '_' + e.n + '.png');
-    const c = await page.$('#c');
-    await (c ? c.screenshot({ path: f }) : page.screenshot({ path: f }));
+    // the page, not the canvas element: an element still waits for the element to be "stable" across frames, and a
+    // SwiftShader frame is seconds (the first run timed out at 30 s on it)
+    await page.screenshot({ path: f, timeout: 900000, animations: 'allow' });
     shots.push(f); log('still', path.basename(f));
   }
   console.log('FLOAT_WATER_SHOT ' + JSON.stringify({ ok: true, build: BUILD, state: st, shots, errors: errs.slice(0, 5) }));

@@ -157,7 +157,9 @@ The editor's sliders are wider for every style; a slider's range never changes a
 
 ## Pictures
 
-All from `node tools/plane_shot.js` (the phone profile's studio, SwiftShader, `&idle=0`), except the water still.
+All from `node tools/plane_shot.js` (the phone profile's studio, SwiftShader, `&idle=0`; the 3/4 and side views cropped
+to the aeroplane's box the rig reports), except the water stills. The q / s / bow views are orbit:-143/14/17, orbit:-90/3/14 and
+bow:-145/12/3 (the DC-3 at 42 / 46 / 3 m).
 
 | file | what |
 |---|---|
@@ -165,8 +167,8 @@ All from `node tools/plane_shot.js` (the phone profile's studio, SwiftShader, `&
 | `pa18_wipline_s.png` / `pa18_edo_s.png` | the same, side |
 | `pa18_wipline_bow.png` / `pa18_edo_bow.png` | the bow close-up: the flat deck and its non-skid against the dome, the fat black bumper, the bare aged skins and their seams; the board across the spreaders |
 | `c172_wipline_q.png` / `c172_edo_q.png`, `_s`, `_bow` | the user's Cessna floats build, the same three views |
-| `dc3_edo28000_q.png`, `_s`, `_bow.png`, `_top.png` | the DC-3 candidate on EDO 78-28000s |
-| `water_*.png` | on the water (see below) |
+| `dc3_edo28000_q.png`, `_s`, `_bow.png` | the DC-3 candidate on EDO 78-28000s |
+| `water_pa18_edo_abeam.png`, `_bow`, `_quarter` | ON THE WATER: the PA-18 floats build in EDO classic, rolled out onto the SEA lane through the game's own door (the build as the work in progress, the roll-out), paused where it sits, three free-camera eyes; `node tools/float_water_shot.js` (headless SwiftShader, the full game world - its boot took ~20 min here; the photo panel cropped off the left) |
 | `contact_*.png` | the pairs side by side |
 
 ## Gates
@@ -183,4 +185,13 @@ The gates run on this branch:
   - JOINPARITY: 3 rows (the twin floatplane's float station, the metal Cessna fixture, raw-flying tools).
   - LIVERY: `garageFloodArm is not defined` in the gate's own harness.
 
-Logs: gates_branch.txt, gates_branch2.txt, gates_master.txt, floatsclassic_water.txt.
+Logs:
+
+- `gates_final.txt`: the last battery on this tree (22 gates, jobs 2): 20 PASS, with LIVERY and CLIP the master
+  standing reds.
+- `gates_branch.txt` / `gates_branch2.txt`: the first runs. Two notes:
+  - FLOATSCLASSIC reads FAIL in branch2's summary over a PASS line, because its verdict line carried a count suffix the
+    runner does not accept. That was fixed in 6ebee62c.
+  - SKINMAT and PARTS were fixed after branch1.
+- `gates_master.txt`: CLIP, JOINPARITY and LIVERY on a clean origin/master adb2d2a9.
+- `floatsclassic_water.txt`, `water_runs_node.txt`: the water runs.
