@@ -113,7 +113,8 @@ function fromSpec(energy, spec) {
         hue: v.hue == null ? null : +v.hue || 0,
         tint: v.tint || null },
         // TANK-FIT Part 2: a nose tank fitted to the nose (and the gap under its deck, when the player set one)
-        v.fit === 'auto' ? { fit: 'auto' } : {}, v.gap != null && isFinite(+v.gap) ? { gap: +v.gap } : {}))
+        v.fit === 'auto' ? { fit: 'auto' } : {}, v.gap != null && isFinite(+v.gap) ? { gap: +v.gap } : {},
+        v.room != null && isFinite(+v.room) ? { room: +v.room } : {}))
     : defaultVessels();
   seeded = true;
   savePrefs();
@@ -134,7 +135,7 @@ function toSpec() {
              finish: v.finish || null,
              hue: v.hue == null ? null : v.hue,
              tint: v.tint || null,
-             ...(v.fit === 'auto' ? { fit: 'auto' } : {}), ...(v.gap != null ? { gap: v.gap } : {}) })) };
+             ...(v.fit === 'auto' ? { fit: 'auto' } : {}), ...(v.gap != null ? { gap: v.gap } : {}), ...(v.room != null ? { room: v.room } : {}) })) };
 }
 
 // the bench remembers; the game's memory is the spec
@@ -404,7 +405,11 @@ function cowlReach(ctx, zFw) {
   let z0 = Infinity, z1 = -Infinity, n = 0;
   if (tc != null) for (let i = S.nSheet || 0; i < S.n; i++) {
     if (S.tag[i] !== tc) continue;
-    const o = i * 15; n++;
+    const o = i * 15;
+    // the BODY's cowl only: a triangle off the centreline (a wing nacelle's cowl, a prop blade's tip) is not the
+    // body going on (the validated twin floatplane's nacelles read as a cowl past its pod: every cabin bay broke)
+    if (b[o + 9] > 0.25 || b[o + 12] < -0.25) continue;
+    n++;
     if (b[o + 11] < z0) z0 = b[o + 11]; if (b[o + 14] > z1) z1 = b[o + 14];
   }
   // along = metres aft of the datum: zFw (cage units) x FS less the layer's z
@@ -1729,25 +1734,32 @@ function judgeAll(scene, inv, results, ctx) {
 // The wing tank is its spar bay's own section (G445.2); this is the nose bay's: a DECK tank (G1150's form - a flat
 // floor, a top following a profile across the width, the same section along its length) measured off what is drawn,
 // with the clearance's own grid of surfaces:
-//   floor   the bottom of the dash (+ NOSE_FLOOR_CLR): never down into the footwell, the pedals and the feet
-//   back    the dash and the instruments standing forward of it (the crew layer's panel), + NOSE_CLR
-//   front   the firewall (the first surface ahead at the tank's height), less NOSE_CLR
-//   top     each column's ceiling - the deck's inner skin, the lowest over the tank's length - less the GAP
+//   back    the dash and the instruments standing forward of it (the crew layer's panel), + NOSE_PANEL_ROOM: the
+//           room the instruments are connected in (the user, 3 Nov: "space dash firewall ... could be 5"; the pitot /
+//           static fittings and their hoses' turn, a harness plug: 4-5 cm behind a 3-1/8" case)
+//   front   the firewall (the first surface ahead, low in the space), less NOSE_CLR
+//   floor   just above the pilot's feet and legs, the pedals and the controls under the tank's footprint (+ CREW_GAP):
+//           the user, 3 Nov: it "may [go below the dash], it should just not hit the pilot's feet or legs"; never
+//           below the keel's inner skin (+ NOSE_CLR)
+//   top     each column's ceiling - the deck's inner skin, the lowest over the tank's length - less the GAP (2 cm)
 //   width   the narrowest inner width over the length, at the floor and up the walls, less NOSE_CLR a side
 // then placed and JUDGED like any tank (judgeTank), and made smaller (height, then length) until it clears. The
 // litres are its own (the deck form's capacity: the section's area, the shell's fill): no box, no truncation.
 // It is the shape of a nose tank that says `fit: 'auto'` (a new nose tank, the panel's 'auto-fit' row) and of NONE
-// other: a saved tank keeps its shape. `window.TANK_NOSE_AUTO_ALL` also fits the nose tanks a save left to the bay
-// rule (no station, no box: the Cub's and the Jodel's) - the user's call before it is the default (STATUS.md).
+// other... and of a save's nose tank left to the bay rule (no station, no box: the validated Cub's and Jodel's) -
+// the user's call, 3 Nov: "Yes" (`window.TANK_NOSE_AUTO_ALL = false` puts the old shaping back, the A/B).
 const NOSE_AUTO_ON = true;  // the auto-fit itself (TANK-FIT commit 2; commit 1 lands with it off)
-const NOSE_GAP = 0.10;            // m under the deck top: the user's "10 cm gap" (the panel's row can change it)
-const NOSE_CLR = 0.02;            // m to the firewall, the panel back and the walls (the pads, the straps)
-const NOSE_FLOOR_CLR = 0.01;      // m above the dash's bottom edge
+const NOSE_GAP = 0.02;            // m under the deck top (the pads and the straps; the panel's row can change it)
+const NOSE_PANEL_ROOM = 0.05;     // m behind the instruments' cases: their connections (a row too)
+const NOSE_CASE_DEPTH = 0.10;     // m: the instruments' cases behind the panel's face (drawn as faces only)
+const NOSE_CLR = 0.02;            // m to the firewall and the walls (the pads, the straps)
 const NOSE_AUTO = new Map();      // the fitted shape, by body, gap and the crew's points
 function noseAutoWanted(v, bay) {
   if (!NOSE_AUTO_ON || !bay || bay.key !== 'nose' || legacyFit()) return false;
   if (v.fit === 'auto') return true;
-  return !!window.TANK_NOSE_AUTO_ALL && v.along == null && !v.dims;
+  // the user, 3 Nov ("Yes"): the saves' nose tanks left to the bay rule (no station, no box of their own - the
+  // validated Cub's and Jodel's) take the auto shape too; `window.TANK_NOSE_AUTO_ALL = false` is the old rule (the A/B)
+  return window.TANK_NOSE_AUTO_ALL !== false && v.along == null && !v.dims;
 }
 function noseAuto(ctx, inv, bay, v, zFw, cache) {
   const FS = fsOf(ctx), M = ctx.mesh;
@@ -1755,78 +1767,145 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
   const gap = v.gap != null ? Math.max(0.0, Math.min(0.3, +v.gap)) : NOSE_GAP;
   const S = surfAll(ctx, ctx.scene, inv), O = obstIndex(S);
   if (!CREW_PTS || !crewFresh(ctx.scene, inv)) CREW_PTS = crewPoints(ctx.scene, inv);
-  const key = BODY_SIG + '|' + S.sig.length + ':' + S.n + '|' + (CREW_PTS.sig || '').length + ':' + CREW_PTS.n + '|' + gap.toFixed(3) + '|' + EN.kind + '|' + vesselKey();
+  const key = BODY_SIG + '|' + S.sig.length + ':' + S.n + '|' + (CREW_PTS.sig || '').length + ':' + CREW_PTS.n + '|' + gap.toFixed(3) + '|' + (v.room != null ? (+v.room).toFixed(3) : 'r') + '|' + EN.kind + '|' + vesselKey();
   if (NOSE_AUTO.has(key)) return NOSE_AUTO.get(key);
   const zOfA = a => zFw * FS - a;
   // the bay's span along the body, and its section in the middle
   const aLo = Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0), aHi = Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1);
   const extMid = VG().bayExtAt(cache, FS, zFw, 0.5 * (bay.x0 + bay.x1));
   if (!extMid) return null;
-  // THE DASH: its faces' points (the sheet's 'dash' / 'dashFace'), its bottom edge and its forward-most face
-  let dashLo = Infinity, dashFwd = -Infinity, nd = 0;
+  const lvB = bay.lv || [0, 1];
+  const room = v.room != null ? Math.max(0, Math.min(0.3, +v.room)) : NOSE_PANEL_ROOM;
+  const xh = 0.5 * (extMid.xHi - extMid.xLo), P3 = CREW_PTS.buf, word = i => (CREW_PTS.word ? CREW_PTS.word(i) : 'the crew');
+  // THE PANEL'S BACK: the dash's faces (the sheet's 'dash' / 'dashFace') and the crew layer's panel - its plate and
+  // the instruments' cases standing forward of it - the forward-most of them, plus the room to connect them
+  let back = -Infinity, dashLo = Infinity;
   for (const f of M.F) {
     if ((f.m !== 'dash' && f.m !== 'dashFace') || !f.v) continue;
     for (const k of f.v) {
       const q = M.V[k], x = q[0] * FS, y = q[1] * FS, z = q[2] * FS;
       if (z > zOfA(aLo) + 0.05 || z < zOfA(aHi) - 0.3) continue;
-      nd++;
       if (Math.abs(x) < 0.25 && y < dashLo) dashLo = y;
-      if (z > dashFwd) dashFwd = z;
+      if (z > back) back = z;
     }
   }
-  const lvB = bay.lv || [0, 1];
-  const bandLo = extMid.yLo + lvB[0] * (extMid.yHi - extMid.yLo);
-  let floor = isFinite(dashLo) ? Math.max(dashLo + NOSE_FLOOR_CLR, bandLo + 0.005) : bandLo + 0.005;
-  // THE PANEL BACK: the crew layer's points ahead of the dash, above the floor, within the bay's width (the
-  // instruments' cans and the panel's own back): the tank's back stands ahead of the forward-most of them
-  let back = isFinite(dashFwd) ? dashFwd : zOfA(bay.x1);
-  {
-    const P3 = CREW_PTS.buf, xh = 0.5 * (extMid.xHi - extMid.xLo);
-    crewEach(CREW_PTS, [-xh, floor, zOfA(aHi) - 0.3], [xh, extMid.yHi + 0.1, zOfA(aLo) + 0.05], i => {
-      const y = P3[i * 3 + 1], z = P3[i * 3 + 2];
-      if (y > floor && z > back && z < zOfA(aLo)) back = z;
-    });
+  const dashBack = back;
+  let caseBack = -Infinity;
+  crewEach(CREW_PTS, [-xh, extMid.yLo - 0.1, zOfA(aHi) - 0.3], [xh, extMid.yHi + 0.1, zOfA(aLo) + 0.05], i => {
+    if (word(i) !== 'the panel') return;
+    const z = P3[i * 3 + 2];
+    if (z < zOfA(aLo) && z > caseBack) caseBack = z;
+  });
+  // THE BACK, TRIED AT A FEW STATIONS (the user, 3 Nov: "space dash firewall ... could be 5 ... you need to connect
+  // the dash instruments, how much do you need for that?"). The instruments are drawn as their faces on the panel
+  // (dashFace); a 3-1/8" case is 8-17 cm deep behind it and wants ~5 cm more for its fittings and plugs, so the tank
+  // stands at least NOSE_CASE_DEPTH + room ahead of the panel's face. Above that the dash's glare-shield runs forward
+  // to the windscreen base (the Cub's: 28 cm ahead of the face): the tank may sit under it, its top then the
+  // shield's - or start ahead of the shield's front edge + room, taller and shorter. The back that holds the most wins.
+  let faceZ = -Infinity;
+  for (const f of M.F) if (f.m === 'dashFace' && f.v) for (const k of f.v) { const z = M.V[k][2] * FS; if (z < zOfA(aLo) && z > zOfA(aHi) - 0.3 && z > faceZ) faceZ = z; }
+  const shieldZ = Math.max(back, caseBack);
+  const back0 = isFinite(faceZ) ? Math.max(faceZ + NOSE_CASE_DEPTH + room, isFinite(caseBack) ? caseBack + room : -Infinity)
+                               : (isFinite(shieldZ) ? shieldZ + room : zOfA(bay.x1) + room);
+  const back1 = isFinite(shieldZ) ? Math.max(back0, shieldZ + room) : back0;
+  const backs = [];
+  for (let k = 0; k <= 3; k++) { const z = back0 + (back1 - back0) * k / 3; if (!backs.some(q => Math.abs(q - z) < 0.01)) backs.push(z); }
+  let front = 0, floor = 0, L0 = 0, zs = null, best = null, fail = null, keel = 0;
+  back = back0;
+  for (const bk of backs) {
+    const e = evalBack(bk);
+    if (e.fail) { if (!fail) fail = e.fail; continue; }
+    if (!best || e.best.vol * e.L0 > best.vol * L0 * 1.001) { best = e.best; back = bk; front = e.front; L0 = e.L0; zs = e.zs; keel = e.keel; }
   }
-  back += NOSE_CLR;
-  // THE FIREWALL: the first surface ahead of the back face, at a few heights across the middle
-  // (low in the space: a pod's windscreen slopes down over the panel and meets a ray at panel height a few cm ahead -
-  // the tank's top is the ceilings' business and the clearance's, which shrink it under the glass)
-  const yProbe = [0.1, 0.25, 0.4].map(f => floor + f * (extMid.yHi - floor));
-  let front = Infinity;
-  for (const y of yProbe) for (const x of [-0.08, 0, 0.08]) {
-    const h = obstSeg(O, [x, y, back], [x, y, back + 1.2]);
-    if (h) front = Math.min(front, back + 1.2 * h.t);
-  }
-  if (!isFinite(front)) front = zOfA(aLo);
-  front -= NOSE_CLR;
-  const L0 = front - back;
-  if (!(L0 > 0.08)) { const r = { why: 'no room between the firewall and the panel (' + Math.round(Math.max(0, L0) * 1000) + ' mm)' }; NOSE_AUTO.set(key, r); return r; }
-  // THE WIDTH AND THE CEILINGS over the length: rays up from the floor and out from the centreline
-  const NZ = Math.max(3, Math.ceil(L0 / 0.04) + 1), zs = [];
-  for (let k = 0; k < NZ; k++) zs.push(back + 0.005 + (L0 - 0.01) * k / (NZ - 1));
-  let halfW = Infinity;
-  for (const z of zs) for (const yf of [0.01, 0.3, 0.6]) {
-    const y = floor + yf * Math.max(0.02, extMid.yHi - floor - gap);
-    const out = Math.max(0.2, 0.5 * (extMid.xHi - extMid.xLo) + 0.15);
-    for (const sg of [-1, 1]) { const h = obstSeg(O, [0, y, z], [sg * out, y, z]); if (h) halfW = Math.min(halfW, out * h.t); }
-  }
-  if (!isFinite(halfW)) halfW = 0.5 * (extMid.xHi - extMid.xLo);
-  halfW -= NOSE_CLR;
-  if (!(halfW > 0.05)) { const r = { why: 'the nose is too narrow here' }; NOSE_AUTO.set(key, r); return r; }
-  const NX = 9, ceil = [];
-  for (let k = 0; k < NX; k++) {
-    const x = halfW * k / (NX - 1) * 0.999;
-    let c = Infinity;
-    for (const z of zs) for (const sg of k ? [-1, 1] : [1]) {
-      const up = Math.max(0.1, extMid.yHi + 0.15 - floor);
-      const h = obstSeg(O, [sg * x, floor + 0.002, z], [sg * x, floor + 0.002 + up, z]);
-      c = Math.min(c, h ? floor + 0.002 + up * h.t : extMid.yHi);
+  if (!best) { const r = fail || { why: 'no room between the firewall and the panel' };
+    r.measured = { panelFace: faceZ, shieldFront: dashBack, backs, keel: extMid.yLo, deck: extMid.yHi };
+    LAST.nose = r; NOSE_AUTO.set(key, r); return r; }
+  function evalBack(back) {
+    // THE FIREWALL: the first surface ahead of the back face, low in the space (a pod's windscreen slopes down over the
+    // panel and meets a ray at panel height a few cm ahead - the tank's top is the ceilings' and the clearance's)
+    const yProbe = [0.15, 0.3, 0.45].map(f => extMid.yLo + f * (extMid.yHi - extMid.yLo));
+    let front = Infinity;
+    for (const y of yProbe) for (const x of [-0.08, 0, 0.08]) {
+      const h = obstSeg(O, [x, y, back], [x, y, back + 1.2]);
+      if (h) front = Math.min(front, back + 1.2 * h.t);
     }
-    ceil.push(c - gap);
+    if (!isFinite(front)) front = zOfA(aLo);
+    front -= NOSE_CLR;
+    // THE FLOOR: above the feet, the legs, the pedals and the controls under the footprint, never below the keel
+    const keel = extMid.yLo + NOSE_CLR;
+    const crewTop = (x0, x1) => {
+      let top = -Infinity;
+      crewEach(CREW_PTS, [x0, extMid.yLo - 0.2, back - CREW_GAP], [x1, extMid.yHi + 0.1, front + CREW_GAP], i => {
+        const w = word(i);
+        if (w === 'the panel') return;                      // (the panel is the back's business)
+        const z = P3[i * 3 + 2], x = P3[i * 3], y = P3[i * 3 + 1];
+        if (z < back - CREW_GAP || z > front + CREW_GAP || x < x0 || x > x1) return;
+        if (y > top) top = y;
+      });
+      return top;
+    };
+    let floor = keel;                 // (each candidate floor below rises over the feet its own width covers)
+    // (the panel's plate itself, if the floor would stand under it, is the back's: nothing to do here)
+
+    const L0 = front - back;
+    if (!(L0 > 0.08)) { const r = { why: 'no room between the firewall and the panel (' + Math.round(Math.max(0, L0) * 1000) + ' mm)' }; return { fail: r }; }
+    // THE WIDTH AND THE CEILINGS over the length: rays up from the floor and out from the centreline
+    const NZ = Math.max(3, Math.ceil(L0 / 0.04) + 1), zs = [];
+    for (let k = 0; k < NZ; k++) zs.push(back + 0.005 + (L0 - 0.01) * k / (NZ - 1));
+    const widthAt = fl => {
+      let hw = Infinity;
+      for (const z of zs) for (const yf of [0.01, 0.3, 0.6]) {
+        const y = fl + yf * Math.max(0.02, extMid.yHi - fl - gap);
+        const out = Math.max(0.2, 0.5 * (extMid.xHi - extMid.xLo) + 0.15);
+        for (const sg of [-1, 1]) { const h = obstSeg(O, [0, y, z], [sg * out, y, z]); if (h) hw = Math.min(hw, out * h.t); }
+      }
+      return (isFinite(hw) ? hw : 0.5 * (extMid.xHi - extMid.xLo)) - NOSE_CLR;
+    };
+    // ONE FLOOR, MEASURED: its width (the narrowest over the length, the floor again over that width - the feet
+    // beside a narrower tank do not hold it up - and the width again there), then each column's ceiling
+    const NX = 9;
+    const shapeAt = fl0 => {
+      let fl = fl0, hw = widthAt(fl);
+      if (!(hw > 0.05)) return null;
+      for (let it = 0; it < 2; it++) {
+        const f2 = Math.max(fl0, crewTop(-hw - NOSE_CLR, hw + NOSE_CLR) + CREW_GAP + 0.005);
+        const w2 = widthAt(f2);
+        if (!(w2 > 0.05)) return null;
+        fl = Math.max(f2, crewTop(-w2 - NOSE_CLR, w2 + NOSE_CLR) + CREW_GAP + 0.005);
+        hw = Math.min(w2, widthAt(fl));
+      }
+      if (!(hw > 0.05)) return null;
+      const cl = [];
+      for (let k = 0; k < NX; k++) {
+        const x = hw * k / (NX - 1) * 0.999;
+        let c = Infinity;
+        for (const z of zs) for (const sg of k ? [-1, 1] : [1]) {
+          const up = Math.max(0.1, extMid.yHi + 0.15 - fl);
+          const h = obstSeg(O, [sg * x, fl + 0.002, z], [sg * x, fl + 0.002 + up, z]);
+          c = Math.min(c, h ? fl + 0.002 + up * h.t : extMid.yHi);
+        }
+        cl.push(c - gap);
+      }
+      const H = cl[0] - fl;
+      if (!(H > 0.05)) return { floor: fl, halfW: hw, H, vol: 0 };
+      const pr = cl.map(c => Math.max(0, Math.min(1, (c - fl) / H)));
+      const fr = pr.reduce((a, q, i) => a + (i === 0 || i === pr.length - 1 ? 0.5 : 1) * q, 0) / (pr.length - 1);
+      return { floor: fl, halfW: hw, H, profile: pr, vol: 2 * hw * H * fr };
+    };
+    // THE FLOOR THAT HOLDS THE MOST (the user, 3 Nov: the tank may go below the dash; it must not meet the feet): from
+    // just above the feet (or the keel) upward, 2 cm a step - something low in the front of the bay (the cowl's lower
+    // panel and the engine's accessories behind the firewall, ugly_bi's at 0.44 m below the datum) can make a higher
+    // floor hold more than the lowest one
+    let best = null;
+    for (let fl = floor; fl < extMid.yHi - gap - 0.05; fl += 0.02) {
+      const sh = shapeAt(fl);
+      if (sh && sh.vol > 0 && (!best || sh.vol > best.vol * 1.001)) best = sh;
+    }
+    if (!best) return { fail: { why: 'no height under the deck above the feet (the floor ' + Math.round((floor - extMid.yLo) * 1000) + ' mm over the keel, the gap ' + Math.round(gap * 1000) + ' mm)' } };
+    return { best, front, L0, zs, keel };
   }
-  let H = ceil[0] - floor;
-  if (!(H > 0.05)) { const r = { why: 'no height under the deck: ' + Math.round(Math.max(0, H + gap) * 1000) + ' mm from the dash bottom to the deck, less the ' + Math.round(gap * 1000) + ' mm gap' }; NOSE_AUTO.set(key, r); return r; }
-  const profile = ceil.map(c => Math.max(0, Math.min(1, (c - floor) / H)));
+  floor = best.floor;
+  const halfW = best.halfW, H = best.H, profile = best.profile;
   // ...placed and judged: smaller until it clears (height first - the deck is what it meets - then the length)
   let dims = { L: L0, W: 2 * halfW, H, profile }, last = null;
   for (let it = 0; it < 14; it++) {
@@ -1844,8 +1923,13 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
     if (dims.L < 0.08 || dims.H < 0.04) break;
   }
   const out = last && last.pl && last.pl.ok
-    ? { along: last.cand.along, lv: last.cand.lv, dims: last.cand.dims, litres: capacityFromDims(last.cand.dims, 'deck'), floor, gap, yc: last.pl.c[1] }
+    ? { along: last.cand.along, lv: last.cand.lv, dims: last.cand.dims, litres: capacityFromDims(last.cand.dims, 'deck'), floor, gap, room, yc: last.pl.c[1],
+        measured: { dashBack, caseBack, back, front, floor } }
     : { why: 'no auto shape clears here: ' + ((last && last.pl && last.pl.why) || []).join('; '), dims: last && last.cand.dims };
+  out.measured = { panelFace: faceZ, shieldFront: dashBack, back, front, floor, keel, room, gap,
+                   faceToFirewall: isFinite(faceZ) ? front + NOSE_CLR - faceZ : null,
+                   shieldToFirewall: isFinite(dashBack) ? front + NOSE_CLR - dashBack : null };
+  LAST.nose = out;                 // (the probe tools read the last measurement)
   if (NOSE_AUTO.size > 16) NOSE_AUTO.clear();
   NOSE_AUTO.set(key, out);
   return out;
@@ -3377,6 +3461,11 @@ function renderPanel() {
         range(box, 'gap under the deck', 'the room left between the auto tank\'s top and the deck\'s inner skin', 0, 0.2, 0.005,
           v.gap != null ? v.gap : NOSE_GAP, fmtM,
           x => { v.gap = x; }, x => { v.gap = x; relayout(); syncCap(); commitSoon(); });
+      if (isAuto)
+        range(box, 'room behind the panel', 'the space left between the panel (its instruments\' backs) and the auto ' +
+          'tank: where the instruments are connected - the pitot and static fittings, the hoses\' turn, the harness plugs',
+          0, 0.2, 0.005, v.room != null ? v.room : NOSE_PANEL_ROOM, fmtM,
+          x => { v.room = x; }, x => { v.room = x; relayout(); syncCap(); commitSoon(); });
     }
 
     // capacity: as much as the bay can take, less the vessel's own ullage
@@ -3613,7 +3702,7 @@ function syncReadouts() {
       (r.v.shaped === 'crew' ? ', height capped above the crew'
        : r.v.shaped === 'band' ? ', height capped by the bay' : ''));
     d.textContent = (r.ok ? '✓ fits · ' : '✗ ') + bits.join(' · ') +
-      (r.ok ? '' : ' — ' + r.why.join('; '));
+      (r.ok ? '' : ' — ' + r.why.join('; ') + ' · it flies, but the bench will not certify it');
     d.classList.toggle('bad', !r.ok);
   });
   if (totalEl)

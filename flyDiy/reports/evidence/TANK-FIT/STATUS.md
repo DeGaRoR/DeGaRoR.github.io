@@ -6,8 +6,11 @@ Generated files are NOT committed (the train builds): `node tools/build.js` befo
 
 Commits, in landing order:
 1. **the clearance revamp + perf + the strut rule + the twin's cowl (case A)** — lands alone;
-2. **the nose auto-fit (Part 2)** — new nose tanks only; saved tanks untouched; the validated ones behind a flag;
-3. this file and the renders.
+2. **the nose auto-fit (Part 2)** — new nose tanks only;
+3. this file and the renders (round 1);
+4. **the user's rulings of 3 Nov**: an unfit tank refuses certification (still flies); the auto-fit stands 15 cm
+   ahead of the panel (cases + 5 cm to connect them) with its floor above the feet; applied to the validated Cub and
+   Jodel, the floatplane card and the twin floatplane (screenshots in `refit/`).
 
 Probe tables: `probe/` (the sweeps behind the false-red table, the auto-fit flag table).
 Tools added: `tools/tank_fit_probe.js` (the verdict swept along a slider, master's verdict beside it, timed),
@@ -130,48 +133,72 @@ Verdict changes on SAVED and STOCK tanks (their own tanks, as built):
   Metal Cessna + a 40 L pair: **0.0097 m²**. Physics changes only for builds with strut pods (the Chinooks).
 * **Clearance**: the foot / top checks kept, plus the drawn spindle against the sheet, the engine and the cowl.
 
-## The nose auto-fit (Part 2) — `N_*`
-A DECK tank (G1150's form: flat floor, a top following a profile across the width) fitted to what is drawn:
-floor = the bottom of the dash + 1 cm (never into the footwell); back = the dash and the instruments standing forward
-of it (the crew layer's panel) + 2 cm; front = the firewall − 2 cm; top = each column's lowest ceiling over the length
-− the GAP (default **10 cm**, the user's figure; a row 0-20 cm); width = the narrowest inner width − 2 cm a side; then
-placed by its own numbers and judged like any tank, smaller until it clears. Capacity = its own volume (the deck
-form's: section area x length x the shell's 0.90 fill). It is the shape of a nose tank marked `fit: 'auto'`: a new
-nose tank, a tank moved to the nose, or the panel's "auto-fit (behind the panel)"; a size, fore/aft, up/down or turn
-row makes it the player's (free). The cabin, boom and other bays stay free-size.
+## The nose auto-fit (Part 2) — `N_*`, and the user's rulings of 3 Nov (`refit/`)
+The user, 3 Nov, on the four questions:
+1. an unfit tank: "**red warning and refusal of certification, but flies**";
+2. the 10 cm: "**space dash firewall. Could be 5.** I'm thinking you need to connect the dash instruments, how much
+   do you need for that?";
+3. the floor below the dash: "**yes it may, it should just not hit the pilot's feet or legs**";
+4. apply to the validated tanks: "**yes, with screenshot using the simplified renderer**".
 
-**Measured (auto, 10 cm / 5 cm / 3 cm gap)**:
+**1 - refusal of certification** (commit 4): the bench's check (bench.js, the 'shake' row) adds the editor's own tank
+verdict as design-check FAIL rows (`wb.tank<i>`: "Tank 1 fits (Nose bay)" with the reason and the fix) - a FAIL row
+withholds the certificate (G2640's rule); the aeroplane still flies as drawn (G3877). The core adds the same row for
+a strut pod on a strutless wing (64b genDesignCheck, `unmounted`), so the core's own readers refuse it too. The
+editor's readout says "it flies, but the bench will not certify it".
 
-| build | today's nose tank | auto 10 cm | auto 5 cm | auto 3 cm | what limits it |
-|---|---|---|---|---|---|
-| metal Cessna (C172) | 25 L box (fits) | **26 L** fits | 41 L | 41 L | firewall → panel back 0.18-0.20 m |
-| Cub | 28 L shaped (red: crew) | **11 L** fits | 15 L | 15 L | the instruments' cans hang ~10 cm forward of the panel: 0.13 m firewall → cans |
-| Jodel | 45 L shaped (red: crew) | **5 L** | 10 L | 12 L | 0.07-0.14 m from the dash's bottom to the deck |
-| ugly_bi | 60 L box (fits) | **19 L** | 29 L | 32 L | the deck height above the dash bottom |
-| twin pusher (pod nose) | — | no fit | — | — | 55 mm from the dash bottom to the nose top |
+**2 - how much the instruments need.** Our instruments are drawn as their FACES on the panel (no cases; measured: the
+Cub's gauges all within 2.155-2.249 m of the panel face at 2.181 m). A real 3-1/8" instrument's case is 8-17 cm deep
+behind the panel (ASI and altimeter ~8-9 cm, VSI / turn ~10-12 cm, attitude / DG gyros ~17 cm), and its pitot /
+static fittings, the hoses' turn or a harness plug want **~4-5 cm more**. So the tank stands **15 cm** ahead of the
+panel's face (`NOSE_CASE_DEPTH` 10 cm of cases + `NOSE_PANEL_ROOM` 5 cm, your figure, a row "room behind the panel",
+0-20 cm); a gyro panel wants 22 cm (the row). Above that, OUR dash's glare-shield (the sheet's `dash` arch) runs
+forward to the windscreen base - 28 cm ahead of the Cub's panel face, 16.7 cm from its firewall: the tank sits under
+it (its top then the shield's) or starts 5 cm ahead of its front edge, whichever holds more (searched).
 
-References: J-3 Cub 12 US gal = **45 L** in exactly this place (behind the panel, under the deck — but its tank comes
-down past the instruments, which are few and shallow); C172 has NO nose tank (2 x ~100 L in the wings); a Jodel D11
-carries ~60 L behind the panel. Our noses as drawn, with the floor at the dash's bottom and a 10 cm gap, hold far less
-than those: the shapes are honest, the numbers say the nose geometry (the dash height, the instrument cans' depth)
-or the gap is what is short (Open questions 2-3).
+**3 - the floor**: just above the pilot's feet and legs, the pedals and the controls under the tank's own footprint
+(+ 10 mm), never below the keel's inner skin; the floor that holds the most, 2 cm a step, is kept (something low in
+the front of the bay - the cowl's lower panel behind the firewall - can make a higher floor hold more). The gap under
+the deck is 2 cm (a row).
 
-**Saved builds — nose litres before/after and the CG move, ONLY under `window.TANK_NOSE_AUTO_ALL = true`** (default:
-nothing moves; the flag also fits a save's nose tank that has no station and no box of its own):
+**Measured (the rules above)**:
 
-| build | before (as the game shapes it) | after (auto, 10 cm) | CG move x / y | empty+fuel mass |
+| build | the nose tank before | auto now | firewall to the panel face / to the shield's front |
+|---|---|---|---|
+| Cub (validated) | 28 L shaped, red (46 mm into a crew member) | **44 L** fits (0.275 x 0.605 x 0.352 m) | 0.445 / 0.167 m |
+| Jodel (validated) | 45 L shaped, red (21 mm into a crew member) | **55 L** fits | 0.483 / 0.246 m |
+| metal Cessna (C172) | 25 L, its own box (fits) | 76 L fits (not applied: its own box) | 0.478 / 0.225 m |
+| ugly_bi | 60 L, its own box (fits) | 104 L fits (not applied: its own box) | 0.572 / 0.213 m |
+| floatplane CARD | 13 L deck, red (3 mm into a tube) | **16 L** fits | - |
+| twin floatplane (validated, case D) | 19 L, red (15 mm into a tube, 20 mm into the panel) | no auto shape (the legs reach the nose tip, the screen slopes over them): **refit 10 L** (the same cylinder at 0.8, 2 cm forward, 5 mm clear) | - |
+
+References: J-3 Cub 12 US gal = **45 L** here (ours: 44 L); a Jodel D11 ~60 L behind the panel (ours: 55 L); a
+C172 has no nose tank.
+
+**4 - applied** (commit 4):
+* the saves' nose tanks with no station and no box of their own now take the auto shape by default
+  (`window.TANK_NOSE_AUTO_ALL = false` = the old shaping, the A/B);
+* the floatplane card's STOCK_TANKS entry is `fit: 'auto'` (hand-edited: tank_refit_apply.js generated the table);
+* the validated twin floatplane's header tank: refitted in its VALIDATED patch (`_load_build.js`, the floats patch;
+  the shared v7 fixture is untouched): 19 → **10 L**. Nothing larger fits the open pod's nose (searched: 0.8-1.0 of
+  its size, every station and level, both turns); a second tank behind the seat did not clear at the bay rule's spots.
+  Your call if you would rather keep 19 L red (it flies, no certificate).
+
+Every save this changes (the master spec's own tank vs this tree's, on today's core: the tank isolated):
+
+| build | before (master) | after | CG move x / y (model frame, + aft / up) | mass (fuel) |
 |---|---|---|---|---|
-| builds/cub_2026-09-20_corrected (validated) | 28 L, red (46 mm into crew) | 11 L, fits | +15.9 / +36.9 mm | 461.7 → 445.2 kg |
-| builds/jodel_2026-09-20_corrected (validated) | 45 L, red (21 mm into crew) | 5 L, fits | +28.8 / −37.2 mm | 464.2 → 425.4 kg |
-| builds/composite_jodel_2026-10-07 | 45 L, red | 5 L | +27.2 / −33.4 mm | 514.4 → 473.3 kg |
-| tools/fixtures/camel_2026-10 | 44 L, red (57 mm into the engine) | 44 L, red (61 mm into the engine) — no auto shape clears | −0.2 / 0 mm | 716 → 716 kg |
-| tools/fixtures/cub_fittings_hand_2026-10 | 28 L, red | 11 L | +15.9 / +36.9 mm | 461.7 → 445.2 kg |
-| tools/fixtures/cub_quadwin_2026-10 | 28 L, red | 11 L | +15.9 / +36.9 mm | 461.2 → 444.8 kg |
-| tools/fixtures/stol_cub_kit | 28 L, red | 11 L | +15.5 / +36.2 mm | 482.3 → 466.0 kg |
-| validated C172 (metal Cessna) | 25 L, its own box: **not eligible**, never changed | — | — | — |
-| every other saved tank (29 with their own place or box) | unchanged | — | — | — |
+| builds/cub_2026-09-20_corrected (validated) | 28 L | 44 L deck | −20.7 / +59.3 mm | 461.7 → 476.9 kg (20.2 → 31.7 kg) |
+| builds/jodel_2026-09-20_corrected (validated) | 45 L | 55 L deck | −14.9 / +8.2 mm | 464.2 → 473.7 kg (32.4 → 39.6 kg) |
+| builds/composite_jodel_2026-10-07 | 45 L | 56 L deck | −14.5 / +8.1 mm | 514.4 → 525.4 kg |
+| tools/fixtures/camel_2026-10 | 44 L (red: 61 mm into the engine) | **25 L** deck, fits | +13.3 / −11.5 mm | 716.0 → 696.9 kg (31.7 → 18.0 kg) — **19 L less: flag it** |
+| tools/fixtures/cub_fittings_hand_2026-10, cub_quadwin_2026-10, stol_cub_kit | 28 L | 44 L deck | −20.1..−20.7 / +56..59 mm | +15 kg |
+| validated twin floatplane (VALIDATED patch) | 19 L cyl | 10 L cyl | (moved 2 cm forward) | −6.5 kg fuel |
+| every other saved tank (its own place or box) | unchanged | | | |
 
-(CG x is the core's model frame, + = aft of where it was. These are NOT applied: the user's OK first.)
+Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half of the skin cut away):
+`cub_before_after.png`, `jodel_before_after.png`, `floatplane_card_before_after.png`, `twinfloats_before_after.png`
+(+ each `_after_front.png`).
 
 ## Performance (node, this box; ms) — re-run: `tank_fit_probe.js` (now) and the master worktree probe (before)
 
@@ -211,12 +238,8 @@ Not run here: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the
 editor's rows (the auto-fit select, the gap row, dragLayout on input) are untested in a page: a look is owed.
 
 ## Open questions for the user
-1. "A tank that does not fit does not fly": master flies it as drawn since G3877 (your 29 Oct call). Kept. Do you
-   want the drop back (the coordinator's wording), or is the red warning enough?
-2. The auto nose tank's gap: 10 cm (your figure, as A0 read it) gives 11 L on the Cub, 26 L on the C172. Was the
-   "10 cm gap" the gap under the deck, or the space between the dash and the firewall?
-3. Its floor at the dash's bottom: the Cub's and the Jodel's real tanks come down below their panels' tops; ours stop
-   at the bottom of the dash — and the Cub's instrument cans take 10 cm of the length. Allow the tank under the cans /
-   lower floor (above the feet), or keep it strictly behind the dash?
-4. Apply the auto-fit to the validated Cub / Jodel nose tanks (the table above), the floatplane card's tank (3 mm into
-   a tube), and the twin floatplane's header tank (case D)?
+1. The validated twin floatplane: 10 L that fits, or the 19 L red (flies, no certificate)? Or a second tank (where)?
+2. The camel fixture loses 19 L (44 → 25 L) under the same rule: keep, or give it its own box?
+3. The instruments' cases: 10 cm assumed (a VFR set). A gyro panel wants ~17 cm of case + 5 cm: should the case depth
+   follow the panel's own instruments (the panel layer knows which it drew)?
+4. The auto-fit's first shaping costs 0.3-1.1 s in node, once per body change (cached): off the main thread next?

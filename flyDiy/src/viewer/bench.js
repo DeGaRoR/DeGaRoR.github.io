@@ -73,6 +73,25 @@ function benchDesignHtml(d) {
       '</div>').join('') + '</div>';
 }
 
+// TANK-FIT: the editor's tank verdicts as design-check rows (one FAIL a tank that does not fit; none when they all
+// do, or when no editor is loaded - the core's own rows then stand alone)
+function benchTankRows() {
+  const E = typeof window !== 'undefined' ? window.CAGE_ENERGY : null;
+  let rs = null;
+  try { rs = E && E.results ? E.results() : null; } catch (e) { rs = null; }
+  if (!Array.isArray(rs)) return [];
+  const out = [];
+  rs.forEach((r, i) => {
+    if (!r || r.ok || r.unmounted) return;              // (an unmounted pod is the core's row, wb.tank<i>)
+    out.push({ id: 'wb.tank' + i, group: 'wb', label: 'Tank ' + (i + 1) + ' fits (' + ((r.bay && r.bay.name) || (r.v && r.v.bay) || 'its bay') + ')',
+               level: 'fail', value: Math.round((r.v && r.v.capacity) || 0), unit: 'L',
+               limit: 'the drawn tank clears every drawn surface by 5 mm and the crew by 10 mm',
+               why: (r.why || []).join('; ') || 'it does not fit',
+               fix: 'move or resize the tank (the red bead marks the contact), or pick the nose bay\'s auto-fit' });
+  });
+  return out;
+}
+
 // G3780: THE WING LOADING'S VERDICT, one function for the rig's last state - the quick run's (the bench's thread,
 // unpaced) and the watched rig's (kept as a DEV tool)
 function benchLoadVerdict(st) {
@@ -163,6 +182,11 @@ const BENCH_TESTS = [
         verdict: s.design.verdict,
         rows: s.design.rows.map(r => ({ id: r.id, group: r.group, label: r.label, level: r.level,
                                         value: r.value, unit: r.unit, limit: r.limit, why: r.why, fix: r.fix })) } : null;
+      // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): THE
+      // TANKS AS DRAWN - the editor's own verdict (CAGE_ENERGY, the drawn tank against the drawn aeroplane) - each
+      // tank that does not fit is a FAIL row: the certificate is withheld, the aeroplane still flies as drawn (G3877)
+      if (dsg) for (const r of benchTankRows()) if (!dsg.rows.some(q => q.id === r.id)) dsg.rows.push(r);
+      if (dsg && dsg.rows.some(r => r.level === 'fail')) dsg.verdict = 'fail';
       const dFail = dsg ? dsg.rows.filter(r => r.level === 'fail') : [];
       for (const r of dFail) why.push(r.label.toLowerCase() + ' fails (' + r.value + (r.unit ? ' ' + r.unit : '') + ')');
       const flies = !!s.flyableCircuit, sound = !dFail.length;
