@@ -1778,6 +1778,9 @@ const GEN_SEATS = {
   parachute:   { name: 'Parachute bucket',  kg: 8.0,  price: 800 },
   utility:     { name: 'Bush utility',      kg: 12.0, price: 700 },
 };
+// the cage's seatType -> its GEN_SEATS row (the order of SEAT_PRESETS; append only - the index rides in every save)
+const GEN_SEAT_TYPES = ['sling', 'carbon', 'airliner', 'touring', 'sculpted', 'executive', 'ultralight', 'aerobatic',
+                        'vintageCrew', 'work', 'cane', 'reclined', 'folding', 'parachute', 'utility'];
 // THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
 // accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
 // heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
@@ -1798,9 +1801,6 @@ function genFurnK(S) {
   if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
   return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
 }
-// the cage's seatType -> its GEN_SEATS row (the order of SEAT_PRESETS; append only - the index rides in every save)
-const GEN_SEAT_TYPES = ['sling', 'carbon', 'airliner', 'touring', 'sculpted', 'executive', 'ultralight', 'aerobatic',
-                        'vintageCrew', 'work', 'cane', 'reclined', 'folding', 'parachute', 'utility'];
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
