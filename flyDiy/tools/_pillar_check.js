@@ -43,8 +43,9 @@ const PS = require(path.join(T, '_pillar_site.js'));
   }
   const door = { key: 'test:P', sgn: 1, n: [1, 0, 0], tris, z0: 0, z1: 0.8, yLo: 0, yHi: 1, w: 0.8, h: 1 };
   const axes = [{ A: [0.5, 0, 0.8], B: [0.5, 1, 0.8], part: 'all' }];
-  // a vertical post (a thin box) at radius 0.84 from the hinge, 45 deg out: the door's aft edge (radius 0.8)
-  // passes it at 45 deg with 0.04 m - its half-width - = 0.03 m of clearance
+  // a vertical post (a thin box, half-width 0.01, square to the axes) centred at radius 0.84 from the hinge, 45 deg
+  // out: its nearest corner stands 0.84 - 0.01 sqrt 2 = 0.826 m from the hinge, so the door's aft edge (radius 0.8)
+  // passes it at 45 deg with 26 mm
   const post = (r, deg, hw) => {
     const a = deg * Math.PI / 180, cx = 0.5 + r * Math.sin(a), cz = 0.8 - r * Math.cos(a), t = [];
     const P = [[cx - hw, cz - hw], [cx + hw, cz - hw], [cx + hw, cz + hw], [cx - hw, cz + hw]];
@@ -53,10 +54,12 @@ const PS = require(path.join(T, '_pillar_site.js'));
     return t;
   };
   const s1 = PS.swingSweep(door, axes, [{ label: 'post', layer: 'wing', cat: 'wing strut', tris: post(0.84, 45, 0.01) }], { step: 5 });
-  ok(Math.abs(s1.minMM - 30) <= 3, 'RULER: a post 30 mm past the door\'s arc reads 30 mm', s1.minMM + ' mm @' + s1.deg + ' deg');
+  ok(Math.abs(s1.minMM - 26) <= 2, 'RULER: a post 26 mm past the door\'s arc reads 26 mm', s1.minMM + ' mm @' + s1.deg + ' deg');
   ok(s1.deg != null && s1.deg >= 35 && s1.deg <= 55, 'RULER: ...at the angle it stands at (45 deg)', s1.deg);
-  const s2 = PS.swingSweep(door, axes, [{ label: 'post', layer: 'float', cat: 'float strut', tris: post(0.6, 0, 0.012).map(t => t.map(p => [p[0] - 0.012, p[1], p[2]])) }], { step: 5 });
+  // a post bolted OUTSIDE the panel (its inner face on the skin): the door, turning out, runs into it at once
+  const s2 = PS.swingSweep(door, axes, [{ label: 'post', layer: 'float', cat: 'float strut', tris: post(0.6, 0, 0.012).map(t => t.map(p => [p[0] + 0.012, p[1], p[2]])) }], { step: 5 });
   ok(s2.minMM <= 1, 'RULER: a post standing on the panel reads 0', s2.minMM + ' mm @' + s2.deg);
+  ok(s2.onClosed && s2.onClosed['float strut'], 'RULER: ...and is named as ON the closed door', JSON.stringify(s2.onClosed));
   // a plate lying on the door (the fittings layer's handle) rides the door
   const plate = [[[0.501, 0.5, 0.1], [0.501, 0.5, 0.2], [0.505, 0.55, 0.2]]];
   const s3 = PS.swingSweep(door, axes, [{ label: 'access handle', layer: 'access', cat: 'anchor', tris: plate }], { step: 5 });
@@ -144,7 +147,7 @@ const checkSnap = (label, spec, opt) => {
     ok(feet.length && pl.every(Boolean), `SNAP ${label}: every lift strut's foot on a pillar with a frame ring`,
        feet.map(z => z.toFixed(3)).join(' ') + ' | ' + ((r.stat.split('  ·  ').find(x => x.startsWith('strut:'))) || ''));
     ok(ls.every(m => !onDoor(m.pin)), `SNAP ${label}: no lift strut foot on a door`);
-    ok(/on the [^·]*pillar/.test(r.stat), `SNAP ${label}: the status line says which pillar`);
+    ok(/on the [^·]*(pillar|post)/.test(r.stat), `SNAP ${label}: the status line says which pillar`);
   }
   const fl = members('edFloatStruts');
   if (opt.floats) {

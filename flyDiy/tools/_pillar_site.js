@@ -462,7 +462,13 @@ function swingSweep(door, axes, obstacles, opt) {
       for (const [q0, ti0] of oS) {
         gD.near(q0, 0.005, ti => { const t = tris[ti]; const d = ptTri(q0, t[0], t[1], t[2]); if (d <= 0.005) seen[oC[ti0]] = oW[ti0]; });
       }
-      for (const k in seen) onClosed[k] = seen[k];
+      // ...and it is IN THE DOOR'S WAY from the first degree: the door turning out runs through it between two
+      // samples (a 24 mm post on the panel is passed clean through by the 3 deg sample - GATE PILLAR's ruler)
+      for (const k in seen) {
+        onClosed[k] = seen[k];
+        note(k, 0, 0, seen[k]);
+        if (best.mm > 0) best = { mm: 0, deg: 0, who: seen[k] };
+      }
     }
     // COARSE, THEN FINE: every `step` degrees, then every degree either side of the coarse minimum
     let cBest = null;
