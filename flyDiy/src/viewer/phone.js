@@ -48,6 +48,9 @@
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
+  // THE TEST FLIGHT'S PAGE (PHONE-TESTFLIGHT 2 Nov: html.phfly beside html.phone, PROFILE.flight): no split, sheet, tab bar,
+  // knob, editor or tick there - the flight has the whole screen (phone.css stands down on it the same way)
+  if (W.PROFILE.flight || (W.document && W.document.documentElement && W.document.documentElement.classList.contains('phfly'))) return;
   const D = W.document, $ = id => D.getElementById(id);
   const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
   const V_FREE = 40, V_MIN = 0.05;
@@ -410,23 +413,8 @@
     try { if (D.activeElement === edEl.inp) edEl.inp.blur(); } catch (e) {}
   }
 
-  // THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone
-  // interface, significant issue"): the desktop reads them off the two posts in the picture; at 360 px a post's label is a
-  // smudge, so the numbers ride a chip at the view's lower left - CG in % of the wing chord, the stability margin, the
-  // band's colour (P1 CG-COLOURS, genMarginBand) and its warning sign. app.js buildIndicators writes window.CG_READ where
-  // it builds the posts; this only copies it, on the 400 ms tick, and writes nothing when it has not changed
-  let cgEl = null, cgLast = '';
-  function cgChip() {
-    const R = W.CG_READ, txt = !R || W.CG_MARKS_ON === false || (R.cg == null && R.sm == null) ? '' : (R.mark ? '⚠ ' : '') +
-      (R.cg != null ? 'CG ' + R.cg + ' %' : '') + (R.cg != null && R.sm != null ? ' · ' : '') + (R.sm != null ? 'margin ' + R.sm + ' %' : '') +
-      (R.mark && R.title ? ' — ' + R.title : '');
-    const key = txt + '|' + (R && R.band || '');
-    if (key === cgLast) return;
-    cgLast = key;
-    if (!cgEl) { cgEl = D.createElement('div'); cgEl.id = 'phCg'; cgEl.setAttribute('role', 'status'); D.body.appendChild(cgEl); }
-    cgEl.textContent = txt; cgEl.hidden = !txt;
-    cgEl.dataset.band = (R && R.band) || '';
-  }
+  // (G3906's CG chip on the view's edge is RETIRED, G3906b - the user 2 Nov 21:52: "taking too much space ... Original pc
+  // garage solution was good and more visual": the phone draws the desktop's 3D posts, app.js buildIndicators)
 
   function enhance(row) {
     if (!row || row.__ph || !row.classList || !row.classList.contains('r')) return;
@@ -555,7 +543,7 @@
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
       // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
       // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
-      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); cgChip(); } }, 400);
+      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
       // the split is the orientation's own (a turn of the phone takes the other one)
       W.addEventListener('resize', applySplit);
       W.addEventListener('orientationchange', () => setTimeout(applySplit, 200));

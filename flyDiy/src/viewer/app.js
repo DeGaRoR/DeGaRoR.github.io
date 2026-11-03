@@ -12318,7 +12318,7 @@
       ' — measured on this build, not estimated.';
   }
 
-  let gInd = null, gLabels = [], gLabelsOld = [];
+  let gInd = null, gLabels = [], gLabelsOld = [], gIndMeshMat = null;
   // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
   // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
   let gTipBand = null, gTipEl = null;
@@ -12438,21 +12438,29 @@
   // an imported aeroplane, a build mid-rebuild — and the caller then HIDES the
   // instruments rather than drawing them somewhere they do not belong. An
   // instrument in the wrong place is worse than no instrument.
+  // G3906b (PHONE-1b; the user 2 Nov on the phone, the twin on floats: no posts): A FLOAT BUILD HAS NO AXLES - its GAL /
+  // GAR are the two floats' STEP KEELS (61_gen_frame FLOATS: GAL = FL.K[2]), and the float layer publishes the same two
+  // points in the cage frame (_cage_float.js rec.tetraC[side][0], "step keel" - the tetra the physics rides). The one
+  // landmark both aeroplanes agree on, as the axles are for wheels: the posts stand on floats too (the desktop as well).
   function standOffset() {
     if (!showCage) return [0, 0, 0];
     const G = window.CAGE_GEAR;
     const legs = G && G.units && G.units.legs;
     const P = def && def.parts;
-    if (!legs || !P || P.GAL == null || P.GAR == null) return null;
-    const mains = legs.filter(l => l.kind === 'L' || l.kind === 'R');
-    if (mains.length < 2) return null;
+    if (!P || P.GAL == null || P.GAR == null) return null;
+    let pts = legs ? legs.filter(l => l.kind === 'L' || l.kind === 'R').map(l => l.axle) : [];
+    if (pts.length < 2 && (P.TW == null || P.TW < 0)) {
+      const F = window.CAGE_FLOAT, T = F && F.tetraC;
+      pts = T && T.L && T.R && T.L[0] && T.R[0] ? [T.L[0], T.R[0]] : [];
+    }
+    if (pts.length < 2) return null;
     edSitP.updateMatrixWorld(true);
     const w = new THREE.Vector3();
     let cx = 0, cy = 0, cz = 0;
-    for (const l of mains) {
-      w.set(l.axle[0], l.axle[1], l.axle[2]);
+    for (const q of pts) {
+      w.set(q[0], q[1], q[2]);
       edSitP.localToWorld(w);
-      cx += w.x / mains.length; cy += w.y / mains.length; cz += w.z / mains.length;
+      cx += w.x / pts.length; cy += w.y / pts.length; cz += w.z / pts.length;
     }
     const a = P.GAL * 3, b = P.GAR * 3;
     const lx = 0.5 * (sim.p[a] + sim.p[b]),
@@ -12466,10 +12474,30 @@
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
-    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
-    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
-    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
+  }
+  // G3906b: line segments (V, C: 6 floats a segment) as square prisms t across, their ends run on by t/2 so a cross joins
+  function prismGeo(V, C, t) {
+    // plain arrays, no Vector3 maths (the UI smoke's THREE is a stub: G3906b's first cut threw there)
+    const P = [], Q = [], h = t / 2;
+    const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    const unit = (p, k) => { const n = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0] / n * k, p[1] / n * k, p[2] / n * k]; };
+    for (let s = 0; s + 5 < V.length; s += 6) {
+      let d = [V[s + 3] - V[s], V[s + 4] - V[s + 1], V[s + 5] - V[s + 2]];
+      const L = Math.hypot(d[0], d[1], d[2]); if (!(L > 0)) continue; d = [d[0] / L, d[1] / L, d[2] / L];
+      const u = unit(cross(Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], d), h), v = unit(cross(d, u), h);
+      const a = { x: V[s] - d[0] * h, y: V[s + 1] - d[1] * h, z: V[s + 2] - d[2] * h },
+            b = { x: V[s + 3] + d[0] * h, y: V[s + 4] + d[1] * h, z: V[s + 5] + d[2] * h };
+      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u[0] * i + v[0] * j, o.y + u[1] * i + v[1] * j, o.z + u[2] * i + v[2] * j]);
+      const A = ring(a), B = ring(b), col = [C[s], C[s + 1], C[s + 2]];
+      const tri = (p, q, r) => { P.push(...p, ...q, ...r); for (let k = 0; k < 3; k++) Q.push(...col); };
+      for (let k = 0; k < 4; k++) { const k2 = (k + 1) & 3; tri(A[k], A[k2], B[k2]); tri(A[k], B[k2], B[k]); }
+      tri(A[0], A[1], A[2]); tri(A[0], A[2], A[3]); tri(B[0], B[2], B[1]); tri(B[0], B[3], B[2]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Q), 3));
+    return g;
   }
   function buildIndicators() {
     // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
@@ -12536,8 +12564,8 @@
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
-    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
-    // one place the posts are built from, so the two never disagree
+    // reading as numbers too - the one source for any readout that is not a 3D mark, written where the posts are built so
+    // the two never disagree (the phone's text chip that read it is retired, G3906b: the posts are the phone's readout)
     if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
       sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
@@ -12564,8 +12592,14 @@
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
-    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
+    // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
+    // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
+    // margin, the band's colour the verdict
+    if (!TOUCH_UI) {
+      label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+      label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    }
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
@@ -12580,7 +12614,14 @@
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
-    gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    if (TOUCH_UI) {
+      // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
+      // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
+      // next build - G1027's trap; one link on the first build is the phone's cost)
+      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
+      g.dispose();
+    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     placeIndicators();
@@ -18654,6 +18695,15 @@
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
       act: () => { try { window.FLIGHT_REC.save(); } catch (e) { console.warn('flyDiy: the log -', e && e.message); } }, before: 'main' });
+    // G3910 (PHONE-1b, the installed app; the user 2 Nov: "a force sync explicit option"): update_now.js does both - and the
+    // whole screen, where the browser has the Fullscreen API (an installed window keeps the status bar otherwise)
+    const UN = () => window.UPDATE_NOW;
+    window.FLYDIY_MENU.add({ k: 'updcheck', label: 'Check for update', sec: '', when: () => !!(UN() && UN().checkNow),
+      act: () => { gmOpen(false); UN().checkNow(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'updclean', label: 'Clean download & reload', sec: '', when: () => !!(UN() && UN().cleanReload),
+      act: () => { gmOpen(false); UN().cleanReload(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'fullscreen', label: 'Full screen', sec: '', when: () => !!(document.fullscreenEnabled && document.documentElement.requestFullscreen),
+      act: () => { gmOpen(false); try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch (e) {} }, before: 'main' });
     window.FLYDIY_MENU.add({ k: 'dev', label: 'Dev', when: () => !inGarage,
       page: body => { if (!flDevOn) flDevSet(true); pg(['patterns', 'engines', 'controls', 'ground', 'scenery', 'world', 'log', 'overlays'])(body);
         const b = flSection(body, 'pilotS', 'pilot', 'the style and the personality'); if (b) FL_BUILD.slot_pilot(b); }, before: 'main' });

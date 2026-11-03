@@ -600,7 +600,8 @@ function phoneChecks() {
   console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
   // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  if (!html.includes('html.phone #phTabs button.on')) throw new Error('index.html does not carry phone.css');
+  // (the selector carries the test flight's stand-down since PHONE-1b, html.phone:where(:not(.phfly)) - G3910)
+  if (!/html\.phone(:where\(:not\(\.phfly\)\))? #phTabs button\.on/.test(html)) throw new Error('index.html does not carry phone.css');
   const OWN = /^(#phTabs|#phBubble(\.fine|\[hidden\])?|\.phKnob|\.phStep)$/;
   const bad = [], seen = [];
   // a selector list split at its top-level commas (the ones inside :is( ) belong to their selector)
