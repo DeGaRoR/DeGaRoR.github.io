@@ -311112,3 +311112,9 @@ the mine's sign fix + GATE HOUSE 'signs' + the manifest's itemPatches. MOVED: th
 surface allows 7.9). Re-cooked (premises, city, map, fleet spots); gates as above (39 PASS, the same nine reds as master's,
 row for row). The withdrawn placements stay in the session's scratch generator only: a later ask can stand them from this
 entry's points.
+
+**SCENERY-PLACE, THE TENTS BACK** (the user, 3 Nov: "Ok for the tent, the tractors too"): the Cabin Lake shore camp stands
+again - cb_o_firepit (camp_firepit) at (2116, -17244) with the four tents round it (cb_o_tent_big / _frame / _hiking /
+_small, 5-6.5 m from the fire, 5 m or more apart, doors to it) and cb_x_camp (trees, r 12); the six photoscanned people
+stay withdrawn. The tractors were kept all along. Re-cooked (premises, city, map, fleet spots: cb_sea's census sees the
+camp); gates re-run.
