@@ -5,11 +5,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<!-- G3910 (PHONE-1b): THE INSTALLED APP - the manifest (start_url ./, standalone); the page itself is never the worker's (GATE PWA) -->
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0d0c0b">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   /* vendored IBM Plex (latin) — build.js inlines these as data URIs in the artifact */
   @font-face { font-family:'IBM Plex Mono'; font-style:normal; font-weight:400; font-display:swap;
@@ -4163,7 +4158,7 @@ body.bpOpen #edView { visibility:hidden; }
    (R1), a slider row on two lines (R2), only the knob moves a value and the
    scale scrolls the sheet (R4-R5).
    ====================================================================== */
-html.phone:where(:not(.phfly)) {
+html.phone {
   /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
      (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
   --ph-tab:48px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
@@ -4175,95 +4170,95 @@ html.phone:where(:not(.phfly)) {
   --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line1:16px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
-  html.phone:where(:not(.phfly)) { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+  html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
     --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
 }
-html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
+html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
   -webkit-tap-highlight-color:transparent; }
 
 /* ---- THE VIEW: the canvas and its floating chrome share one box ---------- */
-html.phone:where(:not(.phfly)) body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
+html.phone body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
   width:var(--ph-vw) !important; height:var(--ph-vh) !important; transition:none; }
-html.phone:where(:not(.phfly)) #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
+html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
   width:var(--ph-vw); height:var(--ph-vh); }
 /* the flight's verbs and the route have no world to go to (profile fly 'none') */
-html.phone:where(:not(.phfly)) #edActs, html.phone:where(:not(.phfly)) #edRoute, html.phone:where(:not(.phfly)) #edDest, html.phone:where(:not(.phfly)) #bootSetup, html.phone:where(:not(.phfly)) #bootRoute { display:none !important; }
-html.phone:where(:not(.phfly)) #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
+html.phone #edActs, html.phone #edRoute, html.phone #edDest, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
+html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
 /* G3721: the name is a disk (editor.css), at a finger's size */
-html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
-html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
-html.phone:where(:not(.phfly)) #edTopBar { gap:6px; }
-html.phone:where(:not(.phfly)) #edQuick { gap:2px; padding:3px; }
-/* the reference button only shows with a reference standing (the time button shows: it opens the time menu, TIME-CONTROLS) */
-html.phone:where(:not(.phfly)) .edQuickBtn[data-q="ref"]:disabled { display:none; }
-html.phone:where(:not(.phfly)) #edShelf { min-width:180px; }
-html.phone:where(:not(.phfly)) #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
-html.phone:where(:not(.phfly)) .edQuickBtn { min-width:40px; min-height:40px; }
+html.phone #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
+html.phone #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
+html.phone #edTopBar { gap:6px; }
+html.phone #edQuick { gap:2px; padding:3px; }
+/* the studio has no day (the clock's button) and the reference button only shows with a reference standing - room to spare */
+html.phone .edQuickBtn[data-q="time"], html.phone .edQuickBtn[data-q="ref"]:disabled { display:none; }
+html.phone #edShelf { min-width:180px; }
+html.phone #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
+html.phone .edQuickBtn { min-width:40px; min-height:40px; }
 /* the rail: the profile's four entries (phone.js), each a 48 px target, up the view's left edge */
-html.phone:where(:not(.phfly)) #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
-html.phone:where(:not(.phfly)) #edRail { gap:2px; padding:4px; }
-html.phone:where(:not(.phfly)) .edRailBtn { width:var(--ph-tap); min-height:var(--ph-tap); padding:6px 0; }
-html.phone:where(:not(.phfly)) .edRailBtn[hidden] { display:none; }
+html.phone #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
+html.phone #edRail { gap:2px; padding:4px; }
+html.phone .edRailBtn { width:var(--ph-tap); min-height:var(--ph-tap); padding:6px 0; }
+html.phone .edRailBtn[hidden] { display:none; }
 /* a flyout opens OVER THE SHEET, as a sheet of its own (tap its rail button again to close it) */
-html.phone:where(:not(.phfly)) #edFly { position:fixed !important; left:var(--ph-sl) !important; top:var(--ph-st) !important;
+html.phone #edFly { position:fixed !important; left:var(--ph-sl) !important; top:var(--ph-st) !important;
   width:var(--ph-sw) !important; bottom:var(--ph-tab) !important; max-height:none !important; height:auto !important;
   border-radius:0; border-width:1px 0 0; z-index:46; padding:14px 16px 18px; touch-action:pan-y; overscroll-behavior:contain;
   background:#201d1a; }
-html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) select { font-size:12px !important; max-width:58%; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) select { font-size:12px !important; max-width:58%; }
 
 /* ---- THE SHEET: the properties column, the parts column, the information panel - one at a time ---- */
-html.phone:where(:not(.phfly)) #edWrap, html.phone:where(:not(.phfly)) #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
+html.phone #edWrap, html.phone #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
   right:auto !important; bottom:var(--ph-tab) !important; width:var(--ph-sw) !important; height:auto;
   box-shadow:0 -1px 0 rgba(255,248,236,.10); transition:none; z-index:40; }
-html.phone:where(:not(.phfly)) #edWrap { flex-direction:column; }
-html.phone:where(:not(.phfly)) #edPropsTab, html.phone:where(:not(.phfly)) #edPartsTab, html.phone:where(:not(.phfly)) #edPropFold, html.phone:where(:not(.phfly)) #edCollapse,
-html.phone:where(:not(.phfly)) #edInfoFold, html.phone:where(:not(.phfly)) #edInfoTab { display:none !important; }
-html.phone:where(:not(.phfly)) #edWrap > #edProps, html.phone:where(:not(.phfly)) #edWrap > #edParts { display:none; width:100% !important; flex:1; min-height:0; border:0; }
-html.phone:where(:not(.phfly)) body.ph-props #edWrap > #edProps { display:flex !important; }
-html.phone:where(:not(.phfly)) body.ph-parts #edWrap > #edParts { display:flex !important; }
-html.phone:where(:not(.phfly)) body.ph-info #edWrap { display:none !important; }
-html.phone:where(:not(.phfly)) body.mode-ws #edInfo, html.phone:where(:not(.phfly)) body.mode-ws.info-off #edInfo { display:none !important; }
-html.phone:where(:not(.phfly)) body.mode-ws.ph-info #edInfo { display:flex !important; }
-html.phone:where(:not(.phfly)) #edParts { flex-direction:column; }
+html.phone #edWrap { flex-direction:column; }
+html.phone #edPropsTab, html.phone #edPartsTab, html.phone #edPropFold, html.phone #edCollapse,
+html.phone #edInfoFold, html.phone #edInfoTab { display:none !important; }
+html.phone #edWrap > #edProps, html.phone #edWrap > #edParts { display:none; width:100% !important; flex:1; min-height:0; border:0; }
+html.phone body.ph-props #edWrap > #edProps { display:flex !important; }
+html.phone body.ph-parts #edWrap > #edParts { display:flex !important; }
+html.phone body.ph-info #edWrap { display:none !important; }
+html.phone body.mode-ws #edInfo, html.phone body.mode-ws.info-off #edInfo { display:none !important; }
+html.phone body.mode-ws.ph-info #edInfo { display:flex !important; }
+html.phone #edParts { flex-direction:column; }
 /* THE EDIT TAB SCROLLS WHOLE: its heads (the structure / finish switch, the part's name and pills) scroll away with
    the rows - on a phone's height a fixed head left the rows ~190 px */
-html.phone:where(:not(.phfly)) body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden; }
-html.phone:where(:not(.phfly)) #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
+html.phone body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden; }
+html.phone #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
 /* every scroller of the sheet scrolls by a finger and keeps its scroll to itself */
-html.phone:where(:not(.phfly)) :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:3px; }
+html.phone :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:3px; }
 
 /* THE TAB BAR, in the thumb zone */
 #phTabs { display:none; }
-html.phone:where(:not(.phfly)) body.mode-ws #phTabs { display:flex; position:fixed; left:var(--ph-sl); bottom:0; width:var(--ph-sw);
+html.phone body.mode-ws #phTabs { display:flex; position:fixed; left:var(--ph-sl); bottom:0; width:var(--ph-sw);
   height:var(--ph-tab); z-index:47; background:#1a1815; border-top:1px solid rgba(255,248,236,.12);
   padding-bottom:env(safe-area-inset-bottom, 0px); }
-html.phone:where(:not(.phfly)) #phTabs button { flex:1; min-height:var(--ph-tap); border:0; background:transparent; color:#97907f;
+html.phone #phTabs button { flex:1; min-height:var(--ph-tap); border:0; background:transparent; color:#97907f;
   font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.14em; text-transform:uppercase; }
-html.phone:where(:not(.phfly)) #phTabs button { border-radius:0; }
-html.phone:where(:not(.phfly)) #phTabs button.on { color:#f4efe6; background:rgba(230,219,201,.07); box-shadow:inset 0 2px 0 #e6dbc9; }
+html.phone #phTabs button { border-radius:0; }
+html.phone #phTabs button.on { color:#f4efe6; background:rgba(230,219,201,.07); box-shadow:inset 0 2px 0 #e6dbc9; }
 
 /* ---- THE HEADS: bigger targets, wrapping instead of ellipsising (R17) ---- */
-html.phone:where(:not(.phfly)) #edViewTabs .edTab { min-height:40px; font-size:12px; }
-html.phone:where(:not(.phfly)) #edPropHead { flex-wrap:wrap; row-gap:6px; }
-html.phone:where(:not(.phfly)) #edPropHead .pill, html.phone:where(:not(.phfly)) #edPartsHead .pill { min-height:36px; padding:0 10px; font-size:11px; }
-html.phone:where(:not(.phfly)) #edPartName { font-size:15px; }
+html.phone #edViewTabs .edTab { min-height:40px; font-size:12px; }
+html.phone #edPropHead { flex-wrap:wrap; row-gap:6px; }
+html.phone #edPropHead .pill, html.phone #edPartsHead .pill { min-height:36px; padding:0 10px; font-size:11px; }
+html.phone #edPartName { font-size:15px; }
 
 /* ---- THE TREE: a 44 px row a node ---- */
-html.phone:where(:not(.phfly)) #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
-html.phone:where(:not(.phfly)) #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
+html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 
 /* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, 44 px (the whole row the value editor's target).
    Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 the scale, the
    row's width (COMPACT, the default) - or [-] the scale [+] with the row's own - / + (html.ph-pm, ~58 px). ---- */
-html.phone:where(:not(.phfly)) #edRows { padding:0 12px 24px 12px; }
-html.phone:where(:not(.phfly)) #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
-html.phone:where(:not(.phfly)) #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
+html.phone #edRows { padding:0 12px 24px 12px; }
+html.phone #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
+html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
   font-size:13px; line-height:1.3; color:var(--ed-dim); }
-html.phone:where(:not(.phfly)) #edRows .r.tog > span.k { width:auto; }
-html.phone:where(:not(.phfly)) #edWrap .r input[type=text] { font-size:15px !important; }
-html.phone:where(:not(.phfly)) #edRows .r > .rn { flex-basis:100%; }
-html.phone:where(:not(.phfly)) #edRows .r > button { min-height:36px; min-width:36px; }
+html.phone #edRows .r.tog > span.k { width:auto; }
+html.phone #edWrap .r input[type=text] { font-size:15px !important; }
+html.phone #edRows .r > .rn { flex-basis:100%; }
+html.phone #edRows .r > button { min-height:36px; min-width:36px; }
 /* THE SLIDER ROW IS ONE FIXED GRID, the same for every control (G3900; the user's stills 2 Nov 13:02-13:03, "rubbish
    overflowing of sliders and button components": the flex rows wrapped, - / + fell onto lines of their own and every
    row had its own shape). Never a wrap - every child has its cell:
@@ -4272,63 +4267,62 @@ html.phone:where(:not(.phfly)) #edRows .r > button { min-height:36px; min-width:
    The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
    No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (a pick since the user chose the row's - / + on 2 Nov 18:20, html.ph-pm the default - phone.js):
    the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
   grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
   column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:3px 0; box-sizing:border-box; flex-wrap:nowrap;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; cursor:pointer; }
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
-html.phone:where(:not(.phfly)).ph-pm { --ph-row:58px; --ph-line2:32px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
+html.phone.ph-pm { --ph-row:58px; --ph-line2:32px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:16px; cursor:pointer; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
   width:34px; height:20px; border-radius:10px; overflow:visible; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
   min-height:26px; min-width:30px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
   margin-left:6px; width:auto !important; max-width:76px; overflow:hidden; white-space:nowrap; text-align:right; font-size:12px !important; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
 /* the axis mark (editor.css: the row's ::after, 13 px before the label) on line 1, where the label is - the old
    two-line rows centred it on the row and it read as a stray dot by the + */
-html.phone:where(:not(.phfly)) #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
-html.phone:where(:not(.phfly)).ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
+html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
+html.phone.ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
 /* the - / + on the row (html.ph-pm): 40 px wide, the line's height, never on a line of their own */
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
   padding:0; border-radius:8px; font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
 /* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
-   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does; z-index 1: the reach below
-   lay under the next row (the 2 Nov rig: the - / + foot 4 px short of 44) */
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; z-index:1; }
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
   padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
   font:600 15px/24px 'IBM Plex Sans', sans-serif !important; font-variant-numeric:tabular-nums; color:var(--ed-ink) !important;
   background:var(--ed-btn-bg) !important; border:1px solid var(--ed-hair) !important; border-radius:6px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
 /* the scale: drawn between the - and the +, and it takes NO touch - a finger on it scrolls the sheet (R4) */
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
   box-shadow:0 0 0 1px rgba(0,0,0,.35); }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
 /* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) - taller than the row's scale */
 .phKnob { display:none; }
-html.phone:where(:not(.phfly)) .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
+html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
   border-radius:50%; touch-action:none; cursor:grab; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; outline:none; }
-html.phone:where(:not(.phfly)) .r .phKnob[hidden] { display:none; }
+html.phone .r .phKnob[hidden] { display:none; }
 /* PLACED BY CSS, MOVED BY A TRANSFORM (G3900; the phone's shed runs ~12 fps - the layout adds no layout reads): the row is a
    phone.js writes --phf (the value's fraction) and --phw (the row's width, from a ResizeObserver's entries - never a
    measure; not a container query: a size container is a stacking context, and the next row would paint over the knob's
@@ -4338,25 +4332,25 @@ html.phone:where(:not(.phfly)) .r .phKnob[hidden] { display:none; }
    scale (the 2 Nov rig's shape red). COMPACT: the scale is the row's width, line 2's middle 3 + 16 + 11 px down. ph-pm: the
    scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (--phw - 92 px); line 2's middle
    4 + 16 + 4 + 16 px down */
-html.phone:where(:not(.phfly)) .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
+html.phone .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
   transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 22px) - 13px), 0, 0); }
-html.phone:where(:not(.phfly)).ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
-html.phone:where(:not(.phfly)) .r.phSlider.phOff > .phKnob { display:none; }
-html.phone:where(:not(.phfly)) .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
-html.phone:where(:not(.phfly)) .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
+html.phone.ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
+html.phone .r.phSlider.phOff > .phKnob { display:none; }
+html.phone .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
+html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
 /* toggles, selects and the stepper widgets at a finger's size */
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
-html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
 /* the flyout's rows (the display switches, the alphas) take the same row */
-html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
-html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
 
 /* ---- THE SECTIONS (G3900): their heads stay at the top of the sheet while their rows scroll under them, and fold on a
    tap (editor.js secWire, remembered) - compact, so a section costs one 30 px line ---- */
-html.phone:where(:not(.phfly)) #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
+html.phone #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
   align-items:center; background:var(--ed-panel); box-shadow:0 1px 0 var(--ed-hair); }
-html.phone:where(:not(.phfly)) #edRows .edH.edHP { margin:0; padding-top:8px; }
-html.phone:where(:not(.phfly)) #edRows .edH.shut { margin:0; padding-bottom:4px; }
+html.phone #edRows .edH.edHP { margin:0; padding-top:8px; }
+html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
 
 /* ---- THE VALUE'S EDITOR (G3900): a tap on a value or its label - the number typed (inputmode decimal) with its unit,
    - / + a step (held: they repeat), Done, Enter or a tap outside sets it, Esc leaves it. An input bar, not a card:
@@ -4364,52 +4358,52 @@ html.phone:where(:not(.phfly)) #edRows .edH.shut { margin:0; padding-bottom:4px;
 /* THE BAR'S OWN PALETTE (the 2 Nov 19:00 diag: the bar is body-level, and the --ed-* tokens live on the panels - editor.css
    40 - so its background and buttons came out TRANSPARENT: the rows showed through and the rig's editor still showed no bar).
    editor.css's values, here, for the one body-level box that wears them */
-html.phone:where(:not(.phfly)) #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
+html.phone #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
   --ed-faint:#97907f; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14); --ed-btn-bg:rgba(255,255,255,.06);
   --ed-btn-bd:rgba(255,255,255,.18); }
-html.phone:where(:not(.phfly)) #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
+html.phone #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
   display:grid; grid-template-columns:var(--ph-tap) minmax(0, 1fr) var(--ph-tap) auto var(--ph-tap); grid-template-rows:auto var(--ph-tap);
   gap:6px 8px; align-items:center; padding:10px 12px 12px; background:var(--ed-panel);
   border-top:1px solid var(--ed-border); box-shadow:0 -8px 24px rgba(0,0,0,.45); font-family:'IBM Plex Sans', sans-serif; }
-html.phone:where(:not(.phfly)) #phEdit[hidden] { display:none; }
-html.phone:where(:not(.phfly)) #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
+html.phone #phEdit[hidden] { display:none; }
+html.phone #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-html.phone:where(:not(.phfly)) #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
+html.phone #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
   font-variant-numeric:tabular-nums; white-space:nowrap; }
-html.phone:where(:not(.phfly)) #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
+html.phone #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
   font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.12em; text-transform:uppercase;
   color:var(--ed-acc-ink); background:var(--ed-acc); border:0; }
-html.phone:where(:not(.phfly)) #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+html.phone #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
   font:500 22px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-html.phone:where(:not(.phfly)) #phEdit .phMinus { grid-column:1; }
-html.phone:where(:not(.phfly)) #phEdit .phPlus { grid-column:5; }
-html.phone:where(:not(.phfly)) #phEdit .phStep:active { background:var(--ed-acc-soft); }
-html.phone:where(:not(.phfly)) #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+html.phone #phEdit .phMinus { grid-column:1; }
+html.phone #phEdit .phPlus { grid-column:5; }
+html.phone #phEdit .phStep:active { background:var(--ed-acc-soft); }
+html.phone #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
   font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
-html.phone:where(:not(.phfly)) #phEdit .phEsign:active { background:var(--ed-acc-soft); }
-html.phone:where(:not(.phfly)) #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-html.phone:where(:not(.phfly)) #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
+html.phone #phEdit .phEsign:active { background:var(--ed-acc-soft); }
+html.phone #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html.phone #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
   font:600 22px/1 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums; text-align:right; color:var(--ed-ink);
   background:var(--ed-board); border:1px solid var(--ed-border); border-radius:8px; outline:none; }
-html.phone:where(:not(.phfly)) #phEdit .phEin:focus { border-color:var(--ed-acc); }
-html.phone:where(:not(.phfly)) #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
+html.phone #phEdit .phEin:focus { border-color:var(--ed-acc); }
+html.phone #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
 
 /* ---- THE DIVIDER (G3900): the line between the view and the controls, moved by the thumb. While it moves a ghost line
    shows where it will land; the view takes the new size on release (one resize, not one a frame) ---- */
-html.phone:where(:not(.phfly)) #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
+html.phone #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
   display:flex; align-items:center; justify-content:center; }
-html.phone:where(:not(.phfly)) #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
-html.phone:where(:not(.phfly)) #phDiv.on::before { background:var(--ed-acc); }
-html.phone:where(:not(.phfly)) #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
+html.phone #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
+html.phone #phDiv.on::before { background:var(--ed-acc); }
+html.phone #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
   box-shadow:0 0 0 1px rgba(0,0,0,.4); }
-html.phone:where(:not(.phfly)) #phGhost[hidden] { display:none; }
+html.phone #phGhost[hidden] { display:none; }
 @media (orientation:landscape) {
-  html.phone:where(:not(.phfly)) #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
-  html.phone:where(:not(.phfly)) #phDiv::before { width:4px; height:40px; }
-  html.phone:where(:not(.phfly)) #phGhost { top:0; left:0; height:100vh; width:2px; }
+  html.phone #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
+  html.phone #phDiv::before { width:4px; height:40px; }
+  html.phone #phGhost { top:0; left:0; height:100vh; width:2px; }
 }
 .phStep { display:none; }
 
@@ -4425,30 +4419,34 @@ html.phone:where(:not(.phfly)) #phGhost[hidden] { display:none; }
 #phBubble[hidden] { display:none; }
 
 /* ---- THE INFORMATION PANEL AS A TAB: the plaque and the bench, full width ---- */
-html.phone:where(:not(.phfly)) #edInfoBody { padding:0 16px 24px; }
-html.phone:where(:not(.phfly)) #edInfo button { min-height:40px; }
+html.phone #edInfoBody { padding:0 16px 24px; }
+html.phone #edInfo button { min-height:40px; }
 
 /* ---- THE DIALOGS the garage opens (the chooser, the fleet, the welcome) fit the width ---- */
-html.phone:where(:not(.phfly)) :is(#dfBirth, #gFleet) { max-width:100vw; }
+html.phone :is(#dfBirth, #gFleet) { max-width:100vw; }
 
 /* ---- G3060 (CARDS-CORNER): THE BENCH'S CARDS (the run, the award) ON THE SHEET, NEVER OVER THE VIEW ----------------
    The desktop puts them in the view's lower-left corner; a phone's view is too small for a corner, so they take the
    bottom of the SHEET (under the view in portrait, beside it in landscape), above the tab bar: the aeroplane stays in
    sight. GATE CARDS measures it at 390 x 844 */
-html.phone:where(:not(.phfly)) #bRun, html.phone:where(:not(.phfly)) #bAward, html.phone:where(:not(.phfly)) body.mode-fly #bAward {
+html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
   left:calc(var(--ph-sl) + 8px); right:auto; top:auto; bottom:calc(var(--ph-tab) + 8px);
   width:calc(var(--ph-sw) - 16px); max-width:none;
   max-height:calc(100vh - var(--ph-st) - var(--ph-tab) - 16px);
   max-height:calc(100dvh - var(--ph-st) - var(--ph-tab) - 16px); overflow-y:auto; }
 
-
-/* THE INSTALLED APP (G3910, PHONE-1b): no pull-to-refresh or overscroll glow fighting a drag; in a standalone window the
-   tab bar stands on the gesture bar's inset (phone.js's viewport-fit=cover hands it over) */
-html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll-behavior:none; }
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  html.phone:where(:not(.phfly)) { --ph-tab:calc(48px + env(safe-area-inset-bottom)); }
-  html.phone:where(:not(.phfly)) #phTabs { padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; }
-}
+/* THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov: "I can't see the CG and margin indicators in the phone interface"):
+   phone.js's chip at the view's lower left - the posts' reading in numbers, in the margin band's colour (app.js's
+   red / orange / green, P1 CG-COLOURS). Above the divider's hit zone (--ph-vh less 22 px) in portrait, the view's foot in
+   landscape; no pointer (the orbit's finger passes through); one line, ellipsed in a narrow view */
+html.phone #phCg { position:fixed; left:10px; top:calc(var(--ph-vh) - 62px); z-index:45; pointer-events:none;
+  max-width:calc(var(--ph-vw) - 20px); box-sizing:border-box; padding:6px 10px 6px 9px; border-radius:8px;
+  border-left:3px solid #c0b8ac; background:rgba(20,18,15,.8); color:#f4efe6;   /* (body-level: the --ed-* tokens live on the panels, editor.css 40) */
+  font:600 13px/16px 'IBM Plex Sans', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.phone #phCg[hidden] { display:none; }
+html.phone #phCg[data-band="green"] { border-left-color:#6fd08a; }
+html.phone #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
+html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
 </style>
 </head>
 <body>
@@ -4533,7 +4531,7 @@ html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='9e373216f00d';window.FLYDIY_BUILD_DATE='2026-11-03T06:55:16.449Z';</script>
+<script>window.FLYDIY_BUILD='1b303a5f881b';window.FLYDIY_BUILD_DATE='2026-11-03T03:53:23.175Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -5122,8 +5120,7 @@ function fieldName(id, recName) {
   const DKEY = 'flydiy.boot.deck';
   function deckState() { let d = null; try { d = JSON.parse(sget(DKEY) || 'null'); } catch (e) {} return (d && typeof d === 'object') ? d : {}; }
   // the procedural 24 km world (?world=none, the graphics menu's world row): the island's cards stay out
-  // (G3790: and the test field, the analytic HOME on flat ground)
-  function analytic() { return typeof window !== 'undefined' && (window.FLYDIY_WORLD === 'none' || window.FLYDIY_WORLD === 'testfield'); }
+  function analytic() { return typeof window !== 'undefined' && window.FLYDIY_WORLD === 'none'; }
   function deckFor(dset) {
     const all = (typeof window !== 'undefined' && Array.isArray(window.BOOT_CARDS)) ? window.BOOT_CARDS : [];
     const poolSet = dset === 'rollin' ? 'garage' : dset === 'settings' ? B._shotSet : dset;
@@ -5573,11 +5570,6 @@ body.mode-fly #updNow { left:auto; right:22px; bottom:76px; transform:none; }
 @media (max-width:760px) { body.mode-fly #updNow { right:12px; bottom:112px; } }
 body.mode-fly.premOpen #updNow { right:auto; top:auto; left:calc((100vw - 436px) / 2); bottom:14px; transform:translateX(-50%); }
 body.shot #updNow { display:none; }
-#updNote { position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:96; pointer-events:none;
-  max-width:calc(100vw - 24px); box-sizing:border-box; padding:10px 16px; border-radius:18px; background:rgba(26,24,21,.94); color:#f4efe6;
-  font:500 13px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; box-shadow:0 6px 24px rgba(0,0,0,.4); }
-#updNote[hidden] { display:none; }
-html.phone #updNote { bottom:calc(var(--ph-tab, 48px) + 12px); }
 html.updNowUp #bootPanel { bottom:84px; }
 @media (min-width:901px) { html.updNowUp #bootCard { bottom:84px; } }
 #bootBuild { margin-top:3px; font:400 10.5px/1.2 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing:.06em; color:#8f887b; }
@@ -5659,60 +5651,7 @@ html.updNowUp #bootPanel { bottom:84px; }
   };
   const regain = () => { if (visible() && Date.now() - S.last >= REGAIN) check(); };
 
-  // ---- FORCE SYNC (G3910, PHONE-1b; the user 2 Nov, the installed app coming: "Please have a force sync explicit option,
-  // and check your service worker settings carefully, caching can be painful with installed PWA") - the menu's two rows
-  // (app.js), the phone's and the desktop's:
-  //   checkNow()     "Check for update": the worker asked to update itself and version.json fetched past every cache (the
-  //                  one check above); a newer build shows the pill (an earlier x forgotten), the same build says so for
-  //                  3 s, no answer says that
-  //   cleanReload()  "Clean download & reload": asked first, the cost named; then the work saved, every Cache Storage entry
-  //                  named flydiy* deleted, THIS FOLDER's worker unregistered (the origin, degaror.github.io, hosts other
-  //                  apps: their workers and caches are not ours), and the page replaced by itself under ?v=. localStorage
-  //                  - the aeroplanes, the careers, the settings - is never touched (GATE PWA W5)
-  let noteEl = null, noteT = null;
-  function note(text, ms) {
-    const d = doc(); if (!d || !d.createElement) return;
-    sheet();
-    if (!noteEl || !noteEl.isConnected) { noteEl = d.createElement('div'); noteEl.id = 'updNote'; noteEl.setAttribute('role', 'status'); (d.body || d.documentElement).appendChild(noteEl); }
-    noteEl.textContent = text; noteEl.hidden = false;
-    if (noteT && typeof W.clearTimeout === 'function') W.clearTimeout(noteT);
-    if (typeof W.setTimeout === 'function') noteT = W.setTimeout(() => { noteT = null; if (noteEl) noteEl.hidden = true; }, ms || 3000);
-  }
-  const swOf = () => { try { return nav.serviceWorker || null; } catch (e) { return null; } };
-  function checkNow() {
-    const sw = swOf();
-    const reg = sw && typeof sw.getRegistration === 'function' ? sw.getRegistration().catch(() => null) : Promise.resolve(null);
-    return reg.then(r => (r && typeof r.update === 'function' ? r.update().catch(() => null) : null))
-      .then(() => { try { W.sessionStorage.removeItem(DISMISS); } catch (e) {} return check(); })
-      .then(b => {
-        if (!b) note('No answer from the server - nothing changed', 4000);
-        else if (!newer()) note('Up to date \u00b7 ' + stamp(), 3000);
-        return { server: b, newer: newer() };
-      });
-  }
-  function cleanReload(opts) {
-    if (S.going) return Promise.resolve(null);
-    const mb = W.STORAGE && W.STORAGE.state && W.STORAGE.state.cachedMB;
-    const ask = 'Clean download and reload?\n\nEverything flyDiy keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
-      (mb > 0 ? ' (about ' + Math.round(mb) + ' MB)' : '') + '.\nYour aeroplanes, careers and settings are kept.';
-    const yes = (opts && opts.confirm === false) || (typeof W.confirm === 'function' ? !!W.confirm(ask) : true);
-    if (!yes) return Promise.resolve(false);
-    S.going = true;
-    saveAll();
-    let base = null; try { base = new URL('./', loc().href).href; } catch (e) {}
-    const C = W.caches, sw = swOf();
-    const caches = C && typeof C.keys === 'function' ? C.keys().then(ks => Promise.all(ks.filter(k => /^flydiy/.test(k)).map(k => C.delete(k).then(() => k)))).catch(() => []) : Promise.resolve([]);
-    const workers = sw && typeof sw.getRegistrations === 'function' ? sw.getRegistrations()
-      .then(rs => Promise.all(rs.filter(r => base && r && typeof r.scope === 'string' && r.scope.indexOf(base) === 0).map(r => r.unregister().catch(() => false)))).catch(() => []) : Promise.resolve([]);
-    return Promise.all([caches, workers]).then(([c, w]) => {
-      let to = null; try { to = updateUrl(loc().href, 'c' + Date.now().toString(36)); } catch (e) {}
-      if (pill) pill.hidden = true;
-      if (to && typeof loc().replace === 'function') loc().replace(to); else if (typeof loc().reload === 'function') loc().reload();
-      return { caches: c, workers: w.length, to };
-    });
-  }
-
-  W.UPDATE_NOW = { state: S, check, render, update, saveAll, onBeforeUpdate, updateUrl, stripUrl, stamp, day, newer, checkNow, cleanReload, note,
+  W.UPDATE_NOW = { state: S, check, render, update, saveAll, onBeforeUpdate, updateUrl, stripUrl, stamp, day, newer,
                    onChange: f => { if (typeof f === 'function') listeners.push(f); }, PARAM, EVERY, REGAIN, RIG, enabled };
 
   stampBoot();
@@ -5741,11 +5680,7 @@ html.updNowUp #bootPanel { bottom:84px; }
 //                     settle, the parked cook, the flown bake, images, upload, the world's compile and frames, the
 //                     craft's programs, the recheck's re-plan, the sim worker's prewarm) and the island never fetched
 //                     (FLYDIY_WORLD 'none', the analytic world, as ?world=none)
-//   fly     'testfield' (G3790-G3794, PHONE-TESTFLIGHT; the user, 27 Oct: "On the phone, I think I'd still like a test
-//                     flight ... 1 building, 1 runway, and some infinite thing. Only ability is to do a circuit"): the
-//                     garage page still has no world (Roll out / Fly / the route pickers are not offered); the bench's
-//                     Test flight row and the menu's line hand off to THE FLIGHT VARIANT below. 'none' = no test flight
-//                     (the row and the line go, the welcome says "Build on this phone"): THE ONE SWITCH
+//   fly     'none'    Roll out / Fly / the route pickers are not offered (no world to roll out into)
 //   ui      'touch'   html.phone: phone.css re-lays the workshop (the view over a sheet in portrait, beside it in
 //                     landscape, a tab bar in the thumb zone) and phone.js gives the sliders a finger knob (R4-R13)
 //   preset  'laptop'  the lightest picture (POTATO-DEEP's rung under potato), unless ?gfx= says otherwise
@@ -5755,16 +5690,7 @@ html.updNowUp #bootPanel { bottom:84px; }
 //           ruling of 4 Oct): the shed is never built; the aeroplane stands in a pool of light on black (studio.js)
 //   benchOff the bench's tests that are not offered (bench.js usable): the test flight, the crosswind and the hydro test
 //            need the world; the live sandbag rig runs seconds of a worker - its heat on a phone is measured first (v2).
-//            The bench check (the shakedown) and the density altitude stay: pure computations, no world. (The test
-//            flight's row follows `fly`: bench.js drops it while fly is 'none'.)
-//
-// THE FLIGHT VARIANT (G3791): a phone page booted with the test-flight intent (P.flyStart: sessionStorage
-// 'flydiy.phone.fly', or ?testflight=1 for the rigs) is the same profile with FLIGHT's rows over its own - boot
-// 'testfield': the world's boot rows run on the test field (build.js: FLYDIY_WORLD 'testfield', 20_world.js opts.flat -
-// a few KB of world, never the island), the sim worker flies it, app.js rolls the aeroplane out on the pilot's circuit
-// at the boot's end (no hand flying in v1). html.phfly marks the page (phone.css / phone.js stand the garage's layout
-// down on it). The intent is taken at its read: a reload in flight (or Chrome killed under it) comes back to the
-// garage, never into a loop. P.flyEnd (the way back to the shed) reloads the garage page.
+//            The bench check (the shakedown) and the density altitude stay: pure computations, no world
 //
 // How a page becomes a phone: ?profile=phone (any device - the rigs, the S20's adb run, a desktop to look at it);
 // welcome.js's device gate on a phone or tablet ("Build on this phone" - "Build and test-fly on this phone" once the test field ships, G3905 - remembered); ?profile=desktop forces the trunk.
@@ -5774,52 +5700,19 @@ html.updNowUp #bootPanel { bottom:84px; }
   if (!W) return;
   const TABLE = {
     desktop: { boot: 'full', fly: 'roll', ui: 'desk', preset: null, rail: null, benchOff: null, room: 'shed' },
-    phone: { boot: 'garage', fly: 'testfield', ui: 'touch', preset: 'laptop', rail: ['camera', 'display', 'explode', 'graphics'],
-             benchOff: ['xwind', 'load', 'hydro'], room: 'studio' },
-  };
-  // G3791: THE FLIGHT VARIANT's rows over the profile's own (a profile with none has no test flight)
-  const FLIGHT = { phone: { boot: 'testfield' } };
-  const FKEY = 'flydiy.phone.fly';
-  const ss = () => { try { return W.sessionStorage || null; } catch (e) { return null; } };
-  // the intent, taken once (read and removed): { card } off the bench, or { url: true } off ?testflight=1
-  let intent;
-  const takeIntent = () => {
-    if (intent !== undefined) return intent;
-    intent = null;
-    try { const S = ss(), t = S && S.getItem(FKEY); if (t) { S.removeItem(FKEY); intent = JSON.parse(t) || null; } } catch (e) { intent = null; }
-    try { if (!intent && /[?&]testflight=1(&|$)/.test((W.location && W.location.search) || '')) intent = { url: true }; } catch (e) {}
-    return intent;
+    phone: { boot: 'garage', fly: 'none', ui: 'touch', preset: 'laptop', rail: ['camera', 'display', 'explode', 'graphics'],
+             benchOff: ['flight', 'xwind', 'load', 'hydro'], room: 'studio' },
   };
   const P = W.PROFILE = {
-    TABLE, FLIGHT, name: 'desktop', why: 'the trunk', flight: null,
-    get: k => { const f = P.flight && FLIGHT[P.name]; return f && k in f ? f[k] : TABLE[P.name][k]; },
-    is: (k, v) => P.get(k) === v,
-    // G3791: the garage's hand-off - the intent stored for the next load, the page reloaded on the test field (false when
-    // the profile has no test flight). card: the bench's test card ({ alt, V }, the units app.js takes) or null
-    flyStart: card => {
-      if (P.flight || !FLIGHT[P.name] || P.is('fly', 'none')) return false;
-      const S = ss(); if (!S) return false;
-      try { S.setItem(FKEY, JSON.stringify({ card: card || null, at: Date.now() })); } catch (e) { return false; }
-      try { W.location.reload(); } catch (e) { return false; }
-      return true;
-    },
-    // ...and the way back: the garage page again (?testflight=1 dropped, so the rigs' door does not fly it twice)
-    flyEnd: () => {
-      try { const S = ss(); if (S) S.removeItem(FKEY); } catch (e) {}
-      try {
-        const L = W.location, q = (L.search || '').replace(/([?&])testflight=1(&|$)/, (m, a, b) => (b ? a : '')).replace(/[?&]$/, '');
-        if (q !== (L.search || '')) L.replace(L.pathname + q + (L.hash || '')); else L.reload();
-      } catch (e) {}
-    },
+    TABLE, name: 'desktop', why: 'the trunk',
+    get: k => TABLE[P.name][k],
+    is: (k, v) => TABLE[P.name][k] === v,
     // the switch, once, before the boot (welcome.js's gate resolves before the island loader and every script's promote)
     set: (name, why) => {
       if (!TABLE[name]) return false;
       P.name = name; P.why = why || name;
       const de = W.document && W.document.documentElement;
       if (de && de.classList) de.classList.toggle('phone', name === 'phone');
-      // G3791: the flight variant - only where the profile has one and its switch is on
-      P.flight = FLIGHT[name] && !P.is('fly', 'none') ? takeIntent() : null;
-      if (de && de.classList) de.classList.toggle('phfly', !!P.flight);
       // THE KNOB'S RELEASE GOES FIRST (phone.js R13): a finger's last move may still wait for its frame when it lifts,
       // and it must reach the slider as a drag tick BEFORE _cage_ui.js's own window pointerup (the release build) runs.
       // A capture listener on window runs in the order it was added, and this one is added before any deferred script
@@ -11374,17 +11267,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
     // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
     // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
     if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
-    // G3791 (PHONE-TESTFLIGHT): the phone's test flight (profile.js, the flight variant: boot 'testfield') boots the test
-    // field whatever the menu saved - a few KB of world (makeWorld's opts.flat), never the island
-    else if (window.PROFILE && window.PROFILE.is('boot', 'testfield')) { name = 'testfield'; window.FLYDIY_WORLD = 'testfield'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
-    // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD - the analytic HOME strip and its hangar on endless flat ground (20_world.js
-    // opts.flat, world_boot.js); no file of its own, so it is named here beside the analytic world
-    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }, { id: 'testfield', name: 'Test field' }]);
+    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
     var isl = null;
     for (var i = 0; i < all.length; i++) if (all[i].id === name) isl = all[i];
-    if (!isl) { window.FLYDIY_WORLD = name === 'testfield' ? 'testfield' : 'none'; window.ISLAND_BOOT = null; return; }
+    if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
     var keys = Object.keys(isl.files), done = 0, fetched = 0;
     for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
     // G998 (A5-LOAD): THE PREMISES FIXTURE, ALONGSIDE. app.js read it with a SYNCHRONOUS XHR inside its own evaluation
@@ -14915,11 +14803,6 @@ function makeWorld(seed, opts) {
   // premise). Without it every line below is the analytic world, byte for
   // byte (GATE WORLD's goldens).
   const ISL = (opts && opts.island) || null;
-  // THE TEST FIELD (G3790, PHONE-TESTFLIGHT; the user, 27 Oct: "1 building, 1 runway, and some infinite thing"):
-  // opts.flat is the analytic world with every stage subtracted - the ground 0 everywhere, HOME alone (the same strip,
-  // heading and site: its hangar is the one building), no water, no towns or roads, no generated strips, no trees. The
-  // stages below short-circuit on it; without it every line is the analytic world byte for byte (GATE WORLD's goldens)
-  const FLAT = !ISL && !!(opts && opts.flat);
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
   // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
@@ -15048,7 +14931,7 @@ function makeWorld(seed, opts) {
     // point of a 1 m grid over the box; GATE GE pins the identity. The island
     // never reaches here (h0 routes it to its raster) and the premises layer
     // composes on top. opts.exactGround keeps the long path for the proof.
-    if (FLAT || (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90)) return 0;
+    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -15143,7 +15026,6 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
-  if (FLAT) aerodromes.splice(1);   // (the test field: HOME alone, at 0)
   // an island with premises: the analytic HOME record goes the moment the
   // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
@@ -15204,10 +15086,7 @@ function makeWorld(seed, opts) {
   // the island's water (28_island hydro): 'map' (the default since G2990) the map's lakes, no rivers; 'blend' (G413)
   // the map's lakes and the bake's rivers between them; 'proc' (G405) the analytic bake's lakes and rivers
   const HM = ISL ? ISL.hydro : 'proc';
-  // (the test field bakes nothing: dry everywhere, no reach, no lake - the bake's own shape, empty)
-  const HYD = FLAT ? { rivers: [], lakeCount: 0, lakeCells: 0, riverCells: 0, segCount: 0, lakeSurf: [],
-    carve: (x, z, h) => h, water: () => -Infinity, riverWater: () => -Infinity, seaAt: () => false, distW: () => 1e9,
-    grids: null, stats: { bakeMs: 0, N: 0, maxAcc: 0, cellW: (BOUNDS.x1 - BOUNDS.x0) / 512 } } : bakeHydrology(
+  const HYD = bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
@@ -15253,7 +15132,7 @@ function makeWorld(seed, opts) {
   // the stage-1 grids, organic road network grown from the home airfield,
   // bridges across water runs, building footprints. Roads add a shallow
   // grading term to terrainH below.
-  const SET = ISL || FLAT
+  const SET = ISL
     ? { settlements: [], roads: [], buildings: [], roadNear: () => 1e9, roadDelta: (x, z, h) => h,
         inCore: () => false, stats: { bakeMs: 0 } }
     : bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
@@ -15296,13 +15175,13 @@ function makeWorld(seed, opts) {
   // G1253 NO GENERATED STRIPS ON AN ISLAND (QUICK-BYTES): the island never took them (below, and baseH grades none),
   // and its search found none on Jolene - so AERO.surfaceAt / inBox / grade (the biomes' aeroSurf, the trees' box
   // and treeGround) already answered -1 / false / h. The stub says so without the 1 587-candidate scan (14-20 ms)
-  const AERO = ISL || FLAT
+  const AERO = ISL
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
-  if (!ISL && !FLAT) for (const st of AERO.strips) aerodromes.push(st);
+  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
@@ -15596,7 +15475,7 @@ function makeWorld(seed, opts) {
   // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  if (!FLAT) {   // (the test field stands no tree)
+  {
     const GS = 64, G0x = BOUNDS.x0, G0z = BOUNDS.z0;   // ±12000 m (24 km domain, W6): GN 375
     const GNx = Math.ceil((BOUNDS.x1 - BOUNDS.x0) / GS), GNz = Math.ceil((BOUNDS.z1 - BOUNDS.z0) / GS);
     for (let gz = 0; gz < GNz; gz++) for (let gx = 0; gx < GNx; gx++) {
@@ -15876,9 +15755,7 @@ function makeWorld(seed, opts) {
     }
     return SURFACE.GRASS;
   };
-  // (the test field: grass, under whatever a strip or a premises surface says there)
-  const flatSurface = (x, z) => { const a = aeroSurfAll(x, z); return a >= 0 ? a : SURFACE.GRASS; };
-  const surface = ISL ? islandSurface : FLAT ? flatSurface : B.surface;
+  const surface = ISL ? islandSurface : B.surface;
   // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
   // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
   // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
@@ -16095,7 +15972,6 @@ function makeWorld(seed, opts) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
-    flat: FLAT,   // G3790: the test field (opts.flat) - the physics worker makes its own with the same switch
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
@@ -62928,7 +62804,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='14c776711da7';window.FLYDIY_BUILD='9e373216f00d';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='149065155187';window.FLYDIY_BUILD='1b303a5f881b';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -70246,10 +70122,7 @@ window.CAGE_PAGE = {
       // G274.1 (the user: "I still miss the option to get the booms fore/aft
       // relative to the wing"): the root's station against the trailing
       // edge, metres, aft positive (the frame reads the drawn root, boomX0)
-      // FLAGSHIP (the user, 2 Nov: "for the twin booms, I need sliders fore-aft going further ... getting the tip of
-      // the boom to the wing leading edge"): -1.0 was a number, not a reason. The slider runs to -3.5; the wing layer
-      // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
-      ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
+      ['boomDz',    'fore / aft (from the trailing edge)', -1.0, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end
@@ -74359,8 +74232,80 @@ function makeInnerSampler(mesh) {
 // a closed slab over an outline in (z, y): back at baseAbs(y, z) (|x|),
 // thickness T inboard, the front edge chamfered by c. Caps are ring-filled
 // toward the centroid so the faces follow the base. Vertices split per strip.
+// CABIN-CRAFT (2026-11-02, the user on the C172's door from inside: "there is horrible topology seen in the inside
+// door panel there ... that's pretty bad"): THE CAP AS A GRID. The cap was six copies of the outline scaled toward its
+// centroid and a fan to the centre - and the outline carries a point every 1.5 cm up its sides but five across its
+// bottom and four across its top, so the scaled rings were long wedges and the fan threw rays from the centre to
+// every side point (C172: 534 of the doorPanel's 616 triangles were slivers, aspect up to 10 263, and 18 of its quads
+// folded where a stepped edge scaled toward the centroid crossed itself). The panel's outline is MONOTONE IN HEIGHT
+// (the bottom edge, the aft side up, the top edge, the forward side down - corners rounded within their edges), so
+// `monoGrid` aligns the two sides on one set of heights (each side gains the other's heights, on its own polyline),
+// spreads the flat top and bottom into evenly spaced columns (on the same straight lines), and the cap is rows x
+// columns of quads whose boundary IS the outline - the walls and the chamfer keep standing on its points. An outline
+// that is not monotone keeps the rings.
+function monoGrid(pts) {
+  const M = pts.length; if (M < 6) return null;
+  let yMin = 1e9, yMax = -1e9;
+  for (const p of pts) { if (p[1] < yMin) yMin = p[1]; if (p[1] > yMax) yMax = p[1]; }
+  const eps = 1e-7, isB = p => p[1] - yMin < eps, isT = p => yMax - p[1] < eps;
+  // the bottom run: the bottom points, contiguous; the walk starts at its first (forward-most) point
+  let s0 = -1;
+  for (let i = 0; i < M; i++) if (isB(pts[i]) && !isB(pts[(i + M - 1) % M])) { s0 = i; break; }
+  if (s0 < 0) return null;
+  const at = i => pts[(s0 + i) % M];
+  let i = 0; const bot = [];
+  while (i < M && isB(at(i))) bot.push(at(i++));
+  const right = []; while (i < M && !isT(at(i))) right.push(at(i++));
+  const top = []; while (i < M && isT(at(i))) top.push(at(i++));
+  const left = []; while (i < M && !isB(at(i))) left.push(at(i++));
+  if (i !== M || bot.length < 1 || top.length < 1) return null;
+  // counter-clockwise in (z, y): along the bottom z grows, up the aft side y grows, back along the top, down the front
+  const fullR = [bot[bot.length - 1]].concat(right, [top[0]]);
+  const fullL = [top[top.length - 1]].concat(left, [bot[0]]).reverse();         // bottom -> top
+  const mono = ch => { for (let k = 1; k < ch.length; k++) if (ch[k][1] < ch[k - 1][1] - eps) return false; return true; };
+  if (!mono(fullR) || !mono(fullL)) return null;
+  if (bot.length > 1 && bot[bot.length - 1][0] < bot[0][0]) return null;
+  // the heights: every interior height of either side, merged (0.5 mm)
+  const hs = [];
+  for (const q of right.concat(left)) hs.push(q[1]);
+  hs.sort((a, b) => a - b);
+  const H = [yMin];
+  for (const y of hs) if (y - H[H.length - 1] > 5e-4 && yMax - y > 5e-4) H.push(y);
+  H.push(yMax);
+  const onChain = (ch, y) => {                       // the chain's own polyline at height y (its point, if it has one)
+    // (its own point only at its own height: a 0.5 mm snap let two levels 0.8 mm apart take one point - a doubled
+    // outline point, a zero-area wall quad)
+    for (let k = 0; k < ch.length; k++) if (Math.abs(ch[k][1] - y) <= 1e-9) return ch[k];
+    for (let k = 1; k < ch.length; k++) {
+      const a = ch[k - 1], b = ch[k];
+      if ((a[1] - y) * (b[1] - y) <= 0 && Math.abs(b[1] - a[1]) > 1e-12) {
+        const t = (y - a[1]) / (b[1] - a[1]); return [a[0] + (b[0] - a[0]) * t, y];
+      }
+    }
+    return null;
+  };
+  const Lz = H.map(y => onChain(fullL, y)), Rz = H.map(y => onChain(fullR, y));
+  if (Lz.some(q => !q) || Rz.some(q => !q)) return null;
+  // the columns: the widest band in ~6 cm steps, 4..12 - the rows run under a centimetre apart (both sides'
+  // heights), so a cell is at worst ~8:1, and the phone pays fewer quads than the rings it replaces
+  let wMax = 0; for (let k = 0; k < H.length; k++) wMax = Math.max(wMax, Rz[k][0] - Lz[k][0]);
+  const N = Math.max(4, Math.min(12, Math.round(wMax / 0.06)));
+  const row = (a, b, y0, y1) => { const r = []; for (let c = 0; c <= N; c++) r.push([a + (b - a) * c / N, y0 + (y1 - y0) * c / N]); return r; };
+  const L = H.length;
+  const botRow = row(Lz[0][0], Rz[0][0], yMin, yMin), topRow = row(Lz[L - 1][0], Rz[L - 1][0], yMax, yMax);
+  // the new outline: the bottom row, up the aft side, the top row back, down the forward side
+  const out = [], idx = { bot: [], top: [], l: [], r: [] };
+  for (const q of botRow) { idx.bot.push(out.length); out.push(q); }
+  for (let k = 1; k < L - 1; k++) { idx.r[k] = out.length; out.push(Rz[k]); }
+  for (let c = N; c >= 0; c--) { idx.top[c] = out.length; out.push(topRow[c]); }
+  for (let k = L - 2; k >= 1; k--) { idx.l[k] = out.length; out.push(Lz[k]); }
+  idx.l[0] = idx.bot[0]; idx.r[0] = idx.bot[N]; idx.l[L - 1] = idx.top[0]; idx.r[L - 1] = idx.top[N];
+  return { pts: out, N, L, idx };
+}
 function slab(V, NN, A, outline, baseAbs, T, c, side, field, mk) {
   const u = -side;                                   // inboard in x
+  const G = monoGrid(outline);                       // CABIN-CRAFT: the cap's grid (null: the rings, as before)
+  if (G) outline = G.pts;
   const M = outline.length;
   const cen = outline.reduce((s, p) => [s[0] + p[0] / M, s[1] + p[1] / M], [0, 0]);
   const nrmAt = (pts, i) => {                        // outward 2D normal (dz, dy)
@@ -74374,7 +74319,28 @@ function slab(V, NN, A, outline, baseAbs, T, c, side, field, mk) {
   const at = (zy, depth) => [side * (baseAbs(zy[1], zy[0]) - depth), zy[1], zy[0]];
   const put = (p3, n) => { const id = V.push(p3) - 1; NN[id] = n; if (A) A[id] = field(p3); return id; };
   const R = 6;
-  const cap = (pts, depth, nx) => {
+  // the grid cap (CABIN-CRAFT): its boundary is `pts` (the outline or its chamfer inset, point for point); each
+  // inner row runs straight across between its two side points, so the front cap follows the inset exactly too
+  const gridCap = (pts, depth, nx) => {
+    const { N, L, idx } = G, n0 = [u * nx, 0, 0];
+    const rows = [];
+    for (let k = 0; k < L; k++) {
+      const r = [];
+      if (k === 0) for (let c2 = 0; c2 <= N; c2++) r.push(put(at(pts[idx.bot[c2]], depth), n0));
+      else if (k === L - 1) for (let c2 = 0; c2 <= N; c2++) r.push(put(at(pts[idx.top[c2]], depth), n0));
+      else {
+        const a = pts[idx.l[k]], b = pts[idx.r[k]];
+        for (let c2 = 0; c2 <= N; c2++) {
+          const t = c2 / N;
+          r.push(put(at([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], depth), n0));
+        }
+      }
+      rows.push(r);
+    }
+    for (let k = 0; k + 1 < L; k++) for (let c2 = 0; c2 < N; c2++)
+      mk([rows[k][c2], rows[k][c2 + 1], rows[k + 1][c2 + 1], rows[k + 1][c2]]);
+  };
+  const cap = G ? gridCap : (pts, depth, nx) => {
     // rings from the outline down to 30 % of it, then a fan to the centre:
     // the innermost ring keeps the outline's points apart
     const rings = [];
@@ -74561,11 +74527,41 @@ function panelBuild(mesh, spec, opt) {
       if (v == null) v = base0;
       return v - o.gap;
     };
+    // CABIN-CRAFT: A TRIM PANEL IS A BOARD. Its back stood on `baseAbs` vertex by vertex - the innermost surface at
+    // that very spot - so where a frame's or a liner's edge crossed behind the door the panel's face stepped with it
+    // (the C172: a diagonal staircase across the panel, which the cap's fan had smeared into long rays; the least of
+    // each ROW made terraces instead, a frame entering and leaving the band). It stands on ONE SMOOTH SURFACE: x =
+    // a + b y + c y^2 + d z, least squares over the door's base (a sample every ~2 cm up, 9 across), then moved
+    // inboard by its worst excess over any sample - flat across, gently curved up the flank, never into the door
+    const SY = Math.max(6, Math.round((yTop - yBot) / 0.02)), smp = [];
+    for (let i = 0; i <= SY; i++) {
+      const y = yBot + (yTop - yBot) * i / SY, zl = zAt(y, 0) + o.margin, zr = zAt(y, 1) - o.margin;
+      for (let j = 0; j <= 8; j++) { const z = zl + (zr - zl) * j / 8; smp.push([y, z, baseAbs(y, z)]); }
+    }
+    const yc0 = (yBot + yTop) / 2, zc0 = smp.reduce((s2, q) => s2 + q[1], 0) / smp.length;
+    const feat = (y, z) => [1, y - yc0, (y - yc0) * (y - yc0), z - zc0];
+    const NE = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], rhs = [0, 0, 0, 0];
+    for (const [y, z, b] of smp) { const f2 = feat(y, z); for (let r2 = 0; r2 < 4; r2++) { rhs[r2] += f2[r2] * b; for (let c2 = 0; c2 < 4; c2++) NE[r2][c2] += f2[r2] * f2[c2]; } }
+    for (let r2 = 0; r2 < 4; r2++) NE[r2][r2] += 1e-9;              // (a flat door: the curvature row is free)
+    const coef = (() => {                                            // Gauss-Jordan, 4 x 4
+      const Mx = NE.map((row, i) => row.concat([rhs[i]]));
+      for (let c2 = 0; c2 < 4; c2++) {
+        let pv = c2; for (let r2 = c2 + 1; r2 < 4; r2++) if (Math.abs(Mx[r2][c2]) > Math.abs(Mx[pv][c2])) pv = r2;
+        [Mx[c2], Mx[pv]] = [Mx[pv], Mx[c2]];
+        const d = Mx[c2][c2] || 1e-12;
+        for (let k2 = c2; k2 < 5; k2++) Mx[c2][k2] /= d;
+        for (let r2 = 0; r2 < 4; r2++) if (r2 !== c2) { const m2 = Mx[r2][c2]; for (let k2 = c2; k2 < 5; k2++) Mx[r2][k2] -= m2 * Mx[c2][k2]; }
+      }
+      return Mx.map(row => row[4]);
+    })();
+    const fit = (y, z) => { const f2 = feat(y, z); return coef[0] * f2[0] + coef[1] * f2[1] + coef[2] * f2[2] + coef[3] * f2[3]; };
+    let excess = 0; for (const [y, z, b] of smp) excess = Math.max(excess, fit(y, z) - b);
+    const boardAbs = (y, z) => fit(y, z) - excess;
     const zF = Math.max(...outline.map(p => p[0]));
     const field = p3 => [zF - p3[2], p3[1] - yBot, 0.5, 0.5];
     const faces = [];
     const mk = vs => faces.push({ v: vs, m: o.mat, doorPanel: 1 });
-    slab(V, NN, A, outline, baseAbs, o.T, o.chamfer, side, field, mk);
+    slab(V, NN, A, outline, boardAbs, o.T, o.chamfer, side, field, mk);
     let pocket = null;
     if (o.pocket) {
       const h = Math.min(o.pocketH, (yTop - yBot) / 3);
@@ -74573,7 +74569,7 @@ function panelBuild(mesh, spec, opt) {
       const zl = zAt((py0 + py1) / 2, 0) + o.margin, zr = zAt((py0 + py1) / 2, 1) - o.margin;
       const zc = (zl + zr) / 2, hw = (zr - zl) * o.pocketW / 2;
       const pk = roundCorners([[zc - hw, py0], [zc + hw, py0], [zc + hw, py1], [zc - hw, py1]], o.cornerR * 0.6, 4);
-      const pBase = (y, z) => baseAbs(y, z) - o.T + o.pocketEmbed;
+      const pBase = (y, z) => boardAbs(y, z) - o.T + o.pocketEmbed;
       const before = faces.length;
       slab(V, NN, A, pk, pBase, o.pocketProud + o.pocketEmbed, o.pocketChamfer, side, field, mk);
       pocket = { y0: py0, y1: py1, z0: zc - hw, z1: zc + hw, nFaces: faces.length - before };
@@ -74588,7 +74584,7 @@ function panelBuild(mesh, spec, opt) {
       f.doorKey = d.key; f.cutPart = 1; f.cutOff = off;
       F.push(f);
     }
-    parts.push({ side, door: d.key, yTop, yBot, outline, faces, nMain, pocket, off, baseAbs });
+    parts.push({ side, door: d.key, yTop, yBot, outline, faces, nMain, pocket, off, baseAbs: boardAbs });   // (CABIN-CRAFT: the base it stands on)
   }
   const out = Object.assign({}, mesh, { V, F });
   if (A) out.A = A;
@@ -85246,10 +85242,7 @@ window.CAGE_CHAR = { CHAIN, RACER, list: () => REG().order.map(k => REG().chars[
   const FEEDS = {
     crew: ['light', 'energy'],
     cowl: ['eng', 'access'], cowlAft: [], eng: ['access'],
-    // (PHONE-EDIT-PERF, 2 Nov: no wing > float - the float layer reads no wing global (its step stands on the CG and the
-    // airframe skin, its legs on the gear's: gear > float holds that); it re-ran on every wing tick, ~45 ms a tick on the
-    // user's S20 FE, and a floatplane's release runs it anyway (_cage_ui: the float layer forced, the CG))
-    wing: ['brace', 'gear', 'fin', 'stab', 'access', 'light', 'energy', 'hinge', 'pod'],
+    wing: ['brace', 'gear', 'float', 'fin', 'stab', 'access', 'light', 'energy', 'hinge', 'pod'],
     brace: [], gear: ['float', 'fin', 'stab', 'access', 'hinge', 'pod'], float: [],
     fin: ['stab', 'access', 'light', 'hinge'], stab: ['access', 'light', 'hinge'],
     access: [], light: [], energy: [], hinge: [], pod: [], panel: [], ext: [],
@@ -86923,11 +86916,21 @@ function buildBrakeKnob(gRoot, A, P, sx) {
   const g0 = ctlShift(gRoot, P, 'parkX', 'parkY', 'parkZ');
   // G373: 9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station
   // (the pilot's x), not 19 cm outboard — the dash's centre on a single seat
-  const x = sx - 0.09, zB = A.dashAftZ + 0.030;
-  // the dash's bottom, over a wider net than the lamps' (its vertices are
-  // sparse across x: a 4 cm net at the pilot's x found only the roll's
-  // underside, and hung the knob at the ASI's height)
-  const yU = A.dashBotAt ? A.dashBotAt(x, 0.06, zB - 0.03, zB + 0.03) : A.dashLip;
+  const x = sx - 0.09;
+  // UNDER THE DASH, ON ITS LOWER EDGE - ALWAYS (CABIN-CRAFT, the user 2 Nov: "I fear we still have the issue of the
+  // handbrake placing itself in a ridiculous way. That thing always goes below the dash, attached to its lower edge").
+  // The G373 net (the lowest `dash` vertex within 6 cm of x, 0-6 cm forward of the dash's aft-most point) still found
+  // the ROLL's underside: the plate leans, so the aft-most point is the glareshield at the TOP, and every build hung
+  // its knob 1-4 cm under the plate's top edge, among the dials (measured on the six validated builds, the C172, the
+  // twin, the stock, the DC-3). The plate's own outline (A.face, the `dashFace` columns) gives its bottom edge at
+  // this x and the plate's depth there: the bracket's foot is CENTRED on that edge (half under the box, half
+  // behind the plate), and the knob hangs below it. Not further forward: the validated twin floatplane's header tank
+  // stands 1-3 cm aft of its panel's bottom edge, and a foot 22 mm under the box stood in it (14 of the bracket's
+  // 182 vertices; 6 centred - the tank's own intrusion, the energy layer's). No plate measured: the dash's lowest
+  // line (dashLip - the arch's box-equivalent bottom).
+  const col = A.face && A.face.at ? A.face.at(x) : null;
+  const yU = col && isFinite(col.y0) ? col.y0 : A.dashLip;
+  const zB = (col && isFinite(col.y0) && A.face.depthAt ? A.face.depthAt(x, col.y0) : A.dashAftZ);
   const y = yU - 0.030;
   const brk = K.Bag();
   K.sweep(brk, [[x, yU + 0.001, zB], [x, yU - 0.004, zB]],
@@ -88017,25 +88020,6 @@ function ikDefaultPole(occ, chainKey, out) {
   bones[c.end].getWorldPosition(_v3);
   _u.copy(_v3).sub(_v1);
   const dl = _u.length() || 1e-4; _u.divideScalar(dl);
-  if (!c.arm) {
-    // A KNEE BENDS IN THE BODY'S OWN UPRIGHT PLANE (KNEE-FIX, the user 2 Nov,
-    // the twin busher: "the left knee far too much out ... it goes through the
-    // door ... Right leg is better somehow"). The pole was the knee's CURRENT
-    // bend direction, and a leg reaching far pedals (pedalZ 0.9) starts nearly
-    // straight, so that direction was the rig's few millimetres of incidental
-    // bend - sideways on one leg, upward on the other, 38 cm out, which the
-    // +-25 cm knees slider could not turn back. Now: up across the hip->foot
-    // line in the fig's own frame (no sideways part), from the line's middle;
-    // sideways is the slider's alone, the same for both knees.
-    occ.fig.getWorldQuaternion(_qf);
-    _n.set(1, 0, 0).applyQuaternion(_qf);                // the body's side axis
-    _perp.crossVectors(_n, _u);
-    if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, 1).applyQuaternion(_qf);
-    _perp.normalize();
-    if (_perp.dot(_n.set(0, 1, 0).applyQuaternion(_qf)) < 0) _perp.negate();
-    out.copy(_v1).add(_v3).multiplyScalar(0.5).addScaledVector(_perp, 0.38 * occ.fig.scale.x);
-    return out;
-  }
   _perp.copy(_v2).sub(_v1);
   _perp.addScaledVector(_u, -_perp.dot(_u));
   if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, c.arm ? -1 : 1);
@@ -110498,14 +110482,8 @@ const wingPost = ctx => {
       // and below, when the boom is deeper than the wing is thick)
       // G274.1: ...and the builder's fore / aft (aft positive; cage z runs
       // forward, so it comes off the root station)
-      // FLAGSHIP (2 Nov): the forward bound is the WING's, not a number - the root may stand up to BOOM_REACH ahead
-      // of the leading edge at the boom's station (a P-38's / an OV-10's booms run forward past it); the root stays
-      // tied to its bay's spars in the frame wherever it stands (61_gen_frame.js, the rigidity test holds it). Every
-      // build saved before sat at -1.0 or aft of it: far behind this bound, so none moves
-      const BOOM_REACH = 1.0;
-      const zTE0 = te.z + 0.35 * (te.yTop - te.yBot), le = leAt && (leAt(x) || leAt(-x));
-      const dz = Math.max(+P.boomDz || 0, le ? zTE0 - le.z - BOOM_REACH : -Infinity);
-      const zRoot = zTE0 - dz, zTip = zRoot - len;
+      const dz = +P.boomDz || 0;
+      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) - dz, zTip = zRoot - len;
       const rodB = Math.round(P.boomStyle) === 1;
       // G267.1: the INCLINATION (the user: "set inclination for the twin
       // boom ... compared to the body"), degrees, tail up positive, about
@@ -112809,9 +112787,7 @@ PAGE.post = ctx => {
 
   const sc = HP.scale;
   const rec = { P: HP, zStep: zc, keelY, track, tetraC: {}, members: [], deck: {}, rud: {}, vol: F.volDeck, cgZ, cgY,
-                cgFrom: (DAT && CGM) ? 'flown' : 'page', preset: HP.preset || null,
-                // FLOAT-CG (2 Nov): the model-frame CG this step was stood on - the CG handshake's reference (balanceApply)
-                cgM: (DAT && DAT.fwOk && CGM) ? [CGM[0], CGM[1]] : null };
+                cgFrom: (DAT && CGM) ? 'flown' : 'page', preset: HP.preset || null };
   const exG = Math.max(0, P.explodeD || 0) * FS;
   const paddleK = Math.round(P.fltPaddle || 0);
   const fits = {};                                 // per side: the deck fitting points (cage)
@@ -117020,9 +116996,17 @@ function sites(scene, group, P) {
       // fitting's flange (PROF.can: 0.62 r behind the face) is set 1 mm
       // INTO it. The size dial scales r, so it scales the offset too.
       const under = A.dashLip != null && A.dashAftZ != null;
-      const zP = A.dashAftZ + 0.08;
+      // CABIN-CRAFT: UNDER THE DASH MEANS UNDER THE PLATE'S BOTTOM EDGE. The window 8 cm forward of the dash's
+      // aft-most point found the glareshield roll's underside on a leaning plate (the aft-most point is its top):
+      // 9 of 11 builds measured hung this lamp at the top of the panel, 1-4 cm over it. The plate's own outline
+      // (A.face) gives the bottom edge at the pilot's x and the plate's depth there; the box's underside is searched
+      // from 6 cm forward of that edge, never higher than the edge (the parking brake's rule, _cage_crew.js)
+      const colP = A.face && A.face.at ? A.face.at(pilot.x) : null;
+      const plateB = colP && isFinite(colP.y0) && A.face.depthAt;
+      const zP = plateB ? A.face.depthAt(pilot.x, colP.y0) + 0.06 : A.dashAftZ + 0.08;
       const rP = (LIGHTS.pedal.w / 2) * Math.max(0.2, +P.li_lampSize || 1);
-      const yU = under ? (A.dashBotAt ? A.dashBotAt(pilot.x, 0.05, zP - 0.03, zP + 0.03) : A.dashLip) : null;
+      let yU = under ? (A.dashBotAt ? A.dashBotAt(pilot.x, 0.05, zP - 0.03, zP + 0.03) : A.dashLip) : null;
+      if (under && plateB) yU = Math.max(colP.y0 - 0.03, Math.min(yU, colP.y0));
       out.pedal = { p: under ? [pilot.x, yU - 0.62 * rP + 0.001, zP]
                              : [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
@@ -121222,12 +121206,7 @@ function balanceApply(r) {
   // CG, the CG follows the step (15 % of the mass), and the loop closes in
   // one pass at this threshold
   if (r.cgMX != null && isFinite(r.cgMX) && isFinite(r.cgMY)) {
-    // FLOAT-CG (2 Nov): measured from the CG the step WAS stood on (the float layer's record), not the last one
-    // published - after a load, GARAGE_SPEC.update's rebuild has app.js publish the CG of the aeroplane the answer is
-    // about before the answer arrives, so the answer always read "not moved" and the page kept the second round's
-    // station: the twin floatplane's step 7 cm aft of node's (GATE JOINPARITY). node's load path (3c) measures the same
-    const F = window.CAGE_FLOAT;
-    const prev = (F && F.cgM) || window.FLYDIY_CG_MODEL;
+    const prev = window.FLYDIY_CG_MODEL;
     window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
     const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
     const UI = window.CAGE_UI, P = UI && UI.P;
@@ -128926,61 +128905,7 @@ function geBuilt(ms) {
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 function dragSettle() {
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
-  relCancel();
   if (DRAG_LATE) { DRAG_LATE = false; RELEASE = true; try { build(); } finally { RELEASE = false; } }
-}
-// PHONE-EDIT-PERF (P-2, the brief: "on release: no synchronous work in pointerup beyond scheduling ... UI over 1 s shows a
-// spinner"): THE RELEASE BUILDS AFTER A PAINT. The hand's release (the slider's change, the pointer up) schedules the
-// settle build instead of running it in the handler: the knob lets go and a frame is drawn first, then the build runs in
-// one task of its own - the aeroplane standing until then is the drag's last, never a half-built one. A build that
-// takes long shows a small spinner in the view's corner (its CSS turns on the compositor, so it moves while the build
-// holds the page; it fades in only after 250 ms, so a quick release never flashes it). Anything that needs the
-// settled aeroplane first - a new press on a slider, CAGE_UI.releaseFlush() - runs the pending build at once; any
-// other build in between settles it (it clears DRAG_LATE) and the pending one finds nothing to do.
-// `CAGE_UI.releaseLater = false`: the release builds in the handler, as before.
-let REL_PEND = null;                    // { t, how, key, done }
-function relCancel() { if (REL_PEND) { clearTimeout(REL_PEND.t); REL_PEND.done = true; REL_PEND = null; } }
-function relRun(R) {
-  if (R.done) return;
-  R.done = true; if (REL_PEND === R) REL_PEND = null;
-  clearTimeout(R.t);
-  geBegin();
-  try { dragSettle(); } finally { geEnd(R.how, R.key); busySpin(false); }
-}
-function dragSettleLater(how, key) {
-  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
-  if (!DRAG_LATE) return;
-  if ((window.CAGE_UI && window.CAGE_UI.releaseLater === false) || typeof requestAnimationFrame !== 'function') {
-    geBegin(); try { dragSettle(); } finally { geEnd(how, key); } return;
-  }
-  if (REL_PEND) { REL_PEND.how = how; REL_PEND.key = key; return; }
-  const R = REL_PEND = { t: 0, how, key, done: false };
-  busySpin(true);
-  // a frame first (the release drawn), then the build; a page whose frames do not come (a hidden tab, a rig) builds
-  // after 100 ms anyway
-  R.t = setTimeout(() => relRun(R), 100);
-  requestAnimationFrame(() => { if (R.done) return; clearTimeout(R.t); R.t = setTimeout(() => relRun(R), 0); });
-}
-function releaseFlush() { if (REL_PEND) relRun(REL_PEND); }
-let BUSY_EL = null;
-function busySpin(on) {
-  if (typeof document === 'undefined' || !document.createElement) return;
-  if (!on) { if (BUSY_EL) BUSY_EL.classList.remove('on'); return; }
-  if (!BUSY_EL) {
-    BUSY_EL = document.createElement('div');
-    BUSY_EL.id = 'cageBusy'; BUSY_EL.setAttribute('aria-hidden', 'true');
-    const st = document.createElement('style');
-    st.textContent = '#cageBusy{position:fixed;width:22px;height:22px;border-radius:50%;border:3px solid rgba(232,224,208,.25);' +
-      'border-top-color:rgba(232,224,208,.9);opacity:0;pointer-events:none;z-index:40;will-change:transform,opacity;' +
-      'animation:cageBusySpin .8s linear infinite;transition:opacity .12s}' +
-      '#cageBusy.on{opacity:1;transition:opacity .15s .25s}@keyframes cageBusySpin{to{transform:rotate(360deg)}}';
-    document.head.appendChild(st); document.body.appendChild(BUSY_EL);
-  }
-  // the view's bottom-left corner (the game's canvas, else the editor's own)
-  const c = document.getElementById('c') || (typeof cv !== 'undefined' ? cv : null);
-  const r = c && c.getBoundingClientRect ? c.getBoundingClientRect() : { left: 0, bottom: (window.innerHeight || 600) };
-  BUSY_EL.style.left = Math.round(r.left + 14) + 'px'; BUSY_EL.style.top = Math.round(r.bottom - 40) + 'px';
-  BUSY_EL.classList.add('on');
 }
 // G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
 let RELEASE = false;
@@ -128996,7 +128921,7 @@ function dragSettleSoon() {
   DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
-  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettleLater('release', GE.key); } };
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release'); } } };
   window.addEventListener('pointerup', up, true);
   window.addEventListener('pointercancel', up, true);
 }
@@ -129416,9 +129341,10 @@ function releaseWhy(built) {
   if (DEFORMED) return 'a deformed drag';
   // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
   // P key, so no record holds it) - PHONE-EDIT-PERF: its CG build (buildCg) is the plan with the float layer always run
-  // (below; INSTANT --settled: the same aeroplane as the whole build's). A drag's release on a floatplane runs the plan too
-  // (PHONE-1b): 1a kept it whole after the twin's wgSpan footwell came out 17 cm off - the flown frame's footwell left in
-  // the shared block after the load, put back by releaseSteps (republishCrew); INSTANT --float-release proved it, 3 Nov
+  // (below; INSTANT --settled: the same aeroplane as the whole build's). A DRAG's release on a floatplane stays whole
+  // (PHONE-1a, 2 Nov 19:10): on the user's twin the wgSpan release kept the crew layer and its footwell ended 17 cm off
+  // the whole build's (the weathering's uFootA) - a feed the plan does not know yet; PHONE-1b finds it
+  if (RELEASE && !CG_ONLY && +P.gearFloats > 0) return 'a floatplane\'s drag (PHONE-1a)';
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
   // (PHONE-EDIT-PERF: a moved sit - the floats' CG step, the gear - is measured again at the release's start, below, as
@@ -129475,11 +129401,6 @@ function* releaseSteps(built, rplan) {
     scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) used.add(m); });
     for (const m of [...PAINT_REQ.keys()]) if (!used.has(m)) PAINT_REQ.delete(m);
   }
-  // a kept crew layer's footwell, published again (PHONE-1b): the shared block is not the editor's alone -
-  // a load ends on the flown aeroplane's own (garage.js's sync rebuild -> app.js, through the join's map: on the user's
-  // twin 16.9 cm lower), and a whole build puts the editor's back when its crew layer runs; a release that keeps the crew
-  // layer kept the flown one (INSTANT twin wgSpan, the first row after the boot)
-  if (ci >= 0 && !rplan.run[ci]) republishCrew(false);
   try { applyWeather(); } catch (e) { console.error('weather:', e); }
   applyRowVis();
   syncFollow();
@@ -130253,8 +130174,8 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       finally { DRAG_TICK = false; geEnd(how, k); }
       if (DRAG_LATE) dragSettleSoon();
     };
-    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; standSoon(); });
-    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettleLater('release', k); });
+    rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release', k); } });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
@@ -131846,18 +131767,13 @@ function decalImagesFrom(images) {
 // ended on the footwell and the weather's sources ~13 cm off the whole build (INSTANT --fleet's wgSpan; --fleet-baked, no
 // capture, clean). This puts back what the editor's layers hold NOW: the crew's footwell and plate holes (CAGE_CREW, set
 // at each crew build), the weather's sources and macros (applyWeather re-measures them off the live layers).
-// (holes: false - the release's call: the crew layer publishes its footwell at every build it runs, its plate holes only
-// as null with the crew off, so a release puts back the footwell alone - the whole build's block)
-function republishCrew(holes = true) {
+function republish() {
   const A = AK(), C = window.CAGE_CREW;
   if (A) try {
     const crew = !!(P.crewOn && C);
     if (A.aeroSetFootwell) A.aeroSetFootwell(THREE, crew ? (C.footwell || null) : null);
-    if (holes && A.aeroSetHoles) A.aeroSetHoles(THREE, crew ? (C.holes || null) : null);
+    if (A.aeroSetHoles) A.aeroSetHoles(THREE, crew ? (C.holes || null) : null);
   } catch (e) { console.error('republish: crew', e); }
-}
-function republish() {
-  republishCrew();
   try { applyWeather(); } catch (e) { console.error('republish: weather', e); }
 }
 function applyWeather() {
@@ -133401,7 +133317,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
@@ -133409,7 +133325,7 @@ window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, 
   eyeView, eyeHold, eyeStats: EYE_STATS, eyeStanding: () => !!(EYE_OBJ && meshObj === EYE_OBJ),
   // G2920 (GARAGE-SHEET): a hand on a slider, or its settle build still owed - the performance sheet's thread is asked
   // for the aeroplane the drag ends on, not for each tick (app.js sheetAsk, sheet_link.js held)
-  dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE || REL_PEND),
+  dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE),
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
@@ -141961,23 +141877,11 @@ var SHED_SHADOW = (function () {
 //     aeroplane stands on, without a floor to light;
 //   - THE REFLECTIONS: one PMREM of a tiny scene (a dark dome and three soft boxes where the lights are), baked once at
 //     build - the metals catch the boxes as a studio's would. Nothing is rendered again after the build.
-//   - THE FILL (PHONE-1b; the user 2 Nov on the S20: "The studio environment needs some subtle light from the back, or a
-//     global ambient one (but leaving the black background). The back of the wings for example is pitch black"): the
-//     same four lights and the same bake, other numbers (LOOKS.fill) - the hemisphere's ground lifted to the pool's warm
-//     floor, the rim moved behind and above the tail (the stand's nose is -x), and a dim floor disc under the dome so the
-//     undersides catch a bounce. No light added, none re-keyed: uniforms and the one bake, the background untouched.
-//     handle.look(L) re-dresses a standing studio with another look (the before/after stills; a tuning hand).
 // The shed is never built where the studio stands (app.js getHangar asks PROFILE room 'studio'): no room, no moods, no
 // shadow cache, no glass pass, no mobile kit - the frame is the aeroplane's own draws.
 var STUDIO = (function () {
   'use strict';
   const BG = 0x0d0c0b, EXPOSURE = 1.0;
-  // the numbers: v1 = G3726's (25 Oct), fill = PHONE-1b's (the default). hemi [sky, ground, intensity]; rim [x, y, z,
-  // intensity]; dome the env's colour; floor the env floor disc's level (0 = none); rimBox the rim's soft strip in the env
-  const LOOKS = {
-    v1:   { hemi: [0x48433c, 0x0c0b0a, 0.5], rim: [2, 5, -7, 1.7], dome: 0x14120f, floor: 0, rimBox: [3, 6, -12] },
-    fill: { hemi: [0x57514a, 0x3a352e, 0.9], rim: [7, 6, -3.5, 1.5], dome: 0x1b1915, floor: 0.16, rimBox: [12, 7, -5] },
-  };
   function poolTexture(THREE) {
     const D = typeof document !== 'undefined' ? document : null;
     if (!D || !D.createElement || !THREE.CanvasTexture) return null;
@@ -141994,19 +141898,15 @@ var STUDIO = (function () {
     return t;
   }
   // the reflections: a dark dome, three soft boxes, one PMREM (null when the renderer cannot)
-  function bakeEnv(THREE, renderer, L) {
+  function bakeEnv(THREE, renderer) {
     if (!THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
     const es = new THREE.Scene(), geos = [], mats = [];
     const mk = (geo, color, side) => { const m = new THREE.MeshBasicMaterial({ color, side: side || THREE.FrontSide }); geos.push(geo); mats.push(m); return new THREE.Mesh(geo, m); };
-    es.add(mk(new THREE.SphereGeometry(20, 16, 8), L.dome, THREE.BackSide));
-    if (L.floor > 0) {   // the floor's bounce: a dim disc under the aeroplane, seen by the undersides
-      const fl = mk(new THREE.CircleGeometry ? new THREE.CircleGeometry(14, 24) : new THREE.PlaneGeometry(24, 24), new THREE.Color(L.floor, L.floor * 0.93, L.floor * 0.84), THREE.DoubleSide);
-      fl.rotation.x = -Math.PI / 2; fl.position.y = -3; es.add(fl);
-    }
+    es.add(mk(new THREE.SphereGeometry(20, 16, 8), 0x14120f, THREE.BackSide));
     const box = (w, h, x, y, z, k) => { const b = mk(new THREE.PlaneGeometry(w, h), new THREE.Color(k, k, k), THREE.DoubleSide); b.position.set(x, y, z); b.lookAt(0, 0, 0); es.add(b); };
     box(8, 5, -8, 10, 7, 3.2);    // the key's soft box
     box(6, 3, 10, 3, 6, 1.1);     // the fill's
-    box(10, 2, L.rimBox[0], L.rimBox[1], L.rimBox[2], 2.0);   // the rim's strip
+    box(10, 2, 3, 6, -12, 2.0);   // the rim's strip
     let rt = null;
     try { const pm = new THREE.PMREMGenerator(renderer); rt = pm.fromScene(es, 0.04); pm.dispose(); }
     catch (e) { if (typeof console !== 'undefined') console.warn('studio: no reflections -', e && e.message); }
@@ -142020,17 +141920,9 @@ var STUDIO = (function () {
     const group = new THREE.Group(); group.name = 'studio';
     const key = new THREE.DirectionalLight(0xfff1de, 2.8); key.position.set(-5, 8, 4);
     const fill = new THREE.DirectionalLight(0xdbe4f0, 0.8); fill.position.set(6, 2.5, 4.5);
-    const rim = new THREE.DirectionalLight(0xffffff, 1.7);
+    const rim = new THREE.DirectionalLight(0xffffff, 1.7); rim.position.set(2, 5, -7);
     for (const L of [key, fill, rim]) { L.castShadow = false; L.name = 'studio:' + (L === key ? 'key' : L === fill ? 'fill' : 'rim'); group.add(L); group.add(L.target); }
     const hemi = new THREE.HemisphereLight(0x48433c, 0x0c0b0a, 0.5); hemi.name = 'studio:hemi'; group.add(hemi);
-    // the look's numbers on the standing lights (uniforms) and its env baked
-    let rt = null;
-    function look(L) {
-      hemi.color.setHex(L.hemi[0]); hemi.groundColor.setHex(L.hemi[1]); hemi.intensity = L.hemi[2];
-      rim.position.set(L.rim[0], L.rim[1], L.rim[2]); rim.intensity = L.rim[3];
-      const nrt = bakeEnv(THREE, renderer, L);
-      if (nrt) { scene.environment = nrt.texture; if (rt) rt.dispose(); rt = nrt; }
-    }
     const tex = poolTexture(THREE);
     const poolMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: tex, transparent: true, depthWrite: false });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), poolMat);
@@ -142040,10 +141932,10 @@ var STUDIO = (function () {
     const was = { bg: scene.background, fog: scene.fog, env: scene.environment };
     scene.background = new THREE.Color(BG);
     scene.fog = null;
-    look(LOOKS.fill);
+    const rt = bakeEnv(THREE, renderer);
+    if (rt) scene.environment = rt.texture;
     return {
       group, EXPOSURE,
-      look(L) { look(typeof L === 'string' ? LOOKS[L] : L); },
       setY(v) { floor.position.y = v || 0; },
       dispose() {
         scene.remove(group);
@@ -142053,7 +141945,7 @@ var STUDIO = (function () {
       },
     };
   }
-  return { build, BG, EXPOSURE, LOOKS };
+  return { build, BG, EXPOSURE };
 })();
 if (typeof window !== 'undefined') window.STUDIO = STUDIO;
 </script>
@@ -149764,8 +149656,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   // `bio` is the live BIOMES handle when there is one (F8 edits its map; the pack's is the shipped one).
   function treeReachOf(world, bio) {
     if (!PACK || !PACK.biomes || typeof BIOMES === 'undefined') return null;
-    // G3790 (PHONE-TESTFLIGHT): the test field stands no tree - the cover ring's grass alone (the phone's heap)
-    if (world && world.flat) return ['grass_dry'];
     const I = world && world.island;
     if (!I || !I.ttype) return null;
     const B = bio || BIOMES.make(PACK);
@@ -155660,9 +155550,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // upwelled light's and scales with the body's own reflectance: faint on the clear sea, plain in a silty harbour)
     if (WSH && WSH.proto && WSH.proto.shadow) water.receiveShadow = true;
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
-    // G3790 (PHONE-TESTFLIGHT): the test field has no sea - its ground is AT the sea plane's level everywhere, so the plane
-    // is not drawn there (the mesh stays: the frame's water code keeps its one object)
-    if (world.flat) water.visible = false;
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
     // carve-out): a 360 m patch of the sea around the aeroplane, its
@@ -166674,11 +166561,7 @@ const AERO_ALBEDO_FS = `
   vec3 aeroA = vCraftPos;
   float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
-    // PHONE-EDIT-PERF (2 Nov, A0-approved desktop candidate 1): a section that takes no marking (uDecOk 0: the interior,
-    // the hardware, the booms - aeroDecOk answers 0 or 1) leaves the loop at once. Its weight w was 0 on every pass, so
-    // every pass added nothing (mix(x, dc, 0) is x; the accumulators start at 0): the same pixels, without 8 atlas
-    // fetches and their SDF fwidth a fragment. uDecOk is a uniform, so the flow stays uniform (fwidth below is safe)
-    if (di >= uDecN || uDecOk < 0.5) break;
+    if (di >= uDecN) break;
     // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
     // fuselage/flying/both scalar — the fin belongs with the fuselage and the
     // wing does not, and the old scalar could not say so.
@@ -177749,11 +177632,7 @@ function benchInit(api) {
 
   // G2100 (MOBILE-GARAGE 1): THE PROFILE'S TESTS OFF (profile.js 'bench': the phone garage has no world - no test flight,
   // no crosswind, no water - and the live sandbag rig waits for the phone's heat to be measured); the desktop's is null
-  // G3791 (PHONE-TESTFLIGHT): the test flight's row follows the profile's `fly` - off while it is 'none' (the phone's
-  // switch: on, the row hands off to the test field, app.js startTestFlight)
-  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null;
-    if (id === 'flight' && P && P.is && P.is('fly', 'none')) return true;
-    return !!(off && off.indexOf(id) >= 0); };
+  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null; return !!(off && off.indexOf(id) >= 0); };
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function') &&
     (!t.when || t.when(api)) &&                       // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
@@ -178305,14 +178184,6 @@ function benchInit(api) {
   // fingerprint) changes nothing: the certificate keeps its first day and its card is not shown again.
   let outFp = null;
   window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
-  // G3791 (PHONE-TESTFLIGHT): ONE ROW RUN FROM OUTSIDE - the phone menu's Test flight line runs the bench's own row (its
-  // card, its arming, its running line); false when the row is not offered here or the bench is busy
-  window.BENCH_RUN = id => {
-    const t = BENCH_TESTS.filter(x => x.id === id)[0];
-    if (!t || !usable(t) || busyNow()) return false;
-    runOne(t, null);
-    return true;
-  };
   // G2273 (ACCEPT): the fingerprint the acceptance leg and the logbook row are signed with (the roll-out's), and the
   // live one the plaque's "proved in flight" row is withdrawn against
   window.BENCH_FP_OUT = () => outFp;
@@ -183641,7 +183512,7 @@ const SIM_LINK = (() => {
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
-               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat },   // G3790: the test field's flat world, the same on the worker
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
@@ -187999,7 +187870,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     if (!(Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length)) return false;
     const cur = W.FLYDIY_WORLD || 'none';
     H.row(body, 'world');
-    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : w.id === 'testfield' ? 'one runway, its hangar and endless flat ground: the field the test flight flies (G3790)' : 'the island from the data: its own field, dock and village' })),
+    H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
       o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
     H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the scenery editor’s record).');
     return true;
@@ -192601,9 +192472,6 @@ function editorInit(api) {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
-  // THE TEST FLIGHT'S PAGE (PHONE-TESTFLIGHT 2 Nov: html.phfly beside html.phone, PROFILE.flight): no split, sheet, tab bar,
-  // knob, editor or tick there - the flight has the whole screen (phone.css stands down on it the same way)
-  if (W.PROFILE.flight || (W.document && W.document.documentElement && W.document.documentElement.classList.contains('phfly'))) return;
   const D = W.document, $ = id => D.getElementById(id);
   const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
   const V_FREE = 40, V_MIN = 0.05;
@@ -192966,8 +192834,23 @@ function editorInit(api) {
     try { if (D.activeElement === edEl.inp) edEl.inp.blur(); } catch (e) {}
   }
 
-  // (G3906's CG chip on the view's edge is RETIRED, G3906b - the user 2 Nov 21:52: "taking too much space ... Original pc
-  // garage solution was good and more visual": the phone draws the desktop's 3D posts, app.js buildIndicators)
+  // THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone
+  // interface, significant issue"): the desktop reads them off the two posts in the picture; at 360 px a post's label is a
+  // smudge, so the numbers ride a chip at the view's lower left - CG in % of the wing chord, the stability margin, the
+  // band's colour (P1 CG-COLOURS, genMarginBand) and its warning sign. app.js buildIndicators writes window.CG_READ where
+  // it builds the posts; this only copies it, on the 400 ms tick, and writes nothing when it has not changed
+  let cgEl = null, cgLast = '';
+  function cgChip() {
+    const R = W.CG_READ, txt = !R || W.CG_MARKS_ON === false || (R.cg == null && R.sm == null) ? '' : (R.mark ? '⚠ ' : '') +
+      (R.cg != null ? 'CG ' + R.cg + ' %' : '') + (R.cg != null && R.sm != null ? ' · ' : '') + (R.sm != null ? 'margin ' + R.sm + ' %' : '') +
+      (R.mark && R.title ? ' — ' + R.title : '');
+    const key = txt + '|' + (R && R.band || '');
+    if (key === cgLast) return;
+    cgLast = key;
+    if (!cgEl) { cgEl = D.createElement('div'); cgEl.id = 'phCg'; cgEl.setAttribute('role', 'status'); D.body.appendChild(cgEl); }
+    cgEl.textContent = txt; cgEl.hidden = !txt;
+    cgEl.dataset.band = (R && R.band) || '';
+  }
 
   function enhance(row) {
     if (!row || row.__ph || !row.classList || !row.classList.contains('r')) return;
@@ -193096,7 +192979,7 @@ function editorInit(api) {
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
       // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
       // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
-      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
+      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); cgChip(); } }, 400);
       // the split is the orientation's own (a turn of the phone takes the other one)
       W.addEventListener('resize', applySplit);
       W.addEventListener('orientationchange', () => setTimeout(applySplit, 200));
@@ -207576,9 +207459,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // here, during the script's own evaluation)
   // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
   // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
-  // (G3790: the test field keeps its own, so nothing edited there composes onto the analytic world)
-  const TESTFIELD = typeof window !== 'undefined' && window.FLYDIY_WORLD === 'testfield';
-  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : TESTFIELD ? '.testfield' : '');
+  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
   // SCENERY VERSIONS (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some
   // sort of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor,
   // there is an option to load a version, and that's the only place where scenery can be loaded"). So THE GAME BOOTS MASTER: the
@@ -207598,9 +207479,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const t = getSync('tools/fixtures/premises_v1_' + q + '.json'); if (t) { Object.assign(SCN, { id: 'test:' + q, name: 'test ' + q }); return t; } }
       if (q === 'none') { Object.assign(SCN, { id: 'none', name: 'none' }); return null; }
-      // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD SHIPS NO PREMISES - the analytic HOME's own strip and hangar on flat
-      // ground (20_world.js opts.flat); Skarvik's record is the analytic world's, not this one's
-      if (TESTFIELD) { Object.assign(SCN, { id: 'testfield', name: 'Test field' }); return null; }
       // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE PREMISES composes every
       // premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field. G998: the loader fetched it with the island.
       // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3): Skarvik, shipped as a fixture and composed at every boot
@@ -207702,7 +207580,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // fixture's text is the record composed below. The grids stay: they ARE the island's (the same arrays), read by
   // the core and the viewer for the session. The physics worker fetches its own boot (sim_host.js simHostFetchBoot).
   if (islandAtBoot) { const B = window.ISLAND_BOOT; B.topo = B.payload = null; if (B.far) B.far.topo = B.far.payload = null; B.premFixture = null; }
-  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot, flat: window.FLYDIY_WORLD === 'testfield' });
+  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
   // THE HOUSES' OWN THREAD (G830, src/viewer/house_worker.js): it makes this same world from the same premises text and
   // the island's own files - its ~5 s beside the garage's boot - so the town step finds it ready to generate
   try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id, hydro: window.ISLAND_BOOT.hydro }); } catch (e) { console.warn('house worker:', e && e.message); }
@@ -208662,10 +208540,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // user: "an option only if it comes for free"): the default garage pays three boolean reads and nothing else
   const STUDIO_PHONE = (() => { try { return !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('room', 'studio')); } catch (e) { return false; } })();
   let studioOn = STUDIO_PHONE || prefGet('flydiy.garageStudio', '0') === '1', studio = null;
-  // G3791 (PHONE-TESTFLIGHT): THE PHONE'S TEST FLIGHT - a phone page booted with the test-flight intent (profile.js
-  // PROFILE.flight: boot 'testfield'). It rolls out on the pilot's circuit as the boot lifts (bootOpts.done), the hand is
-  // not offered (setManual), and every way back to the shed is the garage page again (rollInScreen -> PROFILE.flyEnd)
-  const PHONE_FLY = (() => { try { return !!(window.PROFILE && window.PROFILE.flight); } catch (e) { return false; } })();
   if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
@@ -216285,7 +216159,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
-    if (on && PHONE_FLY) return;   // G3791: the phone's test flight is the pilot's (no hand flying in v1)
     manual = on;
     if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
@@ -219321,14 +219194,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let testFlight = null;
   function startTestFlight(card) {
     if (!inGarage) return false;
-    // G3791 (PHONE-TESTFLIGHT): THE PHONE GARAGE HANDS OFF - it has no world; the build is synced and committed (the WIP
-    // the flight page restores), the card kept for the next load, and the page reloads on the test field
-    // (profile.js flyStart; false when the profile has no test flight). Floats: the test field has no water (v1)
-    if (GARAGE_ONLY) {
-      if (floatsOn()) return false;
-      try { if (window.CAGE_UI) syncBuild(); if (window.GARAGE_SPEC && window.GARAGE_SPEC.commit) window.GARAGE_SPEC.commit(); } catch (e) { console.warn('flyDiy: the build could not be kept for the test flight -', e && e.message); return false; }
-      try { return !!(window.PROFILE && window.PROFILE.flyStart && window.PROFILE.flyStart(card ? { alt: card.alt || null, V: card.V || null, fp: card.fp || null } : null)); } catch (e) { return false; }
-    }
     const fp = card && card.fp;
     rollOut(() => {
       started = true;
@@ -220077,7 +219942,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       ' — measured on this build, not estimated.';
   }
 
-  let gInd = null, gLabels = [], gLabelsOld = [], gIndMeshMat = null;
+  let gInd = null, gLabels = [], gLabelsOld = [];
   // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
   // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
   let gTipBand = null, gTipEl = null;
@@ -220197,29 +220062,21 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // an imported aeroplane, a build mid-rebuild — and the caller then HIDES the
   // instruments rather than drawing them somewhere they do not belong. An
   // instrument in the wrong place is worse than no instrument.
-  // G3906b (PHONE-1b; the user 2 Nov on the phone, the twin on floats: no posts): A FLOAT BUILD HAS NO AXLES - its GAL /
-  // GAR are the two floats' STEP KEELS (61_gen_frame FLOATS: GAL = FL.K[2]), and the float layer publishes the same two
-  // points in the cage frame (_cage_float.js rec.tetraC[side][0], "step keel" - the tetra the physics rides). The one
-  // landmark both aeroplanes agree on, as the axles are for wheels: the posts stand on floats too (the desktop as well).
   function standOffset() {
     if (!showCage) return [0, 0, 0];
     const G = window.CAGE_GEAR;
     const legs = G && G.units && G.units.legs;
     const P = def && def.parts;
-    if (!P || P.GAL == null || P.GAR == null) return null;
-    let pts = legs ? legs.filter(l => l.kind === 'L' || l.kind === 'R').map(l => l.axle) : [];
-    if (pts.length < 2 && (P.TW == null || P.TW < 0)) {
-      const F = window.CAGE_FLOAT, T = F && F.tetraC;
-      pts = T && T.L && T.R && T.L[0] && T.R[0] ? [T.L[0], T.R[0]] : [];
-    }
-    if (pts.length < 2) return null;
+    if (!legs || !P || P.GAL == null || P.GAR == null) return null;
+    const mains = legs.filter(l => l.kind === 'L' || l.kind === 'R');
+    if (mains.length < 2) return null;
     edSitP.updateMatrixWorld(true);
     const w = new THREE.Vector3();
     let cx = 0, cy = 0, cz = 0;
-    for (const q of pts) {
-      w.set(q[0], q[1], q[2]);
+    for (const l of mains) {
+      w.set(l.axle[0], l.axle[1], l.axle[2]);
       edSitP.localToWorld(w);
-      cx += w.x / pts.length; cy += w.y / pts.length; cz += w.z / pts.length;
+      cx += w.x / mains.length; cy += w.y / mains.length; cz += w.z / mains.length;
     }
     const a = P.GAL * 3, b = P.GAR * 3;
     const lx = 0.5 * (sim.p[a] + sim.p[b]),
@@ -220233,30 +220090,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
+    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
+    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
+    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
-  }
-  // G3906b: line segments (V, C: 6 floats a segment) as square prisms t across, their ends run on by t/2 so a cross joins
-  function prismGeo(V, C, t) {
-    // plain arrays, no Vector3 maths (the UI smoke's THREE is a stub: G3906b's first cut threw there)
-    const P = [], Q = [], h = t / 2;
-    const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
-    const unit = (p, k) => { const n = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0] / n * k, p[1] / n * k, p[2] / n * k]; };
-    for (let s = 0; s + 5 < V.length; s += 6) {
-      let d = [V[s + 3] - V[s], V[s + 4] - V[s + 1], V[s + 5] - V[s + 2]];
-      const L = Math.hypot(d[0], d[1], d[2]); if (!(L > 0)) continue; d = [d[0] / L, d[1] / L, d[2] / L];
-      const u = unit(cross(Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], d), h), v = unit(cross(d, u), h);
-      const a = { x: V[s] - d[0] * h, y: V[s + 1] - d[1] * h, z: V[s + 2] - d[2] * h },
-            b = { x: V[s + 3] + d[0] * h, y: V[s + 4] + d[1] * h, z: V[s + 5] + d[2] * h };
-      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u[0] * i + v[0] * j, o.y + u[1] * i + v[1] * j, o.z + u[2] * i + v[2] * j]);
-      const A = ring(a), B = ring(b), col = [C[s], C[s + 1], C[s + 2]];
-      const tri = (p, q, r) => { P.push(...p, ...q, ...r); for (let k = 0; k < 3; k++) Q.push(...col); };
-      for (let k = 0; k < 4; k++) { const k2 = (k + 1) & 3; tri(A[k], A[k2], B[k2]); tri(A[k], B[k2], B[k]); }
-      tri(A[0], A[1], A[2]); tri(A[0], A[2], A[3]); tri(B[0], B[2], B[1]); tri(B[0], B[3], B[2]);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
-    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Q), 3));
-    return g;
   }
   function buildIndicators() {
     // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
@@ -220323,8 +220160,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
-    // reading as numbers too - the one source for any readout that is not a 3D mark, written where the posts are built so
-    // the two never disagree (the phone's text chip that read it is retired, G3906b: the posts are the phone's readout)
+    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
+    // one place the posts are built from, so the two never disagree
     if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
       sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
@@ -220351,14 +220188,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
-    // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
-    // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
-    // margin, the band's colour the verdict
-    if (!TOUCH_UI) {
-      label(npx, 2.8, npz, 'neutral point', COL, smTxt);
-      label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
-    }
+    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
@@ -220373,14 +220204,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
-    if (TOUCH_UI) {
-      // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
-      // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
-      // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-      gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
-      g.dispose();
-    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     placeIndicators();
@@ -222189,8 +222013,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // the doors call this instead of the pair; the shim (no BOOT.show) runs
   // the pair inline as before.
   function rollInScreen(after) {
-    // G3791: the phone's test flight goes back to the garage page (the studio, no world in memory), never to a shed here
-    if (PHONE_FLY) { try { if (window.PROFILE && window.PROFILE.flyEnd) { window.PROFILE.flyEnd(); return; } } catch (e) {} }
     if ($('bootRoute')) $('bootRoute').hidden = true;   // G710: the roll-out's route picker goes with its screen
     if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
       enterGarage(); openEditor(); if (after) after(); return;
@@ -226312,14 +226134,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
-  // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
-  // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
-  // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
-  if (window.FLYDIY_MENU && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage')) try {
-    window.FLYDIY_MENU.add({ k: 'testflight', label: 'Test flight', sec: 'Flight', before: 'controls',
-      when: () => inGarage && !floatsOn() && !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'testfield')),
-      act: () => { gmOpen(false); try { if (window.BENCH_RUN) window.BENCH_RUN('flight'); } catch (e) { console.warn('flyDiy: the test flight -', e && e.message); } } });
-  } catch (e) { console.warn('flyDiy: the test flight line -', e && e.message); }
 
   // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
@@ -226454,15 +226268,6 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
       act: () => { try { window.FLIGHT_REC.save(); } catch (e) { console.warn('flyDiy: the log -', e && e.message); } }, before: 'main' });
-    // G3910 (PHONE-1b, the installed app; the user 2 Nov: "a force sync explicit option"): update_now.js does both - and the
-    // whole screen, where the browser has the Fullscreen API (an installed window keeps the status bar otherwise)
-    const UN = () => window.UPDATE_NOW;
-    window.FLYDIY_MENU.add({ k: 'updcheck', label: 'Check for update', sec: '', when: () => !!(UN() && UN().checkNow),
-      act: () => { gmOpen(false); UN().checkNow(); }, before: 'main' });
-    window.FLYDIY_MENU.add({ k: 'updclean', label: 'Clean download & reload', sec: '', when: () => !!(UN() && UN().cleanReload),
-      act: () => { gmOpen(false); UN().cleanReload(); }, before: 'main' });
-    window.FLYDIY_MENU.add({ k: 'fullscreen', label: 'Full screen', sec: '', when: () => !!(document.fullscreenEnabled && document.documentElement.requestFullscreen),
-      act: () => { gmOpen(false); try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch (e) {} }, before: 'main' });
     window.FLYDIY_MENU.add({ k: 'dev', label: 'Dev', when: () => !inGarage,
       page: body => { if (!flDevOn) flDevSet(true); pg(['patterns', 'engines', 'controls', 'ground', 'scenery', 'world', 'log', 'overlays'])(body);
         const b = flSection(body, 'pilotS', 'pilot', 'the style and the personality'); if (b) FL_BUILD.slot_pilot(b); }, before: 'main' });
@@ -227731,7 +227536,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  if (!GARAGE_ONLY && !PHONE_FLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes (G3791: none on the phone's test field either - its heap)
+  if (!GARAGE_ONLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -228390,18 +228195,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       flRailSync(); if (flyOpen) flyOpenSet(flyOpen);
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
-  // G3791 (PHONE-TESTFLIGHT): THE TEST FLIGHT'S START on the phone's flight page - the bench's own (startTestFlight: the
-  // card it carried over, the fingerprint it armed, the director), on the pilot's circuit off HOME
-  function phoneFlyGo() {
-    const I = (window.PROFILE && window.PROFILE.flight) || {}, c = I.card || null;
-    let went = false;
-    try { went = !!startTestFlight(c ? { alt: c.alt || null, V: c.V || null, fp: c.fp || null } : null); } catch (e) { console.warn('flyDiy: the test flight could not start -', e && e.message); }
-    window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
-  }
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
-      if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
       if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled

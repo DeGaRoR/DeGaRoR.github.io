@@ -310474,6 +310474,24 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
 - Gates (node, on this head): SAVE CAGEFIT COWL PARTS DESIGN NACLAG STARTER ENGID GEOPARITY FRAMES SUBSTEP WEATHER SKINMAT
   PROCURE ENERGY EDBUGS JOIN CABINLAMP LIGHT ROLLANIM SIMWORKER UISMOKE UISMOKE-PHONE BUILD PASS; TECH and ENGCONFIG red
   with master's exact FAIL lines (standing).
+### 5. THE PARKING BRAKE UNDER THE DASH, THE DOOR PANEL'S TOPOLOGY (CABIN-CRAFT-3, the user 2-3 Nov, via A0)
+- THE BRAKE: "That thing always goes below the dash, attached to its lower edge." The game drew the knob ON the panel
+  plate (dashLip / dashAftZ, the panel's flat). _cage_crew.js buildBrakeKnob now reads the dash outline's column at the
+  knob's x (A.face.at(x).y0, the plate's lower edge, and A.face.depthAt(x, y0) its depth there): the bracket hangs from
+  that edge, the knob below it. The foot is centred on the edge (+2.2 cm aft clipped the twin floatplane's header tank:
+  that tank intrudes 1-3 cm aft of the panel, an energy-layer matter, reported to A0). The pedalier lamp (_cage_light.js)
+  follows the same edge: its z from depthAt at the pilot's x, its y never above the plate's lower edge.
+- THE DOOR PANEL: "there is horrible topology seen in the inside door panel there ... that's pretty bad" (the C172 from
+  inside). _shoulder_gen.js: (1) the cap was six scaled copies of the outline + a fan to the centre over an outline with
+  a point every 1.5 cm up the sides and five across the bottom - 534 of the C172's 616 cap triangles were slivers, 18
+  quads folded. monoGrid aligns the outline's two sides on one set of heights and spreads top/bottom into 4-12 columns;
+  the cap is a quad grid whose boundary IS the outline (a non-monotone outline keeps the rings). (2) The board followed
+  the door's liner point by point, so every frame / liner edge stepped it into a staircase: the board is now one smooth
+  surface (least squares x = a + b(y-yc) + c(y-yc)^2 + d(z-zc) over the liner, then pulled inboard by its worst excess),
+  3-4 mm off the door at its nearest, up to 5.3 cm over the hollows between frames, like a trim board on its frames.
+  2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
+- IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
+  Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might

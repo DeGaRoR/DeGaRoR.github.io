@@ -1460,9 +1460,17 @@ function sites(scene, group, P) {
       // fitting's flange (PROF.can: 0.62 r behind the face) is set 1 mm
       // INTO it. The size dial scales r, so it scales the offset too.
       const under = A.dashLip != null && A.dashAftZ != null;
-      const zP = A.dashAftZ + 0.08;
+      // CABIN-CRAFT: UNDER THE DASH MEANS UNDER THE PLATE'S BOTTOM EDGE. The window 8 cm forward of the dash's
+      // aft-most point found the glareshield roll's underside on a leaning plate (the aft-most point is its top):
+      // 9 of 11 builds measured hung this lamp at the top of the panel, 1-4 cm over it. The plate's own outline
+      // (A.face) gives the bottom edge at the pilot's x and the plate's depth there; the box's underside is searched
+      // from 6 cm forward of that edge, never higher than the edge (the parking brake's rule, _cage_crew.js)
+      const colP = A.face && A.face.at ? A.face.at(pilot.x) : null;
+      const plateB = colP && isFinite(colP.y0) && A.face.depthAt;
+      const zP = plateB ? A.face.depthAt(pilot.x, colP.y0) + 0.06 : A.dashAftZ + 0.08;
       const rP = (LIGHTS.pedal.w / 2) * Math.max(0.2, +P.li_lampSize || 1);
-      const yU = under ? (A.dashBotAt ? A.dashBotAt(pilot.x, 0.05, zP - 0.03, zP + 0.03) : A.dashLip) : null;
+      let yU = under ? (A.dashBotAt ? A.dashBotAt(pilot.x, 0.05, zP - 0.03, zP + 0.03) : A.dashLip) : null;
+      if (under && plateB) yU = Math.max(colP.y0 - 0.03, Math.min(yU, colP.y0));
       out.pedal = { p: under ? [pilot.x, yU - 0.62 * rP + 0.001, zP]
                              : [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
