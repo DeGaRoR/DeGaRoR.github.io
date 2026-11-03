@@ -297,6 +297,30 @@ function inDoor(PS, p, pad, opt) {
   return null;
 }
 
+// IS (z, y) INSIDE A DOOR'S OUTLINE on flank `sgn`, seen from the side (metres; `pad` grows it): the door's own
+// triangles projected on the flank. A relocated fitting tests its footprint with this - a spot of skin inside a
+// door's outline that is not a door face (a reveal, a waistband) is still in the door's way
+function inDoorZY(PS, sgn, z, y, pad) {
+  pad = pad || 0;
+  for (const d of (PS && PS.doors) || []) {
+    if (d.sgn !== sgn || z < d.z0 - pad || z > d.z1 + pad || y < d.yLo - pad || y > d.yHi + pad) continue;
+    for (const t of d.tris) {
+      const [a, b, c] = t;
+      const den = (b[1] - c[1]) * (a[2] - c[2]) + (c[2] - b[2]) * (a[1] - c[1]);
+      if (Math.abs(den) < 1e-12) continue;
+      const l1 = ((b[1] - c[1]) * (z - c[2]) + (c[2] - b[2]) * (y - c[1])) / den;
+      const l2 = ((c[1] - a[1]) * (z - c[2]) + (a[2] - c[2]) * (y - c[1])) / den;
+      const l3 = 1 - l1 - l2;
+      if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) return d;
+    }
+    if (pad > 0) {
+      // within `pad` of the outline: the nearest door vertex, a cheap stand-in for the edge distance
+      for (const t of d.tris) for (const q of t) if (Math.hypot(q[2] - z, q[1] - y) < pad) return d;
+    }
+  }
+  return null;
+}
+
 // ---- distances ---------------------------------------------------------------------------------------------------
 // point - triangle (Ericson, Real-Time Collision Detection 5.1.5), scalars only: the sweep calls it millions of times
 function ptTri(p, a, b, c) {
@@ -494,7 +518,7 @@ function swingSweep(door, axes, obstacles, opt) {
   let block = { mm: Math.round(reach * 1000), deg: null, who: null };
   for (const c in byCat) {
     const b = byCat[c], f = first[c];
-    b.closing = f == null || b.mm < f - 2;
+    b.closing = f == null || b.mm < f - 2 || b.mm <= 2;            // touching is in the way, whichever way it goes
     const blocking = (c in onClosed) || b.closing;
     if (blocking && b.mm < block.mm) block = { mm: b.mm, deg: b.deg, who: b.who };
   }
@@ -605,7 +629,7 @@ function swingLine(d) {
          (on.length ? ', on the closed door: ' + on.join(', ') : '');
 }
 
-const API = { SWING_CATS, SWING_RED_MM, SWING_STOP, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
+const API = { SWING_CATS, SWING_RED_MM, SWING_STOP, inDoorZY, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PILLAR_SITE = API;
 })();

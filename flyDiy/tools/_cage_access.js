@@ -944,7 +944,10 @@ PAGE.post = ctx => {
         // ...and never forward of the firewall (the sheet runs on under the cowling there)
         const zFwC = PSa.zFw != null ? (PSa.zFw - 0.05) / K2 : Infinity;
         const avoid = (z, y) => z + hl > zFwC ||
-          pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2);
+          pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2) ||
+          // ...and its footprint nowhere inside a door's outline (the skin there may not be the door's faces - a
+          // reveal, a waistband - and the door still sweeps it: the DC-3's OAT probe, measured)
+          [[0, 0], [hl, hh], [hl, -hh], [-hl, hh], [-hl, -hh]].some(([du, dv]) => PSm.inDoorZY(PSa, sgn, (z + du) * K2, (y + dv) * K2, 0.01));
         const take = (q, why) => { pilTaken.push({ sgn, z: q.p[2], y: q.p[1], hl, hh }); pilMoved.push(row.key + '>' + why); return Object.assign({}, s, { p: q.p, n: q.n, pillar: why }); };
         // AN ANCHOR (a step, a grab, a tie-down, a strap) goes to a PILLAR: the nearest by station with clear skin
         // at the site's own height. Anything else (an inspection plate, a port) only has to come OFF the door: the
@@ -952,7 +955,10 @@ PAGE.post = ctx => {
         if (anchor) {
           const dz = pl => pm[2] < pl.z0 ? pl.z0 - pm[2] : pm[2] > pl.z1 ? pm[2] - pl.z1 : 0;
           for (const pl of PSa.pillars.filter(pl => dz(pl) <= 0.8).sort((a, b) => dz(a) - dz(b))) {
-            const q = SITE.pillarSite(mesh, sgn, pl.z0 / K2, pl.z1 / K2, pm[1] / K2, hl, hh, { FS: K2, avoid });
+            // (on a post the footprint's centre column is what stands on it: tested, the width is the post's)
+            const avoidP = (z, y) => pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2) ||
+              [[0, 0], [0, hh], [0, -hh]].some(([du, dv]) => PSm.inDoorZY(PSa, sgn, (z + du) * K2, (y + dv) * K2, 0));
+            const q = SITE.pillarSite(mesh, sgn, pl.z0 / K2, pl.z1 / K2, pm[1] / K2, hl, hh, { FS: K2, avoid: avoidP });
             if (q) return take(q, pl.key);
           }
         }
@@ -962,8 +968,9 @@ PAGE.post = ctx => {
         // nowhere off the doors: then wholly ON the one it overlaps (a flush hatch on a door rides it), never across
         // its gap
         const dk = (() => { for (const d of PSa.doors) if (d.sgn === sgn && pm[2] > d.z0 - m && pm[2] < d.z1 + m) return d.doorKey; return null; })();
+        const avoidT = (z, y) => pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2);
         const q2 = dk && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh,
-          { FS: K2, avoid, reach: 0.25, ok: f => f.doorKey === dk && !f.win && !['joint', 'doorSeal', 'paneEdge'].includes(f.m) });
+          { FS: K2, avoid: avoidT, reach: 0.25, ok: f => f.doorKey === dk && !f.win && !['joint', 'doorSeal', 'paneEdge'].includes(f.m) });
         return q2 ? take(q2, 'door') : s;
       });
     }

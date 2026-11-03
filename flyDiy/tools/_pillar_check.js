@@ -22,6 +22,8 @@
 //     pillar the frame roots the strut on; the float struts' roots on the pillars the frame hangs the truss on; no
 //     strut root on a door's panel; no anchor (step, grab) on a door's panel; the door handle (the U) by its latch
 //     edge; the swing swept to the 75 deg door stop.
+//   6 P4, A PICKED PILLAR: the C172-alike's strut picked onto the B pillar - the join's bracing.strutAt, the frame's
+//     root ring S1, the foot drawn on the pillar; auto states nothing.
 //   5 THE DOOR-SWING TABLE, printed (the C172-alike as born): every door's least clearance and its obstacle kinds -
 //     reported, not bounded (the user decides per build; tools/door_swing_survey.js is the repo-wide table).
 'use strict';
@@ -194,6 +196,20 @@ const checkSnap = (label, spec, opt) => {
   const { s0, spec } = born('c172');
   ok(!('pilSnap' in (s0.cage || {})), 'BIRTH C172-alike: the card carries no pilSnap (the default, on)', (s0.cage || {}).pilSnap);
   checkSnap('C172-alike', spec, { pillars: true, strut: true });
+  // 6 P4, A PICKED PILLAR: the C172-alike's frame roots its strut on the firewall ring (the A post); picked onto
+  // the B pillar, the join writes the B ring's station, the frame roots the strut on that ring (S1), the foot is
+  // drawn on the B pillar; on auto nothing is stated
+  ok(!(spec.bracing && spec.bracing.strutAt != null), 'P4 auto: the spec states no strutAt', spec.bracing && spec.bracing.strutAt);
+  const sB = LB.gameSpecFull({ v: s0.v, spec: Object.assign({}, spec, { cage: Object.assign({}, spec.cage, { wgStrutPil: 2 }) }) }).spec;
+  const dB = CF.buildGen(JSON.parse(JSON.stringify(sB)));
+  const rootTag = dB.nodes[dB.parts.wf.R.strutRoot].tag;
+  ok(sB.bracing && sB.bracing.strutAt > 0 && /^S1B/.test(rootTag), 'P4 picked B: the join writes its station, the frame roots the strut on its ring (S1)', (sB.bracing && sB.bracing.strutAt) + ' ' + rootTag);
+  const rB = build(sB);
+  const PSB = rB.W.PILLAR_SITE.pillarsOf(rB.built.sheet, rB.W.CAGE2.cageResolve(rB.built.spec), rB.FS);
+  const B = PSB.pillars.find(p => p.key === 'B');
+  let pins = []; rB.scene.traverse(o => { if (o.name === 'edFit_liftstrut' && o.userData.strutMembers) pins = o.userData.strutMembers.map(m => m.pin[2]); });
+  const zf = pins.length ? pins.reduce((a, b) => a + b, 0) / pins.length : null;
+  ok(B && zf != null && zf >= B.z0 - 0.002 && zf <= B.z1 + 0.002, 'P4 picked B: the foot drawn on the B pillar', zf != null && zf.toFixed(3));
 }
 {
   const L = LB.loadValidated('floats');
