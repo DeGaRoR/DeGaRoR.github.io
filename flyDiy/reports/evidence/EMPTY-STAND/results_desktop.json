@@ -114,12 +114,46 @@
        "empty": "HOME"
       }
      }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      }
+     }
     }
    },
-   "shots": [],
+   "shots": [
+    {
+     "step": "1",
+     "file": "desktop_1_before.jpg",
+     "what": "before: the career's first hangar (the field shed at Cabin Strip), its aeroplane Rufus on the stand"
+    }
+   ],
    "pageErrors": [],
    "consoleErrors": [],
-   "warnings": []
+   "warnings": [
+    {
+     "step": "1",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    }
+   ]
   }
  }
 }

@@ -197,7 +197,11 @@ async function runProfile(browser, prof, URL0) {
   if (!R.renderer) R.renderer = await pg.evaluate(() => { const g = window.FLYDIY_RENDERER && FLYDIY_RENDERER.getContext(); try { const d = g.getExtension('WEBGL_debug_renderer_info'); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return null; } });
   const g1 = await garages();
   step('1').prints.garages = g1;
-  step('1').prints.story = await pg.evaluate(() => { const s = window.FLYDIY_STORY && FLYDIY_STORY.story(); return s ? { beat: s.beat, cabin: s.cabin } : null; });
+  step('1').prints.story = await pg.evaluate(() => { const s = window.FLYDIY_STORY && FLYDIY_STORY.story(); return s ? { beat: s.beat, cabin: s.cabin, planes: s.planes } : null; });
+  // design_flow.js maybeAutoOpen: the first-launch chooser is meant to stay shut on a story with its starter
+  step('1').prints.chooserAtStart = await pg.evaluate(() => { const e = document.getElementById('npWrap');
+    let wip = null; try { wip = !!localStorage.getItem('flydiy.wip'); } catch (x) {}
+    return { npWrap: !!e, open: !!(e && !e.hidden), starterFlag: window.FLYDIY_STORY_STARTER || null, wipKey: wip, rig: window.WELCOME ? window.WELCOME.RIG : null, webdriver: navigator.webdriver }; });
   const s1 = await record('1');
   const start = g1.find(g => g.here), empty = g1.find(g => !g.here && !g.locked && !(g.planes || []).length);
   step('1').prints.plan = { start: start && start.id, empty: empty && empty.id };
