@@ -632,7 +632,7 @@
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
       put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
         // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
-        try { if (CAREER_DEV && world && world.day && typeof world.day.cloudCover === 'number') player.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+        try { const cv = CAREER_DEV && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') player.career.cover = Math.round(cv * 100) / 100; } catch (e) {}   // WEATHER-FIXES F7: the effective cover
         playerSave(); } },
     });
   }
@@ -9144,7 +9144,7 @@
   // G2665: the day's cloud cover as the career last saw it (73_ contractSky: an overcast hides the moon) - kept on the
   // document beside its day, so the next offers are drawn under the sky the player saw
   function careerCoverNote(doc) {
-    try { if (doc && doc.career && world && world.day && typeof world.day.cloudCover === 'number') doc.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+    try { const cv = doc && doc.career && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') doc.career.cover = Math.round(cv * 100) / 100; } catch (e) {}
     return doc;
   }
   function careerFlightStart() { crOver = []; careerPlateSync(); }

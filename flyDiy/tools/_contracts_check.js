@@ -830,6 +830,15 @@ function run(mut) {
       ok(n2.career.contracts.sky.date === '2026-06-25', 'night: a career with no stamp takes its own clock\'s local date (' + n2.career.contracts.sky.date + ')');
       const ov = clone(d); delete ov.career.contracts.sky; ov.career.cover = 0.95; M.careerRefresh(ov);
       ok(ov.career.contracts.sky.cover === 0.95 && M.careerOfferSky(ov).overcast, 'night: the day\'s cloud cover rides into the offers\' sky (overcast)');
+      // (WEATHER-FIXES F7, 2026-11-03) the moon's cover is the sky's EFFECTIVE one: a front's overcast hides it as a declared
+      // one does (07_day cloudCoverEff); the declared cover where there is no effective one; nothing where there is no day
+      ok(M.careerSkyCover({ cloudCover: 0.2, cloudCoverEff: 0.95 }) === 0.95 && M.careerSkyCover({ cloudCover: 0.3 }) === 0.3
+         && M.careerSkyCover(null) === undefined && M.careerSkyCover({}) === undefined,
+         'night: the moon reads the effective cover (a front\'s overcast), else the declared, else none');
+      { const appS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+        ok(/cover: typeof opts\.cover === 'number' \? opts\.cover : careerSkyCover\(world && world\.day\)/.test(M.__src['75'])
+           && (appS.match(/careerSkyCover\(world\.day\)/g) || []).length === 2 && !/career\.cover = Math\.round\(world\.day\.cloudCover/.test(appS),
+           'night: the map record and both of the page\'s cover stamps go through careerSkyCover (no declared-cover read left)'); }
       // the job line on the map record: every contract with a night window carries it
       let any = null;
       for (let k = 0; k < 40 && !any; k++) { const e = M.careerNew({ seed: 'line' + k }); const R = M.careerMapRecord(e, null, {}); any = R.contracts.find(c => c.night && c.night.night); }
@@ -1172,6 +1181,7 @@ const BREAKS = [
   ['the line forgets an unlit strip', { s75: sub("(x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ' unlit'));", "(x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ''));") }],
   ['the stretcher case is offered', { s74: sub(' && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);', ' && careerNeedsOk(doc, A[r.id])) out.push(r.id);') }],
   ['the offers move with the clock', { s74: sub('  doc.career.contracts.sky = careerSkyStamp(doc);', '') }],
+  ['the moon reads the declared cover', { s75: sub("  if (typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff)) return day.cloudCoverEff;\n", '') }],
   // purity
   ['the model reaches for storage', { s74: s => s + '\nfunction crLeak() { return localStorage; }\n' }],
 ];
