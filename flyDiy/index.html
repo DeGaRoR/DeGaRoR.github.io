@@ -4533,7 +4533,7 @@ html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='fe35dc5b2cb3';window.FLYDIY_BUILD_DATE='2026-11-03T13:29:21.032Z';</script>
+<script>window.FLYDIY_BUILD='a4d505add666';window.FLYDIY_BUILD_DATE='2026-11-03T23:45:19.270Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -12504,6 +12504,39 @@ const GROUND_DEF = GROUND_SURF[0];
 // tailwheel tyre ~8-15; a 5.00-5 nose wheel ~6-10. Each value the middle of its range. Keyed by the build's wheel
 // carcass (the cage's whProfile: standard, tundra balloon, slim) for the mains and by the gear type for the third.
 const TYRE_CN = { standard: 8, tundra: 4.5, slim: 10, tailwheel: 10, nosewheel: 8 };
+// G3800 (TAILWHEELS): THE STEERABLE TAILWHEEL, the Scott 3200 class (30_solver twLine, law 1) - and the castoring
+// fork's friction for laws 1 and 2. What the sources give, and what is derived (reports/evidence/TAILWHEELS/README.md):
+//  arc     THE BREAKOUT, the pawl's arc: 35 deg a side. "Steerable within a limit each side of center; beyond it the
+//          tailwheel breaks free and becomes full swiveling" (FAA-H-8083-3 ch.14); Univair's 3200 sheet: "positive
+//          steering control far BEYOND rudder travel, and release easily and automatically to full swivel when the
+//          aircraft is turned around" - so wider than the linked wheel's own 28.6 deg (twSteer 0.5 rad, full pedal):
+//          a wheel rolling on its steered line stays inside it, a tail DRAGGED round (a braked pivot, full rudder and
+//          power) takes its track past it and the tyre turns the fork out. The published arc (Scott's Handbook 16) was
+//          not reachable from this session; 35 = the linked travel plus a margin. The brief asked for the trigger as
+//          "the side force over the detent": MEASURED, the side force cannot tell a pivot from a take-off - with the
+//          breakout off, the held side force over the tyre's static grip read 1.05-1.30 at the autopilot's own full-
+//          power start (the tail creeping, the tyre at its at-rest Coulomb law) and 1.18-1.52 in a braked pivot
+//          (Cub, Jodel, Rufus; tools/tw_probe.js) - what differs is the tail SLIDING past the arc
+//  vSlide  the contact's own ground speed under which its track is not read (0.15 m/s: the creep, not a slide)
+//  tau     the track held over 0.25 s: the lattice's substep jitter is not a slide (G3575: a breakout on the raw node's
+//          side force castored the DC-3 into a weave)
+//  Mf0     the kingpin's swivel friction, Scott's own setting as owners quote it: "5 to 6 pounds (approximately 23 to
+//          28 pound inches of torque)" at the 3.5 in steering arm - 25 lb in = 2.8 N m - read as at a Cessna 170's tail
+//          load (Nref 980 N: ~10 % of its 998 kg gross): the free fork lags its track by it (the castor's damping)
+//  trailK  the fork's trail over the wheel's radius (an 8 in 3200: ~1.4 in, 0.35 r) - DERIVED from the fork's
+//          proportions, not a published number
+//  defl    the steering springs' give at the tyre's full grip (lateral mu x N x trail): 0.06 rad - DERIVED (the 3239
+//          kit's rate is not published); the DRAWN fork's angle (out.twAng), not flown: in series with the tyre, 0.35 rad
+//          cut a lightly loaded tail's cornering stiffness 5x (the inverted V's tip wheels ground-looped on the roll-out,
+//          132 deg) and even 0.06 tightened the Jodel's taxi turn by 21 % (GATE DMGTYRE); the arc's breakout needs no give
+//  E       the pawl's catch: it drops in within 0.12 rad of the arm (G3575's, kept)
+const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, defl: 0.06, tau: 0.25, E: 0.12 };
+// G3800: THE TAIL SKID's steel shoe, sliding mu by the SURFACE enum (GROUND_SURF's keys). A flat steel skid on a dry
+// lakebed averages 0.36 (NASA TM, Sefie 1979, after Dreher & Batterson TN D-999, metal skids on concrete, asphalt and
+// lakebed) - the grass row; steel on concrete 0.45 (casex's aircraft-materials table) - the paved rows; the loose and
+// soft rows dig the shoe in a little more; on a lakebed under water the shoe hardly drags (the water's own drag is the
+// wet pass's)
+const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45 };
 
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -27422,7 +27455,9 @@ function makeSim(def, world) {
   // tailwheel's steering alone the user's Cub turns on a 9.4 m radius, and East Point is 12 m wide
   // G2480 (HAND-CONTROLS): `wr` the floats' water-rudder handle - null THE RULE (32_hydro waterRudder), 0 up, 1 down;
   // only the hand writes it (input.js), and a reset gives it back to the rule
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null };
+  // G3800 (TAILWHEELS): `twLock` the lockable tailwheel's lock - 1 in (straight, the reset's), 0 out (it castors); read
+  // only by a build whose tailwheel is the lockable kind (params.twMode 2)
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null, twLock: 1 };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -28149,7 +28184,7 @@ function makeSim(def, world) {
 
   function reset(drop = 0) {
     PFO.netF = 0; PFO.mErr = 0;
-    if (TWSW) { TWSW.cast = false; TWSW.ang = 0; }   // G3575: the full swivel steered again, centred
+    if (TWL) twReset();                              // G3800: the tail contact steered (or pinned) again, centred
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -28190,8 +28225,10 @@ function makeSim(def, world) {
         const hasTw = tw != null && tw >= 0, xt = hasTw ? def.nodes[tw].p[0] : xm;
         const sT = hasTw && Math.abs(xt - xm) > 1e-3 ? Math.max(0, Math.min(1, (cx - xm) / (xt - xm))) : 0;
         const def0 = (i, share) => Math.max(0, Math.min(0.05, share * W / KGn[i]));
+        const nT = hasTw && TW2 >= 0 ? 2 : 1;                   // G3800: a twin boom's two tail contacts share it
         for (const i of M) rC[i] = r[i] + def0(i, (1 - sT) / M.length);
-        if (hasTw) rC[tw] = r[tw] + def0(tw, sT);
+        if (hasTw) { rC[tw] = r[tw] + def0(tw, sT / nT); if (nT === 2) rC[TW2] = r[TW2] + def0(TW2, sT / nT); }
+        if (TWL) twSize(sT * W / nT);                          // G3800: the tail contact's law sized off its static load
       }
     }
     for (const b of beams) {
@@ -28225,6 +28262,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    ctl.twLock = 1;                                  // G3800: the tailwheel lock in (a lockable wheel: straight)
     ctl.wr = null;                                   // G2480: the water rudders back to the rule
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
@@ -28991,32 +29029,88 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
-  // G3575 (DC3-2): THE FULL-SWIVEL THIRD WHEEL (the gear page's 'full swivel', params.twSwivel; the user, 26 Oct: "do the
-  // swivelling tailwheel"). The steered wheel (every build before) turns with the rudder to twSteer and no further, so its
-  // side force holds the tail: the DC-3 turned 3 deg in 10 s on a locked main, the outside engine full and the inside idle.
-  // A full-swivel wheel (the Scott 3200 kind; the DC-3's own, unlocked for the taxi) STEERS the same way - the rudder's,
-  // the ground's stability on every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi pace
-  // (under twSwV) a split past twSwB (|ctl.brakeD|) breaks it out and it castors - its rolling line follows its own ground
-  // track (no side force but the tyre's lag), the braked wheel and the engines turn the aeroplane round it, a pivot. It
-  // re-engages once the brake is off and its track swings back within twSwE of the body's line or the rudder's (the Scott's
-  // own: it locks into the steering near centre - matched to the rudder's line alone, it rarely did and the DC-3 weaved).
-  // The brake, not the tyre's load, is the trigger: the tailwheel node's side slip is the lattice's jitter as much as a
-  // load (its grip ratio read 30x on a straight roll, more in S-turns than in a braked turn), and a wheel that broke out
-  // on it castored the DC-3 into a weave. Absent (null), not one line below runs: every build that never chose it flies to
-  // the bit
-  const TWSW = P_.twSwivel ? { V: P_.twSwV ?? 5.0, B: P_.twSwB ?? 0.2, E: P_.twSwE ?? 0.12, cast: false, ang: 0 } : null;
-  // the wheel's line this substep, as the angle off the body's line: the rudder's (s), or once broken out its own track
-  function twSwivel(i3, hx, hz, s, Fn) {
-    const S = TWSW, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz), bd = Math.abs(ctl.brakeD || 0);
-    let a = S.ang;
+  // G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT'S FOUR LAWS (params.twMode, a taildragger's only; a
+  // tricycle's nose wheel is the rudder's, linked, as ever - TWL null, not one line below runs). The gear page's
+  // tailwheel row (s2Steer) chooses:
+  //  1 STEERABLE (the default, the Cub's: the Scott 3200 class). The rudder drives the steering arm through the two
+  //    steering springs (twSteer x dr, +-28.6 deg at full pedal); the fork is held to the arm by the spring-loaded pawl
+  //    and the springs give a little under the tyre's moment about the kingpin (its trail) - the drawn fork's angle; the
+  //    link flies rigid (below, the side force). BREAKOUT is the pawl's: when the tail is dragged along a
+  //    track past the pawl's arc (TW_SCOTT.arc, the contact sliding, held TW_SCOTT.tau) the tyre turns the fork with it,
+  //    the pawl rides out and it SWIVELS free - a braked pivot, full rudder and power in the prop wash; no speed or
+  //    brake rule of ours (a rolling wheel's track is its own line, inside the arc by construction). Free, it castors with the
+  //    kingpin's friction (Mf: the fork lags its track by Mf / (C trail), the side force Mf / trail); it RE-ENGAGES
+  //    when the fork swings back within TW_SCOTT.E of the arm (the pawl drops in near centre).
+  //  2 LOCKABLE (the DC-3's, the warbirds'): ctl.twLock 1 (the reset's) pins it straight, rigid; 0 lets it castor
+  //    free (the kingpin's friction only) - steered by brake and power; locking again engages when the castoring fork
+  //    passes within E of centre (the pin drops in). The autopilot sets it (43_pilot), the hand has its key (input.js)
+  //  3 FIXED: straight, rigid, always
+  //  4 SKID: no wheel - a steel shoe sliding on the ground, Coulomb in every direction at TW_SKID_MU of its surface
+  //    (and the brake: its drag is the only one the tail has); steered by the rudder in the wash alone
+  // Sizes off the wheel's own (trail = TW_SCOTT.trailK x its radius) and its STATIC LOAD (the three-point share, the
+  // reset's sT below): the springs' rate so the fork gives TW_SCOTT.defl at the tyre's full grip on grass, the pawl's
+  // hold TW_SCOTT.hold of that grip, the kingpin's friction by the Scott figure at a Cessna 170's tail load.
+  // Two tail contacts (a twin boom's, refs.tw2) fly the same law with their own state each.
+  const TW1 = def.refs ? def.refs.tw : -1, TW2 = def.refs && def.refs.tw2 != null ? def.refs.tw2 : -1;
+  const TW_ARC = TW_SCOTT.arc;
+  const TWM = (P_.twSteer > 0 && TW1 >= 0) ? (P_.twMode || 1) : 0;
+  const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
+    st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
+  if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
+  // the law's sizes, from the static load (called by reset, once the masses are known)
+  function twSize(Nst) {
+    const R0 = (def.nodes[TW1] && def.nodes[TW1].r) || 0.1, N = Math.max(20, Nst);
+    TWL.trail = TW_SCOTT.trailK * R0;
+    TWL.k = TWL.trail * GROUND_DEF[2] * N / TW_SCOTT.defl;
+    TWL.Mf = TW_SCOTT.Mf0 * N / TW_SCOTT.Nref;
+    out.twGrip = GROUND_DEF[2] * N;                              // (read by tools/tw_probe.js)
+  }
+  function twReset() {
+    for (let q = 0; q < 2; q++) { TWL.st[q] = TWL.m === 2 ? 2 : TWL.m === 3 ? 3 : TWL.m === 4 ? 4 : 0; TWL.ang[q] = 0; TWL.df[q] = 0; TWL.F[q] = 0; TWL.ff[q] = 0; TWL.fMax[q] = 0; }
+  }
+  // the wheel's line this substep, as the angle off the body's line (the solver's steer convention: s = twSteer dr)
+  function twLine(q, i3, hx, hz, s, Fn, cN, dt) {
+    const S = TWL, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz);
+    let a = null;
     if (V > 0.03) {
-      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);            // the track off the body's line
+      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);           // the track off the body's line
       if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;   // rolling back: the same line
     }
-    if (!S.cast) { if (Fn > 0 && bd > S.B && V < S.V) { S.cast = true; S.ang = a; } }
-    else { S.ang = a; if (bd < 0.05 && (Math.abs(a) < S.E || Math.abs(a - s) < S.E)) S.cast = false; }
-    out.twCast = S.cast ? 1 : 0;   // (read by tools/dc3_break.js)
-    return S.cast ? S.ang : s;
+    // the castoring fork: it follows its track but lags it by the kingpin's friction (Mf / (C_alpha trail))
+    const castor = () => {
+      if (a !== null) { const b = S.Mf / Math.max(1e-6, cN * Fn * S.trail);
+        if (S.ang[q] < a - b) S.ang[q] = a - b; else if (S.ang[q] > a + b) S.ang[q] = a + b; }
+      return S.ang[q];
+    };
+    let st = S.st[q], line;
+    if (S.m === 1) {
+      if (st === 0) {
+        // the fork on its springs: the arm's angle plus trail F / k, toward the track and never past it (the drawing's)
+        let d = s;
+        if (a !== null) { const sl = a - s, g = S.trail * Math.abs(S.F[q]) / S.k; d = s + (Math.abs(sl) > g ? Math.sign(sl) * g : sl); }
+        S.df[q] = d;
+        // THE BREAKOUT: the tail DRAGGED past the pawl's arc - the contact sliding (faster than TW_SCOTT.vSlide) along a
+        // track more than TW_SCOTT.arc off the body's line, held TW_SCOTT.tau (the lattice's jitter out): the tyre turns
+        // the fork with it and the pawl rides out. (The side force alone cannot tell it: the autopilot's own full-power
+        // start loads the creeping tail to 1.05-1.3 of its static grip, a braked pivot 1.2-1.5 - tools/tw_probe.js)
+        const sl = (a !== null && V > TW_SCOTT.vSlide) ? Math.abs(a) : Math.abs(s);
+        S.ff[q] += (sl - S.ff[q]) * Math.min(1, dt / TW_SCOTT.tau);
+        if (S.ff[q] > S.fMax[q]) S.fMax[q] = S.ff[q];
+        if (Fn > 0 && S.ff[q] > TW_ARC) { st = 1; S.ang[q] = a !== null ? a : d; S.ff[q] = 0; }
+        line = st === 0 ? s : S.ang[q];
+      } else {
+        line = castor();
+        if (Math.abs(S.ang[q] - s) < S.E) { st = 0; S.df[q] = S.ang[q]; line = s; }
+      }
+    } else if (S.m === 2) {
+      const lock = ctl.twLock == null ? 1 : ctl.twLock;
+      if (st === 2 && !lock) { st = 1; S.ang[q] = 0; }
+      if (st === 1) { line = castor(); if (lock && Math.abs(S.ang[q]) < S.E) { st = 2; S.ang[q] = 0; line = 0; } }
+      else line = 0;
+    } else line = 0;                                                    // 3 fixed (4, the skid, never rolls)
+    S.st[q] = st;
+    out.twState[q] = st; out.twAng[q] = st === 0 ? S.df[q] : line; out.twF[q] = S.ff[q] / TW_ARC;
+    return line;
   }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
@@ -29426,12 +29520,14 @@ function makeSim(def, world) {
       if (Fn < 0) Fn = 0;
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
-      const isMain = def.refs.mains.includes(i), isTW = i === def.refs.tw;
-      if (isMain || isTW) {
+      const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
+      const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
+      if (isMain || (isTW && TWM !== 4)) {
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
-          const s = TWSW ? twSwivel(i3, hx, hz, P_.twSteer * ctl.dr, Fn) : P_.twSteer * ctl.dr;   // measured: matches nose-left convention (G3575: a full swivel's own line once broken out)
+          // measured: matches nose-left convention (G3800: a taildragger's tail contact flies its law, twLine)
+          const s = TWL ? twLine(twQ, i3, hx, hz, P_.twSteer * ctl.dr, Fn, iCnT > 0 ? 1 / iCnT : TYRE_CN.tailwheel, dt) : P_.twSteer * ctl.dr;
           const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
@@ -29477,9 +29573,21 @@ function makeSim(def, world) {
         // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
         // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
         // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
+        // (G3800: the steerable wheel's link flies RIGID, as the linked wheel always did - its springs' give is the drawn
+        // fork's only, TWL.k: flown in series with the tyre (1/C_eff = 1/C_alpha + trail/k), a give of 0.06 rad at full grip
+        // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
+        // arc's breakout does not need it)
         const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+      } else if (isTW) {
+        // G3800: THE TAIL SKID (twMode 4) - a steel shoe sliding, Coulomb in every direction at its surface's mu
+        // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
+        const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
+        const vx = v[i3], vz = v[i3+2], sp = hyp2(vx, vz);
+        const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(sp, 0.02), m[i]/dt);
+        f[i3] -= kf * vx; f[i3+2] -= kf * vz;
       } else {
         scrape = true;                               // G1470: something other than a wheel on the ground (arms the yield)
         const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
@@ -29748,8 +29856,12 @@ function makeSim(def, world) {
       for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
     }
+    // (G3800: a twin boom's second tail contact counts with the first - the pair is the tail's contact, either down)
+    let t2 = TW2 >= 0 && TW2 !== def.refs.tw ? TW2 : -1;
     for (const i of [...def.refs.mains, def.refs.tw]) {
       if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
+      if (i === def.refs.tw && t2 >= 0) { const gh2 = world ? world.terrainH(p[t2*3], p[t2*3+2]) : 0;
+        if (p[t2*3+1] - rC[t2] - gh2 < 0.03) { c++; continue; } }
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
@@ -29761,7 +29873,7 @@ function makeSim(def, world) {
   function wheelContacts() {
     const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rC[i] - gh < 0.03; };
     if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
-    return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? on(def.refs.tw) : false, water: false };
+    return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? (on(def.refs.tw) || (TW2 >= 0 && on(TW2))) : false, water: false };
   }
   function cgPos() {
     let x=0, y=0, z=0;
@@ -32080,6 +32192,7 @@ function wetBuild(def, p, v, m, fuel) {
   const wheels = [];
   for (const i of (refs.mains || [])) if (def.nodes[i] && def.nodes[i].r > 0) wheels.push(i);
   if (refs.tw != null && refs.tw >= 0 && def.nodes[refs.tw] && def.nodes[refs.tw].r > 0) wheels.push(refs.tw);
+  if (refs.tw2 != null && refs.tw2 >= 0 && def.nodes[refs.tw2] && def.nodes[refs.tw2].r > 0) wheels.push(refs.tw2);   // G3800: a twin boom's second
   const tris = [], slices = [], slabs = [];
   const spec = def.spec || {};
   const MAT = WB_MAT[spec.material || (spec.fuselage && spec.fuselage.material)] || WB_MAT.tubeFabric;
@@ -34785,6 +34898,9 @@ const SERVO_GAINS = {
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G3077: the toe brake past the rudder's stop (groundSteer): brake per unit of rudder demand past the stop, its cap
   brakeDK: 1.0, brakeDMax: 0.3,
+  // G3800 (TAILWHEELS): the toe brakes as THE steer while the tailwheel castors (groundSteer): per unit of the heading
+  // law's rudder demand, and its cap
+  brakeCastK: 1.0, brakeCastMax: 0.8, brakeCastD: 3.0,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
   waterStepK: 1,
@@ -35265,6 +35381,15 @@ function makeServos(sim, def, opts) {
       if (over > 0) { c.brakeD = clamp(Math.sign(-kP * e - kD * S.eR - S.gI) * g('brakeDK') * over, -g('brakeDMax'), g('brakeDMax')); S.bdOn = true; }
       else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
     } else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
+    // G3800 (TAILWHEELS): A CASTORING TAILWHEEL STEERS NOTHING (30_solver twLine: a lockable wheel unlocked to taxi, or a
+    // steerable one broken out) - the crews steer on the toe brakes and the engines (FAA-H-8083-3: differential braking
+    // where the rudder cannot hold the direction), so tail down on the wheels the heading law's demand goes to the
+    // differential brake as well as the rudder, at any power. Not one line runs while the wheel steers
+    { const tws = o.twState;
+      if (tws && (tws[0] === 1 || tws[1] === 1) && FT.groundP1D && !onWater && onG > 0 && !tailUp) {
+        const u = -kP * e - kD * S.eR;
+        c.brakeD = clamp(g('brakeCastK') * u, -g('brakeCastMax'), g('brakeCastMax')); S.bdOn = true;
+      } }
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround
@@ -35424,11 +35549,13 @@ function seatOnGround(sim, groundH, refs) {
       let ax = 0, ay = 0, az = 0, cM = 0;
       for (const i of M) { ax += P[i * 3]; ay += P[i * 3 + 1]; az += P[i * 3 + 2]; cM += clr(i); }
       ax /= M.length; ay /= M.length; az /= M.length; cM /= M.length;
-      let ux = P[tw * 3] - ax, uz = P[tw * 3 + 2] - az;
+      // G3800: a twin boom's two tail contacts stand for one at their middle (the pitch about the mains, no roll)
+      const t2 = refs.tw2 != null && refs.tw2 >= 0 ? refs.tw2 : tw;
+      let ux = 0.5 * (P[tw * 3] + P[t2 * 3]) - ax, uz = 0.5 * (P[tw * 3 + 2] + P[t2 * 3 + 2]) - az;
       const L = Math.hypot(ux, uz);
       if (L < 0.2) break;
       ux /= L; uz /= L;
-      const hT = P[tw * 3 + 1] - ay, Rr = Math.hypot(L, hT), want = hT - (clr(tw) - cM);
+      const hT = 0.5 * (P[tw * 3 + 1] + P[t2 * 3 + 1]) - ay, Rr = Math.hypot(L, hT), want = hT - (0.5 * (clr(tw) + clr(t2)) - cM);
       if (Math.abs(want) >= Rr) break;
       const th = Math.asin(want / Rr) - Math.atan2(hT, L);
       if (!(Math.abs(th) < 0.35) || Math.abs(th) < 1e-5) break;   // 20 deg: past that it is not a stand
@@ -36488,7 +36615,10 @@ function makePilot(sim, def, world, opts) {
   // G3575 (DC3-2): A FULL-SWIVEL TAILWHEEL (30_solver twSwivel: steered by the rudder until the toe brake breaks it out)
   // is turned the way its crews turn it - ON THE SPOT, the inside brake (pivotFly): off the stand when the way out leaves
   // the nose well aside, and at a taxi corner tighter than the wheels steer (below). Every other aeroplane: none of it
-  const SWIV = !!(def && def.params && def.params.twSwivel) && !trike;
+  // G3800 (TAILWHEELS): the LOCKABLE tailwheel (params.twMode 2, the DC-3's - G3575's full swivel, which it replaced) is
+  // that aeroplane now: unlocked to taxi (a free castor, steered by the brakes - 39b groundSteer), locked for the runway
+  const SWIV = !!(def && def.params && def.params.twMode === 2) && !trike;
+  const TWLK = SWIV;
   let piv = null, pivSaid = false, pivN = 0;
   // G3480 (DC-3 TAXI): the time the wheels have not held the route's turn, the turns on the spot it took, said once
   let bsT = 0, bsN = 0, bsSaid = false;
@@ -38196,7 +38326,17 @@ function makePilot(sim, def, world, opts) {
           SV.decrab(0.12);
           break;
         case 'RWY': groundSteer(); break;
-        case 'TAXI': c.dr = SEL.dr; break;   // the follower's rudder (da from the governor)
+        case 'TAXI': c.dr = SEL.dr;   // the follower's rudder (da from the governor)
+          // G3800 (TAILWHEELS): A CASTORING TAILWHEEL (a lockable one unlocked to taxi, a steerable one broken out)
+          // steers nothing: the follower's demand goes to the toe brakes too (brakeD > 0 yaws as dr > 0 does), as the
+          // runway's law does (39b groundSteer) - WITH the heading's rate: the follower's law has none ("the wheel steers
+          // the heading kinematically"), and a castoring taildragger's heading is a dynamic, unstable one (its CG behind
+          // the mains): undamped, the DC-3 circled on its own stand. Not one line runs while the wheel steers
+          { const tws = sim.out && sim.out.twState;
+            if (tws && (tws[0] === 1 || tws[1] === 1) && !BX.on)
+              c.brakeD = Math.max(-SERVO_GAINS.brakeCastMax, Math.min(SERVO_GAINS.brakeCastMax,
+                SERVO_GAINS.brakeCastK * (SEL.dr - SERVO_GAINS.brakeCastD * SV.eR) / 0.85)); }
+          break;
         case 'NONE': c.dr = 0; c.da = 0; break;
         default: break;
       }
@@ -38770,6 +38910,11 @@ function makePilot(sim, def, world, opts) {
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
     if (ap.phase !== 'FINAL') slipK = 0;   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
+    // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
+    // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
+    // the line-up's turn; the pin drops in once the castoring wheel trails straight (30_solver twLine)
+    if (TWLK) c.twLock = (ap.phase === 'DEPART' || ap.phase === 'TAXI' || ap.phase === 'LINEUP' || ap.phase === 'STOP'
+                          || ap.phase === 'HOLD' || ap.phase === 'STOPPED') ? 0 : 1;
     // G1938 (PILOT-ONE, the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should allow
     // for almost static turn, which is required for small landing strips ... turning at the end of a 1 way strip").
     // THE PIVOT: what a taildragger pilot does where the wheels cannot steer the turn - stopped, full rudder toward
@@ -38921,12 +39066,32 @@ function makePilot(sim, def, world, opts) {
         }
         if (ap.path && piv) {
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(wrapPi(piv.hdg - Math.atan2(nose[1], nose[0]))) * 57.3), 6, false, 'deg')]);
-          if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; piv = null; SV.relatch(); }
+          if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; if (piv.corner) ap.swPast = { path: ap.path, j: piv.j }; piv = null; SV.relatch(); }
           break;
         }
         if (ap.path) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          // G3800 (TAILWHEELS): A CORNER THE LOCKABLE WHEEL'S PIVOT HAS TURNED STAYS TURNED - pathLocate looks 5 samples back,
+          // and the castoring DC-3 ends its pivot a few metres short of where the steered one did: re-located before the
+          // planner's own cusp at HOME's works stand (a 180 deg doubling back, a curvature of 2e15 at a doubled point) the
+          // speed governor read the cusp ahead and held 0 m/s for good (stuck 9.7 m off the line at 55 s)
+          if (SWIV && ap.swPast && ap.swPast.path === ap.path && L.i < ap.swPast.j) L.i = ap.swPast.j;
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          // G3800 (TAILWHEELS): ...AND A CUSP IN THE ROUTE (the planner's own doubling back: a curvature spike at a doubled
+          // point) is a turn on the spot for the lockable wheel: within 8 m, pivot to the heading the path leaves it on and
+          // take the path up after it - its curvature had read as a speed limit of 0 m/s
+          if (SWIV && !piv) {
+            const P = ap.path.pts; let kc = -1;
+            for (let k = L.i; k < P.length - 1 && P[k].s - P[L.i].s < 8; k++) if (Math.abs(P[k].kap) > 5) { kc = k; break; }
+            if (kc >= 0 && ap.swCusp !== P[kc]) {
+              let k2 = kc; while (k2 < P.length - 1 && (Math.abs(P[k2].kap) > 0.05 || P[k2 + 1].s - P[k2].s < 0.05)) k2++;
+              ap.swCusp = P[kc];
+              piv = { hdg: P[k2].hdg, j: k2, t0: ap.t, thr: 0, sg: 0, corner: true }; pivN++;
+              say('pivot', 'the route doubles back - turning on the spot (the tailwheel castors)');
+              pivotFly(piv.hdg);
+              break;
+            }
+          }
           // G1938: A HAIRPIN THE WHEELS CANNOT STEER is turned on the spot: a bend ahead tighter than 1 / (1.1 RgMin)
           // turning more than 150 deg in all (a U-turn) - stop at its entry, pivot to the heading the path leaves it on, carry on
           // from there (the lane beside is joined on the follower's own cross-track law)
@@ -38953,7 +39118,7 @@ function makePilot(sim, def, world, opts) {
                 let bm = b0, acc = 0; while (bm < b1 && Math.abs(acc) < Math.abs(turn) / 2) { acc += wrapPi(P[bm + 1].hdg - P[bm].hdg); bm++; }
                 if (P[bm].s - P[L.i].s < 1.5) {
                   ap.swCorner = P[b0];
-                  piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
+                  piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1, corner: true }; pivN++;
                   if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg corner tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) - turning on the spot (the tailwheel swivels)'); }
                   pivotFly(piv.hdg);
                   break;
@@ -39032,10 +39197,17 @@ function makePilot(sim, def, world, opts) {
           // pivot - the inside brake, full rudder, a burst of power), then the follower from where it stood; while it rolls the
           // turns are walked at 1.5 m/s. (The first cut, for every airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s;
           // the second, the inside brake at 1.5 m/s with no stop, still turned the DC-3 on ~25 m into a parked wing at 46 s)
-          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13);
+          // G3800 (TAILWHEELS, the brief: "remove the RgMin > 13 m limit for every taildragger"): the turn on the spot
+          // where the wheels cannot hold the route is every taildragger's now (pivG); the walked turns stay the big
+          // airframe's (bigG)
+          // (A.taxiPivAll false: an instrument's - the route pivot the big airframe's alone, as before G3800; GATE TAXICLEAR's
+          // blind-pilot calibration flies the path it was calibrated on)
+          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13), pivG = bigG || (!trike && A.taxiPivAll !== false);
           const drC = SV.taxiRudder(drFF, drMaxG);
-          bsT = bigG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
-          if (bsT > 0.5 && bsN < 6) {
+          // (...a small one when the turn truly refuses: 0.6 rad held 1.5 s on the stop - at the big airframe's 0.35 / 0.5 s
+          // the ultralight pivoted in an ordinary turn off its stand, 2.6-2.9 m off the line against GATE TAKEOFF's 2.5)
+          bsT = pivG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > (bigG ? 0.35 : 0.6) ? bsT + dt : 0;
+          if (bsT > (bigG ? 0.5 : 1.5) && bsN < 6) {
             bsT = 0; bsN++;
             piv = { hdg: hT, j: L.i, t0: ap.t, thr: 0, sg: eH >= 0 ? 1 : -1 }; pivN++;
             if (!bsSaid) { bsSaid = true; say('pivot', 'a turn of ' + Math.round(Math.abs(eH) * 57.3) + ' deg that the wheels (' + RgMin.toFixed(1) + ' m) cannot steer on the route - turning on the spot'); }
@@ -45433,7 +45605,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //   6  2026-10-08, G2470 JODEL-PITCH: the Munk body couple's arm along the body (30_solver; it was measured in the world
 //      x-y plane, x1/cos(heading) and off near world +-z) - the certificate's flown cases that turn off x move (the Jodel's
 //      steps a frame more); the probes along the def's x do not
-const PHYSICS_V = 6;
+//   7  2026-11-03, G3800 TAILWHEELS: every taildragger's tail contact flies a law (30_solver twLine) - the steerable
+//      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
+//      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
+//      move; the plaque's probes in the air do not
+const PHYSICS_V = 7;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -47308,6 +47484,16 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
+  // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
+  // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
+  // the two tips), ivS (m2, both panels' true area: the join's measure, or null - derived from the volumes). Off twin
+  // booms, or absent: no key at all
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null && isFinite(+S.tail.ivAngle)) {
+    S.tail.ivAngle = genClamp(+S.tail.ivAngle, 20, 55);
+    S.tail.ivGap = genClamp(S.tail.ivGap == null ? 0.30 : +S.tail.ivGap || 0, 0.10, 1.20);
+    if (S.tail.ivS != null) S.tail.ivS = genClamp(+S.tail.ivS || 0.2, 0.20, 14.0); else delete S.tail.ivS;
+  } else { delete S.tail.ivAngle; delete S.tail.ivGap; delete S.tail.ivS; }
   // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
@@ -47353,8 +47539,12 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
-  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
-  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
+  // G3800 (TAILWHEELS): THE TAIL CONTACT'S KIND - 'lock' (the lockable wheel, the DC-3's), 'fixed', 'skid', or no key
+  // at all: the steerable wheel (the Scott kind, every taildragger's default). G3575's full swivel (`twSwivel: true`, the
+  // DC-3's only) is the lockable wheel now: a saved one loads as 'lock', and the old key goes
+  if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
+  delete S.gear.twSwivel;
+  if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -47975,6 +48165,21 @@ function resolveSpec(spec) {
     // a built V keeps its measured span and chord as the builder's own
     if (!built) auto['tail.hSpan'] = auto['tail.hChord'] = true;
     auto['tail.vHeight'] = auto['tail.vChord'] = true;
+  }
+
+  // G3800 (TAILWHEELS): ---- THE INVERTED V ON TWIN BOOMS: the V's own sizing (the area that meets BOTH volumes: Sh /
+  // cos^2 G or Sv / sin^2 G, whichever binds - the same projections), on the span the booms give it: each panel runs
+  // from its boom to ivGap / 2 off the centreline, (boomX - ivGap / 2) / cos G long. A measured area (the join's ivS)
+  // is the area. The effective Sh and Sv (reported, and what the design check's volumes read) are its projections
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null) {
+    const G = S.tail.ivAngle * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
+    const b1 = Math.max(0.25, ((S.tail.boomX || 1.2) - 0.5 * (S.tail.ivGap == null ? 0.30 : S.tail.ivGap)) / cG);
+    let ivS = S.tail.ivS > 0 ? S.tail.ivS : Math.max(Sh / (cG * cG), Sv / (sG * sG));
+    if (!(S.tail.ivS > 0)) { auto['tail.ivS'] = true; ivS = genClamp(ivS, 0.20, 14.0); }
+    S.tail.ivS = ivS; S.tail.ivG = G;
+    S.tail.hChord = ivS / (2 * b1);
+    S.tail.Sh = ivS * cG * cG;
+    S.tail.Sv = ivS * sG * sG;
   }
 
   // 5. gear — the two hard geometric constraints of a taildragger.
@@ -51687,6 +51892,84 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // Every member is class 'tail' as the conventional's; the strips ride
     // the bays (62_gen_aero's P.TAIL branch, per fin); the load rig finds
     // HF/HR and VF/VR by tag as it does on the fuselage tail.
+    if (t.ivAngle != null) {
+    // ---- G3800 (TAILWHEELS, the user 3 Nov: "maybe it's the opportunity to do the inverted V-tail and the ability of
+    // sticking wheels on top of the inverted V fins"): THE INVERTED V ON TWIN BOOMS - the AAI RQ-7 Shadow's layout: no
+    // fin and no stab bridge; from each boom's tail station ONE panel runs DOWN AND INBOARD at the V's angle (tail.ivAngle)
+    // toward the centreline, its tip tail.ivGap / 2 off it (the Shadow's two meet; here a gap is kept so each tip can
+    // carry its own wheel - the tail's ground contact, 'sticking wheels on the fin tips'). Seen from behind the pair is a
+    // V whose point hangs below the booms: each panel is a normal V's panel moved down, so the ruddervators mix as a V's
+    // (the strips take their normals from these nodes - 62_gen_aero's T.vee branch). MEASURED (the probe at cruise, the
+    // GEN_DEFAULT twin at 35 deg): d(yawLeft)/d(dr) +10 765 (the conventional twin's +5 508, the same sign), d(pitchUp)/
+    // d(de) +14 093 (+11 460), the rudder's pitch 0.5 % of the elevator's; and the rudder's ROLL is still a V's (-3 146 /
+    // dr, the fuselage V's -3 062): the panels' antisymmetric lift at +-0.68 m outweighs their side force below the CG,
+    // which on a Shadow-like low tail would have made it proverse. Each panel is the fin's P4 truss laid
+    // in its canted plane: front spar, hinge spar, the two thickness nodes either side of the plane, 2-3 bays; its root
+    // section on the boom's tail triangle (the boom is the post); one cluster with that triangle.
+    MB = genSurfMaterial(S, 'stab');
+    const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
+      ? S.controls.elevator.chord : 0.40;
+    const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
+    const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+    const G = (t.ivAngle || 33) * Math.PI / 180, cG = Math.cos(G), sG = Math.sin(G);
+    const gapH = 0.5 * (t.ivGap == null ? 0.30 : t.ivGap);
+    const b1 = Math.max(0.25, (bx - gapH) / cG);                 // one panel's own span, root to tip
+    const hTap = t.hTaper == null ? 1 : t.hTaper;
+    const cMean = t.ivS > 0 ? t.ivS / (2 * b1) : (t.hChord || 0.6);
+    const cRootV = 2 * cMean / (1 + hTap), cTipV = hTap * cRootV;
+    const chordV = u => cRootV + (cTipV - cRootV) * u;
+    const yRoot = yAx(xStab);                                    // the boom's axis at the tail station
+    const xFV = u => xStab + (sparF - 0.5) * chordV(u), xRV = u => xStab + (0.5 - CT) * chordV(u);
+    const nV = Math.max(2, Math.min(3, Math.round(b1 / 0.55)));
+    // the crowns at the tail station carry the tail tags (the first-tagged rule: the tail-arm rig, the gauge)
+    for (const [sd, tg] of [['L', 'HTL'], ['R', 'HTR']]) { const q = chains[sd][iTail].T; nodes[q].tag = tg; if (sd === 'L') HTL = q; else HTR = q; }
+    const panels = [];
+    for (const [sd, sg] of [['R', 1], ['L', -1]]) {
+      // down and inboard along the panel (y, z), and its normal in that plane (up-ish, inboard-leaning)
+      const dy = -sG, dz = -sg * cG, ny = cG, nz = -sg * sG;
+      const at = u => [yRoot + dy * b1 * u, sg * bx + dz * b1 * u];
+      const VF = [], VR = [], VX = [], VX2 = [];
+      for (let i = 0; i <= nV; i++) {
+        const u = i / nV, [y, z] = at(u), xm = 0.5 * (xFV(u) + xRV(u)), hd = 0.5 * dep * chordV(u);
+        VF.push(N(xFV(u), y, z, 'VF')); VR.push(N(xRV(u), y, z, 'VR'));
+        VX.push(SO(N(xm, y + ny * hd, z + nz * hd, 'VX'), hd - finHalf));
+        VX2.push(SO(N(xm, y - ny * hd, z - nz * hd, 'VX'), hd - finHalf));
+      }
+      const [ya, za] = at(1 + 0.04 / b1);
+      const apex = N(0.5 * (xFV(1) + xRV(1)), ya, za, sd === 'L' ? 'FIN2' : 'FIN');
+      if (sd === 'L') FIN2 = apex; else FIN = apex;
+      const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
+      for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {           // the root on the boom's tail
+        B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
+      }
+      for (let i = 0; i <= nV; i++) {                             // the section diamond
+        B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
+        B(VF[i], VR[i], 'tail');
+      }
+      for (let i = 0; i < nV; i++) {
+        for (const [a2, b2] of [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]])
+          B(a2, b2, 'tail');
+        B(VF[i], VR[i + 1], 'tail'); B(VR[i], VF[i + 1], 'tail');
+        for (const X of [VX, VX2]) {
+          B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
+          B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
+        }
+        const bayV = (b1 / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+        cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
+                            .concat(i === nV - 1 ? [apex] : []));
+        const ribV = Math.max(1, Math.round((b1 / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+        pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
+      }
+      for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(apex, nd, 'tail');
+      pt(apex, 1.15 * cTipV * 0.30);
+      B(apex, VF[nV - 1], 'tail'); B(apex, VR[nV - 1], 'tail');
+      panels.push({ VF, VR, VX, VX2, FIN: apex, side: sg, b1, chordV, nV });
+      finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
+                 b1, chordV(0), MB, { front: VF[0], rear: VR[0], tip: apex });
+    }
+    TAIL = { vee: true, panels, b1, chordV, nV, G, sparFront: sparF, rearV: 1 - CT, twin: true,
+             VF: panels[0].VF, VR: panels[0].VR, VX: panels[0].VX, VX2: panels[0].VX2 };
+    } else {
     MB = genSurfMaterial(S, 'stab');           // G213: the stab's own row
     const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
       ? S.controls.elevator.chord : 0.40;
@@ -51835,6 +52118,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
              sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR, twin: true };
+    }
     BOOMS = { L: chains.L, R: chains.R, r: r0, r1, kv, x0, len, iRoot, iTail, xs, k: TUBE ? 1 : tbK, tube: TUBE };
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
@@ -52100,7 +52384,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
-  let GAL, GAR, TW, twX, twY, FLOATS = null;
+  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
+  // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
+  // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
+  const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
+  const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   if (S.gear.type !== 'floats') {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
@@ -52174,6 +52462,56 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+  } else if (BOOMS && TAIL && TAIL.vee) {
+    // G3800 (TAILWHEELS): THE INVERTED V's TAIL CONTACTS ARE ITS TIPS - a small wheel (or the skid's shoe) under each
+    // panel's tip, on a short fork (its hub a hand under the tip), the tip's section and apex its five anchors. The
+    // three-point attitude is the tail's own geometry (the V's angle, the booms' height, the gap): no leg to choose
+    twX = nodes[TAIL.panels[0].FIN].p[0];
+    const twId = {};
+    for (const pn of TAIL.panels) {
+      const ap = nodes[pn.FIN].p, R0 = S.gear.twR || 0.10;
+      const y = ap[1] - R0 - 0.03;
+      if (pn.side < 0) twY = y;
+      const W_ = N(ap[0], y - twDy, ap[2], 'TW', twRN);
+      const k = pn.nV;
+      for (const nd of [pn.FIN, pn.VF[k], pn.VR[k], pn.VX[k], pn.VX2[k]]) B(W_, nd, 'gear', false, nd === pn.FIN ? 'leg' : 'wire');
+      pt(W_, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);
+      twId[pn.side] = W_;
+    }
+    TW = twId[-1]; TW2 = twId[1];
+  } else if (BOOMS) {
+    // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): A TWIN BOOM'S TAIL
+    // CONTACTS, one under each boom's tail station (the stab's - the tube's own end past it is a fairing), its leg off
+    // the boom's two lower nodes there (the tube is the post), braced to the bay before (rule 10's lateral pyramid, as
+    // the fuselage tailwheel's wires to the last ring) and the snap-blocker up to the station's crown (internal, inside
+    // the tube). Both the same: refs.tw and refs.tw2, one law each (30_solver twLine), the same kind (the row's)
+    const iT = BOOMS.iTail, xT = BOOMS.xs[iT];
+    twX = S.gear.twX !== null && S.gear.twX !== undefined ? S.gear.twX : xT - 0.10;
+    const twId = [];
+    // ...ITS LEG LONG ENOUGH FOR THE POD: the line from the mains' contact to the tail contacts passes under the pod's
+    // keel (every ring's bottom and the post, aft of the mains) by 5 cm - a pod that runs as far aft as the booms (a spec
+    // without its drawing) otherwise met the ground first, and the aeroplane bounced off its own tail cone onto its nose
+    const gyC = gy - (S.gear.contactR || 0.2);
+    let yCmax = Infinity;
+    for (const nd of [...F.map(f => f.BL), TPB]) {
+      const xj = nodes[nd].p[0], yj = nodes[nd].p[1];
+      if (xj > gx + 0.3) yCmax = Math.min(yCmax, gyC + (yj - 0.05 - gyC) * (twX - gx) / (xj - gx));
+    }
+    for (const sd of ['L', 'R']) {
+      const q = BOOMS[sd][iT], pr = BOOMS[sd][iT - 1], yb = Math.min(nodes[q.I].p[1], nodes[q.O].p[1]);
+      const zc = 0.5 * (nodes[q.I].p[2] + nodes[q.O].p[2]);
+      let y = S.gear.twY !== null && S.gear.twY !== undefined ? S.gear.twY
+        : yb - (S.gear.twLeg !== null && S.gear.twLeg !== undefined ? S.gear.twLeg : R.twLeg);
+      if (y - (S.gear.twR || 0.1) > yCmax) y = yCmax + (S.gear.twR || 0.1);
+      if (sd === 'L') twY = y;
+      const W_ = N(twX, y - twDy, zc, 'TW', twRN);
+      B(W_, q.I, 'gear', false, 'leg'); B(W_, q.O, 'gear', false, 'leg');
+      B(W_, pr.I, 'gear', false, 'wire'); B(W_, pr.O, 'gear', false, 'wire');
+      B(W_, q.T, 'gear', false, 'inner');
+      pt(W_, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);
+      twId.push(W_);
+    }
+    [TW, TW2] = twId;
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -52183,7 +52521,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     twY = S.gear.twY !== null && S.gear.twY !== undefined
       ? S.gear.twY : nodes[TPB].p[1]
         - (S.gear.twLeg !== null && S.gear.twLeg !== undefined ? S.gear.twLeg : R.twLeg);
-    TW = N(twX, twY, 0, 'TW', S.gear.twR);
+    TW = N(twX, twY - twDy, 0, 'TW', twRN);
     // Six members, and on a real tailwheel exactly one of them is hardware you
     // can see: the spring the wheel hangs on. Report: "too many struts, no
     // spring". So the tailpost member IS the spring/oleo, the pair to the last
@@ -52200,7 +52538,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the tailwheel assembly, by size
+    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
   } else {
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
@@ -52829,6 +53167,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
@@ -52842,7 +53181,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   secClose();                                       // the last section's mx (G457)
   const parts = {
-    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
+    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW, TW2,
     TAIL,                       // P4: the stab's and fin's spar nodes and planform
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
@@ -53478,6 +53817,26 @@ function genStrips(S, fr) {
   // between the spars as the wing's does. Before this, 60 % of the stab's
   // load went to the post pair and the tail's incidence was the body's.
   const T = P.TAIL;
+  // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame T.vee) - each panel's bays are 'vtail' strips on their
+  // own four spar nodes, so the solver takes the canted normal from the DEFORMED panel (as the wing's and the P4 tail's);
+  // fIn is the tip-side station and fOut the root-side one, so with side = the boom's side (+1 the +z boom) the span
+  // vector (fOut - fIn) x side runs +z-ward and the normal comes out up-and-inboard: a normal V's panel's, moved down -
+  // the ruddervator mix (30_solver: elevator symmetric, rudder x side) holds as it is. cosV for the plant's areas (genPlant)
+  if (T && T.vee) {
+    const cfV = (T.rearV - 0.25) / (T.rearV - T.sparFront), crV = 1 - cfV;
+    const cV = CORE_MATH.cos(T.G), sV = CORE_MATH.sin(T.G);
+    for (const pn of T.panels) {
+      for (let b = 0; b < pn.nV; b++) {
+        const u0 = b / pn.nV, u1 = (b + 1) / pn.nV;
+        strips.push({ kind: 'vtail', side: pn.side, t: 0.5, cosV: cV, sinV: sV, chord: pn.chordV(0.5 * (u0 + u1)),
+          area: (pn.b1 / pn.nV) * 0.5 * (pn.chordV(u0) + pn.chordV(u1)),
+          fIn: pn.VF[b + 1], fOut: pn.VF[b], rIn: pn.VR[b + 1], rOut: pn.VR[b],
+          w: [[pn.VF[b], cfV * 0.5], [pn.VF[b + 1], cfV * 0.5], [pn.VR[b], crV * 0.5], [pn.VR[b + 1], crV * 0.5]],
+          wash: tailWash * R.stabWash });
+      }
+    }
+    return strips;
+  }
   if (T && T.HF && (T.fins || T.VF)) {
     const cfH = (T.rearH - 0.25) / (T.rearH - T.sparFront), crH = 1 - cfH;
     for (const [side, sd] of [[-1, 'L'], [1, 'R']]) {
@@ -54783,12 +55142,13 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
-    // G3575: the full-swivel third wheel (30_solver's breakout law) - the key only when chosen
-    ...(S.gear.twSwivel === true ? { twSwivel: 1 } : {}),
+    // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
+    // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
+    ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
     // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
     // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver
-    // has always flown it - but the gear page's 'full swivel' (G3575: 30_solver twSwivel, the breakout law; the row's old
+    // has always flown it - but the gear page's tail contact (G3800: 30_solver twLine - steerable, lockable, fixed or a skid; the row's old
     // 'castor' was the picture's only)
     tyre: (() => {
       const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));
@@ -62912,7 +63272,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, TW_SCOTT, TW_SKID_MU, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -62929,7 +63289,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='751bbdc79a42';window.FLYDIY_BUILD='fe35dc5b2cb3';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ad81a4c47e1c';window.FLYDIY_BUILD='a4d505add666';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -64004,7 +64364,7 @@ const CAGE_PARTS = [
       ['construction', ['stCons']],
       // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
       // two angles — G2760: no second 'position' heading)
-      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant', 'stIvGap']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stThick', 'stThickTE']],
       ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
@@ -66863,6 +67223,12 @@ function iconSteer(mode) {
   if (mode === 1) return { vb: '0 0 64 40', paths: [
     { d: box(24, 20, 0.45) }, { d: 'M27 20 L52 20', w: 1 },
     { d: 'M52 14 L56 14 L56 26 L52 26 Z', w: 1 }] };
+  // G3800: the lockable wheel (the castor, a pin through its pivot) and the skid (a sprung blade, its shoe on the ground)
+  if (mode === 3) return { vb: '0 0 64 40', paths: [
+    { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L32 16', w: 1.6 },
+    { d: box(32, 24, 0) }, { d: 'M24 8.4 L40 8.4', w: 2.2 }] };
+  if (mode === 4) return { vb: '0 0 64 40', paths: [
+    { d: 'M14 10 Q34 12 46 30', w: 2.6 }, { d: 'M40 31 L54 31 L54 34 L40 34 Z' }, { d: 'M8 36 L58 36', w: 1 }] };
   return { vb: '0 0 64 40', paths: [
     { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
     { d: box(37, 24, 0.4) }] };
@@ -67495,7 +67861,8 @@ const DESIGN_ROWS = [
     // V is live: the stab layer cants its panels (stCant), roots them on the
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
-    read: P => +P.stCant >= 20 ? 'v'
+    read: P => Math.round(P.stMount) === 4 ? 'iv'
+             : +P.stCant >= 20 ? 'v'
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
     options: [
@@ -67518,6 +67885,12 @@ const DESIGN_ROWS = [
         note: 'two canted panels, no fin — ruddervators',
         writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
                           finOn: 0 } } },
+      // G3800 (TAILWHEELS, the user 3 Nov): THE INVERTED V ON TWIN BOOMS (the RQ-7 Shadow's layout): a panel down and
+      // inboard from each boom, no fin, the tail's wheels at the two tips (the gear page's tail contact, either kind)
+      { value: 'iv', label: 'Inverted V', hide: P => !+P.boomTwin,
+        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }),
+        note: 'a panel down from each boom toward the centreline; the tailwheels ride the tips',
+        writes: { cage: { stMount: 4, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 } } },
       // 'Twin boom' was a greyed tile here ("needs a twin tail CARRIER") and
       // the user read it as a stab option that did nothing: "either deleted
       // or made to work". It works where it belongs — the Booms tile (G271
@@ -67757,6 +68130,8 @@ const DESIGN_ROWS = [
       { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
       { value: 3, label: 'Between the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
+      { value: 4, label: 'Inverted V', icon: iconSeat(3),
+        hide: P => !+P.boomTwin, writes: { cage: { stMount: 4 } } },
     ] },
   { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',
     group: 'propulsion', status: 'live', slot: true, twin: ['eng_exStyle'],
@@ -67790,17 +68165,34 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Streamlined', icon: iconLegFair(1),
         writes: { cage: { ['s' + i + 'LegFair']: 1 } } },
     ] })),
-  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'SteerT',
+  { key: 'mainsSteerT',
     label: 'Steering', kind: 'discriminator',
-    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Steer'],
-    read: P => Math.round(P['s' + i + 'Steer'] || 0),
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s1Steer'],
+    read: P => Math.round(P.s1Steer || 0),
     options: [
-      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { ['s' + i + 'Steer']: 0 } } },
+      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { s1Steer: 0 } } },
       { value: 1, label: 'Linked', icon: iconSteer(1),
-        note: 'turned by the rudder pedals', writes: { cage: { ['s' + i + 'Steer']: 1 } } },
+        note: 'turned by the rudder pedals', writes: { cage: { s1Steer: 1 } } },
       { value: 2, label: 'Castor', icon: iconSteer(2),
-        note: 'free to swivel, trailing its pivot', writes: { cage: { ['s' + i + 'Steer']: 2 } } },
-    ] })),
+        note: 'free to swivel, trailing its pivot', writes: { cage: { s1Steer: 2 } } },
+    ] },
+  // G3800 (TAILWHEELS): THE TAIL CONTACT, the four kinds that fly (30_solver twLine; the gear page's TW_STEERS). An old
+  // save's 0 reads as the steerable wheel it always flew
+  { key: 'thirdSteerT',
+    label: 'Tail contact', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s2Steer'],
+    read: P => Math.max(1, Math.round(P.s2Steer || 0)),
+    options: [
+      { value: 1, label: 'Steerable', icon: iconSteer(1),
+        note: 'sprung to the rudder; swivels free past its arc in a tight turn, re-locks near centre (Scott type)',
+        writes: { cage: { s2Steer: 1 } } },
+      { value: 2, label: 'Lockable', icon: iconSteer(3),
+        note: 'locked straight for the runway, a free castor to taxi (brake and power steer it)',
+        writes: { cage: { s2Steer: 2 } } },
+      { value: 3, label: 'Fixed', icon: iconSteer(0), note: 'always straight', writes: { cage: { s2Steer: 3 } } },
+      { value: 4, label: 'Skid', icon: iconSteer(4),
+        note: 'a sprung skid on a steel shoe: it drags, and that is the brake', writes: { cage: { s2Steer: 4 } } },
+    ] },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
@@ -95597,7 +95989,8 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
   // the steering arm's two ears — where a spring hooks on — port first
   const ears = [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                                     mul(F(side), s * 0.052)));
-  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears };
+  // (G3800: no link, no ears - a lockable or a fixed wheel has no steering arm for the springs to hook on)
+  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears: showLink ? ears : null };
 }
 
 // ONE STEERING RUN: a coil spring at the wheel end (`e`, the steering arm's
@@ -95664,8 +96057,10 @@ function legTailwheel(bags, AF, P, st) {
   // spring drops by that rise as well, so the wheel stays on the design
   // ground line (the mount says how much - see _cage_gear.js rodMount)
   const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
-  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop - rise, tipZ];
-  const ctrl = [0, root[1] - P.twSpringDrop * 0.30,
+  // G3800: a mount may carry its own keel and its own line (a twin boom's: the boom's belly, off the centreline)
+  const keelAt = (st.mount && st.mount.keelAt) || AF.keelAt, x0 = (st.mount && st.mount.x0) || 0;
+  const tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];
+  const ctrl = [x0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
@@ -95711,12 +96106,47 @@ function legTailwheel(bags, AF, P, st) {
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
                          P.twSpringT * (leaves - 0.5) + 0.016),
          mul(F.n, -1), 0.009, 0.024);
+  // G3800 (TAILWHEELS): THE TAIL SKID (the row's 4) - no castor, no wheel: the leaf spring runs on down as the skid's
+  // blade to a STEEL SHOE (a hardened plate with an upturned toe, bolted under the blade) whose sole stands on the
+  // contact line the wheel's tyre would have touched (the castor's own hub geometry, P.twLegDrop / twTrail / twRake,
+  // less the radius) - so the stance, and the join's measure (the contact R under a virtual axle), are the wheel's
+  if (st.steer === 4) {
+    const rk = P.twRake * D2R, axS = nrm([0, -Math.cos(rk), Math.sin(rk)]);
+    const hubS = add(off(tip, axS, P.twLegDrop), [0, 0, -P.twTrail]);
+    const yS = Math.min(hubS[1] - st.R, keelAt(hubS[2]) - 0.05);   // the sole (never above the keel's line)
+    const shoe = [x0, yS + 0.008, hubS[2]];
+    const blade = resample(bez(tip, [x0, 0.5 * (tip[1] + shoe[1]) + 0.02, tip[2] - 0.35 * (tip[2] - shoe[2])],
+                               [x0, shoe[1] + 0.014, shoe[2] + 0.05], 8), 10);
+    sweep(bags.steel, blade, t => secBlade(P.twSpringW * (0.78 - 0.18 * t), P.twSpringT * 1.2), true, [1, 0, 0]);
+    boxIn(bags.steel, shoe, [Math.max(0.03, P.twSpringW * 0.9), 0.008, 0.11], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    sweep(bags.steel, resample([[x0, yS + 0.010, shoe[2] + 0.105], [x0, yS + 0.030, shoe[2] + 0.140]], 3),
+          () => secBlade(Math.max(0.03, P.twSpringW * 0.9) * 2, 0.008), true, [1, 0, 0]);   // the toe, upturned
+    for (const sz of [-0.05, 0.05]) bolt(bags.alloy, [x0, yS + 0.018, shoe[2] + sz], [0, 1, 0], 0.006, 0.016);
+    return { axle: [x0, yS + st.R, shoe[2]], axis: [1, 0, 0], root, tip, travel: nrm([0, 1, 0.35]), skid: true };
+  }
   // G58.3: a caller that wants the castor assembly separable (the cage
   // join yaws it for ground manoeuvring) passes `bags.castorBags`; the
   // bench and every other caller fall through unchanged.
+  // G3800: only the STEERABLE wheel (1, and an old save's 0) is linked to the rudder - its arm, its ears, its springs
+  // (the hinge layer draws them to the horn); the lockable (2) and the fixed (3) have none, and say what holds them
+  const linked = !(st.steer === 2 || st.steer === 3);
   const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
-                       P.twSteer, st.steerByHinge ? 'ears' : true,   // G326
-                       h => [h[0], Math.min(h[1], AF.keelAt(h[2]) - 0.018), h[2]]);
+                       P.twSteer, linked ? (st.steerByHinge ? 'ears' : true) : false,   // G326
+                       h => [h[0], Math.min(h[1], keelAt(h[2]) - 0.018), h[2]]);
+  if (!linked) {
+    // on the swivel housing's top (the fixed airframe side): the LOCK - a pin housing aft of the swivel, its plunger
+    // into the fork's notch and the cockpit's cable forward (2); or the FIXED wheel's clamp collar and bolt (3)
+    const T0 = tip, ax = u.ax || [0, -1, 0];
+    if (st.steer === 2) {
+      boxIn(bags.alloy, [T0[0], T0[1] + 0.012, T0[2] - 0.045], [0.022, 0.018, 0.030], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      bolt(bags.steel, [T0[0], T0[1] + 0.012, T0[2] - 0.075], [0, 0, 1], 0.006, 0.040);
+      sweep(bags.steel, resample([[T0[0], T0[1] + 0.030, T0[2] - 0.045], [T0[0], T0[1] + 0.07, T0[2] - 0.02],
+                                  [T0[0], T0[1] + 0.09, T0[2] + 0.10]], 6), () => secRound(0.0025, 6), true, [1, 0, 0]);
+    } else {
+      revolve(bags.steel, off(T0, ax, 0.004), ax, [[0.036, 0], [0.036, 0.016]], 16, true);
+      bolt(bags.steel, [T0[0] + 0.036, T0[1] - 0.012, T0[2]], [1, 0, 0], 0.006, 0.020);
+    }
+  }
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
   // G133: THE SMALL WHEEL GETS ITS SPAT — and it goes into the castor's own
   // bags, so a steered tailwheel steers its fairing with the fork. `full`
@@ -95738,12 +96168,36 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
+// G3800 (TAILWHEELS): THE INVERTED V's TIP WHEEL - the tail's contact at a panel's tip (st.mount: the tip, metres, the
+// panel's underside there): a short castor fork hung from the tip on its own housing, the wheel in it - or, for the skid
+// (st.steer 4), a steel shoe under the tip on a short blade. The hub stands R + 3 cm under the tip (61_gen_frame's T.vee
+// rule, so a spec without its drawing flies the same wheel). Returns the leg families' record
+function legTipWheel(bags, AF, P, st) {
+  const tipP = st.mount(0).p, x0 = tipP[0];
+  const hub = [x0, tipP[1] - st.R - 0.03, tipP[2]];
+  if (st.steer === 4) {
+    const yS = hub[1] - st.R;
+    sweep(bags.steel, resample([[x0, tipP[1] + 0.01, tipP[2] + 0.04], [x0, 0.5 * (tipP[1] + yS), tipP[2] - 0.01],
+                                [x0, yS + 0.012, tipP[2] - 0.05]], 6),
+          () => secBlade(0.04, 0.008), true, [1, 0, 0]);
+    boxIn(bags.steel, [x0, yS + 0.008, tipP[2] - 0.04], [0.035, 0.008, 0.09], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    return { axle: [x0, yS + st.R, tipP[2]], axis: [1, 0, 0], root: tipP, tip: tipP, travel: [0, 1, 0], skid: true };
+  }
+  // the fork straight down from the tip (no rake, no trail of its own: the panel IS the post)
+  const Pf = Object.assign({}, P, { twRake: 0, twTrail: Math.min(P.twTrail || 0.03, 0.5 * st.R),
+                                    twLegDrop: Math.max(0.03, tipP[1] - hub[1]) });
+  const top = [x0, tipP[1], tipP[2] + Pf.twTrail];
+  const u = castorUnit(bags.castorBags || bags, Pf, top, 1, st.R, 0, false);
+  wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
+  return { axle: u.hub, axis: u.axis, root: top, tip: top, travel: [0, 1, 0], castor: u };
+}
+
 window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
-                    legTailwheel, Bag };
+                    legTailwheel, legTipWheel, Bag };
 })();
 </script>
 <script type="text/x-flydiy">
@@ -95870,7 +96324,12 @@ const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
 // G3575 (DC3-2, the user 26 Oct: "do the swivelling tailwheel ... if no one uses castor, you may ... replace it with your full
 // swivel mechanics"): 'castor' was the picture's only (every third wheel flew linked); its slot is now the FULL SWIVEL
 // wheel, the one of the three the physics reads (_cage_join gear.twSwivel) - no saved build carried it
-const STEERS = ['fixed', 'linked', 'full swivel'];   // (the third wheel's row shows 'linked' and 'full swivel' only: _cage_gear.js)
+const STEERS = ['fixed', 'linked', 'full swivel'];   // (the MAINS' row - picture only; the third wheel's is TW_STEERS)
+// G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT, four kinds that fly (30_solver twLine): 1 the steerable
+// Scott-type wheel (the Cub's, the default), 2 the lockable wheel (the DC-3's: locked straight for the runway, a free
+// castor to taxi), 3 fixed straight, 4 the tail skid. Every index keeps its number: 0 (an old 'fixed' that flew linked)
+// is shown as 1 and flies 1; G3575's 2 ('full swivel', the DC-3's) is the lockable wheel
+const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
@@ -95961,7 +96420,7 @@ const gearStations = P => {
   return out;
 };
 
-window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, WHEEL_ROWS,
+window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, TW_STEERS, WHEEL_ROWS,
                      PRESETS, gearDefaults, gearLegP, gearStations };
 })();
 </script>
@@ -111184,7 +111643,9 @@ const station = (i, name) => [name, [
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
   // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
-  ['s' + i + 'Steer', 'steering',     i === 2 ? 1 : 0, 2, 1, GP.STEERS, i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2] }) : sOn(i)],
+  // G3800: the third wheel's own four kinds (GP.TW_STEERS; 0 an old save's, shown and flown as 1)
+  ['s' + i + 'Steer', i === 2 ? 'tail contact' : 'steering', i === 2 ? 1 : 0, i === 2 ? 4 : 2, 1, i === 2 ? GP.TW_STEERS : GP.STEERS,
+   i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2, 3, 4] }) : sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
@@ -111315,8 +111776,38 @@ PAGE.post = ctx => {
   // (One cage-side remap first: tailwheel stations are TAIL-RELATIVE —
   // see the defaults note above. The bench keeps absolute stations.)
   const stations = GP.gearStations(P);
+  // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): on TWIN BOOMS the
+  // tailwheel is a pair, one under each boom's tail end (CAGE_BOOMS, the wing layer's; tail-relative to the boom's own
+  // end as it is to the pod's on a single body), the same row for both
+  const TBg = (+P.boomTwin && typeof window !== 'undefined' && window.CAGE_BOOMS && window.CAGE_BOOMS.yBot) ? window.CAGE_BOOMS : null;
   for (const st of stations)
-    if (st.leg === 3) st.z = AF.z0 + Math.max(0.02, st.z);
+    if (st.leg === 3) st.z = (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+  // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
+  // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
+  // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
+  const IVg = !!TBg && Math.round(+P.stMount || 0) === 4 && +P.stOn !== 0;
+  const tipMount = (st, sgn) => {
+    if (!IVg || st.leg !== 3) return null;
+    const gap = window.CAGE_IV_GAP ? window.CAGE_IV_GAP(P) : 0.30, G = Math.max(20, Math.min(55, +P.stCant || 35)) * D2R;
+    const pub = window.CAGE_IV_TIPS && window.CAGE_IV_TIPS.find(q => Math.sign(q[0]) === sgn);
+    const z = pub ? pub[2] : TBg.zTip + 0.25;
+    const y = pub ? pub[1] : 0.5 * (TBg.yTop(z) + TBg.yBot(z)) - (TBg.x - 0.5 * gap) * Math.tan(G);
+    const x0 = sgn * 0.5 * gap;
+    const provider = () => ({ p: [x0, y, z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] });
+    provider.x0 = x0; provider.tip = true;
+    return provider;
+  };
+  const boomMount = (st, sgn) => {
+    if (!TBg || st.leg !== 3) return null;
+    if (IVg) return tipMount(st, sgn);
+    const x0 = sgn * TBg.x;
+    const provider = (zOff, dx) => {
+      const z = st.z + (zOff || 0);
+      return { p: [x0 + (dx || 0), TBg.yBot(z), z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] };
+    };
+    provider.x0 = x0; provider.keelAt = z => TBg.yBot(z);
+    return provider;
+  };
 
   // G133: THE NEAREST SURFACE ABOVE THE WHEEL (user's rule). When the
   // WING'S UNDERSIDE at the axle's own span sits lower than the fuselage
@@ -111475,7 +111966,7 @@ PAGE.post = ctx => {
   // lateral offset says (two identical contacts otherwise).
   const isSingle = st => st.single != null ? !!st.single : st.x <= 0.01;
   for (const st of stations) {
-    const sides = (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
+    const sides = (st.leg === 3 && TBg) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r;
@@ -111486,14 +111977,16 @@ PAGE.post = ctx => {
                      tail: st.fairTail, rake: st.fairRake, width: st.fairW };
       // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
       // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
-      const m = st.root === 1 ? null : wingMount(st, sgn);
+      const bm = boomMount(st, sgn);             // G3800: a twin boom's tailwheel on its boom
+      const m = (st.root === 1 || bm) ? null : wingMount(st, sgn);
       // THE OPEN FRAME (2026-09-04, spec §1.7): with no skin the fuselage
       // contract is a surface that is not there — the leg roots on the
       // nearest truss member instead, with a pivot (see openMount); the
       // low-wing rule still wins where it applies
-      const rm = m ? null : rodMount(st);
-      const om = (m || rm) ? null : openMount(st, sgn);
-      if (m) { st.mount = m; onWing++; }
+      const rm = (m || bm) ? null : rodMount(st);
+      const om = (m || rm || bm) ? null : openMount(st, sgn);
+      if (bm) st.mount = bm;
+      else if (m) { st.mount = m; onWing++; }
       else if (rm) st.mount = rm;
       else if (om) st.mount = om;
       else delete st.mount;
@@ -111507,15 +112000,19 @@ PAGE.post = ctx => {
         // proxies route the spinning parts to the wheel unit, the fork
         // (and now its spat, G133) to the castor unit, and the spring —
         // with its trouser shroud — stays in the leg unit
+        // (G3800: on twin booms the -x boom's fork is THE castor - refs.tw, model z < 0; the other boom's fork is
+        // drawn with its leg: it rides its spring, it does not yaw in the picture)
         const cb = allBags();
-        const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
+        const yaws = !TBg || sgn < 0;
+        const proxy = Object.assign({}, lb, wu.wb, yaws ? { castorBags: cb } : {});
         // G326: the steering springs run to the RUDDER'S horn, which the
         // hinge layer draws — so it draws the runs too, from the ears the
         // castor publishes below. Without that layer (a bench without it)
         // the castor keeps its own picture.
         st.steerByHinge = !!window.HINGE_GEN;
-        r = GG.legTailwheel(proxy, AFx, st.P, st);
-        if (r.castor)
+        r = (st.mount && st.mount.tip && GG.legTipWheel) ? GG.legTipWheel(proxy, AFx, st.P, st)   // G3800: the V's tips
+          : GG.legTailwheel(proxy, AFx, st.P, st);
+        if (r.castor && yaws)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle, ears: r.castor.ears };
       } else {
@@ -113653,6 +114150,8 @@ PAGE.post = ctx => {
   dispose(group); group = null;
   dispose(group2); group2 = null;
   if (!P.finOn) return;
+  // G3800 (TAILWHEELS): the inverted V on twin booms (the stab layer's mount 4) IS the tail - no fin stands on the booms
+  if (+P.boomTwin && Math.round(+P.stMount || 0) === 4) return;
 
   const cutMode = Math.round(P.finCut || 0);
   // ROD BOOM (G26.4, harmless clamp): the keel extension wraps the
@@ -114050,9 +114549,12 @@ const GROUP = ['8b · tail — stab & elevator', [
       // T2.3 (140): the incidence — leading edge up +; drawn here, flown by
     // the frame (spec.tail.hInc through the join)
     ['stInc', 'incidence ° (LE up +)', -10, 10, 0.25],
-    ['stMount', 'root sits', 0, 3, 1,
+    ['stMount', 'root sits', 0, 4, 1,
      ['on the boom keel', 'on the boom deck', 'on the fin tip',
-      'between the booms']],
+      'between the booms', 'inverted V (from the booms)']],
+    // G3800 (TAILWHEELS): the inverted V's gap between its two tips (metres; each tip carries the tail's wheel)
+    ['stIvGap', 'inverted V · gap between the tips', 0.10, 1.20, 0.01,
+     { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4, dim: 'len' }],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
     ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
@@ -114142,6 +114644,9 @@ const dispose = o => {
 const $ = id => document.getElementById(id);
 
 const prevPost = PAGE.post;
+// G3800: the inverted V's tip gap (metres), the row's or 0.30
+const ivGapOf = P => Math.max(0.10, Math.min(1.20, P.stIvGap == null ? 0.30 : +P.stIvGap || 0.30));
+window.CAGE_IV_GAP = ivGapOf;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
@@ -114191,8 +114696,10 @@ PAGE.post = ctx => {
   // and the stab slides aft to the tip's own station (a swept fin's tip is
   // behind its root, and the stab is the fin model's stations). No fin
   // built = the deck seat; no deck = the historic absolute placement.
-  const mount = Math.round(P.stMount || 0);
-  const cantDeg = Math.max(0, +P.stCant || 0);
+  // G3800: mount 4, THE INVERTED V, is a twin boom's only (anywhere else it reads as 'between the booms' / the keel)
+  const mount0 = Math.round(P.stMount || 0), mount = mount0 === 4 && !TB ? 0 : mount0;
+  const IV = mount === 4;
+  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35)) : Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
   // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
   // the root chord's leading edge (the most forward root-line vertex)
@@ -114218,7 +114725,7 @@ PAGE.post = ctx => {
     if (under < plateTop) yRef += plateTop - under;        // lifted onto the plate
     rodSeat = { z: zH, yT, yB, plateTop, r: 0.5 * (yT - yB) };
   }
-  if (mount === 3 && deck)                       // the boom's own centre
+  if ((mount === 3 || IV) && deck)               // the boom's own centre
     yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
   if (mount === 2) {
     const FN = window.CAGE_FIN;
@@ -114254,7 +114761,10 @@ PAGE.post = ctx => {
   if (TB && TB.x > 0) {
     let H = -Infinity;
     for (const p of s.V) H = Math.max(H, p[1] - rootLine);
-    const want = (TB.x + Math.max(0, +P.stOver || 0)) / FSd - (P.stX || 0);
+    // G3800: the inverted V's panel runs from its boom's centre plane to gap / 2 off the centreline, canted: its own
+    // span is that over cos(cant)
+    const want = IV ? (TB.x - 0.5 * ivGapOf(P)) / Math.cos(cantDeg * Math.PI / 180) / FSd
+                    : (TB.x + Math.max(0, +P.stOver || 0)) / FSd - (P.stX || 0);
     if (H > 1e-6 && want > 0.05) {
       const k = want / H;
       s = Object.assign({}, s, { V: s.V.map(p => [p[0], rootLine + (p[1] - rootLine) * k, p[2]]) });
@@ -114295,8 +114805,20 @@ PAGE.post = ctx => {
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
                 sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
                 inc, incZ: FIN.stabIncZ(m0, rootLine) };
+  const ivTips = [];
+  // the lay of each half (side +1 / -1), the one every layer that re-lays the stab must use (_cage_hinge's hinge lines)
+  const layOf = side => IV ? Object.assign({}, lay, { side: -side, rootX: -TB.x / FSd, cant: -cant }) : Object.assign({ side }, lay);
   for (const side of [1, -1]) {
-    const half = FIN.finToStab(disp, Object.assign({ side }, lay));
+    // G3800: THE INVERTED V - each half laid from ITS boom (rootX the boom's centre plane) down and inboard: the mirror
+    // half's lay at the far boom's x with the cant negated, so the panel's upper face stays up (the ruddervator's
+    // sense is the elevator's, as on every V) and its winding is the mirror half's own
+    const half = FIN.finToStab(disp, layOf(side));
+    if (IV) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
+      let yMin = Infinity; for (const p of half.V) yMin = Math.min(yMin, p[1]);
+      let sx = 0, sz = 0, n = 0; for (const p of half.V) if (p[1] < yMin + 0.02) { sx += p[0]; sz += p[2]; n++; }
+      const FSt = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+      if (n) ivTips.push([sx / n * FSt, yMin * FSt, sz / n * FSt]);
+    }
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
       const sub = part
         ? { V: half.V, F: half.F.filter(f => f.part === part) } : half;
@@ -114347,6 +114869,7 @@ PAGE.post = ctx => {
   }
   group.scale.setScalar(FS);
   scene.add(group);
+  window.CAGE_IV_TIPS = IV ? ivTips : null;          // G3800: read by the gear layer on the next build
 
   // THE LAY, published with the cage (2026-09-03). `cage` is in FIN space —
   // the stab is the fin model laid flat (G23) — so a caller holding a named
@@ -114360,11 +114883,11 @@ PAGE.post = ctx => {
   // group's scale — the sweep once added it to metres unscaled) and the
   // cant/mount the join keys on. _tail_headless.js computes the same
   // object with no page; GATE FIN pins the two.
-  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
+  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay, layOf,
     cant: cantDeg, mount, inc: incDeg,
     measure: Object.assign(
       FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
-      { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }),
+      { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGapOf(P) : null }),
     clamped: m0.clamped || [] };                     // P3: the clamps that bit
   if (stat) {
     let t = `  ·  stab: L${L} ${s.V.length} v x2`;
@@ -114450,6 +114973,7 @@ function boomDeck(P) {
 // ---- the fin, as _cage_fin.js builds it -----------------------------------
 function buildFin(P, mesh, L, approx) {
   if (!+P.finOn) return null;
+  if (+P.boomTwin && Math.round(+P.stMount || 0) === 4) return null;   // G3800: the inverted V has no fin (_cage_fin.js)
   const cutMode = Math.round(P.finCut || 0);
   // ROD BOOM (G26.4): no keel wrap, no dorsal on a bare tube
   const S = FIN.finSpec(P.boomStyle ? { ...P, finKeel: 0, finDorsal: 0 } : P);
@@ -114504,8 +115028,11 @@ function buildStab(P, mesh, L, fin, approx) {
   const m0 = FIN.buildFin2(S);
   const dzS = deck ? deck.z0 - D().zCap : 0;
   let yRef = deck ? deck.bot(D().zH1 + dzS) : 0;
-  const mount = Math.round(P.stMount || 0);
-  const cantDeg = Math.max(0, +P.stCant || 0);
+  // G3800: mount 4, the inverted V, as _cage_stab.js reads it (a twin boom's only)
+  const mount0 = Math.round(P.stMount || 0), mount = mount0 === 4 && !TB ? 0 : mount0;
+  const IV = mount === 4;
+  const ivGap = Math.max(0.10, Math.min(1.20, P.stIvGap == null ? 0.30 : +P.stIvGap || 0.30));
+  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35)) : Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
   // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
   // the root chord's leading edge (the most forward root-line vertex)
@@ -114522,7 +115049,7 @@ function buildStab(P, mesh, L, fin, approx) {
     const under = yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05);
     if (under < plateTop) yRef += plateTop - under;
   }
-  if (mount === 3 && deck)
+  if ((mount === 3 || IV) && deck)
     yRef = 0.5 * (deck.top(D().zH1 + dzS) + deck.bot(D().zH1 + dzS));
   if (mount === 2 && fin && fin.disp && fin.disp.V.length) {
     let top = -Infinity;
@@ -114543,7 +115070,8 @@ function buildStab(P, mesh, L, fin, approx) {
   if (TB && TB.x > 0) {
     let H = -Infinity;
     for (const p of s.V) H = Math.max(H, p[1] - rootLine);
-    const want = (TB.x + Math.max(0, +P.stOver || 0)) / scaleOf(P) - (P.stX || 0);
+    const want = IV ? (TB.x - 0.5 * ivGap) / Math.cos(cant) / scaleOf(P)
+                    : (TB.x + Math.max(0, +P.stOver || 0)) / scaleOf(P) - (P.stX || 0);
     if (H > 1e-6 && want > 0.05) {
       const k = want / H;
       s = Object.assign({}, s, { V: s.V.map(p => [p[0], rootLine + (p[1] - rootLine) * k, p[2]]) });
@@ -114560,7 +115088,7 @@ function buildStab(P, mesh, L, fin, approx) {
   return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, inc: incDeg, clamped: m0.clamped || [],
            measure: Object.assign(
              FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
-             { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }) };
+             { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGap : null }) };
 }
 
 function tailBuild(P, opts) {
@@ -114600,7 +115128,8 @@ function tailRows(t) {
   if (t.stab && t.stab.measure.areaTail > 0) {
     const m = t.stab.measure;
     out.hSpan = 2 * (m.span + m.rootX);
-    if (isV) { out.Svt = 2 * m.areaTail; out.tailCant = t.stab.cant; }
+    if (t.stab.mount === 4) { out.ivS = 2 * m.areaTail; out.ivAngle = t.stab.cant; out.ivGap = m.ivGap; }   // G3800
+    else if (isV) { out.Svt = 2 * m.areaTail; out.tailCant = t.stab.cant; }
     else out.Sh = 2 * m.areaTail + 2 * m.rootX * m.chordRoot;
     out.hTaper = taperOf(m);
     if (m.ctlFrac > 0) out.elevChord = m.ctlFrac;
@@ -114626,7 +115155,8 @@ function tailApply(spec, rows) {
   const tl = spec.tail || (spec.tail = {});
   for (const k of ['hSpan', 'hChord', 'vHeight', 'vChord', 'Sh', 'Sv', 'Svt', 'hTaper', 'vTaper'])
     if (rows[k] > 0) tl[k] = rows[k];
-  if (rows.tailCant >= 20) { tl.type = 'v'; tl.vAngle = rows.tailCant; }
+  if (rows.ivAngle >= 20) { tl.ivAngle = rows.ivAngle; tl.ivGap = rows.ivGap; if (rows.ivS > 0) tl.ivS = rows.ivS; }   // G3800
+  else if (rows.tailCant >= 20) { tl.type = 'v'; tl.vAngle = rows.tailCant; }
   if (typeof rows.dorsalArea === 'number') tl.dorsal = Object.assign({}, tl.dorsal || {}, { area: rows.dorsalArea });
   if (rows.elevChord > 0 || rows.rudChord > 0) {
     const ct = spec.controls || (spec.controls = {});
@@ -122508,7 +123038,7 @@ function surfaceList(scene, P, FS, mesh) {
     for (const side of [1, -1]) {
       const nm = 'elev' + (side > 0 ? 'R' : 'L');
       if (!objOf[nm]) continue;
-      const lay = Object.assign({}, SB.lay, { side });
+      const lay = SB.layOf ? SB.layOf(side) : Object.assign({}, SB.lay, { side });   // (G3800: the inverted V's own lay)
       const map = p => FIN.finToStab({ V: [p], F: [] }, lay).V[0];
       const laid = L.map(p => V.mul(map([0, p[0], p[1]]), F2));
       // the slab's own normal, through the same map: the fin's thickness
@@ -123167,8 +123697,12 @@ PAGE.post = ctx => {
           const eye = V.add(hc, V.mul(side, sg * reach));
           revolve(bm.metal, V.add(eye, V.mul(up, -0.007)), up,
                   [[0.009, 0], [0.009, 0.014]], 8, true);
-          const e = CU.ears.find(q => q[0] * eye[0] > 0);
-          if (!e) continue;
+          // (G3800: the NEAREST ear on the eye's side of the castor - on twin booms the castor rides one boom, and only
+          // that boom's rudder horn reaches it; the other boom's horn finds none within the run's reach)
+          const cx = 0.5 * (CU.ears[0][0] + (CU.ears[1] || CU.ears[0])[0]);
+          const e = CU.ears.filter(q => (q[0] - cx) * (eye[0] - cx) > 0)
+            .sort((a, b) => V.len(V.sub(a, eye)) - V.len(V.sub(b, eye)))[0];
+          if (!e || V.len(V.sub(e, eye)) > 1.5) continue;
           const tip = V.add(eye, V.mul(up, -0.010));
           const bag = { steel: K.Bag(), alloy: K.Bag() };
           GGs.steerRun(bag, e, tip);
@@ -124662,10 +125196,13 @@ function cageJoinSpec(P, M, T) {
     // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
-    // G3575: THE FULL-SWIVEL THIRD WHEEL - the steering row's third type (GEAR_PAGE.STEERS[2]) reaches the physics; the
-    // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
-    // and the def are what they were, to the bit
-    if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
+    // G3800 (TAILWHEELS): THE TAIL CONTACT'S KIND - the steering row (GEAR_PAGE.STEERS): 1 steerable (and 0, an old
+    // save's 'fixed' that always flew linked) no key; 2 lockable (G3575's 'full swivel', the DC-3's) 'lock'; 3 fixed;
+    // 4 the skid. A tricycle's nose wheel stays the rudder's (62_gen_aero reads the key on a taildragger only)
+    { const sv = Math.round(+P.s2Steer || 0);
+      const mode = sv === 2 ? 'lock' : sv === 3 ? 'fixed' : sv === 4 ? 'skid' : null;
+      if (mode) spec.gear.twMode = mode; else delete spec.gear.twMode;
+      delete spec.gear.twSwivel; }
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -124903,6 +125440,11 @@ function cageJoinSpec(P, M, T) {
     // The frame raises its tail tops to this (a conventional tail reads it
     // through stabH; the twin boom has no fin-height ratio to invert)
     if (typeof M.stabY === 'number' && isFinite(M.stabY)) tl.stabY = M.stabY;
+    // G3800 (TAILWHEELS): the inverted V - stated whole when drawn, gone when not (a twin boom's V keys are its own)
+    if (typeof M.ivAngle === 'number' && M.ivAngle >= 20) {
+      tl.ivAngle = M.ivAngle; tl.ivGap = M.ivGap != null ? M.ivGap : 0.30; tl.ivS = M.ivS > 0 ? M.ivS : null;
+      tl.Sh = null; tl.Sv = null;
+    } else if (M.tailJoined) { tl.ivAngle = null; tl.ivGap = null; tl.ivS = null; }   // (stated: the merge keeps an absent key)
   }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
@@ -125783,9 +126325,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // ratio) and the note says so.
         const FNm = window.CAGE_FIN, SBm = window.CAGE_STAB;
         const stOnP = Math.round(P.stOn === undefined ? 1 : P.stOn);
-        const finM = (+P.finOn && FNm && FNm.measure) ? FNm.measure : null;
+        // (G3800: under the inverted V on twin booms the fin layer stands down - the panels are the tail)
+        const finOnJ = +P.finOn && !(+P.boomTwin && Math.round(+P.stMount || 0) === 4);
+        const finM = (finOnJ && FNm && FNm.measure) ? FNm.measure : null;
         const stabM = (stOnP && SBm && SBm.measure) ? SBm.measure : null;
-        if (+P.finOn && !finM)
+        if (finOnJ && !finM)
           ERRS.push('tail: the fin is drawn but not measured — the rule\'s fin flies');
         if (stOnP && !stabM)
           ERRS.push('tail: the stabiliser is drawn but not measured — the rule\'s tailplane flies');
@@ -125811,7 +126355,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             M.stabY = (sB.y0 + sB.y1) / 2 - yD;
           }
           const SBv = SBm, TBj = window.CAGE_BOOMS;
-          const isV = !!(SBv && SBv.cant >= 20);
+          // (G3800: the inverted V on twin booms - the stab layer's mount 4 - is measured as a V's panels: its area,
+          // its cant; filed as its own keys below, the twin's ivAngle / ivGap / ivS)
+          const isIV = !!(SBv && SBv.mount === 4 && TBj);
+          const isV = !!(SBv && SBv.cant >= 20) || isIV;
           // T2.3 (140): the stab's incidence, as drawn (degrees, LE up +)
           if (SBv && typeof SBv.inc === 'number' && isFinite(SBv.inc)) M.hInc = SBv.inc;
           // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
@@ -125880,7 +126427,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
               M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
             }
-            if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
+            if (isIV) {
+              // G3800: THE INVERTED V - its cant, its tip gap, both panels' true area (the V's Svt, measured)
+              M.ivAngle = SBv.cant; M.ivGap = SBv.measure && SBv.measure.ivGap;
+              if (M.Svt > 0) { M.ivS = M.Svt; delete M.Svt; }
+            } else if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
               // the oval's own crown at the stab station (the frame puts
               // the apex vHeight·0.82 above exactly that; the round tube's
               // top under-read a lofted boom by half its radius)
@@ -142726,7 +143277,7 @@ if (typeof module !== 'undefined') module.exports = PROP_DISC;
   function blobsFor(sim, def, world, o) {
     if (!S.on || !sim || !def || !world || !world.terrainH || sim.hydro) return [];
     const H = world.terrainH, p = sim.p, R = def.refs || {}, tW = (o && o.tyreW) || null;
-    const ids = (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : []);
+    const ids = (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : [], R.tw2 != null && R.tw2 >= 0 ? [R.tw2] : []);   // G3800: twin booms' two
     if (!ids.length) return [];
     _wh.length = 0;
     for (const i of ids) {
@@ -182720,6 +183271,7 @@ function makeSimHost(CORE, init, keptWorld) {
     const c = sim.ctl;
     for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
     if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
+    if (h.twLock === 0 || h.twLock === 1) c.twLock = h.twLock;   // G3800: the tailwheel lock (the hand's own handle)
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
@@ -184186,7 +184738,7 @@ const SIM_LINK = (() => {
       }
       if (S.manual && S.INP) {
         // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
-        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
+        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, twLock: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }
@@ -186506,6 +187058,11 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     // below 12 m/s, up at take-off power) unless the hand says - the handle's three places
     { id: 'waterRudder', kind: 'step', ctl: 'wr', label: 'water rudders', group: 'ground',
       hint: 'AUTO · UP · DOWN round (floats only)', keys: { key: 'KeyV' } },
+    // G3800 (TAILWHEELS): the LOCKABLE tailwheel's lock (the DC-3's, the warbirds'; 30_solver twLine law 2): IN pins it
+    // straight for the take-off and the landing, OUT lets it castor to taxi (steer it on the toe brakes and the
+    // engines). Any other tail contact ignores it. The aeroplane starts with it in
+    { id: 'twLock', kind: 'step', ctl: 'twLock', label: 'tailwheel lock', group: 'ground',
+      hint: 'IN · OUT (a lockable tailwheel only)', keys: { key: 'Slash' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -186809,6 +187366,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     let notches = [0], flapI = 0, flapOut = 0, flapRate = 0.15;
     let nEng = 1;
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
+    let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -187015,6 +187573,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
       trimR = air ? clamp(-fin(c.dr, 0), -TRIM_R_MAX, TRIM_R_MAX) : 0;   // (dr > 0 is nose LEFT: the pilot's right is -dr)
       trimA = air ? clamp(fin(c.da, 0), -TRIM_A_MAX, TRIM_A_MAX) : 0;
       wr = null;
+      twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -187129,6 +187688,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
         else if (id === 'trimRollL') trimA = clamp(trimA - TRIM_A_STEP, -TRIM_A_MAX, TRIM_A_MAX);
         else if (id === 'trimCentre') { trimR = 0; trimA = 0; }
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
+        else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -187171,6 +187731,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
       ctl.brake = bL === bR ? bL : (bL + bR) / 2;
       ctl.brakeD = bL === bR ? 0 : (bL - bR) / 2;
       ctl.wr = wr;
+      ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -187217,6 +187778,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
                        if (o.r != null) trimR = clamp(fin(o.r, 0), -TRIM_R_MAX, TRIM_R_MAX);
                        if (o.a != null) trimA = clamp(fin(o.a, 0), -TRIM_A_MAX, TRIM_A_MAX); },
       waterRudder: () => wr,
+      twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },
@@ -212787,7 +213349,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
           const tws = (def && def.params && typeof def.params.twSteer === 'number')
             ? def.params.twSteer : 0.5;
           const up = c.axis[1] < 0 ? -1 : 1;
-          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
+          // G3800 (TAILWHEELS): the fork as the solver has it (30_solver twLine: out.twState / twAng) - the rudder's
+          // while it steers, its own track while it castors, straight when locked or fixed (a skid has no fork)
+          const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+          const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+          c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
       }
