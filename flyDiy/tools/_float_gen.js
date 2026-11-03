@@ -143,9 +143,16 @@ function ringSide(P, s, o) {
   const rG = Math.min(o.rGun, 0.30 * (s.yd - s.yc), 0.30 * s.bd, 0.30 * (s.bd - 0));
   const pts = [];
   const push = (y, z, ny, nz) => pts.push([y, z, ny, nz]);
-  const tb = Math.tan(s.beta * D2R), cb = Math.cos(s.beta * D2R), sb = Math.sin(s.beta * D2R);
+  // FLOATS-CLASSIC: an EDO's bottom is CONVEX (32_hydro sectionOf: keel -> mid point M -> chine, two facets a side):
+  // the keel round reads the inner facet's slope, the chine round the outer's, and M is the keel support's place; a
+  // straight V's two slopes are its one deadrise (the same numbers as ever)
+  const edoB = !!(P.crownK && s.zm != null && s.b > 1e-6);
+  const bIn = edoB ? Math.atan2(s.ym - s.yk, Math.max(1e-9, s.zm)) : s.beta * D2R;
+  const bOut = edoB ? Math.atan2(s.yc - s.ym, Math.max(1e-9, s.b - s.zm)) : s.beta * D2R;
+  const tb = Math.tan(bIn), cb = Math.cos(bIn), sb = Math.sin(bIn);
+  const cbO = Math.cos(bOut), sbO = Math.sin(bOut), tbO = Math.tan(bOut);
   // the bottom's outward normal (down and out) and the side's
-  const nB = [-cb, sb];                        // [ny, nz]
+  const nB = [-cbO, sbO];                      // [ny, nz] (the outer facet's: the chine's)
   // the side's slope from the section's own chine and deck edge (the flare
   // dies toward the bow where the deck closes to its point)
   const fl = Math.atan2(s.bd - s.b, Math.max(1e-6, s.yd - s.yc));
@@ -164,19 +171,21 @@ function ringSide(P, s, o) {
   // the keel round's end on the bottom (z = r sin beta), and its support
   const tK = rKeel * sb;
   const onB = z => yK0 + z * tb;               // the bottom's y at z
-  const zKs = Math.min(tK + 1.6 * rKeel, 0.45 * s.b);
-  push(onB(zKs), zKs, nB[0], nB[1]);
+  const zKs = edoB ? s.zm : Math.min(tK + 1.6 * rKeel, 0.45 * s.b);
+  if (edoB) { const nx = -(cb + cbO), nz = sb + sbO, nl = Math.hypot(nx, nz) || 1; push(s.ym, s.zm, nx / nl, nz / nl); }
+  else push(onB(zKs), zKs, nB[0], nB[1]);
+  const onBo = edoB ? (z => s.ym + (z - s.zm) * tbO) : onB;   // the outer facet's y at z
   // 2. the chine round: centre inside, at distance rC from both the bottom and the side
   //    bisector of the bottom's and the side's inward normals
-  const iB = [cb, -sb], iS = [sf, -cf];        // inward normals
+  const iB = [cbO, -sbO], iS = [sf, -cf];      // inward normals
   const bis = [iB[0] + iS[0], iB[1] + iS[1]]; const bl = Math.hypot(bis[0], bis[1]) || 1; bis[0] /= bl; bis[1] /= bl;
   const half = Math.acos(Math.max(-1, Math.min(1, iB[0] * iS[0] + iB[1] * iS[1]))) / 2;   // half the angle between the normals
   const dC = rC / Math.max(0.2, Math.cos(half));
   const cC = [s.yc + bis[0] * dC, s.b + bis[1] * dC];
   const tC = rC * Math.tan(half);              // tangent length along each face
   // support on the bottom, then the arc from the bottom's normal to the side's
-  const zCs = Math.max(zKs + 1e-4, s.b - tC * Math.min(2.2, 0.35 * s.b / Math.max(1e-6, tC)) * cb);
-  push(onB(zCs), zCs, nB[0], nB[1]);
+  const zCs = Math.max(zKs + 1e-4, s.b - tC * Math.min(2.2, 0.35 * s.b / Math.max(1e-6, tC)) * cbO);
+  push(onBo(zCs), zCs, nB[0], nB[1]);
   const a0 = Math.atan2(nB[1], nB[0]), a1 = Math.atan2(nS[1], nS[0]);
   for (let i = 0; i <= NC; i++) {
     const a = a0 + (a1 - a0) * i / NC;
@@ -186,18 +195,18 @@ function ringSide(P, s, o) {
   const onS = y => s.b + (y - s.yc) * tf;      // the side's z at y
   const yCs = s.yc + Math.min(2.2 * tC, 0.35 * (s.yd - s.yc)) * cf;
   push(yCs, onS(yCs), nS[0], nS[1]);
-  // FLOATS-CLASSIC: THE EDO DOME - the side runs to its support under the shoulder, then the quarter ellipse from the
-  // deck edge (vertical, the side's own tangent) to the crown on the centreline: the same point count as the gunwale
-  // round + margin + centre below (NG + 4), so a ring is a ring whatever the style and the loft stays one grid
+  // FLOATS-CLASSIC: THE EDO TOPSIDE (measured, 32_hydro sectionOf) - the leaning side runs to a support under the
+  // shoulder, then the arc's seven points (HY.edoArc: the physics section's own) to the crown, each with the
+  // ellipse's normal: the same point count as the gunwale round + margin + centre below (NG + 4), so a ring is a ring
+  // whatever the style and the loft stays one grid
   if (P.crownK) {
-    const c = Math.max(0, s.yt - s.yd);
-    const yGs = Math.max(yCs + 1e-4, s.yd - Math.min(Math.max(0.25 * c, 0.004), 0.35 * (s.yd - s.yc)) * cf);
+    const yGs = Math.max(yCs + 1e-4, s.yd - Math.min(0.004 + 0.1 * Math.max(0, s.yd - s.yc), 0.35 * (s.yd - s.yc)) * cf);
     push(yGs, onS(yGs), nS[0], nS[1]);
-    const nD = NG + 3;
-    for (let i = 0; i < nD; i++) {
-      const a = (Math.PI / 2) * i / (nD - 1);
-      const ny = CORE_SIN(a) / Math.max(1e-6, c), nz = Math.cos(a) / Math.max(1e-6, s.bd), nl = Math.hypot(ny, nz) || 1;
-      push(s.yd + c * CORE_SIN(a), i === nD - 1 ? 0 : s.bd * Math.cos(a), ny / nl, nz / nl);
+    const arc = o.HY.edoArc(s), ph0 = s.arcPhi;
+    for (let i = 0; i < arc.length; i++) {
+      const ph = ph0 + (Math.PI / 2 - ph0) * i / (arc.length - 1);
+      const ny = CORE_SIN(ph) / Math.max(1e-6, s.arcC), nz = Math.cos(ph) / Math.max(1e-6, s.arcA), nl = Math.hypot(ny, nz) || 1;
+      push(arc[i][0], arc[i][1], ny / nl, nz / nl);
     }
     return pts;
   }
@@ -370,6 +379,9 @@ function buildProtrusions(P, HY, o, sc) {
     const ka = keelPath(0.02 * sc, LA - o.rTransom, 12);
     stripSweep(bag, ka.path, ka.frames, secRRect(P.keelW, P.keelH, 0.6 * P.keelH, 2), true);
   }
+  // (FLOATS-CLASSIC: an EDO's bottom is plain skin over INTERNAL stringers - the plan's formers notch them inside - and
+  // its chine carries no spray strap: the keel strip is its only protrusion)
+  if (P.crownK) return bag;
   // THE SISTER KEELSONS: a side, from 0.10 xs ahead of the step to where
   // the bottom starts to lift into the stem (0.82 xs), on the warped bottom
   for (const sd of [-1, 1]) {
@@ -578,7 +590,7 @@ function buildDeck(P, HY, o, sc) {
 // EDO 2000s on Super Cubs and Cherokees and the owners' repair threads: a round hand-hole cover per bay on the crown, a
 // pump-out cup per bulkhead on the outboard shoulder, a horn cleat bow and stern, the spreader-bar saddles and the strut
 // fittings at the two rigging stations - every one sat on the DOME (HYDRO.deckYAt), not on a flat deck line.
-const EDO_FIT = 0.72;   // the EDO's deck fittings (spreader saddles, strut plates): this fraction of the half-beam out
+const EDO_FIT = 0.85;   // the EDO's deck fittings (spreader saddles, strut plates): this fraction of the shoulder's half-width out
 function buildDeckEdo(P, HY, o, sc) {
   const deck = Bag(true), hard = Bag(false);
   const xs = P.xs, LA = P.L - P.xs;
@@ -728,7 +740,7 @@ function build(P, opts) {
     rKeel: 0.55 * P.keelW, rChine: P.rChine, rGun: P.rGun, rLip: P.rLip, rTransom: P.rTransom,
     margin: 0.035 * sc,
     xAft: opts.xAft != null ? opts.xAft : 0.36 * sc,
-    nF: opts.nF, nA: opts.nA,
+    nF: opts.nF, nA: opts.nA, HY,
     // FLOATS-CLASSIC: the EDO's fat rubber bow cap (Wipline: the 12 mm cap 4 cm deep it always was)
     bumperT: P.crownK ? 0.022 : 0.012, bumperL: P.crownK ? 0.13 : 0.04,
   };

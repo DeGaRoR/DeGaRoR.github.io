@@ -1,6 +1,44 @@
 # FLOATS-CLASSIC — the EDO-style rounded-deck float (2026-11-03)
 
-## Round 2: the section measured, weight and price (supersedes the round-1 shape and numbers below)
+## Round 3: the whole hull off the plan (supersedes rounds 1 and 2)
+
+The user, on round 2: "the belly looks exactly the same as the Wipline line. And I'm not even sure there is the
+shoulder in the one I gave you. So did you pay sufficient attention there to the actual profile and the shape of the
+float, rather than assuming it's the same as the Wipline?"
+
+**Round 2 had not.** It measured two small formers, one of them badly (its chine was cut off by the crop). It concluded
+that the topside is one ellipse from the chine, and kept the Wipline's bottom, profile, bow and step.
+
+**Round 3 reads all six formers, the top view and the side view.** See `edo_plan_sections.md`; the figure is
+`edo_measured_vs_model.png`.
+
+- **The section.** Widest at the chine; the sides LEAN IN ~23 deg to a shoulder at 0.69 of the half-beam and ~2/3 up;
+  a round top over it. There is no chine lip or strap: the round-2 straps and sister keelsons are gone.
+- **The belly is convex.** On the main formers it runs nearly flat out from the keel, then rises steeply to the chine.
+  The bow and stern formers are a straight V. ~23 deg overall.
+- **The profile.** A level deck. The keel is flat over 0.34 of the forebody, then a convex rocker runs into a raked,
+  low, round bow with no near-vertical stem; it is fitted within 0.01 of the depth to eight points. A small step (0.12
+  of the depth) at 0.573 L, and a stern 0.385 of the depth deep.
+- **The sizes.** The plan's proportions are fixed and the hull is scaled to each model number's buoyancy. The EDO 2000
+  comes out 4.67 m (15.3 ft) against the owners' 16 ft bumper to transom.
+- **The fidelity.** The physics section is the drawn one (to 0.04 %). Every Wipline hull is still master's to the
+  bit.
+
+**Pictures** (`node tools/quickshot.js`, the node rasteriser; floats brightened in the head-on crops):
+
+- `front_pa18_wipline_vs_edo2000.png`: the PA-18 head on, Wipline 2100 against EDO 2000 (its certified float).
+- `front_c172_wipline_vs_edo2440.png`: the Cessna head on, Wipline against EDO 2440.
+- `side_pa18_wipline_vs_edo2000.png`: the PA-18 side by side, Wipline against EDO.
+- `pa18_edo2000_q.png` / `_side.png`, `c172_edo2440_*`, `dc3_edo28000_q/side/front.png`.
+- `pa18_wipline_*`, `c172_wipline_*`: the references.
+
+**On the water** (GATE FLOATSCLASSIC-WATER, `floatsclassic_water3.txt`).
+
+Round 2's weight and price table below still stands.
+
+---
+
+## Round 2: the section measured (SUPERSEDED by round 3), weight and price (still current)
 
 The user, on round 1: "a tad flat on top ... Did you find blueprints or accurate measurements? If not, we'll need
 these not to eyeball it ... It needs to come with weight and price."
@@ -36,16 +74,7 @@ the floats instead of the wheels a float build doesn't have:
 The PA-18 on Wipline lifts off at 22.7 s after 236 m. Its EDO hull holds 973 kg a float to the deck, against the
 Wipline's 1,171.
 
-**Pictures, round 2.** From `node tools/quickshot.js`, the node rasteriser (the user: "use the simple rendering tool
-for screenshots, not the game"):
-
-- `front_pa18_wipline_vs_edo.png`, `front_c172_wipline_vs_edo.png`: the floats head on, brightened. The EDO is a bell
-  on a V; the Wipline is a flat deck on flared sides.
-- `pa18_*_q.png` / `_side.png`, `c172_*`: 3/4 and side views, Wipline vs EDO classic.
-- `dc3_edo28000_q.png`, `_side.png`, `_front.png`: the DC-3 on EDO 78-28000s.
-- `edo_section_measured.png`: the plan's former F2 beside the model's section, with the measured points over it.
-- `round1/`: the round-1 stills from the game's renderer, with the old, flatter top. The water stills are there too;
-  quickshot draws no water.
+**Pictures, round 2:** replaced by round 3's. Round 1's game-renderer stills are in `round1/`.
 
 ---
 

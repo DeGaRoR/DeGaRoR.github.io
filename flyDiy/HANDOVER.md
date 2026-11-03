@@ -311239,3 +311239,39 @@ giant-scale (1/4-1/5) EDO float plan: top view, side view, a dozen formers.
 - MEASURED ON THE WATER (GATE FLOATSCLASSIC-WATER): the DC-3 on 78-28000s 11,115 kg, reserve 2.37, 1.9 deg nose up,
   0.74 m of draft, lift-off 53.4 s / 1006 m; the PA-18 in EDO classic over its Wipline rows: 973 kg a float to the deck
   (the flat deck's 1171), reserve 2.58, lift-off 23.5 s / 245 m (Wipline 22.7 s / 236 m).
+
+## FLOATS-CLASSIC.3 - THE WHOLE EDO HULL OFF THE PLAN: THE BELLY, THE PROFILE, THE SIDES (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .2: "the belly looks exactly the same as the Wipline line. And I'm not even sure there is the shoulder in the
+one I gave you ... did you pay sufficient attention ... to the actual profile and the shape of the float". No: .2 read
+two small formers (one with its chine cropped off) and kept the Wipline's bottom, profile, bow and step.
+- READ (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_measured_vs_model.png): all six formers, the top view
+  and the side view, on x4-x5 crops with an original-pixel grid. SECTION: widest at the chine, the sides LEAN IN ~23
+  deg (19-30) to a shoulder at 0.69 (0.63-0.74) of the half-beam, ~2/3 up the topside, a round top over it; no chine
+  lip; height 0.67-0.83 of the beam; the BELLY CONVEX on the big mid-body formers (A, B, D: ~10 deg from the keel, ~31
+  to the chine), a straight V at the ends; ~23 deg (not .2's 25). PROFILE (the side view, drawn tilted 4.6 deg, read
+  against its deck): a LEVEL deck (parallel to the flat keel: no sheer), the keel flat over ~0.4 of the forebody, a
+  convex rocker into a raked round bow (the nose's front 0.85 of the depth), NO near-vertical stem, a small step (0.12
+  of the depth; a Wipline's ~0.17) at 0.573 L, a stern 0.385 of the depth deep. PLAN: L/B 6.65, the beam full 0.29-0.53
+  L, a blunt bow, a linear afterbody to 0.70. The side view reads ~13 % deeper than the formers at the same beam: only
+  its ratios are used.
+- MODEL (32_hydro): EDO_STYLE = crownK 0.34 (the arc's share of the topside) + shoulderZ 0.69 + tumble 23 (the arc's
+  tangent at the shoulder) + belly 0.5 (the bottom's mid point at half the straight V's height, faded to a straight V
+  by 0.8 of the forebody / 0.9 of the afterbody) + sheerK 0; bowDrop / noseMul retired (still read if a record has
+  them). The section: K, M (the belly's mid), C, the leaning side to E (the shoulder), six arc facets to T - the drawn
+  ring's own points (edoArc), the physics' two bottom facets each with its own deadrise. THE SIDE IS ONE SKIN THROUGH
+  THE STEP (domeStepRec): the afterbody's side is the side, the forebody's chine a little wider at the step (2-3 cm a
+  side on the 2000, faded by 0.3 of the forebody) - both on the plan's beam left the afterbody's side outboard of the
+  forebody's, a forward-facing lip, and the loft leaked (0.01-0.08 m2 in x). EDO_HULL (an EDO preset writes these
+  rows): step 0.573 L / 0.12 of the depth, keel flat 0.34, stem 0.40, rake 45 deg at xs/H 5.2 (rescaled to each hull's
+  own proportions), nose round 0.15 - fitted to the plan's eight keel points within 0.01 of the depth - deadrise 23 /
+  bow 26 / aft 22, planK 5.5, flare 0; the afterbody angle solved for a 0.385 stern. edoPresetParams: the plan's
+  proportions (L/B 6.65, H/B 0.80) SCALED to the model number's buoyancy - the EDO 2000 4.67 m (15.3 ft; the owners'
+  16 ft is bumper to transom), the 1320 4.07 m; the Model 78 keeps its sourced 42 ft x 5 ft 8 in and its height is
+  solved (0.70 of the beam). FLOAT_GEN: the EDO's drawn bottom has the belly's crease, its keel round the inner facet's
+  slope, its chine round the outer's; no sister keelsons or chine straps (the plan notches its stringers INSIDE) - the
+  keel strip only. Fittings and the frame's deck nodes at 0.85 of the shoulder's half-width, on the arc. Drawn =
+  physics within 0.04 %; every Wipline hull master's to the bit (the pin).
+- PICTURES (the user: "use the simple rendering tool for screenshots, not the game"): tools/quickshot.js - the PA-18 on
+  Wipline 2100s vs on EDO 2000s (its certified float) head on and side by side, the Cessna on EDO 2440s, the DC-3.
+- Not modelled: the formers' station-by-station variation beyond the belly fade (one mean law); the plan's slight
+  shoulder knuckle (smoothed to ~10 deg between facets); the internal stringers.

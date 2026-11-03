@@ -324,16 +324,26 @@ const noseRof = P => (P.noseMul ? P.noseR * P.noseMul : P.noseR) * P.H;
 const bowFade = t => { const u = Math.max(0, Math.min(1, (t - 0.5) / 0.5)); return u * u * (3 - 2 * u); };
 // the dome's height at the step (FLOATS-CLASSIC): crownK of the topside over the HIGHER chine of the step's two sides
 // (the forebody's, and the afterbody's a step up on its own deadrise), cached per hull like the keel
-function domeStep(P) {
-  if (P._dome && P._dome.P === P) return P._dome.c;
+function domeStepRec(P) {
+  if (P._dome && P._dome.P === P) return P._dome;
   const bS = chineHalfStep(P), yt0 = deckAt(P, 0);
   const ycF = bS * Math.tan(P.beta * D2R);
   const ycA = Math.min(P.hs, 0.88 * P.H - bS * Math.tan(P.betaA * D2R)) + bS * Math.tan(P.betaA * D2R);
-  const c = Math.min(P.crownK, 0.985) * Math.max(0, yt0 - Math.max(ycF, ycA));
+  const c = P.crownK * Math.max(0, yt0 - Math.max(ycF, ycA));
+  // THE SIDE IS ONE SKIN THROUGH THE STEP: the afterbody's chine sits a step higher at the same beam, so its leaning
+  // side (chine to shoulder) is the side; the forebody's continues it DOWN AND OUT to its own, lower chine - wider by
+  // `wide` at the step (2.5 cm a side on an EDO 2000), fading back to the plan's beam over the forebody's aft 0.3.
+  // (Both sides on the plan's beam left the afterbody's side outboard of the forebody's: a forward-facing lip at the
+  // step, and the loft's step faces over-counted by its area - closure 0.01-0.08 m2 along x.)
+  const zsS = Math.min(1, P.shoulderZ != null ? P.shoulderZ : 0.69) * bS, ydS = yt0 - c;
+  const tS = Math.max(0, bS - zsS) / Math.max(1e-6, ydS - ycA);
+  const wide = Math.max(0, (zsS + ydS * tS) / (1 + Math.tan(P.beta * D2R) * tS) - bS);
+  const r = { P, c, wide };
   // (not enumerable: a P is copied with Object.assign and JSON'd by readers; the identity check above drops a copy's)
-  Object.defineProperty(P, '_dome', { value: { P, c }, writable: true, configurable: true, enumerable: false });
-  return c;
+  Object.defineProperty(P, '_dome', { value: r, writable: true, configurable: true, enumerable: false });
+  return r;
 }
+const domeStep = P => domeStepRec(P).c;
 // the deck's line: level at H aft of the step, a sheer rising toward the
 // bow over the forebody (H sheerK t^2), rounding down into the stem over
 // the last noseR
@@ -357,12 +367,14 @@ function chineHalfStep(P) {
 function sectionOf(P, x) {
   const xs = P.xs, LA = P.L - P.xs, K = keelOf(P);
   const bS = chineHalfStep(P);
-  let yk, b, beta, body;
+  let yk, b, beta, body, bPlan;
   if (x <= 0) {
     body = 'F';
     const t = Math.min(1, -x / xs);
     yk = K.at(x);
     b = bS * planF(P, t);
+    bPlan = b;
+    if (P.crownK) b += domeStepRec(P).wide * (1 - smooth01(t / 0.3));   // FLOATS-CLASSIC: the side through the step (domeStepRec)
     // the warp lives in the forward third (t^2.5): the planing region aft
     // of the flat keeps the step's deadrise, or the hull loses its lift at
     // the hump (measured: t^1.6 read 25 deg a metre ahead of the step and
@@ -391,43 +403,70 @@ function sectionOf(P, x) {
   const yc = yk + hc;
   // (the bow tip is a POINT: the 4 mm the deck keeps over the chine dies with the beam)
   let yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
-  // FLOATS-CLASSIC: the dome - `yt` the centreline's top (the deck line), `yd` the deck EDGE crownK H under it (dying
-  // with the beam at the bow, never more than 0.6 of the side); a Wipline's yt is its yd
+  // FLOATS-CLASSIC: `yt` the centreline's top (the deck line); a Wipline's yt is its yd
   const yt = yd;
-  // (the dome's height is the STEP section's - over the higher of its two chines - wherever the hull is that deep: the
-  // topside is one curve across the step, which is in the bottom only; it shrinks where the hull does, never below
-  // 3 % of the side over the local chine)
-  if (P.crownK) yd = yt - Math.min(domeStep(P), Math.min(P.crownK, 0.985) * (yt - yc));
+  if (P.crownK) {
+    // THE EDO TOPSIDE, MEASURED (the user's EDO plan, six formers - reports/evidence/FLOATS-CLASSIC/
+    // edo_plan_sections.md): from the chine (the widest point) the side LEANS IN ~23 deg, straight, up to a shoulder
+    // at ~0.69 of the half-beam and ~0.66 of the topside's height; above it the top is one elliptic arc to the crown,
+    // TANGENT at the shoulder to a `tumble`-deg lean (no knuckle, no lip). crownK is the arc's share of the topside;
+    // the arc's height is the STEP section's over the higher of its two chines wherever the hull is that deep (one
+    // topside across the step - the step is in the bottom only), crownK of the local topside where it is shallower.
+    const h = Math.min(domeStep(P), P.crownK * Math.max(0, yt - yc));
+    const zs = Math.min(1, P.shoulderZ != null ? P.shoulderZ : 0.69) * (bPlan != null ? bPlan : b);
+    yd = yt - h;
+    // the arc: an ellipse quarter from the shoulder to the crown with its tangent at the shoulder leaning `tumble`:
+    // sin(phiS) = q / (1 - q), q = h tan(tumble) / zs (closed form; q held under 0.45)
+    const q = zs > 1e-9 ? Math.min(0.45, h * Math.tan((P.tumble != null ? P.tumble : 23) * D2R) / zs) : 0;
+    const sn = q / (1 - q);
+    // THE BELLY, MEASURED: on the plan's main formers (A, B, D - the step region) the bottom is CONVEX - nearly flat
+    // from the keel (~10 deg) to about half the half-beam, then ~31 deg up to the chine: its mid point (0.52 of the
+    // half-beam out) sits at about HALF the straight V's height there. The bow's and the stern's formers are straight
+    // V: the convexity fades from full over the middle (0.4 of the forebody ahead of the step, 0.4 of the afterbody
+    // aft) to none at 0.8 / 0.9. `belly` is the mid point's drop as a fraction of the straight V's height there
+    const tF = x <= 0 ? -x / xs : 0, uA = x > 0 ? x / LA : 0;
+    const cv = (P.belly || 0) * (x <= 0 ? 1 - smooth01((tF - 0.4) / 0.4) : 1 - smooth01((uA - 0.4) / 0.5));
+    const zm = 0.52 * b, ym = yk + zm * Math.tan(beta * D2R) * (1 - cv);
+    return { x, yk, b, bd: zs, beta, hc, body, yc, yd, yt, arcC: h / (1 - sn), arcA: zs / Math.sqrt(1 - sn * sn), arcPhi: Math.asin(sn), zm, ym };
+  }
   // the deck edge: the side flares outward by a CONSTANT offset (the flare
   // angle over the side's height at the step — a chine that rises aft of
   // the step must not kink the gunwale line), dying with the beam so the
   // bow's plan closes to its point
-  // (FLOATS-CLASSIC: a domed topside flares only over the straight side it keeps under the dome)
-  const bd = P.crownK ? b + (yd - yc) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B))
-                      : b + (P.H - bS * Math.tan(P.beta * D2R)) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B));
+  const bd = b + (P.H - bS * Math.tan(P.beta * D2R)) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B));
   return { x, yk, b, bd, beta, hc, body, yc, yd, yt };
 }
 // the section as a closed polygon in (y, z), keel to deck, starboard side
 // listed z >= 0 then mirrored: K, C, E (the gunwale's chamfer foot), D (the
 // deck edge). The PHYSICS loft and levelVolume both read exactly this.
 function secPoly(P, s) {
-  // FLOATS-CLASSIC: a domed topside is the quarter ellipse from its foot (E, the side's top) to T on the centreline,
-  // SIX FACETS a side at 15 deg steps - the drawn ring's own points (FLOAT_GEN ringSide), so the physics section IS
-  // the drawn one: D is the 15 deg point, R the 30-75 deg ones
+  // FLOATS-CLASSIC: the EDO topside - C (the chine) to E (the shoulder) the leaning side, then the arc to T on the
+  // centreline in SIX FACETS a side, evenly in its angle - the drawn ring's own points (FLOAT_GEN ringSide), so the
+  // physics section IS the drawn one: D the first arc point, R the next four
   if (P.crownK) {
-    const c = s.yt - s.yd, dm = a => [s.yd + c * CORE_MATH.sin(a), s.bd * CORE_MATH.cos(a)];
-    const R = []; for (let k = 2; k <= 5; k++) R.push(dm(k * Math.PI / 12));
-    return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd, s.bd], D: dm(Math.PI / 12), R, T: [s.yt, 0], bv: 0, dome: true };
+    const pts = edoArc(s);
+    return { K: [s.yk, 0], M: [s.ym, s.zm], C: [s.yc, s.b], E: pts[0], D: pts[1], R: pts.slice(2, 6), T: [s.yt, 0], bv: 0, dome: true };
   }
   const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
   return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
 }
-// the deck's height at a lateral offset z (the drawing's fittings, the deck hardware): a flat deck is yd; a dome is
-// its ellipse (the shoulder beyond the deck edge reads the edge)
+// the EDO arc's seven points, shoulder (k 0) to crown (k 6), evenly in the ellipse's angle: [y, z]
+function edoArc(s) {
+  const y0 = s.yt - s.arcC, out = [];
+  for (let k = 0; k <= 6; k++) {
+    const ph = s.arcPhi + (Math.PI / 2 - s.arcPhi) * k / 6;
+    out.push(k === 6 ? [s.yt, 0] : k === 0 ? [s.yd, s.bd] : [y0 + s.arcC * CORE_MATH.sin(ph), s.arcA * CORE_MATH.cos(ph)]);
+  }
+  return out;
+}
+// the deck's height at a lateral offset z (the drawing's fittings, the deck hardware): a flat deck is yd; an EDO's is
+// its arc over the shoulder (the leaning side below it reads the shoulder)
 function deckYAt(P, s, z) {
   if (!P.crownK) return s.yd;
-  const u = Math.min(1, Math.abs(z) / Math.max(1e-9, s.bd));
-  return s.yd + (s.yt - s.yd) * Math.sqrt(Math.max(0, 1 - u * u));
+  const az = Math.abs(z);
+  if (az >= s.bd) return s.yd;
+  const ph = Math.acos(Math.min(1, az / Math.max(1e-9, s.arcA)));
+  return s.yt - s.arcC + s.arcC * Math.sin(ph);
 }
 
 function makeFloat(over = {}) {
@@ -455,6 +494,7 @@ function makeFloat(over = {}) {
     // FLOATS-CLASSIC: the dome's 30-75 deg pairs and its crown on the centreline (a flat deck has none): s.Rm / s.Rp
     // run D (15 deg), the four, then T - the ladder every dome panel walks
     if (q.dome) {
+      s.Hm = push([s.x, q.M[0], -q.M[1]]); s.Hp = push([s.x, q.M[0], q.M[1]]);   // the convex bottom's mid point
       s.Rm = [s.Dm]; s.Rp = [s.Dp];
       for (const r of q.R) { s.Rm.push(push([s.x, r[0], -r[1]])); s.Rp.push(push([s.x, r[0], r[1]])); }
       s.T = push([s.x, q.T[0], 0]); s.Rm.push(s.T); s.Rp.push(s.T);
@@ -480,8 +520,14 @@ function makeFloat(over = {}) {
       // afterbody and every step face came out inward: the closure sum read
       // -2x their area and a level float felt 71 N fore-aft at rest)
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
+      if (dome) {
+        // (an EDO's bottom is two facets a side: the step face between the two bottoms is two quads a side)
+        quad('step', s0.K, s1.K, s1.Hm, s0.Hm, { side: -1, body: 'A', beta: 0, ref: rs }); quad('step', s0.Hm, s1.Hm, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
+        quad('step', s0.K, s1.K, s1.Hp, s0.Hp, { side: 1, body: 'A', beta: 0, ref: rs }); quad('step', s0.Hp, s1.Hp, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
+      } else {
       quad('step', s0.K, s1.K, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
+      }
       tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
       tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
       // G451: the flared side's chamfer foot and deck edge sit at different
@@ -500,8 +546,16 @@ function makeFloat(over = {}) {
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
+    if (dome) {
+      // the EDO's convex bottom: the inner facet (keel to mid) and the outer (mid to chine), each its own deadrise
+      const bIn = 0.5 * (Math.atan2(s0.ym - s0.yk, Math.max(1e-9, s0.zm)) + Math.atan2(s1.ym - s1.yk, Math.max(1e-9, s1.zm))) / D2R;
+      const bOut = 0.5 * (Math.atan2(s0.yc - s0.ym, Math.max(1e-9, s0.b - s0.zm)) + Math.atan2(s1.yc - s1.ym, Math.max(1e-9, s1.b - s1.zm))) / D2R;
+      quad(bk, s0.K, s1.K, s1.Hm, s0.Hm, Object.assign({ side: -1, beta: bIn }, m)); quad(bk, s0.Hm, s1.Hm, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: bOut }, m));
+      quad(bk, s0.K, s1.K, s1.Hp, s0.Hp, Object.assign({ side: 1, beta: bIn }, m)); quad(bk, s0.Hp, s1.Hp, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: bOut }, m));
+    } else {
     quad(bk, s0.K, s1.K, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: 0.5 * (s0.beta + s1.beta) }, m));
     quad(bk, s0.K, s1.K, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: 0.5 * (s0.beta + s1.beta) }, m));
+    }
     quad('side', s0.Cm, s1.Cm, s1.Em, s0.Em, Object.assign({ side: -1, beta: 0 }, m));
     quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
     quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
@@ -515,13 +569,15 @@ function makeFloat(over = {}) {
   { // bow cap and stern transom
     const s = sta[0];
     const rb = [s.x + 0.05, s.ref[1], 0];
-    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
+    if (dome) { tri('bow', s.K, s.Hm, s.Hp, { side: 0, body: 'F', beta: 0, ref: rb }); quad('bow', s.Hm, s.Cm, s.Cp, s.Hp, { side: 0, body: 'F', beta: 0, ref: rb }); }
+    else tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
     if (dome) { for (let k = 0; k + 2 < s.Rm.length; k++) quad('bow', s.Rm[k], s.Rp[k], s.Rp[k + 1], s.Rm[k + 1], { side: 0, body: 'F', beta: 0, ref: rb });
                 const n = s.Rm.length; tri('bow', s.Rm[n - 2], s.Rp[n - 2], s.T, { side: 0, body: 'F', beta: 0, ref: rb }); }
     const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
-    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
+    if (dome) { tri('stern', e.K, e.Hm, e.Hp, { side: 0, body: 'A', beta: 0, ref: re }); quad('stern', e.Hm, e.Cm, e.Cp, e.Hp, { side: 0, body: 'A', beta: 0, ref: re }); }
+    else tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
     if (dome) { for (let k = 0; k + 2 < e.Rm.length; k++) quad('stern', e.Rm[k], e.Rp[k], e.Rp[k + 1], e.Rm[k + 1], { side: 0, body: 'A', beta: 0, ref: re });
@@ -584,7 +640,7 @@ function secAreaTo(P, s, hw) {
   const top = Math.min(hw, s.yt);
   if (top <= s.yk) return 0;
   // the starboard half-polygon keel -> C -> E -> D, then the centreline back (FLOATS-CLASSIC: a dome's R and its crown)
-  const pts = q.dome ? [q.K, q.C, q.E, q.D, ...q.R, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  const pts = q.dome ? [q.K, q.M, q.C, q.E, q.D, ...q.R, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -1848,7 +1904,7 @@ const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 
                          'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
                          'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow',
                          // FLOATS-CLASSIC: the EDO deck (present on a classic record only; `style` rides as a string)
-                         'crownK', 'bowDrop', 'noseMul'];
+                         'crownK', 'bowDrop', 'noseMul', 'shoulderZ', 'tumble', 'belly'];
 // ---- FLOATS-CLASSIC: THE EDO FAMILY (2026-11-03) ----------------------------------------------------------------------
 // The user's reference photos (a PA-18 over a fjord, a PA-28 on grass) wear EDO floats: the PA-18S's type certificate
 // (FAA TCDS 1A2) lists "Edo 89-2000 floats", and the PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963). An EDO
@@ -1859,22 +1915,38 @@ const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 
 // stay what they were. The model number is the float's buoyancy in pounds fully submerged (the EDO convention), so
 // `flot` (the hull's volume to the deck, what the fit honours) IS the model number in kilograms; `disp` is taken as
 // flot / 1.1 (the Wipline sheets' ratio). SOURCED (links: reports/evidence/FLOATS-CLASSIC/README.md): the 89-2000's
-// 16 ft bumper to transom (the EDO book, quoted by owners) and its 263 lb installed pair (PA-18S); the 1320's ~15 ft;
-// the Model 78 (C-47C / XC-47C, 1943, and N130Q today): 42 ft, 5 ft 8 in of beam, 29,000 lb a float. MEASURED (the
-// user's giant-scale EDO plan, 3 Nov): the plan's length over its beam, 6.7; the sections' height over beam, 0.74-0.80;
-// the deadrise ~25 deg. So: L sourced where it is (1320, 2000, Model 78), else the 2000's scaled by the cube root of
-// the buoyancy; B = L / 6.7 (the Model 78's own 1.73); the fineness pinned at 25 deg of deadrise and H SOLVED for the
-// buoyancy - it lands at 0.80 of the beam on every row (0.69 on the 1320, whose ~15 ft is long for its size), the top
-// of the plan's measured band: the measured shape and the model number agree. Every dimension not sourced is est.
-const EDO_STYLE = { style: 'edo', crownK: 0.97, bowDrop: 0.12, noseMul: 1.8 };
+// 16 ft bumper to transom (the EDO book, quoted by owners) and its 263 lb installed pair (PA-18S); the Model 78
+// (C-47C / XC-47C, 1943, and N130Q today): 42 ft, 5 ft 8 in of beam, 29,000 lb a float. MEASURED (the user's
+// giant-scale EDO plan, 3 Nov - reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md): the top view's length over its
+// beam, 6.7; six formers' section law (EDO_STYLE) and the side view's profile (EDO_HULL). So: L sourced where it is
+// (2000, Model 78), else the 2000's scaled by the cube root of the buoyancy; B = L / 6.7 (the Model 78's own 1.73);
+// every shape number the plan's, and H SOLVED for the model number's buoyancy (edoPresetParams) - it lands at 0.73-0.76
+// of the beam on every row, inside the formers' 0.67-0.83: the measured shape and the model numbers agree. Every
+// dimension not sourced is est.
+// THE STYLE (what turns a hull EDO over the rows): the measured topside - the arc 0.34 of the topside over a shoulder
+// at 0.69 of the half-beam, its tangent there leaning 23 deg - and a LEVEL deck (the plan's deck runs parallel to the
+// flat keel ahead of the step: no sheer). The bow and the belly are the rows' (an EDO preset writes the measured ones,
+// EDO_HULL); bowDrop / noseMul (round 1, eyeballed) are retired - a record that carries them still reads them.
+const EDO_STYLE = { style: 'edo', crownK: 0.34, shoulderZ: 0.69, tumble: 23, sheerK: 0, belly: 0.5 };
 // THE EDO AFTERBODY PLAN, measured off the same plan's top view (the chine outline against its centreline): the beam
 // held from ~0.29 to ~0.53 L, then closing almost LINEARLY from the step to a WIDE stern, 0.70 of it - where a
 // Wipline holds its beam to the aft spreader bar and closes as the square to half (WIPLINE_AFT). The keel's rise is the
 // Wipline's (the plan's side view is drawn tilted at a resolution that does not resolve a degree)
-const EDO_AFT = { aftAngle: 5.9, aftCurve: 0, aftHold: 0, aftPow: 1.0, bStern: 0.70 };
+const EDO_AFT = { aftAngle: 9.1, aftCurve: 0, aftHold: 0, aftPow: 1.0, bStern: 0.70 };
+// THE EDO BELLY AND BOW, measured off the plan's side view (drawn tilted 4.6 deg; read against its own deck line,
+// which runs parallel to the flat keel ahead of the step) and its formers - an EDO preset writes these rows:
+//   the step at 0.573 L, 0.12 of the depth deep; the keel FLAT over 0.34 of the forebody from the step, then a convex
+//   rocker into a bow raked 45 deg, 0.40 of the depth tall, under a nose round of 0.15 (the nose's front at 0.85 of
+//   the depth) - fitted to eight keel points within 0.01 of the depth; NO near-vertical stem (a Wipline's is 12 deg);
+//   the deadrise ~23 deg on six formers (19-28; the big ones slightly hollow, kept straight here), 26 at the bow, 22
+//   aft; the afterbody keel rising to a stern 0.385 of the depth (the angle solved per hull, edoPresetParams; ~7-8
+//   deg - EDO_AFT's 9.1 is the side view's raw reading, a style-switched hull's); the plan full (planK 5.5:
+//   the beam 0.55 at 3 % of the length); no flare (the sides lean in, the style's tumble)
+const EDO_HULL = { xsK: 0.573, hsK: 0.12, beta: 23, betaBow: 26, betaA: 22, flatK: 0.34, stemK: 0.40, rake: 45, noseR: 0.15,
+                   planK: 5.5, flare: 0 };
 const EDO_PRESETS = {
-  'EDO 1320':     { L: 4.57, B: 0.68, H: 0.47, disp: 545,  flot: 599,   mSys: 75,   price: 12000,   gross: 590,   est: true,
-                    for: 'Piper J-3 / PA-11 (sourced: ~15 ft; J-3C-65S 1,300 lb)' },
+  'EDO 1320':     { L: 4.25, B: 0.63, H: 0.47, disp: 545,  flot: 599,   mSys: 75,   price: 12000,   gross: 590,   est: true,
+                    for: 'Piper J-3 / PA-11 (J-3C-65S 1,300 lb; a forum ~15 ft would put the measured hull at 0.62 of its beam - outside every former: the 2000 scaled, est.)' },
   'EDO 1650':     { L: 4.58, B: 0.68, H: 0.55, disp: 680,  flot: 748,   mSys: 75,   gross: 700,   est: true,
                     for: 'Cessna 140, PA-11, PA-18 (the 2000 is a 1650 with a plug ahead of the step)' },
   'EDO 2000':     { L: 4.88, B: 0.73, H: 0.58, disp: 825,  flot: 907,   mSys: 119,  price: 15000,  gross: 798,   est: true,
@@ -1887,7 +1959,7 @@ const EDO_PRESETS = {
                     for: 'de Havilland DHC-2 Beaver' },
   'EDO 7170':     { L: 7.47, B: 1.11, H: 0.90, disp: 2956, flot: 3252,  mSys: 460,  gross: 3629,  est: true,
                     for: 'de Havilland DHC-3 Otter, Noorduyn Norseman' },
-  'EDO 78-28000': { L: 12.80, B: 1.73, H: 1.39, disp: 11958, flot: 13154, mSys: 2300, mHull: 1036, gross: 12700,
+  'EDO 78-28000': { ownLB: true, L: 12.80, B: 1.73, H: 1.39, disp: 11958, flot: 13154, mSys: 2300, mHull: 1036, gross: 12700,
                     for: 'Douglas C-47C / DC-3 (sourced: 42 ft, 5 ft 8 in beam, 29,000 lb a float, ~1 t each; H, mSys and gross est.)' },
 };
 const EDO_PRESET_NAMES = Object.keys(EDO_PRESETS);
@@ -1961,18 +2033,47 @@ function fineParams(P, f) {
 // are honoured, the family supplies everything between them. The hull's
 // mass is 0.40 of the pair's system weight (the struts, spreaders and
 // wires are billed by the frame).
+// THE EDO ROWS (FLOATS-CLASSIC.3): the plan's SHAPE, the model number's SIZE. Every proportion is the plan's - length
+// 6.65 beams (its top view), height 0.80 of the beam (its main formers A, B, D: 0.81-0.83; all six 0.67-0.83), the
+// section law (EDO_STYLE), the profile and the belly (EDO_HULL) - and the whole hull is SCALED until it displaces the
+// model number to its deck: the EDO 2000 comes out 4.6-4.7 m against the owners' "16 ft bumper to transom" (4.88,
+// the bumper included). The Model 78 is another, longer float (its own sourced 42 ft x 5 ft 8 in): its L and B are
+// kept and its height solved.
+const EDO_LB = 6.65, EDO_HB = 0.80;
+function edoPresetParams(name, over) {
+  const R = EDO_PRESETS[name];
+  const own = R.ownLB;              // sourced L and B (the Model 78): solve the height
+  // the side view's numbers are DIMENSIONLESS (its depth reads ~13 % taller than the formers at the same beam, so its
+  // raw angles do not carry): the bow's rake is the fitted curve's in this hull's own xs / H (45 deg at the fit's 5.2),
+  // the afterbody keel the angle that leaves the stern 0.385 of the depth deep (the plan's) with the step 0.12 deep
+  const mk = sz => {
+    const L = own ? R.L : sz, B = own ? R.B : sz / EDO_LB, Hh = own ? sz : EDO_HB * sz / EDO_LB;
+    const xs = EDO_HULL.xsK * L, LA = L - xs, k = L / DEF.L;
+    const rake = Math.atan(Math.tan(EDO_HULL.rake * D2R) * (xs / Hh) / 5.2) / D2R;
+    const aftAngle = Math.atan((1 - 0.385 - EDO_HULL.hsK) * Hh / LA) / D2R;
+    const P = scaleParams(DEF, k, Object.assign({}, EDO_AFT, EDO_STYLE, EDO_HULL, { L, B, H: Hh, xs, hs: EDO_HULL.hsK * Hh, rake, aftAngle,
+      mFloat: R.mHull != null ? R.mHull : 0.40 * R.mSys, preset: name, disp: R.disp }));
+    delete P.xsK; delete P.hsK; delete P._keel;
+    P.scale = k;
+    return P;
+  };
+  let lo = own ? 0.3 * R.B : 0.5 * R.L, hi = own ? 1.6 * R.B : 1.5 * R.L;
+  for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (makeFloat(mk(m)).volDeck * DEF.rho > R.flot) hi = m; else lo = m; }
+  const P = mk(0.5 * (lo + hi));
+  P.volRes = makeFloat(P).volDeck * P.rho / R.flot - 1;
+  return Object.assign(P, over || {});
+}
 function presetParams(name, over) {
-  // FLOATS-CLASSIC: an EDO row is the same fit in the EDO style (its deck and bow); its H is the dome's top at the
-  // step (an EDO deck has no sheer to speak of over the bow drop: the overall height is near the step's)
-  const edo = !FLOAT_PRESETS[name] && EDO_PRESETS[name];
-  const R = FLOAT_PRESETS[name] || EDO_PRESETS[name];
+  // FLOATS-CLASSIC: an EDO row is its own hull - the plan's measured profile and section, its height solved for the
+  // model number (edoPresetParams); a Wipline row is the family's fineness fit, as it was
+  if (!FLOAT_PRESETS[name] && EDO_PRESETS[name]) return edoPresetParams(name, over);
+  const R = FLOAT_PRESETS[name];
   if (!R) return null;
   const k = R.L / DEF.L;
   // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
   // where the sheer tops out — so the family's H (at the step) is that over
   // (1 + sheerK)
-  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: R.mHull != null ? R.mHull : 0.40 * R.mSys, preset: name, disp: R.disp },
-                                                edo ? Object.assign({}, EDO_STYLE, EDO_AFT) : null));
+  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: R.mHull != null ? R.mHull : 0.40 * R.mSys, preset: name, disp: R.disp }));
   const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
   // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
   // wider transom — the small Wiplines, whose overall height leaves little
@@ -2694,7 +2795,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
-              EDO_STYLE, EDO_AFT, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
+              EDO_STYLE, EDO_AFT, EDO_HULL, edoArc, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;

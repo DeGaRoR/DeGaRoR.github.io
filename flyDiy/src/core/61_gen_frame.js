@@ -2628,10 +2628,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        // FLOATS-CLASSIC: an EDO's deck nodes sit where its fittings do, on the dome's upper shoulder (0.72 of the
-        // half-beam out: its topside is an ellipse from the chine, and the deck edge yd is near the chine itself); a
+        // FLOATS-CLASSIC: an EDO's deck nodes sit where its fittings do, on the arc just inside the shoulder (0.85 of
+        // the shoulder's half-width: bd is the shoulder on an EDO, yd its height); a
         // Wipline's are the deck edge over the chine half-beam, as they were
-        const zD = FP.crownK ? 0.72 * sc.bd : sc.b, yDn = FP.crownK ? HYDRO.deckYAt(FP, sc, zD) : sc.yd;
+        const zD = FP.crownK ? 0.85 * sc.bd : sc.b, yDn = FP.crownK ? HYDRO.deckYAt(FP, sc, zD) : sc.yd;
         const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, yDn);
         K.push(N(gx + kx, yK + ky, zc, 'FLK'));
         DL.push(N(gx + dx, yK + dy, zc - zD, 'FLD'));

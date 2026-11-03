@@ -20,8 +20,8 @@
 //   JOIN     the PA-18 floats build (builds/pa18_floats_2026-10-23.json) through the game's own load path: as saved its
 //            float record carries no style key; with the style row at 1 it carries style 'edo' + crownK / bowDrop /
 //            noseMul, and the frame flies that hull (def.parts.floats[0].P.crownK)
-//   WATER    (full) the DC-3 candidate (builds/candidates/dc3_2026-10.json) on EDO 78-28000s, and the PA-18 on its
-//            own floats in the classic style: each STANDS (20 s on the sea, idle: finite, at rest, the trim under
+//   WATER    (full) the DC-3 candidate (builds/candidates/dc3_2026-10.json) on EDO 78-28000s, the PA-18 on its
+//            own floats in the classic style, and the PA-18 on EDO 2000s (its certified float): each STANDS (20 s on the sea, idle: finite, at rest, the trim under
 //            6 deg, the prop clear of the water), FLOATS AT GROSS with the reserve >= 1.8, TAXIES (30 s on the pilot
 //            at a taxi throttle: it moves and stays finite), and LIFTS OFF in the hydroplane run (the bench's: the
 //            pilot from the sea lane, inside 75 s)
@@ -64,24 +64,40 @@ if (STATIC) {
     const R = H.EDO_PRESETS[nm], P = H.presetParams(nm), F = H.makeFloat(P);
     const o = FG.build(P, { HY: H, detail: 1, rudder: 1, paddle: -1, xAft: 0.28 * P.scale });
     const d = o.stats.vol / F.volDeck - 1;
-    const fitOk = Math.abs(F.volDeck * P.rho / R.flot - 1) < 1e-3 && P.fineK >= 0 && P.fineK <= 0.45 && P.beta >= 24 && P.beta <= 27;
+    const fitOk = Math.abs(F.volDeck * P.rho / R.flot - 1) < 1e-3 && P.beta === H.EDO_HULL.beta && Math.abs(P.xs / P.L - H.EDO_HULL.xsK) < 1e-9 && P.H / P.B >= 0.62 && P.H / P.B <= 0.86;
     ok(fitOk && o.stats.open === 0 && o.stats.vol > 0 && Math.abs(d) < 0.005 && o.deck.idx.length === 0 && P.style === 'edo',
-       `${nm}: fits ${R.flot} kg at f ${f2(P.fineK, 3)} (beta ${f2(P.beta, 1)} deg), drawn closed and outward, drawn/physics ${f2(100 * d, 2)} %, bare deck`);
+       `${nm}: the measured hull, its height solved for ${R.flot} kg: H ${f2(P.H, 3)} m = ${f2(P.H / P.B)} of the beam (the plan's formers 0.67-0.83); drawn closed and outward, drawn/physics ${f2(100 * d, 2)} %, bare deck`);
   }
   console.log('DOME - the section and the reserve');
   {
     const P = H.presetParams('EDO 2000'), F = H.makeFloat(P);
-    // THE MEASURED SECTION (the user's EDO plan, reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md): widest at the
-    // chine, the whole topside one half-ellipse from just over the chine to the crown, the height ~0.8 of the beam
-    const s = H.sectionOf(P, -0.2), c = s.yt - s.yd;
-    // (the mid-forebody formers, where the plan was measured: a third of the forebody ahead of the step)
-    const sS = H.sectionOf(P, -1e-9), sM = H.sectionOf(P, -0.33 * P.xs), hb = (sM.yt - sM.yk) / (2 * sM.b);
-    const side = (s.yd - s.yc) / (s.yt - s.yc);
-    ok(Math.abs(s.yt - H.deckAt(P, -0.2)) < 1e-12 && side <= 0.25 && s.bd - s.b <= (s.yd - s.yc) * Math.tan(P.flare * Math.PI / 180) + 1e-9 && Math.abs(2 * sS.b - P.B) < 1e-9,
-       `the measured section: the crown at the deck line, ${f2(c, 3)} m of dome over ${f2(1000 * (s.yd - s.yc), 0)} mm of straight side (${f2(100 * side, 0)} % of the topside; the plan's F2 holds its beam to ~25 %), widest at the chine (= the hull width row; the flare row leans only the straight side)`);
-    ok(hb >= 0.74 && hb <= 0.84 && P.beta >= 24 && P.beta <= 27, `the plan's proportions: height ${f2(hb)} of the beam a third up the forebody (plan 0.74-0.80), ${f2(P.beta, 1)} deg of deadrise (plan ~25)`);
+    // THE MEASURED SECTION (the user's EDO plan, six formers - reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md):
+    // widest at the chine, the side leaning IN to a shoulder at ~0.69 of the half-beam and ~2/3 up the topside, an arc
+    // over it tangent to a 23 deg lean (no knuckle, no lip), the crown at the deck line
+    const s = H.sectionOf(P, -0.33 * P.xs), q = H.secPoly(P, s);
+    const lean = Math.atan2(s.b - s.bd, s.yd - s.yc) * 180 / Math.PI, shoulderAt = (s.yd - s.yc) / (s.yt - s.yc);
+    const e1 = q.E, e2 = q.D, arcLean = Math.atan2(e1[1] - e2[1], e2[0] - e1[0]) * 180 / Math.PI;   // the arc's first facet
+    ok(Math.abs(s.yt - H.deckAt(P, -0.33 * P.xs)) < 1e-12 && Math.abs(s.bd - 0.69 * s.b) < 0.03 * s.b &&
+       lean >= 15 && lean <= 32 && shoulderAt >= 0.55 && shoulderAt <= 0.80 && arcLean > lean - 8 && arcLean < 60,
+       `the measured section a third up the forebody: the side leans in ${f2(lean, 1)} deg (formers 19-30) to a shoulder ${f2(s.bd / s.b)} of the half-beam out (0.63-0.74), ${f2(shoulderAt)} up the topside (0.53-0.77), the arc leaving it at ${f2(arcLean, 1)} deg (tangent-ish: no knuckle)`);
+    // THE MEASURED PROFILE (the plan's side view, read against its deck): the keel flat 0.34 of the forebody from the
+    // step, a convex rocker into a 45 deg raked bow (no near-vertical stem), the nose's front at 0.85 of the depth, a
+    // step at 0.573 L 0.12 of the depth deep, the afterbody rising 9.1 deg to a stern ~0.39 of the depth
+    const keel = [[.42, .01], [.53, .05], [.64, .10], [.68, .12], [.72, .15], [.75, .19], [.83, .28], [.95, .58]];
+    const K = H.keelOf(P); let kErr = 0;
+    for (const [t, r] of keel) kErr = Math.max(kErr, Math.abs(K.at(-t * P.xs) / P.H - r));
+    const sA = H.sectionOf(P, 1e-9), sT = H.sectionOf(P, P.L - P.xs - 1e-6), sternD = (sT.yt - sT.yk) / P.H;
+    ok(kErr <= 0.02 && Math.abs(sA.yk / P.H - 0.12) < 1e-9 && sternD >= 0.30 && sternD <= 0.48 && P.sheerK === 0,
+       `the measured profile: the keel within ${f2(kErr, 3)} of the depth of the plan's eight points, the step 0.12 of the depth deep at ${f2(P.xs / P.L, 3)} L, the stern ${f2(sternD)} of the depth deep (plan 0.39), a level deck`);
+    // THE BELLY (the main formers): convex - the mid point at half the straight V's height over the middle, none at the ends
+    const sB = H.sectionOf(P, -0.2 * P.xs), sBow = H.sectionOf(P, -0.85 * P.xs);
+    const rB = (sB.ym - sB.yk) / (sB.zm * Math.tan(sB.beta * Math.PI / 180)), rBow = (sBow.ym - sBow.yk) / (sBow.zm * Math.tan(sBow.beta * Math.PI / 180));
+    ok(Math.abs(rB - 0.5) < 1e-6 && Math.abs(rBow - 1) < 1e-6,
+       `the belly: convex over the middle (the mid point at ${f2(rB)} of the straight V's height, formers A/B 0.41-0.57), a straight V at the bow (${f2(rBow)})`);
+    // THE SIZE: the plan's shape scaled to the model number - the EDO 2000 against the owners' 16 ft bumper to transom
+    ok(P.L >= 4.55 && P.L <= 4.88, `the EDO 2000 at the plan's proportions holds 907 kg at ${f2(P.L)} m (${f2(P.L / 0.3048, 1)} ft hull; the owners' 16 ft is bumper to transom)`);
     ok(Math.abs(H.levelVolume(F, 10, 4000) / F.volDeck - 1) < 0.004, 'levelVolume to the deck = volDeck (the section family and the panels agree)');
-    const Pw = Object.assign({}, P); delete Pw.crownK; delete Pw.bowDrop; delete Pw.noseMul; delete Pw.style; delete Pw._keel;
+    const Pw = Object.assign({}, P); delete Pw.crownK; delete Pw.bowDrop; delete Pw.noseMul; delete Pw.style; delete Pw.shoulderZ; delete Pw.tumble; delete Pw._keel;
     const vw = H.makeFloat(Pw).volDeck, adv = H.floatAdvice(800, P);
     ok(vw > F.volDeck && Math.abs(adv.pairKg - 2 * F.volDeck * P.rho) < 1e-6,
        `the dome is honest: the same rows flat-decked hold ${f2(vw * 1000, 0)} kg, domed ${f2(F.volDeck * 1000, 0)} kg, and the advisor's reserve reads the dome`);
@@ -193,6 +209,14 @@ if (WATER) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'pa18_floats_2026-10-23.json'), 'utf8'));
     (raw.spec || raw).cage.fltStyle = 1;
     waterRun('PA-18 on its floats, EDO classic', LB.gameSpec(raw), { taxiThr: 0.25 });
+  }
+  {
+    // the PA-18 on EDO 2000s - its certified float (TCDS 1A2: "Edo 89-2000 floats"), the catalogue row's measured hull
+    const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'pa18_floats_2026-10-23.json'), 'utf8'));
+    const sp = raw.spec || raw;
+    if (sp.gear && sp.gear.floats) delete sp.gear.floats.x;            // a new float: the step by the rule, not the old station
+    Object.assign(sp.cage, rowsOfPreset('EDO 2000'), { fltPreset: 16 + H.EDO_PRESET_NAMES.indexOf('EDO 2000') });
+    waterRun('PA-18 on EDO 2000s', LB.gameSpec(raw), { taxiThr: 0.25 });
   }
 }
 console.log(`${n - fails}/${n} checks`);

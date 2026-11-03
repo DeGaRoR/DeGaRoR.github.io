@@ -575,9 +575,9 @@ PAGE.post = ctx => {
     const rig = out ? out.rig : { fwd: -HP.flatK * HP.xs, aft: HP.xAft };
     const fit = (x, inb) => {
       const s = HY.sectionOf(HP, x === 0 ? -1e-9 : x);
-      // (FLOATS-CLASSIC: an EDO's fittings sit on the dome's upper shoulder, FLOAT_GEN's EDO_FIT of the half-beam out -
+      // (FLOATS-CLASSIC: an EDO's fittings sit on the arc just inside its shoulder, FLOAT_GEN's EDO_FIT of it -
       // its topside is an ellipse from the chine, so the old "5 cm in from the edge" is low on the flank)
-      const zOut = edo ? 0.72 * s.bd + 0.01 * sc : s.bd - 0.05 * sc;
+      const zOut = edo ? 0.85 * s.bd + 0.01 * sc : s.bd - 0.05 * sc;
       // inboard is the model's -z for the starboard float (toward the
       // centreline at cage +x), which the mirror handles for the port one
       const zm = (inb ? -1 : 1) * zOut * (mirror ? -1 : 1);

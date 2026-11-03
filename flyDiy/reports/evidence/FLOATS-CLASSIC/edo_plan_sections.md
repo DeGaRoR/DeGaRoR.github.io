@@ -1,87 +1,96 @@
-# The EDO section and plan, measured off the user's plan (2026-11-03)
+# The EDO float measured off the user's plan (round 3, 2026-11-03)
 
 **The source.** The user sent a giant-scale (1/4 or 1/5) model plan of EDO floats for a J-3 / PA-11-class Cub (the
 title block reads "GIANT SCALE 1/4 SCALE OR 1/5 SCALE"). It is the kind of plan traced from factory drawings; its own
-source is not stated on the sheet. It holds:
-- the top view of a float;
-- the side view (drawn tilted);
-- about a dozen formers (cross-sections), bow to stern.
+source is not stated. It holds:
+- a top view and a side view of a float;
+- about a dozen formers (cross-sections).
 
-The copy is 1024 x 532 px, so a former is 70-100 px tall. Every number below carries roughly ±2 px of reading.
+The copy is 1024 x 532 px, so a former is 70-100 px tall. Every number below carries ±2 px of reading.
 
-`edo_section_measured.png` shows one former (F2) beside the model's section with the measured points over it.
+**The figure.** `edo_measured_vs_model.png` puts the model (blue) over the measured points (red and green), with the
+Wipline 2100 (orange) for comparison.
 
-## How it was read
+**How it was read.** Each view was cropped, enlarged x4-x5 with an original-pixel grid drawn on it, and read by eye at
+the outline. An automatic column scan could not tell the outline from the stringer lines and the neighbouring
+drawings.
 
-- **Sections.** Each former was cropped and thresholded. In every pixel row, the outer edge was taken from the
-  centreline to the outermost dark pixel; the left half was used, because the right half is crossed by other lines.
-- **Normalisation.** The centreline is the former's own dashed vertical. The keel is the lowest point and the crown the
-  highest. The chine is the widest row.
-- **Top view.** The plan view's top edge was read against its centreline, from 0 at the bow to 1 at the stern.
+**Round 2 was wrong.** It read only two of the smaller formers, and one of those (F2) was cut off at the crop's edge.
+From them it concluded that the topside is one ellipse from the chine. It also left the belly, the profile and the
+bow as the Wipline's. The user caught both.
 
-## The section (formers F2, mid-forebody, and a forward former)
+## The section: six formers
 
-| | F2 | forward former |
-|---|---|---|
-| height / beam | 0.80 | 0.74 |
-| chine height / total height | 0.30 | 0.33 |
-| deadrise, keel to chine | ~26 deg (slightly convex) | ~26 deg |
+| former | height / beam | chine / height | deadrise | side lean | shoulder: z / half-beam | shoulder: up the topside | bottom |
+|---|---|---|---|---|---|---|---|
+| A (front spreader station) | 0.81 | 0.22 | 19° | 19.5° | 0.66 | 0.75 | convex: ~8° at the keel, ~31° at the chine |
+| B (aft spreader station) | 0.83 | 0.26 | 23° | 21° | 0.63 | 0.77 | convex: ~14° / ~31° |
+| C | 0.75 | 0.31 | 25° | 30° | 0.67 | 0.53 | straight |
+| D | 0.81 | 0.23 | 21° | 23° | 0.69 | 0.59 | convex (wavy) |
+| E | 0.74 | 0.35 | 28° | 21° | 0.74 | 0.70 | straight |
+| F | 0.67 | 0.30 | 22° | 26° | 0.73 | 0.60 | straight |
 
-Above the chine, the half-width as a fraction of the chine half-beam, against the height above the chine as a
-fraction of the topside:
+**The law.**
+- **Widest at the chine.** From there the side LEANS IN about 23 deg, straight, up to a shoulder at about 0.69 of the
+  half-beam and about two-thirds of the topside's height. The stringer's notch sits there.
+- **Above the shoulder, a round top to the crown.** The plan shows a slight knuckle at the stringer. The model makes
+  the arc tangent to a 23 deg lean, which leaves about 10 deg at the shoulder.
+- **No chine lip, no spray strap, no external keelsons.** The formers notch their stringers inside.
+- **The bottom is CONVEX on the big mid-body formers** (A, B, D). It runs nearly flat out from the keel, then rises
+  steeply to the chine; its mid point (half the half-beam out) sits at about half the straight V's height. At the
+  bow's and stern's formers it is a straight V.
 
-| s (height above chine) | F2 | forward | quarter ellipse, sqrt(1 - s^2) |
-|---|---|---|---|
-| 0.15 | 0.93 | — | 0.99 |
-| 0.35 | 0.95 | — | 0.94 |
-| 0.38 | — | 0.89 | 0.93 |
-| 0.48 | 0.90 | — | 0.88 |
-| 0.58 | — | 0.80 | 0.81 |
-| 0.61 | 0.80 | — | 0.79 |
-| 0.67 | 0.76 | — | 0.74 |
-| 0.74 | 0.68 | — | 0.67 |
-| 0.78 | — | 0.62 | 0.63 |
-| 0.80 | 0.59 | — | 0.60 |
-| 0.87 | 0.54 | — | 0.49 |
-| 0.91 | — | 0.38 | 0.41 |
-| 0.93 | 0.39 | — | 0.37 |
+## The top view
 
-**The law: the whole topside is one quarter ellipse,** from the chine (where the float is widest) to the crown. It
-matches within ~0.03 of the beam everywhere but the noisiest rows. There is no flat deck and no shoulder; the sides
-lean in from the chine all the way up. The previous build (`crownK` 0.16 over a flared side, eyeballed) put a vertical
-wall almost to the top with a shallow cap on it, which is the "a tad flat on top" the user saw.
-
-## The plan (top view)
-
-- **Length / beam:** 6.7.
-- **Full beam** held from ~0.29 to ~0.53 of the length; the step is near 0.55.
-- **Bow:** blunt. The beam is still 0.55 at 3 % of the length, then the nose rounds. A fullness exponent of ~4-5 fits
-  it (the family's `planK` 4 and the fit land there).
-- **Afterbody:** closes almost linearly from the step to a wide stern, 0.70 of the beam. A Wipline holds its beam to
-  the aft spreader bar, then closes as the square to 0.50.
+- **Length / beam:** 6.65.
+- **Full beam** from about 0.29 to 0.53 of the length.
+- **Bow:** blunt (0.55 of the beam at 3 % of the length).
+- **Afterbody:** closes almost linearly to a 0.70 stern.
 
 ## The side view
 
-The side view is drawn tilted, at a resolution that does not resolve a degree. It shows:
-- the big blunt round nose (the bumper's seat);
-- a top line that rolls down into it;
-- a step near 0.55 L.
+The side view is drawn tilted 4.6 deg; it was read against its own deck line.
 
-These are qualitative only. The keel's afterbody rise stays the Wipline family's (5.9 deg + the step), and is not
-claimed from this plan.
+- **The deck:** straight and level. It is parallel to the flat keel ahead of the step: no sheer.
+- **The forebody keel:** flat over the aft ~0.40 of the forebody. Ahead of that, a convex rocker sweeps up into a
+  raked bow under a round nose; the nose's front sits at 0.85 of the depth.
+- **The keel's rise** (fraction of the depth) against t (fraction of the forebody ahead of the step):
+  - t 0.42: 0.01
+  - t 0.53: 0.05
+  - t 0.64: 0.10
+  - t 0.68: 0.12
+  - t 0.72: 0.15
+  - t 0.75: 0.19
+  - t 0.83: 0.28
+  - t 0.95: 0.58
+- **The step:** at 0.573 of the length, about 0.12 of the depth deep. A Wipline's is ~0.17.
+- **The afterbody keel:** rises to a stern 0.385 of the depth deep.
+- **Scale caveat.** The side view's depth reads ~13 % taller than the formers at the same beam. Only its dimensionless
+  ratios are used, never its raw angles.
 
-## What the hull now does
+## What the model does with it (`32_hydro.js`, `EDO_STYLE` / `EDO_HULL` / `edoPresetParams`)
 
-**The section.**
-- `32_hydro.js`: `crownK` 0.97 means the dome starts at most 3 % of the topside over the chine. The dome's height is
-  the step section's, so the topside runs as one curve across the step.
-- The hull-width row is the chine beam (`chineHalfStep`).
-- The physics and the drawing share the same six facets a side, so the drawn hull is the physics hull to 0.1 %.
+- **The section law.**
+  - `shoulderZ` 0.69, `crownK` 0.34 (the arc's share of the topside), `tumble` 23.
+  - `belly` 0.5: the mid point's drop. It is full over the middle and fades to a straight V by 0.8 of the forebody and
+    0.9 of the afterbody.
+  - The physics section and the drawing are the same polygon: two bottom facets a side, the leaning side, six arc
+    facets.
+- **The side is one skin through the step.** The forebody's chine is a little wider at the step (2-3 cm a side on the
+  2000), fading back to the plan's beam by 0.3 of the forebody.
+- **The profile.** The keel flat 0.34 of the forebody, a 45 deg rake (at the fit's xs/H), stem 0.40, nose round 0.15.
+  These were fitted to the eight keel points within 0.01 of the depth.
+  - The rake is rescaled to each hull's own proportions.
+  - The step is 0.12 deep at 0.573 L.
+  - The afterbody angle is solved for a stern 0.385 deep: 7.9 deg on the small rows, 6.3 on the Model 78.
+- **Planform.** `planK` 5.5; the stern 0.70; the deck level (`sheerK` 0).
+- **Sizes.** The plan's proportions are fixed (L/B 6.65, H/B 0.80) and the whole hull is scaled to the model number's
+  buoyancy. The EDO 2000 comes out 4.67 m (15.3 ft) against the owners' "16 ft bumper to transom" (4.88 m, bumper
+  included). The Model 78 keeps its sourced 42 ft x 5 ft 8 in, and its height is solved: 0.70 of its beam.
 
-**The catalogue rows.**
-- L is sourced where it is (1320, 2000, Model 78); elsewhere it is the 2000's scaled by the cube root of the buoyancy.
-- B = L / 6.7 (the Model 78 keeps its own sourced 1.73 m).
-- The fineness is pinned at 25 deg of deadrise and H solved for the model number's buoyancy. H lands at 0.80 of the
-  beam on every row, the top of the plan's measured band. The shape and the model numbers agree with each other.
+## Not modelled, and why
 
-**The afterbody.** `EDO_AFT` gives held 0, linear closure, stern 0.70.
+- **Sections that vary between bow and stern** beyond the convexity fade. C, E and F lean a little more and sit a
+  little lower than A and B. One law, the mean, is used.
+- **The plan's slight shoulder knuckle** is smoothed to ~10 deg.
+- **The keelson and stringer layout** is inside the skin and not drawn.
