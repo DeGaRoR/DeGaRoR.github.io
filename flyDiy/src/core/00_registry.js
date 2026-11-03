@@ -1042,10 +1042,10 @@ const TYRE_CN = { standard: 8, tundra: 4.5, slim: 10, tailwheel: 10, nosewheel: 
 //          load (Nref 980 N: ~10 % of its 998 kg gross): the free fork lags its track by it (the castor's damping)
 //  trailK  the fork's trail over the wheel's radius (an 8 in 3200: ~1.4 in, 0.35 r) - DERIVED from the fork's
 //          proportions, not a published number
-//  defl    the steering springs' give at the tyre's full grip (lateral mu x N x trail): 0.06 rad, in series with the
-//          tyre while the pawl holds - DERIVED (the 3239 kit's rate is not published); 0.35 rad cut the lightly loaded
-//          tail's cornering stiffness 5x and the inverted V's tip wheels ground-looped on the roll-out (132 deg; 0.12:
-//          3.6 deg; 0.06: 2.1 deg)
+//  defl    the steering springs' give at the tyre's full grip (lateral mu x N x trail): 0.06 rad - DERIVED (the 3239
+//          kit's rate is not published); the DRAWN fork's angle (out.twAng), not flown: in series with the tyre, 0.35 rad
+//          cut a lightly loaded tail's cornering stiffness 5x (the inverted V's tip wheels ground-looped on the roll-out,
+//          132 deg) and even 0.06 tightened the Jodel's taxi turn by 21 % (GATE DMGTYRE); the arc's breakout needs no give
 //  E       the pawl's catch: it drops in within 0.12 rad of the arm (G3575's, kept)
 const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, defl: 0.06, tau: 0.25, E: 0.12 };
 // G3800: THE TAIL SKID's steel shoe, sliding mu by the SURFACE enum (GROUND_SURF's keys). A flat steel skid on a dry

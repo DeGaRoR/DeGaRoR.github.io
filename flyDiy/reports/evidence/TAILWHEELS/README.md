@@ -10,7 +10,7 @@ probe on a clean origin/master worktree (adb2d2a9).
 
 | `s2Steer` | kind | how it flies (30_solver `twLine`) | sources |
 |---|---|---|---|
-| 1 (default; an old save's 0 too) | **steerable**, the Cub's (Scott 3200 class) | the rudder drives the arm through the steering springs (±28.6° at full pedal), in series with the tyre (`TW_SCOTT.defl`); **breaks out** when the tail is dragged along a track past the pawl's 35° arc (the contact sliding > 0.15 m/s, held 0.25 s); a free castor with the kingpin's friction; **re-locks** within 0.12 rad of the arm | FAA-H-8083-3 ch.14 ("beyond that limit the tailwheel breaks free and becomes full swiveling"); Univair's Scott 3200 sheet ("positive steering control far beyond rudder travel, and release easily and automatically to full swivel when aircraft is turned around"); the kingpin friction "5 to 6 pounds (approximately 23 to 28 pound inches of torque)" at the 3.5 in arm (owners quoting Scott's instructions, cessna170.org). The arc, the trail (0.35 r) and the springs' give are **derived**, not published numbers (see `00_registry.js` TW_SCOTT) |
+| 1 (default; an old save's 0 too) | **steerable**, the Cub's (Scott 3200 class) | the rudder drives the arm through the steering springs (±28.6° at full pedal; their give, `TW_SCOTT.defl`, is the drawn fork's angle - the link flies rigid); **breaks out** when the tail is dragged along a track past the pawl's 35° arc (the contact sliding > 0.15 m/s, held 0.25 s); a free castor with the kingpin's friction; **re-locks** within 0.12 rad of the arm | FAA-H-8083-3 ch.14 ("beyond that limit the tailwheel breaks free and becomes full swiveling"); Univair's Scott 3200 sheet ("positive steering control far beyond rudder travel, and release easily and automatically to full swivel when aircraft is turned around"); the kingpin friction "5 to 6 pounds (approximately 23 to 28 pound inches of torque)" at the 3.5 in arm (owners quoting Scott's instructions, cessna170.org). The arc, the trail (0.35 r) and the springs' give are **derived**, not published numbers (see `00_registry.js` TW_SCOTT) |
 | 2 (an old save's 2, G3575's "full swivel") | **lockable**, the DC-3's | `ctl.twLock` 1: pinned straight, rigid; 0: a free castor (steered by the brakes and power); the pin drops back in when the castoring fork passes within 0.12 rad of centre. The autopilot locks it for the runway and the air and unlocks it to taxi; the hand has `/` | the DC-3's and the warbirds' own procedure (unlocked to taxi, locked for take-off and landing) |
 | 3 | **fixed** | straight, rigid, always | — |
 | 4 | **tail skid** | a steel shoe sliding, Coulomb in every direction at `TW_SKID_MU` of its surface: grass 0.36, paved 0.45 … — its drag is the tail's only brake; steered by the rudder in the wash alone | a flat steel skid on a dry lakebed averages 0.36 (NASA TM, Sefie 1979, after Dreher & Batterson TN D-999); steel on concrete 0.45 (casex's aircraft-materials table) |
@@ -21,8 +21,10 @@ autopilot's own full-power start** (the tail creeping, the tyre on its at-rest C
 pivot** (Cub, Jodel, Rufus): no holding force separates them — the G3575 finding again (a breakout on the side-force
 share castored the DC-3 into a weave). What differs is the tail **sliding** past the arc. With the arc trigger, the
 held track over the arc reads at most **0.63 on the autopilot's take-off rolls and 0.17 on its roll-outs**, ≥ 1 in every
-pivot. A spring give the size of the arc (0.35 rad) was tried first: it cut a lightly loaded tail's cornering stiffness
-5× and the inverted V's tip wheels ground-looped on the roll-out (132°); at 0.06 rad: 2.1°.
+pivot. **The springs' give is drawn, not flown.** A give the size of the arc (0.35 rad, the first cut, when the give was the
+breakout's path) cut a lightly loaded tail's cornering stiffness 5× and the inverted V's tip wheels ground-looped on the
+roll-out (132°); even 0.06 rad tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: 0.62 of
+the old law, its band 0.80-1.10). With the arc as the breakout the link flies rigid, as the linked wheel always did.
 
 ## The rows (master → this branch)
 
@@ -32,15 +34,16 @@ pivot. A spring give the size of the arc (0.35 rad) was tried first: it cut a li
 | Jodel, same | 9.7 s | 4.6 s (out at 1.2 s), re-locked 4.7 s, 6.5° |
 | Rufus, same | 4.2 s | 3.6 s (out at 1.1 s), re-locked 2.5 s, 4.0° |
 | brake-free 180°, full rudder + 0.6 power: Cub / Jodel / Rufus | 5.6 / 6.9 / 3.6 s | **4.2 / 4.0 / 3.4 s** (broken out at ~1.1 s each) |
-| HOME circuit, Cub: roll / heading / roll-out / touchdown | 113.4 m / 3.0° / 11.2° / 1.30 m/s | 113.4 m / 3.1° / 10.7° / 1.30 m/s, no breakout |
-| HOME circuit, Jodel | 194.1 m / 1.6° / 3.7° / 1.01 m/s | 194.4 m / 2.7° / 3.8° / 1.01 m/s, no breakout |
-| HOME circuit, Rufus | 71.5 m / 2.5° / 5.9° / 0.50 m/s | 71.5 m / 2.6° / 5.9° / 0.50 m/s, no breakout |
+| HOME circuit, Cub: roll / heading / roll-out / touchdown | 113.41 m / 3.01° / 11.23° / 1.30 m/s | **the same to the digit**, no breakout |
+| HOME circuit, Jodel | 194.1 m / 1.61° / 3.70° / 1.01 m/s | **the same**, no breakout |
+| HOME circuit, Rufus | 71.51 m / 2.49° / 5.94° / 0.50 m/s | **the same**, no breakout |
 | DC-3 locked: full-power roll | (the swivel steered) 0.1° | **0.4°, 0.7 m**, never castoring |
 | DC-3 unlocked: 180° pivot | 12.0 s (G3575's swivel) | 12.1 s; the lock back in 2.1 s after |
-| Tiger Moth-alike from 12 m/s, idle, no brake, grass | its wheel: 124.8 m / 21.4 s | **the skid: 65.3 m / 13.9 s** (on pavement 67.4 m — the mains roll further there) |
-| Tiger Moth-alike, fixed wheel | — | refuses the braked pivot (31°), turns 180° on rudder + power in 7.4 s |
-| twin booms, a tailwheel a boom (the drawn twin, the Undercarriage tile) | one wheel under the pod | stands on both, rolls straight (0.04°), pivots 4.4 s, HOME circuit and landing (1.42 m/s, roll-out 4.5°) |
-| the inverted V on twin booms (the drawn twin, 30°, tips 0.6 m apart) | — | stands on its two tip wheels (1.4° tail-down), pivots 5.6 s, rolls straight (0.1°), HOME circuit: lift-off 24 s, touchdown 1.95 m/s, roll-out 2.1°, STOPPED |
+| Tiger Moth-alike from 12 m/s, idle, no brake, grass | its wheel: 124.8 m / 21.4 s | **the skid: 65.3 m / 13.9 s** |
+| the same on pavement | its wheel: 233.2 m / 43.3 s | **the skid: 67.4 m / 13.8 s** (the mains roll further there, the shoe drags harder) |
+| Tiger Moth-alike, fixed wheel | — | refuses the braked pivot (31°), turns 180° on rudder + power in 7.4 s, the take-off roll 7.2° |
+| twin booms, a tailwheel a boom (the drawn twin, the Undercarriage tile) | one wheel under the pod | stands on both (4.6° tail-down), rolls straight (0.04°), pivots in 4.4 s within 0.25 spans, HOME circuit and landing (1.34 m/s, roll-out 4.2°) |
+| the inverted V on twin booms (the drawn twin, 30°, tips 0.6 m apart) | — | stands on its two tip wheels (1.3° tail-down), pivots in 5.6 s within 0.24 spans, HOME circuit: roll 1.0°, touchdown 1.96 m/s, roll-out 1.6°, STOPPED |
 
 ## The inverted V (the layout followed: the AAI RQ-7 Shadow)
 

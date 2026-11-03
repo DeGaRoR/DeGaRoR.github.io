@@ -3397,7 +3397,9 @@ function makePilot(sim, def, world, opts) {
           // G3800 (TAILWHEELS, the brief: "remove the RgMin > 13 m limit for every taildragger"): the turn on the spot
           // where the wheels cannot hold the route is every taildragger's now (pivG); the walked turns stay the big
           // airframe's (bigG)
-          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13), pivG = bigG || !trike;
+          // (A.taxiPivAll false: an instrument's - the route pivot the big airframe's alone, as before G3800; GATE TAXICLEAR's
+          // blind-pilot calibration flies the path it was calibrated on)
+          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13), pivG = bigG || (!trike && A.taxiPivAll !== false);
           const drC = SV.taxiRudder(drFF, drMaxG);
           // (...a small one when the turn truly refuses: 0.6 rad held 1.5 s on the stop - at the big airframe's 0.35 / 0.5 s
           // the ultralight pivoted in an ordinary turn off its stand, 2.6-2.9 m off the line against GATE TAKEOFF's 2.5)

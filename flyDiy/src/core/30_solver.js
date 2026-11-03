@@ -3307,8 +3307,8 @@ function makeSim(def, world) {
   // tailwheel row (s2Steer) chooses:
   //  1 STEERABLE (the default, the Cub's: the Scott 3200 class). The rudder drives the steering arm through the two
   //    steering springs (twSteer x dr, +-28.6 deg at full pedal); the fork is held to the arm by the spring-loaded pawl
-  //    and the springs give a little under the tyre's moment about the kingpin (its trail): a compliance IN SERIES
-  //    with the tyre - C_eff = 1 / (1 / C_alpha + trail / k). BREAKOUT is the pawl's: when the tail is dragged along a
+  //    and the springs give a little under the tyre's moment about the kingpin (its trail) - the drawn fork's angle; the
+  //    link flies rigid (below, the side force). BREAKOUT is the pawl's: when the tail is dragged along a
   //    track past the pawl's arc (TW_SCOTT.arc, the contact sliding, held TW_SCOTT.tau) the tyre turns the fork with it,
   //    the pawl rides out and it SWIVELS free - a braked pivot, full rudder and power in the prop wash; no speed or
   //    brake rule of ours (a rolling wheel's track is its own line, inside the arc by construction). Free, it castors with the
@@ -3325,6 +3325,7 @@ function makeSim(def, world) {
   // hold TW_SCOTT.hold of that grip, the kingpin's friction by the Scott figure at a Cessna 170's tail load.
   // Two tail contacts (a twin boom's, refs.tw2) fly the same law with their own state each.
   const TW1 = def.refs ? def.refs.tw : -1, TW2 = def.refs && def.refs.tw2 != null ? def.refs.tw2 : -1;
+  const TW_ARC = TW_SCOTT.arc;
   const TWM = (P_.twSteer > 0 && TW1 >= 0) ? (P_.twMode || 1) : 0;
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
@@ -3368,7 +3369,7 @@ function makeSim(def, world) {
         const sl = (a !== null && V > TW_SCOTT.vSlide) ? Math.abs(a) : Math.abs(s);
         S.ff[q] += (sl - S.ff[q]) * Math.min(1, dt / TW_SCOTT.tau);
         if (S.ff[q] > S.fMax[q]) S.fMax[q] = S.ff[q];
-        if (Fn > 0 && S.ff[q] > TW_SCOTT.arc) { st = 1; S.ang[q] = a !== null ? a : d; S.ff[q] = 0; }
+        if (Fn > 0 && S.ff[q] > TW_ARC) { st = 1; S.ang[q] = a !== null ? a : d; S.ff[q] = 0; }
         line = st === 0 ? s : S.ang[q];
       } else {
         line = castor();
@@ -3381,7 +3382,7 @@ function makeSim(def, world) {
       else line = 0;
     } else line = 0;                                                    // 3 fixed (4, the skid, never rolls)
     S.st[q] = st;
-    out.twState[q] = st; out.twAng[q] = st === 0 ? S.df[q] : line; out.twF[q] = S.ff[q] / TW_SCOTT.arc;
+    out.twState[q] = st; out.twAng[q] = st === 0 ? S.df[q] : line; out.twF[q] = S.ff[q] / TW_ARC;
     return line;
   }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
@@ -3845,10 +3846,11 @@ function makeSim(def, world) {
         // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
         // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
         // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
-        // G3800: the steerable tailwheel's springs IN SERIES with its tyre while the pawl holds (TWL, above): 1/C_eff =
-        // 1/C_alpha + trail/k, as the inverse-stiffness term (iCn x N is 1/C_alpha). Every other wheel: as before
-        const iCn = !isTW ? iCnM : (TWL && TWL.m === 1 && TWL.st[twQ] === 0 && !TYRE_OLD ? iCnT + Fn * TWL.trail / TWL.k : iCnT);
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * iCn), m[i]/dt);
+        // (G3800: the steerable wheel's link flies RIGID, as the linked wheel always did - its springs' give is the drawn
+        // fork's only, TWL.k: flown in series with the tyre (1/C_eff = 1/C_alpha + trail/k), a give of 0.06 rad at full grip
+        // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
+        // arc's breakout does not need it)
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
