@@ -138,6 +138,25 @@ yes(W.day.local === '2026-06-21 10:00:00 AKDT', 'local time with the US daylight
   }
   W.setWeather(null); W.setDay({ date: '2026-09-14', utc: 12 * 3600, rh: 0.5, cloudCover: 0.2 });
 }
+{ // THE WIND MIXES IT AWAY (WEATHER-FIXES F5, 2026-11-03): radiation fog lies only in near-calm air. Before this the
+  // layer was a function of the humidity and the burn alone, and a 35 kt gale over a saturated morning drew ground fog.
+  const dawn = (wind, storm) => { const d = DAY.makeDay(Object.assign({ date: '2026-06-21', localHours: 3.5, rh: 0.98, turbidity: 2.5, cloudCover: 0, wind },
+                                                                      storm ? { storm } : {}), W.geo); return d; };
+  const still = dawn(null), law = 0.0025 * Math.pow((0.98 - 0.7) / 0.3, 2) * (1 - still.mistBurn);
+  yes(still.mistCalm === 1 && Math.abs(still.mistRho0 - law) < 1e-15, `no wind declared: the layer is the humidity law exactly (mistCalm 1, ${still.mistRho0.toExponential(3)} /m)`);
+  yes(dawn({ kts: 3, dirDeg: 250 }).mistRho0 === still.mistRho0, 'under 3 kt: untouched');
+  const k = [3, 4, 6, 8, 10].map(kt => dawn({ kts: kt, dirDeg: 250 }).mistCalm);
+  yes(k.every((v, i) => i === 0 || v < k[i - 1]) && dawn({ kts: 10, dirDeg: 250 }).mistRho0 === 0 && dawn({ kts: 35, dirDeg: 245 }).mistRho0 === 0,
+      `the wind thins it and takes it all by 10 kt (calm ${k.map(v => (typeof v === 'number' ? v.toFixed(2) : 'none')).join(' > ')}; a 35 kt gale: none)`);
+  yes(Math.abs(dawn({ mps: 6 * 0.514444, dirDeg: 250 }).mistCalm - dawn({ kts: 6, dirDeg: 250 }).mistCalm) < 1e-12
+      && Math.abs(dawn({ base: [6 * 0.514444, 0, 0], gust: 0 }).mistCalm - dawn({ kts: 6, dirDeg: 250 }).mistCalm) < 1e-9,
+      'the same wind in kt, in m/s and as a legacy base vector is the same calm');
+  { const quiet = dawn({ kts: 4, dirDeg: 250 }), D0 = quiet.utc;
+    const front = dawn({ kts: 4, dirDeg: 250 }, { at: D0, intensity: 1 });
+    yes(front.storm && front.storm.windK > 1.5 && front.mistCalm < quiet.mistCalm, `a front's wind counts (windK ${front.storm ? front.storm.windK.toFixed(2) : '-'}: calm ${typeof quiet.mistCalm === 'number' ? quiet.mistCalm.toFixed(2) : '-'} -> ${typeof front.mistCalm === 'number' ? front.mistCalm.toFixed(2) : '-'})`); }
+  const DS = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '07_day.js'), 'utf8');
+  yes(/d\.mistRho0 = 0\.0025 \* Math\.pow\([^\n]*\* d\.mistCalm;/.test(DS), 'the law is still ONE line in 07_day.js, and the calm is a factor on it');
+}
 { // round trip and the clock
   W.setDay({ date: '2026-09-14', utc: 5 * 3600, rate: 60, turbidity: 3, rh: 0.6, oatC: 12 });
   const s = W.day.spec();
