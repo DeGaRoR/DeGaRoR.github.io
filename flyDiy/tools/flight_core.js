@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 14c776711da78a41
+// body-sha256: 05fa68ee846a8a52
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35773,6 +35773,11 @@ function clampSpec(spec) {
   S.wings.forEach((wk, k) => clampWing(wk, S, k));
   {
     const br = S.bracing;
+    // PILLAR-ANCHORS (P4, the user 3 Nov: "which pillar is less important; the most important is that anchors land on
+    // a pillar"): THE LIFT STRUT'S ROOT STATION, metres aft of the firewall, when the builder picked a pillar (the
+    // join writes the picked pillar's ring station; 61_gen_frame roots the strut on the ring nearest it). Absent or
+    // null = the frame's own rule, every build before the row - nothing is added to a spec that does not state it
+    if (br.strutAt != null) br.strutAt = isFinite(+br.strutAt) && +br.strutAt >= 0 ? +br.strutAt : null;
     if (!['none', 'N', 'I'].includes(br.interplane)) br.interplane = 'none';
     br.interplaneAt = genClamp(br.interplaneAt == null ? 0.62 : br.interplaneAt, 0.30, 0.95);
     if (!['none', 'both', 'flying'].includes(br.wires)) br.wires = 'both';
@@ -39447,7 +39452,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { if (s.x < boxRear - 0.01) r = i; });
       return r;
     })();
-    const strutRoot = F[Math.min(nearestRing(xF), iBox)][opposeTag + sd];
+    // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
+    // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
+    const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
+    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
