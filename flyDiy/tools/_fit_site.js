@@ -1021,12 +1021,13 @@ function pillarSite(mesh, sgn, z0, z1, y, hl, hh, o) {
 // OFF A DOOR, ANYWHERE NEAR (PILLAR-ANCHORS): the nearest rectangle to (z, y) - 1 cm steps out to `reach`, a step
 // along the body counting twice a step up or down and down before up (a plate that was on a door's bottom goes under
 // its sill before it goes along to a post or up it) - whose
-// samples are all on skin that is not a door's, off the glass, and that `avoid` does not refuse. -> a site or null.
+// samples are all on skin that is not a door's (or what `o.ok` accepts), off the glass, and that `avoid` does not
+// refuse. -> a site or null.
 function clearSite(mesh, sgn, z, y, hl, hh, o) {
   o = o || {};
   const U = +o.FS || 1, reach = (o.reach || 0.4) / U, step = 0.01 / U;
   const FL = flankOf(mesh, sgn, { z0: z - reach - hl - 0.1 / U, z1: z + reach + hl + 0.1 / U, y0: y - reach - hh - 0.1 / U, y1: y + reach + hh + 0.1 / U });
-  const ok = f => !f.doorKey && !FLANK_SKIP.has(f.m);
+  const ok = o.ok || (f => !f.doorKey && !FLANK_SKIP.has(f.m));
   const c = [];
   for (let dz = -reach; dz <= reach + 1e-9; dz += step)
     for (let dy = -reach; dy <= reach + 1e-9; dy += step)

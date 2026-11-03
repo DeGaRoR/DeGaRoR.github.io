@@ -395,7 +395,12 @@ function swingSweep(door, axes, obstacles, opt) {
   let nObs = 0;
   // the least clearance to each KIND of obstacle over the whole swing (mm, and the angle it is reached at)
   const byCat = {}, onClosed = {};
-  const note = (c, d, deg, who) => { const mm = Math.round(d * 1000); const b = byCat[c]; if (!b || mm < b.mm) byCat[c] = { mm, deg, who }; };
+  // per kind: the least clearance over the swing, and the least at the FIRST angle swept (`from`) - a door blocked
+  // by something is one that MOVES TOWARD it (its clearance falls as the door opens) or is touching it shut; what
+  // stands beside the door's edge or its hinge, the door moving away, is near and not in the way
+  const first = {};
+  const note = (c, d, deg, who) => { const mm = Math.round(d * 1000); const b = byCat[c]; if (!b || mm < b.mm) byCat[c] = { mm, deg, who };
+    if (deg === from) { const f = first[c]; if (f == null || mm < f) first[c] = mm; } };
   const axs = axes && axes.length ? axes : axesOf(door, 0, null);
   for (const ax of axs) {
     const tris = partTris(door, ax.part, ax);
@@ -485,7 +490,16 @@ function swingSweep(door, axes, obstacles, opt) {
       }
     if (cBest && cBest.mm < best.mm) best = { mm: cBest.mm, deg: cBest.deg, who: cBest.who };
   }
-  return { minMM: best.mm, deg: best.deg, who: best.who, axes: axs.length, obs: nObs, byCat, onClosed, perDeg };
+  // THE BLOCK: per kind, touching the shut door, or closing in while it opens (2 mm below its first-angle reading)
+  let block = { mm: Math.round(reach * 1000), deg: null, who: null };
+  for (const c in byCat) {
+    const b = byCat[c], f = first[c];
+    b.closing = f == null || b.mm < f - 2;
+    const blocking = (c in onClosed) || b.closing;
+    if (blocking && b.mm < block.mm) block = { mm: b.mm, deg: b.deg, who: b.who };
+  }
+  return { minMM: block.mm, deg: block.deg, who: block.who, nearMM: best.mm, nearDeg: best.deg, nearWho: best.who,
+           axes: axs.length, obs: nObs, byCat, onClosed, perDeg };
 }
 
 // WHAT AN OBSTACLE IS, for the table (the brief's columns: the wing, its struts, the float struts, the booms, any
@@ -577,7 +591,8 @@ function doorSwingReport(THREE, scene, mesh, R, FS, o) {
   const stop = o.stop > 0 ? +o.stop : SWING_STOP;
   for (const d of PS.doors) {
     const sw = swingSweep(d, axesOf(d, o.edge, o.hinges), obs, Object.assign({}, o, { max: stop }));
-    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, byCat: sw.byCat, onClosed: sw.onClosed, stop, red: sw.minMM < SWING_RED_MM });
+    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, nearMM: sw.nearMM, byCat: sw.byCat, onClosed: sw.onClosed, stop,
+                 red: sw.minMM < SWING_RED_MM });
   }
   const worst = doors.reduce((a, d) => (!a || d.minMM < a.minMM ? d : a), null);
   return { doors, worst, red: doors.some(d => d.red), redMM: SWING_RED_MM, stopDeg: stop };

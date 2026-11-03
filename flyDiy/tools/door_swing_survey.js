@@ -88,12 +88,15 @@ const cell = (s, key) => {
   const d = s && s.doors.find(x => x.key === key);
   if (!d) return '-';
   const c = CATS.map(k => d.byCat && d.byCat[k] ? k.replace('wing strut', 'w.strut').replace('float strut', 'f.strut') + ' ' + d.byCat[k].mm +
-                          (d.byCat[k].mm < 60 && d.byCat[k].deg != null ? '@' + d.byCat[k].deg : '') : null).filter(Boolean);
+                          (d.byCat[k].mm < 60 && d.byCat[k].deg != null ? '@' + d.byCat[k].deg : '') + (d.byCat[k].closing === false && !(k in (d.onClosed || {})) ? ' beside' : '') : null).filter(Boolean);
   const on = Object.keys(d.onClosed || {});
-  return (d.minMM < PS.SWING_RED_MM ? '**RED ' : '') + d.minMM + ' mm' + (d.deg != null ? ' @' + d.deg + '°' : '') + (d.minMM < PS.SWING_RED_MM ? '**' : '') +
+  const head = d.minMM < PS.SWING_RED_MM ? '**RED ' + d.minMM + ' mm' + (d.deg != null ? ' @' + d.deg + '°' : '') + '**'
+    : d.deg == null ? 'clear' : d.minMM + ' mm' + ' @' + d.deg + '°';
+  return head +
          (c.length ? ' (' + c.join(', ') + ')' : '') + (on.length ? '; ON the closed door: ' + on.join(', ') : '');
 };
-const md = ['| build | door | BEFORE: as placed, swept to 90° (least, by kind, mm) | AFTER: the snap on, swept to the stop (75°) | what the snap changes |', '|---|---|---|---|---|'];
+const md = ['RED: something on the shut door, or something the door closes in on to under 20 mm as it opens. "beside": near the door but the door moves away from it (an edge, the hinge side) - listed, not a block.', '',
+  '| build | door | BEFORE: as placed, swept to 90° (least, by kind, mm) | AFTER: the snap on, swept to the stop (75°) | what the snap changes |', '|---|---|---|---|---|'];
 for (const r of rows) {
   if (r.error) { md.push(`| ${r.build} | - | ${r.error} | | |`); continue; }
   const keys = [...new Set([].concat((r.saved || r.snap).doors.map(d => d.key), r.snap.doors.map(d => d.key)))];

@@ -933,7 +933,12 @@ PAGE.post = ctx => {
       const anchor = PIL_ANCHORS.has(row.key) || /^tieDown|^strap|^grab/.test(row.key);
       sites = sites.map(s => {
         const pm = [s.p[0] * K2, s.p[1] * K2, s.p[2] * K2];
-        if (!PSm.inDoor(PSa, pm, 0.02, { panelOnly: true })) return s;
+        // THE FOOTPRINT, not the centre: a hatch whose centre is on the door and whose edge is not straddles the
+        // door's gap (measured on _4b: the belly plate across the pilot door's bottom edge, half of it swinging)
+        const m = Math.max(hl, hh) * K2;
+        const foot = [[0, 0], [m, m], [m, -m], [-m, m], [-m, -m]].map(([dy, dz]) => !!PSm.inDoor(PSa, [pm[0], pm[1] + dy, pm[2] + dz], 0.03, { panelOnly: true }));
+        const onAny = foot.some(Boolean), onAll = foot.every(Boolean);
+        if (!onAny) return s;
         const sgn = pm[0] >= 0 ? 1 : -1;
         // not on another fitting already moved there (cage units, this flank)
         // ...and never forward of the firewall (the sheet runs on under the cowling there)
@@ -952,7 +957,14 @@ PAGE.post = ctx => {
           }
         }
         const q = SITE.clearSite && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh, { FS: K2, avoid, reach: 0.4 });
-        return q ? take(q, 'off') : s;
+        if (q) return take(q, 'off');
+        if (anchor || onAll) return s;
+        // nowhere off the doors: then wholly ON the one it overlaps (a flush hatch on a door rides it), never across
+        // its gap
+        const dk = (() => { for (const d of PSa.doors) if (d.sgn === sgn && pm[2] > d.z0 - m && pm[2] < d.z1 + m) return d.doorKey; return null; })();
+        const q2 = dk && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh,
+          { FS: K2, avoid, reach: 0.25, ok: f => f.doorKey === dk && !f.win && !['joint', 'doorSeal', 'paneEdge'].includes(f.m) });
+        return q2 ? take(q2, 'door') : s;
       });
     }
     // FITTINGS-MANUAL: the auto site recorded, then the hand's
