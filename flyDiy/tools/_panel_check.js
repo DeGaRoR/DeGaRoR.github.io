@@ -451,8 +451,9 @@ function run() {
     check(/['edCtl_throttle2', 'thr1', inb * 0.056]/.test(crewSrc) && /twinDx: rods.length > 1/.test(crewSrc) && /const dx2 = thr.twinDx || 0;/.test(crewSrc),
       'crew: a twin gets two push-pull rods, and the keep-out spans both');
     check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
-    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step
-    check(/function rollInScreen\(after\) \{[\s\S]{0,900}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
+    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step (the window 1200:
+    // G3791's phone test-flight return line sits ahead of it, PHONE-1b)
+    check(/function rollInScreen\(after\) \{[\s\S]{0,1200}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
     // G446.2: the yoke's hub stands yokeGap off the PLATE (not off the seat back), the collar stays on the plate whatever the stick offsets; the row is on the cabin page
     check(/const zHub = zCol - YOKE_FRONT - gap;/.test(crewSrc) && /const gap = P\.yokeGap != null \? Math\.max\(0\.04, \+P\.yokeGap\) : 0\.16;/.test(crewSrc)
           && /tube\(g0, K \? M\.frame : M\.ctrl, \[sx, yY, zCol \+ 0\.05\], \[sx \+ off\[0\], yY \+ off\[1\], zHub \+ off\[2\]\], 0\.0125\);/.test(crewSrc),
