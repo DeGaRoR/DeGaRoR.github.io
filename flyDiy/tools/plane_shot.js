@@ -206,6 +206,9 @@ async function shoot(o) {
 
     for (const file of o.builds) {
       const tb = Date.now(), base = path.basename(file).replace(/\.json$/i, '');
+      // (NEW-PLANE: a fresh profile's first launch opens the new-aeroplane chooser a moment after the boot, and the chooser
+      // holds the frames behind it - closed before every build, as the player's cancel would)
+      await C.ev('(() => { try { if (window.NEW_PLANE && NEW_PLANE.isOpen()) NEW_PLANE.close(); } catch (e) {} return 1; })()');
       const BR = { file, views: [] }; R.builds.push(BR);
       // THE USER'S DOOR: the fleet's Import input, a real file - garage.js readFile -> unwrap -> loadSpec
       const want = JSON.parse(fs.readFileSync(file, 'utf8'));
