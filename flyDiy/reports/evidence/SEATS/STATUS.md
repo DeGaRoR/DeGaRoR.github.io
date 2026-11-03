@@ -80,6 +80,10 @@ MEASURED (tools/_framecost_check.js --census cub, master a8a23ad62 vs this branc
   and every boot row that moved went DOWN (garage:firstFrame draws 4977 -> 4221, uniform bytes 714 356 -> 609 036;
   garage:landing draws 14 931 -> 12 663; updateMatrixWorld down in every step). The +8 garage draws and the ~12 MB of
   uploads are gone. With the train's re-cook, FRAMECOST on master + seats-cost should read master's own 5 rows.
+- GATES on claude/ready/seats-cost: SEATS JOIN CABIN CAGEFIT SKINMAT DESIGN PARTS SAVE UISMOKE UISMOKE-PHONE
+  DMGOCCUPANT WEIGHT - all PASS. (FRAMECOST itself reads red here until the re-cook - the stale cook, above.)
+- A0 could not be messaged from this cloud session (the cross-session send needs the owner's trust grant); this file is
+  the report, as the first brief said.
 - NOT DONE, the user's call: collapsing every seat to its four section materials (chrome levers, rubber rollers, cast
   brackets into the frame colour) - it changes the approved look and the measurement says it buys nothing in flight.
 
