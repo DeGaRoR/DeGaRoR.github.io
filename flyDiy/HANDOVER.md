@@ -310966,3 +310966,17 @@ Timed light gate: killed at its 40 min cap (exit 124), no verdict - perf rows ri
 - GATE PANEL: the rollInScreen pattern window is 1200 (the test flight's return line sits ahead of the holdRender clear).
 - THE S20 NIGHT RIG (tools/perf/phone_night.sh + phone_night_report.js; phone_edit.js --fly / census nocrew,crewflat): adb + our own CDP tab only, the user's phone rule (touch nothing else; results only in flydiy-notes, never in git). Numbers: flydiy-notes/evidence-2026-10-18/2026-11-03/phone-night/RESULTS.md (the shed 30 fps vs 9; releases 70-490 ms but the sheet rows ~1.4 s and boomLen 0.9 s; the Cub's phone circuit completed, 29.7 fps).
 - Open: P-3 boom preview, the 4.4 s typed fltZ outlier (P9), PHONE-GARAGE's touch reds (page preset, fine, typed after -/+, hit44, density).
+
+## A0 - train 1B (PHONE-1b), 3 Nov 2026 09:30
+
+IN (on F4 master 2f104df85): claude/ready/phone-1b 4f959b923 (PHONE-EDIT-PERF: the S20 garage edits - release freeze gone, idle shed 30 fps; carries knee-fix ea9bc21c6, float-cg-2/3 and phone-testflight), claude/phone-edit-layout 5db9a0cd4 (PHONE-GARAGE: CG posts on phone + floats, PWA + app icon, studio fill), claude/ready/boom-reach 0199466a4 (FLAGSHIP), claude/ready/candidates-4b 291d12bcf (STORY-1: the _4b twin + door fixes), claude/ready/ambrecord-coremath 3406eef28 (Sound: AMBRECORD CORE_MATH). Built-file conflicts only (taken theirs, rebuilt). cabin-craft-3 76bc7da62 came at 08:02 after the 07:55 cut -> L30a.
+
+BATTERY (44 gates, jobs 8): green except, all named:
+- master standing (same lines on master): FRAMECOST, ROUNDTRIP, ASSETS, HANDLE, CLIP, TECH, NODUMMY, ENGCONFIG.
+- FINISH-4's own reds, owners as in the F4 note: DMGPAGEW (Deform), CREWLOAD (GPS-STALL), STORY (Game).
+- SHEETWORKER 46/47: the gate's source regex only (CAGE_UI.dragging() gained REL_PEND in PHONE-EDIT-PERF's P-2); fixed on claude/ready/phone-1b-fix 54140327f -> L30a.
+- BUILT: stale before the push (rebuilt here).
+- JOINPARITY not judgeable (its page capture predates float-cg; re-capture GPS-STALL 3 Nov).
+
+TIMED (light): RED 53 vs the 12 Oct baseline ee466b792 (no reference taken since). Warm nav -> garage 65 -> 141 s (shader links MISS, worst 31 s), chase 29.8 -> 19.9 fps, compile 3.5 -> 32 s.
+A/B on the box 09:00-09:29 (master_bench --only loads,garage, cub): master F4 2f104df85 nav -> garage 136.6 s (35 links > 5 s) vs this train 150.8 s (40 links > 5 s): THE BOOT COST IS ALREADY ON MASTER (FINISH-4, whose own timed gate was killed at 40 min - this is why). Landed under the user's land-everything rule with the cost named; the F4 boot/link + chase cost goes on the perf-week list and gets a bisect (F4's 21 branches) in a box slot. Also seen: this train's bench garage sample reads 0.5 fps (one 12.8 s frame; master 30.1) - the light gate's garage rows "not measured": suspect the 1b idle hold on desktop vs the bench (needs &idle=0); PHONE-EDIT-PERF to confirm. CABIN-CRAFT ran node work 08:42-08:59 (inside the timed window, after the boot rows) - noted.
