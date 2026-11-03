@@ -94,6 +94,15 @@ var WEATHER_UI = (function () {
     const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };
     const d = CK && CK.day ? CK.day() : null;
     if (!d) { H.note(host, 'This build has no clock, so it has no weather either.'); return; }
+    // TIME-CONTROLS (A0 2 Nov): THE CAREER'S WEATHER IS TOLD, NOT SET - the day brings it (the weather plan, WEATHER-DAYS);
+    // this panel says it in DAY_UI's words and offers nothing to change. The sandbox keeps every row below
+    if (CK.isCareer && CK.isCareer()) {
+      head('the weather');
+      const DU = typeof window !== 'undefined' ? window.DAY_UI : null;
+      for (const l of (DU && DU.weatherWords ? DU.weatherWords(d) : [])) H.note(host, l);
+      H.note(host, 'The career\'s weather comes with the day: it is told here, not chosen.');
+      return;
+    }
     // the wind, always read through the day's declared spec (the climate resolves it)
     const wind = () => d.wind || {};
     const setWind = patch => {

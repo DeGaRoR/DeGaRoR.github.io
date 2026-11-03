@@ -44,7 +44,7 @@
   const loopP = new Array(LOOPS.length).fill(null);   // the players
   const loopG = new Float64Array(LOOPS.length).fill(-1), asked = new Uint8Array(LOOPS.length);
   // the events' one-shot keys and routes ([node, gain] pairs, made at connect)
-  const EV_KEY = [null, 'gnd.thump', 'gnd.squeal', 'gnd.thump', 'water.splash', 'mech.lever'];
+  const EV_KEY = [null, 'gnd.thump', 'gnd.squeal', 'gnd.thump', 'water.splash', 'mech.lever', null, null, null];   // (G1740: the crash's three are synthesised: no recording)
   let EV_OUT = null;
   const evAsked = new Uint8Array(EV_KEY.length);
   // the warning's own event for the rest of the sound (SND-MUSIC ducks under it): AUDIO.emit('stall') at the onset and
@@ -108,7 +108,8 @@
         [[ext, 1], [int, 0.3]],        // the chirp
         [[ext, 0.5], [int, 1]],        // the suspension thump: mostly inside
         [[ext, 1], [int, 0.5]],        // the splash
-        [[int, 1]]];                   // the lever: inside only
+        [[int, 1]],                    // the lever: inside only
+        null, null, null];             // G1740: the crunch, the snap, the impact (no recording: never routed)
       EV_WHEEL = null;
       if (SPC && c.createStereoPanner) {   // the recorded touchdown leans to its wheel's side in the cabin
         const pL = c.createStereoPanner(), pR = c.createStereoPanner();

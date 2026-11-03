@@ -53,7 +53,9 @@ for (const [k, LD] of VALID) {
   const t0 = Date.now();
   const spec = loadOf(LD).spec;
   const def = C.buildGen(clone(spec));
-  const rec = { load: LD, file: fileOf(LD), spec, def: FP.fpDef(def), fly: FP.fpFly(C, def), draw: FP.fpDraw(C, def), ...FP.fpCheck(C, buildFresh(spec)) };
+  // the stored spec is master's BEFORE the STOL wing (FP.preStol: the join's stol: null and the rows at "off" dropped, as the
+  // gate drops them before it compares); the bits are the game's, off the spec as joined - the gate rebuilds them from the stored one
+  const rec = { load: LD, file: fileOf(LD), spec: FP.preStol(spec), def: FP.fpDef(def), fly: FP.fpFly(C, def), draw: FP.fpDraw(C, def), ...FP.fpCheck(C, buildFresh(spec)) };
   if (!NOLAP) rec.lap = FP.fpLap(C, buildFresh(spec));
   out.builds[k] = rec;
   const L = rec.lap;

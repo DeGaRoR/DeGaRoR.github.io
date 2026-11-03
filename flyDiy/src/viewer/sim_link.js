@@ -252,7 +252,7 @@ const SIM_LINK = (() => {
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
-               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat },   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {

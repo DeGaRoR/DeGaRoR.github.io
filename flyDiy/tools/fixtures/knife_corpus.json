@@ -3,8 +3,8 @@
  "head": "9dca4f16a",
  "items": {
   "file:builds/cessna172_2026-09-20.json": {
-   "nV": 57684,
-   "nF": 33242,
+   "nV": 58404,
+   "nF": 33378,
    "loops": [
     {
      "n": 68,
@@ -47,11 +47,11 @@
      ]
     }
    ],
-   "hash": "89d1e364dd5d5dabd684eeadd7145c6cb385b02f"
+   "hash": "0ee945781e7fd7bb96389f82ce7edcfdef1a5f92"
   },
   "file:builds/cessna172_2026-09-20_corrected.json": {
-   "nV": 57610,
-   "nF": 33296,
+   "nV": 58330,
+   "nF": 33432,
    "loops": [
     {
      "n": 64,
@@ -94,11 +94,11 @@
      ]
     }
    ],
-   "hash": "1597429349398cddbaf039b4e3a0ac48bb6b599c"
+   "hash": "1337baea3848ef33332f2dd2b50b4db0f0b3470d"
   },
   "file:bugReports/cessnaMetal (1).json": {
-   "nV": 57762,
-   "nF": 33352,
+   "nV": 58482,
+   "nF": 33488,
    "loops": [
     {
      "n": 64,
@@ -141,7 +141,7 @@
      ]
     }
    ],
-   "hash": "a0a7e6b14a3e954104cbbf42fbe46b3c3d2ca387"
+   "hash": "d108c09ebe0f6ef43d230cc81808fbfbd5276b0e"
   },
   "file:bugReports/flydiy-build (3).json": {
    "nV": 15648,
@@ -198,8 +198,8 @@
    "hash": "a7ed335da2f2f474ff841b594ab69e694804af5e"
   },
   "file:tools/fixtures/build_v10_cessnaMetal_2026-09-26.json": {
-   "nV": 57762,
-   "nF": 33352,
+   "nV": 58482,
+   "nF": 33488,
    "loops": [
     {
      "n": 64,
@@ -242,11 +242,11 @@
      ]
     }
    ],
-   "hash": "a0a7e6b14a3e954104cbbf42fbe46b3c3d2ca387"
+   "hash": "d108c09ebe0f6ef43d230cc81808fbfbd5276b0e"
   },
   "preset:cessna 172": {
-   "nV": 57444,
-   "nF": 33098,
+   "nV": 58164,
+   "nF": 33234,
    "loops": [
     {
      "n": 68,
@@ -289,7 +289,8 @@
      ]
     }
    ],
-   "hash": "3b10f19b2f161630c060a95d2d12f621eaf6d150"
+   "hash": "8504caa0f442facccdb5c96f988cfc6d3cab0bf6"
   }
- }
+ },
+ "note": "CABIN-CRAFT-3 (3 Nov): the five Cessna sheets re-recorded for the door panel grid cap (+68 faces per door), loops unchanged."
 }

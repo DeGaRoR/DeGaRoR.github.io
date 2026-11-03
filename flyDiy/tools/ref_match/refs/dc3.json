@@ -1,0 +1,57 @@
+{
+  "name": "Douglas DC-3",
+  "glb": "refs/dc3.glb",
+  "source": "Sketchfab 'Dc3' by manilov.ap (https://sketchfab.com/3d-models/dc3-1668ac86c20b4c3eb2a04d22959a87e1), CC-BY-4.0",
+  "note": "yawed ~25 deg in its file but in flying attitude (the fuselage's long axis within 1 deg of level): align 'pca' - NOT 'wing': the DC-3's swept LE and the outer panels' dihedral tilt the wing's chord axis 11.3 deg (aft is higher), which pitched the model nose-up; a twin with no nose engine: every station aft of the FUSELAGE'S NOSE TIP ('datum': 'nose') and every height above the centre of its deepest section ('level': 'body'), on both sides - the nacelles are parts measured against the body (the props' plane as a datum mixed the nacelle's length into every body station); the nacelles (Circle20, Circle21) have no role of the tool's - read by hand in step 3",
+  "align": "pca",
+  "scale": {
+    "by": "span",
+    "part": "upper",
+    "metres": 28.96
+  },
+  "anchors": {
+    "length": {
+      "metres": 19.66,
+      "source": "64 ft 6 in (19.66 m): Smithsonian NASM (DC-3, A19530075000)"
+    }
+  },
+  "sources": {
+    "span": "95 ft 0 in (28.96 m): Smithsonian NASM (A19530075000); 29.1 m Ingenium",
+    "length": "64 ft 6 in (19.66 m): Smithsonian NASM",
+    "height": "16 ft 11 in (5.16 m), three-point: Smithsonian NASM - not anchored, the model is measured in flying attitude",
+    "wing area": "987 sq ft (91.7 m2): HistoryNet; aspect ratio 9.17",
+    "track": "18 ft 6 in (5.64 m)",
+    "propeller": "Hamilton Standard 23E50, 3 blades, ~3.5 m (11 ft 6 in): Ultracast 48240, enginehistory.org"
+  },
+  "datum": "nose",
+  "parts": {
+    "fuselage": [
+      "FUZEL-FACES"
+    ],
+    "upper": [
+      "KRILO-FACES",
+      "KRILO_OSNOVA-FACES"
+    ],
+    "fin": [
+      "VERT_OPER-FACES"
+    ],
+    "stab": [
+      "GOR_OPER-FACES"
+    ],
+    "hub": [
+      "Sphere02-FACES",
+      "Sphere03-FACES"
+    ],
+    "tyre": [
+      "Torus02-FACES",
+      "Torus04-FACES"
+    ]
+  },
+  "markers": {
+    "passenger windows": "ILL_PASS-FACES",
+    "nacelle L": "Circle20-FACES",
+    "nacelle R": "Circle21-FACES",
+    "tailwheel": "Torus03-FACES"
+  },
+  "level": "body"
+}

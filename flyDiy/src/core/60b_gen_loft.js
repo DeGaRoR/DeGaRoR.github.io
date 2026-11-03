@@ -87,6 +87,27 @@ function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
   return [h * t * cy, halfW * t * cz];
 }
 
+// CABIN-CRAFT (2026-11-02): THE COWL'S FIREWALL WIDTH BY LEVEL - the cage's `cw_wAftTop` / `cw_wAftBot` (the cowl
+// layer's 'width at the top / bottom line (x widest)', _cowl_gen.js wAftTop): the drawn section narrows with height,
+// 1 at the waist, w at the line, faded to 1 at the nose. The flown cowl wets and weighs that section. Null when both
+// are absent or 1 - every caller then takes its old path, to the bit.
+function genCowlWidths(S) {
+  const c = S && S.cage;
+  if (!c) return null;
+  const t = c.cw_wAftTop != null && isFinite(+c.cw_wAftTop) ? Math.max(0.2, Math.min(2, +c.cw_wAftTop)) : 1;
+  const b = c.cw_wAftBot != null && isFinite(+c.cw_wAftBot) ? Math.max(0.2, Math.min(2, +c.cw_wAftBot)) : 1;
+  return (t === 1 && b === 1) ? null : { top: t, bot: b };
+}
+// genSect with the width by level (the drawn cowl's sectPt rule): the lateral coordinate scales by 1 + (w - 1) v,
+// v the height over the half's own depth
+function genSectW(theta, halfW, yUp, yDn, nTop, nBot, wTop, wBot) {
+  const q = genSect(theta, halfW, yUp, yDn, nTop, nBot);
+  const up = q[0] >= 0, w = up ? wTop : wBot;
+  if (w == null || w === 1) return q;
+  const h = Math.max(1e-5, up ? yUp : yDn);
+  return [q[0], q[1] * (1 + (w - 1) * Math.min(1, Math.abs(q[0]) / h))];
+}
+
 // Symmetric superellipse about the section centre. Retained because the cowl,
 // the tail cone cap and the legacy genRing wrapper all want a shape that is the
 // same above and below; new work should prefer genSect.

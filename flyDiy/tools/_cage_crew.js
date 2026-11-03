@@ -1494,11 +1494,21 @@ function buildBrakeKnob(gRoot, A, P, sx) {
   const g0 = ctlShift(gRoot, P, 'parkX', 'parkY', 'parkZ');
   // G373: 9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station
   // (the pilot's x), not 19 cm outboard — the dash's centre on a single seat
-  const x = sx - 0.09, zB = A.dashAftZ + 0.030;
-  // the dash's bottom, over a wider net than the lamps' (its vertices are
-  // sparse across x: a 4 cm net at the pilot's x found only the roll's
-  // underside, and hung the knob at the ASI's height)
-  const yU = A.dashBotAt ? A.dashBotAt(x, 0.06, zB - 0.03, zB + 0.03) : A.dashLip;
+  const x = sx - 0.09;
+  // UNDER THE DASH, ON ITS LOWER EDGE - ALWAYS (CABIN-CRAFT, the user 2 Nov: "I fear we still have the issue of the
+  // handbrake placing itself in a ridiculous way. That thing always goes below the dash, attached to its lower edge").
+  // The G373 net (the lowest `dash` vertex within 6 cm of x, 0-6 cm forward of the dash's aft-most point) still found
+  // the ROLL's underside: the plate leans, so the aft-most point is the glareshield at the TOP, and every build hung
+  // its knob 1-4 cm under the plate's top edge, among the dials (measured on the six validated builds, the C172, the
+  // twin, the stock, the DC-3). The plate's own outline (A.face, the `dashFace` columns) gives its bottom edge at
+  // this x and the plate's depth there: the bracket's foot is CENTRED on that edge (half under the box, half
+  // behind the plate), and the knob hangs below it. Not further forward: the validated twin floatplane's header tank
+  // stands 1-3 cm aft of its panel's bottom edge, and a foot 22 mm under the box stood in it (14 of the bracket's
+  // 182 vertices; 6 centred - the tank's own intrusion, the energy layer's). No plate measured: the dash's lowest
+  // line (dashLip - the arch's box-equivalent bottom).
+  const col = A.face && A.face.at ? A.face.at(x) : null;
+  const yU = col && isFinite(col.y0) ? col.y0 : A.dashLip;
+  const zB = (col && isFinite(col.y0) && A.face.depthAt ? A.face.depthAt(x, col.y0) : A.dashAftZ);
   const y = yU - 0.030;
   const brk = K.Bag();
   K.sweep(brk, [[x, yU + 0.001, zB], [x, yU - 0.004, zB]],
@@ -2588,6 +2598,25 @@ function ikDefaultPole(occ, chainKey, out) {
   bones[c.end].getWorldPosition(_v3);
   _u.copy(_v3).sub(_v1);
   const dl = _u.length() || 1e-4; _u.divideScalar(dl);
+  if (!c.arm) {
+    // A KNEE BENDS IN THE BODY'S OWN UPRIGHT PLANE (KNEE-FIX, the user 2 Nov,
+    // the twin busher: "the left knee far too much out ... it goes through the
+    // door ... Right leg is better somehow"). The pole was the knee's CURRENT
+    // bend direction, and a leg reaching far pedals (pedalZ 0.9) starts nearly
+    // straight, so that direction was the rig's few millimetres of incidental
+    // bend - sideways on one leg, upward on the other, 38 cm out, which the
+    // +-25 cm knees slider could not turn back. Now: up across the hip->foot
+    // line in the fig's own frame (no sideways part), from the line's middle;
+    // sideways is the slider's alone, the same for both knees.
+    occ.fig.getWorldQuaternion(_qf);
+    _n.set(1, 0, 0).applyQuaternion(_qf);                // the body's side axis
+    _perp.crossVectors(_n, _u);
+    if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, 1).applyQuaternion(_qf);
+    _perp.normalize();
+    if (_perp.dot(_n.set(0, 1, 0).applyQuaternion(_qf)) < 0) _perp.negate();
+    out.copy(_v1).add(_v3).multiplyScalar(0.5).addScaledVector(_perp, 0.38 * occ.fig.scale.x);
+    return out;
+  }
   _perp.copy(_v2).sub(_v1);
   _perp.addScaledVector(_u, -_perp.dot(_u));
   if (_perp.lengthSq() < 1e-6) _perp.set(0, 0, c.arm ? -1 : 1);
@@ -3220,6 +3249,28 @@ let group = null;
 // characters on the wire (G204): one fetch per key, the build re-runs on
 // landing; a texture landing only needs a redraw (the bench draws on demand)
 const CHAR_WAIT = {};
+// CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): A FAILED CHARACTER RETRIES ON A CLOCK, NOT ON THE BUILD. G1985's rebuild after
+// a failure re-ran this layer, whose charAt found the key still not ready and loaded it again: a key that keeps failing
+// (an asset that will not come - measured in the game, ch20 on a rig profile that could not store it) rebuilt the whole
+// aeroplane every ~280 ms for ever, in flight (a ~210 ms task each, 389 rebuilds in one roll-out). Now the FIRST failure
+// rebuilds once (G1985's settle: the seat keeps its undressed chain, the energy layer settles on it); after it the key
+// is out of charAt's hands until its retry, which loads it alone (no build) after 2, 4, 8 ... 60 s, and rebuilds only
+// when it lands. key -> { n: failures so far, t: the retry's timer }
+const CHAR_FAIL = {};
+const CHAR_RETRY_MS = n => Math.min(60000, 2000 * Math.pow(2, n - 1));
+const charRetry = key => {
+  const f = CHAR_FAIL[key];
+  if (!f || f.t) return;
+  f.t = setTimeout(() => {
+    f.t = 0;
+    const C = window.CAGE_CHAR;
+    if (!C) return;
+    C.load(key).then(d => {
+      if (d) { delete CHAR_FAIL[key]; if (window.CAGE_UI && window.CAGE_UI.build) charRebuild(); }
+      else { f.n++; charRetry(key); }
+    });
+  }, CHAR_RETRY_MS(f.n));
+};
 // several characters landing in one breath rebuild ONCE
 let charRebuildT = 0;
 // G2290 (PILOTS): the career's door onto the pilot's seat (see crewKey below): a change rebuilds the crew, a repeat is free
@@ -3530,11 +3581,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     let rig = null;
     try { rig = C.rig(c.key); } catch (e) { console.warn(e.message); return null; }
     const ready = !!C.ready(c.key);
-    if (!ready && !CHAR_WAIT[c.key]) {
+    if (!ready && !CHAR_WAIT[c.key] && !CHAR_FAIL[c.key]) {   // (a failed key waits for its retry: CREW-LOAD-BACKOFF)
       CHAR_WAIT[c.key] = 1;
       if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
+        if (!d) { CHAR_FAIL[c.key] = { n: 1, t: 0 }; charRetry(c.key); }
         // G1985: a FAILED character rebuilds too - the seat keeps its undressed chain, and the layers that waited on the crew
         // (the energy layer's tank shape) settle on it now rather than on the next edit
         if (window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands

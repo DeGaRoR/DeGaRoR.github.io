@@ -470,6 +470,34 @@ function makeSim(def, world) {
   const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
   const OCS = OCC ? genOccState() : null;
   if (OCC) DMG.occ = null;
+  // G2001 (DMG-SCUFF): THE SLIDE WORK PER NODE (J) - what the drawing paints as scrapes (skin_scuff.js), recorded only
+  // with the layer on and never read back by the physics (no force, no state the step uses): the ground's friction work
+  // on a node that is not a wheel (Fn's own Coulomb term, kf |v|^2 dt), and a node's rub along a trunk (the trunk's push
+  // has no friction in the solver: rubbed at a nominal mu 0.5 of its push, bark on a skin, for the picture only). Beside
+  // each node's work, in the BODY frame at that substep (aft, up, right: xAft / yUp / zRt): the slide's direction and the
+  // side it was pushed from (into the surface) weighted by the work, and the work done on SOFT ground (grass, forest
+  // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
+  DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
+  DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1];      // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand
+  function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
+    const i3 = i * 3;
+    DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
+    DMG.sD[i3] += w * (dx * xAft[0] + dy * xAft[1] + dz * xAft[2]);
+    DMG.sD[i3+1] += w * (dx * yUp[0] + dy * yUp[1] + dz * yUp[2]);
+    DMG.sD[i3+2] += w * (dx * zRt[0] + dy * zRt[1] + dz * zRt[2]);
+    DMG.sN[i3] += w * (ix * xAft[0] + iy * xAft[1] + iz * xAft[2]);
+    DMG.sN[i3+1] += w * (ix * yUp[0] + iy * yUp[1] + iz * yUp[2]);
+    DMG.sN[i3+2] += w * (ix * zRt[0] + iy * zRt[1] + iz * zRt[2]);
+    if (soft) DMG.sG[i] += w;
+  }
+  // a node pushed off a trunk (normal nx, nz, horizontal) by F: its velocity ALONG the bark (the normal part taken off)
+  function scuffTrunk(i, F, nx, nz, dt) {
+    if (!(F > 0)) return;
+    const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
+    const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
+    if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+  }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -1312,6 +1340,7 @@ function makeSim(def, world) {
     DMG.wB.fill(0);   // G1802
     DMG.how.fill(0);  // G3770
     if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
+    if (DMG_ON) { DMG.sW.fill(0); DMG.sD.fill(0); DMG.sN.fill(0); DMG.sG.fill(0); DMG.scN = 0; DMG.scW = 0; }   // G2001
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
     if (PODS !== null) { DMG.pod.slide.fill(0); DMG.pod.work.fill(0); DMG.pod.fnPeak.fill(0); DMG.pod.tFirst = -1; DMG.pod.n = 0; podC = null; }   // G3463
@@ -2426,6 +2455,7 @@ function makeSim(def, world) {
 
   function reset(drop = 0) {
     PFO.netF = 0; PFO.mErr = 0;
+    if (TWSW) { TWSW.cast = false; TWSW.ang = 0; }   // G3575: the full swivel steered again, centred
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -3267,6 +3297,33 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
+  // G3575 (DC3-2): THE FULL-SWIVEL THIRD WHEEL (the gear page's 'full swivel', params.twSwivel; the user, 26 Oct: "do the
+  // swivelling tailwheel"). The steered wheel (every build before) turns with the rudder to twSteer and no further, so its
+  // side force holds the tail: the DC-3 turned 3 deg in 10 s on a locked main, the outside engine full and the inside idle.
+  // A full-swivel wheel (the Scott 3200 kind; the DC-3's own, unlocked for the taxi) STEERS the same way - the rudder's,
+  // the ground's stability on every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi pace
+  // (under twSwV) a split past twSwB (|ctl.brakeD|) breaks it out and it castors - its rolling line follows its own ground
+  // track (no side force but the tyre's lag), the braked wheel and the engines turn the aeroplane round it, a pivot. It
+  // re-engages once the brake is off and its track swings back within twSwE of the body's line or the rudder's (the Scott's
+  // own: it locks into the steering near centre - matched to the rudder's line alone, it rarely did and the DC-3 weaved).
+  // The brake, not the tyre's load, is the trigger: the tailwheel node's side slip is the lattice's jitter as much as a
+  // load (its grip ratio read 30x on a straight roll, more in S-turns than in a braked turn), and a wheel that broke out
+  // on it castored the DC-3 into a weave. Absent (null), not one line below runs: every build that never chose it flies to
+  // the bit
+  const TWSW = P_.twSwivel ? { V: P_.twSwV ?? 5.0, B: P_.twSwB ?? 0.2, E: P_.twSwE ?? 0.12, cast: false, ang: 0 } : null;
+  // the wheel's line this substep, as the angle off the body's line: the rudder's (s), or once broken out its own track
+  function twSwivel(i3, hx, hz, s, Fn) {
+    const S = TWSW, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz), bd = Math.abs(ctl.brakeD || 0);
+    let a = S.ang;
+    if (V > 0.03) {
+      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);            // the track off the body's line
+      if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;   // rolling back: the same line
+    }
+    if (!S.cast) { if (Fn > 0 && bd > S.B && V < S.V) { S.cast = true; S.ang = a; } }
+    else { S.ang = a; if (bd < 0.05 && (Math.abs(a) < S.E || Math.abs(a - s) < S.E)) S.cast = false; }
+    out.twCast = S.cast ? 1 : 0;   // (read by tools/dc3_break.js)
+    return S.cast ? S.ang : s;
+  }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -3622,6 +3679,7 @@ function makeSim(def, world) {
         cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
         if (tkPush !== null) { tkPush[b.a] += fa; tkPush[b.b] += fb; }   // G1883: the instrument (sim.damagePush)
         _tkHits++;
+        if (DMG_ON) scuffTrunk(b.a, fa, nx, nz, dt), scuffTrunk(b.b, fb, nx, nz, dt);   // G2001: the rub along the bark
       }
     }
   }
@@ -3679,7 +3737,7 @@ function makeSim(def, world) {
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
-          const s = P_.twSteer * ctl.dr;   // measured: matches nose-left convention
+          const s = TWSW ? twSwivel(i3, hx, hz, P_.twSteer * ctl.dr, Fn) : P_.twSteer * ctl.dr;   // measured: matches nose-left convention (G3575: a full swivel's own line once broken out)
           const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
@@ -3738,6 +3796,8 @@ function makeSim(def, world) {
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
           if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
             if (Fn > P4.fnPeak[k]) P4.fnPeak[k] = Fn; if (P4.tFirst < 0) P4.tFirst = simT; }   // G3463: the pod's scrape, read
+          if (DMG_ON && sp > 0.05) scuffAdd(i, kf * sp * sp * dt, vx / sp, 0, vz / sp, 0, -1, 0,   // G2001: the slide's work
+            SCUFF_SOFT[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0] === 1);
         } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }

@@ -91,7 +91,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const FIX = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(T, 'fixtures', 'stol_baseline.json.gz'))));
 const CARDS = FIX.cards;
 // the wing layer's defaults for the STOL rows (tools/_cage_wing.js PAGE.defaults)
-const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+const STOL_ROW_DEFAULTS = require(path.join(T, '_stol_fp.js')).STOL_ROW_DEFAULTS;   // (one table: the capture drops the same rows)
 const RHO = C.RHO;
 
 // ---- the instruments ------------------------------------------------------
@@ -144,7 +144,8 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
   vm.runInNewContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'bench.js'), 'utf8'),
     { module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String, Array, Object,
       Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol,
-      genStolCageOff: C.genStolCageOff });             // G2827: the core's global, as bench.js finds it in the page
+      genStolCageOff: C.genStolCageOff,                // G2827: the core's global, as bench.js finds it in the page
+      certMajorOf: C.certMajorOf, certStrip: C.certStrip });   // G3780: benchFingerprint is the cert rule's (66b) - without them it hashed null, every spec alike
   const BE = m.exports;
   // G2821: THE VALIDATED BUILDS (the load door's VALIDATED - Cub, Jodel, metal Cessna, Cessna floats, twin floats -
   // and the certified Rufus): LOADED HERE through the game's own load door
@@ -730,9 +731,12 @@ if (!BENCH_ONLY) {
   const FXS = path.join(T, 'fixtures', 'stol_cub_showcase.json'), RUN = path.join(T, '_stol_leg.js');
   const LEGS = { bush: ['--profile', 'bush'], gust: ['--wind', '1,4', '--gust', '0.6'], xwind: ['--wind', '0,2'] };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stol9_')), t0 = Date.now();
-  const q = a => "'" + String(a).replace(/'/g, "'\\''") + "'";
-  cp.execSync(Object.keys(LEGS).map(k => [process.execPath, RUN, FXS, ...LEGS[k]].map(q).join(' ') + ' > ' + q(path.join(dir, k + '.out')) + ' 2>&1 &').join(' ') + ' wait',
-              { shell: '/bin/bash', stdio: 'inherit' });
+  // the three legs side by side, each into its .out, waited for: node is the launcher (A0 3 Nov: shell '/bin/bash' threw
+  // ENOENT under the Windows node - the box has no /bin/bash, the section never ran there)
+  const jobs = Object.keys(LEGS).map(k => ({ args: [RUN, FXS, ...LEGS[k]], out: path.join(dir, k + '.out') }));
+  cp.execFileSync(process.execPath, ['-e', "const cp = require('child_process'), fs = require('fs');" +
+    'for (const j of ' + JSON.stringify(jobs) + ") { const fd = fs.openSync(j.out, 'w'); cp.spawn(process.execPath, j.args, { stdio: ['ignore', fd, fd] }).on('exit', () => fs.closeSync(fd)); }"],
+    { stdio: 'inherit' });
   const R = {};
   for (const k of Object.keys(LEGS)) {
     const txt = fs.readFileSync(path.join(dir, k + '.out'), 'utf8').trim().split('\n');
@@ -772,7 +776,8 @@ if (SELF) {
     const b0 = PHY.base || tunnel(build('savannah'));
     t.push(['a slot with no dAs fails the Vs band', !(tt.Vs / b0.Vs < 0.92)]); }
   // d: the fingerprint without the null strip would move
-  { const sp = clone(CARDS.savannah.spec), spN = clone(sp); spN.wings[0].stol = null;
+  // (the absent key made here: a post-STOL master's bake already carries stol: null, A0 3 Nov)
+  { const sp = clone(CARDS.savannah.spec); delete sp.wings[0].stol; const spN = clone(sp); spN.wings[0].stol = null;
     t.push(['a null stol hashed raw differs from the absent key (what bench.js strips)', JSON.stringify(sp) !== JSON.stringify(spN)]); }
   for (const [lbl, caught] of t) ok(caught, 'selftest: ' + lbl);
 }

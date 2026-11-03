@@ -350,7 +350,8 @@ function sectionPage() {
      'the plaque keeps its numbers dimmed and says UPDATING while the sheet computes, never blank, never unmarked');
   ok(/try \{ if \(indStale\) buildIndicators\(\); \} catch/.test(APP), 'the dimmed posts are rebuilt when the sheet lands (thread or page)');
   const UI = rd('tools/_cage_ui.js');
-  ok(/dragging: \(\) => !!\(DRAG_ON \|\| DRAG_T \|\| DRAG_LATE\)/.test(UI), 'the editor says when a hand is on a slider (or its settle build is owed)');
+  // PHONE-EDIT-PERF P-2 (084e23704): the release's build waits a paint (REL_PEND) and is owed as long as it waits
+  ok(/dragging: \(\) => !!\(DRAG_ON \|\| DRAG_T \|\| DRAG_LATE \|\| REL_PEND\)/.test(UI), 'the editor says when a hand is on a slider (or its settle build or its release build is owed)');
   const DF = rd('src/viewer/design_flow.js');
   ok(/L\.request\('strip', \{ key, spec, opts,/.test(DF) && /if \(took\) return \{ pending: true \};/.test(DF), 'the design strip asks its own lane and fills in place');
   const BW = rd('src/viewer/bench_worker.js');

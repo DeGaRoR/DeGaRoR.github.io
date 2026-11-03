@@ -12,11 +12,23 @@
 //     aeroplane stands on, without a floor to light;
 //   - THE REFLECTIONS: one PMREM of a tiny scene (a dark dome and three soft boxes where the lights are), baked once at
 //     build - the metals catch the boxes as a studio's would. Nothing is rendered again after the build.
+//   - THE FILL (PHONE-1b; the user 2 Nov on the S20: "The studio environment needs some subtle light from the back, or a
+//     global ambient one (but leaving the black background). The back of the wings for example is pitch black"): the
+//     same four lights and the same bake, other numbers (LOOKS.fill) - the hemisphere's ground lifted to the pool's warm
+//     floor, the rim moved behind and above the tail (the stand's nose is -x), and a dim floor disc under the dome so the
+//     undersides catch a bounce. No light added, none re-keyed: uniforms and the one bake, the background untouched.
+//     handle.look(L) re-dresses a standing studio with another look (the before/after stills; a tuning hand).
 // The shed is never built where the studio stands (app.js getHangar asks PROFILE room 'studio'): no room, no moods, no
 // shadow cache, no glass pass, no mobile kit - the frame is the aeroplane's own draws.
 var STUDIO = (function () {
   'use strict';
   const BG = 0x0d0c0b, EXPOSURE = 1.0;
+  // the numbers: v1 = G3726's (25 Oct), fill = PHONE-1b's (the default). hemi [sky, ground, intensity]; rim [x, y, z,
+  // intensity]; dome the env's colour; floor the env floor disc's level (0 = none); rimBox the rim's soft strip in the env
+  const LOOKS = {
+    v1:   { hemi: [0x48433c, 0x0c0b0a, 0.5], rim: [2, 5, -7, 1.7], dome: 0x14120f, floor: 0, rimBox: [3, 6, -12] },
+    fill: { hemi: [0x57514a, 0x3a352e, 0.9], rim: [7, 6, -3.5, 1.5], dome: 0x1b1915, floor: 0.16, rimBox: [12, 7, -5] },
+  };
   function poolTexture(THREE) {
     const D = typeof document !== 'undefined' ? document : null;
     if (!D || !D.createElement || !THREE.CanvasTexture) return null;
@@ -33,15 +45,19 @@ var STUDIO = (function () {
     return t;
   }
   // the reflections: a dark dome, three soft boxes, one PMREM (null when the renderer cannot)
-  function bakeEnv(THREE, renderer) {
+  function bakeEnv(THREE, renderer, L) {
     if (!THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
     const es = new THREE.Scene(), geos = [], mats = [];
     const mk = (geo, color, side) => { const m = new THREE.MeshBasicMaterial({ color, side: side || THREE.FrontSide }); geos.push(geo); mats.push(m); return new THREE.Mesh(geo, m); };
-    es.add(mk(new THREE.SphereGeometry(20, 16, 8), 0x14120f, THREE.BackSide));
+    es.add(mk(new THREE.SphereGeometry(20, 16, 8), L.dome, THREE.BackSide));
+    if (L.floor > 0) {   // the floor's bounce: a dim disc under the aeroplane, seen by the undersides
+      const fl = mk(new THREE.CircleGeometry ? new THREE.CircleGeometry(14, 24) : new THREE.PlaneGeometry(24, 24), new THREE.Color(L.floor, L.floor * 0.93, L.floor * 0.84), THREE.DoubleSide);
+      fl.rotation.x = -Math.PI / 2; fl.position.y = -3; es.add(fl);
+    }
     const box = (w, h, x, y, z, k) => { const b = mk(new THREE.PlaneGeometry(w, h), new THREE.Color(k, k, k), THREE.DoubleSide); b.position.set(x, y, z); b.lookAt(0, 0, 0); es.add(b); };
     box(8, 5, -8, 10, 7, 3.2);    // the key's soft box
     box(6, 3, 10, 3, 6, 1.1);     // the fill's
-    box(10, 2, 3, 6, -12, 2.0);   // the rim's strip
+    box(10, 2, L.rimBox[0], L.rimBox[1], L.rimBox[2], 2.0);   // the rim's strip
     let rt = null;
     try { const pm = new THREE.PMREMGenerator(renderer); rt = pm.fromScene(es, 0.04); pm.dispose(); }
     catch (e) { if (typeof console !== 'undefined') console.warn('studio: no reflections -', e && e.message); }
@@ -55,9 +71,17 @@ var STUDIO = (function () {
     const group = new THREE.Group(); group.name = 'studio';
     const key = new THREE.DirectionalLight(0xfff1de, 2.8); key.position.set(-5, 8, 4);
     const fill = new THREE.DirectionalLight(0xdbe4f0, 0.8); fill.position.set(6, 2.5, 4.5);
-    const rim = new THREE.DirectionalLight(0xffffff, 1.7); rim.position.set(2, 5, -7);
+    const rim = new THREE.DirectionalLight(0xffffff, 1.7);
     for (const L of [key, fill, rim]) { L.castShadow = false; L.name = 'studio:' + (L === key ? 'key' : L === fill ? 'fill' : 'rim'); group.add(L); group.add(L.target); }
     const hemi = new THREE.HemisphereLight(0x48433c, 0x0c0b0a, 0.5); hemi.name = 'studio:hemi'; group.add(hemi);
+    // the look's numbers on the standing lights (uniforms) and its env baked
+    let rt = null;
+    function look(L) {
+      hemi.color.setHex(L.hemi[0]); hemi.groundColor.setHex(L.hemi[1]); hemi.intensity = L.hemi[2];
+      rim.position.set(L.rim[0], L.rim[1], L.rim[2]); rim.intensity = L.rim[3];
+      const nrt = bakeEnv(THREE, renderer, L);
+      if (nrt) { scene.environment = nrt.texture; if (rt) rt.dispose(); rt = nrt; }
+    }
     const tex = poolTexture(THREE);
     const poolMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: tex, transparent: true, depthWrite: false });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), poolMat);
@@ -67,10 +91,10 @@ var STUDIO = (function () {
     const was = { bg: scene.background, fog: scene.fog, env: scene.environment };
     scene.background = new THREE.Color(BG);
     scene.fog = null;
-    const rt = bakeEnv(THREE, renderer);
-    if (rt) scene.environment = rt.texture;
+    look(LOOKS.fill);
     return {
       group, EXPOSURE,
+      look(L) { look(typeof L === 'string' ? LOOKS[L] : L); },
       setY(v) { floor.position.y = v || 0; },
       dispose() {
         scene.remove(group);
@@ -80,6 +104,6 @@ var STUDIO = (function () {
       },
     };
   }
-  return { build, BG, EXPOSURE };
+  return { build, BG, EXPOSURE, LOOKS };
 })();
 if (typeof window !== 'undefined') window.STUDIO = STUDIO;

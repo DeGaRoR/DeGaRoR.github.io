@@ -3500,7 +3500,11 @@ const AERO_ALBEDO_FS = `
   vec3 aeroA = vCraftPos;
   float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
-    if (di >= uDecN) break;
+    // PHONE-EDIT-PERF (2 Nov, A0-approved desktop candidate 1): a section that takes no marking (uDecOk 0: the interior,
+    // the hardware, the booms - aeroDecOk answers 0 or 1) leaves the loop at once. Its weight w was 0 on every pass, so
+    // every pass added nothing (mix(x, dc, 0) is x; the accumulators start at 0): the same pixels, without 8 atlas
+    // fetches and their SDF fwidth a fragment. uDecOk is a uniform, so the flow stays uniform (fwidth below is safe)
+    if (di >= uDecN || uDecOk < 0.5) break;
     // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
     // fuselage/flying/both scalar — the fin belongs with the fuselage and the
     // wing does not, and the old scalar could not say so.

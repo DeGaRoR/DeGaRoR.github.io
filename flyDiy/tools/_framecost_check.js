@@ -82,6 +82,18 @@ const ALLOW = [
   // Cessna's restore 2269 -> 4553 is master's own, not admitted here)
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 900, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
   { key: 'boot/garage:restore/', build: 'cub', rise: 40, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  // G2802 (AVIONICS-GPS phase 2, the user 22 Oct: "the electrics as real 3D parts ... breakers"): the breaker row on the
+  // dash - five scene objects a breaker (its seat on the plate, the collar, the moving button group, the button, the
+  // band), 9 on the Cub (45 objects) and 15 on the Cessna (75), walked ~28 times in the garage seed. Measured 22 Oct on
+  // the same box against a clean origin/master worktree: the Cub's seed 18356 (master, G3340 admitted) -> 19625
+  // (+1269), its restore 806 -> 853 (+47); the Cessna's seed ~25365 (master, in tolerance) -> 27361 (+1996). The
+  // Cessna's restore (master 4553, here 4841) stays master's own red, not admitted here (G3340's note).
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 2050, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +704)', g: 'G2802' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 90, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +28)', g: 'G2802' },
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2100, why: 'the breaker row as real parts (G2802): 15 breakers, 75 objects', g: 'G2802' },
+  // G2808.2 (the user 25 Oct: "Fix everything. Wysiwyg"): the billed things drawn on the Cessna's dash - the NAV head and
+  // the hour meter (two dials with their bezels, posts and screws), the slip ball, the ammeter's needle, the tapes
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2750, why: 'the breakers (G2802, 2100) and the NAV head, the hour meter, the slip ball, the ammeter needle drawn (G2808.2)', g: 'G2808' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
@@ -101,6 +113,22 @@ const ALLOW = [
   { key: 'boot/garage:town/links', build: '*', rise: 1, why: 'the wet-body spray pool linked by the town step world compile', g: 'G2090' },
   { key: 'boot/garage:snapshot/links', build: '*', rise: 2, why: 'the wet-body spray pool in the snapshot compile states', g: 'G2090' },
   { key: 'boot/garage:snapshot/gl.calls', build: '*', rise: 30, why: 'the same two links', g: 'G2090' },
+  // G2115-G2119 (TERRAIN-MATCH, 2026-10-06): the 1 m contact tier under the aeroplane (ground_tier.js: one draw of the patch's
+  // material at the stand and the taxi pin - its maps bound, its uTier and the hook's uniforms), its per-frame read of the ground
+  // under the craft, and at the world step the pavement rows refined where the ground curves (pavement.js REFINE: heightAt at
+  // every tested midpoint) and the over-runs' patch chunks. Measured against a base with an equally stale parked cook (A0
+  // re-cooks at the train; the stale cook alone is the other 24 rows on any source branch). The patch's skirts between the
+  // chunks of a block went (bufferData -9.8 MB at the world step; tris down)
+  { key: 'stand/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'taxi/gl.bindTexture', build: '*', rise: 14, why: 'the contact tier: one draw of the patch material', g: 'G2118' },
+  { key: 'stand/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'taxi/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
+  { key: 'stand/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'taxi/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  { key: 'boot/garage:frames/world.terrainH', build: '*', rise: 10, why: 'the contact tier\'s per-frame read of the ground under the craft (its height over it)', g: 'G2118' },
+  { key: 'boot/garage:frames/bytes.uniforms', build: '*', rise: 30000, why: 'the contact tier\'s draw in the garage step\'s frames', g: 'G2118' },
+  { key: 'boot/garage:world/world.terrainH', build: '*', rise: 75000, why: 'the pavement rows refined where the ground curves (REFINE\'s tested midpoints) and the over-runs\' chunks', g: 'G2117' },
+  { key: 'boot/garage:world/world.grHeight', build: '*', rise: 240000, why: 'the same reads through the premises raster', g: 'G2117' },
   // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
   // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
   { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },

@@ -1,4 +1,4 @@
-// fit_tail.js <build.json> <tail.json> <fin|stab> <out.json> [startJSON]
+// fit_tail.js <build.json> <tail.json> <fin|stab> <out.json> [startJSON] [--hold k=v,...]
 // THE TAIL'S OUTLINE ROWS FITTED TO A REFERENCE'S. Ours is the drawn sheet the fin / stab layers build (the headless
 // tail, _tail_headless.js - the layers' own arithmetic, ~10 ms a build), rasterised at 1 cm in the side view (fin) or
 // the plan (stab, the starboard half); the reference's outline comes from refmatch.py --tail (already in our frame).
@@ -46,8 +46,14 @@ const ROWS = PART==='fin' ? [['finHeight',0.5,1.8],['finChord',0.5,1.6],['finCho
 const rows = ROWS || [];
 if(PART==='stab'){ // the stab rows: the fin's laid flat (ST2FIN), with their page ranges where known, else the fin's
   const FG=require(T+'_fin_gen.js'); for(const [sk,fk] of Object.entries(FG.ST2FIN)){ const r=[['finHeight',0.5,1.8],['finChord',0.5,1.6],['finChordTip',0.3,1.5],['finSweep',-10,45],['finHinge',0.08,0.45],['finTipZ',-0.6,0.6],['finTipY',-0.8,0.8],['finAftZ',-0.5,0.3],['finAftY',-0.9,0.6],['finBaseZ',-0.5,0.3],['finBaseY',-0.15,0.5],['finMidY',-0.8,0.4],['finUY',-0.4,0.4],['finLEZ',-0.8,0.3],['finLEY',-0.2,0.4],['finShoulderZ',-0.1,0.5],['finShoulderY',-0.1,0.3],['finTopY',-0.3,0.3],['finTERoot',-0.4,0.4],['finTEU',-0.4,0.2],['finTEMid',-0.4,0.2],['finSharpTip',0,3],['finSharpAft',0,3],['finSharpBase',0,3],['finSharpShoulder',0,3],['finSharpLE',0,3],['finRootFwd',-1.2,2.0]].find(q=>q[0]===fk); if(r) rows.push([sk,r[1],r[2]]); } }
+// --hold k=v,k=v (after the start JSON): rows SET and left out of the search - the user's shape choices held while the
+// fitter places the rest (the DC-3, 27 Oct: "straighten only the rudder, not the fin leading edge", "round only the
+// elevator's ends")
+const HI=process.argv.indexOf('--hold'), HOLD={};
+if(HI>0 && process.argv[HI+1]) for(const kv of process.argv[HI+1].split(',')){ const [k,v]=kv.split('='); HOLD[k]=+v; }
+for(let i=rows.length-1;i>=0;i--) if(rows[i][0] in HOLD) rows.splice(i,1);
 const cur={}; for(const [k] of rows) cur[k]= START[k]!==undefined?START[k]:(S.P[k]!==undefined?S.P[k]:0);
-Object.assign(cur, START);
+Object.assign(cur, START, HOLD);
 let best=score(cur); const t0=Date.now(); console.log(PART,'start 1-IoU',best.toFixed(4),'rows',rows.length,'ref cells',nRef);
 for(let pass=0, frac=0.25; pass<7; pass++, frac*=0.5){ let gain=false;
   for(const [k,lo,hi] of rows){ const st=(hi-lo)*frac; for(const dir of [1,-1]){ let moved=false; for(;;){ const v=Math.max(lo,Math.min(hi,cur[k]+dir*st)); if(v===cur[k]) break; const tr=Object.assign({},cur,{[k]:v}); const s=score(tr); if(s<best-1e-5){ best=s; cur[k]=v; moved=true; gain=true; } else break; } if(moved) break; } }

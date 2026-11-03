@@ -1,0 +1,193 @@
+{
+ "steps": [
+  [
+   "point sound",
+   "snd1"
+  ],
+  [
+   "sound area",
+   "snd2"
+  ],
+  [
+   "off area",
+   "snd3"
+  ],
+  [
+   "drag",
+   {
+    "handles": [
+     "v0"
+    ],
+    "started": true
+   }
+  ]
+ ],
+ "audio": {
+  "state": "running",
+  "ambience": true,
+  "beds": 23
+ },
+ "sectionTools": [
+  "SOUND"
+ ],
+ "pointMs": 252.2,
+ "areaMs": 369,
+ "beforeDrag": {
+  "pt": "snd1",
+  "selected": "snd1",
+  "entry": "{\"layer\":\"sounds\",\"entry\":{\"id\":\"snd1\",\"kind\":\"sound\",\"x\":-100,\"z\":640,\"key\":\"amb.loons\",\"on\":true}}"
+ },
+ "record": [
+  {
+   "id": "snd1",
+   "kind": "sound",
+   "x": -70,
+   "z": 640,
+   "key": "amb.loons",
+   "on": true
+  },
+  {
+   "id": "snd2",
+   "kind": "sound",
+   "poly": [
+    [
+     150,
+     -700
+    ],
+    [
+     450,
+     -700
+    ],
+    [
+     450,
+     -400
+    ],
+    [
+     150,
+     -400
+    ]
+   ],
+   "key": "amb.harbour",
+   "on": true
+  },
+  {
+   "id": "snd3",
+   "kind": "sound",
+   "poly": [
+    [
+     -260,
+     620
+    ],
+    [
+     -60,
+     620
+    ],
+    [
+     -60,
+     800
+    ],
+    [
+     -260,
+     800
+    ]
+   ],
+   "key": "amb.airfield",
+   "on": false
+  }
+ ],
+ "issues": [],
+ "marks": [
+  "sounds:snd1:pin",
+  "sounds:snd1:core",
+  "sounds:snd1:reach",
+  "sounds:snd2:reach",
+  "sounds:snd2",
+  "sounds:snd3:reach",
+  "sounds:snd3"
+ ],
+ "ambienceSounds": 3,
+ "heardAtPoint": [
+  [
+   "amb.loons",
+   1
+  ],
+  [
+   "amb.wind.light",
+   0.9377723336219788
+  ],
+  [
+   "amb.wind.clear",
+   0.30831557512283325
+  ],
+  [
+   "amb.meadow",
+   0.2779877483844757
+  ],
+  [
+   "amb.birds.open",
+   0.1945914328098297
+  ],
+  [
+   "amb.forest.day",
+   0.05301462486386299
+  ]
+ ],
+ "heardInArea": [
+  [
+   "amb.stream",
+   1
+  ],
+  [
+   "amb.harbour",
+   1
+  ],
+  [
+   "amb.meadow",
+   0.8877673745155334
+  ],
+  [
+   "amb.wind.light",
+   0.6705386638641357
+  ],
+  [
+   "amb.birds.open",
+   0.621437132358551
+  ],
+  [
+   "amb.forest.day",
+   0.0453873910009861
+  ]
+ ],
+ "heardAtStand": [
+  [
+   "amb.loons",
+   0.9979170560836792
+  ],
+  [
+   "amb.wind.light",
+   0.8656318783760071
+  ],
+  [
+   "amb.wind.clear",
+   0.46004191040992737
+  ],
+  [
+   "amb.meadow",
+   0.16141223907470703
+  ],
+  [
+   "amb.birds.open",
+   0.11298856884241104
+  ],
+  [
+   "amb.forest.day",
+   0.05378693342208862
+  ]
+ ],
+ "editMs": {
+  "sound": 141.2,
+  "zone": 3760.4
+ },
+ "errors": [],
+ "bootS": 253.3
+}
