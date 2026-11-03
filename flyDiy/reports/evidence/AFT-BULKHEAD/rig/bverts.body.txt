@@ -1,0 +1,8 @@
+// the bulkhead's raw vertices (layers' frame, m) and the aft passenger pillar band's z range, for a sanity read
+const UI = window.CAGE_UI, G2 = window.CAGE2, M = UI.MS, k = (G2 ? G2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);
+const vs = new Set(); for (const f of M.F) if (f.m === 'bulkhead') for (const vi of f.v) vs.add(vi);
+const pts = [...vs].map(vi => M.V[vi].map(x => +(x * k).toFixed(3)));
+const pp = []; for (const f of M.F) if (f.m === 'pillarPassenger') for (const vi of f.v) pp.push(M.V[vi].map(x => x * k));
+const zs = pp.map(p => p[2]); 
+return { n: pts.length, y: [Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[1]))], z: [Math.min(...pts.map(p => p[2])), Math.max(...pts.map(p => p[2]))],
+  pts: pts.sort((a, b) => a[1] - b[1]).filter((p, i) => i % 4 === 0), pillarPaxZ: [Math.min(...zs), Math.max(...zs)].map(x => +x.toFixed(3)), shellT: UI.P.shellT, paxPillarW: UI.P.paxPillarW, construction: UI.P.cons || UI.P.construction };

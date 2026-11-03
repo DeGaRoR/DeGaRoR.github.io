@@ -1,0 +1,493 @@
+{
+ "rows": {
+  "intOn": 1,
+  "intBulk": 1,
+  "bulkZ": 0,
+  "canopy": 0,
+  "bubble": 0,
+  "cpOpen": 0,
+  "paxOpen1": 0
+ },
+ "A": {
+  "waistY": 0.074,
+  "roofY": 0.607,
+  "zBack": 1.869,
+  "halfW": 0.495
+ },
+ "seats": [
+  {
+   "x": 0.23,
+   "zBack": 1.869,
+   "pilot": true,
+   "filled": true
+  },
+  {
+   "x": -0.23,
+   "zBack": 1.869,
+   "pilot": false,
+   "filled": true
+  },
+  {
+   "x": 0.23,
+   "zBack": 0.886,
+   "pilot": false,
+   "filled": false
+  },
+  {
+   "x": -0.23,
+   "zBack": 0.886,
+   "pilot": false,
+   "filled": false
+  }
+ ],
+ "glassMats": [
+  "pasengerWindow",
+  "pilotWindow",
+  "windshield"
+ ],
+ "bulkhead": {
+  "faces": 114,
+  "frontFaces": 29,
+  "z": 0.855,
+  "zMin": 0.855,
+  "lean": {
+   "zTop": 0.855,
+   "zBottom": 0.855,
+   "zSpan": 0,
+   "deg": 0
+  },
+  "x": [
+   -0.472,
+   0.472
+  ],
+  "y": [
+   -0.655,
+   0.577
+  ],
+  "width": 0.945,
+  "height": 1.232,
+  "area": 1.067,
+  "frontNormalZsign": -1,
+  "yVsCabin": {
+   "belowWaist": 0.729,
+   "belowRoof": 0.03
+  },
+  "rearSeat": {
+   "zBack": 0.886,
+   "gapToBulkMid": 0.031
+  },
+  "seatMesh": {
+   "1": {
+    "y": 0.073,
+    "zMin": 1.732,
+    "zMax": 2.297,
+    "x": [
+     0.013,
+     0.447
+    ]
+   },
+   "2": {
+    "y": 0.073,
+    "zMin": 1.732,
+    "zMax": 2.297,
+    "x": [
+     -0.447,
+     -0.013
+    ]
+   },
+   "3": {
+    "y": 0.065,
+    "zMin": 0.747,
+    "zMax": 1.315,
+    "x": [
+     0.013,
+     0.447
+    ]
+   },
+   "4": {
+    "y": 0.065,
+    "zMin": 0.747,
+    "zMax": 1.315,
+    "x": [
+     -0.447,
+     -0.013
+    ]
+   }
+  },
+  "glassZ": {
+   "pasengerWindow": {
+    "zAft": 0.866,
+    "zFwd": 1.534,
+    "y": [
+     -0.039,
+     0.511
+    ],
+    "aftOfBulkTop": false,
+    "aftOfBulkBottom": false
+   },
+   "pilotWindow": {
+    "zAft": 1.619,
+    "zFwd": 2.557,
+    "y": [
+     -0.037,
+     0.511
+    ],
+    "aftOfBulkTop": false,
+    "aftOfBulkBottom": false
+   },
+   "windshield": {
+    "zAft": 2.109,
+    "zFwd": 2.721,
+    "y": [
+     0.117,
+     0.503
+    ],
+    "aftOfBulkTop": false,
+    "aftOfBulkBottom": false
+   }
+  }
+ },
+ "grid": {
+  "step": 0.03,
+  "n": 1186
+ },
+ "centre": [
+  0,
+  -0.039,
+  0.855
+ ],
+ "views": {
+  "sideAft": {
+   "eye": [
+    3,
+    -0.039,
+    0.855
+   ],
+   "visiblePct": 0,
+   "thruGlassPct": 0,
+   "thruOpenPct": 0,
+   "aboveSeatPct": 38.7,
+   "visibleAboveSeatPct": 0,
+   "blockedBy": [
+    "skin:pillarPassenger 94.8%",
+    "float:edFloatStruts 1.9%",
+    "boom:edBoomR 1.9%",
+    "wing 1.4%"
+   ]
+  },
+  "q34Aft": {
+   "eye": [
+    2.598,
+    -0.039,
+    -0.645
+   ],
+   "visiblePct": 0,
+   "thruGlassPct": 0,
+   "thruOpenPct": 0,
+   "aboveSeatPct": 38.7,
+   "visibleAboveSeatPct": 0,
+   "blockedBy": [
+    "cowl:? 90%",
+    "skin:pillarPassenger 5.6%",
+    "wing 1.9%",
+    "cage:firewall 1.7%",
+    "hinge:edHinge_static_metal 0.3%",
+    "hinge:edLink_flapR 0.3%",
+    "cage:toele 0.2%",
+    "float:edFloatStruts 0.2%"
+   ]
+  },
+  "q34Fwd": {
+   "eye": [
+    2.598,
+    -0.039,
+    2.355
+   ],
+   "visiblePct": 31.5,
+   "thruGlassPct": 31.5,
+   "thruOpenPct": 0,
+   "aboveSeatPct": 38.7,
+   "visibleAboveSeatPct": 62.5,
+   "blockedBy": [
+    "skin:body 32%",
+    "skin:floorLoop 18.5%",
+    "wing 7.4%",
+    "cage:aluminium 4%",
+    "strut 3.5%",
+    "cage:joint 2.8%",
+    "access:edAcc_static_paint 0.2%"
+   ]
+  },
+  "inFwd": {
+   "eye": [
+    0.23,
+    0.35,
+    1.991
+   ],
+   "visiblePct": 53.7,
+   "thruGlassPct": 0,
+   "thruOpenPct": 53.7,
+   "aboveSeatPct": 38.7,
+   "visibleAboveSeatPct": 74.1,
+   "blockedBy": [
+    "seat 36.3%",
+    "wing 10%"
+   ],
+   "pilotBodyHidden": 2,
+   "note": "CAGE_CREW_EYE.p taken as the layers frame (headless: the layers sit at the identity)"
+  },
+  "inClose": {
+   "eye": [
+    0,
+    -0.039,
+    1.455
+   ],
+   "visiblePct": 55.1,
+   "thruGlassPct": 0,
+   "thruOpenPct": 55.1,
+   "aboveSeatPct": 38.7,
+   "visibleAboveSeatPct": 79.5,
+   "blockedBy": [
+    "seat 36.9%",
+    "wing 7.9%"
+   ]
+  }
+ },
+ "sweep": {
+  "-60/0": [
+   19.6,
+   19.6,
+   0,
+   "skin:body 33.1%, crew 8.7%"
+  ],
+  "-45/0": [
+   23.1,
+   23.1,
+   0,
+   "skin:body 17.6%, strut 16.8%"
+  ],
+  "-30/0": [
+   31.5,
+   31.5,
+   0,
+   "skin:body 32%, skin:floorLoop 18.5%"
+  ],
+  "-15/0": [
+   31.4,
+   31.4,
+   0,
+   "skin:body 30.9%, skin:floorLoop 19.1%"
+  ],
+  "0/0": [
+   0,
+   0,
+   0,
+   "skin:pillarPassenger 94.8%, float:edFloatStruts 1.9%"
+  ],
+  "15/0": [
+   0,
+   0,
+   0,
+   "cowl:? 73.4%, skin:pillarPassenger 20.1%"
+  ],
+  "30/0": [
+   0,
+   0,
+   0,
+   "cowl:? 90%, skin:pillarPassenger 5.6%"
+  ],
+  "45/0": [
+   0,
+   0,
+   0,
+   "cowl:? 90.7%, eng:edProp 6.2%"
+  ],
+  "-60/15": [
+   23.2,
+   23.2,
+   0,
+   "wing 27.2%, skin:body 13.4%"
+  ],
+  "-45/15": [
+   12.6,
+   12.6,
+   0,
+   "wing 25%, skin:body 21.2%"
+  ],
+  "-30/15": [
+   0,
+   0,
+   0,
+   "wing 94.7%, skin:floorLoop 3.8%"
+  ],
+  "-15/15": [
+   0,
+   0,
+   0,
+   "wing 66.4%, boom:edBoomR 33.6%"
+  ],
+  "0/15": [
+   0,
+   0,
+   0,
+   "wing 87.2%, boom:edBoomR 12.7%"
+  ],
+  "15/15": [
+   0,
+   0,
+   0,
+   "boom:edBoomR 50.1%, cowl:? 28.9%"
+  ],
+  "30/15": [
+   0,
+   0,
+   0,
+   "boom:edBoomR 63.9%, cowl:? 31.8%"
+  ],
+  "45/15": [
+   0,
+   0,
+   0,
+   "boom:edBoomR 80.4%, cowl:? 16.7%"
+  ],
+  "-60/35": [
+   0,
+   0,
+   0,
+   "wing 91.7%, skin:body 7.2%"
+  ],
+  "-45/35": [
+   0,
+   0,
+   0,
+   "wing 90.6%, skin:body 7.9%"
+  ],
+  "-30/35": [
+   0,
+   0,
+   0,
+   "wing 87.2%, skin:body 9.4%"
+  ],
+  "-15/35": [
+   0,
+   0,
+   0,
+   "wing 76.1%, skin:body 8.3%"
+  ],
+  "0/35": [
+   0,
+   0,
+   0,
+   "wing 68%, skin:pillarPassenger 21.6%"
+  ],
+  "15/35": [
+   0,
+   0,
+   0,
+   "wing 69%, cowl:? 15.9%"
+  ],
+  "30/35": [
+   0,
+   0,
+   0,
+   "wing 52.9%, cowl:? 42.9%"
+  ],
+  "45/35": [
+   0,
+   0,
+   0,
+   "cowl:? 82.1%, wing 14.2%"
+  ],
+  "-60/60": [
+   0,
+   0,
+   0,
+   "wing 66.2%, skin:body 29.7%"
+  ],
+  "-45/60": [
+   0,
+   0,
+   0,
+   "wing 59.3%, skin:body 35.3%"
+  ],
+  "-30/60": [
+   0,
+   0,
+   0,
+   "wing 48.1%, skin:body 42%"
+  ],
+  "-15/60": [
+   0.1,
+   0.1,
+   0,
+   "wing 42%, skin:body 37%"
+  ],
+  "0/60": [
+   0,
+   0,
+   0,
+   "skin:pillarPassenger 68.5%, wing 29.4%"
+  ],
+  "15/60": [
+   0.2,
+   0,
+   0.2,
+   "cowl:? 39.6%, skin:pillarPassenger 30.5%"
+  ],
+  "30/60": [
+   0.1,
+   0,
+   0.1,
+   "cowl:? 64.8%, wing 20.9%"
+  ],
+  "45/60": [
+   0,
+   0,
+   0,
+   "cowl:? 78.1%, wing 12.9%"
+  ]
+ },
+ "seatThroughWall": {
+  "1": {
+   "verts": 2762,
+   "aftOfFace": 0,
+   "deepest": 0,
+   "atY": null
+  },
+  "2": {
+   "verts": 2762,
+   "aftOfFace": 0,
+   "deepest": 0,
+   "atY": null
+  },
+  "3": {
+   "verts": 2762,
+   "aftOfFace": 679,
+   "deepest": 0.108,
+   "atY": 0.013
+  },
+  "4": {
+   "verts": 2762,
+   "aftOfFace": 679,
+   "deepest": 0.108,
+   "atY": 0.013
+  }
+ },
+ "frameCheck": {
+  "seat1": {
+   "y": 0.073,
+   "zMin": 1.732,
+   "zMax": 2.297,
+   "x": [
+    0.013,
+    0.447
+   ]
+  },
+  "seat1zBack": 1.869,
+  "eye": [
+   0.23,
+   0.35,
+   1.991
+  ]
+ }
+}

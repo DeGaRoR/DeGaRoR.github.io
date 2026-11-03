@@ -1,0 +1,105 @@
+--- tools/plane_shot.js (origin/claude/pillar-anchors b6299ae8)
++++ tools/plane_shot_bk.js (scratch: + CABIN-SHOTS rig/plane_shot_cab.diff + AFT-BULKHEAD-LOOK bk: views; line endings compared without CR)
+@@ -189,7 +189,7 @@
+     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
+     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
+     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
+-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');
++    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full') + (o.qs ? '&' + o.qs : '');
+     log('page', url);
+     await C.cmd('Page.navigate', { url });
+     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
+@@ -232,6 +232,23 @@
+       const box = '(() => { const o = window.CAGE_UI_SCENE; if (!o || typeof THREE === "undefined") return null; const b = new THREE.Box3().setFromObject(o); return b.isEmpty() ? null : [b.min.toArray(), b.max.toArray()].flat().map(v => +v.toFixed(3)); })()';
+       let prev = null;
+       for (let i = 0; i < 20; i++) { await frames(3); const b = await J(box); if (b && prev && b.join() === prev.join()) break; prev = b; }
++      if (o.bodyA != null) {   // CABIN-SHOTS fallback: the editor's own 'fuselage α' dial (CAGE_VIEW.bodyA), then a rebuild
++        await C.ev('(() => { CAGE_VIEW.bodyA = ' + (+o.bodyA) + '; CAGE_VIEW.glassA = ' + (+o.bodyA) + '; CAGE_UI.build(); return 1; })()');
++        await frames(8);
++      }
++      if (o.dim != null) {   // CABIN-SHOTS: the phone studio has no hour - the rig dims its own lights and reflections (not the game's dusk)
++        BR.dim = await J('(() => { let sc = window.CAGE_UI_SCENE; while (sc.parent) sc = sc.parent; const f = ' + (+o.dim) + ', got = [];' +
++          ' sc.traverse(l => { if (!l.isLight || l.isPointLight || l.isSpotLight) return; let p = l, mine = false; while (p) { if (p === window.CAGE_UI_SCENE) mine = true; p = p.parent; } if (mine) return;' +
++          ' if (l.userData.__i0 == null) l.userData.__i0 = l.intensity; l.intensity = l.userData.__i0 * f; got.push(l.type + " " + l.userData.__i0.toFixed(2)); });' +
++          ' if ("environmentIntensity" in sc) sc.environmentIntensity = f; return { lights: got, envI: sc.environmentIntensity, pts: (() => { let n = 0, v = 0; window.CAGE_UI_SCENE.traverse(l => { if (l.isPointLight) { n++; if (l.visible && l.intensity > 0) v++; } }); return n + " point lights, " + v + " lit"; })() }; })()');
++        log('dim', JSON.stringify(BR.dim));
++        await frames(4);
++      }
++      if (o.settle) await frames(o.settle);
++      // CABIN-SHOTS: the page's own cabin lights after the load (type, intensity, visible, where) and the rows that drive them
++      BR.lights = await J('(() => { const out = []; window.CAGE_UI_SCENE.traverse(l => { if (l.isPointLight || l.isSpotLight) out.push([l.type, +l.intensity.toFixed(2), l.visible, l.position.toArray().map(v => +v.toFixed(2))]); });' +
++        ' const P = window.CAGE_UI && CAGE_UI.P, L = window.CAGE_LIGHT; return { lights: out, P: P && { lightOn: P.lightOn, li_flood: P.li_flood, li_pax: P.li_pax }, flood: L && L.sites && L.sites.flood && { rung: L.sites.flood.rung, p: L.sites.flood.p }, driven: L && L.driven && L.driven() }; })()');
++      log('lights', JSON.stringify(BR.lights));
+       BR.box = prev; BR.t = +((Date.now() - tb) / 1000).toFixed(1);
+       log(base, 'loaded in', BR.t + ' s,', same + '/' + keys.length, 'cage rows equal, box', JSON.stringify(prev));
+ 
+@@ -280,6 +297,42 @@
+               ' return { centre: c.toArray().map(x => +x.toFixed(3)) }; })()');
+             if (fr.err) throw Object.assign(new Error(fr.err), { code: EXIT.eye });
+             Object.assign(VR, { at: n.slice(0, 3), centre: fr.centre }); VR.door = 'at'; VR.close = true;
++          } else if (/^cab:/.test(v)) {
++            // CABIN-SHOTS (scratch): the cabin's middle - crew layer frame, x 0, y halfway waist->roof (+dy), z the front seat's back + dz
++            const n = v.slice(4).split('/').map(Number);
++            asked = [n[0] * Math.PI / 180, n[1] * Math.PI / 180, n[2]]; const dz = n[3] || 0, dy = n[4] || 0;
++            const fr = await J('(async () => { let g = null; window.CAGE_UI_SCENE.traverse(o => { if (!g && o.name === "cageLayer:crew") g = o; }); if (!g) return { err: "no crew layer" };' +
++              ' const C = window.CAGE_CREW, A = C && C.A; if (!A) return { err: "no CAGE_CREW.A" }; const s = (C.seatsAt || [])[0]; const z = (s ? s.zBack : A.zBack) + ' + dz + ';' +
++              ' g.updateMatrixWorld(true); const c = g.parent.localToWorld(new THREE.Vector3(0, (A.roofY + A.waistY) / 2 + ' + dy + ', z));' +
++              ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
++              ' const G = FLIGHT_PROBE.camGet(); FLIGHT_PROBE.pan(c.x - G.target[0], c.y - G.target[1], c.z - G.target[2]); FLIGHT_PROBE.camSet(' + asked.join(', ') + ');' +
++              ' return { centre: c.toArray().map(x => +x.toFixed(3)), A: { roofY: A.roofY, waistY: A.waistY, zBack: A.zBack, zDash: A.zDash }, ohc: A.ohc, seats: C.seatsAt }; })()');
++            if (fr.err) throw Object.assign(new Error(fr.err), { code: EXIT.eye });
++            Object.assign(VR, { cab: n, centre: fr.centre, crewA: fr.A, ohc: fr.ohc, seats: fr.seats }); VR.door = 'cab'; VR.close = true;
++          } else if (/^bk:/.test(v)) {
++            // AFT-BULKHEAD-LOOK (scratch): the eye aimed at the aft bulkhead's cabin face. The face: the sheet's `bulkhead` faces
++            // (CAGE_UI.MS x CAGE_UNIT x planeScale = the layers' frame, +x port, +z forward), its forward sheet's box centre.
++            //   bk:out/<deg aft of the port beam>/<el deg>/<dist m>   outside, port
++            //   bk:infwd                                            inside, the eye at the pilot's eye (CAGE_CREW_EYE), the pilot's body hidden
++            //   bk:inclose/<d m>                                     inside, <d> forward of the face along the axis
++            const n = v.slice(3).split('/'); const mode = n[0], a = n.slice(1).map(Number);
++            const fr = await J('(async () => { let g = null; window.CAGE_UI_SCENE.traverse(o => { if (!g && o.name === "cageLayer:crew") g = o; }); if (!g) return { err: "no crew layer" };' +
++              ' const UI = window.CAGE_UI, M = UI && UI.MS; if (!M) return { err: "no MS" }; const k = (window.CAGE2 ? CAGE2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);' +
++              ' const vs = new Set(); for (const f of M.F) if (f.m === "bulkhead") for (const vi of f.v) vs.add(vi); if (!vs.size) return { err: "no bulkhead faces (intOn " + UI.P.intOn + ", intBulk " + UI.P.intBulk + ")" };' +
++              ' let zM = -1e9; for (const vi of vs) zM = Math.max(zM, M.V[vi][2] * k); const b = [1e9, -1e9, 1e9, -1e9];' +
++              ' for (const vi of vs) { const p = M.V[vi]; if (p[2] * k < zM - 0.004) continue; b[0] = Math.min(b[0], p[0] * k); b[1] = Math.max(b[1], p[0] * k); b[2] = Math.min(b[2], p[1] * k); b[3] = Math.max(b[3], p[1] * k); }' +
++              ' const cL = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, zM]; g.updateMatrixWorld(true); const W = p => g.parent.localToWorld(new THREE.Vector3(p[0], p[1], p[2]));' +
++              ' const c = W(cL), mode = ' + JSON.stringify(mode) + ', a = ' + JSON.stringify(a) + '; let eL = null, eW = null;' +
++              ' const cam = FLIGHT_PROBE.camera(); window.__bkHid = window.__bkHid || [];' +
++              ' if (mode === "out") { const t = a[0] * Math.PI / 180, e = a[1] * Math.PI / 180; eL = [cL[0] + a[2] * Math.cos(e) * Math.cos(t), cL[1] + a[2] * Math.sin(e), cL[2] - a[2] * Math.cos(e) * Math.sin(t)]; eW = W(eL); cam.near = 0.5; }' +
++              ' else if (mode === "infwd") { const E = window.CAGE_CREW_EYE; if (!E) return { err: "no pilot eye (CAGE_CREW_EYE)" }; eW = new THREE.Vector3().fromArray(E.p); eL = g.parent.worldToLocal(eW.clone()).toArray(); for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } cam.near = 0.03; }' +
++              ' else if (mode === "inclose") { eL = [cL[0], cL[1], cL[2] + a[0]]; eW = W(eL); cam.near = 0.03; } else return { err: "bk mode " + mode };' +
++              ' cam.updateProjectionMatrix(); const d = eW.clone().sub(c), D = d.length(), el = Math.asin(d.y / D), az = Math.atan2(d.z, d.x);' +
++              ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
++              ' const G = FLIGHT_PROBE.camGet(); FLIGHT_PROBE.pan(c.x - G.target[0], c.y - G.target[1], c.z - G.target[2]); FLIGHT_PROBE.camSet(az, el, D);' +
++              ' return { centre: c.toArray().map(x => +x.toFixed(3)), faceL: cL.map(x => +x.toFixed(3)), box: b.map(x => +x.toFixed(3)), eyeL: eL.map(x => +x.toFixed(3)), asked: [az, el, D], near: cam.near }; })()');
++            if (fr.err) throw Object.assign(new Error(fr.err), { code: EXIT.eye });
++            asked = fr.asked; Object.assign(VR, { bk: v, centre: fr.centre, faceL: fr.faceL, faceBox: fr.box, eyeL: fr.eyeL, near: fr.near }); VR.door = 'bk'; VR.close = true;
+           } else if (/^fit:/.test(v)) {
+             // PILLAR-ANCHORS: ONE FITTING, CLOSE - fit:<key>/<az>/<el>/<dist>: the fittings layer's placed record of that
+             // key (CAGE_ACCESS.placed, the first on the port flank, else the first), taken from the layer's frame to the
+@@ -340,7 +393,7 @@
+           await C.ev('(() => { window.CAGE_UI_SCENE.visible = false; return 1; })()');
+           await frames(3);
+           const shotB = (await C.cmd('Page.captureScreenshot', { format: 'png', clip })).result.data;
+-          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
++          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; for (const m of (window.__bkHid || [])) m.visible = true; window.__bkHid = []; if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
+           const P = await J('(' + ANALYSE + ')(' + JSON.stringify(shotA) + ', ' + JSON.stringify(shotB) + ')', 180000);
+           VR.picture = P;
+           // a frame that fails its check is kept beside the good ones as <name>_FAIL.png - a failure you can look at
+@@ -415,7 +468,7 @@
+   const builds = (opt('build', '') || '').split(',').filter(Boolean);
+   const size = (opt('size', '1920x1080')).split('x').map(Number);
+   const o = {
+-    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'),
++    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'), qs: opt('qs', ''), settle: +opt('settle', 0), bodyA: opt('body-alpha', null), dim: opt('dim', null),
+     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
+     root: path.resolve(opt('root', REPO)),
+   };
+@@ -426,7 +479,7 @@
+     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
+     if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
+   }
+-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
++  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^cab:[-\d.\/]+$/.test(v) && !/^bk:\w+(\/[-\d.]+)*$/.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
+   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
+   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');

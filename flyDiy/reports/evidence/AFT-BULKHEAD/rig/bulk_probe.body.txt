@@ -1,0 +1,126 @@
+// AFT-BULKHEAD-LOOK: the aft bulkhead, measured headless (a function body run in the page context after the build,
+// tools/_load_build.js FLYDIY_JOIN_PROBE; run by rig/probe_run.js). Frame: the layers' (CAGE_UI.MS x CAGE_UNIT x
+// planeScale), metres, +x port, +y up, +z forward.
+//  1. the outline: the forward sheet of the `bulkhead` faces (the cabin face) - width, height, y range vs A.waistY /
+//     A.roofY, z vs the rear seat's back and the glass's aft end
+//  2. a ray grid (3 cm) over that face; from each eye a segment eye -> grid point, every cage face (CAGE_UI.MS) and every
+//     visible mesh of the scene (seats, crew, wing, struts, lamps ...) it crosses on the way: the FIRST opaque thing
+//     names the point's fate. Glass (CAGE2.CAGE_GLASS_MATS) is see-through and recorded. A point is VISIBLE when nothing
+//     opaque is crossed; `thruGlass` / `thruOpen` say whether the ray crossed a pane or no pane at all.
+//  3. the eyes: sideAft (port beam, level, 3 m - the brief's), q34Aft (30 deg aft of the beam), q34Fwd (30 deg forward),
+//     inFwd (the pilot's eye, CAGE_CREW_EYE in the layers' frame), and a sweep of the azimuth at 3 m, level and +15 deg.
+const UI = window.CAGE_UI, G2 = window.CAGE2, M = UI && UI.MS;
+if (!M || !M.V || !M.F) return { err: 'no cage mesh' };
+const k = (G2 ? G2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);
+const V = M.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
+const P = UI.P || {};
+const GLASS = (G2 && G2.CAGE_GLASS_MATS) || new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'canopy', 'skylight']);
+const isGlass = m => GLASS.has ? GLASS.has(m) : GLASS.indexOf(m) >= 0;
+const A = (window.CAGE_CREW && window.CAGE_CREW.A) || {};
+const seats = (window.CAGE_CREW && window.CAGE_CREW.seatsAt) || [];
+const r3 = v => +(+v).toFixed(3);
+const out = { rows: { intOn: P.intOn, intBulk: P.intBulk, bulkZ: P.bulkZ, canopy: P.canopy, bubble: P.bubble, cpOpen: P.cpOpen, paxOpen1: P.paxOpen1 },
+  A: { waistY: r3(A.waistY), roofY: r3(A.roofY), zBack: r3(A.zBack), halfW: r3(A.halfW) },
+  seats: seats.map(s => ({ x: r3(s.x), zBack: r3(s.zBack), pilot: !!s.pilot, filled: !!s.filled })),
+  glassMats: [...new Set(M.F.filter(f => isGlass(f.m)).map(f => f.m))] };
+// ---- 1. the outline
+const bF = M.F.filter(f => f.m === 'bulkhead');
+if (!bF.length) { out.bulkhead = null; out.why = 'no bulkhead faces in the sheet'; return out; }
+// THE FORWARD SHEET BY ITS TWIN, not by a z: the panel's vertices take their z from the pillar ring's own (_cage_gen.js
+// bPos, p[2] - SETB), so on a raked ring the panel leans. The sheets are 5 cage-mm apart along z (BTH): a forward-sheet
+// vertex has a twin at the same x, y, BTH x k further aft; the rim walls hold one of each and are left out.
+const BT = 0.005 * k, kxy = p => Math.round(p[0] * 1e4) + ',' + Math.round(p[1] * 1e4);
+const byXY = new Map(); for (const f of bF) for (const vi of f.v) { const q = kxy(V[vi]); if (!byXY.has(q)) byXY.set(q, new Set()); byXY.get(q).add(vi); }
+const twin = (vi, sg) => { for (const w of byXY.get(kxy(V[vi])) || []) if (Math.abs(V[vi][2] - V[w][2] - sg * BT) < BT * 0.25) return true; return false; };
+const isFrontV = vi => twin(vi, 1), isBackV = vi => twin(vi, -1);
+const front = bF.filter(f => f.v.every(isFrontV) && !f.v.some(isBackV));
+let zM = -1e9, zLo = 1e9; for (const f of front) for (const vi of f.v) { zM = Math.max(zM, V[vi][2]); zLo = Math.min(zLo, V[vi][2]); }
+// the lean: the forward sheet's z at its top and at its bottom (the mean of the vertices in the top / bottom 10 %)
+const fv = [...new Set(front.flatMap(f => f.v))].map(vi => V[vi]); const fy0 = Math.min(...fv.map(p => p[1])), fy1 = Math.max(...fv.map(p => p[1])), fh = fy1 - fy0;
+const zAt = sel => { const q = fv.filter(sel); return q.reduce((a, p) => a + p[2], 0) / Math.max(1, q.length); };
+const zTop = zAt(p => p[1] > fy1 - 0.1 * fh), zBot = zAt(p => p[1] < fy0 + 0.1 * fh);
+const lean = { zTop: +zTop.toFixed(3), zBottom: +zBot.toFixed(3), zSpan: +(zM - zLo).toFixed(3), deg: +(Math.atan2(zTop - zBot, fh) * 180 / Math.PI).toFixed(1) };
+const bb = [1e9, -1e9, 1e9, -1e9]; for (const f of front) for (const vi of f.v) { const p = V[vi]; bb[0] = Math.min(bb[0], p[0]); bb[1] = Math.max(bb[1], p[0]); bb[2] = Math.min(bb[2], p[1]); bb[3] = Math.max(bb[3], p[1]); }
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function rayTri(o, d, a, b, c) { const e1 = sub(b, a), e2 = sub(c, a), pv = cross(d, e2), det = dot(e1, pv); if (Math.abs(det) < 1e-12) return null;
+  const inv = 1 / det, tv = sub(o, a), u = dot(tv, pv) * inv; if (u < 0 || u > 1) return null; const qv = cross(tv, e1), v = dot(d, qv) * inv;
+  if (v < 0 || u + v > 1) return null; const t = dot(e2, qv) * inv; return t > 0 ? t : null; }
+// the face's own area (its triangles) and its normal's sense (the winding of the forward sheet: +z = into the cabin)
+let area = 0, nz = 0;
+for (const f of front) for (let i = 1; i + 1 < f.v.length; i++) { const c = cross(sub(V[f.v[i]], V[f.v[0]]), sub(V[f.v[i + 1]], V[f.v[0]])); area += Math.hypot(c[0], c[1], c[2]) / 2; nz += c[2] / 2; }
+// the rear seat (the aft-most), its back's top from the crew layer's own seat mesh
+let sc = null; if (window.__scene) window.__scene.updateMatrixWorld(true);
+const seatTop = {}; if (window.__scene) window.__scene.traverse(o => { const m = /^edSeat(\d+)$/.exec(o.name || ''); if (m && o.isObject3D) { const b = new THREE.Box3().setFromObject(o); if (!b.isEmpty()) seatTop[m[1]] = { y: r3(b.max.y), zMin: r3(b.min.z), zMax: r3(b.max.z), x: [r3(b.min.x), r3(b.max.x)] }; } });
+const rear = seats.length ? seats.reduce((a, s) => s.zBack < a.zBack ? s : a, seats[0]) : null;
+// the glass's aft end (each pane material), and the cabin's openings (open cockpits)
+const gz = {}; for (const f of M.F) if (isGlass(f.m)) for (const vi of f.v) { const p = V[vi]; if (!gz[f.m]) gz[f.m] = [1e9, -1e9, 1e9, -1e9]; gz[f.m][0] = Math.min(gz[f.m][0], p[2]); gz[f.m][1] = Math.max(gz[f.m][1], p[2]); gz[f.m][2] = Math.min(gz[f.m][2], p[1]); gz[f.m][3] = Math.max(gz[f.m][3], p[1]); }
+out.bulkhead = { faces: bF.length, frontFaces: front.length, z: r3(zM), zMin: r3(zLo), lean, x: [r3(bb[0]), r3(bb[1])], y: [r3(bb[2]), r3(bb[3])], width: r3(bb[1] - bb[0]), height: r3(bb[3] - bb[2]),
+  area: r3(area), frontNormalZsign: Math.sign(nz),
+  yVsCabin: { belowWaist: r3(A.waistY - bb[2]), belowRoof: r3(A.roofY - bb[3]) },
+  rearSeat: rear && { zBack: r3(rear.zBack), gapToBulkMid: r3(rear.zBack - (zTop + zBot) / 2) }, seatMesh: seatTop,
+  glassZ: Object.fromEntries(Object.entries(gz).map(([m, b]) => [m, { zAft: r3(b[0]), zFwd: r3(b[1]), y: [r3(b[2]), r3(b[3])], aftOfBulkTop: b[0] < zM, aftOfBulkBottom: b[0] < zLo }])) };
+const faceZ = (x, y) => { const o = [x, y, zM + 0.3]; for (const f of front) for (let i = 1; i + 1 < f.v.length; i++) { const t = rayTri(o, [0, 0, -1], V[f.v[0]], V[f.v[i]], V[f.v[i + 1]]); if (t != null) return zM + 0.3 - t; } return null; };
+// ---- 2. the grid on the face
+const grid = []; const STEP = 0.03;
+for (let x = bb[0] + STEP / 2; x < bb[1]; x += STEP) for (let y = bb[2] + STEP / 2; y < bb[3]; y += STEP) {
+  const o = [x, y, zM + 0.3]; let hit = null;
+  for (const f of front) { for (let i = 1; i + 1 < f.v.length && hit == null; i++) hit = rayTri(o, [0, 0, -1], V[f.v[0]], V[f.v[i]], V[f.v[i + 1]]); if (hit != null) break; }
+  if (hit != null) grid.push([x, y, zM + 0.3 - hit + 0.002]);
+}
+out.grid = { step: STEP, n: grid.length };
+// ---- the occluders: the cage's faces (not the bulkhead), each a triangle with its box; the scene's visible meshes
+const tris = [];
+for (const f of M.F) { if (f.m === 'bulkhead') continue; for (let i = 1; i + 1 < f.v.length; i++) { const a = V[f.v[0]], b = V[f.v[i]], c = V[f.v[i + 1]];
+  tris.push({ a, b, c, m: f.m, lo: [Math.min(a[0], b[0], c[0]), Math.min(a[1], b[1], c[1]), Math.min(a[2], b[2], c[2])], hi: [Math.max(a[0], b[0], c[0]), Math.max(a[1], b[1], c[1]), Math.max(a[2], b[2], c[2])] }); } }
+const meshes = [];
+const visibleUp = o => { for (let q = o; q; q = q.parent) if (q.visible === false) return false; return true; };
+const layerOf = o => { for (let q = o; q; q = q.parent) if (/^cageLayer:/.test(q.name || '')) return q.name.slice(10); return '?'; };
+const nameOf = o => { for (let q = o; q; q = q.parent) if (q.name && !/^cageLayer:/.test(q.name)) return q.name; return '?'; };
+if (window.__scene) window.__scene.traverse(o => { if (o.isMesh && visibleUp(o)) { const mm = Array.isArray(o.material) ? o.material : [o.material];
+  if (mm.every(x => x && x.transparent && x.opacity < 0.6)) return; meshes.push(o); } });
+const cls = (layer, name, m) => {
+  if (m) { if (isGlass(m)) return 'glass'; if (/^pillar|body|ceilingLoop|floorLoop|waistband|fuselage|turtle|cowl/i.test(m)) return 'skin:' + m; return 'cage:' + m; }
+  if (/^edSeat/.test(name)) return 'seat'; if (/^char:|edCrew/.test(name)) return 'crew'; if (/^edLamp/.test(name)) return 'lamp';
+  if (layer === 'wing') return /strut/i.test(name) ? 'strut' : 'wing'; return layer + ':' + name; };
+const RC = new THREE.Raycaster(); let SKIP = new Set();
+function fate(eye, p) {
+  const d0 = sub(p, eye), L = Math.hypot(d0[0], d0[1], d0[2]), d = d0.map(x => x / L);
+  const lo = [Math.min(eye[0], p[0]), Math.min(eye[1], p[1]), Math.min(eye[2], p[2])], hi = [Math.max(eye[0], p[0]), Math.max(eye[1], p[1]), Math.max(eye[2], p[2])];
+  const hits = [];
+  for (const t of tris) { if (t.hi[0] < lo[0] || t.lo[0] > hi[0] || t.hi[1] < lo[1] || t.lo[1] > hi[1] || t.hi[2] < lo[2] || t.lo[2] > hi[2]) continue;
+    const s = rayTri(eye, d, t.a, t.b, t.c); if (s != null && s < L - 0.006) hits.push([s, cls(null, null, t.m)]); }
+  RC.set(new THREE.Vector3(...eye), new THREE.Vector3(...d)); RC.near = 0; RC.far = L - 0.006;
+  for (const h of RC.intersectObjects(meshes, false)) if (!SKIP.has(h.object)) hits.push([h.distance, cls(layerOf(h.object), nameOf(h.object), null)]);
+  hits.sort((a, b) => a[0] - b[0]);
+  let glass = false;
+  for (const [s, c] of hits) { if (c === 'glass') { glass = true; continue; } if (c === 'lamp' && s > L - 0.08) continue; return { by: c }; }
+  return { by: null, glass };
+}
+function survey(eye) {
+  const n = grid.length, tally = {}; let vis = 0, glass = 0, open = 0, hiVis = 0, hiN = 0;
+  const sTop = rear && seatTop[String(seats.indexOf(rear) + 1)] ? seatTop[String(seats.indexOf(rear) + 1)].y : null;
+  for (const p of grid) { const r = fate(eye, p); const hi = sTop == null || p[1] > sTop; if (hi) hiN++;
+    if (r.by) tally[r.by] = (tally[r.by] || 0) + 1; else { vis++; if (hi) hiVis++; if (r.glass) glass++; else open++; } }
+  const pc = x => +(100 * x / Math.max(1, n)).toFixed(1);
+  const tl = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([c, m]) => c + ' ' + pc(m) + '%');
+  return { eye: eye.map(r3), visiblePct: pc(vis), thruGlassPct: pc(glass), thruOpenPct: pc(open),
+    aboveSeatPct: pc(hiN), visibleAboveSeatPct: +(100 * hiVis / Math.max(1, hiN)).toFixed(1), blockedBy: tl };
+}
+const cL = [(bb[0] + bb[1]) / 2, (bb[2] + bb[3]) / 2, (zTop + zBot) / 2];
+const outEye = (degAft, elDeg, dist) => { const t = degAft * Math.PI / 180, e = elDeg * Math.PI / 180; return [cL[0] + dist * Math.cos(e) * Math.cos(t), cL[1] + dist * Math.sin(e), cL[2] - dist * Math.cos(e) * Math.sin(t)]; };
+out.centre = cL.map(r3);
+out.views = { sideAft: survey(outEye(0, 0, 3)), q34Aft: survey(outEye(30, 0, 3)), q34Fwd: survey(outEye(-30, 0, 3)) };
+const E = window.CAGE_CREW_EYE;
+if (E && E.p) { const pw = new THREE.Vector3().fromArray(E.p); const hs = new Set(); for (const h of (E.heads || [])) h.traverse(q => hs.add(q)); SKIP = hs; out.views.inFwd = survey(pw.toArray()); SKIP = new Set(); out.views.inFwd.pilotBodyHidden = hs.size; out.views.inFwd.note = 'CAGE_CREW_EYE.p taken as the layers frame (headless: the layers sit at the identity)'; }
+out.views.inClose = survey([cL[0], cL[1], cL[2] + 0.6]);
+out.sweep = {};
+for (const el of [0, 15, 35, 60]) for (const az of [-60, -45, -30, -15, 0, 15, 30, 45]) { const s = survey(outEye(az, el, 3)); out.sweep[az + '/' + el] = [s.visiblePct, s.thruGlassPct, s.thruOpenPct, s.blockedBy.slice(0, 2).join(', ')]; }
+// the scene's frame against the sheet's: the crew layer's seat box against the seat's zBack (a sanity line)
+out.seatThroughWall = {};
+if (window.__scene) window.__scene.traverse(o => { const m = /^edSeat(\d+)$/.exec(o.name || ''); if (!m) return; let n = 0, nAft = 0, zMin = 1e9, yAt = null;
+  o.traverse(q => { const pa = q.isMesh && q.geometry && q.geometry.attributes.position; if (!pa) return; q.updateMatrixWorld(true); const w = new THREE.Vector3();
+    for (let i = 0; i < pa.count; i++) { w.fromBufferAttribute(pa, i).applyMatrix4(q.matrixWorld); n++; if (w.z < zM - 0.0025 && w.x > bb[0] && w.x < bb[1] && w.y > bb[2] && w.y < bb[3]) { const fz = faceZ(w.x, w.y); if (fz != null && w.z < fz - 0.0025) { nAft++; if (w.z - fz < zMin) { zMin = w.z - fz; yAt = w.y; } } } } });
+  out.seatThroughWall[m[1]] = { verts: n, aftOfFace: nAft, deepest: nAft ? r3(-zMin) : 0, atY: yAt == null ? null : r3(yAt) }; });
+out.frameCheck = { seat1: seatTop['1'], seat1zBack: seats[0] && r3(seats[0].zBack), eye: E && E.p && E.p.map(r3) };
+return out;
