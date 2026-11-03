@@ -48,12 +48,14 @@ function ruleUnits(np) {
   t(!noIcon.length, 'every option carries its SVG symbol and a label', noIcon.slice(0, 5).join(', '));
   t(!np.ROW_KEYS.includes('prop') && !np.ROW_KEYS.includes('blades'), 'the propeller\'s blades are not a choice (the user: "not key")');
   // every archetype reachable: its choice set, read back, holds no greyed option
-  const unreach = [];
+  // (an AUTHORED card is drawn by hand to a reference and stays a card; one outside the chooser is printed, not failed)
+  const unreach = [], authOut = [];
   for (const a of D.ARCHETYPES) {
     const ch = np.fromArchetype(a), c = np.complete(ch);
-    if (c.cleared.length) unreach.push(a.key + ':' + c.cleared.map(k => k + '=' + ch[k]).join('/'));
+    if (c.cleared.length) (np.authored(a) ? authOut : unreach).push(a.key + ':' + c.cleared.map(k => k + '=' + ch[k]).join('/'));
   }
-  t(!unreach.length, 'every archetype\'s choice set is offered (' + D.ARCHETYPES.length + ' cards)', unreach.join('; '));
+  t(!unreach.length, 'every non-authored archetype\'s choice set is offered (' + D.ARCHETYPES.filter(a => !np.authored(a)).length + ' cards)', unreach.join('; '));
+  if (authOut.length) console.log('           authored cards outside the chooser (kept as cards): ' + authOut.join('; '));
   const gen = D.ARCHETYPES.filter(a => !np.authored(a));
   t(gen.length >= 15, 'the non-authored cards are the generator\'s outputs (' + gen.length + ' cards; authored ' +
     D.ARCHETYPES.filter(a => np.authored(a)).map(a => a.key).join(', ') + ')');
@@ -189,8 +191,8 @@ async function flowCheck(np) {
   await new Promise(r => setTimeout(r, 30));
   for (let i = 0; i < 200 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 25));
   t(!UI.isOpen() && cnt.hold === false && cnt.view === 'shape', 'generate hands over: the chooser closed, the hold released, the editor on STRUCTURE');
-  t(cnt.bake === 1 && (cnt.set === 1 || cnt.set === 2) && UI.LOG.generated === 1,
-    'ONE generate: one bake, one load (+1 when the stance fit moved a leg) - bake ' + cnt.bake + ', loads ' + cnt.set + (UI.LOG.fit ? ' fit ' + JSON.stringify(UI.LOG.fit) : ''));
+  t(cnt.bake === 1 && cnt.set >= 1 && cnt.set <= 1 + np.FIT_PASSES && UI.LOG.generated === 1,
+    'ONE generate: one bake, one load (+ a fit load per pass that moved a leg or the wing, at most ' + np.FIT_PASSES + ') - bake ' + cnt.bake + ', loads ' + cnt.set + (UI.LOG.fit ? ' fit ' + JSON.stringify(UI.LOG.fit) : ''));
   t(store.spec && store.spec.meta && store.spec.meta.newPlane && store.spec.meta.newPlane.class, 'the spec on the stand says what was chosen (meta.newPlane)');
   D.designBake = realBake;
   global.document = prevDoc; W.requestAnimationFrame = prevRaf;

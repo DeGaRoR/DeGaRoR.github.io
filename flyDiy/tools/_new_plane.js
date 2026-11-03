@@ -163,7 +163,17 @@ const ROW_KEYS = [];
 for (const s of STEPS) for (const r of s.rows) ROW_KEYS.push(r.key);
 const stepOfRow = {};
 for (const s of STEPS) for (const r of s.rows) stepOfRow[r.key] = s.key;
-const optsOf = rowKey => { for (const s of STEPS) for (const r of s.rows) if (r.key === rowKey) return r.opts(); return []; };
+// the option lists are static once the declaration is loaded (their icons are drawn once, not per grey check)
+const OPTS_CACHE = {};
+const optsOf = rowKey => {
+  if (OPTS_CACHE[rowKey]) return OPTS_CACHE[rowKey];
+  for (const s of STEPS) for (const r of s.rows) if (r.key === rowKey) {
+    const o = r.opts();
+    if (o.length) OPTS_CACHE[rowKey] = o;
+    return o;
+  }
+  return [];
+};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // THE ENGINE MODEL: the family's catalogue engine nearest (in ratio) to the power the class's own seed engine makes,
@@ -187,7 +197,13 @@ function classPower(cls) {
   const nm = o && o.seed && o.seed.cage && o.seed.cage.engPreset;
   return nm ? powerOf(nm) : null;
 }
+const MODEL_CACHE = {};
 function modelFor(cls, family, arch) {
+  const mk = cls + '|' + family + '|' + arch;
+  if (mk in MODEL_CACHE) return MODEL_CACHE[mk];
+  return (MODEL_CACHE[mk] = modelFor0(cls, family, arch));
+}
+function modelFor0(cls, family, arch) {
   const target = (classPower(cls) || 60000) * (COUNT_K[arch] || 1);
   let best = null, bestR = Infinity;
   for (const o of D().designEngineModels()) {
@@ -244,6 +260,10 @@ const RULES = [
   // [CL] engines and classes
   ['engArch', 'three', c => c.class && c.class !== 'n23' && 'three engines want a Normal-category airframe'],
   ['engArch', 'four', c => c.class && c.class !== 'n23' && 'four engines want a Normal-category airframe'],
+  // [VAL] a pusher on a tailwheel: the disc swings down to the ground as the tail sits (validation A: the ulm pusher
+  // taildragger sat 9.5 deg tail-down with the pilot unable to raise it - the Pod-and-boom and Archaeopteryx cards are
+  // tricycles, and so is every pusher pod)
+  ['gear', 'tail', c => (c.engArch === 'pusher') && 'a pusher sits on a nose wheel: tail-down, its disc would swing into the ground'],
   ['engArch', 'pushPull', c => (c.class === 'ul1' || c.class === 'sail') && 'two engines and twin booms on a single-seat glider or ultralight'],
   ['engArch', 'twin', c => c.class === 'sail' && 'a sailplane carries one sustainer'],
   ['engArch', 'wingTop', c => c.class === 'sail' && 'a sailplane carries its sustainer on the nose or behind the pod'],
@@ -268,13 +288,9 @@ function why(ch, rowKey, value) {
   if (o && o.inactive) return o.inactive;
   const fs = RULE_INDEX[rowKey + '=' + value];
   if (!fs) return null;
-  const si = STEPS.findIndex(s => s.key === stepOfRow[rowKey]);
   const before = {};
-  for (let i = 0; i < STEPS.length; i++) for (const r of STEPS[i].rows) {
-    if (i < si || (i === si && STEPS[i].rows.indexOf(r) < STEPS[i].rows.findIndex(x => x.key === rowKey))) {
-      if (ch[r.key] != null) before[r.key] = ch[r.key];
-    }
-  }
+  const lim = ROW_KEYS.indexOf(rowKey);
+  for (let i = 0; i < lim; i++) { const k = ROW_KEYS[i]; if (ch[k] != null) before[k] = ch[k]; }
   for (const f of fs) { const w = f(before); if (w) return w; }
   return null;
 }
@@ -307,6 +323,10 @@ function defaultFor(ch, rowKey) {
   if (rowKey === 'booms' && ch.engArch === 'pusher') want = 'rod';
   if (rowKey === 'booms' && ch.body === 'open') want = 'rod';
   if (rowKey === 'wing' && ch.engArch === 'wingTop') want = 'high';
+  if (rowKey === 'gear' && ch.engArch === 'pusher') want = 'trike';
+  // a light pusher takes the light two-stroke (the Pod-and-boom card's 582): a boxer's weight behind the pod is the
+  // margin the balance fit then has to buy back by sliding the wing aft, into the disc
+  if (rowKey === 'engType' && ch.engArch === 'pusher' && ['ul1', 'ulm', 'lsa'].includes(cls)) want = 'inline';
   if (rowKey === 'canopy' && ch.top === 'turtle') want = 'bubble';
   const opts = optsOf(rowKey);
   const ok = v => opts.some(o => o.value === v) && !why(ch, rowKey, v);
@@ -360,32 +380,69 @@ function stanceFor(ch) {
 //   both         the prop clearance >= 0.25 m on a tailwheel, 0.22 m on a nose wheel (FAR 23.925 0.229 / 0.178, a
 //                margin over each): the mains lengthened, a tricycle's nose leg with them
 // Returns the cage rows to change, or null when the drawn stance already holds (then nothing is rebuilt).
-const FIT = { tailRake: 17, noseShare: 0.25, tipBack: 15, deck: 1.2, clearTail: 0.25, clearTrike: 0.22, tolX: 0.03, tolDeg: 0.4 };
+const FIT = { smLo: 0.06, smHi: 0.40, smMid: 0.18, maxStep: 0.45, dSmDx: 0.55, dCgDx: -0.20, tailRake: 18.5, noseShare: 0.25, tipBack: 15, deck: 1.2, clearTail: 0.25, clearTrike: 0.22, tolX: 0.03, tolDeg: 0.4 };
 function coreFn(n) {
   if (typeof W[n] === 'function') return W[n];
   try { const f = eval('typeof ' + n + ' === "function" ? ' + n + ' : null'); if (f) return f; } catch (e) {}
   return (typeof require === 'function') ? require('./flight_core.js')[n] : null;
 }
 function stanceFit(spec, cage) {
-  const BG = coreFn('buildGen');
+  const BG = coreFn('buildGen'), SHK = coreFn('genShakedown');
   if (!BG || !spec || !spec.gear) return null;
   const type = spec.gear.type;
-  if (type !== 'taildragger' && type !== 'tricycle') return null;
   let def;
   try { def = BG(JSON.parse(JSON.stringify(spec))); } catch (e) { return null; }
-  const Pp = def.parts, G = def.spec.gear;
-  if (!Pp || !(Pp.TW >= 0)) return null;
+  const out = {};
+  // the FULL panel values: a saved spec's cage holds only the rows that differ from the defaults (cageToSpec), so a
+  // row at its default is read off the editor's own defaults (CAGE_PARAMS + the layers' page defaults)
+  const C2 = W.CAGE2 || (typeof CAGE2 !== 'undefined' ? CAGE2 : null);
+  const PG = W.CAGE_PAGE || (typeof CAGE_PAGE !== 'undefined' ? CAGE_PAGE : null);
+  const full = Object.assign({}, C2 && C2.cageDefaults ? C2.cageDefaults() : {}, (PG && PG.defaults) || {}, spec.cage || {}, cage || {});
+  const c = k => +full[k];
   let cx = 0, cy = 0, mm = 0;
   for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
   cx /= mm; cy /= mm;
+  // THE BALANCE (the brief: "CG in the green band"), before the legs: the wing slid fore or aft (wgDx, the row the
+  // Stearman- and Archaeopteryx-alikes were balanced with by hand) until the static margin is back in the band's
+  // middle. Measured once (validation A): the margin moves -0.55 per metre of wgDx (forward +) on three unlike
+  // aeroplanes, the CG -0.20 m per metre with it. Only a margin outside 8-35 % is moved.
+  if (SHK) {
+    // the margin as drawn AND at the four loading corners (solo / full cabin x full / reserve fuel, the shakedown's
+    // envelope): the wing moves every corner alike, so the band is judged on their spread - the worst corner over 6 %,
+    // the most nose-heavy under 40 %, or (a spread wider than the band: a big cabin) the spread centred in it
+    let lo = null, hi = null, sm0 = null;
+    try {
+      const sh = SHK(def, {});
+      sm0 = sh.staticMargin;
+      const sms = [sh.staticMargin].concat(((sh.envelope && sh.envelope.corners) || []).map(k => k.staticMargin))
+        .filter(v => typeof v === 'number' && isFinite(v));
+      if (sms.length) { lo = Math.min(...sms); hi = Math.max(...sms); }
+    } catch (e) { lo = null; }
+    if (lo != null && (lo < FIT.smLo || hi > FIT.smHi)) {
+      let dSm;
+      if (hi - lo > FIT.smHi - FIT.smLo - 0.04) dSm = (FIT.smLo + FIT.smHi) / 2 - (lo + hi) / 2;
+      else if (lo < FIT.smLo) dSm = FIT.smLo + 0.04 - lo;
+      else dSm = FIT.smHi - 0.04 - hi;
+      // the aeroplane AS DRAWN stays in the band whatever the corners ask (validation A: centring a 4-bay cabin's
+      // spread left the Caravan's choices 70 % nose-heavy as drawn and the full-cabin corner still unstable - that
+      // spread is the cabin's, said by the design check, not a wing position)
+      if (typeof sm0 === 'number' && isFinite(sm0)) dSm = Math.max(0.10 - sm0, Math.min(0.32 - sm0, dSm));
+      const d = Math.max(-1.0, Math.min(1.0, -dSm / FIT.dSmDx));
+      if (Math.abs(d) > 0.02) {
+        out.wgDx = +((c('wgDx') || 0) + d).toFixed(2);
+        cx += FIT.dCgDx * d;
+      }
+    }
+  }
+  if (type !== 'taildragger' && type !== 'tricycle') return Object.keys(out).length ? out : null;
+  const Pp = def.parts, G = def.spec.gear;
+  if (!Pp || !(Pp.TW >= 0)) return Object.keys(out).length ? out : null;
   const ground = G.y - (G.contactR != null ? G.contactR : G.wheelR);
   const h = Math.max(0.3, cy - ground);
   const gx = Pp.gx, twX = Pp.twX;
   const tw = def.nodes[Pp.TW];
   const dyN = (tw.p[1] - G.twR) - ground;          // the third wheel's contact over the mains' ground
   const propClear = (def.spec.engAt ? Math.min(...def.spec.engAt.map(e => e.y)) : def.spec.engY) - def.spec.propR - ground;
-  const out = {};
-  const c = k => +(cage && cage[k] != null ? cage[k] : (spec.cage && spec.cage[k]));
   // THE LEGS' RESPONSE, measured once (validation A, STATUS.md "the stance rule units"): per metre of the row,
   //   s1Z     the axle 1 m forward (a bungee V 1.04-1.06), the mains' ground line +0.062 m (taildragger) / -0.191 m
   //           (tricycle) - the keel slopes under the station
@@ -393,7 +450,9 @@ function stanceFit(spec, cage) {
   //   s2Drop  the nose wheel's contact 1 m lower, nothing else
   const leg = Math.round(c('s1Leg'));
   const J = { gz: leg === 1 ? -1.05 : -1, gd: leg === 1 ? -0.306 : leg === 0 ? -0.10 : 0,
-              yz: type === 'taildragger' ? 0.062 : -0.191 };
+              yz: 0 };   // (the ground's tilt under the station, +0.06 / -0.19 on the aeroplanes measured, depends on
+                         // the keel there - validation A: the C172 card's deck went to 7 deg on it - so it is left to the
+                         // second pass, which reads the drawn result)
   const tanR = d => Math.tan(d * Math.PI / 180);
   const target = (dz, dd) => {
     const hh = h + (-J.yz * dz) + dd;           // the CG stands higher by what the ground falls
@@ -401,12 +460,23 @@ function stanceFit(spec, cage) {
     // CG-to-axle line leans the three-point deck less (validation A: the level-frame fit overshot by the deck, 10-14 deg)
     if (type === 'taildragger') {
       const gN = gx + J.gz * dz + J.gd * dd;
-      const deck3 = Math.atan2(dyN - J.yz * dz + dd, twX - gN) * 180 / Math.PI;
-      return cx - hh * tanR(FIT.tailRake - deck3);
+      const deck3 = Math.atan2(dyN - J.yz * dz + dd - tailC, twX - gN) * 180 / Math.PI;
+      // (never less than 5 deg in the level frame: a three-point deck past the rake would put the target behind the CG
+      // - validation A's pair 3, nosed over at -40 deg)
+      return cx - hh * tanR(Math.max(5, FIT.tailRake - deck3));
     }
     const share = (cx - FIT.noseShare * twX) / (1 - FIT.noseShare);
     return Math.max(share, cx + hh * tanR(FIT.tipBack));
   };
+  // a taildragger's three-point deck brought into 8-15 deg (GEN_RULES.deckMin/Max) by its tailwheel leg (the castor's s2_twLegDrop lowers
+  // the tailwheel's contact 1:1): aimed at 12, from the mains as they stand
+  let tailC = 0;
+  if (type === 'taildragger') {
+    const d3 = Math.atan2(dyN, twX - gx) * 180 / Math.PI;
+    if (d3 > 15 || d3 < 8) tailC = Math.max(-FIT.maxStep, Math.min(FIT.maxStep, dyN - tanR(12) * (twX - gx)));
+    if (Math.abs(tailC) > 0.005) out.s2_twLegDrop = +Math.max(0.05, Math.min(0.80, c('s2_twLegDrop') + tailC)).toFixed(3);
+    else tailC = 0;
+  }
   const clearT = type === 'taildragger' ? FIT.clearTail : FIT.clearTrike;
   // a and b by turns (the coupling is a few per cent): the axle onto its target, then the prop clear of the ground
   let a = 0, b = 0;
@@ -415,7 +485,9 @@ function stanceFit(spec, cage) {
     const pcNow = propClear - J.yz * a;          // the ground's move under the new station
     b = Math.max(0, clearT - pcNow);
   }
+  a = Math.max(-FIT.maxStep, Math.min(FIT.maxStep, a));   // damped: the next pass reads the drawn result again
   if (Math.abs(a) > FIT.tolX) out.s1Z = +(c('s1Z') + a).toFixed(3);
+  b = Math.min(b, FIT.maxStep);
   if (b > 0.01) out.s1Drop = +(c('s1Drop') + b).toFixed(3);
   if (type === 'tricycle') {
     const gxN = gx + J.gz * a + J.gd * b;
@@ -423,7 +495,8 @@ function stanceFit(spec, cage) {
     const deck = Math.atan2(-dy, gxN - twX) * 180 / Math.PI;
     if (Math.abs(deck - FIT.deck) > FIT.tolDeg || out.s1Z != null || out.s1Drop != null) {
       const cc = dy + tanR(FIT.deck) * (gxN - twX);   // a longer nose leg lowers the nose wheel's contact
-      if (Math.abs(cc) > 0.005) out.s2Drop = +Math.max(0.10, c('s2Drop') + cc).toFixed(3);
+      const ccD = Math.max(-FIT.maxStep, Math.min(FIT.maxStep, cc));
+      if (Math.abs(ccD) > 0.005) out.s2Drop = +Math.max(0.10, c('s2Drop') + ccD).toFixed(3);
     }
   }
   return Object.keys(out).length ? out : null;
@@ -590,7 +663,8 @@ function randomChoices(seed) {
   return ch;
 }
 
-const API = { stanceFit, FIT, STEPS, ROW_KEYS, RULES, STANCE, WING_KEYS: () => Object.keys(D().WING_ARCH), optsOf, why, defaultFor, complete,
+const FIT_PASSES = 3;   // at most three corrective loads after the birth's (each re-reads the drawn aeroplane)
+const API = { stanceFit, FIT, FIT_PASSES, STEPS, ROW_KEYS, RULES, STANCE, WING_KEYS: () => Object.keys(D().WING_ARCH), optsOf, why, defaultFor, complete,
               compose, bake, fromArchetype, authored, randomChoices, modelFor, cowlPresetFor, propFor, NOSE_NP, MAX_BAYS,
               SWATCHES };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
