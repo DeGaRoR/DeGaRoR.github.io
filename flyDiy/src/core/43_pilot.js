@@ -812,7 +812,10 @@ function makePilot(sim, def, world, opts) {
   // G3575 (DC3-2): A FULL-SWIVEL TAILWHEEL (30_solver twSwivel: steered by the rudder until the toe brake breaks it out)
   // is turned the way its crews turn it - ON THE SPOT, the inside brake (pivotFly): off the stand when the way out leaves
   // the nose well aside, and at a taxi corner tighter than the wheels steer (below). Every other aeroplane: none of it
-  const SWIV = !!(def && def.params && def.params.twSwivel) && !trike;
+  // G3800 (TAILWHEELS): the LOCKABLE tailwheel (params.twMode 2, the DC-3's - G3575's full swivel, which it replaced) is
+  // that aeroplane now: unlocked to taxi (a free castor, steered by the brakes - 39b groundSteer), locked for the runway
+  const SWIV = !!(def && def.params && def.params.twMode === 2) && !trike;
+  const TWLK = SWIV;
   let piv = null, pivSaid = false, pivN = 0;
   // G3480 (DC-3 TAXI): the time the wheels have not held the route's turn, the turns on the spot it took, said once
   let bsT = 0, bsN = 0, bsSaid = false;
@@ -2520,7 +2523,14 @@ function makePilot(sim, def, world, opts) {
           SV.decrab(0.12);
           break;
         case 'RWY': groundSteer(); break;
-        case 'TAXI': c.dr = SEL.dr; break;   // the follower's rudder (da from the governor)
+        case 'TAXI': c.dr = SEL.dr;   // the follower's rudder (da from the governor)
+          // G3800 (TAILWHEELS): A CASTORING TAILWHEEL (a lockable one unlocked to taxi, a steerable one broken out)
+          // steers nothing: the follower's demand goes to the toe brakes too (brakeD > 0 yaws as dr > 0 does), as the
+          // runway's law does (39b groundSteer). Not one line runs while the wheel steers
+          { const tws = sim.out && sim.out.twState;
+            if (tws && (tws[0] === 1 || tws[1] === 1) && !BX.on)
+              c.brakeD = Math.max(-SERVO_GAINS.brakeCastMax, Math.min(SERVO_GAINS.brakeCastMax, SERVO_GAINS.brakeCastK * SEL.dr / 0.85)); }
+          break;
         case 'NONE': c.dr = 0; c.da = 0; break;
         default: break;
       }
@@ -3094,6 +3104,11 @@ function makePilot(sim, def, world, opts) {
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
     if (ap.phase !== 'FINAL') slipK = 0;   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
+    // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
+    // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
+    // the line-up's turn; the pin drops in once the castoring wheel trails straight (30_solver twLine)
+    if (TWLK) c.twLock = (ap.phase === 'DEPART' || ap.phase === 'TAXI' || ap.phase === 'LINEUP' || ap.phase === 'STOP'
+                          || ap.phase === 'HOLD' || ap.phase === 'STOPPED') ? 0 : 1;
     // G1938 (PILOT-ONE, the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should allow
     // for almost static turn, which is required for small landing strips ... turning at the end of a 1 way strip").
     // THE PIVOT: what a taildragger pilot does where the wheels cannot steer the turn - stopped, full rudder toward
@@ -3356,9 +3371,12 @@ function makePilot(sim, def, world, opts) {
           // pivot - the inside brake, full rudder, a burst of power), then the follower from where it stood; while it rolls the
           // turns are walked at 1.5 m/s. (The first cut, for every airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s;
           // the second, the inside brake at 1.5 m/s with no stop, still turned the DC-3 on ~25 m into a parked wing at 46 s)
-          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13);
+          // G3800 (TAILWHEELS, the brief: "remove the RgMin > 13 m limit for every taildragger"): the turn on the spot
+          // where the wheels cannot hold the route is every taildragger's now (pivG); the walked turns stay the big
+          // airframe's (bigG)
+          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13), pivG = bigG || !trike;
           const drC = SV.taxiRudder(drFF, drMaxG);
-          bsT = bigG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
+          bsT = pivG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
           if (bsT > 0.5 && bsN < 6) {
             bsT = 0; bsN++;
             piv = { hdg: hT, j: L.i, t0: ap.t, thr: 0, sg: eH >= 0 ? 1 : -1 }; pivN++;

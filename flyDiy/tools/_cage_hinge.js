@@ -1025,8 +1025,12 @@ PAGE.post = ctx => {
           const eye = V.add(hc, V.mul(side, sg * reach));
           revolve(bm.metal, V.add(eye, V.mul(up, -0.007)), up,
                   [[0.009, 0], [0.009, 0.014]], 8, true);
-          const e = CU.ears.find(q => q[0] * eye[0] > 0);
-          if (!e) continue;
+          // (G3800: the NEAREST ear on the eye's side of the castor - on twin booms the castor rides one boom, and only
+          // that boom's rudder horn reaches it; the other boom's horn finds none within the run's reach)
+          const cx = 0.5 * (CU.ears[0][0] + (CU.ears[1] || CU.ears[0])[0]);
+          const e = CU.ears.filter(q => (q[0] - cx) * (eye[0] - cx) > 0)
+            .sort((a, b) => V.len(V.sub(a, eye)) - V.len(V.sub(b, eye)))[0];
+          if (!e || V.len(V.sub(e, eye)) > 1.5) continue;
           const tip = V.add(eye, V.mul(up, -0.010));
           const bag = { steel: K.Bag(), alloy: K.Bag() };
           GGs.steerRun(bag, e, tip);

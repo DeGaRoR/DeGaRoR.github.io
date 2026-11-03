@@ -24,6 +24,7 @@
 //        [--keep-ui]              the still with the page's UI over it
 //        [--root <dir>]           the repo served (default: the one this file is in) - e.g. a throwaway archive of a branch
 //        [--fallback <dir>[;<dir>]]  _serve.js's fallback roots, in order (a tree over the main checkout's gitignored data)
+//        [--query k=v&k=v]        appended to the page's query (G3800)
 //        [--dry]                  everything up to the browser: the arguments, the files, the browser found - no launch
 //   node flyDiy/tools/plane_shot.js --pair <dirA> <dirB> --out <dir> [--labels A,B]
 //                                 side-by-side composites of the PNGs both directories hold (SwiftShader | RTX)
@@ -186,7 +187,9 @@ async function shoot(o) {
     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');
+    // (G3800: --query k=v&k=v rides the page's own query - a brief's switches, e.g. idle=0)
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full')
+              + (opt('query') ? '&' + opt('query') : '');
     log('page', url);
     await C.cmd('Page.navigate', { url });
     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);

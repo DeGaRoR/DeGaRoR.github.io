@@ -2060,6 +2060,84 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // Every member is class 'tail' as the conventional's; the strips ride
     // the bays (62_gen_aero's P.TAIL branch, per fin); the load rig finds
     // HF/HR and VF/VR by tag as it does on the fuselage tail.
+    if (t.ivAngle != null) {
+    // ---- G3800 (TAILWHEELS, the user 3 Nov: "maybe it's the opportunity to do the inverted V-tail and the ability of
+    // sticking wheels on top of the inverted V fins"): THE INVERTED V ON TWIN BOOMS - the AAI RQ-7 Shadow's layout: no
+    // fin and no stab bridge; from each boom's tail station ONE panel runs DOWN AND INBOARD at the V's angle (tail.ivAngle)
+    // toward the centreline, its tip tail.ivGap / 2 off it (the Shadow's two meet; here a gap is kept so each tip can
+    // carry its own wheel - the tail's ground contact, 'sticking wheels on the fin tips'). Seen from behind the pair is a
+    // V whose point hangs below the booms: each panel is a normal V's panel moved down, so the ruddervators mix as a V's
+    // (the strips take their normals from these nodes - 62_gen_aero's T.vee branch). MEASURED (the probe at cruise, the
+    // GEN_DEFAULT twin at 35 deg): d(yawLeft)/d(dr) +10 765 (the conventional twin's +5 508, the same sign), d(pitchUp)/
+    // d(de) +14 093 (+11 460), the rudder's pitch 0.5 % of the elevator's; and the rudder's ROLL is still a V's (-3 146 /
+    // dr, the fuselage V's -3 062): the panels' antisymmetric lift at +-0.68 m outweighs their side force below the CG,
+    // which on a Shadow-like low tail would have made it proverse. Each panel is the fin's P4 truss laid
+    // in its canted plane: front spar, hinge spar, the two thickness nodes either side of the plane, 2-3 bays; its root
+    // section on the boom's tail triangle (the boom is the post); one cluster with that triangle.
+    MB = genSurfMaterial(S, 'stab');
+    const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
+      ? S.controls.elevator.chord : 0.40;
+    const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
+    const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+    const G = (t.ivAngle || 33) * Math.PI / 180, cG = Math.cos(G), sG = Math.sin(G);
+    const gapH = 0.5 * (t.ivGap == null ? 0.30 : t.ivGap);
+    const b1 = Math.max(0.25, (bx - gapH) / cG);                 // one panel's own span, root to tip
+    const hTap = t.hTaper == null ? 1 : t.hTaper;
+    const cMean = t.ivS > 0 ? t.ivS / (2 * b1) : (t.hChord || 0.6);
+    const cRootV = 2 * cMean / (1 + hTap), cTipV = hTap * cRootV;
+    const chordV = u => cRootV + (cTipV - cRootV) * u;
+    const yRoot = yAx(xStab);                                    // the boom's axis at the tail station
+    const xFV = u => xStab + (sparF - 0.5) * chordV(u), xRV = u => xStab + (0.5 - CT) * chordV(u);
+    const nV = Math.max(2, Math.min(3, Math.round(b1 / 0.55)));
+    // the crowns at the tail station carry the tail tags (the first-tagged rule: the tail-arm rig, the gauge)
+    for (const [sd, tg] of [['L', 'HTL'], ['R', 'HTR']]) { const q = chains[sd][iTail].T; nodes[q].tag = tg; if (sd === 'L') HTL = q; else HTR = q; }
+    const panels = [];
+    for (const [sd, sg] of [['R', 1], ['L', -1]]) {
+      // down and inboard along the panel (y, z), and its normal in that plane (up-ish, inboard-leaning)
+      const dy = -sG, dz = -sg * cG, ny = cG, nz = -sg * sG;
+      const at = u => [yRoot + dy * b1 * u, sg * bx + dz * b1 * u];
+      const VF = [], VR = [], VX = [], VX2 = [];
+      for (let i = 0; i <= nV; i++) {
+        const u = i / nV, [y, z] = at(u), xm = 0.5 * (xFV(u) + xRV(u)), hd = 0.5 * dep * chordV(u);
+        VF.push(N(xFV(u), y, z, 'VF')); VR.push(N(xRV(u), y, z, 'VR'));
+        VX.push(SO(N(xm, y + ny * hd, z + nz * hd, 'VX'), hd - finHalf));
+        VX2.push(SO(N(xm, y - ny * hd, z - nz * hd, 'VX'), hd - finHalf));
+      }
+      const [ya, za] = at(1 + 0.04 / b1);
+      const apex = N(0.5 * (xFV(1) + xRV(1)), ya, za, sd === 'L' ? 'FIN2' : 'FIN');
+      if (sd === 'L') FIN2 = apex; else FIN = apex;
+      const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
+      for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {           // the root on the boom's tail
+        B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
+      }
+      for (let i = 0; i <= nV; i++) {                             // the section diamond
+        B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
+        B(VF[i], VR[i], 'tail');
+      }
+      for (let i = 0; i < nV; i++) {
+        for (const [a2, b2] of [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]])
+          B(a2, b2, 'tail');
+        B(VF[i], VR[i + 1], 'tail'); B(VR[i], VF[i + 1], 'tail');
+        for (const X of [VX, VX2]) {
+          B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
+          B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
+        }
+        const bayV = (b1 / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+        cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
+                            .concat(i === nV - 1 ? [apex] : []));
+        const ribV = Math.max(1, Math.round((b1 / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+        pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
+      }
+      for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(apex, nd, 'tail');
+      pt(apex, 1.15 * cTipV * 0.30);
+      B(apex, VF[nV - 1], 'tail'); B(apex, VR[nV - 1], 'tail');
+      panels.push({ VF, VR, VX, VX2, FIN: apex, side: sg, b1, chordV, nV });
+      finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
+                 b1, chordV(0), MB, { front: VF[0], rear: VR[0], tip: apex });
+    }
+    TAIL = { vee: true, panels, b1, chordV, nV, G, sparFront: sparF, rearV: 1 - CT, twin: true,
+             VF: panels[0].VF, VR: panels[0].VR, VX: panels[0].VX, VX2: panels[0].VX2 };
+    } else {
     MB = genSurfMaterial(S, 'stab');           // G213: the stab's own row
     const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
       ? S.controls.elevator.chord : 0.40;
@@ -2208,6 +2286,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
              sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR, twin: true };
+    }
     BOOMS = { L: chains.L, R: chains.R, r: r0, r1, kv, x0, len, iRoot, iTail, xs, k: TUBE ? 1 : tbK, tube: TUBE };
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
@@ -2473,7 +2552,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
-  let GAL, GAR, TW, twX, twY, FLOATS = null;
+  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
+  // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
+  // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
+  const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
+  const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   if (S.gear.type !== 'floats') {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
@@ -2547,6 +2630,56 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+  } else if (BOOMS && TAIL && TAIL.vee) {
+    // G3800 (TAILWHEELS): THE INVERTED V's TAIL CONTACTS ARE ITS TIPS - a small wheel (or the skid's shoe) under each
+    // panel's tip, on a short fork (its hub a hand under the tip), the tip's section and apex its five anchors. The
+    // three-point attitude is the tail's own geometry (the V's angle, the booms' height, the gap): no leg to choose
+    twX = nodes[TAIL.panels[0].FIN].p[0];
+    const twId = {};
+    for (const pn of TAIL.panels) {
+      const ap = nodes[pn.FIN].p, R0 = S.gear.twR || 0.10;
+      const y = ap[1] - R0 - 0.03;
+      if (pn.side < 0) twY = y;
+      const W_ = N(ap[0], y - twDy, ap[2], 'TW', twRN);
+      const k = pn.nV;
+      for (const nd of [pn.FIN, pn.VF[k], pn.VR[k], pn.VX[k], pn.VX2[k]]) B(W_, nd, 'gear', false, nd === pn.FIN ? 'leg' : 'wire');
+      pt(W_, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);
+      twId[pn.side] = W_;
+    }
+    TW = twId[-1]; TW2 = twId[1];
+  } else if (BOOMS) {
+    // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): A TWIN BOOM'S TAIL
+    // CONTACTS, one under each boom's tail station (the stab's - the tube's own end past it is a fairing), its leg off
+    // the boom's two lower nodes there (the tube is the post), braced to the bay before (rule 10's lateral pyramid, as
+    // the fuselage tailwheel's wires to the last ring) and the snap-blocker up to the station's crown (internal, inside
+    // the tube). Both the same: refs.tw and refs.tw2, one law each (30_solver twLine), the same kind (the row's)
+    const iT = BOOMS.iTail, xT = BOOMS.xs[iT];
+    twX = S.gear.twX !== null && S.gear.twX !== undefined ? S.gear.twX : xT - 0.10;
+    const twId = [];
+    // ...ITS LEG LONG ENOUGH FOR THE POD: the line from the mains' contact to the tail contacts passes under the pod's
+    // keel (every ring's bottom and the post, aft of the mains) by 5 cm - a pod that runs as far aft as the booms (a spec
+    // without its drawing) otherwise met the ground first, and the aeroplane bounced off its own tail cone onto its nose
+    const gyC = gy - (S.gear.contactR || 0.2);
+    let yCmax = Infinity;
+    for (const nd of [...F.map(f => f.BL), TPB]) {
+      const xj = nodes[nd].p[0], yj = nodes[nd].p[1];
+      if (xj > gx + 0.3) yCmax = Math.min(yCmax, gyC + (yj - 0.05 - gyC) * (twX - gx) / (xj - gx));
+    }
+    for (const sd of ['L', 'R']) {
+      const q = BOOMS[sd][iT], pr = BOOMS[sd][iT - 1], yb = Math.min(nodes[q.I].p[1], nodes[q.O].p[1]);
+      const zc = 0.5 * (nodes[q.I].p[2] + nodes[q.O].p[2]);
+      let y = S.gear.twY !== null && S.gear.twY !== undefined ? S.gear.twY
+        : yb - (S.gear.twLeg !== null && S.gear.twLeg !== undefined ? S.gear.twLeg : R.twLeg);
+      if (y - (S.gear.twR || 0.1) > yCmax) y = yCmax + (S.gear.twR || 0.1);
+      if (sd === 'L') twY = y;
+      const W_ = N(twX, y - twDy, zc, 'TW', twRN);
+      B(W_, q.I, 'gear', false, 'leg'); B(W_, q.O, 'gear', false, 'leg');
+      B(W_, pr.I, 'gear', false, 'wire'); B(W_, pr.O, 'gear', false, 'wire');
+      B(W_, q.T, 'gear', false, 'inner');
+      pt(W_, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);
+      twId.push(W_);
+    }
+    [TW, TW2] = twId;
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -2556,7 +2689,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     twY = S.gear.twY !== null && S.gear.twY !== undefined
       ? S.gear.twY : nodes[TPB].p[1]
         - (S.gear.twLeg !== null && S.gear.twLeg !== undefined ? S.gear.twLeg : R.twLeg);
-    TW = N(twX, twY, 0, 'TW', S.gear.twR);
+    TW = N(twX, twY - twDy, 0, 'TW', twRN);
     // Six members, and on a real tailwheel exactly one of them is hardware you
     // can see: the spring the wheel hangs on. Report: "too many struts, no
     // spring". So the tailpost member IS the spring/oleo, the pair to the last
@@ -2573,7 +2706,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the tailwheel assembly, by size
+    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
   } else {
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
@@ -3202,6 +3335,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
@@ -3215,7 +3349,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   secClose();                                       // the last section's mx (G457)
   const parts = {
-    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
+    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW, TW2,
     TAIL,                       // P4: the stab's and fin's spar nodes and planform
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,

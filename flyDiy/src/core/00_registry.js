@@ -1021,4 +1021,37 @@ const GROUND_DEF = GROUND_SURF[0];
 // tailwheel tyre ~8-15; a 5.00-5 nose wheel ~6-10. Each value the middle of its range. Keyed by the build's wheel
 // carcass (the cage's whProfile: standard, tundra balloon, slim) for the mains and by the gear type for the third.
 const TYRE_CN = { standard: 8, tundra: 4.5, slim: 10, tailwheel: 10, nosewheel: 8 };
+// G3800 (TAILWHEELS): THE STEERABLE TAILWHEEL, the Scott 3200 class (30_solver twLine, law 1) - and the castoring
+// fork's friction for laws 1 and 2. What the sources give, and what is derived (reports/evidence/TAILWHEELS/README.md):
+//  arc     THE BREAKOUT, the pawl's arc: 35 deg a side. "Steerable within a limit each side of center; beyond it the
+//          tailwheel breaks free and becomes full swiveling" (FAA-H-8083-3 ch.14); Univair's 3200 sheet: "positive
+//          steering control far BEYOND rudder travel, and release easily and automatically to full swivel when the
+//          aircraft is turned around" - so wider than the linked wheel's own 28.6 deg (twSteer 0.5 rad, full pedal):
+//          a wheel rolling on its steered line stays inside it, a tail DRAGGED round (a braked pivot, full rudder and
+//          power) takes its track past it and the tyre turns the fork out. The published arc (Scott's Handbook 16) was
+//          not reachable from this session; 35 = the linked travel plus a margin. The brief asked for the trigger as
+//          "the side force over the detent": MEASURED, the side force cannot tell a pivot from a take-off - with the
+//          breakout off, the held side force over the tyre's static grip read 1.05-1.30 at the autopilot's own full-
+//          power start (the tail creeping, the tyre at its at-rest Coulomb law) and 1.18-1.52 in a braked pivot
+//          (Cub, Jodel, Rufus; tools/tw_probe.js) - what differs is the tail SLIDING past the arc
+//  vSlide  the contact's own ground speed under which its track is not read (0.15 m/s: the creep, not a slide)
+//  tau     the track held over 0.25 s: the lattice's substep jitter is not a slide (G3575: a breakout on the raw node's
+//          side force castored the DC-3 into a weave)
+//  Mf0     the kingpin's swivel friction, Scott's own setting as owners quote it: "5 to 6 pounds (approximately 23 to
+//          28 pound inches of torque)" at the 3.5 in steering arm - 25 lb in = 2.8 N m - read as at a Cessna 170's tail
+//          load (Nref 980 N: ~10 % of its 998 kg gross): the free fork lags its track by it (the castor's damping)
+//  trailK  the fork's trail over the wheel's radius (an 8 in 3200: ~1.4 in, 0.35 r) - DERIVED from the fork's
+//          proportions, not a published number
+//  defl    the steering springs' give at the tyre's full grip (lateral mu x N x trail): 0.06 rad, in series with the
+//          tyre while the pawl holds - DERIVED (the 3239 kit's rate is not published); 0.35 rad cut the lightly loaded
+//          tail's cornering stiffness 5x and the inverted V's tip wheels ground-looped on the roll-out (132 deg; 0.12:
+//          3.6 deg; 0.06: 2.1 deg)
+//  E       the pawl's catch: it drops in within 0.12 rad of the arm (G3575's, kept)
+const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, defl: 0.06, tau: 0.25, E: 0.12 };
+// G3800: THE TAIL SKID's steel shoe, sliding mu by the SURFACE enum (GROUND_SURF's keys). A flat steel skid on a dry
+// lakebed averages 0.36 (NASA TM, Sefie 1979, after Dreher & Batterson TN D-999, metal skids on concrete, asphalt and
+// lakebed) - the grass row; steel on concrete 0.45 (casex's aircraft-materials table) - the paved rows; the loose and
+// soft rows dig the shoe in a little more; on a lakebed under water the shoe hardly drags (the water's own drag is the
+// wet pass's)
+const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45 };
 

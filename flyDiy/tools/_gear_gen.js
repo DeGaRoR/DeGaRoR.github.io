@@ -1947,8 +1947,10 @@ function legTailwheel(bags, AF, P, st) {
   // spring drops by that rise as well, so the wheel stays on the design
   // ground line (the mount says how much - see _cage_gear.js rodMount)
   const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
-  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop - rise, tipZ];
-  const ctrl = [0, root[1] - P.twSpringDrop * 0.30,
+  // G3800: a mount may carry its own keel and its own line (a twin boom's: the boom's belly, off the centreline)
+  const keelAt = (st.mount && st.mount.keelAt) || AF.keelAt, x0 = (st.mount && st.mount.x0) || 0;
+  const tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];
+  const ctrl = [x0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
@@ -1994,12 +1996,47 @@ function legTailwheel(bags, AF, P, st) {
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
                          P.twSpringT * (leaves - 0.5) + 0.016),
          mul(F.n, -1), 0.009, 0.024);
+  // G3800 (TAILWHEELS): THE TAIL SKID (the row's 4) - no castor, no wheel: the leaf spring runs on down as the skid's
+  // blade to a STEEL SHOE (a hardened plate with an upturned toe, bolted under the blade) whose sole stands on the
+  // contact line the wheel's tyre would have touched (the castor's own hub geometry, P.twLegDrop / twTrail / twRake,
+  // less the radius) - so the stance, and the join's measure (the contact R under a virtual axle), are the wheel's
+  if (st.steer === 4) {
+    const rk = P.twRake * D2R, axS = nrm([0, -Math.cos(rk), Math.sin(rk)]);
+    const hubS = add(off(tip, axS, P.twLegDrop), [0, 0, -P.twTrail]);
+    const yS = Math.min(hubS[1] - st.R, keelAt(hubS[2]) - 0.05);   // the sole (never above the keel's line)
+    const shoe = [x0, yS + 0.008, hubS[2]];
+    const blade = resample(bez(tip, [x0, 0.5 * (tip[1] + shoe[1]) + 0.02, tip[2] - 0.35 * (tip[2] - shoe[2])],
+                               [x0, shoe[1] + 0.014, shoe[2] + 0.05], 8), 10);
+    sweep(bags.steel, blade, t => secBlade(P.twSpringW * (0.78 - 0.18 * t), P.twSpringT * 1.2), true, [1, 0, 0]);
+    boxIn(bags.steel, shoe, [Math.max(0.03, P.twSpringW * 0.9), 0.008, 0.11], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    sweep(bags.steel, resample([[x0, yS + 0.010, shoe[2] + 0.105], [x0, yS + 0.030, shoe[2] + 0.140]], 3),
+          () => secBlade(Math.max(0.03, P.twSpringW * 0.9) * 2, 0.008), true, [1, 0, 0]);   // the toe, upturned
+    for (const sz of [-0.05, 0.05]) bolt(bags.alloy, [x0, yS + 0.018, shoe[2] + sz], [0, 1, 0], 0.006, 0.016);
+    return { axle: [x0, yS + st.R, shoe[2]], axis: [1, 0, 0], root, tip, travel: nrm([0, 1, 0.35]), skid: true };
+  }
   // G58.3: a caller that wants the castor assembly separable (the cage
   // join yaws it for ground manoeuvring) passes `bags.castorBags`; the
   // bench and every other caller fall through unchanged.
+  // G3800: only the STEERABLE wheel (1, and an old save's 0) is linked to the rudder - its arm, its ears, its springs
+  // (the hinge layer draws them to the horn); the lockable (2) and the fixed (3) have none, and say what holds them
+  const linked = !(st.steer === 2 || st.steer === 3);
   const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
-                       P.twSteer, st.steerByHinge ? 'ears' : true,   // G326
-                       h => [h[0], Math.min(h[1], AF.keelAt(h[2]) - 0.018), h[2]]);
+                       P.twSteer, linked ? (st.steerByHinge ? 'ears' : true) : false,   // G326
+                       h => [h[0], Math.min(h[1], keelAt(h[2]) - 0.018), h[2]]);
+  if (!linked) {
+    // on the swivel housing's top (the fixed airframe side): the LOCK - a pin housing aft of the swivel, its plunger
+    // into the fork's notch and the cockpit's cable forward (2); or the FIXED wheel's clamp collar and bolt (3)
+    const T0 = tip, ax = u.ax || [0, -1, 0];
+    if (st.steer === 2) {
+      boxIn(bags.alloy, [T0[0], T0[1] + 0.012, T0[2] - 0.045], [0.022, 0.018, 0.030], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      bolt(bags.steel, [T0[0], T0[1] + 0.012, T0[2] - 0.075], [0, 0, 1], 0.006, 0.040);
+      sweep(bags.steel, resample([[T0[0], T0[1] + 0.030, T0[2] - 0.045], [T0[0], T0[1] + 0.07, T0[2] - 0.02],
+                                  [T0[0], T0[1] + 0.09, T0[2] + 0.10]], 6), () => secRound(0.0025, 6), true, [1, 0, 0]);
+    } else {
+      revolve(bags.steel, off(T0, ax, 0.004), ax, [[0.036, 0], [0.036, 0.016]], 16, true);
+      bolt(bags.steel, [T0[0] + 0.036, T0[1] - 0.012, T0[2]], [1, 0, 0], 0.006, 0.020);
+    }
+  }
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
   // G133: THE SMALL WHEEL GETS ITS SPAT — and it goes into the castor's own
   // bags, so a steered tailwheel steers its fairing with the fork. `full`
@@ -2021,10 +2058,34 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
+// G3800 (TAILWHEELS): THE INVERTED V's TIP WHEEL - the tail's contact at a panel's tip (st.mount: the tip, metres, the
+// panel's underside there): a short castor fork hung from the tip on its own housing, the wheel in it - or, for the skid
+// (st.steer 4), a steel shoe under the tip on a short blade. The hub stands R + 3 cm under the tip (61_gen_frame's T.vee
+// rule, so a spec without its drawing flies the same wheel). Returns the leg families' record
+function legTipWheel(bags, AF, P, st) {
+  const tipP = st.mount(0).p, x0 = tipP[0];
+  const hub = [x0, tipP[1] - st.R - 0.03, tipP[2]];
+  if (st.steer === 4) {
+    const yS = hub[1] - st.R;
+    sweep(bags.steel, resample([[x0, tipP[1] + 0.01, tipP[2] + 0.04], [x0, 0.5 * (tipP[1] + yS), tipP[2] - 0.01],
+                                [x0, yS + 0.012, tipP[2] - 0.05]], 6),
+          () => secBlade(0.04, 0.008), true, [1, 0, 0]);
+    boxIn(bags.steel, [x0, yS + 0.008, tipP[2] - 0.04], [0.035, 0.008, 0.09], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    return { axle: [x0, yS + st.R, tipP[2]], axis: [1, 0, 0], root: tipP, tip: tipP, travel: [0, 1, 0], skid: true };
+  }
+  // the fork straight down from the tip (no rake, no trail of its own: the panel IS the post)
+  const Pf = Object.assign({}, P, { twRake: 0, twTrail: Math.min(P.twTrail || 0.03, 0.5 * st.R),
+                                    twLegDrop: Math.max(0.03, tipP[1] - hub[1]) });
+  const top = [x0, tipP[1], tipP[2] + Pf.twTrail];
+  const u = castorUnit(bags.castorBags || bags, Pf, top, 1, st.R, 0, false);
+  wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
+  return { axle: u.hub, axis: u.axis, root: top, tip: top, travel: [0, 1, 0], castor: u };
+}
+
 window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
-                    legTailwheel, Bag };
+                    legTailwheel, legTipWheel, Bag };
 })();

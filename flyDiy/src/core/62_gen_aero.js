@@ -388,6 +388,26 @@ function genStrips(S, fr) {
   // between the spars as the wing's does. Before this, 60 % of the stab's
   // load went to the post pair and the tail's incidence was the body's.
   const T = P.TAIL;
+  // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame T.vee) - each panel's bays are 'vtail' strips on their
+  // own four spar nodes, so the solver takes the canted normal from the DEFORMED panel (as the wing's and the P4 tail's);
+  // fIn is the tip-side station and fOut the root-side one, so with side = the boom's side (+1 the +z boom) the span
+  // vector (fOut - fIn) x side runs +z-ward and the normal comes out up-and-inboard: a normal V's panel's, moved down -
+  // the ruddervator mix (30_solver: elevator symmetric, rudder x side) holds as it is. cosV for the plant's areas (genPlant)
+  if (T && T.vee) {
+    const cfV = (T.rearV - 0.25) / (T.rearV - T.sparFront), crV = 1 - cfV;
+    const cV = CORE_MATH.cos(T.G), sV = CORE_MATH.sin(T.G);
+    for (const pn of T.panels) {
+      for (let b = 0; b < pn.nV; b++) {
+        const u0 = b / pn.nV, u1 = (b + 1) / pn.nV;
+        strips.push({ kind: 'vtail', side: pn.side, t: 0.5, cosV: cV, sinV: sV, chord: pn.chordV(0.5 * (u0 + u1)),
+          area: (pn.b1 / pn.nV) * 0.5 * (pn.chordV(u0) + pn.chordV(u1)),
+          fIn: pn.VF[b + 1], fOut: pn.VF[b], rIn: pn.VR[b + 1], rOut: pn.VR[b],
+          w: [[pn.VF[b], cfV * 0.5], [pn.VF[b + 1], cfV * 0.5], [pn.VR[b], crV * 0.5], [pn.VR[b + 1], crV * 0.5]],
+          wash: tailWash * R.stabWash });
+      }
+    }
+    return strips;
+  }
   if (T && T.HF && (T.fins || T.VF)) {
     const cfH = (T.rearH - 0.25) / (T.rearH - T.sparFront), crH = 1 - cfH;
     for (const [side, sd] of [[-1, 'L'], [1, 'R']]) {
@@ -1693,12 +1713,13 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
-    // G3575: the full-swivel third wheel (30_solver's breakout law) - the key only when chosen
-    ...(S.gear.twSwivel === true ? { twSwivel: 1 } : {}),
+    // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
+    // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
+    ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
     // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
     // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver
-    // has always flown it - but the gear page's 'full swivel' (G3575: 30_solver twSwivel, the breakout law; the row's old
+    // has always flown it - but the gear page's tail contact (G3800: 30_solver twLine - steerable, lockable, fixed or a skid; the row's old
     // 'castor' was the picture's only)
     tyre: (() => {
       const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));

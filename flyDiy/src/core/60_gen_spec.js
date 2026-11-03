@@ -3330,7 +3330,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //   6  2026-10-08, G2470 JODEL-PITCH: the Munk body couple's arm along the body (30_solver; it was measured in the world
 //      x-y plane, x1/cos(heading) and off near world +-z) - the certificate's flown cases that turn off x move (the Jodel's
 //      steps a frame more); the probes along the def's x do not
-const PHYSICS_V = 6;
+//   7  2026-11-03, G3800 TAILWHEELS: every taildragger's tail contact flies a law (30_solver twLine) - the steerable
+//      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
+//      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
+//      move; the plaque's probes in the air do not
+const PHYSICS_V = 7;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -5205,6 +5209,16 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
+  // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
+  // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
+  // the two tips), ivS (m2, both panels' true area: the join's measure, or null - derived from the volumes). Off twin
+  // booms, or absent: no key at all
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null && isFinite(+S.tail.ivAngle)) {
+    S.tail.ivAngle = genClamp(+S.tail.ivAngle, 20, 55);
+    S.tail.ivGap = genClamp(S.tail.ivGap == null ? 0.30 : +S.tail.ivGap || 0, 0.10, 1.20);
+    if (S.tail.ivS != null) S.tail.ivS = genClamp(+S.tail.ivS || 0.2, 0.20, 14.0); else delete S.tail.ivS;
+  } else { delete S.tail.ivAngle; delete S.tail.ivGap; delete S.tail.ivS; }
   // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
@@ -5250,8 +5264,12 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
-  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
-  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
+  // G3800 (TAILWHEELS): THE TAIL CONTACT'S KIND - 'lock' (the lockable wheel, the DC-3's), 'fixed', 'skid', or no key
+  // at all: the steerable wheel (the Scott kind, every taildragger's default). G3575's full swivel (`twSwivel: true`, the
+  // DC-3's only) is the lockable wheel now: a saved one loads as 'lock', and the old key goes
+  if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
+  delete S.gear.twSwivel;
+  if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -5872,6 +5890,21 @@ function resolveSpec(spec) {
     // a built V keeps its measured span and chord as the builder's own
     if (!built) auto['tail.hSpan'] = auto['tail.hChord'] = true;
     auto['tail.vHeight'] = auto['tail.vChord'] = true;
+  }
+
+  // G3800 (TAILWHEELS): ---- THE INVERTED V ON TWIN BOOMS: the V's own sizing (the area that meets BOTH volumes: Sh /
+  // cos^2 G or Sv / sin^2 G, whichever binds - the same projections), on the span the booms give it: each panel runs
+  // from its boom to ivGap / 2 off the centreline, (boomX - ivGap / 2) / cos G long. A measured area (the join's ivS)
+  // is the area. The effective Sh and Sv (reported, and what the design check's volumes read) are its projections
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null) {
+    const G = S.tail.ivAngle * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
+    const b1 = Math.max(0.25, ((S.tail.boomX || 1.2) - 0.5 * (S.tail.ivGap == null ? 0.30 : S.tail.ivGap)) / cG);
+    let ivS = S.tail.ivS > 0 ? S.tail.ivS : Math.max(Sh / (cG * cG), Sv / (sG * sG));
+    if (!(S.tail.ivS > 0)) { auto['tail.ivS'] = true; ivS = genClamp(ivS, 0.20, 14.0); }
+    S.tail.ivS = ivS; S.tail.ivG = G;
+    S.tail.hChord = ivS / (2 * b1);
+    S.tail.Sh = ivS * cG * cG;
+    S.tail.Sv = ivS * sG * sG;
   }
 
   // 5. gear — the two hard geometric constraints of a taildragger.

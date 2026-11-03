@@ -83,6 +83,9 @@ const SERVO_GAINS = {
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G3077: the toe brake past the rudder's stop (groundSteer): brake per unit of rudder demand past the stop, its cap
   brakeDK: 1.0, brakeDMax: 0.3,
+  // G3800 (TAILWHEELS): the toe brakes as THE steer while the tailwheel castors (groundSteer): per unit of the heading
+  // law's rudder demand, and its cap
+  brakeCastK: 1.0, brakeCastMax: 0.5,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
   waterStepK: 1,
@@ -563,6 +566,15 @@ function makeServos(sim, def, opts) {
       if (over > 0) { c.brakeD = clamp(Math.sign(-kP * e - kD * S.eR - S.gI) * g('brakeDK') * over, -g('brakeDMax'), g('brakeDMax')); S.bdOn = true; }
       else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
     } else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
+    // G3800 (TAILWHEELS): A CASTORING TAILWHEEL STEERS NOTHING (30_solver twLine: a lockable wheel unlocked to taxi, or a
+    // steerable one broken out) - the crews steer on the toe brakes and the engines (FAA-H-8083-3: differential braking
+    // where the rudder cannot hold the direction), so tail down on the wheels the heading law's demand goes to the
+    // differential brake as well as the rudder, at any power. Not one line runs while the wheel steers
+    { const tws = o.twState;
+      if (tws && (tws[0] === 1 || tws[1] === 1) && FT.groundP1D && !onWater && onG > 0 && !tailUp) {
+        const u = -kP * e - kD * S.eR;
+        c.brakeD = clamp(g('brakeCastK') * u, -g('brakeCastMax'), g('brakeCastMax')); S.bdOn = true;
+      } }
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround

@@ -2040,6 +2040,7 @@ function wetBuild(def, p, v, m, fuel) {
   const wheels = [];
   for (const i of (refs.mains || [])) if (def.nodes[i] && def.nodes[i].r > 0) wheels.push(i);
   if (refs.tw != null && refs.tw >= 0 && def.nodes[refs.tw] && def.nodes[refs.tw].r > 0) wheels.push(refs.tw);
+  if (refs.tw2 != null && refs.tw2 >= 0 && def.nodes[refs.tw2] && def.nodes[refs.tw2].r > 0) wheels.push(refs.tw2);   // G3800: a twin boom's second
   const tris = [], slices = [], slabs = [];
   const spec = def.spec || {};
   const MAT = WB_MAT[spec.material || (spec.fuselage && spec.fuselage.material)] || WB_MAT.tubeFabric;

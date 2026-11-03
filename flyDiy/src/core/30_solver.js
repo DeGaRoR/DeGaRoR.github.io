@@ -1728,7 +1728,9 @@ function makeSim(def, world) {
   // tailwheel's steering alone the user's Cub turns on a 9.4 m radius, and East Point is 12 m wide
   // G2480 (HAND-CONTROLS): `wr` the floats' water-rudder handle - null THE RULE (32_hydro waterRudder), 0 up, 1 down;
   // only the hand writes it (input.js), and a reset gives it back to the rule
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null };
+  // G3800 (TAILWHEELS): `twLock` the lockable tailwheel's lock - 1 in (straight, the reset's), 0 out (it castors); read
+  // only by a build whose tailwheel is the lockable kind (params.twMode 2)
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null, brakeD: 0, wr: null, twLock: 1 };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
@@ -2455,7 +2457,7 @@ function makeSim(def, world) {
 
   function reset(drop = 0) {
     PFO.netF = 0; PFO.mErr = 0;
-    if (TWSW) { TWSW.cast = false; TWSW.ang = 0; }   // G3575: the full swivel steered again, centred
+    if (TWL) twReset();                              // G3800: the tail contact steered (or pinned) again, centred
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -2496,8 +2498,10 @@ function makeSim(def, world) {
         const hasTw = tw != null && tw >= 0, xt = hasTw ? def.nodes[tw].p[0] : xm;
         const sT = hasTw && Math.abs(xt - xm) > 1e-3 ? Math.max(0, Math.min(1, (cx - xm) / (xt - xm))) : 0;
         const def0 = (i, share) => Math.max(0, Math.min(0.05, share * W / KGn[i]));
+        const nT = hasTw && TW2 >= 0 ? 2 : 1;                   // G3800: a twin boom's two tail contacts share it
         for (const i of M) rC[i] = r[i] + def0(i, (1 - sT) / M.length);
-        if (hasTw) rC[tw] = r[tw] + def0(tw, sT);
+        if (hasTw) { rC[tw] = r[tw] + def0(tw, sT / nT); if (nT === 2) rC[TW2] = r[TW2] + def0(TW2, sT / nT); }
+        if (TWL) twSize(sT * W / nT);                          // G3800: the tail contact's law sized off its static load
       }
     }
     for (const b of beams) {
@@ -2531,6 +2535,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    ctl.twLock = 1;                                  // G3800: the tailwheel lock in (a lockable wheel: straight)
     ctl.wr = null;                                   // G2480: the water rudders back to the rule
     ctl.eng = null;                                  // G194: every lever back to full
     // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
@@ -3297,32 +3302,87 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
-  // G3575 (DC3-2): THE FULL-SWIVEL THIRD WHEEL (the gear page's 'full swivel', params.twSwivel; the user, 26 Oct: "do the
-  // swivelling tailwheel"). The steered wheel (every build before) turns with the rudder to twSteer and no further, so its
-  // side force holds the tail: the DC-3 turned 3 deg in 10 s on a locked main, the outside engine full and the inside idle.
-  // A full-swivel wheel (the Scott 3200 kind; the DC-3's own, unlocked for the taxi) STEERS the same way - the rudder's,
-  // the ground's stability on every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi pace
-  // (under twSwV) a split past twSwB (|ctl.brakeD|) breaks it out and it castors - its rolling line follows its own ground
-  // track (no side force but the tyre's lag), the braked wheel and the engines turn the aeroplane round it, a pivot. It
-  // re-engages once the brake is off and its track swings back within twSwE of the body's line or the rudder's (the Scott's
-  // own: it locks into the steering near centre - matched to the rudder's line alone, it rarely did and the DC-3 weaved).
-  // The brake, not the tyre's load, is the trigger: the tailwheel node's side slip is the lattice's jitter as much as a
-  // load (its grip ratio read 30x on a straight roll, more in S-turns than in a braked turn), and a wheel that broke out
-  // on it castored the DC-3 into a weave. Absent (null), not one line below runs: every build that never chose it flies to
-  // the bit
-  const TWSW = P_.twSwivel ? { V: P_.twSwV ?? 5.0, B: P_.twSwB ?? 0.2, E: P_.twSwE ?? 0.12, cast: false, ang: 0 } : null;
-  // the wheel's line this substep, as the angle off the body's line: the rudder's (s), or once broken out its own track
-  function twSwivel(i3, hx, hz, s, Fn) {
-    const S = TWSW, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz), bd = Math.abs(ctl.brakeD || 0);
-    let a = S.ang;
+  // G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT'S FOUR LAWS (params.twMode, a taildragger's only; a
+  // tricycle's nose wheel is the rudder's, linked, as ever - TWL null, not one line below runs). The gear page's
+  // tailwheel row (s2Steer) chooses:
+  //  1 STEERABLE (the default, the Cub's: the Scott 3200 class). The rudder drives the steering arm through the two
+  //    steering springs (twSteer x dr, +-28.6 deg at full pedal); the fork is held to the arm by the spring-loaded pawl
+  //    and the springs give a little under the tyre's moment about the kingpin (its trail): a compliance IN SERIES
+  //    with the tyre - C_eff = 1 / (1 / C_alpha + trail / k). BREAKOUT is the pawl's: when the tail is dragged along a
+  //    track past the pawl's arc (TW_SCOTT.arc, the contact sliding, held TW_SCOTT.tau) the tyre turns the fork with it,
+  //    the pawl rides out and it SWIVELS free - a braked pivot, full rudder and power in the prop wash; no speed or
+  //    brake rule of ours (a rolling wheel's track is its own line, inside the arc by construction). Free, it castors with the
+  //    kingpin's friction (Mf: the fork lags its track by Mf / (C trail), the side force Mf / trail); it RE-ENGAGES
+  //    when the fork swings back within TW_SCOTT.E of the arm (the pawl drops in near centre).
+  //  2 LOCKABLE (the DC-3's, the warbirds'): ctl.twLock 1 (the reset's) pins it straight, rigid; 0 lets it castor
+  //    free (the kingpin's friction only) - steered by brake and power; locking again engages when the castoring fork
+  //    passes within E of centre (the pin drops in). The autopilot sets it (43_pilot), the hand has its key (input.js)
+  //  3 FIXED: straight, rigid, always
+  //  4 SKID: no wheel - a steel shoe sliding on the ground, Coulomb in every direction at TW_SKID_MU of its surface
+  //    (and the brake: its drag is the only one the tail has); steered by the rudder in the wash alone
+  // Sizes off the wheel's own (trail = TW_SCOTT.trailK x its radius) and its STATIC LOAD (the three-point share, the
+  // reset's sT below): the springs' rate so the fork gives TW_SCOTT.defl at the tyre's full grip on grass, the pawl's
+  // hold TW_SCOTT.hold of that grip, the kingpin's friction by the Scott figure at a Cessna 170's tail load.
+  // Two tail contacts (a twin boom's, refs.tw2) fly the same law with their own state each.
+  const TW1 = def.refs ? def.refs.tw : -1, TW2 = def.refs && def.refs.tw2 != null ? def.refs.tw2 : -1;
+  const TWM = (P_.twSteer > 0 && TW1 >= 0) ? (P_.twMode || 1) : 0;
+  const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
+    st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
+  if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
+  // the law's sizes, from the static load (called by reset, once the masses are known)
+  function twSize(Nst) {
+    const R0 = (def.nodes[TW1] && def.nodes[TW1].r) || 0.1, N = Math.max(20, Nst);
+    TWL.trail = TW_SCOTT.trailK * R0;
+    TWL.k = TWL.trail * GROUND_DEF[2] * N / TW_SCOTT.defl;
+    TWL.Mf = TW_SCOTT.Mf0 * N / TW_SCOTT.Nref;
+    out.twGrip = GROUND_DEF[2] * N;                              // (read by tools/tw_probe.js)
+  }
+  function twReset() {
+    for (let q = 0; q < 2; q++) { TWL.st[q] = TWL.m === 2 ? 2 : TWL.m === 3 ? 3 : TWL.m === 4 ? 4 : 0; TWL.ang[q] = 0; TWL.df[q] = 0; TWL.F[q] = 0; TWL.ff[q] = 0; TWL.fMax[q] = 0; }
+  }
+  // the wheel's line this substep, as the angle off the body's line (the solver's steer convention: s = twSteer dr)
+  function twLine(q, i3, hx, hz, s, Fn, cN, dt) {
+    const S = TWL, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz);
+    let a = null;
     if (V > 0.03) {
-      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);            // the track off the body's line
+      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);           // the track off the body's line
       if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;   // rolling back: the same line
     }
-    if (!S.cast) { if (Fn > 0 && bd > S.B && V < S.V) { S.cast = true; S.ang = a; } }
-    else { S.ang = a; if (bd < 0.05 && (Math.abs(a) < S.E || Math.abs(a - s) < S.E)) S.cast = false; }
-    out.twCast = S.cast ? 1 : 0;   // (read by tools/dc3_break.js)
-    return S.cast ? S.ang : s;
+    // the castoring fork: it follows its track but lags it by the kingpin's friction (Mf / (C_alpha trail))
+    const castor = () => {
+      if (a !== null) { const b = S.Mf / Math.max(1e-6, cN * Fn * S.trail);
+        if (S.ang[q] < a - b) S.ang[q] = a - b; else if (S.ang[q] > a + b) S.ang[q] = a + b; }
+      return S.ang[q];
+    };
+    let st = S.st[q], line;
+    if (S.m === 1) {
+      if (st === 0) {
+        // the fork on its springs: the arm's angle plus trail F / k, toward the track and never past it (the drawing's)
+        let d = s;
+        if (a !== null) { const sl = a - s, g = S.trail * Math.abs(S.F[q]) / S.k; d = s + (Math.abs(sl) > g ? Math.sign(sl) * g : sl); }
+        S.df[q] = d;
+        // THE BREAKOUT: the tail DRAGGED past the pawl's arc - the contact sliding (faster than TW_SCOTT.vSlide) along a
+        // track more than TW_SCOTT.arc off the body's line, held TW_SCOTT.tau (the lattice's jitter out): the tyre turns
+        // the fork with it and the pawl rides out. (The side force alone cannot tell it: the autopilot's own full-power
+        // start loads the creeping tail to 1.05-1.3 of its static grip, a braked pivot 1.2-1.5 - tools/tw_probe.js)
+        const sl = (a !== null && V > TW_SCOTT.vSlide) ? Math.abs(a) : Math.abs(s);
+        S.ff[q] += (sl - S.ff[q]) * Math.min(1, dt / TW_SCOTT.tau);
+        if (S.ff[q] > S.fMax[q]) S.fMax[q] = S.ff[q];
+        if (Fn > 0 && S.ff[q] > TW_SCOTT.arc) { st = 1; S.ang[q] = a !== null ? a : d; S.ff[q] = 0; }
+        line = st === 0 ? s : S.ang[q];
+      } else {
+        line = castor();
+        if (Math.abs(S.ang[q] - s) < S.E) { st = 0; S.df[q] = S.ang[q]; line = s; }
+      }
+    } else if (S.m === 2) {
+      const lock = ctl.twLock == null ? 1 : ctl.twLock;
+      if (st === 2 && !lock) { st = 1; S.ang[q] = 0; }
+      if (st === 1) { line = castor(); if (lock && Math.abs(S.ang[q]) < S.E) { st = 2; S.ang[q] = 0; line = 0; } }
+      else line = 0;
+    } else line = 0;                                                    // 3 fixed (4, the skid, never rolls)
+    S.st[q] = st;
+    out.twState[q] = st; out.twAng[q] = st === 0 ? S.df[q] : line; out.twF[q] = S.ff[q] / TW_SCOTT.arc;
+    return line;
   }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
@@ -3732,12 +3792,14 @@ function makeSim(def, world) {
       if (Fn < 0) Fn = 0;
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
-      const isMain = def.refs.mains.includes(i), isTW = i === def.refs.tw;
-      if (isMain || isTW) {
+      const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
+      const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
+      if (isMain || (isTW && TWM !== 4)) {
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
-          const s = TWSW ? twSwivel(i3, hx, hz, P_.twSteer * ctl.dr, Fn) : P_.twSteer * ctl.dr;   // measured: matches nose-left convention (G3575: a full swivel's own line once broken out)
+          // measured: matches nose-left convention (G3800: a taildragger's tail contact flies its law, twLine)
+          const s = TWL ? twLine(twQ, i3, hx, hz, P_.twSteer * ctl.dr, Fn, iCnT > 0 ? 1 / iCnT : TYRE_CN.tailwheel, dt) : P_.twSteer * ctl.dr;
           const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
@@ -3783,9 +3845,20 @@ function makeSim(def, world) {
         // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
         // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
         // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        // G3800: the steerable tailwheel's springs IN SERIES with its tyre while the pawl holds (TWL, above): 1/C_eff =
+        // 1/C_alpha + trail/k, as the inverse-stiffness term (iCn x N is 1/C_alpha). Every other wheel: as before
+        const iCn = !isTW ? iCnM : (TWL && TWL.m === 1 && TWL.st[twQ] === 0 ? iCnT + Fn * TWL.trail / TWL.k : iCnT);
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * iCn), m[i]/dt);
+        if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+      } else if (isTW) {
+        // G3800: THE TAIL SKID (twMode 4) - a steel shoe sliding, Coulomb in every direction at its surface's mu
+        // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
+        const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
+        const vx = v[i3], vz = v[i3+2], sp = hyp2(vx, vz);
+        const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(sp, 0.02), m[i]/dt);
+        f[i3] -= kf * vx; f[i3+2] -= kf * vz;
       } else {
         scrape = true;                               // G1470: something other than a wheel on the ground (arms the yield)
         const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
@@ -4054,8 +4127,12 @@ function makeSim(def, world) {
       for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
     }
+    // (G3800: a twin boom's second tail contact counts with the first - the pair is the tail's contact, either down)
+    let t2 = TW2 >= 0 && TW2 !== def.refs.tw ? TW2 : -1;
     for (const i of [...def.refs.mains, def.refs.tw]) {
       if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
+      if (i === def.refs.tw && t2 >= 0) { const gh2 = world ? world.terrainH(p[t2*3], p[t2*3+2]) : 0;
+        if (p[t2*3+1] - rC[t2] - gh2 < 0.03) { c++; continue; } }
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
@@ -4067,7 +4144,7 @@ function makeSim(def, world) {
   function wheelContacts() {
     const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rC[i] - gh < 0.03; };
     if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
-    return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? on(def.refs.tw) : false, water: false };
+    return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? (on(def.refs.tw) || (TW2 >= 0 && on(TW2))) : false, water: false };
   }
   function cgPos() {
     let x=0, y=0, z=0;

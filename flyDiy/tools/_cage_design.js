@@ -904,6 +904,12 @@ function iconSteer(mode) {
   if (mode === 1) return { vb: '0 0 64 40', paths: [
     { d: box(24, 20, 0.45) }, { d: 'M27 20 L52 20', w: 1 },
     { d: 'M52 14 L56 14 L56 26 L52 26 Z', w: 1 }] };
+  // G3800: the lockable wheel (the castor, a pin through its pivot) and the skid (a sprung blade, its shoe on the ground)
+  if (mode === 3) return { vb: '0 0 64 40', paths: [
+    { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L32 16', w: 1.6 },
+    { d: box(32, 24, 0) }, { d: 'M24 8.4 L40 8.4', w: 2.2 }] };
+  if (mode === 4) return { vb: '0 0 64 40', paths: [
+    { d: 'M14 10 Q34 12 46 30', w: 2.6 }, { d: 'M40 31 L54 31 L54 34 L40 34 Z' }, { d: 'M8 36 L58 36', w: 1 }] };
   return { vb: '0 0 64 40', paths: [
     { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
     { d: box(37, 24, 0.4) }] };
@@ -1536,7 +1542,8 @@ const DESIGN_ROWS = [
     // V is live: the stab layer cants its panels (stCant), roots them on the
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
-    read: P => +P.stCant >= 20 ? 'v'
+    read: P => (Math.round(P.stMount) === 4 && +P.boomTwin) ? 'iv'
+             : +P.stCant >= 20 ? 'v'
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
     options: [
@@ -1559,6 +1566,12 @@ const DESIGN_ROWS = [
         note: 'two canted panels, no fin — ruddervators',
         writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
                           finOn: 0 } } },
+      // G3800 (TAILWHEELS, the user 3 Nov): THE INVERTED V ON TWIN BOOMS (the RQ-7 Shadow's layout): a panel down and
+      // inboard from each boom, no fin, the tail's wheels at the two tips (the gear page's tail contact, either kind)
+      { value: 'iv', label: 'Inverted V', hide: P => !+P.boomTwin,
+        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }),
+        note: 'a panel down from each boom toward the centreline; the tailwheels ride the tips',
+        writes: { cage: { stMount: 4, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 } } },
       // 'Twin boom' was a greyed tile here ("needs a twin tail CARRIER") and
       // the user read it as a stab option that did nothing: "either deleted
       // or made to work". It works where it belongs — the Booms tile (G271
@@ -1798,6 +1811,8 @@ const DESIGN_ROWS = [
       { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
       { value: 3, label: 'Between the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
+      { value: 4, label: 'Inverted V', icon: iconSeat(3),
+        hide: P => !+P.boomTwin, writes: { cage: { stMount: 4, stCant: P => Math.max(20, +P.stCant || 35), finOn: 0 } } },
     ] },
   { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',
     group: 'propulsion', status: 'live', slot: true, twin: ['eng_exStyle'],
@@ -1831,17 +1846,34 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Streamlined', icon: iconLegFair(1),
         writes: { cage: { ['s' + i + 'LegFair']: 1 } } },
     ] })),
-  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'SteerT',
+  { key: 'mainsSteerT',
     label: 'Steering', kind: 'discriminator',
-    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Steer'],
-    read: P => Math.round(P['s' + i + 'Steer'] || 0),
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s1Steer'],
+    read: P => Math.round(P.s1Steer || 0),
     options: [
-      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { ['s' + i + 'Steer']: 0 } } },
+      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { s1Steer: 0 } } },
       { value: 1, label: 'Linked', icon: iconSteer(1),
-        note: 'turned by the rudder pedals', writes: { cage: { ['s' + i + 'Steer']: 1 } } },
+        note: 'turned by the rudder pedals', writes: { cage: { s1Steer: 1 } } },
       { value: 2, label: 'Castor', icon: iconSteer(2),
-        note: 'free to swivel, trailing its pivot', writes: { cage: { ['s' + i + 'Steer']: 2 } } },
-    ] })),
+        note: 'free to swivel, trailing its pivot', writes: { cage: { s1Steer: 2 } } },
+    ] },
+  // G3800 (TAILWHEELS): THE TAIL CONTACT, the four kinds that fly (30_solver twLine; the gear page's TW_STEERS). An old
+  // save's 0 reads as the steerable wheel it always flew
+  { key: 'thirdSteerT',
+    label: 'Tail contact', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s2Steer'],
+    read: P => Math.max(1, Math.round(P.s2Steer || 0)),
+    options: [
+      { value: 1, label: 'Steerable', icon: iconSteer(1),
+        note: 'sprung to the rudder; swivels free past its arc in a tight turn, re-locks near centre (Scott type)',
+        writes: { cage: { s2Steer: 1 } } },
+      { value: 2, label: 'Lockable', icon: iconSteer(3),
+        note: 'locked straight for the runway, a free castor to taxi (brake and power steer it)',
+        writes: { cage: { s2Steer: 2 } } },
+      { value: 3, label: 'Fixed', icon: iconSteer(0), note: 'always straight', writes: { cage: { s2Steer: 3 } } },
+      { value: 4, label: 'Skid', icon: iconSteer(4),
+        note: 'a sprung skid on a steel shoe: it drags, and that is the brake', writes: { cage: { s2Steer: 4 } } },
+    ] },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
