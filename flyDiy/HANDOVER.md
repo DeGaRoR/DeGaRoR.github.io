@@ -311017,3 +311017,8 @@ IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-ED
 
 BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
 TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
+
+## TIME-CONTROLS-2 - CLOUD'S QUICK-BAR ROW READS THE TIME BUTTON AS L30a SHIPPED IT (2026-11-03, GAME-MENUS, LOCAL; for L30b; claude/ready/time-controls-2, on master a8a23ad62)
+Why: L30a's battery: GATE CLOUD 1 red of 239, "the quick bar's time button presses the clock, not the mood". TIME-CONTROLS made that button open the time menu (DAY_UI.menu on DAY_CLOCK, in #edPopCard); it no longer cycles DAY_CLOCK's presets. RULE (b): the row reads the new behaviour - the state 'DAY_CLOCK (the time menu)', the EDITOR_QUICK_POP toggle, QPOP_OWN.time building DAY_UI.menu with the rail's rows and dayCtx. The intent stays: the button acts on the clock, never the mood.
+What changed: tools/_cloud_check.js (that row) only.
+Gates: CLOUD.
