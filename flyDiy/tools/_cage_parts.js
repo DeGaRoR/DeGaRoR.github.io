@@ -1169,7 +1169,9 @@ const CAGE_PARTS = [
   { key: 'fit', name: 'Cabin fit', parent: 'cabin', layer: 'crew' },
 
   { key: 'seats', name: 'Seats', parent: 'fit', layer: 'crew',
-    sections: ['seatTrim'],
+    // SEATS (2026-11-02, the user: "a couple of configurable colors ... base, accent and seam"): the base upholstery
+    // (seatTrim, the section since G332), the accent panels, the seams (piping, stitching, bindings), the frame / shell
+    sections: ['seatTrim', 'seatAccent', 'seatSeam', 'seatFrame'],
     when: P => +P.crewOn,
     place: { type: ['seatType', 'seatLayout'], fore: 'seatZ', up: 'seatH',
              at: 'on the cabin floor' },
@@ -1177,7 +1179,7 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',

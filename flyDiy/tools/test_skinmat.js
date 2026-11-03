@@ -834,10 +834,11 @@ const secFinBad = tbl => Object.keys(tbl)
     "the spinner's own override does not win", JSON.stringify(r));
 
   // THE CREW WEARS ITS CHARACTERS (G3700): the cabin's livery sections are
-  // the seats and the floor; no section dresses a figure
+  // the seats and the floor; no section dresses a figure (SEATS, 2026-11-02:
+  // the seats are four - base, accent, seams, frame)
   {
     const crewSec = Object.keys(A.AERO_SEC).filter(k => A.AERO_SEC[k].layer === 'crew').sort();
-    check(crewSec.join() === 'cabFloor,seatTrim',
+    check(crewSec.join() === 'cabFloor,seatAccent,seatFrame,seatSeam,seatTrim',
       'the crew layer has a livery section beyond the seats and the floor', crewSec.join());
   }
 
