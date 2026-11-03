@@ -311028,3 +311028,88 @@ Gates: CLOUD.
 IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
 BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
 TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.
+
+## FLOATS-CLASSIC - THE EDO-STYLE ROUNDED-DECK FLOAT: A STYLE OVER THE SAME ROWS, AN EDO CATALOGUE TO THE DC-3's MODEL 78, THE WIPLINE LINE TO THE BIT (2026-11-03, FLOATS-CLASSIC for A0, a CLOUD session: node + SwiftShader, no GPU; branch claude/floats-classic off master adb2d2a9 = train L30b)
+The user (3 Nov, via A0): "another model of floats. A rougher one, with rounded top, feels more home made ... We have the
+Wipline line, this one could be called something else, but use the same controls? ... Or maybe have 3? But let's not make
+it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on EDO 28000 floats, that's a cool target".
+- THE FAMILY (sources: reports/evidence/FLOATS-CLASSIC/README.md): the PA-18S's TCDS 1A2 lists Edo 89-2000 floats; the
+  PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963); the 89-2000 is ~16 ft bumper to transom, 263 lb a pair
+  installed; the C-47C / XC-47C (1943, and N130Q flying today) on EDO Model 78s: 42 ft, 5 ft 8 in of beam, 29,000 lb a
+  float, about a ton each. The model number is the float's buoyancy in pounds fully submerged.
+- HOW TODAY'S FLOATS WORK (the map, file:line on master adb2d2a9): the hull is ONE section family, src/core/32_hydro.js -
+  DEF (the Wipline 2350's lines at 4.6 m) 166, keelTable 277, deckAt 310, sectionOf 325, secPoly 372 (the physics
+  polygon K C E D), makeFloat 377 (the panels: bottomF/A, side, bevel, deck, step, bow, stern; volDeck), secAreaTo 507,
+  levelVolume 1395, FLOAT_PRESETS 1734 (15 Wipline rows), FLOAT_SPEC_KEYS 1770, fineParams 1805 / presetParams 1818 (the
+  fineness fit to the row's flotation), floatAdvice 1850 (the reserve: the pair's displacement over the all-up mass,
+  1.8 needed). The drawing reads the same sections at drawing resolution: tools/_float_gen.js ringSide 140 / buildHull
+  232 / buildDeck 482 / build 651. The editor: tools/_cage_float.js (the rows 107-150, hullParams 157, the post 396: the
+  hull, the truss, the stand), the join copies FLOAT_SPEC_KEYS into spec.gear.floats (tools/_cage_join.js 410), the
+  normaliser clamps them (src/core/60_gen_spec.js 5215), the frame builds five stations a float and hands the record's P
+  to HYDRO.makeFloat (src/core/61_gen_frame.js 2599) - the panels the water pushes on are the drawn hull's. The
+  "hydro tables / _hydro_gen.js" of the brief: tools/_hydro_gen.js is a 7-line shim; there is no table - the hull is
+  computed from the section family every time.
+- THE STYLE (`fltStyle`: 0 'Wipline (flat deck)', 1 'EDO classic (round top)'; names proposed below). Every hull row
+  drives both. The classic is three numbers on the record, ABSENT on a Wipline (EDO_STYLE: crownK 0.16, bowDrop 0.12,
+  noseMul 1.8, plus `style: 'edo'` as a string): THE DOME - the centreline at the deck line (the H row: the box is the
+  rows' box), the deck edge crownK H under it, a quarter ellipse between that leaves the side vertical and arrives level;
+  THE BOW - the deck rolls down over the forebody's forward half to a nose bowDrop lower, the nose round x noseMul (the
+  soft curve that wears the bumper), the rocker meeting that lower nose. The bottom (deadrises, keel flat, step,
+  afterbody) is the rows'. PHYSICS (WYSIWYG): sectionOf gains `yt` (the crown; a Wipline's yt === yd), secPoly a dome
+  (E, D at 30 deg, M at 60 deg, T on the centreline; D and M pushed out DOME_K = 1.0263 so three facets hold the drawn
+  six's area), makeFloat its panels (8 quads a slice for 7, the step slivers, the bow and stern caps), secAreaTo /
+  levelVolume / volDeck / floatAdvice read it: the drawn hull is the physics loft's within 0.10 % on every EDO row
+  (a Wipline is -0.26 %, as it was). The dome is honest: the same rows flat-decked hold 953 kg, domed 907 (the EDO
+  2000); the PA-18's own floats in the classic style hold 1115 kg a float against 1171.
+- THE CATALOGUE (EDO_PRESETS, kept APART from FLOAT_PRESETS: the advisor, the Wipline indices and every saved fltPreset
+  are untouched; the preset row lists them after `custom`, index 16+, and a pick sets the style): EDO 1320, 1650, 2000,
+  2440, 2870, 4580, 7170, 78-28000. `flot` = the model number in kg; L / B sourced where a source exists (1320, 2000,
+  Model 78), else scaled from the displacement on the Wipline line; H then SOLVED so the fit lands at fineness 0.1 (23-25
+  deg of deadrise: NACA TN-716's 20-25 for V-bottom floats - the Wipline line's heights put an EDO at 32-34). est: true
+  on every row but the Model 78's L and B.
+- THE DRAWING: _float_gen ringSide's dome branch (the same point count, the loft one grid), buildDeckEdo (no non-skid
+  coating; a round hand-hole cover a bay on the crown, a pump-out cup a bulkhead on the shoulder, horn cleats bow and
+  stern, the spreader saddles and strut fittings ON the dome via HYDRO.deckYAt), the bumper 22 mm thick and 13 cm deep
+  (a Wipline's 12 mm x 4 cm). The layer: the hull on the new section `floatBare` (pinned finish `agedAlu`, its own colour:
+  bare grey whatever the aeroplane is painted), the rivet field denser (a seam every 0.45 m, a row every 0.17 m: the same
+  shader grammar), the deck board (`fltBoard`, EDO only: three spruce planks fore and aft across the spreader bars, the
+  section `floatBoard`). `agedAlu` is one new AERO_FINISH row and its sheet bake 'panels' (3 x 2 mismatched skins a 1.2 m
+  tile, each its own shade and sheen, a lap groove along every seam, a few scuffs) - a texture, no new program (the
+  hook's source is the program key; nothing in the GLSL moved). DRAWS (the PA-18 build's float layer, headless): Wipline
+  19 meshes / 11 materials, EDO classic 17 / 9, with the board 18 / 10 - never more than the Wipline. Phone: the lite tier drops the structure grammar
+  (the rivets) and the field as on every skin; the panels sheet stays (one fetch the skin made anyway).
+- THE DC-3 (A0's target): the rows, the normaliser and the sliders reach the EDO Model 78. The normaliser widens ONLY for
+  a record that says style 'edo': L 12 -> 16, B 1.6 -> 2.2, H 1.5 -> 2.0, mFloat 600 -> 2000, wrArea 0.6 -> 1.2, wrDepth
+  0.8 -> 1.4, scale 3 -> 4, xAft 2 -> 3, track 2 -> 4, y -2.5 -> -4.5, x 6 -> 12; every Wipline record keeps its bounds to
+  the bit. The editor's sliders are wider for everyone (fltL 14, fltB 1.9, fltH 1.5, fltMass 1200, fltTrack 3.5, fltDrop
+  3.0, fltStrutR 0.09, fltSpreadAft 2.4): a slider's range is the UI's reach, never a saved value. The candidate
+  (builds/candidates/dc3_2026-10.json, its old float record cleared - G3700 held its station) on 78-28000s, half track
+  2.6 m (under the nacelles), keel 2.9 m under the belly (the 3.4 m props 0.55 m over the decks): 10,702 kg, the pair
+  26,449 kg to the deck, RESERVE 2.47; afloat 2.1 deg nose up, 0.72 m of keel draft (the stern deck edge awash, the crown
+  0.13 m over it - an EDO at gross); taxies 127 m in 30 s at a quarter throttle; the hydroplane run lifts off at 43 s,
+  37 m/s, 804 m (hump R/W 0.13 at 16.5 m/s).
+- PHYSICS, MEASURED (node, the hydroplane run's own loop): the PA-18 floats build, Wipline -> EDO classic: lift-off 22.7
+  -> 22.6 s, 236 -> 235 m, the hump R/W 0.164 -> 0.163; rest trim -0.9 -> -0.6 deg; the deck edge's least freeboard 12 ->
+  3 cm (the dome takes the corner). The Cessna floats build: 23.7 -> 23.5 s, 350 -> 348 m; reserve 2.13 -> 2.01.
+- ABSENT AT DEFAULT: every Wipline hull (15 rows + DEF) hashes to master's (GATE FLOATSCLASSIC pins it); the PA-18 and the
+  Cessna floats builds through the game's load path give master's spec but for the two new cage rows at their defaults
+  (fltStyle 0, fltBoard 0) and an identical def (nodes, beams, float hulls).
+- GATE FLOATSCLASSIC (core, ~1 s warm; the join's children ~25 s cold) and FLOATSCLASSIC-WATER (full, ~6 min): see the
+  gate's header.
+- TOOLS: plane_shot.js passes &idle=0 (PHONE-EDIT-PERF's idle hold froze the phone shed's canvas 5 s after the last touch:
+  every still on master failed "hiding it changes 0.00 % of the pixels") and has a bow:<az>/<el>/<dist> view;
+  float_water_shot.js is water_look_shots' float scenario for a Linux cloud box (stills only).
+- A THIRD FAMILY (the user's Super Legend on PK amphibious floats): NOT a third deck style. A PK is a flat-deck, flat-
+  skinned deep V (the Wipline style already is one); what makes it a PK is the amphibian - retractable wheels in the
+  hull, a nose wheel in each bow - which G451 left owed. When the amphibian is built, PK rows (PK 2050A for the Super
+  Legend) are a preset on the Wipline style. Two styles, no headache.
+- NAMES PROPOSED (the row reads 'EDO classic (round top)'; the user picks): "EDO classic", "Bush float", "Round-top".
+- GATES (node): new FLOATSCLASSIC (core) and FLOATSCLASSIC-WATER (full) PASS; FLOATKIT, FLOATS, SEAPLANE, HYDRODYN,
+  HYDRO, WIPLINE, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD
+  PASS (SKINMAT: agedAlu on the bare-metal list; PARTS: the Floats part claims fltStyle / fltBoard and the two
+  sections). RED HERE AND ON A CLEAN origin/master, the same lines: CLIP (navAerial 9.2 mm into edFinSkin on
+  stock+ifr), JOINPARITY (3 rows), LIVERY (its harness: garageFloodArm is not defined). Evidence and pictures:
+  reports/evidence/FLOATS-CLASSIC/.
+- Owed: the user's eye on the dome's height (crownK 0.16) and the bow drop; the classic's own afterbody (it wears the
+  Wipline's G1930 plan); the EDO rows' heights are fitted, not measured; the DC-3's floats at the rule station sit 2.1 deg
+  nose up - fltZ is the builder's dial.

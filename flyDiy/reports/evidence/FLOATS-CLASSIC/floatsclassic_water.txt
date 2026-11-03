@@ -1,0 +1,14 @@
+WATER - stands, floats at gross, taxies, lifts off
+  ok    the DC-3 candidate carries the EDO 78-28000 through the join (12.8 m x 1.73 m: inside the EDO family's widened bounds)
+  DC-3 on EDO 78-28000: 10702 kg, floats EDO 78-28000 12.80 x 1.73 x 1.15 m (edo), pair 26449 kg
+  ok    DC-3 on EDO 78-28000: floats at gross - reserve 2.47 (1.8 needed), sized
+  ok    DC-3 on EDO 78-28000: stands afloat - trim 2.14 deg, keel draft 0.721 m, |v| 0.024 m/s, props dry
+  ok    DC-3 on EDO 78-28000: taxies - 127 m in 30 s at throttle 0.25, top 5.4 m/s (displacement mode)
+  ok    DC-3 on EDO 78-28000: the hydroplane run lifts off - 43.3 s, 37.3 m/s, 804 m
+  PA-18 on its floats, EDO classic: 753 kg, floats Wipline 2100 5.36 x 0.74 x 0.53 m (edo), pair 2231 kg
+  ok    PA-18 on its floats, EDO classic: floats at gross - reserve 2.96 (1.8 needed), sized
+  ok    PA-18 on its floats, EDO classic: stands afloat - trim -0.64 deg, keel draft 0.298 m, |v| 0.010 m/s, props dry
+  ok    PA-18 on its floats, EDO classic: taxies - 91 m in 30 s at throttle 0.25, top 3.5 m/s (displacement mode)
+  ok    PA-18 on its floats, EDO classic: the hydroplane run lifts off - 22.6 s, 22.1 m/s, 235 m
+GATE FLOATSCLASSIC: PASS (9/9)
+exit 0
