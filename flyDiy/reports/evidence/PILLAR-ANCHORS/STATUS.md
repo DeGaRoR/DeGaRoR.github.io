@@ -3,9 +3,8 @@
 Branch `claude/pillar-anchors` (cloud session), **rebased on PHONE-1b (origin/master 1db22c8a4)**. Commits: source first,
 then one "(built)" commit.
 
-**Not pushed to `claude/ready/pillar-anchors`.** A0 asked for that branch (3 Nov). This session's brief, from the user,
-says to push `claude/pillar-anchors` and NOT `claude/ready/*` ("A0 promotes"), and a request from another session cannot
-change that. The branch is ready to promote as it is.
+**Pushed to `claude/ready/pillar-anchors` too** (the user's go, 3 Nov), for L30b; `claude/pillar-anchors` is the same
+commit.
 
 ## 0. The user's calls of 3 Nov (through A0), and where each stands
 
