@@ -98,6 +98,12 @@ function sourceRows(S) {
   need('garage', /candidates, openCandidate: loadCandidate, exportAll: exportAllFile/, 'GARAGE_SPEC carries the pool');
   need('body', /<button id="gExportAll"/, 'the ribbon carries "export all"');
   need('flow', /dfKindH dfCandH[\s\S]{0,900}?g\.openCandidate\(c\)/, "the new-aeroplane cards list the pool and open it");
+  // G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE): every plane card asks for its picture under the build's own key
+  need('garage', /thumbOn\(b, 'mine:' \+ n\)[\s\S]*?thumbOn\(b, 'mine:' \+ n\)[\s\S]*?thumbOn\(b, 'stock:' \+ s\.name\)[\s\S]*?thumbOn\(b, 'cand:' \+ c\.file\)/,
+    "the rack's rows carry their picture (G3800: 'mine:' slot, 'mine:' buy-in, 'stock:', 'cand:')");
+  need('garage', /window\.addEventListener\('plane-thumb', \(\) => \{ if \(fleetEl && !fleetEl\.hidden\) renderFleet\(\); \}\)/, 'the open rack redraws when a picture lands');
+  need('flow', /b\.dataset\.thumb = 'cand:' \+ c\.file; dfThumb\(b\)/, "the new-aeroplane candidate cards carry their picture ('cand:' + file)");
+  need('np', /b\.dataset\.thumb = 'cand:' \+ c\.file; npThumb\(b\)/, "the chooser's candidate cards carry their picture ('cand:' + file)");
   if (/localStorage[^\n]*candidates|candidates[^\n]*localStorage/.test(S.garage)) bad.push('garage: the pool must not live in localStorage');
   if (/builds\/candidates/.test(S.core)) bad.push('core: the career catalogue / contracts / story must not name the pool');
   return bad;
@@ -105,7 +111,7 @@ function sourceRows(S) {
 function sourcesNow() {
   const core = fs.readdirSync(path.join(ROOT, 'src', 'core')).filter(f => /\.js$/.test(f))
     .map(f => fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8')).join('\n');
-  return { garage: read('src/viewer/garage.js'), flow: read('src/viewer/design_flow.js'), body: read('src/viewer/body.html'), core };
+  return { garage: read('src/viewer/garage.js'), flow: read('src/viewer/design_flow.js'), np: read('src/viewer/new_plane.js'), body: read('src/viewer/body.html'), core };
 }
 
 // ---- every candidate loads, builds and draws ----------------------------------------------------------------------
@@ -159,6 +165,7 @@ if (SELF) {
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
   red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
   red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
+  red('a stock row without its picture', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("thumbOn(b, 'stock:' + s.name)", '') })));
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }
 

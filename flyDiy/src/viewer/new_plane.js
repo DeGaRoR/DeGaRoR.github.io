@@ -59,6 +59,17 @@ function close() {
   hold(false);
 }
 const isOpen = () => !!(el && !el.hidden);
+// G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE): a candidate card's side-profile picture, once (none = today's card);
+// a picture that lands later ('plane-thumb') fills the cards still without one
+function npThumb(b) {
+  if (!b || b.querySelector('img.npThumb') || typeof b.prepend !== 'function') return;
+  let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(b.dataset.thumb); } catch (e) { u = null; }
+  if (!u) return;
+  const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'npThumb'; b.prepend(im);
+}
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => {
+  try { if (el) el.querySelectorAll('.npTile[data-thumb]').forEach(npThumb); } catch (e) {}
+});
 
 function build() {
   el = document.createElement('div');
@@ -201,6 +212,7 @@ function renderStart(body) {
           b.type = 'button'; b.className = 'npTile';
           b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
           b.title = c.file + ': designed and built, not validated - no certificate';
+          b.dataset.thumb = 'cand:' + c.file; npThumb(b);
           b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
           gc.appendChild(b);
         }
