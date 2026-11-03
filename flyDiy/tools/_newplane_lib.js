@@ -50,10 +50,12 @@ function joinedOf(choices, opts) {
   // rebuilt only when anything moved - the chooser's own second load (src/viewer/new_plane.js generate)
   let fit = null;
   if (!(opts && opts.fit === false)) {
-    fit = NP.stanceFit(j.spec, j.spec.cage);
-    if (fit) {
+    for (let pass = 0; pass < NP.FIT_PASSES; pass++) {
+      const f = NP.stanceFit(j.spec, null);
+      if (!f) break;
+      fit = Object.assign(fit || {}, f, { passes: pass + 1 });
       const s2 = JSON.parse(JSON.stringify(j.spec));
-      s2.cage = Object.assign({}, s2.cage, fit);
+      s2.cage = Object.assign({}, s2.cage, f);
       if (W.CAGE_PAGE && W.CAGE_PAGE.load) { try { W.CAGE_PAGE.load(s2); } catch (e) {} }
       j = BJ.bakeJoined(s2);
     }

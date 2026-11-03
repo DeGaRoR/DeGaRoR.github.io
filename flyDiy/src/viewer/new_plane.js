@@ -34,7 +34,7 @@ function svgFor(icon) {
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-let el = null, choices = {}, page = 'start', stepI = 0, busy = false;
+let el = null, choices = {}, page = 'start', stepI = 0, busy = false, regText = '';
 // what the panel did, for the flow check (GATE NEWPLANE): renders, builds asked, the spec handed over
 const LOG = { opened: 0, renders: 0, generated: 0, lastSpec: null };
 
@@ -44,7 +44,7 @@ function open() {
   if (!NG() || !D()) return false;
   if (busy) return false;
   if (!el) build();
-  choices = {}; page = 'start'; stepI = 0;
+  choices = {}; page = 'start'; stepI = 0; regText = '';
   el.hidden = false;
   document.documentElement.classList.add('npOpen');
   LOG.opened++;
@@ -247,6 +247,16 @@ function renderSummary(body) {
     }
   });
   body.appendChild(list);
+  // the registration (the brief's "name + registration": the NAME is the save slot's, G65 - the registration is a
+  // spec field, painted on the boom; optional, the editor's own field keeps it)
+  const reg = document.createElement('label');
+  reg.className = 'npReg';
+  reg.innerHTML = '<span>registration (optional)</span>';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.maxLength = 8; inp.value = regText; inp.placeholder = 'e.g. F-PNEW';
+  inp.addEventListener('input', () => { regText = String(inp.value || '').toUpperCase().slice(0, 8); });
+  reg.appendChild(inp);
+  body.appendChild(reg);
 }
 
 // THE ONE BUILD. The spinner paints first (two frames), then the bake (~0.5 s) and GARAGE_SPEC.set (the editor's
@@ -273,17 +283,21 @@ function withSpinner(work) {
 function generate() {
   withSpinner(() => {
     const r = NG().bake(choices);
+    if (regText.trim()) r.spec.meta = Object.assign({}, r.spec.meta || {}, { reg: regText.trim() });
     LOG.generated++; LOG.lastSpec = r.spec;
     if (window.CAGE_COWL_BIRTH_PRESET) window.CAGE_COWL_BIRTH_PRESET(r.cowlPreset);
     GS().set(r.spec);
     // THE STANCE FIT (NEW_PLANE_GEN.stanceFit): the drawn aeroplane read once - its CG over its drawn wheels - and
     // the legs moved by the core's rules; loaded again only when a leg moved (the same spinner, no other build)
-    let fit = null;
-    try { fit = NG().stanceFit(GS().get(), null); } catch (e) { fit = null; }
-    if (fit) {
+    // (each pass re-reads what the previous load drew: at most FIT_PASSES, stopping as soon as nothing needs to move)
+    LOG.fit = null;
+    for (let pass = 0; pass < NG().FIT_PASSES; pass++) {
+      let fit = null;
+      try { fit = NG().stanceFit(GS().get(), null); } catch (e) { fit = null; }
+      if (!fit) break;
       const s2 = GS().get();
       s2.cage = Object.assign({}, s2.cage || {}, fit);
-      LOG.fit = fit;
+      LOG.fit = Object.assign(LOG.fit || {}, fit, { passes: pass + 1 });
       GS().set(s2);
     }
   });
