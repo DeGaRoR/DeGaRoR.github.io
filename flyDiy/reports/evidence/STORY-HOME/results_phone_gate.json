@@ -1,0 +1,159 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "tag": "phone_gate",
+ "args": [
+  "--only",
+  "phone",
+  "--uamobile",
+  "--nogfx",
+  "--skip",
+  "4",
+  "--tag",
+  "phone_gate"
+ ],
+ "profiles": {
+  "phone": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "FLYDIY_MODE is career",
+       "got": "career"
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORY.story().beat === 'T0'",
+       "got": "T0"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is the cabin's shed (story().cabin.hangar, based at story().cabin.aero)",
+       "got": {
+        "here": "w1",
+        "base": "w1",
+        "cabin": {
+         "aero": "w1",
+         "hangar": "w1"
+        },
+        "note": null
+       }
+      }
+     ],
+     "prints": {
+      "deviceGate": "The workshop fits in a phone",
+      "welcome": [
+       {
+        "menu": false,
+        "h1": "The workshop fits in a phone",
+        "rows": [],
+        "play": true,
+        "tryAnyway": true
+       },
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "openingLit": true,
+      "opening": "skipped (its Skip button)",
+      "state": {
+       "beat": "T0",
+       "cabin": {
+        "aero": "w1",
+        "hangar": "w1"
+       },
+       "here": "w1",
+       "hereBase": "w1",
+       "sheds": [
+        "HOME",
+        "w1"
+       ],
+       "mode": "career",
+       "careerId": "cmw139idu"
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "garages() lists HOME with locked falsy and why ''",
+       "got": {
+        "found": true,
+        "locked": false,
+        "why": "",
+        "ok": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "body innerText has no \"not yours yet\""
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "why": "",
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "why": "",
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ]
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "phone_gate_phone_1_opening.jpg",
+     "what": "the opening over the cabin strip, before Skip"
+    },
+    {
+     "step": "2",
+     "file": "phone_gate_phone_2_cabin_shed.jpg",
+     "what": "T0: the cabin shed with the UI (the story starts here)"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily"
+   ]
+  }
+ }
+}

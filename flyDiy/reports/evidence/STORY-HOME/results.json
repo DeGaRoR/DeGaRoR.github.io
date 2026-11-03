@@ -1,0 +1,462 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "profiles": {
+  "desktop": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "FLYDIY_MODE is career",
+       "got": "career"
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORY.story().beat === 'T0'",
+       "got": "T0"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is the cabin's shed (story().cabin.hangar, based at story().cabin.aero)",
+       "got": {
+        "here": "w1",
+        "base": "w1",
+        "cabin": {
+         "aero": "w1",
+         "hangar": "w1"
+        },
+        "note": null
+       }
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "openingLit": true,
+      "opening": "skipped (its Skip button)",
+      "state": {
+       "beat": "T0",
+       "cabin": {
+        "aero": "w1",
+        "hangar": "w1"
+       },
+       "here": "w1",
+       "hereBase": "w1",
+       "sheds": [
+        "HOME",
+        "w1"
+       ],
+       "mode": "career",
+       "careerId": "cmw0y6hvt"
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "garages() lists HOME with locked falsy and why ''",
+       "got": {
+        "found": true,
+        "locked": false,
+        "why": "",
+        "ok": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "body innerText has no \"not yours yet\""
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "why": "",
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "why": "",
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ]
+     }
+    },
+    "3": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the beat card is shown (#stCard visible, no stNoCard)",
+       "got": {
+        "hidden": false,
+        "stNoCard": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "the card is in the top-left",
+       "got": [
+        12,
+        72,
+        296,
+        138
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the title is \"The cabin\"",
+       "got": "The cabin"
+      },
+      {
+       "ok": true,
+       "what": "no \" of N\" counter",
+       "got": "THE STORY\nThe cabin\n\nYour ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.\n\nOK"
+      },
+      {
+       "ok": true,
+       "what": "no \"not yours yet\" (card and page)"
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "card": {
+       "hidden": false,
+       "text": "THE STORY\nThe cabin\n\nYour ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.\n\nOK",
+       "title": "The cabin",
+       "box": [
+        12,
+        72,
+        296,
+        138
+       ],
+       "beat": "T0",
+       "noCard": false
+      }
+     }
+    },
+    "4": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "gotoGarage('HOME') returns {ok:true}",
+       "got": {
+        "ok": true,
+        "why": "",
+        "stand": "Rufus"
+       }
+      },
+      {
+       "ok": true,
+       "what": "HOME is here after the trip",
+       "got": {
+        "here": true,
+        "stand": "Rufus"
+       }
+      },
+      {
+       "ok": true,
+       "what": "garages() lists both hangars, HOME open",
+       "got": [
+        "HOME",
+        "w1"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "body innerText has no \"not yours yet\""
+      },
+      {
+       "ok": false,
+       "what": "the map opens (#mapEntry) with its garage icons",
+       "got": {
+        "lazy": false,
+        "open": false,
+        "screen": false,
+        "img": null,
+        "gar": 0,
+        "title": null
+       }
+      },
+      {
+       "ok": true,
+       "what": "a Roll out button to press",
+       "got": "#edRoll \"Roll out\""
+      },
+      {
+       "ok": false,
+       "what": "the roll-out reached the world (the shed left)"
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "gotoGarage": {
+       "ok": true,
+       "why": "",
+       "stand": "Rufus"
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "why": "",
+        "planes": [],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "why": "",
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "mapDoor": "#mapEntry",
+      "mapState": {
+       "lazy": false,
+       "open": false,
+       "screen": false,
+       "img": null,
+       "gar": 0,
+       "title": null
+      },
+      "rollDoor": "#edRoll \"Roll out\"",
+      "rollState": {
+       "bodyClass": "stNoCard fl2 mode-ws stTut",
+       "here": "HOME",
+       "rollFrom": "w1"
+      }
+     }
+    },
+    "5": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "(a) set() then reload: HOME open (locked falsy, why '')",
+       "got": {
+        "found": true,
+        "locked": false,
+        "why": "",
+        "ok": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "(a) no \"not yours yet\" on the page"
+      },
+      {
+       "ok": true,
+       "what": "(b) raw locked save then reload: HOME open (locked falsy, why '')",
+       "got": {
+        "found": true,
+        "locked": false,
+        "why": "",
+        "ok": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "(b) no \"not yours yet\" on the page"
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "setDoor": {
+       "lockedAfterSet": null,
+       "key": "flydiy.career.cmw0y6hvt"
+      },
+      "garages_a": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "why": "",
+        "planes": [],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "why": "",
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "rawDoor": {
+       "key": "flydiy.career.cmw0y6hvt",
+       "raw": "story"
+      },
+      "garages_b": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "why": "",
+        "planes": [],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "why": "",
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "savedAfter": {
+       "locked": null,
+       "here": "HOME"
+      }
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "desktop_1_opening.jpg",
+     "what": "the opening over the cabin strip, before Skip"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2_cabin_shed.jpg",
+     "what": "T0: the cabin shed with the UI (the story starts here)"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4a_home_inside.jpg",
+     "what": "HOME's club hangar inside, after gotoGarage('HOME') (the stand)"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4b_map_FAIL.jpg",
+     "what": "the map did not show its garages within 5 min: what the page showed"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4d_rollout_HELD.jpg",
+     "what": "the roll-out from HOME: the aeroplane outside on HOME's stand"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5_old_save_reloaded.jpg",
+     "what": "an old save with HOME locked, reloaded with ?storycard=1 (Continue): the garage, HOME open, the beat card"
+    },
+    {
+     "step": "3",
+     "file": "desktop_3_beat_card.jpg",
+     "what": "the beat card (?storycard=1) in the top-left, at T0"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    "flyDiy: the saved day was not readable - the game’s day",
+    "flyDiy: the saved day was not readable - the game’s day",
+    "dialog beforeunload: ",
+    "flyDiy: the saved day was not readable - the game’s day",
+    "flyDiy: the saved day was not readable - the game’s day"
+   ]
+  },
+  "phone": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "FLYDIY_MODE is career",
+       "got": "career"
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ]
+     }
+    }
+   },
+   "shots": [],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": []
+  }
+ }
+}
