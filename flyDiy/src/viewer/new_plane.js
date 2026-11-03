@@ -38,6 +38,15 @@ let el = null, choices = {}, page = 'start', stepI = 0, busy = false, regText = 
 // what the panel did, for the flow check (GATE NEWPLANE): renders, builds asked, the spec handed over
 const LOG = { opened: 0, renders: 0, generated: 0, lastSpec: null };
 
+// PLANE_THUMB's picture for a key, or null - a no-op until the module is on the page
+function thumbOf(key) {
+  try { return (window.PLANE_THUMB && typeof window.PLANE_THUMB.get === 'function') ? window.PLANE_THUMB.get(key) || null : null; }
+  catch (e) { return null; }
+}
+// a picture that lands later (the bake's index fetched on the first ask, key '*'; a save's own drawing) redraws the
+// first screen, the only one that shows candidates - never mid-step, never while a build is running
+if (typeof window !== 'undefined' && window.addEventListener)
+  window.addEventListener('plane-thumb', () => { try { if (el && !el.hidden && page === 'start' && !busy) render(); } catch (e) {} });
 function hold(on) { try { if (window.FLYDIY_UI_HOLD) window.FLYDIY_UI_HOLD(!!on); } catch (e) {} }
 
 function open() {
@@ -201,6 +210,11 @@ function renderStart(body) {
           b.type = 'button'; b.className = 'npTile';
           b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
           b.title = c.file + ': designed and built, not validated - no certificate';
+          // THE VIGNETTE (AIRCRAFT-LOOKS' PLANE_THUMB, G3800; the user: "what we need now is mostly a VIGNETTE"): the
+          // plane's baked side profile (240 x 120 webp, keyed by the candidate index's `file` - thumb_bake.js), over the
+          // name; null (no picture yet, or no PLANE_THUMB on the page) keeps today's tile. Archetypes keep their SVG.
+          const u = thumbOf('cand:' + c.file);
+          if (u) { const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'npThumb'; b.prepend(im); }
           b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
           gc.appendChild(b);
         }

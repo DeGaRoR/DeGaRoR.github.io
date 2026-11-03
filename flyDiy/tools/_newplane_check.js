@@ -143,6 +143,7 @@ function domStub() {
       classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, toggle(c, on) { if (on === undefined ? !this._s.has(c) : on) this._s.add(c); else this._s.delete(c); }, contains(c) { return this._s.has(c); } },
       setAttribute() {}, addEventListener(k, f) { (this._l[k] = this._l[k] || []).push(f); },
       appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
+      prepend(c) { this.children.unshift(c); c.parentNode = this; return c; },
       insertAdjacentHTML() {}, set innerHTML(v) { this.children = []; this._html = v; }, get innerHTML() { return this._html || ''; },
       querySelector(sel) { return this._q[sel] || (this._q[sel] = mk('div')); },
       querySelectorAll() { return []; }, click() { for (const f of (this._l.click || [])) f(); },
@@ -177,6 +178,25 @@ async function flowCheck(np) {
   delete require.cache[require.resolve('../src/viewer/new_plane.js')];
   require('../src/viewer/new_plane.js');
   const UI = W.NEW_PLANE;
+  // THE VIGNETTE (PLANE_THUMB's hook): a candidate tile prepends the baked side profile when the module answers, and is
+  // today's tile when it does not (no PLANE_THUMB on the page: a no-op)
+  {
+    store.candidates = () => Promise.resolve([{ file: 'x_2026-11.json', name: 'X' }]);
+    store.openCandidate = () => {};
+    const imgOf = () => {
+      const host = doc.body.children.find(c => c.id === 'npWrap') || doc.body.children[doc.body.children.length - 1];
+      const tiles = tilesIn(host.querySelector('.npBody')).filter(b => b.title && /x_2026-11\.json/.test(b.title));
+      return tiles.length ? tiles[0].children.some(ch => ch.tagName === 'IMG' && ch.className === 'npThumb' && ch.src === 'media/thumbs/cand_x.webp') : null;
+    };
+    W.PLANE_THUMB = { get: k => (k === 'cand:x_2026-11.json' ? 'media/thumbs/cand_x.webp' : null) };
+    UI.open(); await new Promise(r => setTimeout(r, 0));
+    const withPic = imgOf(); UI.close();
+    delete W.PLANE_THUMB;
+    UI.open(); await new Promise(r => setTimeout(r, 0));
+    const without = imgOf(); UI.close();
+    delete store.candidates; delete store.openCandidate;
+    t(withPic === true && without === false, 'a candidate tile wears PLANE_THUMB\'s vignette when it answers, today\'s tile without it (with ' + withPic + ', without ' + without + ')');
+  }
   // Cancel: nothing touched
   UI.open();
   t(UI.isOpen() && cnt.hold === true, 'the chooser opens full-screen and holds the render loop');

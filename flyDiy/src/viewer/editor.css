@@ -2173,3 +2173,5 @@ body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 #npWrap .npReg { display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--ed-dim); font-size:12px; }
 #npWrap .npReg input { min-height:44px; width:160px; padding:0 10px; border-radius:8px; box-sizing:border-box;
   background:var(--ed-track); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); font:500 14px/1 'IBM Plex Mono', monospace; }
+/* the candidate tiles' vignette (PLANE_THUMB, 240 x 120 webp drawn at half size) */
+#npWrap .npTile .npThumb { width:120px; height:60px; object-fit:contain; display:block; border-radius:4px; }
