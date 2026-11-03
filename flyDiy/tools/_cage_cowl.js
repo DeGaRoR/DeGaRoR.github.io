@@ -823,6 +823,7 @@ function cowlForEngine(P, face, stat, dec) {
   }
   else {
     hit = cowlArchStarter(P);
+    if (birthPreset) { if (!presetNext) presetNext = birthPreset; birthPreset = null; }
     // an asked-for PRESET wins this build (the arch starter above has still
     // recorded the architecture, so it does not fire on the next one instead)
     if (presetNext) {
@@ -1005,6 +1006,12 @@ const COWL_PRESETS = {
 window.CAGE_COWL_PRESET_KEYS = Object.keys(COWL_PRESETS);
 let presetNext = null;
 window.CAGE_COWL_PRESET_NEXT = key => { presetNext = String(key); };
+// NEW-PLANE (3 Nov): THE BIRTH'S PRESET. The new-plane generator gives every aeroplane the cowl preset of its engine
+// type (the user: "The cowl gets its preset from Engine type and engine architecture"), but a birth is a LOAD, and a
+// load clears `presetNext` (PAGE.load below: a load is not a row change). This door survives the load and is spent on
+// the birth's first cowl build - or dropped by a build with no cowl, so it can never fire later behind the builder's back.
+let birthPreset = null;
+window.CAGE_COWL_BIRTH_PRESET = key => { birthPreset = key ? String(key) : null; };
 // every row's own range, so a scaled size can never leave its slider
 const ROW_RANGE = {};
 for (const g of ROWS) for (const r of (g.rows || []))
@@ -1095,7 +1102,7 @@ function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
-  if (!P.cowlOn) return null;
+  if (!P.cowlOn) { birthPreset = null; return null; }
 
   LIVE_P = P;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);

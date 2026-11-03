@@ -184,7 +184,7 @@ async function shoot(o) {
 
     // THE PAGE: the phone profile (the garage alone, no world; the studio where it has landed), the laptop preset on
     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0';
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0';   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
     log('page', url);
     await C.cmd('Page.navigate', { url });
     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
@@ -195,7 +195,7 @@ async function shoot(o) {
       ' bootSteps: BOOT.steps.length, hardTimeout: (BOOT.log || []).some(e => e && e.k === "fail") }; })()'));
     log('garage up', R.t.boot + ' s,', R.bootSteps, 'steps, on', R.gpu, '- profile', R.profile, 'room', R.room || 'shed', 'preset', R.preset);
     if (R.hardTimeout) fail(EXIT.boot, 'the boot\'s watchdog lifted the loading screen before the chain ended');
-    await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose")) try { x.click(); } catch (e) {} return 1; })()');
+    await C.ev('(() => { for (const x of document.querySelectorAll(".dfClose, .npCancel")) try { x.click(); } catch (e) {} return 1; })()');
     await frames(3);
 
     const doc = await C.cmd('DOM.getDocument', { depth: 0 });

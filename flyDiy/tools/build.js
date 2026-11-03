@@ -629,7 +629,9 @@ const MANIFEST = {
     // makes the instance and editor.js's rail reads it. input_panel.js is the
     // mapping panel over it, opened from both rails; DOM-lazy, built on the
     // first open, so its position only has to precede the two callers.
-              'design_flow.js', 'balance.js', 'pattern_vis.js',
+    // new_plane.js before design_flow.js (NEW-PLANE): the full-screen new-aeroplane chooser (window.NEW_PLANE) -
+    // design_flow's openBirth hands the NEW button to it
+              'new_plane.js', 'design_flow.js', 'balance.js', 'pattern_vis.js',
     // route_lazy.js before app.js (G3070 ROUTE-LAZY over G2120 ROUTE-DRAW): window.ROUTE_DRAW, the drawn route's door -
     // app.js attaches it and calls it as it called the drawing; the drawing itself (route_draw.js: the map's draw mode,
     // its gestures, the panel, the profile strip) is MANIFEST.routeDraw, its own file beside the page, run on first
@@ -704,6 +706,9 @@ const MANIFEST = {
     // tiles, archetypes, GATE DESIGN. Pure data too, and every table it
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
+    // THE NEW-PLANE GENERATOR (NEW-PLANE): the chooser's steps, its static rule table and the compose over the design
+    // rows above - pure, every table reached lazily, so it sits with them (src/viewer/new_plane.js renders it)
+    '_new_plane.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
     // occupants with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at

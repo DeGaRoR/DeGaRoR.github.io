@@ -36,8 +36,9 @@
    G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list).
    G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level).
    G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed).
-   G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard) {
+   G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider).
+   NEW-PLANE: and the full-screen new-aeroplane chooser (#npWrap, new_plane.js, body-level). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -2086,3 +2087,71 @@ body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 .edRoot .podL.bad .podV, .edRoot .podWhy.bad { color:var(--ed-bad); }
 .edRoot .podL.warn .podV, .edRoot .podWhy.warn { color:var(--ed-warn); }
 .edRoot .podWhy { font:500 11px/1.45 'IBM Plex Sans'; padding-top:3px; }
+
+/* ---- NEW-PLANE (3 Nov): the full-screen new-aeroplane chooser (new_plane.js) ------------------------------------
+   OPAQUE and full-screen on purpose (the user: "this interface should be full screen ... No calculations or rendering
+   while choosing"): the shed behind it is held (FLYDIY_UI_HOLD), so nothing shows through. A column of head / body /
+   foot; the body scrolls, the foot's back / skip / next are always on screen. Tiles are the design rows' own SVG
+   symbols; a greyed tile writes its reason IN the tile (nothing hover-only). Every target is >= 44 px tall. */
+#npWrap { position:fixed; inset:0; z-index:62; display:flex; flex-direction:column;
+  background:var(--ed-board); color:var(--ed-ink); font:400 13px/1.4 'IBM Plex Sans'; text-transform:none; letter-spacing:normal; }
+#npWrap button { text-transform:none; letter-spacing:normal; }
+#npWrap[hidden] { display:none; }
+#npWrap .npHead { display:flex; align-items:center; gap:12px; padding:10px 16px;
+  border-bottom:1px solid var(--ed-hair); }
+#npWrap .npTitle { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em; }
+#npWrap .npDots { flex:1; display:flex; gap:5px; flex-wrap:wrap; justify-content:center; }
+#npWrap .npDots i { width:9px; height:9px; border-radius:50%; background:var(--ed-off); }
+#npWrap .npDots i.done { background:var(--ed-dim); }
+#npWrap .npDots i.on { background:var(--ed-acc); box-shadow:0 0 0 2px rgba(230,219,201,.25); }
+#npWrap .npDots i.sum { border-radius:2px; }
+#npWrap .npBody { flex:1; overflow:auto; padding:16px 20px 24px; max-width:1180px; width:100%;
+  margin:0 auto; box-sizing:border-box; }
+#npWrap .npFoot { display:flex; align-items:center; gap:10px; padding:10px 16px;
+  border-top:1px solid var(--ed-hair); }
+#npWrap .npHint { flex:1; color:var(--ed-faint); font-size:11.5px; }
+#npWrap .npBtn { min-height:44px; min-width:88px; padding:0 16px; border-radius:8px; cursor:pointer;
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); font:500 13px/1 'IBM Plex Sans'; }
+#npWrap .npBtn:disabled { opacity:.35; cursor:default; }
+#npWrap .npBtn[hidden] { display:none; }
+#npWrap .npPrimary { background:var(--ed-acc); color:var(--ed-acc-ink); border-color:var(--ed-acc); }
+#npWrap .npLead { color:var(--ed-dim); max-width:760px; margin:0 0 14px; }
+#npWrap .npWarn { color:var(--ed-warn); font-style:normal; }
+#npWrap .npStepH { display:flex; flex-direction:column; gap:3px; margin:0 0 12px; }
+#npWrap .npStepH b { font:600 18px/1.2 'IBM Plex Sans'; }
+#npWrap .npStepH span { color:var(--ed-dim); }
+#npWrap .npSecH { font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ed-faint); margin:16px 0 8px; }
+#npWrap .npGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+#npWrap .npGrid.npSmall { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
+#npWrap .npStartGrid { grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); }
+#npWrap .npTile { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-height:44px;
+  padding:10px 12px; text-align:left; cursor:pointer; border-radius:8px; color:var(--ed-dim);
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); font:inherit; }
+#npWrap .npTile svg { width:72px; height:44px; display:block; color:var(--ed-ink); }
+#npWrap .npTile b { font:600 13px/1.2 'IBM Plex Sans'; color:var(--ed-ink); }
+#npWrap .npTile small { font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#npWrap .npTile small.npWhy { color:var(--ed-warn); }
+#npWrap .npTile.on { border-color:var(--ed-acc); box-shadow:inset 0 0 0 1px var(--ed-acc); }
+#npWrap .npTile:disabled { opacity:.5; cursor:not-allowed; }
+#npWrap .npTile:disabled svg { opacity:.5; }
+#npWrap .npTile.npBig { min-height:84px; justify-content:center; }
+#npWrap .npTile.npBig b { font-size:15px; }
+#npWrap .npTile.npLit { border-color:var(--ed-acc); box-shadow:inset 0 0 0 1px var(--ed-acc); }
+#npWrap .npSum { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:6px; }
+#npWrap .npSumRow { display:grid; grid-template-columns:56px 1fr; grid-template-rows:auto auto; column-gap:10px;
+  align-items:center; min-height:48px; padding:6px 10px; text-align:left; cursor:pointer; border-radius:8px;
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); color:var(--ed-dim); font:inherit; }
+#npWrap .npSumRow svg { grid-row:1 / span 3; width:56px; height:34px; color:var(--ed-ink); }
+#npWrap .npSumRow span { font-size:11px; color:var(--ed-faint); }
+#npWrap .npSumRow b { color:var(--ed-ink); font-weight:600; }
+#npWrap .npSumRow small { font-size:10.5px; color:var(--ed-faint); }
+#npWrap .npSumRow small.npWhy { color:var(--ed-warn); }
+#npWrap .npSpin { position:absolute; inset:0; background:rgba(12,11,10,.72); display:flex;
+  align-items:center; justify-content:center; }
+#npWrap .npSpin[hidden] { display:none; }
+#npWrap .npSpinBox { display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:10px;
+  background:var(--ed-panel); border:1px solid var(--ed-border); }
+#npWrap .npSpinBox i { width:20px; height:20px; border-radius:50%; border:2px solid var(--ed-off);
+  border-top-color:var(--ed-acc); animation:npSpin .8s linear infinite; }
+@keyframes npSpin { to { transform:rotate(360deg); } }

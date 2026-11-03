@@ -113,7 +113,7 @@ const DESIGN_PART = {
   section: ['fuselage', 'cabin', 'nose'],
   wgPos: ['wings', 'cabane'], wgBrace: ['wings', 'struts'],
   planes: ['wings', 'wingPanel2', 'wingPanel', 'interplane', 'wires', 'cabane'],
-  wgTip: ['wings'], wgFlapType: ['wingCtl', 'wings'],
+  wgTip: ['wings'], wingArch: ['wings'], wgFlapType: ['wingCtl', 'wings'],
   // G2820: the STOL wing (G2821: 'wingPanel' merged into 'wings' by G2760)
   wgSlat: ['wings'], wgVG: ['wings'], wgFence: ['wings'],
   wgCuff: ['wings'], wgDroop: ['wingCtl', 'wings'], wgFowlerGrow: ['wingCtl', 'wings'],
@@ -695,6 +695,10 @@ function birthFooter() {
 }
 
 function openBirth() {
+  // NEW-PLANE (3 Nov): THE FRONT DOOR IS THE FULL-SCREEN CHOOSER (src/viewer/new_plane.js) - the main choices first,
+  // one build at the end, then the normal editor. The archetype overlay below stays as the fallback for a page without
+  // it (a bench); its "Custom build" card, which parked the builder in the tile grid, is gone with it.
+  if (window.NEW_PLANE && window.NEW_PLANE.open()) return;
   if (!D() || !GS() || !C2()) return;
   if (!birthEl) {
     birthEl = document.createElement('div');
