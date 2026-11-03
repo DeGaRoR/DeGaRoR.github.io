@@ -3515,7 +3515,8 @@ function checkAmbDrawn(S) {
 // same ground, the same surfaces, the same aerodromes, the same raster signatures
 function checkAmbRecord(S) {
   const F = [];
-  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  // (F4: 27_premises calls CORE_MATH - 00_registry's, which the bundle defines first; T41b's helper gives the same closure)
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} }, CORE_MATH: require(path.join(ROOT, 'tools', '_core_math_global.js')) };
   vm.runInNewContext(S.core27 + '\n;module.exports = typeof PREMISES_GEN !== "undefined" ? PREMISES_GEN : null;', c, { filename: '27_premises.js' });
   const PG = c.module.exports || FC.PREMISES_GEN;
   if (PG.LAYERS.indexOf('sounds') < 0) F.push('the record has no sounds layer');
