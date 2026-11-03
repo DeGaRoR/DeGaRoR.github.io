@@ -414,8 +414,8 @@ async function pageRun() {
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
-  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
-     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), the hangar not ours yet");
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && !/not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), no 'not yours yet' line (STORY-1, the user 29 Oct: both hangars yours from the start)");
   ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
   el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
   d = P.get();
