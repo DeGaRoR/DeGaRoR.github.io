@@ -3300,12 +3300,14 @@ function archInactive(a) {
   return null;
 }
 
-const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions, WING_ARCH, FIN_ARCH,
-              NOSE_AERO, OPEN_TANDEM, BODY_PAINT, CLASS_ROWS, ROLE_ROWS, iconPlan, designPresetNames,
+const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions,
               optionOf, designApply, designSeed, designMerge,
               designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,
               designPresetIndex };
+// NEW-PLANE: the tables the new-aeroplane generator reads (tools/_new_plane.js) - their own line, beside the API
+Object.assign(API, { WING_ARCH, FIN_ARCH, NOSE_AERO, OPEN_TANDEM, BODY_PAINT, CLASS_ROWS, ROLE_ROWS, iconPlan,
+                     designPresetNames });
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.CAGE_DESIGN = API;
