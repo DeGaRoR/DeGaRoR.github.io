@@ -44,11 +44,12 @@ const VALIDATED = {
     patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });
       // TANK-FIT case D (the user via A0, 3 Nov: the 10 L refit goes in once FLOATS' taxi is fixed - it was the gate's
       // 45 s window, not the sim: tools/_floats_check.js): the header tank stood 25 mm aft of the panel's plane, into a
-      // frame tube (15 mm) and the panel (20 mm); no auto shape fits this open pod (the legs reach the nose). The same
-      // cylinder at 0.8 of its size, 2 cm forward, upright as drawn: 10 L where 19 L could not be (5 mm clear)
+      // frame tube (15 mm) and the panel (20 mm); no auto shape fits this open pod (the legs reach the nose). The largest
+      // that clears on train 1B (the knee fix moved the legs: the 10 L found on PH1A stood 7 mm into the panel there):
+      // the same cylinder at 0.75 of its size, turned as saved, 3 cm forward - 8 L where 19 L could not be (5 mm clear)
       if (j.spec.energy && Array.isArray(j.spec.energy.vessels) && j.spec.energy.vessels[0] && j.spec.energy.vessels[0].bay === 'nose')
-        j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.094, lv: 0.55, rot: 0, form: 'cyl',
-          dims: { L: 0.304, W: 0.2472, H: 0.2 }, capacity: 10 });
+        j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.104, lv: 0.6, rot: 90, form: 'cyl',
+          dims: { L: 0.285, W: 0.2318, H: 0.1875 }, capacity: 8 });
       return j; } },
 };
 

@@ -189,7 +189,9 @@ C172 has no nose tank.
 * the saves' nose tanks with no station and no box of their own now take the auto shape by default
   (`window.TANK_NOSE_AUTO_ALL = false` = the old shaping, the A/B);
 * the floatplane card's STOCK_TANKS entry is `fit: 'auto'` (hand-edited: tank_refit_apply.js generated the table);
-* the validated twin floatplane's header tank: **applied, 19 → 10 L** (round 3, A0's T1, the user's answer of 3 Nov
+* the validated twin floatplane's header tank: **applied, 19 → 8 L on train 1B** (10 L on PH1A / F4; on 1B the knee fix
+  moved the legs and the 10 L stood 7 mm into the panel - re-searched: the same cylinder at 0.75 of its size, turned
+  as saved, 3 cm forward, 5 mm clear) (round 3, A0's T1, the user's answer of 3 Nov
   08:40: "the 10 L refit goes in as soon as the FLOATS idle-taxi NaN is fixed"). The NaN was NOT the sim: GATE FLOATS
   flew its landing for a FIXED 45 s and reads the taxi 20 s after the touch - master's touched at 24.90 s (0.1 s
   inside), the refitted aeroplane (6.5 kg lighter) floats longer in the ground effect and touched at 26.38 s, so the
@@ -210,7 +212,7 @@ Every save this changes (the master spec's own tank vs this tree's, on today's c
 | builds/composite_jodel_2026-10-07 | 45 L | 56 L deck | −14.5 / +8.1 mm | 514.4 → 525.4 kg |
 | tools/fixtures/camel_2026-10 | 44 L (red: 61 mm into the engine) | **25 L** deck, fits | +13.3 / −11.5 mm | 716.0 → 696.9 kg (31.7 → 18.0 kg) — **19 L less: flag it** |
 | tools/fixtures/cub_fittings_hand_2026-10, cub_quadwin_2026-10, stol_cub_kit | 28 L | 44 L deck | −20.1..−20.7 / +56..59 mm | +15 kg |
-| validated twin floatplane (its VALIDATED patch, _load_build.js) | 19 L cyl, red | 10 L cyl, fits (5 mm clear), 2 cm forward | the tank's 6.5 kg of fuel less | — |
+| validated twin floatplane (its VALIDATED patch, _load_build.js) | 19 L cyl, red | 8 L cyl, fits (5 mm clear), 3 cm forward (1B) | the tank's 7.9 kg of fuel less | — |
 | every other saved tank (its own place or box) | unchanged | | | |
 
 Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half of the skin cut away):
@@ -262,7 +264,7 @@ Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the brow
 new rows (auto-fit, the gap and room rows, dragLayout) and the bench's tank rows are untested in a page: a look owed.
 
 ## Round 3 (A0, the user's answers of 3 Nov 08:40)
-* T1 the twin floatplane's 10 L: applied (above); GATE FLOATS' landing flies until its taxi is read (a gate fix, not
+* T1 the twin floatplane's refit: applied - 8 L on 1B (the 10 L no longer clears after the knee fix; above); GATE FLOATS' landing flies until its taxi is read (a gate fix, not
   the sim: nothing in the core).
 * T2 the camel fixture's 25 L: accepted. T3: 10 cm of instrument cases everywhere (NOSE_CASE_DEPTH, unchanged).
 * T4 THE FIRST SHAPING OFF THE MAIN THREAD (the phone): sliced, not a Worker (the shaping asks this thread's own
