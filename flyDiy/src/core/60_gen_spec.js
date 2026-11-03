@@ -5184,6 +5184,11 @@ function clampSpec(spec) {
   S.wings.forEach((wk, k) => clampWing(wk, S, k));
   {
     const br = S.bracing;
+    // PILLAR-ANCHORS (P4, the user 3 Nov: "which pillar is less important; the most important is that anchors land on
+    // a pillar"): THE LIFT STRUT'S ROOT STATION, metres aft of the firewall, when the builder picked a pillar (the
+    // join writes the picked pillar's ring station; 61_gen_frame roots the strut on the ring nearest it). Absent or
+    // null = the frame's own rule, every build before the row - nothing is added to a spec that does not state it
+    if (br.strutAt != null) br.strutAt = isFinite(+br.strutAt) && +br.strutAt >= 0 ? +br.strutAt : null;
     if (!['none', 'N', 'I'].includes(br.interplane)) br.interplane = 'none';
     br.interplaneAt = genClamp(br.interplaneAt == null ? 0.62 : br.interplaneAt, 0.30, 0.95);
     if (!['none', 'both', 'flying'].includes(br.wires)) br.wires = 'both';

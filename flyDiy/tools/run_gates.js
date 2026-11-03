@@ -581,6 +581,7 @@ const GATES = [
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
   { id: 'HANDLE', file: '_handle_check.js', tier: 'core', wall: 400 },   // DOOR-HINGES-2: no handle on the glass, every build file and card
+  { id: 'PILLAR', file: '_pillar_check.js', tier: 'core', wall: 300 },   // PILLAR-ANCHORS: the pillars are the anchors, the doors open (the swing sweep's ruler, snap-off identity, the snapped placements)
   // FITTINGS-MANUAL (2026-10-27): every fitting placeable BY HAND - on the Cub through the layers headless: no hand
   // row and every row reset to auto place identically (and the save carries none), each hand-placed fitting read
   // back off the sheet's own triangles (on the skin, at the asked fore/aft and height), 10 mm asked moves 10 mm (no

@@ -676,7 +676,7 @@ const CAGE_PARTS = [
     place: { fore: 'wgStrutZ', out: 'wgStrutX',
              at: 'the foot, on the fuselage side' },
     groups: [
-      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
+      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil']],
     ] },
 
   // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
@@ -873,7 +873,7 @@ const CAGE_PARTS = [
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
-      ['doors', ['hgDoor', 'hgDoorEdge', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
+      ['doors', ['hgDoor', 'hgDoorEdge', 'doorStop', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
       ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },

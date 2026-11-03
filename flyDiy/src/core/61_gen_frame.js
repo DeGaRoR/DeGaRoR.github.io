@@ -1302,7 +1302,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { if (s.x < boxRear - 0.01) r = i; });
       return r;
     })();
-    const strutRoot = F[Math.min(nearestRing(xF), iBox)][opposeTag + sd];
+    // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
+    // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
+    const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
+    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
