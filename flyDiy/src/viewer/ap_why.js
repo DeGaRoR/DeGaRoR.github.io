@@ -80,6 +80,9 @@ const AP_WHY = (() => {
     if (/^not accelerating/.test(n)) return 'it was not picking up speed';
     if (/^stuck on the hump/.test(n)) return 'the floats could not climb onto the step (lighter, more power or bigger floats)';
     if (/^ran off the end/.test(n)) return 'it ran out of runway still on the wheels';
+    // G3900: the take-off's 80 % point (43_pilot.js rejectFrac) - its why: the lift-off past what is left
+    if ((m = /^will not reach lift-off in the (lane|strip): .*?% of the run\).*?lift-off ~(\d+ m|never) further, (\d+) m left/.exec(n)))
+      return 'it would not have lifted off in the ' + m[1] + ': ' + (m[2] === 'never' ? 'not gaining speed' : 'about ' + m[2] + ' more needed') + ', ' + m[3] + ' m left - more power or less weight';
     return n;
   }
   // the in-flight refusal (43_pilot.js judgeHeld: "<to>: the elevator holds V m/s ..., the short-field stop from it needs

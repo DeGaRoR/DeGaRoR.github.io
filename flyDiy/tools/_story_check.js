@@ -126,26 +126,30 @@ function run(M) {
   ok(s.open && s.beat === 'open' && M.storyJobsOpen(d) && M.storyMask(d) === null && r.effects.some(e => e.k === 'open'), 'the rails end: open, the job list open, no mask');
   ok(s.done.join() === 'T0,T1,T2,T3,T4,T5,T6,T7', 'every beat done, in order', s.done.join());
   ok(!M.storyStep(d, { k: 'ack' }, { aeros }).ok, 'an open story refuses steps');
-  // ---- G2743 TWO OWNED HANGARS: the cabin granted at the start, HOME locked until T1, send-to between them
+  // ---- G2743 TWO OWNED HANGARS: the cabin granted at the start, send-to between them. STORY-1 (rule b, the user 29 Oct:
+  // the start owns BOTH - the Shed for you, the club for the business; HOME's lock until T1 was an overreach): HOME is
+  // open from the start, so the rows that held the lock now hold the opposite
   let h = M.careerNormalise(M.careerNew({ id: 'h', seed: 'story2', name: 'gate' }));
   const w0 = h.wallet;
   r = M.storyStart(h, 'ul', { cabin: { aero: 'w1', plot: 'w1' } });
   ok(r.ok && !r.why && r.doc.sheds.w1 && r.doc.sheds.w1.shell === 'field' && r.doc.sheds.w1.base === 'w1' && r.doc.here === 'w1' && r.doc.wallet === w0,
      'the start: the cabin\'s field shed is ours, free, and we are there', r.why);
-  ok(M.playerShedLocked(r.doc, 'HOME') && !M.playerGoTo(r.doc, 'HOME').ok && M.playerShedsOpen(r.doc).join() === 'w1', 'HOME is locked until T1: not here, not open');
+  ok(!M.playerShedLocked(r.doc, 'HOME') && M.playerGoTo(r.doc, 'HOME').ok && M.playerShedsOpen(r.doc).join() === 'HOME,w1', 'STORY-1: HOME is yours from the start too - open, a place to go (HOME first, then the cabin)', M.playerShedsOpen(r.doc).join());
   h = r.doc;
   const back1 = M.careerNormalise(JSON.parse(JSON.stringify(h)));
-  ok(back1.sheds.HOME.locked === 'story' && back1.sheds.w1 && back1.here === 'w1', 'saved and reloaded: the cabin and the lock kept');
+  ok(!back1.sheds.HOME.locked && back1.sheds.w1 && back1.here === 'w1', 'saved and reloaded: the cabin kept, HOME open');
+  { const old = JSON.parse(JSON.stringify(h)); old.sheds.HOME.locked = 'story'; const w9 = M.careerNormalise(old);
+    ok(!w9.sheds.HOME.locked && !M.playerShedLocked(w9, 'HOME') && w9.sheds.w1 && w9.here === 'w1', 'STORY-1: a story career saved with HOME locked (G2743) gets it back on load (playerNormalise)'); }
   // a plane of ours away at HOME: bring it home / send it home before T1
   h = JSON.parse(JSON.stringify(h)); h.fleet.ul = { hangar: null, aero: 'HOME', kind: 'away' }; h = M.careerNormalise(h);
   const UL = { ul: { half: 4.7, fwd: 0.9, aft: 5.4 } };   // (G3352) the story's ultralight's footprint (GP_PARKED_FOOT.ul1), as the page hands it
   const bh = M.playerBringHome(h, 'ul', { foots: UL });
-  ok(bh.ok && M.playerWhere(bh.doc, 'ul').hangar === 'w1', 'bring it home before T1: to the cabin, never the locked HOME', JSON.stringify(M.playerWhere(bh.doc, 'ul')));
-  ok(!M.playerSendTo(h, 'ul', 'HOME').ok, 'send-to HOME before T1: refused (not yours yet)');
+  ok(bh.ok && M.playerWhere(bh.doc, 'ul').hangar === 'HOME', 'bring it home before T1: into HOME, the main hangar (STORY-1: yours from the start)', JSON.stringify(M.playerWhere(bh.doc, 'ul')));
+  ok(M.playerSendTo(h, 'ul', 'HOME').ok, 'send-to HOME before T1: ok (STORY-1)');
   ok(M.playerSendTo(h, 'ul', 'w1').ok, 'send-to the cabin: ok');
   const noPlot = M.storyStart(M.careerNormalise(M.careerNew({ id: 'n', seed: 'n' })), 'ul', { cabin: { aero: 'nv_strip' } });
   ok(noPlot.ok && /no shed/.test(noPlot.why || '') && !M.playerShedLocked(noPlot.doc, 'HOME'), 'a cabin with no plot on offer: the start keeps HOME open and says why', noPlot.why);
-  // T0 -> T1 at HOME lifts the lock
+  // T0 -> T1 at HOME: both still open
   let x = M.storyStep(h, { k: 'ack' }, { aeros }); h = x.doc;
   x = M.storyStep(h, { k: 'stop', stop: stop('HOME'), slot: 'ul' }, { aeros });
   ok(x.ok && !M.playerShedLocked(x.doc, 'HOME') && M.playerShedsOpen(x.doc).join() === 'HOME,w1', 'T1 done: HOME is ours too; both hangars open (HOME first)');
@@ -253,6 +257,17 @@ async function page() {
   ok(/if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,400}storyNewCareer\(player/.test(app), 'a New career (careerNew in playerLoad) calls storyNewCareer, before the lift');
   ok(/careerStopApply\(d, how, W, wrecked\); d = c\.doc; out\.career = c; \}\n[^\n]*\n\s*if \(CAREER_DEV && STORY_PAGE && d\.career && out\.career\) d = storyOnFlightEnd\(d, out\);/.test(app), 'the stop meets the story where careerOnStop runs (right after careerStopApply)');
   ok(/if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) && /typeof window\.BENCH_CERTIFIED === 'function'\) \{ try \{ window\.BENCH_CERTIFIED\(\); \}/.test(bench), "the bench's airworthiness certificate reaches the story (its hook set only under STORY_PAGE)");
+  // STORY-1 (the user 29 Oct): nothing over the loading screen - Tim's band and the new UI's layers above #boot wait for
+  // the reveal (style.css, under html.fdBoot, which boot.js raises with the screen and drops as it lifts); and the
+  // minimap's button goes the moment the minimap it opens shows (flPanel), not on the half-second tick
+  { const ST = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'style.css'), 'utf8'), BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'boot.js'), 'utf8');
+    const rule = (ST.match(/:root\.fdBoot :is\(([^)]*)\) \{ visibility:hidden !important; \}/) || [])[1] || '';
+    const held = ['#stTim', '#stCard', '#stSkip', '#mapEntry', '#gmMenu', '#gmPanel', '#frEntry', '#frLoad', '.flCornB', '#photoBar', '#hireScreen'];
+    const miss = held.filter(s => !rule.split(/[\s,]+/).includes(s));
+    ok(rule && !miss.length && !/#welcome/.test(rule), "STORY-1: Tim's band, the story's cards, the pills, the corner, photo mode and the hire screen are hidden while the loading screen is up (the welcome is not)", miss.join(' '));
+    ok(/function hide\(\) \{\n[^\n]*upCls\(false\);/.test(BJ) && /function show\(set, opt\) \{\n[^\n]*\n\s*upCls\(true\);/.test(BJ) && /classList\.toggle\('fdBoot', !!on\)/.test(BJ) && /if \(b0 && !b0\.hidden && [^\n]*upCls\(true\);/.test(BJ),
+       'STORY-1: boot.js raises html.fdBoot with the screen (the first one and every show) and drops it as the screen lifts (hide)');
+    ok(/if \(k === 'map'\) \{ const mb = \$\('flMmB'\); if \(mb\) mb\.hidden = !!on; \}/.test(app), "STORY-1: the minimap's button goes as the minimap shows (flPanel), never left over the map it opened"); }
   const card = (css.match(/#stCard \{[^}]*\}/) || [''])[0], all = (css.match(/#stCard[^{]*\{[^}]*\}/g) || []).join('\n');
   ok(/position:fixed/.test(card) && /left:12px/.test(card) && /top:72px/.test(card) && !/translate|left:50%|top:50%|inset:0/.test(all), 'the beat card stands in the top-left corner (never centred)');
   ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /:is\([^)]*#stCard[^)]*\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
@@ -330,7 +345,7 @@ async function pageRun() {
     const A1 = M.storyStep(A.doc, { k: 'ack' }, { aeros: aerosCabin });
     const a = A1 && A1.doc ? M.careerNormalise(JSON.parse(JSON.stringify(A1.doc))) : null, b = M.careerNormalise(JSON.parse(JSON.stringify(B.doc)));
     ok(A.ok && B.ok && a && M.storyOf(a).beat === 'T1' && M.storyOf(b).beat === 'T0' && a.career.id === 'cmgz0a1' && b.career.id === 'cmgz0b2' &&
-       M.storyOf(b).planes.starter === 'Rufus 2' && b.here === 'w9' && b.sheds.HOME.locked === 'story' && M.careerKey(b.career.id) === 'flydiy.career.cmgz0b2',
+       M.storyOf(b).planes.starter === 'Rufus 2' && b.here === 'w9' && !b.sheds.HOME.locked && M.careerKey(b.career.id) === 'flydiy.career.cmgz0b2',
        'a second career gets its own story: its own start at the cabin, its own starter slot, at T0 while the first is at T1', M.storyOf(a).beat + ' / ' + M.storyOf(b).beat);
     // the welcome's Continue line ("the story · n of 8") counts the beats the core has
     const ww = { navigator: {} }; ww.window = ww;
@@ -344,8 +359,8 @@ async function pageRun() {
     ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
        'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
-  ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
-     'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
+  ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME && !d.sheds.HOME.locked,
+     'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar ours and open (STORY-1)', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
   // G3612 (the user 25 Oct, item 39): a sandbox build already on the shelf when the career is born is NOT the career's
   prefs.set('flydiy.build.Sandbox Jodel', JSON.stringify({ v: 1, spec: {} }));
   P.set(d);
@@ -399,8 +414,8 @@ async function pageRun() {
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
-  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
-     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), the hangar not ours yet");
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && !/not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), no 'not yours yet' line (STORY-1, the user 29 Oct: both hangars yours from the start)");
   ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
   el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
   d = P.get();
@@ -426,7 +441,7 @@ async function pageRun() {
   await settle();
   d = P.get();
   const S = M.storyOf(d), cub = d.fleet[S.planes.client || ''] || null;
-  ok(S.beat === 'T2' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar is ours (the lock lifted, its ledger line)');
+  ok(S.beat === 'T2' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar (ours since the start - STORY-1), its ledger line');
   // (G3585, the user 24 Oct: "the Cub is parked outside" - Tim's storage steps swap it onto the stand)
   ok(cub && cub.aero === 'HOME' && M.playerStoreWhere(d, S.planes.client).kind === 'outside', "T2: the client's Cub is parked outside the WWII hangar (HOME's apron)", S.planes.client + ' ' + JSON.stringify(cub));
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
@@ -435,7 +450,7 @@ async function pageRun() {
      JSON.stringify(env.spec) === JSON.stringify(base) && d.career.airframes[S.planes.client].owner === 'client',
      "the Cub as it arrives: flaps off, the minimal panel, bare, the same engine; bound with that spec, the client's", base.engines[0].type);
   ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
-  ok(out.career.lines.some(l => l.k === 'story' && /hangar is yours/.test(l.text)), "the arrival card carries the story's line", (out.career.lines[0] || {}).text);
+  ok(!out.career.lines.some(l => /hangar is yours/.test(l.text || '')), "STORY-1: the arrival card does not hand over HOME's hangar - it has been yours since the start", (out.career.lines[0] || {}).text);
   half.storyCardSync(); half.storyCardSync();                       // (the budget is measured once the build held still a tick)
   el = half.el();
   const ticks = (el.innerHTML.match(/<li/g) || []).length;

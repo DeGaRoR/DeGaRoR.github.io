@@ -235,6 +235,14 @@ const GATES = [
   // G2104 (MOBILE-GARAGE 1): THE SAME SMOKE ON THE PHONE PROFILE (?profile=phone): the garage-only boot's steps in order,
   // no world, no sim worker, no roll-out, the lightest preset; phone.css scoped to html.phone selector by selector
   { id: 'UISMOKE-PHONE', file: 'test_ui_smoke.js', argv: ['--phone'], tier: 'core', wall: 60 },
+  // G3791 (PHONE-TESTFLIGHT): the phone's test-flight page (?profile=phone&testflight=1): the world's rows on the test
+  // field, out on the pilot as the boot lifts, armed, the hand refused, the shed's button reloads the garage page
+  { id: 'UISMOKE-PHONEFLY', file: 'test_ui_smoke.js', argv: ['--phonefly'], tier: 'core', wall: 120 },
+  // G3790-G3794 (PHONE-TESTFLIGHT): THE TEST FIELD - makeWorld's opts.flat (the ground 0, HOME alone, no water, town or
+  // tree; small), the page's switches (the loader's pill, the boot, the worker, the phone's flight variant), and the Cub,
+  // the Jodel and the Cessna each flying the pilot's circuit on it and arriving (the Cub's also on the analytic world: the
+  // same circuit). Four flights in their own processes
+  { id: 'TESTFIELD', file: '_testfield_check.js', tier: 'core', wall: 180 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
@@ -290,6 +298,8 @@ const GATES = [
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published
   { id: 'CABIN', file: '_cabin_check.js', tier: 'core' },
+  // SEATS (2026-11-02): the seat library - one order across its four tables, honest mass, every preset at every level
+  { id: 'SEATS', file: '_seats_check.js', tier: 'core' },
   // THE TREE PAYLOAD (W0b). Not "does the file exist" — every fault this
   // pipeline met in the bench presented as "the tree is missing or wrong"
   // and was something else entirely, so this asserts what comes back OUT is
@@ -461,6 +471,7 @@ const GATES = [
   // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
   // Three children at once
   { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
+  { id: 'DMGSCUFF', file: '_dmg_scuff_check.js', tier: 'core', weight: 2, wall: 120 },   // G2005 (DMG-SCUFF): the damage drawn where the physics put it
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
@@ -488,6 +499,7 @@ const GATES = [
   // offline), every field put back (the handover to the stand's idle), the shed heard where the aeroplane rolls (space.js
   // shotPose); 19 mutations
   { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
+  { id: 'PWA', file: '_pwa_check.js', tier: 'core', wall: 5 },   // G3910 (PHONE-1b): the installed app - the manifest and its icons, the pages' link, the worker never answering the page, force sync (check / clean download: only flydiy* caches and this folder's worker, never localStorage), the menu rows, the installed-mode CSS
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   // CARDS-CORNER G3060-G3069 (the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
@@ -503,6 +515,7 @@ const GATES = [
   { id: 'FLOATDUP', file: '_floatdup_check.js', tier: 'full', timeout: 900_000, wall: 300 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
+  { id: 'TERRAINMATCH', file: '_terrainmatch_check.js', tier: 'core', wall: 240 },   // TERRAIN-MATCH G2115-G2119: the drawn ground the solver's at every stand / strip / lane / over-run (the 1 m tier under the aeroplane), the wheels on it, no budget's triangles grown
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
   { id: 'LOOKS', file: '_looks_check.js', tier: 'core' },   // B4a-LOOKS G750-G754: the patch's border (tuck + ring sink), the drawn lakes (filled / coastal), the sea's cut + grid + mouths, the texture libraries after a failed map, the cover ring's water
   { id: 'RWYLIGHTS', file: '_rwylights_check.js', tier: 'core' },   // POLISH-1 G1066: no elevated runway light on another strip or a pavement (Jolene, the procedural world); G1415: the WWII-style fitting (elevated + flush in one geometry), the glow layer's law, one fixture + one glow draw a strip
@@ -552,6 +565,10 @@ const GATES = [
   // from below" — which has been reported three times, each time by a
   // different KIND of source that no switch could reach.
   { id: 'LIGHT', file: '_light_check.js', tier: 'core' },
+  // CABIN-CRAFT (2026-11-02): WHERE THE CABIN LAMPS SIT - the validated builds, a bubble, a skylight and the user's
+  // twin through the load door: no lamp on, under or beside glass; each on its expected rung (roof / bulkhead /
+  // shoulder) and on that rung's surface
+  { id: 'CABINLAMP', file: '_cabinlamp_check.js', tier: 'core' },
   // EDITOR-BUGS (G2780-G2789, the user's slider review of 10 Oct): the glass centre wears the cabin's glazing, the
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.
@@ -564,6 +581,7 @@ const GATES = [
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
   { id: 'HANDLE', file: '_handle_check.js', tier: 'core', wall: 400 },   // DOOR-HINGES-2: no handle on the glass, every build file and card
+  { id: 'PILLAR', file: '_pillar_check.js', tier: 'core', wall: 300 },   // PILLAR-ANCHORS: the pillars are the anchors, the doors open (the swing sweep's ruler, snap-off identity, the snapped placements)
   // FITTINGS-MANUAL (2026-10-27): every fitting placeable BY HAND - on the Cub through the layers headless: no hand
   // row and every row reset to auto place identically (and the save carries none), each hand-placed fitting read
   // back off the sheet's own triangles (on the skin, at the asked fore/aft and height), 10 mm asked moves 10 mm (no
@@ -669,6 +687,10 @@ const GATES = [
   // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
   // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
   { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
+  // CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): a character that fails to load rebuilds the aeroplane ONCE (G1985's settle) and
+  // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
+  // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
+  { id: 'CREWLOAD', file: '_crewload_check.js', tier: 'core', wall: 25 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
@@ -693,6 +715,10 @@ const GATES = [
   // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
   // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
   { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
+  // DESIGN-AIDS (the user 3 Nov): the garage's design aids and the certificate's tiers on the user's twin (_2): the
+  // step ahead of the CG, the floats short, the margin's remedy sized by rebuilt levers; the corners against the
+  // envelope; the tiers only relax; the indicators' menu replaces the reference-cut button; ~40 s
+  { id: 'AIDS', file: '_aids_check.js', tier: 'core', wall: 45 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
@@ -782,6 +808,13 @@ const GATES = [
   // live classes inside the wing clamps, archetypes resolvable. ~8 s (every
   // card's tail is drawn headless).
   { id: 'DESIGN', file: '_design_check.js', tier: 'core' },
+  // THE NEW-AEROPLANE GENERATOR (NEW-PLANE, 3 Nov): the small recurring gate the user asked for ("a test once,
+  // then small recurring tests") - the rule units, the chooser's flow over a DOM stub (nothing built before
+  // Generate, always reaches the editor), three fixed joined builds (one per gear kind) + the saved failure
+  // fixtures, five seeded random pre-join builds. The once is tools/newplane_validate.js, NOT here.
+  { id: 'NEWPLANE', file: '_newplane_check.js', tier: 'core' },
+  // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
+  { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
   // must not bite a declared value -> shakedown clears the circuit -> the
   // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
@@ -1005,6 +1038,14 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // CANDIDATE OFFICIAL (the user, 2 Nov): the staging pool builds/candidates/ - the index and its files (the user's names,
+  // no orphan, no plaque), every candidate through the page's own load door headless (_load_build.js) and buildGen, the
+  // review/ folder not offered (none in the index, each in REVIEW.md; its load chain reported, never red), the garage's
+  // rack group / new-aeroplane cards / EXPORT ALL source rows, the core never naming the pool; `--selftest`: eleven
+  // breaks, each red. ~1 s static, the load chain ~20 s a candidate uncached (tools/.joincache/ after)
+  { id: 'CANDIDATES', file: '_candidates_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },
+  // CERT-GATES (the user 3 Nov): certification gates the career's missions - the need, the plane, accept, the stop, shady
+  { id: 'CERTGATES', file: '_certgates_check.js', argv: ['--selftest'], tier: 'core', wall: 120 },
   // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
   // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
   // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,
@@ -1091,6 +1132,10 @@ const GATES = [
   // ...and session 4: the bus — a battery that drains, an alternator that
   // cuts in, a starter that asks, loads that sum
   { id: 'ELEC', file: '_elec_check.js', tier: 'core' },
+  // G2805 AVIONICS-GPS phase 2: the GPS on the panel and the power behind it - the breakers and the avionics bus, the
+  // cockpit's switches reaching them, the face's 4 Hz repaint (no readback, no allocation: a --expose-gc child), the
+  // unit and the breakers on the validated dashes, the bay's battery at the fit's size; --selftest. ~30 s.
+  { id: 'GPSFACE', file: '_gpsface_check.js', tier: 'core', wall: 160 },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

@@ -340,7 +340,9 @@ function run() {
       const lo = { items: its, side: 'pilot', pilotX: 0.2, radios: ['com'], elec: { hasBus: true, altA: 20 },
                    extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr'] };
       const Ls = G.layout(fx(0.215, 0.10, 0.80, false), lo), Lf = G.layout(fx(0.215, 0.10, 0.80, true), lo);
-      check(Ls.overflow.length >= 10, 'flex: the standard rule empties a short wide plate (the case item 12 is about)', Ls.overflow.length);
+      // (G2808: the standard rule still empties it, but a dial off the dash is a dial not billed, so the packer takes
+      // over whatever the rules leave off - with flexLayout or without)
+      check(Ls.overflow.length === 0 && Ls.glass, 'flex / G2808: without flexLayout the short wide plate the standard rule empties is packed, every dial on it', Ls.overflow.join());
       check(Lf.overflow.length === 0, 'flex: every dial on the short wide plate', Lf.overflow.join());
       const Df = Lf.dials.filter(d => !d.coaming), byf = {}; for (const d of Df) byf[d.k] = d;
       check(Math.max(...Df.map(d => d.cy)) - Math.min(...Df.map(d => d.cy)) < 0.03, 'flex: one row', Df.map(d => d.cy.toFixed(3)).join());
@@ -384,7 +386,12 @@ function run() {
       if (by.compass) check(by.compass.coaming && by.compass.cy > a.dashTop, 'layout ' + nm + ': the compass on the coaming');
       // 12 since G318: key, master, alt, AVIONICS (a radio is fitted on every fixture), four throws, four dimmers
       check(L.switches.length === 12 && L.switches[0].k === 'key' && L.switches[3].k === 'avionics' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, the avionics master fourth, inside', L.switches.length);
-      check(L.switches.every(s => s.y < Math.min(...D.filter(d => !d.coaming).map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
+      // (G2808: a plate the packer laid out - the narrow one, whose radios the standard rule left off - has its switch
+      // row on the lowest clear run, under or beside the dials: under none of them)
+      const Dp = D.filter(d => !d.coaming);
+      if (L.glass) check(!L.switches.some(s => Dp.some(d => Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - 0.028 + 1e-9 && s.y < d.cy + d.r)),
+        'layout ' + nm + ': (packed) the switches under or beside the dials, under none of them');
+      else check(L.switches.every(s => s.y < Math.min(...Dp.map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
       check(D.length + L.overflow.length >= full.length - 1, 'layout ' + nm + ': every dial placed or reported (' + L.overflow.join(',') + ')');
     }
     // the painters write only: a no-op context (UISMOKE's) must not throw
@@ -451,8 +458,9 @@ function run() {
     check(/['edCtl_throttle2', 'thr1', inb * 0.056]/.test(crewSrc) && /twinDx: rods.length > 1/.test(crewSrc) && /const dx2 = thr.twinDx || 0;/.test(crewSrc),
       'crew: a twin gets two push-pull rods, and the keep-out spans both');
     check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
-    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step
-    check(/function rollInScreen\(after\) \{[\s\S]{0,900}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
+    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step (the window 1200:
+    // G3791's phone test-flight return line sits ahead of it, PHONE-1b)
+    check(/function rollInScreen\(after\) \{[\s\S]{0,1200}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
     // G446.2: the yoke's hub stands yokeGap off the PLATE (not off the seat back), the collar stays on the plate whatever the stick offsets; the row is on the cabin page
     check(/const zHub = zCol - YOKE_FRONT - gap;/.test(crewSrc) && /const gap = P\.yokeGap != null \? Math\.max\(0\.04, \+P\.yokeGap\) : 0\.16;/.test(crewSrc)
           && /tube\(g0, K \? M\.frame : M\.ctrl, \[sx, yY, zCol \+ 0\.05\], \[sx \+ off\[0\], yY \+ off\[1\], zHub \+ off\[2\]\], 0\.0125\);/.test(crewSrc),

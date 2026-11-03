@@ -342,19 +342,28 @@
     try { play.focus(); } catch (e) {}
   });
   // THE DEVICE GATE: resolves 'potato' when the player tries anyway (it never resolves otherwise: nothing loads)
-  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - "Build on this phone": the garage alone, laid out for a touch screen, on the
-  // lightest picture (profile.js 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button
+  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - the garage, laid out for a touch screen, on the lightest picture (profile.js
+  // 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button.
+  // G3905 (PHONE-1, the user 2 Nov: the old card said only "made for a computer"): what the phone DOES now, in the game's
+  // voice - build in the studio with the thumb's controls, save, and (once the test field ships) a circuit on it; the
+  // island and the career still want a computer. THE TEST FLIGHT IS SAID ONLY WHEN IT SHIPS: the phone profile flies
+  // nowhere until the test field gives it somewhere (profile.js TABLE.phone.fly, 'none' until PHONE-TESTFLIGHT G3790)
+  const phoneFlies = () => { try { const t = W.PROFILE && W.PROFILE.TABLE && W.PROFILE.TABLE.phone; return !!t && !!t.fly && t.fly !== 'none'; } catch (e) { return false; } };
   const showGate = (env, d) => new Promise(res => {
     const { card } = open();
-    card.appendChild(el('h1', null, 'flyDiy is made for a computer, for now'));
+    const flies = env.webgl2 && phoneFlies();
+    card.appendChild(el('h1', null, env.webgl2 ? 'The workshop fits in a phone' : 'flyDiy is made for a computer, for now'));
     card.appendChild(el('p', null, !env.webgl2
       ? 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge or Firefox on a desktop or a laptop has it.'
-      : 'Phones and tablets do not have the memory the island needs yet: the browser closes the page before it has loaded. The garage alone fits: build your aeroplane here, save it, and fly it on a computer.'));
+      : 'Build your aeroplane here, with controls made for a thumb, and save it.' +
+        (flies ? ' Then take it round a circuit on the test field: the full physics, one strip, one hangar.' : '')));
     facts(card, env, d);
-    card.appendChild(el('p', null, 'Open this page on a desktop or a laptop to fly.'));
+    card.appendChild(el('p', null, env.webgl2
+      ? 'The island and the career still need a computer: a phone does not have the memory for them yet.'
+      : 'Open this page on a desktop or a laptop to fly.'));
     const foot = el('div', 'wfoot');
     if (env.webgl2) {
-      const ph = el('button', 'wplay', 'Build on this phone'); ph.type = 'button';
+      const ph = el('button', 'wplay', flies ? 'Build and test-fly on this phone' : 'Build on this phone'); ph.type = 'button';
       ph.onclick = () => { W.document.getElementById('welcome').remove(); res('phone'); };
       foot.appendChild(ph);
     }

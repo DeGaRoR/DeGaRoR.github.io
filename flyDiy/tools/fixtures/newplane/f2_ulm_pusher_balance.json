@@ -1,0 +1,8 @@
+{
+ "why": "validation A: the microlight pusher flew a -13.5 % margin (unstable) and its pilot rejected the take-off",
+ "choices": {
+  "class": "ulm",
+  "engArch": "pusher"
+ },
+ "joined": true
+}

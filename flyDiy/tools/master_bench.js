@@ -327,8 +327,14 @@ async function sweep() {
       const row = Object.assign({ build, load: name, kind, pressed, tripMs: d ? d.ms : null, wallSec: +((Date.now() - w0) / 1000).toFixed(1), ran: d ? d.ran : null, anim: d ? d.anim : null,
         frames: st, links: await b.links(t0, t1) }, extra || {}); R.loads.push(row);
       log(name.padEnd(28) + ' ' + (d ? (d.ms / 1000).toFixed(1) + ' s (wall ' + row.wallSec + ' s) ran [' + d.ran.join(' ') + ']' : 'NOT DONE (' + pressed + ')')); return row; };
+    // PHONE-1b-fix (A0 3 Nov): THE BOOT'S LINK TAIL - BOOT ready can come with programs still linking (1B: 5 pending, 218
+    // links over 5 s), and a 6 s scene opened on that tail measured the compiles (F4 0.8 fps, 1B no frames), not the shed;
+    // wait until no link is pending, capped, and say how long it took (the tail stays visible in the row and the log)
+    const linksSettled = async (capS) => { const w0 = Date.now(); let left = 0;
+      while (true) { left = +(await b.ev('(window.__MB.ln || []).filter(e => e[1] < 0).length')); if (!left || Date.now() - w0 >= capS * 1000) break; await sleep(250); }
+      return { linkWaitS: +((Date.now() - w0) / 1000).toFixed(1), linksLeft: left }; };
     const flying = async () => { await sleep(1500); const t1 = await b.ev(A.simT); await sleep(1200); const t2 = await b.ev(A.simT); if (!(t2 > t1)) await b.ev(A.run); };
-    return { now, scene, trip, flying };
+    return { now, scene, trip, flying, linksSettled };
   };
   // a page load's row: the seconds, the links it ran (a warm load linking seconds-long programs = the cache missed), the cache
   const loadRow = async (b, build, name, l, warm) => {
@@ -389,7 +395,9 @@ async function sweep() {
     await b.ev('(async () => { await new Promise(r => setTimeout(r, 1500)); return 1; })()');
     if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()'));
       R.meta.places = places; log('places: ' + places.map(p => p.id + (p.kind === 'water' ? '(water)' : '')).join(' ')); }
-    if (ONLY.has('garage')) await S.scene(bk, 'garage', SECS.garage);
+    if (ONLY.has('garage')) { const ws = await S.linksSettled(60);
+      log('garage: links settled after ' + ws.linkWaitS + ' s' + (ws.linksLeft ? ' (' + ws.linksLeft + ' still pending at the 60 s cap)' : ''));
+      await S.scene(bk, 'garage', SECS.garage, ws); }
     const land = landOf(places);
     const home = land.find(p => p.id === 'HOME') || land[0];
     const order = [home].concat(land.filter(p => p !== home));

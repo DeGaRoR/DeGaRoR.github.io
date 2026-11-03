@@ -37,7 +37,7 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
-  whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth
+  whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth, 2 the bevelled lugs (G3851b)
                      // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
                      // top of the carcass profile; 1 = as drawn before)
@@ -118,7 +118,10 @@ for (let i = 1; i <= 2; i++)
   for (const k of LEG_KEYS) DEF['s' + i + '_' + k] = DEF[k];
 
 const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
-const STEERS = ['fixed', 'linked', 'castor'];
+// G3575 (DC3-2, the user 26 Oct: "do the swivelling tailwheel ... if no one uses castor, you may ... replace it with your full
+// swivel mechanics"): 'castor' was the picture's only (every third wheel flew linked); its slot is now the FULL SWIVEL
+// wheel, the one of the three the physics reads (_cage_join gear.twSwivel) - no saved build carried it
+const STEERS = ['fixed', 'linked', 'full swivel'];   // (the third wheel's row shows 'linked' and 'full swivel' only: _cage_gear.js)
 
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
@@ -128,7 +131,7 @@ const WHEEL_ROWS = [
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
-  ['whSlick', 'tundra tread', 0, 1, 1, ['bush lugs', 'smooth'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
+  ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
   ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],

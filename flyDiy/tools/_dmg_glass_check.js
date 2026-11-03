@@ -385,6 +385,8 @@ function rowsT() {
     console.log('GATE DMGGLASS SELFTEST: ' + (ok ? 'PASS (S red, T red on every build)' : 'FAIL (the sabotage went unseen: S ' + (redS ? 'red' : 'green') + ', T ' + (redT ? 'red' : 'not red everywhere') + ')') + ' - ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
     process.exit(ok ? 0 : 1);
   }
-  console.log('GATE DMGGLASS: ' + (fail.length ? 'FAIL (' + fail.map(r => r.id).join(', ') + ')' : 'PASS') + ' - ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+  // the verdict line alone (run_gates reads ^GATE DMGGLASS: PASS$, 3 Nov): the wall time on its own line above it
+  console.log('DMGGLASS wall: ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+  console.log('GATE DMGGLASS: ' + (fail.length ? 'FAIL (' + fail.map(r => r.id).join(', ') + ')' : 'PASS'));
   process.exit(fail.length ? 1 : 0);
 })();

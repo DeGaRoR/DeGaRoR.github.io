@@ -1709,11 +1709,18 @@ function buildCage2(S, step) {
     // to the loft; owed.
     if (cowl.loops > 0 && sv >= 1) {
       const target = (aeroFin ? R.noseRing : R.noseTwin).lv;
+      // G3579: THE DOME (cowl.dome, 0 = every build before, verbatim). The dims ease toward the true quarter-ellipse
+      // (1 - sqrt(1 - t^2): the section closing at the tip with its tangent square to the axis, a dome, not a cone) and
+      // the loops are spaced EVENLY ALONG THE ARC (t = sin phi) instead of along the axis, so they crowd in where the nose
+      // turns fastest - the facets and the point of an evenly spaced loft were the last 1/(N+1) of the run in one step
+      const dome = cowl.dome || 0;
+      const domeEase = ez => ez + (1 - ez) * dome;
       for (let i = 1; i <= cowl.loops; i++) {
-        const t = i / (cowl.loops + 1);
+        const tL = i / (cowl.loops + 1);
+        const t = dome > 0 ? tL + (Math.sin(tL * Math.PI / 2) - tL) * dome : tL;
         // T2.3: the deck (waist + crown) eases by cowl.ease, the keel and
         // the floor by cowl.easeBot — one number when the row follows
-        const eAt = ez => t * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * ez;
+        const eAt = ez0 => { const ez = domeEase(ez0); return t * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * ez; };
         const e = eAt(cowl.ease), eB = eAt(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
@@ -1759,7 +1766,8 @@ function buildCage2(S, step) {
         const zw2 = wsLow.waist.z, zr2 = R.noseRing.lv.waist.z;
         const t2 = Math.max(0, Math.min(1,
           (R.noseTwin.lv.waist.z - zw2) / ((zr2 - zw2) || 1e-9)));
-        const e2At = ez => t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez;
+        const e2At = ez0 => { const ez = ez0 + (1 - ez0) * (cowl.dome || 0);   // G3579: the dome's ease
+          return t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez; };
         const e2 = e2At(cowl.ease), e2B = e2At(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const lv3 = {};
         for (const k of ['waist', 'floor', 'keel']) {
@@ -7952,8 +7960,24 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
 const CAGE_ZERO_ABSENT = ['pilotRear'];
+// PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
+// stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
+// the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
+const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0 };
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
+// CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S
+// END DECIDES AN AFT ENGINE, NOT THE STYLE ROW. A pusher (engMount 1) and a push-pull's rear (4) bolt to the aft
+// bulkhead, which is a face exactly where the pod ENDS at one: a rod boom (boomStyle 1), or twin booms of either
+// style (S.rod is set by boomTwin - the pod ends there and the wing layer draws the booms). It read `boomStyle` alone
+// for the pusher, so twin booms switched to Lofted lost the aperture and the engine with it while the booms stayed.
+// A lofted SINGLE body runs to the tail: no aft face (its "rear" cap is the tail tip). One rule, read by this
+// sheet's aperture and by the engine faces (_cage_cowl.js engineFaces), so the two cannot disagree.
+function cageAftEngineFace(P) {
+  const m = Math.round((P && P.engMount) || 0);
+  return (m === 1 || m === 4) && !!(+P.boomStyle || +P.boomTwin);
+}
+
 function cageToSpec(P) {
   if (!P || typeof P !== 'object') return null;
   const out = {};
@@ -7965,6 +7989,7 @@ function cageToSpec(P) {
     if (P[k] === undefined) continue;
     if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
+    if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -8125,15 +8150,17 @@ function cageSpec(P) {
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
-                   || (engMountK === 4 && (P.boomStyle || +P.boomTwin))) ? 1 : 0,
+    rearAperture: (P.rearAperture || cageAftEngineFace(P)) ? 1 : 0,
     aeroAft,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || !noseEngK) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
             ease: P.cowlEase, bulge: P.cowlBulge,
             // T2.3: the bottom's own ease, the deck's by default
-            easeBot: (P.cowlEaseBot != null && +P.cowlEaseBot >= 0) ? +P.cowlEaseBot : P.cowlEase },
+            easeBot: (P.cowlEaseBot != null && +P.cowlEaseBot >= 0) ? +P.cowlEaseBot : P.cowlEase,
+            // G3579 (DC3-2, the user 28 Oct: "a control, going from a cone to a soft rounded shape ... not pointy end at
+            // all, all normals smooth and soft at the tip"): THE DOME, 0-1, absent 0 = the loft verbatim
+            dome: Math.max(0, Math.min(1, +P.noseDome || 0)) },
     noseJoint: P.noseJointOn == null || +P.noseJointOn ? 1 : 0,
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
             tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05,
@@ -9714,7 +9741,7 @@ function cageFirewallZ(zOf) {
 
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
-                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, CAGE_DEFAULT_ABSENT, cageAnyOpen, cageOpenings,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
@@ -9722,12 +9749,12 @@ if (typeof module !== 'undefined')
                      buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
-                     cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
+                     cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                      CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
-                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, CAGE_DEFAULT_ABSENT, cageAnyOpen, cageOpenings,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
@@ -9735,6 +9762,6 @@ if (typeof window !== 'undefined')
                    buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
-                   cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
+                   cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                    CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

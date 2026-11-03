@@ -120,11 +120,13 @@ function meshStats(B) {
     vol += dot(A, n) / 6;
   }
   // open edges: every directed edge must have its reverse
-  const E = new Map();
+  // (PHONE-EDIT-PERF, 2 Nov: a number per edge, a * nv + b, not an 'a>b' string and a split - the same count; this ran
+  // on every float build, 2.9 s self over a few minutes of edits on the user's S20 FE)
+  const nv = p.length / 3, E = new Map();
   for (let t = 0; t < ix.length; t += 3)
-    for (let k = 0; k < 3; k++) { const a = ix[t + k], b = ix[t + (k + 1) % 3]; E.set(a + '>' + b, (E.get(a + '>' + b) || 0) + 1); }
+    for (let k = 0; k < 3; k++) { const e = ix[t + k] * nv + ix[t + (k + 1) % 3]; E.set(e, (E.get(e) || 0) + 1); }
   let open = 0;
-  for (const [k, n] of E) { const [a, b] = k.split('>'); if (!E.has(b + '>' + a) || n !== 1) open++; }
+  for (const [e, n] of E) { const a = Math.floor(e / nv), b = e - a * nv; if (!E.has(b * nv + a) || n !== 1) open++; }
   return { vol, closure: [sx / 2, sy / 2, sz / 2], open, tris: ix.length / 3, verts: p.length / 3 };
 }
 

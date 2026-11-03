@@ -24,6 +24,9 @@
 //     circuit  the pilot from the line-up, the whole circuit (~300 s of sim: slow)
 //     home     THE WHOLE TRIP (G3574): the pilot from the works stand - the taxi out, the circuit, the landing - then
 //              the taxi back to the stand on the hand (taxiBack); contacts, the least clearance (--track <file>: the plan)
+//     (--cage k=v,..: the build's cage rows set first - G3575 s2Steer=2, the full-swivel tailwheel)
+//     (home: --homeSecs N stops the trip at N s of sim; --log prints the pilot's line-up every second)
+//     lineup   the line-up alone from HOME's hold (G3578: --from x,z --noseDeg d --secs s; --log)
 //     back     the taxi back alone, from where the home case's landing stopped (--from x,z, --hdg rec|own)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -42,7 +45,9 @@ const FILE = opt('file', 'tools/fixtures/dc3_2026-10.json');
 if (opt('kappa') != null) C.GEN_RULES.shellHoldKappa = +opt('kappa');
 let CERT = null;
 function defOf(lim) {
-  const L = LB.loadBuild(FILE);
+  // --cage k=v,k=v: the build's cage rows set before the load door (G3575: --cage s2Steer=2, the full-swivel tailwheel)
+  const CG = opt('cage') ? Object.fromEntries(opt('cage').split(',').map(q => { const [k, x] = q.split('='); return [k, isNaN(+x) ? x : +x]; })) : null;
+  const L = LB.loadBuild(FILE, CG ? { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, CG); return j; } } : undefined);
   const d = C.buildGen(JSON.parse(JSON.stringify(L.spec)));
   d.params = Object.assign({}, d.params, { damage: true });
   if (lim === 'cert') {
@@ -108,6 +113,9 @@ const HANDS = {
   turn:   t => ({ thr: 0.55, brake: 0, dr: 1, de: -0.3, da: 0 }),
   burst:  t => ({ thr: (t % 10) < 4 ? 1 : 0.1, brake: (t % 10) >= 7 ? 1 : 0, dr: ((t / 10) | 0) % 2 ? 1 : -1, de: 0, da: 0 }),
   stick:  t => ({ thr: 0.5, brake: t > 15 ? 1 : 0, dr: 0, de: 1, da: 0 }),
+  // G3575: THE PIVOT a DC-3 crew turns on - the inside (right) toe brake on, power, full rudder, the stick back (a full-swivel
+  // tailwheel breaks out; the steered one holds the tail)
+  pivot:  t => ({ thr: t < 2 ? 0 : 0.45, brake: 0, brakeD: 1, dr: 1, de: -0.4, da: 0 }),
   // the certificate's rough taxi (23.491): straight at ~8 m/s, the throttle held to it (a hand on the lever)
   rough:  (t, sim) => { const v = sim.cgVel(), V = Math.hypot(v[0], v[2]); return { thr: V < 8 ? 0.45 : 0.08, brake: 0, dr: 0, de: -0.3, da: 0 }; },
 };
@@ -122,6 +130,8 @@ function taxi(lim, hand, secs) {
   H.queueCmd({ cmd: 'manual', on: true }); H.queueCmd({ cmd: 'start' });
   if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) H.queueCmd({ cmd: 'setEngine', i, patch: { key: 'both', running: true } });
   let smax = 0, vmax = 0, d = 0, nzMax = 0, last = sim.cgPos(), tEnd = null, obstAt = null;
+  const hdg = () => { const a = sim.axes()[0]; return Math.atan2(-a[2], -a[0]); }, h0 = hdg(), c00 = sim.cgPos();
+  let turned = 0, hPrev = h0, rMax = 0;
   const TK = tracker(sim);
   for (let k = 0; k < 60 * secs; k++) {
     const t = k / 60;
@@ -132,9 +142,10 @@ function taxi(lim, hand, secs) {
     d += Math.hypot(cg[0] - last[0], cg[2] - last[2]); last = cg;
     nzMax = Math.max(nzMax, (sim.out && sim.out.nz) || 0);
     if (sim.out && sim.out.obst > 0 && obstAt == null) obstAt = r2(t);
+    { const h = hdg(); let dh = h - hPrev; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; turned += dh; hPrev = h; rMax = Math.max(rMax, Math.hypot(cg[0] - c00[0], cg[2] - c00[2])); }
     if (H.crashed()) { tEnd = t; break; }
   }
-  return { case: 'taxi:' + hand, lim, t: tEnd, obstAt, dist: r2(d), vmax: r2(vmax), nzMax: r2(nzMax), smaxPct: r2(smax * 100), dmg: dmgSummary(sim, def), worst: worst(sim, def, TK) };
+  return { case: 'taxi:' + hand, lim, t: tEnd, obstAt, dist: r2(d), vmax: r2(vmax), turnedDeg: Math.round(turned * 180 / Math.PI), cgOffMax: r2(rMax), nzMax: r2(nzMax), smaxPct: r2(smax * 100), dmg: dmgSummary(sim, def), worst: worst(sim, def, TK) };
 }
 
 // ---- DROP: the certificate's own drop (66_gen_cert genCertDrop), with the damage live ----------------------------
@@ -238,8 +249,14 @@ function home(lim) {
   };
   const contact = leg => { if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ leg, t: r2(sim.t), nodes: sim.out.obst }); };
   let ph = null, wasAir = false, k = 0;
-  for (; k < 60 * 1300; k++) {
+  for (; k < 60 * +opt('homeSecs', 1300); k++) {
     H.step(); TK.tick();
+    // (G3578: --log, the pilot's status every second on the ground before the take-off - the line-up's conditions)
+    if (LOG && k % 60 === 0 && !wasAir && !R.touchdowns.length && /LINEUP|STOP|HOLD|DEPART/.test(H.ap.phase || '')) {
+      const st = H.ap.status || {}, cg = sim.cgPos(), c = sim.ctl || {};
+      console.error(r2(k / 60) + ' ' + H.ap.phase + ' cg ' + r2(cg[0]) + ',' + r2(cg[2]) + ' V ' + r2(Math.hypot(sim.cgVel()[0], sim.cgVel()[2])) +
+        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr));
+    }
     const ap = H.ap; if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); if (ph === 'GOAROUND') (R.goArounds = R.goArounds || []).push(ap.gaWhy || null); }
     const onG = sim.wheelsOnGround(), v = sim.cgVel(), cg = sim.cgPos(), h = cg[1] - W.terrainH(cg[0], cg[2]);
     if (onG === 0 && h > 3) wasAir = true;
@@ -251,6 +268,8 @@ function home(lim) {
   }
   R.stopped = ph === 'STOPPED';
   if (R.stopped && !H.crashed()) R.taxiBack = taxiBack(H, sim, def, TK, clearNow, contact, TRACK, k / 60);
+  // the pilot's own words on its turns on the spot (43_pilot say 'pivot'; G3575: a full swivel's off the stand and at corners)
+  R.pivots = ((H.ap.report && H.ap.report.verdicts) || []).filter(q => q.code === 'pivot').map(q => q.t + ' s: ' + q.note);
   R.trunkHits = sim.trunkHits ? sim.trunkHits() : null;
   R.dmg = dmgSummary(sim, def); R.worst = worst(sim, def, TK);
   if (TRACK) fs.writeFileSync(opt('track'), JSON.stringify(TRACK));   // --track file: the cg's plan every 0.25 s [x, z, t, wheels]
@@ -275,7 +294,10 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
   const q0 = best.r.pts[best.i], q1 = best.r.pts[Math.max(0, best.i - 20)];
   const along = (q1.x - q0.x) * fx + (q1.z - q0.z) * fz;
   let path = best.r.pts.slice(0, best.i + 1).reverse();
-  if (along < 0) {
+  // G3575: a FULL-SWIVEL tailwheel PIVOTS round on the inside toe brake (below) - no teardrop; the steered one cannot
+  const SW = !!def.params.twSwivel;
+  if (along < 0 && SW) out.turn = { kind: 'pivot' };
+  if (along < 0 && !SW) {
     const off = +opt('tdOff', 12), rad = +opt('tdR', 22), lx = -fz, lz = fx;   // (lx, lz): the left of the heading
     const pre = [];
     for (let s = 2; s <= 40; s += 2) { const o = off * Math.min(1, s / 30); pre.push({ x: c0[0] + fx * s - lx * o, z: c0[2] + fz * s - lz * o }); }
@@ -287,7 +309,7 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
   }
   out.metres = path.length;
   H.queueCmd({ cmd: 'manual', on: true });
-  let ip = 0, I = 0;
+  let ip = 0, I = 0, pivOn = false, dhPrev = 0;
   for (let f = 0; f < 60 * +opt('backSecs', 900); f++) {
     const cg = sim.cgPos(), v = sim.cgVel(), V = Math.hypot(v[0], v[2]);
     // the point steered to: 10 m on - or past any point already BEHIND the aeroplane within 30 m (a corner inside the DC-3's
@@ -302,10 +324,21 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
     //  runway's turn-off and went round it once)
     const pa = path[Math.min(path.length - 1, ip + 20)], pb = path[Math.min(path.length - 1, ip + 40)];
     let turnA = Math.atan2(pb.z - pa.z, pb.x - pa.x) - Math.atan2(pa.z - tg.z, pa.x - tg.x); while (turnA > Math.PI) turnA -= 2 * Math.PI; while (turnA < -Math.PI) turnA += 2 * Math.PI;
-    const Vt = last && dEnd < 25 ? Math.max(0, dEnd / 8) : Math.abs(dh) > 0.35 || Math.abs(turnA) > 0.6 ? 2.5 : 6;
+    // (G3575: on a full swivel the rudder steers the wheel only until it breaks out - the toe brake on the inside does the
+    //  rest, a walk, the way a DC-3 is turned; past 1 rad off, the pivot: power against the inside brake)
+    // (the pivot from 0.8 rad off to 0.3, the toe brake damped on the error's rate - the castoring DC-3 has no tail force to
+    //  stop its swing, so the brake stops it: an undamped pivot overshot into the next one, a slalom up the taxiway)
+    //  ...and it ends only once the swing has stopped too: a castoring DC-3 let go at 0.3 rad swung on into the next pivot)
+    const dhRate = (dh - dhPrev) * 60; dhPrev = dh;
+    if (SW) { if (!pivOn && Math.abs(dh) > 0.8) pivOn = true; else if (pivOn && Math.abs(dh) < 0.3 && Math.abs(dhRate) < 0.05) pivOn = false; }
+    const piv = SW && pivOn;
+    const Vt = piv ? 1.0 : last && dEnd < 25 ? Math.max(0, dEnd / 8) : Math.abs(dh) > 0.35 || Math.abs(turnA) > 0.6 ? 2.5 : 6;
     const e2 = Vt - V; I = Math.max(-2, Math.min(2, I + e2 / 60));
-    const thr = Math.max(0, Math.min(0.6, 0.12 + 0.12 * e2 + 0.05 * I)), brake = e2 < -1.5 || (last && dEnd < 3) ? 0.6 : 0;
-    H.queueCmd({ cmd: 'hand', ctl: { thr, brake, dr: Math.max(-1, Math.min(1, 2.5 * dh)), de: -0.4, da: 0 } });
+    const dr = Math.max(-1, Math.min(1, 2.5 * dh));
+    const thr = piv ? (V < 0.6 ? 0.3 : 0.12) : Math.max(0, Math.min(0.6, 0.12 + 0.12 * e2 + 0.05 * I)), brake = !piv && (e2 < -1.5 || (last && dEnd < 3)) ? 0.6 : 0;
+    // (the toe brake only in the pivot: on every error it broke the wheel out again and again and the DC-3 weaved)
+    const brakeD = piv ? Math.max(-1, Math.min(1, 1.2 * dh + 2.0 * dhRate)) : 0;
+    H.queueCmd({ cmd: 'hand', ctl: SW ? { thr, brake, brakeD, dr, de: -0.4, da: 0 } : { thr, brake, dr, de: -0.4, da: 0 } });
     H.step(); TK.tick();
     if (f % 15 === 0) clearNow('back'); contact('back');
     if (TRACK && f % 15 === 0) { const c = sim.cgPos(); TRACK.push([r2(c[0]), r2(c[2]), r2(t0 + f / 60), 9]); }
@@ -345,6 +378,40 @@ function back(lim) {
   return R;
 }
 
+// G3578: THE LINE-UP ALONE - the aeroplane stood at --from x,z (default HOME's hold, where the trip's taxi stops) with its
+// nose --noseDeg (atan2(z, x), degrees; default the trip's 71 deg off the take-off heading), the pilot from there for
+// --secs: its phases, its pivots, the line-up's conditions every second (--log) - the trip's 20 minutes of taxi skipped
+function lineup(lim) {
+  const def = defOf(lim);
+  const H = TR.gameHost(C, W, def, HOME, HOME, { damage: true });
+  const sim = H.sim, TK = tracker(sim);
+  const [x, z] = opt('from', '152.77,638.36').split(',').map(Number), want = +opt('noseDeg', -67) * Math.PI / 180;
+  const noseOf = () => { const a = sim.axes()[0]; return Math.atan2(-a[2], -a[0]); };
+  const place = h => { sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, { hdg: h, spawn: [x, z], elev: W.terrainH(x, z) });
+    if (C.seatOnGround) C.seatOnGround(sim, (px, pz) => W.terrainH(px, pz), def.refs); return noseOf(); };
+  // the placement's heading convention measured, not assumed: two placements, the nose read back
+  const n0 = place(0), n1 = place(0.5), sg = Math.sign(Math.atan2(Math.sin(n1 - n0), Math.cos(n1 - n0))) || 1;
+  place(sg * Math.atan2(Math.sin(want - n0), Math.cos(want - n0)));
+  H.ap.setRoute(HOME, HOME); H.queueCmd({ cmd: 'start' });
+  const R = { case: 'lineup', lim, from: [x, z], noseDeg: Math.round(noseOf() * 180 / Math.PI), phases: [], contacts: [] };
+  let ph = null;
+  for (let k = 0; k < 60 * +opt('secs', 120); k++) {
+    H.step(); TK.tick();
+    const ap = H.ap;
+    if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); }
+    if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ t: r2(sim.t), nodes: sim.out.obst });
+    if (LOG && k % 60 === 0) {
+      const st = ap.status || {}, cg = sim.cgPos(), c = sim.ctl || {};
+      console.error(r2(k / 60) + ' ' + ap.phase + ' cg ' + r2(cg[0]) + ',' + r2(cg[2]) + ' V ' + r2(Math.hypot(sim.cgVel()[0], sim.cgVel()[2])) +
+        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr));
+    }
+    if (H.crashed() || ap.phase === 'STOPPED' || ap.phase === 'CLIMB') break;
+  }
+  R.pivots = ((H.ap.report && H.ap.report.verdicts) || []).filter(q => q.code === 'pivot').map(q => q.t + ' s: ' + q.note);
+  R.dmg = dmgSummary(sim, def);
+  return R;
+}
+
 const LOG = argv.includes('--log');
 const cases = opt('cases', 'taxi,drop').split(','), lims = opt('lim', 'phys,cert').split(',');
 const hands = opt('hands', Object.keys(HANDS).join(',')).split(','), sinks = opt('sinks', '2.0,3.05,3.85,4.6').split(',').map(Number);
@@ -357,6 +424,7 @@ for (const lim of lims) {
   if (cases.includes('circuit')) say(circuit(lim));
   if (cases.includes('home')) say(home(lim));
   if (cases.includes('back')) say(back(lim));
+  if (cases.includes('lineup')) say(lineup(lim));
 }
 if (CERT) console.log('certificate: ' + CERT._s.toFixed(1) + ' s');
 if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(all, null, 1));

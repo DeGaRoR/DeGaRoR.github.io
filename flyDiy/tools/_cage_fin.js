@@ -34,7 +34,7 @@ const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
   finFillet: 0.035,
-  finCons: 0 }, FIN.FIN_PARAMS);
+  finCons: 0, finDorsalTube: 0 }, FIN.FIN_PARAMS);
 PAGE.defaults = Object.assign(finDef, PAGE.defaults || {});
 
 // binary choices are DROP-DOWNS, sliders stay for the continuous numbers
@@ -45,6 +45,13 @@ const GROUP = ['8 · tail — fin (2D)', [
   // tube has no deck to fair onto) — the rows follow the clamp (G28)
   ['finDorsal',  'leading edge (dorsal)', 0, 1, 1, ['removed', 'present'],
    { when: P => +P.finOn && !+P.boomStyle }],
+  // CONFIG-MATRIX (2 Nov, the user: the twin booms "allow for a dorsal fin, which I would have liked on the pod
+  // too"): ROD-STYLE TWIN BOOMS ARE NOT A BARE TUBE - they are BOOM_GEN's lofted section, the lofted style's own, and
+  // the 337's booms wear a dorsal. Their own row, not finDorsal: a rod twin saved before carries the finDorsal 1 it
+  // never drew (the rod clamp), and a build loads as it was drawn. Present = the fin roots on the boom's skin with
+  // its fillet (a dorsal is a fairing; the saddles go), as on lofted booms.
+  ['finDorsalTube', 'leading edge (dorsal)', 0, 1, 1, ['removed', 'present'],
+   { when: P => +P.finOn && +P.boomStyle }],
   ['finRootGuard', 'root loops',      0, 1, 1, ['single + crease',
                                                 'guard pair'],
    { when: P => +P.finOn }],
@@ -168,7 +175,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['dorsal creases', [
     ['finCrA', 'section A crease', 0, 3, 0.05],
     ['finCrB', 'section B crease', 0, 3, 0.05],
-  ], { when: P => +P.finOn && +P.finDorsal && !+P.boomStyle, level: 'expert' }],
+  ], { when: P => +P.finOn && (+P.boomStyle ? +P.finDorsalTube : +P.finDorsal), level: 'expert' }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -548,8 +555,15 @@ PAGE.post = ctx => {
   // diving past the tightening, user report). Rod mode builds without
   // both — as the real tube-boom aeroplanes fly — and the user's
   // finKeel/finDorsal choices return with the loft.
+  // PHONE-EDIT-PERF (2 Nov): the two overrides on an object that reads the rest THROUGH P, not a spread of it - a spread
+  // enumerates every key, and the post chain then records the fin as reading ALL of P (G1441's `all`): every row of
+  // every slider re-ran the fin, the stab, the access fittings, the lights and the hinges (~360 ms a release on the
+  // user's S20 FE, on their twin-boom floatplane). finSpec reads its keys by name: the same values
+  // CONFIG-MATRIX: the dorsal on rod-style TWIN booms is the finDorsalTube row's (the booms are a lofted section)
+  // (2 Nov, the user: "yes" to the single bare rod too - the same row, the same opt-in)
+  const dorsalTube = !!(+P.boomStyle && +P.finDorsalTube);
   const S = FIN.finSpec(P.boomStyle
-    ? { ...P, finKeel: 0, finDorsal: 0 } : P);
+    ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's
@@ -567,7 +581,8 @@ PAGE.post = ctx => {
   // there, the root rim is kept square (below), and the saddles are drawn
   // under it. A lofted body keeps the root on its skin.
   const RF = window.ROD_FIT;
-  const tube = !!(RF && (TB ? !TB.lofted : +P.boomStyle));
+  // (CONFIG-MATRIX: a dorsal is a fairing onto the boom - with one the fin roots on the skin, not on saddles)
+  const tube = !!(RF && (TB ? !TB.lofted : +P.boomStyle)) && !dorsalTube;
   const hS = tube ? RF.SADDLE.hS / FSd : 0;
   const deck = tube && deck0 ? FIN.deckOnFitting(deck0, hS) : deck0;
   S.deck = deck;                     // null-safe: no deck = the sketch as-is

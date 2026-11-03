@@ -53,6 +53,8 @@ const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const CG2 = window.CAGE2, GG = window.GEAR_GEN, K = window.GEAR_KIT;
 let OPEN_BAND = { P: null, v: null };     // G3519: the open cockpits' crown band, once a build
 const SITE = window.FIT_SITE, FG = window.FIT_GEN;
+// the fittings that are ANCHORS (a hand or a foot or a rope pulls on them): on the pillars, these go to a pillar
+const PIL_ANCHORS = new Set(['step', 'grabHandle']);
 if (!SITE || !FG || !K) {
   console.error('cage access layer: fitting modules not loaded');
   return;
@@ -391,7 +393,8 @@ function cowlSite(row, P) {
   if (n[0] * c[0] + n[1] * (c[1] - cy) < 0) n = [-n[0], -n[1], -n[2]];
   // the group's own offset: the cowl's origin is its firewall, and the layer
   // moves it onto the nose aperture (_cage_cowl.js:488)
-  const off = [0, CC.face.yc, CC.face.z + (P.cowlGap || 0)];
+  // (FIREWALL RULE, _cage_cowl.js: the stand-off applies off the body only)
+  const off = [0, CC.face.yc, CC.face.z + (CC.face.synthetic ? (P.cowlGap || 0) : 0)];
   return { p: [c[0] + off[0], c[1] + off[1], c[2] + off[2]], n,
            sL: 0, sC: 0, st: 0, lv: 0, mat: 'cowl',
            side: c[0] < 0 ? 'port' : 'star' };
@@ -594,6 +597,9 @@ PAGE.post = ctx => {
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                    xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
         : undefined,
+      // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
+      items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,
+      vac: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).vac : undefined,
       material: GS.fuselage && GS.fuselage.material,
       cargo: GS.cargo && GS.cargo.len,
     };
@@ -682,6 +688,17 @@ PAGE.post = ctx => {
   let wingF = null, wingTried = false;
   let wingF2 = null, wing2Tried = false;      // G185: the second plane's field
 
+  // PILLAR-ANCHORS (2026-11-02, the user: "Pillars should really be the target for all fixation devices and
+  // anchors"): with `pilSnap` on, the door handle is held to its latch strip by the
+  // aft edge, and a body fitting whose site lands on a door's panel (measured on _4b: the boarding step and the belly
+  // inspection plate on the pilot door) goes to the nearest pillar at its own height, off every door face
+  const pilOn = Math.round(+P.pilSnap || 0) === 1;
+  const PSm = window.PILLAR_SITE;
+  let PSa = null;
+  if (pilOn && PSm && CG2 && CG2.cageResolve && ctx.spec) {
+    try { PSa = PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS); } catch (e) { PSa = null; }
+  }
+  const pilMoved = [], pilTaken = [];
   AUTO = {}; AUTO_BUILT = true;
   for (const row of rows) {
     const fam = FAMILY[row.key];
@@ -740,7 +757,14 @@ PAGE.post = ctx => {
       const edge = Math.round(+P.hgDoorEdge || 0);
       // DOOR-HINGES-2: on the door's SOLID skin (never its glass), lying
       // along the chord; the frame beside it when the door has no room
-      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV,
+      // PILLAR-ANCHORS: THE HANDLE BY THE LATCH. On the pillars the handle is held to the latch strip: its near
+      // foot 40 mm in from the edge the door shuts against the pillar on, at the waist, the two nudges HELD to the
+      // strip - 0..0.10 m further in along the chord, +-0.15 up or down - so no nudge walks it into the middle of
+      // the panel; the search under it still keeps it off the glass. (3 Nov: the latch lever it wore for a day is
+      // gone - the user: "the old U style would even be better" - the U is the table's own, smoothed)
+      const strip = pilOn;
+      const dSLh = strip ? Math.max(0, Math.min(0.10, dSL)) : dSL, dLVh = strip ? Math.max(-0.15, Math.min(0.15, dLV)) : dLV;
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: (strip ? 0.04 : 0.06) / FS, dSL: dSLh / FS, dLV: dLVh,
                                                     mesh, FS, size: row.size })).filter(Boolean);
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
@@ -899,6 +923,57 @@ PAGE.post = ctx => {
       const hl = ((+sz.w || 0.13) * 0.5 + 2 * r + 0.006) / K2, hh = (2 * r + 0.006) / K2;
       sites = sites.map(s => SITE.handleOffGlass(mesh, s, { FS: K2, hl, hh, along: [0, 1, 0] })).filter(Boolean);
     }
+    // PILLAR-ANCHORS: OFF THE DOORS, ONTO THE PILLARS (above). The pillar nearest the site's station, at the
+    // site's own height, its footprint's centre column wholly on skin that is not a door's; no pillar within reach
+    // (0.8 m) or no clear skin on it: the site stays, and the door-swing check reports it
+    if (PSa && row.on === 'body' && !byHand && SITE.pillarSite) {
+      const sz = row.size || {};
+      const hl = (Math.max(+sz.w || 0, (+sz.r || 0) * 2, 0.04) * 0.5) / K2;
+      const hh = (Math.max(+sz.h || 0, (+sz.w || 0) * 0.5, (+sz.r || 0) * 2, 0.04) * 0.5) / K2;
+      const anchor = PIL_ANCHORS.has(row.key) || /^tieDown|^strap|^grab/.test(row.key);
+      sites = sites.map(s => {
+        const pm = [s.p[0] * K2, s.p[1] * K2, s.p[2] * K2];
+        // THE FOOTPRINT, not the centre: a hatch whose centre is on the door and whose edge is not straddles the
+        // door's gap (measured on _4b: the belly plate across the pilot door's bottom edge, half of it swinging)
+        const m = Math.max(hl, hh) * K2;
+        const foot = [[0, 0], [m, m], [m, -m], [-m, m], [-m, -m]].map(([dy, dz]) => !!PSm.inDoor(PSa, [pm[0], pm[1] + dy, pm[2] + dz], 0.03, { panelOnly: true }));
+        const onAny = foot.some(Boolean), onAll = foot.every(Boolean);
+        if (!onAny) return s;
+        const sgn = pm[0] >= 0 ? 1 : -1;
+        // not on another fitting already moved there (cage units, this flank)
+        // ...and never forward of the firewall (the sheet runs on under the cowling there)
+        const zFwC = PSa.zFw != null ? (PSa.zFw - 0.05) / K2 : Infinity;
+        const avoid = (z, y) => z + hl > zFwC ||
+          pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2) ||
+          // ...and its footprint nowhere inside a door's outline (the skin there may not be the door's faces - a
+          // reveal, a waistband - and the door still sweeps it: the DC-3's OAT probe, measured)
+          [[0, 0], [hl, hh], [hl, -hh], [-hl, hh], [-hl, -hh]].some(([du, dv]) => PSm.inDoorZY(PSa, sgn, (z + du) * K2, (y + dv) * K2, 0.01));
+        const take = (q, why) => { pilTaken.push({ sgn, z: q.p[2], y: q.p[1], hl, hh }); pilMoved.push(row.key + '>' + why); return Object.assign({}, s, { p: q.p, n: q.n, pillar: why }); };
+        // AN ANCHOR (a step, a grab, a tie-down, a strap) goes to a PILLAR: the nearest by station with clear skin
+        // at the site's own height. Anything else (an inspection plate, a port) only has to come OFF the door: the
+        // nearest skin that is not a door's, under the sill first
+        if (anchor) {
+          const dz = pl => pm[2] < pl.z0 ? pl.z0 - pm[2] : pm[2] > pl.z1 ? pm[2] - pl.z1 : 0;
+          for (const pl of PSa.pillars.filter(pl => dz(pl) <= 0.8).sort((a, b) => dz(a) - dz(b))) {
+            // (on a post the footprint's centre column is what stands on it: tested, the width is the post's)
+            const avoidP = (z, y) => pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2) ||
+              [[0, 0], [0, hh], [0, -hh]].some(([du, dv]) => PSm.inDoorZY(PSa, sgn, (z + du) * K2, (y + dv) * K2, 0));
+            const q = SITE.pillarSite(mesh, sgn, pl.z0 / K2, pl.z1 / K2, pm[1] / K2, hl, hh, { FS: K2, avoid: avoidP });
+            if (q) return take(q, pl.key);
+          }
+        }
+        const q = SITE.clearSite && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh, { FS: K2, avoid, reach: 0.4 });
+        if (q) return take(q, 'off');
+        if (anchor || onAll) return s;
+        // nowhere off the doors: then wholly ON the one it overlaps (a flush hatch on a door rides it), never across
+        // its gap
+        const dk = (() => { for (const d of PSa.doors) if (d.sgn === sgn && pm[2] > d.z0 - m && pm[2] < d.z1 + m) return d.doorKey; return null; })();
+        const avoidT = (z, y) => pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2);
+        const q2 = dk && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh,
+          { FS: K2, avoid: avoidT, reach: 0.25, ok: f => f.doorKey === dk && !f.win && !['joint', 'doorSeal', 'paneEdge'].includes(f.m) });
+        return q2 ? take(q2, 'door') : s;
+      });
+    }
     // FITTINGS-MANUAL: the auto site recorded, then the hand's
     AUTO[row.key] = autoOf(row, kind, sites, atSL0, mesh, K2);
     if (byHand && kind !== 'rod' && kind !== 'boom') {
@@ -1036,9 +1111,10 @@ PAGE.post = ctx => {
   scene.add(group);
 
   // (rows: what this aeroplane needs plus what a hand placed - the table rows only looked up are not in it)
-  window.CAGE_ACCESS = { needs: R, rows: rows.filter(r => !r.absent || placed.some(q => q.key === r.key)), placed, unplaced, tris, auto: AUTO };
+  window.CAGE_ACCESS = { pilMoved: [...new Set(pilMoved)], needs: R, rows: rows.filter(r => !r.absent || placed.some(q => q.key === r.key)), placed, unplaced, tris, auto: AUTO };
   if (stat)
     stat.textContent += '  ·  fittings: ' + nFit + ' (' + tris + ' t)' +
-      (unplaced.length ? ' · ' + unplaced.length + ' unplaced' : '');
+      (unplaced.length ? ' · ' + unplaced.length + ' unplaced' : '') +
+      (pilMoved.length ? ' · off the doors onto the pillars: ' + [...new Set(pilMoved)].join(', ') : '');
 };
 })();

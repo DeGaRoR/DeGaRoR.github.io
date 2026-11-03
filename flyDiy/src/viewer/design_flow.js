@@ -106,6 +106,7 @@ const DESIGN_PART = {
   canopy: ['cabin', 'windscreen', 'pilotWindow', 'skylight'],
   mirror: ['fuselage', 'aftDeck', 'aftCabin', 'cabin'],
   seatType: ['seats', 'fit', 'cockpit'],
+  paxSeatType: ['seats', 'fit', 'cockpit'],
   intCons: ['structure', 'fuselage'],
   boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
   booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],
@@ -113,7 +114,7 @@ const DESIGN_PART = {
   section: ['fuselage', 'cabin', 'nose'],
   wgPos: ['wings', 'cabane'], wgBrace: ['wings', 'struts'],
   planes: ['wings', 'wingPanel2', 'wingPanel', 'interplane', 'wires', 'cabane'],
-  wgTip: ['wings'], wgFlapType: ['wingCtl', 'wings'],
+  wgTip: ['wings'], wingArch: ['wings'], wgFlapType: ['wingCtl', 'wings'],
   // G2820: the STOL wing (G2821: 'wingPanel' merged into 'wings' by G2760)
   wgSlat: ['wings'], wgVG: ['wings'], wgFence: ['wings'],
   wgCuff: ['wings'], wgDroop: ['wingCtl', 'wings'], wgFowlerGrow: ['wingCtl', 'wings'],
@@ -204,6 +205,8 @@ function undo() {
 
 function pick(row, opt) {
   if (opt.inactive) return;
+  // CONFIG-MATRIX step 4: a tile greyed in this state (its `off` reason) is never applied
+  if (opt.off) { try { if (opt.off(CU().P)) return; } catch (e) {} }
   // G132: THE PANEL APPLIES THE LIVE WRITES ALONE (seeds:false) — a role or
   // class pick is its label, instantly and non-destructively; the one-shot
   // starting values ride the seed pill below, and the birth flow, which
@@ -310,10 +313,16 @@ function tileGrid(row, cur) {
     if (opt.value === cur) b.classList.add('on');
     if (opt.inactive) { b.disabled = true; b.title = opt.inactive; }
     else if (opt.note) b.title = opt.note;
+    // CONFIG-MATRIX step 4: a combination the garage cannot build (_cage_design.js CM_OFF) - greyed, the reason IN
+    // the tile; the tile the aeroplane already holds stays lit and live
+    let offWhy = null;
+    if (opt.off && P && opt.value !== cur) { try { offWhy = opt.off(P) || null; } catch (e) {} }
+    if (offWhy) { b.disabled = true; b.classList.add('off'); b.title = offWhy;
+                  b.insertAdjacentHTML('beforeend', '<small class="dfTech"></small>'); b.lastChild.textContent = offWhy; }
     b.innerHTML = svgFor(opt.icon) + '<span>' + opt.label + '</span>';
     // G3230 (TECH-MASK): a tile whose writes are above the career's machine shop is greyed with the reason IN the tile
     // (nothing hover-only); the one the aeroplane holds stays lit (an occasion's part: flown, not modified)
-    const tech = !opt.inactive && opt.value !== cur && window.TECH_MASK ? window.TECH_MASK.tileWhy(row, opt) : null;
+    const tech = !opt.inactive && !offWhy && opt.value !== cur && window.TECH_MASK ? window.TECH_MASK.tileWhy(row, opt) : null;
     if (tech) { b.disabled = true; b.classList.add('tech'); b.insertAdjacentHTML('beforeend', '<small class="dfTech"></small>'); b.lastChild.textContent = tech; }
     b.addEventListener('click', () => pick(row, opt));
     g.appendChild(b);
@@ -464,7 +473,7 @@ function fillInline(wrap, rows) {
 const hideCache = new WeakMap();
 const hidersOf = r => {
   if (!hideCache.has(r))
-    hideCache.set(r, (D().rowOptions(r) || []).filter(o => o.hide));
+    hideCache.set(r, (D().rowOptions(r) || []).filter(o => o.hide || o.off));
   return hideCache.get(r);
 };
 function sigOf(rows) {
@@ -476,7 +485,10 @@ function sigOf(rows) {
       try { s += r.key + '=' + r.read(P) + ';'; } catch (e) { s += r.key + '!;'; }
     }
     if (r.when) { try { s += r.when(P) ? '+' : '-'; } catch (e) {} }
-    for (const o of hidersOf(r)) { try { s += o.hide(P) ? 'h' : 'v'; } catch (e) {} }
+    for (const o of hidersOf(r)) {
+      try { if (o.hide) s += o.hide(P) ? 'h' : 'v'; } catch (e) {}
+      try { if (o.off) s += o.off(P) ? 'x' : 'o'; } catch (e) {}   // CONFIG-MATRIX step 4: greyed / live
+    }
   }
   return s;
 }
@@ -686,6 +698,30 @@ function renderBirth() {
     grid.appendChild(b);
   }
   }
+  // CANDIDATE OFFICIAL (the user, 2 Nov: "offered as their own archetype ... labeled as such"): the staging pool's
+  // whole builds (builds/candidates/, garage.js candidates) - a card opens the FILE as built, unnamed and with no plaque,
+  // where an archetype above bakes a fresh cage from its selection. Drawn when the pool's index answers.
+  const g = GS();
+  if (g && g.candidates && g.openCandidate) {
+    g.candidates().then(list => {
+      if (!list.length || birthEl.hidden || grid.querySelector('.dfCandH')) return;
+      const h = document.createElement('div');
+      h.className = 'dfKindH dfCandH';
+      h.textContent = 'candidate official — built, not validated';
+      grid.appendChild(h);
+      for (const c of list) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dfArch dfCand';
+        b.innerHTML = '<b></b><span></span>';
+        b.querySelector('b').textContent = c.name || c.file;
+        b.querySelector('span').textContent = 'candidate official' + (c.note ? ' — ' + c.note : '');
+        b.title = c.file + ': designed and built, not validated - no certificate';
+        b.addEventListener('click', () => { closeBirth(); g.openCandidate(c); });
+        grid.appendChild(b);
+      }
+    });
+  }
 }
 
 function birthFooter() {
@@ -695,6 +731,10 @@ function birthFooter() {
 }
 
 function openBirth() {
+  // NEW-PLANE (3 Nov): THE FRONT DOOR IS THE FULL-SCREEN CHOOSER (src/viewer/new_plane.js) - the main choices first,
+  // one build at the end, then the normal editor. The archetype overlay below stays as the fallback for a page without
+  // it (a bench); its "Custom build" card, which parked the builder in the tile grid, is gone with it.
+  if (window.NEW_PLANE && window.NEW_PLANE.open()) return;
   if (!D() || !GS() || !C2()) return;
   if (!birthEl) {
     birthEl = document.createElement('div');
@@ -743,9 +783,25 @@ function closeBirth() {
 // G3384 (STORY-INTRO, the Game coordinator 20 Oct): NOT on a New career with the story - its starter (the user's Rufus) is
 // the aeroplane on the stand and T0's card says what to do (app.js's story half sets FLYDIY_STORY_STARTER; read at the
 // opening, after the boot)
+// NEW-PLANE-HOLD (A0, 3 Nov 20:15): THE RIGS NEVER SEE THE FIRST-LAUNCH CHOOSER. Since NEW-PLANE the front door is the
+// full-screen chooser, which HOLDS the render loop while it is up (app.js: "No rendering while choosing"); a rig boots a
+// FRESH profile (no build ever saved), so the chooser opened by itself over every such run and nothing was drawn behind
+// it - GATE CLOUD's census (FRAMECOST's node page on the Cub, empty storage) read 0 composite draws on current, gamer and
+// ultra. The same test the welcome screen and the back guard use (welcome.js isRig, gfx_settings.js G528: a driven or
+// headless browser - navigator.webdriver or HeadlessChrome - and the node page, which declares webdriver); ?newplane=1
+// forces the door for a rig that wants to look at it. A real first launch is unchanged.
+const isRig = () => {
+  try {
+    if (/[?&]newplane=1(&|$)/.test(window.location.search || '')) return false;
+    if (window.WELCOME && typeof window.WELCOME.RIG === 'boolean') return window.WELCOME.RIG;
+    const n = window.navigator || {};
+    return !!(n.webdriver || /HeadlessChrome/.test(n.userAgent || ''));
+  } catch (e) { return false; }
+};
 function maybeAutoOpen() {
   try {
     if (window.localStorage.getItem('flydiy.wip')) return;
+    if (isRig()) return;
     const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
     ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400));
   } catch (e) {}

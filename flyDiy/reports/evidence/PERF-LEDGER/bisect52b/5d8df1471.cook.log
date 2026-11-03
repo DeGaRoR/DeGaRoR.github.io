@@ -1,0 +1,20 @@
+parked_cook: index.html build ad028adc6607 (version.json ad028adc6607), booted in 42.8 s on ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  keys: arch:c172, arch:chinook, arch:cub, arch:jodel
+  parked: arch:c172 captured: 314822 tris, 115 buckets, in 989 ms
+  parked: restored the player's aeroplane in 702 ms
+  parked: arch:c172 far levels baked: 11147 charts, 1.38 cm a texel, 71 % of the atlas; unwrap 183 ms, bake 861 ms, total 2645 ms; 181870 / 21823 / 4546 tris
+  arch:c172: 13.78 MB as is, 3.63 MB gzipped; rungs 181870 / 21823 / 4546 tris; 11147 charts, 1.38 cm a texel; pitch 1.30 deg; 5.5 s
+  parked: arch:chinook captured: 204926 tris, 101 buckets, in 445 ms
+  parked: restored the player's aeroplane in 387 ms
+  parked: arch:chinook far levels baked: 9754 charts, 1.1 cm a texel, 69 % of the atlas; unwrap 125 ms, bake 826 ms, total 2111 ms; 139592 / 16751 / 3489 tris
+  arch:chinook: 12.73 MB as is, 3.14 MB gzipped; rungs 139592 / 16751 / 3489 tris; 9754 charts, 1.1 cm a texel; pitch -2.87 deg; 3.9 s
+  parked: arch:cub captured: 267084 tris, 104 buckets, in 361 ms
+  parked: restored the player's aeroplane in 298 ms
+  parked: arch:cub far levels baked: 10979 charts, 1.23 cm a texel, 72 % of the atlas; unwrap 138 ms, bake 386 ms, total 2111 ms; 172410 / 20689 / 4310 tris
+  arch:cub: 13.57 MB as is, 3.72 MB gzipped; rungs 172410 / 20689 / 4310 tris; 10979 charts, 1.23 cm a texel; pitch -7.87 deg; 3.8 s
+  parked: arch:jodel captured: 238164 tris, 103 buckets, in 602 ms
+  parked: restored the player's aeroplane in 621 ms
+  parked: arch:jodel far levels baked: 9460 charts, 1.13 cm a texel, 71 % of the atlas; unwrap 128 ms, bake 431 ms, total 1833 ms; 150284 / 18034 / 3756 tris
+  arch:jodel: 12.98 MB as is, 3.38 MB gzipped; rungs 150284 / 18034 / 3756 tris; 9460 charts, 1.13 cm a texel; pitch -9.70 deg; 4.0 s
+  wrote src\core\parked_packs.json (4 keys)
+  pruned 3: arch_c172.a7c8719e.gz.bin, arch_cub.3bf0a1f0.gz.bin, arch_jodel.d7b9f836.gz.bin

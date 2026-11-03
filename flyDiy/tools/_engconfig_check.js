@@ -233,26 +233,31 @@ const kidsDone = PINMODE ? null : runKids();
 // validated aeroplanes (the Cub, the Jodel, the twin floatplane's file, the metal Cessna, the Cessna on floats, Rufus) are
 // digested as the GAME flies them (tools/_load_build.js: the page's load door, the join, the merge - GATE JOINPARITY's
 // one load path), every other fixture as written. `--pin` prints this table for the tree it runs in (run it on master).
+// AVIONICS-GPS (G2808-G2811, 2026-10-28): re-pinned on claude/avionics-gps-2 after its merge of master 4ab6c317d (L28-0) -
+// the user's WYSIWYG bill (the outfit, the electrics, the lamps billed as drawn) moves every def digest; the flown digest
+// moves where the bill or the partial landing flap reaches the flight (the Cub, the Jodel, the twin floatplane's file,
+// the metal Cessna, the Cessna on floats, Rufus); the C172, the Chinook, the twin-boom, the twin, the pusher and the
+// stock singles fly master's digest. The example layouts (9) rebaked with --write on the same tree.
 say('1 IDENTITY - the saved builds and the single mounts, digested against master (2c2a74459)');
 const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
 const PIN = {
-  'builds/cub_2026-09-20_corrected.json': '2edac3d4580bbcb2 869eee72737d7526',
-  'builds/jodel_2026-09-20_corrected.json': '38e084604f47abe6 3fb1153b36c2c325',
-  'builds/cessna172_2026-09-20_corrected.json': '8ea6b7d05a8f54b5 c3124e0092d05851',
-  'builds/chinook_2026-09-21_corrected.json': '4facb98d84baeb0f f4dbe53bc257a050',
-  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'b3f8c01060020c33 e7942c80c42fb7f0',
-  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': '954746f8316b9701 77b62ab7c4146aaa',
-  'tools/fixtures/build_v7_twin_2026-09-04.json': 'a5586891e6aec073 221d6c2405b15e1e',
-  'tools/fixtures/build_v8_pusher_2026-09-11.json': '268edc2070febf93 1e888903ddfb652c',
-  'bugReports/cessnaMetal (1).json': 'e4735c255b5f4c71 7e50d230440c0ad2',
-  'bugReports/cessnaFloatsWOrks.json': '0c4b5dc1b32baeb4 10f6c3086fad509f',
-  'tools/fixtures/repro/rufus_2026-10-18_certified.json': 'e0f2ee3392db1461 bb817d87f0edc3eb',
-  'stock nose': 'c61ce520a6cc85e2 31cce33943cc578a',
-  'stock pusher': '04f30522a6a9ed04 5613f19c025bd3cf',
-  'stock wingTop': '88406c468a775d6e 53a5929a6f5191d4',
-  'stock wing': 'b09bdcdd70bc0f36 7f98742af70074a4',
-  'stock 2 nose (clamped to one)': 'c61ce520a6cc85e2 31cce33943cc578a',
-  'stock pusher+nose (clamped to one)': '04f30522a6a9ed04 5613f19c025bd3cf',
+  'builds/cub_2026-09-20_corrected.json': '155419e4ddd55891 5f81fcf4b4175980',
+  'builds/jodel_2026-09-20_corrected.json': '33c1b6b22fa8a5d5 b281985b850ee5b7',
+  'builds/cessna172_2026-09-20_corrected.json': 'cfff2062f514f276 c3124e0092d05851',
+  'builds/chinook_2026-09-21_corrected.json': 'bf6854b8a6066f35 f4dbe53bc257a050',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'ae93bc2acf2aa2c7 152e8c2cbb80d7b5',
+  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'd3712ab277fcc329 77b62ab7c4146aaa',
+  'tools/fixtures/build_v7_twin_2026-09-04.json': 'b272e4d2fa0f485e 221d6c2405b15e1e',
+  'tools/fixtures/build_v8_pusher_2026-09-11.json': '382e0869b7b40fca 1e888903ddfb652c',
+  'bugReports/cessnaMetal (1).json': 'a7ef3e20bbb60e99 3424501b41d6e08a',
+  'bugReports/cessnaFloatsWOrks.json': 'ad5b0932430ce736 654023193f98094b',
+  'tools/fixtures/repro/rufus_2026-10-18_certified.json': 'de3b3f1e42596986 af31390fe113f650',
+  'stock nose': '643179bc32524858 31cce33943cc578a',
+  'stock pusher': '5c93f8d9d359df46 5613f19c025bd3cf',
+  'stock wingTop': '517c36a580adee0c 53a5929a6f5191d4',
+  'stock wing': '8df433ecc01fd5a2 7f98742af70074a4',
+  'stock 2 nose (clamped to one)': '643179bc32524858 31cce33943cc578a',
+  'stock pusher+nose (clamped to one)': '5c93f8d9d359df46 5613f19c025bd3cf',
 };
 const H = o => crypto.createHash('sha1').update(JSON.stringify(o, (k, v) => typeof v === 'number' && !isFinite(v) ? String(v) : v)).digest('hex').slice(0, 16);
 const stockMount = (...ms) => () => { const s = clone(C.GEN_DEFAULT); s.engines = ms.map(m => ({ type: s.engines[0].type, mount: m })); return s; };

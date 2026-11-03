@@ -2038,54 +2038,24 @@ function editorInit(api) {
         c.checked = !c.checked;
         c.dispatchEvent(new Event('change'));
       } },
-    // ---- the reference plane's cut ----------------------------------------
-    // No `row`: this is refplane.js's own state, in its own localStorage, and
-    // it is not a display control of YOUR build — the cut is a clipping
-    // plane, the category VIEW_KEEP already exempts for `cutaway` ("it hides
-    // geometry from the CAMERA and nothing from the capture"). REFPLANE's
-    // cycleCut is the one door, and it does everything the panel's own select
-    // does, including zeroing `lat` for the split.
-    { k: 'ref', state: 'refplane.cut',
-      why: 'the reference aeroplane standing beside your build is not your ' +
-           'build: its cut is a clipping plane held in refplane.js own ' +
-           'state and saved in its own localStorage, and no capture sees it',
+    // ---- DESIGN-AIDS (the user 3 Nov: "Get rid of a button on top, like the one allowing to swap the views with the
+    // reference model, and have one with a menu allowing to show or hide these indicators"): THE INDICATORS. The
+    // reference's cut button is gone from the bar; its cycle is the menu's last item (aidsMenuInto). No `row`: the aids
+    // are app.js GARAGE_AIDS's own viewer preference (flydiy.aids), drawn in the room as UI (UIL) - never the build.
+    { k: 'aids', state: 'GARAGE_AIDS (flydiy.aids) + refplane.cut',
+      why: 'the design aids drawn beside the aeroplane (the CG and neutral point posts, the centre of lift, the thrust line, ' +
+           'the floats, ...): app.js GARAGE_AIDS keeps them as a viewer preference in its own localStorage key, they are ' +
+           'UI the layers claim (UIL) and a screenshot hides (SHOT), so no capture sees them; the reference\'s cut is ' +
+           'refplane.js own state, as before',
       view: () => {
-        const R = window.REFPLANE;
-        const standing = !!(R && R.state && R.state.preset !== 'none');
-        const cut = (R && R.state && R.state.cut) || 'off';
-        // TWO OBJECTS HAVE TO LOOK LIKE TWO. The first cut overlapped them
-        // side by side and the overlap drew a line down the middle — which is
-        // the SPLIT's own glyph, so `off` and `split` said the same thing. A
-        // diagonal offset is the duplicate-glyph everyone already reads.
-        const box = (x, y) => '<rect x="' + x + '" y="' + y +
-          '" width="8.6" height="7.4" rx="1.5"/>';
-        const ICON = {
-          // two whole aeroplanes, one standing inside the other
-          off: box(2.4, 6.2) + box(7.0, 4.4),
-          // yours whole; theirs has lost a half, and the cut edge is straight
-          // where every other edge is rounded
-          ref: '<path d="M6.7 6.2H3.9a1.5 1.5 0 0 0-1.5 1.5v4.4a1.5 1.5 0 0 ' +
-               '0 1.5 1.5h2.8Z"/>' + box(7.0, 4.4),
-          // ONE machine, half each: theirs dashed to the left of the
-          // centreline they are both cut by, yours solid to the right
-          split: '<path d="M9 5.3H5.4A1.5 1.5 0 0 0 3.9 6.8v4.4a1.5 1.5 0 0 ' +
-                 '0 1.5 1.5H9" stroke-dasharray="2.2 1.8"/>' +
-                 '<path d="M9 5.3h3.6a1.5 1.5 0 0 1 1.5 1.5v4.4a1.5 1.5 0 0 ' +
-                 '1-1.5 1.5H9"/><path d="M9 3.9v10.2"/>',
-        };
-        const SAYS = { off: 'both aeroplanes whole, one inside the other',
-                       ref: 'the reference halved, your build whole',
-                       split: 'split — your right half, their left half' };
-        return { on: standing && cut !== 'off', off: !standing,
-          title: standing
-            ? 'Against the reference: ' + SAYS[cut] + ' — click for the next'
-            : 'No reference standing — pick one on the reference plane',
-          icon: ICON[cut] || ICON.off };
+        const G = window.GARAGE_AIDS;
+        const n = G ? G.keys.filter(([k]) => G.applies(k) && G.on(k)).length : 0;
+        return { on: qPop === 'aids', off: !G,
+          title: G ? 'Indicators: ' + n + ' shown - click to show or hide the CG, the lift, the thrust, the floats...' : 'No indicators in this build',
+          // a CG post with its cross-bar and a lift arrow beside it
+          icon: '<path d="M5.6 15.6V5.2M3 5.2h5.2"/><path d="M12.4 15.6V7.4"/><path d="M12.4 3.2l-2.3 3.4h4.6z"/>' };
       },
-      act: () => {
-        const R = window.REFPLANE;
-        if (R && R.cycleCut) R.cycleCut();
-      } },
+      act: () => qPopOpen(qPop === 'aids' ? null : 'aids') },
     // ---- the sound (G1710, SND-BOOMBOX; the user 2026-10-05: "a toggle button next to the existing toggles ... sound
     // on/off, and another one cycling the radios") ------------------------
     // No `row`: the rail's `sound` item is AUDIO.mount's own panel, not borrowed rows, so there is no row to name. The
@@ -2149,12 +2119,14 @@ function editorInit(api) {
         if (!(B.openAt && B.openAt(btn)) && was) B.radio.next();
       },
       alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
-    // ---- the light --------------------------------------------------------
-    // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
-    // tree's mood select - the mood follows the clock each frame (hangar.moodFor), and the
-    // day panel on the rail shows the same presets as pills. The glyph is still the mood's.
-    { k: 'time', state: 'DAY_CLOCK preset',
-      why: 'the next of the clock\'s presets; the rail\'s night flyout offers the same presets as the day panel\'s pills',
+    // ---- the time ---------------------------------------------------------
+    // 2026-09-20: it pressed the CLOCK (the next preset on the day's own almanac). TIME-CONTROLS (A0 2 Nov, the user: "a
+    // single new icon on top ... that pops up a menu, with proper time controls"): the same button - its place on the
+    // bar, on the phone too - opens THE TIME MENU (day_ui.js DAY_UI.menu) in the top bar's card: the date and the hour,
+    // the day's weather, and the time actions the mode allows (the sandbox sets the clock, the career waits forward).
+    // The glyph is still the mood's: the icon is the state.
+    { k: 'time', state: 'DAY_CLOCK (the time menu)',
+      why: 'the time menu: the clock\'s presets, the hour, the date and the rate (the sandbox) or the waits (the career) - the same DAY_CLOCK the sky page\'s day panel sets',
       view: () => {
         const GE = window.GARAGE_ENV;
         const list = (GE && GE.moods && GE.moods()) || [];
@@ -2183,21 +2155,21 @@ function editorInit(api) {
           OVERCAST: '<path d="M5.9 12.9h6.4a2.6 2.6 0 0 0 .4-5.1 3.6 3.6 0 0 ' +
                     '0-6.9-.7 2.9 2.9 0 0 0 .1 5.8Z"/>',
         };
-        return { on: false, off: !list.length,
-          title: list.length
-            ? 'The light: ' + name.toLowerCase() + ' — click for the next sky'
+        const CK = window.DAY_CLOCK, d = CK && CK.day && CK.day();
+        const now = d && window.DAY_UI && window.DAY_UI.nowWords ? window.DAY_UI.nowWords(d) : '';
+        return { on: window.EDITOR_QUICK_POPPED === 'time', off: !d && !list.length,
+          title: d ? 'The time: ' + now + ' — click for the time menu'
+            : list.length ? 'The light: ' + name.toLowerCase() + ' — click for the next sky'
             : 'No room to light — the shed is not in this build',
           icon: ICON[name] || ICON.AFTERNOON };
       },
-      // THROUGH THE CLOCK: the preset after the one nearest the hour; the mood, the sky and
-      // the rail's night label follow (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a
-      // clock (a build with no day) the tree's mood select is pressed as before.
+      // THE TIME MENU, in the top bar's card (again closes it); the mood, the sky and the rail's night label follow the
+      // clock as before (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a clock (a build with no day) the
+      // tree's mood select is pressed as before. (Only window globals: GATE BOOMBOX runs QUICK alone in a vm.)
       act: () => {
         const CK = window.DAY_CLOCK;
         if (CK && CK.day()) {
-          const P = CK.PRESETS, i = P.indexOf(CK.nearestPreset());
-          CK.preset(P[(i + 1) % P.length]);
-          if (flyOpen === 'night') openFly('night');
+          if (window.EDITOR_QUICK_POP) window.EDITOR_QUICK_POP(window.EDITOR_QUICK_POPPED === 'time' ? null : 'time');
           return;
         }
         const r = labelIndex().get('time of day');
@@ -2222,10 +2194,56 @@ function editorInit(api) {
   // host (EDITOR_FLY_INTO), so the rows are the rail's own, borrowed and given back. Closes on Esc, on its x, on a press
   // outside it and the bar, on a second press of its button, and when a MENU page takes the rows
   let qPop = null, qPopOff = null;
+  // TIME-CONTROLS: a card with a body of its own, not a rail item's - built here, rebuilt after a pick (its scroll kept)
+  const QPOP_OWN = {
+    time: { head: 'Time', build(body) {
+      if (!window.DAY_UI || !window.DAY_UI.menu) return;
+      const again = () => { if (qPop !== 'time') return; const keep = body.scrollTop; while (body.firstChild) body.removeChild(body.firstChild);
+        QPOP_OWN.time.build(body); body.scrollTop = keep; syncNightLabel(); syncQuick(); };
+      const M = window.FLYDIY_MENU;
+      window.DAY_UI.menu(body, railRows(), Object.assign(dayCtx(), { refresh: again,
+        // the sandbox's door to SET the weather: the menu's sky page (the day panel, the weather, the clouds)
+        weather: M && M.open && M.page ? () => { qPopOpen(null); M.open(); M.page('gNight'); } : null,
+        forecast: window.FLYDIY_FORECAST || null }));
+    } },
+    // DESIGN-AIDS: the indicators' menu (aidsMenuInto below) - its close gives the reference's change hook back
+    aids: { head: 'Indicators', build(body) { QPOP_OWN.aids.close = aidsMenuInto(body); } },
+  };
+  // DESIGN-AIDS: THE INDICATORS' MENU - a toggle per aid (GARAGE_AIDS: on / off, persisted per user), the ones this
+  // aeroplane has nothing to say about greyed, and the reference's cut as one item (REFPLANE.cycleCut, the old bar
+  // button's door). Touch-sized (44 px), two columns, so the card stays in the top band of the view, never its centre.
+  function aidsMenuInto(body) {
+    const G = window.GARAGE_AIDS;
+    const paint = () => {
+      const R = window.REFPLANE, standing = !!(R && R.state && R.state.preset !== 'none');
+      const cut = (R && R.state && R.state.cut) || 'off';
+      const SAYS = { off: 'both whole', ref: 'reference halved', split: 'split halves' };
+      body.innerHTML = '<div class="edAids">' + (G ? G.keys.map(([k, lab]) => {
+        const can = G.applies(k), on = can && G.on(k);
+        return '<button type="button" class="edAid' + (on ? ' on' : '') + '" data-aid="' + k + '" aria-pressed="' + on + '"' +
+          (can ? '' : ' disabled title="nothing to show on this aeroplane"') + '><i></i>' + lab + '</button>';
+      }).join('') : '') +
+        '<button type="button" class="edAid edAidRef" data-aid="_ref"' + (standing ? '' : ' disabled title="no reference aeroplane standing"') +
+        '>Reference: ' + (standing ? SAYS[cut] || cut : 'none') + '</button></div>';
+      body.querySelectorAll('button[data-aid]').forEach(b => {
+        b.onclick = () => {
+          const k = b.dataset.aid;
+          if (k === '_ref') { const R2 = window.REFPLANE; if (R2 && R2.cycleCut) R2.cycleCut(); }
+          else if (G) G.set(k, !G.on(k));
+          paint(); syncQuick();
+        };
+      });
+    };
+    paint();
+    const was = window.REF_ON_CHANGE;
+    window.REF_ON_CHANGE = () => { try { syncQuick(); if (qPop === 'aids') paint(); } catch (e) {} };
+    return () => { body.innerHTML = ''; window.REF_ON_CHANGE = was || syncQuick; };
+  }
   function qPopOpen(k) {
     let card = $('edPopCard');
     if (qPopOff) { const f = qPopOff; qPopOff = null; f(); }
     qPop = null;
+    window.EDITOR_QUICK_POPPED = null;
     if (!k) { if (card) card.hidden = true; syncQuick(); return; }
     if (window.BOOMBOX && window.BOOMBOX.isOpen) window.BOOMBOX.close();
     if (!card) {
@@ -2240,16 +2258,25 @@ function editorInit(api) {
         qPopOpen(null);
       }, true);
     }
-    const t = RAIL.filter(x => x.k === k)[0];
-    card.querySelector('.edPopHead span').textContent = t ? (t.head || t.label) : k;
+    const own = QPOP_OWN[k] || null, t = own ? null : RAIL.filter(x => x.k === k)[0];
+    card.querySelector('.edPopHead span').textContent = own ? own.head : t ? (t.head || t.label) : k;
     const body = card.querySelector('.edPopBody');
-    qPop = k;
+    qPop = k; window.EDITOR_QUICK_POPPED = k;
     card.hidden = false;
-    qPopOff = flyInto(k, body, () => { qPopOff = null; qPop = null; card.hidden = true; syncQuick(); });
+    card.classList.toggle('aids', k === 'aids');   // DESIGN-AIDS: the indicators' card is wider (two columns, editor.css)
+    if (own) {
+      while (body.firstChild) body.removeChild(body.firstChild);
+      own.build(body);
+      qPopOff = () => { if (own.close) { const c = own.close; own.close = null; c(); } while (body.firstChild) body.removeChild(body.firstChild); };
+    } else qPopOff = flyInto(k, body, () => { qPopOff = null; qPop = null; window.EDITOR_QUICK_POPPED = null; card.hidden = true; syncQuick(); });
     if (!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed && window.FLYDIY_DRAG.placed('quickPop'))) {
       const b = qBtn(k), r = b ? b.getBoundingClientRect() : null, W0 = window.innerWidth || 1280, w = card.offsetWidth || 280;
       card.style.top = Math.round(r ? r.bottom + 8 : 64) + 'px';
       card.style.left = Math.round(Math.max(8, Math.min((r ? r.left : 8), W0 - w - 8))) + 'px';
+      // DESIGN-AIDS: on the phone the 3D view is the top band only, and the indicators' card under the bar would cover
+      // it: it opens just below the view, over the controls sheet, so the aids it switches stay in sight
+      const cv = k === 'aids' && document.documentElement.classList.contains('phone') ? document.getElementById('c') : null;
+      if (cv) { const cr = cv.getBoundingClientRect(); card.style.top = Math.round(cr.bottom + 6) + 'px'; card.style.left = '8px'; }
     }
     syncQuick();
   }

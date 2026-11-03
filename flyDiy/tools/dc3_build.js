@@ -29,7 +29,13 @@ const flag = k => argv.includes('--' + k);
 // the 5.64 m track on 0.57 m tyres, two R-1830s 3.05 m off the centreline.
 const DC3_ROWS = {
   // the fuselage: cockpit 2.4 m, three cabin bays 9.0 m, a 3.5 m cone; a 2.5 m wide, 2.6 m deep section
-  pilotLen: 1.5, paxCount: 3, paxLen: 1.75, boomLen: 2.2,
+  // (G3577, the user 26 Oct: "the cabin shouldn't be longer than the space where pilots sit ... the rest is passengers and
+  //  freight"): the cockpit 1.76 m (the pilots' own), four bays of 2.26 m in its place - the same 10.8 m, the first bay the
+  //  navigator's / the forward hold's
+  // (G3578, the user 27 Oct: "a short cabin, the length of the pilot bays ... as many passengers sections as they were seat
+  //  rows"): the cockpit the pilots' bay alone (1.60 m), EIGHT bays of 0.96 m - one row of 2 + 1 each (the DC-3's 36 in
+  //  pitch), the first the forward hold, 21 seated behind it (the DC-3's 21) - and the cone 0.72 m longer: the same 19.2 m
+  pilotLen: 1.0, paxCount: 8, paxLen: 0.6, boomLen: 2.65, paxAbreast: 4,
   halfW: 0.78, roofHalfW: 0.68, roofY: 0.85, keelY: -0.8,
   // the wing: 29 m, 4.4 m root, 1.98 m tip (taper 0.45, the envelope's floor and the DC-3's own), 4.6 m aft of the
   // cockpit ring (the fore / aft row, negative is aft): a scan's pick, static margin 0.09 and no design-check row
@@ -48,10 +54,89 @@ const DC3_ROWS = {
   // headroom under this section's roof; the doors, the seats and the people stand on it (the user: "pilots and
   // passengers are buried")
   floorUp: 0.40,
+  // G3575 (DC3-2): the full-swivel tailwheel (the gear page's third steering type) - the real DC-3's unlocks for the
+  // taxi and swivels free; the toe brake pivots the aeroplane round it
+  s2Steer: 2,
+  // G3577 (DC3-2, the user 26 Oct): THE PILOTS AT THEIR CONTROLS - the seat backs 3.75 m along (the yokes 0.70 m ahead, the
+  // hands 0.2 m off them, the feet on the pedals); the yokes off the panel 0.42 m, the throttles 0.40 m aft
+  seatZ: 1.32, yokeGap: 0.42, thrZ: -0.4,
+  // THE AERO NOSE collapsed - the aerodynamic front, its tip collapse at 0.9 (the DC-3's blunt round nose), on three loops
+  // (G3578, the user's: the round worked in three rings, not one)
+  noseFinish: 1, noseTip: 0.9, cowlLoops: 3,
+  // THE NACELLES FAIRED - the cowl's 'nacelle tail cone' termination behind each engine, 2.4 m
+  cw_aftMode: 1, cw_tailLen: 2.4,
+  // THE TAILWHEEL at its size (0.40 m: the DC-3's 16 in tyre), the swivel's drop and the spring's taken down by the wheel's
+  // growth (the deck stays 11.4 deg), its trail to the wheel
+  s2R: 0.2, s2_twLegDrop: 0.03, s2_twSpringDrop: -0.025, s2_twTrail: 0.14,
+  // THE LINE: the passenger frame (the last bay's aft ring) on the DC-3's upswept curve - the belly rising behind the wing,
+  // the roof falling to the fin, the plan tapering - and the run to it curved (held at the cabin, steepest at its end), the
+  // boom frame on the same curve: the old straight tube to z -7 and its two-piece cone (a kink at the boom frame) gone
+  frPaxTopY: 0.75, frPaxBotY: -0.64, frPaxWaistY: 0.13, frPaxWaistW: 0.63, frPaxTopW: 0.55, frPaxBotW: 0.53,
+  frPaxProfile: 1, frPaxEase: 0, frPaxBias: -0.6,
+  aftRoofY: 0.64, aftKeelY: -0.48, frBoomWaistY: 0.12, frBoomWaistW: 0.49, frBoomTopW: 0.42, frBoomBotW: 0.4,
 };
+// G3579 (DC3-2, 27-28 Oct): THE DC-3 v1 - FITTED TO THE USER'S REFERENCE MODEL (tools/ref_match/refs/dc3.json: Sketchfab 'Dc3'
+// by manilov.ap, CC-BY-4.0, scaled to the published 28.96 m span, length anchored at 19.66 m; tools/REF_MATCH.md's procedure)
+// and steered by the user round by round. Laid over DC3_ROWS in every build (dc3FullRaw): the flown DC-3 is these rows. Flown
+// (G3579 v1): the circuit and a first-time landing, the drops to 4.6 m/s and the HOME trip with 0 contacts and 0 breaks.
+const DC3_FIT = {
+  // STEP 1 (the side view's proportions and the wing) - the wing the DC-3's own planform: a constant-chord centre section
+  // (4.63 m, flat) to the crank, the outer panel's LE swept to a straight TE, 1.40 m at the tip, 7.5 deg outboard (plan
+  // 1 - IoU 0.065, LE / TE within 9 cm); the nose's windscreen run shortened and the body lengthened aft by as much (the tail
+  // post 19.20 m aft of the nose, to 1 cm); the aft body lower and the tail ring smaller; THE USER'S STEERING (27 Oct): the
+  // section ROUND top and bottom (topRound / botRound 1, roofY / keelY brought in around it), the width the reference's
+  // (halfW 0.68, the frames' widths with it: 1.088 m, exact), five FRONT RINGS (cowlLoops 5: the nose bends), the main
+  // wheels 1.25 m forward at the model's station (extended down and back as the user's drawing), the tailwheel 2.45 m
+  // forward under the tailplane (16.96 m, the model's)
+  wgChord: 4.63, wgCrankAt: 0.19, wgCrankChord: 4.63, wgCrankX: 0, wgChordTip: 1.4, wgTipX: 2.85, wgDihedral: 0,
+  wgDihedralOut: 7.5, wgDx: -2.95, wgDy: -0.45, boomLen: 2.46, aftRoofY: 0.59, aftKeelY: -0.58, tailRoofY: 0.18,
+  tailKeelY: -0.07, tailHalfW: 0.08, noseW: 0.75, wsRun: 0.45, topRound: 1, botRound: 1, cowlLoops: 5, roofY: 0.79,
+  keelY: -0.72, halfW: 0.68, roofHalfW: 0.59, frPaxTopW: 0.48, frPaxWaistW: 0.55, frPaxBotW: 0.46, frBoomTopW: 0.37,
+  frBoomWaistW: 0.43, frBoomBotW: 0.35, noseDroop: 0.1, s1Z: 1.05, s1Drop: 1.5, s2Z: 2.57, s2Drop: 0.8,
+};
+// the tail (the user: "for the stabs, try the chinook starting point and round only the elevator's ends. For the fin and
+// rudder, start from the curved, cub-like one, and straighten only the rudder, not the fin leading edge"): the fin fitted
+// from the Piper Cub preset with the rudder held straight (its TE rows 0, its corners crisp) and the LE round (fit_tail.js
+// --hold; 1 - IoU 0.22, the top 3.546 m against 3.548), the dorsal on; the tailplane the Chinook's corners and edges with
+// the elevator's two ends round, sized and placed by hand (LE / TE / span within 7 mm)
+const DC3_FIT_TAIL = {
+  finOn: 1, finProject: 1, finCut: 2, finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finCutGap: 0.01,
+  finSolid: 1, finThick: 0.06, finThickTE: 0.015, finFillet: 0.035, finCons: 0, finDorsal: 0, finRootGuard: 1,
+  finKeel: 1, finCrA: 0, finCrB: 0, finTipZ: -0.565, finTipY: -0.79, finAftZ: 0.275, finAftY: -0.9, finBaseZ: 0.24,
+  finBaseY: 0.5, finMidY: -0.565, finUY: -0.015, finRootFwd: 0.25, finLEZ: 0.285, finLEY: -0.055, finShoulderZ: 0.37,
+  finShoulderY: 0, finTopY: 0.085, finTERoot: 0, finTEU: 0, finTEMid: 0, finSharpTip: 1, finSharpAft: 3,
+  finSharpBase: 3, finSharpShoulder: 0, finSharpLE: 0, finHeight: 1.64, finChord: 1.6, finChordTip: 1.5,
+  finSweep: -9, finHinge: 0.085,
+  stZ: 0.39, stY: 0.18, stTipZ: -0.2, stTipY: -0.3, stAftZ: 0, stAftY: -0.3, stBaseZ: 0, stBaseY: 0, stMidY: -0.2,
+  stUY: 0, stRootFwd: 0, stLEZ: -0.1, stLEY: 0, stShoulderZ: 0.305521, stShoulderY: 0, stTopY: 0, stTERoot: 0,
+  stTEU: 0, stTEMid: 0, stSharpAft: 0, stSharpBase: 0, stSharpTip: 3, stSharpShoulder: 3, stSharpLE: 3, stSpan: 1.36,
+  stChord: 1.09,
+};
+Object.assign(DC3_FIT, DC3_FIT_TAIL);
+// THE USER'S LAST BATCH (28 Oct): "the cabin is far too long ... only span half of the current length, and you'll compensate by
+// adding an extra passenger section" - the cockpit 1.0 -> 0.5 (0.80 m), a ninth bay (the first one aft of the cockpit stands
+// empty: a bay's seats cannot be switched off - QUESTION 9's cargo bay), the cone 0.21 shorter: the tail post where it was; the
+// pilots back at their controls (seatZ 1.32 -> 0.50: with half the cockpit they sat in the nose, ahead of the yokes, and the
+// design check's worst corner read pitch.sm -0.27); "disable the option skylight, and ... 'bubble canopy' as an on/off slider"
+// (the row the editor now calls 'glass ceiling'); "accurate prop positioning" - the whole nacelle 1.0 m forward (engBlockZ: the
+// spinner's front 2.45 m aft of the nose, the reference's), 0.43 m inboard (engNacAt 0.18: 2.61 m out, the reference's 2.62),
+// the axis on the reference's (engY -0.03: -0.97 under the body's centre), the nacelle's tail cone to the reference's end -
+// and with the engines' mass forward the static margin 0.18 (the worst loading corner passes); "your tailwheel should be
+// bigger and drop further" - the reference's 0.52 m wheel (s2R 0.26), its centre 1.13 m under the body's (s2_twLegDrop 0.42:
+// a 10 deg deck, the model's); "is there any option for the nose to be more softly rounded?" - the new row noseDome (nose
+// roundness, cone -> dome: _cage_gen.js) at 0.3 (the reference's nose within 3-6 cm over its first 0.75 m; 1 is 25 cm too blunt), the tip collapsed and uncreased, the joint band off: one smooth tip
+Object.assign(DC3_FIT, {
+  pilotLen: 0.5, paxCount: 9, boomLen: 2.25, seatZ: 0.5, bubble: 0, skylight: 0,
+  engNacAt: 0.18, engBlockZ: 1.0, cw_noseOff: 0.12, cw_tailLen: 3.35, engY: -0.03,
+  s2R: 0.26, s2_twLegDrop: 0.42,
+  noseDome: 0.3, noseTip: 0.98, crNoseCap: 0, crFrontCap: 0, noseJointOn: 0,
+  // the outer dihedral 7.5 -> 6.5 deg: at 7.5 the Dutch roll diverged (yaw.dutch damping -0.021, the design check's fix: less
+  // dihedral); 6.5 passes every row - the reference's chord-line slope 7.5, its headline dihedral 5.95
+  wgDihedralOut: 6.5,
+});
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);
-  Object.assign(j.spec.cage, DC3_ROWS, over || {});
+  Object.assign(j.spec.cage, DC3_ROWS, DC3_FIT, over || {});   // G3579: v1 - the reference fit over the study's rows
   // the DC-3's 822 US gal in two centre-section tanks (the widened 2 000 L a vessel)
   j.spec.energy.vessels = [{ bay: 'wingRoot', capacity: 1555 }, { bay: 'wingRoot', capacity: 1555 }];
   j.spec.fuel.litres = 3110;
@@ -126,4 +211,4 @@ function printSheetFull(s) {
   if (pr.printSheet) pr.printSheet(s); else console.log(JSON.stringify(s));
 }
 function printFlight(R) { const pr = require('./dc3_probe.js'); if (pr.printFlight) pr.printFlight(R); else console.log(JSON.stringify(R)); }
-module.exports = { DC3_ROWS, dc3FullRaw, buildFixture, FIX };
+module.exports = { DC3_ROWS, DC3_FIT, dc3FullRaw, buildFixture, FIX };

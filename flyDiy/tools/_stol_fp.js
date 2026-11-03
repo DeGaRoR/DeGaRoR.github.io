@@ -77,4 +77,14 @@ function fpCheck(C, def) {
   return { check: h(JSON.stringify({ v: dc.verdict, r: dc.rows.map(r => [r.id, r.level, r.value]), sheet })),
            checkWords: dc.verdict + ' Vref ' + (S.Vref * 3.6).toFixed(2) + ' km/h, Vs0 ' + (S.Vs0 * 3.6).toFixed(2) + ', TO ' + S.TORun + ' m' };
 }
-module.exports = { h, fpDef, fpFly, fpDraw, fpLap, fpCheck };
+// the cage's eight STOL rows at "off" (the wing layer's PAGE.defaults), and a joined spec as master built it BEFORE the
+// STOL wing: the join states stol: null on a wing and the rows at "off" (A3) - dropped here, as GATE STOL section 1 drops
+// them before it compares (a row off its default, or a stated record, stays: the gate then names it)
+const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+function preStol(spec) {
+  const J = JSON.parse(JSON.stringify(spec));
+  for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
+  if (J.cage && Object.keys(STOL_ROW_DEFAULTS).every(r => J.cage[r] === STOL_ROW_DEFAULTS[r])) for (const r in STOL_ROW_DEFAULTS) delete J.cage[r];
+  return J;
+}
+module.exports = { h, fpDef, fpFly, fpDraw, fpLap, fpCheck, STOL_ROW_DEFAULTS, preStol };

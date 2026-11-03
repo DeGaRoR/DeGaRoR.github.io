@@ -69,6 +69,9 @@ const hgDef = {
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges (0 forward, 1 top, 2 aft, 3 bottom, 4 top + bottom - G1105)
+  // PILLAR-ANCHORS (3 Nov, the user's call): THE DOOR STOP, degrees - how far the doors open, what the door-swing
+  // check sweeps to (CAGE_DEFAULT_ABSENT: not written at 75)
+  doorStop: 75,
   hgDrOff: 0, hgDrTilt: 0, hgDrSlide: 0, hgDrInset: 0,   // DOOR-HINGES: the doors' one axis, tweaked (0 each = the fitted line)
   hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
@@ -107,6 +110,9 @@ const GROUP = ['13 · control hardware', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
     ['hgDoorEdge', 'hinge edge', 0, 4, 1, ['forward', 'top', 'aft', 'bottom', 'top + bottom'],
      { when: P => +P.hgOn && +P.hgDoor }],
+    // PILLAR-ANCHORS: how far the doors open (the door-swing check sweeps to it; a red under 20 mm fails the
+    // commercial certificate's "Doors open fully" row, DESIGN-AIDS aid.doors)
+    ['doorStop', 'door stop', 45, 120, 5, { when: P => +P.hgOn && +P.hgDoor, dim: '°' }],
     // DOOR-HINGES (2026-10-27): every hinge of a door on ONE axis, fitted to
     // the straight part of the chosen edge; these move that axis. Display
     // hardware: bench.js / 76_procure.js keep them out of every certificate
@@ -350,6 +356,7 @@ function surfaceList(scene, P, FS, mesh) {
       const liftH = 0.002;
       const A = V.add(P0, V.mul(m, need + liftH)), B = V.add(P1, V.mul(m, need + liftH));
       out.push({ key: 'door_' + rec.key.replace(':', '_') + sfx, kind: 'door', obj: null, host: null,
+                 door: rec.key, part: sfx === '_top' ? 'up' : sfx === '_bot' ? 'lo' : 'all',   // PILLAR-ANCHORS: the swing's axis
                  A, B, r: rBar, aft: into, face: m, faces: 1, slide: null,
                  chord: V.len(V.sub(omid, mid)) * FS, flat: 1,
                  inset: +P.hgDrInset || 0 });
@@ -492,13 +499,16 @@ function skinProbe(scene, s) {
 // downward; a flank exit above the waist would get the inward one).
 // a ray against the cage SHEET (cage units × FS), skin faces only — the
 // same triangles GATE CLIP measures; returns { t, n } or null
-function sheetRay(mesh, FS, o, d, tMax) {
-  if (!mesh || !mesh.V || !mesh.F) return null;
-  const GGk = window.GEAR_GEN;
-  const CMk = GGk && GGk.CAGE_MATS ? new Set(GGk.CAGE_MATS) : null;
-  let best = null;
-  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
-  const Vv = mesh.V;
+// PHONE-EDIT-PERF (2 Nov): THE SHEET'S SKIN FACES AND THEIR Z-RANGES, ONCE PER SHEET. sheetRay ran over every face of the
+// sheet on every call - the material Set made again, each face's z-range measured again - and the cable routing calls it
+// dozens of times a build (`sheetRay` 0.6 s self in a few minutes of edits on the user's S20 FE). A sheet is not changed
+// once built (the kept sheet, G1300); the list keeps the faces' own order, so the ray meets the same faces in the same
+// order and the nearest hit is the same one
+const SHEET_FACES = new WeakMap();
+function sheetFaces(mesh, FS, mats) {
+  let c = SHEET_FACES.get(mesh);
+  if (c && c.FS === FS && c.mats === mats && c.nF === mesh.F.length) return c;
+  const CMk = mats ? new Set(mats) : null, Vv = mesh.V, F = [], Z = [];
   for (const f of mesh.F) {
     if (CMk && !CMk.has(f.m)) continue;
     const v = f.v || f;
@@ -506,7 +516,22 @@ function sheetRay(mesh, FS, o, d, tMax) {
     // the window, not a vertex fall inside it
     let fz0 = Infinity, fz1 = -Infinity;
     for (const i of v) { const z = Vv[i][2] * FS; if (z < fz0) fz0 = z; if (z > fz1) fz1 = z; }
-    if (fz1 < zLo || fz0 > zHi) continue;
+    F.push(v); Z.push(fz0, fz1);
+  }
+  c = { FS, mats, nF: mesh.F.length, F, Z };
+  SHEET_FACES.set(mesh, c);
+  return c;
+}
+function sheetRay(mesh, FS, o, d, tMax) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const GGk = window.GEAR_GEN;
+  const SF = sheetFaces(mesh, FS, GGk && GGk.CAGE_MATS ? GGk.CAGE_MATS : null);
+  let best = null;
+  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
+  const Vv = mesh.V;
+  for (let fi = 0; fi < SF.F.length; fi++) {
+    const v = SF.F[fi];
+    if (SF.Z[fi * 2 + 1] < zLo || SF.Z[fi * 2] > zHi) continue;
     for (let k = 1; k + 1 < v.length; k++) {
       const a = Vv[v[0]], b = Vv[v[k]], c = Vv[v[k + 1]];
       const e1 = [(b[0] - a[0]) * FS, (b[1] - a[1]) * FS, (b[2] - a[2]) * FS];
@@ -1096,10 +1121,55 @@ PAGE.post = ctx => {
 
   window.CAGE_HINGE = { placed, tris, surfs: surfs.map(s => s.key), hostOf,
     links: links.map(L => ({ key: L.key, surf: L.surf, kind: L.kind,
-                             pin: L.pin, tip: L.tip, pinCastor: !!L.pinCastor })) };
+                             pin: L.pin, tip: L.tip, pinCastor: !!L.pinCastor })),
+    // PILLAR-ANCHORS: each door's hinge line as the barrels sit on it (metres, the cage frame) - the axis the
+    // door-swing check turns the door about (one line, the one drawn)
+    doors: surfs.filter(s => s.kind === 'door' && s.door).map(s => ({ door: s.door, part: s.part, A: s.A.slice(), B: s.B.slice() })) };
   if (stat)
     stat.textContent += '  ·  hinges: ' + placed.reduce((a, p) => a + p.n, 0) +
       ' on ' + placed.length + ' surfaces (' + tris + ' t)';
+  doorSwingSchedule(ctx, FS);
 };
+
+// PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK, in the editor. A door is a zone with hinges drawn on one edge
+// and nothing opened it; the user's twin's doors hit the float strut and scraped the lift strut's foot and nobody
+// could see it. PILLAR_SITE.doorSwingReport turns every door 0 -> 90 deg about the line drawn above against every
+// drawn layer (~1 s a door), so it runs when the hand has stopped (an idle callback after the build, dropped when a
+// newer build supersedes it), appends its answer to the status line and leaves it on CAGE_DOORSWING for the join's
+// notes. A page without idle callbacks (node: the gates, the load door) never schedules it - they call the report.
+let swingTok = 0, swingIdle = null, swingCtx = null;
+function doorSwingSchedule(ctx, FS) {
+  const tok = ++swingTok;
+  window.CAGE_DOORSWING = { tok, last: null, P: ctx.P };
+  // ONE PENDING PASS, THE LATEST BUILD'S, AND ONLY IN THE EDITOR: a pass per build queued with its own scene kept
+  // every superseded aeroplane alive until its callback ran (GATE PARKED's page in node captures aeroplane after
+  // aeroplane in the game and ran out of heap); the game's builds (CAGE_IN_GAME: the parked captures, the flown
+  // aeroplane) and a drag tick's preview never ask
+  swingCtx = null;
+  if (swingIdle != null && typeof window.cancelIdleCallback === 'function') { try { window.cancelIdleCallback(swingIdle); } catch (e) {} }
+  swingIdle = null;
+  const PSm = window.PILLAR_SITE;
+  if (!PSm || !PSm.doorSwingReport || typeof window.requestIdleCallback !== 'function' || !ctx.mesh) return;
+  if (window.CAGE_IN_GAME || ctx.preview || ctx.defer) return;
+  swingCtx = { ctx, FS };
+  swingIdle = window.requestIdleCallback(() => {
+    swingIdle = null;
+    const SC = swingCtx; swingCtx = null;
+    if (!SC || tok !== swingTok) return;
+    const { scene, mesh, P, stat, spec } = SC.ctx;
+    try {
+      const R = CG2 && CG2.cageResolve ? CG2.cageResolve(spec || CG2.cageSpec(Object.assign({}, P))) : null;
+      const rep = PSm.doorSwingReport(THREE, scene, mesh, R, SC.FS,
+        { edge: Math.round(+P.hgDoorEdge || 0), hinges: window.CAGE_HINGE && window.CAGE_HINGE.doors, stop: +P.doorStop || 75 });
+      if (tok !== swingTok) return;
+      window.CAGE_DOORSWING.last = rep;
+      if (stat && rep.doors.length) {
+        const w = rep.worst;
+        stat.textContent += '  ·  doors: ' + (rep.red ? 'SWING RED ' : 'swing ok, least ') + PSm.swingLine(w) +
+          (rep.red ? ' — under ' + rep.redMM + ' mm' : '');
+      }
+    } catch (e) {}
+  }, { timeout: 4000 });
+}
 
 })();

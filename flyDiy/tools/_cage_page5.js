@@ -9,6 +9,11 @@
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
+// THE SEAT TYPES' NAMES (SEATS, 2026-11-02): tools/_seat_gen.js SEAT_PRESETS order, the slider's labels (GATE SEATS
+// holds this list, the design rows' SEAT_STYLES and the presets to one order)
+const SEAT_TYPE_LABELS = ['tube & sling', 'carbon bucket', 'vintage airliner', 'touring', 'sculpted sport',
+  'executive leather', 'ultralight sling', 'aerobatic recline', 'vintage crew', 'heavy-duty work', 'woven cane',
+  'reclined tub', 'folding canvas', 'parachute bucket', 'bush utility'];
 // who the co-pilot's select offers (G204.1; G3700): 0 = 'mixed crew' (the
 // characters rotate through the seats, no two alike while there are enough
 // of them), 1.. = one registered character (52_char_codec.js CHAR_REG; none
@@ -458,6 +463,10 @@ window.CAGE_PAGE = {
       // T2.3 (84): the bottom's own ease (-1 = the deck's)
       ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
+      // G3579 (DC3-2, the user 28 Oct): THE NOSE'S ROUNDNESS, one dial from a cone (0, the loft as it always was) to a
+      // soft dome (1: the rings on a quarter-ellipse, spaced along the arc); with the tip collapsed and 'tip sharpness' 0
+      // the tip has no point and no crease. Absent 0: every build before, ring for ring
+      ['noseDome',  'nose roundness (cone → dome)', 0, 1, 0.01, { when: P => +P.noseFinish, absent: 0 }],
     ]],
     ['4 · cabin', [
       ['dimensions', [
@@ -474,7 +483,10 @@ window.CAGE_PAGE = {
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
-        ['bubble',    'bubble glass',   0, 1, 1,
+        // G3579 (DC3-2, the user 28 Oct: "the not so well-named 'bubble canopy' ... rename that option ... into 'glass
+        // ceiling'"): the label only - the key stays `bubble` (it rides every saved build), and the canopy's own
+        // 'bubble' (canopy 3) is the one that builds a bubble canopy
+        ['bubble',    'glass ceiling',  0, 1, 1,
          { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
@@ -665,9 +677,8 @@ window.CAGE_PAGE = {
     ['4c · crew & controls', [
       ['seats', [
         ['crewOn',    'crew layer',     0, 1, 1],
-        ['seatType',  'seat type',      0, 2, 1, ['tube frame',
-                                                  'composite shell',
-                                                  'airliner']],
+        // SEATS (2026-11-02): the seat library's presets, SEAT_PRESETS order (tools/_seat_gen.js; GATE SEATS)
+        ['seatType',  'seat type',      0, 14, 1, SEAT_TYPE_LABELS],
         // G180: the ROW — one abreast or two — in the cockpit AND in every
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
@@ -696,6 +707,11 @@ window.CAGE_PAGE = {
       // above). `paxSeatZ` places the row inside its bay off the bay's own
       // aft ring, the way `seatZ` places the pilot's off the cockpit's.
       ['passenger seats', [
+        // SEATS (2026-11-02, the user: "maybe that should be a flag too, pilot and passenger seats"): the cabin's own
+        // seat type. NOT IN THE DEFAULTS TABLE (absent = -1 = as the pilots', or the pilots' preset's own cabin seat):
+        // a build that never moved it saves no key
+        ['paxSeatType', 'seat type', -1, 14, 1, ['as the pilots\''].concat(SEAT_TYPE_LABELS),
+         { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
         ['seat2H',    'squab height',  -1, 1.50, 0.005,
@@ -958,7 +974,8 @@ window.CAGE_PAGE = {
       ], {}],
     ]],
     ['5 · passengers', [
-      ['paxCount',  'pax bays',        0, 4, 1],
+      // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)
+      ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
@@ -1002,6 +1019,22 @@ window.CAGE_PAGE = {
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
       ['paxOcc4',   'bay 4 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
+      ['paxOcc5',   'bay 5 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 5, absent: 0 }],
+      ['paxOcc6',   'bay 6 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 6, absent: 0 }],
+      ['paxOcc7',   'bay 7 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 7, absent: 0 }],
+      ['paxOcc8',   'bay 8 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 8, absent: 0 }],
+      ['paxOcc9',   'bay 9 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 9, absent: 0 }],
+      ['paxOcc10',  'bay 10 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 10, absent: 0 }],
+      ['paxOcc11',  'bay 11 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 11, absent: 0 }],
+      ['paxOcc12',  'bay 12 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 12, absent: 0 }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The
@@ -1030,7 +1063,10 @@ window.CAGE_PAGE = {
       // G274.1 (the user: "I still miss the option to get the booms fore/aft
       // relative to the wing"): the root's station against the trailing
       // edge, metres, aft positive (the frame reads the drawn root, boomX0)
-      ['boomDz',    'fore / aft (from the trailing edge)', -1.0, 1.0, 0.005,
+      // FLAGSHIP (the user, 2 Nov: "for the twin booms, I need sliders fore-aft going further ... getting the tip of
+      // the boom to the wing leading edge"): -1.0 was a number, not a reason. The slider runs to -3.5; the wing layer
+      // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
+      ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end

@@ -667,7 +667,10 @@
     if (!m || !m.isMaterial) return m;
     let b = BANDS.get(m);
     if (b) return b;
-    b = m.userData && m.userData.flownBaked ? copyMat(m, FB_BAND_HOOK, (m.name || 'flown:baked') + ':band', { flownBand: 1 })
+    // (G2004, DMG-SCUFF: a baked material the damage layer wrapped keeps its wrapper on its band twin - scuffRe re-wraps
+    // the band's hook; absent with the layer off, so this is the line as it was)
+    const re = m.userData && m.userData.scuffRe;
+    b = m.userData && m.userData.flownBaked ? copyMat(m, re ? re(FB_BAND_HOOK) : FB_BAND_HOOK, (m.name || 'flown:baked') + ':band', { flownBand: 1 })
                                            : copyMat(m, liveHook(hookOf(m)), (m.name || 'aeroskin') + ':band', { flownBand: 1 });
     BANDS.set(m, b);
     return b;

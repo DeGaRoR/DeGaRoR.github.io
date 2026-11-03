@@ -41,7 +41,16 @@ const VALIDATED = {
   metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
-    patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
+    patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });
+      // TANK-FIT case D (the user via A0, 3 Nov: the 10 L refit goes in once FLOATS' taxi is fixed - it was the gate's
+      // 45 s window, not the sim: tools/_floats_check.js): the header tank stood 25 mm aft of the panel's plane, into a
+      // frame tube (15 mm) and the panel (20 mm); no auto shape fits this open pod (the legs reach the nose). The largest
+      // that clears on train 1B (the knee fix moved the legs: the 10 L found on PH1A stood 7 mm into the panel there):
+      // the same cylinder at 0.75 of its size, turned as saved, 3 cm forward - 8 L where 19 L could not be (5 mm clear)
+      if (j.spec.energy && Array.isArray(j.spec.energy.vessels) && j.spec.energy.vessels[0] && j.spec.energy.vessels[0].bay === 'nose')
+        j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.104, lv: 0.6, rot: 90, form: 'cyl',
+          dims: { L: 0.285, W: 0.2318, H: 0.1875 }, capacity: 8 });
+      return j; } },
 };
 
 // ---- the inputs' fingerprint ----------------------------------------------------------------------------------------
@@ -78,7 +87,7 @@ function gameSpecFull(rawIn) {
   const raw0 = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
   // a BIRTH envelope (`birth`) rides to the child as a marker the child strips before anything reads the spec
   const raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
-  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').digest('hex');
+  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
     try { const c = JSON.parse(fs.readFileSync(cf, 'utf8')); return Object.assign(c, { key, cached: true }); } catch (e) {}
@@ -200,7 +209,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     return a * FS * FS; };
   let r = null, J = null;
   const buildAndJoin = () => {
-    r = SH.sceneBuild(spec, { garage: STORE.get(), resolved: STORE.resolved, inGame: true, prebuild: PREBUILD });
+    // (CABIN-CRAFT: FLYDIY_HEADLESS_MS=1 publishes the sheet to the layers as the page does - _scene_headless opts.ms)
+    const MSON = process.env.FLYDIY_HEADLESS_MS === '1';
+    r = SH.sceneBuild(spec, { garage: STORE.get(), resolved: STORE.resolved, inGame: true, prebuild: PREBUILD, ms: MSON });
     W.GARAGE_SPEC = STORE;                                // the energy layer's commit (a timer) writes through it
     // THE PAGE'S MOUNT HIERARCHY (tools/_bake_joined.js): the join's edMount() walks to the group whose grandparent
     // is the scene - two identity groups over the layers give it the page's answer
@@ -211,6 +222,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     // (a tree without JOIN-PARITY's src - G2500, CESSNA-VREF on train 40: the same sum _cage_ui.js's build makes over its
     // GLASSM set, written here because that tree only measures it inside the editor's UI)
     W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2 ? W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) : glazedM2Of(r.built.mesh, r.FS) };
+    if (MSON) W.CAGE_UI.MS = r.built.mesh;
     // 3. app.js BUILD_SYNC: the join's export, merged by GARAGE_SPEC.update
     W.CAGE_UI_LAZY = true;
     if (!W.CAGE_JOIN) vm.runInContext(fs.readFileSync(path.join(T, '_cage_join.js'), 'utf8'), W, { filename: '_cage_join.js' });
@@ -243,6 +255,6 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps };
   // (a diagnostic: FLYDIY_JOIN_PROBE=<file> runs that function body in the page context after the last build)
   if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
-  process.stdout.write('\u0001' + JSON.stringify(out));
-  process.exit(0);
+  // (exit once the pipe has taken it all: a large probe answer was cut at the pipe's 64 KB by an immediate exit)
+  process.stdout.write('\u0001' + JSON.stringify(out), () => process.exit(0));
 })().catch(e => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });

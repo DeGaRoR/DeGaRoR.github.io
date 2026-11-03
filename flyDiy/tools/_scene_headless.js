@@ -116,6 +116,11 @@ function sceneBuild(spec, opts) {
   const scene = new C.THREE.Scene();
   const errors = C.errors.slice();
   const stat = { textContent: '' };
+  // CABIN-CRAFT (opt-in, opts.ms): THE SHEET THE PAGE'S LAYERS READ. The editor's build publishes its subdivided sheet
+  // as CAGE_UI.MS before the layers run (_cage_ui.js build: `MS = s`), and the light layer hangs the cabin lamps off it
+  // (ceilAt / frameAt): headless it was never there, so every headless cabin lamp missed the roof. Opt-in, so no
+  // other headless drawing moves.
+  if (opts.ms) W.CAGE_UI = Object.assign({}, W.CAGE_UI || {}, { MS: built.mesh, P });
   if (PAGE.post) {
     try { PAGE.post({ scene, spec: built.spec, mesh: built.sheet, P, stat }); }
     catch (e) { errors.push('post: ' + (e && e.stack || e)); }

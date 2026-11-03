@@ -358,7 +358,8 @@
   const DKEY = 'flydiy.boot.deck';
   function deckState() { let d = null; try { d = JSON.parse(sget(DKEY) || 'null'); } catch (e) {} return (d && typeof d === 'object') ? d : {}; }
   // the procedural 24 km world (?world=none, the graphics menu's world row): the island's cards stay out
-  function analytic() { return typeof window !== 'undefined' && window.FLYDIY_WORLD === 'none'; }
+  // (G3790: and the test field, the analytic HOME on flat ground)
+  function analytic() { return typeof window !== 'undefined' && (window.FLYDIY_WORLD === 'none' || window.FLYDIY_WORLD === 'testfield'); }
   function deckFor(dset) {
     const all = (typeof window !== 'undefined' && Array.isArray(window.BOOT_CARDS)) ? window.BOOT_CARDS : [];
     const poolSet = dset === 'rollin' ? 'garage' : dset === 'settings' ? B._shotSet : dset;
@@ -615,8 +616,11 @@
     if (typeof console !== 'undefined') console.warn('boot: ' + reason + (miss.length ? ' - never landed: ' + miss.join(', ') : '') + (B.failed.length ? ' - failed: ' + B.failed.join(', ') : ''));
     B.state = 'ready'; hide();
   }
+  // STORY-1 (the user 29 Oct): html.fdBoot while the screen is up - style.css holds the game's layers above it until the
+  // reveal (Tim's band, the pills, the corner); the page's start is the first screen, so the class is on from here
+  const upCls = on => { try { if (HAS_UI && doc.documentElement && doc.documentElement.classList) doc.documentElement.classList.toggle('fdBoot', !!on); } catch (e) {} };
   function hide() {
-    rec('gone'); const b = $('boot'); B.state = 'gone'; B._hold = false; shaders(null);
+    rec('gone'); const b = $('boot'); B.state = 'gone'; B._hold = false; shaders(null); upCls(false);
     if (HAS_UI) { const t = now(); setBar(shown(t), 1, 250, t); text('bootPct', '100 %'); }
     // the roll-out's first picture, fetched now that the page is idle: its world step holds the main thread
     // for seconds, and a picture asked for under it would land after it - an empty background meanwhile
@@ -627,6 +631,7 @@
   }
   function show(set, opt) {
     const b = $('boot'); if (b) { b.hidden = false; b.classList.remove('gone'); if (b.setAttribute) b.setAttribute('data-set', set || 'garage'); }
+    upCls(true);
     B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false; B._hold = false;
     // G640: the pictures of the scene being left for a settings change ('settings' has none of its own)
     B._shotSet = B.set === 'settings' ? ((opt && opt.shots) || 'garage') : B.set;
@@ -669,6 +674,7 @@
   B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;
+  { const b0 = $('boot'); if (b0 && !b0.hidden && !(b0.classList && b0.classList.contains('gone'))) upCls(true); }   // STORY-1: the page's first screen
   rec('boot.js');
   phase('scripts', 'reading the scripts');
   deal('garage');

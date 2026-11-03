@@ -174,6 +174,7 @@ const MANIFEST = {
     // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s
     // probe and 64_'s genAlphaForLift; genShakedown attaches it (not on a slim sheet)
     '64b_gen_design.js',
+    '64c_gen_aids.js',
     '65_gen_loadtest.js',
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
@@ -565,6 +566,7 @@ const MANIFEST = {
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
               'pavement.js',
+              'ground_tier.js',   // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane - render_world.js drives it
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
@@ -629,7 +631,9 @@ const MANIFEST = {
     // makes the instance and editor.js's rail reads it. input_panel.js is the
     // mapping panel over it, opened from both rails; DOM-lazy, built on the
     // first open, so its position only has to precede the two callers.
-              'design_flow.js', 'balance.js', 'pattern_vis.js',
+    // new_plane.js before design_flow.js (NEW-PLANE): the full-screen new-aeroplane chooser (window.NEW_PLANE) -
+    // design_flow's openBirth hands the NEW button to it
+              'new_plane.js', 'design_flow.js', 'balance.js', 'pattern_vis.js',
     // route_lazy.js before app.js (G3070 ROUTE-LAZY over G2120 ROUTE-DRAW): window.ROUTE_DRAW, the drawn route's door -
     // app.js attaches it and calls it as it called the drawing; the drawing itself (route_draw.js: the map's draw mode,
     // its gestures, the panel, the profile strip) is MANIFEST.routeDraw, its own file beside the page, run on first
@@ -645,6 +649,9 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
+              // G2803 (AVIONICS-GPS phase 2): the GPS unit's screen - window.FLYDIY_GPS at eval; app.js binds it with
+              // the cockpit and ticks it after CK.frame (it paints at 4 Hz); after cockpit.js, before app.js
+              'gps_face.js',
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
@@ -680,6 +687,7 @@ const MANIFEST = {
               'wreck_debris.js',
               // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
               'dmg_glass.js',
+              'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -704,6 +712,9 @@ const MANIFEST = {
     // tiles, archetypes, GATE DESIGN. Pure data too, and every table it
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
+    // THE NEW-PLANE GENERATOR (NEW-PLANE): the chooser's steps, its static rule table and the compose over the design
+    // rows above - pure, every table reached lazily, so it sits with them (src/viewer/new_plane.js renders it)
+    '_new_plane.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
     // occupants with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
@@ -714,15 +725,21 @@ const MANIFEST = {
     // THE POST CHAIN, FLAT (G1441): after CAGE_PAGE exists, before the first layer chains PAGE.post - the
     // registrations, the drag preview's skips and the layers' recorded inputs (_cage_chain.js)
     '_cage_chain.js',
+    // THE SEAT LIBRARY (SEATS, 2026-11-02): the calibrated seat presets (seatType 3+); pure, reached by the crew's
+    // buildSeat at call time, so only before the crew
+    '_seat_gen.js',
     '_cage_crew.js',
     // THE INSTRUMENTS (the panel arc, session 2): the fit as a list, the
     // Instruments part's column and the join's `systems` seam; its geometry
     // comes in session 3. Reads the crew's anchors, so after the crew.
     '_panel_gen.js', '_cage_panel.js',
+    // THE FURNISHING (G2806, AVIONICS-GPS phase 2): the seats' kind and the trim as billed rows - a column and the
+    // join's `outfit` seam, no geometry of its own (the seats it names are the crew's)
+    '_cage_furnish.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
-    '_fit_site.js', '_fit_gen.js',
+    '_fit_site.js', '_pillar_site.js', '_fit_gen.js',   // PILLAR-ANCHORS: the pillars and the doors, one record
     // THE HINGE SHAPES (G238): the same table/placer/shapes split, over
     // GEAR_KIT. Pure module, no post hook — only has to be before the layer.
     '_hinge_gen.js',
@@ -1165,12 +1182,17 @@ function buildViewer(core) {
     // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
     // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
     if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
+    // G3791 (PHONE-TESTFLIGHT): the phone's test flight (profile.js, the flight variant: boot 'testfield') boots the test
+    // field whatever the menu saved - a few KB of world (makeWorld's opts.flat), never the island
+    else if (window.PROFILE && window.PROFILE.is('boot', 'testfield')) { name = 'testfield'; window.FLYDIY_WORLD = 'testfield'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
-    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
+    // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD - the analytic HOME strip and its hangar on endless flat ground (20_world.js
+    // opts.flat, world_boot.js); no file of its own, so it is named here beside the analytic world
+    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }, { id: 'testfield', name: 'Test field' }]);
     var isl = null;
     for (var i = 0; i < all.length; i++) if (all[i].id === name) isl = all[i];
-    if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
+    if (!isl) { window.FLYDIY_WORLD = name === 'testfield' ? 'testfield' : 'none'; window.ISLAND_BOOT = null; return; }
     var keys = Object.keys(isl.files), done = 0, fetched = 0;
     for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
     // G998 (A5-LOAD): THE PREMISES FIXTURE, ALONGSIDE. app.js read it with a SYNCHRONOUS XHR inside its own evaluation
