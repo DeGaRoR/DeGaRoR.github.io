@@ -42,12 +42,10 @@ const VALIDATED = {
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
     patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });
-      // TANK-FIT case D (the user, 3 Nov: "Yes"): the header tank stood 25 mm aft of the panel's plane, into a frame
-      // tube (15 mm) and the panel (20 mm); no auto shape fits this open pod (the legs reach the nose). The same
-      // cylinder at 0.8 of its size, 2 cm forward, upright as drawn: 10 L where 19 L could not be (5 mm clear)
-      if (j.spec.energy && Array.isArray(j.spec.energy.vessels) && j.spec.energy.vessels[0] && j.spec.energy.vessels[0].bay === 'nose')
-        j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.094, lv: 0.55, rot: 0, form: 'cyl',
-          dims: { L: 0.304, W: 0.2472, H: 0.2 }, capacity: 10 });
+      // TANK-FIT case D: the header tank stands 25 mm aft of the panel's plane (red: 15 mm into a frame tube, 20 mm into
+      // the panel) and no auto shape fits this open pod. The refit that fits (the same cylinder at 0.8: 10 L, 2 cm
+      // forward) made GATE FLOATS' idle water taxi diverge (NaN 20 s after the touch; master's passes) - so it is NOT
+      // applied: the tank stays as saved, red, flying, uncertified (reports/evidence/TANK-FIT/STATUS.md), owed to the sim
       return j; } },
 };
 

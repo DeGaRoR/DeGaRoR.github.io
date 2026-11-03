@@ -179,7 +179,7 @@ the deck is 2 cm (a row).
 | metal Cessna (C172) | 25 L, its own box (fits) | 76 L fits (not applied: its own box) | 0.478 / 0.225 m |
 | ugly_bi | 60 L, its own box (fits) | 104 L fits (not applied: its own box) | 0.572 / 0.213 m |
 | floatplane CARD | 13 L deck, red (3 mm into a tube) | **16 L** fits | - |
-| twin floatplane (validated, case D) | 19 L, red (15 mm into a tube, 20 mm into the panel) | no auto shape (the legs reach the nose tip, the screen slopes over them): **refit 10 L** (the same cylinder at 0.8, 2 cm forward, 5 mm clear) | - |
+| twin floatplane (validated, case D) | 19 L, red (15 mm into a tube, 20 mm into the panel) | no auto shape (the legs reach the nose tip, the screen slopes over them); a 10 L refit fits but was withdrawn (see below) | - |
 
 References: J-3 Cub 12 US gal = **45 L** here (ours: 44 L); a Jodel D11 ~60 L behind the panel (ours: 55 L); a
 C172 has no nose tank.
@@ -188,10 +188,12 @@ C172 has no nose tank.
 * the saves' nose tanks with no station and no box of their own now take the auto shape by default
   (`window.TANK_NOSE_AUTO_ALL = false` = the old shaping, the A/B);
 * the floatplane card's STOCK_TANKS entry is `fit: 'auto'` (hand-edited: tank_refit_apply.js generated the table);
-* the validated twin floatplane's header tank: refitted in its VALIDATED patch (`_load_build.js`, the floats patch;
-  the shared v7 fixture is untouched): 19 → **10 L**. Nothing larger fits the open pod's nose (searched: 0.8-1.0 of
-  its size, every station and level, both turns); a second tank behind the seat did not clear at the bay rule's spots.
-  Your call if you would rather keep 19 L red (it flies, no certificate).
+* the validated twin floatplane's header tank: **NOT applied** (measured, then withdrawn). Nothing larger than 10 L
+  fits the open pod's nose (searched: 0.8-1.0 of its size, every station and level, both turns; a second tank behind
+  the seat did not clear at the bay rule's spots), and the 10 L refit (the same cylinder at 0.8, 2 cm forward, 5 mm
+  clear) made **GATE FLOATS' idle water taxi diverge** (NaN 20 s after the touch; master passes) - a sim fragility the
+  6.5 kg lighter tank exposes, not a tank fault. So the tank stays as saved: red, it flies, the bench refuses it.
+  Owed: the taxi's divergence (the sim), then the 10 L refit (its numbers above; `refit/twinfloats_*` shows it).
 
 Every save this changes (the master spec's own tank vs this tree's, on today's core: the tank isolated):
 
@@ -202,7 +204,7 @@ Every save this changes (the master spec's own tank vs this tree's, on today's c
 | builds/composite_jodel_2026-10-07 | 45 L | 56 L deck | −14.5 / +8.1 mm | 514.4 → 525.4 kg |
 | tools/fixtures/camel_2026-10 | 44 L (red: 61 mm into the engine) | **25 L** deck, fits | +13.3 / −11.5 mm | 716.0 → 696.9 kg (31.7 → 18.0 kg) — **19 L less: flag it** |
 | tools/fixtures/cub_fittings_hand_2026-10, cub_quadwin_2026-10, stol_cub_kit | 28 L | 44 L deck | −20.1..−20.7 / +56..59 mm | +15 kg |
-| validated twin floatplane (VALIDATED patch) | 19 L cyl | 10 L cyl | (moved 2 cm forward) | −6.5 kg fuel |
+| validated twin floatplane | 19 L cyl | unchanged (the 10 L refit withdrawn: GATE FLOATS' taxi diverged) | — | — |
 | every other saved tank (its own place or box) | unchanged | | | |
 
 Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half of the skin cut away):
@@ -231,20 +233,27 @@ Screenshots (`refit/`, the simplified renderer tools/tank_shot.js, the near half
 * NOT within 4 ms on a phone yet: the nose auto-fit's first shaping (270-760 ms here, once per body change, cached);
   the first layout after a rebuild (28 ms here). Owed: the auto-fit's search off the main thread (open question 4).
 
-## Gates (node, this tree built with `node tools/build.js`; `run_gates.js --only=... --jobs=4`, 3 Nov)
-PASS: TANKMOUNT, ENERGY, ENERGYBASE, PARTS, DESIGN, SAVE, CAGEFIT, JOIN, FLOATKIT, COWL, STARTER, DASH, LIGHT.
-(DASH, LIGHT, NODUMMY, PARTS, TANKMOUNT, ENERGY are the gates that read `_cage_energy.js`.)
-FAIL, **standing on master** (the same run on an origin/master worktree, the same lines):
-* TECH: "every option of every covered table has a segment [pitch:seaplane]";
-* NODUMMY: `edDum` references in tools/_crew_head_probe.js, tools/newshapes_build.js, tools/quickshot.js;
-* ENGCONFIG: its pinned hashes (off an older master) differ for 17 builds and 3 cards on master too. This tree's
-  hashes are master's for every one EXCEPT `builds/chinook_2026-09-21_corrected.json` (bf6854b8… → 0ce32059…, the
-  def hash 9a62a6a6…): the strut pods' drag (Part 3), intended.
-Row updates (the honest verdict): TANKMOUNT's stock-tank row holds the floatplane card's deck tank as KNOWN (3 mm into
-a tube, ≤ 4 mm), and its raycast skips the contact markers; DASH reads "N mm into the dash". The Chinook's
-KNOWN_REMAP line no longer prints (the pod stays on its struts).
-Not run here: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates (UISMOKE...). The
-editor's rows (the auto-fit select, the gap row, dragLayout on input) are untested in a page: a look is owed.
+## Gates (node, the tree built; 3 Nov, round 2 - two container restarts, so run gate by gate where they died)
+PASS (28 asked): TANKMOUNT, ENERGY, ENERGYBASE, PARTS, DESIGN, SAVE, CAGEFIT, JOIN, FLOATKIT, COWL, STARTER, LIGHT,
+DASH, ACCEPT, DESIGNCHECK, TAKEOFF, CGBAND, HONESTY, PROCURE (+ FLOATS and JOINPARITY: see below).
+Rows updated with the reason (the applied refit, the user's "Yes"): ACCEPT reads the Cub's fitted 44 L (was 28);
+DASH asks its box-vs-arch question of the bay-rule tank and adds "the fitted nose tank clears either dash";
+TANKMOUNT skips the contact markers (and still holds a KNOWN row for the floatplane card, now refitted: unused).
+FAIL, **standing on master** (the same lines on an origin/master worktree):
+* TECH ("[pitch:seaplane]"), NODUMMY (`edDum` in three tools), STOL (the stol null-record rows, Vref, the lift-off),
+  HANDLE (Twin_busher_floats_2's door handles), BENCHTIME (the bench check 6.5-8.8 s vs 6 s on master here - a timing
+  gate on a shared box);
+* ENGCONFIG: pinned hashes off an older master. This tree's differ from master's on three builds only, all intended:
+  the Chinook (the strut pods' drag), the Cub and the Jodel (the applied nose tanks);
+* JOINPARITY: master fails 4 rows (the metal Cessna, the Cessna floats, the v10 fixture, the "no tool flies raw"
+  list); this tree adds **the Cub and the Jodel** (node vs the page's capture of 27 Oct: mass 476.9 vs 461.7 kg, 473.7
+  vs 464.2 kg) - the applied tanks, intended. **Owed: a re-capture** (`node tools/join_parity_page.js`, the page) when
+  the train lands this.
+* PROFILE: timed out (1800 s) under the battery's load, on master too in the same run; not judged.
+* FLOATS: red with the twin floatplane's 10 L refit (NaN in the idle taxi), green on master -> the refit withdrawn;
+  re-run below.
+Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates (UISMOKE...); the editor's
+new rows (auto-fit, the gap and room rows, dragLayout) and the bench's tank rows are untested in a page: a look owed.
 
 ## Open questions for the user
 0. For A0 (not the user's): the story mode's mission gate on the certificate is not built (see the overall rule above).
