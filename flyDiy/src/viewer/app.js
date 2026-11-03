@@ -903,6 +903,10 @@
   // user: "an option only if it comes for free"): the default garage pays three boolean reads and nothing else
   const STUDIO_PHONE = (() => { try { return !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('room', 'studio')); } catch (e) { return false; } })();
   let studioOn = STUDIO_PHONE || prefGet('flydiy.garageStudio', '0') === '1', studio = null;
+  // G3791 (PHONE-TESTFLIGHT): THE PHONE'S TEST FLIGHT - a phone page booted with the test-flight intent (profile.js
+  // PROFILE.flight: boot 'testfield'). It rolls out on the pilot's circuit as the boot lifts (bootOpts.done), the hand is
+  // not offered (setManual), and every way back to the shed is the garage page again (rollInScreen -> PROFILE.flyEnd)
+  const PHONE_FLY = (() => { try { return !!(window.PROFILE && window.PROFILE.flight); } catch (e) { return false; } })();
   if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
@@ -8522,6 +8526,7 @@
   function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
+    if (on && PHONE_FLY) return;   // G3791: the phone's test flight is the pilot's (no hand flying in v1)
     manual = on;
     if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
@@ -11557,6 +11562,14 @@
   let testFlight = null;
   function startTestFlight(card) {
     if (!inGarage) return false;
+    // G3791 (PHONE-TESTFLIGHT): THE PHONE GARAGE HANDS OFF - it has no world; the build is synced and committed (the WIP
+    // the flight page restores), the card kept for the next load, and the page reloads on the test field
+    // (profile.js flyStart; false when the profile has no test flight). Floats: the test field has no water (v1)
+    if (GARAGE_ONLY) {
+      if (floatsOn()) return false;
+      try { if (window.CAGE_UI) syncBuild(); if (window.GARAGE_SPEC && window.GARAGE_SPEC.commit) window.GARAGE_SPEC.commit(); } catch (e) { console.warn('flyDiy: the build could not be kept for the test flight -', e && e.message); return false; }
+      try { return !!(window.PROFILE && window.PROFILE.flyStart && window.PROFILE.flyStart(card ? { alt: card.alt || null, V: card.V || null, fp: card.fp || null } : null)); } catch (e) { return false; }
+    }
     const fp = card && card.fp;
     rollOut(() => {
       started = true;
@@ -12305,7 +12318,7 @@
       ' — measured on this build, not estimated.';
   }
 
-  let gInd = null, gLabels = [], gLabelsOld = [];
+  let gInd = null, gLabels = [], gLabelsOld = [], gIndMeshMat = null;
   // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
   // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
   let gTipBand = null, gTipEl = null;
@@ -12425,21 +12438,29 @@
   // an imported aeroplane, a build mid-rebuild — and the caller then HIDES the
   // instruments rather than drawing them somewhere they do not belong. An
   // instrument in the wrong place is worse than no instrument.
+  // G3906b (PHONE-1b; the user 2 Nov on the phone, the twin on floats: no posts): A FLOAT BUILD HAS NO AXLES - its GAL /
+  // GAR are the two floats' STEP KEELS (61_gen_frame FLOATS: GAL = FL.K[2]), and the float layer publishes the same two
+  // points in the cage frame (_cage_float.js rec.tetraC[side][0], "step keel" - the tetra the physics rides). The one
+  // landmark both aeroplanes agree on, as the axles are for wheels: the posts stand on floats too (the desktop as well).
   function standOffset() {
     if (!showCage) return [0, 0, 0];
     const G = window.CAGE_GEAR;
     const legs = G && G.units && G.units.legs;
     const P = def && def.parts;
-    if (!legs || !P || P.GAL == null || P.GAR == null) return null;
-    const mains = legs.filter(l => l.kind === 'L' || l.kind === 'R');
-    if (mains.length < 2) return null;
+    if (!P || P.GAL == null || P.GAR == null) return null;
+    let pts = legs ? legs.filter(l => l.kind === 'L' || l.kind === 'R').map(l => l.axle) : [];
+    if (pts.length < 2 && (P.TW == null || P.TW < 0)) {
+      const F = window.CAGE_FLOAT, T = F && F.tetraC;
+      pts = T && T.L && T.R && T.L[0] && T.R[0] ? [T.L[0], T.R[0]] : [];
+    }
+    if (pts.length < 2) return null;
     edSitP.updateMatrixWorld(true);
     const w = new THREE.Vector3();
     let cx = 0, cy = 0, cz = 0;
-    for (const l of mains) {
-      w.set(l.axle[0], l.axle[1], l.axle[2]);
+    for (const q of pts) {
+      w.set(q[0], q[1], q[2]);
       edSitP.localToWorld(w);
-      cx += w.x / mains.length; cy += w.y / mains.length; cz += w.z / mains.length;
+      cx += w.x / pts.length; cy += w.y / pts.length; cz += w.z / pts.length;
     }
     const a = P.GAL * 3, b = P.GAR * 3;
     const lx = 0.5 * (sim.p[a] + sim.p[b]),
@@ -12453,10 +12474,30 @@
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
-    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
-    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
-    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
+  }
+  // G3906b: line segments (V, C: 6 floats a segment) as square prisms t across, their ends run on by t/2 so a cross joins
+  function prismGeo(V, C, t) {
+    // plain arrays, no Vector3 maths (the UI smoke's THREE is a stub: G3906b's first cut threw there)
+    const P = [], Q = [], h = t / 2;
+    const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    const unit = (p, k) => { const n = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0] / n * k, p[1] / n * k, p[2] / n * k]; };
+    for (let s = 0; s + 5 < V.length; s += 6) {
+      let d = [V[s + 3] - V[s], V[s + 4] - V[s + 1], V[s + 5] - V[s + 2]];
+      const L = Math.hypot(d[0], d[1], d[2]); if (!(L > 0)) continue; d = [d[0] / L, d[1] / L, d[2] / L];
+      const u = unit(cross(Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], d), h), v = unit(cross(d, u), h);
+      const a = { x: V[s] - d[0] * h, y: V[s + 1] - d[1] * h, z: V[s + 2] - d[2] * h },
+            b = { x: V[s + 3] + d[0] * h, y: V[s + 4] + d[1] * h, z: V[s + 5] + d[2] * h };
+      const ring = o => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [o.x + u[0] * i + v[0] * j, o.y + u[1] * i + v[1] * j, o.z + u[2] * i + v[2] * j]);
+      const A = ring(a), B = ring(b), col = [C[s], C[s + 1], C[s + 2]];
+      const tri = (p, q, r) => { P.push(...p, ...q, ...r); for (let k = 0; k < 3; k++) Q.push(...col); };
+      for (let k = 0; k < 4; k++) { const k2 = (k + 1) & 3; tri(A[k], A[k2], B[k2]); tri(A[k], B[k2], B[k]); }
+      tri(A[0], A[1], A[2]); tri(A[0], A[2], A[3]); tri(B[0], B[2], B[1]); tri(B[0], B[3], B[2]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Q), 3));
+    return g;
   }
   function buildIndicators() {
     // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
@@ -12523,8 +12564,8 @@
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
-    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
-    // one place the posts are built from, so the two never disagree
+    // reading as numbers too - the one source for any readout that is not a 3D mark, written where the posts are built so
+    // the two never disagree (the phone's text chip that read it is retired, G3906b: the posts are the phone's readout)
     if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
       sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
@@ -12551,8 +12592,14 @@
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
-    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
+    // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
+    // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
+    // margin, the band's colour the verdict
+    if (!TOUCH_UI) {
+      label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+      label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+    }
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
@@ -12567,7 +12614,14 @@
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
-    gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    if (TOUCH_UI) {
+      // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
+      // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
+      // next build - G1027's trap; one link on the first build is the phone's cost)
+      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
+      g.dispose();
+    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     placeIndicators();
@@ -14376,6 +14430,8 @@
   // the doors call this instead of the pair; the shim (no BOOT.show) runs
   // the pair inline as before.
   function rollInScreen(after) {
+    // G3791: the phone's test flight goes back to the garage page (the studio, no world in memory), never to a shed here
+    if (PHONE_FLY) { try { if (window.PROFILE && window.PROFILE.flyEnd) { window.PROFILE.flyEnd(); return; } } catch (e) {} }
     if ($('bootRoute')) $('bootRoute').hidden = true;   // G710: the roll-out's route picker goes with its screen
     if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
       enterGarage(); openEditor(); if (after) after(); return;
@@ -15256,7 +15312,7 @@
       try { return CAREER_DEV && typeof careerWaitWindow === 'function' && world && world.day ? careerWaitWindow(playerLoad(), world.day) : null; } catch (e) { return null; }
     }
     if (CAREER_DEV && window.FLYDIY_CLOCK) window.FLYDIY_CLOCK.jobWait = clockJobWait;   // the day panel's career WAIT reads it
-    // G2650 (SIM-CLOCK): the route row's clock line + its wait select (routeBuild calls this per host)
+    // G2650 (SIM-CLOCK): the route row's clock line (routeBuild calls this per host; TIME-CONTROLS: its wait select is the time menu's now)
     function clockRowBuild(host, where) {
       const CK = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day && DAY_CLOCK.day() && DAY_CLOCK.wait ? DAY_CLOCK : null;
       for (let i = clockRows.length - 1; i >= 0; i--) if (clockRows[i].host === host) clockRows.splice(i, 1);
@@ -15264,41 +15320,12 @@
       const lab = document.createElement('label');
       const sp = document.createElement('span'); sp.textContent = 'clock'; lab.appendChild(sp);
       const v = document.createElement('b'); v.className = 'routeBase routeClock';
-      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting' : 'The sim clock (set it in the day panel)';
+      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting (the time menu, top bar)' : 'The sim clock (set it in the time menu, top bar)';
       lab.appendChild(v);
-      const sel = document.createElement('select'); sel.className = 'routeWait';
-      sel.title = 'Wait it out on the ground: the clock jumps to the next such hour (tomorrow\'s when it has passed)';
-      let nOpt = 0;
-      const fill = () => {
-        sel.innerHTML = ''; nOpt = 0;
-        const head = document.createElement('option'); head.value = ''; head.textContent = 'wait until…'; sel.appendChild(head);
-        const today = CK.day().localDate;
-        const opt = (val, words, key) => {
-          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = key || (typeof val === 'number' ? 'h' + val : val);
-          o.textContent = words + (r ? ' · ' + clockHhmm(r) + (clockDateOf(r) !== today ? ' (next day)' : '') : '');
-          sel.appendChild(o); nOpt++;
-        };
-        // G2665 (NIGHT-OPS): the career's Wait "until the window opens" - the tracked contract's time-of-day window, first
-        const jw = clockJobWait();
-        if (jw) opt(jw.target, 'the job\'s window (' + jw.words + ')', 'job');
-        for (const p of (window.DAY_UI ? window.DAY_UI.PRESETS : CK.PRESETS.map(k => ({ k, label: k })))) opt(p.k, p.label);
-        for (let h = 0; h < 24; h++) opt(h, String(h).padStart(2, '0') + ':00');
-        sel.value = '';
-      };
-      fill();
-      sel.addEventListener('pointerenter', fill); sel.addEventListener('focus', fill);
-      sel.onchange = e => {
-        const k = e.target.value; if (!k) return;
-        const jw = k === 'job' ? clockJobWait() : null;
-        if (k === 'job' && !jw) { sel.value = ''; return; }
-        const r = CK.wait(jw ? jw.target : /^h\d+$/.test(k) ? +k.slice(1) : k);
-        sel.value = '';
-        if (r && !r.ok) { sel.title = r.why; return; }
-        clockRowsSync(true);
-        if (typeof flRefreshDay === 'function') try { flRefreshDay(); } catch (er) {}
-      };
-      lab.appendChild(sel); host.appendChild(lab);
-      clockRows.push({ host, where, v, sel, last: '', opts: () => nOpt });
+      // TIME-CONTROLS (A0 2 Nov): the "wait until…" select that stood here is gone - the time menu (the top bar's time
+      // button, DAY_UI.menu) is the one place for time; the line says the hour and the date
+      host.appendChild(lab);
+      clockRows.push({ host, where, v, sel: null, last: '', opts: () => 0 });
       clockRowsSync(true);
     }
     routeBuild($('edRoute'), 'garage');
@@ -16596,6 +16623,12 @@
     const W = window.innerWidth, H = window.innerHeight;
     const w = fly.offsetWidth || 296;
     const bb = btn ? btn.getBoundingClientRect() : { left: 22, bottom: 90, top: 90 };
+    // TIME-CONTROLS: a flyout the player dragged keeps its place (card_drag.js 'flyout'); only its height is fitted
+    if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed && window.FLYDIY_DRAG.placed('flyout')) {
+      const top = fly.getBoundingClientRect().top;
+      fly.style.maxHeight = Math.round(Math.max(160, H - top - 22)) + 'px';
+      return;
+    }
     // the brief's slots keep the horizontal anchor; the ribbon's branch below
     // overwrites it, because a vertical ribbon anchors the other way round
     fly.style.left = Math.round(Math.max(22, Math.min(bb.left - 6, W - w - 22))) + 'px';
@@ -18497,6 +18530,14 @@
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
+  // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
+  // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
+  // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
+  if (window.FLYDIY_MENU && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage')) try {
+    window.FLYDIY_MENU.add({ k: 'testflight', label: 'Test flight', sec: 'Flight', before: 'controls',
+      when: () => inGarage && !floatsOn() && !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'testfield')),
+      act: () => { gmOpen(false); try { if (window.BENCH_RUN) window.BENCH_RUN('flight'); } catch (e) { console.warn('flyDiy: the test flight -', e && e.message); } } });
+  } catch (e) { console.warn('flyDiy: the test flight line -', e && e.message); }
 
   // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
@@ -18528,6 +18569,16 @@
     const flyFrom = (btn, k) => { if (flyOpen === k) { flyOpenSet(null); return; } flAnchorEl = btn; flyOpenSet(k); };
     FL_SLOTS.trip = { title: 'Where it goes' };
     FL_SLOTS.readouts = { title: 'What the readouts show' };
+    // TIME-CONTROLS (A0 2 Nov, the user: "In flight, in the career, this will replace the time of day and weather menu in the
+    // UI, since it cannot be freely controlled anymore"): the career's conditions are THE TIME MENU - the date and the hour,
+    // the day's weather told (not set), the waits (on the ground only: DAY_CLOCK's guard). The sandbox keeps the sky flyout
+    FL_SLOTS.time = { title: 'Time & weather' };
+    FL_BUILD.slot_time = body => {
+      if (!window.DAY_UI || !window.DAY_UI.menu) { FL_BUILD.slot_day(body); return; }
+      window.DAY_UI.menu(body, { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField },
+        { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, forecast: window.FLYDIY_FORECAST || null });
+    };
+    const condCareer = () => typeof DAY_CLOCK !== 'undefined' && !!(DAY_CLOCK.isCareer && DAY_CLOCK.isCareer());
     FL_BUILD.slot_trip = body => {
       FL_BUILD.slot_route(body);
       for (const k of ['drawn', 'start']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
@@ -18536,7 +18587,7 @@
       for (const k of ['instruments', 'trace', 'map']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
     };
     bRoute.onclick = () => flyFrom(bRoute, 'trip');
-    bCond.onclick = () => flyFrom(bCond, 'sky');
+    bCond.onclick = () => flyFrom(bCond, condCareer() ? 'time' : 'sky');
     $('pfdRow').addEventListener('click', () => flyFrom($('pfd'), 'readouts'));
     // the autopilot's words: folded by default, the phase line unfolds them
     let apOpen = prefGet('flydiy.fl2Ap', '') === '1';
@@ -18631,6 +18682,15 @@
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
       act: () => { try { window.FLIGHT_REC.save(); } catch (e) { console.warn('flyDiy: the log -', e && e.message); } }, before: 'main' });
+    // G3910 (PHONE-1b, the installed app; the user 2 Nov: "a force sync explicit option"): update_now.js does both - and the
+    // whole screen, where the browser has the Fullscreen API (an installed window keeps the status bar otherwise)
+    const UN = () => window.UPDATE_NOW;
+    window.FLYDIY_MENU.add({ k: 'updcheck', label: 'Check for update', sec: '', when: () => !!(UN() && UN().checkNow),
+      act: () => { gmOpen(false); UN().checkNow(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'updclean', label: 'Clean download & reload', sec: '', when: () => !!(UN() && UN().cleanReload),
+      act: () => { gmOpen(false); UN().cleanReload(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'fullscreen', label: 'Full screen', sec: '', when: () => !!(document.fullscreenEnabled && document.documentElement.requestFullscreen),
+      act: () => { gmOpen(false); try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch (e) {} }, before: 'main' });
     window.FLYDIY_MENU.add({ k: 'dev', label: 'Dev', when: () => !inGarage,
       page: body => { if (!flDevOn) flDevSet(true); pg(['patterns', 'engines', 'controls', 'ground', 'scenery', 'world', 'log', 'overlays'])(body);
         const b = flSection(body, 'pilotS', 'pilot', 'the style and the personality'); if (b) FL_BUILD.slot_pilot(b); }, before: 'main' });
@@ -18650,6 +18710,8 @@
       const wc = document.querySelector('#pfdRow .rd[data-i="wind"]'), wOut = !!(wc && wc.classList.contains('fl2Clip'));
       const dw = d + (wOut ? ' \u00b7 ' + txt('r-wind') + ' km/h' : '');
       if (bCond.lastChild.textContent !== dw) bCond.lastChild.textContent = dw;
+      const cw = condCareer() ? 'time & weather' : 'conditions';
+      if (bCond.firstChild.textContent !== cw) bCond.firstChild.textContent = cw;
       fit();
       bRate.hidden = !testFlight; const rw = simRate + '×'; if (bRate.textContent !== rw) bRate.textContent = rw; bRate.disabled = floatsOn();
     };
@@ -19899,7 +19961,7 @@
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  if (!GARAGE_ONLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes
+  if (!GARAGE_ONLY && !PHONE_FLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes (G3791: none on the phone's test field either - its heap)
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -20558,9 +20620,18 @@
       flRailSync(); if (flyOpen) flyOpenSet(flyOpen);
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
+  // G3791 (PHONE-TESTFLIGHT): THE TEST FLIGHT'S START on the phone's flight page - the bench's own (startTestFlight: the
+  // card it carried over, the fingerprint it armed, the director), on the pilot's circuit off HOME
+  function phoneFlyGo() {
+    const I = (window.PROFILE && window.PROFILE.flight) || {}, c = I.card || null;
+    let went = false;
+    try { went = !!startTestFlight(c ? { alt: c.alt || null, V: c.V || null, fp: c.fp || null } : null); } catch (e) { console.warn('flyDiy: the test flight could not start -', e && e.message); }
+    window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
+  }
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
+      if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
       if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled

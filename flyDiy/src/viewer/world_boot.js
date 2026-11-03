@@ -14,7 +14,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // here, during the script's own evaluation)
   // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
   // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
-  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
+  // (G3790: the test field keeps its own, so nothing edited there composes onto the analytic world)
+  const TESTFIELD = typeof window !== 'undefined' && window.FLYDIY_WORLD === 'testfield';
+  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : TESTFIELD ? '.testfield' : '');
   // SCENERY VERSIONS (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some
   // sort of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor,
   // there is an option to load a version, and that's the only place where scenery can be loaded"). So THE GAME BOOTS MASTER: the
@@ -34,6 +36,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const t = getSync('tools/fixtures/premises_v1_' + q + '.json'); if (t) { Object.assign(SCN, { id: 'test:' + q, name: 'test ' + q }); return t; } }
       if (q === 'none') { Object.assign(SCN, { id: 'none', name: 'none' }); return null; }
+      // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD SHIPS NO PREMISES - the analytic HOME's own strip and hangar on flat
+      // ground (20_world.js opts.flat); Skarvik's record is the analytic world's, not this one's
+      if (TESTFIELD) { Object.assign(SCN, { id: 'testfield', name: 'Test field' }); return null; }
       // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE PREMISES composes every
       // premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field. G998: the loader fetched it with the island.
       // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3): Skarvik, shipped as a fixture and composed at every boot
@@ -135,7 +140,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // fixture's text is the record composed below. The grids stay: they ARE the island's (the same arrays), read by
   // the core and the viewer for the session. The physics worker fetches its own boot (sim_host.js simHostFetchBoot).
   if (islandAtBoot) { const B = window.ISLAND_BOOT; B.topo = B.payload = null; if (B.far) B.far.topo = B.far.payload = null; B.premFixture = null; }
-  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
+  const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot, flat: window.FLYDIY_WORLD === 'testfield' });
   // THE HOUSES' OWN THREAD (G830, src/viewer/house_worker.js): it makes this same world from the same premises text and
   // the island's own files - its ~5 s beside the garage's boot - so the town step finds it ready to generate
   try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id, hydro: window.ISLAND_BOOT.hydro }); } catch (e) { console.warn('house worker:', e && e.message); }

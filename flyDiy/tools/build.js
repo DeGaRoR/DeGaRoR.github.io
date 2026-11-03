@@ -1176,12 +1176,17 @@ function buildViewer(core) {
     // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
     // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
     if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
+    // G3791 (PHONE-TESTFLIGHT): the phone's test flight (profile.js, the flight variant: boot 'testfield') boots the test
+    // field whatever the menu saved - a few KB of world (makeWorld's opts.flat), never the island
+    else if (window.PROFILE && window.PROFILE.is('boot', 'testfield')) { name = 'testfield'; window.FLYDIY_WORLD = 'testfield'; }
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];
-    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }]);
+    // G3790 (PHONE-TESTFLIGHT): THE TEST FIELD - the analytic HOME strip and its hangar on endless flat ground (20_world.js
+    // opts.flat, world_boot.js); no file of its own, so it is named here beside the analytic world
+    window.FLYDIY_WORLDS = all.map(function (w) { return { id: w.id, name: w.name }; }).concat([{ id: 'none', name: 'Home Strip (the analytic world)' }, { id: 'testfield', name: 'Test field' }]);
     var isl = null;
     for (var i = 0; i < all.length; i++) if (all[i].id === name) isl = all[i];
-    if (!isl) { window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; return; }
+    if (!isl) { window.FLYDIY_WORLD = name === 'testfield' ? 'testfield' : 'none'; window.ISLAND_BOOT = null; return; }
     var keys = Object.keys(isl.files), done = 0, fetched = 0;
     for (var k2 = 0; k2 < keys.length; k2++) if (!('json' in isl.files[keys[k2]])) fetched++;
     // G998 (A5-LOAD): THE PREMISES FIXTURE, ALONGSIDE. app.js read it with a SYNCHRONOUS XHR inside its own evaluation

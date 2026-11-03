@@ -310093,6 +310093,28 @@ Timing (light gate, one run): roll-out sum 59.3 s [cub 8.9/14.4, metal 9.1/5.9, 
 - NOT CLEAN, named: the box was busy (cpuLoad 33-36 % on two roll-outs), and an unbooked headless-Chrome CLOUD gate (NIGHT-LOOK, 20:02-20:04) overlapped the c172 chase roll-out.
 - The phone code doesn't run in a roll-out. The roll-out freezes are master's W6 (the shadow-map link), whose fix is tested 23:00 tonight.
 Open for 1b (08:30 3 Nov): the floats' fast release, -/+ then typing, the -/+ 4 px overlap, the precision hold in the -/+ geometry, the CG posts on floats, the PWA (install + force sync), the test flight (G3790-G3794), the sliced fuselage release + spinner, the boom preview.
+
+## PHONE-TESTFLIGHT G3790-G3794 (Mon 2 Nov) - the test field (a flat world) and the phone's test flight
+
+The user, 27 Oct, asked for a test flight on the phone: "1 building, 1 runway, and some infinite thing. Only ability is to do a circuit". Desktop "can select its environment through the menu option". The change is on claude/phone-testflight, for PHONE-1b.
+- THE TEST FIELD: `makeWorld(0, { flat: true })` (20_world.js FLAT) builds HOME alone, with the analytic record, its site and its hangar, on ground 0 everywhere. It has no water, settlement, road, generated strip or tree, and the surface is grass. It takes 3 ms and 0.4 MB of heap; the analytic world takes 710 ms and 20 MB. `world.flat` tells the page, the worker (sim_link worldMsg passes flat), render_world (no sea plane) and trees.js.
+- THE DESKTOP: FLYDIY_WORLDS has `{ id: 'testfield', name: 'Test field' }` as a world pill; `?world=testfield` also opens it. The WIP is kept under its own key, and no island is fetched.
+- THE PHONE (profile.js):
+  - `TABLE.phone.fly = 'testfield'` is THE ONE SWITCH. With 'none', the bench row and the menu line go.
+  - The bench's Test flight row and the burger's "Test flight" line call startTestFlight. It runs syncBuild and GARAGE_SPEC.commit, then `PROFILE.flyStart(card)`, which stores the sessionStorage intent 'flydiy.phone.fly' and reloads.
+  - The page boots FLIGHT's rows (boot 'testfield') with html.phfly set. At the boot's end, app.js phoneFlyGo rolls the aeroplane out on the pilot's circuit.
+  - There is no hand flying (setManual refused). Floats are refused in v1.
+  - The shed button calls `PROFILE.flyEnd()`, which reloads the garage page.
+  - The intent is read once, so a reload in flight comes back to the garage. `?testflight=1` is the rigs' door.
+- GATES (new): TESTFIELD (_testfield_check.js, core tier: the world, the trunk, the page source, and the Cub, Jodel and Cessna circuits arriving on the flat field, plus the Cub A/B against the analytic world); UISMOKE-PHONEFLY (test_ui_smoke.js --phonefly).
+- RUN 2 Nov 22:15-22:31 in A0's slot (GPU lock TESTFLIGHT): TESTFIELD PASS 23/23, UISMOKE-PHONE PASS, UISMOKE-PHONEFLY PASS.
+  - Cub 249 s, 1.4 m/s; Jodel 353 s, 1.0 m/s; Cessna 172 328 s, 1.13 m/s; the Cub on the analytic world 249 s with the same phases.
+- BROWSER (desktop Chrome, the same slot):
+  - `?world=testfield` taxis out of the shed and climbs on the autopilot over flat grass (heap ~0.9 GB, the desktop's full page).
+  - `?profile=phone`: the garage is 286 MB. The bench row reloads into the flight at 340-373 MB, which flew the whole circuit (completed, 48 km/h, 1.38 m/s, landing run 36 m). The shed button goes back to the garage at 287 MB, and the bench row shows "FLEW THE CIRCUIT, certified".
+- NOT RUN here (they ride PHONE-1b's gates): the rest of the touched-file set. Not on a real phone: the S20 run is PHONE-EDIT-PERF's (02:00-08:00).
+- Known: the flight page shows the garage's phone layout pieces until PHONE-GARAGE's html.phfly stand-down (PHONE-1b). A hidden browser pane stops rAF, so the flight waits at DEPART; that is the pane, not the page.
+
 ## G2813 - THE GLASS UNIT'S PFD: SYNTHETIC VISION, TAPES, A HEADING ARC, A TOUCH SCREEN (2026-10-27, AVIONICS-GPS for the user, cloud - node + headless Chromium 2D only; branch claude/avionics-gps-pfd off claude/avionics-gps-2 774e81459; NOT in claude/ready/avionics-gps)
 
 The user, 27 Oct: "Do you think you could try an easy version of a PFD, the typical garmin glass cockpit with the
@@ -311007,3 +311029,57 @@ crew (its cabin: type 2), 9 Heavy-duty work, 10 Woven cane, 11 Reclined tub, 12 
 - BENCH `tools/_seats.html` (?seat=N), RIG `tools/seat_shot.js` (sheet / close / lod, ~10 s on SwiftShader), GATE SEATS
   `tools/_seats_check.js` (core: the four tables in one order, honest mass, every preset at every level, the cabin seat,
   the mass reaching the build). Evidence and the open items: reports/evidence/SEATS/STATUS.md.
+
+## PHONE-1b (Tue 3 Nov, PHONE-EDIT-PERF) - floatplane sliders on the fast release, the phone's test flight, FLOAT-CG, the knee fix
+
+- THE FOOTWELL: the shared uniform block (aeroSharedU uFootA/uFootB) has two writers, the editor's crew layer and the flown aeroplane (app.js aeroSetFootwell from the join payload, written last after a load). A release that kept the crew layer left the flown value in place (the twin's wgSpan 17 cm off in 1a). releaseSteps now re-publishes the kept crew layer's footwell (_cage_ui.js republishCrew(false): the footwell only; the plate holes stay the whole build's). So 1a's floatplane drop is gone: a floatplane's drag release runs the plan.
+- MERGED: PHONE-TESTFLIGHT (G3790-G3794), FLOAT-CG claude/float-cg-2 96b12a853 (GPS-STALL), KNEE-FIX ea9bc21c6 (DUMMY-RETIRE), master 2f104df85 (train F4).
+- THE CREW stays drawn on the phone: on the S20, hidden saves 3.5 ms CPU a frame, untextured nothing, and the shed holds 30 fps with them (PERF-WEEK P7).
+- INSTANT: --float-release (a diag, now the default path), the footwell writer trace on a differing row, and the float station printed after the load. Its settled rows do not mask the rotating beacon (liRotor_beacon): a "DIFFER" there made only of the beacon is the clock, not the aeroplane.
+- GATE PANEL: the rollInScreen pattern window is 1200 (the test flight's return line sits ahead of the holdRender clear).
+- THE S20 NIGHT RIG (tools/perf/phone_night.sh + phone_night_report.js; phone_edit.js --fly / census nocrew,crewflat): adb + our own CDP tab only, the user's phone rule (touch nothing else; results only in flydiy-notes, never in git). Numbers: flydiy-notes/evidence-2026-10-18/2026-11-03/phone-night/RESULTS.md (the shed 30 fps vs 9; releases 70-490 ms but the sheet rows ~1.4 s and boomLen 0.9 s; the Cub's phone circuit completed, 29.7 fps).
+- Open: P-3 boom preview, the 4.4 s typed fltZ outlier (P9), PHONE-GARAGE's touch reds (page preset, fine, typed after -/+, hit44, density).
+
+## A0 - train 1B (PHONE-1b), 3 Nov 2026 09:30
+
+IN (on F4 master 2f104df85): claude/ready/phone-1b 4f959b923 (PHONE-EDIT-PERF: the S20 garage edits - release freeze gone, idle shed 30 fps; carries knee-fix ea9bc21c6, float-cg-2/3 and phone-testflight), claude/phone-edit-layout 5db9a0cd4 (PHONE-GARAGE: CG posts on phone + floats, PWA + app icon, studio fill), claude/ready/boom-reach 0199466a4 (FLAGSHIP), claude/ready/candidates-4b 291d12bcf (STORY-1: the _4b twin + door fixes), claude/ready/ambrecord-coremath 3406eef28 (Sound: AMBRECORD CORE_MATH). Built-file conflicts only (taken theirs, rebuilt). cabin-craft-3 76bc7da62 came at 08:02 after the 07:55 cut -> L30a.
+
+BATTERY (44 gates, jobs 8): green except, all named:
+- master standing (same lines on master): FRAMECOST, ROUNDTRIP, ASSETS, HANDLE, CLIP, TECH, NODUMMY, ENGCONFIG.
+- FINISH-4's own reds, owners as in the F4 note: DMGPAGEW (Deform), CREWLOAD (GPS-STALL), STORY (Game).
+- SHEETWORKER 46/47: the gate's source regex only (CAGE_UI.dragging() gained REL_PEND in PHONE-EDIT-PERF's P-2); fixed on claude/ready/phone-1b-fix 54140327f -> L30a.
+- BUILT: stale before the push (rebuilt here).
+- JOINPARITY not judgeable (its page capture predates float-cg; re-capture GPS-STALL 3 Nov).
+
+TIMED (light): RED 53 vs the 12 Oct baseline ee466b792 (no reference taken since). Warm nav -> garage 65 -> 141 s (shader links MISS, worst 31 s), chase 29.8 -> 19.9 fps, compile 3.5 -> 32 s.
+A/B on the box 09:00-09:29 (master_bench --only loads,garage, cub): master F4 2f104df85 nav -> garage 136.6 s (35 links > 5 s) vs this train 150.8 s (40 links > 5 s): THE BOOT COST IS ALREADY ON MASTER (FINISH-4, whose own timed gate was killed at 40 min - this is why). Landed under the user's land-everything rule with the cost named; the F4 boot/link + chase cost goes on the perf-week list and gets a bisect (F4's 21 branches) in a box slot. Also seen: this train's bench garage sample reads 0.5 fps (one 12.8 s frame; master 30.1) - the light gate's garage rows "not measured": suspect the 1b idle hold on desktop vs the bench (needs &idle=0); PHONE-EDIT-PERF to confirm. CABIN-CRAFT ran node work 08:42-08:59 (inside the timed window, after the boot rows) - noted.
+
+## TIME-CONTROLS - THE TIME MENU: ONE TOP-BAR BUTTON IN THE GARAGE, AND IN THE CAREER'S FLIGHT IT REPLACES THE FREE TIME AND WEATHER MENU (2026-11-03, GAME-MENUS, LOCAL; for L30a; claude/ready/time-controls, on master 1db22c8a4)
+Why: the user, 2 Nov (via A0): "proper time controls, including in the garage": one icon on top that pops a menu with proper time controls; in the career's flight it replaces the time of day and weather menu, since they can't be set freely there any more. The sandbox keeps its free control.
+What changed:
+- day_ui.js DAY_UI.menu(host, H, ctx): "now" (the date and time, the sun, the moon), the day's weather told (WEATHER_UI preset, wind, visibility, the front, the clouds), an optional forecast (ctx.forecast or window.FLYDIY_FORECAST: empty until WEATHER-DAYS), then the time actions: the sandbox's free clock (presets, next full moon, hour, date, rate) or the career's forward-only waits (careerClock; refused off the ground by DAY_CLOCK's guard). The sandbox offers "set the weather..." (the menu's Sky & light page); the career says its weather is told, not chosen.
+- editor.js: the QUICK bar's existing time button (same slot and glyph - no new icon) opens the time menu in #edPopCard (QPOP_OWN; draggable 'quickPop'). The phone hides that button today (phone.css:45); PHONE-GARAGE un-hides it in PHONE-1b.
+- app.js FL2: in the career, the bar's conditions pill is "time & weather" and opens slot_time (the same menu); the sandbox keeps 'sky'.
+- In the career, WEATHER_UI.mount and DAY_UI.mount's conditions select offer nothing to set.
+- The route rows' "wait until..." select is gone (A0 2 Nov): the time menu is the one place for time; the rows keep the clock line. UISMOKE's G2650 block drives DAY_CLOCK.wait instead (rule b).
+- card_drag: #flFly (every flight flyout) is draggable by #flFlyHead; flPlaceFly keeps a dragged place (fits the height only).
+Open (WEATHER-DAYS, claude/weather-days-study): the career's allowed skips and rate, the forecast lines, clouds_ui's career guard.
+Gates: BUILT UISMOKE UISMOKE-PHONE UILAYER STORY CONTRACTS ACCEPT SAVE CARDDRAG DAY VIEW BOOMBOX HONESTY MEDIA CLIMATE.
+
+## A0 - train L30a "OLD WORK", 3 Nov 2026 11:30
+
+IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-EDIT-PERF: SHEETWORKER's pattern for REL_PEND + master_bench waits for the boot's links before the garage sample), claude/ready/cabin-craft-3 76bc7da62 (CABIN-CRAFT: parking brake under the dash, the pedalier lamp, the C172 door panel quad-grid cap; KNIFE re-recorded for the five Cessna sheets), claude/a0/perf-ledger-m bf392b86d (HW-COVERAGE's PERF-LEDGER G3200 of 14 Oct; A0 resolved rollout_perf.js keeping G3415's town meter + G3200's dcN/trN), claude/ready/stol-fixture 16237652e (Pilot: STOL fixture re-captured on 1db22c8a4, selftest d), claude/ready/time-controls 59ad0cf9b (GAME-MENUS: the garage time card + the career flight's time menu - forward waits only, rate 1 in the career, per the user's WEATHER-DAYS calls), claude/a0/updnote-m 711fb3290 (PHONE-GARAGE's updnote-drag 38d7a5c5f: #updNote draggable per the user's cards rule; A0 resolved card_drag.js CARDS keeping #flFly + #updNote. Named cost: while the note shows, 3-4 s, it takes taps on the strip it covers). OUT: hw-hut (HOUSEWORKER 473/474, lattice fix -> L30b), joinparity-fixture (not ready -> L30b), ground-look-g2610 (replaced by claude/ready/forest-floor 560b57eba, the user's 17.5 m on 8/13/16 -> L30b).
+
+BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
+TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
+
+## TIME-CONTROLS-2 - CLOUD'S QUICK-BAR ROW READS THE TIME BUTTON AS L30a SHIPPED IT (2026-11-03, GAME-MENUS, LOCAL; for L30b; claude/ready/time-controls-2, on master a8a23ad62)
+Why: L30a's battery: GATE CLOUD 1 red of 239, "the quick bar's time button presses the clock, not the mood". TIME-CONTROLS made that button open the time menu (DAY_UI.menu on DAY_CLOCK, in #edPopCard); it no longer cycles DAY_CLOCK's presets. RULE (b): the row reads the new behaviour - the state 'DAY_CLOCK (the time menu)', the EDITOR_QUICK_POP toggle, QPOP_OWN.time building DAY_UI.menu with the rail's rows and dayCtx. The intent stays: the button acts on the clock, never the mood.
+What changed: tools/_cloud_check.js (that row) only.
+Gates: CLOUD.
+
+## A0 - train L30b, 3 Nov 2026 15:35
+
+IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
+BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
+TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.

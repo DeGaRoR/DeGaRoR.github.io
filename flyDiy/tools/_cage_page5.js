@@ -1072,7 +1072,10 @@ window.CAGE_PAGE = {
       // G274.1 (the user: "I still miss the option to get the booms fore/aft
       // relative to the wing"): the root's station against the trailing
       // edge, metres, aft positive (the frame reads the drawn root, boomX0)
-      ['boomDz',    'fore / aft (from the trailing edge)', -1.0, 1.0, 0.005,
+      // FLAGSHIP (the user, 2 Nov: "for the twin booms, I need sliders fore-aft going further ... getting the tip of
+      // the boom to the wing leading edge"): -1.0 was a number, not a reason. The slider runs to -3.5; the wing layer
+      // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
+      ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end

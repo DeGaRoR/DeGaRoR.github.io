@@ -235,6 +235,14 @@ const GATES = [
   // G2104 (MOBILE-GARAGE 1): THE SAME SMOKE ON THE PHONE PROFILE (?profile=phone): the garage-only boot's steps in order,
   // no world, no sim worker, no roll-out, the lightest preset; phone.css scoped to html.phone selector by selector
   { id: 'UISMOKE-PHONE', file: 'test_ui_smoke.js', argv: ['--phone'], tier: 'core', wall: 60 },
+  // G3791 (PHONE-TESTFLIGHT): the phone's test-flight page (?profile=phone&testflight=1): the world's rows on the test
+  // field, out on the pilot as the boot lifts, armed, the hand refused, the shed's button reloads the garage page
+  { id: 'UISMOKE-PHONEFLY', file: 'test_ui_smoke.js', argv: ['--phonefly'], tier: 'core', wall: 120 },
+  // G3790-G3794 (PHONE-TESTFLIGHT): THE TEST FIELD - makeWorld's opts.flat (the ground 0, HOME alone, no water, town or
+  // tree; small), the page's switches (the loader's pill, the boot, the worker, the phone's flight variant), and the Cub,
+  // the Jodel and the Cessna each flying the pilot's circuit on it and arriving (the Cub's also on the analytic world: the
+  // same circuit). Four flights in their own processes
+  { id: 'TESTFIELD', file: '_testfield_check.js', tier: 'core', wall: 180 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
@@ -491,6 +499,7 @@ const GATES = [
   // offline), every field put back (the handover to the stand's idle), the shed heard where the aeroplane rolls (space.js
   // shotPose); 19 mutations
   { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
+  { id: 'PWA', file: '_pwa_check.js', tier: 'core', wall: 5 },   // G3910 (PHONE-1b): the installed app - the manifest and its icons, the pages' link, the worker never answering the page, force sync (check / clean download: only flydiy* caches and this folder's worker, never localStorage), the menu rows, the installed-mode CSS
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   // CARDS-CORNER G3060-G3069 (the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should

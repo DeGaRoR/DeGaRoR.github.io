@@ -39,9 +39,23 @@ const BK = opt('build', 'twin'), BUILD = BUILDS[BK] || BK;
 const ROWS = opt('rows', 'wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize').split(',');
 const REPS = +opt('reps', 3), TICKS = +opt('ticks', 20), CPU = +opt('cpu', 6), DPR = +opt('dpr', 2.625), VW = +opt('w', 412), VH = +opt('h', 915);
 const QUIET = +opt('quiet', 1500), IDLE = +opt('idle', 0), TYPED = flag('typed');
-const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') ? ['base', 'noenv', 'lights1', 'nolamps', 'lambert', 'basic', 'halfres', 'base'] : null);
+const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') ? ['base', 'noenv', 'lights1', 'nolamps', 'lambert', 'halfres', 'noplane', 'base'] : null);
+// --idlecheck: the phone's idle hold (load WITHOUT ?idle=0): frames rendered in 5 s after 7 s untouched, then after a touch
+// --shot <file.jpg>: the page after the idle / census (Page.captureScreenshot); --flightlog <file.json>: the page's flight log
+const IDLECHECK = flag('idlecheck'), SHOTF = opt('shot', null), FLOGF = opt('flightlog', null);
 const CSEC = +opt('csec', 8);
+// --initjs <file>: a script added before the page's own (Page.addScriptToEvaluateOnNewDocument, after the build's); --evaljs <file>:
+// an expression evaluated --evalwait s after the boot (its // lines dropped), its value in the JSON as evaljs (PHONE-GARAGE's G3798c
+// registration check: CLOUD-SHOTS/atlas_hook.js + reg_check.js); --shotview s|q|t: the still from the editor's framing preset
+const INITJS = opt('initjs', null), EVALJS = opt('evaljs', null), EVALWAIT = +opt('evalwait', 8), SHOTVIEW = opt('shotview', null);
+const VIEWS = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13], t: [-Math.PI / 2, 1.35, 15] };   // (plane_shot.js PRESET)
 const PHONE = flag('phone'), APORT = +(opt('phone', '') || 9333);
+// --fly [--flycap 480] (A0 2 Nov 23:00, PHONE-TESTFLIGHT G3791): THE PHONE'S TEST FLIGHT, once - the garage's heap and frames,
+// the tap (BENCH_RUN('flight'), the burger's Test flight line), the reload hand-off, tap -> the first autopilot phase (the
+// roll-out) and -> ROLL, the frames and the heap in the climb, the circuit's end (STOPPED, its outcome), the shed button
+// (PROFILE.flyEnd) and the garage's heap after. Capped at --flycap seconds; a crashed tab or a dead socket stops it and is
+// named - never retried
+const FLY = flag('fly'), FLYCAP = +opt('flycap', 480);
 const ADB = process.env.ADB || 'D:/Dev/platform-tools/adb.exe';
 const adb = (...a) => { try { return require('child_process').execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 // the phone's Chrome: our own tab (never the user's), the same { ev, cmd, load, close, exc } as master_bench's browser
@@ -82,6 +96,53 @@ async function phoneBrowser() {
   };
   const close = async () => { try { await raw('Target.closeTarget', { targetId }); } catch (e) {} try { ws.close(); } catch (e) {} };
   return { ev, cmd, load, close, exc, device: adb('shell', 'getprop', 'ro.product.model').trim() };
+}
+async function flyPass(b, save) {
+  const F = { cap: FLYCAP, phases: [] }, T0 = Date.now(), left = () => FLYCAP * 1000 - (Date.now() - T0), sec = t => +((t - F.tapAt) / 1000).toFixed(1);
+  const dead = () => b.exc.includes('TARGET CRASHED');
+  const ev = (expr, ms) => b.ev(expr, ms || 15000).catch(e => '__err ' + e.message);
+  const mem = async () => { const v = await ev("JSON.stringify(performance.memory ? { heap: Math.round(performance.memory.usedJSHeapSize / 1048576), total: Math.round(performance.memory.totalJSHeapSize / 1048576) } : null)"); try { return JSON.parse(v); } catch (e) { return v; } };
+  const frames = async s => { await sleep(s * 1000); const v = await ev(`(() => { const r = window.FLIGHT_REC && FLIGHT_REC.stats(${s * 1000}); return JSON.stringify(r ? { fps: +r.fps.toFixed(1), p50: +r.med.toFixed(1), p90: +r.p90.toFixed(1), max: Math.round(r.max) } : null); })()`); try { return JSON.parse(v); } catch (e) { return v; } };
+  const state = async () => { const v = await ev("JSON.stringify({ fly: !!(window.PROFILE && PROFILE.flight), ready: !!(window.BOOT && BOOT.state === 'gone'), ap: (() => { try { const a = window.FLIGHT_PROBE && FLIGHT_PROBE.ap && FLIGHT_PROBE.ap(); return a ? { phase: a.phase || null, t: Math.round(+a.t || 0), outcome: (a.report && a.report.outcome) || null } : null; } catch (e) { return null; } })(), started: !!(window.FLYDIY_PHONE_FLY && FLYDIY_PHONE_FLY.started), hidden: document.hidden })", 8000);
+    try { return JSON.parse(v); } catch (e) { return { err: String(v) }; } };
+  // the phone's battery temperature (tenths of a degree): 'runs hot' is 45 C - the pass stops there
+  const temp = () => { const m = /temperature: (\d+)/.exec(adb('shell', 'dumpsys', 'battery')); return m ? +m[1] / 10 : null; };
+  F.temp = [temp()];
+  F.garage = { mem: await mem(), frames: await frames(10) }; save();
+  await b.cmd('Page.bringToFront').catch(() => null);
+  F.tapAt = Date.now();
+  F.tap = await ev("(() => { try { if (!window.BENCH_RUN) return 'no BENCH_RUN'; return window.BENCH_RUN('flight') ? 'tapped' : 'refused (the bench row not usable or busy)'; } catch (e) { return 'threw: ' + e.message; } })()", 20000);
+  let last = null, climbed = false, tT = Date.now();
+  // (the reload can cut the tap's own evaluate - an error there still waits for the flight)
+  if (/^(no BENCH_RUN|refused|threw)/.test(F.tap)) F.verdict = 'the tap: ' + F.tap;
+  while (!F.verdict && left() > 0) {
+    await sleep(1000);
+    if (Date.now() - tT > 30000) { tT = Date.now(); const c = temp(); F.temp.push(c); if (c != null && c >= 45) { F.verdict = 'stopped: the phone at ' + c + ' C (' + sec(Date.now()) + ' s, phase ' + last + ')'; break; } }
+    if (dead()) { F.verdict = 'the tab CRASHED at ' + sec(Date.now()) + ' s (phase ' + last + ')'; break; }
+    const s = await state();
+    if (s.err && /closed/.test(s.err)) { F.verdict = 'the DevTools socket closed at ' + sec(Date.now()) + ' s (Chrome gone?)'; break; }
+    if (s.fly && F.reloaded == null) F.reloaded = sec(Date.now());
+    if (s.fly && s.ready && F.ready == null) F.ready = sec(Date.now());
+    const ph = s.ap && s.ap.phase;
+    if (s.ap) F.lastT = s.ap.t;
+    if (s.fly && s.started && F.started == null) F.started = sec(Date.now());
+    if (s.fly && F.front == null) { F.front = sec(Date.now()); await b.cmd('Page.bringToFront').catch(() => null); }
+    if (s.hidden) F.hiddenSeen = (F.hiddenSeen || 0) + 1;
+    if (s.fly && ph && ph !== last) { last = ph; F.phases.push([sec(Date.now()), ph]); if (F.rollout == null) F.rollout = sec(Date.now()); if (ph === 'ROLL' && F.roll == null) F.roll = sec(Date.now()); save(); }
+    if (s.fly && !climbed && F.roll != null && sec(Date.now()) - F.roll > 25 && ph && ph !== 'ROLL' && ph !== 'STOPPED') {
+      climbed = true; F.flight = { phase: ph, mem: await mem(), frames: await frames(10) }; save(); }
+    if (s.fly && ph === 'STOPPED') { F.outcome = s.ap.outcome; F.circuitSec = sec(Date.now()); F.simT = s.ap.t; break; }
+  }
+  if (!F.verdict && F.outcome == null) F.verdict = (F.reloaded == null ? 'no reload into the flight' : F.rollout == null ? 'reloaded, never rolled out' : 'cut at the cap in ' + last + ' at sim t ' + F.lastT + ' s') + ' (' + FLYCAP + ' s)';
+  if (!dead() && F.reloaded != null && !/socket/.test(F.verdict || '')) {
+    F.shedAt = Date.now();
+    await ev("(() => { try { PROFILE.flyEnd(); return 'ok'; } catch (e) { return 'threw: ' + e.message; } })()", 10000);
+    for (let i = 0; i < 90; i++) { await sleep(1000); const s = await state(); if (s.ready && !s.fly) { F.shedSec = +((Date.now() - F.shedAt) / 1000).toFixed(1); break; } if (dead() || (s.err && /closed/.test(s.err))) { F.shedSec = 'died'; break; } }
+    if (typeof F.shedSec === 'number') { await sleep(4000); F.after = { mem: await mem() }; }
+  }
+  F.temp.push(temp());
+  if (!F.verdict) F.verdict = F.outcome === 'completed' ? 'ok' : 'the circuit ended ' + F.outcome;
+  return F;
 }
 const OUT = path.resolve(opt('out', path.join(__dirname, 'phone_edit_' + BK + '_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -142,35 +203,51 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
 // every envMap off); lights1 (the first directional light alone); nolamps (the aeroplane's own point / spot lights off);
 // lambert / basic (every mesh's material as a Lambert / Basic one with its colour and map - the cheap-material bounds);
 // halfres (the pixel ratio halved). ?idle=0 belongs with it (the shed must draw).
-const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window.__CEN = { scenes: new Set(), undo: [] };
-  const r = window.FLYDIY_RENDERER, o = r.render; r.render = function (sc, cam) { if (!r.getRenderTarget()) C.scenes.add(sc); return o.apply(this, arguments); };
-  C.scene = () => { let best = null, n = -1; for (const sc of C.scenes) { let k = 0; sc.traverse(x => { if (x.isMesh) k++; }); if (k > n) { n = k; best = sc; } } return best; };
+const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window.__CEN = { scenes: new Map(), undo: [] };
+  const r = window.FLYDIY_RENDERER, o = r.render; r.render = function (sc, cam) { C.scenes.set(sc, 1); return o.apply(this, arguments); };
+  C.scene = () => { let best = null, n = -1; for (const sc of C.scenes.keys()) { let k = 0; sc.traverse(x => { if (x.isMesh && x.visible) k++; }); if (k > n) { n = k; best = sc; } } return best; };
   const mats = sc => { const L = []; sc.traverse(x => { if (x.isMesh && x.material) L.push(x); }); return L; };
   C.apply = v => { const sc = C.scene(); if (!sc) return 'no scene'; const T = window.THREE;
-    if (v === 'noenv') { const e = sc.environment; sc.environment = null; C.undo.push(() => { sc.environment = e; });
-      for (const m of mats(sc)) for (const mt of [].concat(m.material)) if (mt.envMap) { const em = mt.envMap; mt.envMap = null; mt.needsUpdate = true; C.undo.push(() => { mt.envMap = em; mt.needsUpdate = true; }); }
-      sc.traverse(x => { if (x.isMaterial) {} }); for (const m of mats(sc)) for (const mt of [].concat(m.material)) mt.needsUpdate = true; }
+    if (v === 'noenv') { const e = sc.environment; sc.environment = null; C.undo.push(() => { sc.environment = e; }); }
     if (v === 'lights1') { let kept = false; sc.traverse(x => { if (x.isLight && x.visible) { if (x.isDirectionalLight && !kept) { kept = true; return; } x.visible = false; C.undo.push(() => { x.visible = true; }); } }); }
     if (v === 'nolamps') sc.traverse(x => { if ((x.isPointLight || x.isSpotLight) && x.visible) { x.visible = false; C.undo.push(() => { x.visible = true; }); } });
     if (v === 'lambert' || v === 'basic') { const K = v === 'lambert' ? T.MeshLambertMaterial : T.MeshBasicMaterial, cache = new Map();
       for (const m of mats(sc)) { if (m.isSkinnedMesh) continue; const old = m.material;
-        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new K({ color: mt.color ? mt.color.clone() : 0xcccccc, map: mt.map || null, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, depthWrite: mt.depthWrite, vertexColors: !!mt.vertexColors }); cache.set(mt, n); return n; };
+        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new K({ color: mt.color ? mt.color.clone() : 0xcccccc, map: mt.map || null, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, depthWrite: mt.depthWrite }); cache.set(mt, n); return n; };
         m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); } }
     if (v === 'halfres') { const pr = r.getPixelRatio(); r.setPixelRatio(pr * 0.5); window.dispatchEvent(new Event('resize')); C.undo.push(() => { r.setPixelRatio(pr); window.dispatchEvent(new Event('resize')); }); }
+    if (v === 'noplane') for (const m of mats(sc)) if (m.visible) { m.visible = false; C.undo.push(() => { m.visible = true; }); }
+    if (v === 'nocrew') { const g = C.crew(sc); if (!g) return 'no crew'; g.visible = false; C.undo.push(() => { g.visible = true; }); }
+    if (v === 'crewflat') { const g = C.crew(sc); if (!g) return 'no crew'; const cache = new Map();
+      g.traverse(m => { if (!m.isMesh || !m.material) return; const old = m.material;
+        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new T.MeshLambertMaterial({ color: mt.color ? mt.color.clone() : 0xb8b2a6, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, skinning: !!mt.skinning }); cache.set(mt, n); return n; };
+        m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); }); }
     return 'ok'; };
+  // THE CREW (A0 2 Nov 21:55, the user: "the characters could be rendered without texture if need be, or even not at all"): the
+  // crew layer's group - nocrew hides it, crewflat dresses it in an untextured Lambert of each material's colour
+  C.crew = sc => sc.getObjectByName('cageLayer:crew') || null;
+  C.crewInfo = () => { const sc = C.scene(), g = sc && C.crew(sc); if (!g) return { crew: null };
+    let meshes = 0, skinned = 0, tris = 0, bones = 0; const tex = new Map();
+    g.traverse(m => { if (!m.isMesh || !m.visible) return; meshes++; if (m.isSkinnedMesh) { skinned++; bones += m.skeleton ? m.skeleton.bones.length : 0; }
+      const gm = m.geometry; if (gm) tris += (gm.index ? gm.index.count : (gm.attributes.position ? gm.attributes.position.count : 0)) / 3;
+      for (const mt of (Array.isArray(m.material) ? m.material : [m.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'])
+        if (mt && mt[k] && mt[k].image) tex.set(mt[k].uuid, (mt[k].image.width || 0) + 'x' + (mt[k].image.height || 0)); });
+    return { meshes, skinned, bones, tris: Math.round(tris), textures: tex.size, sizes: [...new Set(tex.values())] }; };
   C.revert = () => { while (C.undo.length) try { C.undo.pop()(); } catch (e) {} return 'ok'; };
   C.sample = async (v, settle, sec) => { const a = C.apply(v); await new Promise(rs => setTimeout(rs, settle));
-    const G = window.__PE, t0 = performance.now(), info = window.FLYDIY_RENDERER.info; await new Promise(rs => setTimeout(rs, sec * 1000));
-    const fr = G.fr.filter(f => f[0] > t0).map(f => f[1]).sort((x, y) => x - y), q = p => fr.length ? +fr[Math.min(fr.length - 1, Math.floor(p * fr.length))].toFixed(1) : null;
-    const out = { v, a, n: fr.length, fps: +(fr.length / sec).toFixed(1), p50: q(0.5), p90: q(0.9), calls: info.render.calls, tris: info.render.triangles, programs: info.programs ? info.programs.length : null };
+    await new Promise(rs => setTimeout(rs, sec * 1000));
+    const s = window.FLIGHT_REC.stats(sec * 1000), info = window.FLYDIY_RENDERER.info;
+    const out = { v, a, fps: +s.fps.toFixed(1), p50: +s.med.toFixed(1), p90: +s.p90.toFixed(1), max: +s.max.toFixed(0), work: +s.work.toFixed(1), programs: info.programs ? info.programs.length : null };
     C.revert(); await new Promise(rs => setTimeout(rs, 1500)); return out; };
   return 'ok'; })()`;
 (async () => {
-  if (await MB.serveRoot(PORT)) { console.error('phone_edit: port ' + PORT + ' is taken'); process.exit(4); }
-  const srv = MB.serve(PORT, null); await sleep(800);
+  // (a server already serving THIS tree on the port - phone_night.sh's - is used as it is)
+  const already = await MB.serveRoot(PORT);
+  if (already && path.resolve(already) !== REPO) { console.error('phone_edit: port ' + PORT + ' serves ' + already + ', not this tree'); process.exit(4); }
+  const srv = already ? null : MB.serve(PORT, null); if (srv) await sleep(800);
   const root = await MB.serveRoot(PORT);
-  if (!root || path.resolve(root) !== REPO) { console.error('phone_edit: the server serves ' + root + ', not ' + REPO); try { srv.kill(); } catch (e) {} process.exit(4); }
-  const done = () => { try { srv.kill(); require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
+  if (!root || path.resolve(root) !== REPO) { console.error('phone_edit: the server serves ' + root + ', not ' + REPO); try { if (srv) srv.kill(); } catch (e) {} process.exit(4); }
+  const done = () => { if (!srv) return; try { srv.kill(); require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
   process.on('exit', done);
   const R = { date: new Date().toISOString(), build: BK, file: BUILD, cpu: CPU, dpr: DPR, w: VW, h: VH, ticks: TICKS, reps: REPS, rows: [] };
   const save = () => fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
@@ -180,13 +257,24 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
   else { await b.cmd('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: DPR, mobile: true });
     await b.cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
   const url = 'http://localhost:' + PORT + '/flyDiy/' + opt('page', 'index.html') + '?profile=phone' + (opt('query', '') ? '&' + opt('query') : '');
-  const l = await b.load(url, MB.preScript(BUILD, null, null));
+  const l = await b.load(url, MB.preScript(BUILD, null, null) + (INITJS ? '\n;' + fs.readFileSync(INITJS, 'utf8') : ''));
   log('loaded ' + l.state + ' in ' + l.sec + ' s (' + url + ')');
   await sleep(6000);
   R.meta = JSON.parse(await b.ev(`JSON.stringify({ profile: window.PROFILE && PROFILE.name, catcher: window.POST_FX && POST_FX.catcher && POST_FX.catcher.summary(),
     menuLog: !!(window.FLYDIY_MENU), dpr: devicePixelRatio, canvas: (() => { const c = document.getElementById('c'); return c ? [c.width, c.height] : null; })() })`));
   log('page: ' + JSON.stringify(R.meta));
+  if (FLY) {
+    R.fly = await flyPass(b, () => save());
+    save();
+    log('fly: ' + JSON.stringify(R.fly));
+    R.exceptions = b.exc.slice(0, 20); save();
+    await b.close(); process.exit(R.fly.verdict === 'ok' ? 0 : 1);
+  }
   log('harness ' + await b.ev(HARNESS));
+  if (EVALJS) { await sleep(EVALWAIT * 1000);
+    const ex = fs.readFileSync(EVALJS, 'utf8').split('\n').filter(x => !/^\s*\/\//.test(x)).join('\n');
+    try { R.evaljs = await b.ev('JSON.stringify(' + ex + ')', 60000); try { R.evaljs = JSON.parse(R.evaljs); } catch (e) {} } catch (e) { R.evaljs = { err: e.message }; }
+    log('evaljs: ' + JSON.stringify(R.evaljs).slice(0, 300)); save(); }
   if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: CPU });
   await sleep(3000);
   if (IDLE) {
@@ -196,13 +284,22 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
     log('idle ' + IDLE + ' s: ' + id.n + ' frames, p50 ' + R.idle.p50 + ' p90 ' + R.idle.p90 + ' max ' + R.idle.max + ' ms; ' + JSON.stringify(id.stats || {}).slice(0, 300));
     save();
   }
+  if (IDLECHECK) {
+    const ic = JSON.parse(await b.ev(`(async () => { const w = ms => new Promise(r => setTimeout(r, ms));
+      await w(7000); const held = window.FLIGHT_REC.stats(5000); await w(5000); const s0 = window.FLIGHT_REC.stats(5000);
+      window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await w(3000); const s1 = window.FLIGHT_REC.stats(2500);
+      return JSON.stringify({ on: !!window.FLYDIY_IDLE, heldFrames: window.FLYDIY_IDLE ? window.FLYDIY_IDLE.held : null, idleFps: +s0.fps.toFixed(1), afterTouchFps: +s1.fps.toFixed(1) }); })()`, 60000));
+    R.idlecheck = ic; save();
+    log('idle hold: ' + JSON.stringify(ic));
+  }
   if (CENSUS) {
     log('census ' + await b.ev(CENSUS_JS));
     R.census = [];
+    if (CENSUS.some(v => /crew/.test(v))) { R.crewInfo = JSON.parse(await b.ev('JSON.stringify(__CEN.crewInfo())')); log('crew: ' + JSON.stringify(R.crewInfo)); save(); }
     for (const v of CENSUS) {
       const c = JSON.parse(await b.ev(`(async () => JSON.stringify(await __CEN.sample(${JSON.stringify(v)}, 4000, ${CSEC})))()`, CSEC * 1000 + 60000));
       R.census.push(c); save();
-      log('census ' + v.padEnd(9) + ' ' + c.fps + ' fps  p50 ' + c.p50 + '  p90 ' + c.p90 + ' ms  draws ' + c.calls + '  tris ' + c.tris + '  programs ' + c.programs + (c.a !== 'ok' ? '  (' + c.a + ')' : ''));
+      log('census ' + v.padEnd(9) + ' ' + c.fps + ' fps  p50 ' + c.p50 + '  p90 ' + c.p90 + '  max ' + c.max + ' ms  work ' + c.work + '  programs ' + c.programs + (c.a !== 'ok' ? '  (' + c.a + ')' : ''));
     }
   }
   for (const k of (opt('rows', null) === 'none' ? [] : ROWS)) {
@@ -228,6 +325,10 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
     for (const e of last.ev) log('      +' + e[0] + ' ' + e[1] + ' ' + r1(e[2]) + ' ms ' + (e[3] && typeof e[3] === 'object' ? [e[3].how, e[3].path, e[3].why, 'build ' + e[3].build + '/' + e[3].builds, 'sheet ' + e[3].sheet, 'onBuild ' + e[3].onBuild, e[3].layers].filter(Boolean).join(' | ') : e[3]));
     if (prof) log('      prof self: ' + prof.slice(0, 14).map(([f, ms]) => f + ' ' + ms).join(', '));
   }
+  if (SHOTF && SHOTVIEW && VIEWS[SHOTVIEW]) { try { await b.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + VIEWS[SHOTVIEW].join(', ') + '); return 1; })()', 20000); } catch (e) { log('shotview: ' + e.message); } await sleep(2500); }
+  if (SHOTF) { const sh = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 85 }); if (sh.result) { fs.writeFileSync(SHOTF, Buffer.from(sh.result.data, 'base64')); log('still -> ' + SHOTF); } }
+  if (FLOGF) { try { const t = await b.ev(`(() => { const R = window.FLIGHT_REC && window.FLIGHT_REC.rec; const p = R && R.logParts ? R.logParts() : null; return p ? (Array.isArray(p) ? p.join('') : String(p)) : ''; })()`, 120000);
+    if (t && t !== '__timeout') { fs.writeFileSync(FLOGF, t); log('flight log -> ' + FLOGF + ' (' + t.length + ' chars)'); } } catch (e) { log('flight log: ' + e.message); } }
   R.exc = b.exc.slice();
   if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: 1 });
   await b.close();

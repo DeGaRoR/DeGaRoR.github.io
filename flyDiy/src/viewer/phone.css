@@ -10,7 +10,7 @@
    (R1), a slider row on two lines (R2), only the knob moves a value and the
    scale scrolls the sheet (R4-R5).
    ====================================================================== */
-html.phone {
+html.phone:where(:not(.phfly)) {
   /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
      (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
   --ph-tab:48px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
@@ -22,95 +22,95 @@ html.phone {
   --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line1:16px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
-  html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+  html.phone:where(:not(.phfly)) { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
     --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
 }
-html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
+html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
   -webkit-tap-highlight-color:transparent; }
 
 /* ---- THE VIEW: the canvas and its floating chrome share one box ---------- */
-html.phone body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
+html.phone:where(:not(.phfly)) body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
   width:var(--ph-vw) !important; height:var(--ph-vh) !important; transition:none; }
-html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
+html.phone:where(:not(.phfly)) #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
   width:var(--ph-vw); height:var(--ph-vh); }
 /* the flight's verbs and the route have no world to go to (profile fly 'none') */
-html.phone #edActs, html.phone #edRoute, html.phone #edDest, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
-html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
+html.phone:where(:not(.phfly)) #edActs, html.phone:where(:not(.phfly)) #edRoute, html.phone:where(:not(.phfly)) #edDest, html.phone:where(:not(.phfly)) #bootSetup, html.phone:where(:not(.phfly)) #bootRoute { display:none !important; }
+html.phone:where(:not(.phfly)) #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
 /* G3721: the name is a disk (editor.css), at a finger's size */
-html.phone #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
-html.phone #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
-html.phone #edTopBar { gap:6px; }
-html.phone #edQuick { gap:2px; padding:3px; }
-/* the studio has no day (the clock's button) and the reference button only shows with a reference standing - room to spare */
-html.phone .edQuickBtn[data-q="time"], html.phone .edQuickBtn[data-q="ref"]:disabled { display:none; }
-html.phone #edShelf { min-width:180px; }
-html.phone #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
-html.phone .edQuickBtn { min-width:40px; min-height:40px; }
+html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
+html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
+html.phone:where(:not(.phfly)) #edTopBar { gap:6px; }
+html.phone:where(:not(.phfly)) #edQuick { gap:2px; padding:3px; }
+/* the reference button only shows with a reference standing (the time button shows: it opens the time menu, TIME-CONTROLS) */
+html.phone:where(:not(.phfly)) .edQuickBtn[data-q="ref"]:disabled { display:none; }
+html.phone:where(:not(.phfly)) #edShelf { min-width:180px; }
+html.phone:where(:not(.phfly)) #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
+html.phone:where(:not(.phfly)) .edQuickBtn { min-width:40px; min-height:40px; }
 /* the rail: the profile's four entries (phone.js), each a 48 px target, up the view's left edge */
-html.phone #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
-html.phone #edRail { gap:2px; padding:4px; }
-html.phone .edRailBtn { width:var(--ph-tap); min-height:var(--ph-tap); padding:6px 0; }
-html.phone .edRailBtn[hidden] { display:none; }
+html.phone:where(:not(.phfly)) #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
+html.phone:where(:not(.phfly)) #edRail { gap:2px; padding:4px; }
+html.phone:where(:not(.phfly)) .edRailBtn { width:var(--ph-tap); min-height:var(--ph-tap); padding:6px 0; }
+html.phone:where(:not(.phfly)) .edRailBtn[hidden] { display:none; }
 /* a flyout opens OVER THE SHEET, as a sheet of its own (tap its rail button again to close it) */
-html.phone #edFly { position:fixed !important; left:var(--ph-sl) !important; top:var(--ph-st) !important;
+html.phone:where(:not(.phfly)) #edFly { position:fixed !important; left:var(--ph-sl) !important; top:var(--ph-st) !important;
   width:var(--ph-sw) !important; bottom:var(--ph-tab) !important; max-height:none !important; height:auto !important;
   border-radius:0; border-width:1px 0 0; z-index:46; padding:14px 16px 18px; touch-action:pan-y; overscroll-behavior:contain;
   background:#201d1a; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) select { font-size:12px !important; max-width:58%; }
+html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) select { font-size:12px !important; max-width:58%; }
 
 /* ---- THE SHEET: the properties column, the parts column, the information panel - one at a time ---- */
-html.phone #edWrap, html.phone #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
+html.phone:where(:not(.phfly)) #edWrap, html.phone:where(:not(.phfly)) #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
   right:auto !important; bottom:var(--ph-tab) !important; width:var(--ph-sw) !important; height:auto;
   box-shadow:0 -1px 0 rgba(255,248,236,.10); transition:none; z-index:40; }
-html.phone #edWrap { flex-direction:column; }
-html.phone #edPropsTab, html.phone #edPartsTab, html.phone #edPropFold, html.phone #edCollapse,
-html.phone #edInfoFold, html.phone #edInfoTab { display:none !important; }
-html.phone #edWrap > #edProps, html.phone #edWrap > #edParts { display:none; width:100% !important; flex:1; min-height:0; border:0; }
-html.phone body.ph-props #edWrap > #edProps { display:flex !important; }
-html.phone body.ph-parts #edWrap > #edParts { display:flex !important; }
-html.phone body.ph-info #edWrap { display:none !important; }
-html.phone body.mode-ws #edInfo, html.phone body.mode-ws.info-off #edInfo { display:none !important; }
-html.phone body.mode-ws.ph-info #edInfo { display:flex !important; }
-html.phone #edParts { flex-direction:column; }
+html.phone:where(:not(.phfly)) #edWrap { flex-direction:column; }
+html.phone:where(:not(.phfly)) #edPropsTab, html.phone:where(:not(.phfly)) #edPartsTab, html.phone:where(:not(.phfly)) #edPropFold, html.phone:where(:not(.phfly)) #edCollapse,
+html.phone:where(:not(.phfly)) #edInfoFold, html.phone:where(:not(.phfly)) #edInfoTab { display:none !important; }
+html.phone:where(:not(.phfly)) #edWrap > #edProps, html.phone:where(:not(.phfly)) #edWrap > #edParts { display:none; width:100% !important; flex:1; min-height:0; border:0; }
+html.phone:where(:not(.phfly)) body.ph-props #edWrap > #edProps { display:flex !important; }
+html.phone:where(:not(.phfly)) body.ph-parts #edWrap > #edParts { display:flex !important; }
+html.phone:where(:not(.phfly)) body.ph-info #edWrap { display:none !important; }
+html.phone:where(:not(.phfly)) body.mode-ws #edInfo, html.phone:where(:not(.phfly)) body.mode-ws.info-off #edInfo { display:none !important; }
+html.phone:where(:not(.phfly)) body.mode-ws.ph-info #edInfo { display:flex !important; }
+html.phone:where(:not(.phfly)) #edParts { flex-direction:column; }
 /* THE EDIT TAB SCROLLS WHOLE: its heads (the structure / finish switch, the part's name and pills) scroll away with
    the rows - on a phone's height a fixed head left the rows ~190 px */
-html.phone body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden; }
-html.phone #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
+html.phone:where(:not(.phfly)) body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden; }
+html.phone:where(:not(.phfly)) #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
 /* every scroller of the sheet scrolls by a finger and keeps its scroll to itself */
-html.phone :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:3px; }
+html.phone:where(:not(.phfly)) :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:3px; }
 
 /* THE TAB BAR, in the thumb zone */
 #phTabs { display:none; }
-html.phone body.mode-ws #phTabs { display:flex; position:fixed; left:var(--ph-sl); bottom:0; width:var(--ph-sw);
+html.phone:where(:not(.phfly)) body.mode-ws #phTabs { display:flex; position:fixed; left:var(--ph-sl); bottom:0; width:var(--ph-sw);
   height:var(--ph-tab); z-index:47; background:#1a1815; border-top:1px solid rgba(255,248,236,.12);
   padding-bottom:env(safe-area-inset-bottom, 0px); }
-html.phone #phTabs button { flex:1; min-height:var(--ph-tap); border:0; background:transparent; color:#97907f;
+html.phone:where(:not(.phfly)) #phTabs button { flex:1; min-height:var(--ph-tap); border:0; background:transparent; color:#97907f;
   font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.14em; text-transform:uppercase; }
-html.phone #phTabs button { border-radius:0; }
-html.phone #phTabs button.on { color:#f4efe6; background:rgba(230,219,201,.07); box-shadow:inset 0 2px 0 #e6dbc9; }
+html.phone:where(:not(.phfly)) #phTabs button { border-radius:0; }
+html.phone:where(:not(.phfly)) #phTabs button.on { color:#f4efe6; background:rgba(230,219,201,.07); box-shadow:inset 0 2px 0 #e6dbc9; }
 
 /* ---- THE HEADS: bigger targets, wrapping instead of ellipsising (R17) ---- */
-html.phone #edViewTabs .edTab { min-height:40px; font-size:12px; }
-html.phone #edPropHead { flex-wrap:wrap; row-gap:6px; }
-html.phone #edPropHead .pill, html.phone #edPartsHead .pill { min-height:36px; padding:0 10px; font-size:11px; }
-html.phone #edPartName { font-size:15px; }
+html.phone:where(:not(.phfly)) #edViewTabs .edTab { min-height:40px; font-size:12px; }
+html.phone:where(:not(.phfly)) #edPropHead { flex-wrap:wrap; row-gap:6px; }
+html.phone:where(:not(.phfly)) #edPropHead .pill, html.phone:where(:not(.phfly)) #edPartsHead .pill { min-height:36px; padding:0 10px; font-size:11px; }
+html.phone:where(:not(.phfly)) #edPartName { font-size:15px; }
 
 /* ---- THE TREE: a 44 px row a node ---- */
-html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
-html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+html.phone:where(:not(.phfly)) #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
+html.phone:where(:not(.phfly)) #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 
 /* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, 44 px (the whole row the value editor's target).
    Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 the scale, the
    row's width (COMPACT, the default) - or [-] the scale [+] with the row's own - / + (html.ph-pm, ~58 px). ---- */
-html.phone #edRows { padding:0 12px 24px 12px; }
-html.phone #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
-html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
+html.phone:where(:not(.phfly)) #edRows { padding:0 12px 24px 12px; }
+html.phone:where(:not(.phfly)) #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
+html.phone:where(:not(.phfly)) #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
   font-size:13px; line-height:1.3; color:var(--ed-dim); }
-html.phone #edRows .r.tog > span.k { width:auto; }
-html.phone #edWrap .r input[type=text] { font-size:15px !important; }
-html.phone #edRows .r > .rn { flex-basis:100%; }
-html.phone #edRows .r > button { min-height:36px; min-width:36px; }
+html.phone:where(:not(.phfly)) #edRows .r.tog > span.k { width:auto; }
+html.phone:where(:not(.phfly)) #edWrap .r input[type=text] { font-size:15px !important; }
+html.phone:where(:not(.phfly)) #edRows .r > .rn { flex-basis:100%; }
+html.phone:where(:not(.phfly)) #edRows .r > button { min-height:36px; min-width:36px; }
 /* THE SLIDER ROW IS ONE FIXED GRID, the same for every control (G3900; the user's stills 2 Nov 13:02-13:03, "rubbish
    overflowing of sliders and button components": the flex rows wrapped, - / + fell onto lines of their own and every
    row had its own shape). Never a wrap - every child has its cell:
@@ -119,62 +119,63 @@ html.phone #edRows .r > button { min-height:36px; min-width:36px; }
    The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
    No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (a pick since the user chose the row's - / + on 2 Nov 18:20, html.ph-pm the default - phone.js):
    the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
   grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
   column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:3px 0; box-sizing:border-box; flex-wrap:nowrap;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; cursor:pointer; }
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
-html.phone.ph-pm { --ph-row:58px; --ph-line2:32px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
+html.phone:where(:not(.phfly)).ph-pm { --ph-row:58px; --ph-line2:32px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:16px; cursor:pointer; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
   width:34px; height:20px; border-radius:10px; overflow:visible; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
   min-height:26px; min-width:30px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
   margin-left:6px; width:auto !important; max-width:76px; overflow:hidden; white-space:nowrap; text-align:right; font-size:12px !important; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
 /* the axis mark (editor.css: the row's ::after, 13 px before the label) on line 1, where the label is - the old
    two-line rows centred it on the row and it read as a stray dot by the + */
-html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
-html.phone.ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
+html.phone:where(:not(.phfly)) #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
+html.phone:where(:not(.phfly)).ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
 /* the - / + on the row (html.ph-pm): 40 px wide, the line's height, never on a line of their own */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
   padding:0; border-radius:8px; font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
 /* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
-   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
-html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does; z-index 1: the reach below
+   lay under the next row (the 2 Nov rig: the - / + foot 4 px short of 44) */
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; z-index:1; }
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
   padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
   font:600 15px/24px 'IBM Plex Sans', sans-serif !important; font-variant-numeric:tabular-nums; color:var(--ed-ink) !important;
   background:var(--ed-btn-bg) !important; border:1px solid var(--ed-hair) !important; border-radius:6px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
 /* the scale: drawn between the - and the +, and it takes NO touch - a finger on it scrolls the sheet (R4) */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
   box-shadow:0 0 0 1px rgba(0,0,0,.35); }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
 /* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) - taller than the row's scale */
 .phKnob { display:none; }
-html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
+html.phone:where(:not(.phfly)) .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
   border-radius:50%; touch-action:none; cursor:grab; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; outline:none; }
-html.phone .r .phKnob[hidden] { display:none; }
+html.phone:where(:not(.phfly)) .r .phKnob[hidden] { display:none; }
 /* PLACED BY CSS, MOVED BY A TRANSFORM (G3900; the phone's shed runs ~12 fps - the layout adds no layout reads): the row is a
    phone.js writes --phf (the value's fraction) and --phw (the row's width, from a ResizeObserver's entries - never a
    measure; not a container query: a size container is a stacking context, and the next row would paint over the knob's
@@ -184,25 +185,25 @@ html.phone .r .phKnob[hidden] { display:none; }
    scale (the 2 Nov rig's shape red). COMPACT: the scale is the row's width, line 2's middle 3 + 16 + 11 px down. ph-pm: the
    scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (--phw - 92 px); line 2's middle
    4 + 16 + 4 + 16 px down */
-html.phone .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
+html.phone:where(:not(.phfly)) .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
   transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 22px) - 13px), 0, 0); }
-html.phone.ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
-html.phone .r.phSlider.phOff > .phKnob { display:none; }
-html.phone .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
-html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
+html.phone:where(:not(.phfly)).ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
+html.phone:where(:not(.phfly)) .r.phSlider.phOff > .phKnob { display:none; }
+html.phone:where(:not(.phfly)) .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
+html.phone:where(:not(.phfly)) .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
 /* toggles, selects and the stepper widgets at a finger's size */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
+html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
 /* the flyout's rows (the display switches, the alphas) take the same row */
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
+html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
+html.phone:where(:not(.phfly)) :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
 
 /* ---- THE SECTIONS (G3900): their heads stay at the top of the sheet while their rows scroll under them, and fold on a
    tap (editor.js secWire, remembered) - compact, so a section costs one 30 px line ---- */
-html.phone #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
+html.phone:where(:not(.phfly)) #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
   align-items:center; background:var(--ed-panel); box-shadow:0 1px 0 var(--ed-hair); }
-html.phone #edRows .edH.edHP { margin:0; padding-top:8px; }
-html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
+html.phone:where(:not(.phfly)) #edRows .edH.edHP { margin:0; padding-top:8px; }
+html.phone:where(:not(.phfly)) #edRows .edH.shut { margin:0; padding-bottom:4px; }
 
 /* ---- THE VALUE'S EDITOR (G3900): a tap on a value or its label - the number typed (inputmode decimal) with its unit,
    - / + a step (held: they repeat), Done, Enter or a tap outside sets it, Esc leaves it. An input bar, not a card:
@@ -210,52 +211,52 @@ html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
 /* THE BAR'S OWN PALETTE (the 2 Nov 19:00 diag: the bar is body-level, and the --ed-* tokens live on the panels - editor.css
    40 - so its background and buttons came out TRANSPARENT: the rows showed through and the rig's editor still showed no bar).
    editor.css's values, here, for the one body-level box that wears them */
-html.phone #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
+html.phone:where(:not(.phfly)) #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
   --ed-faint:#97907f; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14); --ed-btn-bg:rgba(255,255,255,.06);
   --ed-btn-bd:rgba(255,255,255,.18); }
-html.phone #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
+html.phone:where(:not(.phfly)) #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
   display:grid; grid-template-columns:var(--ph-tap) minmax(0, 1fr) var(--ph-tap) auto var(--ph-tap); grid-template-rows:auto var(--ph-tap);
   gap:6px 8px; align-items:center; padding:10px 12px 12px; background:var(--ed-panel);
   border-top:1px solid var(--ed-border); box-shadow:0 -8px 24px rgba(0,0,0,.45); font-family:'IBM Plex Sans', sans-serif; }
-html.phone #phEdit[hidden] { display:none; }
-html.phone #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
+html.phone:where(:not(.phfly)) #phEdit[hidden] { display:none; }
+html.phone:where(:not(.phfly)) #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-html.phone #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
+html.phone:where(:not(.phfly)) #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
   font-variant-numeric:tabular-nums; white-space:nowrap; }
-html.phone #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
+html.phone:where(:not(.phfly)) #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
   font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.12em; text-transform:uppercase;
   color:var(--ed-acc-ink); background:var(--ed-acc); border:0; }
-html.phone #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+html.phone:where(:not(.phfly)) #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
   font:500 22px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-html.phone #phEdit .phMinus { grid-column:1; }
-html.phone #phEdit .phPlus { grid-column:5; }
-html.phone #phEdit .phStep:active { background:var(--ed-acc-soft); }
-html.phone #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+html.phone:where(:not(.phfly)) #phEdit .phMinus { grid-column:1; }
+html.phone:where(:not(.phfly)) #phEdit .phPlus { grid-column:5; }
+html.phone:where(:not(.phfly)) #phEdit .phStep:active { background:var(--ed-acc-soft); }
+html.phone:where(:not(.phfly)) #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
   font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
-html.phone #phEdit .phEsign:active { background:var(--ed-acc-soft); }
-html.phone #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-html.phone #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
+html.phone:where(:not(.phfly)) #phEdit .phEsign:active { background:var(--ed-acc-soft); }
+html.phone:where(:not(.phfly)) #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html.phone:where(:not(.phfly)) #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
   font:600 22px/1 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums; text-align:right; color:var(--ed-ink);
   background:var(--ed-board); border:1px solid var(--ed-border); border-radius:8px; outline:none; }
-html.phone #phEdit .phEin:focus { border-color:var(--ed-acc); }
-html.phone #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
+html.phone:where(:not(.phfly)) #phEdit .phEin:focus { border-color:var(--ed-acc); }
+html.phone:where(:not(.phfly)) #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
 
 /* ---- THE DIVIDER (G3900): the line between the view and the controls, moved by the thumb. While it moves a ghost line
    shows where it will land; the view takes the new size on release (one resize, not one a frame) ---- */
-html.phone #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
+html.phone:where(:not(.phfly)) #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
   display:flex; align-items:center; justify-content:center; }
-html.phone #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
-html.phone #phDiv.on::before { background:var(--ed-acc); }
-html.phone #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
+html.phone:where(:not(.phfly)) #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
+html.phone:where(:not(.phfly)) #phDiv.on::before { background:var(--ed-acc); }
+html.phone:where(:not(.phfly)) #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
   box-shadow:0 0 0 1px rgba(0,0,0,.4); }
-html.phone #phGhost[hidden] { display:none; }
+html.phone:where(:not(.phfly)) #phGhost[hidden] { display:none; }
 @media (orientation:landscape) {
-  html.phone #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
-  html.phone #phDiv::before { width:4px; height:40px; }
-  html.phone #phGhost { top:0; left:0; height:100vh; width:2px; }
+  html.phone:where(:not(.phfly)) #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
+  html.phone:where(:not(.phfly)) #phDiv::before { width:4px; height:40px; }
+  html.phone:where(:not(.phfly)) #phGhost { top:0; left:0; height:100vh; width:2px; }
 }
 .phStep { display:none; }
 
@@ -271,31 +272,27 @@ html.phone #phGhost[hidden] { display:none; }
 #phBubble[hidden] { display:none; }
 
 /* ---- THE INFORMATION PANEL AS A TAB: the plaque and the bench, full width ---- */
-html.phone #edInfoBody { padding:0 16px 24px; }
-html.phone #edInfo button { min-height:40px; }
+html.phone:where(:not(.phfly)) #edInfoBody { padding:0 16px 24px; }
+html.phone:where(:not(.phfly)) #edInfo button { min-height:40px; }
 
 /* ---- THE DIALOGS the garage opens (the chooser, the fleet, the welcome) fit the width ---- */
-html.phone :is(#dfBirth, #gFleet) { max-width:100vw; }
+html.phone:where(:not(.phfly)) :is(#dfBirth, #gFleet) { max-width:100vw; }
 
 /* ---- G3060 (CARDS-CORNER): THE BENCH'S CARDS (the run, the award) ON THE SHEET, NEVER OVER THE VIEW ----------------
    The desktop puts them in the view's lower-left corner; a phone's view is too small for a corner, so they take the
    bottom of the SHEET (under the view in portrait, beside it in landscape), above the tab bar: the aeroplane stays in
    sight. GATE CARDS measures it at 390 x 844 */
-html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
+html.phone:where(:not(.phfly)) #bRun, html.phone:where(:not(.phfly)) #bAward, html.phone:where(:not(.phfly)) body.mode-fly #bAward {
   left:calc(var(--ph-sl) + 8px); right:auto; top:auto; bottom:calc(var(--ph-tab) + 8px);
   width:calc(var(--ph-sw) - 16px); max-width:none;
   max-height:calc(100vh - var(--ph-st) - var(--ph-tab) - 16px);
   max-height:calc(100dvh - var(--ph-st) - var(--ph-tab) - 16px); overflow-y:auto; }
 
-/* THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov: "I can't see the CG and margin indicators in the phone interface"):
-   phone.js's chip at the view's lower left - the posts' reading in numbers, in the margin band's colour (app.js's
-   red / orange / green, P1 CG-COLOURS). Above the divider's hit zone (--ph-vh less 22 px) in portrait, the view's foot in
-   landscape; no pointer (the orbit's finger passes through); one line, ellipsed in a narrow view */
-html.phone #phCg { position:fixed; left:10px; top:calc(var(--ph-vh) - 62px); z-index:45; pointer-events:none;
-  max-width:calc(var(--ph-vw) - 20px); box-sizing:border-box; padding:6px 10px 6px 9px; border-radius:8px;
-  border-left:3px solid #c0b8ac; background:rgba(20,18,15,.8); color:#f4efe6;   /* (body-level: the --ed-* tokens live on the panels, editor.css 40) */
-  font:600 13px/16px 'IBM Plex Sans', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-html.phone #phCg[hidden] { display:none; }
-html.phone #phCg[data-band="green"] { border-left-color:#6fd08a; }
-html.phone #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
-html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
+
+/* THE INSTALLED APP (G3910, PHONE-1b): no pull-to-refresh or overscroll glow fighting a drag; in a standalone window the
+   tab bar stands on the gesture bar's inset (phone.js's viewport-fit=cover hands it over) */
+html.phone:where(:not(.phfly)), html.phone:where(:not(.phfly)) body { overscroll-behavior:none; }
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  html.phone:where(:not(.phfly)) { --ph-tab:calc(48px + env(safe-area-inset-bottom)); }
+  html.phone:where(:not(.phfly)) #phTabs { padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; }
+}
