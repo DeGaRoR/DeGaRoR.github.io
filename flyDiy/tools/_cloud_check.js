@@ -229,7 +229,10 @@ console.log('7b. several decks + the look: the march (static)');
     yes(/const d = edSection\(body, 'night', [^\n]*\n\s*if \(d\) buildDay\(d\);/.test(E) && /if \(c\) buildClouds\(c\);/.test(E) && /rowsHost = edSection\(body, 'shed\.light'/.test(E) && /window\.DAY_UI\.mount\(body, H, dayCtx\(\)\)/.test(E) && /rows: \['lights', 'world lights', 'ground bounce'\]/.test(E), 'the shed\'s night flyout mounts it, the clouds in a fold beside it, the borrowed light rows in their own (the tree\'s mood select not borrowed)');
     yes(/window\.CLOUDS_UI\.mount\(body, railRows\(\), dayCtx\(\)\)/.test(E), 'the clouds and the day share the rail\'s row vocabulary (railRows)');
     yes(!/id="selTime"/.test(B) && !/flS\('Time'\)/.test(A), '#selTime is gone: the presets are pills, DAY_CLOCK the one state');
-    yes(/k: 'time', state: 'DAY_CLOCK preset'/.test(E) && /CK\.preset\(P\[\(i \+ 1\) % P\.length\]\)/.test(E), 'the quick bar\'s time button presses the clock, not the mood');
+    // TIME-CONTROLS (L30a, rule b): the quick bar's time button opens the time menu (DAY_UI.menu on DAY_CLOCK) in its own
+    // pop card, no longer a preset cycle - the clock stays the one state, never the mood
+    yes(/k: 'time', state: 'DAY_CLOCK \(the time menu\)'/.test(E) && /window\.EDITOR_QUICK_POP\(window\.EDITOR_QUICK_POPPED === 'time' \? null : 'time'\)/.test(E)
+      && /time: \{ head: 'Time', build\(body\) \{/.test(E) && /window\.DAY_UI\.menu\(body, railRows\(\), Object\.assign\(dayCtx\(\)/.test(E), 'the quick bar\'s time button opens the time menu on the clock, not the mood');
     yes(/'day_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'day_ui.js is in the build'); }
   // G436.12: the mood select's cloud coupling retired, the NIGHT on the flight rail, the lights rule in the cockpit
   { const E = src('viewer/editor.js'), CKS = src('viewer/cockpit.js'), PI = src('core/43_pilot.js'), CU = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');

@@ -311017,6 +311017,17 @@ IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-ED
 
 BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
 TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
+
+## TIME-CONTROLS-2 - CLOUD'S QUICK-BAR ROW READS THE TIME BUTTON AS L30a SHIPPED IT (2026-11-03, GAME-MENUS, LOCAL; for L30b; claude/ready/time-controls-2, on master a8a23ad62)
+Why: L30a's battery: GATE CLOUD 1 red of 239, "the quick bar's time button presses the clock, not the mood". TIME-CONTROLS made that button open the time menu (DAY_UI.menu on DAY_CLOCK, in #edPopCard); it no longer cycles DAY_CLOCK's presets. RULE (b): the row reads the new behaviour - the state 'DAY_CLOCK (the time menu)', the EDITOR_QUICK_POP toggle, QPOP_OWN.time building DAY_UI.menu with the rail's rows and dayCtx. The intent stays: the button acts on the clock, never the mood.
+What changed: tools/_cloud_check.js (that row) only.
+Gates: CLOUD.
+
+## A0 - train L30b, 3 Nov 2026 15:35
+
+IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
+BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
+TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.
 ## SEATS (2026-11-02, cloud session, the user via A0): the seat library
 Every seat the crew layer draws is `tools/_seat_gen.js`'s (MANIFEST.editor, before `_cage_crew.js`; `buildSeat` is the
 door). 15 calibrated presets on `cage.seatType` 0-14, named by their spirit (the user: "avoiding naming planes"):
