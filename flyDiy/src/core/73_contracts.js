@@ -254,7 +254,7 @@ function contractWhenOk(w, stop) {
 // The window itself is a time of day (GQ17): flown on any night it is met; the job line states the moon of the NEXT
 // opening from the career's clock (75_ careerNightLine).
 const CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1,
-                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-06-21' };
+                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-07-15' };   // the career's first LOCAL day (74_ CAREER_DAY0, 15 Jul since WEATHER-DAYS)
 // the window's local hours [h0, h1) on a night of this dusk / dawn (h0 > h1 wraps midnight)
 function contractWhenSpan(w, duskH, dawnH) {
   if (!w || contractWhenWhy(w)) return null;
