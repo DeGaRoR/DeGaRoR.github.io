@@ -937,3 +937,147 @@ planes stand on the ground."
   - wells and doors (step 4);
   - the other motions' presets (step 3);
   - the amphibian (step 2).
+
+---
+
+## 8. THE WIDE OVERVIEW - ONE GEAR SYSTEM (the user, 3 Nov 2026, the night)
+
+The user's direction, in their words where it matters:
+- "merge that with the amphibious floats at some point, where these ones can integrate directly the landing train";
+- "control the direction of rotation of the wheels ... the Skymaster, which rotates on two axes and then comes and
+  sticks to the back";
+- "the Catalina ... retract partly their wheels without doors ... an inset into the fuselage ... keep the inset that we
+  would generate anyways";
+- "the closing doors on the path";
+- "a part of the cut is actually going onto the wheel and the leg, and another part is becoming a little opening door";
+- "maybe just a box";
+- "a wheel which is also turning 90 degrees on its own axis to be flatter".
+
+And on the user interface: "we do not need a ton of diagnosis. We just need responsive sliders that are showing it red
+when it is and then turns not red, and then you see the cutouts and you have something to simulate, and then you choose
+whether it has a door ... and you choose the way they fold. We obviously always cut exactly. Wells before doors, but we
+do not forget doors afterwards."
+
+### 8.1 The model: a gear UNIT, everywhere
+
+Every wheel station is a unit:
+- the mains pair (mirrored);
+- the nose or tail wheel;
+- AND the wheels of an amphibious float: two nose units in the bows, two main units in the floats.
+
+A unit carries five things:
+1. **Its leg and wheel** - today's families: beam, link, oleo, castor.
+2. **A MOTION:** an ordered chain of up to three turns, each a hinge point, an axis (a direction to pick, not a sign to
+   guess) and an angle. Plus the wheel's own twist about the leg's axis (0-90 degrees: "to be flatter"). Plus a
+   RETRACTION FRACTION:
+   - 1 is fully up;
+   - 0.6 is a Catalina or a DC-3, the wheel stopping in its inset half out.
+
+   Each turn is a row; a preset fills them all:
+
+   | Preset | What it does |
+   |---|---|
+   | `inward` | Mooney, Bonanza, Arrow |
+   | `outward` | Spitfire, Bf 109 |
+   | `aftTwist` | P-40, F4U: aft + the wheel's 90-degree twist |
+   | `aftBelly` | the Cessna RG's twist-and-tuck |
+   | `skymaster` | aft, then a second turn that lays the leg along the body (two axes, as the user describes the 337 - to check on a reference) |
+   | `noseAft`, `noseFwd`, `tailFwd` | the nose and tail legs |
+   | `semi` | partial, no door |
+   | `floatNose` | up and aft onto the float's deck |
+   | `floatMain` | up into the float |
+
+   The motion is a law the flight replays: the position 0..1 walks the chain (the turns in sequence, the twist across
+   them). The physics keeps option A: the contact plane follows the wheel's lowest point at that position, which makes
+   a semi-retract roll on its exposed tyre for free.
+3. **A HOST**, measured: where the swept volume lands - the body, the wing, a nacelle, or a float.
+4. **A WELL:**
+   - **Shape:** `fitted` (hugging the swept volume plus 30 mm) or `box` (its bounding box, the user's "just a box").
+   - **Cut:** always cut exactly into the host's skin, walls and ceiling included.
+   - **Partial units:** a semi-retract unit keeps its well as the inset it stops in.
+5. **DOORS**, chosen: none / leg door / leg door + well doors. The well's outline is split in two:
+   - the part over the leg's path becomes the LEG DOOR, riding the leg and the wheel ("a part of the cut is going onto
+     the wheel and the leg");
+   - the rest becomes WELL DOORS, hinged on an outline edge, that open, let the gear through, and close ("the closing
+     doors on the path").
+
+   The cut piece IS the door, so the door is the skin it came from.
+
+**No fairings on a retracting gear** (done, 3 Nov): no spat, trouser or leg shroud. The doors are its fairing.
+
+### 8.2 The editor: sliders that go red, and a swing to watch
+
+- **A `gear position` slider (0..1)** simulates the motion in the editor, the shed's own preview. The same position
+  drives quickshot `--gear`.
+- **Red sliders, no diagnosis wall.** Any row whose value makes a unit not fit turns RED, and turns back the moment it
+  fits:
+  - the motion's angles, the hinge, the track, the leg, the wheel, the twist, the fraction;
+  - the wing's thickness and chord;
+  - the tanks' rows.
+
+  "Not fit" is four things only:
+  - the swept volume leaves the host's skin (past the fraction's declared exposure);
+  - it crosses a spar or the floor;
+  - it meets the other units (the two mains under the belly - the T-tail tourer's today);
+  - it meets a tank or the crew.
+
+  A one-line tooltip says which. Nothing changes the geometry by itself.
+- **The cutouts are drawn** as the sliders move: exact cuts, recomputed on release; while dragging, the outline only.
+- **One choice for the doors**, one for the fold (the presets above, then the rows to tune).
+
+### 8.3 The reservation
+
+- The wells are keep-outs every fitter respects:
+  - the fuel bays lose their volume, in the core's numbers too (genBayResolve);
+  - the tank fit and the crew fit treat a well like structure (TANK-FIT's exact solid test);
+  - GATE CLIP sweeps the gear's travel like any control's.
+- A well is published in the spec (`gear.wells`, measured by the join), so the core knows it without the editor.
+
+### 8.4 The amphibious floats, on the same units
+
+The float is a host, as the wing and the body are. The float generator owns its sections, so a float well is cut in the
+hull it draws.
+
+The physics is the part §3.2 already costed:
+- the wheel nodes hung on the float's own nodes;
+- the land / water switch;
+- the wheels' water plates running beside the float pass;
+- the advisory voice.
+
+Done after the land retract's wells: the amphibian then needs no new drawing machinery, only its two presets and its
+physics.
+
+### 8.5 The order (replaces §3.3-§3.4)
+
+| | What ships | Days |
+|---|---|---|
+| G1 | The motion chain: up to three turns, the twist, the fraction, the presets above. The editor's `gear position` slider, the flight replaying the chain. Retire the single 90-degree swing | 3 |
+| G2 | The red sliders: the swept volume per unit (sampled turns + the wheel's cylinder and the leg's capsules); the four tests; the rows that turn red | 2-3 |
+| G3 | The reservation (§8.3) | 2 |
+| G4 | The body cut: the knife from below, the well's walls and ceiling; `fitted` and `box` | 2-3 |
+| G5 | The wing cut: the knife on the wing loft's lower skin, in the rib/spar field, the flex binding kept | 3-4 |
+| G6 | Doors: the leg door and the well doors from the cut, the door sequence | 3 |
+| G7 | The amphibian on the same units (§3.2's physics + the two float presets + the float well) | 7 |
+
+G1-G5 is about 12-15 days; G6 3; G7 7.
+
+### 8.6 The reference aeroplane
+
+The archetypes have never been fitted to a real aeroplane, and wells are where that shows: the T-tail tourer's track
+(1.6 m) puts its folded wheels together under the belly. The user can provide a model; the fit is REF_MATCH's
+(`tools/REF_MATCH.md`, `tools/ref_match/KICKOFF.md`).
+
+**Recommendation: the PIPER ARROW (PA-28R).**
+- It is the Cherokee with a retracting gear, so a Cherokee model is the same airframe: fixed now, retracting once its
+  gear is fitted.
+- The garage already draws every part of it: the low wing, the straight or T tail, the cabin, the flat-four on the nose.
+- The T-tail tourer card IS an Arrow IV in all but name: a low wing, a T-tail, a Lycoming IO-360, a tricycle.
+- Its mains fold inward into the wing and its nose aft, the first motion built.
+- Of the family, an Arrow II's or a Cherokee's constant-chord wing is the easiest to fit. An Arrow III / IV's tapered
+  wing matches our card. Either works.
+
+**Against the others:**
+- The Bonanza needs the tapered V-tail and a tapered wing fitted.
+- The Mooney needs its forward-raked fin, a garage gap.
+
+**What a model must show:** the gear DOWN, ideally with the wells and doors visible - the doors are what we will match.

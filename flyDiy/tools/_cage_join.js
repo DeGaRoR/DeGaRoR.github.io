@@ -446,6 +446,8 @@ function cageJoinSpec(P, M, T) {
     if (+P.gearRetract && M.gearType === 'tricycle' && Math.round(+P.wgPos) === 2 && !+P.gearFloats)
       spec.gear.retract = { time: +P.gearRetT || 6,
                             act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
+    // (...and it is drawn bare: the fairing fields the drag and the mass read follow the drawing - clampSpec says so too)
+    if (spec.gear.retract) { spec.gear.fairing = spec.gear.twFairing = 'none'; spec.gear.legFair = spec.gear.twLegFair = 'none'; }
     else delete spec.gear.retract;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).

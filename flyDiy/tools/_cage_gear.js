@@ -110,7 +110,10 @@ const sOn = i => ({ when: P => +P['s' + i + 'On'] });
 // all — no cue, in the one place where the cue is the difference between a
 // 15-inch wheel and an 11-inch one. `sOnM` is `sOn` that says so.
 const sOnM = i => ({ when: P => +P['s' + i + 'On'], dim: 'm' });
-const fairOn = i => ({ when: P => +P['s' + i + 'On']
+// RETRACT-1 (the user, 3 Nov: "wheels with fairings - a strange choice for retractable wheels"): a retracting gear
+// wears no spat, no trouser and no leg shroud - its doors will be its fairing (step 4) - so the fairing rows step aside
+const noRet = P => !GEAR_RETRACTABLE(P);
+const fairOn = i => ({ when: P => +P['s' + i + 'On'] && noRet(P)
                              && Math.round(P['s' + i + 'Fair'] || 0) > 0 });
 // any fairing anywhere — the build-material row prices the whole set
 const fairAny = P =>
@@ -143,7 +146,7 @@ const station = (i, name) => [name, [
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
-   sOn(i)],
+   { when: P => +P['s' + i + 'On'] && noRet(P) }],
   // ...and the shape is an instrument (G133): skirt around the mode's own
   // base, tail run-out to a droplet, rake for a taildragger's flying
   // attitude, width for a fat tyre. Rows exist only where a shell does.
@@ -156,7 +159,7 @@ const station = (i, name) => [name, [
   // Hidden on trousers (they already shroud the leg) and on the castor
   // (its spring shroud is the trouser state's own).
   ['s' + i + 'LegFair', 'leg fairing', 0, 1, 1, ['bare', 'streamlined'],
-   { when: P => +P['s' + i + 'On']
+   { when: P => +P['s' + i + 'On'] && noRet(P)
              && Math.round(P['s' + i + 'Fair'] || 0) < 2
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
   ...legRows(i),
@@ -285,6 +288,8 @@ PAGE.post = ctx => {
   // (One cage-side remap first: tailwheel stations are TAIL-RELATIVE —
   // see the defaults note above. The bench keeps absolute stations.)
   const stations = GP.gearStations(P);
+  // RETRACT-1: a retracting gear is drawn bare (no spat, no trouser, no leg shroud: noRet above)
+  if (GEAR_RETRACTABLE(P)) for (const st of stations) { st.fair = 0; st.legFair = 0; }
   for (const st of stations)
     if (st.leg === 3) st.z = AF.z0 + Math.max(0.02, st.z);
 

@@ -311138,3 +311138,8 @@ TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better th
 - Open (said in the study §7): the cockpit lever and lamps (a `gear` law), the bus -> gearPower, the tech table, the T-tail
   tourer card as a retract (ARCHETYPES flies the birth spec pre-join: it needs a GEN_DEFAULT field), wells and doors (step 4),
   the other motions (step 3), the amphibian (step 2).
+- RETRACT-1b (the user, the night): a retracting gear wears NO fairing (spat / trouser / leg shroud: the rows step aside,
+  the drawing goes bare, the join and clampSpec set the fields 'none' - the doors will be its fairing). The wide overview -
+  one gear UNIT model for retracts, partial retraction, wells, doors and the amphibian; the motion chain (up to three turns + the
+  wheel's twist + a fraction); red sliders, no diagnosis; the order G1-G7; the PIPER ARROW as the reference to fit - is the
+  study's §8.

@@ -4,8 +4,9 @@
 //   1. THE SPEC: clampSpec keeps a tricycle's retract with its defaults (6 s, hydraulic, free fall), clamps the cycle
 //      (2-20 s), and drops it on a taildragger and on floats; a fixed build's def carries no params.retract, its sim
 //      no gear (sim.gear() null) and its ctl no gear key - nothing of the gear exists where it was not chosen
-//   2. THE BILL: the retract build is heavier by the kit (GEN_RULES.retractKg of the gross, on the gear's ledger row)
-//      and dearer by GEN_PRICES.retract; params.retract.cdA is the gear's own drag (gen.drag.gear)
+//   2. THE BILL: a retracting gear wears no fairings; against the same aeroplane fixed and bare it is heavier by the kit
+//      (GEN_RULES.retractKg of the gross, on the gear's ledger row) and dearer by GEN_PRICES.retract; params.retract.cdA
+//      is the gear's own drag (gen.drag.gear)
 //   3. THE SQUAT SWITCH: the handle up on the ground holds the gear down (pos 1 after 3 s)
 //   4. THE CIRCUIT (the expert): the gear up in the climb (over 15 m, climbing), the transit the cycle's time (+-0.2 s),
 //      down for the circuit, down and locked at the flare, landed on its wheels (a touchdown, under 2.5 m/s, no prop
@@ -26,8 +27,9 @@ const C = require('./flight_core.js'), LB = require('./_load_build.js');
 let bad = 0;
 const check = (ok, label, note) => { console.log((ok ? '  ok   ' : '  FAIL ') + label + (note != null ? '  (' + note + ')' : '')); if (!ok) bad++; return ok; };
 const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), 'utf8'));
-const specOf = retract => { const s = LB.gameSpec(JSON.parse(JSON.stringify(raw))); if (retract) s.gear.retract = retract; return s; };
-const defOf = retract => { const s = specOf(retract); const d = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(s) : s); d.params = Object.assign({}, d.params, { damage: true }); return d; };
+const specOf = (retract, bare) => { const s = LB.gameSpec(JSON.parse(JSON.stringify(raw))); if (retract) s.gear.retract = retract;
+  if (bare) { s.gear.fairing = s.gear.twFairing = 'none'; s.gear.legFair = s.gear.twLegFair = 'none'; } return s; };
+const defOf = (retract, bare) => { const s = specOf(retract, bare); const d = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(s) : s); d.params = Object.assign({}, d.params, { damage: true }); return d; };
 
 // ---- 1. the spec -------------------------------------------------------------------------------------------------
 console.log('1 THE SPEC');
@@ -42,7 +44,8 @@ console.log('1 THE SPEC');
   const fl = specOf({ time: 6 }); fl.gear.type = 'floats';
   check(!('retract' in cl(fl).gear), 'floats drop it');
 }
-const dF = defOf(null), dR = defOf({ time: 6, act: 'hydraulic' });
+// (dB: the same aeroplane fixed and BARE - a retracting gear wears no fairings, so the bill compares like with like)
+const dF = defOf(null), dB = defOf(null, true), dR = defOf({ time: 6, act: 'hydraulic' });
 {
   const W = C.makeWorld(), sF = C.makeSim(dF, W);
   check(dF.params.retract === undefined && sF.gear() === null && !('gear' in sF.ctl), 'a fixed build: no params.retract, no sim gear, no ctl.gear');
@@ -51,8 +54,10 @@ const dF = defOf(null), dR = defOf({ time: 6, act: 'hydraulic' });
 // ---- 2. the bill ---------------------------------------------------------------------------------------------------
 console.log('2 THE BILL');
 {
-  const mF = dF.nodes.reduce((s, n) => s + n.m, 0), mR = dR.nodes.reduce((s, n) => s + n.m, 0);
-  const LF = dF.parts.ledger.gear, LR = dR.parts.ledger.gear;
+  check(dR.spec.gear.fairing === 'none' && dR.spec.gear.twFairing === 'none' && dR.spec.gear.legFair === 'none',
+        'a retracting gear wears no fairings (the fixture\'s spats dropped)', dR.spec.gear.fairing + '/' + dR.spec.gear.twFairing);
+  const mF = dB.nodes.reduce((s, n) => s + n.m, 0), mR = dR.nodes.reduce((s, n) => s + n.m, 0);
+  const LF = dB.parts.ledger.gear, LR = dR.parts.ledger.gear;
   check(mR - mF > 20 && mR - mF < 60, 'the kit weighs 20-60 kg on this 1-t aeroplane', (mR - mF).toFixed(1) + ' kg');
   // (the gear row carries the kit; the rest of the difference is the structure's gauge following the heavier gross)
   check(LR.mass - LF.mass > 0.85 * (mR - mF), 'and it is billed on the gear row', (LR.mass - LF.mass).toFixed(1) + ' of ' + (mR - mF).toFixed(1));
