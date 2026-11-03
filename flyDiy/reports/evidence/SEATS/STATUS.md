@@ -75,7 +75,11 @@ MEASURED (tools/_framecost_check.js --census cub, master a8a23ad62 vs this branc
 - THE SEATS' OWN COST is at boot, in the garage: +8 draws (garage:craft 627 -> 635), ~+12 MB of buffer uploads across
   garage:spec / bake / firstFrame (the hero seats' geometry); updateMatrixWorld DOWN (fewer objects than the old seats).
   FIX (claude/ready/seats-cost): the game builds the MID level by default (the same shapes at a fifth of the triangles;
-  the hero is the seat studio's and ?seatlod=0's). Measured below.
+  the hero is the seat studio's and ?seatlod=0's). MEASURED (the Cub, the cook off on both trees, master a8a23ad62 vs
+  claude/ready/seats-cost): NO red row - stand and taxi equal to the digit, the flown Cub equal (79 draws, 15 programs),
+  and every boot row that moved went DOWN (garage:firstFrame draws 4977 -> 4221, uniform bytes 714 356 -> 609 036;
+  garage:landing draws 14 931 -> 12 663; updateMatrixWorld down in every step). The +8 garage draws and the ~12 MB of
+  uploads are gone. With the train's re-cook, FRAMECOST on master + seats-cost should read master's own 5 rows.
 - NOT DONE, the user's call: collapsing every seat to its four section materials (chrome levers, rubber rollers, cast
   brackets into the frame colour) - it changes the approved look and the measurement says it buys nothing in flight.
 
