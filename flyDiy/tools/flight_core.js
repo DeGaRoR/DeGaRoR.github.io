@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 47856c1e7d61f1c8
+// body-sha256: b5fa6ec0106c9562
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -59325,9 +59325,9 @@ function storyChecklist(spec, base, items) {
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
 const STORY_BEATS = [
   { id: 'T0', title: 'The cabin', mask: 'finish',
-    brief: 'Your ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.',
+    brief: 'Your ultralight waits in the cabin’s shed. Make it yours - a colour, a name - then come and read the letter.',
     goal: { k: 'ack' } },
-  { id: 'T1', title: 'The move', brief: 'The proposal was accepted: the old WWII field is ours. Fly the ultralight there.',
+  { id: 'T1', title: 'The move', brief: 'The old WWII field is our base now - its hangar is ours already. Fly the ultralight there.',
     goal: { k: 'stop', at: 'home', plane: 'starter' },
     done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
   { id: 'T2', title: "The client's plane", mask: 'checklist',
@@ -59356,11 +59356,11 @@ const STORY_IDS = STORY_BEATS.map(b => b.id);
 // them. The corner card stays the OBJECTIVE; Tim is the voice.
 const STORY_TIM = {
   name: 'Tim', role: 'your friend and business partner',
-  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
+  T0: ['Morning! The ultralight has sat in the cabin’s shed all winter. Let\u2019s dust it off.',
        'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
        'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
-  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
+  T1: ['Good news: the old WWII airport is ready for us. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
   T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
   T3: ['Certified? Then fly it over to its owner.'],
@@ -59423,7 +59423,7 @@ function storyLadderStep(L, o) {
 const STORY_REG = 'N47RF';          // G3586: Rufus's own registration (fictional; the generator's meta.reg is F-PGAR)
 const STORY_TUTOR = {
   T0: [
-    { id: 'hello', say: 'Morning! The ultralight has sat in this shed all winter. Let’s dust it off.' },
+    { id: 'hello', say: 'Morning! The ultralight has sat in the cabin’s shed all winter. Let’s dust it off.' },
     { id: 'paint', wait: 'painted', allow: 'finish',
       say: 'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add a livery, or recolour any single piece. Give it a fresh coat: change any colour.' },
     { id: 'reg', wait: 'registered', allow: 'reg', pass: 'Keep ' + STORY_REG,
@@ -59432,7 +59432,7 @@ const STORY_TUTOR = {
       say: 'It’s pre-certified, so it flies as it is. No test bench in here, mind - certification happens at the WWII field’s hangar.' },
   ],
   T1: [
-    { id: 'news', say: 'Good news: we got the old WWII airport. It’s our base of operations now. Come and join me there.' },
+    { id: 'news', say: 'Good news: the old WWII airport is ready for us. It’s our base of operations now. Come and join me there.' },
     { id: 'ap', say: 'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.' },
     { id: 'roll', wait: 'flying', allow: 'rollout',
       say: 'Roll it out when you’re ready. Or skip the flight: you start on the final at the WWII field.' },
@@ -59760,8 +59760,9 @@ function storyApply(doc, e, o) {
     if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
     const was = !!d.sheds[id].locked;
     delete d.sheds[id].locked;
-    playerLedger(d, 'story', 0, id);
-    if (was) line = 'The WWII field’s hangar is yours.';
+    // STORY-HOME-FIX (F3): the hangar has been the player's since the start (STORY-1): the handing over - its ledger line,
+    // its words - only for an old save that still held it locked
+    if (was) { playerLedger(d, 'story', 0, id); line = 'The WWII field’s hangar is yours.'; }
   } else if (e.k === 'clientPlane') {
     const slot = o.slot || STORY_SLOTS.client;
     if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
