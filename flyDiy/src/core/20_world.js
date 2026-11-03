@@ -817,17 +817,17 @@ function makeWorld(seed, opts) {
     // 3.1: analytic, cheap enough to sample per hull vertex per substep),
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
-    // BAY-MIRROR (2026-11-03): a sheltered bay is calm - the felt trains scaled by the island's shelter (28_island.js
-    // calmAt: 1 on all open water, so the open sea is byte-for-byte what it was; 0 deep in a bay). The water shader lifts
-    // the near patch by the SAME factor from the same bytes (WATER.setCalm), so the hull sits in the wave it is drawn in
-    const k = CALM ? CALM(x, z) : 1;
-    if (k <= 0) return 0;
+    // BAY-MIRROR (2026-11-03): a sheltered bay is calmer - the felt trains scaled by the island's shelter (28_island.js
+    // waveK: 1 on all open water, so the open sea is byte-for-byte what it was; the wind's ripple, 0.25, deep in a bay). The
+    // water shader lifts the near patch by the SAME factor from the same bytes (WATER.setCalm), so the hull sits in the wave
+    // it is drawn in
+    const k = WAVEK ? WAVEK(x, z) : 1;
     let y = 0;
     for (const w of SEA.W) if (w.felt !== false) y += w.A * CORE_MATH.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
     return k < 1 ? y * k : y;
   }
   // the island's shelter (null on the analytic world and the flat field: no bay, the sea everywhere as it was)
-  const CALM = ISL && typeof ISL.calmAt === 'function' ? ISL.calmAt : null;
+  const CALM = ISL && typeof ISL.calmAt === 'function' ? ISL.calmAt : null, WAVEK = ISL && typeof ISL.waveK === 'function' ? ISL.waveK : null;
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
   // more consumer of setWeather's wind, never a second model). Amplitude
   // 0.018 m per m/s of wind (5 m/s: 0.09 m; 10: 0.18 - see setWind), wavelength 3 + 1.4 W
@@ -1245,6 +1245,7 @@ function makeWorld(seed, opts) {
     get sea() { return SEA; }, setSea,
     // BAY-MIRROR: the sea's calm factor (0 a sheltered bay .. 1 the open sea) and its field, the bytes the water shader samples
     calmAt: CALM ? (x, z) => CALM(x, z) : () => 1,
+    waveK: WAVEK ? (x, z) => WAVEK(x, z) : () => 1,   // the factor waterH puts on the sea's waves (the shelter with the wind's ripple kept)
     calmField: () => ISL && typeof ISL.shelter === 'function' ? ISL.shelter() : null,
     // K4: the state the sea is walking toward, and the walk itself (the viewer
     // pushes world.sea at the shader when `seaChanged` says the trains moved)

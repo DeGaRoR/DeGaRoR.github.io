@@ -142,7 +142,7 @@ const WATER = (() => {
     uniform vec4 uWMisc;       // x: shore fade width (m), y: lake depth per metre of field, z: lake depth cap (m), w: foam on
     uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's); G798: z: the shore's lap foam (0 off); G799: w: the wet bed
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
-    uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m)
+    uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m); the wind's ripple kept in a bay (its dials.ripple)
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
     #ifdef W_HULL
@@ -161,11 +161,13 @@ const WATER = (() => {
       vec4 t = texture2D(uWSdf, (xz - uWGrid.xy) / uWGrid.zw);
       return vec2((t.b * 255.0 - 128.0) * 4.0, (t.a * 255.0 - 128.0) * 4.0);   // (coast: sea < 0, lake: inside > 0)
     }
-    // THE SHELTER (BAY-MIRROR): 1 on open water (the sea as it was), 0 deep in a sheltered bay (a lake's calm) - the field
-    // the physics' waterH scales its felt trains by, read from the same bytes (texel centres at the cells' centres)
+    // THE SHELTER (BAY-MIRROR): the factor on the sea's waves - 1 on open water (the sea as it was), the wind's ripple
+    // (uWRipple, 0.25) deep in a sheltered bay - 28_island.js waveK, the one waterH scales its felt trains by, from the same
+    // bytes (texel centres at the cells' centres)
     float wCalm(vec2 xz) {
       if (uWCalmOn < 0.5) return 1.0;
-      return texture2D(uWCalm, (xz - uWCalmG.xy) * uWCalmG.zw).r;
+      float c = texture2D(uWCalm, (xz - uWCalmG.xy) * uWCalmG.zw).r;
+      return c >= 1.0 ? 1.0 : uWRipple + (1.0 - uWRipple) * c;
     }
     // the water column under this pixel: the sea's shelf (28_island.js seaFloor: -5 m at the line, -14 by
     // 500 m out) capped by a beach slope so the line itself is 0 deep; a lake by its field; else the body's own
@@ -255,7 +257,7 @@ const WATER = (() => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;\nuniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn;' + GLSL_GERSTNER)
+      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;\nuniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;' + GLSL_GERSTNER)
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
         vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
         float wh = 0.0;
@@ -266,7 +268,7 @@ const WATER = (() => {
           // line is the far plane's own there, whatever the patch does further out
           if (uWSdfOn > 0.5) { float sd = (texture2D(uWSdf, (wp0.xz - uWGrid.xy) / uWGrid.zw).b * 255.0 - 128.0) * 4.0; wh *= smoothstep(-6.0, -40.0, sd); }
           // BAY-MIRROR: a sheltered bay's swell is scaled down by the shelter, as waterH scales the floats' (one source)
-          if (uWCalmOn > 0.5) wh *= texture2D(uWCalm, (wp0.xz - uWCalmG.xy) * uWCalmG.zw).r;
+          if (uWCalmOn > 0.5) { float wc = texture2D(uWCalm, (wp0.xz - uWCalmG.xy) * uWCalmG.zw).r; wh *= wc >= 1.0 ? 1.0 : uWRipple + (1.0 - uWRipple) * wc; }
         }
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWP0 = wp0; vWBody = aWater;`);
@@ -641,7 +643,7 @@ const WATER = (() => {
       uWAbs: { value: arr(4) }, uWSct: { value: arr(4) }, uWBody: { value: arr(4) },
       uWMisc: { value: v4(S.shoreFade, S.lakeK, S.lakeCap, 1) }, uWFoam: { value: v4(1, 0, 0, 0) },
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
-      uWCalm: { value: null }, uWCalmG: { value: v4(0, 0, 1, 1) }, uWCalmOn: { value: 0 },   // BAY-MIRROR
+      uWCalm: { value: null }, uWCalmG: { value: v4(0, 0, 1, 1) }, uWCalmOn: { value: 0 }, uWRipple: { value: 1 },   // BAY-MIRROR
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
@@ -1571,6 +1573,9 @@ const WATER = (() => {
     const i = Math.min(S.w - 2, Math.floor(u)), j = Math.min(S.h - 2, Math.floor(v)), fu = u - i, fv = v - j, q = j * S.w + i, A = S.calm;
     return ((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + S.w] * (1 - fu) + A[q + S.w + 1] * fu) * fv) / 255;
   }
+  // the wind's ripple a bay keeps (the field's own dial: one number for the physics and the eye) and the wave factor on the CPU
+  const calmRipple = () => CALM.field && CALM.field.dials && Number.isFinite(CALM.field.dials.ripple) ? CALM.field.dials.ripple : 1;
+  function waveKCPU(x, z) { const c = calmAtCPU(x, z), r = calmRipple(); return c >= 1 ? 1 : r + (1 - r) * c; }
   function setCalm(THREE, field) {
     const F = field && field.calm && field.w > 1 && field.h > 1 ? field : null;
     IN.calm = F;
@@ -1584,6 +1589,7 @@ const WATER = (() => {
     }
     U.uWCalm.value = CALM.tex; U.uWCalmOn.value = F && CALM.tex ? 1 : 0;
     if (F) U.uWCalmG.value.set(F.x0, F.z0, 1 / (F.w * F.cell), 1 / (F.h * F.cell));
+    U.uWRipple.value = F ? calmRipple() : 1;
   }
   // THE INTERACTION SLOT (H7 writes it): a world-locked texture over [x0, x0+size] x [z0, z0+size];
   // RG = slope over [-2, 2] (0.5 = flat), B = foam, A unused. Linear, clamped, no mips.
@@ -1673,7 +1679,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
+    mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;

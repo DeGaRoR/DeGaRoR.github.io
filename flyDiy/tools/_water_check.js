@@ -498,18 +498,27 @@ console.log('\n7. THE BAYS');
     { let prev = null, worst = 0; for (let s = 0; s <= 90; s++) { const x = -500 + (3500 + 500) * s / 90, z = -5800 + (3000 + 5800) * s / 90;
         if (IW.waterH(x, z) !== 0) { prev = null; continue; } const c = IW.calmAt(x, z); if (prev !== null) worst = Math.max(worst, Math.abs(c - prev)); prev = c; }
       verdict(worst <= 0.25, `the fjord's mouth is a dissolve: the steepest step along the fjord ${f(worst)} per ~98 m (<= 0.25)`); }
-    // waterH: the felt sum x calm - the same doubles on open water (k 1 is never multiplied), 0 in a calm bay
+    // waterH: the felt sum x waveK (ripple + (1 - ripple) x calm) - the same doubles on open water (k 1 is never multiplied),
+    // the wind's ripple in a calm bay (A0, 3 Nov: "CALMER, not dead glassy whatever the wind"), glassy only in calm air
     IW.setSea({ A: 0.09, L: 10, dir: 0.4 });
+    const RIP = F.dials.ripple;
+    verdict(RIP > 0 && RIP < 1 && IW.waveK(-500, -5800) === RIP && IW.waveK(-10500, -9000) === 1,
+      `the wind's ripple kept in a bay: waveK ${f(IW.waveK(-500, -5800), 2)} at the fjord's head (the dial ${RIP}), 1 on the open sea`);
     const raw = (x, z, t) => { let y = 0; for (const tr of IW.sea.W) if (tr.felt !== false) y += tr.A * CORE.CORE_MATH.cos(tr.k * (tr.dx * x + tr.dz * z) - tr.om * t + tr.ph); return y; };
-    let same = 0, ratio = 0, zero = 0, nm = 0, seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    let same = 0, ratio = 0, bayN = 0, nm = 0, seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     for (let i = 0; i < 4000; i++) { const x = -14000 + 32000 * rnd(), z = -30000 + 40000 * rnd(), t = 1e4 * rnd(); if (IW.waterH(x, z) !== 0) continue;
-      const k = IW.calmAt(x, z), h = IW.waterH(x, z, t), r = raw(x, z, t); nm++;
-      if (k === 1 && h === r) same++; else if (k === 0 && h === 0) zero++; else if (k > 0 && k < 1 && Math.abs(h - k * r) < 1e-12) ratio++; }
-    verdict(same + zero + ratio === nm && same > 0 && ratio > 0, `waterH(x, z, t) on ${nm} sea points: ${same} open (the unscaled sum to the bit), ${ratio} k x the sum, ${zero} calm (0)`);
+      const k = IW.waveK(x, z), h = IW.waterH(x, z, t), r = raw(x, z, t); nm++;
+      if (k === 1 && h === r) same++; else if (k < 1 && Math.abs(h - k * r) < 1e-12) { ratio++; if (IW.calmAt(x, z) === 0) bayN++; } }
+    verdict(same + ratio === nm && same > 0 && ratio > 0 && bayN > 0, `waterH(x, z, t) on ${nm} sea points: ${same} open (the unscaled sum to the bit), ${ratio} waveK x the sum (${bayN} of them deep in a bay: the ripple)`);
+    { let mx = 0; for (let t = 0; t < 30; t += 0.37) mx = Math.max(mx, Math.abs(IW.waterH(300, -3600, t)));
+      IW.setSea({ A: 0, L: 3, dir: 0 }); const calm = IW.waterH(300, -3600, 5);
+      verdict(mx > 0.01 && calm === 0, `the bay at the SEA base (300, -3600): ${f(mx, 3)} m of ripple at a 5 m/s sea, 0 in calm air (glassy only when the wind is)`);
+      IW.setSea({ A: 0.09, L: 10, dir: 0.4 }); }
     // ONE SOURCE: the water's CPU copy (the ring's) reads the core's bytes the same way the core does
     W.setCalm(null, F);
     let worst = 0; for (let i = 0; i < 3000; i++) { const x = -14000 + 32000 * rnd(), z = -30000 + 40000 * rnd(); worst = Math.max(worst, Math.abs(W.calmAt(x, z) - IW.calmAt(x, z))); }
-    verdict(worst < 1e-12, `one source: WATER.calmAt (the ring, the shader's bytes) against the world's calmAt at 3000 points, worst ${worst.toExponential(1)}`);
+    let worstK = 0; for (let i = 0; i < 3000; i++) { const x = -14000 + 32000 * rnd(), z = -30000 + 40000 * rnd(); worstK = Math.max(worstK, Math.abs(W.waveK(x, z) - IW.waveK(x, z))); }
+    verdict(worst < 1e-12 && worstK < 1e-12, `one source: WATER.calmAt / waveK (the ring, the shader's bytes and ripple) against the world's at 3000 points each, worst ${worst.toExponential(1)} / ${worstK.toExponential(1)}`);
     W.setCalm(null, null);
     verdict(W.calmAt(-500, -5800) === 1, 'no field set: the water reads calm 1 everywhere (the analytic world, the flat field)');
   }
@@ -517,8 +526,9 @@ console.log('\n7. THE BAYS');
   verdict(/float wK = wB == 0 \? wCalm\(vWP0\.xz\) : 1\.0;/.test(w) && /vec4 wRow = wB == 0 \? mix\(uWBody\[1\], uWBody\[0\], wK\) : uWBody\[wB\];/.test(w)
     && /vec3 wS = wGerstnerS\(vWP\.xz, wFp\) \* wRow\.x;/.test(w) && /wDet\.xy \*= wRow\.y;/.test(w) && /float cv = uWFoam\.y \* \(uWBody\[wB\]\.z < 1\.5 \? 1\.0 : 0\.0\) \* wK;/.test(w),
     "the shader: on the sea's body the shelter blends the swell's slopes and the ripple row toward the lake's and thins the whitecaps; a lake / river / premises row untouched");
-  verdict(/if \(uWCalmOn > 0\.5\) wh \*= texture2D\(uWCalm, \(wp0\.xz - uWCalmG\.xy\) \* uWCalmG\.zw\)\.r;/.test(w),
-    'the near patch is lifted by the same factor the floats feel (waterH x calmAt) - the hull sits in the wave it is drawn in');
+  verdict(/if \(uWCalmOn > 0\.5\) \{ float wc = texture2D\(uWCalm, \(wp0\.xz - uWCalmG\.xy\) \* uWCalmG\.zw\)\.r; wh \*= wc >= 1\.0 \? 1\.0 : uWRipple \+ \(1\.0 - uWRipple\) \* wc; \}/.test(w)
+    && /return c >= 1\.0 \? 1\.0 : uWRipple \+ \(1\.0 - uWRipple\) \* c;/.test(w) && /U\.uWRipple\.value = F \? calmRipple\(\) : 1;/.test(w),
+    'the near patch is lifted by the same factor the floats feel (waterH x waveK, the field\'s ripple dial) - the hull sits in the wave it is drawn in');
   verdict(/WATER\.setCalm\(THREE, world\.calmField\(\)\)/.test(src('src/viewer/render_world.js')), "render_world hands the world's own field to the water (no second shelter)");
   verdict(/const bay = lake \? 0 : 1 - calmAtCPU\(camera\.position\.x, camera\.position\.z\);/.test(w) && w.indexOf("if (MIR.mode === 'off')") < w.indexOf('const bay = lake'),
     "the ring over a bay takes the lake's rule by the bay's weight - after the 'off' return (the reflections off still pay nothing)");

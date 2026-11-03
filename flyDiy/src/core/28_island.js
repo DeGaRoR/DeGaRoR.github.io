@@ -269,7 +269,12 @@ var ISLAND_GEN = (function () {
     // The fetch is a semi-Lagrangian sweep per heading: F(p) = 0 on land, F(p - h d) + |h d| on water (the upstream value
     // linearly interpolated across its row), the grid's edge open sea (F = the cap). Land cells take the mean of their
     // water neighbours, ring by ring (6 rings), so the texture's bilinear filter does not lift a bay's shore toward 1.
-    const SHELTER = { cell: 100, cap: 10000, dirs: 16, open0: 0.15, open1: 0.40, fill: 6 };
+    // THE RIPPLE (A0, 3 Nov ~22:00: "a sheltered bay should be CALMER, not dead glassy whatever the wind"): the shelter takes
+    // away the fetch-built sea, not the wind's own ripple - the waves scale by ripple + (1 - ripple) x calm, so a bay keeps a
+    // quarter of the open sea's (JONSWAP: the height grows as the fetch's square root, and a bay's ~0.6 km against the ~10 km
+    // the open sea stands for is sqrt(0.06) = 0.25). The sea's amplitude is already the wind's (0.018 m per m/s), so the
+    // ripple goes glassy exactly when the wind does. waveK below; the shader reads the same dial (WATER.setCalm)
+    const SHELTER = { cell: 100, cap: 10000, dirs: 16, open0: 0.15, open1: 0.40, fill: 6, ripple: 0.25 };
     let shelterF = null;
     function shelter() {
       if (shelterF) return shelterF;
@@ -333,6 +338,8 @@ var ISLAND_GEN = (function () {
       const i = Math.min(S.w - 2, Math.floor(uc)), j = Math.min(S.h - 2, Math.floor(vc)), fu = uc - i, fv = vc - j, q = j * S.w + i, A = S.calm;
       return ((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + S.w] * (1 - fu) + A[q + S.w + 1] * fu) * fv) / 255;
     }
+    // waveK(x, z): the factor on the sea's waves - 1 on open water (calm 1: exactly 1), the ripple (0.25) deep in a bay
+    function waveK(x, z) { const c = calmAt(x, z); return c >= 1 ? 1 : SHELTER.ripple + (1 - SHELTER.ripple) * c; }
     // the square domain the baker walked; the grid may be narrower (sea)
     const b = H.bounds;
     return {
@@ -347,7 +354,7 @@ var ISLAND_GEN = (function () {
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
       // BAY-MIRROR: the sea's shelter (null without a coast field: the open sea everywhere)
-      shelter: coast ? shelter : null, calmAt: coast ? calmAt : null,
+      shelter: coast ? shelter : null, calmAt: coast ? calmAt : null, waveK: coast ? waveK : null,
       // (G1335) the carved lakebed (null without a lake field): makeWorld's terrainH and the far terrain's patches (the asset
       // is the raw DEM) take it as they take the sea's shelf; LAKE_BED the law's dials (GATE LAKEBED reads them)
       lakeBed, LAKE_BED,
