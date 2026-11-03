@@ -1175,7 +1175,7 @@ function buildViewer(core) {
   // the player has chosen (welcome.js, in the BOOT slot, publishes FLYDIY_WELCOME only when it shows a screen)
   if (window.FLYDIY_WELCOME) window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () { return window.FLYDIY_WELCOME; });
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
-    // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or the gate's "Build on this phone", chosen
+    // G2100 (MOBILE-GARAGE 1): the phone profile (profile.js - ?profile=phone, or welcome.js on a phone or tablet, chosen
     // by now) boots the garage alone: the island is never fetched, the world is the analytic one (as ?world=none)
     if (window.PROFILE && window.PROFILE.is('boot', 'garage')) { name = 'none'; window.FLYDIY_WORLD = 'none'; }
     // G3791 (PHONE-TESTFLIGHT): the phone's test flight (profile.js, the flight variant: boot 'testfield') boots the test
