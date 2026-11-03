@@ -310470,6 +310470,35 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
   2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
 - IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
   Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
+### 6. THE CABIN'S UPPER HALF: HEADLINER, WALL TRIM, OVERHEAD CONSOLE (CABIN-INTERIOR, the user 3 Nov 08:40, via A0)
+The user picked the first cut of the proposal (evidence 2026-11-03/cabin-craft/INTERIOR-PROPOSAL.md): T1 + T2 + G1 now,
+visors (G3) and grab handles (G4) after; G2 roof ribs, G5 compass not now; headliner / wall / trim paintable, warm tan
+as one swatch; built on SEATS (claude/seats b7e28ac36) and the clean door panel (section 5). Three rows, all ABSENT
+at default (G3570: not in the defaults table, `absent: 0`), part "Headliner & trim" under Cabin fit (_cage_parts.js):
+- hdlOn (T1 THE HEADLINER): cageInterior's liner flags its visible (inner) faces only when a row is on; just before
+  the sheet is assembled, those inside the cabin (zNose0 back to the passenger ring, or the side glass's aft edge)
+  whose inward normal is >= 0.8 down become section `headliner` (0.8: the triplanar's ceiling plane dominates, so the
+  channels never stripe the flank). Role `hdl`, finish `headliner` (quilted headliner) in every construction column;
+  the new `quilt` bake: two puffed channels a 0.36 m tile (a listing seam every 18 cm along the fuselage), a stitched
+  groove either side of each seam, a brushed nap. Same faces, relabelled: the face count does not move.
+- wallTrimOn (T2 THE UPPER WALL TRIM): the rest of the visible liner above the waistband top (S.bandY) in the cabin ->
+  `cabWall`, role `wall`, finish `trimVinyl` (the `hide` bake kept low: vinyl, not leather). The panel joins at the
+  frame stations are NOT drawn yet (a tiled bake cannot place them; a follow-up if the stills ask).
+- ohConsoleOn (G1 THE OVERHEAD CONSOLE, _cage_crew.js buildOverheadConsole): a lofted moulded pod (0.30 m long, 0.21
+  wide on a two-abreast row / 0.16 single, 45 mm deep, easing into the ceiling at both ends) on the centreline, its
+  front 3 cm aft of the windscreen's aft-most edge (a raked screen reaches back over the heads), two eyeball vents
+  forward, two lamp bezels aft; 432 tris; M.dark (the crew's moulding: the join's existing bucket). It publishes its
+  lamp seats (A.ohc); the light layer's first rung on a closed cabin is `consoleAt`: the flood into the pilot-side
+  bezel, a front passenger's lamp into theirs. A closed cabin only; any glass over its footprint draws none.
+- The liner lists take the two sections: _cage_ui INTSKIN (the skin alpha, measureBox), _fit_site (no fitting laced
+  into them), the lamp code's ceiling, GATE CABINLAMP's roof set, quickshot's interior skip.
+- Paint: the two sections are the part's livery rows; the picker shows a section's SUGGESTED swatches ahead of the
+  recent colours (_cage_ui PK_SUGGEST: warm tan #c49a6c for both), ringed, never applied until clicked.
+- COST, named: the headliner and the wall trim are one material each, so +1 draw call each when on (the join keys a
+  bucket by its finish); the console adds none. Their bakes are 512 px detail sheets, kept on the phone's lite tier
+  (a fetch in the program the liner already runs).
+- Gates: CABINLAMP twin2con (the twin + the three rows: console, console, roof, roof - no lamp near glass), LIGHT (the
+  ladder text with consoleAt), SKINMAT (one headliner layout per construction).
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
