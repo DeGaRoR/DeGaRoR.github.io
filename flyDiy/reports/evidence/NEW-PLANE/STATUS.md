@@ -9,6 +9,21 @@ face, the block rows do not move them) is what the pusher's back cowl already as
 on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
 Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
+## 00. The user's calls of 3 Nov (via A0, 08:40) — what landed
+
+| call | status |
+|---|---|
+| **N1** redraw the fin presets' tips blunter (new births only), no envelope change | **NOT LANDED — it cannot clear the error, measured.** The join's taper is chord(75 % span) / chord(25 % span) of the DRAWN fin sheet (`_cage_join.js:1595`, `_fin_gen.js finMeasure`), and the sheet runs down the tail post: 25 % of its span sits at the tail cone, where fin + rudder span the whole cone. Measured on the joined build (eab, tailwheel): at each preset's own tip chord 0.15-0.22; at the row's MAXIMUM tip chord (1.5x the root, a tip wider than its root) still 0.30-0.34; sweep 0 changes nothing. The user's validated stock Cub-alike measures **0.217** too. So no tip shape reaches 0.35 and every fin in the shed flies at the clamp. Blunter tips would change the look for no change in the error, so the presets are left as they are. The two real fixes are not tip shapes: (a) the join measures the fin PROPER above the boom deck (a measurement change; saved builds would fly their measured taper instead of the clamp's 0.35), or (b) the envelope (ruled out). **Question for the user: (a)?** |
+| **N2** accept the stance fit's 1-3 extra loads | landed as is. Faster since: a two-seater's fit no longer shakes down the four loading corners (only cabins over two seats need them) |
+| **N3** keep 3-4 bays with the design check's warning; a bays-forward cabin rule later | kept (the `big cabin corner` standing kind); **OWED: the bays-forward cabin rule** (logged here and in `tools/_new_plane.js` MAX_BAYS) |
+| **N4** grey pushers under a high wing and over-the-wing engines until a shaft/block row moves the disc aft; "prop strike should refuse certificate"; "can also be fixed through wing geometry" | **landed** (`tools/_new_plane.js` RULES, "N4"): the over-the-wing engine greyed; a pusher's High and Parasol wings greyed; a pusher defaults to the low wing. Measured basis (validation A): pusher + high/parasol cleared the disc in 0 of 9 builds, over the wing 2 of 13, pusher + low/mid 3 of 8, push-pull 8 of 12. **The measured check is the editor's**, not the chooser's (nothing is built while choosing): `_cage_eng.js` propFitCheck → the join's `prop:` error row, which DESIGN-AIDS promotes to an airworthiness refusal — so a builder who reshapes the wing until the disc clears it gets a certificate, whatever the chooser offered. Three generated cards leave the generator's outputs by this call: **Pod-and-boom pusher, Archaeopteryx-alike, Whittaker-alike** (GATE NEWPLANE names them; the chooser's "start like" row hides them) |
+| **N5** keep the authored cards on the first screen, as drawn | kept |
+| CONFIG-MATRIX step 4 (`CM_OFF`) | read (`origin/claude/config-matrix-step4` 1b0225c3); its cells and the chooser's agree, but for one: CM keeps a push-pull on a SINGLE ROD live (its rod fit clears the disc) — the chooser greys it because the Push-pull tile always writes twin booms, so the generator cannot build that cell. A trial merge of step 4 into this branch: no conflict |
+
+GATE NEWPLANE now **47 s** (core; its joined build is the LSA tricycle, two seats, the f1 failure; the 4-seat tricycle
+moved to NEWPLANE-BUILDS). NEWPLANE-BUILDS run once, outside the battery (below). Validation A, the renders and
+ARCHETYPES are from before these calls; the N4 greys only REMOVE offered combinations.
+
 ## 0. In one paragraph
 
 NEW opens a **full-screen chooser**: 14 short steps (size class, mission, engine architecture, engine type, fuselage
@@ -91,7 +106,8 @@ The generation rules that existed, and are used as they are:
 | the green margin band | `genMarginBand` (5-40 %) | the balance fit |
 
 **The coverage table** (`coverage_table.md`): every card, its choice set, authored or not, reachable or not.
-30 of 32 cards reachable: every **generated** card, and every authored card but two, which stay cards — the
+**27 of 32 cards reachable** (after N4; 30 before): every **generated** card but the three whose disc strikes their wing
+(Pod-and-boom pusher, Archaeopteryx-alike, Whittaker-alike — N4, the user's call), and every authored card but two, which stay cards — the
 **Chinook-alike** (a pusher on a tailwheel: validation A greys that layout, the disc swings into the ground tail-down;
 the Chinook's own engine stands over the wing on its block rows) and the **Spitfire-alike** (WIP, blocked; a V on the
 eab class is 2.6x its power).
@@ -421,22 +437,6 @@ Not run here: the rest of the battery (`run_gates.js --all`), left to the train.
 
 ## 9. Questions for the user
 
-1. **The fin presets fly a different taper than they draw.** Every FIN_ARCH preset draws a fin whose measured taper
-   (tip/root, the join's `vTaper`) is 0.15-0.22; the core's flown envelope clamps it at 0.35, and the join files it as
-   an error ("the drawn tail is not the flown tail"). Same on master (the T-tail tourer card). Two ways: widen
-   `GEN_TAIL_ENVELOPE.vTaper` to 0.15 (a saved build with a pointy fin would then fly its real taper - a physics change
-   for saved builds), or redraw the presets' tips blunter (only new births change). Which?
-2. **One build, or one build plus the stance fit?** Generate loads the aeroplane once; when the drawn legs or the
-   wing's station miss the rules, it loads again with the corrected rows (1-3 extra loads, behind the same spinner; the
-   browser run measured the whole Generate at ~42 s on SwiftShader with three fit passes; a phone GPU is several times faster). The alternative - no fit - leaves trikes sitting
-   nose-high/down and taildraggers the pilot will not take off in. Is the extra load acceptable?
-3. **Big cabins at their loading corners.** With 3-4 bays the full-cabin corner's CG runs behind the neutral point
-   whatever the wing station (the Caravan, DA62, twin bush hauler and Beaver cards on master too: the design check's
-   `pitch.sm` FAIL at the worst corner). Grey 3-4 bays unless the mission is cargo, keep them with the check's warning,
-   or a cabin-layout rule (the bays forward of the wing)?
-4. **Pushers under a high wing and over-the-wing engines** strike the wing with the disc (the shed's own cards too).
-   Offer them with the join's error as today, or grey them until a block/shaft row moves the disc behind the trailing
-   edge?
-5. **The authored cards on the first screen** (Cub, Jodel, C172, Chinook, Tiger Moth, Stearman, Camel) are offered "as
-   drawn", one build, the same hand-over. Keep them there, or only the chooser?
-
+1. **(N1 follow-up)** The fin taper error cannot be cleared by any tip shape (section 00). Should the join measure the
+   fin proper ABOVE the boom deck? Saved builds would then fly their measured taper instead of today's clamp at 0.35.
+2. (answered 3 Nov: N2 accepted, N3 kept + owed rule, N4 greyed, N5 kept.)

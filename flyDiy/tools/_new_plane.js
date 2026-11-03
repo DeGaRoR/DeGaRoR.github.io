@@ -225,6 +225,8 @@ function modelFor0(cls, family, arch, k) {
 // classes' own seeds (seats, bays); [CAT] = the engine catalogue's power; [VAL] = validation A (STATUS.md), a
 // combination measured broken once and greyed rather than offered.
 // ---------------------------------------------------------------------------------------------------------------------
+// (N3, the user 3 Nov: 3-4 bays kept with the design check's warning - their full-cabin corner runs behind the neutral
+// point. OWED: a bays-forward cabin rule, the bays seated over the wing instead of behind it)
 const MAX_BAYS = { ul1: 0, ulm: 1, lsa: 1, eab: 2, n23: 4, sail: 1 };
 const SINGLE_SEAT = new Set(['ul1', 'sail']);
 const RULES = [
@@ -238,6 +240,15 @@ const RULES = [
   // [CM 11] the stab cannot seat on a centre fin the booms do not have
   ['tail', 't', c => /^twin/.test(c.booms || '') && 'twin booms have no centre fin for the stab to sit on'],
   ['tail', 'v', c => /^twin/.test(c.booms || '') && 'one canted panel per boom is not a V-tail (a garage gap: the inverted V)'],
+  // N4 (the user, 3 Nov via A0: "prop strike should refuse certificate"; "n4 can also be fixed through wing geometry"):
+  // the disc must not strike the wing. Measured in validation A: a pusher under a high wing or a parasol cleared it in
+  // 0 of 9 builds, an over-the-wing engine in 2 of 13 - both greyed here until a shaft/block row moves the disc behind
+  // the trailing edge. The chooser cannot measure (nothing is built while choosing); the MEASURED check is the editor's
+  // own (_cage_eng.js propFitCheck, the join's error row, an airworthiness refusal with DESIGN-AIDS): a builder who
+  // reshapes the wing until the disc clears it gets a certifiable aeroplane, whatever this table offered
+  ['engArch', 'wingTop', () => 'the disc strikes the wing: an over-the-wing engine waits for a row that moves it behind the trailing edge (reshape the wing in the editor to clear it)'],
+  ['wing', 'high', c => c.engArch === 'pusher' && 'a pusher\'s disc strikes a high wing (measured: never cleared) - a low or mid wing, or reshape it in the editor'],
+  ['wing', 'parasol', c => c.engArch === 'pusher' && 'a pusher\'s disc strikes a parasol wing (measured: never cleared) - a low or mid wing, or reshape it in the editor'],
   // [CM 11] the pylon stands on a high wing or a parasol
   ['wing', 'mid', c => c.engArch === 'wingTop' && 'the over-the-wing pylon stands on a high wing or a parasol'],
   ['wing', 'low', c => c.engArch === 'wingTop' && 'the over-the-wing pylon stands on a high wing or a parasol'],
@@ -327,6 +338,7 @@ function defaultFor(ch, rowKey) {
   if (rowKey === 'booms' && ch.body === 'open') want = 'rod';
   if (rowKey === 'wing' && ch.engArch === 'wingTop') want = 'high';
   if (rowKey === 'gear' && ch.engArch === 'pusher') want = 'trike';
+  if (rowKey === 'wing' && ch.engArch === 'pusher') want = 'low';   // N4: under a high wing the disc strikes it
   // a light pusher takes the light two-stroke (the Pod-and-boom card's 582): a boxer's weight behind the pod is the
   // margin the balance fit then has to buy back by sliding the wing aft, into the disc
   if (rowKey === 'engType' && ch.engArch === 'pusher' && ['ul1', 'ulm', 'lsa'].includes(cls)) want = 'inline';
@@ -415,7 +427,10 @@ function stanceFit(spec, cage) {
     // the most nose-heavy under 40 %, or (a spread wider than the band: a big cabin) the spread centred in it
     let lo = null, hi = null, sm0 = null;
     try {
-      const sh = SHK(def, {});
+      // the corners only where the cabin can load them apart (more than two seats): a two-seater's corners sit within
+      // a few per cent of the drawn margin, and each corner is a shakedown (the fit's cost, the gate's minute)
+      const seats = +(def.spec && def.spec.seats) || 0;
+      const sh = SHK(def, seats > 2 ? {} : { slim: true });
       sm0 = sh.staticMargin;
       const sms = [sh.staticMargin].concat(((sh.envelope && sh.envelope.corners) || []).map(k => k.staticMargin))
         .filter(v => typeof v === 'number' && isFinite(v));
