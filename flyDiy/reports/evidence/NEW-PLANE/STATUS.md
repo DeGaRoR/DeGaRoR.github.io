@@ -1,6 +1,13 @@
 # NEW-PLANE — the new-aeroplane flow, rebuilt (cloud, 3 Nov 2026)
 
-Branch `claude/new-plane` (base origin/master `0fcf54ef`, PH1A built). Asked for by the user on 2-3 Nov through A0.
+Branch `claude/new-plane`, **rebased on origin/master `2f104df8` (train F4: FINISH-4 landed)**; the work was done on
+`0fcf54ef` (PH1A) and replayed without a conflict. Asked for by the user on 2-3 Nov through A0.
+
+**After the rebase:** FINISH-4 added "candidate official" builds to the old overlay's grid — the chooser's first screen
+offers them too (same door, `GARAGE_SPEC.openCandidate`); FINISH-4's firewall cowl rule (cowled pushers stand on the
+face, the block rows do not move them) is what the pusher's back cowl already assumed. The ten named gates were re-run
+on the rebased tree: **all PASS** (STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER, NEWPLANE).
+Validation A, the renders and ARCHETYPES were run on `0fcf54ef`.
 
 ## 0. In one paragraph
 
@@ -381,8 +388,8 @@ Node, cloud, this branch (`--no-build` over the branch's own build), all named g
 | gate | result |
 |---|---|
 | STARTER, DESIGN, PARTS, SAVE, JOIN, UISMOKE, UISMOKE-PHONE, CARDS, UILAYER | **PASS** (all nine) |
-| NEWPLANE (new, core) | **PASS** — 45 checks, 51 s |
-| NEWPLANE-BUILDS (new, full) | **PASS** — 11 checks, 230 s |
+| NEWPLANE (new, core) | **PASS** — 45 checks, 51 s (53 s on the rebased tree) |
+| NEWPLANE-BUILDS (new, full) | **PASS** — 11 checks, 230 s (213 s on the rebased tree) |
 | ARCHETYPES (full, 4 shards) | FAIL (1) — **standing**: "Chinook-alike: the circuit completes — rejected-takeoff", the identical line on master `0fcf54ef` (`--only=chinook` run on both trees). The other 30 live cards pass; the card is a stock design this branch does not touch |
 
 **The browser runs** (Playwright, SwiftShader, `index.html`, a fresh profile):
