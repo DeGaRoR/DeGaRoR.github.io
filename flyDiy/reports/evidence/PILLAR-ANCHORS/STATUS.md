@@ -7,6 +7,20 @@ then one "(built)" commit.
 **Pushed to `claude/ready/pillar-anchors` too** (the user's go, 3 Nov), for L30b; `claude/pillar-anchors` is the same
 commit.
 
+**The remodel IS in `claude/ready/pillar-anchors`** (A0 asked, 3 Nov 17:35), not a follow-up. It is in the source
+commits since 804a6e3db's replay:
+- the step: a narrow pillar step with no base plate;
+- the handle: the latch lever and its base dropped, the U back and smoothed;
+- the access doors and inspection hatches: drawn as a seam and flat screws, no raised plate;
+- plateInto's staircase edge: now a smooth outline.
+
+Pictures: `remodel_*.jpg`. GATE FIT, CLIP (the standing nav-aerial red only), HANDLE (the standing Twin 2 red only) and
+FITMANUAL were run on it.
+
+**HANDOVER.md line endings:** fixed on this branch. It is now L30a's bytes plus this branch's 11 appended lines
+(204,496 CRs, as master), written as bytes. My conflict resolutions had read it in Python text mode and normalised
+every CRLF. A0's `claude/a0/pillar-eol` 70c70b92b carries the same fix for tonight's train.
+
 ## 0. The user's calls of 3 Nov (through A0), and where each stands
 
 | call | state |
