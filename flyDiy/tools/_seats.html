@@ -158,7 +158,7 @@ function lodSheet(list, o) {
       g.fillStyle = '#4a4e55'; g.font = '13px system-ui, sans-serif';
       g.fillText(names[L] + ' · ' + st.tris + ' tris · ' + st.draws + ' draws', gx + L * tw + 10, gy + tw + 36);
     }
-    window.SEAT_GEN.force = null;
+    window.SEAT_GEN.force = 0;
     g.fillStyle = '#22252a'; g.font = '600 16px system-ui, sans-serif';
     g.fillText(row.label, gx + 10, gy + tw + 18);
     g.strokeStyle = '#c9c7c1'; g.strokeRect(gx + 0.5, gy + 0.5, 3 * tw - 1, tw + cap - 1);
@@ -168,6 +168,8 @@ function lodSheet(list, o) {
 }
 // one seat, one view, big (a close-up for the validation)
 function single(type, az, el, w, h, opt) { const st = build(type, opt); shoot(az, el, w, h); return { url: cv.toDataURL('image/png'), stats: st }; }
+// the studio shows the HERO (the game builds the mid since SEATS-COST): the LOD sheet sets its own levels
+if (window.SEAT_GEN && window.SEAT_GEN.force == null) window.SEAT_GEN.force = 0;
 window.SEAT_BENCH = { build, shoot, sheet, lodSheet, single, A };
 // interactive: ?seat=N, drag to orbit
 const T = +(Q.get('seat') || 4);

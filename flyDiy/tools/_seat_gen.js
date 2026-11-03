@@ -1605,7 +1605,10 @@ function levelFor(P) {
   }
   if (P && P.seatLod != null && +P.seatLod >= 0) return Math.min(2, Math.round(+P.seatLod));
   if (typeof window !== 'undefined' && window.PROFILE && window.PROFILE.name === 'phone') return 2;
-  return 0;
+  // SEATS-COST (3 Nov, A0's FRAMECOST review): the game builds the MID level - the same shapes at a fifth of the
+  // triangles (the hero's stitching, rail holes and bolts are what goes) - so a garage boot uploads ~12 MB less; the hero
+  // is the seat studio's (tools/_seats.html) and ?seatlod=0's
+  return 1;
 }
 
 const API = { SEAT_PRESETS, PRESET_OF, build, slab, spine, mat, splitParts: false, force: null, levelFor };

@@ -62,6 +62,23 @@ A0's set, ALL PASS: SEATS GEN WEIGHT BUILD JOIN SAVE PARTS DESIGN STARTER PROCUR
 DMGOCCUPANT SKINMAT UISMOKE UISMOKE-PHONE TANKMOUNT PANEL DASH - no red, so nothing to name against master.
 (Outside that set, on the 2 Nov tree: JOINPARITY, LIVERY, CLIP and NODUMMY were red identically on a clean master.)
 
+## FRAMECOST (A0 17:35 / 17:40: "22 red rows against master's 5 ... the Cub's draws 914 -> 1063, links 5 -> 42")
+MEASURED (tools/_framecost_check.js --census cub, master a8a23ad62 vs this branch, --compare):
+- ALL OF THE FRAME ROWS ARE THE PARKED AEROPLANES, NOT THE SEATS. detail.stand: every family equal except `parked`,
+  5 -> 357 draws (shadow 5 -> 302; taxi 5 -> 153). The flown Cub is identical: 79 draws, 15 programs, 66 materials.
+  Cause: the parked cook (media/parked, src/core/parked_packs.json) is signed with the build id, so ANY source change
+  leaves it stale (`node tools/parked_cook.js --check`: manifest 604798b36690, this tree 31a9cc2f3768 - STALE; master:
+  same) and every parked aeroplane is captured live, its buckets drawn. PROOF: with the cook off on BOTH trees
+  (FRAMECOST_QUERY=parkcook=0) the stand and taxi counts are equal to the digit (draws.main 1063 / 1063, shadow 235.5 /
+  235.5, programs 103.5 / 103.5, uniform bytes 698102 / 698102, uniform4f 541 / 541). THE FIX IS THE TRAIN'S RE-COOK on
+  the GPU box after its build (parked_cook.js refuses SwiftShader, so it cannot run here) - as L30a re-cooked for its own.
+- THE SEATS' OWN COST is at boot, in the garage: +8 draws (garage:craft 627 -> 635), ~+12 MB of buffer uploads across
+  garage:spec / bake / firstFrame (the hero seats' geometry); updateMatrixWorld DOWN (fewer objects than the old seats).
+  FIX (claude/ready/seats-cost): the game builds the MID level by default (the same shapes at a fifth of the triangles;
+  the hero is the seat studio's and ?seatlod=0's). Measured below.
+- NOT DONE, the user's call: collapsing every seat to its four section materials (chrome levers, rubber rollers, cast
+  brackets into the frame colour) - it changes the approved look and the measurement says it buys nothing in flight.
+
 ## Renders
 - `seats_sheet.jpg`: all 15, 3/4 over side. `seats_lod.jpg`: each at hero / mid / phone.
 - `close/`: each seat front-3/4 and from behind (hero; taken before the renumbering, file names by the old keys).
