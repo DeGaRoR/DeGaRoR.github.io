@@ -7,7 +7,7 @@
 // reports/evidence/NEW-PLANE/STATUS.md. It is NOT in tools/run_gates.js and must not be added (GATE NEWPLANE,
 // tools/_newplane_check.js, is the small recurring one). Rerun it by hand after a change to the generator's rules.
 //
-//   node tools/newplane_validate.js [--jobs=3] [--out=<file.jsonl>] [--only=arch|pair|ext] [--no-hop]
+//   node tools/newplane_validate.js [--jobs=3] [--out=<file.jsonl>] [--only=arch|pair|ext] [--no-hop] [--resume]
 //
 // THE SET (~95 builds, ~25 s each on the cloud box with the hop, sharded over --jobs processes):
 //   arch    every archetype's choice set, read back off its card (fromArchetype): 32
@@ -94,7 +94,8 @@ if (argv.includes('--child')) {
   const NL = require('./_newplane_lib.js');
   const { list } = theSet();
   const only = arg('only', null);
-  const mine = list.filter((x, i) => i % of === shard && (!only || x.set === only));
+  const skip = new Set((process.env.NEWPLANE_SKIP || '').split('\n').filter(Boolean));
+  const mine = list.filter((x, i) => i % of === shard && (!only || x.set === only) && !skip.has(x.id));
   for (const x of mine) {
     let r;
     try { r = NL.judge(x.ch, { hop: !argv.includes('--no-hop') }); }
@@ -112,11 +113,17 @@ if (argv.includes('--child')) {
     pairInfo.builds + ' pairwise - ' + pairInfo.pairsLeft + ' feasible-looking pairs never offered together, ' +
     list.filter(x => x.set === 'ext').length + ' extremes), ' + jobs + ' jobs');
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, '');
+  // --resume: the builds already in the log are kept and skipped (a restarted container, a killed run)
+  let done = [];
+  if (argv.includes('--resume') && fs.existsSync(out))
+    done = fs.readFileSync(out, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l).id);
+  else fs.writeFileSync(out, '');
+  if (done.length) console.log('resuming: ' + done.length + ' builds already in ' + out);
   const t0 = Date.now();
   const pass = argv.filter(a => a === '--no-hop' || a.startsWith('--only='));
   await Promise.all(Array.from({ length: jobs }, (_, i) => new Promise(res => {
-    const p = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--shard=' + i, '--of=' + jobs].concat(pass), { cwd: T });
+    const p = spawn(process.execPath, ['--max-old-space-size=4096', __filename, '--child', '--shard=' + i, '--of=' + jobs].concat(pass),
+      { cwd: T, env: Object.assign({}, process.env, { NEWPLANE_SKIP: done.join('\n') }) });
     let buf = '';
     p.stdout.on('data', d => { buf += d; let k; while ((k = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, k); buf = buf.slice(k + 1);
       if (!line.startsWith('{')) continue; fs.appendFileSync(out, line + '\n'); const j = JSON.parse(line);

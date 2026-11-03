@@ -1,0 +1,8 @@
+{
+ "why": "validation A: the LSA tricycle sat 5.5 deg nose-up with 0.10 m of prop clearance, then -9 deg after a first fit",
+ "choices": {
+  "class": "lsa",
+  "gear": "trike"
+ },
+ "joined": true
+}
