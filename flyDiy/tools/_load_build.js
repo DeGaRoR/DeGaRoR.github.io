@@ -78,7 +78,7 @@ function gameSpecFull(rawIn) {
   const raw0 = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
   // a BIRTH envelope (`birth`) rides to the child as a marker the child strips before anything reads the spec
   const raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
-  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').digest('hex');
+  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
     try { const c = JSON.parse(fs.readFileSync(cf, 'utf8')); return Object.assign(c, { key, cached: true }); } catch (e) {}
@@ -200,7 +200,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     return a * FS * FS; };
   let r = null, J = null;
   const buildAndJoin = () => {
-    r = SH.sceneBuild(spec, { garage: STORE.get(), resolved: STORE.resolved, inGame: true, prebuild: PREBUILD });
+    // (CABIN-CRAFT: FLYDIY_HEADLESS_MS=1 publishes the sheet to the layers as the page does - _scene_headless opts.ms)
+    const MSON = process.env.FLYDIY_HEADLESS_MS === '1';
+    r = SH.sceneBuild(spec, { garage: STORE.get(), resolved: STORE.resolved, inGame: true, prebuild: PREBUILD, ms: MSON });
     W.GARAGE_SPEC = STORE;                                // the energy layer's commit (a timer) writes through it
     // THE PAGE'S MOUNT HIERARCHY (tools/_bake_joined.js): the join's edMount() walks to the group whose grandparent
     // is the scene - two identity groups over the layers give it the page's answer
@@ -211,6 +213,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     // (a tree without JOIN-PARITY's src - G2500, CESSNA-VREF on train 40: the same sum _cage_ui.js's build makes over its
     // GLASSM set, written here because that tree only measures it inside the editor's UI)
     W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2 ? W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) : glazedM2Of(r.built.mesh, r.FS) };
+    if (MSON) W.CAGE_UI.MS = r.built.mesh;
     // 3. app.js BUILD_SYNC: the join's export, merged by GARAGE_SPEC.update
     W.CAGE_UI_LAZY = true;
     if (!W.CAGE_JOIN) vm.runInContext(fs.readFileSync(path.join(T, '_cage_join.js'), 'utf8'), W, { filename: '_cage_join.js' });

@@ -45,6 +45,9 @@ const SECTIONS = [
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
   { k: 'life',       label: 'LIFE',       icon: '☺',  tools: [] },   // SCENERY LIFE: the record's life block (last: the 1-9 keys keep their sections)
+  // G1656 THE SOUNDS (SND-AMB-1, the user: "drop a point sound, draw a polygon sound"): the record's `sounds` layer -
+  // what the ambience hears there (a bed, on or off); how far it carries is the ambience's. After LIFE: no key moves.
+  { k: 'sounds',     label: 'SOUND',      icon: '♪',  tools: ['select', 'soundpt', 'soundarea', 'probe'] },
 ];
 // the sections' icons in the flight ribbon's own grammar (18 x 18, stroked paths, '|' between them)
 const ICONS = {
@@ -60,9 +63,10 @@ const ICONS = {
   file: 'M5 2h6l3 3v11H5Z|M11 2v3h3|M7 9h4|M7 12h4',
   view: 'M2 9s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z|M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
   life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
+  sounds: 'M2.5 7h3l4-3.5v11l-4-3.5h-3Z|M12 6.5a3.5 3.5 0 0 1 0 5|M14 4.5a6.3 6.3 0 0 1 0 9',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
+const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe', soundpt: 'a point sound', soundarea: 'a sound area' };
 const TOOL_HELP = {
   // G2890 (the user: "I don't know how to edit an existing polygon"): the shape's whole grammar, said where the tool is
   select: 'click a feature to select it. Its shape: drag an orange disc to move a corner, a faint one to add a corner there, click its edge to add one; click a corner (white) and Del removes it - Del with no corner picked deletes the feature. A smooth road: drag a cyan disc to bend it',
@@ -96,9 +100,11 @@ const TOOL_HELP = {
   prop: 'pick a prop in the inspector, click the ground to stand it there (on the ground, tilted to it); drag its disc to move it',
   billboard: 'pick a painted sign in the inspector, click the verge to stand it on its posts; turn it in the inspector',
   aircraft: 'pick a build in the inspector (an archetype, a stock design, one of yours), click the apron to park it there, nose along its turn; captured through the workshop, so a moment to stand',
+  soundpt: 'pick a sound in the inspector, click the ground: it is heard there, fading out over its own reach (the ring); on / off in the inspector - off silences that sound around the point',
+  soundarea: 'pick a sound in the inspector, click the corners of the area, close: heard at full inside, fading out over its reach (the outer line); off silences it inside',
   animal: 'pick a species in the inspector and click the ground (or the water, for a whale): ONE record is a HOTSPOT - how many live there and over what radius. The land animals wander between idle bouts, a pod swims a circuit and dives, a flock circles. Drag the disc to move the lot.',
 };
-const POLY_TOOLS = { area: 'areas', flatten: 'areas', raise: 'areas', ramp: 'areas', surface: 'areas', apron: 'areas', material: 'areas', concrete: 'areas', dock: 'areas', hatch: 'areas', zone: 'zones', forest: 'zones', clear: 'areas', biome: 'areas' };
+const POLY_TOOLS = { area: 'areas', flatten: 'areas', raise: 'areas', ramp: 'areas', surface: 'areas', apron: 'areas', material: 'areas', concrete: 'areas', dock: 'areas', hatch: 'areas', zone: 'zones', forest: 'zones', clear: 'areas', biome: 'areas', soundarea: 'sounds' };   // (G1656: a sound area is the sounds' own - never an AREA: nothing composes it)
 // the PBR sets the page has (the lot's and the site's texture sets), read at call time - a name each
 function materialSets() {
   const S = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
@@ -112,6 +118,15 @@ let PALETTE_KEY = null;   // the building the 'building' tool stands
 let SITE_THEME = null;    // the site theme the 'theme' tool stands (VILLAGE_GEN.THEMES; G393.3)
 let PALETTE_CAT = null;   // the category the palette shows (v9)
 let ITEM_FOCUS = null;    // the site item whose rows are open in the inspector (G398.1: a list, one row per item)
+// G1656 THE SOUNDS: the ambience's beds (AMBIENCE_MODEL.BEDS, read at call time: the editor loads without the sound),
+// each with the loader's own words for it (AUDIO_SAMPLES.KEYS[key].what) and the reach the ambience gives it
+let SOUND_PICK = null;    // the bed the sound tools draw
+function soundBeds() {
+  const M = window.AMBIENCE_MODEL, K = (window.AUDIO_SAMPLES && window.AUDIO_SAMPLES.KEYS) || {};
+  if (!M || !M.BEDS) return [];
+  return M.BEDS.map(b => [b[0], b[0].slice(4).replace(/\./g, ' ') + (K[b[0]] && K[b[0]].what ? ' · ' + K[b[0]].what : '')]);
+}
+const soundReach = key => { const M = window.AMBIENCE_MODEL; return M && M.reachOf ? M.reachOf(key) : 120; };
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // THE BIOMES AND THE SPECIES a vegetation polygon may name (G1385): the live handle's (the world rail edits it), else
@@ -235,6 +250,7 @@ function mount(host, ctx) {
     if (entry.poly) { const b = PG.polyBBox(entry.poly), AP = entry.props || {}; const f = (+entry.falloff || +(AP.terraform && AP.terraform.falloff) || 0) + (AP.draw ? 12 : 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.pts) { const b = PG.polyBBox(entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts);   /* (G2890: a spline bows off its points) */ const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
+    if (entry.kind === 'sound') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };   // (a sound area has its poly above)
     if (entry.c && entry.len) { const r = Object.assign({}, PG.RUNWAY_DEF, entry); return PG.polyBBox(PG.runwayBox(r, PG.runwayShoulder(r) + 30)); }   // (G2960: its grade's shoulder and its tree clearance - the box the game re-samples)
     if (entry.at && entry.items) { const SF = PG.siteFrame(entry); let b = null; for (const it of entry.items) { const q = SF.toLocal(it.x || 0, it.z || 0); const bb = { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }; b = b ? { x0: Math.min(b.x0, bb.x0), z0: Math.min(b.z0, bb.z0), x1: Math.max(b.x1, bb.x1), z1: Math.max(b.z1, bb.z1) } : bb; } return b || { x0: entry.at.x - 10, z0: entry.at.z - 10, x1: entry.at.x + 10, z1: entry.at.z + 10 }; }
     return null;
@@ -358,6 +374,7 @@ function mount(host, ctx) {
   //  and read by nothing of the ground (27_premises: roadObjs.pav, the issues; the patch's sink reads the premises' recipe)
   const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1, pav: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
+    if (layer === 'sounds') return false;   // G1656: a sound moves no ground (and the game skips its ground re-sample)
     if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
@@ -369,6 +386,8 @@ function mount(host, ctx) {
     if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
     const t0 = PERF.now(), label = LAST || (layer || 'all'); LAST = '';
     R.setRecord(rec);
+    // G1656: the ambience hears a sound edit at once (nothing composes for it: the renderer redraws its marks alone)
+    if (layer === 'sounds' || !layer) { try { if (window.AMBIENCE && window.AMBIENCE.soundsChanged) window.AMBIENCE.soundsChanged(rec); } catch (e) {} }
     // (G3001) only placed objects changed: the renderer makes them alone
     if (objs && R.objectEdit && R.objectEdit(objs)) {
       FAST.n++;
@@ -851,6 +870,7 @@ function mount(host, ctx) {
     let e;
     if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
+    else if (tool === 'soundarea') { const key = soundPick(); if (!key) { strip.status('no sound to draw: the ambience is not loaded'); cancelTool(); return; } e = { id: soundId(), kind: 'sound', poly, key, on: true }; }
     // (G2910) every other polygon is ONE AREA, the tool's properties attached
     else e = { id: PG.newId(rec, 'areas'), poly, props: areaPreset(tool, poly) };
     run({ layer, id: e.id, before: null, after: e, label: (e.kind || (layer === 'areas' ? TOOL_LABEL[tool] || 'area' : layer)) + ' ' + e.id });
@@ -940,7 +960,7 @@ function mount(host, ctx) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
-        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
+        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft' || (e.kind === 'sound' && !e.poly)) { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         if (found.layer === 'runways') {
           if (h.key.indexOf('hold:') === 0) {
             // the pattern becomes AUTHORED the moment a hold is touched: the derived graph, saved verbatim, the hold moved along the centreline
@@ -1142,6 +1162,14 @@ function mount(host, ctx) {
       if (list.length > 1) strip.status((CYC.i + 1) + ' of ' + list.length + ': ' + (h.kind || h.layer) + ' ' + h.id + (h.item ? ' (' + h.item + ')' : '') + ' - click again for the next');
       return;
     }
+    if (tool === 'probe' && section === 'sounds') { soundProbe(g); return; }
+    if (tool === 'soundpt') {
+      const key = soundPick();
+      if (!key) { strip.status('no sound to place: the ambience is not loaded'); return; }
+      const e = { id: soundId(), kind: 'sound', x: +L[0].toFixed(2), z: +L[1].toFixed(2), key, on: true };
+      run({ layer: 'sounds', id: e.id, before: null, after: e, label: 'sound ' + e.id + ' (' + key + ')' });
+      select(e.id); return;
+    }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
       const sx = (R.heightAt(g[0] + 1, g[2]) - R.heightAt(g[0] - 1, g[2])) / 2, sz = (R.heightAt(g[0], g[2] + 1) - R.heightAt(g[0], g[2] - 1)) / 2;
@@ -1309,7 +1337,7 @@ function mount(host, ctx) {
   // displayed action buttons, the right zone being a generic inspector" · "provide more info on selection. Clicking on a
   // polygon leaves very little options". The plate's head says what is selected; nothing selected, it is the scenery's
   // outline (every feature by kind, a click selects and frames it). The tabs' own rows are the palette's (palette below).
-  const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover' };
+  const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover', sounds: 'sound' };
   let CYC = null;   // (G3006) the pick cycle: { at (the world point clicked), sig (what lay under it), i, n, id }
   function selHead(kind, id, label) {
     const d = $('div', { class: 'pr-selhd' });
@@ -1327,7 +1355,7 @@ function mount(host, ctx) {
     rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tab, a tool, and click the ground');
     const groups = [['areas', 'AREAS', e => PG.areaLabel(e)], ['runways', 'RUNWAYS', e => e.name || ''], ['roads', 'ROADS', e => (e.cls || '') + ' ' + (+e.w || 3.6).toFixed(1) + ' m'], ['zones', 'ZONES', e => e.kind],
                     ['sites', 'SITES', e => e.name || ''], ['objects', 'OBJECTS', e => e.kind + ' ' + (e.key || '')], ['terrain', 'TERRAIN (lines and the rest)', e => e.kind], ['surface', 'SURFACES', e => ''], ['material', 'MATERIALS', e => e.look || e.set || ''],
-                    ['exclude', 'EXCLUSIONS', e => (e.what || []).join(', ')], ['ttype', 'COVERS', e => ''], ['links', 'LINKS', e => e.kind]];
+                    ['exclude', 'EXCLUSIONS', e => (e.what || []).join(', ')], ['ttype', 'COVERS', e => ''], ['links', 'LINKS', e => e.kind], ['sounds', 'SOUNDS', e => String(e.key).slice(4) + (e.on === false ? ' (off)' : '')]];
     for (const [k, title, lab] of groups) {
       const L = rec.layers[k] || []; if (!L.length) continue;
       const d = $('details', { class: 'pr-outline' }); d.appendChild($('summary', { text: title + ' · ' + L.length })); insp.appendChild(d);
@@ -1347,6 +1375,62 @@ function mount(host, ctx) {
     rows.note(insp, 'select a feature on the map (or above) to see everything about it here; the tabs on the left hold the tools and their palettes');
   }
   let OUTLINE_OPEN = null;
+  // ---- G1656 THE SOUNDS: the bed to draw, and WHAT IS HEARD at a spot (the ambience's own targets there) -------------
+  // a sound's id, unique over EVERY layer (findById answers the first layer that has an id: an authored record's animal
+  // hotspots are a1.. - the first proof in the real page dragged an elk herd for a point sound)
+  function soundId() { for (let i = 1; ; i++) { const id = 'snd' + i; if (!PG.findById(rec, id)) return id; } }
+  function soundPick() {
+    const beds = soundBeds();
+    if (!beds.length) return null;
+    if (!SOUND_PICK || !beds.some(b => b[0] === SOUND_PICK)) SOUND_PICK = beds[0][0];
+    return SOUND_PICK;
+  }
+  let PROBE_AT = null;   // the last spot the SOUND tab's probe read (local x, z)
+  function soundsPalette(P) {   // (the SOUND tab's palette drawer: the bed to draw, the probe's reading)
+    const beds = soundBeds();
+    if (!beds.length) { rows.note(P, 'the ambience is not loaded on this page (sound off, ?audio=0): nothing to draw', 'bad'); return; }
+    soundPick();
+    rows.select(P, 'sound to draw', beds, () => SOUND_PICK, v => { SOUND_PICK = v; palette.refresh(); });
+    rows.note(P, 'heard to ~' + soundReach(SOUND_PICK) + ' m from a point or around an area. A POINT SOUND: click the ground. A SOUND AREA: click its corners, close. On puts the sound there, off silences it there (a sea wall, a quiet glade).');
+    rows.note(P, 'the probe reads what is heard where you click: every bed the ambience plays there, by day, with your sounds.');
+    if (PROBE_AT) soundProbeRows(PROBE_AT, P);
+  }
+  function soundProbe(g) {
+    const L = R.overlay.frame.toLocal(g[0], g[2]);
+    PROBE_AT = [L[0], L[1]];
+    palOpen = true; palette.refresh();
+    strip.status('heard at x ' + L[0].toFixed(0) + ' z ' + L[1].toFixed(0) + ': the list in the sound palette');
+  }
+  // the ambience model run at the spot (1.7 m above the ground, the world's own day and wind, the record's live sounds):
+  // its targets, the loudest first, as bars - the evidence charts' lanes at one place and one moment
+  function heardAt(lx, lz) {
+    const M = window.AMBIENCE_MODEL, AP = window.AUDIO_PARAMS;
+    if (!M || !AP) return null;
+    const F = R.overlay.frame, w = F.toWorld(lx, lz), P = AP.audioParamsBlock(), st = M.ambienceState();
+    P.s[P.I.listenerX] = w[0]; P.s[P.I.listenerY] = R.heightAt(w[0], w[1]) + 1.7; P.s[P.I.listenerZ] = w[1];
+    M.ambienceStep(st, P, world, 1 / 60);   // (its first frame reads the world: the zones, the fences)
+    M.ambienceSounds(st, rec, F);           // the editor's record, not yet composed into the world
+    for (let i = 0; i < 40; i++) M.ambienceStep(st, P, world, 1 / 60);
+    return M.BEDS.map((b, i) => [b[0], st.t[i]]).filter(q => q[1] > 0.01).sort((a, b) => b[1] - a[1]);
+  }
+  function soundProbeRows(lp, into) {
+    const H = lp ? heardAt(lp[0], lp[1]) : null;
+    if (!H) return;
+    rows.section(into, 'HEARD HERE');
+    if (!H.length) { rows.note(into, 'nothing: too high, under water, or silenced'); return; }
+    const box = $('div', { class: 'r', style: 'display:block' });
+    for (const [k, v] of H) {
+      const row = $('div', { style: 'display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px' });
+      row.appendChild($('span', { text: k.slice(4), style: 'flex:0 0 112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }));
+      const bar = $('span', { style: 'flex:1 1 auto;height:8px;background:rgba(255,255,255,.08);border-radius:2px;position:relative' });
+      bar.appendChild($('span', { style: 'position:absolute;left:0;top:0;bottom:0;width:' + Math.round(v * 100) + '%;background:#e07bd8;border-radius:2px' }));
+      row.appendChild(bar);
+      row.appendChild($('span', { text: v.toFixed(2), style: 'flex:0 0 30px;text-align:right;opacity:.75' }));
+      box.appendChild(row);
+    }
+    into.appendChild(box);
+  }
+
   const inspector = { refresh() {
     insp.innerHTML = '';
     const f = selected && PG.findById(rec, selected);
@@ -1716,6 +1800,18 @@ function mount(host, ctx) {
         rows.note(insp, 'drag its disc to move it; R turns it 15 degrees (Shift+R back)');
       } else if (e.kind === 'billboard') rows.slider(insp, 'width (m)', 2, 6, 0.1, () => e.w || 3.6, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1));
     } else if (layer === 'ttype') vegRows(e, id, ed);
+    else if (layer === 'sounds') {
+      const beds = soundBeds();
+      if (beds.length) rows.select(insp, 'sound', beds, () => e.key, v => ed(x => { x.key = v; }, 'sound of ' + id));
+      else rows.note(insp, 'the ambience is not loaded here: ' + e.key, 'bad');
+      rows.pills(insp, 'here', [['on', 'on', 'this sound at full here, fading out over its reach'], ['off', 'off', 'this sound silenced here, coming back over its reach']],
+        () => (e.on === false ? 'off' : 'on'), v => ed(x => { x.on = v !== 'off'; }, (v === 'off' ? 'silence ' : 'sound ') + id));
+      const R0 = soundReach(e.key), core = Math.max(6, 0.2 * R0);
+      rows.note(insp, e.poly ? 'inside the area at full; it fades out over ' + R0 + ' m outside (the faint outer line)'
+                             : 'at full within ' + core.toFixed(0) + ' m; it fades out to ' + R0 + ' m (the faint ring)');
+      rows.note(insp, 'how far a sound carries is the ambience\'s (each sound its own reach); the ground\'s sounds still fade above ~150 m, the winds do not');
+      soundProbeRows(e.poly ? PG.polyCentroid ? PG.polyCentroid(e.poly) : e.poly[0] : [e.x, e.z], insp);
+    }
     else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
@@ -1992,6 +2088,7 @@ function mount(host, ctx) {
     else if (section === 'sites') sitesPalette(d);
     else if (section === 'objects') objectsPalette(d);
     else if (section === 'assets') assetsPalette(d);
+    else if (section === 'sounds') soundsPalette(d);   // G1656
     else if (PAL_NOTE[section]) rows.note(d, PAL_NOTE[section]);
     else pal.innerHTML = '';
   } };
@@ -2608,6 +2705,8 @@ function mount(host, ctx) {
     cmd: (name, args) => {
       if (name === 'siteTheme') { SITE_THEME = args.key; return SITE_THEME; }   // the theme tool's pick, scriptable (G393.3)
       if (name === 'palette') { PALETTE_KEY = args.key; PALETTE_CAT = 'all'; return PALETTE_KEY; }   // the building tool's pick, scriptable (G393.3)
+      if (name === 'soundPick') { SOUND_PICK = args.key; palette.refresh(); return soundPick(); }   // G1656: the sound tools' bed, scriptable
+      if (name === 'heard') return heardAt(args.x, args.z);   // G1656: what the ambience plays at a local (x, z), loudest first
       if (name === 'add') { const e = Object.assign({ id: PG.newId(rec, args.layer) }, args.entry); run({ layer: args.layer, id: e.id, before: null, after: e, label: 'add ' + e.id }); return e.id; }
       if (name === 'set') { edit(args.id, PG.findById(rec, args.id).layer, x => Object.assign(x, args.patch), 'set ' + args.id); return true; }
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }

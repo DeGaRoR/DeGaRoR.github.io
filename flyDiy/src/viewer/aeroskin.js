@@ -1532,9 +1532,15 @@ function aeroAtlas(THREE) {
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
-  const g = cv.getContext('2d');
+  // G3798c: A CANVAS OF THE CPU'S. The registration's page is read back on every paint (its distance field), and a canvas
+  // the browser keeps on the graphics card can come back BLANK: under SwiftShader the Cub's registration page was empty on
+  // the first probe (2 Nov 15:40, inputs identical to the RTX's), drawn on the second, whose hook read the canvas back
+  // every 250 ms - which moves it to the CPU. AERO_TEXT_SIG then skipped every repaint. willReadFrequently is the hint
+  // for exactly this canvas (and its readbacks become a copy, not a GPU stall - the phone's); a restore still repaints.
+  const g = cv.getContext('2d', { willReadFrequently: true });
   g.clearRect(0, 0, S, S);
   AERO_ATLAS_CV = cv;
+  if (typeof cv.addEventListener === 'function') cv.addEventListener('contextrestored', () => aeroAtlasRepaint());   // (the gates' mock canvas has none)
   const t = new THREE.CanvasTexture(cv);
   // flipY stays TRUE — the canvas convention this repo uses everywhere except
   // props.js, which sets false because glTF's uv origin is top-left. Mixing
@@ -1657,6 +1663,20 @@ const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
 // only when what is on it changes.
 const AERO_TEXT_SIG = {};
 const AERO_TEXT_ASPECT = {};
+// G3798c: WHAT EACH PAGE LAST WORE, to paint it again when the canvas comes back blank (its context restored): the
+// arguments, not the pixels - a page is repainted by the same call that drew it
+const AERO_PAGE_LAST = {};
+function aeroAtlasRepaint() {
+  for (const p of Object.keys(AERO_PAGE_LAST)) {
+    const L = AERO_PAGE_LAST[p];
+    try {
+      if (L.kind === 'text') { delete AERO_TEXT_SIG[p]; aeroDecalText.apply(null, L.args); }
+      else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
+      else if (L.kind === 'img') aeroDecalImage.apply(null, L.args);
+    } catch (e) {}
+  }
+  if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
+}
 
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
@@ -1667,6 +1687,7 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     return AERO_TEXT_ASPECT[page].aspect;
   }
   AERO_TEXT_SIG[page] = sig;
+  AERO_PAGE_LAST[page] = { kind: 'text', args: [THREE, page, text, colHex, outHex, font] };
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -1765,6 +1786,7 @@ function aeroDecalImage(THREE, page, img) {
   aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
+  AERO_PAGE_LAST[page] = { kind: 'img', args: [THREE, page, img] };
   return img.width / img.height;
 }
 // THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
@@ -1799,6 +1821,7 @@ function aeroDecalImageClear(THREE, page) {
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
   AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
   delete AERO_PAGE_IMG[page];
+  delete AERO_PAGE_LAST[page];
   const t = aeroAtlas(THREE); t.needsUpdate = true;
 }
 function aeroDecalImageFrom(THREE, page, dataURL, cb) {
@@ -1833,6 +1856,33 @@ let AERO_DEC = null;
 // ...and a page may switch it OFF for one load (window.AEROWX_OFF, the bench's
 // ?nowx) — the program key is the hook's source, so the choice is per LOAD
 function aeroWx() { return (typeof AEROWX !== 'undefined' && !(typeof window !== 'undefined' && window.AEROWX_OFF)) ? AEROWX : null; }
+// PHONE-EDIT-PERF (B, the user 2 Nov: "for the phone ... the materials will be the things hitting it ... disabling the most
+// costly ones"): THE PHONE'S MATERIAL TIER. Measured on the user's S20 FE (Adreno 650, the Twin busher on floats, the studio):
+// the full skin 9.2 fps; the weathering compiled out 16.7; + the large-scale field (aeroField: 3 x 4-octave musgrave a
+// fragment) 23.5; + the structure grammar (aeroStructure: members, tapes, laps, rivets) 30 solid (p90 34 ms). The paint, the
+// decals and registration, the detail sheet, the lights, the IBL and the clear coat stay. On the phone profile only, decided
+// once at the first compile (a page is one tier: the hooks' toString stays the program key); ?phmat=full or localStorage
+// flydiy.phoneMat = 'full' keeps the full skin on a phone. The desktop compiles exactly as before
+let AERO_LITE_V = null;
+function aeroLite() {
+  if (AERO_LITE_V !== null) return AERO_LITE_V;
+  AERO_LITE_V = false;
+  try {
+    const W = typeof window !== 'undefined' ? window : null;
+    if (W && W.PROFILE && W.PROFILE.name === 'phone') {
+      const q = (W.location && W.location.search) || '', m = /[?&]phmat=(full|lite)(&|$)/.exec(q);
+      const pref = (() => { try { return W.localStorage && W.localStorage.getItem('flydiy.phoneMat'); } catch (e) { return null; } })();
+      AERO_LITE_V = m ? m[1] === 'lite' : pref !== 'full';
+    }
+    if (W) { W.AERO_LITE = AERO_LITE_V; if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('phmat', null, AERO_LITE_V ? 'lite' : 'full'); }
+  } catch (e) {}
+  return AERO_LITE_V;
+}
+// the lite tier's two cuts in the skin's fragment text (the calls' own lines, AERO_SURFACE_FS)
+function aeroLiteFS(fs) {
+  return fs.replace('vec3 aeroSN = aeroStructure(aeroM, aeroRA);', 'vec3 aeroSN = vec3(0.0, 0.0, 1.0);')
+    .replace(/aeroField\(aeroFC, aeroDF, aeroFR\);/g, '');
+}
 function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
@@ -2521,6 +2571,7 @@ function aeroKitDraw(THREE, L) {
                L.r, L.s, L.clr, L.asp].join('|');
   if (AERO_KIT_SIG[L.page] === sig) return false;
   AERO_KIT_SIG[L.page] = sig;
+  AERO_PAGE_LAST[L.page] = { kind: 'kit', args: [THREE, L] };
   const P = S / N, px = (L.page % N) * P, py = Math.floor(L.page / N) * P;
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
@@ -3449,7 +3500,11 @@ const AERO_ALBEDO_FS = `
   vec3 aeroA = vCraftPos;
   float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
-    if (di >= uDecN) break;
+    // PHONE-EDIT-PERF (2 Nov, A0-approved desktop candidate 1): a section that takes no marking (uDecOk 0: the interior,
+    // the hardware, the booms - aeroDecOk answers 0 or 1) leaves the loop at once. Its weight w was 0 on every pass, so
+    // every pass added nothing (mix(x, dc, 0) is x; the accumulators start at 0): the same pixels, without 8 atlas
+    // fetches and their SDF fwidth a fragment. uDecOk is a uniform, so the flow stays uniform (fwidth below is safe)
+    if (di >= uDecN || uDecOk < 0.5) break;
     // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
     // fuselage/flying/both scalar — the fin belongs with the fuselage and the
     // wing does not, and the old scalar could not say so.
@@ -3707,7 +3762,8 @@ const AEROSKIN_HOOK = function (shader) {
   if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
-  const W = aeroWx();
+  const lite = aeroLite();                   // PHONE-EDIT-PERF: the phone's tier (above)
+  const W = lite ? null : aeroWx();
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
@@ -3735,6 +3791,7 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <clearcoat_normal_fragment_begin>',
              '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')   // USE_CLEARCOAT since r13x (W0.5a)
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
+  if (lite) shader.fragmentShader = aeroLiteFS(shader.fragmentShader);
 };
 
 // THE CABIN'S DARKNESS, IN THE SHADER (G206.1). After every light has been
@@ -4013,7 +4070,7 @@ vec2 aeroCrack = vec2(0.0);
 ` + AERO_GLASS_CRACK_FS + '\n';
 
 const AEROGLASS_HOOK = function (shader) {
-  const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
+  const W = aeroLite() ? null : aeroWx();   // G345, as in AEROSKIN_HOOK (PHONE-EDIT-PERF: none on the phone's tier)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;

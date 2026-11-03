@@ -1,0 +1,23 @@
+tools/flight_core.js (2232.4 KB), index.html (11419.9 KB), dev.html (107.4 KB) — syntax OK, 969 ms
+[run_gates] 0/2 jobs done · running DMGSKIN 30 s
+[run_gates] 0/2 jobs done · running DMGSKIN 60 s
+[run_gates] 0/2 jobs done · running DMGSKIN 90 s
+[run_gates] 0/2 jobs done · running DMGSKIN 120 s
+=== DMGSKIN ===
+  ok    app.js: the skin's break path (11 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+[run_gates] 1/2 jobs done · running DMGSCUFF 16 s
+[run_gates] 1/2 jobs done · running DMGSCUFF 46 s
+=== DMGSCUFF ===
+  ok    the solver records the slide only behind DMG_ON (2 call sites)
+(90/90 checks, 62 s)
+GATE DMGSCUFF: PASS
+
+──────── summary ────────
+DMGSKIN   PASS   134.4 s
+DMGSCUFF  PASS    61.7 s
+total            196.1 s
+wall             196.1 s  (jobs 2)
+
+BATTERY: PASS

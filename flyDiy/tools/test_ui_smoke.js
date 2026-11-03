@@ -46,6 +46,10 @@ const bootBlock = pick('window.BOOT = B', 'boot');
 // first, on ?profile=phone, ahead of the graphics menu and app.js, exactly as the page orders them; the boot must then
 // be the garage's alone, and the gate ends after the phone's own checks (the flight half has no world to fly in)
 const PHONE = process.argv.includes('--phone');
+// G3791 (PHONE-TESTFLIGHT): `--phonefly` - the phone's TEST FLIGHT page (?profile=phone&testflight=1: profile.js's flight
+// variant): the world's boot rows on the test field (no parked aeroplanes), the roll-out on the pilot as the boot lifts,
+// the hand refused, and the way back to the shed is the garage page again (PROFILE.flyEnd). UISMOKE-PHONEFLY in run_gates
+const PHONEFLY = process.argv.includes('--phonefly');
 const profileBlock = pick('W.PROFILE = {', 'profile');
 if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
@@ -557,6 +561,30 @@ function storageChecks() {
 // picture is the lightest preset, and phone.css is the phone's alone, selector by selector (the desktop's pixels cannot
 // move through it). phone.js needs a laid-out document (the knob reads the scale's box) - tools/phone_still.js --checks
 // drives it with real touch events in a real browser.
+// G3791: THE PHONE'S TEST FLIGHT PAGE - out on the test field on the pilot as the boot lifted, the bench's arming, the hand
+// refused, and the shed's button reloads the garage page (the intent gone, ?testflight=1 dropped)
+function phoneFlyChecks() {
+  const W = sandbox.window, G = sandbox.garageApi, P = W.FLIGHT_PROBE;
+  if (!W.FLYDIY_PHONE_FLY || !W.FLYDIY_PHONE_FLY.started) throw new Error('the phone test flight did not start as the boot lifted (' + JSON.stringify(W.FLYDIY_PHONE_FLY) + ')');
+  frames(10);
+  if (G.inGarage()) throw new Error('the phone test flight is still in the garage after its start');
+  const wd = P && P.world && P.world();
+  if (!wd || wd.flat !== true || wd.aerodromes.length !== 1) throw new Error('the phone test flight is not on the test field (flat ' + (wd && wd.flat) + ')');
+  if (!W.TEST_FLIGHT || !W.TEST_FLIGHT.armed()) throw new Error('the phone test flight is not armed (the bench certificate would not follow the arrival)');
+  P.setManual(true, 'rig');
+  if (P.manual()) throw new Error('the hand took the phone test flight (no hand flying in v1)');
+  const de = W.document && W.document.documentElement;   // (the sandbox's document may carry none: then profile.js set none)
+  if (de && de.classList && !de.classList.contains('phfly')) throw new Error('html.phfly is not set on the flight page');
+  console.log('the phone test flight: out on the test field (flat, HOME alone), armed, the hand refused, html.phfly');
+  // the way back: the shed button -> PROFILE.flyEnd -> the garage page (the URL without ?testflight=1)
+  let went = null;
+  W.location = { search: '?profile=phone&testflight=1', pathname: '/flyDiy/', hash: '', replace: u => { went = u; }, reload: () => { went = 'reload'; } };
+  if (typeof handlers['bHangar2'] !== 'function') throw new Error('#bHangar2 is not wired');
+  handlers['bHangar2']();
+  delete W.location;
+  if (went !== '/flyDiy/?profile=phone') throw new Error('the shed button on the phone test flight went to ' + went + ', expected the garage page /flyDiy/?profile=phone');
+  console.log('the way back: the shed button loads ' + went + ' (the garage page, no world in memory)');
+}
 function phoneChecks() {
   const W = sandbox.window, G = sandbox.garageApi;
   if (W.FLYDIY_SIMW) throw new Error('the phone garage made the sim worker');
@@ -572,7 +600,8 @@ function phoneChecks() {
   console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
   // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  if (!html.includes('html.phone #phTabs button.on')) throw new Error('index.html does not carry phone.css');
+  // (the selector carries the test flight's stand-down since PHONE-1b, html.phone:where(:not(.phfly)) - G3910)
+  if (!/html\.phone(:where\(:not\(\.phfly\)\))? #phTabs button\.on/.test(html)) throw new Error('index.html does not carry phone.css');
   const OWN = /^(#phTabs|#phBubble(\.fine|\[hidden\])?|\.phKnob|\.phStep)$/;
   const bad = [], seen = [];
   // a selector list split at its top-level commas (the ones inside :is( ) belong to their selector)
@@ -627,18 +656,20 @@ try {
   // flight recorder is not executed (its hooks would ride the loop); its two rows stand in for it, no attach.
   sandbox.window.requestAnimationFrame = () => 0;
   sandbox.setInterval = () => 0; sandbox.clearInterval = () => {};
-  sandbox.window.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }];
-  sandbox.window.FLYDIY_WORLD = 'none';
+  sandbox.window.FLYDIY_WORLDS = [{ id: 'none', name: 'the analytic world' }, { id: 'jolene', name: 'Jolene' }].concat(PHONEFLY ? [{ id: 'testfield', name: 'Test field' }] : []);
+  sandbox.window.FLYDIY_WORLD = PHONEFLY ? 'testfield' : 'none';   // (G3791: the loader's pick on the flight page)
   sandbox.window.FLIGHT_REC = {
     mount(b, H) { this.mountMeter(b, H); this.mountLog(b, H); },
     mountMeter(b, H) { H.row(b, 'fps meter'); H.pills(b, [{ label: 'off' }, { label: 'on' }], () => false, () => {}); },
     mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
   // G2104: the profile, before the graphics menu (its preset) and app.js (its boot) - the desktop's on the plain run
-  sandbox.window.location = { search: PHONE ? '?profile=phone' : '' };
+  sandbox.window.location = { search: PHONEFLY ? '?profile=phone&testflight=1' : PHONE ? '?profile=phone' : '' };
   vm.runInContext(profileBlock, sandbox, { filename: 'profile.js' });
   delete sandbox.window.location;
-  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE ? 'phone' : 'desktop'))
-    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE ? 'phone' : 'desktop'));
+  if ((sandbox.window.PROFILE && sandbox.window.PROFILE.name) !== (PHONE || PHONEFLY ? 'phone' : 'desktop'))
+    throw new Error('profile.js: the page is on ' + (sandbox.window.PROFILE && sandbox.window.PROFILE.name) + ', expected ' + (PHONE || PHONEFLY ? 'phone' : 'desktop'));
+  if (!!(sandbox.window.PROFILE && sandbox.window.PROFILE.flight) !== PHONEFLY || (PHONEFLY && !sandbox.window.PROFILE.is('boot', 'testfield')))
+    throw new Error('profile.js: the flight variant is ' + (sandbox.window.PROFILE.flight ? 'on' : 'off') + ' (boot ' + sandbox.window.PROFILE.get('boot') + '), expected ' + (PHONEFLY ? 'on, boot testfield' : 'off'));
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
                   sandbox, { filename: 'gfx_settings.js' });
   // THE SOUND (G1600): audio_params.js and audio.js ride the RENDER block too - run from their own source, so the rail's
@@ -672,7 +703,8 @@ try {
     const want = PHONE   // G2100: the phone garage boots the garage alone (profile.js boot 'garage': the study's §1.2 table)
       ? ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'snapshot', 'spec', 'restore', 'compile', 'firstFrame', 'recheck']
       : ['treeBins', 'aircraft', 'garage', 'editor', 'seed', 'world', 'town', 'parking', 'trees', 'ring', 'settle', 'parked',
-      'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
+      'snapshot', 'bake', 'spec', 'restore', 'images', 'upload', 'worldCompile', 'compile', 'firstFrame', 'frames', 'craft', 'recheck']
+        .filter(id => !(PHONEFLY && id === 'parked'));   // (G3791: the phone's test field parks no aeroplane)   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack); treeBins: S3 (the world scene builds under the roll-out screen); seed: G995 (the editor's seed in its own tasks - a no-op here, openEditor seeds inline without the screen)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
     if (B.log.some(e => e.k === 'fail')) throw new Error('the loading screen gave up: ' + JSON.stringify(B.log.filter(e => e.k === 'fail')));
@@ -699,6 +731,7 @@ try {
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
   if (PHONE) { phoneChecks(); storageChecks(); console.log('GATE UISMOKE-PHONE: PASS'); process.exit(0); }
+  if (PHONEFLY) { phoneFlyChecks(); console.log('GATE UISMOKE-PHONEFLY: PASS'); process.exit(0); }
   // ---- G1065 (POLISH-1): THE FLY BUTTON DRAWS THE EYE ONCE THE SETUP IS TOUCHED ----
   // The user: "when the player changes any option on the roll-out setup screen during the load, the Fly button must draw
   // attention - a gentle pulsing animation (prefers-reduced-motion: a static highlight instead). No pulse while

@@ -199,7 +199,8 @@ const WING_ITEMS = [
   // two numbers the root and tip carry. On a strutted wing the crank is
   // where the strut lands (the frame's ruling), so this trio IS the
   // C172's wing: constant chord to the strut, taper and offset outboard.
-  ['wgCrankChord', 'crank chord', 0.55, 2.10, 0.05,
+  // G3579 (DC3-2): to the big envelope's 5 m (the DC-3's constant-chord centre section, 4.63 m); a small wing is held at 2.10 as before
+  ['wgCrankChord', 'crank chord', 0.55, 5.00, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
   ['wgCrankX', 'crank aft',      -0.8, 1.5, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm', note: heldNote('wgCrankX') }],
@@ -207,7 +208,8 @@ const WING_ITEMS = [
    { when: P => +P.wingOn && +P.wgCrankAt > 0 }],
   // G140: sweep retired — the TIP's fore/aft seat is the honest knob (the
   // old angle was tan(this / exposed semispan))
-  ['wgTipX',   'tip aft',        -1.5, 2.5, 0.05, { ...on, dim: 'm', note: heldNote('wgTipX') }],
+  // G3579 (DC3-2): aft to 4 m (the DC-3's swept LE: the tip 3.2 m behind the root; the flown reach is tan 30 deg of the semispan)
+  ['wgTipX',   'tip aft',        -1.5, 4.0, 0.05, { ...on, dim: 'm', note: heldNote('wgTipX') }],
   ['wgDihedral', 'dihedral',     0, 6, 0.5, on],
   ['wgIncidence', 'incidence',   -1, 4, 0.1, on],
   ['wgWashout', 'washout',       0, 4, 0.1, on],
@@ -2586,8 +2588,14 @@ const wingPost = ctx => {
       // and below, when the boom is deeper than the wing is thick)
       // G274.1: ...and the builder's fore / aft (aft positive; cage z runs
       // forward, so it comes off the root station)
-      const dz = +P.boomDz || 0;
-      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) - dz, zTip = zRoot - len;
+      // FLAGSHIP (2 Nov): the forward bound is the WING's, not a number - the root may stand up to BOOM_REACH ahead
+      // of the leading edge at the boom's station (a P-38's / an OV-10's booms run forward past it); the root stays
+      // tied to its bay's spars in the frame wherever it stands (61_gen_frame.js, the rigidity test holds it). Every
+      // build saved before sat at -1.0 or aft of it: far behind this bound, so none moves
+      const BOOM_REACH = 1.0;
+      const zTE0 = te.z + 0.35 * (te.yTop - te.yBot), le = leAt && (leAt(x) || leAt(-x));
+      const dz = Math.max(+P.boomDz || 0, le ? zTE0 - le.z - BOOM_REACH : -Infinity);
+      const zRoot = zTE0 - dz, zTip = zRoot - len;
       const rodB = Math.round(P.boomStyle) === 1;
       // G267.1: the INCLINATION (the user: "set inclination for the twin
       // boom ... compared to the body"), degrees, tail up positive, about

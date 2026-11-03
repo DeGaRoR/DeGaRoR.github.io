@@ -61,7 +61,13 @@ const PREMISES_V = 2;   // v2 (contract v1.36, G2910): the polygon entries folde
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions'];   // v1.37: junctions (G2950)
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions', 'sounds'];   // v1.37: junctions (G2950)
+// THE SOUNDS (G1656, SND-AMB-1 for the user): what the ambience hears, drawn on the map. PHYSICS-INERT - nothing composes
+// them (compose reads its layers by name; the raster's signature hashes terrain modifiers, not the record): the ambience
+// (src/viewer/audio/ambience_model.js) is their only reader. An entry is a POINT { id, kind: 'sound', x, z, key, on } or an
+// AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
+// over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
+// the ambience's (AMBIENCE_MODEL.REACH), never the record's.
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -765,7 +771,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [], sounds: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -1092,7 +1098,7 @@ function stageIssues(rec0, maxes) {
   for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j', sounds: 'snd' };   // (snd: authored records already use a1.. for animal hotspots)
 function newId(rec, layer) {
   // (v1.36: every id of the record, an area's v1 ids too - a migrated area keeps its surface's 'y1', and a new
   // surface must not take it again)
@@ -3609,10 +3615,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
-    // pavedAt(x, z, reach) -> null | { d, cls, halfW, kind, dPre }: the pavement whose surface the point lies deepest
+    // pavedAt(x, z, reach, skip) -> null | { d, cls, halfW, kind, id, dPre }: the pavement whose surface the point lies deepest
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
-    pavedAt: (x, z, reach) => pavedAt(x, z, reach),
+    pavedAt: (x, z, reach, skip) => pavedAt(x, z, reach, skip),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -3917,6 +3923,25 @@ function compose(rec0, world, opts) {
     const pts = it.road.pts, dead = p => { const cell = CIDX.query(p[0], p[1]); if (cell) for (const o2 of cell) if (o2 !== it && dEdgeOf(o2, p[0], p[1]) > -0.5) return false; return true; };
     return (it.deadEnds = [dead(pts[0]), dead(pts[pts.length - 1])]);
   }
+  // TERRAIN-MATCH (2 Nov): PAST AN END THAT OPENS ONTO ANOTHER PAVEMENT the road answers nothing either - the other
+  // pavement answers there for itself (its own depth, its own sink). The other one touches the end (roadDeadEnds' half
+  // metre) but need not cover the half disc past it: at w3's over-run, where r40 (16 m, gravel) starts on r5's edge, the
+  // patch was sunk 0.42 m by r40's cap 3-5 m past its square end, under nothing or under r5's edge fade (0.3 m into r5:
+  // tools/terrain_match.js 'patch: a sunk vertex', the tier on that law). Only PAST the end: up to it the road keeps its
+  // own depth (G1542 holding every end back 2 m cost GATE CONTACT's band 33 points)
+  function pastJoinedEnd(it, x, z, reach) {      // true: past an end that is NOT dead
+    const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
+    if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return false;
+    const DE = roadDeadEnds(it), cap = (it.halfW || 0) + Math.max(0, reach) + 0.5;
+    for (let k = 0; k < 2; k++) {
+      if (DE[k]) continue;
+      const p = k ? pts[n - 1] : pts[0], q = k ? pts[n - 2] : pts[1];
+      if (HYP2(x - p[0], z - p[1]) > cap) continue;
+      const dx = p[0] - q[0], dz = p[1] - q[1], l = HYP2(dx, dz);
+      if ((l > 1e-9) && (x - p[0]) * dx + (z - p[1]) * dz > 0) return true;   // (past this end, not along it)
+    }
+    return false;
+  }
   function roadEndIn(it, x, z) {                  // metres inside the nearer DEAD end, along the road (Infinity: not near one)
     const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
     if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
@@ -3969,19 +3994,21 @@ function compose(rec0, world, opts) {
   }
   // `reach` (G1541, m, default 0): also a pavement whose edge lies within `reach` OUTSIDE the point (d > -reach) - the
   // patch keeps its 2 cm under a pavement's side, the translucent fade drawn over the ground past the edge
-  function pavedAt(x, z, reach) {
+  // `skip` (G2115, an id): every pavement but that one - a pavement's builder asks whether its edge lies on ANOTHER's interior
+  function pavedAt(x, z, reach, skip) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1], r0 = reach > 0 ? -reach : 0;
     const cell = CIDX.query(lx, lz);
     let best = null;
     if (cell) for (const it of cell) {
+      if (skip !== undefined && skip !== null && it.id === skip) continue;
       let d = dEdgeOf(it, lx, lz), dPre = d;
       if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
         const e = roadEndIn(it, lx, lz);
-        if (e < 0) continue;
+        if (e < 0 || pastJoinedEnd(it, lx, lz, -r0)) continue;
         dPre = Math.min(d, e); d = Math.min(d, e - PAVE_END_IN);
       }
       if (dPre <= r0) continue;
-      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };
+      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, id: it.id, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };   // (G2115: its id)
       else if (dPre > best.dPre) best.dPre = dPre;   // (the deepest pavement for the deep sink; the deepest paved extent for the rest)
     }
     return best;
@@ -4252,6 +4279,16 @@ function issues(rec0) {
     if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
     if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
+  }
+  // THE SOUNDS (G1656): a point or a polygon, a bed key, on / off (which beds exist is the ambience's to say: the page's
+  // AMBIENCE_MODEL when it is loaded)
+  const BEDS = typeof AMBIENCE_MODEL !== 'undefined' && AMBIENCE_MODEL.BEDS ? AMBIENCE_MODEL.BEDS.map(b => b[0]) : null;
+  for (const e of rec.layers.sounds) {
+    const what = 'sound ' + e.id;
+    if (e.poly) { if (e.poly.length < 3) out.push(what + ': a polygon needs three points'); else if (!polySimple(e.poly)) out.push(what + ': the polygon crosses itself'); }
+    else if (!(isFinite(+e.x) && isFinite(+e.z))) out.push(what + ': a point needs x and z');
+    if (typeof e.key !== 'string' || !/^amb\./.test(e.key)) out.push(what + ': no ambience bed (amb.*)');
+    else if (BEDS && BEDS.indexOf(e.key) < 0) out.push(what + ': unknown bed ' + e.key);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   // v1.37 (G2950): a junction's waypoints lie on one spot (the editor keeps them there; a hand edit may not), its id a string

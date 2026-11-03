@@ -173,6 +173,9 @@ function playerNormalise(r) {
     if (!s || typeof s !== 'object') continue;
     if (typeof s.base !== 'string' || !s.base) s.base = id;
     if (s.tenure !== 'own' && s.tenure !== 'rent') s.tenure = 'own';
+    // STORY-1 (the user 29 Oct): the story's start owns BOTH - the Shed and HOME's club - so a story career saved
+    // with HOME locked until T1 (G2743, an overreach) gets it back
+    if (id === 'HOME' && s.locked === 'story') delete s.locked;
   }
   // GQ4 (G2230, GAME-2026-10-06.md §R): the main hangar (HOME) and at most
   // two side hangars. An older document holding more keeps EVERY one - the
