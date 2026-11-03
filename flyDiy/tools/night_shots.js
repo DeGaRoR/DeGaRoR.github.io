@@ -224,6 +224,16 @@ const REPORT = `(() => {
       for (let i = 0; i < ww * hh; i++) { const r = h2f(buf[i * 4]), g = h2f(buf[i * 4 + 1]), b = h2f(buf[i * 4 + 2]); const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
         sum += Y; n++; vals.add(buf[i * 4 + 1]); if (g > 0 && g < minNZ) minNZ = g; if (g > 0 && g < 6.1e-5) sub++; if (g === 0) zero++; }
       o.rt = { type: rt.texture.type, samples: rt.samples, meanY: +(sum / n).toExponential(3), minG: minNZ === Infinity ? 0 : +minNZ.toExponential(3), distinctG: vals.size, subnormalShare: +(sub / n).toFixed(3), zeroShare: +(zero / n).toFixed(3) };
+      // the brightest radiance round a few screen spots (NIGHT-LOOK 3 Nov: the ref scene's shore lamps at 23:00), raw and
+      // as exposed (x the renderer's exposure) - drawn into the target or lost after it
+      o.spots = {};
+      for (const [nm, fx, fy] of [['lampR', 0.903, 0.447], ['lampL', 0.797, 0.443], ['waterR', 0.903, 0.472]]) {
+        const sw = 32, sh = 16, sx = Math.max(0, Math.min(rt.width - sw, Math.floor(rt.width * fx - sw / 2))), sy = Math.max(0, Math.min(rt.height - sh, Math.floor(rt.height * (1 - fy) - sh / 2)));
+        const sb = new Uint16Array(sw * sh * 4); R.readRenderTargetPixels(rt, sx, sy, sw, sh, sb);
+        let mx = 0, mxc = null, bad = 0;
+        for (let i = 0; i < sw * sh; i++) { const r = h2f(sb[i * 4]), g = h2f(sb[i * 4 + 1]), b = h2f(sb[i * 4 + 2]); if (!isFinite(r + g + b)) { bad++; continue; } const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b; if (Y > mx) { mx = Y; mxc = [r, g, b]; } }
+        o.spots[nm] = { maxY: +mx.toExponential(3), exposed: +(mx * R.toneMappingExposure).toExponential(3), rgb: mxc && mxc.map(v => +v.toExponential(2)), nonFinite: bad };
+      }
     }
   } catch (e) { o.rtErr = String(e).slice(0, 120); }
   return JSON.stringify(o);
@@ -308,6 +318,7 @@ async function runPage(page) {
     for (const V of VIEWS) for (const [vi, VAR] of VARIANTS.entries()) {
       if (vi > 0 && (/^(noon|dusk|sunset)/.test(V.name) || !hasNight)) continue;
       if (hasNight) await ev('(LIGHT_RIG.setNight(Object.assign(LIGHT_RIG.nightDefaults(), ' + JSON.stringify(VAR || {}) + ')), window.WORLD && WORLD.relight && WORLD.relight(), 1)');
+      if (opt('eval', null)) await ev('(() => { ' + opt('eval') + ' ; return 1; })()');   // --eval '<js>': a page toggle before each view (a diagnosis: GFX.set('bloom','off'))
       const vt = hasNight && !/^(noon|dusk|sunset)/.test(V.name) ? vtag(VAR) : '';
       const plan = await ev(SETUP(V));
       await ev(FRAMES(90)); await sleep((V.settle || 8) * 1000);     // the light's ease (LIGHT-SMOOTH tau 1.2 s), the probe's re-bake, the clouds' fit
