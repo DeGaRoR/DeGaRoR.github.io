@@ -228,7 +228,7 @@ function renderSummary(body) {
   const g = NG();
   const done = g.complete(choices);
   body.insertAdjacentHTML('beforeend', '<div class="npStepH"><b>Your aeroplane</b><span>every line is a door back to its ' +
-    'step; <b>generate</b> builds it once and opens the editor</span></div>');
+    'step; generate builds it once and opens the editor</span></div>');
   const list = document.createElement('div');
   list.className = 'npSum';
   g.STEPS.forEach((s, i) => {
