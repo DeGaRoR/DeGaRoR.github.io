@@ -163,8 +163,10 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   // stays a dielectric hide. A PAINTED panel would be `trim`, and still is.
   // `sillAlu` (G325.1) is the sill shoulder's hammered sheet — Metal051C's
   // metalness map measures a flat 255 too — a bent bare alloy trim.
+  // `agedAlu` (FLOATS-CLASSIC) is an EDO float's skin: bare alloy, never painted, dulled by oxide (0.62, under bareAlu's
+  // 0.90) - a bare metal, not a paint that crept up.
   const bare =
-    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal|sillAlu)$/
+    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal|sillAlu|agedAlu)$/
     .test(k);
   check(bare || r.metal <= 0.25,
     `finish ${k}: metalness ${r.metal} on a painted surface`);
