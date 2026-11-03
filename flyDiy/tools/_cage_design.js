@@ -3263,7 +3263,8 @@ function archInactive(a) {
   return null;
 }
 
-const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions,
+// CM_OFF (CONFIG-MATRIX step 4): the greyed-combination rules by id - NEW-PLANE's chooser reads them; the ids are stable
+const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions, CM_OFF,
               optionOf, designApply, designSeed, designMerge,
               designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,

@@ -1272,21 +1272,30 @@ function engPlace(ctx, prev) {
         const below = !(hy < (isFinite(u.faceYc) ? u.faceYc : hy) - 1e-3);
         const yAx = below ? hy - R - ROD_CLEAR - RA.r : hy + R + ROD_CLEAR + RA.r;
         const v = Math.max(-0.9, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
-        // what the rod's slider range could not give (metres): a lone pusher's engine takes it (engY moves that one
-        // unit - the Pusher tile's own "engine top = boom bottom" rule, carried on); a push-pull's engY would move
-        // the nose engine too, so there the notice says what is left and the prop check files it
+        // what the rod's slider range could not give (metres) goes to the REAR ENGINE ALONE, where the firewall
+        // rule lets it move (CABIN-CRAFT-2, engineFaces: a COWLED pusher - or a push-pull's rear - stands on the pod's
+        // face itself and ignores the block; the cowl does not read engY, so moving a cowled engine would pull it out
+        // of its cowl):
+        //   a lone uncowled pusher: engY (one unit - the Pusher tile's own "engine top = boom bottom" rule, carried on)
+        //   an uncowled push-pull: engBlockY (it moves the aft face's unit; the nose engine stands on noseFace)
+        //   a cowled one: nothing moves - the notice says what is left and the prop check files it
         const short = Math.max(0, (below ? (v * FS + RA.t * dz) - yAx : yAx - (v * FS + RA.t * dz)));
-        let eMove = 0, left = short;
-        if (short > 1e-3 && mountK === 1) {
-          const e0 = +P.engY || 0, e1 = Math.max(-0.5, Math.min(0.5, e0 + (below ? 1 : -1) * short));
-          eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove));
-          P.engY = Math.round(e1 / 0.005) * 0.005;
+        let eMove = 0, left = short, eRow = null;
+        if (short > 1e-3 && !cowledPusherRow(P)) {
+          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 0.5] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
+          if (k) {
+            const e0 = +P[k] || 0, e1 = Math.max(lo, Math.min(hi, e0 + (below ? 1 : -1) * short));
+            eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove)); eRow = k;
+            P[k] = Math.round(e1 / 0.005) * 0.005;
+          }
         }
         if (Math.abs(v - (+P.rodY || 0)) > 1e-6 || eMove) {
           P.rodY = v;
           if (stat) stat.textContent += '  ·  rod: moved ' + (below ? 'below' : 'above') + ' the disc (rod height ' + v.toFixed(3) + ')' +
-            (eMove ? ', the engine ' + (below ? 'up' : 'down') + ' ' + Math.round(1000 * Math.abs(eMove)) + ' mm' : '') +
-            (left > 1e-3 ? ' - ' + Math.round(1000 * left) + ' mm of blade still reach it: raise the rear engine or shorten the prop' : '');
+            (eMove ? ', the ' + (mountK === 4 ? 'rear ' : '') + 'engine ' + (below ? 'up' : 'down') + ' ' + Math.round(1000 * Math.abs(eMove)) + ' mm (' + eRow + ')' : '') +
+            (left > 1e-3 ? ' - ' + Math.round(1000 * left) + ' mm of blade still reach it: ' +
+              (cowledPusherRow(P) ? 'a cowled rear engine stands on the pod\'s face (the firewall rule) - shorten the prop, or take the cowl off and raise the block'
+                                  : 'raise the rear engine or shorten the prop') : '');
           setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
         }
       }
