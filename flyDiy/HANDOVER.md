@@ -310974,3 +310974,15 @@ and PREMISES (terrainH / solve timing) PASS alone, --jobs=1; FOG (2: app.js's MA
 sites), STORY (the T0 beat card) and LAZY (route_draw's first demand) are red IDENTICALLY on master 2f104df85 - the
 standing reds of the F4 entry above. The train's full battery is the delivery verdict.
 NOT PUSHED: claude/ready/weather-fixes (the session's push to a ready branch was refused as a deploy; the user's call).
+- 15 JULY (the user's call, 3 Nov ~14:35 via A0, study §9.2): the CAREER's first day is 15 Jul 16:00 AKDT -
+  `74_career.js` CAREER_DAY0 { date: '2026-07-16', utc: 0 } (UT), and `73_contracts.js` CONTRACT_NIGHT.sky0
+  '2026-07-15' (documented as the career's first local day). The sandbox's GAME_DAY (day_clock.js, 21 Jun) and every
+  gate's own day are unchanged; day_clock.js needs no edit (in the career the instant is the document's). GATE CLOCK
+  (its career block's dates, and "CAREER_DAY0 is 15 July at the game's hour") and GATE CONTRACTS (the offers' sky
+  date, the night of the next opening) re-dated; both PASS. The other gates that build a career run (DESTTO ECON
+  FLIGHTREC FREIGHT HANGAR LAZY MISSIONS NIGHTVISIBILITY PILOTS PLAYER POD PROCURE ROUTES STOREDRAW STORY TECH CLIMATE
+  DAY SOAR UISMOKE): results in the next entry line.
+- STATUS (3 Nov): BLOCKED ON A PUSH APPROVAL. This cloud session's push to claude/ready/weather-fixes is refused by its
+  permission classifier (a deploy). The branch claude/weather-fixes is complete; the user (or a session allowed to)
+  pushes it to claude/ready/weather-fixes. Messages to A0 from this cloud session are also refused (HTTP 401 /
+  untrusted device), so this line is the report.
