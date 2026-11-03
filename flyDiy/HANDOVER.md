@@ -311022,3 +311022,9 @@ TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PH
 Why: L30a's battery: GATE CLOUD 1 red of 239, "the quick bar's time button presses the clock, not the mood". TIME-CONTROLS made that button open the time menu (DAY_UI.menu on DAY_CLOCK, in #edPopCard); it no longer cycles DAY_CLOCK's presets. RULE (b): the row reads the new behaviour - the state 'DAY_CLOCK (the time menu)', the EDITOR_QUICK_POP toggle, QPOP_OWN.time building DAY_UI.menu with the rail's rows and dayCtx. The intent stays: the button acts on the clock, never the mood.
 What changed: tools/_cloud_check.js (that row) only.
 Gates: CLOUD.
+
+## A0 - train L30b, 3 Nov 2026 15:35
+
+IN (on L30a master a8a23ad62): claude/ready/forest-floor 560b57eba (the user 3 Nov: near set A 17.5 m on all three forest floors 8 / 13 / 16; replaces claude/ground-look-g2610's 2.5 m of 8 Oct, which stays unmerged), claude/ready/time-controls-2 a152732ae (GAME-MENUS: GATE CLOUD's quick-bar time row, rule b). DROPPED at the cut: claude/ready/design-aids 3efbc2e56 (real conflict with PHONE-1b in app.js / editor.js / phone.css -> rebase, L30c). NOT PUSHED at 14:29: seats, config-matrix, tank-fit, pillar-anchors, new-plane, weather-fixes, joinparity-fixture (-> L30c 19:00).
+BATTERY (70 asked, jobs 8): 66 PASS; FRAMECOST, ASSETS, HANDLE, STORY = master standing (STORY: Game's story-gate row fix -> L30c). CLOUD now PASS.
+TIMED (light): RED vs the 12 Oct baseline, the same FINISH-4 boot cost (warm nav -> garage 114.6 s cub / 160.7 s floats); nothing new from this train. The F4 boot A/B runs right after this push.
