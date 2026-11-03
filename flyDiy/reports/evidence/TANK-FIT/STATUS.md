@@ -251,7 +251,7 @@ FAIL, **standing on master** (the same lines on an origin/master worktree):
   the train lands this.
 * PROFILE: timed out (1800 s) under the battery's load, on master too in the same run; not judged.
 * FLOATS: red with the twin floatplane's 10 L refit (NaN in the idle taxi), green on master -> the refit withdrawn;
-  re-run below.
+  re-run: **PASS**. JOINPARITY re-run after it: 6 FAIL = master's 4 + the Cub and the Jodel (the re-capture owed).
 Not run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the browser gates (UISMOKE...); the editor's
 new rows (auto-fit, the gap and room rows, dragLayout) and the bench's tank rows are untested in a page: a look owed.
 
