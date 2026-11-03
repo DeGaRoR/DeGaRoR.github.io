@@ -47,22 +47,33 @@ everything else the hero; `?seatlod=0|1|2` forces one. 1-4 ms to generate a phon
   seatsX), `_cage_design.js` / `_cage_page5.js` / `_cage_parts.js` / `design_flow.js` (rows), `aeroskin.js` (sections),
   `test_skinmat.js` (its crew-section list), `_cage8.html` / `_bake_joined.js` (load the library), GATE SEATS (new).
 
-## Gates (on the wiring, 8557b230 + its build)
-PASS: SEATS (new), GEN, WEIGHT, BUILD, JOIN, SAVE, PARTS, DESIGN, STARTER, PROCURE, PILOTS, CAGEFIT, CABIN, FRAMES,
-DMGOCCUPANT, SKINMAT, UISMOKE, UISMOKE-PHONE, TANKMOUNT, PANEL, DASH.
-STANDING reds - each fails identically on a clean origin/master worktree (checked today), none reads a seat file:
-- JOINPARITY: the metal Cessna / Cessna floats node vs the 27 Oct page capture (885.824 vs 888.772 kg, the same on
-  master), the fixture's byte check, and the raw-loader census - the capture wants re-taking by its owner.
-- LIVERY: crashes in app.js's editor seed (`garageFloodArm is not defined`), master too.
-- CLIP (stock+ifr's navAerial 9.2 mm into the fin skin) and NODUMMY (retired-figure references in three tools): from the
-  first run, master too.
+## Landing (A0, the user's calls of 3 Nov 08:40)
+- REBASED onto origin/master 1db22c8a (train 1B: PHONE-1b, the knee fix) - the four SEATS source commits replayed
+  (conflicts: only HANDOVER's end, and on F4 the GEN_TRIM / GEN_SEAT_TYPES tables and the node exports - both sides
+  kept), the built files regenerated on top. The rebased, gated branch is claude/affectionate-babbage-cr29gn.
+- NOT YET PUSHED AS claude/ready/seats: this session's permissions refused the push (the original brief said "NOT
+  claude/ready/*; A0 promotes"), and claude/seats still holds the pre-rebase history of 2 Nov (overwriting it needs a
+  forced push, also refused). The user approves the ready push, or A0 promotes claude/affectionate-babbage-cr29gn.
+- S2: no seatLod row on the panel - the profile decides (?seatlod= stays a test override).
+- The four seat finish sections keep their names for CABIN-CRAFT: seatTrim (base), seatAccent, seatSeam, seatFrame.
+
+## Gates (on the rebased tree, 1db22c8a + SEATS, built)
+A0's set, ALL PASS: SEATS GEN WEIGHT BUILD JOIN SAVE PARTS DESIGN STARTER PROCURE PILOTS CAGEFIT CABIN FRAMES
+DMGOCCUPANT SKINMAT UISMOKE UISMOKE-PHONE TANKMOUNT PANEL DASH - no red, so nothing to name against master.
+(Outside that set, on the 2 Nov tree: JOINPARITY, LIVERY, CLIP and NODUMMY were red identically on a clean master.)
 
 ## Renders
 - `seats_sheet.jpg`: all 15, 3/4 over side. `seats_lod.jpg`: each at hero / mid / phone.
 - `close/`: each seat front-3/4 and from behind (hero; taken before the renumbering, file names by the old keys).
-- In-cabin shots: NOT YET. A first try from outside (the game page, the phone profile) showed only dark windows: the
-  cabin darkening and the skin hide the seats, and the scratch rig's pan to the seats did not take (the eye stayed on
-  the build's centre). Owed: an eye inside the cabin, or the skin hidden, in the rig.
+- In-cabin shots: OWED (after the landing). What the rig work found, for the follow-up (a scratch copy of
+  tools/plane_shot.js with a `seat:<az>/<el>/<dist>` view, not committed):
+  - the cut works: `FLIGHT_PROBE.renderer().localClippingEnabled = true; REF_MOUNT.setBuildClip([plane])` (the freight
+    rig's door) clips the whole build, crew layer included - one shot showed the fuselage cut open, the seats behind;
+  - the aim does not yet: in plane_shot's garage the orbit target is the craft's CG unless the editor's sit is shown
+    (app.js: `if (edSit.visible) target.copy(edTarget).add(edPan)`), so FLIGHT_PROBE.pan took only on the second view;
+    and the eye computed from (az, el) did not match the drawn one - read app.js placeCamera's convention before
+    placing the plane, or set the plane from camGet().eye AFTER a pumped frame;
+  - the phone profile builds the phone level of detail: add `&seatlod=0` to the page URL for hero seats.
 
 ## Rig handbrake (A0's note)
 The cockpit shot came from the repo's own `tools/plane_shot.js`: the built `index.html` (master 0fcf54ef + the seat
