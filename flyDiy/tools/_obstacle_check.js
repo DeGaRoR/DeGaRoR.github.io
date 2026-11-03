@@ -83,7 +83,8 @@ console.log('3. the discrepancy against the baked meshes');
     let miss = 0;
     for (let i = 0; i < M.nv; i++) {
       const x = M.pos[i * 3], y = M.pos[i * 3 + 1], z = M.pos[i * 3 + 2];
-      const ci = Math.floor((x - S.ox) / cell), cj = Math.floor((z - S.oz) / cell), kk = cj * S.nx + ci;
+      // (G844b: the rasteriser's own column rule - the point's lattice index less the grid's, OB.lattice)
+      const ci = OB.lattice(x, cell) - Math.round(S.ox / cell), cj = OB.lattice(z, cell) - Math.round(S.oz / cell), kk = cj * S.nx + ci;
       if (ci < 0 || cj < 0 || ci >= S.nx || cj >= S.nz || S.hi[kk] < S.lo[kk]) { miss = 1e9; break; }
       const m = Math.max(0, S.lo[kk] - y, y - S.hi[kk]); if (m > miss) miss = m;
     }
