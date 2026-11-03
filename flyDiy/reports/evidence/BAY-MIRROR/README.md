@@ -44,6 +44,33 @@ NOT the cause, measured: the roughness (the sub-pixel slope variance, `water.js:
 (`water.js:462`) passes a bay (it IS on the sea's plane); the ring's distance-to-land fade is 1 everywhere inside a bay
 (no point of either bay is 1 km from land).
 
-## 2. The change
+## 2. The change: a shelter field from the coastline, one source for the eye and the floats
 
-(section written with the change)
+**The field** (`src/core/28_island.js`, `shelter()` / `calmAt()`): how open the water is, from the island's own coast
+bytes. On 100 m cells, the wind's FETCH (the distance it blows over water before reaching a point, which is what grows a
+sea) is traced upwind along 16 headings — one semi-Lagrangian sweep per heading, O(cells), the grid's rim open sea — and
+averaged: `OPEN = mean(min(fetch, 10 km) / 10 km)`. Measured on Jolene: the open sea 0.6–0.9, an open coast 0.4–0.6 right
+at the shoreline, the south fjord 0.0–0.3, Port Chester 0.1–0.2, the west cove ~0.25. `CALM = smoothstep(0.15, 0.40, OPEN)`:
+**1 on every open water cell** (96.2 % of Jolene's sea cells are exactly 1 — the open sea is unchanged to the bit), 0 deep
+in a bay, a dissolve across the mouth (the steepest step along the fjord 0.195 per 100 m). Land cells take their water
+neighbours' mean (6 rings) so the texture's bilinear filter does not lift a bay's shoreline back toward the sea. Built once
+on first use: ~35 ms warm, ~90–140 ms cold in node; deterministic (CORE_MATH for the headings). No hand-painted polygons:
+any island with a coast field gets its bays for free.
+
+**One source (WYSIWYG)**:
+- physics: `src/core/20_world.js` `waterH(x, z, t)` multiplies the felt trains by `calmAt(x, z)` (k = 1 is never
+  multiplied, so open water is the same doubles; k = 0 returns 0). Floats, the hull's hydro, the spray's water level and
+  the buoys all read `waterH`, so they ride the calmer bay;
+- the eye: `render_world.js` hands `world.calmField()` (the same bytes) to `WATER.setCalm`, an R8 texture
+  (`uWCalm`, texel centres at the cells' centres, clamped like the core). The near patch's lift is multiplied by it (the
+  hull sits in the wave it is drawn in); on the sea's body the fragment blends the per-body row toward the LAKE's
+  (`mix(uWBody[1], uWBody[0], calm)`: the swell's slopes x calm, the ripple tile 1.0 -> 0.55) and thins the whitecaps'
+  cover by calm. The colour, the depth, the shore and the roughness law stay the sea's;
+- the mirror: no second capture, the same plane. Over a bay the AUTO ring's weight takes the lake's rule by the bay's own
+  weight (`water.js` mirrorRender: `sea + (1 - sea) x bay`, bay = 1 - calm at the eye): no 300-400 m fade and no
+  1.0-1.3 km fade over a sheltered bay; open water (calm 1) exactly as before. After the `'off'` return, so reflections
+  off still costs nothing on the CPU.
+
+**Cost**: one R8 texture sample per sea fragment and per near-patch vertex (every tier, the waves are not a reflections
+setting), a 121 KB texture, the field's one-time build. The water program's samplers: five of its own now (GATE WATER's
+row; the GL program's units are counted on the "after" run, see section 4).

@@ -255,6 +255,84 @@ var ISLAND_GEN = (function () {
       if (c === WC.TREE && canopy && canopy[k] < reclass) return WC.SHRUB;
       return c;
     };
+    // THE SHELTER (BAY-MIRROR, 2026-11-03, the user: "we would need to treat the bays as lakes for the reflections I think,
+    // especially the main south bay, where the cannery and the hydroplants are"). A bay is the SEA's water: it wore the open
+    // ocean's 32 trains, so its mirror broke like the open sea's and its floats rocked on the ocean's swell, while a lake is
+    // glassy. The field below says how OPEN the water is, from the coastline alone - the wind's FETCH (the distance it
+    // blows over water before reaching a point, which is what grows a sea), traced UPWIND along 16 headings on 100 m
+    // cells and averaged: OPEN = mean over the headings of min(fetch, 10 km) / 10 km. Measured on Jolene: the open sea
+    // 0.6-0.9, an open coast 0.4-0.6 right at the shore, the south fjord 0.0-0.3, Port Chester 0.1-0.2. CALM = smoothstep
+    // (0.15, 0.40, OPEN) is 1 on every open water cell (the open sea is EXACTLY as it was) and 0 in a sheltered bay, with
+    // a smooth mouth. ONE SOURCE (ruling ap): makeWorld's waterH multiplies the felt trains by calmAt, the water shader
+    // reads the same bytes as a texture (render_world -> WATER.setCalm) for its swell, slopes, ripples and whitecaps, and
+    // the mirror's ring reads it for its plane's weight. Built on first use (~20 ms), deterministic, no state.
+    // The fetch is a semi-Lagrangian sweep per heading: F(p) = 0 on land, F(p - h d) + |h d| on water (the upstream value
+    // linearly interpolated across its row), the grid's edge open sea (F = the cap). Land cells take the mean of their
+    // water neighbours, ring by ring (6 rings), so the texture's bilinear filter does not lift a bay's shore toward 1.
+    const SHELTER = { cell: 100, cap: 10000, dirs: 16, open0: 0.15, open1: 0.40, fill: 6 };
+    let shelterF = null;
+    function shelter() {
+      if (shelterF) return shelterF;
+      const C = SHELTER.cell, NX = Math.ceil(W * cell / C), NZ = Math.ceil(Hn * cell / C), N = NX * NZ, CAP = SHELTER.cap;
+      // land: the majority of a 3 x 3 sample of the coast bytes over the cell (128 is the line, over it land)
+      const land = new Uint8Array(N), sub = C / cell, SO = [Math.floor(sub / 6), Math.floor(sub / 2), Math.floor(sub * 5 / 6)];
+      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { let l = 0, n = 0; const i0 = Math.floor(i * sub), j0 = Math.floor(j * sub);
+        for (let b = 0; b < 3; b++) { const jj = j0 + SO[b]; if (jj >= Hn) continue; const row = jj * W;
+          for (let a = 0; a < 3; a++) { const ii = i0 + SO[a]; if (ii < W) { n++; if (coast[row + ii] > 128) l++; } } }
+        land[j * NX + i] = n && l * 2 > n ? 1 : 0; }
+      // every heading is swept ROW BY ROW: a z-major heading on the grid, an x-major one on its transpose (rows along x)
+      const landT = new Uint8Array(N);
+      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) landT[i * NZ + j] = land[j * NX + i];
+      const open = new Float32Array(N), openT = new Float32Array(N), F = new Float32Array(N), inv = 1 / (CAP * SHELTER.dirs);
+      // sweep(L, R, K, s, t, acc): R rows of K cells, row r fed by row r - s; the upstream point sits t cells across, so its
+      // two cells and their weights are the same for every cell of the heading (o, f)
+      const sweep = (L, R, K, s, t, acc) => {
+        const step = C * Math.sqrt(1 + t * t), o = Math.floor(-t), f = -t - o, g = 1 - f;
+        for (let r = 0; r < R; r++) { const row = s > 0 ? r : R - 1 - r, up = row - s, base = row * K, ub = up * K, has = up >= 0 && up < R;
+          for (let c = 0; c < K; c++) { const q = base + c; if (L[q]) { F[q] = 0; continue; }
+            const c0 = c + o; let prev = CAP;
+            if (has && c0 >= 0 && c0 + 1 <= K - 1) prev = F[ub + c0] * g + F[ub + c0 + 1] * f;
+            else if (has && f === 0 && c0 === K - 1) prev = F[ub + c0];
+            const v = prev + step < CAP ? prev + step : CAP; F[q] = v; acc[q] += v * inv; } }
+      };
+      for (let d = 0; d < SHELTER.dirs; d++) {
+        const th = d / SHELTER.dirs * 2 * Math.PI, dx = Math.round(CORE_MATH.cos(th) * 1e9) / 1e9, dz = Math.round(CORE_MATH.sin(th) * 1e9) / 1e9;
+        if (Math.abs(dx) >= Math.abs(dz)) sweep(landT, NX, NZ, dx > 0 ? 1 : -1, dz / Math.abs(dx), openT);
+        else sweep(land, NZ, NX, dz > 0 ? 1 : -1, dx / Math.abs(dz), open);
+      }
+      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) open[j * NX + i] += openT[i * NZ + j];
+      // calm per water cell; land cells filled from their water neighbours ring by ring (a frontier), 1 where nothing reaches
+      const k = new Float32Array(N), have = new Uint8Array(N);
+      for (let q = 0; q < N; q++) if (!land[q]) { const u = Math.max(0, Math.min(1, (open[q] - SHELTER.open0) / (SHELTER.open1 - SHELTER.open0))); k[q] = u * u * (3 - 2 * u); have[q] = 1; }
+      // the frontier: land cells with a water (or already filled) neighbour; each ring takes the mean of its filled neighbours
+      const NB8 = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1];
+      let front = [];
+      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { const q = j * NX + i; if (have[q]) continue;
+        for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ && have[jj * NX + ii] === 1) { front.push(q); break; } } }
+      for (let r = 0; r < SHELTER.fill && front.length; r++) {
+        const val = new Float32Array(front.length), next = [];
+        for (let f = 0; f < front.length; f++) { const q = front[f], i = q % NX, j = (q - i) / NX; let s = 0, n = 0;
+          for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ) { const p = jj * NX + ii; if (have[p] === 1) { s += k[p]; n++; } } }
+          val[f] = n ? s / n : 1; }
+        for (let f = 0; f < front.length; f++) { k[front[f]] = val[f]; have[front[f]] = 1; }
+        for (let f = 0; f < front.length; f++) { const q = front[f], i = q % NX, j = (q - i) / NX;
+          for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ) { const p = jj * NX + ii; if (!have[p]) { have[p] = 2; next.push(p); } } } }
+        for (let f = 0; f < next.length; f++) have[next[f]] = 0;
+        front = next;
+      }
+      const u8 = new Uint8Array(N);
+      for (let q = 0; q < N; q++) u8[q] = have[q] ? Math.round(k[q] * 255) : 255;
+      shelterF = { x0: gx0, z0: gz0, cell: C, w: NX, h: NZ, calm: u8, open, land, dials: SHELTER };
+      return shelterF;
+    }
+    // calmAt(x, z): 0 (a sheltered bay: lake-calm) .. 1 (open water: the sea as it is) - bilinear over the u8 field the
+    // shader samples (texel centres at the cell centres, clamped at the edge like the texture: the grid's rim is open sea)
+    function calmAt(x, z) {
+      const S = shelterF || shelter(), u = (x - S.x0) / S.cell - 0.5, v = (z - S.z0) / S.cell - 0.5;
+      const uc = Math.max(0, Math.min(S.w - 1, u)), vc = Math.max(0, Math.min(S.h - 1, v));
+      const i = Math.min(S.w - 2, Math.floor(uc)), j = Math.min(S.h - 2, Math.floor(vc)), fu = uc - i, fv = vc - j, q = j * S.w + i, A = S.calm;
+      return ((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + S.w] * (1 - fu) + A[q + S.w + 1] * fu) * fv) / 255;
+    }
     // the square domain the baker walked; the grid may be narrower (sea)
     const b = H.bounds;
     return {
@@ -268,6 +346,8 @@ var ISLAND_GEN = (function () {
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
+      // BAY-MIRROR: the sea's shelter (null without a coast field: the open sea everywhere)
+      shelter: coast ? shelter : null, calmAt: coast ? calmAt : null,
       // (G1335) the carved lakebed (null without a lake field): makeWorld's terrainH and the far terrain's patches (the asset
       // is the raw DEM) take it as they take the sea's shelf; LAKE_BED the law's dials (GATE LAKEBED reads them)
       lakeBed, LAKE_BED,

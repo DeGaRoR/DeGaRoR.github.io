@@ -130,9 +130,11 @@ console.log('\n2. THE RULES');
   verdict(iw > 0 && ir > iw, 'build.js lists water.js before render_world.js');
   const dev = fs.existsSync(path.join(__dirname, '..', 'dev.html')) ? src('dev.html') : '';
   verdict(!dev || /water\.js/.test(dev), 'dev.html carries water.js');
-  // the samplers the hook declares: the detail tile, the fields, the interaction slot - no more
+  // the samplers the hook declares: the detail tile, the fields, the interaction slot, the mirror, the shelter - no more
+  // (BAY-MIRROR, 2026-11-03: + uWCalm, the sea's shelter - 100 m cells, so it could not ride the 10 m ground pack whose four
+  // channels are all taken; the program's units are counted off the GL program by tools/perf/bay_stage.js, G424's rule)
   const samplers = (W.GLSL.frag.replace(/#ifdef W_HULL[\s\S]*?#endif/g, '').match(/sampler2D\s+\w+/g) || []).map(s => s.split(/\s+/)[1]);   // (G2831: the hull's sampler only under #ifdef W_HULL - counted by its own row)
-  verdict(samplers.length === 4 && samplers.includes('uWDetail') && samplers.includes('uWSdf') && samplers.includes('uWInter') && samplers.includes('uWMirror'), `four samplers of its own: ${samplers.join(', ')}`);
+  verdict(samplers.length === 5 && samplers.includes('uWDetail') && samplers.includes('uWSdf') && samplers.includes('uWInter') && samplers.includes('uWMirror') && samplers.includes('uWCalm'), `five samplers of its own: ${samplers.join(', ')}`);
   verdict(typeof W.setInteraction === 'function' && /uWInterBox/.test(W.GLSL.frag), 'the interaction slot (setInteraction) exists and the shader reads it');
 }
 
@@ -296,7 +298,7 @@ console.log('\n3. THE LAWS');
       { const M = W.mirror, mp2 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
         verdict(W.proto.ring && M.ringD0 === 1000 && M.ringD1 === 1300 && M.ringH0 === 300 && M.ringH1 === 400 && M.ringD1 > M.ringD0 && M.ringH1 > M.ringH0,
           `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); AUTO's, the default (?wrefl=legacy: none)`);
-        verdict(W.mirror.ringSky === true && /if \(opts\.sky && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /if \(opts\.clouds && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /const inland = 1 - sstep\(0, MIR\.ringIn, MIR\.waterD\);/.test(mp2) && /ringW = lake \? inland : \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* inland;/.test(mp2) && W.mirror.ringIn > 0,
+        verdict(W.mirror.ringSky === true && /if \(opts\.sky && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /if \(opts\.clouds && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /const inland = 1 - sstep\(0, MIR\.ringIn, MIR\.waterD\);/.test(mp2) && /const sea = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\);/.test(mp2) && /ringW = lake \? inland : \(bay > 0 \? sea \+ \(1 - sea\) \* bay : sea\) \* inland;/.test(mp2) && W.mirror.ringIn > 0,
           'the ring keeps the sky and the clouds in its capture (MIR.ringSky, G2839 (b): one sky within the ring; false = the probe through alpha 0), weighted by height x distance to land'); }
       // LAKES KEEP THE FULL MIRROR (the user, 20 Oct) and the hull's reflection is off with the mirror (A0, 22 Oct: OFF = the sky only)
       { const mp3 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
@@ -463,6 +465,63 @@ console.log('\n6. THE SPRAY');
   // THE FLOAT TRUSS REACHES THE GAME (G460.10, the user: "the cessna does not draw its float support structure")
   const join = src('tools/_cage_join.js');
   verdict(/pt\.kind === 'floatStrut';\s*\/\/ G460\.10/.test(join), "the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)");
+}
+
+// ---- 7. THE BAYS (BAY-MIRROR, 2026-11-03) ------------------------------------
+// The user: "we would need to treat the bays as lakes for the reflections I think, especially the main south bay, where the
+// cannery and the hydroplants are". The island's shelter (28_island.js: the wind's fetch traced upwind along 16 headings,
+// averaged, smoothstep 0.15 -> 0.40) scales the sea's felt trains in waterH and, from the same bytes, the shader's swell, its
+// ripple row (toward the lake's), its whitecaps and the mirror ring's weight. Held here: the field on Jolene (the bays calm,
+// the open sea exactly 1, the mouth smooth), waterH byte-identical on open water and k x the sum in between, the water's CPU
+// copy equal to the core's (one source), the shader's terms, and the analytic world untouched.
+console.log('\n7. THE BAYS');
+{
+  const w = src('src/viewer/water.js');
+  // the analytic world: no shelter, waterH as it was
+  { const A = CORE.makeWorld(0); A.setSea({ A: 0.09, L: 10, dir: 0.4 });
+    verdict(A.calmField() === null && A.calmAt(123, 456) === 1, 'the analytic world has no shelter (calmField null, calmAt 1): its sea is as it was'); }
+  let IW = null; try { IW = require('./island_node.js').islandWorld('jolene'); } catch (e) { IW = null; }
+  verdict(!!IW, 'Jolene composes in node (the shelter is read on the shipped island)');
+  if (IW) {
+    const t0 = Date.now(), F = IW.calmField(), ms = Date.now() - t0;
+    verdict(F && F.cell === 100 && F.calm instanceof Uint8Array && F.calm.length === F.w * F.h && F.w > 100 && F.h > 100,
+      `the shelter: ${F && F.w} x ${F && F.h} cells of ${F && F.cell} m, built once on first use in ${ms} ms`);
+    let n = 0, one = 0; for (let q = 0; q < F.calm.length; q++) if (!F.land[q]) { n++; if (F.calm[q] === 255) one++; }
+    verdict(one / n > 0.95, `the open sea untouched: ${(100 * one / n).toFixed(1)} % of the sea's cells at calm 1 exactly`);
+    // the named places (game metres): the main south bay (the fjord: Purple Lake's powerhouse at its head, the canneries) and
+    // Port Chester (Metlakatla's bay) calm; the fjord's mouth, the open west sea, the far sea at exactly 1
+    const P = { 'the south fjord, its head': [-500, -5800, 0], 'the south fjord, mid': [300, -3600, 0], 'Port Chester, its head': [-1350, -8550, 0],
+                'the south fjord, its mouth': [2500, 1300, 1], 'the open west sea': [-10500, -9000, 1], 'the far sea': [20000, -10000, 1] };
+    for (const k in P) { const [x, z, want] = P[k], c = IW.calmAt(x, z), sea = IW.waterH(x, z) === 0;
+      verdict(sea && (want ? c === 1 : c < 0.05), `${k} (${x}, ${z}): calm ${f(c)} (${want ? 'open: 1 exactly' : 'sheltered: under 0.05'})`); }
+    // the mouth is a dissolve: from the fjord's head down to the open sea the calm never steps more than 0.25 in 100 m
+    { let prev = null, worst = 0; for (let s = 0; s <= 90; s++) { const x = -500 + (3500 + 500) * s / 90, z = -5800 + (3000 + 5800) * s / 90;
+        if (IW.waterH(x, z) !== 0) { prev = null; continue; } const c = IW.calmAt(x, z); if (prev !== null) worst = Math.max(worst, Math.abs(c - prev)); prev = c; }
+      verdict(worst <= 0.25, `the fjord's mouth is a dissolve: the steepest step along the fjord ${f(worst)} per ~98 m (<= 0.25)`); }
+    // waterH: the felt sum x calm - the same doubles on open water (k 1 is never multiplied), 0 in a calm bay
+    IW.setSea({ A: 0.09, L: 10, dir: 0.4 });
+    const raw = (x, z, t) => { let y = 0; for (const tr of IW.sea.W) if (tr.felt !== false) y += tr.A * CORE.CORE_MATH.cos(tr.k * (tr.dx * x + tr.dz * z) - tr.om * t + tr.ph); return y; };
+    let same = 0, ratio = 0, zero = 0, nm = 0, seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    for (let i = 0; i < 4000; i++) { const x = -14000 + 32000 * rnd(), z = -30000 + 40000 * rnd(), t = 1e4 * rnd(); if (IW.waterH(x, z) !== 0) continue;
+      const k = IW.calmAt(x, z), h = IW.waterH(x, z, t), r = raw(x, z, t); nm++;
+      if (k === 1 && h === r) same++; else if (k === 0 && h === 0) zero++; else if (k > 0 && k < 1 && Math.abs(h - k * r) < 1e-12) ratio++; }
+    verdict(same + zero + ratio === nm && same > 0 && ratio > 0, `waterH(x, z, t) on ${nm} sea points: ${same} open (the unscaled sum to the bit), ${ratio} k x the sum, ${zero} calm (0)`);
+    // ONE SOURCE: the water's CPU copy (the ring's) reads the core's bytes the same way the core does
+    W.setCalm(null, F);
+    let worst = 0; for (let i = 0; i < 3000; i++) { const x = -14000 + 32000 * rnd(), z = -30000 + 40000 * rnd(); worst = Math.max(worst, Math.abs(W.calmAt(x, z) - IW.calmAt(x, z))); }
+    verdict(worst < 1e-12, `one source: WATER.calmAt (the ring, the shader's bytes) against the world's calmAt at 3000 points, worst ${worst.toExponential(1)}`);
+    W.setCalm(null, null);
+    verdict(W.calmAt(-500, -5800) === 1, 'no field set: the water reads calm 1 everywhere (the analytic world, the flat field)');
+  }
+  // the shader: the sea's body only; the row toward the lake's; the whitecaps thinned; the near patch lifted by the same factor
+  verdict(/float wK = wB == 0 \? wCalm\(vWP0\.xz\) : 1\.0;/.test(w) && /vec4 wRow = wB == 0 \? mix\(uWBody\[1\], uWBody\[0\], wK\) : uWBody\[wB\];/.test(w)
+    && /vec3 wS = wGerstnerS\(vWP\.xz, wFp\) \* wRow\.x;/.test(w) && /wDet\.xy \*= wRow\.y;/.test(w) && /float cv = uWFoam\.y \* \(uWBody\[wB\]\.z < 1\.5 \? 1\.0 : 0\.0\) \* wK;/.test(w),
+    "the shader: on the sea's body the shelter blends the swell's slopes and the ripple row toward the lake's and thins the whitecaps; a lake / river / premises row untouched");
+  verdict(/if \(uWCalmOn > 0\.5\) wh \*= texture2D\(uWCalm, \(wp0\.xz - uWCalmG\.xy\) \* uWCalmG\.zw\)\.r;/.test(w),
+    'the near patch is lifted by the same factor the floats feel (waterH x calmAt) - the hull sits in the wave it is drawn in');
+  verdict(/WATER\.setCalm\(THREE, world\.calmField\(\)\)/.test(src('src/viewer/render_world.js')), "render_world hands the world's own field to the water (no second shelter)");
+  verdict(/const bay = lake \? 0 : 1 - calmAtCPU\(camera\.position\.x, camera\.position\.z\);/.test(w) && w.indexOf("if (MIR.mode === 'off')") < w.indexOf('const bay = lake'),
+    "the ring over a bay takes the lake's rule by the bay's weight - after the 'off' return (the reflections off still pay nothing)");
 }
 
 console.log('\nGATE WATER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
