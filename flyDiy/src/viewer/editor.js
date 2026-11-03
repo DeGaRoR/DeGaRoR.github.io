@@ -2149,12 +2149,14 @@ function editorInit(api) {
         if (!(B.openAt && B.openAt(btn)) && was) B.radio.next();
       },
       alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
-    // ---- the light --------------------------------------------------------
-    // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
-    // tree's mood select - the mood follows the clock each frame (hangar.moodFor), and the
-    // day panel on the rail shows the same presets as pills. The glyph is still the mood's.
-    { k: 'time', state: 'DAY_CLOCK preset',
-      why: 'the next of the clock\'s presets; the rail\'s night flyout offers the same presets as the day panel\'s pills',
+    // ---- the time ---------------------------------------------------------
+    // 2026-09-20: it pressed the CLOCK (the next preset on the day's own almanac). TIME-CONTROLS (A0 2 Nov, the user: "a
+    // single new icon on top ... that pops up a menu, with proper time controls"): the same button - its place on the
+    // bar, on the phone too - opens THE TIME MENU (day_ui.js DAY_UI.menu) in the top bar's card: the date and the hour,
+    // the day's weather, and the time actions the mode allows (the sandbox sets the clock, the career waits forward).
+    // The glyph is still the mood's: the icon is the state.
+    { k: 'time', state: 'DAY_CLOCK (the time menu)',
+      why: 'the time menu: the clock\'s presets, the hour, the date and the rate (the sandbox) or the waits (the career) - the same DAY_CLOCK the sky page\'s day panel sets',
       view: () => {
         const GE = window.GARAGE_ENV;
         const list = (GE && GE.moods && GE.moods()) || [];
@@ -2183,21 +2185,21 @@ function editorInit(api) {
           OVERCAST: '<path d="M5.9 12.9h6.4a2.6 2.6 0 0 0 .4-5.1 3.6 3.6 0 0 ' +
                     '0-6.9-.7 2.9 2.9 0 0 0 .1 5.8Z"/>',
         };
-        return { on: false, off: !list.length,
-          title: list.length
-            ? 'The light: ' + name.toLowerCase() + ' — click for the next sky'
+        const CK = window.DAY_CLOCK, d = CK && CK.day && CK.day();
+        const now = d && window.DAY_UI && window.DAY_UI.nowWords ? window.DAY_UI.nowWords(d) : '';
+        return { on: window.EDITOR_QUICK_POPPED === 'time', off: !d && !list.length,
+          title: d ? 'The time: ' + now + ' — click for the time menu'
+            : list.length ? 'The light: ' + name.toLowerCase() + ' — click for the next sky'
             : 'No room to light — the shed is not in this build',
           icon: ICON[name] || ICON.AFTERNOON };
       },
-      // THROUGH THE CLOCK: the preset after the one nearest the hour; the mood, the sky and
-      // the rail's night label follow (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a
-      // clock (a build with no day) the tree's mood select is pressed as before.
+      // THE TIME MENU, in the top bar's card (again closes it); the mood, the sky and the rail's night label follow the
+      // clock as before (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a clock (a build with no day) the
+      // tree's mood select is pressed as before. (Only window globals: GATE BOOMBOX runs QUICK alone in a vm.)
       act: () => {
         const CK = window.DAY_CLOCK;
         if (CK && CK.day()) {
-          const P = CK.PRESETS, i = P.indexOf(CK.nearestPreset());
-          CK.preset(P[(i + 1) % P.length]);
-          if (flyOpen === 'night') openFly('night');
+          if (window.EDITOR_QUICK_POP) window.EDITOR_QUICK_POP(window.EDITOR_QUICK_POPPED === 'time' ? null : 'time');
           return;
         }
         const r = labelIndex().get('time of day');
@@ -2222,10 +2224,24 @@ function editorInit(api) {
   // host (EDITOR_FLY_INTO), so the rows are the rail's own, borrowed and given back. Closes on Esc, on its x, on a press
   // outside it and the bar, on a second press of its button, and when a MENU page takes the rows
   let qPop = null, qPopOff = null;
+  // TIME-CONTROLS: a card with a body of its own, not a rail item's - built here, rebuilt after a pick (its scroll kept)
+  const QPOP_OWN = {
+    time: { head: 'Time', build(body) {
+      if (!window.DAY_UI || !window.DAY_UI.menu) return;
+      const again = () => { if (qPop !== 'time') return; const keep = body.scrollTop; while (body.firstChild) body.removeChild(body.firstChild);
+        QPOP_OWN.time.build(body); body.scrollTop = keep; syncNightLabel(); syncQuick(); };
+      const M = window.FLYDIY_MENU;
+      window.DAY_UI.menu(body, railRows(), Object.assign(dayCtx(), { refresh: again,
+        // the sandbox's door to SET the weather: the menu's sky page (the day panel, the weather, the clouds)
+        weather: M && M.open && M.page ? () => { qPopOpen(null); M.open(); M.page('gNight'); } : null,
+        forecast: window.FLYDIY_FORECAST || null }));
+    } },
+  };
   function qPopOpen(k) {
     let card = $('edPopCard');
     if (qPopOff) { const f = qPopOff; qPopOff = null; f(); }
     qPop = null;
+    window.EDITOR_QUICK_POPPED = null;
     if (!k) { if (card) card.hidden = true; syncQuick(); return; }
     if (window.BOOMBOX && window.BOOMBOX.isOpen) window.BOOMBOX.close();
     if (!card) {
@@ -2240,12 +2256,16 @@ function editorInit(api) {
         qPopOpen(null);
       }, true);
     }
-    const t = RAIL.filter(x => x.k === k)[0];
-    card.querySelector('.edPopHead span').textContent = t ? (t.head || t.label) : k;
+    const own = QPOP_OWN[k] || null, t = own ? null : RAIL.filter(x => x.k === k)[0];
+    card.querySelector('.edPopHead span').textContent = own ? own.head : t ? (t.head || t.label) : k;
     const body = card.querySelector('.edPopBody');
-    qPop = k;
+    qPop = k; window.EDITOR_QUICK_POPPED = k;
     card.hidden = false;
-    qPopOff = flyInto(k, body, () => { qPopOff = null; qPop = null; card.hidden = true; syncQuick(); });
+    if (own) {
+      while (body.firstChild) body.removeChild(body.firstChild);
+      own.build(body);
+      qPopOff = () => { while (body.firstChild) body.removeChild(body.firstChild); };
+    } else qPopOff = flyInto(k, body, () => { qPopOff = null; qPop = null; window.EDITOR_QUICK_POPPED = null; card.hidden = true; syncQuick(); });
     if (!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed && window.FLYDIY_DRAG.placed('quickPop'))) {
       const b = qBtn(k), r = b ? b.getBoundingClientRect() : null, W0 = window.innerWidth || 1280, w = card.offsetWidth || 280;
       card.style.top = Math.round(r ? r.bottom + 8 : 64) + 'px';

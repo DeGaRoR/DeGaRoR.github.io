@@ -1056,11 +1056,21 @@ function buildBrakeKnob(gRoot, A, P, sx) {
   const g0 = ctlShift(gRoot, P, 'parkX', 'parkY', 'parkZ');
   // G373: 9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station
   // (the pilot's x), not 19 cm outboard — the dash's centre on a single seat
-  const x = sx - 0.09, zB = A.dashAftZ + 0.030;
-  // the dash's bottom, over a wider net than the lamps' (its vertices are
-  // sparse across x: a 4 cm net at the pilot's x found only the roll's
-  // underside, and hung the knob at the ASI's height)
-  const yU = A.dashBotAt ? A.dashBotAt(x, 0.06, zB - 0.03, zB + 0.03) : A.dashLip;
+  const x = sx - 0.09;
+  // UNDER THE DASH, ON ITS LOWER EDGE - ALWAYS (CABIN-CRAFT, the user 2 Nov: "I fear we still have the issue of the
+  // handbrake placing itself in a ridiculous way. That thing always goes below the dash, attached to its lower edge").
+  // The G373 net (the lowest `dash` vertex within 6 cm of x, 0-6 cm forward of the dash's aft-most point) still found
+  // the ROLL's underside: the plate leans, so the aft-most point is the glareshield at the TOP, and every build hung
+  // its knob 1-4 cm under the plate's top edge, among the dials (measured on the six validated builds, the C172, the
+  // twin, the stock, the DC-3). The plate's own outline (A.face, the `dashFace` columns) gives its bottom edge at
+  // this x and the plate's depth there: the bracket's foot is CENTRED on that edge (half under the box, half
+  // behind the plate), and the knob hangs below it. Not further forward: the validated twin floatplane's header tank
+  // stands 1-3 cm aft of its panel's bottom edge, and a foot 22 mm under the box stood in it (14 of the bracket's
+  // 182 vertices; 6 centred - the tank's own intrusion, the energy layer's). No plate measured: the dash's lowest
+  // line (dashLip - the arch's box-equivalent bottom).
+  const col = A.face && A.face.at ? A.face.at(x) : null;
+  const yU = col && isFinite(col.y0) ? col.y0 : A.dashLip;
+  const zB = (col && isFinite(col.y0) && A.face.depthAt ? A.face.depthAt(x, col.y0) : A.dashAftZ);
   const y = yU - 0.030;
   const brk = K.Bag();
   K.sweep(brk, [[x, yU + 0.001, zB], [x, yU - 0.004, zB]],

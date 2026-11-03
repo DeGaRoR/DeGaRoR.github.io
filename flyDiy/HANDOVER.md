@@ -310474,6 +310474,24 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
 - Gates (node, on this head): SAVE CAGEFIT COWL PARTS DESIGN NACLAG STARTER ENGID GEOPARITY FRAMES SUBSTEP WEATHER SKINMAT
   PROCURE ENERGY EDBUGS JOIN CABINLAMP LIGHT ROLLANIM SIMWORKER UISMOKE UISMOKE-PHONE BUILD PASS; TECH and ENGCONFIG red
   with master's exact FAIL lines (standing).
+### 5. THE PARKING BRAKE UNDER THE DASH, THE DOOR PANEL'S TOPOLOGY (CABIN-CRAFT-3, the user 2-3 Nov, via A0)
+- THE BRAKE: "That thing always goes below the dash, attached to its lower edge." The game drew the knob ON the panel
+  plate (dashLip / dashAftZ, the panel's flat). _cage_crew.js buildBrakeKnob now reads the dash outline's column at the
+  knob's x (A.face.at(x).y0, the plate's lower edge, and A.face.depthAt(x, y0) its depth there): the bracket hangs from
+  that edge, the knob below it. The foot is centred on the edge (+2.2 cm aft clipped the twin floatplane's header tank:
+  that tank intrudes 1-3 cm aft of the panel, an energy-layer matter, reported to A0). The pedalier lamp (_cage_light.js)
+  follows the same edge: its z from depthAt at the pilot's x, its y never above the plate's lower edge.
+- THE DOOR PANEL: "there is horrible topology seen in the inside door panel there ... that's pretty bad" (the C172 from
+  inside). _shoulder_gen.js: (1) the cap was six scaled copies of the outline + a fan to the centre over an outline with
+  a point every 1.5 cm up the sides and five across the bottom - 534 of the C172's 616 cap triangles were slivers, 18
+  quads folded. monoGrid aligns the outline's two sides on one set of heights and spreads top/bottom into 4-12 columns;
+  the cap is a quad grid whose boundary IS the outline (a non-monotone outline keeps the rings). (2) The board followed
+  the door's liner point by point, so every frame / liner edge stepped it into a staircase: the board is now one smooth
+  surface (least squares x = a + b(y-yc) + c(y-yc)^2 + d(z-zc) over the liner, then pulled inboard by its worst excess),
+  3-4 mm off the door at its nearest, up to 5.3 cm over the hollows between frames, like a trim board on its frames.
+  2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
+- IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
+  Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
@@ -310980,6 +310998,25 @@ BATTERY (44 gates, jobs 8): green except, all named:
 
 TIMED (light): RED 53 vs the 12 Oct baseline ee466b792 (no reference taken since). Warm nav -> garage 65 -> 141 s (shader links MISS, worst 31 s), chase 29.8 -> 19.9 fps, compile 3.5 -> 32 s.
 A/B on the box 09:00-09:29 (master_bench --only loads,garage, cub): master F4 2f104df85 nav -> garage 136.6 s (35 links > 5 s) vs this train 150.8 s (40 links > 5 s): THE BOOT COST IS ALREADY ON MASTER (FINISH-4, whose own timed gate was killed at 40 min - this is why). Landed under the user's land-everything rule with the cost named; the F4 boot/link + chase cost goes on the perf-week list and gets a bisect (F4's 21 branches) in a box slot. Also seen: this train's bench garage sample reads 0.5 fps (one 12.8 s frame; master 30.1) - the light gate's garage rows "not measured": suspect the 1b idle hold on desktop vs the bench (needs &idle=0); PHONE-EDIT-PERF to confirm. CABIN-CRAFT ran node work 08:42-08:59 (inside the timed window, after the boot rows) - noted.
+
+## TIME-CONTROLS - THE TIME MENU: ONE TOP-BAR BUTTON IN THE GARAGE, AND IN THE CAREER'S FLIGHT IT REPLACES THE FREE TIME AND WEATHER MENU (2026-11-03, GAME-MENUS, LOCAL; for L30a; claude/ready/time-controls, on master 1db22c8a4)
+Why: the user, 2 Nov (via A0): "proper time controls, including in the garage": one icon on top that pops a menu with proper time controls; in the career's flight it replaces the time of day and weather menu, since they can't be set freely there any more. The sandbox keeps its free control.
+What changed:
+- day_ui.js DAY_UI.menu(host, H, ctx): "now" (the date and time, the sun, the moon), the day's weather told (WEATHER_UI preset, wind, visibility, the front, the clouds), an optional forecast (ctx.forecast or window.FLYDIY_FORECAST: empty until WEATHER-DAYS), then the time actions: the sandbox's free clock (presets, next full moon, hour, date, rate) or the career's forward-only waits (careerClock; refused off the ground by DAY_CLOCK's guard). The sandbox offers "set the weather..." (the menu's Sky & light page); the career says its weather is told, not chosen.
+- editor.js: the QUICK bar's existing time button (same slot and glyph - no new icon) opens the time menu in #edPopCard (QPOP_OWN; draggable 'quickPop'). The phone hides that button today (phone.css:45); PHONE-GARAGE un-hides it in PHONE-1b.
+- app.js FL2: in the career, the bar's conditions pill is "time & weather" and opens slot_time (the same menu); the sandbox keeps 'sky'.
+- In the career, WEATHER_UI.mount and DAY_UI.mount's conditions select offer nothing to set.
+- The route rows' "wait until..." select is gone (A0 2 Nov): the time menu is the one place for time; the rows keep the clock line. UISMOKE's G2650 block drives DAY_CLOCK.wait instead (rule b).
+- card_drag: #flFly (every flight flyout) is draggable by #flFlyHead; flPlaceFly keeps a dragged place (fits the height only).
+Open (WEATHER-DAYS, claude/weather-days-study): the career's allowed skips and rate, the forecast lines, clouds_ui's career guard.
+Gates: BUILT UISMOKE UISMOKE-PHONE UILAYER STORY CONTRACTS ACCEPT SAVE CARDDRAG DAY VIEW BOOMBOX HONESTY MEDIA CLIMATE.
+
+## A0 - train L30a "OLD WORK", 3 Nov 2026 11:30
+
+IN (on PHONE-1b master 1db22c8a4): claude/ready/phone-1b-fix c2992157a (PHONE-EDIT-PERF: SHEETWORKER's pattern for REL_PEND + master_bench waits for the boot's links before the garage sample), claude/ready/cabin-craft-3 76bc7da62 (CABIN-CRAFT: parking brake under the dash, the pedalier lamp, the C172 door panel quad-grid cap; KNIFE re-recorded for the five Cessna sheets), claude/a0/perf-ledger-m bf392b86d (HW-COVERAGE's PERF-LEDGER G3200 of 14 Oct; A0 resolved rollout_perf.js keeping G3415's town meter + G3200's dcN/trN), claude/ready/stol-fixture 16237652e (Pilot: STOL fixture re-captured on 1db22c8a4, selftest d), claude/ready/time-controls 59ad0cf9b (GAME-MENUS: the garage time card + the career flight's time menu - forward waits only, rate 1 in the career, per the user's WEATHER-DAYS calls), claude/a0/updnote-m 711fb3290 (PHONE-GARAGE's updnote-drag 38d7a5c5f: #updNote draggable per the user's cards rule; A0 resolved card_drag.js CARDS keeping #flFly + #updNote. Named cost: while the note shows, 3-4 s, it takes taps on the strip it covers). OUT: hw-hut (HOUSEWORKER 473/474, lattice fix -> L30b), joinparity-fixture (not ready -> L30b), ground-look-g2610 (replaced by claude/ready/forest-floor 560b57eba, the user's 17.5 m on 8/13/16 -> L30b).
+
+BATTERY (35 gates, jobs 8): 30 PASS. Red: FRAMECOST, ASSETS, STORY, JOINPARITY (3 rows) = master standing; CLOUD 1 of 239 "the quick bar's time button presses the clock, not the mood" = time-controls moved the quick bar's time button to the time menu, the gate's row is stale (GAME-MENUS fixes the row, rule b -> L30b).
+TIMED (light): RED 41 vs the 12 Oct baseline - the same FINISH-4 boot cost as PHONE-1b (warm nav -> garage 115 s here vs 141 s in 1B's run, compile ~31-40 s, chase/cockpit ~20 fps); nothing new from this train. The F4 boot A/B is booked 16:10 (HWCOV mb_boot.sh).
 ## SEATS (2026-11-02, cloud session, the user via A0): the seat library
 Every seat the crew layer draws is `tools/_seat_gen.js`'s (MANIFEST.editor, before `_cage_crew.js`; `buildSeat` is the
 door). 15 calibrated presets on `cage.seatType` 0-14, named by their spirit (the user: "avoiding naming planes"):

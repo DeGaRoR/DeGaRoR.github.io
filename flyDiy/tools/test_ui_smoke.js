@@ -679,6 +679,9 @@ try {
   // THE CLOCK (G2650 SIM-CLOCK): day_clock.js rides the RENDER block too - run from its own source so app.js binds the
   // real DAY_CLOCK (no storage, no location here: the game's day) and the route rows carry its clock line and wait select
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8'), sandbox, { filename: 'day_clock.js' });
+  // TIME-CONTROLS: day_ui.js (window.DAY_UI, the time menu) rides the same block - run from its own source so the G2650
+  // block finds the page's time menu
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_ui.js'), 'utf8'), sandbox, { filename: 'day_ui.js' });
   // G3070 (ROUTE-LAZY): the drawn route's door (route_lazy.js) rides the RENDER block - run from its own source, with
   // the page's file name (index.html's ROUTE_LOADER) and a fetch that records the drawing's file and never answers (the
   // drawing itself is GATE ROUTE's); any other fetch is what it was here, absent
@@ -874,10 +877,10 @@ try {
     }
   }
   // ---- G2650 SIM-CLOCK: THE ROUTE ROW'S CLOCK + WAIT IT OUT ----
-  // Both route rows (the shed's, the roll-out screen's) carry the clock line ("16:00 · 21 Jun") and a "wait until…"
-  // select of the named hours and the whole hours. A wait is on the ground only (the page's guard: in the garage or on
-  // the stand) - in flight the pick is refused and the clock does not move; allowed, it is ONE jump, forward. The
-  // sandbox keeps its clock (not the career's).
+  // Both route rows (the shed's, the roll-out screen's) carry the clock line ("16:00 · 21 Jun"); TIME-CONTROLS (A0 2 Nov):
+  // their "wait until…" select is gone - the time menu (DAY_UI.menu) is the one place for time, and its waits are
+  // DAY_CLOCK.wait, driven here. A wait is on the ground only (the page's guard: in the garage or on the stand) - in
+  // flight it is refused and the clock does not move; allowed, it is ONE jump, forward. The sandbox keeps its clock.
   {
     const CK = sandbox.window.DAY_CLOCK, FC = sandbox.window.FLYDIY_CLOCK, P = sandbox.window.FLIGHT_PROBE;
     if (!CK || typeof CK.wait !== 'function' || typeof CK.jump !== 'function' || !FC) throw new Error('DAY_CLOCK.wait / jump or FLYDIY_CLOCK missing (G2650)');
@@ -886,16 +889,16 @@ try {
     for (const w of ['garage', 'rollout']) {
       const r = rows.find(x => x.where === w);
       if (!r || !/^\d\d:\d\d · \d{1,2} [A-Z][a-z]{2}/.test(r.text)) throw new Error(`the ${w} route row has no clock line: ${JSON.stringify(r && r.text)}`);
-      if (!r.sel || r.opts !== 32) throw new Error(`the ${w} route row's wait select: ${r.opts} hours (want the 8 named + 24 whole hours)`);
+      if (r.sel || r.opts !== 0) throw new Error(`the ${w} route row still has a wait select (${r.opts} hours): the time menu is the one place for time`);
     }
     const day = P.world().day, a0 = day.jdn * 86400 + day.utc, j0 = CK.jumps, can = CK.canWait();
-    const g = rows.find(x => x.where === 'garage');
-    g.sel.onchange({ target: { value: 'dusk' } });
+    if (!sandbox.window.DAY_UI || typeof sandbox.window.DAY_UI.menu !== 'function') throw new Error('DAY_UI.menu (the time menu) is missing');
+    const wr = CK.wait('dusk');
     const a1 = day.jdn * 86400 + day.utc;
     if (can) { if (!(CK.jumps === j0 + 1 && a1 > a0 && CK.lastJump.why === 'wait:dusk' && Math.abs(day.sunEl + 6) < 0.1)) throw new Error(`a wait on the ground: jumps ${CK.jumps - j0}, moved ${a1 - a0} s, sun ${day.sunEl}`); }
-    else if (!(CK.jumps === j0 && Math.abs(a1 - a0) < 1 && /ground/.test(g.sel.title))) throw new Error(`a wait in flight was not refused: jumps ${CK.jumps - j0}, moved ${a1 - a0} s, "${g.sel.title}"`);
+    else if (!(CK.jumps === j0 && Math.abs(a1 - a0) < 1 && wr && !wr.ok && /ground/.test(wr.why))) throw new Error(`a wait in flight was not refused: jumps ${CK.jumps - j0}, moved ${a1 - a0} s, "${wr && wr.why}"`);
     frames(10);
-    console.log(`the clock: both route rows ("${FC.rows()[0].text}", ${g.opts} hours to wait for); a wait ${can ? 'on the ground is one jump to dusk' : 'in flight is refused, the clock unmoved'}`);
+    console.log(`the clock: both route rows ("${FC.rows()[0].text}", no wait select - the time menu's); a wait ${can ? 'on the ground is one jump to dusk' : 'in flight is refused, the clock unmoved'}`);
   }
   // ---- G2230 PREM-S2: THE GARAGE'S BASE LINE + SELECT, AND THE FLEET POPUP'S PLACE BADGE ----
   // The bases are derived from the hangars held (38b_dest.js flightBasesOf, ruling gp1): the sandbox's one hangar is
