@@ -776,7 +776,8 @@ if (SELF) {
     const b0 = PHY.base || tunnel(build('savannah'));
     t.push(['a slot with no dAs fails the Vs band', !(tt.Vs / b0.Vs < 0.92)]); }
   // d: the fingerprint without the null strip would move
-  { const sp = clone(CARDS.savannah.spec), spN = clone(sp); spN.wings[0].stol = null;
+  // (the absent key made here: a post-STOL master's bake already carries stol: null, A0 3 Nov)
+  { const sp = clone(CARDS.savannah.spec); delete sp.wings[0].stol; const spN = clone(sp); spN.wings[0].stol = null;
     t.push(['a null stol hashed raw differs from the absent key (what bench.js strips)', JSON.stringify(sp) !== JSON.stringify(spN)]); }
   for (const [lbl, caught] of t) ok(caught, 'selftest: ' + lbl);
 }
