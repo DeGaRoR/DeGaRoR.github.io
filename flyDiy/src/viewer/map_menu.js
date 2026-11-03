@@ -1361,7 +1361,7 @@
     if (!g) return '';
     const what = g.stand ? 'with ' + g.stand + (g.planes.length > 1 ? ' and ' + (g.planes.length - 1) + ' more' : '') : 'empty';
     const shed = !!(D.body && D.body.classList.contains('mode-ws'));   // (from a flight, your own garage is the way back: the shed's trip)
-    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : g.away || '');   // (STORY-HOME-FIX F2: an empty hangar elsewhere)
+    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : '');
     return '<span class="mmGoT">' + (why ? esc(g.name) : 'Go to <b>' + esc(g.name) + '</b>?') + '<small>' + esc(why || what) + '</small></span>' +
       (why ? '' : '<button type="button" class="pri" data-act="goyes"' + (st.going ? ' disabled' : '') + '>' + (st.going ? 'Going…' : 'Go there') + '</button>') +
       '<button type="button" data-act="gox" aria-label="close">' + (why ? 'OK' : 'Stay') + '</button>';
