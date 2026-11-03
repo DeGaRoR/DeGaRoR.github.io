@@ -311345,3 +311345,33 @@ two small formers (one with its chine cropped off) and kept the Wipline's bottom
   UISMOKE, HYDRODYN, SEAPLANE PASS on round 2's tree (gates_round2_GEN.txt; round 3 moved the EDO hull only). RED, the same
   rows on a clean L30d (gates_master_L30d.txt): LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows, node =
   page on five builds since L30c).
+
+## FLOATS-CLASSIC.4 - THE FLUTED "BATMAN" BOTTOM, THE VINTAGE VENTRAL, THE RIVER-STONE RUDDER (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .3, reading the plan with us: the big formers ahead of the step are "a Batman figure" - each half of the V
+is little circle arcs cut slightly into it, of one radius, barely meeting; the smaller formers and those aft of the
+step are straight. Also: the plan's ventral fin ("a tic-tac shape on one side, and then it just goes further toward the
+fore side") and the water rudder ("a very vintage rounded ... river stone-like profile").
+- .3 WAS WRONG ABOUT THE BELLY: it read the ridge's cusp as a CONVEX belly. Measured again (formers A, B, D): the ridge
+  at 0.55 of the half-beam, 7.4-9 % of the half-beam below the straight V; each arc's sagitta ~6 % of its chord.
+- MODEL (32_hydro sectionOf): EDO_STYLE `belly` retired for `flute` 0.08 (the ridge's drop over the half-beam; the arcs'
+  sagitta 0.75 of it), full from the step to half the forebody, gone by 0.85 of it, none aft. `s.flute` = six drawn
+  points a side (two on the keel's arc, the ridge, three on the chine's - parabolas of the sagitta); `s.fluteP` = the
+  physics' ridge, RAISED by exactly the area the flutes cut in (polyline shoelace, closed form) so the physics stays two
+  bottom facets a side (668 panels; four facets doubled the water's cost). Drawn = physics within 0.09 %.
+  FLOAT_GEN ringSide: the EDO's keel and chine are sharp, so the keel round's slots + support carry the first arc and the
+  ridge, the chine support + the chine round's four slots the second arc, the chine and a hair of the side (RING_N and
+  BOTTOM_N unchanged, the loft one grid). The Wipline branch is the old code (the pin holds).
+- THE VENTRAL (_cage_fin, row `finVentralShape` 1 "vintage lobe", any card): u0(v) = 0.36 (1 - sqrt(1 - v)) - a PARABOLA
+  from the tip on the belly (~50 deg on the plan) tangent into a level bottom, a round aft end over 0.82-1.0. Its area
+  0.841 c h (was 0.884 with a quarter-ellipse nose that started vertical); the join flies it. An EDO preset sets the
+  lobe at chord = depth / 0.33 (the plan's ~3.0).
+- THE WATER RUDDER (FLOAT_GEN, EDO only): a superellipse pebble (n 3 above, 2.2 below), 1.15 as wide as tall (was 0.95),
+  its area wrArea and foot wrDepth - the numbers waterRudder() reads.
+- PICTURES (tools/quickshot.js): edo_details_plan_vs_model.png (the plan's former A, ventral and rudder beside the
+  model's), the head-on, side and three-quarter shots regenerated.
+- WATER (floatsclassic_water4.txt, 13/13): PA-18 on EDO 2000s reserve 2.45, lift-off 23.8 s / 232 m; the PA-18's
+  Wipline rows in EDO style 2.42, 23.1 s / 238 m; DC-3 on EDO 78-28000s reserve 2.39, 2.5 deg afloat, 57.6 s / 1,040 m.
+  Physics panels unchanged (668 an EDO hull).
+- GATES (gates_round4.txt): FLOATSCLASSIC, FLOATSCLASSIC-WATER, FLOATKIT, FLOATS, WIPLINE, HYDRO, HYDRODYN, SEAPLANE,
+  JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD PASS. RED, the
+  same lines as a clean L30d: LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows).

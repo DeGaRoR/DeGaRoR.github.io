@@ -1,6 +1,56 @@
 # FLOATS-CLASSIC — the EDO-style rounded-deck float (2026-11-03)
 
-## Round 3: the whole hull off the plan (supersedes rounds 1 and 2)
+## Round 4: the fluted bottom, the vintage ventral, the river-stone rudder (supersedes round 3's belly)
+
+The user, reading the plan with us: the big formers ahead of the step are "a Batman figure ... a V shape, and then you
+get little circles, and you just cut slightly into these V shapes ... four little arcs that feel like they would be from
+a circle of the same radius ... barely intersecting"; the smaller formers, and those past the step, are straight. Also
+the ventral fin ("a tic-tac shape on one side, and then it just goes further toward the fore side") and the water
+rudder ("a very vintage rounded stone-like, river stone-like profile").
+
+**Round 3 was wrong about the belly.** It read the ridge's cusp as a convex belly. Measured again on formers A, B and D:
+
+- the ridge stands at 0.55 of the half-beam, 7.4-9 % of the half-beam below the straight V;
+- each arc cuts ~6 % of its chord into the hull;
+- formers C, E and F (the bow's and aft of the step) are a straight V.
+
+**What the model does now** (`edo_plan_sections.md` has the details; `edo_details_plan_vs_model.png` puts the plan's
+former A, ventral and rudder beside the model's):
+
+- **The bottom.** Ahead of the step each half of the V is two concave arcs meeting at the ridge: full from the step to
+  half the forebody, gone by 0.85 of it, none aft of the step. The drawing carries six points a side. The physics keeps
+  two facets a side, its ridge raised by exactly the area the flutes cut in, so the water's cost stays the same and the
+  drawn and physics volumes agree to 0.09 %. The keel and the chine are sharp, as on the plan.
+- **The ventral** (`ventral shape` row, "vintage lobe", on any card; the EDO presets set it): a long forward point that
+  sweeps down in a parabola into a level bottom, and a round aft end. Chord 3.0 times the depth, as on the plan. Its
+  area (0.841 x chord x depth) is what the join flies.
+- **The water rudder:** a pebble 1.15 as wide as tall, hung off the post by two arms. Its area and depth are the ones
+  the water reads.
+- **The EDO 2000** comes out 4.72 m (15.5 ft): the flutes cost a little volume, so the hull grows to keep its 907 kg.
+- **Every Wipline hull** is still master's to the bit (the pin).
+
+**Pictures** (`node tools/quickshot.js`): the head-on, side and three-quarter shots below were all regenerated.
+
+**On the water** (GATE FLOATSCLASSIC-WATER, `floatsclassic_water4.txt`):
+
+| build | mass | reserve (1.8 needed) | at rest | lift-off | round 3 |
+|---|---|---|---|---|---|
+| PA-18 on EDO 2000s | 744 kg | 2.45 | 0.1 deg, 0.32 m draft | 23.8 s, 232 m | 24.4 s, 232 m |
+| PA-18, its Wipline 2100 rows in EDO style | 754 kg | 2.42 | -0.5 deg | 23.1 s, 238 m | 22.3 s, 221 m |
+| PA-18 on its Wipline 2100s (reference, unchanged) | 752 kg | 3.12 | -0.9 deg | 22.7 s, 236 m | the same |
+| DC-3 on EDO 78-28000s | 11,110 kg | 2.39 | 2.5 deg, 0.73 m draft | 57.6 s, 1,040 m | 56.6 s, 997 m |
+
+Each one also taxies (30 s at a quarter throttle). No prop touches the water. The physics' panel count is round 3's
+(668 an EDO hull), so the water's cost is unchanged.
+
+**Gates:** `gates_round4.txt`. All the asked gates PASS: FLOATSCLASSIC (25/25), FLOATSCLASSIC-WATER (13/13), FLOATKIT, FLOATS,
+WIPLINE, HYDRO, HYDRODYN, SEAPLANE, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER,
+LIVERYREACH, SURF, BUILD. Red here and on a clean master L30d, with the same lines (`gates_master_L30d.txt`): LIVERY (its
+harness, garageFloodArm), CLIP (navAerial 9.2 mm, stock+ifr), JOINPARITY (8 rows).
+
+---
+
+## Round 3: the whole hull off the plan (its belly superseded by round 4)
 
 The user, on round 2: "the belly looks exactly the same as the Wipline line. And I'm not even sure there is the
 shoulder in the one I gave you. So did you pay sufficient attention there to the actual profile and the shape of the
