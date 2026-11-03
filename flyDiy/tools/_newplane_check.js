@@ -20,13 +20,15 @@
 //   4 SEEDED RANDOM BUILDS    5 composed + built pre-join (designBake + buildGen + shakedown): nothing throws, the
 //                             mass and margin finite. The seed is printed; NEWPLANE_SEED=<n> replays it.
 //
-//   node tools/_newplane_check.js            -> "GATE NEWPLANE: PASS|FAIL"
+//   node tools/_newplane_check.js            -> "GATE NEWPLANE: PASS|FAIL" (core: 1, 2, the tricycle of 3, 4)
+//   node tools/_newplane_check.js --builds   -> "GATE NEWPLANE-BUILDS: PASS|FAIL" (full: 3 whole, 4)
 //   node tools/_newplane_check.js --selftest -> the negative proofs (a doctored rule each must go red)
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
 const T0 = Date.now();
 const SELFTEST = process.argv.includes('--selftest');
+const BUILDS = process.argv.includes('--builds');   // the joined fixed builds and fixtures (GATE NEWPLANE-BUILDS, full tier)
 const NL = require('./_newplane_lib.js');
 NL.init();
 const NP = require('./_new_plane.js');
@@ -151,7 +153,11 @@ async function flowCheck(np) {
   D.designBake = function () { cnt.bake++; return realBake.apply(this, arguments); };
   const store = { spec: null, name: () => 'saved', get: () => { cnt.get++; return JSON.parse(JSON.stringify(store.spec)); },
                   set: s => { cnt.set++; store.spec = JSON.parse(JSON.stringify(s)); } };
-  Object.assign(W, { CAGE_DESIGN: D, NEW_PLANE_GEN: np, GARAGE_SPEC: store,
+  // the fit is stubbed (a patch once, then none): the flow holds the loop and its loads, the fit itself is held by the
+  // joined builds below (the real fit on a stand that is never joined would chase the rule gear for three passes)
+  let fitN = 0;
+  const npFlow = Object.assign({}, np, { stanceFit: () => (fitN++ === 0 ? { s1Z: 1.5 } : null) });
+  Object.assign(W, { CAGE_DESIGN: D, NEW_PLANE_GEN: npFlow, GARAGE_SPEC: store,
     FLYDIY_UI_HOLD: on => { cnt.hold = on; }, EDITOR_SET_VIEW: v => { cnt.view = v; },
     requestAnimationFrame: f => setTimeout(f, 0), addEventListener: () => {} });
   global.window.document = doc;
@@ -191,8 +197,8 @@ async function flowCheck(np) {
   await new Promise(r => setTimeout(r, 30));
   for (let i = 0; i < 200 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 25));
   t(!UI.isOpen() && cnt.hold === false && cnt.view === 'shape', 'generate hands over: the chooser closed, the hold released, the editor on STRUCTURE');
-  t(cnt.bake === 1 && cnt.set >= 1 && cnt.set <= 1 + np.FIT_PASSES && UI.LOG.generated === 1,
-    'ONE generate: one bake, one load (+ a fit load per pass that moved a leg or the wing, at most ' + np.FIT_PASSES + ') - bake ' + cnt.bake + ', loads ' + cnt.set + (UI.LOG.fit ? ' fit ' + JSON.stringify(UI.LOG.fit) : ''));
+  t(cnt.bake === 1 && cnt.set === 2 && UI.LOG.generated === 1 && UI.LOG.fit && UI.LOG.fit.passes === 1,
+    'ONE generate: one bake, one load, + one load for the fit pass that moved a leg (and none for the pass that did not) - bake ' + cnt.bake + ', loads ' + cnt.set + (UI.LOG.fit ? ' fit ' + JSON.stringify(UI.LOG.fit) : ''));
   t(store.spec && store.spec.meta && store.spec.meta.newPlane && store.spec.meta.newPlane.class, 'the spec on the stand says what was chosen (meta.newPlane)');
   D.designBake = realBake;
   global.document = prevDoc; W.requestAnimationFrame = prevRaf;
@@ -248,18 +254,25 @@ function preJoin(name, ch) {
     process.exitCode = fails ? 1 : 0;
     return;
   }
-  console.log('1 RULE UNITS');
-  for (const [c, m, x] of ruleUnits(NP)) ok(c, m, x);
-  console.log('2 THE FLOW (src/viewer/new_plane.js over a DOM stub)');
-  for (const [c, m, x] of await flowCheck(NP)) ok(c, m, x);
-  console.log('3 FIXED BUILDS (the chooser\'s path, joined)');
-  for (const [n, ch] of FIXED) judgeFixed(n, ch);
-  for (const [n, ch, joined] of fixtures()) { if (joined) judgeFixed(n, ch); else preJoin(n, ch); }
+  if (!BUILDS) {
+    console.log('1 RULE UNITS');
+    for (const [c, m, x] of ruleUnits(NP)) ok(c, m, x);
+    console.log('2 THE FLOW (src/viewer/new_plane.js over a DOM stub)');
+    for (const [c, m, x] of await flowCheck(NP)) ok(c, m, x);
+  }
+  if (BUILDS) {
+    console.log('3 FIXED BUILDS (the chooser\'s path, joined) - one per gear kind + the saved failure fixtures');
+    for (const [n, ch] of FIXED) judgeFixed(n, ch);
+    for (const [n, ch, joined] of fixtures()) { if (joined) judgeFixed(n, ch); else preJoin(n, ch); }
+  } else {
+    console.log('3 ONE JOINED BUILD (the tricycle: the user\'s "tricycles that make sense"; the rest: --builds, full tier)');
+    judgeFixed(FIXED[1][0], FIXED[1][1]);
+  }
   const seed = +(process.env.NEWPLANE_SEED || ((Date.now() / 86400000) | 0));
   console.log('4 SEEDED RANDOM BUILDS (pre-join) - seed ' + seed + ' (NEWPLANE_SEED=' + seed + ' replays it)');
   for (let i = 0; i < 5; i++) preJoin(seed + '#' + i, NP.randomChoices(seed * 31 + i));
   const s = ((Date.now() - T0) / 1000).toFixed(1);
   console.log('  ' + nOk + ' ok, ' + fails + ' failed, ' + s + ' s');
-  console.log('GATE NEWPLANE: ' + (fails ? 'FAIL' : 'PASS'));
+  console.log('GATE NEWPLANE' + (BUILDS ? '-BUILDS' : '') + ': ' + (fails ? 'FAIL' : 'PASS'));
   process.exitCode = fails ? 1 : 0;
 })().catch(e => { console.log(String(e && e.stack || e)); console.log('GATE NEWPLANE: FAIL'); process.exitCode = 1; });

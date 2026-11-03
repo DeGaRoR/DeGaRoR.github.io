@@ -806,6 +806,8 @@ const GATES = [
   // Generate, always reaches the editor), three fixed joined builds (one per gear kind) + the saved failure
   // fixtures, five seeded random pre-join builds. The once is tools/newplane_validate.js, NOT here.
   { id: 'NEWPLANE', file: '_newplane_check.js', tier: 'core' },
+  // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
+  { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
   // must not bite a declared value -> shakedown clears the circuit -> the
   // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
