@@ -64,22 +64,39 @@ if (STATIC) {
     const R = H.EDO_PRESETS[nm], P = H.presetParams(nm), F = H.makeFloat(P);
     const o = FG.build(P, { HY: H, detail: 1, rudder: 1, paddle: -1, xAft: 0.28 * P.scale });
     const d = o.stats.vol / F.volDeck - 1;
-    const fitOk = Math.abs(F.volDeck * P.rho / R.flot - 1) < 1e-3 && P.fineK >= 0 && P.fineK <= 0.4 && P.beta >= 20 && P.beta <= 26;
+    const fitOk = Math.abs(F.volDeck * P.rho / R.flot - 1) < 1e-3 && P.fineK >= 0 && P.fineK <= 0.45 && P.beta >= 24 && P.beta <= 27;
     ok(fitOk && o.stats.open === 0 && o.stats.vol > 0 && Math.abs(d) < 0.005 && o.deck.idx.length === 0 && P.style === 'edo',
        `${nm}: fits ${R.flot} kg at f ${f2(P.fineK, 3)} (beta ${f2(P.beta, 1)} deg), drawn closed and outward, drawn/physics ${f2(100 * d, 2)} %, bare deck`);
   }
   console.log('DOME - the section and the reserve');
   {
     const P = H.presetParams('EDO 2000'), F = H.makeFloat(P);
+    // THE MEASURED SECTION (the user's EDO plan, reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md): widest at the
+    // chine, the whole topside one half-ellipse from just over the chine to the crown, the height ~0.8 of the beam
     const s = H.sectionOf(P, -0.2), c = s.yt - s.yd;
-    ok(Math.abs(s.yt - H.deckAt(P, -0.2)) < 1e-12 && Math.abs(c - P.crownK * P.H) < 1e-9, `the crown at the deck line, the edge crownK H (${f2(c, 3)} m) under it`);
+    // (the mid-forebody formers, where the plan was measured: a third of the forebody ahead of the step)
+    const sS = H.sectionOf(P, -1e-9), sM = H.sectionOf(P, -0.33 * P.xs), hb = (sM.yt - sM.yk) / (2 * sM.b);
+    const side = (s.yd - s.yc) / (s.yt - s.yc);
+    ok(Math.abs(s.yt - H.deckAt(P, -0.2)) < 1e-12 && side <= 0.25 && s.bd - s.b <= (s.yd - s.yc) * Math.tan(P.flare * Math.PI / 180) + 1e-9 && Math.abs(2 * sS.b - P.B) < 1e-9,
+       `the measured section: the crown at the deck line, ${f2(c, 3)} m of dome over ${f2(1000 * (s.yd - s.yc), 0)} mm of straight side (${f2(100 * side, 0)} % of the topside; the plan's F2 holds its beam to ~25 %), widest at the chine (= the hull width row; the flare row leans only the straight side)`);
+    ok(hb >= 0.74 && hb <= 0.84 && P.beta >= 24 && P.beta <= 27, `the plan's proportions: height ${f2(hb)} of the beam a third up the forebody (plan 0.74-0.80), ${f2(P.beta, 1)} deg of deadrise (plan ~25)`);
     ok(Math.abs(H.levelVolume(F, 10, 4000) / F.volDeck - 1) < 0.004, 'levelVolume to the deck = volDeck (the section family and the panels agree)');
     const Pw = Object.assign({}, P); delete Pw.crownK; delete Pw.bowDrop; delete Pw.noseMul; delete Pw.style; delete Pw._keel;
     const vw = H.makeFloat(Pw).volDeck, adv = H.floatAdvice(800, P);
     ok(vw > F.volDeck && Math.abs(adv.pairKg - 2 * F.volDeck * P.rho) < 1e-6,
        `the dome is honest: the same rows flat-decked hold ${f2(vw * 1000, 0)} kg, domed ${f2(F.volDeck * 1000, 0)} kg, and the advisor's reserve reads the dome`);
   }
-  console.log('JOIN - the style rides the game\'s own load path');
+  console.log('WEIGHT AND PRICE - every model carries both, the ledger bills the pair in place of the wheels');
+  {
+    const all = H.FLOAT_PRESET_NAMES.concat(H.EDO_PRESET_NAMES).map(n => [n, H.presetParams(n)]);
+    ok(all.every(([n, P]) => H.floatPrice(P) > 0 && P.mFloat > 0), `every catalogue row has a price and a hull mass (${all.length} rows)`);
+    const E2 = H.presetParams('EDO 2000'), E78 = H.presetParams('EDO 78-28000');
+    ok(H.EDO_PRESETS['EDO 2000'].mSys === 119 && Math.abs(E78.mFloat - 1036) < 1e-9 && H.floatPrice(E2) === 15000,
+       'the sourced figures: an EDO 2000 pair 263 lb installed (119 kg), a Model 78 float 2,284 lb (1036 kg), an EDO 2000 pair 15,000 credits rigged');
+    const W = H.presetParams('Wipline 2100'), Wedo = Object.assign({}, W, H.EDO_STYLE);
+    ok(H.floatPrice(W) === 55000 && H.floatPrice(Wedo) !== 55000, 'a catalogue price is its own family\'s: a Wipline row\'s name kept on a hull turned EDO is priced as an EDO');
+  }
+console.log('JOIN - the style rides the game\'s own load path');
   {
     const LB = require('./_load_build.js');
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'pa18_floats_2026-10-23.json'), 'utf8'));
@@ -93,6 +110,10 @@ if (STATIC) {
     const def = C.buildGen(C.genMigrateSpec(b));
     ok(def.parts.floats[0].P.crownK === H.EDO_STYLE.crownK && fb.volDeck < fa.volDeck,
        `the frame flies the dome (${f2(fb.volDeck * 1000, 0)} kg to the deck against the flat deck's ${f2(fa.volDeck * 1000, 0)})`);
+    const da = C.buildGen(C.genMigrateSpec(a)), ga = da.parts.ledger.gear.cost, gb = def.parts.ledger.gear.cost;
+    const pa = H.floatPrice(da.parts.floats[0].P), pb = H.floatPrice(def.parts.floats[0].P);
+    ok(pa === 55000 && pb > 0 && pb < pa && ga >= pa && gb >= pb && ga - pa === gb - pb + (ga - pa - (gb - pb)),
+       `the ledger bills the pair: Wipline 2100 ${pa.toLocaleString('en')} (gear row ${Math.round(ga).toLocaleString('en')} cr), the same rows as an EDO ${pb.toLocaleString('en')} (${Math.round(gb).toLocaleString('en')} cr)`);
   }
 }
 

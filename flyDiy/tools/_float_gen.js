@@ -578,6 +578,7 @@ function buildDeck(P, HY, o, sc) {
 // EDO 2000s on Super Cubs and Cherokees and the owners' repair threads: a round hand-hole cover per bay on the crown, a
 // pump-out cup per bulkhead on the outboard shoulder, a horn cleat bow and stern, the spreader-bar saddles and the strut
 // fittings at the two rigging stations - every one sat on the DOME (HYDRO.deckYAt), not on a flat deck line.
+const EDO_FIT = 0.72;   // the EDO's deck fittings (spreader saddles, strut plates): this fraction of the half-beam out
 function buildDeckEdo(P, HY, o, sc) {
   const deck = Bag(true), hard = Bag(false);
   const xs = P.xs, LA = P.L - P.xs;
@@ -597,7 +598,7 @@ function buildDeckEdo(P, HY, o, sc) {
     for (let k = 0; k < 8; k++) { const a = 2 * Math.PI * (k + 0.5) / 8, rr = 0.5 * w - 0.014 * sc; screw(hard, x + rr * Math.cos(a), yOn(x, Math.abs(rr * Math.sin(a))) + 0.003 * sc, rr * Math.sin(a), 0.003 * sc); }
     details.covers.push([x, w]);
     // the pump-out cup at the bulkhead, outboard on the shoulder (the layer mirrors the port float)
-    const xb = xBow + (xSt - xBow) * i / nBay, sb = sAt(xb), zc = 0.62 * sb.bd;
+    const xb = xBow + (xSt - xBow) * i / nBay, sb = sAt(xb), zc = 0.50 * sb.bd;
     if (zc > 0.05 * sc) { cyl(hard, [xb, yOn(xb, zc) - 0.002 * sc, zc], [0, 1, 0], 0.018 * sc, 0.006 * sc, 10); details.cups.push([xb, zc]); }
   }
   // the cleats, bow and stern, on the crown
@@ -609,9 +610,10 @@ function buildDeckEdo(P, HY, o, sc) {
   for (const x of [rig.fwd, rig.aft]) {
     const s = sAt(x);
     for (const sd of [-1, 1]) {
-      const z = s.bd - 0.06 * sc, y = yOn(x, z);
+      // (on the dome's upper shoulder: the topside is an ellipse from the chine, so "near the edge" is low on the side)
+      const z = EDO_FIT * s.bd, y = yOn(x, z);
       boxAt(hard, [x, y + 0.012 * sc, sd * z], [0.05 * sc, 0.018 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-      const z2 = s.bd - 0.05 * sc, y2 = yOn(x + 0.12 * sc, z2);
+      const z2 = EDO_FIT * s.bd + 0.01 * sc, y2 = yOn(x + 0.12 * sc, z2);
       boxAt(hard, [x + 0.12 * sc, y2 + 0.003 * sc, sd * z2], [0.045 * sc, 0.006 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       boxAt(hard, [x + 0.12 * sc, y2 + 0.022 * sc, sd * z2], [0.02 * sc, 0.02 * sc, 0.005 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     }
@@ -645,10 +647,12 @@ function buildRudder(P, HY, o, sc) {
   const sT = HY.sectionOf(P, LA - o.rTransom);
   const xT = LA + 0.012 * sc;                            // the transom's face, plus the bracket stand-off
   const rPost = 0.011 * sc;
-  const yTop = sT.yd + 0.06 * sc, yFoot = sT.yk - 0.03 * sc;
+  // (FLOATS-CLASSIC: the transom's top is the crown - a flat deck's yt is its yd)
+  const yDk = sT.yt != null ? sT.yt : sT.yd;
+  const yTop = yDk + 0.06 * sc, yFoot = sT.yk - 0.03 * sc;
   // the post and its two bearing brackets on the transom
   cyl(hard, [xT + 0.02 * sc, yFoot, 0], [0, 1, 0], rPost, yTop - yFoot, 12);
-  for (const y of [sT.yd - 0.03 * sc, sT.yk + 0.05 * sc])
+  for (const y of [yDk - 0.03 * sc, sT.yk + 0.05 * sc])
     boxAt(hard, [xT + 0.01 * sc, y, 0], [0.012 * sc, 0.014 * sc, 0.03 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   // the bellcrank: a flat bar across the post's top, a cable eye each end
   const post = [xT + 0.02 * sc, 0, 0];
@@ -657,10 +661,10 @@ function buildRudder(P, HY, o, sc) {
   // a pulley bracket 0.45 m ahead
   for (const sd of [-1, 1]) {
     const a = [post[0], yTop - 0.006 * sc, sd * 0.07 * sc];
-    const b = [LA - o.rTransom - 0.45 * sc, sT.yd + 0.02 * sc, sd * 0.05 * sc];
+    const b = [LA - o.rTransom - 0.45 * sc, yDk + 0.02 * sc, sd * 0.05 * sc];
     cyl(hard, a, sub(b, a), 0.0015 * sc, len(sub(b, a)), 6);
   }
-  boxAt(hard, [LA - o.rTransom - 0.47 * sc, sT.yd + 0.012 * sc, 0], [0.02 * sc, 0.012 * sc, 0.06 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  boxAt(hard, [LA - o.rTransom - 0.47 * sc, yDk + 0.012 * sc, 0], [0.02 * sc, 0.012 * sc, 0.06 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   // THE BLADE: its span (fore-aft) and depth from the hull's own area and
   // depth — the physics reads these two numbers, so what it feels is drawn
   const depth = P.wrDepth + 0.01 * sc;                   // the foot exactly wrDepth under the stern keel, the head a hair above it
@@ -692,9 +696,13 @@ function buildPaddle(P, HY, o, sc, sd) {
   const shaft = Bag(false), blade = Bag(false);
   const xs = P.xs;
   const Lp = 1.45, rS = 0.016, bladeL = 0.46, bladeW = 0.17;
-  const yP = HY.sectionOf(P, -0.4 * xs).yd - 0.14 * Math.max(0.6, sc);
+  // (FLOATS-CLASSIC: on a domed topside the paddle rides the ellipse's flank, a third of the way up from its foot)
+  const s04 = HY.sectionOf(P, -0.4 * xs);
+  const yP = P.crownK ? s04.yd + 0.35 * (s04.yt - s04.yd) : s04.yd - 0.14 * Math.max(0.6, sc);
   const x1 = -0.10 * xs, x0 = Math.max(-0.92 * xs, x1 - Lp);      // aft end near the step, blade forward
-  const zAt = x => { const s = HY.sectionOf(P, x); return sd * (s.b + (yP - s.yc) * (s.bd - s.b) / Math.max(1e-6, s.yd - s.yc) + 0.024); };
+  const zAt = x => { const s = HY.sectionOf(P, x);
+    if (P.crownK) { const c = Math.max(1e-6, s.yt - s.yd), u = Math.max(0, Math.min(1, (yP - s.yd) / c)); return sd * ((yP < s.yd ? s.b : s.bd * Math.sqrt(1 - u * u)) + 0.024); }
+    return sd * (s.b + (yP - s.yc) * (s.bd - s.b) / Math.max(1e-6, s.yd - s.yc) + 0.024); };
   // the shaft, in two pieces so it follows the skin's plan
   const pts = [x0 + bladeL * 0.85, x0 + bladeL * 0.85 + (x1 - x0 - bladeL * 0.85) * 0.5, x1 - 0.05];
   for (let i = 0; i + 1 < pts.length; i++) { const a = [pts[i], yP, zAt(pts[i])], b = [pts[i + 1], yP, zAt(pts[i + 1])]; cyl(shaft, a, sub(b, a), rS, len(sub(b, a)), 10); }

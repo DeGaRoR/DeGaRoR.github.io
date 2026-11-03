@@ -311199,3 +311199,43 @@ it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on ED
   the bow view kept. On the merged tree 16 gates PASS (FLOATSCLASSIC, FLOATKIT, FLOATS, WIPLINE, HYDRO, JOIN, SAVE, PARTS,
   DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE: evidence gates_merged_L30c.txt); the long
   ones (UISMOKE, HYDRODYN, SEAPLANE, FLOATSCLASSIC-WATER) were green on the pre-merge tree (gates_final.txt).
+
+## FLOATS-CLASSIC.2 - THE EDO SECTION MEASURED OFF A PLAN, NOT EYEBALLED; EVERY FLOAT MODEL WEIGHS AND COSTS (2026-11-03, FLOATS-CLASSIC for A0, cloud - node + SwiftShader; branch claude/floats-classic)
+The user, on the first cut: "I still find them a tad flat on top ... Did you find blueprints or accurate measurements?
+If not, we'll need these not to eyeball it ... It needs to come with weight and price". Answer: no - the first dome
+(crownK 0.16 of H over a flared side) WAS eyeballed; a web search found no EDO offsets (none reachable: NACA WR L-722,
+EDO drawing 14390 and the 1997 Model Aviation pattern are the leads, all behind the network). The user then supplied a
+giant-scale (1/4-1/5) EDO float plan: top view, side view, a dozen formers.
+- MEASURED (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_section_measured.png): every former's topside is
+  ONE QUARTER ELLIPSE from the chine - the widest point - to the crown (the half-widths sit on sqrt(1 - s^2) within
+  ~0.03 of the beam but the noisiest rows); height 0.74-0.80 of the beam, the chine at 0.30-0.33 of the height, ~25 deg
+  of slightly convex V; the top view: length 6.7 beams, a blunt bow (0.55 of the beam at 3 % of the length), the
+  afterbody closing almost linearly to a 0.70 stern. The eyeballed top had a near-vertical wall with a shallow cap.
+- THE HULL NOW (32_hydro): crownK 0.97 = the dome from 3 % of the topside over the chine; the dome's height is the STEP
+  section's over the higher of its two chines (domeStep, cached non-enumerable like _keel), so the topside is one curve
+  across the step (tying it to the local chine leaked the loft at the step: closure 0.01-0.08 m2 in x); the hull-width
+  row is the CHINE beam (chineHalfStep); the physics section is the drawn one - six 15 deg facets a side, DOME_K gone -
+  drawn = physics within 0.09 %; the lower two dome facets are 'side' panels (the water runs on them), the rest
+  'deck'; hullSide's depth reads yt (a flat deck's yt is its yd, to the bit). EDO_AFT: the afterbody plan held 0,
+  closing linearly (aftPow 1) to bStern 0.70. The frame's float deck nodes and the drawn fittings sit on the dome's
+  upper shoulder (0.72 of the half-beam: the deck edge is the chine now); the water rudder's post reads the crown; the
+  paddle rides the ellipse's flank. The normaliser's crownK clamp 0.4 -> 0.985 (it was flying a smaller dome than the
+  drawing - GATE FLOATSCLASSIC caught it).
+- THE CATALOGUE: L sourced where it is (1320, 2000, Model 78), else the 2000's by the cube root of the buoyancy; B = L /
+  6.7 (the Model 78's sourced 1.73); the fineness pinned at 25 deg and H solved for the model number: H lands at 0.80 of
+  the beam on every row (0.69 on the long 1320) - the plan's band; the fit then lands at 25-26 deg.
+- WEIGHT: sourced figures in - the 1320 pair 165 lb installed (75 kg), the 2000 263 lb (119), the 2870 ~410 lb (185, off
+  a 2960's 425), the Model 78 2,284 lb A FLOAT (`mHull` 1036 kg: presetParams takes a row's own hull mass over 0.40 of
+  the system).
+- PRICE (HYDRO.floatPrice, credits = 2025-26 dollars, the PAIR rigged and installed; FLOAT_PRICE_RATE): EDO is out of
+  production - the used market + ~5,000 to install: 1320 12,000, 2000 15,000, 2870 14,500 sourced (forum and listing
+  figures), the rest on their line 5,000 + 85 / kg of system (est.); Wipline new, quote-only: the 2100 55,000 (an older
+  36,300 + 5,300 installed quote read to today; est.), the rest at 440 / kg (est.). A row prices its own family only (a
+  Wipline row's name on a hull turned EDO is priced as an EDO); custom dials at the family's rate on mFloat / 0.40.
+  61_gen_frame bills it in the 'gear' row IN PLACE OF the wheels (a float build paid for two wheels and a tailwheel it
+  did not have, and for floats nothing): the PA-18 floats build's gear row 3,140 -> 56,990 credits. This moves every
+  float build's ledger cost (Wipline included) - an economy change, no physics. The row labels, the float card and the
+  status line show weight and price.
+- MEASURED ON THE WATER (GATE FLOATSCLASSIC-WATER): the DC-3 on 78-28000s 11,115 kg, reserve 2.37, 1.9 deg nose up,
+  0.74 m of draft, lift-off 53.4 s / 1006 m; the PA-18 in EDO classic over its Wipline rows: 973 kg a float to the deck
+  (the flat deck's 1171), reserve 2.58, lift-off 23.5 s / 245 m (Wipline 22.7 s / 236 m).

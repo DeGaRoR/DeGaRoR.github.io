@@ -1,5 +1,56 @@
 # FLOATS-CLASSIC — the EDO-style rounded-deck float (2026-11-03)
 
+## Round 2: the section measured, weight and price (supersedes the round-1 shape and numbers below)
+
+The user, on round 1: "a tad flat on top ... Did you find blueprints or accurate measurements? If not, we'll need
+these not to eyeball it ... It needs to come with weight and price."
+
+- **Round 1's top was eyeballed.** A web search found no EDO offsets online. The leads are NACA WR L-722, EDO drawing
+  14390 and the 1997 Model Aviation pattern, none of them reachable from here.
+- **The user's giant-scale EDO plan is the measurement.** See `edo_plan_sections.md` and `edo_section_measured.png`.
+  Every former's topside is one quarter ellipse from the chine (the widest point) up to the crown. The height is
+  0.74-0.80 of the beam, the deadrise about 25 deg, the length 6.7 beams, and the stern 0.70 of the beam.
+- **The hull follows it.** The physics and the drawing share one section, matching to 0.09 %. Every Wipline hull is
+  still master's to the bit.
+
+**Weight and price** (the pair, rigged and installed, in credits at parity with 2025-26 dollars). The ledger now bills
+the floats instead of the wheels a float build doesn't have:
+
+| row | pair system | hull each | price | basis |
+|---|---|---|---|---|
+| EDO 1320 | 75 kg | 30 kg | 12,000 | 165 lb installed; ~7,000 used + install (sourced) |
+| EDO 2000 | 119 kg | 48 kg | 15,000 | 263 lb installed; ~10,000 a good used set + install (sourced) |
+| EDO 2870 | 185 kg | 74 kg | 14,500 | 8,700 used with rigging + install (sourced) |
+| EDO 1650 / 2440 / 4580 / 7170 | 75 / 150 / 290 / 460 kg | — | 11,400 / 17,800 / 29,700 / 44,100 | est.: 5,000 + 85 / kg |
+| EDO 78-28000 | 2,300 kg | 1,036 kg (2,284 lb, sourced) | 200,500 | est. (no market) |
+| Wipline 2100 | 125 kg | 50 kg | 55,000 | est.: an older 36,300 + 5,300 installed quote, brought to today |
+| other Wipline rows | the catalogue's | 0.40 of it | 440 / kg | est. |
+
+**On the water** (GATE FLOATSCLASSIC-WATER, `floatsclassic_water2.txt`):
+
+| build | mass | reserve | lift-off |
+|---|---|---|---|
+| DC-3 on EDO 78-28000 | 11,115 kg | 2.37 | 53.4 s, 1,006 m |
+| PA-18 on its own rows, EDO classic | 754 kg | 2.58 | 23.5 s, 245 m |
+
+The PA-18 on Wipline lifts off at 22.7 s after 236 m. Its EDO hull holds 973 kg a float to the deck, against the
+Wipline's 1,171.
+
+**Pictures, round 2.** From `node tools/quickshot.js`, the node rasteriser (the user: "use the simple rendering tool
+for screenshots, not the game"):
+
+- `front_pa18_wipline_vs_edo.png`, `front_c172_wipline_vs_edo.png`: the floats head on, brightened. The EDO is a bell
+  on a V; the Wipline is a flat deck on flared sides.
+- `pa18_*_q.png` / `_side.png`, `c172_*`: 3/4 and side views, Wipline vs EDO classic.
+- `dc3_edo28000_q.png`, `_side.png`, `_front.png`: the DC-3 on EDO 78-28000s.
+- `edo_section_measured.png`: the plan's former F2 beside the model's section, with the measured points over it.
+- `round1/`: the round-1 stills from the game's renderer, with the old, flatter top. The water stills are there too;
+  quickshot draws no water.
+
+---
+
+## Round 1
+
 The user (via A0, 3 Nov 2026): "another model of floats. A rougher one, with rounded top, feels more home made ... We
 have the Wipline line, this one could be called something else, but use the same controls? ... Or maybe have 3? But
 let's not make it a headache." A0, the same evening: the references are EDO floats; "there is a DC3 on EDO 28000

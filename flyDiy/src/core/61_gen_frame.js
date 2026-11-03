@@ -2412,7 +2412,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
 
   // ---- 5. gear --------------------------------------------------------
   sec('gear');
-  spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
+  // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
+  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -2602,6 +2604,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                     mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
                   : HYDRO.floatParamsFor(gross || 400);
     delete FP._keel;
+    spend(HYDRO.floatPrice ? HYDRO.floatPrice(FP) : 0);   // FLOATS-CLASSIC: the pair, rigged and installed (credits)
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     // FIVE STATIONS (G451): bow, the flat's forward end (the front spreader
     // bar and the forward struts), the step (the tetra, the mains' ref),
@@ -2625,11 +2628,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, sc.yd);
+        // FLOATS-CLASSIC: an EDO's deck nodes sit where its fittings do, on the dome's upper shoulder (0.72 of the
+        // half-beam out: its topside is an ellipse from the chine, and the deck edge yd is near the chine itself); a
+        // Wipline's are the deck edge over the chine half-beam, as they were
+        const zD = FP.crownK ? 0.72 * sc.bd : sc.b, yDn = FP.crownK ? HYDRO.deckYAt(FP, sc, zD) : sc.yd;
+        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, yDn);
         K.push(N(gx + kx, yK + ky, zc, 'FLK'));
-        DL.push(N(gx + dx, yK + dy, zc - sc.b, 'FLD'));
-        DR.push(N(gx + dx, yK + dy, zc + sc.b, 'FLD'));
-        Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        DL.push(N(gx + dx, yK + dy, zc - zD, 'FLD'));
+        DR.push(N(gx + dx, yK + dy, zc + zD, 'FLD'));
+        Q.push([xs, sc.yk, 0], [xs, yDn, -zD], [xs, yDn, zD]);
       }
       const all = [...K, ...DL, ...DR];
       const mEach = FP.mFloat / all.length;

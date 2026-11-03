@@ -78,7 +78,9 @@ const rowOf = n => HY0 && (HY0.FLOAT_PRESETS[n] || (HY0.EDO_PRESETS && HY0.EDO_P
 const PRESET_LABELS = PRESET_NAMES.map(n => {
   if (n === CUSTOM) return 'custom (the dials as they are)';
   const R = rowOf(n);
-  return R ? `${n} — ${R.L.toFixed(2)} m, ${R.disp} kg${R.est ? ' (est.)' : ''}` : n;
+  // (FLOATS-CLASSIC: the pair's weight with rigging and its price, rigged and installed - the ledger bills it)
+  const pr = HY0 && HY0.floatPrice ? HY0.floatPrice(HY0.presetParams(n)) : 0;
+  return R ? `${n} — ${R.L.toFixed(2)} m, ${R.disp} kg, pair ${R.mSys} kg, ${pr.toLocaleString('en')} cr${R.est ? ' (est.)' : ''}` : n;
 });
 
 // ---- defaults ------------------------------------------------------------
@@ -182,7 +184,8 @@ function hullParams(P) {
     aftHold: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftHold : HY.DEF.aftHold, aftPow: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftPow : HY.DEF.aftPow,
   });
   // FLOATS-CLASSIC: the EDO deck over the same rows (absent on a Wipline: its record is the one it was)
-  if (Math.round(+P.fltStyle || 0) === 1 && HY.EDO_STYLE) Object.assign(Q, HY.EDO_STYLE);
+  // ...and the EDO's own afterbody PLAN (held 0, closing linearly: HY.EDO_AFT; the keel and the stern's beam stay rows)
+  if (Math.round(+P.fltStyle || 0) === 1 && HY.EDO_STYLE) Object.assign(Q, HY.EDO_STYLE, HY.EDO_AFT ? { aftHold: HY.EDO_AFT.aftHold, aftPow: HY.EDO_AFT.aftPow } : null);
   Q.scale = k;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
@@ -297,7 +300,11 @@ function floatKitCard(ev, P) {
       lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats).' : 'not fitted (switch it on in the fin rows).']);
       lines.push(['Water rudders', +P.fltRudder ? 'fitted on both float sterns.' : 'off.']);
       const pairKg = R ? R.mSys : 2 * (+P.fltMass || 0);
-      lines.push(['Weight', '+' + Math.round(pairKg) + ' kg for the pair' + (R ? ' with its rigging (Wipaire)' : ' (the two hulls)') +
+      // FLOATS-CLASSIC: what the pair costs (HYDRO.floatPrice: the catalogue's, else the family's rate on its mass)
+      const HPc = hullParams(P), price = HY && HY.floatPrice ? HY.floatPrice(HPc) : 0;
+      if (price) lines.push(['Price', Math.round(price).toLocaleString('en') + ' credits for the pair, rigged and installed' +
+                             (HPc.style === 'edo' ? ' (EDO: out of production - the used market)' : ' (new)') + '; it replaces the wheels on the bill.']);
+      lines.push(['Weight', '+' + Math.round(pairKg) + ' kg for the pair' + (R ? ' with its rigging (' + (isEdo(ev.model) ? 'EDO' : 'Wipaire') + ')' : ' (the two hulls)') +
                   (R ? '; the ' + esc(ev.model) + ' is rated for ' + Math.round(R.gross).toLocaleString('en') + ' kg gross (' + Math.round(R.gross * 2.20462).toLocaleString('en') + ' lb).' : '; the bench re-measures the gross.')]);
     }
     el.innerHTML = '<div class="fkT">' + (+P.gearFloats ? 'Floats fitted' + (ev.model && ev.model !== CUSTOM ? ' - ' + esc(ev.model) : '') : 'Floats removed') + '</div>' +
@@ -568,7 +575,9 @@ PAGE.post = ctx => {
     const rig = out ? out.rig : { fwd: -HP.flatK * HP.xs, aft: HP.xAft };
     const fit = (x, inb) => {
       const s = HY.sectionOf(HP, x === 0 ? -1e-9 : x);
-      const zOut = s.bd - 0.05 * sc;
+      // (FLOATS-CLASSIC: an EDO's fittings sit on the dome's upper shoulder, FLOAT_GEN's EDO_FIT of the half-beam out -
+      // its topside is an ellipse from the chine, so the old "5 cm in from the edge" is low on the flank)
+      const zOut = edo ? 0.72 * s.bd + 0.01 * sc : s.bd - 0.05 * sc;
       // inboard is the model's -z for the starboard float (toward the
       // centreline at cage +x), which the mirror handles for the port one
       const zm = (inb ? -1 : 1) * zOut * (mirror ? -1 : 1);
@@ -643,7 +652,8 @@ PAGE.post = ctx => {
   const bdg = GK.Bag();
   if (edo && +P.fltBoard && +P.fltSpread) {
     const L = rec.deck.L, R = rec.deck.R, tb = 0.055 * sc;
-    const yTop = Math.max(L.fwdOut[1], R.fwdOut[1], L.aftOut[1], R.aftOut[1]) + 0.5 * tb + 0.002;
+    // (the bars' tops are their fittings' height + 2 mm - lower() below: the planks lie ON them)
+    const yTop = Math.max(L.fwdOut[1], R.fwdOut[1], L.aftOut[1], R.aftOut[1]) + 0.003;
     const zF = 0.5 * (L.fwdOut[2] + R.fwdOut[2]) + 0.12 * sc, zA = 0.5 * (L.aftOut[2] + R.aftOut[2]) - 0.12 * sc;
     const span = Math.abs(L.fwdIn[0] - R.fwdIn[0]), w = Math.min(0.24, 0.10 * span), th = 0.022;
     for (const dx of [-1.05 * w, 0, 1.05 * w])
@@ -681,7 +691,8 @@ PAGE.post = ctx => {
   if (stat) {
     const R = HP.preset && rowOf(HP.preset);
     stat.textContent += `  ·  floats${edo ? ' (EDO classic)' : ''}: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` +
-      `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull`;
+      `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull` +
+      (HY.floatPrice ? `, ${HY.floatPrice(HP).toLocaleString('en')} credits the pair` : '');
     // S1 (G451.1): THE SIZING ADVISOR — the flown aeroplane's all-up mass
     // (app.js publishes it with the CG) against the pair that is fitted
     const M = window.FLYDIY_MASS_MODEL;
