@@ -311340,3 +311340,8 @@ two small formers (one with its chine cropped off) and kept the Wipline's bottom
   Wipline 2100s vs on EDO 2000s (its certified float) head on and side by side, the Cessna on EDO 2440s, the DC-3.
 - Not modelled: the formers' station-by-station variation beyond the belly fade (one mean law); the plan's slight
   shoulder knuckle (smoothed to ~10 deg between facets); the internal stringers.
+- GATES (round 3, on the tree merged with master L30d 05f95aa7): FLOATSCLASSIC, FLOATSCLASSIC-WATER (13/13), FLOATKIT, FLOATS,
+  WIPLINE, HYDRO, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE PASS; GEN,
+  UISMOKE, HYDRODYN, SEAPLANE PASS on round 2's tree (gates_round2_GEN.txt; round 3 moved the EDO hull only). RED, the same
+  rows on a clean L30d (gates_master_L30d.txt): LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows, node =
+  page on five builds since L30c).
