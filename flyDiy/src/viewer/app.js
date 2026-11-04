@@ -4267,6 +4267,7 @@
         const ei = ud.engIdx || 0;
         // G1861 (DMG-D4b): A SEIZED PROP STOPS IN THE FRAME IT SEIZED (TREE-CRASH's eng.seized: a ground or trunk strike).
         // The rate it had is kept for the strike's energy (wreckStrikes), the disc goes, the blades stand where they were
+        if (window.__propFreeze) { ud.spinRate = 0; if (ud.disc) ud.disc.update(0, ud.spinAxis ? (ud.spinAng || 0) : p.rotation.x, 1, frameDt()); poseRigid(p); continue; }   // NIGHT-PHOTO: the shot's stopped blades
         const E0 = wreckEng(), se0 = E0 && E0[ei];
         if (se0 && se0.seized) {
           if (ud.seizeRate == null) { ud.seizeRate = ud.spinRate || 0; if (ud.disc) ud.disc.update(0, ud.spinAxis ? (ud.spinAng || 0) : p.rotation.x, 1, frameDt()); }

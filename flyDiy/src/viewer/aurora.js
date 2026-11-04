@@ -10,7 +10,7 @@
 (function () {
   if (typeof window === 'undefined') return;
   const W = window;
-  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 5, heightDeg: 11 };
+  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 5, heightDeg: 11, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
   const D = Object.assign({}, DEF);
   const U = { uK: { value: 0 }, uT: { value: 0 }, uAz: { value: 0 }, uWide: { value: 1 }, uBase: { value: 0.1 }, uHgt: { value: 0.1 } };
   const VS = `
@@ -65,7 +65,7 @@
     const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase()) || 1, P = (W.LIGHT_RIG && W.LIGHT_RIG.P) ? W.LIGHT_RIG.P() : 1;
     const t = Math.max(0, Math.min(1, (Math.log2(Math.max(1, ex)) - 8) / 4));
     U.uK.value = D.level * t * t * (3 - 2 * t) * P / Math.max(0.92, ex);
-    U.uT.value = (W.performance ? W.performance.now() : 0) / 1000;
+    U.uT.value = D.t >= 0 ? D.t : (W.performance ? W.performance.now() : 0) / 1000;
   };
   const addTo = (parent, radius, order) => {
     const T = W.THREE, m = new T.Mesh(new T.SphereGeometry(radius, 48, 24), mat);

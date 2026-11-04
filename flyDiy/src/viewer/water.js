@@ -148,7 +148,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -462,6 +462,10 @@ const WATER = (() => {
               vec2 muv = mp.xy / mp.w * 0.5 + 0.5;
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
+                // NIGHT-PHOTO, THE SLOPES THE PIXEL CANNOT SHOW (the user 4 Nov: "they would really need to dance with the water"): under a pixel the ripples are a spread of slopes, and each slope
+                // sees the capture higher or lower by twice its tilt, so a far light fills a long streak (Cox-Munk; Bruneton 2010's filtered ellipse). Seven reads along the capture's vertical from the already rippled point, a Gaussian in slope,
+                // scaled by the unresolved variance: none where the ripples are drawn, whole in the far water, a per-pixel dither so the steps read as glitter and not as ghosts. Off at 0
+                if (uWStretch > 0.0) { float sS = uWStretch * 6.0 * sqrt(max(wSig, 0.0)); if (sS > 1.0e-4) { float nS = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); mr = vec4(0.0); float wT = 0.0, lS = max(material.roughness * uWMirror4.z, 1.0); for (int iS = -3; iS <= 3; iS++) { float qS = (float(iS) + nS - 0.5) / 3.0, gS = exp(-2.0 * qS * qS); mr += textureLod(uWMirror, muv + vec2(0.0, qS * sS), lS) * gS; wT += gS; } mr /= wT; } }
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
                 // THE CAPTURE IS PREMULTIPLIED (G460.11.2, the user: "there are strange reflections"): the foliage is
                 // drawn with alphaToCoverage, so on the multisampled capture a half-covered canopy pixel RESOLVES to
@@ -651,7 +655,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
+      uWStretch: { value: 0 }, uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
