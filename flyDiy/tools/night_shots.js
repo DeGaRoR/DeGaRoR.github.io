@@ -44,7 +44,7 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
 // --frame '{"plane":[x,z],"bearing":deg}': the picked composition, frozen (the peaks' grid follows the roll-out's spot, so a --pick can move between runs; the same camera is the point of a step-vs-master pair)
-const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0), FRAME = JSON.parse(opt('frame', 'null'));
+const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0), THR = +opt('thr', 0.18), TAXI_MS = +opt('taxi', 0), FRAME = JSON.parse(opt('frame', 'null'));
 const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/night-' + SCENE + '/' + STEP : SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 // the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
 // 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
@@ -150,7 +150,7 @@ const VIEWS = [
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
 // with the moon over that heading (or behind it), the aeroplane placed and the orbit aimed. Returns the plan.
 const SETUP = V => `(async () => {
-  const b = document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click();
+  const b = document.getElementById('bPause'); if (b && ${V.aim === 'compose' && TAXI_MS > 0 ? '/resume/i' : '/pause/i'}.test(b.textContent)) b.click();   // --taxi <m/s>: the photo scene runs, a wake needs a moving hull
   const s = FLIGHT_PROBE.sim(), w = FLIGHT_PROBE.world();
   ${V.js || ''};
   // the stand is where the roll-out put the aeroplane: kept at the first view, put back for every 'stand' view
@@ -270,9 +270,17 @@ const SETUP = V => `(async () => {
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
   if (aim === 'ref' && agl == null) agl = 2;
   if (agl != null) { const cg = s.cgPos(), wh = w.waterH ? w.waterH(px, pz) : null, gy = Math.max(w.terrainH(px, pz), Number.isFinite(wh) ? wh : -1e9) + agl;   // the sea's level IS 0 (|| -1e9 sank the plane 13 m)
-    await FLIGHT_PROBE.place({ at: [px, gy, pz], zeroV: true });
+    if (aim !== 'compose' || !${TAXI_MS}) await FLIGHT_PROBE.place({ at: [px, gy, pz], zeroV: true });
+    // THE TAXI: once a view, the plane put back along its own nose and given the taxi's speed, so it comes through the frame's spot with a wake
+    // behind it by the capture; the hand holds a low throttle (a seed on the first view: the pilot's roll-out ends there)
+    else if (window.__nsPlaced !== ${JSON.stringify(V.name)}) {
+      window.__nsPlaced = ${JSON.stringify(V.name)};
+      const ax = s.axes(), h = Math.hypot(ax[0][0], ax[0][2]) || 1, nx = -ax[0][0] / h, nz = -ax[0][2] / h, back = ${TAXI_MS} * 15;
+      await FLIGHT_PROBE.place({ at: [px - nx * back, gy, pz - nz * back], zeroV: true, dv: [nx * ${TAXI_MS}, 0, nz * ${TAXI_MS}] });
+      if (!FLIGHT_PROBE.manual()) { s.ctl.thr = ${THR}; FLIGHT_PROBE.setManual(true); }
+    }
     // L31a: after a worker placement the view's cgPos stays at the roll-out (the camera and the terrain's streaming follow it) while the page's sim.p and the model move: the photo scenes read the live points
-    if (aim === 'compose' && !s.__nsCg) { s.__nsCg = 1; s.cgPos = () => { const q = s.p, N = q.length / 3; let x = 0, y = 0, z = 0; for (let i = 0; i < N; i++) { x += q[i * 3]; y += q[i * 3 + 1]; z += q[i * 3 + 2]; } return [x / N, y / N + (window.__nsLift || 0), z / N]; }; }
+    if (aim === 'compose' && !s.__nsCg) { s.__nsCg = 1; const gv = new THREE.Vector3(); s.cgPos = () => { const K0 = window.FLYDIY_COCKPIT_I, g = K0 && K0.model && K0.model.grp; if (g) { g.getWorldPosition(gv); return [gv.x, gv.y + (window.__nsLift || 0), gv.z]; } const q = s.p, N = q.length / 3; let x = 0, y = 0, z = 0; for (let i = 0; i < N; i++) { x += q[i * 3]; y += q[i * 3 + 1]; z += q[i * 3 + 2]; } return [x / N, y / N + (window.__nsLift || 0), z / N]; }; }
     if (aim === 'compose') window.__nsLift = ${+V.lift || 0};
   }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
@@ -286,7 +294,7 @@ const SETUP = V => `(async () => {
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
-    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, tried: R.tried, peak: R.peak, peakAt: R.peakAt, peakH: R.peakH, peakKm: R.km, peaks: window.__compose ? window.__compose.peaks : undefined, fov: FLIGHT_PROBE.camera().fov, camMode: FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null, eyeOverWater: (c => +(c.eye[1] - Math.max(w.terrainH(c.eye[0], c.eye[2]), Number.isFinite(w.waterH(c.eye[0], c.eye[2])) ? w.waterH(c.eye[0], c.eye[2]) : -1e9)).toFixed(2))(FLIGHT_PROBE.camGet()), eyeDist: (c => +Math.hypot(c.eye[0] - c.target[0], c.eye[1] - c.target[1], c.eye[2] - c.target[2]).toFixed(2))(FLIGHT_PROBE.camGet()), score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, landFrac: R.lf, kmh: +(Math.hypot(...FLIGHT_PROBE.sim().cgVel()) * 3.6).toFixed(1), tried: R.tried, peak: R.peak, peakAt: R.peakAt, peakH: R.peakH, peakKm: R.km, peaks: window.__compose ? window.__compose.peaks : undefined, fov: FLIGHT_PROBE.camera().fov, camMode: FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null, eyeOverWater: (c => +(c.eye[1] - Math.max(w.terrainH(c.eye[0], c.eye[2]), Number.isFinite(w.waterH(c.eye[0], c.eye[2])) ? w.waterH(c.eye[0], c.eye[2]) : -1e9)).toFixed(2))(FLIGHT_PROBE.camGet()), eyeDist: (c => +Math.hypot(c.eye[0] - c.target[0], c.eye[1] - c.target[1], c.eye[2] - c.target[2]).toFixed(2))(FLIGHT_PROBE.camGet()), score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
