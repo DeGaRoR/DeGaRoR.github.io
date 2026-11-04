@@ -405,6 +405,8 @@ window.CAGE_PAGE = {
         ['bhNet',     'cargo net',           0, 1, 1, { when: P => bhWall(P), absent: 0 }],
         ['bhLamp',    'wall lamp',           0, 3, 1, ['none', 'dome', 'LED strip', 'dome + strip'],
          { when: P => bhWall(P) && +P.lightOn, absent: 0 }],
+        ['bhLampY',   'wall lamp drop',      0.02, 0.4, 0.005,
+         { when: P => bhWall(P) && +P.lightOn && +P.bhLamp, absent: 0.035, dim: 'len' }],
         ['bhSling',   'open frame + sling',  0, 1, 1,
          { when: P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1, absent: 0 }],
         // (`cutParts` had a row here — retired 2026-09-14: the cut is

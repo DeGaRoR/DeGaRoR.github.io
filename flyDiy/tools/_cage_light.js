@@ -1767,13 +1767,14 @@ PAGE.post = (ctx) => {
     // THE STRIP: a shallow channel (the socket's alloy) with a diffuser in it, 35 mm under the top edge, across the
     // middle 70 % of the face, following the top's own curve - narrower where the arch drops onto the shelf
     if (mode & 2) {
-      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - 0.05 * sizeK > yMin + 0.015);
+      const drop = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;   // under the top edge: a wing box across the cabin hides the top
+      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - (drop + 0.015) * sizeK > yMin + 0.015);
       let hw = 0.35;
       while (hw > 0.12 && !clear(hw)) hw -= 0.03;
       const pts = [];
       for (let i = 0; clear(hw) && i <= 10; i++) {
         const x = xc - hw * W + 2 * hw * W * i / 10, yt = topAt(x);
-        if (isFinite(yt)) pts.push([x, yt - 0.035 * sizeK, zf]);
+        if (isFinite(yt)) pts.push([x, yt - drop * sizeK, zf]);
       }
       if (pts.length >= 3) {
         const chan = Bag(sockM), lens = Bag(lensM);
@@ -1807,7 +1808,8 @@ PAGE.post = (ctx) => {
     if (mode & 1) {
       const yt = topAt(xc);
       if (!isFinite(yt)) return;
-      const r = 0.045, q = [xc, yt - (mode & 2 ? 0.11 : 0.08) * sizeK, zf];
+      const dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
+      const r = 0.045, q = [xc, yt - (mode & 2 ? dr + 0.075 : Math.max(0.08, dr + 0.045)) * sizeK, zf];
       if (q[1] - r * sizeK < yMin + 0.01) return;                    // a low arch: no room under it
       if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
       lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
