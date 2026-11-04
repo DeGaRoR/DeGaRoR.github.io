@@ -152,6 +152,23 @@ for (const k of INT) defaults['li_' + k] = 0;
 // stays on the master (A0's ruling): the flown wing is unchanged.
 for (const k of EXT.concat(INT)) defaults['li_' + k + 'Fit'] = 1;
 const fitted = (P, k) => P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
+// LIGHTS THAT CANNOT LIGHT (the user 4 Nov: "We need a warning for no electrics"; the flagship flew dark with every row
+// saying fitted). Pure, so GATE LIGHT holds it; the garage's top bar says it (editor.js QUICK 'lightsWarn'). `sys` is
+// genSystemsResolve's record, `sites` this layer's own (wingLampNone: the wing cut no bay, so no lens and no lamp)
+function lightWarnings(P, sys, sites) {
+  const out = [];
+  if (!P || !+P.lightOn) return out;
+  if (sys && !(sys.battAh > 0) && !(sys.altA > 0) && EXT.concat(INT).some(k => fitted(P, k)))
+    out.push({ key: 'power', part: 'instruments',
+               text: 'Lights fitted, no power: no battery and no generator, so every lamp stays dark. Fit them under electrics, or take the lights off.' });
+  const lost = sites && sites.wingLampNone ? ['land', 'taxi'].filter(k => fitted(P, k)) : [];
+  if (lost.length)
+    out.push({ key: 'bay', part: 'lights',
+               text: (lost.length > 1 ? 'Landing and taxi lights are' : lost[0] === 'land' ? 'The landing light is' : 'The taxi light is') +
+                     ' fitted, but the wing cuts no bay for them at this station, so none is drawn. Move the wing bay along the wing.' });
+  return out;
+}
+window.CAGE_LIGHT_WARNINGS = lightWarnings;
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 const items = [
@@ -1947,6 +1964,7 @@ PAGE.post = (ctx) => {
   if (+P.lightSw && !(window.CAGE_PANEL && window.CAGE_PANEL.switches)) buildSwitches(group, P);
 
   window.CAGE_LIGHT = { LIGHTS, EXT, INT, sites: S, drawn,
+                        warnings: sys => lightWarnings(P, sys, S),
                         lit: lit.map(x => x[0]),
                         // the panel arc (session 4): the flight rebuilds a
                         // lamp's lens and cup through the same factories
