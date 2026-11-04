@@ -311758,3 +311758,21 @@ Red, new and NOT breaks:
 - ASSETS adds orphan media/thumbs rows: the thumbs' manifest is not one the gate parses, with L31c.
 DMGSCAR's Cub restOut + metal gouge pass only because the wreck lies differently: causes (stol-wing, cert-pod) NOT fixed. Gear-falls costs GF1-3 on the perf-week list. PLANE_THUMB's first draw froze the page 7.5-8.7 s in its rig: on the list, real-path timing 15:30.
 TIMED (light): 48 red against the 12 Oct baseline (L31a 45), warm nav -> garage 108.5 / 112.6 s, nothing new named.
+
+## CUB-WINDOW - the official Cub takes the drawn rear window, the flash off, the registration smaller (Game, 4 Nov 2026)
+
+The user 4 Nov: "That one actually needs to become the official one", "Do it now"; on the plane sheet ~17:20: a single Cub, "Remove the diagonal line, make the marling less tall and center it on the boom". Ruling: flydiy-notes/PLANE-LIST-RULING-2026-11-04.md section 2.
+- builds/cub_2026-09-20_corrected.json: the 14 paxWin rows of cub_quadwin_2026-10 (the two files are now one Cub but for the two rows below). finish.decals: m1On 0 (the diagonal was layer 1, marking kit 3 flash, G445.6; the Client Cub has no m1 and no diagonal; the level black waist rail is the waistband section and stays), regH 0.30 -> 0.20.
+- regC stays -0.18, regL 3.66: mid-boom lengthwise, centred in the panel under the waist rail. The boom's true vertical centre is about sC 0, where the black rail runs. A0 is asking the user; a change is one row for L32a.
+- The window moves the Cub: fingerprint raw 0f83faee -> 1ad1a668, joined a23a58ec -> 01fd7f78 (structure only), glazedM2 1.876 -> 1.774, mass 476.873 -> 476.448 kg, CG x 0.6827 -> 0.6823, y 0.5817 -> 0.5811, 84 node masses, 404 beam k/c. No PHYSICS_V bump. Bench not re-run. CONTRACT_DESIGNS.cub unchanged. stol_cub_kit and stol_cub_showcase keep today's Cub. The flash and regH move no fingerprint group and no def byte, by a comparison run with the fittings rows in; decals unseen in a browser (quickshot draws none).
+- cub_fittings_hand_2026-10's 5 rows NOT merged: a Claude session wrote them as FITMANUAL's ask (ea62fd810), not the user, and they put the handle on the glass (HANDLE 14, FITMANUAL 2). Commit 85f191cf8 tried them, eabc53eb1 took them out. That file goes to INTERNAL in L32a.
+- QUADWIN row 3: the check updated for the intended change, its old-window reference is now the Cub without the rows.
+
+JOINPARITY RE-CAPTURED (node tools/join_parity_page.js, tools/fixtures/join_parity_page.json, on this Cub, 4 Nov 17:45-17:57, the load chain had moved since 3 Nov): 8 FAIL -> 5 FAIL. Metal Cessna, Cessna floats and twin floatplane (2 rows; its page mass 487.244 -> 476.578 kg, cause not traced) now match. Still red:
+- Cub node = page: 476.448 / 477.395 kg (the capture's page Cub moved 461.660 -> 477.395 kg, the Cub's +15 kg, on master too, cause not traced).
+- Jodel node = page: 471.789 / 464.182 kg. The capture did NOT absorb this one: the page's Jodel stayed at 464.18, node moved +7.6 kg, cause not traced.
+- Cub, the nose tank: 476.19 kg as written, 477.39 in the game (passed on the old capture).
+- tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte; no tool flies a validated build raw. A capture cannot fix these two; both red on master.
+OPEN, cause not traced, A0's next-week list: the Jodel's and Cub's node/page tank split: node deck 44 L (Cub) / 53 L (Jodel), fit auto; page box 45 L; Cub wgChordTip node 1.7 / page 1.75. Read off a spec diff, not chased. The window's own rows agree between node and page (glazedM2 1.774 both); master's Cub was not captured for a side-by-side.
+
+Gates on this Cub (node, no Chrome), reds named. Same red on master's Cub file: STOL, POD, DMGINST, ENGCONFIG, CONTRACTS, RADIALDIV's cub row (HANDS OFF -46.2 deg, passed to Pilot). Red on the window run only, rows naming other planes (A0's next-week list): RADIALDIV mosquito + mosquito_1, PROCURE 6 (meridian@c172f, tern@twinf), HANDLE 2 (Twin_busher_floats_2), DMGTYRE 2 (Jodel, metal Cessna), APSMOOTH 1 (c172). Not run: PILOT, TOUR, DESTTO, the Chrome gates (the train).
