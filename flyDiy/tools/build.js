@@ -548,7 +548,7 @@ const MANIFEST = {
     // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
     // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
     scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
-              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'moon_ui.js', 'weather_ui.js', 'climate_link.js',
+              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'moon_ui.js', 'aurora.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',

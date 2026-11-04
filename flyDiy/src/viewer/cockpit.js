@@ -158,8 +158,45 @@ function make(THREE) {
     if (!bb || !isFinite(bb.min.x)) return null;
     return new THREE.Vector3().addVectors(bb.min, bb.max).multiplyScalar(0.5);
   };
+  // NIGHT-LOOK step 2 (first piece): THE LENS GLOWS. A lens is a few pixels from outside, so at night the lamps did not read at
+  // all (the user 4 Nov: "no light on the plane"). A soft additive sprite on every outside lens, one per lamp site (a bucket
+  // merges a key's sites: its vertices are clustered), drawn with the aircraft, so the aircraft's mirror carries it into the
+  // water. Sprites, not lights: three keys every lit program on the count of lights. m = its size in metres, e = its exposed
+  // peak (authored to the exposure like the town's lamps).
+  const GLOW = { nav: { m: 1.1, e: 1.4 }, beacon: { m: 1.3, e: 1.6 }, land: { m: 2.2, e: 3 }, taxi: { m: 1.6, e: 2 } };
+  let glowTex = null;
+  const glowMap = () => {
+    if (glowTex || typeof document === 'undefined') return glowTex;
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.12, 'rgba(255,255,255,0.55)'); r.addColorStop(0.4, 'rgba(255,255,255,0.1)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+    glowTex = new THREE.CanvasTexture(c); return glowTex;
+  };
+  // a bucket's lamp sites: its vertices gathered 0.6 m apart
+  const lensSites = l => {
+    const a = l.mesh.geometry && l.mesh.geometry.attributes && l.mesh.geometry.attributes.position, out = [];
+    if (!a) return out;
+    for (let i = 0; i < a.count; i++) {
+      const x = a.getX(i), y = a.getY(i), z = a.getZ(i);
+      let c = out.find(q => Math.hypot(q.x / q.n - x, q.y / q.n - y, q.z / q.n - z) < 0.6);
+      if (!c) { c = { x: 0, y: 0, z: 0, n: 0 }; out.push(c); }
+      c.x += x; c.y += y; c.z += z; c.n++;
+    }
+    return out.map(c => new THREE.Vector3(c.x / c.n, c.y / c.n, c.z / c.n));
+  };
   CK.setupLights = model => {
     if (!model || !model.grp || !THREE.SpotLight) return;
+    if (model.glows) for (const g of model.glows) { model.grp.remove(g.sprite); g.sprite.material.dispose(); }
+    model.glows = [];
+    if (THREE.Sprite && glowMap()) for (const l of model.lamps || []) {
+      const G = l.kind === 'lens' && GLOW[l.key]; if (!G || !l.mesh.material || !l.mesh.material.emissive) continue;
+      for (const p of lensSites(l)) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x000000, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }));  // pre-ok: colour 0 here; CK.glow drives it x P
+        sp.position.copy(p); sp.scale.set(G.m, G.m, 1); sp.visible = false; sp.name = 'lensGlow:' + l.key; sp.raycast = () => {};
+        model.grp.add(sp); model.glows.push({ sprite: sp, key: l.key, e: G.e, col: l.mesh.material.emissive.clone() });
+      }
+    }
     if (model.spot) { model.grp.remove(model.spot); model.grp.remove(model.spot.target); model.spot = null; }
     for (const k of ['floodLight', 'pedalLight'])
       if (model[k]) { model.grp.remove(model[k]); model[k] = null; }
@@ -338,6 +375,16 @@ function make(THREE) {
       const taxi = CK.lightOn && busOk ? clamp(+CK.sw.sw_taxi || 0, 0, 1) : 0;
       CK.model.spot.intensity = (4.0 * land + 1.6 * taxi) * kOut;
       CK.model.spot.angle = land ? 0.30 : 0.62;
+    }
+    // the lens glows: an exposed level (x P / the true exposure), in from the first dusk; by day nothing
+    if (CK.model && CK.model.glows && CK.model.glows.length) {
+      const ex = Wp.GFX && Wp.GFX.exposureBase && Wp.GFX.exposureBase() != null ? Wp.GFX.exposureBase() : 0.92;
+      const kG = clamp((Math.log2(Math.max(1, ex)) - 1.5) / 3, 0, 1) * Pp / Math.max(0.92, ex);
+      for (const g of CK.model.glows) {
+        const v = CK.lightOn && busOk ? clamp(+CK.sw['sw_' + g.key] || 0, 0, 1) : 0, on = v * (g.key === 'beacon' ? beacon : 1) * g.e * kG;
+        g.sprite.visible = on > 0;
+        if (on > 0) g.sprite.material.color.copy(g.col).multiplyScalar(on);   // pre-ok: kG carries P
+      }
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
