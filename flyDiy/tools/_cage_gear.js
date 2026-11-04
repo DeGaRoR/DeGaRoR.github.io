@@ -436,11 +436,15 @@ function wellOutline(pz, mode, clr) {
     let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
     for (const p of pz) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, p[1]); x1 = Math.max(x1, p[1]); }
     z0 -= clr; z1 += clr; x0 -= clr; x1 += clr;
-    const r = Math.min(0.05, (z1 - z0) / 2, (x1 - x0) / 2), out = [];
+    // the corners rounded by the clearance at most: a larger radius would cut a corner point's own clearance (the box
+    // must hold the exact hull - GATE RETRACT §13)
+    const r = Math.min(clr, (z1 - z0) / 2, (x1 - x0) / 2), out = [];
     const cs = [[z1 - r, x1 - r], [z0 + r, x1 - r], [z0 + r, x0 + r], [z1 - r, x0 + r]];
+    // each quarter in 4 chords, CIRCUMSCRIBED (its points r / cos(pi/16) out): the chords never cut inside the arc
+    const rc = r / Math.cos(Math.PI / 16);
     for (let c = 0; c < 4; c++) for (let i = 0; i <= 4; i++) {
       const t = (c + i / 4) * Math.PI / 2;
-      out.push([cs[c][0] + r * Math.cos(t), cs[c][1] + r * Math.sin(t)]);
+      out.push([cs[c][0] + rc * Math.cos(t), cs[c][1] + rc * Math.sin(t)]);
     }
     return hull2(out);
   }

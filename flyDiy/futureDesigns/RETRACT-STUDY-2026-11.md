@@ -1211,7 +1211,7 @@ cut is always exact (the knife); the OUTLINE it cuts is the row's choice.
   - each unit's points (the tyre's two rims at two radii, the leg at five stations) posed through the whole fold at
     17 positions, plus the points where a swept point crosses the skin between two of them;
   - those inside the body (the airframe table's section) are the well's: exact = their plan hull grown by FIT.clear
-    (30 mm) all round; box = their plan box, 30 mm wider all round, the corners rounded (r 50 mm at most);
+    (30 mm) all round; box = their plan box, 30 mm wider all round, the corners rounded by the same 30 mm (so it always holds the exact hull);
   - the ceiling is their highest point plus 30 mm;
   - two outlines that meet are cut as one (their points together, the higher ceiling) - as born, the mains' two wells
     under the belly are one cut;
