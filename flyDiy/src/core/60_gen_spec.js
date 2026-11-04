@@ -439,6 +439,9 @@ const GEN_DAMAGE_DEFAULT = true;
 //     the Jodel's card read 6.14 g against the band's 6.14; at a third 6.06; at a quarter 6.05 - the crashes alike);
 //   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
 //     (sim.damageBreak: "this joint let go") release it whole, as before.
+//   - GEAR-FALLS (the user, 4 Nov: "broken landing trains were really one of the first asks ... the plane has to behave
+//     like it loses a connection, a wheel, a leg"): NOT a wheel's gear. One load member of a leg or a tailwheel, severed or
+//     kinked, lets its joint go whole (30_solver gearGrp); its wires only snap. A float's struts keep the third.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is

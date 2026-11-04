@@ -437,7 +437,7 @@ function makeSim(def, world) {
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, rest: null, restFrom: null, fall: false,
-                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
+                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0, wires: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
                 groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
@@ -786,6 +786,18 @@ function makeSim(def, world) {
   const DGR = DMG_ON && def.parts && def.parts.dmg ? def.parts.dmg.groups : [];
   const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length), grpLost = new Float64Array(DGR.length);
   if (DGR.length) for (let bi = 0; bi < nb; bi++) { const g = beams[bi].grp; if (g >= 0 && g < DGR.length) grpOf[bi] = g; }
+  // GEAR-FALLS (the user, 4 Nov: "the plane has to behave like it loses a connection, a wheel, a leg"): a wheel's gear joint
+  // (<part>:gear - a float's struts are :strut and keep G1894's third): its LOAD members go with the joint, one is enough -
+  // gearGrp; its WIRES (vis 'wire': the cross wires, a tailwheel's steering wires) only snap - gearWire; the axle bar
+  // (no group of its own, a member of both legs') takes the lower leg - barLegs [the a end's group, the b end's]
+  const gearGrp = new Uint8Array(DGR.length), gearWire = new Uint8Array(nb), barLegs = new Map();
+  if (DGR.length) {
+    const legOf = new Map();
+    DGR.forEach((G, g) => { if (!/:gear$/.test(G.key)) return; gearGrp[g] = 1; for (const j of G.t0) if (beams[j].vis !== 'wire') for (const i of [beams[j].a, beams[j].b]) if (!legOf.has(i)) legOf.set(i, g); });
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls !== 'gear') continue;
+      if (b.vis === 'wire' && grpOf[bi] >= 0 && gearGrp[grpOf[bi]] && /^gear[LR]:/.test(DGR[grpOf[bi]].key)) gearWire[bi] = 1;   // (a main's X wires: a nose gear's 'wire' members carry its load, and kink)
+      if (grpOf[bi] < 0 && legOf.has(b.a) && legOf.has(b.b) && legOf.get(b.a) !== legOf.get(b.b)) barLegs.set(bi, [legOf.get(b.a), legOf.get(b.b)]); }
+  }
   // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
   // floor at its crushed length (its old k and c, pushing only): the nodes it held apart cannot pass through each
   // other (RoR never lets a crushed member go slack). In tension: nothing. The list is walked after the beam loop only
@@ -977,12 +989,12 @@ function makeSim(def, world) {
     if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
       if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
       const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
-      const damaged = broken > 0 || separated.length > 0 || podBad;
+      const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || podBad;
       return { damaged, broken, separated, pod,
-               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
     }
-    const damaged = broken > 0 || separated.length > 0;
-    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+    const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0;
+    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
   // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
@@ -1335,7 +1347,7 @@ function makeSim(def, world) {
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
     DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
-    DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
+    DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; DMG.wires = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
     DMG.how.fill(0);  // G3770
@@ -1361,9 +1373,12 @@ function makeSim(def, world) {
     DMG.breaks++; DMG.broken.push(bi);
     DMG.how[bi] = howCode(how);                       // G3770
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
-    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
+    const inGear = grpOf[bi] >= 0 && gearGrp[grpOf[bi]] === 1;
+    if (b.kink && !inGear) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost; GEAR-FALLS: a gear joint's leaves with its leg, it props nothing)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
-    if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
+    // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
+    if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
+    else if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
     // any other member inside a cluster lets the cluster go (G1470)
     // (a cut's member another cluster also holds - a twin boom's fin stands across its station - parts the cut too: the
@@ -1371,7 +1386,8 @@ function makeSim(def, world) {
     if (beamCl[bi] >= 0) { const ck = cutOf[bi] - 1; if (ck >= 0) cutPart(ck, 'member', 0); else if (beamCl[bi] !== clGuard) clusters[beamCl[bi]].off = true; }
     for (const i of [b.a, b.b]) if (--nodeDeg[i] <= 0 && !orphan[i]) { orphan[i] = 1; DMG.orphans.push(i); }
     // G1815: the member's group breaks whole (once)
-    const g = grpOf[bi];
+    let g = grpOf[bi];
+    if (g < 0 && how !== 'group' && barLegs.has(bi)) { const L2 = barLegs.get(bi); g = p[b.a*3+1] <= p[b.b*3+1] ? L2[0] : L2[1]; }   // GEAR-FALLS: the axle bar broken, the lower leg goes
     brkDepth++;
     // G1894 (DMG-TUNE, GEN_DMG_GROUP): the group lets go once its broken members (severed, or kinked: a kinked member's
     // floor pushes only, its pull is gone) carry `rel` of its tension capacity - one member never takes a group of many;
@@ -1379,6 +1395,7 @@ function makeSim(def, world) {
     let rel = false;
     if (g >= 0 && !grpDone[g] && how !== 'group') {
       if (how === 'gate' || (how && how.indexOf('-') > 0)) rel = true;
+      else if (gearGrp[g]) rel = !gearWire[bi];
       else {
         const G0 = DGR[g].t0; let cap = 0;
         for (let q = 0; q < G0.length; q++) { const f = beams[G0[q]].fu; cap += f < Infinity ? f : 0; }

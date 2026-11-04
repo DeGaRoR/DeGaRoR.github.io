@@ -332,6 +332,7 @@ const GATES = [
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  { id: 'GEARFALL', file: '_gear_fall_check.js', tier: 'core', weight: 1, wall: 120 },
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
