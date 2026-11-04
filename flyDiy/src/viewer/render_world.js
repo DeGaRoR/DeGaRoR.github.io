@@ -2992,12 +2992,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ride the waves (their y is the same waterH the floats read), so
     // they are also the calm day's water line — the one thing on a flat
     // sea that says where the surface is.
-    const buoys = [];
+    const buoys = [], buoyMats = [];
     {
       const geoB = new THREE.SphereGeometry(0.9, 12, 8);
       const matOf = {};
-      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));  // pre-ok: held x P by matP below
-      const matP = hex => { const m = mat(hex); if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(m, 'emissiveIntensity', 0.25); return m; };   // G2620: the buoys' glow x P
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));  // pre-ok: seaUpdate drives it x P
+      const matP = hex => { const m = mat(hex); if (!buoyMats.includes(m)) buoyMats.push(m); return m; };
       const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, matP(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
       for (const a of (world.aerodromes || [])) {
         if (a.kind !== 'water') continue;
@@ -3019,6 +3019,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const S = world.sea;
       if (WSH) { WSH.frame(dt); if (WSH.seaChanged(S)) WSH.setSea(S); } else seaT += dt;
       const t = seaTime();
+      // the buoys' glow: a day marker's 0.25 was a RADIANCE, so a night that opens 16 stops blew it out through the tone mapper - red
+      // clipped to a hard yellow patch (the user 4 Nov: "the buoys really screw up by becoming big yellow patches"). Over an
+      // exposure of 2 it is an exposed level (0.5 on screen, dusk to night), x P in the night's frame; under it the day's own value
+      if (buoyMats.length) {
+        const exB = (typeof window !== 'undefined' && window.GFX && GFX.exposureBase && GFX.exposureBase()) || 1, kB = 0.25 * Math.min(1, 2 / exB) * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);
+        for (const m of buoyMats) m.emissiveIntensity = kB;   // pre-ok: kB carries P
+      }
       // the buoys ride the wave (and mark the level on a calm day)
       for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, t) : 0) + 0.15; }
       // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
