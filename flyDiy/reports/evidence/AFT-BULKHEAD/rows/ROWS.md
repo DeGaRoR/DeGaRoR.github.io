@@ -333,7 +333,10 @@ was pushed.**
 | full/jodel_FULL_day_q34Fwd | the same: a light band behind the crew | the crew hide most of it | PASS | - | PASS |
 | full/jodel_FULL_day_q45Fwd | the lit recess faint behind the pilot | weak | PASS | - | PASS |
 | before/jodel_BEFORE_day_inFwd, full/jodel_FULL_day_inFwd | the brief's inFwd: 50 deg down at the seat backs | useless (the study's note); see inFwdFwd | - | - | - |
-| full/jodel_FULL_day_inFwdFwd, before/... | from the panel, the band over the two seat backs | (queued at the end of the run; see "Late stills") | | | |
+| before/jodel_BEFORE_day_inFwdFwd | from the panel: a plain warm board over the seat backs, a flood patch | the study's dullest wall | - | - | - |
+| full/jodel_FULL_day_inFwdFwd | **the same eye: a lined cream recess, the arched strip, the dome, the net across, the shelf** | **the best BEFORE | AFTER of the run** (`pairs/jodel_BEFORE-FULL_day_inFwdFwd.jpg`); the net crosses in front of the dome | PASS | PASS | PASS |
+| full/jodel_FULL_dusk_inFwdFwd | dusk: the strip and the dome white | reads | PASS | PASS | PASS |
+| full/jodel_FULLPAX0_dusk_inFwdFwd | li_pax 0: the strip and the dome tan, not glowing (the diffuser's tint under the cabin flood, on in every frame) | the off state | PASS | PASS | PASS (off) |
 | before/jodel_BEFORE_day_inClose | the warm board, the crew's sleeve | flat | - | - | - |
 | full/jodel_FULL_day_inClose | **the lined recess, the arched strip and the dome glowing, the net, the shelf; the crew's red sleeve right** | **the best close-up of the run** | PASS | PASS | PASS |
 | before/jodel_BEFORE_day_inSide | the plain board, edge on | dull | - | - | - |
@@ -367,5 +370,13 @@ was pushed.**
 
 ## Late stills
 
-The tail of the run (queued after the rest): the Jodel's inFwdFwd day / dusk / li_pax 0, the twin's li_pax 0 at q34Fwd, and the
-Cub FULL's side-on crop of the rear seat in the lower wall. They land in the same folders, named as above.
+- Shot last, and in the tables above: the Jodel's inFwdFwd (day, dusk, li_pax 0), the twin's li_pax 0 at q34Fwd, and the Cub FULL
+  / SLING side-on crop of the rear seat's end (`details/cub_rear_seat_end_FULL-SLING.jpg`).
+
+## The three stills that sell it
+
+1. `full/twin_TWINB_dusk_q34Fwd.jpg`: the flagship at dusk. Through the rear side glass, the glowing strip over the light panel
+   and the net. It is the view the study found the wall is seen from, and it no longer reads black.
+2. `pairs/jodel_BEFORE-FULL_day_inFwdFwd.jpg`: the plain warm board, then a lined, lit recess with the arched strip and the dome.
+3. `relief/twin_RELIEF1_day_inClose.jpg`: the pressed beads on the light panel behind the net, the screws round the top. The
+   relief at its best; it is also the one relief that still reads (as ribs) through the glass at q34Fwd.
