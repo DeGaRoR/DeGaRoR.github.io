@@ -519,6 +519,10 @@ const GATES = [
   // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
   // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
   { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
+  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json, official / candidates / internal,
+  // nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
+  // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
+  { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s

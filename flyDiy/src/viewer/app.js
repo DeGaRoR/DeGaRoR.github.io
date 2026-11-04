@@ -18733,7 +18733,8 @@
     return SHOT.on || !!rollAnimSkip || B.contains('premOpen') || B.contains('shot') || !!$('welcome') || gmVis($('stIntro')) ||
       (!inGarage && !!flyOpen) || gmVis($('edFly')) || gmVis($('edShelf')) || gmVis($('hsStore')) || gmVis($('bpDesk')) ||
       !!(window.INPUT_PANEL && window.INPUT_PANEL.isOpen && window.INPUT_PANEL.isOpen()) ||
-      !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+      !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen()) ||
+      !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen());   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
   };
   function gmHold(on) {   // #bPause's own click, said from here
     running = !on; userPaused = !!on;

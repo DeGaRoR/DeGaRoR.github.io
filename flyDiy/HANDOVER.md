@@ -312016,3 +312016,41 @@ Red-standing and open: the 4b's white tail lens sits between the booms at (4.02,
 Rig trap: `await FLIGHT_PROBE.place({at,zeroV:true}); FLIGHT_PROBE.sim().cgPos()` returns the roll-out spot while the placed answer, sim.p and the model are right; night_shots reads the model group. The photo rig (--nose, --shots, --sweep names) stays on claude/night-photo with the worker's place yaw. 5120x2880 rendered black there, not looked at.
 
 Gates here, node only: NIGHTEXPOSURE NIGHTVISIBILITY ATMO LIGHT CABINLAMP WATER SCENERYLIGHTS WEATHERPLAN. Not run (they boot Chrome): CLOUD TARR UISMOKE FRAMECOST: L32a judges.
+## PLANE-LISTS - the three lists, the All planes screen, the Client Cub's cowl (Game, 4 Nov 2026)
+
+The user's ruling off the all-planes sheet: "you can keep planes for internal testing too, so we have an exhaustive list". Nothing is
+deleted; the gates keep every file they read. Until the user says otherwise (A0, 4 Nov): STOL Cub, Client Cub and PA-18 on floats are
+official, the Cub's `regC` stays -0.18.
+
+- **The lists: `builds/lists/plane_lists.json`** (40 rows: official 10, candidates 13, internal 17). `n` is the all-planes sheet's
+  number; 39 (Metal Cessna on floats) and 40 (the older Metal Cessna save) are new. It is in a sub-folder because KNIFE and LIVERY read
+  every `.json` directly in `builds/` as a build. AIRCRAFT-LOOKS's copy: `flydiy-notes/evidence-2026-10-18/2026-11-04/all-planes/lists.json`.
+  Change a plane's list here, and in `builds/candidates/index.json` if it is a pool file; GATE PLANELISTS says when the two disagree.
+- **The pool.** Promoted from `review/`: Birdman, the v7 twin, the v8 pusher, twinBoomFail. Filed: B-ITES, Pawnee, the ultralight twin on
+  floats (`VALIDATED.twinFloats` baked to `build_v7_ultralight_2026-09-05_floats.json`). `official: true` in the index (the flagship, the
+  STOL Cub) takes a plane off the candidate cards and puts it in the chooser's official group; the file stays. `cub_fittings_hand_2026-10.json` moved to `review/`, and a plane left in
+  `review/` now means INTERNAL. `review/sailPlane.json` is the user's export, which holds only `{P: rows}` and which the load door refuses:
+  its rows are filed as `spec.cage`.
+- **Official only means shown on the list** (the user, 4 Nov): an official plane does not become a reference plane for the test battery. Add
+  none to a gate as a reference. The career's plane list stays as it is until the used-plane and new-plane functions are built (next week or later).
+- **The chooser** keeps the flagship and the STOL Cub in its own "official" group, before the candidates (the user: "yes, both on the chooser"):
+  `GARAGE_SPEC.officialPool` reads the index's `official: true` rows.
+- **The official Cub's `regC`** 0.012 m (was -0.18): the user asked for the boom's true centre. At `regL` 3.66 m the boom's flank runs -0.248 to
+  +0.401 m, 0.649 m tall, its middle at sC +0.012 m. Paint only. The level black rail (sC +0.011 to +0.057 m, 0x262626) now crosses the upper half of
+  the near-black letters (0x141414, 0.20 m tall); a look is owed.
+- **The screen.** The rack's "all planes" button opens `NEW_PLANE.open({ all: true })`: the chooser's own panel, render held, a tile per
+  row grouped Official / Candidates / Internal testing, the baked picture when there is one, the name alone when not. A press goes through
+  `GARAGE_SPEC.openListed`: unnamed, no plaque, an empty log, like a candidate. Internal and the notes show in `dev.html` and the dev
+  career only. The Client Cub's row carries its unfinish as `over`, because `storyClientSpec` is career core and a sandbox never loads it;
+  PLANELISTS holds the row equal to `storyClientSpec` of the file. New picks have no baked picture yet (`tools/thumb_bake.js`).
+- **The Market and the contracts keep their table.** `CONTRACT_DESIGNS` still reads `bugReports/cessnaFloatsWOrks.json` (c172f, internal
+  here) and `bugReports/cessnaMetal (1).json` (c172); the core does not read the lists. Moving the Market to B-CESS is not done.
+- **`builds/cessna172_floats_2026-11.json`** rides `claude/ready/cessna-official` (FLAGSHIP). Until both are merged PLANELISTS names the row
+  instead of going red; its `rides` field can go once the file is on master.
+- **The Client Cub's cowl** (`builds/cub_2026-09-20.json`): `cw_aftW` 0.395 -> 0.37, `cw_taperW` 0.99 -> 0.72. The back meets the body's
+  half-width at the firewall (0.375 m), the nose narrows from 0.41 to about 0.30 m at the barrel end. The cylinder heads (0.38 m) now stand
+  out through the skin, the J3's look, with no drawn cut-out around them. A career that already holds a Client Cub keeps its saved cowl.
+- **EMPTY-STAND-RELOOK.** R1: `--ws-left` / `--ws-right` take `!important` under `body.gEmpty`, since the editor writes `--ws-right` inline.
+  R2: `gmBusy` counts the chooser, so Escape closes it instead of toggling a hidden menu.
+- **LIVERY is red on master, not from this work:** `garageFloodArm is not defined` in the gate's `seedEditor` stub (app.js gained the call,
+  the stub did not).
