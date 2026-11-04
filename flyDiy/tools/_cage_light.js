@@ -1387,6 +1387,23 @@ function sites(scene, group, P) {
         if (d < bd && clearOfGlass(q.p, q.n, s.kind)) { bd = d; best = q; }
       }
       if (!best) return null;
+      // THE WHOLE FLANGE ON THE WALL: a low wall under a bubble left it over the top edge, and the Mosquito's flood stood
+      // out through the deck behind the canopy. It comes down until it fits; a wall too low for that is the next rung's
+      const rim = 1.34 * (LIGHTS[s.kind].w / 2) * Math.max(0.2, +P.li_lampSize || 1);
+      let top = -1e9;
+      for (const q of cand) {
+        if (q.p[2] < zB - 0.08) continue;
+        for (let i = 0, j = q.poly.length - 1; i < q.poly.length; j = i++) {
+          const a = q.poly[i], b = q.poly[j];
+          if ((a[0] > best.p[0]) !== (b[0] > best.p[0])) top = Math.max(top, a[1] + (b[1] - a[1]) * (best.p[0] - a[0]) / (b[0] - a[0]));
+        }
+      }
+      const yFit = top - rim - 0.01;
+      if (top > -1e9 && best.p[1] > yFit) {
+        if (yFit < A.waistY) return null;
+        const zF = best.p[2] - best.n[1] * (yFit - best.p[1]) / best.n[2];
+        best = { p: [best.p[0], yFit, zF], n: best.n };
+      }
       const ax = aimAt(best.p, [s.x, A.waistY - 0.05, s.zBack + 0.45]);
       return { p: off(best.p, ax, sink(s.kind)), ax, onCeiling: false, rung: 'bulkhead' };
     };
@@ -1748,6 +1765,9 @@ PAGE.post = (ctx) => {
     }
     zf /= n;
     const xc = (x0 + x1) / 2, W = x1 - x0;
+    // the cargo net stands in front of the wall: the lamp keeps above it (the strip narrower, a dome with no room left off)
+    let yNet = -1e9;
+    for (const f of M.F) if (f.m === 'baggage') for (const vi of f.v) if (M.V[vi][1] * kU > yNet) yNet = M.V[vi][1] * kU;
     // the face's top at a lateral station: the highest of its edges crossing it
     const topAt = x => {
       let y = -Infinity;
@@ -1770,12 +1790,12 @@ PAGE.post = (ctx) => {
     let stripMid = null;
     if (mode & 2) {
       const drop = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;   // under the top edge: a wing box across the cabin hides the top
-      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - (drop + 0.015) * sizeK > yMin + 0.015);
+      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - (drop + 0.015) * sizeK > yMin + 0.015 && topAt(x) - (drop + 0.013) * sizeK > yNet + 0.003);
       let hw = 0.35;
       while (hw > 0.12 && !clear(hw)) hw -= 0.03;
       const topsAt = f => { const a = []; for (let i = 0; i <= 10; i++) a.push(topAt(xc - f * W + 2 * f * W * i / 10)); return a; };
       // a round arch: its crown well over its ends, no dip anywhere along it
-      const isArch = t => t[5] - Math.max(t[0], t[10]) > 0.025 * sizeK && t.every((y, i) => i === 0 || i === 10 || y >= (t[i - 1] + t[i + 1]) / 2 - 0.004 * sizeK);
+      const isArch = t => t[5] - Math.max(t[0], t[10]) > 0.07 * sizeK && t.every((y, i) => i === 0 || i === 10 || y >= (t[i - 1] + t[i + 1]) / 2 - 0.004 * sizeK);
       let tops = topsAt(hw);
       while (hw > 0.2 && !isArch(tops) && Math.max(...tops) - Math.min(...tops) > 0.06 * sizeK) tops = topsAt(hw -= 0.03);
       const arch = isArch(tops), yEnd = Math.min(tops[0], tops[10]), yLine = Math.min(...tops);
@@ -1819,7 +1839,7 @@ PAGE.post = (ctx) => {
       if (!isFinite(yt)) return;
       const dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
       const r = 0.045, q = [xc, stripMid != null ? stripMid - 0.085 * sizeK : yt - (mode & 2 ? dr + 0.075 : Math.max(0.08, dr + 0.045)) * sizeK, zf];
-      if (q[1] - r * sizeK < yMin + 0.01) return;                    // a low arch: no room under it
+      if (q[1] - r * sizeK < Math.max(yMin + 0.01, yNet + 0.003)) return;   // a low arch, or the net: no room under it
       if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
       lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
     }
