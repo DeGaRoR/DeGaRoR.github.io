@@ -36,7 +36,7 @@ for b, s in PAIRS:
         if (b, 'BEFORE', 'day', v) in have and (b, s, 'day', v) in have:
             pair(have[(b, 'BEFORE', 'day', v)], have[(b, s, 'day', v)], 'BEFORE', s, os.path.join(dst, 'pairs', '%s_BEFORE-%s_day_%s.jpg' % (b, s, v)))
 # the lamp: li_pax 0 | li_pax 1 at dusk, the pilot's eye
-for b, s0, s1, v in (('cub', 'FULLPAX0', 'FULL', 'inFwd'), ('twin', 'TWINAPAX0', 'TWINA', 'inFwd'), ('jodel', 'FULLPAX0', 'FULL', 'inFwdFwd')):
+for b, s0, s1, v in (('cub', 'FULLPAX0', 'FULL', 'inFwd'), ('twin', 'TWINAPAX0', 'TWINA', 'inFwd'), ('twin', 'TWINAPAX0', 'TWINA', 'q34Fwd'), ('jodel', 'FULLPAX0', 'FULL', 'inFwdFwd')):
     if (b, s0, 'dusk', v) in have and (b, s1, 'dusk', v) in have:
         pair(have[(b, s0, 'dusk', v)], have[(b, s1, 'dusk', v)], s1 + ' li_pax 0', s1 + ' li_pax 1', os.path.join(dst, 'pairs', '%s_%s_dusk_%s_pax0-pax1.jpg' % (b, s1, v)))
 # screws | rivets on the twin's framed panel
