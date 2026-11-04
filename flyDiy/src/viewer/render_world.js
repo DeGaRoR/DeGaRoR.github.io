@@ -2994,9 +2994,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // sea that says where the surface is.
     const buoys = [], buoyMats = [];
     {
-      const geoB = new THREE.SphereGeometry(0.9, 12, 8);
+      const geoB = new THREE.SphereGeometry(0.9, 20, 14);
+      // BUOY-LOOK (the user 4 Nov: they "read as flat plain plastic while real buoys are nicely textured"): one small painted sheet, shared: chalked paint, rust and grime running down, scuffs, and
+      // the green-brown weed at the waterline (the sphere rides 0.15 m over the level, so the line sits a little under the equator). White, so each buoy's own colour tints it. Opaque; no new system
+      const buoyMap = (() => {
+        if (typeof document === 'undefined' || !THREE.CanvasTexture) return null;
+        const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+        const g = c.getContext('2d'); let sd = 7;
+        const rnd = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+        g.fillStyle = '#e4e1da'; g.fillRect(0, 0, 256, 128);
+        for (let i = 0; i < 260; i++) { const v = rnd() > 0.5 ? 255 : 150; g.fillStyle = 'rgba(' + v + ',' + v + ',' + (v - 6) + ',' + (0.03 + 0.08 * rnd()) + ')'; g.beginPath(); g.arc(rnd() * 256, rnd() * 128, 2 + 12 * rnd(), 0, 6.3); g.fill(); }
+        for (let i = 0; i < 70; i++) { const x = rnd() * 256, y = rnd() * 40, l = 18 + 46 * rnd(); g.strokeStyle = (rnd() > 0.5 ? 'rgba(88,52,28,' : 'rgba(46,42,36,') + (0.1 + 0.28 * rnd()) + ')'; g.lineWidth = 0.6 + 1.8 * rnd(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 3, y + l); g.stroke(); }
+        for (let i = 0; i < 46; i++) { g.strokeStyle = 'rgba(38,34,30,' + (0.2 + 0.4 * rnd()) + ')'; g.lineWidth = 0.5 + rnd(); const x = rnd() * 256, y = 8 + rnd() * 60; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 3 + 10 * rnd(), y + (rnd() - 0.5) * 3); g.stroke(); }
+        const line = 71;
+        for (let x = 0; x < 256; x += 1) { const top = line - 3 - 7 * rnd() - 3 * Math.sin(x * 0.11) ; const w = g.createLinearGradient(0, top, 0, top + 12); w.addColorStop(0, 'rgba(58,66,40,0)'); w.addColorStop(1, 'rgba(46,56,34,0.88)'); g.fillStyle = w; g.fillRect(x, top, 1, 12); }
+        g.fillStyle = 'rgba(30,36,26,0.92)'; g.fillRect(0, line + 8, 256, 128 - line - 8);
+        const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t;
+      })();
       const matOf = {};
-      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));  // pre-ok: seaUpdate drives it x P
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), map: buoyMap, emissive: C(hex), emissiveIntensity: 0, roughness: 0.78 }));  // pre-ok: 0 here; seaUpdate drives it x P
       const matP = hex => { const m = mat(hex); if (!buoyMats.includes(m)) buoyMats.push(m); return m; };
       const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, matP(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
       for (const a of (world.aerodromes || [])) {
@@ -3024,10 +3040,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // exposure of 2 it is an exposed level (0.5 on screen, dusk to night), x P in the night's frame; under it the day's own value
       if (buoyMats.length) {
         const exB = (typeof window !== 'undefined' && window.GFX && GFX.exposureBase && GFX.exposureBase()) || 1, kB = 0.25 * Math.min(1, 2 / exB) * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);
-        for (const m of buoyMats) m.emissiveIntensity = kB;   // pre-ok: kB carries P
+        // BUOY-LOOK (the user 4 Nov: "having them lit is maybe nice, but I don't think it should be by default"): unlit unless window.FLYDIY_BUOY_LIT says so
+        const litB = typeof window !== 'undefined' && window.FLYDIY_BUOY_LIT ? 1 : 0;
+        for (const m of buoyMats) m.emissiveIntensity = kB * litB;   // pre-ok: kB carries P
       }
       // the buoys ride the wave (and mark the level on a calm day)
-      if (typeof window !== 'undefined' && window.__noBuoys) for (const b of buoys) b.visible = false;   // NIGHT-PHOTO: the shot's dial
       for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, t) : 0) + 0.15; }
       // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
       // "it's important that we get the water line right"). With the shader
