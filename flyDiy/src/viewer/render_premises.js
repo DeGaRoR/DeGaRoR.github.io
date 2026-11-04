@@ -363,7 +363,7 @@ function make(THREE, scene, world, rec0, opts) {
   // only when the day crosses the lamps' threshold - and then only once `prep(want)` (the host's background compile of
   // the other count, app.js) has linked its programs: until it resolves the pool stays as it was. Without a prep (the
   // benches) it switches at once, as before.
-  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
+  const LAMPS = { pool: [], pub: [], glass: new Map(), lens: new Set(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
     armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
@@ -387,7 +387,11 @@ function make(THREE, scene, world, rec0, opts) {
     LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
     // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
-    if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9) * Pp; for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
+    const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9) * Pp;
+    if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix);
+    // a generator's lamp glass (the piers' posts, _marine_gen): the same hand. It was a constant x P, which never reached the frame at
+    // night and a white-hot square at every hour on the page before P (the user 4 Nov: "the few lights do not seem to reflect")
+    for (const m of LAMPS.lens) m.emissiveIntensity = m.userData.lampGlass * kFix;   // pre-ok: kFix carries P
     const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35) * Pp;   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
     LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
@@ -3820,7 +3824,7 @@ function make(THREE, scene, world, rec0, opts) {
     const w = O.frame.toWorld(house.x, house.z);
     grp.position.set(w[0], house.y, w[1]);
     grp.rotation.y = house.yaw + O.frame.yaw;
-    for (const k of (built.BAGS || HG.BAGS)) if (built.bags[k] && F.MAT[k]) built.bags[k].mesh(grp, F.MAT[k]);
+    for (const k of (built.BAGS || HG.BAGS)) if (built.bags[k] && F.MAT[k]) { built.bags[k].mesh(grp, F.MAT[k]); if (k === 'glass' && HG === window.MARINE_GEN && F.MAT[k].emissive) { F.MAT[k].userData.lampGlass = 0.6; LAMPS.lens.add(F.MAT[k]); } }
     if (built.bags.smoke && F.MAT.smoke) { const sm = built.bags.smoke.mesh(grp, F.MAT.smoke); if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; } }
     grp.userData.bagMeshes = new Set(grp.children);   // G844: the build's own bags (a worker's shape0 has them already)
     const st = built.stats, g = st.ground;
