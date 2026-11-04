@@ -1359,8 +1359,12 @@ function aeroHeight(kind, S, row) {
         // fixed hash - carried by the B channel into the roughness and the albedo (bs, alb), so one sheet reads a
         // shade duller or brighter than its neighbour, the way a re-skinned float does. The shade EASES across a
         // tenth of the sheet (smoothstep): the step is colour, not relief - a hard step turned every cell edge into a
-        // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, the
-        // mill grain and a few long scuffs over the lot. Periodic in S like every term here (the cells divide the tile).
+        // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, and
+        // the sheet's own mill grain and breakup over the lot. Periodic in S like every term here (the cells divide the
+        // tile). NO SCUFF LINES (the user, 4 Nov: "the cessna and dc3 show clear banding"): 37 narrow grooves a tile
+        // (pow 24 of a sine, 2-3 texels wide, one every 6.5 cm on the 2.4 m tile) are under a pixel at any garage
+        // distance and alias into broad stripes across the hull, in the normal and the roughness both - measured by
+        // A/B in the garage: the field off still striped, this bake as the plain sheet clean.
         const NU = 2, NV = 1, cw = S / NU, ch = S / NV;
         const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
         const sh = (iu, iv) => (hsh(((iu % NU) + NU) % NU * 7 + (((iv % NV) + NV) % NV) * 13 + 1) - 0.5) * 0.7;
@@ -1372,8 +1376,7 @@ function aeroHeight(kind, S, row) {
         const shade = wu * sh(cu, cv) + (1 - wu) * sh(nu, cv);
         const dEdge = Math.min(fu, 1 - fu, fv, 1 - fv);
         const lap = -0.10 * Math.exp(-Math.pow(dEdge / 0.006, 2));
-        const scuff = 0.08 * Math.max(0, Math.sin(u * 2 + v * 1 + 0.7)) * Math.pow(Math.max(0, Math.sin(v * 37 + Math.sin(u * 5) * 2.0)), 24);
-        return shade + lap - scuff + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+        return shade + lap + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
              + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
       case 'pleat': {
