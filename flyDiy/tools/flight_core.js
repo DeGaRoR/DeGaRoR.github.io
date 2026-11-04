@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d9d786236cc00847
+// body-sha256: 545238dc49af76b0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -15768,13 +15768,20 @@ function makeSim(def, world) {
   const GEAR_EMERG_T = { crank: 25, freefall: 4, pump: 20, blow: 2 };
   // the transit's extra drag, x the gear's own at mid-travel (the legs broadside, the wells open) [TUNE]
   const GEAR_TRANSIT_K = 0.15;
+  // G1: the frac of the fold it retracts (a partial gear's stowed wheel rolls on its exposed tyre), and the lift: the
+  // drawn fold's MEASURED rise of the wheel's lowest point (params.retract.lift, the join's) - else the frame's rule,
+  // the lift to the highest of the wheel's members' anchors plus its radius, times the fraction
+  const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
+    const isMainN = new Set(def.refs.mains || []);
     for (const i of [...(def.refs.mains || []), def.refs.tw]) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
+      const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
+      if (typeof meas === 'number' && isFinite(meas)) { GH[i] = meas; continue; }
       let up = 0;
       for (const b of beams) if (b.a === i || b.b === i) up = Math.max(up, def.nodes[b.a === i ? b.b : b.a].p[1] - def.nodes[i].p[1]);
-      GH[i] = up + def.nodes[i].r;
+      GH[i] = (up + def.nodes[i].r) * RFRAC;
     }
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
@@ -15793,7 +15800,7 @@ function makeSim(def, world) {
     GR.pos += d;
     if (GR.pos > 1) GR.pos = 1; else if (GR.pos < 0) GR.pos = 0;
     GR.lift = 1 - GR.pos;
-    GR.cda[0] = P_.fusCdA[0] - RET.cdA * GR.lift + GEAR_TRANSIT_K * RET.cdA * CORE_MATH.sin(Math.PI * GR.pos);
+    GR.cda[0] = P_.fusCdA[0] - RET.cdA * RFRAC * GR.lift + GEAR_TRANSIT_K * RET.cdA * CORE_MATH.sin(Math.PI * GR.pos);   // G1: a partial gear keeps (1 - frac) of its drag up
     if (WB) WB.lift = GH.map((h, i) => GW[i] ? GR.lift * h : 0);
     // published on `out` (the physics worker's snapshot carries out whole: the page's lamps, horn and swing read these)
     out.gear = GR.pos; out.gearMov = GR.moving; out.gearWow = wow ? 1 : 0; out.gearEmerg = GR.emerg ? 1 : 0;
@@ -18012,7 +18019,7 @@ function makeSim(def, world) {
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === def.refs.tw;
-      if ((isMain || isTW) && (GR === null || GR.pos > 0.98)) {   // RETRACT-1: a wheel rolls down and locked; else it scrapes
+      if ((isMain || isTW) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -33462,8 +33469,16 @@ function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
   for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // RETRACT-1 / G1: THE RETRACTABLE GEAR'S ROWS, the same rule - with the gear FIXED (gearRetract 0) every one of them is
+  // a row every build before them lacked, and the preview's position (gearPos) is state whatever the gear: none of them
+  // withdraws a certificate, re-keys the certificate cache or moves a procured fingerprint (every caller of this one)
+  const fixed = !(+cage.gearRetract);
+  for (const k of GEN_RETRACT_ROWS) if (k in cage && (fixed || k === 'gearPos')) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
+// RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
+const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -36010,6 +36025,14 @@ function clampSpec(spec) {
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
     if (!['crank', 'freefall', 'pump', 'blow'].includes(r.emerg)) r.emerg = r.act === 'hydraulic' ? 'freefall' : 'crank';
+    // G1: the FRACTION of the fold it retracts (1 all the way: the key absent; 0.6 a Catalina's or a DC-3's - the stowed
+    // wheel still rolls), and the LIFT the drawn fold gives the wheel's lowest point (m, the join's measurement; absent:
+    // the frame's own rule, 30_solver GH x frac)
+    if (r.frac != null) { r.frac = genClamp(+r.frac || 1, 0.3, 1); if (r.frac >= 1) delete r.frac; }
+    if (r.lift && typeof r.lift === 'object') {
+      for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
+      if (!Object.keys(r.lift).length) delete r.lift;
+    } else delete r.lift;
     // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
     // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
@@ -43492,7 +43515,9 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       cdA: cda.drag.gear || 0 } } : {}),
+                                       cdA: cda.drag.gear || 0,
+                                       // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
+                                       frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
     // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
     // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver
