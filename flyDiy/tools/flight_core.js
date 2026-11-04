@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6a3f5e7a8043a4ba
+// body-sha256: 5aba7079fb4d4fcd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -20335,6 +20335,21 @@ function hullParamsFromTable(rec, over) {
   delete P._keel;
   return P;
 }
+// HULL-B5: THE TIP FLOATS' FIT - each float's displacement (frac of the gross: 6 %, the Seabee / Lake class's practice,
+// INFERRED) and its keel's height over the step keel (the hull's LEVEL waterline at the gross + clear: a level boat
+// sits on its hull, a heel of a few degrees puts a float in). What the Hull tile writes into hullTipKg / hullTipY once
+// (_cage_float.js) and the frame falls back to when they are unset - one function, so the rule cannot drift
+function hullTipFit(rec, grossKg, opt) {
+  const HP = hullParamsFromTable(rec);
+  if (!HP) return null;
+  const o = opt || {}, M = Math.max(60, grossKg || 0), frac = o.frac != null ? o.frac : 0.06, clear = o.clear != null ? o.clear : 0.12;
+  const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += secAreaTo(HP, sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
+  let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < M) lo = m; else hi = m; }
+  return { kg: +(frac * M).toFixed(1), y: +(lo + clear).toFixed(3), draft: lo };
+}
+// ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
+// it is sized for, so one float sized for kg / 0.9 displaces kg)
+const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
@@ -21186,7 +21201,7 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, tipFloatParams,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
@@ -36003,8 +36018,10 @@ function clampSpec(spec) {
       h.steps = h.steps === 0 ? 0 : 1;
       // the strut tip floats (HULL-B3): absent = none
       if (h.tips && typeof h.tips === 'object') {
+        // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
         h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.5, 0.98),
-                   vol: genClamp(Number.isFinite(+h.tips.vol) ? +h.tips.vol : 0.06, 0.02, 0.2) };
+                   kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
+                   y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1 };
       } else h.tips = null;
     }
   } else if (S.gear.hull !== undefined) delete S.gear.hull;
@@ -40945,20 +40962,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
     const TP = HR.tips;
     if (TP && TP.on !== 0 && wf.L && wf.R) {
-      const Mg = Math.max(60, gross || 400);
-      // the hull's level draft at the gross: its sections' area under a level waterline, bisected
-      const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += HYDRO.secAreaTo(HP, HYDRO.sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
-      let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < Mg) lo = m; else hi = m; }
-      const yWL = yS + lo;
-      const TPP = HYDRO.floatParamsFor(Math.max(5, (TP.vol != null ? TP.vol : 0.06) * Mg / 0.9));
-      delete TPP._keel;
-      const tAt = TP.at != null ? TP.at : 0.85, clear = TP.clear != null ? TP.clear : 0.12;
+      // HULL-B5: the ROWS' placement (hullTipKg / hullTipY, the Hull tile's fit - the drawing reads the same rows);
+      // unset, the same rule off this build's gross (HYDRO.hullTipFit)
+      const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
+      const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
+      const TPP = HYDRO.tipFloatParams(kgT);
+      const tAt = TP.at != null ? TP.at : 0.85;
       for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
         // the spar station nearest tAt of the semispan
         let j = 1, dB = Infinity;
         for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * G.semi); if (e < dB) { dB = e; j = q; } }
         const nF = nodes[W.F[j]].p, nR = nodes[W.R[j]].p;
-        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yWL + clear;
+        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yS + yRel;
         const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
         const Kt = [], Lt = [], Rt = [], Qt = [];
         for (const xs of st3) {
