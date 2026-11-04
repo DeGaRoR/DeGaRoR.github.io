@@ -20483,7 +20483,11 @@
       "z": 0,
       "yaw": 0,
       "P": {
-       "plotGround": false
+       "plotGround": false,
+       "lights": 1,
+       "winLit": 0.8,
+       "porchLamp": 1,
+       "stairLights": 1
       }
      }
     ],
