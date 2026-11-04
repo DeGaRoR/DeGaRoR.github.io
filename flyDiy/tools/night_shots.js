@@ -53,7 +53,7 @@ const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-1
 // (claude/ready/twin4b-lights 705dbaf95), and the photo scenes fly THAT plane: the user's latest twin, _4b (the less swept
 // wings, tipX 0.5, the door fixes), as the ready branch holds it, copied to the notes folder until it lands
 const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_3.json';
-const TWIN_4B = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/Twin_busher_floats_4b.json';
+const TWIN_4B = path.join(__dirname, '..', 'builds', 'candidates', 'Twin_busher_floats_4b.json');   // the real file: FLAGSHIP's battery + gen20, CABIN-CRAFT's interior rows
 const BUILD = opt('build', PHOTO ? TWIN_4B : SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
 const SPAWN = opt('spawn', SCENE === 'ref' || PHOTO ? 'mk_sea' : null);
 const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
