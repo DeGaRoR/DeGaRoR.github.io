@@ -1592,11 +1592,13 @@ function aeroDetailTex(THREE, key) {
 //
 // THE PRICE, declared: a decal is on BOTH sides or neither. An asymmetric
 // marking needs a one-sided mask, which the field cannot supply.
-// SIX, and the number is not a guess: three kit layers, the registration and
-// the two image channels. Every one of these is an unrolled iteration of a
+// NINE, and the number is not a guess (LIVERY-5, 4 Nov): five kit layers, the
+// registration, the registration on the wing, the certification strip and the
+// master. The image channels are gone (the user: "everything procedural and
+// nothing rasterized"); their two pages carry kit layers 4 and 5. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 8;             // G208: +1, the certification stickers' strip; A9: +1, the master
+const AERO_MAXD = 9;             // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -1762,7 +1764,6 @@ function aeroAtlasRepaint() {
     try {
       if (L.kind === 'text') { delete AERO_TEXT_SIG[p]; aeroDecalText.apply(null, L.args); }
       else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
-      else if (L.kind === 'img') aeroDecalImage.apply(null, L.args);
     } catch (e) {}
   }
   if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
@@ -1863,69 +1864,10 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   return aspect;
 }
 
-// draw an arbitrary image into a page — "project complex liveries from
-// images onto anything", one page at a time
-function aeroDecalImage(THREE, page, img) {
-  const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
-  const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
-  const g = AERO_ATLAS_CV.getContext('2d');
-  g.clearRect(px, py, P, P);
-  const s = Math.min(P / img.width, P / img.height);
-  const w = img.width * s, h = img.height * s;
-  g.drawImage(img, px + (P - w) / 2, py + (P - h) / 2, w, h);
-  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
-  t.needsUpdate = true;
-  AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
-  AERO_PAGE_LAST[page] = { kind: 'img', args: [THREE, page, img] };
-  return img.width / img.height;
-}
-// THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
-// decal does not survive the flight interface"). A page a builder loaded an
-// image into was baked into this session's atlas and NOWHERE ELSE: the spec
-// records where the marking sits and never the pixels (60_gen_spec's own
-// deliberate gap), so a save, a reload and the aeroplane that then flew all
-// had the placement of a picture that was not there. The pixels still stay
-// out of the SPEC; they ride the save ENVELOPE beside the plaque and the log,
-// as the page itself — 256 px square, already fitted and dilated — so a
-// livery image is a few tens of kilobytes, not the upload. `aeroDecalImageData`
-// reads a page out (null when none was ever loaded there), and
-// `aeroDecalImageFrom` puts one back, through the same drawer the upload uses.
-const AERO_PAGE_IMG = {};
-function aeroDecalImageData(page) {
-  if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return null;
-  const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
-  const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
-  // the ENVELOPE copy is capped at 512 px (G207): a 1024 px page is a
-  // quarter-megabyte of PNG per image, and the save is not the upload
-  const E = Math.min(P, 512);
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = E;
-  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, E, E);
-  return cv.toDataURL('image/png');
-}
-// ...and a page is CLEARED when the build that comes in has nothing for it:
-// the previous aeroplane's picture must not stay on the next one's wing.
-function aeroDecalImageClear(THREE, page) {
-  if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return;
-  const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
-  const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
-  AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
-  delete AERO_PAGE_IMG[page];
-  delete AERO_PAGE_LAST[page];
-  const t = aeroAtlas(THREE); t.needsUpdate = true;
-}
-function aeroDecalImageFrom(THREE, page, dataURL, cb) {
-  if (!dataURL || typeof dataURL !== 'string' || !/^data:image\//.test(dataURL)) return false;
-  const im = new Image();
-  im.onload = () => {
-    const a = aeroDecalImage(THREE, page, im);
-    // the stored page is square and fitted; the marking's own aspect is
-    // the one the upload measured, carried beside it by the caller
-    if (cb) cb(a);
-  };
-  im.src = dataURL;
-  return true;
-}
+// LIVERY-5 (4 Nov): THE IMAGE PAGES ARE GONE (the user: "remove the images ... I just want everything to be procedural
+// and nothing rasterized"). aeroDecalImage / aeroDecalImageData / aeroDecalImageFrom / aeroDecalImageClear and the
+// envelope's `images` with them: pages 1 and 2 are kit layers 4 and 5 now. A save carrying image pages or img* / wim*
+// rows loads and ignores them (aeroDecalsFor reads no such row; garage.js's unwrap drops the envelope's pages).
 
 // A DECAL BELONGS TO THE AEROPLANE, NOT TO A SECTION, so these uniform
 // objects are SHARED BY REFERENCE across every AEROSKIN material. One write
@@ -2167,19 +2109,16 @@ const AERO_DEC_DEF = {
   regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both, 3 body+tail
   regMode: 0,             // 0 field, 1 box side view, 2 box plan view
   regRot: 0,
-  regCol: null, regOut: null,     // null follows spec.paint.trim (G113.4)
-  regOutOn: 1,                    // G214: 0 = the ink alone, no keyline
-  regMetal: 0, imgMetal: 0, wimMetal: 0,   // G215: metal flake in the marking
+  regCol: null,                   // null follows spec.paint.trim (G113.4)
+  // LIVERY-5: no keyline any more (the user: "get rid of the outline, because that one looks bad in every
+  // circumstance") - an old save's keyline rows are read by nothing
+  regMetal: 0,                    // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
   // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
   // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
   // in the plan view; off unless a build asks
   wregOn: 0, wregH: 0.55, wregL: 2.6, wregC: 0.5, wregRot: 0, wregMode: 2,   // plan: L across the span, C fore / aft, radians
-  imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
-  imgMode: 0, imgRot: 0, imgLock: 1,
-  wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
-  wimMode: 2, wimRot: 0, wimLock: 1,
   // G208.2: WHERE THE CERTIFICATION STICKERS ARE WORN — a place (an index
   // into stickers.js's STICKER_PLACES: the rear fuselage, the cabin side,
   // the fin, the nose, the wing) plus fine tuning off that place's own
@@ -2256,8 +2195,11 @@ const AERO_DEC_MODES = ['field', 'side', 'plan'];
 // name, the range and the default, and the panel is generated from it — so a
 // new pattern arrives complete with its controls and cannot arrive without
 // them.
-const AERO_KIT_PAGE0 = 3;        // 0 is the registration, 1 and 2 the images
-const AERO_KIT_LAYERS = 3;
+const AERO_KIT_PAGE0 = 3;        // 0 is the registration; layers 1-3 on pages 3-5 (as they always were)
+const AERO_KIT_LAYERS = 5;
+// LIVERY-5: layers 4 and 5 take the image channels' old pages 1 and 2 - layers 1-3 do not move, so a page a saved
+// build's layer drew on is the page it draws on now (6 is the stickers' strip, 7 the master)
+const AERO_KIT_PAGES = [3, 4, 5, 1, 2];
 
 // THE KIT'S THREE LAYERS (G162), generated rather than written out, because
 // forty-eight hand-typed defaults is forty-eight chances for layer 3 to differ
@@ -2572,7 +2514,241 @@ const AERO_KIT = [
         else g.fillRect(i * w - 0.5, -2, w + 1, P + 4);
       }
     } },
+  // ---- LIVERY-5 (4 Nov), THE PATTERN GENERATOR (the user: "little stars, little dots ... little squares, little
+  // triangles ... I wouldn't like these stars to be on a grid pattern. I would rather that they are like on an
+  // hexagonal pattern ... or a grid pattern, but with shifted rows"). A shape repeated over a lattice, in METRES
+  // (`asp`: the page is a square stretched over W x H, so every shape is drawn pre-squashed and stays round). Size is a
+  // fraction of the layer's DEPTH; spacing is centre to centre in sizes. A: the shapes, D: every other row (set it to
+  // A for one colour), B: the ground, TRANSPARENT when the pattern is picked (`clr0`). Polygons only (GATE SKINMAT's
+  // recording context draws paths). THE FLOOR: no shape is drawn under AERO_PAT_MINPX page pixels across its narrower
+  // axis - at 1024 px a page (512 on potato) a smaller one is mush - so a tiny size on a long layer is drawn at the floor
+  // instead; and a page holds at most AERO_PAT_MAXN shapes (sizes and spacing scale up together past it).
+  { name: 'pattern', cn: ['shapes', 'ground', 'every other row'], asp: 1, clr0: 2,
+    help: 'small shapes repeated over the layer: stars, dots, squares, triangles, diamonds, crosses, rings, chevrons, ' +
+          'hearts - on a grid, shifted rows, hexagonal (the default), diagonal or a scatter that is the same every ' +
+          'time. Size is a fraction of the layer’s depth; the smallest shape drawn is ' + 8 + ' px of the page ' +
+          '(1024 px a page, 512 on potato: about 4.7 cm on a 6 m long layer, 9.4 cm on potato) - asked smaller, it is ' +
+          'drawn at that floor. The ground starts TRANSPARENT; give every other row the shapes’ colour for one colour',
+    k: [{ n: 'shape', lo: 0, hi: 8, st: 1, def: 0,
+          o: ['star', 'dot', 'square', 'triangle', 'diamond', 'cross', 'ring', 'chevron', 'heart'] },
+        { n: 'layout', lo: 0, hi: 4, st: 1, def: 2, o: ['grid', 'shifted rows', 'hexagonal', 'diagonal', 'scatter'] },
+        { n: 'size (of the depth)', lo: 0.02, hi: 0.6, st: 0.01, def: 0.12 },
+        { n: 'spacing (in sizes)', lo: 1.1, hi: 6, st: 0.05, def: 2 }],
+    draw(g, P, o) {
+      const a = o.asp || 1, shape = Math.round(o.p), lay = Math.round(o.q);
+      // metres -> page: x in units of the depth runs 0..a, y 0..1; a unit along is P / a pixels, up is P
+      const kx = P / a, ky = P;
+      let sz = Math.max(o.r, AERO_PAT_MINPX / Math.min(kx, ky));
+      let pitch = sz * Math.max(1.1, o.s);
+      const est = (a / pitch) * (1 / (pitch * (lay === 2 ? 0.866 : lay === 3 ? 0.707 : 1)));
+      if (est > AERO_PAT_MAXN) { const f = Math.sqrt(est / AERO_PAT_MAXN); sz *= f; pitch *= f; }
+      const pts = aeroPatLattice(lay, pitch, a);
+      aeroKitInk(g, o.b); g.fillRect(-2, -2, P + 4, P + 4);
+      for (const odd of [0, 1]) {
+        aeroKitInk(g, odd ? o.d : o.a);
+        g.beginPath();
+        for (const q of pts) if ((q[2] & 1) === odd) aeroPatShape(g, shape, q[0] * kx, q[1] * ky, sz * 0.5 * kx, sz * 0.5 * ky);
+        g.fill();
+      }
+    } },
+  // ---- LIVERY-5: TARTAN (the user: "like a Scottish clothes pattern"). A ground in A, a wide band and a thin line in
+  // B and a thin line in D, the same sett both ways, the bands translucent so the crossings mix. Square in metres.
+  { name: 'tartan', cn: ['ground', 'bands', 'lines'], asp: 1,
+    help: 'crossing translucent bands over a ground - a plaid. Repeats count the setts up the layer’s depth',
+    k: [{ n: 'repeats (up the depth)', lo: 1, hi: 12, st: 1, def: 3 },
+        { n: 'band width (of a sett)', lo: 0.05, hi: 0.5, st: 0.01, def: 0.3 },
+        { n: 'line width (of a sett)', lo: 0.01, hi: 0.15, st: 0.01, def: 0.04 }],
+    draw(g, P, o) {
+      const a = o.asp || 1, n = Math.max(1, Math.round(o.p)), sy = P / n, sx = sy / a;
+      const tr = (c, k) => o.clr[c] ? null : 'rgba(' + o.rgb[c].join(',') + ',' + k + ')';
+      aeroKitInk(g, o.a); g.fillRect(-2, -2, P + 4, P + 4);
+      // the sett: [start, width, colour], fractions of one repeat
+      const sett = [[0.1, o.q, 'b'], [0.1 + o.q + 0.12, o.r, 'd'], [0.1 + o.q + 0.24 + o.r, o.r, 'b']];
+      g.globalCompositeOperation = 'source-over';
+      for (const [t0, w, c] of sett) {
+        const st = tr(c, 0.55); if (!st) continue;
+        g.fillStyle = st;
+        for (let j = -1; j * sy < P + sy; j++) g.fillRect(-2, (j + t0) * sy, P + 4, Math.max(1, w * sy));
+        for (let i = -1; i * sx < P + sx; i++) g.fillRect((i + t0) * sx, -2, Math.max(1, w * sx), P + 4);
+      }
+    } },
+  // ---- LIVERY-5: THE FLAG (the user: "implement the flags and have also this option of having the rounded version").
+  // A preset (AERO_FLAGS: tiny data - bands, crosses, a canton, a disc, stars - not art), drawn at its own ratio in
+  // METRES (`asp`) and centred in the layer, as large as fits; shape: a rectangle, rounded corners, or a disc (the
+  // round one: the flag's centre in a circle). Its colours are its own: the layer's wells are hidden (cn empty). On the
+  // far flank (noMirror, as every layer) the hoist stays toward the NOSE - the flag reads reversed there, the way a
+  // flag is worn on an aeroplane's right side. `fit: 0`: picking it keeps the layer's hand placement.
+  { name: 'flag', cn: [], own: 1, asp: 1, fit: 0,
+    help: 'a national flag (no coats of arms), its own colours, hoist toward the nose on both sides. As a rectangle, ' +
+          'with rounded corners, or a disc',
+    k: [{ n: 'flag', lo: 0, hi: 0, st: 1, def: 0, o: [] },
+        { n: 'shape', lo: 0, hi: 2, st: 1, def: 0, o: ['rectangle', 'rounded', 'disc'] },
+        { n: 'size (of the layer)', lo: 0.2, hi: 1, st: 0.01, def: 1 }],
+    draw(g, P, o) {
+      const F = AERO_FLAGS[Math.max(0, Math.min(AERO_FLAGS.length - 1, Math.round(o.p)))];
+      const a = o.asp || 1, shape = Math.round(o.q), r = F.r || 1.5;
+      // the flag's box in depth units (the layer is a x 1), as large as fits, then in pixels
+      let fh = Math.min(1, a / r) * o.r, fw = fh * r;
+      if (shape === 2) fw = fh = Math.min(fh, fw);                  // the disc: a circle of the flag's height
+      const kx = P / a, x0 = (a - fw) / 2 * kx, y0 = (1 - fh) / 2 * P, W = fw * kx, H = fh * P;
+      // the flag itself, over its full ratio box (a disc shows its centre)
+      const FW = (shape === 2 ? fh * r : fw) * kx, FX = P / 2 - FW / 2;
+      aeroFlagDraw(g, F, FX, y0, FW, H);
+      // and everything outside the shape erased: the page rect, then the shape wound the other way (a hole)
+      if (shape >= 1) {
+        g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+        g.beginPath();
+        g.moveTo(-2, -2); g.lineTo(P + 2, -2); g.lineTo(P + 2, P + 2); g.lineTo(-2, P + 2); g.closePath();
+        // the corner's radius in METRES (12 % of the flag's shorter side), then in pixels each way
+        const rm = 0.12 * Math.min(fw, fh);
+        const pts = aeroRoundRect(x0, y0, W, H, shape === 2 ? W / 2 : rm * kx, shape === 2 ? H / 2 : rm * P);
+        for (let i = pts.length - 1; i >= 0; i--) (i === pts.length - 1 ? g.moveTo : g.lineTo).call(g, pts[i][0], pts[i][1]);
+        g.closePath(); g.fill();
+        g.globalCompositeOperation = 'source-over';
+      } else {
+        g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+        g.fillRect(-2, -2, x0 + 2, P + 4); g.fillRect(x0 + W, -2, P - x0 - W + 2, P + 4);
+        g.fillRect(-2, -2, P + 4, y0 + 2); g.fillRect(-2, y0 + H, P + 4, P - y0 - H + 2);
+        g.globalCompositeOperation = 'source-over';
+      }
+    } },
 ];
+
+// ---- LIVERY-5: the pattern generator's lattice and shapes ----------------------------------------------------------
+const AERO_PAT_MINPX = 8;          // the smallest shape a page draws, in page pixels across its narrower axis
+const AERO_PAT_MAXN = 6000;        // the most shapes one page holds
+// the centres, in depth units over an a x 1 layer, with the row index (for the alternate colour); one ring of
+// overhang so the edges are covered. 0 grid, 1 shifted rows, 2 hexagonal, 3 diagonal, 4 scatter (seeded, no random)
+function aeroPatLattice(lay, pitch, a) {
+  const out = [];
+  const dy = lay === 2 || lay === 4 ? pitch * 0.8660254 : lay === 3 ? pitch * 0.7071068 : pitch;
+  const dx = lay === 3 ? pitch * 1.4142136 : pitch;
+  const shift = lay === 1 || lay === 2 || lay === 3 || lay === 4;
+  const h = (i, j, k) => { let x = (i * 374761393 + j * 668265263 + k * 2147483647) | 0;
+    x = Math.imul(x ^ (x >>> 13), 1274126177); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
+  for (let j = -1; j * dy <= 1 + dy; j++) {
+    const off = shift && (j & 1) ? dx / 2 : 0;
+    for (let i = -1; i * dx <= a + dx; i++) {
+      let x = i * dx + off, y = j * dy;
+      if (lay === 4) { x += (h(i, j, 1) - 0.5) * pitch * 0.6; y += (h(i, j, 2) - 0.5) * pitch * 0.6; }
+      out.push([x, y, j & 1]);
+    }
+  }
+  return out;
+}
+// one shape centred at (cx, cy), half-sizes rx (along) and ry (up) in page pixels, added to the current path
+function aeroPatShape(g, k, cx, cy, rx, ry) {
+  const poly = (pts) => { pts.forEach((q, i) => (i ? g.lineTo : g.moveTo).call(g, cx + q[0] * rx, cy + q[1] * ry)); g.closePath(); };
+  const circ = (r, n, rev) => { const p = []; for (let i = 0; i < n; i++) { const t = (rev ? -1 : 1) * i / n * 2 * Math.PI; p.push([Math.cos(t) * r, Math.sin(t) * r]); } return p; };
+  if (k === 0) { const p = []; for (let i = 0; i < 10; i++) { const t = -Math.PI / 2 + i * Math.PI / 5, r = (i & 1) ? 0.382 : 1; p.push([Math.cos(t) * r, Math.sin(t) * r]); } poly(p); }
+  else if (k === 1) poly(circ(1, 24));
+  else if (k === 2) poly([[-0.8, -0.8], [0.8, -0.8], [0.8, 0.8], [-0.8, 0.8]]);
+  else if (k === 3) poly([[0, -1], [0.866, 0.5], [-0.866, 0.5]]);
+  else if (k === 4) poly([[0, -1], [0.75, 0], [0, 1], [-0.75, 0]]);
+  else if (k === 5) poly([[-0.3, -1], [0.3, -1], [0.3, -0.3], [1, -0.3], [1, 0.3], [0.3, 0.3], [0.3, 1], [-0.3, 1], [-0.3, 0.3], [-1, 0.3], [-1, -0.3], [-0.3, -0.3]]);
+  else if (k === 6) { poly(circ(1, 24)); poly(circ(0.6, 24, 1)); }
+  else if (k === 7) poly([[-1, -0.2], [0, -0.9], [1, -0.2], [1, 0.35], [0, -0.35], [-1, 0.35]]);
+  else {   // the heart: two lobes and a point, as a polygon
+    const p = [];
+    for (let i = 0; i <= 32; i++) { const t = i / 32 * 2 * Math.PI;
+      const x = 16 * Math.pow(Math.sin(t), 3), y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      p.push([x / 17, -y / 17 - 0.1]); }
+    poly(p);
+  }
+}
+// a rounded rectangle as a polygon (radii in pixels; W/2, H/2 makes the ellipse that the disc is)
+function aeroRoundRect(x, y, W, H, rx, ry) {
+  const p = [], n = 10;
+  const c = [[x + W - rx, y + ry, -Math.PI / 2], [x + W - rx, y + H - ry, 0], [x + rx, y + H - ry, Math.PI / 2], [x + rx, y + ry, Math.PI]];
+  for (const [cx, cy, t0] of c) for (let i = 0; i <= n; i++) { const t = t0 + i / n * Math.PI / 2; p.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]); }
+  return p;
+}
+
+// ---- LIVERY-5: THE FLAGS. A preset is data for a small composer, never pixels: `r` the ratio (w / h, 1.5 unless
+// said), then elements in order, each in fractions of the flag (x 0 the HOIST, y 0 the top):
+//   h: [colours]        horizontal bands, equal          v: [colours]   vertical bands, equal
+//   hw: [[c, w], ...]   horizontal bands, weighted        nordic: [c, x, w]  a cross off-centre toward the hoist
+//   cross: [c, w]       a centred cross (w of the height) canton: [c, w, h]  the upper hoist rectangle
+//   disc: [c, x, y, r]  a disc (r of the height)          stars: [c, ...]   five-point stars, see aeroFlagDraw
+//   saltire: [c, w]     the diagonals                     
+const AERO_FLAGS = [
+  { n: 'France', v: ['#002654', '#ffffff', '#ce1126'] },
+  { n: 'Germany', r: 5 / 3, h: ['#000000', '#dd0000', '#ffce00'] },
+  { n: 'Italy', v: ['#009246', '#ffffff', '#ce2b37'] },
+  { n: 'Ireland', r: 2, v: ['#169b62', '#ffffff', '#ff883e'] },
+  { n: 'Belgium', r: 15 / 13, v: ['#000000', '#fdda24', '#ef3340'] },
+  { n: 'Netherlands', h: ['#ae1c28', '#ffffff', '#21468b'] },
+  { n: 'Austria', h: ['#c8102e', '#ffffff', '#c8102e'] },
+  { n: 'Poland', r: 8 / 5, h: ['#ffffff', '#dc143c'] },
+  { n: 'Norway', r: 22 / 16, bg: '#ba0c2f', nordic: [['#ffffff', 8 / 22, 4 / 16], ['#00205b', 8 / 22, 2 / 16]] },
+  { n: 'Sweden', r: 16 / 10, bg: '#006aa7', nordic: [['#fecc00', 6.5 / 16, 2 / 10]] },
+  { n: 'Denmark', r: 37 / 28, bg: '#c8102e', nordic: [['#ffffff', 15 / 37, 4 / 28]] },
+  { n: 'Finland', r: 18 / 11, bg: '#ffffff', nordic: [['#002f6c', 6.5 / 18, 3 / 11]] },
+  { n: 'Iceland', r: 25 / 18, bg: '#02529c', nordic: [['#ffffff', 9 / 25, 4 / 18], ['#dc1e35', 9 / 25, 2 / 18]] },
+  { n: 'Switzerland', r: 1, bg: '#da291c', cross: ['#ffffff', 6 / 32, 20 / 32] },
+  { n: 'Greece', r: 1.5, hw: [['#0d5eaf', 1], ['#ffffff', 1], ['#0d5eaf', 1], ['#ffffff', 1], ['#0d5eaf', 1], ['#ffffff', 1], ['#0d5eaf', 1], ['#ffffff', 1], ['#0d5eaf', 1]],
+    canton: ['#0d5eaf', 10 / 27, 5 / 9], ccross: ['#ffffff', 2 / 10] },
+  { n: 'Japan', bg: '#ffffff', disc: ['#bc002d', 0.5, 0.5, 0.3] },
+  { n: 'USA', r: 1.9, hw: Array.from({ length: 13 }, (_, i) => [i & 1 ? '#ffffff' : '#b22234', 1]),
+    canton: ['#3c3b6e', 0.76 / 1.9, 7 / 13], stars: ['#ffffff', 'usa'] },
+  { n: 'UK', r: 2, bg: '#012169', saltire: [['#ffffff', 0.2], ['#c8102e', 0.0667]], cross: ['#ffffff', 1 / 3, 9], cross2: ['#c8102e', 1 / 5] },
+  { n: 'Alaska', r: 1.41, bg: '#0f204b', stars: ['#ffb612', 'alaska'] },
+  { n: 'Ukraine', h: ['#0057b7', '#ffd700'] },
+  { n: 'Estonia', r: 11 / 7, h: ['#0072ce', '#000000', '#ffffff'] },
+  { n: 'Lithuania', r: 5 / 3, h: ['#fdb913', '#006a44', '#c1272d'] },
+  { n: 'Bangladesh', r: 5 / 3, bg: '#006a4e', disc: ['#f42a41', 0.45, 0.5, 0.4] },
+];
+// a five-point star centred at (cx, cy), outer radius R (pixels), point up
+function aeroStar5(g, cx, cy, R) {
+  for (let i = 0; i < 10; i++) { const t = -Math.PI / 2 + i * Math.PI / 5, r = (i & 1) ? R * 0.382 : R;
+    (i ? g.lineTo : g.moveTo).call(g, cx + Math.cos(t) * r, cy + Math.sin(t) * r); }
+  g.closePath();
+}
+function aeroFlagDraw(g, F, X, Y, W, H) {
+  g.globalCompositeOperation = 'source-over';
+  const rect = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(X + x * W - 0.5, Y + y * H - 0.5, w * W + 1, h * H + 1); };
+  if (F.bg) rect(F.bg, 0, 0, 1, 1);
+  const bands = (L, hor) => { const tot = L.reduce((s, b) => s + b[1], 0); let t = 0;
+    for (const [c, w] of L) { if (hor) rect(c, 0, t / tot, 1, w / tot); else rect(c, t / tot, 0, w / tot, 1); t += w; } };
+  if (F.h) bands(F.h.map(c => [c, 1]), true);
+  if (F.v) bands(F.v.map(c => [c, 1]), false);
+  if (F.hw) bands(F.hw, true);
+  if (F.saltire) for (const [c, w] of F.saltire) {
+    // the two diagonals as quads, w a fraction of the height
+    const t = w * H / 2, d = Math.hypot(W, H), ux = W / d, uy = H / d, nx = -uy * t, ny = ux * t;
+    g.fillStyle = c;
+    for (const [x0, y0, x1, y1] of [[X, Y, X + W, Y + H], [X, Y + H, X + W, Y]]) {
+      const sx = (y1 > y0 ? 1 : -1);
+      g.beginPath(); g.moveTo(x0 + nx, y0 + ny * sx); g.lineTo(x1 + nx, y1 + ny * sx); g.lineTo(x1 - nx, y1 - ny * sx); g.lineTo(x0 - nx, y0 - ny * sx); g.closePath(); g.fill();
+    }
+  }
+  if (F.nordic) for (const [c, x, w] of F.nordic) { const ww = w * H / W;
+    rect(c, x - ww / 2, 0, ww, 1); rect(c, 0, 0.5 - w / 2, 1, w); }
+  if (F.cross) { const [c, w, len] = F.cross, ww = w * H / W;
+    if (len && len < 1) { const lw = len * H / W; rect(c, 0.5 - ww / 2, 0.5 - len / 2, ww, len); rect(c, 0.5 - lw / 2, 0.5 - w / 2, lw, w); }
+    else { rect(c, 0.5 - ww / 2, 0, ww, 1); rect(c, 0, 0.5 - w / 2, 1, w); } }
+  if (F.cross2) { const [c, w] = F.cross2, ww = w * H / W; rect(c, 0.5 - ww / 2, 0, ww, 1); rect(c, 0, 0.5 - w / 2, 1, w); }
+  if (F.canton) { const [c, cw, ch] = F.canton; rect(c, 0, 0, cw, ch);
+    if (F.ccross) { const [cc, w] = F.ccross, ww = w * ch * H / W;
+      rect(cc, cw / 2 - ww / 2, 0, ww, ch); rect(cc, 0, ch / 2 - w * ch / 2, cw, w * ch); } }
+  if (F.disc) { const [c, x, y, r] = F.disc; g.fillStyle = c; g.beginPath();
+    for (let i = 0; i < 48; i++) { const t = i / 48 * 2 * Math.PI; (i ? g.lineTo : g.moveTo).call(g, X + x * W + Math.cos(t) * r * H, Y + y * H + Math.sin(t) * r * H); }
+    g.closePath(); g.fill(); }
+  if (F.stars) { const [c, kind] = F.stars; g.fillStyle = c; g.beginPath();
+    if (kind === 'usa') {          // 50 stars: 9 rows alternating 6 and 5 in the canton
+      const cw = F.canton[1] * W, ch = F.canton[2] * H, R = 0.0616 * H / 2 * 1.0;
+      for (let row = 0; row < 9; row++) { const n = row & 1 ? 5 : 6;
+        for (let i = 0; i < n; i++) aeroStar5(g, X + cw * ((row & 1 ? 2 : 1) + 2 * i) / 12, Y + ch * (row + 1) / 10, R); }
+    } else {                       // Alaska: the Big Dipper and Polaris (hoist to the left)
+      const S = [[0.07, 0.69], [0.19, 0.72], [0.29, 0.63], [0.37, 0.53], [0.49, 0.58], [0.53, 0.43], [0.43, 0.37], [0.85, 0.18]];
+      S.forEach(([x, y], i) => aeroStar5(g, X + x * W, Y + y * H, (i === 7 ? 0.09 : 0.065) * H));
+    }
+    g.fill(); }
+}
+
+// the flag's preset knob runs over the table, and names its rows (LIVERY-5)
+{ const fl = AERO_KIT.find(k => k.name === 'flag');
+  if (fl) { fl.k[0].hi = AERO_FLAGS.length - 1; fl.k[0].o = AERO_FLAGS.map(f => f.n); } }
 
 // A KNOB IS CLAMPED TO ITS OWN PATTERN'S RANGE, and an unset one takes that
 // pattern's default rather than zero. Unset is the normal state: switching
@@ -2599,7 +2775,7 @@ function aeroKitLayers(D) {
     if (!D[q + 'On']) continue;
     const pi = Math.max(0, Math.min(AERO_KIT.length - 1,
                  Math.round(+D[q + 'Pat'] || 0)));
-    const pat = AERO_KIT[pi], page = AERO_KIT_PAGE0 + i;
+    const pat = AERO_KIT[pi], page = AERO_KIT_PAGES[i];
     const w = Math.max(0.02, +D[q + 'W'] || 0.02),
           h = Math.max(0.02, +D[q + 'H'] || 0.02);
     out.push({
@@ -2693,10 +2869,9 @@ function aeroDecalsFor(THREE, D, opts) {
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
   const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
                    D.regCol != null ? D.regCol : trim,
-                   // G214: the keyline is optional — off, the underlay and
-                   // the field are the ink's alone
-                   (D.regOutOn == null || +D.regOutOn)
-                     ? (D.regOut != null ? D.regOut : 0xffffff) : null,
+                   // LIVERY-5: NO KEYLINE, ever (G214's optional outline, defaulted on, is gone - the user: "it looks
+                   // bad in every circumstance"); the underlay and the field are the ink's own colour
+                   null,
                    D.regFont) || 3.2;
   // LOCKED means the width is DERIVED, and it has to be derived here rather
   // than read off the spec: `regW` is only meaningful when the lock is off, and
@@ -2714,8 +2889,11 @@ function aeroDecalsFor(THREE, D, opts) {
   // THE KIT GOES ON FIRST because the shader mixes the list IN ORDER: a kit
   // layer is paint, and a registration painted under its own cheat line is a
   // registration you cannot read.
-  const list = [];
-  for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
+  // LIVERY-5: THE KIT IS WHAT GIVES WAY. aeroSetDecals keeps the first AERO_MAXD of the list, so the kit is trimmed
+  // HERE to what the slots leave after the registration, its wing copy and the stickers: an overflow drops the
+  // LAST kit layer, never a registration or a certificate (9 slots hold the worst case today: 5 + 2 + 2)
+  const kit = [], list = [];
+  for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); kit.push(L.place); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
@@ -2724,14 +2902,6 @@ function aeroDecalsFor(THREE, D, opts) {
     list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
                 rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
   }
-  if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
-    h: D.imgH, rot: D.imgRot, rough: -0.04, metal: +D.imgMetal || 0,
-    on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
-  // the wing's own channel: its own page, its own placement, never the body's
-  // classes — that is what "fully independent" means (G113.2).
-  if (D.wimOn) list.push({ page: 2, sL: D.wimL, sC: D.wimC, w: D.wimW,
-    h: D.wimH, rot: D.wimRot, rough: -0.04, metal: +D.wimMetal || 0,
-    on: { wing: 1 }, mode: modeOf(D.wimMode) });
   // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
   // hands over (page 6, one strip of roundels under the cockpit); it draws
   // its own page and returns nothing while the aeroplane holds no
@@ -2741,7 +2911,7 @@ function aeroDecalsFor(THREE, D, opts) {
             ? window.AERO_EXTRA_DECALS(THREE, D) : null;
     if (X) for (const p of X) list.push(p);
   } catch (e) {}
-  return { list, aspect };
+  return { list: kit.slice(0, Math.max(0, AERO_MAXD - list.length)).concat(list), aspect };
 }
 
 // THE GLAZING A SPEC ASKS FOR (G216). `finish.glass` holds DEVIATIONS from
@@ -2970,7 +3140,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 8
+#define AERO_MAXD 9
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -5258,11 +5428,10 @@ if (typeof window !== 'undefined')
                       aeroSetEnv, aeroSetGlassBlend, aeroGlassLinear, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
-                      aeroDecalText, aeroDecalImage,
-                      aeroDecalImageData, aeroDecalImageFrom, aeroDecalImageClear,
+                      aeroDecalText,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_DEC_FONTS,
-                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
+                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
@@ -5289,7 +5458,7 @@ if (typeof module !== 'undefined')
                      // reason: which page a layer owns, what its knobs resolve
                      // to and where it lands are all arithmetic, and node has
                      // no canvas to draw the other half with.
-                     AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
+                     AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,

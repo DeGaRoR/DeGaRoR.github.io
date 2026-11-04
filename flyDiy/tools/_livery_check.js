@@ -75,6 +75,7 @@ const SRC0 = {
   app: rd('src/viewer/app.js'),
   skin: rd('src/viewer/aeroskin.js'),
   page5: rd('tools/_cage_page5.js'),   // G1912: the stock builds' finishes
+  garage: rd('src/viewer/garage.js'),  // LIVERY-5: the save envelope
 };
 
 // One declaration, by name, balanced: a function to its closing brace, a
@@ -173,7 +174,9 @@ function page(SRC, store, game, cons) {
   if (game) W.CAGE_IN_GAME = 1;
   vm.createContext(W);
   const parts = UI_DECLS.map(([nm, re]) => grab(SRC.ui, re, '_cage_ui.js ' + nm)).sort((a, b) => a.at - b.at);
-  const prelude = 'const P = { intCons: ' + JSON.stringify(cons) + ' };\nconst aeroOn = () => true;\n';
+  // (LIVERY-5: SYNC / DEC_RELOAD are the panel's row refreshers finishFromSpec calls since G2829 - no panel here)
+  const prelude = 'const P = { intCons: ' + JSON.stringify(cons) + ' };\nconst aeroOn = () => true;\n' +
+                  'const SYNC = {}, DEC_RELOAD = [];\n';
   const tail = '\nwindow.__ED = { aeroBootPrefs, finishFromSpec, finishToSpec, secMat, SEC_OVER };';
   vm.runInContext(prelude + parts.map(p => p.text).join('\n') + tail, W, { filename: '_cage_ui.js (slice)' });
   W.AEROSKIN = skinOf(SRC);
@@ -184,10 +187,13 @@ function page(SRC, store, game, cons) {
   const seedSrc = grab(SRC.app, /^ {2}function seedEditor\(\)/m, 'app.js seedEditor').text;
   const seed = spec => {
     W.CAGE_UI = { applySpec: s => ED.finishFromSpec(s && s.finish), finishFromSpec: ED.finishFromSpec,
-                  build: () => {}, decalImagesFrom: () => {} };
-    W.GARAGE_SPEC = { images: () => ({}) };
+                  build: () => {} };
+    W.GARAGE_SPEC = { images: () => null };
     W.__SPEC = JSON.parse(JSON.stringify(spec));
-    vm.runInContext('(() => { let edSeeded = false; const genSpec = window.__SPEC;\n' + seedSrc +
+    // LIVERY-5: the seed arms the garage's flood around its first build (G3358: garageFloodArm(slotOnStand())) -
+    // app.js names the rig does not own; stubbed as the no-op they are to the finish
+    vm.runInContext('(() => { let edSeeded = false; const genSpec = window.__SPEC;\n' +
+                    'const garageFloodArm = () => {}, slotOnStand = () => \'\';\n' + seedSrc +
                     '\nseedEditor(); })()', W, { filename: 'app.js seedEditor' });
   };
   return { W, ED, A, seed };
@@ -238,6 +244,13 @@ const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !A
   ? Object.keys(x).sort().reduce((o, q) => { o[q] = x[q]; return o; }, {}) : x));
 const consOfSpec = s => (s.cage && s.cage.intCons != null ? s.cage.intCons : 2);
 
+// LIVERY-5: the slot arithmetic, off the module (9 slots: 5 layers, the registration and its wing copy, the strip,
+// the master)
+function A_ok(SRC) {
+  const A = skinOf(SRC);
+  return A.AERO_KIT_LAYERS === 5 && (A.AERO_KIT_PAGES || []).join(',') === '3,4,5,1,2' && A.AERO_MAXD === 9 &&
+         /#define AERO_MAXD 9\n/.test(SRC.skin) && typeof A.aeroDecalImage === 'undefined';
+}
 function run(SRC) {
   const fail = [];
   let checks = 0;
@@ -315,6 +328,76 @@ function run(SRC) {
     check(L.map(l => l.page).join(',') === '3,4,5', 'the patterns keep their own atlas pages', L.map(l => l.page).join(','));
   }
 
+  // 1c LIVERY-5: FIVE LAYERS, THE IMAGES GONE, THE NEW RECIPES ------------------------
+  // the user (4 Nov): "remove the images, use these two slots for two new livery slots ... implement the flags and
+  // have also this option of having the rounded version", a pattern generator, "nothing rasterized"
+  {
+    const SPEC_Q = Object.assign(CORE.genNormaliseSpec({}), { finish: { decals: {
+      m1On: 1, m1Pat: kitIx('pattern'), m1P: 0, m1Q: 2, m1R: 0.1, m1S: 2.2, m1Clr: 2, m1Fit: 1, m1A: 0xffffff,
+      m2On: 1, m2Pat: kitIx('tartan'), m2P: 4, m2Tgt: 4,
+      m3On: 1,                                         // (the cheat line: pattern 0, the default)
+      m4On: 1, m4Pat: kitIx('flag'), m4P: 16, m4Q: 2, m4Tgt: 6, m4W: 0.6, m4H: 0.5,
+      m5On: 1, m5Pat: kitIx('pattern'), m5P: 1, m5Q: 1, m5Tgt: 4, m5Mode: 2 } } });
+    check(A_ok(SRC), 'the kit has five layers, on pages 3 4 5 1 2, and nine decal slots');
+    for (const [tag, S1, S2] of [['A then Q (five layers)', SPEC_A, SPEC_Q], ['Q then A', SPEC_Q, SPEC_A]]) {
+      const store = browser();
+      const p1 = page(SRC, store, 1, consOfSpec(S1)); p1.seed(S1); state(p1, S1);
+      const p2 = page(SRC, store, 1, consOfSpec(S2)); p2.seed(S2);
+      check(canon(p2.ED.finishToSpec()) === canon(S2.finish || null), tag + ': the second aeroplane holds exactly its finish',
+            canon(p2.ED.finishToSpec()) + ' vs ' + canon(S2.finish || null));
+      cmp(tag, state(p2, S2), clean(S2));
+    }
+    const pg = page(SRC, browser(), 1, consOfSpec(SPEC_Q)); pg.seed(SPEC_Q);
+    const st = state(pg, SPEC_Q);
+    check(/^n6 /.test(st.dec), 'five layers + the registration reach the marking block', st.dec.slice(0, 40));
+    const dec = (JSON.parse(st.fin) || {}).decals || {}, D = Object.assign({}, pg.A.AERO_DEC_DEF);
+    for (const k in dec) if (dec[k] != null) D[k] = dec[k];
+    const L = pg.A.aeroKitLayers(D);
+    check(L.map(l => l.page).join(',') === '3,4,5,1,2' && L[3].name === 'flag' && L[3].p === 16 && L[3].q === 2,
+          'the five layers keep their pages (4 and 5 on the images’ old 1 and 2) and their recipes',
+          JSON.stringify(L.map(l => [l.page, l.name, l.p, l.q])));
+    // AN OLD SAVE WITH IMAGES: its img / wim rows, its keyline and its envelope pages load and are ignored
+    const OLD = JSON.parse(JSON.stringify(SPEC_Q));
+    Object.assign(OLD.finish.decals, { imgOn: 1, imgL: 1, imgW: 2, imgH: 1, imgMetal: 0.5, wimOn: 1, wimW: 3, wimMode: 2,
+                                       regOutOn: 1, regOut: 0x00ff00 });
+    let threw = null;
+    const po = page(SRC, browser(), 1, consOfSpec(OLD));
+    try { po.seed(OLD); } catch (e) { threw = e; }
+    check(!threw, 'an old save carrying image rows loads', threw && threw.message);
+    const so = state(po, OLD);
+    check(canon(po.ED.finishToSpec()) === canon(SPEC_Q.finish) && so.dec === st.dec,
+          'an old save’s image rows and keyline are dropped: the same finish and block as without them',
+          canon(po.ED.finishToSpec()).slice(0, 120));
+    check(!/"(img|wim)[A-Z]|regOut|data:image/.test(so.fin), 'no image row or image data in the saved finish', so.fin.slice(0, 120));
+    // the envelope: garage.js writes no `images` and reads an old one's as nothing
+    check(!/images: im\b/.test(SRC.garage) && /images: null \};\s+\/\/ LIVERY-5/.test(SRC.garage) && !/decalImages/.test(SRC.ui),
+          'the save envelope carries no image pages, and an old one’s are dropped');
+    // EVERY NEW RECIPE DRAWS: each shape x layout, both small and large, each flag x shape, the tartan, against the
+    // stub page (a draw that throws or reaches a NaN coordinate is a page error)
+    const A = pg.A, rec = () => { let bad = 0, n = 0; const chk = v => { n++; if (!isFinite(v)) bad++; };
+      const g = { fillStyle: '#000', strokeStyle: '#000', globalCompositeOperation: 'source-over',
+        fillRect: (x, y, w, h) => [x, y, w, h].forEach(chk), moveTo: (x, y) => { chk(x); chk(y); },
+        lineTo: (x, y) => { chk(x); chk(y); }, beginPath() {}, closePath() {}, fill() {}, stroke() {} };
+      return { g, res: () => ({ bad, n }) }; };
+    const draws = [];
+    const PI = kitIx('pattern'), FI = kitIx('flag'), TI = kitIx('tartan');
+    for (let sh = 0; sh <= 8; sh++) for (let lay = 0; lay <= 4; lay++) for (const [r, w] of [[0.02, 6], [0.3, 1]])
+      draws.push({ m1Pat: PI, m1P: sh, m1Q: lay, m1R: r, m1S: 1.1, m1W: w, m1H: 1 });
+    for (let f = 0; f < A.AERO_KIT[FI].k[0].hi + 1; f++) for (let q = 0; q <= 2; q++) draws.push({ m1Pat: FI, m1P: f, m1Q: q, m1W: 1.4, m1H: 1 });
+    draws.push({ m1Pat: TI }, { m1Pat: TI, m1P: 12, m1W: 6, m1H: 0.5, m1Clr: 2 });
+    let errs = [], pts = 0;
+    for (const d of draws) {
+      const Ly = A.aeroKitLayers(Object.assign({}, A.AERO_DEC_DEF, { m1On: 1 }, d))[0], r = rec();
+      try { A.AERO_KIT[Ly.pat].draw(r.g, 1024, A.aeroKitArgs(Ly)); const q = r.res(); pts += q.n;
+            if (q.bad || !q.n) errs.push(JSON.stringify(d) + ' ' + JSON.stringify(q)); }
+      catch (e) { errs.push(JSON.stringify(d) + ' threw ' + e.message); }
+    }
+    check(!errs.length && A.AERO_KIT[FI].k[0].hi >= 18, draws.length + ' pattern / flag / tartan recipes draw with no page error',
+          errs.slice(0, 2).join(' ; '));
+    log('  1c: ' + draws.length + ' recipes drawn, ' + pts + ' coordinates');
+  }
+
+  // 2 THE BOOT -------------------------------------------------------------------
   // 2 THE BOOT -------------------------------------------------------------------
   {
     const store = browser();
@@ -452,13 +535,18 @@ if (process.argv.includes('--selftest')) {
     // G2870: the pattern fields out of the defaults, so the save/load doors never walk them
     ['the G2870 layer fields out of AERO_KIT_LDEF', S => Object.assign({}, S, { skin: S.skin.replace(
       '  R: null, S: null, Clr: 0, Fit: 0,\n', '') })],
+    // LIVERY-5: layer 5 back on a page past the kit's own (the old PAGE0 + i), and the envelope writing images again
+    ['the kit pages as PAGE0 + i (LIVERY-5)', S => Object.assign({}, S, { skin: S.skin.replace(
+      'const AERO_KIT_PAGES = [3, 4, 5, 1, 2];', 'const AERO_KIT_PAGES = [3, 4, 5, 6, 7];') })],
+    ['the flag preset knob reading past the table (LIVERY-5)', S => Object.assign({}, S, { skin: S.skin.replace(
+      'const F = AERO_FLAGS[Math.max(0, Math.min(AERO_FLAGS.length - 1, Math.round(o.p)))];', 'const F = AERO_FLAGS[Math.round(o.p) + 1];') })],
     ['the stock Cub\'s strut pin back (d244cabf)', S => Object.assign({}, S, { page5: S.page5.replace(
       '          body: { tint: 16764160 },', '          strut: { fin: "castAlu", tint: 16777215 },\n          body: { tint: 16764160 },') })],
   ];
   let ok = true;
   for (const [nm, patch] of probes) {
     const S = patch(SRC0);
-    const changed = S.ui !== SRC0.ui || S.app !== SRC0.app || S.skin !== SRC0.skin || S.page5 !== SRC0.page5;
+    const changed = S.ui !== SRC0.ui || S.app !== SRC0.app || S.skin !== SRC0.skin || S.page5 !== SRC0.page5 || S.garage !== SRC0.garage;
     let r;
     try { r = run(S); } catch (e) { r = { fail: ['threw: ' + e.message], checks: 0 }; }
     const red = changed && r.fail.length > 0;

@@ -362,7 +362,7 @@ console.log('THE STRIP');
      'the master keys are decal defaults too (the rear fuselage under the registration), with their panel rows');
   ok(/DECG\.cur = 'stk'/.test(rd('tools/_cage_ui.js')) && /stk: \[\]/.test(rd('src/viewer/editor.js')), 'the panel has a stickers block and the finish view a heading for it');
   ok(ST.STICKER_PAGE === 6, 'the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)');
-  ok(/const AERO_MAXD = 8/.test(SKIN) && /#define AERO_MAXD 8/.test(SKIN), 'the shader has the eighth decal slot (the strip and the master)');
+  ok(/const AERO_MAXD = 9/.test(SKIN) && /#define AERO_MAXD 9/.test(SKIN), 'the shader has the strip\'s and the master\'s slots (9: LIVERY-5\'s five layers)');
   ok(/window\.AERO_EXTRA_DECALS\(THREE, D\)/.test(SKIN), 'aeroDecalsFor takes the stickers through the hook, with the decal block');
   ok(/'plaque\.js', 'stickers\.js', 'bench_worker\.js', 'bench\.js'/.test(BUILD) && /'bench\.css'/.test(BUILD), 'the manifest carries plaque.js, stickers.js, bench_worker.js, bench.js and bench.css');
   ok(/redecal:/.test(rd('tools/_cage_ui.js')), 'the editor can be asked to rebuild its decal list');
