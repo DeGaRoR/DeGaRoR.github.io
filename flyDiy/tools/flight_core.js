@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5aba7079fb4d4fcd
+// body-sha256: e136ca269d3ddda9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -20347,6 +20347,50 @@ function hullTipFit(rec, grossKg, opt) {
   let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < M) lo = m; else hi = m; }
   return { kg: +(frac * M).toFixed(1), y: +(lo + clear).toFixed(3), draft: lo };
 }
+// HULL-B8: THE HULL'S REST - the trim a boat floats at, off its table alone (the static balance: the displaced volume
+// equals the gross and its centre stands under the CG). cg in the table's frame (x aft of the step, y up from the step
+// keel, metres); trim in degrees, + bow up. The waterline is a plane at height w over the step keel and the boat
+// pitched by th: a body point (x, y) is wet when y < (w + x sin th) / cos th. A section's centroid is taken at 0.6 of
+// its wetted depth (a vee's is 2/3, a box's 1/2). What the fit cycle balances the hull with (_cage_float.js, the
+// gate, the matrix): a boat that would rest bow-under is fixed before it is flown, not found capsized
+function hullRestTrim(rec, grossKg, cgX, cgY) {
+  const HP = hullParamsFromTable(rec);
+  if (!HP) return null;
+  const M = Math.max(60, grossKg || 0), n = 120, dx = HP.L / n;
+  const secs = []; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; secs.push(sectionOf(HP, x)); }
+  const at = (th, w) => {
+    const c = Math.cos(th), sn = Math.sin(th);
+    let v = 0, mx = 0;
+    for (const s of secs) {
+      const hw = (w + s.x * sn) / c, a = secAreaTo(HP, s, hw) * dx;
+      if (a <= 0) continue;
+      const yb = s.yk + 0.6 * (Math.min(hw, s.yd) - s.yk);
+      v += a; mx += a * (s.x * c + yb * sn);
+    }
+    return { m: v * HP.rho, X: v > 0 ? mx / v : 0 };
+  };
+  const draftAt = th => { let lo = -HP.L, hi = HP.L + HP.H; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (at(th, m).m < M) lo = m; else hi = m; } return lo; };
+  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * Math.cos(th) + cgY * Math.sin(th)), full: r.m < 0.999 * M }; };
+  let lo = -25 * D2R, hi = 25 * D2R;
+  if (arm(lo).d > 0) return { trim: -25, draft: arm(lo).w, arm: arm(lo).d, sunk: true };
+  if (arm(hi).d < 0) return { trim: 25, draft: arm(hi).w, arm: arm(hi).d, sunk: true };
+  for (let k = 0; k < 30; k++) { const m = 0.5 * (lo + hi); if (arm(m).d > 0) hi = m; else lo = m; }
+  const th = 0.5 * (lo + hi), r = arm(th);
+  // the bow's freeboard: the foremost station's deck over the water (the lowest the bow deck stands)
+  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * Math.sin(th) + s0.yd * Math.cos(th)) - r.w;
+  return { trim: +(th / D2R).toFixed(2), draft: +r.w.toFixed(3), bowDeck: +bow.toFixed(3), sunk: r.full };
+}
+// the propeller discs of a built aeroplane (model frame: the centre of each engine's thrust nodes, the disc's radius)
+// - what the boat's fit asks the rest waterline about (_cage_gen.js cageHullFitAll), the solver's own geometry
+// (30_solver propWater: refs.engine / engineOf, params.prop or the powerplant's)
+function propDiscs(def) {
+  const N = (def && def.refs && def.refs.engine) || [], K = (def.refs && def.refs.engineOf) || N.map(() => 0);
+  const PR = (def.params && def.params.prop) || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] || {}).prop;
+  if (!N.length || !PR || !(PR.D > 0)) return [];
+  const acc = [];
+  N.forEach((n, j) => { const k = K[j] | 0, p = def.nodes[n].p; acc[k] = acc[k] || [0, 0, 0, 0]; acc[k][0] += p[0]; acc[k][1] += p[1]; acc[k][2] += p[2]; acc[k][3]++; });
+  return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2 }));
+}
 // ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
 // it is sized for, so one float sized for kg / 0.9 displaces kg)
 const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
@@ -21201,7 +21245,7 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, tipFloatParams,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, hullRestTrim, propDiscs, tipFloatParams,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
