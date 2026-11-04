@@ -83,6 +83,8 @@ const CORE = require('./flight_core.js');
 const SELF = process.argv.includes('--selftest');
 const SHOW = process.argv.includes('--show');
 
+// (PRICE-CAL) an authored base as paid: x the pay scale (76_economy econPayScale), rounded to the pay's unit - 73_ contractPay
+const PB = b => Math.round((+b || 0) * CORE.econPayScale() / 10) * 10;
 const SRC = {};
 for (const f of ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js'])
   SRC[f.slice(0, 2)] = fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8');
@@ -472,8 +474,9 @@ function run(mut) {
   // ==== THE CAREER DOCUMENT ==================================================
   const D0 = M.careerNew({ seed: 'g2240' });
   ok(D0.what === 'flydiy-player' && D0.v === CORE.PLAYER_V && D0.mode === 'career', 'a career is a player document in mode career');
-  ok(D0.wallet === 60000 && M.CAREER_GRANT === 60000, 'GQ23: the grant is 60 000');
-  ok(D0.ledger.length === 1 && D0.ledger[0].k === 'grant' && D0.ledger[0].amt === -60000, 'the grant is a ledger line (income)');
+  // (PRICE-CAL: the grant is 60 000 of payRef's money, paid at today's prices: careerGrant(), 76_economy econPay)
+  ok(D0.wallet === M.careerGrant() && M.CAREER_GRANT === 60000 && M.careerGrant() === CORE.econPay(60000), 'GQ23: the grant is 60 000 (x the pay scale: ' + M.careerGrant() + ')');
+  ok(D0.ledger.length === 1 && D0.ledger[0].k === 'grant' && D0.ledger[0].amt === -M.careerGrant(), 'the grant is a ledger line (income)');
   ok(D0.career.voucher && D0.career.voucher.model === 'cub' && D0.career.voucher.kind === 'maker' && D0.career.voucher.used === false, 'GQ23: a Cub voucher, unspent');
   ok(eq(D0.career.tracks, { field: 0, minedock: 0, resort: 0, survey: 0, clients: 0 }), 'every track starts at 0');
   ok(Object.keys(D0.career.providers).length === 5 && Object.values(D0.career.providers).every(p => p.rep === 0 && p.arc === 0), 'five providers at 0 reputation');
@@ -597,10 +600,10 @@ function run(mut) {
     let seen = null;
     const r = M.contractOnStop(d, 'clients.02', st, { acceptVerdict: (c, s, x) => { seen = [c.id, s.do, x.slot]; return { ok: true, got: { emptyKg: 260 } }; } });
     ok(eq(seen, ['clients.02', 'deliver', 'tiny']), 'the hook is handed the contract, the sub and the stop');
-    ok(r.ok && r.doc.career.contracts.done.some(x => x.id === 'clients.02' && x.pay === Math.round(A['clients.02'].pay.base * 1.1 / 10) * 10), 'delivered, with the margin bonus (260 kg beats 300 kg by 10 %)');
+    ok(r.ok && r.doc.career.contracts.done.some(x => x.id === 'clients.02' && x.pay === Math.round(PB(A['clients.02'].pay.base) * 1.1 / 10) * 10), 'delivered, with the margin bonus (260 kg beats 300 kg by 10 %)');
     ok(r.doc.career.contracts.offered.includes('clients.02+1') && r.events.some(x => x.k === 'done' && x.followUp === 'clients.02+1'), 'GQ26: the happy client offers a follow-up');
     const r2 = M.contractOnStop(d, 'clients.02', st, { acceptVerdict: () => ({ ok: true, got: { emptyKg: 295 } }) });
-    ok(r2.ok && r2.doc.career.contracts.done.find(x => x.id === 'clients.02').pay === A['clients.02'].pay.base, 'no margin, no bonus');
+    ok(r2.ok && r2.doc.career.contracts.done.find(x => x.id === 'clients.02').pay === PB(A['clients.02'].pay.base), 'no margin, no bonus');
     // (G2705 CAREER-DAMAGE) the acceptance flown with STRUCTURAL damage fails with its reason, whatever the verdict;
     // structural absent / not damaged = judged as before
     const bent = Object.assign({}, st, { structural: { damaged: true, why: 'the left spar yielded' } });
@@ -625,7 +628,7 @@ function run(mut) {
     refused(M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'w3', t: 200 } })), b, d, 'the challenge from the wrong field');
     const g = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 280 } }));
     ok(g.ok && g.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'gold'
-       && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === Math.round(M.contractStoryBase(A['clients.03'])) * 2, 'gold, paid double');   // G2260: the story factor (ECONOMY's CONTRACT_PAY.story)
+       && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === PB(M.contractStoryBase(A['clients.03'])) * 2, 'gold, paid double');   // G2260: the story factor (ECONOMY's CONTRACT_PAY.story)
     const s = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 500 } }));
     ok(s.ok && s.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'bronze' && s.doc.career.tracks.clients === 1, 'bronze, the club house unlocked');
     // (G2705 CAREER-DAMAGE) a gold time flown with structural damage wins no medal
@@ -682,7 +685,7 @@ function run(mut) {
         ok(d.career.tracks[p] === lastUnlock && d.career.providers[p].arc === flown.length, p + ' journey: the arc up to the held-out contract, the track at its last unlock (' + lastUnlock + ')');
       } else if (good) ok(d.career.tracks[p] === M.CONTRACT_TRACKS[p].max && d.career.providers[p].arc === PROV[p].arc.length, p + ' journey: the whole arc, the track built to its last stage');
       if (good) {
-        ok(d.wallet === 60000 + d.career.contracts.done.reduce((a, x) => a + x.pay, 0) && d.ledger.every(l => ['grant', 'contract'].includes(l.k)), p + ' journey: the wallet is the grant + the pay, nothing else charged');
+        ok(d.wallet === M.careerGrant() + d.career.contracts.done.reduce((a, x) => a + x.pay, 0) && d.ledger.every(l => ['grant', 'contract'].includes(l.k)), p + ' journey: the wallet is the grant + the pay, nothing else charged');
       }
     }
   }
@@ -925,7 +928,7 @@ function run(mut) {
     ok(R.contracts.length === d.career.contracts.offered.length && R.contracts.map(c => c.id).join() === d.career.contracts.offered.join(), 'the map record: a new career\'s offers (' + R.contracts.length + ': every provider\'s first arc contract + 3 jobs)');
     ok(R.contracts.every(c => c.title && c.brief && !/\[|\{/.test(c.title + c.brief)), 'the map record: every title and brief resolved (contractText, slots filled)');
     ok(R.contracts.every(c => c.pay.total === M.contractPay(M.careerContract(d, c.id)).total), 'the map record: the pay is contractPay\'s');
-    ok(R.career.wallet === 60000 && R.career.accepted.length === 0 && R.career.tracked === null && R.fleet.length === 0, 'the map record: the wallet, nothing accepted, no fleet yet');
+    ok(R.career.wallet === CORE.careerGrant() && R.career.accepted.length === 0 && R.career.tracked === null && R.fleet.length === 0, 'the map record: the wallet, nothing accepted, no fleet yet');
     // accept, track, and a carry job's progress read back
     const job = d.career.contracts.offered.find(i => { const r = M.careerContract(d, i); return /^job:/.test(i) && r.stages.length === 1 && r.stages[0].subs[0].do === 'carry' && !r.stages[0].subs[0].when; });
     const e = accept(d, job);
@@ -1163,7 +1166,7 @@ const BREAKS = [
   // the career
   ['the grant is wrong', { s74: sub('const CAREER_GRANT = 60000;', 'const CAREER_GRANT = 50000;') }],
   ['no voucher', { s74: sub("const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };", "const CAREER_VOUCHER = { kind: 'maker', model: '' };") }],
-  ['the grant is not in the ledger', { s74: sub("  playerCharge(d, -CAREER_GRANT, 'grant', null);", '  d.wallet += CAREER_GRANT;') }],
+  ['the grant is not in the ledger', { s74: sub("  playerCharge(d, -careerGrant(), 'grant', null);", '  d.wallet += careerGrant();') }],
   ['the career normaliser drops the done list', { s74: sub("for (const k of ['offered', 'accepted', 'done']) if (!Array.isArray(C[k])) C[k] = [];", "for (const k of ['offered', 'accepted', 'done']) C[k] = [];") }],
   ['accepting refuses nothing', { s74: sub("  if (!careerOfferIds(doc).includes(id)) return crNo(doc, id + ' is not on offer');\n", '') }],
   // the import

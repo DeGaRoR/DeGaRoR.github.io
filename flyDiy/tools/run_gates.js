@@ -519,6 +519,10 @@ const GATES = [
   // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
   // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
   { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
+  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json, official / candidates / internal,
+  // nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
+  // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
+  { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
@@ -968,6 +972,8 @@ const GATES = [
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
   { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  // LOOKS-ROUND2 (the user 4 Nov): a float keeps its paint and takes no letters: the table, the shader, the join, the three doors. ~1 s
+  { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
@@ -1082,6 +1088,10 @@ const GATES = [
   { id: 'TECH', file: '_tech_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
+  // PRICE-CAL (2026-11, futureDesigns/PRICE-STUDY-2026-11.md): credits are USD 2025-26 at parity, every priced row
+  // within x1.5 of a sourced benchmark, the pay riding the reference Cub, one margin, the used market's age curve and the
+  // sale's cap, the ledger's fixes (a prop per engine, one seat line, an empty tank, paint by area) (~40 s)
+  { id: 'PRICE', file: '_price_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
   // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
   // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where

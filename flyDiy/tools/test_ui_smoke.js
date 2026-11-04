@@ -988,6 +988,47 @@ try {
       `the popup: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there?" moved the garage to ${other.id}`);
   }
   storageChecks();   // G2690 HANGAR-STORAGE
+  // PRICE-CAL: THE FLEET CARD'S SELL (garage.js renderFleet): a career's airframe carries Sell at its used-market price
+  // (api.saleOf / api.sell, the page's careerSaleOf / careerSellNow over 76_economy econSaleValue / econSell); greyed
+  // with the reason when it cannot be sold now (the tutorial); a row the economy does not price carries none; a sale
+  // asks first, then the slot leaves the shelf
+  {
+    const kids = [];
+    const mk = (tag) => {
+      const e = { tag, children: [], style: {}, className: '', textContent: '', innerHTML: '', title: '', hidden: false, disabled: false, value: '', on: {}, _q: {},
+        addEventListener(k, f) { this.on[k] = f; }, appendChild(c) { this.children.push(c); kids.push(c); return c; },
+        querySelector(sel) { return this._q[sel] || (this._q[sel] = mk('q')); }, querySelectorAll: () => [], remove() {}, click() { if (this.on.click) this.on.click({ target: this }); },
+        setAttribute() {} };
+      return e;
+    };
+    const els3 = {}, store = new Map();
+    const LS = { get length() { return store.size; }, key: i => Array.from(store.keys())[i], getItem: k => (store.has(k) ? store.get(k) : null),
+                 setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } };
+    for (const n of ['Cub', 'Jodel', 'Rufus']) LS.setItem('flydiy.build.' + n, JSON.stringify({ what: 'flydiy-build', name: n, spec: { meta: { name: n } } }));
+    let asked = null, soldN = null;
+    const gb = { console, document: { getElementById: id => (els3[id] || (els3[id] = mk('#' + id))), createElement: t => mk(t), body: mk('body') },
+                 alert: () => {}, prompt: () => null, confirm: q => { asked = q; return true; },
+                 setTimeout: f => { f(); return 0; }, clearTimeout() {}, genNormaliseSpec: x => x, genSpecMerge: (a2, b2) => Object.assign({}, a2, b2) };
+    gb.window = { localStorage: LS };
+    vm.createContext(gb);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8'), gb, { filename: 'garage.js' });
+    const SALE = { Cub: { value: 35700, cap: '', why: '' }, Jodel: { value: 30000, cap: '', why: 'no sales during the tutorial' } };
+    gb.garageInit({ defaults: () => ({}), apply() {}, resolved: () => null, isGen: () => true, inGarage: () => true,
+                    place: () => null, wear: () => 0, money: v => String(v),
+                    saleOf: n => SALE[n] || null, sell: n => { soldN = n; return { ok: true, value: SALE[n].value }; } });
+    els3.gLoad.on.click();
+    const rowsOf = () => { const o = {}; for (const r of kids.filter(k => typeof k.className === 'string' && /\bgfRow\b/.test(k.className))) {
+      const b = r.children.find(c => c.className === 'gfLoad'); const nm = b && b.children.find(c => c.tag === 'b'); if (nm) o[nm.textContent] = r; } return o; };
+    const sellOf = r => r && r.children.find(c => c.className === 'gfSell');
+    let rows = rowsOf();
+    if (!sellOf(rows.Cub) || sellOf(rows.Cub).disabled || !/35700/.test(sellOf(rows.Cub).title)) throw new Error('the fleet card: no live Sell at its price on the Cub (' + (sellOf(rows.Cub) && sellOf(rows.Cub).title) + ')');
+    if (!sellOf(rows.Jodel) || !sellOf(rows.Jodel).disabled || !/tutorial/.test(sellOf(rows.Jodel).title)) throw new Error('the fleet card: the Jodel\'s Sell is not greyed with the tutorial\'s reason');
+    if (sellOf(rows.Rufus)) throw new Error('the fleet card: a row the economy does not price (the Rufus) carries a Sell');
+    sellOf(rows.Cub).on.click();
+    if (!asked || !/Sell .*35700/.test(asked) || soldN !== 'Cub' || LS.getItem('flydiy.build.Cub') !== null)
+      throw new Error('the Sell: asked ' + JSON.stringify(asked) + ', sold ' + soldN + ', the slot ' + (LS.getItem('flydiy.build.Cub') ? 'still saved' : 'gone'));
+    console.log('PRICE-CAL: the fleet card\'s Sell - live at its price on the Cub, greyed in the tutorial on the Jodel, none on the Rufus; the sale asks, sells, clears the slot');
+  }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the

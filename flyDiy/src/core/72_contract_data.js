@@ -68,20 +68,20 @@ const CONTRACT_FIELDS = {
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
-            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 31203, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44683, tankL: 47.7, power: 'fuel' },
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 463, emptyKg: 341, toM: 205,
-            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 34363, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45992, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
-            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 93783, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
             gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
-            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 95731, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202863, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
             gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
-            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 35551, tankL: 20.1, power: 'fuel' },
+            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 68854, tankL: 20.1, power: 'fuel' },
 };
 
 // ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
@@ -232,13 +232,13 @@ const CONTRACT_PROVIDERS = {
              { k: 'hydro', op: '==', v: true },
              { k: 'landAt', op: '==', v: 'SEA', at: { pax: 0, kg: 150 } }] }] }],
            pay: { base: 48000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 1 },
-           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 110000 }] } }),
+           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 157500 }] } }),
       C_({ id: 'minedock.b2', provider: 'minedock', kind: 'build', title: 'ct.minedock.b2.title', brief: 'ct.minedock.b2.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
              { k: 'takeoffAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } },
              { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
            pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
-           followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+           followUp: { add: [{ k: 'costMax', op: '<=', v: 171800 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
     ],
     // (G2665) A LATE RETURN from the mine: the shift's engineer down to the field after dusk
     night: [
@@ -303,7 +303,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'xwindKt', op: '>=', v: 15 },
              { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 1, kg: 0 } }] }] }],
            pay: { base: 38000 }, rep: { provider: 'resort', gain: 1 }, needs: { rep: 2 },
-           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 60000 }] } }),
+           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 85900 }] } }),
     ],
   },
 
@@ -379,7 +379,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'seats', op: '>=', v: 1 }] }] }],
            pay: { base: 30000, bonus: [{ crit: 'emptyKg', by: 0.1, pct: 10 }] },
            rep: { provider: 'clients', gain: 1 }, needs: { after: ['clients.01'] },
-           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 30000 }] } }),
+           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 43000 }] } }),
       C_({ id: 'clients.03', provider: 'clients', kind: 'challenge', title: 'ct.clients.03.title', brief: 'ct.clients.03.brief',
            stages: [{ subs: [{ do: 'fly', from: 'tw_ski', to: 'HOME',
                                medals: [{ medal: 'gold', le: 300 }, { medal: 'silver', le: 420 }, { medal: 'bronze', le: 540 }] }] }],
@@ -387,7 +387,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
+             { k: 'costMax', op: '<=', v: 45800 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 let the stock Cub (31 203) qualify, the Jodel (34 363) not. PRICE-CAL: every costMax x1.432, the pay's scale - the Cub 44 683 qualifies, the Jodel 45 992 not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },

@@ -71,20 +71,20 @@ const CONTRACT_FIELDS = {
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
-            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 31203, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44683, tankL: 47.7, power: 'fuel' },
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 463, emptyKg: 341, toM: 205,
-            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 34363, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45992, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
-            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 93783, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
             gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
-            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 95731, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202863, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
             gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
-            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 35551, tankL: 20.1, power: 'fuel' },
+            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 68854, tankL: 20.1, power: 'fuel' },
 };
 
 // ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
@@ -235,13 +235,13 @@ const CONTRACT_PROVIDERS = {
              { k: 'hydro', op: '==', v: true },
              { k: 'landAt', op: '==', v: 'SEA', at: { pax: 0, kg: 150 } }] }] }],
            pay: { base: 48000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 1 },
-           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 110000 }] } }),
+           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 157500 }] } }),
       C_({ id: 'minedock.b2', provider: 'minedock', kind: 'build', title: 'ct.minedock.b2.title', brief: 'ct.minedock.b2.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
              { k: 'takeoffAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } },
              { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
            pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
-           followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+           followUp: { add: [{ k: 'costMax', op: '<=', v: 171800 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
     ],
     // (G2665) A LATE RETURN from the mine: the shift's engineer down to the field after dusk
     night: [
@@ -306,7 +306,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'xwindKt', op: '>=', v: 15 },
              { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 1, kg: 0 } }] }] }],
            pay: { base: 38000 }, rep: { provider: 'resort', gain: 1 }, needs: { rep: 2 },
-           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 60000 }] } }),
+           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 85900 }] } }),
     ],
   },
 
@@ -382,7 +382,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'seats', op: '>=', v: 1 }] }] }],
            pay: { base: 30000, bonus: [{ crit: 'emptyKg', by: 0.1, pct: 10 }] },
            rep: { provider: 'clients', gain: 1 }, needs: { after: ['clients.01'] },
-           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 30000 }] } }),
+           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 43000 }] } }),
       C_({ id: 'clients.03', provider: 'clients', kind: 'challenge', title: 'ct.clients.03.title', brief: 'ct.clients.03.brief',
            stages: [{ subs: [{ do: 'fly', from: 'tw_ski', to: 'HOME',
                                medals: [{ medal: 'gold', le: 300 }, { medal: 'silver', le: 420 }, { medal: 'bronze', le: 540 }] }] }],
@@ -390,7 +390,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
+             { k: 'costMax', op: '<=', v: 45800 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 let the stock Cub (31 203) qualify, the Jodel (34 363) not. PRICE-CAL: every costMax x1.432, the pay's scale - the Cub 44 683 qualifies, the Jodel 45 992 not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
@@ -1405,17 +1405,20 @@ function contractPay(rec, fields) {
     const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
     km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
   }
+  // PRICE-CAL: every money term at today's prices (76_economy econPayScale: the pay rides the reference Cub's ledger)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
   let surface = 0;
   for (const id of Object.keys(touched)) {
     const f = F[id];
     if (!f) continue;
-    if (ctWet(f)) surface += P.surf.water;
-    else if (f.len <= P.shortM) surface += P.surf.short;
-    if (f.surf === 'snow') surface += P.surf.snow;
-    if (f.alti) surface += P.surf.altiport;
+    if (ctWet(f)) surface += P.surf.water * PS;
+    else if (f.len <= P.shortM) surface += P.surf.short * PS;
+    if (f.surf === 'snow') surface += P.surf.snow * PS;
+    if (f.alti) surface += P.surf.altiport * PS;
   }
-  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
-  const perKm = rec.kind === 'job' ? P.perKm : 0;
+  // (the scaled base rounded to the pay's unit, as the unscaled bases were whole: a medal's x2 stays exact)
+  const base = Math.round((rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec)) * PS / P.round) * P.round;
+  const perKm = rec.kind === 'job' ? P.perKm * PS : 0;
   const legPay = perKm * legs;
   const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
   const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
@@ -1864,9 +1867,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 }
 
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
-function contractPayTotal(rec, got, medal) {
+function contractPayTotal(rec, got, medal, base) {
   const P = rec.pay || {};
-  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : Math.round(contractStoryBase(rec));
+  // (PRICE-CAL: a job's total was fixed by contractPay at today's prices when offered; an authored base is scaled here)
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total
+    : Math.round(contractStoryBase(rec) * (typeof econPayScale === 'function' ? econPayScale() : 1) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
+  // (PRICE-CAL: a build contract's delivered airframe at its value to the client, handed in by careerComplete)
+  if (rec.kind === 'build' && typeof base === 'number' && isFinite(base) && base > 0) total = base;
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {
@@ -3164,7 +3171,9 @@ const CAREER_V = 2;
 // DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
 const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
-const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
+const CAREER_GRANT = 60000;
+// PRICE-CAL: the grant at today's prices (76_economy econPay: the pay rides the reference Cub's ledger)
+const careerGrant = () => (typeof econPay === 'function' ? econPay(CAREER_GRANT) : CAREER_GRANT);                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
 const careerKey = id => CAREER_KEY + (id || 'main');
 const crClone = o => JSON.parse(JSON.stringify(o));
@@ -3235,7 +3244,7 @@ function careerNew(o) {
   const main = careerMainShed();
   if (main) d.sheds.HOME = main;
   d.career = careerBlockDefault(o);
-  playerCharge(d, -CAREER_GRANT, 'grant', null);
+  playerCharge(d, -careerGrant(), 'grant', null);
   // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
   if (typeof pilotsCompanion === 'function') pilotsCompanion(d);
   return careerRefresh(d);
@@ -3693,7 +3702,12 @@ function contractOnStop(doc, contract, stop, hooks) {
 // the done list (the completed count the generator reads), and the offers refreshed (the follow-up among them)
 function careerComplete(d, rec, live, medal, events) {
   const c = d.career, C = c.contracts;
-  const pay = contractPayTotal(rec, live.got, medal);
+  // PRICE-CAL: a build contract pays what the delivered airframe is worth to its client - its NEW price (76_economy
+  // econDeliveredValue: the zero-days value + the new bonus; a used one at its used value) - unless the contract is a
+  // FIXED price (rec.pay.fixed: its authored base, as before). Its ledger unknown: the authored base stands.
+  const A = live && live.slot && c.airframes ? c.airframes[live.slot] : null;
+  const dv = rec.kind === 'build' && !(rec.pay && rec.pay.fixed) && typeof econDeliveredValue === 'function' ? econDeliveredValue(A) : null;
+  const pay = contractPayTotal(rec, live.got, medal, dv);
   playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);   // G2260: the Trust's loan job writes a `loan` line
   const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
   P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
@@ -4343,7 +4357,32 @@ const ECON_BOOK = {
   comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
-  makerMargin: 1.35,
+  // PRICE-CAL 2026-11: ONE maker's margin, over the LEDGER (the core had two: PROCURE's 1.15 over the ledger and this
+  // row's 1.35 over a fitted build, 1.08 - a Cub read 35 900 or 33 700 depending on who asked). PROCURE_MARGIN reads it.
+  makerMargin: 1.15,
+  // PRICE-CAL: THE PAY RIDES THE PRICES. Every absolute money number - CONTRACT_PAY, ROUTES_PAY.perKm, T6's fee,
+  // careerNew's grant, the Trust's loan threshold, a maker's delivery - was tuned (G2261, G3359) when the reference
+  // Cub's ledger was `payRef`. econPayScale() = econRefPrice() / payRef multiplies each of them, so a re-priced ledger
+  // moves the pay with it and the career's paces, which ECON-SIM measured in CONTRACTS, hold by construction.
+  payRef: 31203,
+  // PRICE-CAL: THE MARKET TIERS, ONE BASE (the user 4 Nov: "the new ones, at the zero damage, plus a new bonus ... that
+  // is also the price we'd sell our planes, except if a build contract is fixed price ... even the fixed price may be
+  // evaluated using the same method"):
+  //   zero     the ZERO-DAYS value: an airframe the day it left the shop, no damage = the ledger x `zeroK`
+  //   used     zero x econAgeFactor(age) x (1 - its deductions): the curve 1 at zero days, falling toward `floor` with
+  //            `tau` years (fitted on same-type new/used pairs, futureDesigns/price-study/age_curve.js, rms x1.12)
+  //   new      zero x (1 + `newBonus`): the first owner's premium, 25 % - the real market's nearly-new plane sells at
+  //            ~0.8 of new (the fit's step). zero x 1.25 = the ledger x makerMargin: the makers' catalogue is NEW
+  //   sale     the fleet card's Sell: the USED price at its age (`sellK` 1), never more than the player paid - a build in
+  //            a fitted hangar (0.8) is worth 0.92 at zero days, and without the cap building to sell would print money
+  //   build    a build contract's fixed price is evaluated the same way: the NEW price of the cheapest validated design
+  //            that meets it (tools/_price_check.js holds the authored bases to it)
+  // The used market draws its listings' ages inside `listAges` (step 2: age now costs performance, 60_ GEN_AGING, so
+  // the old planes are back: 1-40 years, their condition held to PROCURE_COND).
+  zeroK: 0.92, newBonus: 0.25,
+  age: { floor: 0.14, tau: 27.5, listAges: [1, 40], kgPerYear: 0.4, kgMax: 15, olderPerYear: 1 / 30,
+         hoursPerYear: [50, 120], weatherAt: 40 },
+  sellK: 1,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
   round: 100,
   loanBelow: -20000,
@@ -4384,10 +4423,89 @@ function econAirframePrice(cost, shed, wants) {
   const L = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed || null, wants || []) : 1;
   return econRound((+cost || 0) * L);
 }
-// THE MAKERS' CATALOGUE PRICE (PROCURE): the scratch price (the ledger in a fully fitted works) x the margin
+// THE MAKERS' CATALOGUE PRICE (PROCURE): V0, the new value = the ledger x the one maker's margin
 function econCatalogPrice(cost, margin) {
   const m = typeof margin === 'number' && margin > 0 ? margin : ECON_BOOK.makerMargin;
-  return econRound((+cost || 0) * PREM_RATES.labourFit * m);
+  return econRound((+cost || 0) * m);
+}
+// THE PAY'S SCALE (PRICE-CAL): the reference Cub's ledger over the one the pay was tuned at
+function econPayScale() {
+  const r = econRefPrice() / ECON_BOOK.payRef;
+  return isFinite(r) && r > 0 ? r : 1;
+}
+// an absolute money number of the tables (pay, a fee, a grant) at today's prices, rounded as the book rounds
+const econPay = v => econRound((+v || 0) * econPayScale());
+// THE AGE CURVE (PRICE-CAL): the used value over the zero-days value - 1 at zero days, floor + (1 - floor) e^(-age/tau)
+function econAgeFactor(age) {
+  const A = ECON_BOOK.age, a = Math.max(0, +age || 0);
+  return A.floor + (1 - A.floor) * Math.exp(-a / A.tau);
+}
+// the zero-days value of a ledger, and the NEW price (zero x (1 + newBonus) = the makers' catalogue)
+const econZeroValue = cost => (+cost || 0) * ECON_BOOK.zeroK;
+const econNewPrice = cost => econRound(econZeroValue(cost) * (1 + ECON_BOOK.newBonus));
+// A USED PLANE'S VALUE: the zero-days value (or { v0 }: a NEW price, its listing's catalogue, taken back to zero days)
+// x the age curve x (1 - the deductions: a repair, an older panel, the extra kilos) - { cost } | { v0 }, age, ded
+function econUsedValue(o) {
+  o = o || {};
+  const z = o.v0 != null ? +o.v0 / (1 + ECON_BOOK.newBonus) : econZeroValue(o.cost);
+  return econRound(z * econAgeFactor(o.age) * (1 - Math.max(0, Math.min(1, +o.ded || 0))));
+}
+// WHAT A FLEET AIRFRAME SELLS FOR (the fleet card's Sell): min(sellK x its used value at its age, what the player paid)
+// - a story airframe (paid 0) sells for nothing. (doc, slot, cost: its ledger) -> { value, paid, cap, age, why }
+// `why` is the refusal when it cannot be sold now: the tutorial (until T6's route is signed - the user 4 Nov: "no sales
+// during the tuto, ends when we commit to the cub floats route"), a route flown on it, a story airframe, not ours
+function econSaleWhy(doc, slot) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!doc || doc.mode !== 'career' || !A) return 'not an airframe of the career';
+  if (typeof storyOf === 'function') {
+    const st = storyOf(doc);
+    if (st && !st.open && ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'].includes(st.beat)) return 'no sales during the tutorial';
+  }
+  if (typeof routeOfPlane === 'function' && routeOfPlane(doc, slot)) return 'it flies a route: end the route first';
+  if (A.from === 'story' || A.client) return 'a story aeroplane is not for sale';
+  if (!(+A.paid > 0)) return 'it cost you nothing: not for sale';
+  return '';
+}
+function econSaleValue(doc, slot, cost) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0, why: 'not an airframe of the career' };
+  const age = Math.max(0, +A.age || 0);
+  const ded = Math.min(0.5, 0.08 * (+A.repairs || 0) + (A.damage ? 0.1 : 0));
+  const v = econRound(ECON_BOOK.sellK * econUsedValue({ v0: A.v0 != null ? A.v0 : null, cost, age, ded }));
+  const paid = Math.max(0, Math.round(+A.paid || 0));
+  return { value: Math.min(v, paid), paid, cap: v > paid ? 'what it cost you' : '', age: +age.toFixed(2), why: econSaleWhy(doc, slot) };
+}
+// WHAT A CLIENT PAYS FOR A DELIVERED AIRFRAME (PRICE-CAL; the user 4 Nov: "the new ones, at the zero damage, plus a new
+// bonus ... that is also the price we'd sell our planes, except if a build contract is fixed price"): its NEW price
+// (the zero-days value + the new bonus) when it is the player's own making (no age), else its USED value at its age (a
+// used plane bought cheap and handed over is not a new one). null when its ledger is not on record: the contract's
+// authored base stands (the offer's estimate). (A: a career.airframes row)
+function econDeliveredValue(A) {
+  if (!A) return null;
+  const cost = +A.cost > 0 ? +A.cost : (A.v0 != null ? +A.v0 / ECON_BOOK.makerMargin : 0);
+  if (!(cost > 0)) return null;
+  if (+A.age > 0) return econUsedValue({ cost, age: +A.age, ded: Math.min(0.5, 0.08 * (+A.repairs || 0)) });
+  return econNewPrice(cost);
+}
+// THE SALE (the fleet card's Sell): the airframe out of the fleet and out of career.airframes (74_ careerHandover's
+// canonical drop: playerFleetReconcile, its pilot freed), on record (career.sold, `how: 'market'`), the wallet credited
+// with its sale value, a `sale` ledger line (income). Refused (the same document) with econSaleWhy's reason.
+// (doc, slot, cost: its ledger) -> { ok, doc, why, value }
+function econSell(doc, slot, cost) {
+  const why = econSaleWhy(doc, slot);
+  if (why) return ecNo(doc, why);
+  const sv = econSaleValue(doc, slot, cost);
+  if (!(sv.value > 0)) return ecNo(doc, 'it is worth nothing on the market');
+  const d = ecClone(doc), c = d.career;
+  if (d.fleet && d.fleet[slot] && typeof playerFleetReconcile === 'function') {
+    const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== slot));
+    for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];
+  }
+  delete c.airframes[slot];
+  for (const p of Object.keys(c.pilots || {})) if (c.pilots[p] && c.pilots[p].plane === slot) c.pilots[p].plane = null;
+  c.sold = (Array.isArray(c.sold) ? c.sold : []).concat([{ slot, how: 'market', at: Math.round(d.clock || 0), pay: sv.value, cost: sv.paid }]);
+  playerCharge(d, -sv.value, 'sale', slot);
+  return { ok: true, doc: d, why: '', value: sv.value };
 }
 // A PILOT'S SIGN-ON FEE (PILOTS): one time, by tier ('rookie' | 'pilot' | 'ace'); unknown tiers cost a pilot's
 function econSignOn(tier) {
@@ -4410,6 +4528,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  sale: 'sale',                                     // PRICE-CAL: an airframe sold on the market (econSell): income
   story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
 };
@@ -4439,7 +4558,8 @@ function econMaterialise(doc, slot, cost, wants, opts) {
   if (!r.ok) return r;
   const C = r.doc.career;
   if (C && C.airframes && typeof C.airframes === 'object')
-    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
+    // (PRICE-CAL: `cost` its LEDGER - what a client pays for it delivered, and the market for it sold, read it)
+    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, cost: Math.round(+cost || 0), how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
       opts.podPaid > 0 ? { podPaid: Math.round(opts.podPaid) } : {});   // G3465: its belly pod is in that price (76_procure: not billed twice)
   return { ok: true, doc: r.doc, cost: price, why: '' };
 }
@@ -4476,7 +4596,7 @@ const ECON_TEXT = {
 if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_TEXT[k];
 const econLoans = doc => ((doc && doc.ledger) || []).filter(l => l && l.k === 'loan').length;
 function econLoanOffer(doc) {
-  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow)) return null;
+  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow * econPayScale())) return null;
   return 'loan:field:' + (econLoans(doc) + 1);
 }
 function econLoanPay(wallet) {
@@ -4658,7 +4778,7 @@ function econReference(seed, opts) {
   const R = Object.assign({}, ECON_REF, opts.ref || {});
   let d = careerNew({ id: 'ref', seed });
   const fleet = ['cub'];
-  const float = CAREER_GRANT, at = {}, pays = [];
+  const float = careerGrant(), at = {}, pays = [];
   let wi = 0, spent = 0, arcBy = null;
   const priceOf = w => w.k === 'acquire' ? plotPrice(w.aero, w.plot, w.shell)
     : econAirframePrice(CONTRACT_DESIGNS[w.design].cost, d.sheds[PREM_MAIN], R.wants[w.design]);
@@ -4750,10 +4870,12 @@ function econCalibration(opts) {
 // the build files' specs, the slot names and the ledgers it measured.
 // ===========================================================================
 const PROCURE_V = 1;
-const PROCURE_MARGIN = 1.15;           // a maker's margin over the ledger (§5.2: a scratch build is ×0.75 of it)
+const PROCURE_MARGIN = ECON_BOOK.makerMargin;   // PRICE-CAL: the ONE maker's margin over the ledger (76_economy), 1.15
 const PROCURE_USED_MAX = 4;            // at most four listings at once
 const PROCURE_USED_EVERY = 3;          // refreshed after every three completed contracts (CONTRACT_GEN.refreshEvery)
-const PROCURE_COND = [0.4, 0.8];       // a used aeroplane's price: catalogue × condition
+const PROCURE_COND = [0.2, 0.8];       // a used aeroplane's price: catalogue × condition (PRICE-CAL: the condition is the
+                                        // age curve over the new price, 76_economy, less the deductions - held to this band;
+                                        // step 2: 0.2 at the bottom, the 40-year-olds that age now slows down)
 const PROCURE_DELIVERY = { main: 0, side: 400, perKm: 25 };   // a maker's delivery to a side hangar (the stub's)
 const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH_COSMETIC
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
@@ -4803,6 +4925,8 @@ const PROCURE_TEXT = {
   // the used market
   'used.title': PRT_('{m}, {h} hours'),
   'used.hours': PRT_('{h} hours on the engine since its last overhaul'),
+  'used.built': PRT_('built {y}, {a} years old'),
+  'used.aged': PRT_('the engine gives {p} % of its rated power; {d} % more drag than new'),
   'used.repair.none': PRT_('no damage history'),
   'used.repair.gear': PRT_('the gear was replaced after a hard landing'),
   'used.repair.prop': PRT_('a new propeller after a prop strike'),
@@ -4878,28 +5002,28 @@ const PROCURE_MODELS = {
     id: 'scout', maker: 'bramble', name: 'mdl.scout.name', line: 'mdl.scout.line', designs: { wheels: 'cub' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { cub: {} } },
-                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 15100, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
-                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 8834, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 32134, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
+                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 10720, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
-                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 836, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 965, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
       gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
-                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 50, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
+                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 81, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
-                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -6355, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 8872, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -9406, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 11058, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   pinson: {
     id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
-                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 15112, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
-                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -3154, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32146, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
+                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -2531, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
-                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 868, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 997, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { jodel: {} } },
-                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -6360, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 8857, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -9357, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 10986, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   meridian: {
@@ -4907,28 +5031,28 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11033, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -715, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -13365, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -13348, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
+                                                                     c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 683, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
-                                                                c172f: PE_({ cost: 681, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                                                c172f: PE_({ cost: 808, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
-                                    3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1522, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                    3: { seats: 1, eff: { c172: PE_({ cost: -1553, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
+                                                          c172f: PE_({ cost: -1530, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
-                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
-                                                                       c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
+                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -13200, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
+                                                                       c172f: PE_({ cost: -13198, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   tern: {
     id: 'tern', maker: 'driftwood', name: 'mdl.tern.name', line: 'mdl.tern.line', designs: { floats: 'twinf' },
     opts: {
       engine:   { def: 'r582', vals: { r582: { eng: 'r582', eff: { twinf: {} } },
-                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -3103, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
+                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -8703, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { twinf: {} } },
-                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 517, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 983, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
 };
@@ -5155,7 +5279,7 @@ function procureEconStub(kind, item) {
   item = item || {};
   if (kind === 'model') return prR100((+item.cost || 0) * PROCURE_MARGIN);
   if (kind === 'option') return prR100((+item.cost || 0) * PROCURE_MARGIN);
-  if (kind === 'delivery') return item.to === 'side' ? prR100(PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) : PROCURE_DELIVERY.main;
+  if (kind === 'delivery') return item.to === 'side' ? prR100((PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) * (typeof econPayScale === 'function' ? econPayScale() : 1)) : PROCURE_DELIVERY.main;
   if (kind === 'build') return prR100(+item.cost || 0);
   if (kind === 'used') return prR100((+item.catalogue || 0) * (+item.condition || 0));
   if (kind === 'edit') return Math.round(+item.cost || 0);
@@ -5315,7 +5439,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   const fp = procureFp(spec);
   const row = { from: 'maker', maker: PROCURE_MODELS[modelId].maker, model: modelId, design: P.design, opts: prClone(opt), fp,
                 cert: prClone(cert), factory: true, modified: false, price: total, at: Math.round(D2.clock || 0),
-                ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what it cost, and its ledger (a delivery and a sale read them): a maker's is new, age 0
+                paid: total, cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[P.design] ? Math.round(CONTRACT_DESIGNS[P.design].cost) : 0) };
   if (career) {
     D2.career.airframes[slot] = row;
     if (voucher) D2.career.voucher = Object.assign({}, D2.career.voucher, { used: true, slot });
@@ -5351,10 +5477,16 @@ function procureUsedListing(seed, epoch, i) {
   const design = procureDesignOf(model, o);
   // the engine and the tank as the first owner chose them (any value offered on its design)
   for (const r of ['engine', 'tank']) if (M.opts[r]) o[r] = pick(Object.keys(M.opts[r].vals).filter(v => prOffered(M, r, v, design)));
-  // an older panel: one tier below the factory's, where the sheet has one
+  // PRICE-CAL: THE AGE (whole years, ECON_BOOK.age.listAges): the price's term (econAgeFactor), and what comes with it
+  // ITS OWN STREAM: the listing's draws (model, options, panel, registration, where it stands) are the ones they were -
+  // an age drawn from the listing's stream shifted every pick after it, and the world stood other aeroplanes on its
+  // aprons (GATE FRAMECOST's stand: +131 draws)
+  const AG = ECON_BOOK.age, rngA = contractRng(String(seed) + '|' + id + '|age');
+  const age = Math.round(AG.listAges[0] + rngA() * (AG.listAges[1] - AG.listAges[0]));
+  // an older panel: one tier below the factory's, where the sheet has one - likelier the older the aeroplane
   const AV = M.opts.avionics, tiers = ['minimal', 'basic', 'ifr'];
   let older = false;
-  if (AV && rng() < 0.6) {
+  if (AV && rng() < Math.min(0.9, age * AG.olderPerYear)) {
     const cur = AV.vals[o.avionics].fit, ix = tiers.indexOf(cur || 'ifr');
     const down = tiers.slice(0, Math.max(0, ix)).reverse().find(t => Object.keys(AV.vals).some(v => AV.vals[v].fit === t && prOffered(M, 'avionics', v, design)));
     if (down) { o.avionics = Object.keys(AV.vals).find(v => AV.vals[v].fit === down); older = true; }
@@ -5362,14 +5494,19 @@ function procureUsedListing(seed, epoch, i) {
   o.finish = pick(Object.keys(PROCURE_FINISH));
   const L3 = 'ABCDEFGHJKLMNPRSTUVWXYZ';
   o.reg = 'N' + (100 + Math.floor(rng() * 900)) + L3[Math.floor(rng() * L3.length)] + L3[Math.floor(rng() * L3.length)];
-  const hours = 50 * Math.round((150 + rng() * 2850) / 50);
+  // the engine's hours since its last overhaul: the years at a club's rate, short of the next overhaul
+  const hpy = AG.hoursPerYear[0] + rng() * (AG.hoursPerYear[1] - AG.hoursPerYear[0]);   // (the old hours' draw, in its place)
+  const hours = 50 * Math.round(Math.max(150, Math.min(2950, (age * hpy) % 2000 + 150)) / 50);
   const repair = pick(PROCURE_REPAIRS);
-  const kg = Math.round(rng() * 15);
+  // the kilos of equipment fitted over the years (a real spec row: the cargo it carries)
+  const kg = Math.round(Math.min(AG.kgMax, AG.kgPerYear * age * (0.5 + rng())));     // (the old kilos' draw, in its place)
   const seller = Math.floor(rng() * 6);
-  // condition 0.4-0.8: the hours, a repair, an older panel, the kilos
-  let cond = PROCURE_COND[1] - 0.25 * hours / 3000 - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
+  // condition (over the NEW price): the age curve at zero days is 1 / (1 + newBonus) = 0.8, then falling; less a repair,
+  // an older panel and the kilos, held to PROCURE_COND
+  let cond = econAgeFactor(age) / (1 + ECON_BOOK.newBonus) - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
   cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;
-  const L = { id, model, design, opts: o, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
+  const built = (+String(CAREER_DAY0.date).slice(0, 4) || 2026) - age;
+  const L = { id, model, design, opts: o, age, built, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
   // where it stands: an aerodrome it can fly from, drawn in the listing's own order
   const cert = procureUsedCert(L);
   const fields = Object.keys(CONTRACT_FIELDS).sort();
@@ -5412,7 +5549,11 @@ function procureUsedWords(L) {
   const M = PROCURE_MODELS[L.model];
   return {
     title: procureText('used.title', { m: procureText(M.name), h: L.hours }),
-    facts: [procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)]
+    facts: (L.age ? [procureText('used.built', { y: L.built, a: L.age })] : [])
+      .concat((() => { if (!L.age || typeof genAgingOf !== 'function') return [];
+        const G = genAgingOf({ aging: { years: L.age, engineHours: L.hours } });
+        return [procureText('used.aged', { p: Math.round(100 * G.powerK), d: Math.round(100 * (G.dragK - 1)) })]; })())
+      .concat([procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)])
       .concat(L.older ? [procureText('used.older')] : []).concat(L.kg ? [procureText('used.kg', { k: L.kg })] : []),
     seller: procureText(L.seller),
     where: procureText('used.where', { a: CONTRACT_FIELDS[L.aero] ? CONTRACT_FIELDS[L.aero].name : L.aero }),
@@ -5422,6 +5563,11 @@ function procureUsedWords(L) {
 function procureUsedSpec(L, fileSpec) {
   const s = procureSpec(L.model, L.opts, fileSpec);
   if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });
+  // PRICE-CAL step 2: AGE COSTS PERFORMANCE - its years and its engine's hours since overhaul (60_ GEN_AGING: power, drag)
+  if (L.age > 0) s.aging = { years: L.age, engineHours: L.hours || 0 };
+  // PRICE-CAL: it LOOKS its age - the weathering the parked fleet already wears (71_ playerWearSpec, visual only: the
+  // finish is cosmetic, outside the certificate's fingerprint)
+  if (L.age > 0 && typeof playerWearSpec === 'function') return playerWearSpec(s, Math.min(1, L.age / ECON_BOOK.age.weatherAt));
   return s;
 }
 // BUY IT WHERE IT STANDS: an airframe stationed at the listing's aerodrome (in a hangar of yours there if one has
@@ -5443,7 +5589,10 @@ function procureBuyUsed(doc, listingId, o) {
   const D2 = r.doc;
   const row = { from: 'used', listing: L.id, seed, model: L.model, maker: PROCURE_MODELS[L.model].maker, design: L.design, opts: prClone(L.opts),
                 fp: procureFp(spec), cert: prClone(cert), factory: true, modified: false, price: L.price, at: Math.round(D2.clock || 0),
-                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
+                paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;
@@ -7066,7 +7215,9 @@ function routeTerms(km, D) {
   // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
   const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
   const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
-  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
+  // PRICE-CAL: per km at today's prices (76_economy econPayScale)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
+  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * PS * (1 + payloadKg / P.kgUnit));
   return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
@@ -7623,7 +7774,7 @@ function storyStep(doc, ev, ctx) {
     else {
       const list = storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
       if (miss.length) why = 'the checklist: ' + miss.map(r => r.words).join(', ');
-      else if (typeof ev.cost === 'number' && ev.cost > G.costCap) why = 'over budget (' + Math.round(ev.cost) + ' > ' + G.costCap + ')';
+      else if (typeof ev.cost === 'number' && ev.cost > storyCostCap(G)) why = 'over budget (' + Math.round(ev.cost) + ' > ' + storyCostCap(G) + ')';
       else met = true;
     }
   }
@@ -7676,6 +7827,8 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
 // own down payment - the first real money, enough for any one of T7's occasions.
 const STORY_GRANT = 0, STORY_T6_FEE = 20000;
+// PRICE-CAL: a beat's budget (T2's costCap) is money of the table it was written in, at today's prices like the pay
+const storyCostCap = G => (typeof econPay === 'function' ? econPay(G.costCap) : G.costCap);
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
     seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
@@ -7717,8 +7870,9 @@ function storyNewCareer(doc, o) {
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
   // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
   if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
-    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
-    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+    const G = typeof careerGrant === 'function' ? careerGrant() : CAREER_GRANT;
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -G);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= G; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
   }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
@@ -7809,7 +7963,8 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
+    const fee = typeof econPay === 'function' ? econPay(STORY_T6_FEE) : STORY_T6_FEE;   // PRICE-CAL: at today's prices
+    if (fee > 0) { playerCharge(D, -fee, 'story', 'T6:fee'); offer.fee = fee; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
@@ -7875,7 +8030,7 @@ function storyCard(doc, o) {
                           : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
   } else if (G.k === 'certified') {
     for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
-    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + G.costCap, ok: typeof o.cost === 'number' && o.cost <= G.costCap });
+    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + storyCostCap(G), ok: typeof o.cost === 'number' && o.cost <= storyCostCap(G) });
     rows.push({ words: 'certified in the garage (the bench)', ok: false });
   } else if (G.k === 'jobs') {
     rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });

@@ -60,6 +60,24 @@ const fs = require('fs'), path = require('path'), os = require('os'), cp = requi
 const ROOT = path.join(__dirname, '..');
 const C = require('./flight_core.js');
 
+// THE BENCH'S SIGNATURE (L30d's certificate gate: 74_career contractCertNeed / careerFleetHolds). A paying job is
+// refused unless an airframe of the fleet holds a commercial certificate, and the page writes that certificate from
+// the bench (careerSign) at every roll-out. The sim never runs the bench, so before every accept it signs, through
+// the core's own careerSign, each career airframe that carries no signature and no maker's certificate: every design
+// the sim flies is a validated build (DESIGN_SRC), which is what the bench would sign. Without this every career
+// stopped at T5 ("clients.01 not flown": "This job needs a commercial certificate").
+const BENCH_SIGN = { fp: 'econ-sim', safe: 'pass', comm: 'pass', when: null, why: '' };
+function benchSign(doc) {
+  const af = (doc && doc.career && doc.career.airframes) || {};
+  for (const slot of Object.keys(af)) {
+    const A = af[slot];
+    if (!A || A.sign || A.factory) continue;
+    const r = C.careerSign(doc, slot, BENCH_SIGN);
+    if (r.ok) doc = r.doc;
+  }
+  return doc;
+}
+
 const ARG = k => { const a = process.argv.find(x => x === '--' + k || x.startsWith('--' + k + '=')); return a == null ? null : (a.includes('=') ? a.split('=').slice(1).join('=') : true); };
 
 // ---- THE DESIGNS (measured off their build files through the core's own readers) --------------------------------
@@ -280,8 +298,14 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   const stamp = () => { const k = stageKey(); const o = S.stageClock[k] || (S.stageClock[k] = { real0: S.real, cruise0: S.cruiseS, sim0: S.abs, n0: S.done, income0: Object.assign({}, S.income) }); return o; };
   // ---- the document and the clock
   let d = C.careerNew({ id: 'sim', seed: 'econsim:' + seed });
-  if (cfg.grant != null) { d.wallet = d.wallet - C.CAREER_GRANT + cfg.grant; }
-  S.income.grant = cfg.grant != null ? cfg.grant : C.CAREER_GRANT;
+  // (PRICE-CAL: careerNew pays the grant at today's prices, careerGrant(); a config's grant and fee are in the money of
+  // the table they were written in - payRef's - and ride the same scale)
+  const G0 = C.careerGrant ? C.careerGrant() : C.CAREER_GRANT, PAY = v => (C.econPay ? C.econPay(v) : v);
+  // (the grant is set AFTER storyNewCareer, below: since G3359 the story's own start removes careerNew's grant line
+  // and its money, and a wallet adjusted here too lost the grant twice - every story career began one grant short,
+  // the tutorial ended in the red and 5 seeds of 20 stalled at the Rufus with no money to buy anything)
+  const GRANT = cfg.grant != null ? PAY(cfg.grant) : G0;
+  S.income.grant = GRANT;
   S.abs = S.t0 = C.dayAbs(C.careerDay(d));
   const settle = () => {
     const r = C.routeSettle(d, S.abs);
@@ -353,7 +377,9 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   const addPlane = (slot, design, at, how, price) => {
     S.fleet[slot] = { design, at, how };
     d.fleet[slot] = { hangar: null, aero: at, kind: 'away' };
-    d.career.airframes[slot] = { from: how, design: C.CONTRACT_DESIGNS[design] ? design : undefined, paid: price || 0, at: Math.round(d.clock || 0) };
+    // (PRICE-CAL: its ledger on the row - a build contract's client pays the airframe's new price off it, 74_ careerComplete)
+    d.career.airframes[slot] = { from: how, design: C.CONTRACT_DESIGNS[design] ? design : undefined, paid: price || 0, at: Math.round(d.clock || 0),
+                                 cost: DESIGNS[design] ? Math.round(DESIGNS[design].cost) : undefined };
     S.owned.add(design);
   };
   const buy = (k, price, what, ref2) => {
@@ -369,6 +395,9 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   stamp();
   let r = C.storyNewCareer(d, { aeros: AEROS });
   if (!r.ok) throw new Error('storyNewCareer: ' + r.why);
+  // the config's grant over the story's own (STORY_GRANT, what storyNewCareer leaves): PROPOSED 0, LIVE careerNew's
+  if (r.doc) d = r.doc;
+  d.wallet += GRANT - PAY(C.STORY_GRANT || 0);
   d = r.doc;
   const cabin = (r.cabin && r.cabin.aero) || 'HOME';
   addPlane('Rufus', 'rufus', cabin, 'story', 0);
@@ -392,7 +421,7 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 };
   done.gear.wheelR = +base.gear.wheelR * 1.3; done.systems = { fit: 'basic' }; done.paint = Object.assign({}, base.paint, { job: 'full', base: 0x2244aa });
   S.real += REAL_S.T2;
-  r = story({ k: 'certified', slot: clientSlot, spec: done, cost: 35114 });
+  r = story({ k: 'certified', slot: clientSlot, spec: done, cost: 53939 });   // the Jabiru finish's edit bill (PRICE-CAL's prices; the budget 57 300)
   if (!r.ok) throw new Error('T2: ' + r.why);
   // T3: the delivery at the owner's strip
   const owner = C.storySite('client', AEROS);
@@ -434,7 +463,7 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
       const rt = C.routeOfPlane(d, clientSlot);
       if (rt) { S.fleet[clientSlot].route = rt.id; S.income.routeDown += d.wallet - w0; S.routeStory = { pay: rt.pay, down: rt.down, tripS: rt.tripS }; }
       // (proposal) T6's commitment fee, a story effect beside the route's own down payment
-      if (cfg.storyFee) { C.playerCharge(d, -cfg.storyFee, 'story', 'T6:fee'); S.income.story += cfg.storyFee; }
+      if (cfg.storyFee) { C.playerCharge(d, -PAY(cfg.storyFee), 'story', 'T6:fee'); S.income.story += PAY(cfg.storyFee); }
     } else apply(e);
   }
   S.work = 'Rufus';
@@ -626,7 +655,8 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
       if (rec.kind === 'build') {
         const cand = catalogue().filter(c => (c.k === 'airframe') && buildOk(DESIGNS[c.design], rec)).sort((a, b) => a.price - b.price)[0];
         if (!cand) continue;
-        const pay = C.contractPay(rec).total, net = pay - cand.price;
+        // (PRICE-CAL: the client pays the delivered airframe's new price - unless the contract is a fixed price)
+        const pay = (rec.pay && rec.pay.fixed) || !C.econNewPrice ? C.contractPay(rec).total : C.econNewPrice(DESIGNS[cand.design].cost), net = pay - cand.price;
         if (net <= 0 || d.wallet < cand.price) continue;
         const t = REAL_S.buildContract + 2 * LEG_OVH_S + (C.contractKm('HOME', contractSubsOfDeliver(rec)) || 0) / DESIGNS[cand.design].cruiseKmh * 3600;
         const sc = net / t * P.weight(rec, api());
@@ -674,6 +704,7 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   }
   // fly one contract to its end with `slot`: the legs in order, the stops handed to contractOnStop -> true when done
   function flyContract(id, o) {
+    d = benchSign(d);
     const a = C.careerAccept(d, id);
     if (!a.ok) return false;
     d = a.doc;

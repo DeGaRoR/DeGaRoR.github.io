@@ -97,12 +97,14 @@ function run(M) {
   const half = JSON.parse(JSON.stringify(done)); half.controls.flap = { type: 'none' };
   r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T2: a build without flaps is refused', false);
   ok(/flaps/.test(r.why || ''), 'T2: the refusal names the missing item', r.why);
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 48745 }, 'T2: over budget is refused (the O-320 finish)', false);
+  // (PRICE-CAL: the edit bills re-measured at today's prices - procureEditBill of the arrival ledger against each finish -
+  // against the budget at today's prices, econPay(40 000) = 57 300: the O-320 finish 85 115 over, the Jabiru's 53 939 on)
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 85115 }, 'T2: over budget is refused (the O-320 finish)', false);
   step({ k: 'certified', slot: 'ul', spec: done, cost: 5000 }, 'T2: another plane is refused', false);
   const list = M.storyChecklist(done, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']);
   ok(list.every(x => x.ok), 'the checklist on the delivered Cub: every item met', list.filter(x => !x.ok).map(x => x.k).join());
   ok(M.storyChecklist(base, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']).every(x => !x.ok), 'the checklist on the Cub as it arrived: every item open');
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 35114 }, 'T2: the checklist met on budget (the Jabiru finish)', true);
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 53939 }, 'T2: the checklist met on budget (the Jabiru finish)', true);
   // T3
   step({ k: 'stop', stop: stop('HOME'), slot: 'client-cub' }, 'T3: HOME is not the owner\'s strip', false);
   r = step({ k: 'stop', stop: stop('w6'), slot: 'client-cub' }, 'T3: delivered at the owner\'s strip', true);
@@ -356,7 +358,7 @@ async function pageRun() {
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
   let r = M.storyNewCareer(d, { aeros: aerosCabin });
   { const g = (d.ledger || []).some(e => e.k === 'grant');
-    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
+    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - (M.careerGrant ? M.careerGrant() : M.CAREER_GRANT) + M.STORY_GRANT && M.STORY_GRANT === 0,
        'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME && !d.sheds.HOME.locked,
@@ -456,10 +458,10 @@ async function pageRun() {
   el = half.el();
   const ticks = (el.innerHTML.match(/<li/g) || []).length;
   const open6 = M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist.map(k => M.STORY_CHECKS[k].words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;')));
-  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && /on budget: 0 of 40000/.test(el.innerHTML), "the card: T2's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
+  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && el.innerHTML.includes('on budget: 0 of ' + (M.econPay ? M.econPay(40000) : 40000)), "the card: T2's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
   // ---- the garage's certificate on the finished Cub
   const done = JSON.parse(JSON.stringify(base));
-  done.engines[0].type = 'jabiru2200_std';                         // a stronger engine, on budget (the 80 hp Jabiru: 35 114)
+  done.engines[0].type = 'jabiru2200_std';                         // a stronger engine, on budget (the 80 hp Jabiru: 53 939 at PRICE-CAL's prices)
   done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 }; done.gear.wheelR = +base.gear.wheelR * 1.3; done.systems = { fit: 'basic' };
   done.paint = Object.assign({}, base.paint, { job: 'full', base: 0x2244aa });
   P.standSet(S.planes.client); P.specSet(done);

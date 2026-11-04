@@ -898,6 +898,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 .gfH { display:flex; align-items:center; justify-content:space-between;
   gap:10px; }
+.gfH .gfAll { margin-left:auto; margin-right:8px; }
 .gfH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
   color:var(--ed-ink); }
 
@@ -946,6 +947,13 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
   font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }
 .gfHome:hover { border-color:var(--ed-acc); color:var(--ed-acc); }
+/* PRICE-CAL: the fleet card's Sell - the home button's look, wider for its word; greyed (with its reason) when it
+   cannot be sold now */
+.gfSell { flex:0 0 auto; padding:0 8px; background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
+  font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.03em; cursor:pointer; }
+.gfSell:hover:not(:disabled) { border-color:var(--ed-acc); color:var(--ed-acc); }
+.gfSell:disabled { opacity:.4; cursor:default; }
 
 .gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
   padding:8px 2px; }
@@ -1960,7 +1968,7 @@ html.phone #edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v {
 /* EMPTY-STAND (the user 4 Nov: "Empty hangar"): the stand empty - the editor's columns and Roll out stand down, the card
    (app.js standEmptyCard, body-level, draggable) says what fills it */
 body.gEmpty :is(#edWrap, #edInfo, #edRoll) { display:none !important; }
-body.mode-ws.gEmpty, body.mode-ws.gEmpty.info-off { --ws-left:0px; --ws-right:0px; }   /* the columns gone, the view takes their room */
+body.mode-ws.gEmpty, body.mode-ws.gEmpty.info-off { --ws-left:0px !important; --ws-right:0px !important; }   /* the columns gone, the view takes their room (!important: the editor writes --ws-right inline, EMPTY-STAND-RELOOK R1) */
 html.npOffer :is(#stTim, #stSkip, #stCard, #gmMenu, #gmPanel, #mapEntry, #frEntry, #gEmptyCard) { display:none !important; }   /* the empty stand's choice: nothing over it */
 #gEmptyCard { position:fixed; left:max(12px, calc(50% - 170px)); top:96px; z-index:40; width:min(340px, calc(100vw - 24px));
   max-height:calc(100vh - 180px); overflow:auto; box-sizing:border-box; background:var(--ed-plate); border:1px solid var(--ed-border);
