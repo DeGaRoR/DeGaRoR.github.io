@@ -514,7 +514,6 @@ const GATES = [
   // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
   // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
   { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
-  { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
@@ -964,6 +963,8 @@ const GATES = [
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
   { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  // LOOKS-ROUND2 (the user 4 Nov): a float keeps its paint and takes no letters: the table, the shader, the join, the three doors. ~1 s
+  { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
