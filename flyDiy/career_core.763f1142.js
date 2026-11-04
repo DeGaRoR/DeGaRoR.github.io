@@ -8126,7 +8126,7 @@ const TECH_ROWS = {
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
   // spec with more than one engine)
-  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
