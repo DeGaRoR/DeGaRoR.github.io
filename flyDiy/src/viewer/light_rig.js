@@ -233,7 +233,11 @@
   // move ~0.4 a degree through the twilight, which at 1x is a stop every
   // 5 minutes - imperceptible frame to frame.
   var EV_BASE = 0.92;
-  var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
+  // NIGHT-BRIGHT (the user 4 Nov: "if we don't see anything in the picture, then we don't see anything in the game, and that's not
+  // fun. So nights, particularly with auroras, should be sort of bright, even if we stylize that a little"): the twilight's knots
+  // +1 stop (-9: 10 -> 11, -6: 6 -> 7, sunset: 2.5 -> 3); the dark night's +1.75 is NIGHT_DEF.eye, a dial. Lamps, lenses and the aurora are
+  // authored to the exposure, so they hold where the land, the sea and the sky come up
+  var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 11], [-6, 7], [-0.833, 3], [10.6, 0.6], [33, 0], [90, 0]];
   function exposureStops(el) {
     var k = EV_KNOTS;
     // G2600: the NIGHT EYE dial - stops over the schedule once the night is dark (eased in from nautical to
@@ -284,7 +288,8 @@
   // and the deep night is the +16 the user saw on 8 Oct (GATE ATMO: astronomical night 12..16)
   // NIGHT-LOOK 1b (3 Nov): desat 0.9 -> 0.5, the moonlit blue the user asked to keep (the 18:20 sky band: master 60,84,106,
   // 0.9 69,77,89, 0.5 61,75,93); `lamp` the exposed luminance at which colour is whole (a lamp at night is display-white)
-  var NIGHT_DEF = { eye: 0, moon: 1, desat: 0.5, blue: 0.6, colourCd: 3, lamp: 0.5 };
+  // NIGHT-BRIGHT, the user 4 Nov: "the whole thing needs more colours; warmer lights, bluer night", "I think darker skies look better": the dark range's grade (R .66, G .82, B 1.55, contrast 1.1), less of the eye's grey (desat .5 -> .3), the moon's light .3 of its measured value (the sky behind the aurora, the land held by the eye's +1.75)
+  var NIGHT_DEF = { eye: 1.75, moon: 0.3, desat: 0.3, blue: 0.6, colourCd: 3, lamp: 0.5, gradeR: 0.66, gradeG: 0.82, gradeB: 1.55, contrast: 1.1 };
   var NIGHT = {}; for (var nk in NIGHT_DEF) NIGHT[nk] = NIGHT_DEF[nk];
   function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
   // the phase law: a phase's light over the full moon's (phase = the illuminated fraction, 06_solar)
@@ -296,8 +301,9 @@
   function moonE(phase) { return MOON_RATIO * NIGHT.moon * moonPhaseLaw(phase); }
   // the grade's uniforms: ONE set, shared by reference with every blit material aa_resolve builds
   var V4 = function (a, b, c, d) { return (T && T.Vector4) ? new T.Vector4(a, b, c, d) : [a, b, c, d]; };
-  var nightU = { uNightEye: { value: V4(0, 0, 0, 0) }, uNightTint: { value: V4(1, 1, 1, 0) }, uNightLamp: { value: 0.5 } };
+  var nightU = { uNightEye: { value: V4(0, 0, 0, 0) }, uNightTint: { value: V4(1, 1, 1, 0) }, uNightLamp: { value: 0.5 }, uNightGrade: { value: V4(1, 1, 1, 1) } };
   var NIGHT_GLSL = [
+    'uniform vec4 uNightGrade;  // rgb the colour of the dark range (what the lamps do not light), a its contrast about an exposed 0.25',
     'uniform vec4 uNightEye;    // x the night\'s share (0 by day), y log2(cd/m2 per unit), z/w log2 cd/m2: rods alone / colour whole',
     'uniform vec4 uNightTint;   // rgb the rods\' tint (luma 1), a their share at full rod vision',
     'uniform float uNightLamp;  // the exposed luminance at which colour is whole: a lamp keeps its colour',
@@ -307,13 +313,20 @@
     '  float Ls = dot(c, vec3(0.033, 0.765, 0.202));',
     '  float rod = (1.0 - smoothstep(uNightEye.z, uNightEye.w, log2(max(Lp, 1e-30)) + uNightEye.y)) * uNightEye.x * uNightTint.a;',
     '#ifdef TONE_MAPPING',
-    '  rod *= 1.0 - smoothstep(0.25 * uNightLamp, uNightLamp, Lp * toneMappingExposure);',
-    '#endif',
+    '  float Lx = Lp * toneMappingExposure, dark = 1.0 - smoothstep(0.25 * uNightLamp, uNightLamp, Lx);',
+    '  float keep = (1.0 - smoothstep(0.3, 0.7, (c.r - c.b) / max(Lp, 1e-5))) * (1.0 - smoothstep(0.45, 0.85, (c.g - max(c.r, c.b)) / max(Lp, 1e-5)));',
+    '  rod *= dark * keep;',
+    '  float gr = uNightEye.x * (1.0 - smoothstep(0.45, 1.5, Lx)) * keep;',
+    '  return mix(c, Ls * uNightTint.rgb, rod) * mix(vec3(1.0), uNightGrade.rgb * pow(max(Lx, 1e-5) / 0.25, uNightGrade.a - 1.0), gr);',
+    '#else',
     '  return mix(c, Ls * uNightTint.rgb, rod);',
+    '#endif',
     '}'].join('\n');
   var BLUE_TINT = [0.86, 1.0, 1.37];   // moonlight's blue-grey, luma ~1
   // nightGrade(el, scale): the grade's uniforms for a sun elevation and the room's radiance scale (ATMO.U.scale)
+  var gradeEl = null, gradeScale = 1;
   function nightGrade(el, scale) {
+    gradeEl = el; gradeScale = scale;
     var s = smooth01((-0.833 - el) / 5.167);   // 0 at sunset, 1 at civil dusk
     var u = nightU.uNightEye.value, t = nightU.uNightTint.value;
     var y = Math.log(SUN_LUX / Math.max(1e-9, scale || 1)) / Math.LN2;
@@ -323,6 +336,7 @@
     var l = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
     var a = s > 0 ? Math.max(0, Math.min(1, NIGHT.desat)) : 0;
     nightU.uNightLamp.value = Math.max(1e-3, NIGHT.lamp);
+    var gu = nightU.uNightGrade.value; if (gu.set) gu.set(NIGHT.gradeR, NIGHT.gradeG, NIGHT.gradeB, NIGHT.contrast); else { gu[0] = NIGHT.gradeR; gu[1] = NIGHT.gradeG; gu[2] = NIGHT.gradeB; gu[3] = NIGHT.contrast; }
     if (u.set) { u.set(s, y, lo, hi); t.set(r / l, g / l, bl / l, a); }
     else { u[0] = s; u[1] = y; u[2] = lo; u[3] = hi; t[0] = r / l; t[1] = g / l; t[2] = bl / l; t[3] = a; }
     return s;
@@ -380,6 +394,7 @@
   function onPre(fn) { if (typeof fn === 'function') preFns.push(fn); return fn; }
   function setNight(o) {
     if (o) for (var k in o) if (k in NIGHT_DEF && typeof o[k] === 'number' && isFinite(o[k])) NIGHT[k] = o[k];
+    if (gradeEl != null) nightGrade(gradeEl, gradeScale);   // the sky's step may be asleep (a paused scene, its throttle)
     return night();
   }
   function night() { var o = {}; for (var k in NIGHT) o[k] = NIGHT[k]; return o; }

@@ -20198,6 +20198,16 @@
     // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
     // in worldUpdate - renders from other eyes entirely and sees the world whole.
     if (!inShed && WF && WF.vis) WF.vis.apply(camera);
+    // NIGHT-BRIGHT: from outside the cabin's flood reads through the glass (cockpit.js)
+    if (CK) CK.eyeOut = cam.mode !== 'cockpit';
+    // NIGHT-BRIGHT: THE AURORA ON THE DAY'S Kp (the weather days' "aurora" row, the first time a game path calls aurora.js), looked at every 2 s: from Kp 3, dark enough
+    // (exposure over 2^8), a tier that holds the mist; off in the shed. Its program compiles on the first such night: a named cost for FRAMECOST
+    if (window.AURORA && typeof DAY_CLOCK !== 'undefined' && performance.now() - (AURORA.at || -1e9) > 2000) {
+      AURORA.at = performance.now();
+      const dA = DAY_CLOCK.day(), kpA = dA && dA.auroraKp || 0, exA = window.GFX && GFX.exposureBase ? GFX.exposureBase() : 1, bA = window.GFX && GFX.budget ? GFX.budget().preset : 'gamer';
+      if (!inGarage && kpA >= 3 && exA > 256 && (bA === 'current' || bA === 'gamer' || bA === 'ultra')) AURORA.on({ camera, azDeg: 0, level: Math.min(2, kpA / 2.5), heightDeg: 9 });
+      else if (AURORA.on_) AURORA.off();
+    }
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -20221,7 +20231,7 @@
       if (WATER.proto && WATER.proto.hull && WATER.hullRender) {
         let hy = WF.waterDrawY ? WF.waterDrawY(cgM[0], cgM[2]) : null;
         if (hy == null && WF.waterDrawY) hy = WF.waterDrawY(camera.position.x, camera.position.z);
-        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops });
+        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops, model: model && model.grp });
       }
     }
     if (FR) FR.lap(FR.S.mirror);

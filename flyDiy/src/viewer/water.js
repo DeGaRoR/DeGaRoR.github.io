@@ -148,7 +148,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -480,6 +480,10 @@ const WATER = (() => {
               }
             }
           }
+          // NIGHT-BRIGHT, THE SEA'S SHEEN (stylised; the user 4 Nov: "the water is completely black"): at a low eye the surface mirrors the ridge,
+          // so at night it was as black as the ridge. Wave slopes do turn a grazing ray up to the higher, brighter sky - this says so at one
+          // uniform's cost, in the reflection, so the Fresnel, the hull's mirror and the lamps' reflections stay over it. 0 by day
+          iblRadiance += uWNight.rgb * (uWNight.a + (1.0 - uWNight.a) * smoothstep(0.01, 0.09, length(wNw.xz)));   // a share flat, the rest on the ripples' slopes: a flat lift reads milky
           #ifdef W_HULL
           // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
           // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
@@ -647,6 +651,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
+      uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
@@ -1383,20 +1388,24 @@ const WATER = (() => {
     if (!PROTO.hull || MIR.mode === 'off' || !U || !root || !root.parent || !(waterY !== null && waterY !== undefined && Number.isFinite(waterY))) { if (HULL.on) hullOff(); return false; }
     const t0 = performance.now();
     // the aircraft's sphere: its local box re-read every 2 s (a build can change), its centre every frame
+    const M = opts.model || root;
     if (t0 - HULL.rAt > 2000 || !HULL.c) {
       // (G2836 fix) the AIRCRAFT's meshes only: the spray's batches ride the same group, never frustum-culled, their unused slots
       // parked at y = -1e4 - a box over them put the centre kilometres under the water (the weight read 1 at any height and the
       // rectangle took the whole frame: 2-12 ms of CPU in the 19 Oct ring study)
       const b = hullTmp.box || (hullTmp.box = new THREE.Box3()), mb = hullTmp.mb || (hullTmp.mb = new THREE.Box3()); b.makeEmpty();
-      root.updateMatrixWorld(true);
-      root.traverse(o => { if (!o.isMesh || o.frustumCulled === false || !o.geometry) return;
+      M.updateMatrixWorld(true);
+      // (NIGHT-BRIGHT) THE SQUARE (the user 4 Nov, red circles on the reflections): every aircraft mesh is frustumCulled = false (app.js buildModel), so
+      // G2836's filter left a stray 0.3 m part for the sphere: a 64 px capture of one piece of the plane, a hard rectangle on the water. The
+      // box now reads the aeroplane's own group, and the centre rides it (the craft root stays at the origin)
+      M.traverse(o => { if (!o.isMesh || !o.geometry) return;
         if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
         mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); if (mb.getSize(hullTmp.s2 || (hullTmp.s2 = new THREE.Vector3())).length() < 200) b.union(mb); });
       if (b.isEmpty()) { if (HULL.on) hullOff(); return false; }
       const c = b.getCenter(hullTmp.c || (hullTmp.c = new THREE.Vector3())); HULL.r = 0.5 * b.getSize(hullTmp.s || (hullTmp.s = new THREE.Vector3())).length();
-      HULL.c = root.worldToLocal(c.clone()); HULL.rAt = t0;
+      HULL.c = M.worldToLocal(c.clone()); HULL.rAt = t0;
     }
-    const C = (hullTmp.cw || (hullTmp.cw = new THREE.Vector3())).copy(HULL.c); root.localToWorld(C);
+    const C = (hullTmp.cw || (hullTmp.cw = new THREE.Vector3())).copy(HULL.c); M.localToWorld(C);
     const agl = C.y - HULL.r * 0.3 - waterY;
     const w = agl <= HULL.nearAgl ? 1 : Math.max(0, 1 - (agl - HULL.nearAgl) / Math.max(1, HULL.farAgl - HULL.nearAgl));
     if (w <= 0.001 || camera.position.y - waterY <= 0.1) { if (HULL.on) hullOff(); return false; }
@@ -1557,6 +1566,8 @@ const WATER = (() => {
     if (IN.wind[0] > 0.3) U.uWDir.value.set(Math.cos(IN.wind[1]), Math.sin(IN.wind[1]), 0, 0);
     // the detail band is the wind's: calm air, a glassy tile; the strength saturates by 8 m/s
     U.uWDetailK.value.z = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
+    // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1); the day's to the bit
+    if (U.uWNight && U.uWNight.value.x > 0) U.uWDetailK.value.z = Math.max(U.uWDetailK.value.z, Math.min(3.1, U.uWDetailK.value.z * 5));
   }
   function setSDF(tex, grid) {
     IN.sdf = tex || null; IN.grid = grid ? [grid.x, grid.y, grid.z, grid.w] : null;
@@ -1635,7 +1646,14 @@ const WATER = (() => {
     if (mat) mat.visible = S.on;
   }
   // frame(dtWall): the clock (free-running only when setTime did not speak), the reduced phases, the drift
+  // NIGHT-BRIGHT: the sheen, an exposed level (x P / the true exposure), in from dusk, none under an exposure of ~3 (the day's to the bit)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7 };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
+    if (U && U.uWNight) {
+      const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
+      const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
+      U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
+    }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
     if (timer.on) timerPoll();
@@ -1678,7 +1696,7 @@ const WATER = (() => {
   }
   const roughJS = s2 => Math.pow(Math.max(s2, 1e-5), 0.25);
 
-  const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
+  const API = { nightSea: NIGHT_SEA, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
