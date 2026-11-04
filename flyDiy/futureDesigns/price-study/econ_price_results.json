@@ -1,0 +1,1183 @@
+{
+ "what": "PRICE-STUDY x ECON-SIM: the agreed economy, then the corrected prices (pay held, pay scaled)",
+ "date": "2026-11-04",
+ "seeds": 20,
+ "policies": [
+  "frugal",
+  "collector",
+  "router",
+  "competitor"
+ ],
+ "cubFactor": 1.376,
+ "factors": {
+  "rufus": 0.998,
+  "cub": 1.376,
+  "jodel": 1.232,
+  "chinook": 1.325,
+  "twinf": 1.325,
+  "c172": 1.172,
+  "c172f": 1.425,
+  "cjodel": 1.168
+ },
+ "runs": [
+  {
+   "name": "agreed (econ_sim PROPOSED, as applied)",
+   "rows": {
+    "frugal": {
+     "done": 63.5,
+     "wallet": 29280,
+     "routeShare": 0.026,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 8,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 25000,
+       "seat4": 82800,
+       "hangar": 89840
+      }
+     },
+     "rest": {
+      "seg1": 0.6995578078078077,
+      "seg2": 0.6081153268653269,
+      "seg3": 0.6911725427350428
+     },
+     "keystone3": "15 / 20",
+     "payMed": {
+      "1": 7280,
+      "2": 11350,
+      "3": 11040
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 119500,
+      "occasion": 43200,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 639600,
+      "pack": 7800,
+      "entry": 0
+     },
+     "income": {
+      "contract": 838685,
+      "story": 33780,
+      "route": 10350,
+      "routeDown": 4140,
+      "prize": 0
+     }
+    },
+    "collector": {
+     "done": 120.5,
+     "wallet": 7845,
+     "routeShare": 0.018,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 8,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 25000,
+       "seat4": 82800,
+       "hangar": 89840
+      }
+     },
+     "rest": {
+      "seg1": 0.32805240740949,
+      "seg2": 0.4933760683760684,
+      "seg3": 0.489732905982906
+     },
+     "keystone3": "15 / 20",
+     "payMed": {
+      "1": 8650,
+      "2": 10790,
+      "3": 10440
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "cub",
+      "jodel",
+      "jodel",
+      "chinook",
+      "twinf",
+      "c172",
+      "c172",
+      "c172f",
+      "cjodel",
+      "cjodel"
+     ],
+     "spend": {
+      "airframe": 147900,
+      "occasion": 188400,
+      "hangar": 89840,
+      "pilot": 0,
+      "landmark": 936000,
+      "pack": 85800,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1457245,
+      "story": 33780,
+      "route": 18630,
+      "routeDown": 4140,
+      "prize": 0
+     }
+    },
+    "router": {
+     "done": 63,
+     "wallet": 84615,
+     "routeShare": 0.164,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 8,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 25000,
+       "seat4": 82800,
+       "hangar": 89840
+      }
+     },
+     "rest": {
+      "seg1": 0.9408665478459528,
+      "seg2": 0.8321357415107415,
+      "seg3": 0.731610576923077
+     },
+     "keystone3": "14 / 20",
+     "payMed": {
+      "1": 7280,
+      "2": 11480,
+      "3": 10925
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "cub@route",
+      "jodel@route",
+      "jodel@route",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 73950,
+      "occasion": 68900,
+      "hangar": 0,
+      "pilot": 12500,
+      "landmark": 639600,
+      "pack": 7800,
+      "entry": 0
+     },
+     "income": {
+      "contract": 739470,
+      "story": 33780,
+      "route": 123435,
+      "routeDown": 45900,
+      "prize": 0
+     }
+    },
+    "competitor": {
+     "done": 67.5,
+     "wallet": 13350,
+     "routeShare": 0.02,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 9,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 25000,
+       "seat4": 82800,
+       "hangar": 89840
+      }
+     },
+     "rest": {
+      "seg1": 0.8853164703164703,
+      "seg2": 0.6468482905982906,
+      "seg3": 0.7192040598290599
+     },
+     "keystone3": "15 / 20",
+     "payMed": {
+      "1": 7280,
+      "2": 11320,
+      "3": 10910
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "chinook",
+      "jodel",
+      "twinf",
+      "c172",
+      "jodel"
+     ],
+     "spend": {
+      "airframe": 223800,
+      "occasion": 43200,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 639600,
+      "pack": 7800,
+      "entry": 87500
+     },
+     "income": {
+      "contract": 873680,
+      "story": 33780,
+      "route": 11730,
+      "routeDown": 4140,
+      "prize": 140100
+     }
+    }
+   },
+   "judged": [
+    {
+     "what": "contracts to a Cub-class build (pace, frugal)",
+     "target": "3-4",
+     "got": 4,
+     "ok": true
+    },
+    {
+     "what": "contracts to a segment-2 4-seater (pace, frugal)",
+     "target": "6-8",
+     "got": 8,
+     "ok": true
+    },
+    {
+     "what": "contracts to a side hangar (pace, frugal)",
+     "target": "8-12",
+     "got": 12,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.6995578078078077,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.6081153268653269,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.6911725427350428,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.32805240740949,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.4933760683760684,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.489732905982906,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.9408665478459528,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.8321357415107415,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.731610576923077,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.8853164703164703,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.6468482905982906,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.7192040598290599,
+     "ok": true
+    },
+    {
+     "what": "route income share, router",
+     "target": "<= 0.4",
+     "got": 0.1640372854414905,
+     "ok": true
+    },
+    {
+     "what": "route income share, frugal",
+     "target": "<= 0.4",
+     "got": 0.025828274529641045,
+     "ok": true
+    },
+    {
+     "what": "route income share, collector",
+     "target": "<= 0.4",
+     "got": 0.01795857779783095,
+     "ok": true
+    },
+    {
+     "what": "route income share, competitor",
+     "target": "<= 0.4",
+     "got": 0.020463742858982045,
+     "ok": true
+    },
+    {
+     "what": "the demo (tutorial + segment 1), real h at 1x, frugal",
+     "target": "2-3",
+     "got": 8.271909789816208,
+     "ok": false
+    },
+    {
+     "what": "the demo with the cruise at 4x (not in the game)",
+     "target": "2-3",
+     "got": 5.231112015104716,
+     "ok": false
+    },
+    {
+     "what": "fleet at keystone 3: collector ahead of frugal",
+     "target": "collector > frugal",
+     "got": "12 vs 4",
+     "ok": true
+    },
+    {
+     "what": "frugal finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "15 / 20",
+     "ok": false
+    },
+    {
+     "what": "collector finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "15 / 20",
+     "ok": false
+    },
+    {
+     "what": "router finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "14 / 20",
+     "ok": false
+    },
+    {
+     "what": "competitor finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "15 / 20",
+     "ok": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "name": "prices corrected, pay held",
+   "rows": {
+    "frugal": {
+     "done": 86.5,
+     "wallet": 6275,
+     "routeShare": 0.021,
+     "pace": {
+      "cubClass": 5,
+      "seat4": 9,
+      "hangar": 16,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 0.7570528967254408,
+      "seg2": 0.5617236024844721,
+      "seg3": 0.5504561335403726
+     },
+     "keystone3": "13 / 20",
+     "payMed": {
+      "1": 7280,
+      "2": 11325,
+      "3": 10750
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 158200,
+      "occasion": 52800,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1112100,
+      "story": 33780,
+      "route": 11730,
+      "routeDown": 4140,
+      "prize": 0
+     }
+    },
+    "collector": {
+     "done": 140,
+     "wallet": 149870,
+     "routeShare": 0.02,
+     "pace": {
+      "cubClass": 5,
+      "seat4": 10,
+      "hangar": 16,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 0.36277824026532934,
+      "seg2": 0.47816946959896506,
+      "seg3": 0.3259899068322981
+     },
+     "keystone3": "0 / 20",
+     "payMed": {
+      "1": 8535,
+      "2": 10340,
+      "3": 10610
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "jodel",
+      "cub",
+      "jodel",
+      "chinook",
+      "twinf",
+      "c172",
+      "c172",
+      "c172f",
+      "cjodel",
+      "cjodel"
+     ],
+     "spend": {
+      "airframe": 190850,
+      "occasion": 236900,
+      "hangar": 123680,
+      "pilot": 0,
+      "landmark": 772800,
+      "pack": 118000,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1604245,
+      "story": 33780,
+      "route": 20010,
+      "routeDown": 4140,
+      "prize": 0
+     }
+    },
+    "router": {
+     "done": 71.5,
+     "wallet": 5460,
+     "routeShare": 0.127,
+     "pace": {
+      "cubClass": 5,
+      "seat4": 9,
+      "hangar": 16.5,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 1.1737405541561712,
+      "seg2": 0.597435419176432,
+      "seg3": 0.5740683229813665
+     },
+     "keystone3": "12 / 20",
+     "payMed": {
+      "1": 7280,
+      "2": 11810,
+      "3": 10910
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "cub@route",
+      "jodel@route",
+      "jodel@route",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 134300,
+      "occasion": 85950,
+      "hangar": 0,
+      "pilot": 12500,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 0
+     },
+     "income": {
+      "contract": 917380,
+      "story": 33780,
+      "route": 109170,
+      "routeDown": 45900,
+      "prize": 0
+     }
+    },
+    "competitor": {
+     "done": 91.5,
+     "wallet": 6870,
+     "routeShare": 0.018,
+     "pace": {
+      "cubClass": 5,
+      "seat4": 10,
+      "hangar": 16,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 0.94725165302267,
+      "seg2": 0.6185841599261542,
+      "seg3": 0.5951281055900621
+     },
+     "keystone3": "13 / 20",
+     "payMed": {
+      "1": 7460,
+      "2": 11520,
+      "3": 10520
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "chinook",
+      "jodel",
+      "c172",
+      "twinf",
+      "jodel"
+     ],
+     "spend": {
+      "airframe": 291300,
+      "occasion": 52800,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 119600
+     },
+     "income": {
+      "contract": 1143245,
+      "story": 33780,
+      "route": 14835,
+      "routeDown": 4140,
+      "prize": 182600
+     }
+    }
+   },
+   "judged": [
+    {
+     "what": "contracts to a Cub-class build (pace, frugal)",
+     "target": "3-4",
+     "got": 5,
+     "ok": false
+    },
+    {
+     "what": "contracts to a segment-2 4-seater (pace, frugal)",
+     "target": "6-8",
+     "got": 9,
+     "ok": false
+    },
+    {
+     "what": "contracts to a side hangar (pace, frugal)",
+     "target": "8-12",
+     "got": 16,
+     "ok": false
+    },
+    {
+     "what": "money at rest, frugal, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.7570528967254408,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.5617236024844721,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.5504561335403726,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.36277824026532934,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.47816946959896506,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.3259899068322981,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg1 (median)",
+     "target": "0.3-3",
+     "got": 1.1737405541561712,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.597435419176432,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.5740683229813665,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.94725165302267,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.6185841599261542,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.5951281055900621,
+     "ok": true
+    },
+    {
+     "what": "route income share, router",
+     "target": "<= 0.4",
+     "got": 0.1273218598932505,
+     "ok": true
+    },
+    {
+     "what": "route income share, frugal",
+     "target": "<= 0.4",
+     "got": 0.02061055069846383,
+     "ok": true
+    },
+    {
+     "what": "route income share, collector",
+     "target": "<= 0.4",
+     "got": 0.020123756380741244,
+     "ok": true
+    },
+    {
+     "what": "route income share, competitor",
+     "target": "<= 0.4",
+     "got": 0.017964809322671985,
+     "ok": true
+    },
+    {
+     "what": "the demo (tutorial + segment 1), real h at 1x, frugal",
+     "target": "2-3",
+     "got": 9.958488460320844,
+     "ok": false
+    },
+    {
+     "what": "the demo with the cruise at 4x (not in the game)",
+     "target": "2-3",
+     "got": 6.147396235342263,
+     "ok": false
+    },
+    {
+     "what": "frugal finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "13 / 20",
+     "ok": false
+    },
+    {
+     "what": "collector finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "0 / 20"
+    },
+    {
+     "what": "router finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "12 / 20",
+     "ok": false
+    },
+    {
+     "what": "competitor finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "13 / 20",
+     "ok": false
+    }
+   ],
+   "errors": []
+  },
+  {
+   "name": "prices corrected, pay x1.376",
+   "rows": {
+    "frugal": {
+     "done": 64.5,
+     "wallet": 42805,
+     "routeShare": 0.019,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 7,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 1.4516372795969774,
+      "seg2": 0.6345593944099378,
+      "seg3": 0.557511645962733
+     },
+     "keystone3": "20 / 20",
+     "payMed": {
+      "1": 10020,
+      "2": 15900,
+      "3": 14840
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 139350,
+      "occasion": 53600,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1111120,
+      "story": 46470,
+      "route": 17100,
+      "routeDown": 5700,
+      "prize": 0
+     }
+    },
+    "collector": {
+     "done": 117,
+     "wallet": 7785,
+     "routeShare": 0.016,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 7,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 0.4424438359970594,
+      "seg2": 0.47885906262412287,
+      "seg3": 0.4922114030627743
+     },
+     "keystone3": "20 / 20",
+     "payMed": {
+      "1": 12360,
+      "2": 14615,
+      "3": 14820
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "jodel",
+      "cub",
+      "jodel",
+      "chinook",
+      "twinf",
+      "c172",
+      "c172",
+      "c172f",
+      "cjodel",
+      "cjodel"
+     ],
+     "spend": {
+      "airframe": 195900,
+      "occasion": 241700,
+      "hangar": 123680,
+      "pilot": 0,
+      "landmark": 1288000,
+      "pack": 118000,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1959235,
+      "story": 46470,
+      "route": 28500,
+      "routeDown": 5700,
+      "prize": 0
+     }
+    },
+    "router": {
+     "done": 63,
+     "wallet": 169020,
+     "routeShare": 0.182,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 7,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 2.292065491183879,
+      "seg2": 0.8732142857142857,
+      "seg3": 0.7005483307453416
+     },
+     "keystone3": "20 / 20",
+     "payMed": {
+      "1": 10020,
+      "2": 15580,
+      "3": 14840
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "chinook",
+      "cub@route",
+      "jodel@route",
+      "jodel@route",
+      "c172"
+     ],
+     "spend": {
+      "airframe": 158200,
+      "occasion": 100500,
+      "hangar": 0,
+      "pilot": 12500,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 0
+     },
+     "income": {
+      "contract": 1133530,
+      "story": 46470,
+      "route": 201305,
+      "routeDown": 63120,
+      "prize": 0
+     }
+    },
+    "competitor": {
+     "done": 68,
+     "wallet": 52150,
+     "routeShare": 0.017,
+     "pace": {
+      "cubClass": 4,
+      "seat4": 8,
+      "hangar": 12,
+      "prices": {
+       "cubClass": 34300,
+       "seat4": 98500,
+       "hangar": 123680
+      }
+     },
+     "rest": {
+      "seg1": 1.1196808554971107,
+      "seg2": 0.5860265437336277,
+      "seg3": 0.6483792701863353
+     },
+     "keystone3": "20 / 20",
+     "payMed": {
+      "1": 10020,
+      "2": 15265,
+      "3": 15090
+     },
+     "fleetEnd": [
+      "rufus",
+      "cub@route",
+      "cub",
+      "chinook",
+      "jodel",
+      "twinf",
+      "c172",
+      "jodel"
+     ],
+     "spend": {
+      "airframe": 291300,
+      "occasion": 52800,
+      "hangar": 0,
+      "pilot": 0,
+      "landmark": 880100,
+      "pack": 10700,
+      "entry": 119600
+     },
+     "income": {
+      "contract": 1194550,
+      "story": 46470,
+      "route": 20425,
+      "routeDown": 5700,
+      "prize": 200150
+     }
+    }
+   },
+   "judged": [
+    {
+     "what": "contracts to a Cub-class build (pace, frugal)",
+     "target": "3-4",
+     "got": 4,
+     "ok": true
+    },
+    {
+     "what": "contracts to a segment-2 4-seater (pace, frugal)",
+     "target": "6-8",
+     "got": 7,
+     "ok": true
+    },
+    {
+     "what": "contracts to a side hangar (pace, frugal)",
+     "target": "8-12",
+     "got": 12,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg1 (median)",
+     "target": "0.3-3",
+     "got": 1.4516372795969774,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.6345593944099378,
+     "ok": true
+    },
+    {
+     "what": "money at rest, frugal, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.557511645962733,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg1 (median)",
+     "target": "0.3-3",
+     "got": 0.4424438359970594,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.47885906262412287,
+     "ok": true
+    },
+    {
+     "what": "money at rest, collector, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.4922114030627743,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg1 (median)",
+     "target": "0.3-3",
+     "got": 2.292065491183879,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.8732142857142857,
+     "ok": true
+    },
+    {
+     "what": "money at rest, router, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.7005483307453416,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg1 (median)",
+     "target": "0.3-3",
+     "got": 1.1196808554971107,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg2 (median)",
+     "target": "0.3-3",
+     "got": 0.5860265437336277,
+     "ok": true
+    },
+    {
+     "what": "money at rest, competitor, seg3 (median)",
+     "target": "0.3-3",
+     "got": 0.6483792701863353,
+     "ok": true
+    },
+    {
+     "what": "route income share, router",
+     "target": "<= 0.4",
+     "got": 0.18191900403099318,
+     "ok": true
+    },
+    {
+     "what": "route income share, frugal",
+     "target": "<= 0.4",
+     "got": 0.018792623460747587,
+     "ok": true
+    },
+    {
+     "what": "route income share, collector",
+     "target": "<= 0.4",
+     "got": 0.01637127147614464,
+     "ok": true
+    },
+    {
+     "what": "route income share, competitor",
+     "target": "<= 0.4",
+     "got": 0.017307519337590622,
+     "ok": true
+    },
+    {
+     "what": "the demo (tutorial + segment 1), real h at 1x, frugal",
+     "target": "2-3",
+     "got": 8.409376288319537,
+     "ok": false
+    },
+    {
+     "what": "the demo with the cruise at 4x (not in the game)",
+     "target": "2-3",
+     "got": 5.479427405413216,
+     "ok": false
+    },
+    {
+     "what": "fleet at keystone 3: collector ahead of frugal",
+     "target": "collector > frugal",
+     "got": "12 vs 4",
+     "ok": true
+    },
+    {
+     "what": "frugal finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "20 / 20",
+     "ok": true
+    },
+    {
+     "what": "collector finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "20 / 20",
+     "ok": true
+    },
+    {
+     "what": "router finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "20 / 20",
+     "ok": true
+    },
+    {
+     "what": "competitor finishes segment 3 (seeds)",
+     "target": "all",
+     "got": "20 / 20",
+     "ok": true
+    }
+   ],
+   "errors": []
+  }
+ ],
+ "prices": {
+  "cubRef": 42935,
+  "designs": {
+   "rufus": {
+    "ledger": 37506,
+    "scratch": 30000
+   },
+   "cub": {
+    "ledger": 42935,
+    "scratch": 34300
+   },
+   "jodel": {
+    "ledger": 42336,
+    "scratch": 33900
+   },
+   "chinook": {
+    "ledger": 34559,
+    "scratch": 27600
+   },
+   "twinf": {
+    "ledger": 47105,
+    "scratch": 37700
+   },
+   "c172": {
+    "ledger": 109809,
+    "scratch": 87800
+   },
+   "c172f": {
+    "ledger": 136480,
+    "scratch": 109200
+   },
+   "cjodel": {
+    "ledger": 57184,
+    "scratch": 57200
+   }
+  }
+ },
+ "pay": {
+  "perKm": 220.15999999999997,
+  "surf": {
+   "short": 1513.6,
+   "water": 1100.8,
+   "snow": 1307.1999999999998,
+   "altiport": 1857.6
+  },
+  "baseF": 3.7152,
+  "story": 3.5776,
+  "routesPerKm": 41.279999999999994,
+  "storyFee": 27500
+ }
+}
