@@ -312002,3 +312002,19 @@ COSTS, by branch:
 - seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
 Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
 NEXT: L32a Thu 13:00, the last train, refs by 12:30.
+
+## WEATHER-BLOCKS-2 - THE CLOUDS PANEL'S CAREER GUARD (2026-11-04, cloud session for the user via A0; branch claude/weather-blocks-2 off origin/master c2ac56b39 = L31c)
+A0's ask (4 Nov 21:30, the user approving the 28 days): the three seasonal blocks in the game, the career's forecast,
+and the clouds guard TIME-CONTROLS left open. FOUND ON MASTER ALREADY (WEATHER-SEASON, landed in L31a): the 42 days
+(src/weather/days/{early,high,late}), the block lookup (07d_weather_plan.js: early 20 May-2 Jul, high 3 Jul-15 Aug with
+day 1 on 15 Jul, late 16 Aug-30 Sep), and the career's forecast (day_clock.js window.FLYDIY_FORECAST -> WEATHER_PLAN.lines,
+read by DAY_UI.menu's ctx.forecast). So this branch is only the open guard:
+- clouds_ui.js mount: in the career (CK.isCareer()) the sky / low deck / upper decks rows are replaced by told lines (the
+  effective cover, type and base of each deck) and "The career's clouds come with the day: they are told here, not
+  chosen."; "another sky (seed)" is withheld (it changes the weather map). The veil, the look, the motion and the render
+  rows stay (machine-local look settings, not weather). The sandbox's panel is unchanged.
+- GATE WEATHERPLAN 10 holds the guard on the source.
+GATES (node, --no-build, jobs 3): WEATHERPLAN DAY CLOCK CLOUD UISMOKE WEATHER PASS. CLOUD ran with CLOUD_CENSUS=0 (its
+three browser census rows skipped: the change is UI text, no renderer path). Nothing built is committed.
+COSTS: none at run time - the guard is a branch at the panel's mount; the census rows (~5 min each on the cloud box) are
+the next train's to run.
