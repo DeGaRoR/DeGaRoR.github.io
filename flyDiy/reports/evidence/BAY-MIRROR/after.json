@@ -1,0 +1,263 @@
+{
+ "tag": "after",
+ "wind": 5,
+ "views": {
+  "sbay_float": {
+   "file": "sbay_float_after.jpg",
+   "eye": [
+    300,
+    6,
+    -3560
+   ],
+   "at": [
+    300,
+    1.42,
+    -3600
+   ],
+   "level": 0,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0,
+    "topShare": 0.12604166666666666,
+    "colours": 1513,
+    "lowerMean": 31.4,
+    "lowerSd": 21.3
+   },
+   "state": {
+    "mirror": true,
+    "mirrorW": 1,
+    "ringW": 1,
+    "plane": 0,
+    "lake": false,
+    "calm": 0
+   }
+  },
+  "sbay_300": {
+   "file": "sbay_300_after.jpg",
+   "eye": [
+    2900,
+    360,
+    -400
+   ],
+   "at": [
+    2000,
+    300,
+    -2400
+   ],
+   "level": 0,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0.000004340277777777778,
+    "topShare": 0.11493706597222222,
+    "colours": 958,
+    "lowerMean": 49.8,
+    "lowerSd": 26.8
+   },
+   "state": {
+    "mirror": true,
+    "mirrorW": 0.52,
+    "ringW": 0.5204322258823528,
+    "plane": 0,
+    "lake": false,
+    "calm": 0.055
+   }
+  },
+  "pchest_float": {
+   "file": "pchest_float_after.jpg",
+   "eye": [
+    -1750,
+    6,
+    -8840
+   ],
+   "at": [
+    -1700,
+    1.42,
+    -8800
+   ],
+   "level": 0,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0.0064246961805555555,
+    "topShare": 0.07597439236111111,
+    "colours": 958,
+    "lowerMean": 24.6,
+    "lowerSd": 12.7
+   },
+   "state": {
+    "mirror": true,
+    "mirrorW": 1,
+    "ringW": 1,
+    "plane": 0,
+    "lake": false,
+    "calm": 0.023
+   }
+  },
+  "lake_float": {
+   "file": "lake_float_after.jpg",
+   "eye": [
+    -577.1,
+    45.9,
+    -1338.6
+   ],
+   "at": [
+    -583.1158092447918,
+    39.32,
+    -1308.6311778198096
+   ],
+   "level": 37.9,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0.004966362847222222,
+    "topShare": 0.06276692708333333,
+    "colours": 1348,
+    "lowerMean": 34.1,
+    "lowerSd": 32.2
+   },
+   "state": {
+    "mirror": true,
+    "mirrorW": 1,
+    "ringW": 1,
+    "plane": 37.9,
+    "lake": true,
+    "calm": 1
+   }
+  },
+  "open_float": {
+   "file": "open_float_after.jpg",
+   "eye": [
+    -10540,
+    6,
+    -9040
+   ],
+   "at": [
+    -10500,
+    1.42,
+    -9000
+   ],
+   "level": 0,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0.0000054253472222222224,
+    "topShare": 0.151884765625,
+    "colours": 862,
+    "lowerMean": 26,
+    "lowerSd": 11.3
+   },
+   "state": {
+    "mirror": false,
+    "mirrorW": 0,
+    "ringW": 0,
+    "plane": 0,
+    "lake": false,
+    "calm": 1
+   }
+  },
+  "open_300": {
+   "file": "open_300_after.jpg",
+   "eye": [
+    -11200,
+    360,
+    -10200
+   ],
+   "at": [
+    -10500,
+    300,
+    -9000
+   ],
+   "level": 0,
+   "pic": {
+    "w": 1280,
+    "h": 720,
+    "clearShare": 0,
+    "topShare": 0.15511827256944444,
+    "colours": 650,
+    "lowerMean": 33.3,
+    "lowerSd": 2.8
+   },
+   "state": {
+    "mirror": false,
+    "mirrorW": 0,
+    "ringW": 0,
+    "plane": 0,
+    "lake": false,
+    "calm": 1
+   }
+  }
+ },
+ "h0": 1.6716581996331334,
+ "state0": {
+  "gfx": {
+   "preset": "potato",
+   "water": "simple",
+   "mirror": "off"
+  },
+  "mirrorMode": "auto",
+  "tier": "simple",
+  "calmField": true,
+  "shaderCalm": true
+ },
+ "samplers": [
+  {
+   "units": 7,
+   "max": 32,
+   "names": [
+    "uWSdf",
+    "uWCalm",
+    "uWDetail",
+    "uWInter",
+    "uWMirror",
+    "uApAtlas",
+    "dfgLUT"
+   ]
+  },
+  {
+   "units": 7,
+   "max": 32,
+   "names": [
+    "uWSdf",
+    "uWCalm",
+    "uWDetail",
+    "uWInter",
+    "uWMirror",
+    "uApAtlas",
+    "dfgLUT"
+   ]
+  },
+  {
+   "units": 9,
+   "max": 32,
+   "names": [
+    "uWSdf",
+    "uWCalm",
+    "uWDetail",
+    "uWInter",
+    "uWHull",
+    "uWMirror",
+    "envMap",
+    "uApAtlas",
+    "dfgLUT"
+   ]
+  },
+  {
+   "units": 9,
+   "max": 32,
+   "names": [
+    "uWSdf",
+    "uWCalm",
+    "uWDetail",
+    "uWInter",
+    "uWHull",
+    "uWMirror",
+    "envMap",
+    "uApAtlas",
+    "dfgLUT"
+   ]
+  }
+ ],
+ "cam": "free"
+}

@@ -642,8 +642,12 @@ if (plots.length) {
   const PMv = M.plotMoves || {};
   // (G3020: and the fields the manifest patches after the ship - fieldPatches {entry id: {field: value}}, SCENERY-ED-1's HOME rework on rev 28)
   const FPa = M.fieldPatches || {};
+  // (SCENERY-PLACE, 3 Nov: and one site item's P keys the manifest patches after the ship - itemPatches {site id: {item id:
+  //  {P key: value}}} - a field patch would carry the site's whole item list; the mine's air taxi office's sign off its posts)
+  const IPa = M.itemPatches || {};
   const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
     if (FPa[c.id]) Object.assign(c, JSON.parse(JSON.stringify(FPa[c.id])));
+    if (IPa[c.id] && Array.isArray(c.items)) for (const it of c.items) if (it && IPa[c.id][it.id]) it.P = Object.assign({}, it.P || {}, JSON.parse(JSON.stringify(IPa[c.id][it.id])));
     // (MINE-GARAGE-SIDE 26 Oct: a move may turn the plot too - a third number, its heading)
     if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; if (PMv[c.id][p.id].length > 2) p.hdg = PMv[c.id][p.id][2]; }
     return JSON.stringify(c); };

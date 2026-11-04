@@ -1,0 +1,10 @@
+{ "v": 1, "id": "thermal-day", "name": "Thermal day",
+  "story": "The air settles and the sun goes to work: a deep mixed layer under a lid at 1900 m, a cumulus capping every thermal, strong climbs for those who look for them. Bumpy below the cloud after 13:00.",
+  "fly": "easy", "forecast": "Warm and fair. Cumulus from 11:00, base rising to 1800 m, tops at the inversion near 1900 m. Wind southwest 6 kt. Moderate thermal turbulence 13:00-17:00 below 1800 m. Clear, mild night.",
+  "temp": { "min": 0.5, "max": 4 }, "dew": [[4, -3.5], [15, -4], [22, -2], [27, 0]],
+  "qnh": [[4, 1018], [27, 1017]],
+  "column": { "mixH": [[4, 50], [9, 700], [15, 1900], [19, 1500], [24, 300], [28, 50]], "inversion": { "dT": [[4, 0], [10, 3], [20, 3], [27, 0]], "thick": 200 } },
+  "wind": [[4, 2, 200, 0.1], [11, 5, 210, 0.2], [15, 7, 200, 0.28], [20, 4, 200, 0.15], [26, 2, 190, 0.08]],
+  "rich": { "breeze": 0.8, "terrain": 0.7, "thermals": 1.0 },
+  "low": [[4, 0.0, "cu"], [11, 0.12, "cu"], [14, 0.35, "cu"], [17, 0.3, "cu"], [20, 0.08, "cu"], [22, 0.0, "cu"]],
+  "turbidity": 3.0, "aurora": [] }

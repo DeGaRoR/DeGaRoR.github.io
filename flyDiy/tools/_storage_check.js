@@ -291,6 +291,12 @@ function run(mut) {
     G.gotoGarage('w3.1');
     ok(doc.here === 'w3.1' && T.trips === 1 && T.moved.join() === 'Jodel:floor' && T.stand === 'Jodel',
        'gotoGarage on the ground after a flight: "The shed"\'s trip, the hangar is here (free), its plane worked on - onto the stand (G3613)', JSON.stringify({ here: doc.here, trips: T.trips, moved: T.moved }));
+    // STORY-HOME-FIX (F2, the STORY-HOME look 3 Nov: Rufus stood on an empty HOME's stand and rolled out from the cabin)
+    doc.sheds.w5 = shed('field', 'w5'); T.saved = 0;
+    const E = G.garagesList().find(x => x.id === 'w5') || {};
+    G.gotoGarage('w5');
+    ok(doc.here === 'w3.1' && !T.saved && E.away === 'empty - fly an aeroplane to w5 first' && E.stand === null && !byId('w3.1').away,
+       'gotoGarage: an empty hangar at another field than the stand\'s aeroplane is refused, the map told why (garages().away); nothing moved (STORY-HOME-FIX F2)', JSON.stringify({ here: doc.here, away: E.away }));
   }
   for (const f of ['fleet_stand.js', 'parked.js']) {
     const s = rd('src/viewer/' + f);

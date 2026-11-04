@@ -311173,3 +311173,187 @@ crew (its cabin: type 2), 9 Heavy-duty work, 10 Woven cane, 11 Reclined tub, 12 
 IN (on L30c master e6bcfb368): claude/ready/seats-cost a1fc604f7 (SEATS: the 15 seats, the MID level on desktop - the user: "garage + world performance unaffected"; the 22 FRAMECOST reds once blamed on the seats were a stale parked cook), claude/joinparity-fixture-2 33948db43 (GPS-STALL: the twin floatplane + Cub/Jodel page re-captures), claude/gps-gates 40fbf6f3d (GPS-STALL: CREWLOAD + GPSFACE), claude/a0/weather-refix fca404af2 (WEATHER-FIXES re-applied - held from L30c by A0's mistake: the four weather fixes + the career opens 15 July), claude/a0/pillar-m 8f7541c09 (PILLAR-ANCHORS with the remodelled step/handle/hatches, the door stop, the snap on all saved builds with doors; A0 resolved _cage_join.js with SEATS), claude/a0/cert-m2 000773618 (DESIGN-AIDS c509be011 + CERT-GATES + A0's resolutions vs CONFIG-MATRIX (_cage_eng.js unitOut) and TANK-FIT (bench.js: the tank rows are safe-tier FAILs before the tiers decide)), claude/ready/new-plane-hold 82a77c28a (NEW-PLANE: the chooser no longer holds the render on the gates' fresh profile - GATE CLOUD green again), claude/ready/dmg-glass-verdict 92a4be139 (Deform: DMGGLASS's verdict line).
 BATTERY (69): 64 PASS. Red: ROUTE (the Cub capsizes on its roll-out at w2 after 741 s) and WORLD ("13/31 approaches under 4 % both ways") - BOTH RED THE SAME ON L30c MASTER (A0's 22:40 baseline), so L30c's, not this train's: suspects tank-fit's heavier Cub nose with G1971's water on 02/20 (the w2-dry fix 7517f828c gates tonight) and the hut lattice's footprints for 13/31's fans (HWCOV, with TAXICLEAR 11c). DMGSKINGPU (the GPU tear's read-back places) and DMGWRECK (a body corner 11.9 cm inside a live cabin bay) - no baseline run, named for Deform / TANK-FIT. DMGPAGEW (the scuff fix rides Wed), FRAMECOST 5, ASSETS, HANDLE, TECH: standing. BUILT: stale before the push (rebuilt here).
 TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothing new.
+
+## DAY-SAVED-READ - A FRESH CAREER'S SAVED DAY IS READ, NOT SET ASIDE AS "NOT READABLE" (2026-11-03, GAME-MENUS, LOCAL; for Wed's first train; claude/ready/day-saved-read, on master e6bcfb368)
+Why: STORY-HOME-LOOK F9 (claude/story-home-look 3e2004ca): day_clock.js logs "the saved day was not readable" on career boots. Cause (G2650 SIM-CLOCK's career keep, not TIME-CONTROLS): in the career, save() keeps the sandbox's own instant from the pref (read() || {}). On a profile with no sandbox day yet that keep is {}, so the pref is written with the weather and NO date/utc. The next read() (the next save, every 30 s, or the next boot) took that for a broken day (G2630's guard), warned, and returned null: the saved weather was dropped along with it.
+What changed: day_clock.js read(): G2630's guard applies to a pref that HAS an instant (a date or a utc) that is not readable. A pref with neither is the weather alone and is read as it is (bind already falls back to the game's day when there is no date and keeps the weather). GATE CLOCK: a fresh career's saves write the weather alone, read with no warning; a sandbox boot on that pref gets a new player's instant and the saved weather. With master's day_clock.js that row is red with the F9 warning.
+Gates: CLOCK DAY HONESTY CLIMATE MEDIA HANGAR NIGHTVISIBILITY SIMWORKER BUILT (node); UISMOKE + CLOUD (they read day_clock.js) are left to the train's battery.
+
+## SCENERY-PLACE - EVERY BUILT-BUT-UNPLACED OCTOBER SCENERY ASSET STOOD ON JOLENE: THE TWO HYDRO POWERHOUSES, THE TENTS, THE CONSTRUCTION MACHINES, THE SCENERY KIT (2026-11-03, cloud, for A0; claude/ready/scenery-place off origin/master adb2d2a9 = L30b)
+
+The user, 3 Nov via A0: "I know I said wait, but actually, you should go ahead and place all the new scenery we have." Scenery
+only: no plot, garage, shed or owner moved; the record's rev stays 23; no src/ file but the map pack (map_bake.js's).
+Evidence: reports/evidence/SCENERY-PLACE/README.md (the inventory, the placement table, the gates, the stills).
+
+**WHAT WENT WHERE** (tools/fixtures/island_jolene.json; every record written as the fixture's own are):
+- THE HYDRO POWERHOUSES (G2909, key utility/hydro powerhouse), each a site with its tree-clear exclude r 30 m (`<id>_clear`,
+  as s_vor_ann_clear), the generator's +z (the riprap side) toward the road and the water, its yard at -x:
+  - hy_s_upper "Island Power - Upper Lake hydro" AT Purple Lake's point (-174.7, -5780.2), at.yaw 2.1434, P {riprap 2.5}
+    (25 x 10 default). Its foot runs 6.2..15.6 m (a cut into the hillside: the shelf's bank law widens the cut); r25 unmoved.
+  - hy_s_bayside "Island Power - Bayside hydro" 6.4 m off Chester Lake's candidate A (-1135.9, -8315.4), at.yaw 0.8476,
+    P {hL 12, hW 10, riprap 2.5, yardL 7, yardW 6} (the aerial's 10 x 12 m roof). Why not ON A: the user's boat yard now
+    stands there (o13-o17, five boats 7-14 m from the point, on a19's gravel); candidate B is the user's marine supply (s22).
+    5.7 m NE along r1 and 3 m back from it clears the boats, the road (3.2 m off its pavement) and s22.
+  - GATE NAVAID 5 now holds them: each within 5 / 10 m of its point, its clear present (~30 m).
+- THE PENSTOCK WORKS beside Upper Lake: hy_t_works (a flatten, abs 9.5, falloff 6) + hy_t_works_clear, machine_crane and
+  machine_backhoe on it.
+- THE QUARRY (mk_x_quarry's floor, 39.6 m, by the workshop s34): machine_excavator, machine_loader (facing it),
+  machine_skidsteer, machine_loader_rusty, and the scenery kit's loader_wreck in the corner. ids qy_o_*.
+- THE COMMUNITY GARDENS (mk_gardens_shed): tractor_farm, tractor_scan - ids mk_o_tractor_* so they go with the town cut.
+- THE CABIN LAKE CAMP (the lake shore 25 m above the water, 350 m abeam cb_sea's lane, 70 m from the slip's stand):
+  camp_firepit + the four tents (tent_big, tent_frame, tent_hiking, tent_small) round it + the six photoscanned people
+  (crowd_1..6) at the fire; cb_x_camp (trees, r 12).
+- MOUNT ARDENT (the summit's east shoulder, 85-90 m from mt_s_meteo): the observatory on mt_t_observatory and the ALMA
+  12 m antenna as ONE record (alma_base `with` alma_fork + alma_dish, the placer's assembly form) on mt_t_antenna.
+- THE OLD AIR BASE: heating_plant on the old base's flat NW of the field (-780, -860; 495 m abeam 13/31, outside every
+  approach funnel, 27 m off r11, its long side along it), the F-104G starfighter as the gate guardian by r2 at the field's
+  entrance (185 m abeam 13/31, 7 m under its transitional surface); their clears. TRAP (cost a pass): the WORLD's aerodrome
+  heading is (cos hdg, sin hdg) - `aerodromes[i].hdg`, the record's runway `hdg` the same number - NOT (sin, cos): vetted
+  the (sin, cos) way the first heating-plant spot (840, -680) looked 404 m off 02/20 and was ON its extended centreline 280 m
+  past end0; GATE TAXICLEAR 11a caught it (the turn-around plans at w2 end0 within 2 m of its footprint).
+- THE COAST: the WW2 bunker on the bluff S of Greywater (640, -4280; the sea 42 m off, its face to it) on gw_t_bunker; the
+  ruined sky_rest tower on the headland W of Ridgeback (-1420, -3325; 480 m from any road, 250 m above the shore) on its
+  own ground (1.2 m over its 45 m foot, 'ground'); their clears.
+  TRAP (cost a pass): THE PREMISES' GROUND PATCH is built in 64 m chunks round ANY placed entry (render_premises
+  activeChunks), and a road side over the patch reads within 5 mm of it (GATE CONTACT 'road side', a count of rev 28 +10 %
+  + 20): the ruin's first spot, 120 m off r5, cost 127 of them for no gain; the Upper Lake plant on r25 costs 664 and has to
+  stand there (its point). Keep a new placement's chunks off the roads where its point allows (the count: 7516 -> 8180 of
+  8301).
+- THE STEEL TRAWLER (fishing_boat) at anchor off Bayside (-1480, -8560), on 'flat' with dy = -seabed - 1.6 (the ferry's form).
+
+**THE SIGN AT THE OLD MINE** (A0's extra item, the user ~20:55: "there is a sign at the old mine, next to the parking spot.
+It's in the way, remove it. It does not collide, but goes through"): the air taxi office (mn_s_mine/airtaxi, house/air taxi
+office: signAt 1, the board ON POSTS by the path) stood its board 10.8 m from mn_strip's stand - inside a parked aeroplane's
+wing. Its P.signAt 0: the board over the door. The save carries mn_s_mine, so the AFB (19) manifest gains `itemPatches`
+{site: {item: {P key: value}}} (GATE SCENERYED 15 applies it after the ship, as fieldPatches - a re-ship must apply it
+again). THE RULE, gated: GATE HOUSE 'signs' - every house sign on posts in the cooked places (both variants) 17.5 m (the
+DC-3's half-span + 3) or more from every stand, plot stand and fleet tie-down spot; red on the old cook (the mine's 10.8 m),
+green after. No other sign on Jolene was inside it (the next: the flying club's, 47.9 m from HOME's stand).
+
+**NOT PLACED, AND WHY**: the five pylon families (infra_gen.js) - nothing strings a line between two pylon props (the
+`attach` points wait for a line tool; powerline.js strings the ROAD's poles), and r25 / r1 already carry their distribution
+poles and cable past both plants: a wire-less lattice line would be a row of sticks (and a 230 kV line is not the island's
+grid). The driveable car's parts (car_conquer_*) - the vehicle shell's pieces, hidden in the placer as parts. The pier kit's
+older unplaced vehicles / pier modules - not October's scenery.
+
+**THE COOKS** re-run on the new record: the fleet's spots (src/viewer/fleet_spots_pack.js: TAXICLEAR 10 - the F-104 is a
+solid thing within 400 m of HOME's stand), premises (media/world/jolene/premises + src/core/premises_packs.json), the city
+(media/city/jolene/metlakatla + src/core/city_packs.json: the gardens' tractors and the quarry are town cells), the map
+(media/map + src/viewer/map_pack.js: GATE MAPBAKE 6 counts every site item's footprint). Built files untouched in git.
+
+**GATES** (the final record, its four cooks re-run; `--no-build --jobs=3`): 39 PASS - NAVAID PREMCOOK PREMISES HOUSE (signs)
+ASSETBUDGET TAXICLEAR (4 shards) SCENERY SITE CONTRACTS UISMOKE MAPBAKE CITYCOOK MEDIA NAMES PREMRASTER GAMEPREM PAVEMENT
+STAGES HONESTY SIMWORKER LOOKS CONTACT ANIMALS TREES GRASSSIDES SPLAT HYDRODYN STRIPSURF GE CITYHOST MISSIONS ROUTES STORAGE
+STOREDRAW TOWNKIT KITHOST METKIT LIFE STAND. RED and red on clean origin/master adb2d2a9 with the same failing rows (diffed):
+ASSETS GEO LAKEBED RWYLIGHTS SCENERYED (20b, the town composition's 2500 ms on a loaded box) STORY TREEHIT VEHICLE WORLD.
+FRAMECOST: A0's, on the GPU box. **PICTURES**: tools/soft_still.js + reports/evidence/SCENERY-PLACE/stage_place.js
+(plane_shot.js has no world): one boot, the paused aeroplane parked 400 m over each place - THE PREMISES STREAM ROUND THE
+AEROPLANE (render_premises STREAM.reach 6 km), not the free eye: a still of a place 8 km from HOME drew nothing of it until
+the aeroplane went there (the test mode keeps it at HOME).
+
+**SCENERY-PLACE, NARROWED** (the user, 3 Nov, the same evening: "The 2 hydroplants were the main thing. I actually did not
+want the other assets. The f104 should be next to the runway, OK for construction machines, but not the factories, they
+look bad, nor the abandoned plant and nothing more on Mount Ardent than the already placed meteo observatory."). WITHDRAWN
+from the record (and so from what this entry lists above): the Cabin Lake camp (tents, fire pit, crowd), Mount Ardent's
+observatory and antenna and their pads, the heating plant, the bunker and its pad, the sky-rest ruin, the trawler. KEPT:
+the two hydro powerhouses + the Upper Lake works (crane, backhoe), the quarry's machines and wreck, the gardens' tractors,
+the mine's sign fix + GATE HOUSE 'signs' + the manifest's itemPatches. MOVED: the F-104G (af_o_f104) to (-442.1, -73.9),
+130 m abeam 13/31 on the side away from the club, parked along it (its tail 4.9 m over the runway; the 1:7 transitional
+surface allows 7.9). Re-cooked (premises, city, map, fleet spots); gates as above (39 PASS, the same nine reds as master's,
+row for row). The withdrawn placements stay in the session's scratch generator only: a later ask can stand them from this
+entry's points.
+
+**SCENERY-PLACE, THE TENTS BACK** (the user, 3 Nov: "Ok for the tent, the tractors too"): the Cabin Lake shore camp stands
+again - cb_o_firepit (camp_firepit) at (2116, -17244) with the four tents round it (cb_o_tent_big / _frame / _hiking /
+_small, 5-6.5 m from the fire, 5 m or more apart, doors to it) and cb_x_camp (trees, r 12); the six photoscanned people
+stay withdrawn. The tractors were kept all along. Re-cooked (premises, city, map, fleet spots: cb_sea's census sees the
+camp); gates re-run.
+
+**SCENERY-PLACE, THE F-104 WITHDRAWN** (the user, 4 Nov: "just remove the f104 and stop"): af_o_f104 and its clear out of
+the record - its spot 130 m abeam 13/31 stood behind the belt of trees, invisible from the runway (the still from 45 m over
+the runway showed nothing). What stays of SCENERY-PLACE: the two hydro powerhouses (+ the Upper Lake works), the quarry's
+machines and wreck, the gardens' tractors, the Cabin Lake camp's four tents, the mine's sign fix (signAt 0, itemPatches,
+GATE HOUSE 'signs'). Re-cooked; NAVAID PREMCOOK PREMISES HOUSE TAXICLEAR MAPBAKE CITYCOOK MEDIA CONTACT STAND SITE ANIMALS
+TREES PASS, SCENERYED red on 20b only (timing, as master), PARKED PASS run alone (`node --max-old-space-size=6144`: beside
+two other gates it ran out of node's 2 GB heap - a crash, not a verdict).
+## BAY-MIRROR - THE SHELTERED BAYS CALM TOWARD A LAKE: A SHELTER FIELD FROM THE COASTLINE SCALES THE SEA'S WAVES (waterH AND THE SHADER, ONE SOURCE), THE WIND'S RIPPLE KEPT, THE AUTO RING TAKES THE LAKE'S RULE OVER A BAY (2026-11-03, BAY-MIRROR for A0, cloud - node gates + SwiftShader stills; claude/ready/bay-mirror on origin/master 05f95aa7 = L30d, rebased from adb2d2a9)
+The user (3 Nov, via A0): "we would need to treat the bays as lakes for the reflections I think, especially the main south bay, where the cannery and the hydroplants are". A0 (~22:00): "a sheltered bay should be CALMER, not dead glassy whatever the wind".
+- **The cause (measured before any change, reports/evidence/BAY-MIRROR/README.md section 1):** a bay is the SEA's body. water.js:594 gives the sea wave 1.0 / detail 1.0 / foam 0.62, :596 a lake 0 / 0.55 / 2.0; the 32 trains' slopes enter the normal (:285, :364) that the mirror's lookup walks by (:438-443) - 0.056 RMS slope at the rigs' 5 m/s sea, 0 on a lake (the whole difference on the 'simple' tier). The AUTO ring fades the sea's plane at 300-400 m and 1.0-1.3 km from land, never a lake's (:1161-1164: 0.35 from 300 m over the fjord). 20_world.js:819-822: the floats rode the open ocean's swell in a bay. Not the cause: the roughness law (the same for both), mPlane, the ring's land distance.
+- **The bays:** the main south bay = the south fjord (Purple Lake's powerhouse at its head, the two canneries, the net pens; the game's own SEA base at (360, -3660) is in it); Port Chester (Cedar Harbour's cannery, the Port Chester powerhouse); the west cove (-3700, -5000); the lee of the fjord mouth's headlands. mk_sea and cb_sea are open water.
+- **The change:**
+  - 28_island.js shelter() / calmAt() / waveK(): the wind's fetch traced upwind on 16 headings (one semi-Lagrangian sweep each, 100 m cells, the grid's rim open sea), OPEN = mean(min(fetch, 10 km) / 10 km), CALM = smoothstep(0.15, 0.40, OPEN) - 1 on 96.2 % of Jolene's sea cells (open water the same doubles and pixels), 0 deep in a bay, a dissolve at the mouth; land cells filled from their water neighbours; lazy, ~35 ms warm / ~100-140 ms cold, CORE_MATH. waveK = 0.25 + 0.75 x calm (SHELTER.ripple: JONSWAP's height ~ sqrt(fetch), a bay's ~0.6 km against ~10 km) - the sea's amplitude is the wind's, so a bay is glassy only in calm air.
+  - 20_world.js waterH(x, z, t) x waveK (world.calmAt / waveK / calmField exported); render_world.js hands world.calmField() to WATER.setCalm; water.js uWCalm (R8, one more sampler: the program 8 -> 9 units with the hull, read off the GL program) + uWRipple from the field's dials: the near patch's lift x waveK, the sea's row mixed toward the lake's (swell slopes, ripple tile), the whitecaps' cover x waveK; mirrorRender: over a bay (1 - calm at the eye) the ring's weight is sea + (1 - sea) x bay - the lake's rule, no second capture; after the 'off' return.
+- **Gates:** WATER (section 7 THE BAYS: the field, waterH to the bit on open water, the ripple, one source CPU = core to 0, the shader's terms; the sampler row names five; the ring row pins the new weight), GFX, FLOATS, SEAPLANE, HYDRODYN, UISMOKE, UISMOKE-PHONE, SIMWORKER, WETFX, WIPLINE, WORLDRENDER, UILAYER, SHADOWSKY, CLIMATE, HYDRO, MEDIA, SITE: PASS on the final code; WETFX-PAGE, METKIT, AUDIO, TESTFIELD, STRIPGROUND, FLIGHTREC: PASS on the commit before the ripple (b336645e), not re-run. No SPRAY gate exists (GATE WATER 6 holds the spray). Red here AND on a clean origin/master adb2d2a9 with the same rows: TOUR, DESTTO (ltd:floats gives up at mk_sea, the same event times; the gate's island has no sea state, waterH returns before the shelter), VEHICLE, LAKEBED, WORLD, ASSETS, PARKED (heap OOM).
+- **Re-gated after the rebase on L30d:** the same set PASS except MEDIA - red on clean L30d with the same row (index.html 5.03 MiB gzipped over the 5 MiB budget: master's build 5.0142 MiB, this branch +4.7 KB).
+- **The floats:** hydro_trim_table.js --world jolene --at SEA --sea A,L,dir (new): the floats Cessna's take-off at SEA, master vs branch - 5 m/s rig 26.9 s / 458 m vs 26.6 / 455, POH 21.7 / 292 vs 21.4 / 291; 8 m/s POH 23.1 / 310 vs 21.5 / 293; calm identical.
+- **Stills** (reports/evidence/BAY-MIRROR/, tools/perf/bay_stage.js via soft_still --stage, one run at a time - a run sharing the CPU with gates timed out): the south bay's ripple ridges -31 % (to the lake's level), Port Chester -22 %, the bay from 300 m -11 % (mirror weight 0.35 -> 0.52); the lake and the open sea unchanged. A long low ripple stays in the bay (the kept wind ripple). READY.md beside them.
+- **Left open:** the shader's G750 shore flattening (the near patch flat over the last 40 m to the coast line) has no physics twin (pre-existing); the ring's capture over a bay keeps the sea's capture settings (ringSkip, no MSAA) rather than the lake's; the editor cannot paint a shelter by hand (the field is the coastline's alone - a painted override would be a row in SHELTER).
+## WEATHER-SEASON - THE CAREER'S WEATHER IS THE PLAN: THREE SEASONAL BLOCKS OF 14 CRAFTED DAYS, ONE PURE FUNCTION OF THE INSTANT INSIDE THE DAY, THE FORECAST, THE WINTER LAYUP; GATE WEATHERPLAN (2026-11-03, cloud session for the user via A0; branch claude/weather-season off origin/master adb2d2a92 = L30b + claude/weather-fixes merged)
+The user's calls (3 Nov via A0): option B (three blocks), the 42 days approved ("seasons look OK"), the career's first
+day 15 July, the season 20 May - 30 Sep with a winter layup. The model and the days: futureDesigns/WEATHER-DAYS-
+STUDY-2026-11.md §3, §4, §5, §10 (branch claude/weather-blocks; the prototype futureDesigns/weather-days/plan_proto.js
+there is the evidence this core code was ported from).
+- THE DATA: src/weather/days/{early,high,late}/NN_<id>.json, one crafted day each (schema: the study's Appendix B).
+  `node tools/weather_days_pack.js` packs them into src/core/07c_weather_days.js (WEATHER_DAYS, GENERATED, ~38 KB) -
+  GATE WEATHERPLAN 1 holds the pack equal to the JSONs. Edit a day's JSON, run the pack, then build.
+- THE EVALUATOR: src/core/07d_weather_plan.js (WEATHER_PLAN, pure). Blocks by the LOCAL date's month-day: early
+  20 May-2 Jul (day 1 20 May), high 3 Jul-15 Aug (day 1 15 Jul = the career's first day = fair-cumulus), late
+  16 Aug-30 Sep (day 1 16 Aug); outside the season the nearest block. The weather day owns 04:00-28:00 local. Tracks
+  eased across the day before and after (a midnight and a block edge are one interpolation). Parton-Logan temperature
+  on Ketchikan-like normals + the day's anomalies. QUANTISED for the re-bakers: the decks' cover 0.02 (clouds.js
+  re-fits per change: <= 97 a day, one every ~15 min at real time - W3's GPU threshold removes the count), the
+  turbidity ONE STEP A NIGHT AT 02:00 (atmo.js re-bakes its sky tables on any change), the wind 0.1 kt / 1 deg / 0.01.
+  at(jdn, utc, geo) -> { spec (07_day's own fields), meta }; flyClass(day) (the study's §4.2 classifier); today /
+  hourly / outlook / lines (the forecast, on scratch days - the live day is never touched).
+- THE DAY: 07_day.js keeps ONE spec and grows an EFFECTIVE one, `e`: the declared spec, or (when it names `plan`) the
+  plan's answer for this instant laid over it. Every derived number, air(), hasAir and the weather getters (wind,
+  stormSpec, diurnalC, seaTau, turbidity, cloudCover, cloudType, cloudUpper, qnhPa) read `e`; set() and spec() keep
+  the declared one, so a plan round-trips as `plan` and the sandbox's own weather under it is untouched. advance()
+  moves the weather with no version bump. New derived: plan (the meta: block, idx, id, name, fly, weatherDate, rain,
+  kp, fogHold, fogWhere, windKey, dips), rain, auroraKp, fogWhere; an advection fog's hold raises mistRho0. No plan:
+  e === s, every line as before (GATE WEATHERPLAN 9, and every DAY / CLIMATE / FOG check).
+- THE WORLD: 20_world.js setDay takes the plan's wind on a set naming plan or wind (NaN key: always), dayTick re-resolves
+  the climate when day.plan.windKey moves (the front's hand rides the same setWind); a plan lifted gives the declared
+  wind back. The worker evaluates the same spec (sim_link mirrors spec(), which carries `plan`).
+- THE CAREER: day_clock.js career(hook) sets { plan: { id: 'season' } } (leaving the career sets plan: null); save()
+  writes the DECLARED decks (sp.*), never the plan's (study F8: the pref is the sandbox's). The TIME menu's forecast
+  door window.FLYDIY_FORECAST (TIME-CONTROLS' hook in day_ui.js menu, editor.js / app.js) = WEATHER_PLAN.lines.
+  The sandbox: ?plan=1, and DAY_CLOCK.plan(on) for GAME-MENUS' "play the plan" row (a session setting, not saved).
+- THE WINTER LAYUP: 74_career.js careerSeasonLand({date, utc}) -> the instant, or (its LOCAL date past 30 Sep, or before
+  20 May) the next opening at civil dawn, `layup: true`. careerDaySet applies it (forward; returns `layup`), the
+  normaliser lifts an out-of-season save, day_clock.js jump lands a career wait on it (why 'layup', a 'flydiy:layup'
+  event { from, to, season } - the story's beat hangs there: NOT BUILT, the card is Game's) and the career's tick
+  lands real time run past the close at the next moment on the ground.
+- GATE WEATHERPLAN (tools/_weatherplan_check.js, core, ~12 s): the pack; the blocks (the edges, 15 Jul = fair-cumulus,
+  the season); the 42 days' rules (the study's --check: unique ids, the fields, clear dawns, a storm forecast by the
+  two days before, its no-VFR window honest, no type change under cover by day, easy days >= 85 % easy, blocks >= 60 %:
+  early 87 %, high 79 %, late 72 %); one source (twice the same; advanced-to == set-at; no version bump); the season
+  walked every 2 min (T <= 0.08 K/min, Td 0.14, QNH 0.15 hPa, wind 0.15 kt, cover 0.03, base 20 m; the turbidity once
+  a night at 02:00); the world (the air, the wind through a day, a ticked world == a set one, the sea, a plan lifted);
+  the forecast (today, the storm two days ahead, the lines, across a block edge); the layup; no plan; the sources.
+  NEGATIVE PROOF: a stale pack and a storm window that misses its no-fly hours both go red.
+- NOT DONE (next): the rain's look (W6), the fog's `where` in the renderer (W3: FOG-MIST F2's layer by sea / valleys),
+  the aurora's look (NIGHT-LOOK reads day.auroraKp; the study's §3.8 visibility law), the clouds' GPU threshold (W3),
+  the contracts' night cover FROM THE FORECAST (today: the effective cover now), the pilots' and the AP's planned
+  winds (W5), "wait until the weather improves" (WEATHER_PLAN.flyClass is the reader it needs), the acceptance leg's
+  air record (W7), the layup's story card.
+- THE RUN (`--only=`, jobs 2, on 9fffdda39): WEATHERPLAN DAY CLIMATE CONTRACTS ECON CLOCK MISSIONS UISMOKE UISMOKE-PHONE
+  ATMO ATMOS HONESTY WATER PLAYER BUILD PASS; CLOUD 1 red - its source row on day_clock.js's save line, which now writes
+  the DECLARED decks (sp.cloudUpper): the row re-read (16e9705b4), CLOUD PASS with its census (current / gamer / ultra:
+  the clouds live, the composite 6 draws). FOG (2: app.js's MAIN camera) and STORY (the T0 beat card): master's
+  standing reds. (A0's L30c CLOUD census red was NOT this work: it stayed red without weather-fixes - NEW-PLANE's chooser.)
+- STATUS (3 Nov ~20:30): claude/weather-season is complete and pushed; claude/ready/weather-season is NOT pushed - a
+  ready branch is pushed on the user's own word (the user said so for weather-fixes; this one waits for theirs). It sits
+  on L30b + claude/weather-fixes (merged), so it rides any train that carries weather-fixes, or after it.
+
+## A0 - train L31a, 4 Nov 2026 08:15
+
+IN (on L30d master 05f95aa76): claude/ready/pilot1-p1 bc280a3c9 (PILOT-1 P1), claude/ready/pilot1-tourknown 2ae58a7d9, claude/ready/w2-dry 7517f828c (the recorded water off w2), claude/ready/dmg-scuff-fix 18c8efd7c, claude/ready/day-saved-read 523184c49 (F9: a fresh career's weather-only pref), claude/ready/phone-no-gate 7f6ecf10c (phones load the phone garage directly; holds phone-map-stay), claude/ready/story-home-fix 09a391eba, claude/ready/scenery-place 15e1977fb, claude/ready/bay-mirror 70931162a, claude/ready/weather-season e74c3a155 (the user 4 Nov: "weather is done").
+OUT: stol-fixture-2 (the re-capture was not pushed), hut-11c (not needed), night-look-1 (its stills are at 09:30).
+BATTERY (66 + WEATHERPLAN + WEATHER run by hand on the same tree, both PASS): 58 PASS. WORLD, ROUTE and TAXICLEAR turned GREEN on this train.
+Red, standing: STOL (the fixture predates tank-fit: the same 7 rows as L30c, re-capture owed), VEHICLE (2 rows), DMGSKINGPU + DMGWRECK (first red at L30c's tank-fit), FRAMECOST (the same 5 rows as L30d), MEDIA (index.html 5.05 MiB gz against the 5 MiB budget: no page-size work, the user 14 Oct), ASSETS (same list as L30d), GEO (media/geo/chars not named by any manifest the gate parses: those files are unchanged since 26 Oct).
+Red, NEW and a rig fault: NIGHTVISIBILITY. Its check cuts jump() out of src/viewer/day_clock.js into a vm, and weather-season's jump() now calls seasonLand, which is declared outside the cut ("ReferenceError: seasonLand is not defined", tools/_nightvisibility_check.js:17). The game declares it at day_clock.js:138; the fix is a stub in the rig's context, for L31b.
+TIMED (light): 45 red against the 12 Oct baseline (L30d 49), the same boot picture: warm nav -> garage 103.5 / 131.6 s. Named on the perf-week list.
+
+### PLANE-THUMB-CARDS reconciled with NEW-PLANE-THUMB (4 Nov, A0): one picture per candidate tile
+src/viewer/new_plane.js keeps PLANE-THUMB-CARDS' npThumb: the tile asks once for PLANE_THUMB.get('cand:' + c.file), and a 'plane-thumb' event fills the tiles still without one, in place, with no redraw of the screen. NEW-PLANE-THUMB (cloud session 01RorUqE6GL185zmnCrbumTb, 1187cae58) is dropped from L31b; its thumbOf, its redraw and its editor.css row are not taken, its GATE NEWPLANE row is (a tile wears the picture when PLANE_THUMB answers, today's tile without it). Archetype tiles keep their SVG. PLANE_THUMB itself lands from claude/plane-thumb.
