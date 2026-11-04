@@ -2412,6 +2412,46 @@ if (check(!!BG, 'the big generator did not load headlessly')) {
   }
 }
 
+// SIGNS CLEAR OF THE PARKED AEROPLANES (SCENERY-PLACE, 3 Nov; the user via A0: "there is a sign at the old mine, next to the
+// parking spot. It's in the way ... It does not collide, but goes through"). A house's sign ON POSTS (signAt 1) stands on the
+// lawn by the path - a solid nothing collides with, so the taxi census never sees it. Every placed house on Jolene (the cooked
+// places, both variants, as the page builds them) with its board on posts: the board's centre SIGN_CLEAR m or more from every
+// stand (the runways' patterns, their plots) and every fleet tie-down spot (src/viewer/fleet_spots_pack.js) - the widest
+// validated build's half-span (the DC-3, 14.5 m) and 3 m. The mine's air taxi office's stood 10.8 m off mn_strip's stand.
+{
+  const SIGN_CLEAR = 17.5, zlib = require('zlib'), FLY = path.join(TOOLS, '..');
+  const PP = JSON.parse(fs.readFileSync(path.join(FLY, 'src', 'core', 'premises_packs.json'), 'utf8'));
+  const isl = (PP.islands || []).find(w => w.id === 'jolene');
+  const files = new Set();
+  if (isl) for (const v of Object.values(isl.places && isl.places.variants || {})) for (const c of v.cells || []) if (c.src) files.add(c.src);
+  const things = new Map();
+  for (const f of files) { const fp = path.join(FLY, f); if (!fs.existsSync(fp)) continue;
+    for (const t of JSON.parse(zlib.gunzipSync(fs.readFileSync(fp)).toString()).things || [])
+      if (t.item && t.item.gen === 'HOUSE_GEN' && t.item.P && t.item.P.signKey && Math.round(t.item.P.signAt) === 1) things.set(t.item.id, t); }
+  const spots = [];
+  const pk = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'fleet_spots_pack.js'), 'utf8'), FP = JSON.parse(pk.slice(pk.indexOf('{'), pk.lastIndexOf('}') + 1));
+  for (const a in FP.aero || {}) for (const q of FP.aero[a]) spots.push({ at: a + ' ' + q[3], x: q[0], z: q[1] });
+  const REC = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8'));
+  for (const w of (REC.premises || REC).layers.runways || []) {
+    const n = w.site && w.site.pattern && (w.site.pattern.nodes || []).find(q => q.kind === 'stand');
+    if (n) spots.push({ at: w.id + ' stand', x: n.x, z: n.z });
+    if (w.stand && isFinite(w.stand.x)) spots.push({ at: w.id + ' stand', x: w.stand.x, z: w.stand.z });
+    for (const q of w.plots || []) if (q.stand && isFinite(q.stand.x)) spots.push({ at: w.id + ' plot ' + q.id, x: q.stand.x, z: q.stand.z });
+  }
+  let n = 0, worst = null;
+  for (const [id, t] of things) {
+    const P = Object.assign({}, t.item.P, { ground: () => 0 });
+    let S = null; try { S = HG.build(P, 0).stats.sign; } catch (e) { check(false, 'signs: ' + id + ' builds', e.message); continue; }
+    if (!S || S.at !== 'posts') continue;
+    const c = Math.cos(t.at[3]), sn = Math.sin(t.at[3]), x = t.at[0] + S.x * c + S.z * sn, z = t.at[2] - S.x * sn + S.z * c;
+    n++;
+    for (const q of spots) { const d = Math.hypot(q.x - x, q.z - z); if (!worst || d < worst.d) worst = { d, id, at: q.at }; }
+  }
+  check(files.size > 0 && n >= 5, 'signs: the cooked places read, the post signs found', files.size + ' cells, ' + n + ' signs on posts');
+  check(!worst || worst.d >= SIGN_CLEAR, 'signs: every sign on posts ' + SIGN_CLEAR + ' m or more from every stand and tie-down spot', worst && worst.id + ' ' + worst.d.toFixed(1) + ' m from ' + worst.at);
+  console.log('  signs: ' + n + ' on posts, ' + spots.length + ' stands / spots; the nearest ' + (worst ? worst.id + ' ' + worst.d.toFixed(1) + ' m from ' + worst.at : '-'));
+}
+
 if (fail.length) {
   for (const f of fail.slice(0, 24)) console.log('  ! ' + f);
   if (fail.length > 24) console.log('  ... ' + (fail.length - 24) + ' more');

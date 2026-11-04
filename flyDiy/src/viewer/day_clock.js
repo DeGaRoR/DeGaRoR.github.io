@@ -43,8 +43,10 @@ var DAY_CLOCK = (function () {
   const read = () => {
     try {
       const v3 = JSON.parse(localStorage.getItem(PREF) || 'null');
-      // G2630: a saved day whose clock is not a finite number (or whose date is not a date) is set aside - the game's day
-      if (v3 && !(typeof v3.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v3.date) && Number.isFinite(v3.utc))) {
+      // G2630: a saved day whose clock is not a finite number (or whose date is not a date) is set aside - the game's day.
+      // A pref with NO instant at all is the weather alone: the career's save on a profile with no sandbox day yet
+      // (save()'s keep is {}) - it is read as it is (bind falls back to the game's day and keeps the weather)
+      if (v3 && (v3.date != null || v3.utc != null) && !(typeof v3.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v3.date) && Number.isFinite(v3.utc))) {
         console.warn('flyDiy: the saved day was not readable - the game’s day'); return null;
       }
       if (v3) return v3;
@@ -64,7 +66,10 @@ var DAY_CLOCK = (function () {
   const save = () => { if (!day) return; try { const sp = day.spec(), keep = careerHook ? (read() || {}) : null;
     if (careerHook) try { careerHook.put({ date: day.date, utc: day.utc }); } catch (e) {}
     const j = fin({ date: keep ? keep.date : day.date, utc: keep ? keep.utc : Math.round(day.utc), rate: keep ? keep.rate : day.rate,
-    cloudCover: day.cloudCover, cloudType: day.cloudType, cloudUpper: day.cloudUpper && day.cloudUpper.length ? day.cloudUpper : null,
+    // (WEATHER-SEASON) the DECLARED decks, never the getters: under the career's plan those are the plan's, and the pref
+    // keeps the sandbox's own weather (study F8)
+    cloudCover: sp.cloudCover != null ? sp.cloudCover : day.cloudCover, cloudType: sp.cloudType || day.cloudType,
+    cloudUpper: Array.isArray(sp.cloudUpper) && sp.cloudUpper.length ? sp.cloudUpper : null,
     wind: sp.wind || null, storm: sp.storm || null, diurnalC: sp.diurnalC || null,
     oatC: sp.oatC != null ? sp.oatC : null, qnhPa: sp.qnhPa != null ? sp.qnhPa : null, dewC: sp.dewC != null ? sp.dewC : null,
     lapse: sp.lapse || null, mixH: sp.mixH != null ? sp.mixH : null, inversion: sp.inversion || null }, 'the day');
@@ -117,7 +122,7 @@ var DAY_CLOCK = (function () {
   // only moves FORWARD (a jump to an earlier instant is refused), the rate is real time, and every save hands the
   // instant to the page (hook.put -> careerDaySet -> the document). The sandbox keeps its pref and every control.
   const TIME_KEYS = ['date', 'utc', 'localHours'];
-  let careerHook = null, jumps = 0, lastJump = null, canWait = null;
+  let careerHook = null, jumps = 0, lastJump = null, canWait = null, sinceSeason = 0;
   const nowOf = () => ({ date: day.date, utc: day.utc });
   // where a time spec would land (a scratch day: the live one is not touched to find out)
   function landOf(o) {
@@ -126,9 +131,18 @@ var DAY_CLOCK = (function () {
     p.set(t);
     return { date: p.date, utc: p.utc };
   }
+  // THE WINTER LAYUP (WEATHER-SEASON, the user's call of 3 Nov; study §5.3): the career's date stays inside the flying
+  // season (20 May - 30 Sep, WEATHER_PLAN.SEASON). An instant past its close lands on the next year's opening at dawn -
+  // always FORWARD, one jump, `why` 'layup', and a 'flydiy:layup' event the story's beat hangs on. 74_career.js
+  // careerSeasonLand is the rule (the document applies it too); null when the career core is not loaded.
+  const seasonLand = o => (careerHook && typeof careerSeasonLand === 'function' ? careerSeasonLand(o) : null);
   function jump(o, why) {
     if (!world || !day || !o) return null;
-    const from = nowOf(), to = landOf(o), dt = dayAbs(to) - dayAbs(from);
+    const from = nowOf();
+    let to = landOf(o);
+    const L = seasonLand(to);
+    if (L && L.layup) { o = { date: L.date, utc: L.utc }; to = { date: L.date, utc: L.utc }; why = 'layup'; }
+    const dt = dayAbs(to) - dayAbs(from);
     if (careerHook && dt < 0) return { ok: false, why: 'the career\'s clock only moves forward' };
     const T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
     world.setDay(o);
@@ -137,6 +151,7 @@ var DAY_CLOCK = (function () {
     jumps++;
     lastJump = { n: jumps, why: why || 'set', from, to: nowOf(), dtS: dt, version: day.version, t: T0 };
     try { if (W && W.dispatchEvent && typeof CustomEvent === 'function') W.dispatchEvent(new CustomEvent('flydiy:dayjump', { detail: lastJump })); } catch (e) {}
+    if (why === 'layup') try { if (W && W.dispatchEvent && typeof CustomEvent === 'function') W.dispatchEvent(new CustomEvent('flydiy:layup', { detail: { from: lastJump.from, to: lastJump.to, season: +lastJump.to.date.slice(0, 4) } })); } catch (e) {}
     save();
     return { ok: true, jump: lastJump };
   }
@@ -178,6 +193,8 @@ var DAY_CLOCK = (function () {
         if (wx.storm && wx.storm.inH != null) wx.storm = { at: day.utc + wx.storm.inH * 3600, intensity: wx.storm.intensity };
         w.setDay(wx);
       }
+      // ?plan=1 (WEATHER-SEASON): the sandbox plays the career's weather plan (the season's crafted days by the date)
+      if (W && W.location && /[?&]plan=1\b/.test(W.location.search)) w.setDay({ plan: { id: 'season' } });
       if (W) W.addEventListener('pagehide', save);
     },
     // the tick: dt seconds of play (the loop's 1/60); saves at most every 30 s
@@ -193,6 +210,8 @@ var DAY_CLOCK = (function () {
       const FP = W && W.FLIGHT_PROBE;
       if (FP && FP.sim) { try { const sm = FP.sim(); t = sm.t; const c = sm.cgPos(); ax = c[0]; az = c[2]; } catch (e) {} }
       if (world && world.dayTick) world.dayTick(dt, t, ax, az); else day.advance(dt);
+      // the season's close passed in real time (flown, or stood) - the layup at the next moment on the ground
+      if (careerHook && (sinceSeason += dt) > 10) { sinceSeason = 0; const L = seasonLand(nowOf()); if (L && L.layup && api.canWait()) jump({ date: L.date, utc: L.utc }, 'layup'); }
       if ((sinceSave += dt) > 30) save();
     },
     // a change of the instant is a JUMP (above); the weather, the air, the clouds are a plain set
@@ -238,11 +257,21 @@ var DAY_CLOCK = (function () {
     moonAt: (date, hour) => (day ? dayMoonAt(day, date, hour) : null),
     // THE CAREER'S CLOCK: hook = { get() -> {date, utc}, put({date, utc}) }; the instant is set from the document
     // (a LOAD, not a jump: the boot's own set), real time, and saved through the hook from then on
+    // WEATHER-SEASON: the career's weather is the PLAN's (07d_weather_plan.js through the day: told, never set); leaving
+    // the career lifts it, and the sandbox's own declared weather is back as it was
     career(hook) {
+      const was = !!careerHook;
       careerHook = hook && typeof hook.get === 'function' && typeof hook.put === 'function' ? hook : null;
-      if (careerHook && world && day) { const o = careerHook.get(); if (o && o.date) world.setDay({ date: o.date, utc: o.utc, rate: 1 }); }
+      if (careerHook && world && day) {
+        let o = careerHook.get();
+        const L = o && o.date ? seasonLand(o) : null;
+        if (L && L.layup) o = { date: L.date, utc: L.utc };
+        if (o && o.date) world.setDay({ date: o.date, utc: o.utc, rate: 1, plan: { id: 'season' } });
+      } else if (was && world && day) world.setDay({ plan: null });
       return !!careerHook;
     },
+    // the sandbox's "play the plan" (GAME-MENUS' row; ?plan=1): on / off; the career's is always on
+    plan(on) { if (!world || !day || careerHook) return !!(day && day.plan); world.setDay({ plan: on ? { id: 'season' } : null }); save(); return !!day.plan; },
     isCareer: () => !!careerHook,
     get jumps() { return jumps; },
     get lastJump() { return lastJump; },
@@ -267,3 +296,6 @@ var DAY_CLOCK = (function () {
   return api;
 })();
 if (typeof window !== 'undefined') window.DAY_CLOCK = DAY_CLOCK;
+// THE FORECAST (WEATHER-SEASON): the TIME menu's hook (day_ui.js menu ctx.forecast, editor.js / app.js read it) - the
+// plan's today and its three-day outlook, in lines; nothing when the day has no plan
+if (typeof window !== 'undefined') window.FLYDIY_FORECAST = d => (d && d.plan && typeof WEATHER_PLAN !== 'undefined' ? WEATHER_PLAN.lines(d) : null);

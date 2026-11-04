@@ -1,0 +1,10 @@
+{ "v": 1, "id": "sea-fog", "name": "Sea fog bank",
+  "story": "Warm air over the cold sea: a bank of fog lies on the water and the seaplane bases until noon, pulls back offshore in the afternoon and creeps in again at dusk. Inland it is a fine day; at night the moon stands over a sea of fog.",
+  "fly": "moderate", "forecast": "Fog and low stratus on the coast and the sea until 12:00, the seaplane bases closed; inland strips fine. Fog clearing offshore 12:00-18:00, returning from 20:00. Wind southwest 4-8 kt. Night: fog on the water, clear above.",
+  "temp": { "min": 0.5, "max": -0.5 }, "dew": [[4, 0.8], [9, 0.6], [12, -0.5], [16, -1.5], [20, 0.5], [27, 1.0]],
+  "qnh": [[4, 1017], [27, 1018]],
+  "wind": [[4, 3, 220, 0.08], [11, 4, 225, 0.1], [15, 8, 230, 0.15], [20, 5, 225, 0.1], [26, 3, 220, 0.08]],
+  "rich": { "breeze": 0.8, "terrain": 0.4, "thermals": 0.3 },
+  "low": [[4, 0.35, "st"], [9, 0.4, "st"], [13, 0.12, "st"], [17, 0.05, "st"], [21, 0.25, "st"], [27, 0.4, "st"]],
+  "fog": { "where": "sea", "hold": [[4, 1], [10.5, 1], [12.5, 0], [19, 0], [21, 1], [27, 1]] },
+  "turbidity": 3.2, "aurora": [] }
