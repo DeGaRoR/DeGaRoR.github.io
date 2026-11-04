@@ -10,6 +10,9 @@ Van's, Controller, Barnstormers, Garmin, Wipaire and others) was blocked by the 
 figure comes from a search-result extract of the page linked. Treat them as indicative. A row marked ESTIMATE has no
 published figure behind it.
 
+**Revision 3 (the user, 4 Nov):** one base price, and an age multiplier on it that reconciles new and old; an easy
+first step, with performance to follow (§D).
+
 **Revision 2 (the user, 4 Nov):** fit this study to the economy study, and keep three ways to own a plane apart:
 - the **maker way**: new plane, your choices, built in your hangar, which is already well calibrated;
 - **pre-built planes, used only** for now: the official Cub, Cessna, Jodel, Birdman;
@@ -93,7 +96,14 @@ final.
      C172, Jodel, Tiger Moth, RVs and DC-3.
    - The ultralights are 40-70 % heavy: the basic systems tier rides on a 154 kg Chinook.
    - The Caravan-alike is a smaller aeroplane than a 208B.
-10. **B-ITES** ("B-ITID" is not on master; A0 identified it as the user's B-ITES on `origin/claude/a0/b-ites-input`).
+10. **Age (revision 3, §D): one base, one curve.**
+    - **V0 = the ledger × 1.15**, and the price = V0 × f(age), with f(0) = 1 (new) and f = 0.8 × (0.14 + 0.86 ×
+      e^(−age / 27.5)) for used. It fits same-type new-against-used pairs within a factor of 1.12.
+    - **Today's used band (0.4-0.8) is exactly the curve's first 24 years**, so a first step that draws ages 2-24 changes
+      no price band and leaves the agreed economy alone. It adds an age to each listing, shows it through the existing
+      weathering, scales the extra kilos and the older panel with age, and sells on the same curve.
+    - Engine wear and drag (step 2) come before older planes and the new market.
+11. **B-ITES** ("B-ITID" is not on master; A0 identified it as the user's B-ITES on `origin/claude/a0/b-ites-input`).
     - **Build:** 52 900 (66 100 in a short hangar).
     - **Catalogue:** 76 000 (≈ $114k).
     - Against the RVs: inside the used RV-7/-8 band ($130-160k) and below building an RV from the kit ($150-190k).
@@ -214,6 +224,89 @@ economy owner; it is the same with or without this study.
 **What this means for the game:** price the used market from the game's own build cost and a condition, not from
 listings. The listings' level drifts by ±30-100 % in a decade, and their cross-type ratios carry fashions (the Cub's
 premium) that a game's progression should not inherit.
+
+---
+
+## D. One base, one age curve (revision 3: the user, 4 Nov)
+
+*"Ideally we have a base calculation, and factors on prices depending on plane age. That could reconcile new and old:
+just degrade the multiplier as a function of age. But we'd need to degrade performance too for it to make sense.
+Let's have an easy first step."* `age_curve.js` fits the curve and writes `age_curve.json`.
+
+**The base and the curve:**
+- **V0 = the new value = ledger × 1.15** (the catalogue: what a maker would charge new).
+- **f(age) = 1 at age 0**; used, **f = 0.8 × (0.14 + 0.86 × e^(−age / 27.5))**:
+  - 0.8 is the first-resale step (a plane that has left the maker is a used plane), the middle of the real 15-25 %
+    dealer spread, held fixed;
+  - the rest is fitted on the same-type new-against-used pairs, in log least squares, scattered by a factor of 1.12.
+
+| pair (USD, 2025-26 asking) | age | real used ÷ new | the curve |
+|---|---|---|---|
+| C172S NXi (2016+) vs a new 172S | 7.5 | 0.57 | 0.64 |
+| C172S (2000s) vs a new 172S | 20 | 0.53 | 0.44 |
+| C172M/N (1970s) vs a new 172S | 50 | 0.22 | 0.22 |
+| 208B (2000s) vs a new 208B EX | 22 | 0.37 | 0.42 |
+
+**Left out, and why:**
+- **The 208B EX of 2019-22**, listed above its new price: a post-2020 supply squeeze, not age.
+- **The J-3 against a new Cub-class:** not the same aeroplane.
+- Four pairs set the floor (0.11 of new at great age) only loosely. Collector types (the J-3, the Tiger Moth) sit well
+  above it, so for anything older than ~30 years the game may want a higher floor, e.g. 0.2.
+
+**Every price is the same formula:**
+- **build** (the maker way) = ledger × labour, 0.8 / 1.0: unchanged;
+- **buy used** = V0 × f(age) × (1 − the listing's own deductions: a repair 0.08, an older panel 0.03, the extra kilos
+  0.04 × kg / 15);
+- **sell** = min(0.75 × the same value at the airframe's age, what you paid);
+- **buy new**, later = V0 × f(0) = V0. **This reconciles new and old with one number**: a new plane is a used one of
+  age 0.
+
+**The key measurement: today's used band is already this curve between 0 and 24 years.**
+- f is 0.8 at age 0+, 0.6 at 9.5 years, and 0.4 at 24 years.
+- The listing's 0.4-0.8 is the curve's first 24 years.
+- So the first step can introduce age **without moving one price band, which leaves the agreed economy as §B
+  measured it.**
+
+**The corrected official planes by age** (V0 × f(age), credits; build in a fitted hangar for reference):
+
+| plane | build | new (0) | 2 y | 5 y | 10 y | 20 y | 30 y | 40 y | 60 y |
+|---|---|---|---|---|---|---|---|---|---|
+| Cub | 34 300 | 49 400 | 37 100 | 33 800 | 29 100 | 21 900 | 16 900 | 13 500 | 9 400 |
+| Jodel | 33 900 | 48 700 | 36 600 | 33 400 | 28 700 | 21 600 | 16 700 | 13 300 | 9 200 |
+| Birdman | 28 700 | 41 200 | 31 000 | 28 200 | 24 300 | 18 300 | 14 100 | 11 200 | 7 800 |
+| Chinook | 27 600 | 39 700 | 29 900 | 27 300 | 23 500 | 17 700 | 13 600 | 10 800 | 7 500 |
+| metal Cessna | 87 800 | 126 300 | 94 900 | 86 600 | 74 500 | 56 100 | 43 300 | 34 400 | 23 900 |
+| Cessna on floats | 109 200 | 157 000 | 118 000 | 107 600 | 92 700 | 69 800 | 53 900 | 42 800 | 29 800 |
+| Tiger Moth | 63 600 | 91 400 | 68 700 | 62 700 | 54 000 | 40 600 | 31 400 | 24 900 | 17 300 |
+
+Read the rows this way:
+- A plane under ~5 years costs more than building it yourself: you pay for the certificate and for having it now.
+- From ~5 years on, buying used is the cheaper way in.
+- A new one (age 0) is 1.44× a fitted build. That is the maker's margin over doing it yourself, and the reason the new
+  market waits until age also costs performance.
+
+### The easy first step: price and look, no new physics
+
+| # | what | where | how |
+|---|---|---|---|
+| A1 | a listing draws an **age**, 2-24 years | 76_procure `procureUsedListing` | the price's hours term becomes f(age); `hours` stays as text, drawn ~50-120 h a year since the last overhaul. The band stays 0.4-0.8 of V0, so the agreed economy is untouched |
+| A2 | **the age shows** | the listing card ("built 2009 · 1 400 h"), and the drawn aeroplane | the weathering the game already has, `finish.weather.age` = age / 40 (G2230's visual macro: no physics) |
+| A3 | **the real spec rows follow the age** | the listing's existing rows | extra empty mass 0.4 kg a year (cap 15, today a random 0-15); the older panel with chance age / 30 (today 0.6 flat) |
+| A4 | **selling** reads the same curve | a new door in 76_economy | min(0.75 × V0 × f(age) × deductions, `paid`). An own build, once flown, is a used plane of age ~0 (f = 0.8), so it sells at 0.75 × 1.15 × 0.8 = 0.69 × the ledger, as in §A |
+| A5 | the occasions | 79_story | unchanged (0.35 × V0: a gift of the story, below the curve on purpose) |
+| A6 | buying new stays hidden in a career | the makers' board | its price is already V0 = f(0), so opening it later is a switch, not a re-price |
+
+### Step 2, later: age costs performance, then the new market opens
+
+| # | what | physics | why it makes the price make sense |
+|---|---|---|---|
+| B1 | **engine wear**: power −1 % per 400 h since overhaul, down to −6 %; an overhaul resets it (a priced repair) | one spec field (`engines[i].wear`) read where the powerplant resolves; a PHYSICS_V step | a tired engine climbs worse; a new one is worth its price |
+| B2 | **airframe drag** +2-5 % with age (old fabric, paint layers, rigging) | the body's `cdWet` × (1 + k·age) | an old plane is slower |
+| B3 | ages up to 60 years (the vintage plateau, floor ~0.2) | none beyond B1-B2 | cheap old planes become a real choice, slower and heavier, not just cheaper |
+| B4 | **the new market opens** at f(0) = 1 | none | it now buys measurable performance |
+
+Before B3 widens the band, re-play econ_sim with the used market in it (§B's harness can take it): planes under 0.4 ×
+V0 make the entry cheaper, which the agreed economy has not seen.
 
 ---
 
@@ -548,6 +641,7 @@ need P21. With P1-P15 and P21, econ_sim's careers hold the agreed paces (4 / 7-8
   - every plane's ledger sections, categories (engine, prop, structure, gear, systems, seats, outfit, tank, paint) and prices;
   - the game's component catalogue;
   - the real benchmark rows with their notes, the ratios, the fits and the proposal's measured planes.
+- `futureDesigns/price-study/age_curve.js` (seconds; after price_study.js): fits the age curve, writes `age_curve.json` (§D).
 - `futureDesigns/price-study/econ_price_run.js` (run after price_study.js: `node futureDesigns/price-study/econ_price_run.js
   --seeds=20`, ~9 min):
   - econ_sim's own `measureDesigns`, `playCareer`, `aggregate` and `judge`, required as a module;
