@@ -1578,6 +1578,7 @@ function makePilot(sim, def, world, opts) {
         L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
         L.hPlan = Math.round(ap.altRef + Math.min(P.hC, P.hIaf + P.gD * L.rest));
         L.hPlanA = prev != null ? prev : Math.round(ap.altRef + P.hC);
+        L.dDes = P.gD > 0 ? Math.max(0, (L.hPlanA - L.hPlan) / P.gD) : 0;   // (the descent's length before B: the 3-D line draws it where it is flown)
         prev = L.hPlan;
         continue;
       }
@@ -1633,7 +1634,7 @@ function makePilot(sim, def, world, opts) {
         { lookLast: 0, taper: 3000, endLevel: 800 });
     } catch (e) { return null; }
   };
-  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; planLegH(legs); };
+  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; planLegH(legs); if (P3_) buildAirPath(legs, null); };   // (G3914: its fillets, L.rB, for the drawn line at once)
   // P0.6: THE CIRCUIT AS ONE PATH. The legs' corners become patternPath's
   // nodes with the fillet radius the aeroplane turns at each corner's speed
   // (the leg's own: cruise / turn / the approach speed on the last corner)
@@ -1671,6 +1672,7 @@ function makePilot(sim, def, world, opts) {
       // the corner at B turns into N at the speed the SLOWER of the two legs asks
       const Vc = N ? Math.min(speedOf(L), speedOf(N)) : speedOf(L);
       add(L.B[0], L.B[1], N ? rOf(Vc, k === 0 && climbMode) : 0);
+      if (P3_) L.rB = N ? Math.round(rOf(Vc, k === 0 && climbMode)) : 0;   // G3914: the 3-D line's fillet, the path's own
     }
     if (nodes.length < 2) return null;
     let len = 0; for (let k = 1; k < nodes.length; k++) len += Math.hypot(nodes[k].x - nodes[k - 1].x, nodes[k].z - nodes[k - 1].z);

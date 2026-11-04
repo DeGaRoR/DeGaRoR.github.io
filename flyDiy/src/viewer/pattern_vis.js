@@ -300,6 +300,43 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       } else pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
     }
     if (!pos.length) return;
+    // G3914: THE LINE IS THE PLAN FLOWN (the user: "does 90 degrees sharp turn all the time") - a leg level, then down from where its descent begins
+    // (L.dDes), each corner the path's own fillet (L.rB) once the pilot has built it
+    if (legs.some(L => L.dDes != null || L.rB != null)) {
+      pos.length = 0;
+      const P = [];
+      for (const L of legs) {
+        if (!L.A || !L.B || L.hPlan == null) continue;
+        const hA = L.hPlanA != null ? L.hPlanA : L.hPlan, hB = L.name === 'FINAL' ? L.hPlan + 2 : L.hPlan;
+        const hS = L.enroute && L.hCruiseLeg != null ? L.hCruiseLeg : hA;
+        const len = Math.hypot(L.B[0] - L.A[0], L.B[1] - L.A[1]) || 1e-9;
+        if (!P.length) P.push([L.A[0], hS, L.A[1]]);
+        const dn = L.dDes != null ? L.dDes : (L.enroute && hS > hB + 1 ? 800 + (hS - hB) / 0.05 : 0);
+        if (dn > 1 && dn < len) { const f = 1 - dn / len; P.push([L.A[0] + (L.B[0] - L.A[0]) * f, hS, L.A[1] + (L.B[1] - L.A[1]) * f]); }
+        P.push([L.B[0], hB, L.B[1], L.rB || 0]);
+      }
+      const seg = (a, b) => pos.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      let prev = P[0];
+      for (let i = 1; i < P.length; i++) {
+        const C = P[i], N = P[i + 1], r = C[3] || 0;
+        if (!N || !r) { seg(prev, C); prev = C; continue; }
+        const a = Math.hypot(C[0] - prev[0], C[2] - prev[2]) || 1e-9, b = Math.hypot(N[0] - C[0], N[2] - C[2]) || 1e-9;
+        const ux = (C[0] - prev[0]) / a, uz = (C[2] - prev[2]) / a, vx = (N[0] - C[0]) / b, vz = (N[2] - C[2]) / b;
+        const th = Math.acos(Math.max(-1, Math.min(1, ux * vx + uz * vz)));
+        const t = Math.min(r * Math.tan(th / 2), 0.5 * a, 0.5 * b);
+        if (th < 0.03 || t < 1) { seg(prev, C); prev = C; continue; }
+        // a quadratic through the corner, the height along it from the two legs
+        const S = [C[0] - ux * t, C[1] + (prev[1] - C[1]) * t / a, C[2] - uz * t], E = [C[0] + vx * t, C[1] + (N[1] - C[1]) * t / b, C[2] + vz * t];
+        seg(prev, S);
+        let q = S;
+        for (let k = 1; k <= 12; k++) {
+          const w = k / 12, m = 1 - w;
+          const W = [m * m * S[0] + 2 * m * w * C[0] + w * w * E[0], m * S[1] + w * E[1], m * m * S[2] + 2 * m * w * C[2] + w * w * E[2]];
+          seg(q, W); q = W;
+        }
+        prev = E;
+      }
+    }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     legsObj = new THREE.LineSegments(g, lineMat(0xffb257, 0.55));
