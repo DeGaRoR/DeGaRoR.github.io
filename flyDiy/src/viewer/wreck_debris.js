@@ -659,8 +659,8 @@
   // live: the nodes, world. Pure (GATE GEARFALL); the page's wreckWires draws them ----
   const WIRE_BELLY = 0.35, WIRE_AXLE = 0.12, WIRE_R = 0.006, WIRE_SIDES = 6, WIRE_CURL = 0.35;
   function wireEnds(def, br, pc, live) {
-    const R = def.refs || {}, N = def.nodes, ax = new Set([].concat(R.mains || [], R.tw != null && R.tw >= 0 ? [R.tw] : [])), out = [];
-    for (const bi of br) { const b = def.beams[bi]; if (!b || b.cls !== 'gear' || b.vis !== 'wire') continue;
+    const R = def.refs || {}, N = def.nodes, ax = new Set(R.mains || []), out = [];
+    for (const bi of br) { const b = def.beams[bi]; if (!b || b.cls !== 'gear' || b.vis !== 'wire' || !(ax.has(b.a) || ax.has(b.b))) continue;   // (a main's: a nose gear's 'wire' members are its struts)
       const P = N[b.a].p, Q = N[b.b].p, L = Math.hypot(P[0] - Q[0], P[1] - Q[1], P[2] - Q[2]);
       for (const [i, j] of [[b.a, b.b], [b.b, b.a]]) { if (pc && pc[i] !== 0) continue;
         const dx = live[j*3] - live[i*3], dz = live[j*3+2] - live[i*3+2], h = Math.hypot(dx, dz) || 1;

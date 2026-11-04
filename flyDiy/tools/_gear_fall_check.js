@@ -4,7 +4,8 @@
 // "broken landing trains were really one of the first asks ... the plane has to behave like it loses a connection, a wheel, a
 // leg". On the user's Cub, certified, node only, about a minute:
 //   1. THE FLIGHT'S CASE, staged (16.8 m/s, swung, 2.5 m/s down, nose-low): the drag brace kinks, its leg lets go, that side's
-//      wing comes down to the ground, the aeroplane stops, the crash says the gear
+//      wing comes down to the ground, the other leg follows under the same sink (measured: every staged break of this sweep), the
+//      aeroplane stops on its belly, the crash says the gear
 //   2. A FIRM TOUCH at the same speed and attitude (1.5 m/s) breaks nothing: the limits did not move
 //   3. EACH MEMBER ALONE, rolling at 15 m/s: a leg's load members and the axle bar let one leg go; a wire only snaps - the
 //      leg stands, no crash, the record says so; a tailwheel's load member lets the tailwheel go
@@ -36,12 +37,11 @@ function stage(key, o, opts) {
   return { sim, def, cg0, tips };
 }
 function run(R, secs) {
-  const { sim, def, tips } = R; let tipMin = Infinity;
-  const avg = a => a.length ? a.reduce((s, i) => s + sim.p[i*3+1], 0) / a.length : 0;
-  for (let f = 0; f < secs * 60; f++) { sim.step(1 / 60); for (const a of tips) for (const i of a) if (sim.p[i*3+1] < tipMin) tipMin = sim.p[i*3+1]; }
+  const { sim, def, tips } = R; let tipMin = Infinity, leanMax = 0;
+  const avg = a => a.length ? a.reduce((s, i) => s + sim.p[i*3+1], 0) / a.length : 0, span = def.params.gen ? def.params.gen.span * 0.9 : 10;
+  for (let f = 0; f < secs * 60; f++) { sim.step(1 / 60); for (const a of tips) for (const i of a) if (sim.p[i*3+1] < tipMin) tipMin = sim.p[i*3+1]; leanMax = Math.max(leanMax, Math.abs(Math.asin(Math.max(-1, Math.min(1, (avg(tips[0]) - avg(tips[1])) / span))) / RAD)); }
   const D = sim.damage(), B = sim.beams, v = sim.cgVel(), tag = i => def.nodes[B[i].a].tag + '-' + def.nodes[B[i].b].tag;
-  const span = def.params.gen ? def.params.gen.span * 0.9 : 10;
-  return { lean: Math.abs(Math.asin(Math.max(-1, Math.min(1, (avg(tips[0]) - avg(tips[1])) / span))) / RAD), drop: R.cg0 - sim.cgPos()[1], tipMin, V: Math.hypot(v[0], v[1], v[2]), finite: !sim.stats().bad,
+  return { leanMax, lean: Math.abs(Math.asin(Math.max(-1, Math.min(1, (avg(tips[0]) - avg(tips[1])) / span))) / RAD), drop: R.cg0 - sim.cgPos()[1], tipMin, V: Math.hypot(v[0], v[1], v[2]), finite: !sim.stats().bad,
     crashed: D.crashed, reason: D.reason, why: D.structural.why, breaks: D.breaks, groups: (D.groups || []).map(g => g.key), first: D.firstBreak ? tag(D.firstBreak.beam) + ' ' + D.firstBreak.how : null };
 }
 const say = r => 'lean ' + r.lean.toFixed(1) + ' deg, CG down ' + r.drop.toFixed(2) + ' m, low tip ' + r.tipMin.toFixed(2) + ' m, ' + r.V.toFixed(1) + ' m/s left, ' + r.breaks + ' broken, first ' + r.first + ', groups [' + r.groups.join(', ') + '], "' + r.why + '"';
@@ -50,7 +50,7 @@ console.log('1. the flight\'s case: the brace kinks on a tail-high, sliding touc
 const TOUCH = { V: 16.8, pitch: 12, yaw: 9, rate: -29, lift: 0.1 };
 { const r = run(stage('cub', Object.assign({ sink: 2.5 }, TOUCH)), 8);
   yes(r.finite && /S1B. kink/.test(r.first || '') && r.groups.some(k => /^gear[LR]:gear$/.test(k)), 'the brace kinks and its leg lets go: ' + say(r));
-  yes(r.lean > 10 && r.tipMin < 0.15 && r.V < 3, 'that side comes down: the wing tip on the ground, the aeroplane stopped (lean over 10 deg, tip under 15 cm, under 3 m/s)');
+  yes(r.leanMax > 10 && r.tipMin < 0.15 && r.drop > 0.3 && r.V < 3, 'it comes down: the wing tip on the ground (' + r.leanMax.toFixed(1) + ' deg at most, tip under 15 cm), the CG over 30 cm lower, the aeroplane stopped (under 3 m/s)');
   yes(r.crashed && r.why === 'the landing gear broke', 'the crash says what happened: ' + r.reason + ' / ' + r.why); }
 console.log('2. a firm touch at the same speed and attitude');
 { const r = run(stage('cub', Object.assign({ sink: 1.5 }, TOUCH)), 4);
@@ -73,7 +73,10 @@ console.log('4. the metal Cessna\'s nose leg');
 { const probe = stage('metal', { V: 15 }, { cert: false }), B = probe.sim.beams, def = probe.def, GR = def.parts.dmg.groups, ng = GR.find(g => /nose|nw|tw/i.test(g.key) && /:gear$/.test(g.key));
   if (!ng) yes(false, 'no nose gear joint in [' + GR.filter(g => /:gear$/.test(g.key)).map(g => g.key).join(', ') + ']');
   else { const m = ng.t0.find(j => B[j].vis !== 'wire'), R = stage('metal', { V: 15 }, { cert: false }); for (let f = 0; f < 30; f++) R.sim.step(1 / 60); R.sim.damageBreak(m, 'tension'); const r = run(R, 5);
-    yes(r.groups.includes(ng.key) && r.drop > 0.03, ng.key + ', one load member: it goes, the nose comes down: ' + say(r)); } }
+    yes(r.groups.includes(ng.key) && r.drop > 0.03, ng.key + ', one load member: it goes, the nose comes down: ' + say(r));
+    // (its struts are drawn-class 'wire' and carry its load: not a main's X wire - one alone lets the leg go)
+    const st = ng.t0.find(j => B[j].vis === 'wire'), S = stage('metal', { V: 15 }, { cert: false }); for (let f = 0; f < 30; f++) S.sim.step(1 / 60); S.sim.damageBreak(st, 'kink'); const r2 = run(S, 5);
+    yes(r2.groups.includes(ng.key) && r2.crashed, 'a nose strut drawn as a wire, kinked: the leg goes, the crash says the gear: ' + say(r2)); } }
 console.log('5. a snapped wire\'s ends drawn');
 { const R = stage('cub', { V: 15 }), { sim, def } = R, B = sim.beams, axle = new Set(def.refs.mains);
   const w = B.findIndex(b => b.cls === 'gear' && b.vis === 'wire'), lp = new Uint8Array(sim.n);

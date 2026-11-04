@@ -66,7 +66,8 @@ if (argv[0] === '--build') {
     const X = sim.damage(), want = new Set(G.t0.concat(G.t1)), got = new Set(X.broken);
     return { key: G.key, ok: X.groups.length === 1 && got.size === want.size && [...want].every(i => got.has(i)), broke: got.size, want: want.size, chained: X.groups.length - 1 };
   });
-  const links = [...new Set(D.groups.flatMap(G => G.t1))];
+  // (GEAR-FALLS, the user's ruling 4 Nov, rule (b): a gear's axle bar is a load member, broken alone it lets a leg go - GATE GEARFALL's row)
+  const links = [...new Set(D.groups.flatMap(G => G.t1))].filter(bi => sim.beams[bi].cls !== 'gear');
   out.links = links.map(bi => { sim.reset(0); sim.damageBreak(bi); const X = sim.damage(); return X.broken.length === 1 && X.groups.length === 0; });
   // 2b. G1894 (DMG-TUNE): THE RELEASE RULE (GEN_DMG_GROUP) - one member kinked: a group of several does not let go; its
   // members severed one by one (the weakest first): it lets go exactly when the severed carry `rel` of its capacity

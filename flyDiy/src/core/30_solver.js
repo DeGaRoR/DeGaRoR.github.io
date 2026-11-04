@@ -795,7 +795,7 @@ function makeSim(def, world) {
     const legOf = new Map();
     DGR.forEach((G, g) => { if (!/:gear$/.test(G.key)) return; gearGrp[g] = 1; for (const j of G.t0) if (beams[j].vis !== 'wire') for (const i of [beams[j].a, beams[j].b]) if (!legOf.has(i)) legOf.set(i, g); });
     for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls !== 'gear') continue;
-      if (b.vis === 'wire' && grpOf[bi] >= 0 && gearGrp[grpOf[bi]]) gearWire[bi] = 1;
+      if (b.vis === 'wire' && grpOf[bi] >= 0 && gearGrp[grpOf[bi]] && /^gear[LR]:/.test(DGR[grpOf[bi]].key)) gearWire[bi] = 1;   // (a main's X wires: a nose gear's 'wire' members carry its load, and kink)
       if (grpOf[bi] < 0 && legOf.has(b.a) && legOf.has(b.b) && legOf.get(b.a) !== legOf.get(b.b)) barLegs.set(bi, [legOf.get(b.a), legOf.get(b.b)]); }
   }
   // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
