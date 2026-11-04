@@ -1,72 +1,219 @@
-# PRICE-STUDY 2026-11: what a credit is worth
+# PRICE-STUDY 2026-11: what a credit is worth, and the three ways to own a plane
 
-*A study only: no game code or balance was changed. Web prices are as of the search date, **4 November 2026**, in USD
-(EUR/GBP/AUD/CAD converted roughly). The game's prices were computed headless off master's core (`05f95aa7`) by
-`futureDesigns/price-study/price_study.js`; every number below is in `price_study_data.json` beside it.*
+*A study only: no game code, balance or tool was changed. Web prices are as of the search date, **4 November 2026**, in
+USD (EUR/GBP/AUD/CAD converted roughly). The game's prices were computed headless off master's core (`05f95aa7`) by
+`futureDesigns/price-study/price_study.js`. The career was re-played through the economy simulator's own careers by
+`econ_price_run.js`. Every number below is in `price_study_data.json` and `econ_price_results.json` beside them.*
 
-**A caveat on the sources.** The research ran about 115 web searches. Fetching the pages themselves (Aircraft Spruce,
+**A caveat on the sources.** The research ran about 150 web searches. Fetching the pages themselves (Aircraft Spruce,
 Van's, Controller, Barnstormers, Garmin, Wipaire and others) was blocked by the session's network allowlist, so each
 figure comes from a search-result extract of the page linked. Treat them as indicative. A row marked ESTIMATE has no
 published figure behind it.
+
+**Revision 2 (the user, 4 Nov):** fit this study to the economy study, and keep three ways to own a plane apart:
+- the **maker way**: new plane, your choices, built in your hangar, which is already well calibrated;
+- **pre-built planes, used only** for now: the official Cub, Cessna, Jodel, Birdman;
+- **what a plane sells for**.
+
+Keep margins that let the agreed economy progress, correct every outlier, and narrow the market before the report is
+final.
 
 ---
 
 ## The conclusions (one page)
 
-1. **One credit is about 1.5 US dollars (2025-26) for anything the game lets you buy.** Instruments, radios and
-   electrics were entered at list price and read **1 credit ≈ $1.1**. Engines are "second-hand, installed" and read
-   **≈ $1.5** against overhauled or exchange prices. On the 38 component rows that are not outliers, the fit is
-   **$1.30 a credit**, scattered by a factor of 1.4. **The study proposes 1 credit = $1.5** as the stated convention.
-2. **For whole aeroplanes, no single rate fits, and that is the market's fault, not the game's.** Real aeroplanes sell
-   in four regimes that differ by up to 20× for the same airframe:
-   - **used or vintage** (J-3, Jodel, Chinook, Tiger Moth, DC-3, a used RV): $0.35 to $1.9 for each game credit;
-   - **pure homebuilt from plans** (materials, engine and panel, labour free): $1.2 to $1.8;
-   - **kit** (the factory's parts and part of its labour): $2.3 to $3.4;
-   - **new certified factory** (C172, Grand Caravan, a new Cub-class): $5 to $7.6.
+1. **One credit is about 1.5 US dollars (2025-26) for anything the game lets you buy.**
+   - Instruments, radios and electrics read **$1.1 a credit**.
+   - Engines ("second-hand, installed") read **$1.5** against overhauled or exchange prices.
+   - The 38 component rows that are not outliers fit at **$1.30**, scattered by a factor of 1.4.
+   - **The convention proposed: 1 credit = $1.5.**
+2. **The maker way is calibrated: keep it.** The ledger is a parts bill with the labour free, which is exactly a plans-built
+   homebuilt. At $1.5 a credit it lands within ±25 % of the real plans route on the Cub (1.83 / 1.5) and the Jodel
+   (1.22 / 1.5). A real kit costs more (2.3-3.4) because it carries the factory's labour; a new certified aeroplane
+   costs 5-7.6. **Neither is the maker way's job.**
+3. **The used price is already right, measured against the right thing: the game's own build cost, not the market's
+   listings.** Today a used airframe costs catalogue × 0.4-0.8, which is the ledger × 0.46-0.92, or **0.58-1.15× what
+   the same plane costs to build** in a fitted hangar. Real used planes fetch **0.5-1.2× their build cost**:
+   - a J-3 is about 1.2× its plans cost (collector premium);
+   - a Jodel about 0.8×;
+   - an RV about 0.85× its kit cost;
+   - a Chinook about 0.5×.
 
-   **The game's ledger is a plans-built parts bill**: at $1.5 it lands within ±25 % on the Cub and the Jodel. Its
-   catalogue (the ledger × 1.15) is no factory price: at $1.5 a credit, a new C172 costs 3.3× the catalogue and a new
-   Grand Caravan 4.8×.
-3. **Ranking: right except in two places.** The order runs Chinook < Birdman < Cub < Jodel < Tiger Moth < B-ITES <
-   RV < C172 < Caravan-alike < DC-3. The two inversions:
-   - **The Jodel above the Cub.** Real used Jodels sell for about half a used Cub. The cause is the Jodel's oleo gear
-     (2 600) and wood at 55 a kilo.
-   - **The DC-3 above the Caravan class.** A new Grand Caravan costs 4-12× a used DC-3, and even a used 208B costs more.
-     The PT6A is priced honestly (its ratio of 1.6 sits with the other engines). The DC-3 is high because of its 3 000 L
-     tank (51 000 credits) and its 273 000 of structure at alloy's 78 a kilo. The Caravan-alike is low because it is a
-     4-seat, 873 kg card, not a 2-tonne Grand Caravan (see §2).
-4. **The top five outliers** (real / game, against the convention's 1.5):
-   1. **Floats: ×24 too cheap.** A pair is billed only as shell mass at the airframe's price a kilo (+1 529 credits on
-      the Cessna) against $27-50k for a real pair. No row exists.
-   2. **Paint: ×4-6 too cheap, and flat.** 1 800 credits on every aeroplane, Cub to DC-3. A C172 strip-and-paint is
-      $7-15k.
-   3. **Interior: ×4-6 too cheap.** The C172's seats and furnishing come to 2 855 credits against a $14-20k
-      professional interior. The furnishing is priced at 60 a kilo.
-   4. **Propellers: ×3-5 too cheap, carbon ×4 too dear.** Wood (900), alloy (2 200) and a constant-speed prop (priced
-      exactly as fixed-pitch) all read 4-5× under real list. A ground-adjustable composite 3-blade is billed 6 600
-      against $1.3-4.4k.
-   5. **Fabric covering ×4.7, tailwheel ×4.6, harness ×4.9 (estimate): all too cheap.** Plus two rows that do not
-      exist: **skis** (real $3-9.5k a pair) and **lights** (real $1.2-1.9k a nav/strobe set). Both are garage gaps.
-5. **Four faults in the ledger's code** (not taste):
-   - a twin bills **one** propeller (the DC-3's second prop is missing, ~10 800);
-   - every seat is billed **twice** (a 380 "seat" line in `cabin` beside the GEN_SEATS row in `furnish`);
-   - the core carries **two catalogue margins** (PROCURE ×1.15, ECONOMY's `econCatalogPrice` ×1.08: a Cub is 35 900
-     or 33 700 depending on who asks);
-   - a tank's price **includes its first fill of fuel** and is linear in litres (the DC-3's tank is 9 % of the aeroplane).
-6. **Weights hold.** Engines fall within ±12 % of published dry mass, most within ±5 %. Empty weights fall within
-   ±16 % on the Cub, C172, Jodel, Tiger Moth, RVs and DC-3. Two exceptions:
-   - **The ultralights are 40-70 % heavy.** The basic systems tier (22.6 kg: battery, generator, starter, radio)
-     rides on a 154 kg Chinook. This is a choice of tier, not a mass law.
-   - **The Caravan-alike is 0.4× a 208B**, because it is a smaller aeroplane.
-7. **B-ITES** (A0 identified "B-ITID" as the user's build B-ITES, on `origin/claude/a0/b-ites-input`; the name is not
-   on master). The game prices it at a ledger of **66 128**, scratch 52 900, catalogue 76 000 (**≈ $114k at $1.5**).
-   It sits **inside the used RV-7/-8 range** ($130-160k, ×0.85) and **below the kit-to-fly route** ($150-190k, ×0.6).
-   That is the right neighbourhood, and the game's IO-360 (38 000) is most of its price.
-8. **The proposal (§5) raises the Cub's ledger ×1.38, from 31 203 to ~42 900.** Everything ECON_BOOK prices in Cubs
-   moves with it. The absolute numbers do not: the grant, the T6 fee, the contract pay and the route pay. Scale them
-   ×1.38 and ECON-SIM's paces (3 / 8 / 11 contracts) hold to first order.
-   **`tools/econ_sim.js` does not run on master today**: every career stops at "T5: clients.01 not flown". The career
-   figures are therefore first-order arithmetic, not a simulation.
+   The game's band brackets all four. **Keep it**, and keep the used price tied to the ledger, so it moves with every
+   correction.
+4. **The market's cross-type ratios are fashion: do not chase them.**
+   - Used J-3 asking prices about **doubled from 2016 to 2026**.
+   - All used pistons rose **34 % from 2019 to the 2022 peak** and have been flat since (July 2026: −0.4 % year on year).
+   - The Cub carries a **20-30 % collector premium** (Flying).
+   - In the same European market a used Jodel sells for **0.4-0.6 of a used Cub**. No Jodel factory price was found, so
+     the new-price ratio is unknown.
+
+   The game builds a Jodel at 1.10× a Cub (wood at 55 a kilo, and the card's oleo gear at 2 600). That stays inside
+   what the build costs can say, so **it is not an outlier and no price changes for it**. (If the real Jodel's gear is
+   not an oleo, the card's suspension row is the lever, not the price book.)
+5. **Selling: a rule to add, with the cap the economy needs.** Proposed:
+   - **a sale pays the smaller of 75 % of the used listing at the airframe's condition, and what the player paid for it**;
+   - 75 % is the dealer spread, the top of the real 15-25 %;
+   - the cap uses `career.airframes[slot].paid`, which already exists.
+
+   An own build in a fitted hangar sells back at 86 % of its cost; a real homebuilt fetches 50-100 %. A used one bought
+   and sold at once loses 25 %. Nothing can be bought or built to sell at a profit, and that includes the story's
+   occasions (0.40 × the ledger), which would otherwise sell above their price. Story airframes (paid 0) do not sell.
+6. **The top five outliers** (real ÷ game, against the convention's 1.5):
+   1. **Floats, 16× too cheap.** Only the shell's mass is billed (+1 529 credits) against $27-50k a pair.
+   2. **Paint, 4× too cheap.** A flat 1 800 on every aeroplane.
+   3. **Interior, 4× too cheap.** The furnishing at 60 a kilo.
+   4. **Propellers, 3× too cheap.** A constant-speed prop is priced as fixed. The composite prop is the exception, 4×
+      too dear.
+   5. **Fabric covering and the tailwheel, 3× too cheap.** Skis and lights have no row: garage gaps.
+
+   Four ledger faults:
+   - a twin bills one propeller;
+   - every seat is billed twice;
+   - the core carries two catalogue margins (1.15 and 1.08);
+   - a tank's price includes its first fill.
+7. **Correcting them, through the agreed economy (§B).** The fixes raise the Cub's ledger **×1.376** (31 203 → 42 935),
+   the metal Cessna ×1.17, the Jodel ×1.23. Re-played on econ_sim's own careers (4 policies × 20 seeds):
+   - **pay held:** the paces slip to 5 / 9-10 / 16 contracts (Cub-class / 4-seater / side hangar), the collector never
+     finishes segment 3, and 16 of 25 targets are met;
+   - **the absolute money scaled ×1.376** (contract pay, the build contracts' bases, the route pay per km, T6's fee):
+     the paces are **4 / 7-8 / 12**, money at rest is 0.44-2.29, **every seed finishes segment 3**, and **24 of 26 targets
+     are met**;
+   - the two misses are the demo-length rows, which the user chose to leave (23 Oct);
+   - the agreed economy itself, on today's master: 4 / 8-9 / 12, with only 14-15 of 20 seeds finishing segment 3.
+
+   **The corrections plus the pay ×1.376 hold the agreed economy at least as well as today's numbers do.**
+8. **The economy simulator does not run on master.** The cause is L30d's certification gate: a paying job needs an
+   airframe with a commercial certificate, the page writes that certificate from the bench, and econ_sim never runs the
+   bench. Every career stops at "T5: clients.01 not flown". The study's harness signs each simulated airframe as the
+   bench would (every design econ_sim flies is validated) and leaves the tool alone. The lasting fix is a `careerSign`
+   call in econ_sim where it materialises an airframe (queued as a separate task).
+9. **Weights hold.**
+   - Engines are within ±12 % of published dry mass (the R-1830 is +12 %); empty weights are within ±16 % on the Cub,
+     C172, Jodel, Tiger Moth, RVs and DC-3.
+   - The ultralights are 40-70 % heavy: the basic systems tier rides on a 154 kg Chinook.
+   - The Caravan-alike is a smaller aeroplane than a 208B.
+10. **B-ITES** ("B-ITID" is not on master; A0 identified it as the user's B-ITES on `origin/claude/a0/b-ites-input`).
+    - **Build:** 52 900 (66 100 in a short hangar).
+    - **Catalogue:** 76 000 (≈ $114k).
+    - Against the RVs: inside the used RV-7/-8 band ($130-160k) and below building an RV from the kit ($150-190k).
+    - After the corrections it builds at 62 000 and would list used at 35 600-71 300.
+
+---
+
+## A. The three ways to own a plane, and selling one
+
+**The rules.** Today's rules unless marked PROPOSED. L is the ledger, the parts bill.
+
+| route | rule | × L | where |
+|---|---|---|---|
+| **the maker way** (new plane, your choices, built) | L × the main hangar's labour: 0.8 fitted / 1.0 short | 0.80 / 1.00 | 76_economy `econAirframePrice` |
+| **pre-built, used** (certified, bought where it stands) | catalogue (L × 1.15) × condition 0.4-0.8 | 0.46-0.92 | 76_procure `procureUsedListing` |
+| the story's occasions (one-time) | catalogue × 0.35 | 0.40 | 79_story `STORY_OCCASIONS` |
+| pre-built, NEW (the makers' board) | catalogue L × 1.15 | 1.15 | `procurePrice`: **the user: not for now.** Keep it as the base the used price is read from, and hide the new sale in a career until used planes are degraded |
+| **selling** (PROPOSED) | min(0.75 × the listing at its condition, paid) | ≤ 0.69 | a fleet airframe's condition is 0.8, less 0.08 a repair, floor 0.4 (no hours are kept); story airframes sell for 0 |
+
+**What each costs, at the proposed (corrected) ledgers, in credits:**
+
+| plane | build (fitted / short) | used listing | occasion | sell your own build | sell a used one (condition 0.6) |
+|---|---|---|---|---|---|
+| Cub | 34 300 / 42 900 | 19 700-39 500 | 17 300 | 29 600 | 22 200 |
+| Jodel | 33 900 / 42 300 | 19 500-38 900 | 17 000 | 29 200 | 21 900 |
+| Birdman | 28 700 / 35 800 | 16 500-33 000 | 14 400 | 24 700 | 18 500 |
+| Chinook | 27 600 / 34 600 | 15 900-31 800 | 13 900 | 23 800 | 17 900 |
+| metal Cessna (econ-sim's) | 87 800 / 109 800 | 50 500-101 000 | 44 200 | 75 800 | 56 800 |
+| Cessna 172 (corrected card) | 83 200 / 103 900 | 47 800-95 600 | 41 800 | 71 700 | 53 800 |
+| Cessna on floats | 109 200 / 136 500 | 62 800-125 600 | 54 900 | 94 200 | 70 600 |
+| Tiger Moth | 63 600 / 79 500 | 36 600-73 100 | 32 000 | 54 800 | 41 100 |
+| B-ITES | 62 000 / 77 500 | 35 600-71 300 | 31 200 | 53 500 | 40 100 |
+| DC-3 | 543 300 / 679 100 | 312 400-624 700 | 273 300 | 468 600 | 351 400 |
+
+Today's numbers are the same table ÷ each plane's factor (§5); the Cub, for example, builds at 25 000 / 31 200 today.
+
+**The margins, and why they hold:**
+- **Building beats buying used, except for a cheap tired one.** A used plane costs 0.58-1.15× a fitted build. The
+  worst used plane is cheaper than building, and the best one costs more than building in a fitted hangar but less
+  than in a short one. You pay for the certificate (a used plane arrives certified; a build needs the bench), for having
+  it now and where it stands, and for not owning the shop's kits. This matches real resale: 0.5-1.2× the build cost.
+- **No loop makes money.**
+  - Build in a fitted hangar and sell: −14 % (−31 % from a short hangar).
+  - Buy used and sell: −25 %.
+  - Buy an occasion and sell: capped at its price.
+- **Selling speeds the ladder, but not past its band.** A frugal player who sells the Cub-class plane when buying the
+  4-seater gets ~29 600 back, about two contracts of segment-2 pay at the scaled rate. The 4-seater's pace drops from
+  7-8 contracts to ~5-6, at the edge of the 6-8 band. This is first-order, not simulated: econ_sim does not model
+  selling. If the band matters, a 0.65 spread puts it back at ~6.
+
+---
+
+## B. Through the agreed economy (econ_sim's careers re-played)
+
+`econ_price_run.js` runs econ_sim's own `playCareer` with its PROPOSED config: the table the user approved and
+G3359 applied (no grant, T6's fee 20 000, routes 30 a km with 6 trips a day, the shells 3.6 / 5.6 / 8.6 Cubs, the
+landmarks 2.5 / 6 / 12 Cubs).
+- It covers four policies (frugal, collector, router, competitor) × 20 seeds × 3 runs.
+- The price corrections enter as each design's measured factor (§5).
+- The twin floatplane has no build file, so it takes the Chinook's factor, as a single-582 ultralight.
+- `CONTRACT_DESIGNS` follows, so the Cub reference does too, and with it the shells, landmarks, rungs, kits and
+  sign-ons.
+
+| run | Cub-class build (target 3-4) | 4-seater (6-8) | side hangar (8-12) | money at rest seg 1/2/3, median of the 4 policies (0.3-3) | finish segment 3 | targets met |
+|---|---|---|---|---|---|---|
+| agreed economy, on today's master | 4 | 8-9 | 12 | 0.33-0.94 / 0.49-0.83 / 0.49-0.73 | 14-15 / 20 | 20 / 26 |
+| prices corrected, pay held | **5** | **9-10** | **16-16.5** | 0.36-1.17 / 0.48-0.62 / 0.33-0.60 | **0** (collector) - 13 / 20 | 16 / 25 |
+| **prices corrected, pay ×1.376** | **4** | **7-8** | **12** | 0.44-2.29 / 0.48-0.87 / 0.49-0.70 | **20 / 20** | **24 / 26** |
+
+The scaled pay, as the third run applies it:
+
+| the absolute money number | now | ×1.376 |
+|---|---|---|
+| `CONTRACT_PAY.perKm` | 160 | 220 |
+| `CONTRACT_PAY.surf` (short / water / snow / altiport) | 1 100 / 800 / 950 / 1 350 | 1 510 / 1 100 / 1 310 / 1 860 |
+| `CONTRACT_PAY.baseF` · `.story` | 2.7 · 2.6 | 3.72 · 3.58 |
+| the build contracts' authored bases (11 records, e.g. minedock.b2) | 38 000-56 000 | ×1.376 |
+| `ROUTES_PAY.perKm` | 30 | 41 |
+| `STORY_T6_FEE` | 20 000 | 27 500 |
+| `CAREER_GRANT` (the sandbox / reference career only; the story's is 0) | 60 000 | 82 600 |
+
+The cleanest way to write it is one `ECON_BOOK.payScale` that `contractPay`, `routeTerms` and the story fee read,
+instead of seven edits.
+
+**Why the corrected run finishes better than today's.** The Cub, and with it the landmarks and shells, rises ×1.376,
+but the metal Cessna (×1.17) and the composite Jodel (×1.17) rise less. Segment 2-3 airframes get cheaper relative to
+the pay, and the money goes to the keystones. What keeps 5-6 seeds from finishing today is a separate question for the
+economy owner; it is the same with or without this study.
+
+---
+
+## C. The market, narrowed (the user's doubt about the Jodel and the Cub)
+
+| aircraft | narrowed used range (USD 2026) | what is in it | sources |
+|---|---|---|---|
+| J-3 Cub | **$45-65k** airworthy, the same in the US and continental Europe (EUR 47-60k); UK $37-61k; restored or on floats $70-100k | asking prices; a 20-30 % collector premium; about ×2 since 2016 (2016 Vref base retail $23-28k) | [aircraft24](https://euro.aircraft24.com/singleprop/piper/j-3-cub--xi142142.htm), [aeromarkt](https://www.aeromarkt.net/en/Piper-J-3-12162), [planephd](https://planephd.com/marketplace/515/piper-j-3-for-sale), [AOPA 2016](https://www.aopa.org/news-and-media/all-news/2016/march/pilot/briefing_budget), [Flying](https://www.flyingmag.com/?p=162061) |
+| Jodel D11 / D112 / D117 / DR1050 | **$20-35k** typical (EUR 12-38k asking; UK GBP 9-24k) | weak resale (European forums); no price index; no factory price found (the D11 family was sold to clubs under a state subsidy) | [aircraft24](https://ie.aircraft24.com/singleprop/jodel/d-11-huetz-u2v--xi180540.htm), [planecheck](https://www.planecheck.com/aspdet.asp?nr=60220), [air-contact](https://www.air-contact.com/annonce-21696-jodel-d-112-a), [afors](https://afors.uk/light-aircraft/for-sale/standardView-65189/jodel-d117a) |
+| Cessna 172M/N (1970s) | **$95-150k** (Europe EUR 80-110k; US $120-150k) | +34 % 2019-22, flat 2025-26 | [aircraft24](https://euro.aircraft24.com/singleprop/cessna/172m--xi144381.htm), [Controller blog 2026](https://www.controller.com/blog/sandhills-news/2026/02/used-aircraft-inventory-continues-slide-piston-singles-and-helicopters-leading-declines) |
+| Chinook Plus 2 | **$10-15k** used; ~$20-32k new flying with a 582 | | [upac.ca](https://upac.ca/classifieds/?p=10927), [Plane & Pilot](https://planeandpilotmag.com/canadas-chinook-relocated-to-texas-and-upgraded-now-made-in-the-usa/) |
+| Tiger Moth | $80-170k | not re-checked | §2 |
+
+**New prices.**
+- A J-3 cost about one year's average US wage: $1 095-1 300 in 1937-39 (wage $1 282) and $2 195 in 1946 (wage $2 383).
+- A 1956 Cessna 172 cost $8 295-8 750, about 2.5 years' wages, or about 2.7 Cubs once wage growth is allowed for.
+- Today a used 172 is about 2-2.5 used Cubs, so that ratio has held for 70 years.
+- The game's builds put the metal Cessna at 3.0 Cubs today (93 694 / 31 203) and 2.6 after the corrections
+  (109 807 / 42 935). The corrections move it toward the historical ratio.
+
+**The dealer spread:**
+- Bluebook wholesale against retail: ~22 % on a 172M;
+- an SR22: ~18 %;
+- trade-in haircuts: 15-25 %;
+- a broker: 1-5 %;
+- a finished homebuilt resells at about its parts cost or less, 50-100 % of what the builder spent
+  ([Aviation Consumer](https://www.aviationconsumer.com/?p=7473), [EuroGA](https://euroga.org/forums/is-a-finished-homebuilt-worth-more-than-the-cost-of-the-parts/8612), [Vref](https://vref.com/?p=46531)).
+- The proposed 0.75 sits at the top of the spread, on purpose, for the economy's margins.
+
+**What this means for the game:** price the used market from the game's own build cost and a condition, not from
+listings. The listings' level drifts by ±30-100 % in a decade, and their cross-type ratios carry fashions (the Cub's
+premium) that a game's progression should not inherit.
 
 ---
 
@@ -193,12 +340,12 @@ factory or used route against the catalogue. **Right at the convention = 1.5.***
 
 | plane (build) | engine | game empty kg | ledger | scratch | catalogue | (a) plans: real · ratio | (b) kit: real · ratio | (c) factory / used: real · ratio |
 |---|---|---|---|---|---|---|---|---|
-| Cub, a slightly upgraded J-3 (cub_…_corrected) | A-65 65 hp | 354 | 31 203 | 25 000 | 35 900 | $35-60k (est.) · **1.83** | $80-140k (est.) · 3.39 | used upgraded J-3 / PA-11 $45-75k · **1.62**; **new** Cub-class (AL3, Carbon Cub UL) $250-295k · 7.56 |
-| Cessna 172 (cessna172_…_corrected) | custom 159 hp | 637 | 88 486 | 70 800 | 107 900 | - | - | **new** 172S $499-580k · **4.99**; used 172M/N $120-150k · 2.2 (against the used band) |
-| Jodel, as a D115 (jodel_…_corrected) | A-65 65 hp | 341 | 34 363 | 27 500 | 39 500 | $25-45k (est.) · **1.22** | - | used D11/D112 in Europe $16-38k · **0.62** |
+| Cub, a slightly upgraded J-3 (cub_…_corrected) | A-65 65 hp | 354 | 31 203 | 25 000 | 35 900 | $35-60k (est.) · **1.83** | $80-140k (est.) · 3.39 | used airworthy J-3 $45-65k · **1.51**; **new** Cub-class (AL3, Carbon Cub UL) $250-295k · 7.56 |
+| Cessna 172 (cessna172_…_corrected) | custom 159 hp | 637 | 88 486 | 70 800 | 107 900 | - | - | **new** 172S $499-580k · **4.99**; used 172M/N $95-150k · 1.96 (against the used band) |
+| Jodel, as a D115 (jodel_…_corrected) | A-65 65 hp | 341 | 34 363 | 27 500 | 39 500 | $25-45k (est.) · **1.22** | - | used D11/D112/D117 $20-35k · **0.67** |
 | Birdman (review/birdman.json) | Rotax 582 | 263 | 28 118 | 22 500 | 32 300 | - | (as the Chinook) | (as the Chinook) |
-| Chinook (Birdman Chinook) | Rotax 582 | 219 | 26 082 | 20 900 | 30 000 | - | 2009 kit $20-36k · 1.03 | used Plus 2 $9-12k · **0.35** |
-| Tiger Moth (tigermoth_2026-10) | Gipsy Major 130 hp | 557 | 56 784 | 45 400 | 65 300 | - | - | used / restored $76-170k · **1.74** |
+| Chinook (Birdman Chinook) | Rotax 582 | 219 | 26 082 | 20 900 | 30 000 | - | 2009 kit $20-36k · 1.03 | used Plus 2 $10-15k · **0.41** |
+| Tiger Moth (tigermoth_2026-10) | Gipsy Major 130 hp | 557 | 56 784 | 45 400 | 65 300 | - | - | used / restored $80-170k · **1.79** |
 | **B-ITES** (the user's, RV range) | IO-360 180 hp | 467 | 66 128 | 52 900 | 76 000 | - | RV-7/-8 kit to fly $150-190k · **2.55** | used RV-7A / RV-8 $130-160k · **1.90** |
 | RV-alike (archetype) | IO-360 180 hp | 469 | 72 402 | 57 900 | 83 300 | - | $150-190k · 2.33 | used $130-160k · 1.73 |
 | DC-3 (dc3_2026-10) | 2 × R-1830 | 6 441 | 541 782 | 433 400 | 623 000 | - | - | used airworthy $230-600k · **0.60** |
@@ -207,7 +354,7 @@ factory or used route against the catalogue. **Right at the convention = 1.5.***
 **Reading the table.**
 - **Plans (1.2-1.8):** the ledger is a plans-built parts bill, as §1 says.
 - **Kit (2.3-3.4):** a kit carries the factory's jigs, CNC and some of its labour, which the ledger does not.
-- **Used (0.35-1.9):** the market pays nothing for labour, and vintage types sell below their parts.
+- **Used (0.4-1.9):** the market pays nothing for labour, vintage types sell below their parts, and the level is fashion (§C).
 - **New certified (5-7.6):** certification, liability and margin, which no 1.15 margin can reach.
 
 **Builder hours** (for the plans and kit routes):
@@ -239,16 +386,20 @@ before an O-320, which would put a real single-seater at ~$90-130k: the game's f
 | rank | game catalogue | real (what a buyer pays, mid) |
 |---|---|---|
 | 1 | Chinook 30 000 | Chinook $10k |
-| 2 | Birdman 32 300 | **Jodel $25k** |
-| 3 | Cub 35 900 | **Cub $58k** |
-| 4 | **Jodel 39 500** | Tiger Moth $114k |
-| 5 | Tiger Moth 65 300 | used C172 $134k ≈ RV $144k |
+| 2 | Birdman 32 300 | **Jodel $26k** |
+| 3 | Cub 35 900 | **Cub $54k** |
+| 4 | **Jodel 39 500** | Tiger Moth $117k |
+| 5 | Tiger Moth 65 300 | used C172 $119k ≈ RV $144k |
 | 6 | B-ITES 76 000 · RV-alike 83 300 | (B-ITES in the RV band) |
 | 7 | C172 107 900 | **DC-3 (used) $371k** |
 | 8 | **Caravan-alike 382 400** | new C172 $538k |
 | 9 | **DC-3 623 000** | **Grand Caravan (new) $2.75M; used ~$1.0M** |
 
-The two inversions are bold. Both are explained in conclusion 3.
+The two inversions are bold.
+- **The Jodel and the Cub** is market fashion, not a pricing error (§C and conclusion 4): the Cub's collector premium,
+  the Jodel's weak resale, and no Jodel factory price to compare against.
+- **The DC-3 above the Caravan class** is the tank (P17) and a smaller Caravan card. The PT6A itself is priced in
+  line (1.6), and a Grand Caravan, new or used, is a certified-factory product the maker way does not try to be.
 
 ---
 
@@ -260,7 +411,7 @@ The two inversions are bold. Both are explained in conclusion 3.
 | engines (vs overhauled / exchange) | 1.48 | 1.20 | 16 |
 | every component row with a game price | 1.71 | 2.08 | 49 |
 | the 38 rows that are not outliers (no props, floats, paint, interior, covering, tailwheel, harness) | **1.30** | **1.40** | 38 |
-| whole planes, the buyer's route (factory or used) | 1.52 | 2.53 | 9 |
+| whole planes, the buyer's route (factory or used) | 1.55 | 2.45 | 9 |
 
 **The convention proposed: 1 credit = $1.5 (2025-26).** It is the engines' number and the planes' fit. The panel is
 ~25 % under it, which is within the scatter. Against it, the outliers are:
@@ -345,18 +496,22 @@ rows patched on its own process's copy of the core, the code rules added as delt
 | P15 | **fix: one seat line** (`GEN_PRICES.seat` 380 in `cabin`) | 380 a seat + the GEN_SEATS row | **0** (the GEN_SEATS row alone) | a seat is billed twice |
 | P16 | **fix: one catalogue margin** | PROCURE 1.15, `econCatalogPrice` 1.08 | **one** (the user picks) | the Cub reads 35 900 or 33 700 |
 | P17 | tank price | first fill included; linear in litres | **no fill** (G-COST: no fuel cost); **per m² of shell** | the DC-3's tank is 51 000 |
-| P18 | *(taste, not proposed by default)* a certified-factory margin | 1.15 | 2.5-4 for a certified type | at $1.5 a new 172S costs 3.3× the catalogue; the career would not survive it, so it stays the user's call |
+| P18 | *(later, with degraded used planes)* a NEW market | the board's 1.15 | hidden in a career for now; when it opens, a certified-factory margin of 2.5-4 is the real one | the user: used only for now. At $1.5 a new 172S costs 3.3× the catalogue, and the career could not carry that before used planes are degraded |
+| P19 | **the used price: keep** (`procureUsedListing`) | catalogue × 0.4-0.8 = L × 0.46-0.92 | **unchanged**, still read from the ledger | it brackets real resale at 0.5-1.2× build cost (§A); it moves with every correction |
+| P20 | **selling (new)** | none (GAME §12.3 planned 0.5-0.8 × hull) | **min(0.75 × the listing at its condition, `paid`)**; condition 0.8 − 0.08 a repair (floor 0.4); story airframes 0 | no loop makes money (§A); 0.75 is the top of the real 15-25 % spread; 0.65 if the 4-seater's pace must stay at 6+ |
+| P21 | **the absolute money ×1.376** (one `ECON_BOOK.payScale`) | `CONTRACT_PAY` perKm 160, surf, baseF 2.7, story 2.6; build bases; `ROUTES_PAY.perKm` 30; `STORY_T6_FEE` 20 000; `CAREER_GRANT` 60 000 | ×1.376 (§B's table) | with P1-P15, econ_sim meets 24 / 26 targets and finishes every seed (§B); without it, 16 / 25 |
+| P22 | **econ_sim's certificate** (tools/econ_sim.js) | never signs an airframe: fails on master since L30d | a `careerSign` (safe + comm pass) where it materialises a validated design | the harness's shim, made permanent; queued as its own task |
 
 **What P1-P15 do to the planes** (ledger now → proposed; P16-P18 not included):
 
 | plane | ledger now | proposed | × | catalogue | ratio (factory/used) now → proposed (1.5 = right) |
 |---|---|---|---|---|---|
-| Cub | 31 203 | 42 930 | 1.38 | 49 400 | 1.62 → **1.18** (plans 1.83 → 1.34) |
-| Cessna 172 | 88 486 | 103 942 | 1.17 | 119 500 | new 4.99 → 4.50 · used 2.2 → 1.98 |
-| Jodel | 34 363 | 42 334 | 1.23 | 48 700 | 0.62 → 0.51 (plans 1.22 → 0.99) |
+| Cub | 31 203 | 42 930 | 1.38 | 49 400 | 1.51 → **1.10** (plans 1.83 → 1.34) |
+| Cessna 172 | 88 486 | 103 942 | 1.17 | 119 500 | new 4.99 → 4.50 · used 1.96 → 1.77 |
+| Jodel | 34 363 | 42 334 | 1.23 | 48 700 | 0.67 → 0.54 (plans 1.22 → 0.99) |
 | Birdman | 28 118 | 35 820 | 1.27 | 41 200 | - |
-| Chinook | 26 082 | 34 561 | 1.33 | 39 700 | 0.35 → 0.26 |
-| Tiger Moth | 56 784 | 79 489 | 1.40 | 91 400 | 1.74 → **1.24** |
+| Chinook | 26 082 | 34 561 | 1.33 | 39 700 | 0.41 → 0.31 |
+| Tiger Moth | 56 784 | 79 489 | 1.40 | 91 400 | 1.79 → **1.28** |
 | B-ITES | 66 128 | 77 489 | 1.17 | 89 100 | 1.90 → **1.62** |
 | RV-alike | 72 402 | 81 863 | 1.13 | 94 100 | 1.73 → **1.53** |
 | DC-3 | 541 782 | 679 071 | 1.25 | 780 900 | 0.60 → 0.48 |
@@ -369,32 +524,12 @@ The proposal fixes the components. It does not fix the planes the market prices 
 - the DC-3 stays high, and P17 is its own lever: dropping the fill alone takes ~7 900 off it (3 297 L × 2.40);
 - the Caravan stays a factory product.
 
-The ranking keeps its two inversions. Fixing the Jodel above the Cub is a materials question: wood at 55 a kilo and an
-oleo at 2 600 versus tube at 42 and bungees at 250. That is a design call, so it stays out of the table.
+The ranking keeps the Jodel above the Cub, and that is accepted (§C): the used market's ratio between them is fashion,
+and at build cost the two are within what the estimates can tell apart.
 
-**What it does to the career (first order).** ECON_BOOK prices everything in Cubs (`econRefPrice` = the stock Cub's
-ledger, re-derived from its build file), so a Cub at ×1.376 (31 203 → **~42 900**) moves these in step:
-- the hangar shells (a Tamgas Hill field shed 89 840 → ~123 600);
-- the kits, the sign-on fees, the landmarks' co-funding (keystones 2.5 / 6 / 12 Cubs), the rungs, the competitions.
-
-What is absolute does not move:
-
-| absolute | now | ×1.376 to hold the paces |
-|---|---|---|
-| `CAREER_GRANT` (sandbox / reference career) | 60 000 | 82 600 |
-| `STORY_T6_FEE` | 20 000 | 27 500 |
-| `CONTRACT_PAY.perKm` · `surf.short` (and the surface bonuses, `baseF` 2.7, `story` 2.6) | 160 · 1 100 | 220 · 1 510 |
-| `ROUTES_PAY.perKm` | 30 | 41 |
-
-The paces were measured by ECON-SIM (G3250, proposed table, 20 seeds): a Cub-class build at 3 contracts, a 4-seater at
-8, a side hangar at 11.
-- **With the pay held**, these become ~4.1 / ~9.4 / ~15.1. Two would leave their bands (Cub-class 3-4, hangar 8-12).
-- **With the pay scaled ×1.376**, they come back to ~3 / ~6.8 / ~11, all inside the bands. The 4-seater drops a little
-  because the C172 only rises ×1.17.
-- A build contract is priced against its airframe, so it follows on its own.
-
-**This is arithmetic, not a simulation.** `node tools/econ_sim.js` fails on master: every career stops with
-"T5: clients.01 not flown" (`playCareer1`, econ_sim.js:409). Re-measure once that is repaired.
+**What it does to the career:** measured, not estimated, in §B. Everything ECON_BOOK prices in Cubs moves with the
+Cub's ledger (the shells, the kits, the sign-ons, the landmarks, the rungs, the competitions). The absolute numbers
+need P21. With P1-P15 and P21, econ_sim's careers hold the agreed paces (4 / 7-8 / 12) and finish every seed.
 
 ---
 
@@ -406,12 +541,19 @@ The paces were measured by ECON-SIM (G3250, proposed table, 20 seeds): a Cub-cla
   - bakes the RV-alike and Caravan-alike through `_cage_design.js designBake` with GATE ARCHETYPES' own shim (read
     from `_arch_check.js`);
   - reads B-ITES from `origin/claude/a0/b-ites-input` with `git show` when it is not in the tree;
-  - prices each plane with `econAirframePrice`, `procurePrice` and `econCatalogPrice`;
+  - prices each plane with `econAirframePrice`, `procurePrice` and `econCatalogPrice`, and the three routes (§A);
   - fits the rate (log least squares);
   - runs the proposal on a patched copy and restores it.
 - `futureDesigns/price-study/price_study_data.json`:
   - every plane's ledger sections, categories (engine, prop, structure, gear, systems, seats, outfit, tank, paint) and prices;
   - the game's component catalogue;
   - the real benchmark rows with their notes, the ratios, the fits and the proposal's measured planes.
+- `futureDesigns/price-study/econ_price_run.js` (run after price_study.js: `node futureDesigns/price-study/econ_price_run.js
+  --seeds=20`, ~9 min):
+  - econ_sim's own `measureDesigns`, `playCareer`, `aggregate` and `judge`, required as a module;
+  - the certificate shim (conclusion 8);
+  - the three runs of §B;
+  - writes `econ_price_results.json`;
+  - restores every table it patched.
 - The Cub's tank is under review (44 vs 28 L). At 28 L its tank line falls from 918 to ~640: noise for this study.
 - Nothing built was edited; no gate was run or changed.

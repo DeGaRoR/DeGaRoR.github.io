@@ -1577,6 +1577,399 @@
     "usedHi": 50300,
     "inCubs": 1.75
    }
+  },
+  {
+   "id": "rufus",
+   "label": "Rufus (the starter, econ-sim)",
+   "src": "builds/rufus_2026-10-18_certified.json",
+   "engine": "Rotax 912 UL",
+   "hp": 80,
+   "nEng": 1,
+   "prop": "2-blade carbon 1.91 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 273,
+   "loadedKg": 365,
+   "engineKg": 58,
+   "fuelL": 17,
+   "seats": 1,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 27.9,
+     "cost": 1171,
+     "payload": false
+    },
+    "engines": {
+     "kg": 72.2,
+     "cost": 23506,
+     "payload": false
+    },
+    "wings": {
+     "kg": 65.2,
+     "cost": 2664,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 21.1,
+     "cost": 887,
+     "payload": false
+    },
+    "tail": {
+     "kg": 19.8,
+     "cost": 644,
+     "payload": false
+    },
+    "gear": {
+     "kg": 20.2,
+     "cost": 2307,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 380,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 3.6,
+     "cost": 442,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 11.5,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 3,
+     "cost": 3100,
+     "payload": false
+    },
+    "elec": {
+     "kg": 16.6,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 0,
+     "cost": 0,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 19.6,
+     "cost": 630,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 3,
+     "cost": 120,
+     "payload": false
+    },
+    "paint": {
+     "kg": 1.2,
+     "cost": 0,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 0,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 18000,
+    "prop": 5367,
+    "structure": 5506,
+    "gear": 2307,
+    "gearBought": 1800,
+    "gearStructure": 507,
+    "panel": 3100,
+    "elec": 1730,
+    "avionics": 0,
+    "systems": 4830,
+    "seats": 380,
+    "outfit": 630,
+    "furnish": 120,
+    "tank": 442,
+    "paint": 0,
+    "pod": 0
+   },
+   "structureKg": 134,
+   "prices": {
+    "ledger": 37581,
+    "scratchFit": 30100,
+    "scratchFitRule": 30100,
+    "scratchShort": 37600,
+    "catalogue": 43200,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 40600,
+    "usedLo": 17300,
+    "usedHi": 34600,
+    "inCubs": 1.2
+   }
+  },
+  {
+   "id": "c172m",
+   "label": "metal Cessna (econ-sim c172)",
+   "src": "bugReports/cessnaMetal (1).json",
+   "engine": "Lycoming O-540-B2C5",
+   "hp": 235,
+   "nEng": 1,
+   "prop": "2-blade aluminium 2.06 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 662,
+   "loadedKg": 880,
+   "engineKg": 176,
+   "fuelL": 27,
+   "seats": 4,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 113.6,
+     "cost": 8860,
+     "payload": false
+    },
+    "engines": {
+     "kg": 213,
+     "cost": 40789,
+     "payload": false
+    },
+    "wings": {
+     "kg": 139.8,
+     "cost": 9979,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 30.9,
+     "cost": 2407,
+     "payload": false
+    },
+    "tail": {
+     "kg": 23.2,
+     "cost": 1469,
+     "payload": false
+    },
+    "gear": {
+     "kg": 35.1,
+     "cost": 4593,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 1520,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 4.1,
+     "cost": 590,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 18,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 8,
+     "cost": 10460,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 43.2,
+     "cost": 1425,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 21.5,
+     "cost": 1172,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.7,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 38000,
+    "prop": 2641,
+    "structure": 22863,
+    "gear": 4593,
+    "gearBought": 1800,
+    "gearStructure": 2793,
+    "panel": 10460,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 19090,
+    "seats": 1520,
+    "outfit": 1425,
+    "furnish": 1172,
+    "tank": 590,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 307,
+   "prices": {
+    "ledger": 93694,
+    "scratchFit": 75000,
+    "scratchFitRule": 75000,
+    "scratchShort": 93700,
+    "catalogue": 107700,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 101200,
+    "usedLo": 43100,
+    "usedHi": 86200,
+    "inCubs": 3
+   }
+  },
+  {
+   "id": "cjodel",
+   "label": "composite Jodel (econ-sim)",
+   "src": "builds/composite_jodel_2026-10-07.json",
+   "engine": "Continental A-65",
+   "hp": 65,
+   "nEng": 1,
+   "prop": "2-blade wood 1.83 m",
+   "material": "glass",
+   "wants": [
+    "composite"
+   ],
+   "emptyKg": 391,
+   "loadedKg": 513,
+   "engineKg": 80,
+   "fuelL": 48,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 61.6,
+     "cost": 6771,
+     "payload": false
+    },
+    "engines": {
+     "kg": 99.2,
+     "cost": 10036,
+     "payload": false
+    },
+    "wings": {
+     "kg": 99.4,
+     "cost": 9959,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 25.4,
+     "cost": 2796,
+     "payload": false
+    },
+    "tail": {
+     "kg": 17.1,
+     "cost": 1437,
+     "payload": false
+    },
+    "gear": {
+     "kg": 26.1,
+     "cost": 5472,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 5,
+     "cost": 918,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 32.4,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 23.6,
+     "cost": 790,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 5.5,
+     "cost": 271,
+     "payload": false
+    },
+    "paint": {
+     "kg": 5.5,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 9000,
+    "prop": 853,
+    "structure": 21145,
+    "gear": 5472,
+    "gearBought": 3500,
+    "gearStructure": 1972,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 790,
+    "furnish": 271,
+    "tank": 918,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 203,
+   "prices": {
+    "ledger": 48959,
+    "scratchFit": 49000,
+    "scratchFitRule": 39200,
+    "scratchShort": 49000,
+    "catalogue": 56300,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 52900,
+    "usedLo": 22500,
+    "usedHi": 45000,
+    "inCubs": 1.57
+   }
   }
  ],
  "components": {
@@ -3666,9 +4059,9 @@
     ],
     "fac": [
      45000,
-     75000
+     65000
     ],
-    "facWhat": "USED upgraded J-3 / PA-11 (85-90 hp, electrics), 2024-25 listings",
+    "facWhat": "USED airworthy J-3, US and continental Europe alike (EUR 47-60k), 2024-26 asking; restored 70-100k; a 20-30 % Cub collector premium is in it",
     "newCub": [
      250000,
      295000
@@ -3688,10 +4081,10 @@
     ],
     "facWhat": "NEW 172S list (Textron 2023 499k; 2026 MSRP ~580k)",
     "used": [
-     120000,
+     95000,
      150000
     ],
-    "usedWhat": "used 1970s 172M/N, typical"
+    "usedWhat": "used 1970s 172M/N: Europe EUR 80-110k, US 120-150k typical"
    },
    "jodel": {
     "plans": [
@@ -3699,10 +4092,10 @@
      45000
     ],
     "fac": [
-     16000,
-     38000
+     20000,
+     35000
     ],
-    "facWhat": "USED D11/D112 in Europe (EUR 15-35k; GBP 15k flying); none built new",
+    "facWhat": "USED D11/D112/D117 typical in Europe (EUR 12-38k asking, UK GBP 9-24k); no factory price found",
     "plansWhat": "ESTIMATE: wood, ply, fabric, hardware 6-12k + an overhauled C90/O-200 15-30k + a basic panel 5k",
     "hours": [
      1500,
@@ -3716,14 +4109,14 @@
     ],
     "kitWhat": "2009 kit list: 1S/2S with a 503 ~20k, Plus 2 with a 912 27.5-36k (out of production)",
     "fac": [
-     9000,
-     12000
+     10000,
+     15000
     ],
-    "facWhat": "USED Chinook Plus 2 (CAD 12-16k)"
+    "facWhat": "USED Chinook Plus 2 (CAD 12-16k; US dealer 20-27.5k refurbished)"
    },
    "tiger": {
     "fac": [
-     76000,
+     80000,
      170000
     ],
     "facWhat": "USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold"
@@ -3809,10 +4202,10 @@
    "fac": {
     "real": [
      45000,
-     75000
+     65000
     ],
-    "what": "USED upgraded J-3 / PA-11 (85-90 hp, electrics), 2024-25 listings",
-    "ratio": 1.62
+    "what": "USED airworthy J-3, US and continental Europe alike (EUR 47-60k), 2024-26 asking; restored 70-100k; a 20-30 % Cub collector premium is in it",
+    "ratio": 1.51
    },
    "newCub": {
     "real": [
@@ -3842,10 +4235,10 @@
    },
    "used": {
     "real": [
-     120000,
+     95000,
      150000
     ],
-    "ratio": 2.2
+    "ratio": 1.96
    }
   },
   {
@@ -3867,11 +4260,11 @@
    },
    "fac": {
     "real": [
-     16000,
-     38000
+     20000,
+     35000
     ],
-    "what": "USED D11/D112 in Europe (EUR 15-35k; GBP 15k flying); none built new",
-    "ratio": 0.62
+    "what": "USED D11/D112/D117 typical in Europe (EUR 12-38k asking, UK GBP 9-24k); no factory price found",
+    "ratio": 0.67
    }
   },
   {
@@ -3893,11 +4286,11 @@
    },
    "fac": {
     "real": [
-     9000,
-     12000
+     10000,
+     15000
     ],
-    "what": "USED Chinook Plus 2 (CAD 12-16k)",
-    "ratio": 0.35
+    "what": "USED Chinook Plus 2 (CAD 12-16k; US dealer 20-27.5k refurbished)",
+    "ratio": 0.41
    }
   },
   {
@@ -3912,11 +4305,11 @@
    },
    "fac": {
     "real": [
-     76000,
+     80000,
      170000
     ],
     "what": "USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold",
-    "ratio": 1.74
+    "ratio": 1.79
    }
   },
   {
@@ -4018,62 +4411,62 @@
   }
  ],
  "facFit": {
-  "k": 1.518,
-  "rmsFactor": 2.53,
+  "k": 1.55,
+  "rmsFactor": 2.45,
   "res": [
    {
     "id": "cub",
     "game": 35900,
-    "real": 58094.75019311126,
-    "ratio": 1.07
+    "real": 54083.26913195984,
+    "ratio": 0.97
    },
    {
     "id": "c172",
     "game": 107900,
     "real": 537977.6947049013,
-    "ratio": 3.29
+    "ratio": 3.22
    },
    {
     "id": "jodel",
     "game": 39500,
-    "real": 24657.656011875904,
-    "ratio": 0.41
+    "real": 26457.513110645905,
+    "ratio": 0.43
    },
    {
     "id": "chinook",
     "game": 30000,
-    "real": 10392.304845413264,
-    "ratio": 0.23
+    "real": 12247.44871391589,
+    "ratio": 0.26
    },
    {
     "id": "tiger",
     "game": 65300,
-    "real": 113666.17790706258,
+    "real": 116619.03789690601,
     "ratio": 1.15
    },
    {
     "id": "bites",
     "game": 76000,
     "real": 144222.05101855958,
-    "ratio": 1.25
+    "ratio": 1.22
    },
    {
     "id": "rv",
     "game": 83300,
     "real": 144222.05101855958,
-    "ratio": 1.14
+    "ratio": 1.12
    },
    {
     "id": "dc3",
     "game": 623000,
     "real": 371483.5124201342,
-    "ratio": 0.39
+    "ratio": 0.38
    },
    {
     "id": "caravan",
     "game": 382400,
     "real": 2745906.0435491963,
-    "ratio": 4.73
+    "ratio": 4.63
    }
   ]
  },
@@ -4688,6 +5081,66 @@
     "factor": 1.683,
     "catalogue": 105800,
     "scratchFit": 73600
+   },
+   {
+    "id": "rufus",
+    "label": "Rufus (the starter, econ-sim)",
+    "ledgerNow": 37581,
+    "ledgerData": 36428,
+    "codeDeltas": {
+     "paint": -600,
+     "furnish": 540,
+     "cover": 500,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -380
+    },
+    "ledger": 37488,
+    "factor": 0.998,
+    "catalogue": 43100,
+    "scratchFit": 30000
+   },
+   {
+    "id": "c172m",
+    "label": "metal Cessna (econ-sim c172)",
+    "ledgerNow": 93694,
+    "ledgerData": 100557,
+    "codeDeltas": {
+     "paint": 5900,
+     "furnish": 3870,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -1520
+    },
+    "ledger": 109807,
+    "factor": 1.172,
+    "catalogue": 126300,
+    "scratchFit": 87800
+   },
+   {
+    "id": "cjodel",
+    "label": "composite Jodel (econ-sim)",
+    "ledgerNow": 48959,
+    "ledgerData": 52270,
+    "codeDeltas": {
+     "paint": 3700,
+     "furnish": 990,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 57200,
+    "factor": 1.168,
+    "catalogue": 65800,
+    "scratchFit": 45800
    }
   ],
   "career": {
@@ -4716,5 +5169,341 @@
    },
    "note": "ECON-SIM G3250 measured (proposed table, 20 seeds): Cub-class 3 contracts, 4-seater 8, side hangar 11. Pace scales with price / pay to first order."
   }
+ },
+ "routes": {
+  "sellK": 0.75,
+  "rule": "sale = min(SELL_K x listing(condition), paid)",
+  "planes": [
+   {
+    "id": "cub",
+    "label": "Cub (J-3, slightly upgraded)",
+    "now": {
+     "buildFit": 25000,
+     "buildShort": 31200,
+     "usedLo": 14400,
+     "usedHi": 28700,
+     "occasion": 12600,
+     "sellOwnBuild": 21500,
+     "sellUsedMid": 16100
+    },
+    "proposed": {
+     "buildFit": 34300,
+     "buildShort": 42900,
+     "usedLo": 19700,
+     "usedHi": 39500,
+     "occasion": 17300,
+     "sellOwnBuild": 29600,
+     "sellUsedMid": 22200
+    }
+   },
+   {
+    "id": "c172",
+    "label": "Cessna 172",
+    "now": {
+     "buildFit": 70800,
+     "buildShort": 88500,
+     "usedLo": 40700,
+     "usedHi": 81400,
+     "occasion": 35600,
+     "sellOwnBuild": 61100,
+     "sellUsedMid": 45800
+    },
+    "proposed": {
+     "buildFit": 83200,
+     "buildShort": 103900,
+     "usedLo": 47800,
+     "usedHi": 95600,
+     "occasion": 41800,
+     "sellOwnBuild": 71700,
+     "sellUsedMid": 53800
+    }
+   },
+   {
+    "id": "jodel",
+    "label": "Jodel (as a D115)",
+    "now": {
+     "buildFit": 27500,
+     "buildShort": 34400,
+     "usedLo": 15800,
+     "usedHi": 31600,
+     "occasion": 13800,
+     "sellOwnBuild": 23700,
+     "sellUsedMid": 17800
+    },
+    "proposed": {
+     "buildFit": 33900,
+     "buildShort": 42300,
+     "usedLo": 19500,
+     "usedHi": 38900,
+     "occasion": 17000,
+     "sellOwnBuild": 29200,
+     "sellUsedMid": 21900
+    }
+   },
+   {
+    "id": "birdman",
+    "label": "Birdman",
+    "now": {
+     "buildFit": 22500,
+     "buildShort": 28100,
+     "usedLo": 12900,
+     "usedHi": 25900,
+     "occasion": 11300,
+     "sellOwnBuild": 19400,
+     "sellUsedMid": 14600
+    },
+    "proposed": {
+     "buildFit": 28700,
+     "buildShort": 35800,
+     "usedLo": 16500,
+     "usedHi": 33000,
+     "occasion": 14400,
+     "sellOwnBuild": 24700,
+     "sellUsedMid": 18500
+    }
+   },
+   {
+    "id": "chinook",
+    "label": "Chinook (the Birdman Chinook)",
+    "now": {
+     "buildFit": 20900,
+     "buildShort": 26100,
+     "usedLo": 12000,
+     "usedHi": 24000,
+     "occasion": 10500,
+     "sellOwnBuild": 18000,
+     "sellUsedMid": 13500
+    },
+    "proposed": {
+     "buildFit": 27600,
+     "buildShort": 34600,
+     "usedLo": 15900,
+     "usedHi": 31800,
+     "occasion": 13900,
+     "sellOwnBuild": 23800,
+     "sellUsedMid": 17900
+    }
+   },
+   {
+    "id": "tiger",
+    "label": "Tiger Moth",
+    "now": {
+     "buildFit": 45400,
+     "buildShort": 56800,
+     "usedLo": 26100,
+     "usedHi": 52200,
+     "occasion": 22900,
+     "sellOwnBuild": 39200,
+     "sellUsedMid": 29400
+    },
+    "proposed": {
+     "buildFit": 63600,
+     "buildShort": 79500,
+     "usedLo": 36600,
+     "usedHi": 73100,
+     "occasion": 32000,
+     "sellOwnBuild": 54800,
+     "sellUsedMid": 41100
+    }
+   },
+   {
+    "id": "bites",
+    "label": "B-ITES (user, RV range)",
+    "now": {
+     "buildFit": 52900,
+     "buildShort": 66100,
+     "usedLo": 30400,
+     "usedHi": 60800,
+     "occasion": 26600,
+     "sellOwnBuild": 45600,
+     "sellUsedMid": 34200
+    },
+    "proposed": {
+     "buildFit": 62000,
+     "buildShort": 77500,
+     "usedLo": 35600,
+     "usedHi": 71300,
+     "occasion": 31200,
+     "sellOwnBuild": 53500,
+     "sellUsedMid": 40100
+    }
+   },
+   {
+    "id": "rv",
+    "label": "RV-alike (archetype)",
+    "now": {
+     "buildFit": 57900,
+     "buildShort": 72400,
+     "usedLo": 33300,
+     "usedHi": 66600,
+     "occasion": 29100,
+     "sellOwnBuild": 50000,
+     "sellUsedMid": 37500
+    },
+    "proposed": {
+     "buildFit": 65500,
+     "buildShort": 81900,
+     "usedLo": 37700,
+     "usedHi": 75300,
+     "occasion": 32900,
+     "sellOwnBuild": 56500,
+     "sellUsedMid": 42400
+    }
+   },
+   {
+    "id": "dc3",
+    "label": "DC-3",
+    "now": {
+     "buildFit": 433400,
+     "buildShort": 541800,
+     "usedLo": 249200,
+     "usedHi": 498400,
+     "occasion": 218100,
+     "sellOwnBuild": 373800,
+     "sellUsedMid": 280400
+    },
+    "proposed": {
+     "buildFit": 543300,
+     "buildShort": 679100,
+     "usedLo": 312400,
+     "usedHi": 624700,
+     "occasion": 273300,
+     "sellOwnBuild": 468600,
+     "sellUsedMid": 351400
+    }
+   },
+   {
+    "id": "caravan",
+    "label": "Caravan-alike (archetype)",
+    "now": {
+     "buildFit": 266000,
+     "buildShort": 332500,
+     "usedLo": 153000,
+     "usedHi": 305900,
+     "occasion": 133800,
+     "sellOwnBuild": 229400,
+     "sellUsedMid": 172100
+    },
+    "proposed": {
+     "buildFit": 277800,
+     "buildShort": 347300,
+     "usedLo": 159800,
+     "usedHi": 319500,
+     "occasion": 139800,
+     "sellOwnBuild": 239600,
+     "sellUsedMid": 179700
+    }
+   },
+   {
+    "id": "c172f",
+    "label": "Cessna on floats (O-540)",
+    "now": {
+     "buildFit": 76600,
+     "buildShort": 95800,
+     "usedLo": 44100,
+     "usedHi": 88100,
+     "occasion": 38500,
+     "sellOwnBuild": 66100,
+     "sellUsedMid": 49600
+    },
+    "proposed": {
+     "buildFit": 109200,
+     "buildShort": 136500,
+     "usedLo": 62800,
+     "usedHi": 125600,
+     "occasion": 54900,
+     "sellOwnBuild": 94200,
+     "sellUsedMid": 70600
+    }
+   },
+   {
+    "id": "pa18f",
+    "label": "PA-18 on floats",
+    "now": {
+     "buildFit": 43800,
+     "buildShort": 54700,
+     "usedLo": 25200,
+     "usedHi": 50300,
+     "occasion": 22000,
+     "sellOwnBuild": 37700,
+     "sellUsedMid": 28300
+    },
+    "proposed": {
+     "buildFit": 73600,
+     "buildShort": 92000,
+     "usedLo": 42300,
+     "usedHi": 84700,
+     "occasion": 37000,
+     "sellOwnBuild": 63500,
+     "sellUsedMid": 47600
+    }
+   },
+   {
+    "id": "rufus",
+    "label": "Rufus (the starter, econ-sim)",
+    "now": {
+     "buildFit": 30100,
+     "buildShort": 37600,
+     "usedLo": 17300,
+     "usedHi": 34600,
+     "occasion": 15100,
+     "sellOwnBuild": 25900,
+     "sellUsedMid": 19400
+    },
+    "proposed": {
+     "buildFit": 30000,
+     "buildShort": 37500,
+     "usedLo": 17200,
+     "usedHi": 34500,
+     "occasion": 15100,
+     "sellOwnBuild": 25900,
+     "sellUsedMid": 19400
+    }
+   },
+   {
+    "id": "c172m",
+    "label": "metal Cessna (econ-sim c172)",
+    "now": {
+     "buildFit": 75000,
+     "buildShort": 93700,
+     "usedLo": 43100,
+     "usedHi": 86200,
+     "occasion": 37700,
+     "sellOwnBuild": 64600,
+     "sellUsedMid": 48500
+    },
+    "proposed": {
+     "buildFit": 87800,
+     "buildShort": 109800,
+     "usedLo": 50500,
+     "usedHi": 101000,
+     "occasion": 44200,
+     "sellOwnBuild": 75800,
+     "sellUsedMid": 56800
+    }
+   },
+   {
+    "id": "cjodel",
+    "label": "composite Jodel (econ-sim)",
+    "now": {
+     "buildFit": 39200,
+     "buildShort": 49000,
+     "usedLo": 22500,
+     "usedHi": 45000,
+     "occasion": 19700,
+     "sellOwnBuild": 33800,
+     "sellUsedMid": 25300
+    },
+    "proposed": {
+     "buildFit": 45800,
+     "buildShort": 57200,
+     "usedLo": 26300,
+     "usedHi": 52600,
+     "occasion": 23000,
+     "sellOwnBuild": 39500,
+     "sellUsedMid": 29600
+    }
+   }
+  ]
  }
 }

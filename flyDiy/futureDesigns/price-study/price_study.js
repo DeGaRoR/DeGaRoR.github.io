@@ -51,6 +51,10 @@ const PLANES = [
   { id: 'caravan', label: 'Caravan-alike (archetype)',    arch: 'caravan' },
   { id: 'c172f',   label: 'Cessna on floats (O-540)',     build: 'bugReports/cessnaFloatsWOrks.json', design: 'c172f' },
   { id: 'pa18f',   label: 'PA-18 on floats',              build: 'builds/pa18_floats_2026-10-23.json' },
+  // the economy simulator's own designs (tools/econ_sim.js DESIGN_SRC), so its careers can be re-played at the proposal
+  { id: 'rufus',   label: 'Rufus (the starter, econ-sim)', build: 'builds/rufus_2026-10-18_certified.json', econ: 'rufus' },
+  { id: 'c172m',   label: 'metal Cessna (econ-sim c172)',  build: 'bugReports/cessnaMetal (1).json', econ: 'c172' },
+  { id: 'cjodel',  label: 'composite Jodel (econ-sim)',    build: 'builds/composite_jodel_2026-10-07.json', econ: 'cjodel' },
 ];
 
 const r100 = v => Math.round(v / 100) * 100;
@@ -227,15 +231,15 @@ const REAL_COMPONENTS = [
 const REAL = {
   components: REAL_COMPONENTS,
   planes: {
-    cub:     { plans: [35e3, 60e3], kit: [80e3, 140e3], fac: [45e3, 75e3], facWhat: 'USED upgraded J-3 / PA-11 (85-90 hp, electrics), 2024-25 listings',
+    cub:     { plans: [35e3, 60e3], kit: [80e3, 140e3], fac: [45e3, 65e3], facWhat: 'USED airworthy J-3, US and continental Europe alike (EUR 47-60k), 2024-26 asking; restored 70-100k; a 20-30 % Cub collector premium is in it',
                newCub: [250e3, 295e3], newWhat: 'NEW Cub-class: American Legend AL3 2025 ~252-272k, Carbon Cub UL ~294k',
                plansWhat: 'ESTIMATE: tube, fabric, spruce, hardware 15-25k + an overhauled C85/O-200 20-30k + a basic panel 5-8k',
                kitWhat: 'ESTIMATE: Wag-Aero quickbuild class airframe + engine + panel; a Backcountry Super Cub kit alone is 95.8k', hours: [700, 3000] },
-    c172:    { fac: [499e3, 580e3], facWhat: 'NEW 172S list (Textron 2023 499k; 2026 MSRP ~580k)', used: [120e3, 150e3], usedWhat: 'used 1970s 172M/N, typical' },
-    jodel:   { plans: [25e3, 45e3], fac: [16e3, 38e3], facWhat: 'USED D11/D112 in Europe (EUR 15-35k; GBP 15k flying); none built new',
+    c172:    { fac: [499e3, 580e3], facWhat: 'NEW 172S list (Textron 2023 499k; 2026 MSRP ~580k)', used: [95e3, 150e3], usedWhat: 'used 1970s 172M/N: Europe EUR 80-110k, US 120-150k typical' },
+    jodel:   { plans: [25e3, 45e3], fac: [20e3, 35e3], facWhat: 'USED D11/D112/D117 typical in Europe (EUR 12-38k asking, UK GBP 9-24k); no factory price found',
                plansWhat: 'ESTIMATE: wood, ply, fabric, hardware 6-12k + an overhauled C90/O-200 15-30k + a basic panel 5k', hours: [1500, 2500] },
-    chinook: { kit: [20e3, 36e3], kitWhat: '2009 kit list: 1S/2S with a 503 ~20k, Plus 2 with a 912 27.5-36k (out of production)', fac: [9e3, 12e3], facWhat: 'USED Chinook Plus 2 (CAD 12-16k)' },
-    tiger:   { fac: [76e3, 170e3], facWhat: 'USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold' },
+    chinook: { kit: [20e3, 36e3], kitWhat: '2009 kit list: 1S/2S with a 503 ~20k, Plus 2 with a 912 27.5-36k (out of production)', fac: [10e3, 15e3], facWhat: 'USED Chinook Plus 2 (CAD 12-16k; US dealer 20-27.5k refurbished)' },
+    tiger:   { fac: [80e3, 170e3], facWhat: 'USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold' },
     bites:   { kit: [150e3, 190e3], kitWhat: 'RV-7/-8 airframe kit 48-50k + FWF 12k + IO-360 39-56k + CS prop ~10k + VFR panel 10-20k + paint/interior (ESTIMATE total); single-seat RV-3B kit 28k', fac: [130e3, 160e3], facWhat: 'USED flying RV-7A / RV-8', hours: [1500, 2500] },
     rv:      { kit: [150e3, 190e3], kitWhat: 'as B-ITES', fac: [130e3, 160e3], facWhat: 'USED flying RV-7A / RV-8', hours: [1500, 2500] },
     dc3:     { fac: [230e3, 600e3], facWhat: 'USED airworthy DC-3 / C-47 listings 2024-26 (a BT-67 turbine conversion is 9-16M)' },
@@ -381,6 +385,28 @@ function main() {
   // the proposal, measured
   const prop = proposalPass(D, planes);
   out.proposal = { rate: RATE, table: PROPOSAL, planes: prop };
+  // THE THREE ROUTES (the user, 4 Nov): build it (the maker way), buy it used (pre-built, certified, where it
+  // stands), sell it. Today's rules + the proposed sale rule, on today's and on the proposed ledgers.
+  //   build    ledger x labourFit 0.8 (a fitted main hangar) / x labourShort 1.0
+  //   used     catalogue (ledger x PROCURE_MARGIN 1.15) x condition PROCURE_COND 0.4-0.8 = ledger x 0.46-0.92
+  //   occasion the story's: catalogue x 0.35 = ledger x 0.40 (one-time listings)
+  //   SELL (proposed, not in the game): min(SELL_K x the listing price at the airframe's condition, what it cost the
+  //            player: career.airframes[slot].paid). A fleet airframe's condition: 0.8 less 0.08 a repair, floor 0.4
+  //            (no hours are kept). Story airframes (the Rufus, the gifted Cub: paid 0) sell for nothing.
+  const SELL_K = 0.75;
+  const routesOf = L => {
+    const cat = L * C.PROCURE_MARGIN, scratch = L * C.PREM_RATES.labourFit;
+    return { buildFit: r100(scratch), buildShort: r100(L), usedLo: r100(cat * C.PROCURE_COND[0]), usedHi: r100(cat * C.PROCURE_COND[1]),
+             occasion: r100(cat * 0.35), sellOwnBuild: r100(Math.min(SELL_K * cat * C.PROCURE_COND[1], scratch)),
+             sellUsedMid: r100(Math.min(SELL_K * cat * 0.6, cat * 0.6)) };
+  };
+  out.routes = { sellK: SELL_K, rule: 'sale = min(SELL_K x listing(condition), paid)', planes: planes.filter(p => p.prices).map(p => {
+    const q = prop.find(r => r.id === p.id);
+    return { id: p.id, label: p.label, now: routesOf(p.prices.ledger), proposed: q ? routesOf(q.ledger) : null };
+  }) };
+  console.log('\nTHE THREE ROUTES (proposed ledgers): build fit/short | used | occasion | sell own build | sell a used one (cond 0.6)');
+  for (const r of out.routes.planes) if (r.proposed) { const x = r.proposed;
+    console.log('  ' + r.label.padEnd(34), x.buildFit + ' / ' + x.buildShort, '|', x.usedLo + '-' + x.usedHi, '|', x.occasion, '|', x.sellOwnBuild, '|', x.sellUsedMid); }
   console.log('\nPROPOSAL (at 1 credit =', RATE, 'USD; nothing applied): ledger now -> proposed');
   for (const r of prop) console.log('  ' + r.label.padEnd(34), String(r.ledgerNow).padStart(7), '->', String(r.ledger).padStart(7), ' x' + r.factor, ' catalogue', r.catalogue, '  deltas', JSON.stringify(r.codeDeltas));
   const cubF = (prop.find(r => r.id === 'cub') || {}).factor;
