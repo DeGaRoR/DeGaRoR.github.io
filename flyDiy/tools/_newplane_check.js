@@ -178,11 +178,6 @@ async function flowCheck(np) {
   delete require.cache[require.resolve('../src/viewer/new_plane.js')];
   require('../src/viewer/new_plane.js');
   const UI = W.NEW_PLANE;
-  // Cancel: nothing touched
-  UI.open();
-  t(UI.isOpen() && cnt.hold === true, 'the chooser opens full-screen and holds the render loop');
-  UI.close();
-  t(!UI.isOpen() && cnt.hold === false && cnt.set === 0 && cnt.bake === 0, 'cancel leaves the stand untouched, the hold released');
   // THE VIGNETTE (PLANE_THUMB's hook; NEW-PLANE-THUMB's row, cloud session 01RorUqE6GL185zmnCrbumTb): a candidate tile wears
   // the baked side profile when the module answers, ONE picture, and is today's tile when it does not
   {
@@ -202,6 +197,11 @@ async function flowCheck(np) {
     delete store.candidates; delete store.openCandidate;
     t(withPic === 1 && without === 0, 'a candidate tile wears PLANE_THUMB\'s one picture when it answers, today\'s tile without it (with ' + withPic + ', without ' + without + ')');
   }
+  // Cancel: nothing touched
+  UI.open();
+  t(UI.isOpen() && cnt.hold === true, 'the chooser opens full-screen and holds the render loop');
+  UI.close();
+  t(!UI.isOpen() && cnt.hold === false && cnt.set === 0 && cnt.bake === 0, 'cancel leaves the stand untouched, the hold released');
   // the walk: start, then every step's first offered tile, row by row
   UI.open();
   const body = doc.body.children.find(c => c.id === 'npWrap') || doc.body.children[doc.body.children.length - 1];
