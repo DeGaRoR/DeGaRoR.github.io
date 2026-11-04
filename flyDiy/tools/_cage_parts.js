@@ -628,7 +628,7 @@ const CAGE_PARTS = [
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
-      ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
+      ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 

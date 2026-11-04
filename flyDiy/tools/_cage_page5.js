@@ -405,6 +405,7 @@ window.CAGE_PAGE = {
         ['bhRelief',  'bas-relief',          0, 3, 1, ['none', 'pressed beads', 'rolled upholstery', 'framed panel'],
          { when: P => bhWall(P), absent: 0 }],
         ['bhReliefH', 'relief depth',        0.004, 0.03, 0.001, { when: P => bhWall(P) && +P.bhRelief, absent: 0.014, dim: 'len' }],
+        ['bhFast',    'fasteners',           0, 2, 1, ['none', 'screws', 'rivets'], { when: P => bhWall(P), absent: 0 }],
         ['bhNet',     'cargo net',           0, 1, 1, { when: P => bhWall(P), absent: 0 }],
         ['bhLamp',    'wall lamp',           0, 3, 1, ['none', 'dome', 'LED strip', 'dome + strip'],
          { when: P => bhWall(P) && +P.lightOn, absent: 0 }],

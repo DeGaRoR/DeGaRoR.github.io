@@ -3746,7 +3746,7 @@ function cageInterior(m, S) {
 
     // ---- the wall ----
     let b = Math.max(0, BH.bevel / ps);
-    const rebuild = BH.step || b > 0 || BH.twoTone || BH.relief;
+    const rebuild = BH.step || b > 0 || BH.twoTone || BH.relief || BH.fast;
     // the skin must carry on behind the face as well as behind the outline (the twin's pod ends 7 cm behind its wall);
     // a step too shallow to stand anything on is no shelf at all
     const carries = z => !!arc(slice(z - 0.01 / ps), bcx, yS, 0, Math.PI);
@@ -3863,6 +3863,35 @@ function cageInterior(m, S) {
       };
       region(UP, b + e * 0.5, zFace, mU, true);
       region(lo0, bL + e * 0.5, z0 - bL, mL, false);
+    }
+    // ---- the fasteners: a line of pan-head screws or dome rivets round each face, bare metal (the alloy liner's section) ----
+    if (BH.fast) {
+      const bL = D > 0 ? 0 : b, screw = BH.fast === 1;
+      const r = (screw ? 0.0052 : 0.0032) / ps, pr = (screw ? 0.0022 : 0.0016) / ps, gap = (screw ? 0.085 : 0.038) / ps, K = 6;
+      const head = (x, y, z) => {
+        const c = V.push([x, y, z + pr]) - 1, lo = [], hi = [];
+        for (let i = 0; i < K; i++) {
+          const th = i * 2 * Math.PI / K, cs = Math.cos(th), sn = Math.sin(th);
+          lo.push(V.push([x + cs * r, y + sn * r, z]) - 1);
+          hi.push(V.push([x + cs * r * 0.62, y + sn * r * 0.62, z + pr * 0.8]) - 1);
+        }
+        for (let i = 0; i < K; i++) {
+          const j = (i + 1) % K;
+          add.push({ v: [lo[i], lo[j], hi[j], hi[i]], m: 'toele' }, { v: [c, hi[i], hi[j]], m: 'toele' });
+        }
+      };
+      const line = (A, k, z) => {
+        const pts = A.map(p => [bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k)]);
+        let run = gap * 0.5;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const a = pts[i], c = pts[i + 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
+          while (run <= L && L > 0) { head(a[0] + (c[0] - a[0]) * run / L, a[1] + (c[1] - a[1]) * run / L, z); run += gap; }
+          run -= L;
+        }
+      };
+      const kF = 0.013 / ps;
+      line(UP, b + kF, zFace);
+      line(lo0, bL + kF, z0 - bL);
     }
     // ---- the cargo net: across the upper wall, or the recess's mouth ----
     if (BH.net) {
@@ -8841,14 +8870,14 @@ function cageSpec(P) {
   // for the tag on the face it sits on. The sling is the tube construction's.
   {
     const sling = +P.bhSling && consG === 'tube' ? 1 : 0;
-    if (+P.bhStep || +P.bhBevel > 0 || +P.bhTwoTone || +P.bhNet || +P.bhLamp || +P.bhRelief || sling)
+    if (+P.bhStep || +P.bhBevel > 0 || +P.bhTwoTone || +P.bhNet || +P.bhLamp || +P.bhRelief || +P.bhFast || sling)
       S.interior.bh = { step: +P.bhStep ? 1 : 0, bevel: Math.max(0, +P.bhBevel || 0),
                         twoTone: +P.bhTwoTone ? 1 : 0, net: +P.bhNet ? 1 : 0, sling,
                         // metres: the shelf line over the waist band's top, the recess's depth (the sling's too)
                         shelfY: P.bhShelfY != null ? +P.bhShelfY : 0.15,
                         shelfD: Math.max(0.05, P.bhShelfD != null ? +P.bhShelfD : 0.25),
                         // the relief: which pattern, how proud (m), and the band it leaves clear for the wall lamp
-                        relief: Math.round(+P.bhRelief || 0), reliefH: P.bhReliefH != null ? +P.bhReliefH : 0.014,
+                        fast: Math.round(+P.bhFast || 0), relief: Math.round(+P.bhRelief || 0), reliefH: P.bhReliefH != null ? +P.bhReliefH : 0.014,
                         lampBand: (() => {
                           const lm = +P.lightOn ? Math.round(+P.bhLamp || 0) : 0, dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
                           return lm & 1 ? (lm & 2 ? dr + 0.125 : Math.max(0.08, dr + 0.045) + 0.05) : lm & 2 ? dr + 0.035 : 0;
