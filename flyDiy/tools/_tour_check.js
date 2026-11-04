@@ -111,8 +111,9 @@ if (SHD.first) {
     let wet = 0, where = null;
     const dryAt = (x, z, what) => { if (W.waterH(x, z) - W.terrainH(x, z) > 0.01) { wet++; if (!where) where = what + ' (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')'; } };
     for (const a of land) {
-      const R = C.siteRunway(a);
-      for (let q = -a.len / 2; q <= a.len / 2; q += 1) for (let off = -R.half; off <= R.half + 1e-6; off += 1.5) dryAt(a.x + R.dx * q + R.nx * off, a.z + R.dz * q + R.nz * off, a.id);
+      // (siteRunway has no half: -undefined made the loop sample nothing, and 3a read 0 wet samples on any tree - the half is wid / 2)
+      const R = C.siteRunway(a), hw = R.half != null ? R.half : R.wid / 2;
+      for (let q = -a.len / 2; q <= a.len / 2; q += 1) for (let off = -hw; off <= hw + 1e-6; off += 1.5) dryAt(a.x + R.dx * q + R.nx * off, a.z + R.dz * q + R.nz * off, a.id);
     }
     for (const e of REC.layers.surface) if (/^tp_y_|^mn_y_apron$/.test(e.id)) {
       const bb = C.PREMISES_GEN.polyBBox(e.poly);
