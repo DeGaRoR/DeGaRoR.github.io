@@ -1818,7 +1818,8 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
     if (NOSE_JOB !== job) return;                            // a newer body's shaping took over
     const t0 = msNow();
     let st = job.r;
-    while (!st.done && msNow() - t0 < 4) st = job.g.next();
+    try { while (!st.done && msNow() - t0 < 4) st = job.g.next(); }
+    catch (e) { NOSE_JOB = null; console.error('energy: the nose shaping', e); return; }   // (a throw must not leave this job holding its key: every later start would read pending)
     job.r = st;
     if (!st.done) { noseSchedule(tick); return; }
     NOSE_JOB = null;
@@ -1844,7 +1845,7 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
   if (!extMid) return null;
   const lvB = bay.lv || [0, 1];
   const room = v.room != null ? Math.max(0, Math.min(0.3, +v.room)) : NOSE_PANEL_ROOM;
-  const xh = 0.5 * (extMid.xHi - extMid.xLo), P3 = CREW_PTS.buf, word = i => (CREW_PTS.word ? CREW_PTS.word(i) : 'the crew');
+  const xh = 0.5 * (extMid.xHi - extMid.xLo), CP = CREW_PTS, P3 = CP.buf, word = i => (CP.word ? CP.word(i) : 'the crew');   // (CP: a sliced job outlives a crew change, which nulls CREW_PTS between its frames)
   // THE PANEL'S BACK: the dash's faces (the sheet's 'dash' / 'dashFace') and the crew layer's panel - its plate and
   // the instruments' cases standing forward of it - the forward-most of them, plus the room to connect them
   let back = -Infinity, dashLo = Infinity;
@@ -1903,7 +1904,7 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
     const keel = extMid.yLo + NOSE_CLR;
     const crewTop = (x0, x1) => {
       let top = -Infinity;
-      crewEach(CREW_PTS, [x0, extMid.yLo - 0.2, back - CREW_GAP], [x1, extMid.yHi + 0.1, front + CREW_GAP], i => {
+      crewEach(CP, [x0, extMid.yLo - 0.2, back - CREW_GAP], [x1, extMid.yHi + 0.1, front + CREW_GAP], i => {
         const w = word(i);
         if (w === 'the panel') return;                      // (the panel is the back's business)
         const z = P3[i * 3 + 2], x = P3[i * 3], y = P3[i * 3 + 1];
