@@ -71,6 +71,15 @@ if (argv[0] === '--build') {
   // 2b. G1894 (DMG-TUNE): THE RELEASE RULE (GEN_DMG_GROUP) - one member kinked: a group of several does not let go; its
   // members severed one by one (the weakest first): it lets go exactly when the severed carry `rel` of its capacity
   out.release = D.groups.map(G => {
+    // GEAR-FALLS (the user's ruling, 4 Nov: "the plane has to behave like it loses a connection, a wheel, a leg"): a wheel's
+    // gear joint is not G1894's rule - its first LOAD member severed or kinked lets it go, its wires alone never
+    if (/:gear$/.test(G.key)) {
+      sim.reset(0); const fu = j => sim.beams[j].fu, ord = G.t0.slice().sort((x, y) => fu(x) - fu(y)), want = ord.findIndex(j => sim.beams[j].vis !== 'wire');
+      sim.damageBreak(ord[want], 'kink'); const kinkRel = sim.damage().groups.length;
+      sim.reset(0); let at = -1;
+      for (let q = 0; q < ord.length; q++) { sim.damageBreak(ord[q], 'tension'); if (sim.damage().groups.length) { at = q; break; } }
+      return { key: G.key, n0: G.t0.length, kinkRel, at, want, ok: kinkRel === 1 && at === want };
+    }
     sim.reset(0); const cap0 = G.t0.reduce((a, j) => a + sim.beams[j].fu, 0), strongest = G.t0.reduce((a, j) => sim.beams[j].fu > sim.beams[a].fu ? j : a, G.t0[0]);
     sim.damageBreak(G.t0.length > 1 && sim.beams[strongest].fu < C.GEN_DMG_GROUP.rel * cap0 ? strongest : -1, 'kink');
     const kinkRel = sim.damage().groups.length;

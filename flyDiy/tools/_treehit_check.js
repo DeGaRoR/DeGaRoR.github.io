@@ -104,6 +104,9 @@ console.log('2. the solver meets a trunk at any elevation');
   const strip = W0.aerodromes.find(a => a.id === 'HOME') || W0.aerodromes[0];
   const D = 60;
   // a flat world at `elev`, one tree (size 1.5: R 1.17 m, 6.9 m tall) stood on the aeroplane's measured track D m on
+  // (4 Nov, DEFORM: the aeroplane swings left under power - 8 m off a straight line by 60 m - so a trunk on the line was never
+  // met: 0 contacts, the row red since before L28-0. Each tree stands on the free run's own track, D m on)
+  let track = null;
   const run = (elev, tree, solid) => {
     const trees = [];
     const W = Object.assign({}, W0, { terrainH: () => elev, obstacles: C.OBSTACLES.make(), trees, woodSolid: solid !== false,
@@ -120,10 +123,10 @@ console.log('2. the solver meets a trunk at any elevation');
       const c = sim.cgPos(), dx = c[0] - c0[0], dz = c[2] - c0[2], d = Math.hypot(dx, dz);
       if (!stood && d > 6) {
         fx = dx / d; fz = dz / d; stood = true;
-        if (tree) trees.push({ x: c0[0] + fx * D, z: c0[2] + fz * D, h: elev, s: 1.5, sp: 0 });
+        if (tree) trees.push({ x: c0[0] + track[0], z: c0[2] + track[1], h: elev, s: 1.5, sp: 0 });
         sim.ctl.thr = 0.35;
       }
-      if (stood) { along = dx * fx + dz * fz; reach = Math.max(reach, along); vmax = Math.max(vmax, sim.out.V || 0); }
+      if (stood) { along = dx * fx + dz * fz; reach = Math.max(reach, along); vmax = Math.max(vmax, sim.out.V || 0); if (!tree && !track && along >= D) track = [dx, dz]; }
       if (stood && sim.wheelsOnGround && sim.wheelsOnGround() === 0 && !tree) sim.ctl.thr = 0;
     }
     return { bad, stood, along, reach, vmax };
@@ -191,14 +194,15 @@ function flyAt(trunk, o) {
   const c0 = sim.cgPos().slice();
   // the trunk D m on, its foot sunk as the fill's is (the collection's sink), on this world's ground
   const off = o.off || 0;   // across the track (to the left wing), m
-  if (trunk) TH.set('fill:test', [c0[0] + fx * o.D - fz * off, c0[2] + fz * o.D + fx * off, elev - trunk.sink, trunk.r, elev - trunk.sink + trunk.h]);
+  const ax = o.at ? o.at[0] : fx * o.D, az = o.at ? o.at[1] : fz * o.D;   // (4 Nov: o.at, the free run's own track at D - see section 2)
+  if (trunk) TH.set('fill:test', [c0[0] + ax - fz * off, c0[2] + az + fx * off, elev - trunk.sink, trunk.r, elev - trunk.sink + trunk.h]);
   sim.ctl.thr = o.thr;
-  let reach = -Infinity, hits = 0, vPass = null, bad = false;
+  let reach = -Infinity, hits = 0, vPass = null, bad = false, atD = null;
   for (let f = 0; f < o.secs * 60; f++) {
     sim.step(1 / 60);
     if (sim.stats().bad) { bad = true; break; }
     const c = sim.cgPos(), along = (c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz;
-    reach = Math.max(reach, along);
+    reach = Math.max(reach, along); if (atD === null && along >= o.D) atD = [c[0] - c0[0], c[2] - c0[2]];
     if (o.rollThen != null && along > 6) sim.ctl.thr = o.rollThen;   // the old gate's roll: full power to get going, then a third
     if (vPass === null && along > o.D + 10) { const v = sim.cgVel(); vPass = v[0] * fx + v[2] * fz; }
   }
@@ -206,17 +210,17 @@ function flyAt(trunk, o) {
   // G1470 (TREE-CRASH): what the trunk did to the airframe (a yield, a break, a crash)
   const D = sim.damage ? sim.damage() : null;
   const dmg = D ? { crashed: D.crashed, reason: D.reason, members: D.members, wing: D.broken.filter(i => sim.beams[i].cls === 'wing').length, breaks: D.breaks } : null;
-  return { bad, reach, hits, vPass, dmg };
+  return { bad, reach, hits, vPass, dmg, atD };
 }
 function flightChecks(trunk, tag) {
   const D = 60, TOUCH = 6;
   // the taxi: the old gate's run (full power to get rolling, then a third), stopped by the trunk alone
-  const free = flyAt(null, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14 }), taxi = flyAt(trunk, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14 });
+  const free = flyAt(null, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14 }), taxi = flyAt(trunk, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14, at: free.atD });
   yes(!free.bad && !taxi.bad && free.reach > D + 2 && taxi.reach < D && taxi.reach > D - TOUCH && taxi.hits > 0,
     tag + ': taxied at it, the trunk stops the aeroplane (the CG to ' + taxi.reach.toFixed(1) + ' m of ' + D + '; ' + free.reach.toFixed(1) + ' m with none)');
   // across the span (the stock build's tips at +-5 m): the wing meets it - the aeroplane slews round it, its CG held
   // within a few metres past the trunk's line, never the free run's 80+
-  const offs = [0.7, 1.5, 2.5, 3.5, 4.5], side = offs.map(off => flyAt(trunk, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14, off }));
+  const offs = [0.7, 1.5, 2.5, 3.5, 4.5], side = offs.map(off => flyAt(trunk, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14, off, at: free.atD }));
   // ...or, since TREE-CRASH (G1470), the wing BROKE on it: a 10 m/s taxi into a trunk a wing's length out tears the wing and
   // the aeroplane goes on past (a crash, its own verdict) - what the trunk may no longer do is let a whole wing through
   const held = r => r.reach < D + 5, tore = r => !!(r.dmg && r.dmg.crashed && r.dmg.wing > 0);
