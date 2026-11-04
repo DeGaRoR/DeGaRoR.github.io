@@ -670,7 +670,7 @@
           detRot: m.detRot || 0, spin: m.spin || 0, hole: m.sec === 'dashFace' ? 1 : 0,
           wing: m.wing || 0, tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
           ccK: m.ccK, fieldK: m.fieldK, fieldLK: m.fieldLK, inside: m.inside || 0,
-          decals: m.noDec ? 0 : 1, memF: m.memF || null, metalK: m.metalK || 0,
+          decals: m.noDec ? 0 : m.noLet ? 0.5 : 1, memF: m.memF || null, metalK: m.metalK || 0,
           ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: THREE.DoubleSide });
         return cache[mn] = onBlock(s);
       }

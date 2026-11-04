@@ -968,6 +968,8 @@ const GATES = [
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
   { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  // LOOKS-ROUND2 (the user 4 Nov): a float keeps its paint and takes no letters: the table, the shader, the join, the three doors. ~1 s
+  { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
