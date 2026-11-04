@@ -315,10 +315,18 @@ function runwayLightPoints(a, aerodromes, paved) {
 // side (the pilot holds the centreline within a few metres; a wing spans
 // ten) — a hill beside the approach is not an obstacle, a ridge across it
 // is. The canopy is read within 20 m of each sample.
+// G3910 (PILOT-1 P1, the user 2 Nov: "I can't remember one, this is open"): ...AND A HILL BESIDE IT IS READ AS ONE. The
+// cone took the highest ground over the centreline and the two shoulders (+-34 m on an 18 m strip): Copperhead Mine
+// Street is cut across a sidehill - +0.1 m on the centreline 25 m out, +6.8 m on the uphill shoulder - and that
+// shoulder became 'the obstacle 25 m out (7 m)', a 15.2 deg approach and an aim 111 m into 250 m. Each sample across
+// the cone now stands under a LATERAL SURFACE: level out to the wingtip line (the strip's half width + `halfSpan`,
+// 6 m), rising 1:5 (`trans`, ICAO's transitional surface) past it - the uphill shoulder 34 m out is 3.8 m lower to
+// the cone; a ridge across the approach (high on the centreline too) is read as before
 function siteRunwayModel(aero, world, opts) {
   opts = opts || {};
   const R = siteRunway(aero);
   const clear = opts.clear ?? 15, screen = opts.screen ?? 15, reach = opts.reach ?? 6000, climbReach = opts.climbReach ?? 1500, step = opts.step ?? 100, canopy = opts.canopy ?? 18;
+  const halfSpan = opts.halfSpan ?? 6, trans = opts.trans ?? 0.2;
   const hasT = world && typeof world.terrainH === 'function';
   const floor = (x, z) => {                              // the terrain or the water over it
     if (!hasT) return aero.elev || 0;
@@ -337,7 +345,17 @@ function siteRunwayModel(aero, world, opts) {
   };
   const hAt = s => floor(R.end0.x + R.dx * s, R.end0.z + R.dz * s);   // the strip itself: no canopy
   const grade = (hAt(R.len) - hAt(0)) / R.len;
-  const half = R.wid / 2 + 25;
+  const half = R.wid / 2 + 25, tip = R.wid / 2 + halfSpan;
+  // G3910: the samples across the cone (the centreline, the wingtip lines, the shoulders) and the ground each stands
+  // under the lateral surface - the highest of them at (x0, z0) + v * d, c to the side
+  const across = (x0, z0, v, d) => {
+    let h = -Infinity;
+    for (const c of [-half, -tip, 0, tip, half]) {
+      const x = x0 + v[0] * d - v[1] * c, z = z0 + v[1] * d + v[0] * c;
+      h = Math.max(h, ground(x, z) - trans * Math.max(0, Math.abs(c) - tip));
+    }
+    return h;
+  };
   const ds = []; for (let d = 25; d < 600; d += 25) ds.push(d); for (let d = 600; d <= reach; d += step) ds.push(d);
   const dir = [];
   for (const k of [0, 1]) {
@@ -349,12 +367,8 @@ function siteRunwayModel(aero, world, opts) {
     const thrH = floor(thr.x, thr.z), farH = floor(far.x, far.z);
     let reqGs = 0, obst = null;
     for (const d of ds) {
-      // the highest ground across the corridor at this distance
-      let h = -Infinity;
-      for (const c of [-half, 0, half]) {
-        const x = thr.x - u[0] * d - u[1] * c, z = thr.z - u[1] * d + u[0] * c;
-        h = Math.max(h, ground(x, z));
-      }
+      // the highest ground across the corridor at this distance (G3910: under the lateral surface)
+      const h = across(thr.x, thr.z, [-u[0], -u[1]], d);
       const g = (h + clear - screen - thrH) / d;
       if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; }
     }
@@ -369,11 +383,7 @@ function siteRunwayModel(aero, world, opts) {
         if (d > climbReach) break;
         const straight = d <= dTurn;
         const v = straight ? u : ut, o = straight ? [far.x, far.z] : P0, dd = straight ? d : d - dTurn;
-        let h = -Infinity;
-        for (const c of [-half, 0, half]) {
-          const x = o[0] + v[0] * dd - v[1] * c, z = o[1] + v[1] * dd + v[0] * c;
-          h = Math.max(h, ground(x, z));
-        }
+        const h = across(o[0], o[1], v, dd);
         const g = (h + clear - screen - farH) / d;
         if (g > req) { req = g; ob = { d, h: Math.round(h * 10) / 10 }; }
       }
