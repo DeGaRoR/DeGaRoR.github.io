@@ -91,7 +91,7 @@ function caseTrip() {
     let vpSum = null, first = null, done = false, tod = null, legL = null, react = 0;
     PT.loadPanel();
     const A0 = C.buildGen(PT.specOf(BUILDS[name]).spec).params.ap, hClear = A0.hClear ?? 130, marg2 = Math.max(2 * A0.hSafe, 40);
-    const res = PT.runTrace({ key: BUILDS[name], world: 'jolene', to: 'mn_strip', maxS: full ? 1100 : 900, quiet: true, probeEvery: true, probe: (ap, sim, t) => {
+    const res = PT.runTrace({ key: BUILDS[name], world: 'jolene', to: 'mn_strip', maxS: full ? 1400 : 900,   /* G3914, rule (b): 1100 -> 1400, the longer circuits; the known red below needs its go-around after the divert to show */ quiet: true, probeEvery: true, probe: (ap, sim, t) => {
       const en = ap.phase === 'ENROUTE' || ap.phase === 'INBOUND';
       if (en && first === null) first = true;
       if (!en && first === true) { first = false; done = true; }
@@ -195,7 +195,8 @@ if (one) {
     check(r.toVs >= 1.1, '1 ' + n + ': off the wheels to the screen height (15 m) never under 1.1 Vs', 'min ' + r.toVs + ' Vs (' + r.toV + ' m/s)');
     check(r.n > 100 && r.VminVs >= 1.3, '1 ' + n + ': the climb (from 15 m) never under 1.3 Vs in the flap flown', 'min ' + r.VminVs + ' Vs (' + r.Vmin + ' m/s, ' + r.at + '), Vs ' + r.Vs + ', Vy ' + r.Vy);
     check(r.cap != null && r.thMax <= r.cap, '1 ' + n + ': the attitude never over the type\'s cap', 'max ' + r.thMax + ' deg, cap ' + r.cap);
-    check(r.thClimb >= 2 && r.thClimb <= 14, '1 ' + n + ': the settled climb attitude inside 2..14 deg', r.thClimb + ' deg at ' + r.Vclimb + ' m/s');
+    // G3914: 14 -> 16. The higher circuit turns crosswind later, so CLIMB now reads the metal Cessna's whole full-power climb: 14.4-14.7 deg at 34 m/s, 7.3 m/s up, the same on master flown to 305 m (master's own 13.7 was the climb cut off by the earlier turn). The type's cap is 20.3
+    check(r.thClimb >= 2 && r.thClimb <= 16, '1 ' + n + ': the settled climb attitude inside 2..16 deg', r.thClimb + ' deg at ' + r.Vclimb + ' m/s');
   }
   console.log('2 THE MOUNTAIN TRIP (Jolene, HOME -> Jumbo Mine, 17 km over the 631 m ridge)');
   if (c2.error) check(false, '2 ran', c2.error);

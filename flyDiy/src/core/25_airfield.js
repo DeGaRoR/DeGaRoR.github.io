@@ -357,7 +357,7 @@ function siteRunwayModel(aero, world, opts) {
     return h;
   };
   const ds = []; for (let d = 25; d < 600; d += 25) ds.push(d); for (let d = 600; d <= reach; d += step) ds.push(d);
-  const dir = [];
+  const dir = [], scans = [];
   for (const k of [0, 1]) {
     const sg = k === 0 ? -1 : 1;
     const u = [R.dx * sg, R.dz * sg];                 // the landing direction
@@ -366,10 +366,12 @@ function siteRunwayModel(aero, world, opts) {
     const aim = { x: td.x - u[0] * 70, z: td.z - u[1] * 70 };
     const thrH = floor(thr.x, thr.z), farH = floor(far.x, far.z);
     let reqGs = 0, obst = null;
+    const line = []; scans.push(line);
     for (const d of ds) {
       // the highest ground across the corridor at this distance (G3910: under the lateral surface)
       const h = across(thr.x, thr.z, [-u[0], -u[1]], d);
       const g = (h + clear - screen - thrH) / d;
+      line.push([d, g, h]);
       if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; }
     }
     let reqClimb = Infinity, climbObst = null, climbTurn = 0;
@@ -394,7 +396,15 @@ function siteRunwayModel(aero, world, opts) {
                reqGs: Math.round(reqGs * 1e4) / 1e4, obst, reqClimb: Math.round(reqClimb * 1e4) / 1e4, climbObst, climbTurn,
                grade: Math.round(grade * sg * 1e4) / 1e4, thrH: Math.round(thrH * 10) / 10, farH: Math.round(farH * 10) / 10 });
   }
-  return { R, hAt, grade, dir, ground, floor };
+  // G3914 (PILOT-1 P3): THE SLOPE OVER THE FINAL THAT IS FLOWN. reqGs reads 6 km of ground, and a straight line from the threshold
+  // over all of it: East Point's 721 m hill 5.2 km out asked 7.7 deg of a final that begins 2 km from the strip (a circuit
+  // height clears that hill long before the final begins). The same scan, out to `dMax`
+  const reqTo = (k, dMax) => {
+    let reqGs = 0, obst = null;
+    for (const [d, g, h] of scans[k]) { if (d > dMax) break; if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; } }
+    return { reqGs: Math.round(reqGs * 1e4) / 1e4, obst };
+  };
+  return { R, hAt, grade, dir, ground, floor, reqTo };
 }
 // THE DIRECTION, SCORED. One number per direction over the model, a wind
 // and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, LDGrun, TORun,
@@ -415,6 +425,7 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
   for (const D of model.dir) {
     const why = [];
     let sc = 0;
+    const reqGs = lim.finalReach && model.reqTo ? model.reqTo(D.k, lim.finalReach).reqGs : D.reqGs;   // G3914: over the final flown
     if (wind) {
       const hw = -(wind[0] * D.u[0] + wind[1] * D.u[1]); sc += 3 * hw; why.push('wind ' + hw.toFixed(1));
       // a tailwind past 2.5 m/s (the 5 kt of every POH) costs 30 per m/s more: 5 m/s down the strip weighs as much as an approach at its limit
@@ -426,8 +437,8 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
     if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
     if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
-    if (land && D.reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
-    else if (land && D.reqGs > gsNom) { sc -= 100 * (D.reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
+    if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
+    else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     if (D.reqClimb > climb) { sc -= 1000; why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
     else if (D.reqClimb > 0.5 * climb) { sc -= 100 * (D.reqClimb - 0.5 * climb) / climb; why.push('climb-out ' + (D.reqClimb * 100).toFixed(1) + '%' + (D.climbTurn ? (D.climbTurn > 0 ? ' turning right' : ' turning left') : '')); }
     if (pref) { const pl = Math.hypot(pref[0], pref[1]) || 1, p = (D.u[0] * pref[0] + D.u[1] * pref[1]) / pl; sc += 0.5 * p; if (oneWay && p < 0) { sc -= 500; why.push('one-way'); } }
