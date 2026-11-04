@@ -606,7 +606,7 @@ const ENG_ITEMS = [
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
   // fore-aft on a pod is `eng_mountGap`, on a block `engBlockZ`.
-  ['engY',      'up / down (thrust line)', -0.5, 0.5, 0.005,
+  ['engY',      'up / down (thrust line)', -0.5, 1.0, 0.005,   // (HULL-B18: up to 1 m - a tub's pusher high on its engine bay)
    { when: P => +P.engOn, dim: 'm' }],
   // G477 (the Chinook, the user: "it probably needs the ability to tilt the
   // engine with regards to the frame"): the thrust line's TILT, degrees,
@@ -685,11 +685,12 @@ function drawPylonMount(group, f, P, GK, aft) {
   // the plate stands UNDER the engine: a pusher's block hangs aft of its face, a tractor's forward of it
   const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
   const ft = f.foot, fx = Math.max(xt, ft.x);
-  // the feet stand on the skin: the legs end just inside it, never above it
-  const yF = ft.y - 0.005;
+  // the feet stand on the skin: the legs end just inside it, never above it (HULL-B18: a foot on a sloping roof reads its
+  // own station's height, ft.yF / ft.yR - the front and the rear pair)
+  const yF = ft.y - 0.005, yFf = (ft.yF != null ? ft.yF : ft.y) - 0.005, yFr = (ft.yR != null ? ft.yR : ft.y) - 0.005;
   const bars = GK.Bag(), cab = GK.Bag();
   const top = { fL: [-xt, y0, zF], fR: [xt, y0, zF], rL: [-xt, y0, zR], rR: [xt, y0, zR] };
-  const foot = { fL: [-fx, yF, ft.zF], fR: [fx, yF, ft.zF], rL: [-fx, yF, ft.zR], rR: [fx, yF, ft.zR] };
+  const foot = { fL: [-fx, yFf, ft.zF], fR: [fx, yFf, ft.zF], rL: [-fx, yFr, ft.zR], rR: [fx, yFr, ft.zR] };
   const at = (k, s) => top[k].map((v, a) => v + (foot[k][a] - v) * s);   // along a leg, 0 the plate .. 1 the foot
   // the rail frame under the plate and the four legs: bare, with their cables (0); a FAIRING hides them (1, 2)
   if (style === 0) {
@@ -758,7 +759,8 @@ function drawPylonMount(group, f, P, GK, aft) {
 function drawPylonBlade(group, f, P, GK, aft) {
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch);
   const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05);
-  const ft = f.foot, yF = ft.y - 0.005, zF0 = 0.5 * (ft.zF + ft.zR);
+  // (HULL-B18: on a sloping roof the blade roots at the LOWEST of its feet, sunk into the skin - no gap under it)
+  const ft = f.foot, yF = Math.min(ft.y, ft.yF != null ? ft.yF : ft.y, ft.yR != null ? ft.yR : ft.y) - 0.02, zF0 = 0.5 * (ft.zF + ft.zR);
   const cF = Math.abs(ft.zF - ft.zR) + 0.10;
   // (HULL-B16: the plain blade tapers its chord from the spars' to the plate's; BLENDED (engPylonFair 3) holds the
   // plate's section up the height with the fillets to the wing and the nacelle - pylonFillet)
@@ -1283,7 +1285,7 @@ function engPlace(ctx, prev) {
     // flip is applied first): one sign for both.
     ug.rotation.x = (+P.engTilt || 0) * Math.PI / 180;
     ug.position.set((f.x || 0) + (u.aft ? -ax.x : ax.x),
-                    f.yc + ax.y + (P.engY || 0),
+                    f.yc + ax.y + (f.engYIn ? 0 : (P.engY || 0)),
                     u.aft ? f.z + zFw : f.z - zFw);
     if (ex > 0) {
       ng.position.z += ex * 1.5;
@@ -1434,7 +1436,7 @@ function engPlace(ctx, prev) {
         const short = Math.max(0, (below ? (v * FS + RA.t * dz) - yAx : yAx - (v * FS + RA.t * dz)));
         let eMove = 0, left = short, eRow = null;
         if (short > 1e-3 && !cowledPusherRow(P)) {
-          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 0.5] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
+          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 1.0] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
           if (k) {
             const e0 = +P[k] || 0, e1 = Math.max(lo, Math.min(hi, e0 + (below ? 1 : -1) * short));
             eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove)); eRow = k;

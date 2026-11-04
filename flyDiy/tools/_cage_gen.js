@@ -1006,7 +1006,27 @@ const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft',
 function cageHullLines(P) {
   if (!(+P.hullOn > 0)) return null;
   const m = buildCage2(cageSpec(P), 1);
-  return m && m.hull || null;
+  const H = m && m.hull || null;
+  return H ? cageHullTub(H, P) : null;
+}
+// HULL-B18: THE TUB'S AFTERBODY (the user: "an Icon puts its boom really low, keeps a large space behind the cabin and
+// sticks the engine in there"; and "would we need to also give a rod its buoyancy?" - yes). A pod that ends at its aft
+// bulkhead (a pusher's face) carries its engine, propeller and tail boom AFT of its buoyancy: the Icon-like pod rested
+// 21 deg bow up, measured. The planing bottom CONTINUES under the boom: hullTubLen metres of V sections past the pod's
+// last ring, the keel rising hullTubRise deg, the section closing to hullTubEnd of the last ring's - flown (the station
+// table, the frame's hull record, the fit) and drawn (_cage_float.js, the same stations). 0: none - bit-identical
+function cageHullTub(H, P) {
+  const len = +P.hullTubLen || 0;
+  if (!(len > 0.05) || !H.sta || H.sta.length < 2) return H;
+  const FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+  const sA = H.sta.reduce((a, s) => (s.z < a.z ? s : a), H.sta[0]);
+  const tr = Math.tan(Math.max(0, Math.min(25, +P.hullTubRise >= 0 ? +P.hullTubRise : 8)) * Math.PI / 180);
+  const kE = Math.max(0.05, Math.min(1, +P.hullTubEnd > 0 ? +P.hullTubEnd : 0.3)), N = 6, ext = [];
+  for (let i = 1; i <= N; i++) {
+    const u = i / N, dz = u * len / FS, sc = 1 - (1 - kE) * u, yk = sA.yk + dz * tr;
+    ext.push({ z: sA.z - dz, yk, b: sA.b * sc, yc: yk + (sA.yc - sA.yk) * sc, bd: sA.bd * sc, yd: yk + (sA.yd - sA.yk) * sc, tub: true });
+  }
+  return Object.assign({}, H, { sta: H.sta.concat(ext), tub: { from: sA, ext } });
 }
 // ...and in the WATER's frame (32_hydro: x aft of the step, y up from the step's keel, metres): the station table
 // spec.gear.hull carries (HULL-B2), with the step's own cage station and keel height for the join's placement.
@@ -1177,6 +1197,12 @@ function cageHullFitAll(P, f, HY, opt) {
         else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
       }
       else if (mount === 2 || mount === 7) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
+      else if (mount === 1 && (+P.engY || 0) < 1.0) {
+        // (HULL-B18: a pusher on the pod's face rises on its thrust line, engY, to its row's top; short of it, reported)
+        const want = (+P.engY || 0) + need / FS + 0.01;
+        fit.engY = +Math.min(1.0, want).toFixed(3);
+        if (want > 1.0) notes.push('a propeller ' + Math.round((want - 1.0) * FS * 1000) + ' mm short of its 18 in with the thrust line at its top: a taller engine bay (the aft roof) or a smaller propeller');
+      }
       else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
     }
   }
@@ -7889,6 +7915,8 @@ const CAGE_PARAMS = {
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
   hullAftDeg: 7, hullNoseBase: 0,
+  // HULL-B18: the tub's afterbody under the boom (m; 0 none), its keel's rise (deg) and its end section (of the last ring's)
+  hullTubLen: 0, hullTubRise: 8, hullTubEnd: 0.3,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -8704,7 +8732,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
-  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes

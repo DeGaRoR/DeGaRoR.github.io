@@ -549,9 +549,39 @@ function hullFitStep(P, stat) {
   setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
 }
 const prevPost = PAGE.post;
+// HULL-B18: THE TUB'S AFTERBODY, drawn from the hull's own lines (_cage_gen.js cageHullTub: the stations the water
+// reads) - a loft of V sections (gunwale, chine, keel, chine, gunwale, the deck's centre) from the pod's last ring aft
+// under the boom, its end closed. Drawn = flown by construction
+let tubGroup = null;
+function drawTub(scene, P) {
+  if (tubGroup) { dispose(tubGroup); tubGroup = null; }
+  if (!scene || !+P.hullOn || !(+P.hullTubLen > 0.05) || !CG2 || !CG2.cageHullLines) return;
+  const L = CG2.cageHullLines(P);
+  if (!L || !L.tub) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const rings = [L.tub.from].concat(L.tub.ext).map(s => [[-s.bd, s.yd], [-s.b, s.yc], [0, s.yk], [s.b, s.yc], [s.bd, s.yd], [0, s.yd]]
+    .map(([x, y]) => [x * FS, y * FS, s.z * FS]));
+  const pos = [], idx = [], n = 6;
+  for (const r of rings) for (const p of r) pos.push(p[0], p[1], p[2]);
+  for (let k = 0; k + 1 < rings.length; k++)
+    for (let j = 0; j < n; j++) { const a = k * n + j, b = k * n + (j + 1) % n, c = (k + 1) * n + j, d = (k + 1) * n + (j + 1) % n; idx.push(a, c, b, b, c, d); }
+  const e0 = (rings.length - 1) * n;
+  for (let j = 1; j + 1 < n; j++) idx.push(e0, e0 + j + 1, e0 + j);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const mat = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
+    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+  if (mat && 'side' in mat) mat.side = THREE.DoubleSide;
+  tubGroup = new THREE.Group(); tubGroup.name = 'cageLayer:float';
+  const m = new THREE.Mesh(g, mat); m.name = 'edHullTub'; m.castShadow = true; m.receiveShadow = true;
+  tubGroup.add(m); scene.add(tubGroup);
+}
 PAGE.post = ctx => {
   const { scene, mesh, P, stat } = ctx;
   hullFitStep(P, stat);
+  try { drawTub(scene, P); } catch (e) {}
   // THE STARTER FIRES BEFORE THE CHAIN, like the engine's: the rows it
   // writes are read by this layer's own build below and by the join after
   if (+P.gearFloats) {

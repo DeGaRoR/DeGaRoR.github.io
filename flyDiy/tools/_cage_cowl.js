@@ -486,7 +486,13 @@ function engineFaces(mesh, FS, P) {
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
     // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
-    if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
+    // HULL-B18: ...BUT THE THRUST LINE LIFTS THE COWL WITH THE ENGINE (engY): a tub's engine bay (the Icon's) stands
+    // high on the pod's face, the cowl - the pod's own section - riding up with it into a hump behind the cabin. The
+    // face carries the lift (engYIn) so the engine layer does not add it twice
+    // (on a HULL only, for now: one saved build - Twin_busher_floats_2, engY 0.26 - is a cowled pusher with a lifted
+    // thrust line, and its cowl stays where it was drawn until the user rules on it)
+    if (f && cowledPusher(P)) { const eY = +P.hullOn ? (+P.engY || 0) : 0;
+      return [{ face: eY ? Object.assign({}, f, { yc: f.yc + eY, engYIn: true }) : f, aft: true, kind: 'pusher' }]; }
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
@@ -519,12 +525,14 @@ function engineFaces(mesh, FS, P) {
     if (Math.round(+P.engPylonAt || 0) === 1) {
       const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
       const zP = le.z - ch - Math.max(0, +P.engPylonAft || 0.15) + bz;
-      let yR = null;
-      try { if (AF) { const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, zP)); yR = AF.surf(zc, Math.PI)[1]; } } catch (e) { yR = null; }
-      if (yR == null || !isFinite(yR)) return [];
+      // (HULL-B18, the user: "you have a large gap now because where you placed it is not that flat ... it should try
+      // and follow the fuselage shape"): each foot reads the roof at ITS OWN station - the tail cone falls away aft
+      const topAt = z => { try { if (!AF) return null; const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z)); const y = AF.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
+      const zF = zP + 0.10, zR = zP - 0.45, yR = topAt(zP), yFF = topAt(zF), yFR = topAt(zR);
+      if (yR == null) return [];
       return [{ face: { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                         synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true,
-                        foot: { x: 0.10, y: yR, zF: zP + 0.10, zR: zP - 0.45 } },
+                        foot: { x: 0.10, y: yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } },
                 aft, kind: 'wingTop' }];
     }
     return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
