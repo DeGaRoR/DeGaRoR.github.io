@@ -150,7 +150,7 @@
     // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
     const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
       at: typeof raw.story.at === 'string' ? raw.story.at : null,
-      step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
+      rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
     // G3260 (ROUTES): the routes your planes fly (78b_routes.js routesMapOf, app.js careerRecord): the two ends, the plane
     // where it is on the line now (f: 0 at a, 1 at b), its pilot
     const routes = (raw.routes || []).filter(r => r && aeros[r.a] && aeros[r.b]).map(r => ({ id: String(r.id), plane: String(r.plane), pilot: r.pilot || null,
@@ -419,7 +419,7 @@
   function storyHTML(M) {
     const S = M.story;
     if (!S) return '';
-    return '<div class="mmStory" role="note"><span class="mmTag">The story' + (S.step ? ' · ' + S.step + ' of ' + S.of : '') + '</span><b>' + esc(S.title) + '</b>' +
+    return '<div class="mmStory" role="note"><span class="mmTag">The story</span><b>' + esc(S.title) + '</b>' +
       '<p>' + esc(S.brief) + '</p>' + (S.rows.length ? '<ul>' + S.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '✓ ' : '· ') + esc(r.words) + '</li>').join('') + '</ul>' : '') +
       '<p class="mmFine">The rest of the work comes ' + esc(S.held || 'later') + '.</p></div>';
   }
@@ -1361,7 +1361,7 @@
     if (!g) return '';
     const what = g.stand ? 'with ' + g.stand + (g.planes.length > 1 ? ' and ' + (g.planes.length - 1) + ' more' : '') : 'empty';
     const shed = !!(D.body && D.body.classList.contains('mode-ws'));   // (from a flight, your own garage is the way back: the shed's trip)
-    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : '');
+    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : g.away || '');   // (STORY-HOME-FIX F2: an empty hangar elsewhere)
     return '<span class="mmGoT">' + (why ? esc(g.name) : 'Go to <b>' + esc(g.name) + '</b>?') + '<small>' + esc(why || what) + '</small></span>' +
       (why ? '' : '<button type="button" class="pri" data-act="goyes"' + (st.going ? ' disabled' : '') + '>' + (st.going ? 'Going…' : 'Go there') + '</button>') +
       '<button type="button" data-act="gox" aria-label="close">' + (why ? 'OK' : 'Stay') + '</button>';
