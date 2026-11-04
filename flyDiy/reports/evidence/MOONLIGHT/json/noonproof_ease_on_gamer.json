@@ -1,0 +1,456 @@
+[
+ {
+  "view": "noon_over",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37293,
+   "meanCode": 150,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18609,
+   "groundCode": 103.4
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.703,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1188367295042367,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 32,
+    "writes": 177
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02145,
+    "distinctG": 2110,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_over_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_over_b",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37293,
+   "meanCode": 150,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18609,
+   "groundCode": 103.4
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.703,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1189195954040605,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 34,
+    "writes": 177
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02145,
+    "distinctG": 2110,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_over_b_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_stand",
+  "page": "index_before_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.29422,
+   "meanCode": 132.4,
+   "skyY": 0.43409,
+   "skyCode": 174.1,
+   "groundY": 0.12662,
+   "groundCode": 88.7
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": false,
+   "hemiI": 1.703,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": null,
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.118903019457832,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 36,
+    "writes": 177
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.1522,
+    "minG": 0.03076,
+    "distinctG": 1408,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_stand_index_before_gfxgamer.png"
+ },
+ {
+  "view": "noon_over",
+  "page": "index_g2600_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37297,
+   "meanCode": 150.1,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18617,
+   "groundCode": 103.5
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.706,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.118787026523142,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 33,
+    "writes": 174
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02148,
+    "distinctG": 2113,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_over_index_g2600_gfxgamer.png"
+ },
+ {
+  "view": "noon_over_b",
+  "page": "index_g2600_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -1.658
+  },
+  "still": {
+   "meanY": 0.37297,
+   "meanCode": 150.1,
+   "skyY": 0.4285,
+   "skyCode": 173.9,
+   "groundY": 0.18617,
+   "groundCode": 103.5
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.706,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.118903019457832,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 36,
+    "writes": 174
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.3203,
+    "minG": 0.02148,
+    "distinctG": 2112,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_over_b_index_g2600_gfxgamer.png"
+ },
+ {
+  "view": "noon_stand",
+  "page": "index_g2600_gfxgamer",
+  "dials": null,
+  "plan": {
+   "local": "2026-09-26 12:45:00 AKDT",
+   "sunEl": 33.5,
+   "moonEl": -30.7,
+   "phase": 0.999,
+   "sea": [
+    0.09,
+    1,
+    600
+   ],
+   "az": -2.426
+  },
+  "still": {
+   "meanY": 0.29425,
+   "meanCode": 132.4,
+   "skyY": 0.43409,
+   "skyCode": 174.1,
+   "groundY": 0.12667,
+   "groundCode": 88.7
+  },
+  "light": {
+   "key": "sun",
+   "keyI": 8.869,
+   "keyY": 0.551,
+   "keyDirMoon": true,
+   "hemiI": 1.706,
+   "exposure": 1.12,
+   "moonPhase": 0.999,
+   "moonEl": -30.7,
+   "sunEl": 33.5,
+   "cover": 0,
+   "night": [
+    0,
+    13.298,
+    -8.381,
+    1.585
+   ],
+   "linear": true,
+   "exSched": 0.92,
+   "exBase": 1.12,
+   "eyeK": 1,
+   "ease": {
+    "on": true,
+    "init": true,
+    "ex": 1.1190024958385365,
+    "tEx": 0.92,
+    "setEx": null,
+    "applies": 39,
+    "writes": 174
+   },
+   "rig": {
+    "manual": false,
+    "exposure": 0.92,
+    "env": "alps"
+   },
+   "inGarage": false,
+   "rt": {
+    "type": 1016,
+    "samples": 8,
+    "meanY": 0.1523,
+    "minG": 0.03079,
+    "distinctG": 1401,
+    "subnormalShare": 0,
+    "zeroShare": 0
+   }
+  },
+  "file": "reports/evidence/MOONLIGHT/noonproof/noon_stand_index_g2600_gfxgamer.png"
+ },
+ {
+  "view": "noon_over",
+  "dayProof": {
+   "differing": 166674,
+   "maxDelta": 170
+  }
+ },
+ {
+  "view": "noon_over_b",
+  "dayProof": {
+   "differing": 166640,
+   "maxDelta": 170
+  }
+ },
+ {
+  "view": "noon_stand",
+  "dayProof": {
+   "differing": 213222,
+   "maxDelta": 187
+  }
+ },
+ {
+  "view": "noon_over",
+  "control": "index_before.html",
+  "d": {
+   "differing": 418,
+   "maxDelta": 28
+  }
+ },
+ {
+  "view": "noon_over",
+  "control": "index_g2600.html",
+  "d": {
+   "differing": 350,
+   "maxDelta": 28
+  }
+ }
+]

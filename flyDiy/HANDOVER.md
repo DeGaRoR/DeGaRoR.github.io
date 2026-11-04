@@ -310065,6 +310065,177 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 - WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
+## G2600-G2601 - MOONLIGHT: THE NIGHT WAS BLACK BECAUSE THE EXPOSURE NEVER MOVED (LIGHT-SMOOTH's ease never made its first write, 3 Oct) AND THE MOON LIT FROM THE SUN'S SIDE OF THE GROUND (since G408); THE MOON AS THE KEY, THE PHASE LAW, THE NIGHT EYE, THE NIGHT'S DIALS; THE FRAME'S fp16 PRECISION MEASURED - A PRE-EXPOSURE PROPOSED, NOT BUILT (2026-10-08, MOONLIGHT for A0, local GPU; branch claude/moonlight-g2600 off train 40 bcf62797; G2602-G2609 unused)
+
+The user (7 Oct): "currently the night is absolutely dark, which is mostly fine, but can we have some full moon nights,
+where it's possible to see something, so VFR at night, even though super dangerous, becomes somehow possible?"
+
+### THE DIAGNOSIS (measured: tools/moonlight_shots.js, train 40 vs this branch, gamer and current, 1600x900)
+1. **G2601 - THE EXPOSURE WAS STUCK AT EVERY HOUR.** render_world's light ease (G1352, 79337daf9) starts `LE.setEx = NaN`
+   and wrote the exposure only when `Math.abs(LE.ex - LE.setEx) > step` - false against NaN, forever. exSet never ran;
+   lightEase then re-took the stale base every frame (`LE.setEx !== exBaseNow()`). The renderer kept the boot row's
+   1.12 since 3 Oct. Live on train 40: noon 1.12 (the schedule 0.92), 15:00 1.12 (1.04), 17:00 1.12 (1.34), sunset
+   1.12 (2.79), the full-moon night 1.12 (32 911: +15 stops). The night's whole adaptation never arrived; the day ran
+   +0.28 stop bright at noon and dim through the dusk. Fix: `!(abs <= step)`. ITS OWN COMMIT (42a140f76), because it
+   moves the day back to the schedule - noon_stand mean code 131 -> 120. **THE USER RULED (8 Oct, on
+   sheet_day_dusk_g2601.jpg, via A0): "yeah, that's better, keep that" - option A, the schedule as designed (noon 0.92,
+   the alps anchor).** Option B (EV_BASE 1.12, the whole curve +0.28 stop) was not taken and has no stills.
+2. **G2600 - THE MOON LIT FROM THE WRONG SIDE OF THE EARTH.** dayApply wrote SUN (the key's placement, the shadow maps,
+   the impostors' depth) from day.sun at every hour, held 2 deg over the horizon. Below -1.2 deg the key is the MOON
+   (sky_light's hysteresis) - so the moonlight came from the sun's bearing under the horizon, grazing at 2 deg: a level
+   field took sin 2 = 3.5 % of it and every tree's shadow ran for hundreds of metres (train 40's keyY 0.035 at every
+   night view; after 0.588 = the moon at 36 deg). The shed has aimed at the moon since S5 (hangar.js applyDay).
+3. **The phase law was linear** (a half moon gave 50 % of the full). Physically ~9 % (Allen 1973 / Krisciunas &
+   Schaefer 1991: m(a) = -12.73 + 0.026|a| + 4e-9 a^4): LIGHT_RIG.moonE(phase), read by the key, the sky, the clouds,
+   the mist - one law. Full 1, 75 % lit 0.23, half 0.091, quarter 0.026, new 3e-4.
+4. **An overcast let the moon through**: the clouds' ground shadow (the splice) and the CPU column (sunT) faded with the
+   SUN, so at night no cloud shadowed the moon. Both along the key now (the sun's by day: unchanged).
+5. **The default date has no night**: 21 June at 55 N - the 'night' preset is the sun at -11.5 with the half moon below
+   the horizon. NOT changed here (A0: SIM-CLOCK G2650 owns the clock and adds "next full moon"); the stills set dates.
+
+### THE NUMBERS (mean code over the 3D view, sky band, ground band; train 40 -> this branch with G2600 + G2601; gamer)
+| view (2026-09-26 00:30 AKDT, full moon 36 deg, unless named) | before | after |
+|---|---|---|
+| noon_stand (12:45) | 131 (ex 1.12) | 120 (ex 0.92: G2601) |
+| full_stand (the HOME stand, down the runway) | 1 / sky 4 / gnd 0 | 17 / sky 39 / gnd 7 |
+| full_sea_moon_ahead (300 m over HOME, toward the sea) | 1 | 34 / sky 48 / gnd 13 |
+| full_final (150 m) | 1 | 21 / sky 38 |
+| half moon (10-03 02:00, 52 % lit, 33 deg) | 1 | 2 (black: 9 % of the full) |
+| new moon (10-10) | 1 | 2 (black, as asked) |
+| overcast (0.9-1 st) | 1 | 6-15 |
+
+current: the same within a code. The before frames are black at every night view - train 40 exactly as the user saw it.
+
+### THE fp16 FRAME - MEASURED (the resolve target read back over a ground band, after both fixes)
+Since G448.3 the linear compositing holds UN-EXPOSED radiance in a HalfFloat target (the exposure is the blit's). A
+moonlit night is ~1e-7..1e-6 of that scale: fp16 SUBNORMALS, stepped in 5.96e-8. Measured: full_stand's ground band
+holds 6-11 distinct values, 100 % subnormal, least 1.8e-7; full_final's ground band ONE value (5.96e-8, the least
+subnormal there is); the sea view 75 values (the water's reflection is brighter); the half and the new moon read 0
+(flushed). On screen: the land is a flat black mass with no texture under a readable sky and sea - posterised by the
+target's precision, not by the light. The moonlit sky and water are mostly above it; the forest and the fields are not.
+
+### PROPOSAL (NOT BUILT - A0 puts it to the user): A PRE-EXPOSURE
+Write the frame at radiance x P and tone-map with exposure / P (Frostbite's pre-exposure), P = 2^(the schedule's stops,
+whole stops) once the sun is under -6 deg and 1 above it: the day is bit-identical, the night's radiance lands in fp16's
+normal range (P = 2^15 puts the moonlit field at ~0.01: ten bits of mantissa instead of a handful of levels). WHERE: the
+light's units, not the materials - three's built-in materials cannot take one shared uniform without an onBeforeCompile
+on every program (~88), and a chunk override needs a uniform three does not upload. So: applyDay's `unit` x P (the key,
+the hemisphere, the ground half), ATMO.U.scale x P (the dome, the aerial perspective, the clouds, the mist - one scale;
+the probe re-bakes from the dome), GFX.setExposure keeps the TRUE exposure as its base (every dimmer that reads
+exposureBase stays right) and puts base / P x step x eye on the renderer. THE COST is the audit: every writer of
+absolute light must take x P - the emissives (hangar 6, cockpit 3 (CK.nightK), parked 2, app 2, scenery_life, props,
+pattern_vis, matlib), the runway lights, the premises lamps, the craft's lights, the house windows - and every unlit
+MeshBasicMaterial in the frame (LIGHT_RIG.census lists the 'unlit' kind: those would read 1/P at night). Zero cost per
+frame. One session, with GATE LIGHT growing a check that the census's sources all take P.
+
+### WHAT WAS BUILT
+- render_world: keyAim(d) - SUN (2 deg floor) and KEY_SKY (true) along the key, the moon's when sky_light says the
+  moon is the key. KEY_SKY exported; the spray's light and the glare (app.js) read it. WORLD.relight() drops the
+  re-apply guard without a day version bump (the dials). G2601: the ease's first exposure write.
+- light_rig: THE NIGHT - moonPhaseLaw / moonE, the night-eye grade (NIGHT_GLSL + nightU + nightGrade(el, scale)), the
+  night stops (exposureStops + NIGHT.eye eased in from -12 to -18 deg; 0 above -12: the day and the twilight are the
+  schedule's to the bit), NIGHT / NIGHT_DEF / setNight / night / nightDefaults.
+- THE NIGHT EYE (Purkinje / mesopic): in aa_resolve's blit, on the radiance just before the one tone map (linear
+  compositing), a uniform branch skipped by day (share 0 above -0.833 deg). The rods' share is per pixel on its
+  ABSOLUTE luminance (radiance x SUN_LUX / the room's scale -> cd/m2): 0 at `colourCd` (3), 1 a thousandth of it (CIE
+  mesopic 0.005-5); the rods' grey is Larson-Rushmeier-Piatko's scotopic luminance at the sRGB primaries (0.033 0.765
+  0.202) tinted toward moonlight's blue-grey. A lamp stays coloured because it is bright. The GLSL and the uniforms
+  are light_rig's; aa_resolve builds its shaders at the material now (light_rig loads after it). Display compositing
+  (the fallback) and a frame with no resolve target get no grade (a named cut).
+- clouds: keyDir - the splice's direction and sunT along the key.
+- atmo: U.eMoon through the phase law; the moon washes the faint stars out (a full moon leaves the brightest 30 %:
+  the limiting magnitude ~6.5 -> ~4.5; by day the star term is already 0).
+- moon_ui.js (new, after day_ui.js - which is SIM-CLOCK's): the left rail's NIGHT section, "the moonlight": moonlight
+  (0-3x), night eye (-1..+3 stops), night colour (0-100 % grey), moonlight blue, colour vision (0.3-30 cd/m2), stars
+  (0-3x); double-click a name = its default; kept in localStorage flydiy.night.v1; a line on the moon's phase, height, lux.
+- tools/moonlight_shots.js: the fixed frames, before | after pages, the numbers, the fp16 readback, the noon proof
+  with an in-page control, --variants for the dials, the dusk / sunset pair.
+
+### GATES
+node --check on every touched file; run_gates --only=AA,POSTFX,DAY,ATMO,CLOUD,WORLDRENDER,LIGHT,PROGRAMS,UISMOKE
+PASS (00:50-00:55, A0's window; all node, none boots Chrome).
+
+### THE TUNED ROUND (8 Oct 09:30-09:52, gamer; reports/evidence/MOONLIGHT/)
+- sheet_full_moon.jpg (rows: the stand, the sea with the moon ahead, the moon behind, the 150 m final; columns: train
+  40 | night eye 0 | +1 | +2): 0 reads the water and the sky but leaves the land black; **+1 is the dangerous-but-
+  flyable night** (the coast, the lakes, the strips, the ridges and the horizon; mean code 42-56 at the stand and over
+  the sea, the sky 67-79); +2 is a dusk (67-85). DEFAULTS SET: night eye +1, night colour 0.9, moonlight blue 0.6
+  (0.85 vs 0.95 is hardly to be told apart; a lamp-lit aeroplane keeps its colour either way - it is bright).
+  THE USER (8 Oct, via A0): "full moon defaults look good enough for now" - the defaults stand; no more dial tuning.
+  The pre-exposure proposal is parked until the user asks.
+- sheet_moon_overcast_half_new.jpg: the moon overhead (a disc, a faint corona, the faint stars washed out near it);
+  overcast (the panel's deck still broken - the CLOUD note); the half moon at +1: the horizon and a glint on the sea
+  only (code 4); the new moon: black under the stars (code 2), as asked.
+- sheet_day_dusk_g2601.jpg (train 40 | both fixes; noon, 17:00, sunset): **at sunset train 40's ground is black** (the
+  stuck 1.12 for 5.2) and G2601 gives the dusk back; noon a shade darker (0.92 for 1.12); 17:00 alike.
+- THE NOON PROOF OF G2600 ALONE (train 40 vs this branch with G2601 reverted, a fixed place, the ease ON): 166 674
+  bytes differ (max 170) against an in-page control of 350-418 bytes - NOT pixel-identical. The readout points at the
+  ease, not at G2600: the hemisphere read 1.703 / 1.705 / 1.706 on the same noon in three page runs (the ease writes in
+  0.4 % steps, so what it rests on depends on the clock's history). The proof with the ease off (noonx_*: the light
+  written at once, no history) is owed - tonight's window 21:40.
+- rig: the stand views after the first were not at the stand (the aeroplane stayed where 'over' put it) - fixed (the
+  stand is kept at the first view and put back).
+
+### OPEN / NAMED CUTS
+- the noon pixel proof of G2600 alone with the ease off (tonight, 21:40-22:20).
+- CLOUD (not fixed here, A0): the panel's overcast (0.9 st) at night still shows breaks and stars after 12 s.
+- a multi-deck sky's shadow tile is shifted along the SUN in its bake (uSun is the clouds' lighting): at night with an
+  upper deck the decks' shadows are not offset along the moon. One deck (the default) is exact.
+- the hemisphere's starlight floor (3e-7) is colourless (its colour is E / max(E, 1e-6) ~ 0): a moonless night is
+  exactly 0 under it - what the user asked for; a real airglow would be ~1/300 of the full moon.
+- a day with the moon up: the sky and the hemisphere carry moonE x the moon's sky, now through the phase law - a
+  change of < 1e-6 relative (the noon frames have the moon down).
+- no moon-glint dial: the moon's path on the water is the water's own GGX on the key and the probe's moon (seen).
+
+## G2620 - PRE-EXPOSURE: THE NIGHT'S FRAME AT RADIANCE x P (2^14 under -6.5 deg) - BUILT, GATED (27/28 + CLOUD's pin fixed), STILLS 9 Oct: THE PRECISION FIXED, THE DAY WITHIN THE CROSS-PAGE FLOOR, NO MEAN FLASH AT THE SWITCH - NOT READY: A GLINT ON THE WATER FOR ~1 s AFTER THE SWITCH; THE AEROPLANE'S LIGHTS AND THE PANEL NOT YET SEEN (2026-10-09, branch claude/pre-exposure-g2620 on claude/moonlight-g2600 on train 42; G2621-G2629 unused)
+
+The design, the audit and the gate are in light_rig.js THE PRE-EXPOSURE and GATE LIGHT's G2620 rows (the sweep with named
+exemptions and its negative control). Stills (reports/evidence/PRE-EXPOSURE, moonlight build | this, gamer, 9 Oct 11:30):
+- fp16 (the ground band's distinct values): full stand 5 (all subnormal) -> 753 normal; final 8 -> 1 362; half moon
+  2 -> 2 279; new moon 1 -> 1 395. The pictures alike (mean codes +1..+3: the subnormal truncation gone), no light lost
+  (sheet_pre_exposure.jpg: the stand, the final, the lit apron).
+- THE DAY: every light number identical; the pixels differ 101k bytes at noon, 48k at 17:00 - and train 40 against ITSELF
+  across two page runs differs 160k (the trees' sway and streaming, the aeroplane, the HUD digits; the in-page control is
+  83-387). So: identical within the cross-page floor. (G2600 alone: 98k, the same verdict.)
+- THE SWITCH (--crossing, 0.05 deg steps): at -6.55 deg, |d mean| 0.3 code against up to 2.3 round it - no frame flash.
+  BUT a bright orange glint on the water toward the sun at steps 12-14 (~1 s after the switch), gone by step 16
+  (crop_cross_glint.jpg). Undiagnosed: the mirror's re-capture or the probe's cut / its fade on the next bake (the
+  crossing bumps the day's version every step) are the suspects. OWED before READY.
+- OWED: the aeroplane's nav / landing lights and the panel at night - the rig's forced switches and cockpit camera took no
+  effect (both pages black there); a still that shows them.
+- PERF: zero per-frame work (one uniform branch already counted; listeners only at a switch) - A0's train-44 strict pass.
+
+## NIGHT-LOOK STEP 1 - G2600 MOONLIGHT + G2620 PRE-EXPOSURE MERGED ONTO MASTER, CODEX'S NIGHT WORK KEPT (2026-11-02, NIGHT-LOOK for A0; branch claude/night-look)
+
+The user, 2 Nov: "ok with the study on night" (flydiy-notes/NIGHT-LOOK-STUDY-2026-11.md), and "you incorporate the
+codex work, right?". This is the 8-9 Oct night (the two sections above) merged onto master (L29i) on top of what Codex
+landed on 30 Oct (PERF NIGHTLIGHT / NIGHTVISIBILITY): it keeps Codex's work and adds the frame's real levels plus the
+night eye's grade.
+- THE EASE'S SEED: Codex's form (`!Number.isFinite(LE.setEx) || ...`), not G2601's: the same fix, landed first.
+- THE KEY'S AIM: ONE place. Codex's rule (the moon when SKY_LIGHT.isMoon, after applyDay) now calls G2600's
+  keyAim(d), so SUN (2 deg floor, the shadow maths) and KEY_SKY (the true direction: the spray, the glare, app.js's
+  flare) move together. G2600's own post-applyDay keyAim(day.moon) was dropped as a duplicate.
+- THE FLOOR UNDER THE PRE-EXPOSURE: Codex's nightFloor is an EXPOSED level. Under P the hemisphere is in units x P and
+  the renderer's exposure is ex / P, so applyDay hands it ex / P. Without that, the floor came out 2^14 too weak and
+  the land went black again.
+- THE PROBES: one cut for a clock cut (Codex: LE.cut) or a P switch (G2620: preCut), so both bake at once.
+- aa_resolve: master's shared-uniform blit (G1998c) and the eye's GPU factor (EYE-GPU) kept. The night eye runs after
+  the eye's factor, before the one tone map. The blit's uniforms take LIGHT_RIG.nightU by reference, and the fragment
+  text is built at the material (fs()).
+- GATE LIGHT's G2620 sweep over master's sources since 9 Oct: 12 new writers, all outside the world's light (a prop
+  icon's offscreen scene, a zero-intensity warm group, the load card's plate, the car prints' black, the premises
+  editor's discs), tagged pre-ok. studio.js (the phone garage's black studio) is exempt as a whole: the garage, P = 1.
+  The probe-cut assertion now reads the merged form. GATE LIGHT PASS.
+- STILL OPEN from G2620 (9 Oct): the ~1 s glint on the water toward the sun after the switch at -6.5 deg, and the
+  aeroplane's own lights and the panel at night not yet seen in a still. Both are judged on the NIGHT-LOOK bench:
+  tools/night_shots.js --scene ref|user --step step1 (refscene/<step>/ in the evidence).
+- THE NIGHT EYE'S STOP: NIGHT_DEF.eye 0, not 1. The +1 of 8 Oct was over a +15 night, and Codex's +16 is that same
+  level. So the deep night stays at +16 (GATE ATMO's 12..16), and the eye's stop is a dial on the left rail's NIGHT
+  (moon_ui.js). The grade itself (night colour 0.9, blue 0.6, colour vision 3 cd/m2) is the 8 Oct default.
+- Codex's gates follow the merged shapes: NIGHTVISIBILITY (the floor at ex / P; the probe block's `LE.cut ||
+  preCut`) and NIGHTEXPOSURE (the aim block run with keyAim, and KEY_SKY asserted too).
+- Run here (node only, none boots a browser): LIGHT, ATMO, NIGHTEXPOSURE, NIGHTVISIBILITY, AA, POSTFX, WATER, PROGRAMS
+  PASS. OWED in a slot: CLOUD (it boots headless Chrome on the GPU), DAY, UISMOKE, and the core battery + FRAMECOST.
 
 ## TRAIN PHONE-1a (A0, Mon 2 Nov) - the phone garage, release 1a (the user's night test): the layout, no more 8 s slider waits, the phone look, the CG chip
 

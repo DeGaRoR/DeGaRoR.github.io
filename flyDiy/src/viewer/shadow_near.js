@@ -212,7 +212,7 @@ var SHADOW_NEAR = (function () {
 		#endif` + tail.slice(k + RE.length);
     }
     SC.lights_pars_begin = (SC.lights_pars_begin || '') + '\n#if defined( USE_SHADOWMAP ) && ( NUM_DIR_LIGHT_SHADOWS > 1 )\nuniform vec4 uNearP;\nuniform vec4 uNearQ;\nuniform mat4 uNearM1;\n#endif\n';
-    for (const kk of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon']) {
+    for (const kk of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon']) {  // pre-ok: a list of material kinds, not a writer
       const lib = THREE.ShaderLib[kk]; if (lib && lib.uniforms) { lib.uniforms.uNearP = nearUniforms.uNearP; lib.uniforms.uNearQ = nearUniforms.uNearQ; lib.uniforms.uNearM1 = nearUniforms.uNearM1; }
     }
     installed = true;
@@ -232,7 +232,7 @@ var SHADOW_NEAR = (function () {
   // make(scene, sunTarget): the black light with its 2048^2 map over the near box; its shadow camera sees NEAR_LAYER only
   function make(scene) {
     if (typeof THREE === 'undefined') return null;
-    const L = new THREE.DirectionalLight(0x000000, 1);
+    const L = new THREE.DirectionalLight(0x000000, 1);  // pre-ok: a black light (no radiance): the near shadow map
     L.castShadow = true;
     L.shadow.mapSize.set(S.size, S.size);
     L.shadow.bias = S.bias; L.shadow.normalBias = S.normalBias;
