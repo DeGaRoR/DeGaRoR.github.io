@@ -70,7 +70,25 @@ const ECON_BOOK = {
   comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
-  makerMargin: 1.35,
+  // PRICE-CAL 2026-11: ONE maker's margin, over the LEDGER (the core had two: PROCURE's 1.15 over the ledger and this
+  // row's 1.35 over a fitted build, 1.08 - a Cub read 35 900 or 33 700 depending on who asked). PROCURE_MARGIN reads it.
+  makerMargin: 1.15,
+  // PRICE-CAL: THE PAY RIDES THE PRICES. Every absolute money number - CONTRACT_PAY, ROUTES_PAY.perKm, T6's fee,
+  // careerNew's grant, the Trust's loan threshold, a maker's delivery - was tuned (G2261, G3359) when the reference
+  // Cub's ledger was `payRef`. econPayScale() = econRefPrice() / payRef multiplies each of them, so a re-priced ledger
+  // moves the pay with it and the career's paces, which ECON-SIM measured in CONTRACTS, hold by construction.
+  payRef: 31203,
+  // PRICE-CAL: THE MARKET TIERS. V0 (the new value) = the ledger x makerMargin; a plane's value at an age is
+  // V0 x econAgeFactor(age): 1 new, then `s` the moment it is used, falling toward `floor` with `tau` years - fitted on
+  // same-type new/used pairs (C172S 2016+ / 2000s / 1970s, the 208B, 2025-26 asking: futureDesigns/price-study/
+  // age_curve.js, rms x1.12). The used market draws its listings' ages inside `listAges`: 1-14 years keeps the
+  // market's mean condition where the agreed economy had it (0.574 against the hours rule's ~0.58, measured over 960
+  // listings; 2-24 years, the whole 0.8-0.40 span of the curve, fell to 0.495 with a third on the floor). Older planes
+  // wait for age to cost performance (PRICE-STUDY §D step 2). A sale pays `sellK` (the dealer's spread, the top of the
+  // real 15-25 %) of the value, never more than the player paid (no loop makes money).
+  age: { s: 0.8, floor: 0.14, tau: 27.5, listAges: [1, 14], kgPerYear: 0.4, kgMax: 15, olderPerYear: 1 / 30,
+         hoursPerYear: [50, 120], weatherAt: 40 },
+  sellK: 0.75,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
   round: 100,
   loanBelow: -20000,
@@ -111,10 +129,43 @@ function econAirframePrice(cost, shed, wants) {
   const L = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed || null, wants || []) : 1;
   return econRound((+cost || 0) * L);
 }
-// THE MAKERS' CATALOGUE PRICE (PROCURE): the scratch price (the ledger in a fully fitted works) x the margin
+// THE MAKERS' CATALOGUE PRICE (PROCURE): V0, the new value = the ledger x the one maker's margin
 function econCatalogPrice(cost, margin) {
   const m = typeof margin === 'number' && margin > 0 ? margin : ECON_BOOK.makerMargin;
-  return econRound((+cost || 0) * PREM_RATES.labourFit * m);
+  return econRound((+cost || 0) * m);
+}
+// THE PAY'S SCALE (PRICE-CAL): the reference Cub's ledger over the one the pay was tuned at
+function econPayScale() {
+  const r = econRefPrice() / ECON_BOOK.payRef;
+  return isFinite(r) && r > 0 ? r : 1;
+}
+// an absolute money number of the tables (pay, a fee, a grant) at today's prices, rounded as the book rounds
+const econPay = v => econRound((+v || 0) * econPayScale());
+// THE AGE CURVE (PRICE-CAL): 1 new (age 0 or less), else s x (floor + (1 - floor) x e^(-age / tau))
+function econAgeFactor(age) {
+  const A = ECON_BOOK.age, a = +age;
+  if (!(a > 0)) return 1;
+  return A.s * (A.floor + (1 - A.floor) * Math.exp(-a / A.tau));
+}
+// A PLANE'S VALUE: V0 (a catalogue price, or the ledger x the margin) x the age curve x (1 - the listing's deductions)
+// - { v0 } or { cost } , age (years), ded (0..1, the repair / older panel / extra kilos a listing carries)
+function econUsedValue(o) {
+  o = o || {};
+  const v0 = o.v0 != null ? +o.v0 : (+o.cost || 0) * ECON_BOOK.makerMargin;
+  return econRound(v0 * econAgeFactor(o.age) * (1 - Math.max(0, Math.min(1, +o.ded || 0))));
+}
+// WHAT A FLEET AIRFRAME SELLS FOR (PRICE-CAL; nothing calls it a purchase yet - the fleet card can show it):
+// min(sellK x its value at its age, what the player paid for it). An airframe of the player's own making is a used
+// plane the moment it has flown (age 0+: the curve's `s`); a story airframe (paid 0) sells for nothing.
+// (doc, slot, cost: its ledger) -> { value, paid, cap, age }
+function econSaleValue(doc, slot, cost) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0 };
+  const age = Math.max(1e-3, +A.age || 0);
+  const ded = Math.min(0.5, 0.08 * (+A.repairs || 0));
+  const v = econRound(ECON_BOOK.sellK * econUsedValue({ v0: A.v0 != null ? A.v0 : null, cost, age, ded }));
+  const paid = Math.max(0, Math.round(+A.paid || 0));
+  return { value: Math.min(v, paid), paid, cap: v > paid ? 'what it cost you' : '', age: +age.toFixed(2) };
 }
 // A PILOT'S SIGN-ON FEE (PILOTS): one time, by tier ('rookie' | 'pilot' | 'ace'); unknown tiers cost a pilot's
 function econSignOn(tier) {
@@ -203,7 +254,7 @@ const ECON_TEXT = {
 if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_TEXT[k];
 const econLoans = doc => ((doc && doc.ledger) || []).filter(l => l && l.k === 'loan').length;
 function econLoanOffer(doc) {
-  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow)) return null;
+  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow * econPayScale())) return null;
   return 'loan:field:' + (econLoans(doc) + 1);
 }
 function econLoanPay(wallet) {
@@ -385,7 +436,7 @@ function econReference(seed, opts) {
   const R = Object.assign({}, ECON_REF, opts.ref || {});
   let d = careerNew({ id: 'ref', seed });
   const fleet = ['cub'];
-  const float = CAREER_GRANT, at = {}, pays = [];
+  const float = careerGrant(), at = {}, pays = [];
   let wi = 0, spent = 0, arcBy = null;
   const priceOf = w => w.k === 'acquire' ? plotPrice(w.aero, w.plot, w.shell)
     : econAirframePrice(CONTRACT_DESIGNS[w.design].cost, d.sheds[PREM_MAIN], R.wants[w.design]);

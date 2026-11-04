@@ -1077,6 +1077,10 @@ const GATES = [
   { id: 'TECH', file: '_tech_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
+  // PRICE-CAL (2026-11, futureDesigns/PRICE-STUDY-2026-11.md): credits are USD 2025-26 at parity, every priced row
+  // within x1.5 of a sourced benchmark, the pay riding the reference Cub, one margin, the used market's age curve and the
+  // sale's cap, the ledger's fixes (a prop per engine, one seat line, an empty tank, paint by area) (~40 s)
+  { id: 'PRICE', file: '_price_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
   // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
   // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where

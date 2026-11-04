@@ -223,18 +223,23 @@ const GEN_CELLS = {
 // the structure itself is sealed, which is how a metal wing carries fuel and
 // why it is the lightest and the dearest to build.
 // ---------------------------------------------------------------------------
+// PRICE-CAL 2026-11: a vessel is priced by its SHELL (priceM2 x the surface it needs, as its mass already is) plus
+// its fittings, no longer by the litre - a litre-linear price billed a DC-3's 3 300 L at 46 000, where its shell is
+// 15 m2. The rates hold a 45 L tank where it was (alu 14 /L x 45 L over 0.84 m2 -> 750 /m2; a Cub's 44 L tank ~800,
+// the J-3's used one ~$400, a new PA-18 wing tank $2 274). And a fuel tank no longer arrives FULL: the first fill
+// was billed into the airframe, against G-COST (no fuel cost). A pack's CELLS stay in its price - they are equipment.
 const GEN_VESSELS = {
   alu:     { name: 'Welded aluminium', holds: 'fuel',
-             shapeK: 6.6, kgM2: 3.4, fixed: 2.2, price: 14, priceFixed: 180 },
+             shapeK: 6.6, kgM2: 3.4, fixed: 2.2, priceM2: 750, priceFixed: 180 },
   bladder: { name: 'Rubber bladder',   holds: 'fuel',
-             shapeK: 7.4, kgM2: 1.9, fixed: 1.6, price: 26, priceFixed: 240 },
+             shapeK: 7.4, kgM2: 1.9, fixed: 1.6, priceM2: 1250, priceFixed: 240 },
   moulded: { name: 'Moulded plastic',  holds: 'fuel',
-             shapeK: 6.8, kgM2: 2.6, fixed: 1.8, price: 8,  priceFixed: 90 },
+             shapeK: 6.8, kgM2: 2.6, fixed: 1.8, priceM2: 420, priceFixed: 90 },
   wet:     { name: 'Wet wing (sealed structure)', holds: 'fuel',
              // no shell at all: the sealant and the ribs' extra work only
-             shapeK: 6.6, kgM2: 0.55, fixed: 1.2, price: 30, priceFixed: 420 },
+             shapeK: 6.6, kgM2: 0.55, fixed: 1.2, priceM2: 1600, priceFixed: 420 },
   packCase:{ name: 'Pack case',        holds: 'battery',
-             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, price: 40, priceFixed: 300 },
+             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, priceM2: 2300, priceFixed: 300 },
 };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
@@ -260,7 +265,7 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
     const fuel = GEN_FUELS[mediumKey] || GEN_FUELS.avgas100LL;
     litres   = V;
     contents = V * fuel.kgL;
-    mediumPrice = V * fuel.price;
+    mediumPrice = 0;                                  // PRICE-CAL: no first fill (G-COST: fuel costs nothing)
   }
   const m3 = litres / 1000;
   const surface = ves.shapeK * CORE_MATH.pow(Math.max(1e-9, m3), 2 / 3);
@@ -279,7 +284,7 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
     payloadKg: battery ? 0 : contents,
     emptyKg: vesselKg + (battery ? contents : 0),
     price: Math.round(m3 > 1e-9
-      ? ves.priceFixed + litres * ves.price + mediumPrice : 0),
+      ? ves.priceFixed + surface * ves.priceM2 + mediumPrice : 0),
   };
 }
 

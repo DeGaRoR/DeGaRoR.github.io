@@ -10,6 +10,87 @@ Van's, Controller, Barnstormers, Garmin, Wipaire and others) was blocked by the 
 figure comes from a search-result extract of the page linked. Treat them as indicative. A row marked ESTIMATE has no
 published figure behind it.
 
+## IMPLEMENTED: PRICE-CAL (4 Nov 2026, branch `claude/price-apply`)
+
+The user (4 Nov): *"let's go and implement, we don't do anything with money now, so we can move stuff. Just take the
+opportunity for a robust calibration."* What landed, and where it differs from the proposal below:
+
+- **The convention: 1 credit = 1 USD (2025-26), not $1.5.** Two sessions had already priced at parity: the panel
+  catalogue (G251) and the floats (FLOATS-CLASSIC, 3 Nov, `HYDRO.floatPrice`). The ledger is a parts bill, so the
+  robust convention is parity: every row checked straight against a dollar source. A labour-heavy line (paint,
+  interior, covering) is priced as the materials a builder buys, not a shop's job. At $1.5 the study had engines and
+  structure reading low; at parity they rise instead, and the pay follows on its own.
+- **The rows** (all with their source in the code comment):
+
+  | rows | change |
+  |---|---|
+  | engines | every combustion row to its sourced overhauled / exchange (or new, for the Rotax) mid, e.g. A-65 11 000, O-200 43 000, O-320 / IO-360 52 000, O-540 64 000, Gipsy 55 000, PT6A-114A 390 000; the unbenchmarked rows and `genEnginePrice` × their family's median (four-stroke ×1.45, two-stroke ×1.5, turbine ×1.56); electric unchanged |
+  | propellers | wood 3 900, alloy 9 000, carbon 2 600 a pair; a constant-speed hub + governor +1 600 a prop |
+  | panel | turn coordinator 1 260, compass 630, alternator 1 150, starter 1 100, harness 1 200, Mode-S 3 400, panel GPS 6 300 |
+  | gear | wheel 790, tail or nose wheel 1 200, spring legs 2 200 |
+  | lights (new) | 1 500 on any aeroplane with a bus |
+  | paint | 40 cr per m² painted (was a flat 1 800) |
+  | fabric | +75 cr per m² of cloth |
+  | furnishing | 200 cr a kilo (was 60) |
+  | tanks | priced by shell surface, not by the litre, and no longer billed full of fuel |
+
+- **The four ledger faults fixed:**
+  - a prop (and a CS hub) per engine;
+  - the second seat line gone;
+  - ONE maker's margin (`ECON_BOOK.makerMargin` 1.15 over the ledger, `PROCURE_MARGIN` reads it);
+  - the tank's fill gone.
+- **The pay rides the prices: `econPayScale()` = the reference Cub's ledger ÷ `ECON_BOOK.payRef`.** `payRef` is 31 203,
+  the Cub the pay was tuned at.
+  - The scale multiplies contract pay (base, per km, surface bonuses), authored bases, route pay per km, T6's fee
+    (`econPay`), the grant (`careerGrant()`), the loan threshold and a maker's delivery.
+  - The five authored `costMax` caps are ×1.432 (clients.04: the Cub qualifies, the Jodel not).
+  - Today the Cub's ledger is 44 683, so the scale is **1.432**.
+- **The market tiers.** V0 = ledger × 1.15; the value at an age = V0 × `econAgeFactor(age)`.
+  - A used listing draws an age of 1-14 years. The engine hours, the extra kilos and the older-panel chance follow it,
+    the listing shows "built 2016, 10 years old", and the aeroplane wears the existing visual weathering.
+  - Its condition is the curve less the deductions, held to 0.4-0.8. The mean condition is 0.572 against the hours
+    rule's ~0.58, so the market's average price did not move. Ages 2-24 dropped it to 0.495, so the older planes wait
+    for step 2.
+  - `econSaleValue(doc, slot, cost)` = min(0.75 × the value, paid): no loop makes money, and a story airframe sells for
+    0. It is not wired to a button yet; nothing is charged.
+  - A used airframe's row now carries `paid`, `age`, `built`, `v0` and `repairs`.
+- **The numbers now** (credits):
+
+  | | ledger | build fitted / short | new V0 | used, 1 y → 14 y | sell your own |
+  |---|---|---|---|---|---|
+  | Cub | 44 683 | 35 700 / 44 700 | 51 400 | 39 900 → 27 000 | 30 800 |
+  | Jodel | 45 992 | 36 800 / 46 000 | 52 900 | 41 000 → 27 800 | 31 700 |
+  | metal Cessna | 137 572 | 110 100 / 137 600 | 158 200 | 122 700 → 83 100 | 94 900 |
+  | Cessna floats | 202 863 | 162 300 / 202 900 | 233 300 | 180 900 → 122 600 | 140 000 |
+  | twin floats | 68 854 | 55 100 / 68 900 | 79 200 | 61 400 → 41 600 | 47 500 |
+
+  - At parity the maker way reads its plans-built benchmark at ×1.28 (Cub) and ×0.91 (Jodel). The structure rows were
+    not moved.
+  - The grant is 85 900, T6's fee 28 600, a field shed 160 900, the metal kit 10 700.
+- **The agreed economy holds by construction.** `node tools/econ_sim.js --seeds=20` on the calibrated core, PROPOSED:
+  - pace **4 / 8 / 12** contracts (unchanged);
+  - money at rest 0.37-0.98 in every segment and policy;
+  - route share 0.16 for the router;
+  - the same 5 seeds of 20 stuck at the Rufus (pre-existing, §B).
+- **GATE PRICE** (`tools/_price_check.js`, core) holds all of it:
+  - 46 rows within ×1.5 of their source (×0.69-1.27 today), and the plans route;
+  - the pay doubling with the Cub; one margin; the age curve; the market's band and mean;
+  - the sale's caps; the ledger's fixes;
+  - its `--selftest` catches 9 doctored regressions.
+- **The gates** (all in the HANDOVER's PRICE-CAL entry):
+  - every gate the prices touch was re-pointed and passes;
+  - the reds that remain were measured red on master too, by the same lines;
+  - FRAMECOST's stand rise comes from any core edit (the parked cooks are keyed on the build), and a comment-only line
+    reproduces it.
+- **Not done (next):**
+  - a Sell button on the fleet card;
+  - hiding the makers' new sale in a career until used planes are degraded;
+  - step 2 (engine wear, drag, older listings);
+  - skis (no gear row exists);
+  - the stuck-at-the-Rufus seeds.
+
+---
+
 **Revision 3 (the user, 4 Nov):** one base price, and an age multiplier on it that reconciles new and old; an easy
 first step, with performance to follow (§D).
 

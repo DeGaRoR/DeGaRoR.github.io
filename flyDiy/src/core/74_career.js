@@ -39,7 +39,9 @@ const CAREER_V = 2;
 // DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
 const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
-const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
+const CAREER_GRANT = 60000;
+// PRICE-CAL: the grant at today's prices (76_economy econPay: the pay rides the reference Cub's ledger)
+const careerGrant = () => (typeof econPay === 'function' ? econPay(CAREER_GRANT) : CAREER_GRANT);                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
 const careerKey = id => CAREER_KEY + (id || 'main');
 const crClone = o => JSON.parse(JSON.stringify(o));
@@ -110,7 +112,7 @@ function careerNew(o) {
   const main = careerMainShed();
   if (main) d.sheds.HOME = main;
   d.career = careerBlockDefault(o);
-  playerCharge(d, -CAREER_GRANT, 'grant', null);
+  playerCharge(d, -careerGrant(), 'grant', null);
   // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
   if (typeof pilotsCompanion === 'function') pilotsCompanion(d);
   return careerRefresh(d);
