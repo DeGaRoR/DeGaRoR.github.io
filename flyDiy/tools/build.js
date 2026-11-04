@@ -169,6 +169,7 @@ const MANIFEST = {
     '60d_gen_pod.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
+    '62c_gear_mech.js',          // RETRACT GM3: one kinematics for a retracting gear (the garage, quickshot, the flight)
     '63_gen_wing.js',
     '64_gen_build.js',
     // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s

@@ -133,7 +133,9 @@ const station = (i, name) => [name, [
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
   // 1.6 m (metres, unscaled: a DC-3's 2.82 m half track and 1.14 m tyres under the nacelles)
   ['s' + i + 'X',     'in / out (half track)',   0, 3.2, 0.01, sOnM(i)],
-  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
+  // RETRACT GM1: a retracting gear's legs are oleos on trunnions, whatever this row holds (it is kept for the gear down)
+  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, Object.assign({}, sOn(i), {
+    note: P => GEAR_RETRACTABLE(P) && Math.round(+P['s' + i + 'Leg']) !== 2 ? 'retractable: drawn and flown as an oleo on a trunnion' : '' })],
   ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.65, 0.005, sOnM(i)],
   ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.60, 0.01, sOnM(i)],
   // the wheel's fore/aft FROM the fitting — the leg's rake, on every family;
@@ -255,6 +257,7 @@ function foldChain(u, key, P) {
 //   UNITS  the units clear each other (30 mm) at every position - the two mains under the belly, a main and the nose
 // (the TANKS are the fifth test, read when the rows are refreshed: the energy layer runs after this one - fitTanks)
 const FIT_G = [1, 0.8, 0.6, 0.4, 0.2, 0];
+const MOUNT_MIN = 0.08;        // GM1: the structure depth a retracting leg's trunnion needs (the 'mount' test)
 const FIT = { wall: 0.015, floor: 0.02, gap: 0.03, clear: 0.03 };   // clear: a well's room round its stowed unit (G3)
 function unitPts(C) {
   const a = C.wAx, R = C.R, hw = 0.38 * R, c = C.axle;
@@ -279,7 +282,7 @@ const FIT_ROWS = {
   T: { fold: ['gearFoldNose', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist'], st: 's2' },
 };
 const UNIT_WORD = { L: 'the left main', R: 'the right main', T: 'the nose wheel' };
-function foldFit(P, swing, AF, W) {
+function foldFit(P, swing, AF, W, MX) {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const out = { ok: true, why: [], rows: {}, tests: {} };
   const fail = (test, unit, why, rows) => {
@@ -353,7 +356,7 @@ function foldFit(P, swing, AF, W) {
              R.fold.concat([st + 'Z', st + 'AxZ', st + 'R', 'wgChord'])); }
     // FLOOR (inside the body, at any position)
     { let worst = 0;
-      for (const ps of posed[key]) for (const p of ps.W.concat(ps.L)) if (bodyIn(p) > 0 && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor);
+      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > 0 && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
       if (worst > 0) fail('floor', key, word + ' rises ' + Math.round(worst * 1000) + ' mm into the cabin floor',
                           R.fold.concat([st + 'Drop', st + 'R', 'floorY', 'gearRetFrac'])); }
   }
@@ -404,7 +407,7 @@ function foldFit(P, swing, AF, W) {
   // corners (box, gearWellCut 1: the fallback), FIT.clear wider all round; the ceiling is their highest point and
   // FIT.clear more. Two outlines that meet are cut as one (their hull, the higher ceiling). In the layer's metres here;
   // the knife takes them in cage units (cutsCage)
-  out.cuts = wellCutsOf(units, bodyIn, +P.gearWellCut === 1 ? 'box' : 'exact');
+  out.cuts = wellCutsOf(units, bodyIn, +P.gearWellCut === 1 ? 'box' : 'exact', MX);
   out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
   return out;
 }
@@ -453,13 +456,26 @@ function wellOutline(pz, mode, clr) {
   for (const p of h) for (let k = 0; k < 12; k++) grown.push([p[0] + clr * Math.cos(k * Math.PI / 6), p[1] + clr * Math.sin(k * Math.PI / 6)]);
   return hull2(grown);
 }
-function wellCutsOf(units, bodyIn, mode) {
+// GM (the user, 4 Nov: "now that you have good rotation points, you should include a cut for the rest position too. A
+// cut in which the rotation point slots"): the leg is sampled FROM ITS TRUNNION (every 5 %), so where it leaves the skin
+// gear down - the rest slot - is in the outline; and the mechanism's brace links and actuator (MX: the record and the
+// core) are swept with it, at every position
+const WELL_LEG = Array.from({ length: 21 }, (_, i) => i / 20);
+function wellMechPts(MX, key, g) {
+  const R = MX.R, K = R.knees && R.knees[key], Q = MX.CM.gearMechPoints(R, g), out = [];
+  const seg = (a, b) => { for (let i = 0; i <= 5; i++) { const t = i / 5; out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); } };
+  if (K) { const s = Q.pt(K.s), l = Q.pt(K.l), k = Q.knees[key]; seg(s, k); seg(k, l); }
+  for (const P of R.parts || []) if (P.rule === 'aim' && P.name === 'edMech' + key + '_cyl') seg(Q.pt(P.from), Q.pt(P.to));
+  return out;
+}
+function wellCutsOf(units, bodyIn, mode, MX) {
   const cuts = [];
   for (const key in units) {
-    const U = units[key], all = U.pts.W.concat(U.pts.L), inside = [];
+    const U = units[key], h = U.C.hinge, ax = U.C.axle, inside = [];
+    const all = U.pts.W.concat(WELL_LEG.map(f => [h[0] + (ax[0] - h[0]) * f, h[1] + (ax[1] - h[1]) * f, h[2] + (ax[2] - h[2]) * f]));
     let prev = null, prevD = null;
     for (const g of WELL_G) {
-      const ps = poseAll(U.C, all, g), ds = ps.map(bodyIn);
+      const ps = poseAll(U.C, all, g).concat(MX ? wellMechPts(MX, key, g) : []), ds = ps.map(bodyIn);
       for (let i = 0; i < ps.length; i++) {
         if (ds[i] > 0) inside.push(ps[i]);
         if (prev && (ds[i] > 0) !== (prevD[i] > 0)) {         // crossing the skin between two poses
@@ -473,7 +489,7 @@ function wellCutsOf(units, bodyIn, mode) {
     let top = -Infinity;
     for (const p of inside) top = Math.max(top, p[1]);
     const pz = inside.map(p => [p[2], p[0]]);
-    cuts.push({ units: [key], mode, pz, hull: wellOutline(pz, mode, FIT.clear), ceil: top + FIT.clear });
+    cuts.push({ units: [key], mode, pz, pts: inside, hull: wellOutline(pz, mode, FIT.clear), ceil: top + FIT.clear });
   }
   // merge the ones that meet (their points together, the higher ceiling)
   for (let again = true; again;) {
@@ -481,12 +497,32 @@ function wellCutsOf(units, bodyIn, mode) {
     for (let i = 0; i < cuts.length && !again; i++) for (let j = i + 1; j < cuts.length && !again; j++)
       if (hullsMeet(cuts[i].hull, cuts[j].hull)) {
         const pz = cuts[i].pz.concat(cuts[j].pz);
-        cuts[i] = { units: cuts[i].units.concat(cuts[j].units), mode, pz, hull: wellOutline(pz, mode, FIT.clear),
-                    ceil: Math.max(cuts[i].ceil, cuts[j].ceil) };
+        cuts[i] = { units: cuts[i].units.concat(cuts[j].units), mode, pz, pts: cuts[i].pts.concat(cuts[j].pts),
+                    hull: wellOutline(pz, mode, FIT.clear), ceil: Math.max(cuts[i].ceil, cuts[j].ceil) };
         cuts.splice(j, 1); again = true;
       }
   }
-  return cuts.map(c => ({ units: c.units, mode: c.mode, hull: c.hull, ceil: c.ceil }));
+  return cuts.map(c => ({ units: c.units, mode: c.mode, hull: c.hull, ceil: c.ceil, hf: wellHeights(c) }));
+}
+// GM: THE FITTED CEILING - a height map over the cut's plan (WELL_CELL cells): each cell the highest swept point within
+// the clearance of it, plus the clearance; a cell no point reaches takes the lowest reached one (a shallow floor, not
+// the skin) - the well is deep only where the unit, its trunnion and its brace go
+const WELL_CELL = 0.03;
+function wellHeights(c) {
+  let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
+  for (const p of c.hull) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, p[1]); x1 = Math.max(x1, p[1]); }
+  const d = WELL_CELL, nx = Math.max(2, Math.ceil((x1 - x0) / d) + 1), nz = Math.max(2, Math.ceil((z1 - z0) / d) + 1);
+  const y = new Array(nx * nz).fill(-Infinity), r = FIT.clear + d * 0.75, rc = Math.ceil(r / d);
+  for (const p of c.pts) {
+    const ci = Math.round((p[0] - x0) / d), cj = Math.round((p[2] - z0) / d);
+    for (let j = Math.max(0, cj - rc); j <= Math.min(nz - 1, cj + rc); j++)
+      for (let i = Math.max(0, ci - rc); i <= Math.min(nx - 1, ci + rc); i++) {
+        if (Math.hypot(x0 + i * d - p[0], z0 + j * d - p[2]) > r) continue;
+        const k = j * nx + i; if (p[1] + FIT.clear > y[k]) y[k] = p[1] + FIT.clear;
+      }
+  }
+  let lo = Infinity; for (const v of y) if (v > -Infinity && v < lo) lo = v;
+  return { x0, z0, d, nx, nz, y: y.map(v => v > -Infinity ? v : lo) };
 }
 // the cuts in the knife's terms: cage units (metres / FS), the outline in the well frame's (u, v) = (z, -x), CCW
 function cutsCage(cuts, FS) {
@@ -495,7 +531,8 @@ function cutsCage(cuts, FS) {
     let a2 = 0;
     for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
     if (a2 < 0) o = o.slice().reverse();
-    return { units: c.units, mode: c.mode, outline: o, ceil: c.ceil / FS };
+    const hf = c.hf ? { x0: c.hf.x0 / FS, z0: c.hf.z0 / FS, d: c.hf.d / FS, nx: c.hf.nx, nz: c.hf.nz, y: c.hf.y.map(v => +(v / FS).toFixed(5)) } : null;
+    return { units: c.units, mode: c.mode, outline: o, ceil: c.ceil / FS, ...(hf ? { hf } : {}) };
   });
 }
 // the fifth test, the TANKS - read when the rows are refreshed (the energy layer runs after the gear): the stowed and
@@ -631,6 +668,104 @@ const GROUP = ['9 · undercarriage', [
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose,   // G1: the one fold
                           wellHitsTank };                                                       // G3: the reservation
+
+// ---- GM2 (RETRACT-STUDY §8.11): THE ACTUATION - a brace and an actuator per unit, drawn at rest, posed by the core --
+// The record GEAR_MECH poses (src/core/62c_gear_mech.js): the units' chains (rigid: the leg, the wheel, the castor),
+// and per unit:
+//   THE BRACE: two links and a knee, from a pivot on the STRUCTURE (S: 85 % of the way from the trunnion to where the
+//   leg's brace point stows - inside the well's own volume) to the leg's brace point (40 % down the leg); straight (locked)
+//   down, the knee folding up into the structure (over the trunnion, in the swing plane) as the leg comes up;
+//   THE ACTUATOR (the actuation row; manual: none, the Johnson bar works the brace): from a structure pivot A (2.8 x
+//   the leg's actuator point's stowed offset from the trunnion, on its line) to that point (30 % down the leg) - its
+//   body from A, its rod from the leg, sliding in each other. The body is as long as the closed length leaves (closed
+//   length less 30 mm of rod); it holds the whole stroke only if the extended length is at most twice the closed less
+//   60 mm (`ok`, GATE RETRACT).
+const MECH = { bracePt: 0.40, braceS: 0.85, actPt: 0.30, actK: 2.8, rCyl: [0.020, 0.024], rRod: 0.0095, rBrace: 0.013 };
+function mechBuild(P, swing, group, KT, CM) {
+  const R = { units: {}, knees: {}, parts: [] }, info = {};
+  const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const M = k => GG.gearMat(k);
+  const act = Math.round(+P.gearRetAct || 0);              // 0 electric, 1 hydraulic, 2 manual
+  const fix = { alloy: KT.Bag(), steel: KT.Bag(), bronze: KT.Bag(), dark: KT.Bag() };
+  const partGroup = (name, fill) => {
+    const b = { alloy: KT.Bag(), steel: KT.Bag(), chrome: KT.Bag(), bronze: KT.Bag(), dark: KT.Bag() };
+    fill(b);
+    const gp = new THREE.Group(); gp.name = name;
+    for (const k in b) if (b[k].tris) b[k].mesh(gp, M(k));
+    group.add(gp);
+  };
+  const onLeg = (k, fill) => {
+    let lg = null; group.traverse(o => { if (o.name === 'edLeg' + k) lg = o; });
+    if (!lg) return;
+    const b = { alloy: KT.Bag(), bronze: KT.Bag() };
+    fill(b);
+    for (const q in b) if (b[q].tris) b[q].mesh(lg, M(q));
+  };
+  for (const k in swing) {
+    const C = swing[k];
+    R.units[k] = C;
+    R.parts.push({ name: 'edLeg' + k, rule: 'rigid', unit: k }, { name: 'edWheel' + k, rule: 'rigid', unit: k });
+    if (k === 'T') R.parts.push({ name: 'edCastorT', rule: 'rigid', unit: 'T' });
+    const h = C.hinge, ax = C.axle, Mup = CM.gearFoldPose(C, 0), up = p => CM.gearUnitPt(C, Mup, p);
+    const legPt = f => lerp(h, ax, f);
+    // THE BRACE
+    const Lp = legPt(MECH.bracePt), S = lerp(h, up(Lp), MECH.braceS), K0 = lerp(S, Lp, 0.5), D = dist(S, Lp);
+    const pn = nrm(crs(sub3(S, Lp), sub3(h, Lp)));            // the brace's pins, square to its plane
+    // the knee folds UP into the structure, in the leg's own swing plane: toward a point over the trunnion (off the
+    // brace's line at every position - the trunnion itself is ON it, stowed)
+    const legUp0 = nrm(sub3(h, ax));
+    R.knees[k] = { s: { fix: S }, l: { unit: k, p: Lp }, a: D / 2, b: D / 2, bend: { fix: [h[0] + legUp0[0] * D, h[1] + legUp0[1] * D, h[2] + legUp0[2] * D] } };
+    R.parts.push({ name: 'edMech' + k + '_brace1', rule: 'aim', from: { fix: S }, to: { knee: k }, o0: S, d0: nrm(sub3(K0, S)) },
+                 { name: 'edMech' + k + '_brace2', rule: 'aim', from: { unit: k, p: Lp }, to: { knee: k }, o0: Lp, d0: nrm(sub3(K0, Lp)) });
+    partGroup('edMech' + k + '_brace1', b => {
+      KT.taper(b.steel, S, K0, MECH.rBrace, MECH.rBrace * 0.85, 12);
+      KT.revolve(b.steel, KT.off(S, pn, -0.012), pn, [[0.017, 0], [0.017, 0.024]], 14, true);
+    });
+    partGroup('edMech' + k + '_brace2', b => {
+      KT.taper(b.steel, Lp, K0, MECH.rBrace, MECH.rBrace * 0.85, 12);
+      KT.revolve(b.steel, KT.off(Lp, pn, -0.012), pn, [[0.017, 0], [0.017, 0.024]], 14, true);
+      KT.revolve(b.bronze, KT.off(K0, pn, -0.020), pn, [[0.008, 0], [0.008, 0.040]], 10, true);      // the knee's pin
+      KT.revolve(b.steel, KT.off(K0, pn, -0.012), pn, [[0.016, 0], [0.016, 0.024]], 14, true);
+    });
+    const legUp = nrm(sub3(h, ax));
+    for (const sg of [-1, 1]) KT.lug(fix.alloy, KT.off(S, pn, sg * 0.018), pn, legUp, 0.020, 0.008, 0.040);
+    KT.revolve(fix.bronze, KT.off(S, pn, -0.026), pn, [[0.007, 0], [0.007, 0.052]], 10, true);
+    onLeg(k, b => {
+      for (const sg of [-1, 1]) KT.lug(b.alloy, KT.off(Lp, pn, sg * 0.018), pn, sub3(h, Lp), 0.020, 0.008, 0.030);
+      KT.revolve(b.bronze, KT.off(Lp, pn, -0.026), pn, [[0.007, 0], [0.007, 0.052]], 10, true);
+    });
+    info[k] = { S, Lp, D };
+    // THE ACTUATOR
+    if (act === 2) continue;
+    const La = legPt(MECH.actPt), Lu = up(La), A = lerp(h, Lu, MECH.actK);
+    let Lmin = Infinity, Lmax = -Infinity;
+    for (let i = 0; i <= 32; i++) { const d = dist(A, CM.gearUnitPt(C, CM.gearFoldPose(C, 1 - i / 32), La)); Lmin = Math.min(Lmin, d); Lmax = Math.max(Lmax, d); }
+    const Lb = Lmin - 0.03, Lrod = Lmax - Lb + 0.03, d0 = nrm(sub3(La, A));
+    const rc = MECH.rCyl[act === 1 ? 1 : 0], an = nrm(crs(d0, pn));
+    Object.assign(info[k], { A, La, Lmin, Lmax, Lb, Lrod, ok: Lmax <= 2 * Lmin - 0.06 });
+    R.parts.push({ name: 'edMech' + k + '_cyl', rule: 'aim', from: { fix: A }, to: { unit: k, p: La }, o0: A, d0 },
+                 { name: 'edMech' + k + '_rod', rule: 'aim', from: { unit: k, p: La }, to: { fix: A }, o0: La, d0: d0.map(x => -x) });
+    partGroup('edMech' + k + '_cyl', b => {
+      // hydraulic: the barrel, its end caps and the two hose bosses; electric: the screw jack's tube, the motor on it
+      KT.revolve(b.alloy, A, d0, [[0.010, 0], [rc, 0.018], [rc, Lb - 0.012], [rc * 0.8, Lb]], 18, true);
+      KT.revolve(b.steel, KT.off(A, pn, -0.010), pn, [[0.015, 0], [0.015, 0.020]], 12, true);   // the base eye
+      if (act === 1) for (const f of [0.15, 0.85]) KT.revolve(b.dark, KT.off(A, d0, Lb * f), an, [[0.006, rc - 0.004], [0.006, rc + 0.014]], 8, true);
+      else KT.boxIn(b.dark, KT.off(KT.off(A, d0, 0.06), an, rc + 0.030), [0.045, 0.030, 0.030], d0, an, pn);
+    });
+    partGroup('edMech' + k + '_rod', b => {
+      const rd = d0.map(x => -x);
+      KT.revolve(act === 1 ? b.chrome : b.steel, La, rd, [[MECH.rRod, 0], [MECH.rRod, Lrod]], 12, true);
+      KT.revolve(b.steel, KT.off(La, pn, -0.010), pn, [[0.013, 0], [0.013, 0.020]], 12, true);  // the rod's eye
+    });
+    for (const sg of [-1, 1]) KT.lug(fix.alloy, KT.off(A, pn, sg * 0.016), pn, sub3(A, La), 0.018, 0.007, 0.034);
+    onLeg(k, b => { for (const sg of [-1, 1]) KT.lug(b.alloy, KT.off(La, pn, sg * 0.016), pn, sub3(h, La), 0.018, 0.007, 0.026); });
+  }
+  for (const q in fix) if (fix[q].tris) fix[q].mesh(group, M(q));
+  return { R, info };
+}
 
 // ---- the build ------------------------------------------------------------
 let group = null;
@@ -870,6 +1005,24 @@ PAGE.post = ctx => {
     };
   };
 
+  // RETRACT GM1: the trunnion's depth inside the structure and the pin's axis (see the station loop)
+  const RETR = GEAR_RETRACTABLE(P);
+  const retMounts = [];        // each retracting leg's structure depth at its trunnion (the fit's 'mount' test)
+  const retIn = (st, m) => {
+    const W = window.CAGE_WING;
+    if (m && W && W.overAt && W.underAt) {
+      const q = m(0, 0), o = W.overAt(q.p[0], q.p[2]), u = W.underAt(q.p[0], q.p[2]);
+      if (o && u && o.y > u.y) return Math.max(0.03, (o.y - u.y) / 2);
+    }
+    if (m) return 0.05;
+    const keel = AF.keelAt(st.z), floor = (P.floorY != null ? +P.floorY : -0.5) * FS;
+    return Math.max(0.05, Math.min(0.16, 0.45 * (floor - keel)));
+  };
+  const retPin = st => {
+    const F = foldOf(P, !!st.single);
+    const t = (F.turns || []).find(T => T && T[1]) || [0, 0];
+    return t[0] === 1 ? [1, 0, 0] : t[0] === 2 ? [0, 1, 0] : [0, 0, 1];
+  };
   const contacts = [];
   // G188: the third wheel is the station the table FLAGS single (row 2), not
   // whichever contact happens to sit on the centreline; a tailwheel builder
@@ -921,6 +1074,12 @@ PAGE.post = ctx => {
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle, ears: r.castor.ears };
       } else {
+        // RETRACT GM1 (§8.11): A RETRACTING LEG IS AN OLEO ON A TRUNNION INSIDE THE STRUCTURE (blade and bungee V do
+        // not retract; the join flies it as an oleo) - the pin along the fold's first axis, its point the wing's mid-
+        // depth over the leg's root (a low wing's mains) or 45 % of the way from the keel to the cabin floor (a body
+        // leg, 50-160 mm); its lugs and fitting plate are the static structure's
+        if (RETR) { st.leg = 2; st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags };
+                    retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
@@ -949,7 +1108,7 @@ PAGE.post = ctx => {
           if (st.fair) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
         }
       }
-      delete st.mount;
+      delete st.mount; delete st.ret;
       wu.wb.axle = r.axle; wu.wb.R = st.R;
       wu.wb.kind = (st.leg === 3 || isSingle(st)) ? 'T'
                  : (r.axle[0] > 0 ? 'L' : 'R');
@@ -1090,15 +1249,27 @@ PAGE.post = ctx => {
   // contact plane, carried by the join). The join takes it to the flown model (gearSwing, app.js gearSwingRig); THE
   // PREVIEW poses the units here at `gearPos` (the editor's slider, quickshot --gear) - the capture takes them down
   // (_cage_join.js VIEW_STATE 'gear position')
-  let swing = null, fit = null;
+  let swing = null, fit = null, mech = null;
   if (GEAR_RETRACTABLE(P)) {
     swing = {};
     for (const u of legUnits) {
       const key = u.kind === 'T' ? 'T' : u.kind;
       if (!swing[key] && (u.axle || u.moving)) swing[key] = foldChain(u, key, P);
     }
+    // GM2: the brace and the actuator, drawn at rest (gear down) in their own named groups - before the fit: the wells'
+    // cuts take their swept points too
+    const KT = window.GEAR_KIT, CM = (typeof GEAR_MECH !== 'undefined') ? GEAR_MECH : window.GEAR_MECH;
+    if (KT && CM) try { mech = mechBuild(P, swing, group, KT, CM); } catch (e) { mech = null; console.warn('gear mechanism:', e); }
     // G2: the fit (the gear layer runs after the wing: CAGE_WING is this build's)
-    try { fit = foldFit(P, swing, AF, window.CAGE_WING); } catch (e) { fit = null; console.warn('gear fit:', e); }
+    try { fit = foldFit(P, swing, AF, window.CAGE_WING, mech && CM ? { R: mech.R, CM } : null); } catch (e) { fit = null; console.warn('gear fit:', e); }
+    // GM1: THE MOUNT - a trunnion needs structure round its pin: MOUNT_MIN of depth (the lug's eye under the pin, the
+    // fitting plate over it); a wing leg's station near the trailing edge, or a thin section, has not got it
+    if (fit) for (const mt of retMounts) if (mt.wing && mt.depth < MOUNT_MIN && mt.key !== 'R') {
+      const why = 'the mains\' trunnion has ' + Math.round(mt.depth * 1000) + ' mm of wing depth (it needs ' + Math.round(MOUNT_MIN * 1000) + ')';
+      fit.ok = false; fit.why.push(why);
+      (fit.tests.mount = fit.tests.mount || []).push({ unit: mt.key, why });
+      for (const k of ['s1Z', 's1X', 'wgThick']) if (!fit.rows[k]) fit.rows[k] = why;
+    }
     if (fit && !fit.ok && stat) stat.textContent += '  ·  gear: ' + fit.why[0] + '!';
     // G3: THE WELLS SHOWN - each reserved box as edges (a LineSegments overlay: the capture takes meshes only, GATE
     // VIEW's 'control cage' rule), amber when the fold fits, red when it does not
@@ -1113,19 +1284,23 @@ PAGE.post = ctx => {
       }
       group.add(wg);
     }
+    // GM3: EVERY PART POSED BY THE ONE KINEMATICS (src/core/62c_gear_mech.js gearMechPose) - the legs, the wheels, the
+    // castor rigid with their unit, the brace's links and the actuator's body and rod aimed - as the flight poses them
     const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos));
-    if (g < 1) group.traverse(o => {
-      const mm = /^ed(?:Leg|Wheel)([LRT])$/.exec(o.name || '') || (o.name === 'edCastorT' ? [0, 'T'] : null);
-      const C = mm && swing[mm[1]];
-      if (!C) return;
-      const M = foldPose(C, g), h = C.hinge, Mh = fApp(M, h);
-      o.matrix.set(M[0], M[1], M[2], h[0] - Mh[0], M[3], M[4], M[5], h[1] - Mh[1], M[6], M[7], M[8], h[2] - Mh[2], 0, 0, 0, 1);
-      o.matrix.decompose(o.position, o.quaternion, o.scale);
-    });
+    if (g < 1 && mech) {
+      const T = CM.gearMechPose(mech.R, g);
+      group.traverse(o => {
+        const t = o.name && T[o.name];
+        if (!t) return;
+        o.matrix.set(t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], 0, 0, 0, 1);
+        o.matrix.decompose(o.position, o.quaternion, o.scale);
+      });
+    }
   }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
+    ...(mech ? { mech: mech.R, mechInfo: mech.info } : {}),   // GM2/GM3: the mechanism's record (gearMechPose) and its numbers
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)

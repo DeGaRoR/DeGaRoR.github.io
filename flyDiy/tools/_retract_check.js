@@ -34,6 +34,11 @@
 //      sheet is never cut; the box option (gearWellCut 1) is a rounded rectangle holding the exact hull and cuts as
 //      cleanly; a 3.2 m track cuts the nose alone; a 0.6 fraction cuts nothing; a fixed gear nothing; the preview row
 //      never moves the cut
+//  14. THE MECHANISM (GM1): the nose's trunnion inside the body, the mains' inside the wing between its skins; three
+//      oleo legs, flown as an oleo; no fitting in a well; a wing too thin for a trunnion turns the station red
+//  15. THE ACTUATION (GM2/GM3): each unit's brace and actuator; the brace links keep their lengths over the fold (1e-9);
+//      every actuator holds its stroke; down, every part's pose is the identity; the rest slot - the nose leg leaves the
+//      skin inside its well; the kinematics is the core's
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -332,8 +337,11 @@ console.log('10 THE FOLD (G1)');
     check(st.slice(0, -1).every(s => s.loops === 1 && s.open === 0 && s.cut > 0), 'the knife: one closed loop per well',
           st.slice(0, -1).map(s => s.loops + ' loop, ' + s.loopPts + ' pts, ' + s.open + ' open').join(' | '));
     const ww = m.F.filter(f => f.m === 'wheelWell');
-    const ceilOk = ex.cuts.every(c => ww.some(f => f.v.every(i => Math.abs(m.V[i][1] - c.ceil) < 1e-9)));
-    check(ww.length > 20 && ceilOk, 'the well: walls and a flat ceiling at the cut\'s height (section wheelWell)', ww.length + ' faces');
+    // GM: the ceiling is FITTED (the cut's height map) - never above the cut's top, deepest where the unit goes
+    const top = Math.max(...ex.cuts.map(c => c.ceil));
+    let yMax = -Infinity; for (const f of ww) for (const i of f.v) yMax = Math.max(yMax, m.V[i][1]);
+    check(ww.length > 20 && ex.cuts.every(c => c.hf && c.hf.y.length === c.hf.nx * c.hf.nz) && yMax <= top + 1e-9 && yMax > top - 0.05 / ex.Sx.FS,
+          'the well: walls and a fitted ceiling (its height map), up to the cut\'s top (section wheelWell)', ww.length + ' faces');
     const inVol = (X, skipWell) => { let k = 0; for (const f of X.F) { if (skipWell && f.m === 'wheelWell') continue;
       let cx = 0, cy = 0, cz = 0; for (const i of f.v) { cx += X.V[i][0]; cy += X.V[i][1]; cz += X.V[i][2]; } const q = f.v.length;
       if (ex.cuts.some(c => cy / q < c.ceil - 1e-6 && inPoly(c.outline, cz / q, -cx / q, -1e-4))) k++; } return k; };
@@ -357,6 +365,54 @@ console.log('10 THE FOLD (G1)');
     // the preview row never moves the cut (the wells are the whole fold's)
     const half = cutOf({ gearPos: 0.4 });
     check(JSON.stringify(half.cuts) === JSON.stringify(ex.cuts), 'the preview position does not move the cut'); }
+  // ---- 14. THE MECHANISM (GM1): the trunnion inside the structure, the oleo, the fittings out of the wells ----------
+  console.log('14 THE MECHANISM (GM1)');
+  { const Sx = sceneOf({ gearPos: 1 }), G = Sx.W.CAGE_GEAR, SWx = G.swing, AFx = G.AF, W = Sx.W.CAGE_WING;
+    const nose = SWx.T.hinge, cy = AFx.cyAt(nose[2]), sf = AFx.surf(nose[2], Math.atan2(nose[0], cy - nose[1]));
+    const inBody = Math.hypot(sf[0], sf[1] - cy) - Math.hypot(nose[0], nose[1] - cy);
+    check(inBody > 0.04, 'the nose leg turns on a trunnion inside the body', Math.round(inBody * 1000) + ' mm inside the skin');
+    const mh = SWx.L.hinge, u = W.underAt(mh[0], mh[2]), o = W.overAt(mh[0], mh[2]);
+    check(u && o && mh[1] > u.y + 0.02 && mh[1] < o.y - 0.02, 'the mains turn on trunnions inside the wing, between its skins',
+          u && o ? 'pin ' + mh[1].toFixed(3) + ' between ' + u.y.toFixed(3) + ' and ' + o.y.toFixed(3) : 'no wing there');
+    let nOleo = 0; Sx.scene.traverse(q => { if (/^edLeg[LRT]$/.test(q.name || '')) nOleo++; });
+    check(nOleo === 3 && specRet({}).gear.suspension === 'oleo', 'a retracting gear is three oleo legs, and flies as an oleo',
+          'suspension ' + specRet({}).gear.suspension);
+    const AC = Sx.W.CAGE_ACCESS, cuts = G.cuts, inW = q => cuts.some(c => q.p[1] / Sx.FS < c.ceil && c.outline.every((a, i) => {
+      const b = c.outline[(i + 1) % c.outline.length]; return (b[0] - a[0]) * (-q.p[0] / Sx.FS - a[1]) - (b[1] - a[1]) * (q.p[2] / Sx.FS - a[0]) > 0; }));
+    const belly = (AC && AC.placed || []).filter(q => q.on === 'body' || !q.on);
+    check(belly.length > 3 && !belly.some(inW), 'no fitting is bolted into a well (the aerial and the drain moved clear)',
+          belly.filter(q => /xpdr|Drain/.test(q.key)).map(q => q.key + ' z ' + q.p[2].toFixed(2)).join(', '));
+    const thin = sceneOf({ wgThick: 9 }).W.CAGE_GEAR.fit;
+    check(Sx.W.CAGE_GEAR.fit && !(Sx.W.CAGE_GEAR.fit.tests.mount) && thin && thin.tests.mount && thin.rows.s1Z,
+          'the mount: a wing too thin for the trunnion turns the mains\' station red, as born it has room',
+          thin && thin.tests.mount ? thin.tests.mount[0].why : 'no mount test'); }
+  // ---- 15. THE ACTUATION AND THE ONE KINEMATICS (GM2/GM3) -------------------------------------------------------------
+  console.log('15 THE ACTUATION (GM2/GM3)');
+  { const Sx = sceneOf({ s1X: 1.6, gearPos: 1 }), G = Sx.W.CAGE_GEAR, R = G.mech, CM = C.GEAR_MECH;
+    check(R && ['L', 'R', 'T'].every(k => ['_brace1', '_brace2', '_cyl', '_rod'].every(n => R.parts.some(p => p.name === 'edMech' + k + n))),
+          'each unit has its brace (two links) and its actuator (body and rod)', R && R.parts.length + ' parts');
+    let worst = 0, inv = 0;
+    for (let i = 0; i <= 40; i++) { const g = 1 - i / 40, Q = CM.gearMechPoints(R, g);
+      for (const k in R.knees) { const K = R.knees[k], a = Q.pt(K.s), b = Q.pt(K.l), n = Q.knees[k];
+        worst = Math.max(worst, Math.abs(Math.hypot(n[0] - a[0], n[1] - a[1], n[2] - a[2]) - K.a), Math.abs(Math.hypot(n[0] - b[0], n[1] - b[1], n[2] - b[2]) - K.b)); } }
+    check(worst < 1e-9, 'the brace links keep their lengths over the whole fold', worst.toExponential(1));
+    const I = G.mechInfo;
+    check(['L', 'R', 'T'].every(k => I[k] && I[k].ok && I[k].Lb >= I[k].Lmax - I[k].Lmin + 0.03 - 1e-9),
+          'every actuator holds its stroke (extended <= 2 x closed - 60 mm; the barrel holds the rod)',
+          ['L', 'T'].map(k => k + ' ' + I[k].Lmin.toFixed(3) + '-' + I[k].Lmax.toFixed(3) + ' m').join(', '));
+    const T1 = CM.gearMechPose(R, 1);
+    check(Object.values(T1).every(t => Math.abs(t[0] - 1) + Math.abs(t[5] - 1) + Math.abs(t[10] - 1) + Math.abs(t[3]) + Math.abs(t[7]) + Math.abs(t[11]) < 1e-9),
+          'down, every part stands where it was drawn (the pose is the identity)');
+    // the rest slot: where each body leg leaves the skin gear down lies inside its well's outline
+    const AFx = G.AF, din = p => { const cy = AFx.cyAt(p[2]), sf = AFx.surf(p[2], Math.atan2(p[0], cy - p[1])); return Math.hypot(sf[0], sf[1] - cy) - Math.hypot(p[0], p[1] - cy); };
+    const T = G.swing.T, cutT = G.cuts.find(c => c.units.includes('T'));
+    let cross = null; for (let f = 0; f <= 1; f += 0.01) { const p = [T.hinge[0] + (T.axle[0] - T.hinge[0]) * f, T.hinge[1] + (T.axle[1] - T.hinge[1]) * f, T.hinge[2] + (T.axle[2] - T.hinge[2]) * f]; if (din(p) < 0) { cross = p; break; } }
+    const inO = (o, u, v) => o.every((a, i) => { const b = o[(i + 1) % o.length]; return (b[0] - a[0]) * (v - a[1]) - (b[1] - a[1]) * (u - a[0]) > 0; });
+    check(cross && cutT && inO(cutT.outline, cross[2] / Sx.FS, -cross[0] / Sx.FS), 'the rest slot: the nose leg leaves the skin, gear down, inside its well (the trunnion slots in)',
+          cross ? 'at z ' + cross[2].toFixed(3) : 'no crossing');
+    // the flight's record: the snapshot carries the very record, and the capture's map
+    const s0 = D.designBake(arch.sel, arch.over); Object.assign(s0.cage, { gearRetract: 1, s1X: 1.6 });
+    check(typeof C.gearMechPose === 'function' && typeof C.gearFoldPose === 'function', 'the one kinematics is the core\'s (gearMechPose, gearFoldPose)'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

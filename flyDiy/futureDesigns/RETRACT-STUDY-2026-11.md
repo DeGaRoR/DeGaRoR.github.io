@@ -1308,3 +1308,45 @@ modeling and animation of the landing gear, so that one should be done." GM come
 
 The yellow bars through the stowed mains (the wing's centre section running through the well on a low wing) are G5's,
 which follows GM. G6's doors then hang on GM's parts (the leg door rides the leg; the well doors on their own hinges).
+
+#### GM1-GM3 as built (2026-11-04)
+
+- **The trunnion** (`tools/_gear_gen.js` legOleo, `st.ret`; `tools/_cage_gear.js` retIn / retPin). A retracting leg is an oleo
+  whatever the leg row holds (the row says so in a note; the join flies `suspension: 'oleo'`). Its pin is inside the
+  structure:
+  - a low wing's mains: at the wing's mid-depth over the leg's root (the T-tail tourer's station at 97 % chord gives
+    48 mm a side);
+  - a body leg (the nose): 45 % of the way from the keel to the cabin floor, 50-160 mm (the tourer's nose: 122 mm in);
+  - the pin lies along the fold's first axis. Its two lugs and the fitting plate are the structure's (static, sized to
+    the depth there); the strut's yoke turns on it. No pad on the skin.
+- **The mount test** (the fit, 'mount'): a wing leg's trunnion needs 80 mm of structure depth. Less turns the station
+  rows (fore/aft, half track) and the wing's thickness red.
+- **The fittings** (`tools/_cage_access.js`): a body fitting whose site falls in a well (its outline + 50 mm, under its
+  ceiling) slides along the body to the first clear station. On the tourer, the fuel drain went 2.28 → 2.68 and the
+  transponder aerial 1.16 → 0.53.
+- **The actuation** (`tools/_cage_gear.js` mechBuild, MECH):
+  - **the brace**: from a structure pivot (85 % of the way from the trunnion to where the brace point stows) to the
+    leg's brace point (40 % down). Its two links are equal. It is straight down, and its knee folds UP into the
+    structure in the leg's swing plane.
+  - **the actuator**: hydraulic (barrel, hose bosses, chrome rod) or electric (screw jack, motor box); none for the
+    manual gear. It runs from a structure pivot (2.8 x the actuator point's stowed offset from the trunnion) to a point
+    30 % down the leg. Its body is the closed length less 30 mm; the rod reaches the extended length and 30 mm in.
+  - On the tourer (3.2 m track): the mains 0.367-0.602 m, the nose 0.314-0.518 m, all within a real cylinder's stroke.
+- **The one kinematics** (`src/core/62c_gear_mech.js`, GEAR_MECH: gearFoldPose, gearMechPose; built into the core): the
+  record is the units' chains, the knees and the parts.
+  - Rules: rigid (the leg, the wheel, the castor), aimed (a link, a barrel, a rod: its base on one point, its axis to
+    another).
+  - The two-link knee is solved in its plane, bent toward a reference off the brace's line. (The trunnion itself is ON
+    the line when stowed: the first cut's knee jumped there.)
+  - Down, every pose is the identity.
+  - The garage poses its groups with it. The join captures each mechanism part (`edMech<unit>_<part>`, kind
+    `gearMech`, pivoted on its rest base) and the record with the capture's linear map Mp (`gearMech: { R, Mp }`).
+    app.js poses the units and the parts with the same function, each matrix carried through the map (Mp T Mp^-1). An
+    older snapshot (no gearMech) keeps the rigid swing.
+- **The well's cut, GM's** (the user: "you should include a cut for the rest position too. A cut in which the rotation
+  point slots"):
+  - the swept points now take the leg FROM ITS TRUNNION (every 5 %) and the brace and actuator at every position, so
+    the slot where the leg leaves the skin gear down is in the outline;
+  - the ceiling is FITTED: a height map of the swept points (30 mm cells, grown by the clearance, never above the
+    cut's top), deep only where the unit, its trunnion and its brace go;
+  - the floor test sees the brace and the actuator too.

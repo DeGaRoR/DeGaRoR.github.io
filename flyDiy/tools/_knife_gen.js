@@ -328,7 +328,9 @@ function knifeCut(m, win, opt) {
   // frame's (u, v) - no side-view probe, no drawn shape. `opt.ceil` (a height, the mesh's y) makes the recess a BOX:
   // the pane is the flat ceiling at that height (each point straight up from where the outline met the skin, never
   // below the skin) and the walls stand vertical - a wheel well, not a window's reveal
-  const FR = opt.frame || null, CEIL = opt.ceil != null ? +opt.ceil : null;
+  // (GM: `opt.ceil` may be a FUNCTION of the plan place (x, z) - a fitted ceiling, deep only where the unit goes)
+  const FR = opt.frame || null, CEIL = opt.ceil == null ? null : typeof opt.ceil === 'function' ? opt.ceil : +opt.ceil;
+  const ceilAt = typeof CEIL === 'function' ? CEIL : () => CEIL;
   let n0 = FR ? FR.n0.slice() : [side, 0, 0], c0 = FR ? FR.c0.slice() : [0, win.y, win.z];
   if (!FR) {
     let best = null;
@@ -451,7 +453,7 @@ function knifeCut(m, win, opt) {
     return r.id;
   };
   // the recessed point: along the skin's normal by `depth` (a window), or straight up to the ceiling (a well)
-  const recess = r => CEIL != null ? [r.P[0], Math.max(CEIL, r.P[1]), r.P[2]]
+  const recess = r => CEIL != null ? [r.P[0], Math.max(ceilAt(r.P[0], r.P[2]), r.P[1]), r.P[2]]
     : [r.P[0] - r.N[0] * depth, r.P[1] - r.N[1] * depth, r.P[2] - r.N[2] * depth];
   const paneId = r => {
     if (r.pid < 0) {
@@ -835,6 +837,16 @@ function knifeBead(m, loop, r, mat, sides) {
 const WELL_MATS = new Set(['body', 'taper', 'taperPanel', 'waistband', 'floorLoop', 'ceilingLoop', 'pillarWindow',
   'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'pillarTaper', 'boomTube']);
 const WELL_FRAME = { n0: [0, -1, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [-1, 0, 0] };
+// a cut's FITTED CEILING (GM): its height map { x0, z0, d, nx, nz, y } (cage units, row-major by z), bilinear, never
+// above the cut's top
+function wellCeilFn(c) {
+  const H = c.hf;
+  return (x, z) => {
+    const fx = Math.max(0, Math.min(H.nx - 1.000001, (x - H.x0) / H.d)), fz = Math.max(0, Math.min(H.nz - 1.000001, (z - H.z0) / H.d));
+    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, y = (a, b) => H.y[b * H.nx + a];
+    return Math.min(c.ceil, y(i, j) * (1 - tx) * (1 - tz) + y(i + 1, j) * tx * (1 - tz) + y(i, j + 1) * (1 - tx) * tz + y(i + 1, j + 1) * tx * tz);
+  };
+}
 function knifeWells(sh, cuts) {
   if (!sh || !cuts || !cuts.length) return sh;
   const N = knifeNormals(sh);
@@ -842,7 +854,7 @@ function knifeWells(sh, cuts) {
   let m = Object.assign({}, sh, { N, knifeLoops: (sh.knifeLoops || []).slice(), knifeHole: new Map(sh.knifeHole || []),
                                   knifeHoleLen: (sh.knifeHoleLen || []).slice(), knifeStats: (sh.knifeStats || []).slice() });
   for (const c of cuts)
-    m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.ceil,
+    m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
                                                          mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
   return knifeCarve(m, cuts);
 }

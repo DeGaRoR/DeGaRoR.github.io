@@ -3012,9 +3012,11 @@
     const keyOfMesh = new Map();                                     // G1860 (DMG-D4b): each part mesh's bucket key
     const floatRigs = [];                                            // H2 (G389)
     const gearTags = [];                      // RETRACT-1: [obj, unit 'L' | 'R' | 'T'] - the parts a retraction swings
+    const gearMechTags = [];                  // RETRACT GM3: [obj, part name] - a brace's links, an actuator's body and rod
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
     let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
+    let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
     if (data.cage && Array.isArray(data.parts)) {
       const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
                 : curDef.refs.tw;
@@ -3611,6 +3613,12 @@
                             tip: M0.tip });
           });
         }
+        else if (pt.kind === 'gearMech') {
+          // RETRACT GM3: a brace link, an actuator's body or rod - rigid, at its rest base point; the rig below poses it
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gearMechTags.push([pg, pt.name]);
+        }
         else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
@@ -3660,6 +3668,23 @@
           grp.remove(obj); units[u].obj.add(obj);
         }
         gearSwingRig = Object.keys(units).length ? Object.values(units) : null;
+        // RETRACT GM3 (WYSIWYG): with the snapshot's gearMech the units AND the mechanism's parts are posed by the core's
+        // gearMechPose - the garage's own function - each matrix carried through the capture's map (T' = Mp T Mp^-1)
+        if (gearSwingRig && data.gearMech && data.gearMech.R && typeof gearMechPose === 'function') {
+          const parts = [];
+          for (const [obj, name] of gearMechTags) {
+            if (obj.parent !== grp) continue;
+            const g = new THREE.Group(); g.name = 'gearMech_' + name; g.matrixAutoUpdate = false; grp.add(g);
+            grp.remove(obj); g.add(obj);
+            parts.push({ obj: g, name });
+          }
+          const Mp = data.gearMech.Mp, a = Mp, det = a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6]) + a[2] * (a[3] * a[7] - a[4] * a[6]);
+          const Mi = [(a[4] * a[8] - a[5] * a[7]) / det, (a[2] * a[7] - a[1] * a[8]) / det, (a[1] * a[5] - a[2] * a[4]) / det,
+                      (a[5] * a[6] - a[3] * a[8]) / det, (a[0] * a[8] - a[2] * a[6]) / det, (a[2] * a[3] - a[0] * a[5]) / det,
+                      (a[3] * a[7] - a[4] * a[6]) / det, (a[1] * a[6] - a[0] * a[7]) / det, (a[0] * a[4] - a[1] * a[3]) / det];
+          gearMechRig = { R: data.gearMech.R, Mp, Mi, parts, a: 1,
+                          units: gearSwingRig.map(U => ({ obj: U.obj, name: 'edLeg' + U.obj.name.slice(9), frac: U.frac })) };
+        }
       }
     }
     // G58.5 TRIPWIRE: the propeller belongs AHEAD of the nose. If it ever
@@ -4046,6 +4071,7 @@
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
                         gearSwingRig,                                  // RETRACT-1
+                        gearMechRig,                                   // RETRACT GM3
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     // G266.1: THE TAIL GAP — the drawn stab (the snapshot's tailRef, in the
@@ -4719,7 +4745,30 @@
     // the turns one after the other), each turn conjugated by the capture's map (conjRot, G357); written only when the
     // position moved (a gear down or up costs nothing a frame); hidden once stowed - unless it retracts partly (frac < 1:
     // the wheel stays in sight in its inset)
-    if (model.gearSwingRig) {
+    if (model.gearMechRig) {
+      // RETRACT GM3: every part from the core's gearMechPose at the position, through the capture's map
+      const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1, G = model.gearMechRig;
+      const show = U => gp > 0.02 || (U.frac != null && U.frac < 1);
+      for (const U of G.units) U.obj.visible = show(U);
+      const fr = G.units.length ? G.units[0].frac : 1;
+      for (const Q of G.parts) Q.obj.visible = gp > 0.02 || fr < 1;
+      if (gp !== G.a) {
+        G.a = gp;
+        const T = gearMechPose(G.R, gp), Mp = G.Mp, Mi = G.Mi;
+        const put = (obj, t) => {
+          if (!t) return;
+          const A = [t[0], t[1], t[2], t[4], t[5], t[6], t[8], t[9], t[10]], B = new Array(9), C = new Array(9);
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) B[i * 3 + j] = A[i * 3] * Mi[j] + A[i * 3 + 1] * Mi[3 + j] + A[i * 3 + 2] * Mi[6 + j];
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i * 3 + j] = Mp[i * 3] * B[j] + Mp[i * 3 + 1] * B[3 + j] + Mp[i * 3 + 2] * B[6 + j];
+          const tv = [t[3], t[7], t[11]], tm = [Mp[0] * tv[0] + Mp[1] * tv[1] + Mp[2] * tv[2], Mp[3] * tv[0] + Mp[4] * tv[1] + Mp[5] * tv[2], Mp[6] * tv[0] + Mp[7] * tv[1] + Mp[8] * tv[2]];
+          obj.matrix.set(C[0], C[1], C[2], tm[0], C[3], C[4], C[5], tm[1], C[6], C[7], C[8], tm[2], 0, 0, 0, 1);
+          obj.matrixWorldNeedsUpdate = true;
+        };
+        for (const U of G.units) put(U.obj, T[U.name]);
+        for (const Q of G.parts) put(Q.obj, T[Q.name]);
+      }
+    }
+    else if (model.gearSwingRig) {
       const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
       for (const U of model.gearSwingRig) {
         U.obj.visible = gp > 0.02 || U.frac < 1;

@@ -496,7 +496,8 @@ function cageJoinSpec(P, M, T) {
     // drawn mechanism — a beam leg IS a spring-steel blade and a telescopic
     // leg IS an oleo, whatever the (link-only) shock row happens to hold.
     // Only the swinging link actually has a shock choice to read.
-    const s1leg = Math.round(P.s1Leg);
+    // RETRACT GM1: a retracting leg is drawn as an oleo on a trunnion (the gear layer), and flies as one
+    const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
       s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
@@ -963,6 +964,7 @@ function cagePartMatch(name, ud, twin) {
   if (name.lastIndexOf('edLeg', 0) === 0 || name.lastIndexOf('edSurf_', 0) === 0 ||
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
+      name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
       name === 'edCastorT')
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
@@ -2181,6 +2183,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
           groups: {} });
+      // RETRACT GM3: THE MECHANISM'S PARTS (a brace's links, an actuator's body and rod) - each its own rigid part,
+      // pivoted on its rest base point; the flight poses it with the core's gearMechPose (the snapshot's gearMech)
+      for (const mp of ((GB.mech && GB.mech.parts) || []))
+        if (mp.rule === 'aim')
+          PARTS.others.push({ src: mp.name, kind: 'gearMech', mechName: mp.name, axleC: mp.o0, groups: {} });
       // G59 CONTROL SURFACES. Each named surface becomes its own part
       // with a HINGE derived from its own geometry: the hinge line is
       // the surface's FORWARD edge (x is aft in the model frame, so its
@@ -2910,6 +2917,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           tip: rotP(-m.tip[2], m.tip[1], m.tip[0]),
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
+      if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the
@@ -3227,10 +3235,23 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         }
       }
     } catch (e) { gearSwing = null; }
+    // RETRACT GM3 (WYSIWYG): THE ONE KINEMATICS' RECORD as the gear layer posed it (its frame: the cage's metres) and
+    // the capture's map of that frame (rotP, linear: Mp p = rotP(-p.z, p.y, p.x)) - app.js poses every part with the
+    // core's gearMechPose and carries each matrix through Mp (T' = Mp T Mp^-1), the very function the garage ran
+    let gearMech = null;
+    try {
+      const GM = window.CAGE_GEAR && window.CAGE_GEAR.mech;
+      if (GM) {
+        const e = [rotP(0, 0, 1), rotP(0, 1, 0), rotP(-1, 0, 0)];    // the images of the frame's x, y, z
+        gearMech = { R: JSON.parse(JSON.stringify(GM)),
+                     Mp: [e[0][0], e[1][0], e[2][0], e[0][1], e[1][1], e[2][1], e[0][2], e[1][2], e[2][2]] };
+      }
+    } catch (e) { gearMech = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
              ...(gearSwing ? { gearSwing } : {}),
+             ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
              layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major

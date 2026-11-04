@@ -1674,7 +1674,8 @@ const EYE_STATS = { builds: 0, buildMs: null, swaps: 0, swapMs: null, last: null
 // than its sheet, so the first tick after a release refuses the deform ('the stand is not this sheet') and builds whole.
 const wellCutsNow = () => { const C = typeof window !== 'undefined' ? window.CAGE_GEAR : null;
   return C && Array.isArray(C.cuts) && C.cuts.length ? C.cuts : null; };
-const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + c.outline.map(p => p[0].toFixed(5) + ',' + p[1].toFixed(5)).join(' ')).join('|') : '';
+const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.hf ? c.hf.nx + 'x' + c.hf.nz + ':' + c.hf.y.reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
+  c.outline.map(p => p[0].toFixed(5) + ',' + p[1].toFixed(5)).join(' ')).join('|') : '';
 const WELL_MEMO = new WeakMap();        // sheet -> { sig, out }
 const WELL_STATS = { cuts: 0, ms: null, swaps: 0, last: null };
 function wellCutOf(sh, cuts) {
