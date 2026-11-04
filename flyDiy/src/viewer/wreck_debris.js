@@ -652,7 +652,33 @@
     return { crushed: !!why, why, depth: d, d0: C.d0, vol: vr, eye: [x, y, z] };
   }
 
-  const API = { G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
+  // ---- G2016 (GEAR-FALLS): A SNAPPED GEAR WIRE'S TWO ENDS. The user, 4 Nov: a wire may snap without the leg going "only if the
+  // picture shows just that". A main gear's X wires are in the frame, not in the drawing (the legs are drawn, the wires are not):
+  // once one has snapped its ends are - each hanging from its fitting, the belly's the longer, curling toward where the wire ran.
+  // An end on a node that has left the aeroplane goes with it (a leg gone: only the belly's end stays). br: the broken beams;
+  // live: the nodes, world. Pure (GATE GEARFALL); the page's wreckWires draws them ----
+  const WIRE_BELLY = 0.35, WIRE_AXLE = 0.12, WIRE_R = 0.006, WIRE_SIDES = 6, WIRE_CURL = 0.35;
+  function wireEnds(def, br, pc, live) {
+    const R = def.refs || {}, N = def.nodes, ax = new Set([].concat(R.mains || [], R.tw != null && R.tw >= 0 ? [R.tw] : [])), out = [];
+    for (const bi of br) { const b = def.beams[bi]; if (!b || b.cls !== 'gear' || b.vis !== 'wire') continue;
+      const P = N[b.a].p, Q = N[b.b].p, L = Math.hypot(P[0] - Q[0], P[1] - Q[1], P[2] - Q[2]);
+      for (const [i, j] of [[b.a, b.b], [b.b, b.a]]) { if (pc && pc[i] !== 0) continue;
+        const dx = live[j*3] - live[i*3], dz = live[j*3+2] - live[i*3+2], h = Math.hypot(dx, dz) || 1;
+        out.push({ beam: bi, node: i, len: Math.min(ax.has(i) ? WIRE_AXLE : WIRE_BELLY, 0.4 * L), dx: dx / h, dz: dz / h }); } }
+    return out;
+  }
+  // one end's tube, unindexed, the fitting at the origin, down the world's -y and curling along (dx, dz): { pos, nrm } (three rings' worth)
+  function wireTube(e) {
+    const ring = [[0, 0, 0], [e.dx * WIRE_CURL * e.len * 0.25, -e.len * 0.55, e.dz * WIRE_CURL * e.len * 0.25], [e.dx * WIRE_CURL * e.len, -e.len, e.dz * WIRE_CURL * e.len]], pos = [], nrm = [];
+    const ang = k => 2 * Math.PI * k / WIRE_SIDES, sx = -e.dz, sz = e.dx;   // (the round: the curl's plane and its normal)
+    const at = (c, k) => { const u = Math.cos(ang(k)), w = Math.sin(ang(k)), n = [u * e.dx + w * sx, 0, u * e.dz + w * sz]; return { p: [c[0] + WIRE_R * n[0], c[1], c[2] + WIRE_R * n[2]], n }; };
+    for (let s = 0; s + 1 < ring.length; s++) for (let k = 0; k < WIRE_SIDES; k++) {
+      const A = at(ring[s], k), B = at(ring[s], k + 1), C = at(ring[s + 1], k), D = at(ring[s + 1], k + 1);
+      for (const V of [A, B, C, B, D, C]) { pos.push(V.p[0], V.p[1], V.p[2]); nrm.push(V.n[0], V.n[1], V.n[2]); } }
+    return { pos, nrm };
+  }
+
+  const API = { wireEnds, wireTube, G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
     WET_K, CUT0, CUT1, TWIST, isMetal, CURL_B, DRV_RANK, fromDrive,
     rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, solidOf, strike, support, held, inHull2, groundPlane, SUP_TOL, SUP_IN, SUP_N, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };

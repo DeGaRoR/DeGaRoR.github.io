@@ -9,10 +9,12 @@
 //   3. EACH MEMBER ALONE, rolling at 15 m/s: a leg's load members and the axle bar let one leg go; a wire only snaps - the
 //      leg stands, no crash, the record says so; a tailwheel's load member lets the tailwheel go
 //   4. the metal Cessna's nose leg, the same rule (no certificate: the rule, not the limits)
+//   5. a snapped wire's ends are drawn (WRECK_DEBRIS.wireEnds, the page's wreckWires): two on a standing leg, the belly's alone once
+//      the leg has gone; the page's own look is the stills'
 // Run: node tools/_gear_fall_check.js   (one final `GATE GEARFALL: PASS|FAIL`)
 'use strict';
 process.env.FLYDIY_CERT = '1';
-const G = require('./_dmg_gear_lib.js'), L = G.L, RAD = Math.PI / 180;
+const G = require('./_dmg_gear_lib.js'), L = G.L, RAD = Math.PI / 180, WD = require('../src/viewer/wreck_debris.js');
 let pass = 0, fail = 0;
 const yes = (ok, msg) => { if (ok) pass++; else fail++; console.log((ok ? '  ok    ' : '  FAIL  ') + msg); };
 // rolling on a flat world, then the stage: nose down by pitch, yawed off the track, swinging at rate, going down at sink
@@ -72,5 +74,14 @@ console.log('4. the metal Cessna\'s nose leg');
   if (!ng) yes(false, 'no nose gear joint in [' + GR.filter(g => /:gear$/.test(g.key)).map(g => g.key).join(', ') + ']');
   else { const m = ng.t0.find(j => B[j].vis !== 'wire'), R = stage('metal', { V: 15 }, { cert: false }); for (let f = 0; f < 30; f++) R.sim.step(1 / 60); R.sim.damageBreak(m, 'tension'); const r = run(R, 5);
     yes(r.groups.includes(ng.key) && r.drop > 0.03, ng.key + ', one load member: it goes, the nose comes down: ' + say(r)); } }
+console.log('5. a snapped wire\'s ends drawn');
+{ const R = stage('cub', { V: 15 }), { sim, def } = R, B = sim.beams, axle = new Set(def.refs.mains);
+  const w = B.findIndex(b => b.cls === 'gear' && b.vis === 'wire'), lp = new Uint8Array(sim.n);
+  const ends = WD.wireEnds(def, [w], lp, sim.p), tube = ends.length ? WD.wireTube(ends[0]) : null;
+  yes(ends.length === 2 && ends.some(e => axle.has(e.node) && e.len <= 0.12) && ends.some(e => !axle.has(e.node) && e.len > 0.12) && tube && tube.pos.length === tube.nrm.length && tube.pos.every(Number.isFinite), 'a wire alone: two ends, the belly\'s the longer: ' + ends.map(e => e.len.toFixed(2)).join(', '));
+  const gone = lp.slice(); for (const e of ends) if (axle.has(e.node)) gone[e.node] = 1;
+  const left = WD.wireEnds(def, [w], gone, sim.p);
+  yes(left.length === 1 && !axle.has(left[0].node), 'its leg gone: the belly\'s end alone');
+  yes(WD.wireEnds(def, B.map((b, i) => i).filter(i => B[i].cls === 'gear' && B[i].vis !== 'wire'), lp, sim.p).length === 0, 'a load member draws no wire'); }
 console.log('  ' + pass + '/' + (pass + fail) + ' checks');
 console.log('GATE GEARFALL: ' + (fail ? 'FAIL' : 'PASS'));

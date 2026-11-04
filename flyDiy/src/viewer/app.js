@@ -5650,13 +5650,13 @@
   // as built. Nothing of it runs while nothing is damaged and no engine has seized: wreckFrame returns at its first test.
   // ?wreck=0 (or window.FLYDIY_WRECK = false at any time): the wreck as drawn before G1860, for the A/B.
   const WK = { model: null, P: null, W: null, T: null, t: null, rest: null, hid: [], idx: [], pos: [], rigs: null, cab: null, crew: new Map(), crewOff: false, crewT: null,
-               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, ms: { plan: 0, release: 0, frame: 0 } };
+               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, wires: [], wiresV: -1, ms: { plan: 0, release: 0, frame: 0 } };
   try { if (/[?&]wreck=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_wreck_stills.js): the parts, the bodies, the strikes, the cockpit rule's last word, the costs (ms)
   window.FLYDIY_WRECK_STATS = () => ({ on: window.FLYDIY_WRECK !== false, active: !!WK.model,
     parts: WK.P ? WK.P.parts.map(c => ({ kind: c.kind, gone: c.gone, why: c.why, crush: c.crush != null ? +c.crush.toFixed(3) : null })) : [],
     bodies: WK.W ? WK.W.bodies.map(B => ({ kind: B.kind, why: B.why, asleep: B.asleep, sunk: B.sunk, x: B.x.map(v => +v.toFixed(2)), tris: B.tris || 0 })) : [],
-    strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
+    wires: WK.wires.filter(w => w.obj.visible).map(w => ({ beam: w.beam, node: w.node, len: w.len })), strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
@@ -5682,6 +5682,7 @@
     const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
     wreckScraps(D, vel);                                             // G2046
+    wreckWires(D);                                                   // G2016
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
     WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
@@ -5916,6 +5917,24 @@
     WK.ms.release = Math.max(WK.ms.release, performance.now() - t0);
     return Bd;
   }
+  // G2016 (GEAR-FALLS): A SNAPPED GEAR WIRE'S ENDS DRAWN (WRECK_DEBRIS.wireEnds says why): new meshes from a leg's own material and
+  // attributes (no program links: wreckRelease's rule), each frame on its fitting, shortened over the ground; gone with their node
+  function wreckWires(D) {
+    if (WK.wiresV !== D.vB) { WK.wiresV = D.vB;
+      const leg = WK.P.parts.filter(c => c.kind === 'wheel' && c.objs).map(c => c.objs.map(o => wreckMeshesOf(o)).reduce((a, b) => a.concat(b), []).find(m => m.geometry && m.geometry.index && m.geometry.attributes.position)).find(Boolean);
+      for (const e of leg ? window.WRECK_DEBRIS.wireEnds(def, D.br, D.pc, sim.p) : []) {
+        if (WK.wires.some(w => w.beam === e.beam && w.node === e.node)) continue;
+        const T = window.WRECK_DEBRIS.wireTube(e), n = T.pos.length / 3, g = new THREE.BufferGeometry(), A = leg.geometry.attributes;
+        for (const k in A) { const at = A[k]; if (at.isInterleavedBufferAttribute || k === 'skinIndex' || k === 'skinWeight') continue;
+          g.setAttribute(k, new THREE.BufferAttribute(k === 'position' ? Float32Array.from(T.pos) : k === 'normal' ? Float32Array.from(T.nrm) : new at.array.constructor(n * at.itemSize), at.itemSize, at.normalized)); }
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, leg.material); m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false; m.frustumCulled = false; m.name = 'wreckWire'; scene.add(m);
+        WK.wires.push({ beam: e.beam, node: e.node, len: e.len, obj: m }); }
+      for (const w of WK.wires) if (D.pc && D.pc[w.node] !== 0) w.obj.visible = false; }
+    for (const w of WK.wires) { if (!w.obj.visible) continue;
+      const x = sim.p[w.node*3], y = sim.p[w.node*3+1], z = sim.p[w.node*3+2], sy = Math.max(0.05, Math.min(1, (y - world.terrainH(x, z)) / w.len));
+      w.obj.matrix.set(1, 0, 0, x, 0, sy, 0, y, 0, 0, 1, z, 0, 0, 0, 1); w.obj.matrixWorldNeedsUpdate = true; }
+  }
   // G2046 (DMG-SETTLE): THE ISLANDS ON A LOOSE PIECE (skin_break.js looseIslands says why) - a scrap of the snapshot riding
   // a piece of fewer than three nodes hung at its rest lever, in a frozen turn (the metal Cessna's dash face 45 cm over
   // the node lying on the ground). At each break event each record (a static bucket's: its ranges, as a cowl panel's) gives
@@ -6104,6 +6123,7 @@
     for (const [m, v] of WK.crew) m.visible = v;   // (DMG-D4b: the crew back)
     WK.crew.clear(); WK.crewOff = false; WK.crewT = null;
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
+    for (const w of WK.wires) { scene.remove(w.obj); w.obj.geometry.dispose(); } WK.wires = []; WK.wiresV = -1;   // (G2016)
     for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
