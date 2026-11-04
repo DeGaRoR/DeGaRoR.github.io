@@ -1522,7 +1522,7 @@ function makePilot(sim, def, world, opts) {
       // the slope from the FAF is planned from that height)
       const gSide = side > 0 ? gL : gR;
       // (G3914: the circuit at 1,000 ft keeps 500 ft of it over that ground, the rule's own minimum, not 700 ft)
-      const overG = P3_ ? Math.max(152, 0.7 * A.hCruise) : 0.7 * hC;
+      const overG = P3_ && !(ap.report.card && ap.report.card.alt) ? Math.max(152, 0.7 * A.hCruise) : 0.7 * hC;
       if (gSide - gStrip + overG > hC) { hC = gSide - gStrip + overG; setFinal(); }
       ap.patGround = { L: Math.round(gL), R: Math.round(gR), strip: Math.round(gStrip), hC: Math.round(hC) };
     }
@@ -1557,7 +1557,7 @@ function makePilot(sim, def, world, opts) {
     const F = P.F, c = side * P.W;
     P.side = side;
     return [
-      { name: 'DOWNWIND', A: wp(F, sJoin, c), B: wp(F, P.sIaf, c), h: P3_ ? Math.min(P.hC, P.hIaf + P.gD * P.W) : P.hC, V: P3_ ? 'pattern' : 'cruise', prof: P3_, rest: P.W },
+      { name: 'DOWNWIND', A: wp(F, sJoin, c), B: wp(F, P.sIaf, c), h: P3_ && !ap.report.card ? Math.min(P.hC, P.hIaf + P.gD * P.W) : P.hC, V: P3_ && !ap.report.card ? 'pattern' : 'cruise', prof: P3_ && !ap.report.card, rest: P.W },   // (a test card asks the downwind's height and speed: flown level, as asked)
       { name: 'BASE', A: wp(F, P.sIaf, c), B: wp(F, P.sIaf, 0), h: P3_ ? P.hIaf : P.hC, V: 'turn', prof: P3_, rest: 0 },
       { name: 'FINAL', A: wp(F, P.sIaf, 0), B: wp(F, P.sAim, 0) },
     ];
@@ -2386,7 +2386,9 @@ function makePilot(sim, def, world, opts) {
       // Not judged while slipping nor for 2 s after it
       if (slipK > 0.02) slipLastT = ap.t;
       const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
-                   && (!PRA || ap.phase === 'FINAL') && ap.t - slipLastT > 2;
+                   && (!PRA || ap.phase === 'FINAL') && ap.t - slipLastT > 2
+                   // G3914: a descending circuit's base turn pulls for the bank. The metal Cessna, 37 m/s and 23 deg on the base, read 'cannot hold 33.2' and came down its final at 37 (Vref 28.8), touching at 1.46 Vs
+                   && (!P3_ || (ap.phase === 'FINAL' && Math.abs(SV.ph) < 0.17));
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;

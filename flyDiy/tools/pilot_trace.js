@@ -182,7 +182,7 @@ function runTrace(o) {
   const styleK = ({ cautious: 1.06, normal: 1, brisk: 0.97 }[o.style || 'normal'] || 1);
   const Vs = G.Vs, VApprOf = () => ap.VAppr * styleK;
   const glider = S.role === 'glider';
-  const maxS = o.maxS || (glider ? 640 : (from !== to ? 900 : 420));
+  const maxS = o.maxS || (glider ? 640 : (from !== to ? 900 : 560));
   const rows = [], phases = [];
   let last = null, tEnd = maxS, nan = false;
   // the collectors
