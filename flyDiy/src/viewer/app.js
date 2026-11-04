@@ -4795,7 +4795,11 @@
           const tws = (def && def.params && typeof def.params.twSteer === 'number')
             ? def.params.twSteer : 0.5;
           const up = c.axis[1] < 0 ? -1 : 1;
-          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
+          // G3800 (TAILWHEELS): the fork as the solver has it (30_solver twLine: out.twState / twAng) - the rudder's
+          // while it steers, its own track while it castors, straight when locked or fixed (a skid has no fork)
+          const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+          const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+          c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
       }
@@ -11274,7 +11278,7 @@
   // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
   // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
   const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
-                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null, chairs: [] };
   const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
   const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
   function fsAccepted() {
@@ -11608,6 +11612,17 @@
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
     seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
+  // G2404 (SEATS-OUT): THE CHAIRS THE ACCEPTED LOAD TOOK OUT, on the stand, for as long as it rides; delivered, they are back.
+  // The seat's identity group goes (the join's snapshot asks each MESH for its own `visible`, so no bake changes); a cage
+  // rebuild makes new groups, the tick hides them again; the loading view owns them while it is open. In flight the chair
+  // is baked into the flown mesh and still draws (owed: the flown model has no seats of its own).
+  function fsChairs(got, loading) {
+    if (loading || !inGarage) return;
+    const want = got && Array.isArray(got.A.seatsOut) ? got.A.seatsOut : [];
+    if (!want.length && !FST.chairs.length) return;
+    for (const i of new Set(FST.chairs.concat(want))) { const o = edSitP.getObjectByName('edSeat' + (i + 1)); if (o) o.visible = !want.includes(i); }
+    FST.chairs = want.slice();
+  }
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -11652,6 +11667,7 @@
       }
     }
     fsPeople();
+    fsChairs(got, loading);
     fsWarnSync();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
@@ -11679,7 +11695,7 @@
     state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
                     simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
                     drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
-                    seats: FST.R ? FST.R.seats : null, hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    seats: FST.R ? FST.R.seats : null, chairs: FST.chairs.slice(), hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
                     rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
     stop: fsStop,
     rigLoad: fsRigLoad,

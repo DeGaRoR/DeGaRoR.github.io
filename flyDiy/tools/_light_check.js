@@ -750,6 +750,25 @@ if (process.argv.includes('--selftest')) {
   check(/kGlass = .*\* Pp, kLamp = .*\* Pp;/.test(prem) && /const kSmoke = .*\* Pp;/.test(prem), 'G2620: the premises lamps, panes, fixtures and smoke x P');
   check(/MIR\.last = null/.test(wat), 'G2620: the water mirror re-captures at a switch');
 }
+// LIGHTS THAT CANNOT LIGHT (the user 4 Nov: "We need a warning for no electrics"): the pure rule, off the layer's source
+{
+  const src = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
+  const i0 = src.indexOf('function lightWarnings'), i1 = src.indexOf('window.CAGE_LIGHT_WARNINGS');
+  check(i0 > 0 && i1 > i0, 'lightWarnings is in the light layer');
+  const W = new Function('EXT', 'INT', 'fitted', src.slice(i0, i1) + ';return lightWarnings;')(
+    ['nav', 'land', 'taxi'], ['flood'], (P, k) => P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit']);
+  const keys = (P, sys, sites) => W(P, sys, sites).map(x => x.key).join();
+  check(keys({ lightOn: 1 }, { battAh: 0, altA: 0 }, {}) === 'power', 'lights with no battery and no generator: warned');
+  check(keys({ lightOn: 1 }, { battAh: 16, altA: 20 }, {}) === '', 'lights with both: nothing said');
+  check(keys({ lightOn: 1 }, { battAh: 16, altA: 0 }, {}) === '', 'a battery alone powers them');
+  check(keys({ lightOn: 1 }, { battAh: 0, altA: 20 }, {}) === '', 'a generator alone powers them');
+  check(keys({ lightOn: 0 }, { battAh: 0, altA: 0 }, { wingLampNone: 'x' }) === '', 'no lights fitted: nothing said');
+  check(keys({ lightOn: 1 }, { battAh: 16, altA: 20 }, { wingLampNone: 'x' }) === 'bay', 'a fitted landing light with no bay: warned');
+  check(keys({ lightOn: 1, li_landFit: 0, li_taxiFit: 0 }, { battAh: 16, altA: 20 }, { wingLampNone: 'x' }) === '', 'no bay, neither fitted: nothing said');
+  check(keys({ lightOn: 1 }, { battAh: 0, altA: 0 }, { wingLampNone: 'x' }) === 'power,bay', 'both say so');
+  const ed = fs.readFileSync(path.join(__dirname, '..', 'src/viewer/editor.js'), 'utf8');
+  check(/{ k: 'lightsWarn'/.test(ed) && /lightsWarn: { head: 'Lights'/.test(ed), 'the garage top bar carries the warning and its card');
+}
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE LIGHT: FAIL');

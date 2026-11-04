@@ -103,6 +103,11 @@
     // below 12 m/s, up at take-off power) unless the hand says - the handle's three places
     { id: 'waterRudder', kind: 'step', ctl: 'wr', label: 'water rudders', group: 'ground',
       hint: 'AUTO · UP · DOWN round (floats only)', keys: { key: 'KeyV' } },
+    // G3800 (TAILWHEELS): the LOCKABLE tailwheel's lock (the DC-3's, the warbirds'; 30_solver twLine law 2): IN pins it
+    // straight for the take-off and the landing, OUT lets it castor to taxi (steer it on the toe brakes and the
+    // engines). Any other tail contact ignores it. The aeroplane starts with it in
+    { id: 'twLock', kind: 'step', ctl: 'twLock', label: 'tailwheel lock', group: 'ground',
+      hint: 'IN · OUT (a lockable tailwheel only)', keys: { key: 'Slash' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -406,6 +411,7 @@
     let notches = [0], flapI = 0, flapOut = 0, flapRate = 0.15;
     let nEng = 1;
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
+    let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -612,6 +618,7 @@
       trimR = air ? clamp(-fin(c.dr, 0), -TRIM_R_MAX, TRIM_R_MAX) : 0;   // (dr > 0 is nose LEFT: the pilot's right is -dr)
       trimA = air ? clamp(fin(c.da, 0), -TRIM_A_MAX, TRIM_A_MAX) : 0;
       wr = null;
+      twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -726,6 +733,7 @@
         else if (id === 'trimRollL') trimA = clamp(trimA - TRIM_A_STEP, -TRIM_A_MAX, TRIM_A_MAX);
         else if (id === 'trimCentre') { trimR = 0; trimA = 0; }
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
+        else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -768,6 +776,7 @@
       ctl.brake = bL === bR ? bL : (bL + bR) / 2;
       ctl.brakeD = bL === bR ? 0 : (bL - bR) / 2;
       ctl.wr = wr;
+      ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -814,6 +823,7 @@
                        if (o.r != null) trimR = clamp(fin(o.r, 0), -TRIM_R_MAX, TRIM_R_MAX);
                        if (o.a != null) trimA = clamp(fin(o.a, 0), -TRIM_A_MAX, TRIM_A_MAX); },
       waterRudder: () => wr,
+      twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },

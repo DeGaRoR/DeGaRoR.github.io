@@ -6781,6 +6781,25 @@ function freightLoadNew(card, items, opts) {
   const P = freightPack(card, its, { pax, seatsOut });
   return { v: FREIGHT_LOAD_V, card: (card && card.id) || null, pax, seatsOut, items: its, placed: P.placed };
 }
+// G2404 (SEATS-OUT; the user, 4 Nov: "cargo missions should allow for removing the back seats temporarily"): THE PROPOSAL
+// THE VIEW OPENS ON AND A STOP TAKES. Every seat in when the whole load fits legally that way; else only the EMPTY seats it
+// needs come out, the back row first (seat order runs front to back), when that makes the whole load legal - within the
+// MTOW, the certified CG range, the floors and the placard (freightFits). A loading only possible out of limits is never
+// PROPOSED: the seats stay in, what does not fit stays on the ground, and the player's hand may still take a seat out (red and
+// allowed). A passenger's seat never goes. The seats out live in the session and its record only, never in the build:
+// they come back when the record leaves (freightLoadSettle).
+function freightLoadBest(card, items, opts) {
+  const o = opts || {}, pax = Math.max(0, o.pax | 0);
+  const base = freightLoadNew(card, items, { pax });
+  const F = freightFits(card, base.items, { pax });
+  if (!F.ok || !F.seatsOut.length) return base;
+  const empty = flSeatsOutOk(card, pax, F.seatsOut).sort((a, b) => b - a);
+  for (let k = 1; k <= empty.length; k++) {
+    const st = freightLoadNew(card, base.items, { pax, seatsOut: empty.slice(0, k) });
+    if (st.placed.length === st.items.length && freightLoadReport(card, st).ok) return st;
+  }
+  return freightLoadNew(card, base.items, { pax, seatsOut: F.seatsOut });
+}
 // "Propose again": the packer's answer for the load, the passengers and the seats as they are now
 function freightLoadPropose(card, st) {
   return freightLoadNew(card, st.items, { pax: st.pax, seatsOut: st.seatsOut });

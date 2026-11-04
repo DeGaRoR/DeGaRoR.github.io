@@ -437,10 +437,13 @@ function cageJoinSpec(P, M, T) {
     // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
-    // G3575: THE FULL-SWIVEL THIRD WHEEL - the steering row's third type (GEAR_PAGE.STEERS[2]) reaches the physics; the
-    // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
-    // and the def are what they were, to the bit
-    if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
+    // G3800 (TAILWHEELS): THE TAIL CONTACT'S KIND - the steering row (GEAR_PAGE.STEERS): 1 steerable (and 0, an old
+    // save's 'fixed' that always flew linked) no key; 2 lockable (G3575's 'full swivel', the DC-3's) 'lock'; 3 fixed;
+    // 4 the skid. A tricycle's nose wheel stays the rudder's (62_gen_aero reads the key on a taildragger only)
+    { const sv = Math.round(+P.s2Steer || 0);
+      const mode = sv === 2 ? 'lock' : sv === 3 ? 'fixed' : sv === 4 ? 'skid' : null;
+      if (mode) spec.gear.twMode = mode; else delete spec.gear.twMode;
+      delete spec.gear.twSwivel; }
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -700,6 +703,13 @@ function cageJoinSpec(P, M, T) {
     // The frame raises its tail tops to this (a conventional tail reads it
     // through stabH; the twin boom has no fin-height ratio to invert)
     if (typeof M.stabY === 'number' && isFinite(M.stabY)) tl.stabY = M.stabY;
+    // G3800 (TAILWHEELS): the inverted V - stated whole when drawn, gone when not (a twin boom's V keys are its own)
+    if (typeof M.ivAngle === 'number' && M.ivAngle >= 20) {
+      tl.ivAngle = M.ivAngle; tl.ivGap = M.ivGap != null ? M.ivGap : 0.30; tl.ivS = M.ivS > 0 ? M.ivS : null;
+      // G3801: the way (down & in, the Shadow's, is no key) and an outward V's reach
+      tl.ivDir = M.ivDir && M.ivDir !== 'downIn' ? M.ivDir : null; tl.ivReach = M.ivReach > 0 ? M.ivReach : null;
+      tl.Sh = null; tl.Sv = null;
+    } else if (M.tailJoined) { tl.ivAngle = null; tl.ivGap = null; tl.ivS = null; tl.ivDir = null; tl.ivReach = null; }   // (stated: the merge keeps an absent key)
   }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
@@ -954,7 +964,7 @@ function cageSurfLine(surf, L) {
     const FS = SBh.measure.FS;
     const side = S2h === 'elevR' ? 1 : -1;     // 'R' is the cage's +x
     const laid = FIN2.finToStab({ V: SBh.measure.hinge.line.map(p => [0, p[0], p[1]]), F: [] },
-                                Object.assign({}, SBh.lay, { side })).V;
+                                SBh.layOf ? SBh.layOf(side) : Object.assign({}, SBh.lay, { side })).V;   // (G3800: the inverted V's own lay)
     return laid.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
   }
   return null;
@@ -1018,7 +1028,11 @@ function cageSurfHinge(pts, surf, opts) {
     // the rudder — the codec's second drive (50_model_codec applyHinges).
     // dr > 0 is nose LEFT: both trailing edges swing to port, which on the
     // port panel is DOWN along its own normal and on the starboard one UP.
-    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = port ? -1 : 1; }
+    // G3801: BY GEOMETRY - the trailing edge swings to PORT on both panels whichever way they lean (the four ways of a
+    // V from the booms: an up-and-in panel's port TE goes the other way round its hinge): a turn of +a about the axis
+    // moves the aft edge along axis x aft, whose z (port) is -axis.y - so the sign is -sign(axis.y); a flat axis keeps
+    // the side rule (a normal V's and the inverted V's read the same as before: their port axes rise, starboard fall)
+    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
   }
   else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
   else { out.drive = 'da'; out.sgn = port ? -1 : 1; }
@@ -1611,9 +1625,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // ratio) and the note says so.
         const FNm = window.CAGE_FIN, SBm = window.CAGE_STAB;
         const stOnP = Math.round(P.stOn === undefined ? 1 : P.stOn);
-        const finM = (+P.finOn && FNm && FNm.measure) ? FNm.measure : null;
+        // (G3800: under the inverted V on twin booms the fin layer stands down - the panels are the tail)
+        const finOnJ = +P.finOn && !(+P.boomTwin && Math.round(+P.stMount || 0) === 4);
+        const finM = (finOnJ && FNm && FNm.measure) ? FNm.measure : null;
         const stabM = (stOnP && SBm && SBm.measure) ? SBm.measure : null;
-        if (+P.finOn && !finM)
+        if (finOnJ && !finM)
           ERRS.push('tail: the fin is drawn but not measured — the rule\'s fin flies');
         if (stOnP && !stabM)
           ERRS.push('tail: the stabiliser is drawn but not measured — the rule\'s tailplane flies');
@@ -1639,7 +1655,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             M.stabY = (sB.y0 + sB.y1) / 2 - yD;
           }
           const SBv = SBm, TBj = window.CAGE_BOOMS;
-          const isV = !!(SBv && SBv.cant >= 20);
+          // (G3800: the inverted V on twin booms - the stab layer's mount 4 - is measured as a V's panels: its area,
+          // its cant; filed as its own keys below, the twin's ivAngle / ivGap / ivS)
+          const isIV = !!(SBv && SBv.mount === 4 && TBj);
+          const isV = !!(SBv && SBv.cant >= 20) || isIV;
           // T2.3 (140): the stab's incidence, as drawn (degrees, LE up +)
           if (SBv && typeof SBv.inc === 'number' && isFinite(SBv.inc)) M.hInc = SBv.inc;
           // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
@@ -1734,7 +1753,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
               M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
             }
-            if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
+            if (isIV) {
+              // G3800: THE INVERTED V - its cant, its tip gap, both panels' true area (the V's Svt, measured)
+              M.ivAngle = SBv.cant; M.ivGap = SBv.measure && SBv.measure.ivGap;
+              M.ivDir = SBv.measure && SBv.measure.ivDir; M.ivReach = SBv.measure && SBv.measure.ivReach;   // G3801
+              if (M.Svt > 0) { M.ivS = M.Svt; delete M.Svt; }
+            } else if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
               // the oval's own crown at the stab station (the frame puts
               // the apex vHeight·0.82 above exactly that; the round tube's
               // top under-read a lofted boom by half its radius)
@@ -1828,6 +1852,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               ['hTaper', 'hTaper', ''], ['vTaper', 'vTaper', '']]) {
             const v = M[k], r = ENV[key];
             if (!(v > 0) || !r) continue;
+            // (G3801: a V from the booms flies its own panels - ivS on the reach the booms or ivReach give - and the
+            // tip-to-tip hSpan is a reading, not what the frame builds: an outward one's runs past the stab envelope)
+            if (k === 'hSpan' && typeof M.ivAngle === 'number' && M.ivAngle >= 20) continue;
             if (v < r[0] - 1e-9 || v > r[1] + 1e-9)
               ERRS.push(`tail: the drawn ${key} ${v.toFixed(3)}${unit} is outside the flown envelope ` +
                         `${r[0]}–${r[1]}${unit} and flies clamped — the drawn tail is not the flown tail`);

@@ -249,7 +249,8 @@ function make(THREE) {
     const night = !day.sunUp, low = hAboveField < 150, slow = ias < 15;
     // (G442.3: the cabin's flood and the feet come up with the panel - the user's "when starting
     // at night, all lights should be on by default"; a hand's dimmer is the hand's, as any switch)
-    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0, flood: night ? 0.5 : 0, pedal: night ? 0.5 : 0,
+    // (the user 4 Nov: "nav lights only by day": the nav lights burn day and night, on any aeroplane with a bus to feed them)
+    return { nav: 1, beacon: night ? 1 : 0, instr: night ? 1 : 0, flood: night ? 0.5 : 0, pedal: night ? 0.5 : 0,
              land: night && low && !slow ? 1 : 0, taxi: night && low && slow ? 1 : 0 };
   };
   CK.lightsRule = (day, sim, cg) => {
@@ -274,7 +275,7 @@ function make(THREE) {
     const bus = CK.bus;
     // THE PILOT'S LIGHTS (SKY chantier; G436.12 the rule moved here from 43_pilot.js so it runs
     // under a hand too - the pilot's update does not, and a night swapped in from the rail lit
-    // nothing by hand): nav and beacon from sunset to sunrise, the panel with them, the landing
+    // nothing by hand): nav always (the user, 4 Nov), the beacon from sunset to sunrise, the panel with it, the landing
     // light low and moving, the taxi light low and slow. A switch a hand set (the panel's click,
     // the rail's pill) is the hand's until the next sunset or sunrise, when the rule takes all.
     if (ctx.day) CK.lightsRule(ctx.day, sim, cg);    // the switches reach the bus and the key reaches the engine

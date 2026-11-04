@@ -122,13 +122,22 @@ function fsStraddle(ST, F, x) {
   for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
   return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
 }
-function fsBillAt(def, x, m, out) {
-  const ST = def.parts.ST, F = def.parts.F;
+// (`up`: 61_'s billAt third argument - what stands on a raised cabin floor, cabin.floorUp, shares the ring's top node)
+function fsBillAt(def, x, m, out, up) {
+  const ST = def.parts.ST, F = def.parts.F, N = def.nodes;
+  const fu = up && def.spec.cab && def.spec.cab.floorUp > 0 ? def.spec.cab.floorUp : 0;
+  const put = (rg, sd, mm) => {
+    const b = rg['B' + sd], t = rg['T' + sd];
+    if (!fu || t == null) { out.push([b, mm]); return; }
+    const w = fsClamp01(fu / Math.max(1e-6, N[t].p[1] - N[b].p[1]));
+    out.push([b, mm * (1 - w)], [t, mm * w]);
+  };
   const [f, a] = fsStraddle(ST, F, x);
-  if (f === a || !F[a]) { out.push([F[f].BL, 0.5 * m], [F[f].BR, 0.5 * m]); return; }
+  if (f === a || !F[a]) { put(F[f], 'L', 0.5 * m); put(F[f], 'R', 0.5 * m); return; }
   const x0 = ST[f].x, x1 = ST[a].x;
   const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
-  out.push([F[f].BL, 0.5 * m * (1 - wa)], [F[f].BR, 0.5 * m * (1 - wa)], [F[a].BL, 0.5 * m * wa], [F[a].BR, 0.5 * m * wa]);
+  put(F[f], 'L', 0.5 * m * (1 - wa)); put(F[f], 'R', 0.5 * m * (1 - wa));
+  put(F[a], 'L', 0.5 * m * wa); put(F[a], 'R', 0.5 * m * wa);
 }
 const FS_SEAT_ROWS = { single: [1], tandem2: [1, 2], side2: [1, 1], side4: [1, 1, 2, 2], tandem4: [1, 1, 2, 2], drone: [] };
 // one occupant of seat i (m = +occupantKg aboard, -occupantKg gone), as the frame bills them
@@ -142,6 +151,13 @@ function fsSeatBill(def, i, m, out) {
   const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : Math.min(1 + Math.floor(i / abreast), F.length - 1);
   const rg = F[ri] || F[1];
   out.push([rg.BL, m / 2], [rg.BR, m / 2]);
+}
+// G2404 (SEATS-OUT): a chair's own kilos (61_ section 'furnish': cabin.seatsKg's, else the outfit's row)
+function freightStrapChairKg(spec, i) {
+  const S = spec || {}, k = Array.isArray(S.cab && S.cab.seatsKg) ? S.cab.seatsKg[i] : null;
+  if (typeof k === 'number') return k;
+  const row = typeof GEN_SEATS !== 'undefined' ? (GEN_SEATS[S.outfit && S.outfit.seats] || GEN_SEATS.sling) : null;
+  return row ? row.kg : 0;
 }
 // the seats: who the build seats (61_'s rule: S.occupied, else the first S.occupants) and who the job seats (the pilot,
 // then seats 1..pax - 77_'s rule: "a passenger sits in seat i" for i <= pax) -> [{ i, build, job }]
@@ -216,6 +232,13 @@ function freightStrapAdds(def, acc, o) {
     if (d) fsSeatBill(def, s.i, d * occKg, raw);
     return { i: s.i, build: s.build, job: s.job, kg: d * occKg };
   });
+  // G2404 (SEATS-OUT): a seat taken out for this load leaves its chair's kilos on the ground too (61_'s billing, negated)
+  let chairsOff = 0;
+  const seatsXo = Array.isArray(def.spec.cab && def.spec.cab.seatsX) ? def.spec.cab.seatsX : [];
+  for (const i of Array.isArray(acc.seatsOut) ? acc.seatsOut : []) {
+    const kg = freightStrapChairKg(def.spec, i);
+    if (typeof seatsXo[i] === 'number' && kg > 0) { fsBillAt(def, seatsXo[i], -kg, raw, true); chairsOff += kg; }
+  }
   // the baggage allowance comes off while items ride
   const bag = items.length && def.spec.baggage > 0 ? def.spec.baggage : 0;
   if (bag) fsBaggageBill(def, -bag, raw);
@@ -226,7 +249,7 @@ function freightStrapAdds(def, acc, o) {
   let dm = 0;
   const mom = [0, 0, 0];
   for (const [i, kg] of adds) { dm += kg; const q = def.nodes[i].p; mom[0] += kg * q[0]; mom[1] += kg * q[1]; mom[2] += kg * q[2]; }
-  return { v: FREIGHT_STRAP_V, adds, items, seats, baggageOff: bag, kg: items.reduce((a, it) => a + it.kg, 0), dm, mom };
+  return { v: FREIGHT_STRAP_V, adds, items, seats, baggageOff: bag, chairsOff, kg: items.reduce((a, it) => a + it.kg, 0), dm, mom };
 }
 
 // ---- THE LIMITS SAID, NEVER REFUSED ----------------------------------------------------------------------------------
@@ -239,6 +262,11 @@ function freightStrapFlags(acc, card) {
   const K = card && card.mass;
   if (!acc || !K || !(K.mtow > 0)) return [];
   const out = [];
+  // G2404: an item the proposal could not take stays on the ground, said (a delivery asks for every item)
+  if (Array.isArray(acc.ashore) && acc.ashore.length) {
+    const n = acc.ashore.length;
+    out.push({ k: 'ashore', n, say: n + (n === 1 ? ' item' : ' items') + ' left on the ground (' + acc.ashore.map(a => a.id).join(', ') + ')' });
+  }
   if (acc.mass > K.mtow + 1e-6) { const kg = Math.ceil(acc.mass - K.mtow); out.push({ k: 'mtow', kg, say: 'over MTOW by ' + kg + ' kg' }); }
   const x = acc.cg && acc.cg.x, pct = v => (v - K.mac[0]) / K.mac[1] * 100;
   if (typeof x === 'number' && isFinite(x) && Array.isArray(K.cg)) {
@@ -382,7 +410,7 @@ function freightStrapNext(doc, slot, card) {
   if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };
   if (!card) return { doc, rec: null, how: 'none', why: 'this aeroplane\'s hold is not measured' };
   if (slot == null) return { doc, rec: null, how: 'none', why: 'the aeroplane has no saved airframe' };
-  const st = freightLoadNew(card, J.items, { pax: J.pax });
+  const st = freightLoadBest(card, J.items, { pax: J.pax });   // (G2404: the empty seats it needs out, none if it fits)
   const r = freightLoadAccept(doc, card, st, J.ctx);
   if (!r.ok) return { doc, rec: null, how: 'none', why: r.why };
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };

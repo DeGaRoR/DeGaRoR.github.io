@@ -366,9 +366,12 @@ html.phone body.fr-loading #c{position:fixed;left:0;top:0;width:100vw !important
     floorY = Hd.y0 + Math.min(...Hd.floor) / 100;
     let mh = 0; for (const row of Hd.half) for (const v of row) mh = Math.max(mh, v);
     clipZ = 0.8 * mh / 100;
-    st = job.rec ? freightLoadFromRecord(card, job.rec) : freightLoadNew(card, job.items, { pax: job.pax, seatsOut: job.seatsOut || [] });
+    // G2404 (SEATS-OUT): the proposal takes out the empty seats the load needs (77_ freightLoadBest); the chips put them back
+    st = job.rec ? freightLoadFromRecord(card, job.rec)
+      : ((job.seatsOut && job.seatsOut.length) ? freightLoadNew(card, job.items, { pax: job.pax, seatsOut: job.seatsOut }) : freightLoadBest(card, job.items, { pax: job.pax }));
     accepted = job.rec ? 'the placement you accepted' : false;
     picked = null; msg = job.note || ''; msgBad = false;
+    if (!job.rec && !msg && st.seatsOut.length) msg = (st.seatsOut.length === 1 ? 'seat ' : 'seats ') + st.seatsOut.map(i => i + 1).join(', ') + ' out for this load: it needs the room';
     grp = new T.Group(); grp.name = 'freightLoad'; grp.matrixAutoUpdate = false; grp.matrix.copy(M); grp.matrixWorldNeedsUpdate = true;
     ashGrp = new T.Group(); ashGrp.name = 'freightLoadGround';
     host.parent.add(grp); host.parent.add(ashGrp);
