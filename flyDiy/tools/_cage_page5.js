@@ -374,7 +374,8 @@ window.CAGE_PAGE = {
         // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
         ['hullTips',    'tip floats',                 0, 1, 1, ['none', 'on struts'], { when: P => +P.hullOn }],
         ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && +P.hullTips }],
-        ['hullTipVol',  'tip float, each (of the gross)', 0.02, 0.20, 0.005, { when: P => +P.hullOn && +P.hullTips }],
+        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && +P.hullTips, dim: 'kg' }],
+        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && +P.hullTips, dim: 'len' }],
       ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the

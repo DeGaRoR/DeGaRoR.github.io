@@ -5296,8 +5296,10 @@ function clampSpec(spec) {
       h.steps = h.steps === 0 ? 0 : 1;
       // the strut tip floats (HULL-B3): absent = none
       if (h.tips && typeof h.tips === 'object') {
+        // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
         h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.5, 0.98),
-                   vol: genClamp(Number.isFinite(+h.tips.vol) ? +h.tips.vol : 0.06, 0.02, 0.2) };
+                   kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
+                   y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1 };
       } else h.tips = null;
     }
   } else if (S.gear.hull !== undefined) delete S.gear.hull;

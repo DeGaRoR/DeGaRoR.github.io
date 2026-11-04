@@ -7352,10 +7352,13 @@ const CAGE_PARAMS = {
   //   hullStepZ   the step, metres AFT of the cabin frame (the cabin pillar's fore ring)
   //   hullHs      the step depth: the afterbody keel is the frames' bottom line + hullHs
   //   hullSteps   0 stepless, 1 the step
-  //   hullTips / hullTipAt / hullTipVol  the strut tip floats (the boat's lateral stability): on, their station as a
-  //               fraction of the semispan, each one's displacement as a fraction of the gross (61_gen_frame HULL-B3)
+  //   hullTips / hullTipAt / hullTipKg / hullTipY  the strut tip floats (the boat's lateral stability): on, their
+  //               station as a fraction of the semispan, each one's displacement (kg) and its keel's height over the
+  //               step keel (m) - the last two written by the Hull tile's fit (HYDRO.hullTipFit: 6 % of the flown gross,
+  //               0.12 m over the hull's level waterline); 0 / -1 = not fitted yet (the frame's gross rule). ROWS, so
+  //               the drawing (_cage_float.js HULL-B5) and the frame read one placement (HULL-B5)
   hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
-  hullTips: 1, hullTipAt: 0.85, hullTipVol: 0.06,
+  hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -8171,7 +8174,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
-  'hullTips', 'hullTipAt', 'hullTipVol'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes

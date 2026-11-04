@@ -1728,6 +1728,21 @@ function hullParamsFromTable(rec, over) {
   delete P._keel;
   return P;
 }
+// HULL-B5: THE TIP FLOATS' FIT - each float's displacement (frac of the gross: 6 %, the Seabee / Lake class's practice,
+// INFERRED) and its keel's height over the step keel (the hull's LEVEL waterline at the gross + clear: a level boat
+// sits on its hull, a heel of a few degrees puts a float in). What the Hull tile writes into hullTipKg / hullTipY once
+// (_cage_float.js) and the frame falls back to when they are unset - one function, so the rule cannot drift
+function hullTipFit(rec, grossKg, opt) {
+  const HP = hullParamsFromTable(rec);
+  if (!HP) return null;
+  const o = opt || {}, M = Math.max(60, grossKg || 0), frac = o.frac != null ? o.frac : 0.06, clear = o.clear != null ? o.clear : 0.12;
+  const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += secAreaTo(HP, sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
+  let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < M) lo = m; else hi = m; }
+  return { kg: +(frac * M).toFixed(1), y: +(lo + clear).toFixed(3), draft: lo };
+}
+// ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
+// it is sized for, so one float sized for kg / 0.9 displaces kg)
+const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
@@ -2579,7 +2594,7 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, tipFloatParams,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

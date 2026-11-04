@@ -1430,7 +1430,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, vol: +P.hullTipVol } };
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY } };
             const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];
             window.CAGE_HULL = { zStep: TB.zStep * FSh, keelY: TB.yStep * FSh, chineY: TB.yStep * FSh + sF.yc };
           } else NOTES.push(TB ? 'hull: no firewall anchor - the hull cannot be placed' : 'hull: no lines to measure');

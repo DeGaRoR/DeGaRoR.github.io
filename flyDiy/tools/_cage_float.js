@@ -392,14 +392,102 @@ function streamlined(bag, a, b, t, chordK) {
   return GK.sweep(bag, [a, b], () => sect, true, [0, 0, 1]);
 }
 
+// HULL-B5: THE BOAT'S TIP FLOATS, DRAWN FROM THE ROWS THE FRAME FLIES. The frame (61_gen_frame HULL-B3) hangs two
+// small Wipline-family floats: each one's hull for hullTipKg (HYDRO.tipFloatParams), its keel hullTipY over the step
+// keel, under the spar station nearest hullTipAt of the semispan (the step 0.10 L aft of the spars' mid-chord), on
+// struts from its deck edges to that station's front and rear spar nodes (and a wire each). The drawing reads THE SAME
+// ROWS, the same functions and the DRAWN wing's own spar nodes (the wing layer's def, through its node map - the
+// wing the join measures and the frame flies), and stands the float on the drawn step keel (the hull's own table,
+// cageHullTable): drawn = flown by construction. Rows not fitted yet (kg 0 / y -1): nothing drawn until the Hull
+// tile's fit writes them (hullFitStep below: the frame flies the gross rule meanwhile). Called by the wing layer once
+// it has published (the float layer's own post runs before the wing exists).
+let tipGroup = null;
+window.CAGE_TIPFLOAT_DRAW = ctx => {
+  if (tipGroup) { dispose(tipGroup); tipGroup = null; }
+  window.CAGE_TIPFLOATS = null;
+  const P = ctx && ctx.P, W = window.CAGE_WING, scene = ctx && ctx.scene;
+  if (!P || !+P.hullOn || !+P.hullTips || !W || !W.def || !W.nodeCage || !scene || !CG2 || !CG2.cageHullTable) return;
+  const kg = +P.hullTipKg, yRel = +P.hullTipY;
+  if (!(kg > 0) || !(yRel > -0.999)) return;
+  const HY = HYc(), FG = window.FLOAT_GEN;
+  const wf = W.def.parts && W.def.parts.wf, nodes = W.def.nodes, semi = W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
+  if (!HY || !HY.tipFloatParams || !wf || !wf.L || !wf.R || !(semi > 0)) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const yK = TB.yStep * FS + yRel;                       // the tip float's keel, cage metres
+  const Pt = HY.tipFloatParams(kg), tAt = +P.hullTipAt || 0.85;
+  tipGroup = new THREE.Group();
+  tipGroup.name = 'cageLayer:float';
+  scene.add(tipGroup);
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const skinM = (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
+    || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
+  const deckM = (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
+    || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
+  const strutM = (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad })) || GG.gearMat('steel');
+  const out = [];
+  for (const [sd, Wn] of [[-1, wf.L], [1, wf.R]]) {
+    // the spar station nearest tAt of the semispan - the frame's own choice, on the drawn wing's nodes
+    let jj = 1, dB = Infinity;
+    for (let q = 1; q < Wn.F.length; q++) { const e = Math.abs(Math.abs(nodes[Wn.F[q]].p[2]) - tAt * semi); if (e < dB) { dB = e; jj = q; } }
+    const cF = W.nodeCage(nodes[Wn.F[jj]].p), cR = W.nodeCage(nodes[Wn.R[jj]].p);
+    // the step: 0.10 L aft of the spars' mid-chord (cage z is forward), under their mid-span line
+    const zS = 0.5 * (cF[2] + cR[2]) - 0.10 * Pt.L, xS = 0.5 * (cF[0] + cR[0]);
+    // the float frame (x aft of its step, y up from its keel, z across) -> the cage (the frame's axes: cage x = model z)
+    const toC = v => [xS + v[2], yK + v[1], zS - v[0]];
+    const ug = new THREE.Group();
+    ug.name = 'edTipFloat' + (sd < 0 ? 'L' : 'R');
+    tipGroup.add(ug);
+    const meshOf = (part, mat, nm) => {
+      if (!part || !part.idx || !part.idx.length) return;
+      const n = part.pos.length / 3, pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const c = toC([part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]]); pos[i * 3] = c[0]; pos[i * 3 + 1] = c[1]; pos[i * 3 + 2] = c[2]; }
+      // the winding: faces outward whatever the frames' handedness (the closed hull's signed volume)
+      let vol = 0; const I = part.idx;
+      for (let t = 0; t + 2 < I.length; t += 3) {
+        const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+        vol += pos[a] * (pos[b + 1] * pos[c + 2] - pos[b + 2] * pos[c + 1]) - pos[a + 1] * (pos[b] * pos[c + 2] - pos[b + 2] * pos[c])
+             + pos[a + 2] * (pos[b] * pos[c + 1] - pos[b + 1] * pos[c]);
+      }
+      const idx = vol < 0 ? Array.from(I, (v, i) => (i % 3 === 1 ? I[i + 1] : i % 3 === 2 ? I[i - 1] : v)) : I;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setIndex(n > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); if (nm) m.name = nm; m.castShadow = true; m.receiveShadow = true;
+      ug.add(m);
+    };
+    if (FG) {
+      const o = FG.build(Pt, { HY, detail: 0, rudder: 0, paddle: 0, xAft: Pt.xAft });
+      meshOf(o.hull, skinM, ug.name + 'Hull');
+      if (o.deck) meshOf(o.deck, deckM);
+      if (o.protrusions) meshOf(o.protrusions, skinM);
+    }
+    // the rigging, the frame's members (61_gen_frame HULL-B3): the deck edges at the step to the front spar node,
+    // the aft deck edges to the rear one, a wire from each bow deck edge
+    const st3 = [-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)];
+    const deck = st3.map(xs => { const sc = HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs); return [toC([xs, sc.yd, -sc.b]), toC([xs, sc.yd, sc.b])]; });
+    const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
+    for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
+    for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
+      GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
+    sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    out.push({ side: sd, step: [xS, yK, zS], L: Pt.L, kg, spar: [cF, cR] });
+  }
+  window.CAGE_TIPFLOATS = out;
+};
+
 // HULL-B3: THE HULL TILE'S FIT (_cage_design.js gearLayout 'hull', `after: hullFit`): on the builds that follow the
 // pick, the step by the 12-deg rule off the FLOWN CG and the afterbody keel onto a 7-deg run (_cage_gen.js
 // cageHullFit - the same function GATE HULL fits with), written once into the rows - the step moves the CG by grams,
 // so up to three passes, each one only while the rows still move. The CG and the datums are the ones the float step
 // reads (app.js FLYDIY_CG_MODEL, the join's CAGE_DATUM)
-let hullFitPasses = 0;
+let hullFitPasses = 0, hullTipArmed = false;
 window.CAGE_HULL_FIT_NEXT = () => { hullFitPasses = 3; };
 function hullFitStep(P, stat) {
+  // (a hull whose tip floats were never fitted - a saved boat, a hand-set switch - is fitted once, the tile's way)
+  if (!hullFitPasses && +P.hullOn && +P.hullTips && !(+P.hullTipKg > 0 && +P.hullTipY > -0.999) && !hullTipArmed) { hullTipArmed = true; hullFitPasses = 3; }
   if (!hullFitPasses) return;
   if (!+P.hullOn) { hullFitPasses = 0; return; }
   const DAT = window.CAGE_DATUM, CGM = window.FLYDIY_CG_MODEL;
@@ -408,6 +496,13 @@ function hullFitStep(P, stat) {
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const fit = CG2.cageHullFit(P, (DAT.zFw - CGM[0]) / FS, (CGM[1] + DAT.yD) / FS);
   if (!fit) { hullFitPasses = 0; return; }
+  // HULL-B5: and the tip floats' rows off the flown mass (HYDRO.hullTipFit, the frame's own rule) on the step it fitted
+  const HY = HYc(), M = window.FLYDIY_MASS_MODEL;
+  if (+P.hullTips && HY && HY.hullTipFit && M > 0) {
+    const TB = CG2.cageHullTable(CG2.cageHullLines(Object.assign({}, P, fit)), FS);
+    const tf = TB && HY.hullTipFit({ sta: TB.sta }, M);
+    if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
+  }
   const moved = Object.keys(fit).some(k => Math.abs((+P[k] || 0) - fit[k]) > 1e-3);
   if (!moved) { hullFitPasses = 0; return; }
   Object.assign(P, fit);

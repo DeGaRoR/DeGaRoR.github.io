@@ -2651,20 +2651,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
     const TP = HR.tips;
     if (TP && TP.on !== 0 && wf.L && wf.R) {
-      const Mg = Math.max(60, gross || 400);
-      // the hull's level draft at the gross: its sections' area under a level waterline, bisected
-      const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += HYDRO.secAreaTo(HP, HYDRO.sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
-      let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < Mg) lo = m; else hi = m; }
-      const yWL = yS + lo;
-      const TPP = HYDRO.floatParamsFor(Math.max(5, (TP.vol != null ? TP.vol : 0.06) * Mg / 0.9));
-      delete TPP._keel;
-      const tAt = TP.at != null ? TP.at : 0.85, clear = TP.clear != null ? TP.clear : 0.12;
+      // HULL-B5: the ROWS' placement (hullTipKg / hullTipY, the Hull tile's fit - the drawing reads the same rows);
+      // unset, the same rule off this build's gross (HYDRO.hullTipFit)
+      const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
+      const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
+      const TPP = HYDRO.tipFloatParams(kgT);
+      const tAt = TP.at != null ? TP.at : 0.85;
       for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
         // the spar station nearest tAt of the semispan
         let j = 1, dB = Infinity;
         for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * G.semi); if (e < dB) { dB = e; j = q; } }
         const nF = nodes[W.F[j]].p, nR = nodes[W.R[j]].p;
-        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yWL + clear;
+        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yS + yRel;
         const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
         const Kt = [], Lt = [], Rt = [], Qt = [];
         for (const xs of st3) {

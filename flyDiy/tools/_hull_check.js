@@ -95,18 +95,24 @@ const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaFloa
 }
 // THE TILE'S FIT (cageHullFit, what its `after` writes off the flown CG): the step by the 12-deg rule, the afterbody
 // keel onto a 7-deg run - two passes, as the page's CG handshake settles it (the step moves the CG by grams)
-const cgOf = sp2 => { const d = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(sp2)))); let m = 0, x = 0, y = 0; for (const n of d.nodes) { m += n.m; x += n.m * n.p[0]; y += n.m * n.p[1]; } return [x / m, y / m]; };
-let spec = null, fitRows = null, joinErrs = [];
+const cgOf = sp2 => { const d = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(sp2)))); let m = 0, x = 0, y = 0; for (const n of d.nodes) { m += n.m; x += n.m * n.p[0]; y += n.m * n.p[1]; } return [x / m, y / m, m]; };
+let spec = null, fitRows = null, joinErrs = [], tipProbe = null;
 for (let pass = 0; pass < 3; pass++) {
+  // the last pass with the page-side probe: the tip floats as drawn (HULL-B5)
+  if (pass === 2) process.env.FLYDIY_JOIN_PROBE = path.join(T, '_hull_tip_probe.js');
   const got = LB.gameSpecFull(JSON.parse(JSON.stringify(raw)));
+  if (pass === 2) { delete process.env.FLYDIY_JOIN_PROBE; tipProbe = got.probe; }
   spec = got.spec; joinErrs = got.errors || [];
   if (pass === 2) break;
-  const [cx, cy] = cgOf(spec);
+  const [cx, cy, mass] = cgOf(spec);
   const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
   const TB = G.cageHullTable(G.cageHullLines(P), FS), hr = spec.gear.hull;
   if (!TB || !hr) break;
   const zFw = hr.x + TB.zStep * FS, yD = TB.yStep * FS - hr.y;
   fitRows = G.cageHullFit(P, (zFw - cx) / FS, (cy + yD) / FS);
+  // HULL-B5: the tip floats' rows, the page's way (_cage_float.js hullFitStep: HYDRO.hullTipFit off the flown mass)
+  const tf = C.HYDRO.hullTipFit({ sta: G.cageHullTable(G.cageHullLines(Object.assign({}, P, fitRows)), FS).sta }, mass);
+  if (tf) { fitRows.hullTipKg = tf.kg; fitRows.hullTipY = tf.y; }
   Object.assign((raw.spec || raw).cage, fitRows);
 }
 console.log(`   the tile's fit: ${JSON.stringify(fitRows)}`);
@@ -137,6 +143,22 @@ const X0 = 0, Z0 = 1600, h = world.waterH(X0, Z0);
   verdict(Math.hypot(...clo) < 1e-6, `the hull is closed (|sum n A| ${f(Math.hypot(...clo), 9)})`);
   verdict(disp >= 1.5 * M, `the hull displaces ${f(disp / M, 2)} x the gross to the gunwale (bound 1.5)`);
   verdict(def.refs.tw === -1 && def.nodes.every(n => !(n.r > 0)), `no wheels: no tailwheel, no wheel node`);
+  // HULL-B5: THE TIP FLOATS ARE DRAWN WHERE THEY FLY - the garage's floats (the page probe) against the frame's
+  // records, through the join's datums (cage = [z, y + yD, zFw - x])
+  {
+    const D = tipProbe && typeof tipProbe === 'object' ? tipProbe.datum : null, drawn = tipProbe && tipProbe.tips;
+    let worst = Infinity, dL = Infinity;
+    if (D && Array.isArray(drawn)) {
+      worst = 0; dL = 0;
+      for (const rec of fl.filter(x => x.tip)) {
+        const c = [rec.pos[2], rec.pos[1] + D.yD, D.zFw - rec.pos[0]], d = drawn.find(t => t.side === rec.side);
+        if (!d) { worst = Infinity; break; }
+        worst = Math.max(worst, Math.hypot(c[0] - d.step[0], c[1] - d.step[1], c[2] - d.step[2]));
+        dL = Math.max(dL, Math.abs(rec.P.L - d.L));
+      }
+    }
+    verdict(worst < 0.01 && dL < 1e-6, `the tip floats are drawn where they fly: worst station ${f(worst, 4)} m, length ${f(dL, 6)} m apart (${drawn ? drawn.length : 0} drawn)`);
+  }
   let mx = 0, my = 0; for (const n of def.nodes) { mx += n.m * n.p[0]; my += n.m * n.p[1]; } mx /= M; my /= M;
   const ang = Math.atan2(hr.x - mx, my - hr.y) * 180 / Math.PI;
   verdict(ang > 10 && ang < 15, `the step stands ${f(ang, 1)} deg aft of the CG (the seaplane's 10-15)`);
