@@ -39,6 +39,9 @@
 //  15. THE ACTUATION (GM2/GM3): each unit's brace and actuator; the brace links keep their lengths over the fold (1e-9);
 //      every actuator holds its stroke; down, every part's pose is the identity; the rest slot - the nose leg leaves the
 //      skin inside its well; the kinematics is the core's
+//  16. THE WING'S WELLS (G5): a 3.2 m track's mains wells in the wing; the wing's skin cut from below (closed loops,
+//      walls and a ceiling); the main leg's rest slot in the wing's lower skin inside its well; a wing well closed under
+//      the upper skin; as born, the centre section carved out of the mains' belly well
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -344,9 +347,9 @@ console.log('10 THE FOLD (G1)');
           'the well: walls and a fitted ceiling (its height map), up to the cut\'s top (section wheelWell)', ww.length + ' faces');
     const inVol = (X, skipWell) => { let k = 0; for (const f of X.F) { if (skipWell && f.m === 'wheelWell') continue;
       let cx = 0, cy = 0, cz = 0; for (const i of f.v) { cx += X.V[i][0]; cy += X.V[i][1]; cz += X.V[i][2]; } const q = f.v.length;
-      if (ex.cuts.some(c => cy / q < c.ceil - 1e-6 && inPoly(c.outline, cz / q, -cx / q, -1e-4))) k++; } return k; };
+      if (ex.cuts.some(c => cy / q < KG.wellCeilFn(c)(cx / q, cz / q) - 1e-6 && inPoly(c.outline, cz / q, -cx / q, -1e-4))) k++; } return k; };
     const before = inVol(sheet, false), after = inVol(m, true);
-    check(before > 50 && after <= 2, 'the well is empty: the skin under it cut, the frames and liners in it carved', before + ' faces before, ' + after + ' after');
+    check(before > 50 && after <= 2, 'the well is empty: the skin under it cut, the frames and liners under its ceiling carved', before + ' faces before, ' + after + ' after');
     check(!sheet.F.some(f => f.m === 'wheelWell') && sheet.F.length < m.F.length && m.V.length > sheet.V.length && sheet.V.every((p, i) => p === m.V[i] || (p[0] === m.V[i][0] && p[1] === m.V[i][1] && p[2] === m.V[i][2])),
           'the measured sheet is never cut (the knife cut a copy; the sheet\'s vertices keep their places)');
     // the box: the rounded rectangle round the same points (it holds the exact hull)
@@ -413,6 +416,41 @@ console.log('10 THE FOLD (G1)');
     // the flight's record: the snapshot carries the very record, and the capture's map
     const s0 = D.designBake(arch.sel, arch.over); Object.assign(s0.cage, { gearRetract: 1, s1X: 1.6 });
     check(typeof C.gearMechPose === 'function' && typeof C.gearFoldPose === 'function', 'the one kinematics is the core\'s (gearMechPose, gearFoldPose)'); }
+  // ---- 16. THE WING'S WELLS (G5): the wing's skin cut from below, its rest slot, closed under its upper skin ---------
+  console.log('16 THE WING\'S WELLS (G5)');
+  { const KG = require('./_knife_gen.js'), THREE = SH.context().THREE;
+    const wide = sceneOf({ s1X: 1.6, gearPos: 1 }), G = wide.W.CAGE_GEAR, W = wide.W.CAGE_WING;
+    check(G.cutsM && G.cutsM.some(c => c.units.includes('L')) && G.cutsM.some(c => c.units.includes('R')),
+          'a 3.2 m track: the wing has the mains\' wells (the body the nose\'s alone)', G.cutsM && G.cutsM.map(c => c.units.join('+')).join(', '));
+    const skins = []; wide.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) skins.push(o); });
+    let wells = 0, loops = 0, open = 0, area = 0;
+    for (const o of skins) { const r = KG.knifeWellsGeo(THREE, o.geometry, G.cutsM);
+      if (r.well) { wells++; const p = r.well.attributes.position, ix = r.well.index.array;
+        for (let t = 0; t < ix.length; t += 3) { const a = [p.getX(ix[t]), p.getY(ix[t]), p.getZ(ix[t])], b = [p.getX(ix[t + 1]), p.getY(ix[t + 1]), p.getZ(ix[t + 1])], c = [p.getX(ix[t + 2]), p.getY(ix[t + 2]), p.getZ(ix[t + 2])];
+          const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+          area += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } }
+      for (const st of r.stats) if (st.loops != null) { loops += st.loops; open += st.open; } }
+    check(wells >= 1 && loops >= 2 && open === 0 && area > 0.05, 'the wing\'s skin is cut from below: closed loops, walls and a ceiling (wheelWell)',
+          wells + ' skin mesh(es), ' + loops + ' loops, ' + area.toFixed(2) + ' m2 of well');
+    // the rest slot: where the mains' leg leaves the wing's lower skin, gear down, is inside its well's outline
+    const L = G.swing.L, cut = G.cutsM.find(c => c.units.includes('L'));
+    let cross = null; for (let f = 0; f <= 1; f += 0.01) { const p = [L.hinge[0] + (L.axle[0] - L.hinge[0]) * f, L.hinge[1] + (L.axle[1] - L.hinge[1]) * f, L.hinge[2] + (L.axle[2] - L.hinge[2]) * f];
+      const u = W.underAt(p[0], p[2]); if (u && p[1] < u.y) { cross = p; break; } }
+    const inO = (o, u, v) => o.every((a, i) => { const b = o[(i + 1) % o.length]; return (b[0] - a[0]) * (v - a[1]) - (b[1] - a[1]) * (u - a[0]) > 0; });
+    check(cross && cut && inO(cut.outline, cross[2], -cross[0]), 'the rest slot: the main leg leaves the wing\'s skin, gear down, inside its well', cross ? 'at x ' + cross[0].toFixed(3) : 'no crossing');
+    // closed: outside the body every cell of a wing well's ceiling is under the upper skin
+    let over = 0; for (const c of G.cutsM) { const H = c.hf; for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
+      const x = H.x0 + i * H.d, z = H.z0 + j * H.d; if (Math.abs(x) <= G.AF.halfWAt(z) + 0.03) continue;
+      const o = W.overAt(x, z); if (o && H.y[j * H.nx + i] > o.y - 0.0079) over++; } }
+    check(over === 0, 'a wing well stays closed under the upper skin (a unit thicker than the wing pokes through: the fit says so)', over + ' cells over');
+    // as born: the wing's centre section crosses the mains' belly well - carved out of it
+    const born = sceneOf({ gearPos: 1 }), GB2 = born.W.CAGE_GEAR, sk2 = []; born.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin === 'centre') sk2.push(o); });
+    const mc = GB2.cutsM.find(c => c.units.includes('L') && c.units.includes('R'));
+    let inside0 = 0, inside1 = 0; const ceilF = mc ? KG.wellCeilFn(mc) : null;
+    const count = g => { let k = 0; const p = g.attributes.position, ix = g.index.array; for (let t = 0; t < ix.length; t += 3) { let cx = 0, cy = 0, cz = 0; for (let q = 0; q < 3; q++) { cx += p.getX(ix[t + q]) / 3; cy += p.getY(ix[t + q]) / 3; cz += p.getZ(ix[t + q]) / 3; }
+      if (inO(mc.outline, cz, -cx) && cy < ceilF(cx, cz) - 1e-6) k++; } return k; };
+    for (const o of sk2) { inside0 += count(o.geometry); const r = KG.knifeWellsGeo(THREE, o.geometry, GB2.cutsM); if (r.skin) inside1 += count(r.skin); }
+    check(mc && sk2.length && inside0 > 0 && inside1 === 0, 'as born, the centre section is carved out of the mains\' well (the bars through the wheels)', inside0 + ' faces in the well before, ' + inside1 + ' after'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

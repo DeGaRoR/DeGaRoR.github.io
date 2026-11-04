@@ -1718,6 +1718,41 @@ function wellApply() {
   if (eyeWas) eyeApply(true);
   return true;
 }
+// RETRACT G5: THE WING'S SKIN, CUT THE SAME WAY - the wing layer's skin meshes (userData.wingSkin, the layer's metres)
+// re-cut from their own first geometry whenever the gear's wing cuts (CAGE_GEAR.cutsM: the units' wing wells and the
+// body's, merged) change; the walls and the ceiling a child mesh of section wheelWell. The flight binds the cut skin
+// to the spar by its vertices' places, as it binds every wing skin (makeSkinBinding): the flex is kept
+function wingWellApply() {
+  const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
+  if (!KG || !KG.knifeWellsGeo || !scene) return 0;
+  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsM) && C.cutsM.length ? C.cutsM : null, sig = wellSigOf(cuts);
+  const list = [];
+  scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) list.push(o); });
+  let n = 0;
+  for (const o of list) {
+    const ud = o.userData;
+    if ((ud.wellSig || '') === sig) continue;
+    if (!ud.wellGeo0) ud.wellGeo0 = o.geometry;
+    if (ud.wellMesh) { o.remove(ud.wellMesh); ud.wellMesh.geometry.dispose(); ud.wellMesh = null; }
+    if (ud.wellCutGeo) { if (o.geometry === ud.wellCutGeo) o.geometry = ud.wellGeo0; ud.wellCutGeo.dispose(); ud.wellCutGeo = null; }
+    ud.wellSig = sig;
+    if (!cuts || o.position.lengthSq() > 1e-12) { o.geometry = ud.wellGeo0; continue; }   // (an exploded view: uncut)
+    const g0 = ud.wellGeo0;
+    if (!g0.boundingBox) g0.computeBoundingBox();
+    const bb = g0.boundingBox;
+    const near = cuts.some(c => { let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
+      for (const p of c.outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
+      return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
+    if (!near) { o.geometry = g0; continue; }
+    const r = KG.knifeWellsGeo(THREE, g0, cuts);
+    if (!r.skin) continue;
+    o.geometry = r.skin; ud.wellCutGeo = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }
+    n++;
+  }
+  WELL_STATS.wing = n;
+  return n;
+}
 function eyeObjOf(src) {
   const wSig = wellSigOf(wellCutsNow());
   if (EYE_OBJ && EYE_OBJ.userData.eyeSrc === src && (EYE_OBJ.userData.wellSig || '') === wSig) return EYE_OBJ;
@@ -2109,7 +2144,7 @@ function* releaseSteps(built, rplan) {
   const stat = { textContent: STAT0 };
   const ctx = { scene, spec, mesh: sFix, P, stat, defer: false };
   try { CH.run(ctx, P, rplan); } catch (e) { console.error('page post hook (release):', e); }
-  try { wellApply(); } catch (e) { console.error('wells:', e); }     // RETRACT G4
+  try { wellApply(); wingWellApply(); } catch (e) { console.error('wells:', e); }     // RETRACT G4/G5
   if ($('stat')) $('stat').textContent = STAT0 + CH.layers.map(l => l.statApp || '').join('');
   // the scene's order as a whole build leaves it: everything else as it stands, the fuselage's own objects, then each
   // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
@@ -2525,7 +2560,7 @@ function* buildSteps() {
     if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
   }
   catch (e) { console.error('page post hook:', e); }
-  if (!DRAG_TICK) try { wellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4: the wells, as the gear says
+  if (!DRAG_TICK) try { wellApply(); wingWellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4/G5: the wells, as the gear says
   standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task

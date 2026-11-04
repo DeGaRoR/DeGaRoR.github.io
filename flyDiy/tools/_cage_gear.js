@@ -407,7 +407,19 @@ function foldFit(P, swing, AF, W, MX) {
   // corners (box, gearWellCut 1: the fallback), FIT.clear wider all round; the ceiling is their highest point and
   // FIT.clear more. Two outlines that meet are cut as one (their hull, the higher ceiling). In the layer's metres here;
   // the knife takes them in cage units (cutsCage)
-  out.cuts = wellCutsOf(units, bodyIn, +P.gearWellCut === 1 ? 'box' : 'exact', MX);
+  { const mode = +P.gearWellCut === 1 ? 'box' : 'exact', rawB = wellRaw(units, bodyIn, MX);
+    out.cuts = wellMerge(rawB, mode);
+    // G5: THE WING'S CUTS - where the units go into the wing (its skins), and where they go into the body (a low wing's
+    // centre section runs through a belly well), merged where they meet: the wing layer's skin is cut by these
+    out.cutsWing = W && W.underAt ? wellMerge(wellRaw(units, wingIn, MX).concat(rawB), mode) : [];
+    // a wing well's ceiling stays under the wing's upper skin (8 mm: the skin and its stringer) outside the body - a unit
+    // thicker than the wing pokes through it, as the fit's red rows say; it does not open the wing's top
+    for (const c of out.cutsWing) { const H = c.hf;
+      for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
+        const x = H.x0 + i * H.d, z = H.z0 + j * H.d;
+        if (AF && z >= AF.z0 && z <= AF.z1 && Math.abs(x) <= AF.halfWAt(z) + 0.02) continue;
+        const o = W.overAt(x, z); if (o) H.y[j * H.nx + i] = Math.min(H.y[j * H.nx + i], o.y - 0.008);
+      } } }
   out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
   return out;
 }
@@ -468,14 +480,16 @@ function wellMechPts(MX, key, g) {
   for (const P of R.parts || []) if (P.rule === 'aim' && P.name === 'edMech' + key + '_cyl') seg(Q.pt(P.from), Q.pt(P.to));
   return out;
 }
-function wellCutsOf(units, bodyIn, mode, MX) {
-  const cuts = [];
+// a unit's swept points inside a structure (`inFn` > 0: the body's section, or the wing's skins), with the points where a
+// swept point crosses that structure's skin between two poses
+function wellRaw(units, inFn, MX) {
+  const raw = [];
   for (const key in units) {
     const U = units[key], h = U.C.hinge, ax = U.C.axle, inside = [];
     const all = U.pts.W.concat(WELL_LEG.map(f => [h[0] + (ax[0] - h[0]) * f, h[1] + (ax[1] - h[1]) * f, h[2] + (ax[2] - h[2]) * f]));
     let prev = null, prevD = null;
     for (const g of WELL_G) {
-      const ps = poseAll(U.C, all, g).concat(MX ? wellMechPts(MX, key, g) : []), ds = ps.map(bodyIn);
+      const ps = poseAll(U.C, all, g).concat(MX ? wellMechPts(MX, key, g) : []), ds = ps.map(inFn);
       for (let i = 0; i < ps.length; i++) {
         if (ds[i] > 0) inside.push(ps[i]);
         if (prev && (ds[i] > 0) !== (prevD[i] > 0)) {         // crossing the skin between two poses
@@ -485,25 +499,30 @@ function wellCutsOf(units, bodyIn, mode, MX) {
       }
       prev = ps; prevD = ds;
     }
-    if (inside.length < 3) continue;
-    let top = -Infinity;
-    for (const p of inside) top = Math.max(top, p[1]);
-    const pz = inside.map(p => [p[2], p[0]]);
-    cuts.push({ units: [key], mode, pz, pts: inside, hull: wellOutline(pz, mode, FIT.clear), ceil: top + FIT.clear });
+    if (inside.length >= 3) raw.push({ units: [key], pts: inside });
   }
-  // merge the ones that meet (their points together, the higher ceiling)
+  return raw;
+}
+// the outlines (exact or box), merged where they meet (their points together), each with its top and fitted ceiling
+function wellMerge(raw, mode) {
+  let cuts = raw.map(r => {
+    let top = -Infinity; for (const p of r.pts) top = Math.max(top, p[1]);
+    const pz = r.pts.map(p => [p[2], p[0]]);
+    return { units: r.units.slice(), mode, pz, pts: r.pts, hull: wellOutline(pz, mode, FIT.clear), ceil: top + FIT.clear };
+  });
   for (let again = true; again;) {
     again = false;
     for (let i = 0; i < cuts.length && !again; i++) for (let j = i + 1; j < cuts.length && !again; j++)
       if (hullsMeet(cuts[i].hull, cuts[j].hull)) {
         const pz = cuts[i].pz.concat(cuts[j].pz);
-        cuts[i] = { units: cuts[i].units.concat(cuts[j].units), mode, pz, pts: cuts[i].pts.concat(cuts[j].pts),
+        cuts[i] = { units: [...new Set(cuts[i].units.concat(cuts[j].units))], mode, pz, pts: cuts[i].pts.concat(cuts[j].pts),
                     hull: wellOutline(pz, mode, FIT.clear), ceil: Math.max(cuts[i].ceil, cuts[j].ceil) };
         cuts.splice(j, 1); again = true;
       }
   }
   return cuts.map(c => ({ units: c.units, mode: c.mode, hull: c.hull, ceil: c.ceil, hf: wellHeights(c) }));
 }
+function wellCutsOf(units, bodyIn, mode, MX) { return wellMerge(wellRaw(units, bodyIn, MX), mode); }
 // GM: THE FITTED CEILING - a height map over the cut's plan (WELL_CELL cells): each cell the highest swept point within
 // the clearance of it, plus the clearance; a cell no point reaches takes the lowest reached one (a shallow floor, not
 // the skin) - the well is deep only where the unit, its trunnion and its brace go
@@ -1305,6 +1324,8 @@ PAGE.post = ctx => {
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
     ...(fit && fit.cuts && fit.cuts.length ? { cuts: cutsCage(fit.cuts, FS) } : {}),
+    // G5: the wing's cuts (its own and the body's, merged) in the layer's own metres (the wing's skin is drawn in them)
+    ...(fit && fit.cutsWing && fit.cutsWing.length ? { cutsM: cutsCage(fit.cutsWing, 1) } : {}),
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

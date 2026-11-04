@@ -1350,3 +1350,27 @@ which follows GM. G6's doors then hang on GM's parts (the leg door rides the leg
   - the ceiling is FITTED: a height map of the swept points (30 mm cells, grown by the clearance, never above the
     cut's top), deep only where the unit, its trunnion and its brace go;
   - the floor test sees the brace and the actuator too.
+
+### 8.12 G5 AS BUILT (2026-11-04): the wells cut into the wing
+
+- **Where the wing is cut** (`tools/_cage_gear.js` wellRaw / wellMerge; CAGE_GEAR.cutsM):
+  - the units' swept points inside the wing (between its skins), with their crossings, AND the body's;
+  - merged where they meet, so a low wing's centre section is cut wherever it crosses a belly well (the "yellow bars
+    through the wheels" of the user's G4 still);
+  - in the layer's own metres, exact or box like the body's, the leg from its trunnion (the rest slot in the wing's
+    lower skin) and the mechanism swept with it;
+  - a wing well's fitted ceiling is held 8 mm under the wing's upper skin outside the body: a unit thicker than the wing
+    pokes through it, and the fit's rows say so; the wing's top is never opened.
+- **The knife on a THREE geometry** (`tools/_knife_gen.js` knifeWellsGeo): the wing layer's skin meshes (tagged
+  `userData.wingSkin`: main, centre, tip, stol) become the knife's mesh, with every attribute but the position and the
+  normal packed into the field and lerped like it. Each is cut from below (the same knifeCut, the fitted ceiling) and
+  carved, then split back into the skin's geometry and the well's (section `wheelWell`, a child mesh).
+- **knifeCarve, revised**: the prism's walls clip exactly; a piece inside them is carved only under the cut's fitted
+  ceiling (at its centroid). The structure over a shallow part of a well stays.
+- **In the garage** (`tools/_cage_ui.js` wingWellApply, after the chain with wellApply): each skin mesh is re-cut from
+  its own first geometry when the cuts change. A mesh whose box misses every outline is left as it is; an exploded view
+  is uncut.
+- **In flight**: nothing new. The wing's skin is bound to the spar by its vertices' places when the flight loads it
+  (makeSkinBinding), so the cut skin and its well flex with the wing.
+- **quickshot** cuts the wing's skin the same way ("wing wells cut: ...").
+- **GATE RETRACT §16** holds it.

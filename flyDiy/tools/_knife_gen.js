@@ -306,6 +306,8 @@ function knifeCut(m, win, opt) {
   const V = m.V.map(p => p.slice()), F = [];
   const A = m.A ? m.A.slice() : null;
   const N = (m.N || knifeNormals(m)).map(n => n.slice());
+  // a new vertex's surface field when it has none: zeros of the mesh's own width (the sheet's 4; a wing's packed attributes)
+  const aW = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4, aZ = () => new Array(aW).fill(0);
   // THE WINDOW IS DRAWN ON THE SKIN WHERE IT SITS, not in the pure side view
   // (the user, on a window that landed on the aft deck's shoulder: "strange
   // shape there" — a side-view outline projected along x smears over a
@@ -448,7 +450,7 @@ function knifeCut(m, win, opt) {
   const skinId = r => {
     if (r.id < 0) {
       r.id = V.length; V.push(r.P.slice()); N.push(r.N.slice());
-      if (A) A.push(r.A ? r.A.slice() : [0, 0, 0, 0]);
+      if (A) A.push(r.A ? r.A.slice() : aZ());
     }
     return r.id;
   };
@@ -460,7 +462,7 @@ function knifeCut(m, win, opt) {
       r.pid = V.length;
       V.push(recess(r));
       N.push(CEIL != null ? n0.slice() : r.N.slice());
-      if (A) A.push(r.A ? r.A.slice() : [0, 0, 0, 0]);
+      if (A) A.push(r.A ? r.A.slice() : aZ());
     }
     return r.pid;
   };
@@ -748,11 +750,11 @@ function knifeCut(m, win, opt) {
     const top = [], bot = [];
     for (const r of ring) {
       top.push(V.length); V.push(r.P.slice()); N.push([0, 0, 0]);
-      if (A) A.push([0, 0, 0, 0]);
+      if (A) A.push(aZ());
       bot.push(V.length);
       V.push(recess(r));
       N.push([0, 0, 0]);
-      if (A) A.push([0, 0, 0, 0]);
+      if (A) A.push(aZ());
     }
     if (depth > 0 || CEIL != null) for (let i = 0; i < ring.length; i++) {
       if (CEIL != null && Math.abs(V[top[i]][1] - V[bot[i]][1]) < 1e-7 && Math.abs(V[top[(i + 1) % ring.length]][1] - V[bot[(i + 1) % ring.length]][1]) < 1e-7) continue;
@@ -863,7 +865,10 @@ function knifeWells(sh, cuts) {
 // vertical planes and its ceiling) and only the parts outside kept, as convex pieces (a polygon minus a convex prism:
 // the part outside each plane in turn, the rest carried to the next). Exact; the pieces' new points are their own
 // (interior structure, where a hairline is never seen), their normals and fields lerped
-function knifeCarve(m, cuts) {
+function knifeCarve(m, cuts, skip) {
+  // the prism's WALLS (the outline's vertical planes) clip exactly; a piece inside them is carved only when it lies
+  // under the cut's ceiling (GM: the fitted one, at the piece's centroid) - the structure over a shallow part stays
+  skip = skip === undefined ? WELL_MATS : skip;
   const prisms = cuts.map(c => {
     const o = c.outline, pl = [];
     // (u, v) = (z, -x): inside an edge a->b (CCW) is its left, sdist > 0 - linear in the point: d = A x + C z + D
@@ -871,22 +876,22 @@ function knifeCarve(m, cuts) {
       const a = o[i], b = o[(i + 1) % o.length], du = b[0] - a[0], dv = b[1] - a[1];
       pl.push({ A: du, B: 0, C: -dv, D: -du * a[1] + dv * a[0] });     // du*(-x - a.v) - dv*(z - a.u)
     }
-    pl.push({ A: 0, B: -1, C: 0, D: c.ceil });                          // below the ceiling: ceil - y > 0
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (const p of o) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
-    return { pl, z0: u0, z1: u1, x0: -v1, x1: -v0, ceil: c.ceil };
+    return { pl, z0: u0, z1: u1, x0: -v1, x1: -v0, ceil: c.ceil, at: c.hf ? wellCeilFn(c) : () => c.ceil };
   });
   const V = m.V, N = m.N, A = m.A, F = [];
+  const aW = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4;
   const dOf = (P, p) => P.A * p[0] + P.B * p[1] + P.C * p[2] + P.D;
   const mk = (i, j, t) => {
     const k = V.length;
     V.push(lerpN(V[i], V[j], t));
     if (N) N.push(nrm3(lerpN(N[i] || [0, 0, 0], N[j] || [0, 0, 0], t)));
-    if (A) A.push(A[i] && A[j] ? lerpN(A[i], A[j], t) : (A[i] || A[j] || [0, 0, 0, 0]).slice());
+    if (A) A.push(A[i] && A[j] ? lerpN(A[i], A[j], t) : (A[i] || A[j] || new Array(aW).fill(0)).slice());
     return k;
   };
   let carved = 0;
-  // one polygon against one prism: null when no part of it is inside (it stays as it was), else the pieces outside
+  // one polygon against one prism: null when no part of it is carved (it stays as it was), else the pieces kept
   const minus = (pg, pr) => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, z0 = Infinity, z1 = -Infinity;
     for (const i of pg) { const p = V[i]; x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
@@ -895,7 +900,7 @@ function knifeCarve(m, cuts) {
     const outs = [];
     for (const P of pr.pl) {
       const d = rest.map(i => dOf(P, V[i]));
-      if (d.every(x => x > 1e-9)) continue;                  // inside this plane: on to the next, whole
+      if (d.every(x => x > 1e-9)) continue;                  // inside this wall: on to the next, whole
       if (d.every(x => x <= 1e-9)) return null;              // outside it: no part of the polygon is in the prism
       const inn = [], out = [];
       for (let a = 0; a < rest.length; a++) {
@@ -907,10 +912,15 @@ function knifeCarve(m, cuts) {
       rest = inn;
       if (rest.length < 3) return null;
     }
-    return outs;                                              // `rest` (inside every plane) is carved away
+    // inside every wall: carved if under the ceiling there (its centroid), else kept with the pieces
+    let cx = 0, cy = 0, cz = 0;
+    for (const i of rest) { cx += V[i][0]; cy += V[i][1]; cz += V[i][2]; }
+    cx /= rest.length; cy /= rest.length; cz /= rest.length;
+    if (cy >= pr.at(cx, cz)) return outs.length ? null : null;    // over the ceiling: the face is left whole
+    return outs;
   };
   for (const f of m.F) {
-    if (f.v.length < 3 || WELL_MATS.has(f.m) || f.m === 'wheelWell') { F.push(f); continue; }
+    if (f.v.length < 3 || (skip && skip.has(f.m)) || f.m === 'wheelWell') { F.push(f); continue; }
     let pieces = [f.v], changed = false;
     for (const pr of prisms) {
       const next = [];
@@ -926,7 +936,52 @@ function knifeCarve(m, cuts) {
   return out;
 }
 
-const API = { knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells };
+// G5: A WING'S SKIN CUT THE SAME WAY - a THREE geometry (the wing layer's meshes, the layer's metres) to the knife's mesh
+// (one section, `skin`; every attribute but the position and the normal packed into the field, lerped like it), cut
+// from below by the cuts (metres), carved (every face: the wing has no structure of its own to keep), and back: the
+// skin's geometry and the well's (walls and ceiling, section wheelWell) apart, so each keeps its own material
+function knifeWellsGeo(THREE, geo, cuts) {
+  const P = geo.attributes.position, Nm = geo.attributes.normal, nv = P.count;
+  const extra = Object.keys(geo.attributes).filter(k => k !== 'position' && k !== 'normal');
+  const V = [], N = [], A = [];
+  for (let i = 0; i < nv; i++) {
+    V.push([P.getX(i), P.getY(i), P.getZ(i)]);
+    N.push(Nm ? [Nm.getX(i), Nm.getY(i), Nm.getZ(i)] : [0, 0, 0]);
+    const a = [];
+    for (const k of extra) { const at = geo.attributes[k]; for (let c = 0; c < at.itemSize; c++) a.push(at.array[i * at.itemSize + c]); }
+    A.push(a);
+  }
+  const F = [], ix = geo.index ? geo.index.array : null, nt = (ix ? ix.length : nv) / 3;
+  for (let t = 0; t < nt; t++) F.push({ v: ix ? [ix[t * 3], ix[t * 3 + 1], ix[t * 3 + 2]] : [t * 3, t * 3 + 1, t * 3 + 2], m: 'skin' });
+  let m = { V, F, N, A: extra.length ? A : null, knifeLoops: [], knifeHole: new Map(), knifeHoleLen: [] };
+  for (const c of cuts)
+    m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
+                                                         mats: new Set(['skin']), paneMat: 'wheelWell', wallMat: 'wheelWell' });
+  m = knifeCarve(m, cuts, null);
+  const build = keep => {
+    const fs = m.F.filter(keep);
+    if (!fs.length) return null;
+    const pos = new Float32Array(m.V.length * 3), nor = new Float32Array(m.V.length * 3);
+    m.V.forEach((v, i) => { pos[i * 3] = v[0]; pos[i * 3 + 1] = v[1]; pos[i * 3 + 2] = v[2]; const n = m.N[i] || [0, 1, 0]; nor[i * 3] = n[0]; nor[i * 3 + 1] = n[1]; nor[i * 3 + 2] = n[2]; });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    let off = 0;
+    for (const k of extra) {
+      const at = geo.attributes[k], w = at.itemSize, arr = new (at.array.constructor)(m.V.length * w);
+      m.V.forEach((_, i) => { const a = m.A && m.A[i]; for (let c = 0; c < w; c++) arr[i * w + c] = a ? a[off + c] || 0 : 0; });
+      g.setAttribute(k, new THREE.BufferAttribute(arr, w, at.normalized)); off += w;
+    }
+    const idx = [];
+    for (const f of fs) for (let i = 1; i + 1 < f.v.length; i++) idx.push(f.v[0], f.v[i], f.v[i + 1]);
+    g.setIndex(idx);
+    return g;
+  };
+  const st = m.knifeStats || [];
+  return { skin: build(f => f.m !== 'wheelWell'), well: build(f => f.m === 'wheelWell'), stats: st };
+}
+
+const API = { knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, wellCeilFn };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();

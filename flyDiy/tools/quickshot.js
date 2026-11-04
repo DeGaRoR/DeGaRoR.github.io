@@ -91,6 +91,20 @@ if (GEARPOS != null) {
   if (!SW) console.log('--gear: this build has no retractable gear (gearRetract 0, floats, no nose wheel or not a low wing) - drawn as it is');
   else console.log('--gear ' + over.gearPos + ': ' + Object.keys(SW).map(k => k + ' ' + SW[k].turns.length + ' turn(s), lift ' + SW[k].lift.toFixed(2) + ' m').join(', '));
 }
+// RETRACT G5: the wing's skin cut as the editor cuts it (_knife_gen knifeWellsGeo, the gear layer's CAGE_GEAR.cutsM)
+const CUTSW = !argv.includes('--nowells') && S.W.CAGE_GEAR && S.W.CAGE_GEAR.cutsM;
+if (CUTSW) {
+  const KGw = require(path.join(ROOT, 'tools', '_knife_gen.js')), skins = [];
+  S.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) skins.push(o); });
+  let nw = 0;
+  for (const o of skins) {
+    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW);
+    if (!r.skin) continue;
+    o.geometry = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellWing'; o.add(wm); nw++; }
+  }
+  console.log('wing wells cut: ' + CUTSW.map(c => c.units.join('+') + ' ' + c.mode).join(', ') + ' (' + nw + ' skin mesh(es) with a well)');
+}
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
 const segs = [];   // RETRACT G3: the gear's reserved wells (edWellGhost's edges), drawn over the picture
