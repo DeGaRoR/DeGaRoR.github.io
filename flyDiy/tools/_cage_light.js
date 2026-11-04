@@ -1738,10 +1738,11 @@ PAGE.post = (ctx) => {
     const kU = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) * (P.planeScale || 1);
     const faces = M.F.filter(f => f.bhFace && f.v.length >= 3);
     if (!faces.length) return;
-    let zf = 0, n = 0, x0 = 1e9, x1 = -1e9;
+    let zf = 0, n = 0, x0 = 1e9, x1 = -1e9, yMin = 1e9;
     for (const f of faces) for (const vi of f.v) {
       const q = M.V[vi];
       zf += q[2] * kU; n++;
+      if (q[1] * kU < yMin) yMin = q[1] * kU;
       if (q[0] * kU < x0) x0 = q[0] * kU;
       if (q[0] * kU > x1) x1 = q[0] * kU;
     }
@@ -1764,11 +1765,14 @@ PAGE.post = (ctx) => {
     if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key: 'pax', kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
     const ax = [0, 0, 1];
     // THE STRIP: a shallow channel (the socket's alloy) with a diffuser in it, 35 mm under the top edge, across the
-    // middle 70 % of the face, following the top's own curve
+    // middle 70 % of the face, following the top's own curve - narrower where the arch drops onto the shelf
     if (mode & 2) {
+      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - 0.05 * sizeK > yMin + 0.015);
+      let hw = 0.35;
+      while (hw > 0.12 && !clear(hw)) hw -= 0.03;
       const pts = [];
-      for (let i = 0; i <= 10; i++) {
-        const x = xc - 0.35 * W + 0.70 * W * i / 10, yt = topAt(x);
+      for (let i = 0; clear(hw) && i <= 10; i++) {
+        const x = xc - hw * W + 2 * hw * W * i / 10, yt = topAt(x);
         if (isFinite(yt)) pts.push([x, yt - 0.035 * sizeK, zf]);
       }
       if (pts.length >= 3) {
@@ -1804,6 +1808,7 @@ PAGE.post = (ctx) => {
       const yt = topAt(xc);
       if (!isFinite(yt)) return;
       const r = 0.045, q = [xc, yt - (mode & 2 ? 0.11 : 0.08) * sizeK, zf];
+      if (q[1] - r * sizeK < yMin + 0.01) return;                    // a low arch: no room under it
       if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
       lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
     }

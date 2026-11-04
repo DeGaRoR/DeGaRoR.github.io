@@ -3747,13 +3747,17 @@ function cageInterior(m, S) {
     // ---- the wall ----
     let b = Math.max(0, BH.bevel / ps);
     const rebuild = BH.step || b > 0 || BH.twoTone;
+    // the skin must carry on behind the face as well as behind the outline (the twin's pod ends 7 cm behind its wall);
+    // a step too shallow to stand anything on is no shelf at all
+    const carries = z => !!arc(slice(z - 0.01 / ps), bcx, yS, 0, Math.PI);
     let D = BH.step ? BH.shelfD / ps : 0, up1 = null;
-    while (D > 0.05 / ps) {
-      up1 = arc(slice(z0 - D), bcx, yS, 0, Math.PI);
+    while (D > 0.08 / ps) {
+      up1 = carries(z0 - D - b) ? arc(slice(z0 - D), bcx, yS, 0, Math.PI) : null;
       if (up1) break;
       D *= 0.6;
     }
     if (!up1) D = 0;
+    while (D === 0 && b > 0.004 / ps && !carries(z0 - b)) b *= 0.6;
     const UP = D > 0 ? up1 : up0;
     b = Math.min(b, minT(UP) - 0.05 / ps, D > 0 ? b : minT(lo0) - 0.05 / ps);
     if (b < 0.004 / ps) b = 0;
