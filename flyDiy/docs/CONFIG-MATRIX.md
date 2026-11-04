@@ -88,7 +88,7 @@ A = body tiles first, then the engine tiles; B = engine tiles first, then the bo
 
 | | single body | twin booms | notes |
 |---|---|---|---|
-| Taildragger | WORKS | WORKS — the tailwheel under the pod's end (2.5 m wheelbase on the stock) | |
+| Taildragger | WORKS | WORKS — a tailwheel under each boom's tail (G3800 TAILWHEELS; before: one under the pod's end) | |
 | Tricycle | WORKS | WORKS | |
 | Floats | WORKS | WORKS (the user's `_4b`) | floats + pusher WORKS on both rod bodies |
 | Amphibian floats, skis | not built — a garage gap, not a cell | | |
@@ -140,7 +140,7 @@ the bench's failed test, with the layer's own reason — never a silent rule sta
 | Dorsal fillet on rod-style twin booms | ADDED (step 3) — opt-in (`finDorsalTube`), so a saved rod twin stays bit-identical |
 | Dorsal on a single bare rod | ADDED (the user: yes) — the same opt-in row |
 | T-tail between two fin tips (the Adam A500's) | garage gap |
-| Inverted V on twin booms (the Shadow UAV's) | garage gap |
+| Inverted V on twin booms (the Shadow UAV's) | BUILT (G3800 TAILWHEELS): the Empennage tile's 'Inverted V' on twin booms (stab mount 4), the tailwheels at the tips; G3801 the other three ways - down & out (wheels at the tips), up & in (an A) and up & out (a tailwheel a boom) |
 | A tail-cone pusher on a single lofted body (Do 335, Lear Fan) | garage gap |
 | Amphibian floats, skis | garage gap |
 

@@ -132,6 +132,12 @@ const STEPS = [
       { key: 'tail', label: 'Layout', opts: () => [
         O('conv', 'Conventional', '', icon('empennage', 'conv')), O('t', 'T-tail', 'the stab on the fin tip', icon('empennage', 't')),
         O('cruci', 'Cruciform', '', icon('empennage', 'cruci')), O('v', 'V-tail', 'two canted panels, no fin', icon('empennage', 'v')),
+        // G3800 (TAILWHEELS): the inverted V on twin booms - a panel down from each boom, the tailwheels at the tips
+        O('iv', 'Inverted V', 'a panel down from each boom; the tailwheels ride the tips', icon('empennage', 'iv')),
+        // G3801 (the user 4 Nov: "all possible options, with little wheels if the V is downward"): the other three ways
+        O('ivOut', 'Inverted V, outward', 'a panel down and outboard from each boom; the tailwheels ride the tips', icon('empennage', 'ivOut')),
+        O('bvIn', 'V, inward (an A)', 'a panel up from each boom, leaning toward the other', icon('empennage', 'bvIn')),
+        O('bvOut', 'V, outward', 'a panel up and outboard from each boom: canted twin fins', icon('empennage', 'bvOut')),
       ] },
       { key: 'fin', label: 'Fin design', opts: () => ['rounded', 'straight', 'swept', 'broad', 'tall'].map(k => {
         const o = D().optionOf('finArch', k); return O(k, o.label, o.note, o.icon); }) },
@@ -239,7 +245,10 @@ const RULES = [
   ['booms', 'twin', c => c.body === 'open' && 'an open frame has no skin to loft booms on: twin tubes, or a rod'],
   // [CM 11] the stab cannot seat on a centre fin the booms do not have
   ['tail', 't', c => /^twin/.test(c.booms || '') && 'twin booms have no centre fin for the stab to sit on'],
-  ['tail', 'v', c => /^twin/.test(c.booms || '') && 'one canted panel per boom is not a V-tail (a garage gap: the inverted V)'],
+  ['tail', 'v', c => /^twin/.test(c.booms || '') && 'a V-tail roots on the centreline: twin booms take a V from the booms (inverted, outward, the A, outward up)'],
+  // G3800 (TAILWHEELS): the inverted V roots on the booms - a twin boom's only
+  ['tail', 'iv', c => !/^twin/.test(c.booms || '') && 'the inverted V hangs from twin booms (one panel a boom)'],
+  ...['ivOut', 'bvIn', 'bvOut'].map(v => ['tail', v, c => !/^twin/.test(c.booms || '') && 'a V from the booms: one panel a boom, twin booms only']),
   // N4 (the user, 3 Nov via A0: "prop strike should refuse certificate"; "n4 can also be fixed through wing geometry"):
   // the disc must not strike the wing. Measured in validation A: a pusher under a high wing or a parasol cleared it in
   // 0 of 9 builds, an over-the-wing engine in 2 of 13 - both greyed here until a shaft/block row moves the disc behind
@@ -277,7 +286,11 @@ const RULES = [
   // [VAL] a pusher on a tailwheel: the disc swings down to the ground as the tail sits (validation A: the ulm pusher
   // taildragger sat 9.5 deg tail-down with the pilot unable to raise it - the Pod-and-boom and Archaeopteryx cards are
   // tricycles, and so is every pusher pod)
-  ['gear', 'tail', c => (c.engArch === 'pusher') && 'a pusher sits on a nose wheel: tail-down, its disc would swing into the ground'],
+  // G3800 (TAILWHEELS, the brief: "keep it only if the disc still strikes the ground tail-down: measure it"): ON TWIN
+  // BOOMS IT DOES NOT - the generator's twin-boom pusher on a tailwheel a boom sits 12.7 deg tail-down and its disc's
+  // lowest point clears the ground by 0.232 m (the gear page's tailwheel requirement 0.229 m), the tailwheel stopping the
+  // rotation there; the single pod's pusher keeps the [VAL] grey (validation A's case)
+  ['gear', 'tail', c => (c.engArch === 'pusher') && !/^twin/.test(c.booms || '') && 'a pusher sits on a nose wheel: tail-down, its disc would swing into the ground'],
   ['engArch', 'pushPull', c => (c.class === 'ul1' || c.class === 'sail') && 'two engines and twin booms on a single-seat glider or ultralight'],
   ['engArch', 'twin', c => c.class === 'sail' && 'a sailplane carries one sustainer'],
   ['engArch', 'wingTop', c => c.class === 'sail' && 'a sailplane carries its sustainer on the nose or behind the pod'],
@@ -395,7 +408,7 @@ function stanceFor(ch) {
 //   both         the prop clearance >= 0.25 m on a tailwheel, 0.22 m on a nose wheel (FAR 23.925 0.229 / 0.178, a
 //                margin over each): the mains lengthened, a tricycle's nose leg with them
 // Returns the cage rows to change, or null when the drawn stance already holds (then nothing is rebuilt).
-const FIT = { smLo: 0.06, smHi: 0.40, smMid: 0.18, maxStep: 0.45, dSmDx: 0.55, dCgDx: -0.20, tailRake: 18.5, noseShare: 0.25, tipBack: 15, deck: 1.2, clearTail: 0.25, clearTrike: 0.22, tolX: 0.03, tolDeg: 0.4 };
+const FIT = { vvAim: 0.024, vhAim: 0.36, deckIv: 10, smLo: 0.06, smHi: 0.40, smMid: 0.18, maxStep: 0.45, dSmDx: 0.55, dCgDx: -0.20, tailRake: 18.5, noseShare: 0.25, tipBack: 15, deck: 1.2, clearTail: 0.25, clearTrike: 0.22, tolX: 0.03, tolDeg: 0.4 };
 function coreFn(n) {
   if (typeof W[n] === 'function') return W[n];
   try { const f = eval('typeof ' + n + ' === "function" ? ' + n + ' : null'); if (f) return f; } catch (e) {}
@@ -455,6 +468,19 @@ function stanceFit(spec, cage) {
       }
     }
   }
+  // G3801 (the user 4 Nov, "check the pusher with the A"): A V FROM THE BOOMS IS SIZED ON THE DRAWN AEROPLANE. The tile
+  // makes the stab's drawn panel a V's (the cant), so the chooser's V kept the stab's area: its pusher-and-A flew, and
+  // its design check failed the fin's volume (Vv 0.011 - every way warned). Read off the joined spec (the tail arms the
+  // join measured, the wing's area and span), the panels' chord grows until both volumes clear the design check's own
+  // bars with a margin (Vv 0.024 against 0.020, Vh 0.36 against 0.30); the span is the booms' (the reach), the chord
+  // row's range (x 1.6) the limit - past it the design check says what is left
+  const TLv = def.spec.tail, GMv = def.spec.geom;
+  if (TLv && TLv.ivAngle != null && TLv.Sv > 0 && TLv.Sh > 0 && TLv.lv > 0 && TLv.lh > 0 && GMv && GMv.Sw > 0) {
+    const Vv = TLv.Sv * TLv.lv / (GMv.Sw * (GMv.span || 1)), Vh = TLv.Sh * TLv.lh / (GMv.Sw * (GMv.cBar || 1));
+    const k = Math.max(FIT.vvAim / Vv, FIT.vhAim / Vh);
+    const ch0 = isFinite(c('stChord')) && c('stChord') > 0 ? c('stChord') : 1;
+    if (k > 1.03 && ch0 < 1.6 - 1e-3) out.stChord = +Math.min(1.6, ch0 * k).toFixed(3);
+  }
   if (type !== 'taildragger' && type !== 'tricycle') return Object.keys(out).length ? out : null;
   const Pp = def.parts, G = def.spec.gear;
   if (!Pp || !(Pp.TW >= 0)) return Object.keys(out).length ? out : null;
@@ -492,7 +518,18 @@ function stanceFit(spec, cage) {
   // a taildragger's three-point deck brought into 8-15 deg (GEN_RULES.deckMin/Max) by its tailwheel leg (the castor's s2_twLegDrop lowers
   // the tailwheel's contact 1:1): aimed at 12, from the mains as they stand
   let tailC = 0;
-  if (type === 'taildragger') {
+  // G3801: A DOWNWARD V's TAIL CONTACTS ARE ITS TIPS - no tail leg reaches them (the frame hangs each wheel a hand under
+  // its tip), and the tips hang the V's drop below the booms: the chooser's low-wing pusher sat 1 deg NOSE-DOWN on them and
+  // ran off the end of the strip on its wheels. Its three-point deck is the MAINS' to make (s1Drop, the ground lowered
+  // 1:1 under the axle), aimed at 10 deg; measured on that pusher: +0.3 m 2.7 deg (lift-off 38 s), +0.6 6.4 (23 s), +0.9
+  // 9.9 (21 s)
+  const ivDown = !!(def.spec.tail && def.spec.tail.ivAngle != null && !/^up/.test(def.spec.tail.ivDir || ''));
+  let bDeck = 0;
+  if (type === 'taildragger' && ivDown) {
+    const d3 = Math.atan2(dyN, twX - gx) * 180 / Math.PI;
+    if (d3 < 8) bDeck = Math.max(0, tanR(FIT.deckIv) * (twX - gx) - dyN);
+  }
+  if (type === 'taildragger' && !ivDown) {
     const d3 = Math.atan2(dyN, twX - gx) * 180 / Math.PI;
     if (d3 > 15 || d3 < 8) tailC = Math.max(-FIT.maxStep, Math.min(FIT.maxStep, dyN - tanR(12) * (twX - gx)));
     if (Math.abs(tailC) > 0.005) out.s2_twLegDrop = +Math.max(0.05, Math.min(0.80, c('s2_twLegDrop') + tailC)).toFixed(3);
@@ -504,7 +541,7 @@ function stanceFit(spec, cage) {
   for (let it = 0; it < 4; it++) {
     a = (target(a, b) - (gx + J.gd * b)) / J.gz;
     const pcNow = propClear - J.yz * a;          // the ground's move under the new station
-    b = Math.max(0, clearT - pcNow);
+    b = Math.max(0, clearT - pcNow, bDeck);
   }
   a = Math.max(-FIT.maxStep, Math.min(FIT.maxStep, a));   // damped: the next pass reads the drawn result again
   if (Math.abs(a) > FIT.tolX) out.s1Z = +(c('s1Z') + a).toFixed(3);

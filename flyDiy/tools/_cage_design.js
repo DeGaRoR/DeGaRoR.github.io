@@ -186,7 +186,7 @@ const CM_OFF = {
   single: P => aftEng(P) && !+P.boomStyle
     ? 'a lofted body runs to the tail: no aft bulkhead for the rear engine (Rod & pod first, or another mount)' : null,
   twinT: P => +P.boomTwin ? 'twin booms have no centre fin for the stab to ride (Cruciform seats it between the fins)' : null,
-  twinV: P => +P.boomTwin ? 'a V-tail roots on the centreline, where twin booms have no boom' : null,
+  twinV: P => +P.boomTwin ? 'a V-tail roots on the centreline, where twin booms have no boom (theirs: a V from the booms, four ways)' : null,
   wingTop: P => Math.round(+P.engMount || 0) === 2 ? 'the over-the-wing pylon stands on a high wing or a parasol' : null,
 };
 

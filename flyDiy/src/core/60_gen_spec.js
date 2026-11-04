@@ -5972,6 +5972,11 @@ function resolveSpec(spec) {
     S.tail.hChord = ivS / (2 * b1);
     S.tail.Sh = ivS * cG * cG;
     S.tail.Sv = ivS * sG * sG;
+    // G3801 (found checking the pusher with the A): THE V's FIN IS ITS PANELS - the vertical arm is theirs, the
+    // horizontal one's. The join's vX is a fin's (none here: it read 1.5-2.1 m against the panels' 4.05 on the chooser's
+    // twin-boom pusher), and the design check's Vv divided by it - every way's Vv read 2-2.7 x short (the A's 0.018 is
+    // 0.049). The frame builds the panels where they are drawn; this is the readout, and resolve's own sizing above
+    S.tail.vX = S.tail.hX; S.tail.lv = S.tail.lh;
   }
 
   // 5. gear — the two hard geometric constraints of a taildragger.
