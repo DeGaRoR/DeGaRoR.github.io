@@ -60,6 +60,24 @@ const fs = require('fs'), path = require('path'), os = require('os'), cp = requi
 const ROOT = path.join(__dirname, '..');
 const C = require('./flight_core.js');
 
+// THE BENCH'S SIGNATURE (L30d's certificate gate: 74_career contractCertNeed / careerFleetHolds). A paying job is
+// refused unless an airframe of the fleet holds a commercial certificate, and the page writes that certificate from
+// the bench (careerSign) at every roll-out. The sim never runs the bench, so before every accept it signs, through
+// the core's own careerSign, each career airframe that carries no signature and no maker's certificate: every design
+// the sim flies is a validated build (DESIGN_SRC), which is what the bench would sign. Without this every career
+// stopped at T5 ("clients.01 not flown": "This job needs a commercial certificate").
+const BENCH_SIGN = { fp: 'econ-sim', safe: 'pass', comm: 'pass', when: null, why: '' };
+function benchSign(doc) {
+  const af = (doc && doc.career && doc.career.airframes) || {};
+  for (const slot of Object.keys(af)) {
+    const A = af[slot];
+    if (!A || A.sign || A.factory) continue;
+    const r = C.careerSign(doc, slot, BENCH_SIGN);
+    if (r.ok) doc = r.doc;
+  }
+  return doc;
+}
+
 const ARG = k => { const a = process.argv.find(x => x === '--' + k || x.startsWith('--' + k + '=')); return a == null ? null : (a.includes('=') ? a.split('=').slice(1).join('=') : true); };
 
 // ---- THE DESIGNS (measured off their build files through the core's own readers) --------------------------------
@@ -674,6 +692,7 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   }
   // fly one contract to its end with `slot`: the legs in order, the stops handed to contractOnStop -> true when done
   function flyContract(id, o) {
+    d = benchSign(d);
     const a = C.careerAccept(d, id);
     if (!a.ok) return false;
     d = a.doc;
