@@ -845,6 +845,8 @@ function simHostDefSig(def) {
 // stands at `at` (a null axis kept) or by `by`, the velocities zeroed (`zeroV`) and / or kicked by `dv`. -> the CG
 function simHostPlace(sim, o) {
   const p = sim.p, v = sim.v, n = sim.n;
+  // NIGHT-PHOTO (picture branch only): a turn about the CG's vertical, every node and velocity
+  if (o.yaw) { const c = sim.cgPos(), cs = Math.cos(o.yaw), sn = Math.sin(o.yaw); for (let i = 0; i < n; i++) { const x = p[i * 3] - c[0], z = p[i * 3 + 2] - c[2], vx = v[i * 3], vz = v[i * 3 + 2]; p[i * 3] = c[0] + cs * x + sn * z; p[i * 3 + 2] = c[2] - sn * x + cs * z; v[i * 3] = cs * vx + sn * vz; v[i * 3 + 2] = -sn * vx + cs * vz; } }
   let d = o.by || null;
   if (o.at) { const c = sim.cgPos(); d = [0, 1, 2].map(j => (o.at[j] == null ? 0 : o.at[j] - c[j])); }
   if (d) for (let i = 0; i < n; i++) { p[i * 3] += d[0]; p[i * 3 + 1] += d[1]; p[i * 3 + 2] += d[2]; }

@@ -44,7 +44,7 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
 // --frame '{"plane":[x,z],"bearing":deg}': the picked composition, frozen (the peaks' grid follows the roll-out's spot, so a --pick can move between runs; the same camera is the point of a step-vs-master pair)
-const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0), THR = +opt('thr', 0.18), TAXI_MS = +opt('taxi', 0), FRAME = JSON.parse(opt('frame', 'null'));
+const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0), THR = +opt('thr', 0.18), TAXI_MS = +opt('taxi', 0), NOSE = opt('nose', null), FRAME = JSON.parse(opt('frame', 'null'));
 const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/night-' + SCENE + '/' + STEP : SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 // the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
 // 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
@@ -87,7 +87,7 @@ const LITS = (() => { try { const fj = JSON.parse(fs.readFileSync(path.join(__di
   return L; } catch (e) { return []; } })();
 // the photo scene's breeze (the user 4 Nov: "a little wave on the sea, not full calm ... calm taxiing, small breeze"): 4 kt on the nose (camera B's nose bears ~38),
 // so it holds its heading, nose right (the game's 8 kt from 250 weathercocked the taxi nose-left); and a night with the moon ahead of camera B, left of the plane (az 239, 10 deg up, 98 %): the silver path on the water
-const CALM = { wind: { kts: 4, dirDeg: 38, gust: 0, refH: 10 } }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
+const CALM = { wind: { kts: 4, dirDeg: NOSE != null ? +NOSE : 38, gust: 0, refH: 10 } }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
@@ -279,8 +279,10 @@ const SETUP = V => `(async () => {
     // behind it by the capture; the hand holds a low throttle (a seed on the first view: the pilot's roll-out ends there)
     else if (window.__nsPlaced !== ${JSON.stringify(V.name)}) {
       window.__nsPlaced = ${JSON.stringify(V.name)};
-      const ax = s.axes(), h = Math.hypot(ax[0][0], ax[0][2]) || 1, nx = -ax[0][0] / h, nz = -ax[0][2] / h, back = ${TAXI_MS} * 15;
-      await FLIGHT_PROBE.place({ at: [px - nx * back, gy, pz - nz * back], zeroV: true, dv: [nx * ${TAXI_MS}, 0, nz * ${TAXI_MS}] });
+      const ax = s.axes(), h = Math.hypot(ax[0][0], ax[0][2]) || 1; let nx = -ax[0][0] / h, nz = -ax[0][2] / h, yaw = 0; const back = ${TAXI_MS} * 15, NB = ${NOSE == null ? 'null' : +NOSE};
+      // --nose <bearing>: the plane turned to that heading first (the user: it should go to the right of the frame)
+      if (NB != null) { const tx = Math.sin(NB / 57.29578), tz = -Math.cos(NB / 57.29578); yaw = Math.atan2(nz * tx - nx * tz, nx * tx + nz * tz); nx = tx; nz = tz; }
+      await FLIGHT_PROBE.place({ yaw, at: [px - nx * back, gy, pz - nz * back], zeroV: true, dv: [nx * ${TAXI_MS}, 0, nz * ${TAXI_MS}] });
       if (!FLIGHT_PROBE.manual()) { s.ctl.thr = ${THR}; FLIGHT_PROBE.setManual(true); }
     }
     // L31a: after a worker placement the view's cgPos stays at the roll-out (the camera and the terrain's streaming follow it) while the page's sim.p and the model move: the photo scenes read the live points
