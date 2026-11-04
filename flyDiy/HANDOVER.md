@@ -88176,6 +88176,16 @@ declared". PILOTS' copy renamed `PLT_` (41 uses, same function, same text) and G
 
 READY for the GAME COORDINATOR: claude/freight-load-g2345 53aa937 (the code, the gates and the stills; the gate texts and this section ride one docs-only commit on top)
 
+## G2404 - SEATS-OUT: A CARGO LOAD THAT NEEDS THE ROOM TAKES THE EMPTY BACK SEATS OUT BY ITSELF, FOR THAT LOAD ONLY (2026-11-04, for the user: "maybe cargo missions should allow for removing the back seats temporarily?"; branch claude/ready/seats-out off master)
+
+The seat chips existed since FREIGHT-LOAD (G2346); the proposal never used them, so a load that only fits with a seat out opened with an item on the ground, and at a STOP (no view, the next leg placed by the packer) stayed there and the delivery was refused.
+- **77_ freightLoadBest**: every seat in when the whole load fits legally; else only the EMPTY seats it needs, the back row first, when that makes the whole load legal. Only possible over the limits: NEVER proposed (the user's call, 4 Nov) - the seats stay in, the item on the ground, the hand may still take a seat out (red and allowed). A passenger's seat never goes. The view opens on it (the bar says which seats), the chips put them back; a stop's next leg takes it (78_ freightStrapNext).
+- **Temporary**: the seats out live in the session and career.load only, never in the build; the record leaves at delivery, every seat is back.
+- **The stand** hides the chair while the accepted load rides (app.js fsChairs: the seat's identity group - the join's snapshot asks each mesh for its own `visible`, no bake changes). **The sim** takes the chair's kilos off (78_ chairsOff, 61_'s billing negated). The loading view's report does NOT take them off (the card has no seat masses): it reads a few kilos heavy, on the safe side.
+- **An item left on the ground is said** on the flight's warn line and the logbook's flags ('ashore').
+- **OWED, stated plainly: the chair still draws in FLIGHT** - it is baked into the flown mesh and the flown model has no seats of its own, so a crate in that space overlaps it until the join bakes seats apart (a bake + cook change, full process).
+- **Gates**: GATE FREIGHT rows (the crates on the C172, back row first, no more than needed, passengers' seats, a load that fits, the Cub's illegal two crates, the chair's kilos and station, a generated job at a stop, seats back at delivery) + 7 doctored rules; UISMOKE, PARKED, SAVE, BUILD. Pushed to ready only green.
+
 ## G2400-G2404 - FREIGHT-STRAP: THE ACCEPTED LOAD STRAPPED - POINT MASSES IN THE SIM (WORKER AND INLINE, BIT-EQUAL; NOTHING ACCEPTED = THE SIM UNTOUCHED), A JOB'S PASSENGERS IN THEIR SEATS, THE BAGGAGE ALLOWANCE OFF; THE LOAD DRAWN WITH RATCHET STRAPS ON THE STAND AND IN FLIGHT (3 DRAWS A LOAD); THE STOP DELIVERS AND THE NEXT STAGE ARRIVES PLACED; AN OVER-LIMIT LOAD SAID, NEVER REFUSED (2026-10-08 -> 11, FREIGHT-STRAP for the GAME COORDINATOR, local - the box's RTX 3080; branch claude/freight-strap-g2400 off origin/claude/game-integration 1f553a9d, worktree D:/Dev/wt-fstrap; G2404 unused)
 
 The brief: futureDesigns/game/FREIGHT-2026-10-07.md §2 (the user: "the load will be strapped visually and physically once
