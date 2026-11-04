@@ -423,14 +423,15 @@ async function pageRun() {
      "OK sends { k: 'ack' }: T1 on the card, its goal (the stop at HOME with Rufus), no OK", M.storyOf(d).beat);
   // ---- Q1 on the map's record
   const R0 = half.storyRecord(M.careerMapRecord(d, null, {}));
-  ok(R0.contracts.length > 0 && R0.contracts.every(c => c.held === true) && R0.story && R0.story.title === 'The move' && R0.story.held === 'after the move-in',
-     'Q1: every generated row held on the map ("after the move-in"), the story\'s own goal at the head', R0.contracts.length + ' held');
+  ok(R0.contracts.length > 0 && R0.contracts.every(c => c.held === true) && R0.story && R0.story.title === 'The move' && R0.story.held === 'later in the story' && !('step' in R0.story) && !('of' in R0.story),
+     'Q1: every generated row held on the map ("later in the story" - STORY-HOME-FIX F5: HOME is yours from the start, no move-in to wait for), the story\'s own goal at the head, no step counter (F4, G3356)', R0.contracts.length + ' held');
   const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
   try {
     const w = {}; vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), 'utf8'), { window: w });
     const A = MM.mapAdapt(R0, w.MAP_PACK, null);
     const html = MM.contractsListHTML(A, {});
-    ok(A.story && /class="mmStory"/.test(html) && /The move/.test(html) && /class="mmItem held"/.test(html) && /after the move-in<\/small>/.test(html), 'the map draws the held rows greyed with their tag, and the story\'s goal above them');
+    ok(A.story && /class="mmStory"/.test(html) && /The move/.test(html) && /class="mmItem held"/.test(html) && /later in the story<\/small>/.test(html) && /<span class="mmTag">The story<\/span>/.test(html),
+       'the map draws the held rows greyed with their tag, and the story\'s goal above them, no "1 of 8" on its strip (STORY-HOME-FIX F4)');
   } catch (e) { ok(false, 'the map draws the held rows', e.message); }
   // ---- a stop at HOME with the starter (playerFlightEnd's own order: the arrival, careerStopApply, then the story)
   d = M.playerArrive(d, 'Rufus', 'HOME', {}).doc;
@@ -441,7 +442,7 @@ async function pageRun() {
   await settle();
   d = P.get();
   const S = M.storyOf(d), cub = d.fleet[S.planes.client || ''] || null;
-  ok(S.beat === 'T2' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar (ours since the start - STORY-1), its ledger line');
+  ok(S.beat === 'T2' && !d.sheds.HOME.locked && !d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar ours since the start (STORY-1), nothing handed over - no ledger line (STORY-HOME-FIX F3)');
   // (G3585, the user 24 Oct: "the Cub is parked outside" - Tim's storage steps swap it onto the stand)
   ok(cub && cub.aero === 'HOME' && M.playerStoreWhere(d, S.planes.client).kind === 'outside', "T2: the client's Cub is parked outside the WWII hangar (HOME's apron)", S.planes.client + ' ' + JSON.stringify(cub));
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
@@ -708,7 +709,7 @@ async function ladderRun() {
   await settle();
   d = P.get();
   const S = M.storyOf(d), cub = S.planes.client, RW = M.playerWhere(d, 'Rufus');
-  ok(S.beat === 'T2' && S.done.join() === 'T0,T1' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'Skip: T1 complete as a stop at HOME (the hangar ours, its ledger line)', S.beat);
+  ok(S.beat === 'T2' && S.done.join() === 'T0,T1' && !d.sheds.HOME.locked && !d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'Skip: T1 complete as a stop at HOME (the hangar ours since the start: no ledger line - STORY-HOME-FIX F3)', S.beat);
   ok(RW.kind === 'in' && RW.hangar === 'HOME' && d.here === 'HOME', 'Rufus straight into the HOME hangar, the garage there', JSON.stringify(RW) + ' here ' + d.here);
   ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).aero === 'HOME' && M.playerStoreWhere(d, cub).kind === 'outside' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job === 'bare',
      "T2's client Cub effect fired: the Cub parked outside at HOME as it arrives, bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));

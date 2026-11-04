@@ -1,0 +1,9 @@
+{ "v": 1, "id": "warm-hazy", "name": "Warm and hazy",
+  "story": "The high at its peak: the warmest day of the fortnight, a milky haze over the far hills, cumulus building over the ridges in the afternoon. Short strips feel a little shorter.",
+  "fly": "easy", "forecast": "Warm, 23-24 C at sea level in the afternoon. Haze, visibility 20 km. Cumulus over the hills from 13:00, base 1800 m. Wind light and variable, sea breeze southwest 8 kt. Mild night, a few clouds, the moon through haze.",
+  "temp": { "min": 1.5, "max": 5.5 }, "dew": [[4, -2.5], [15, -2], [27, -2.5]],
+  "qnh": [[4, 1020], [27, 1017]],
+  "wind": [[4, 2, 140, 0.08], [11, 3, 200, 0.12], [15, 7, 225, 0.2], [20, 5, 220, 0.15], [26, 3, 160, 0.1]],
+  "rich": { "breeze": 1, "terrain": 0.6, "thermals": 0.9 },
+  "low": [[4, 0.04, "cu"], [12, 0.1, "cu"], [15, 0.3, "cu"], [18, 0.25, "cu"], [22, 0.06, "cu"]],
+  "turbidity": 4.2, "aurora": [] }

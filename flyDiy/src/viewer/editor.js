@@ -2320,8 +2320,16 @@ function editorInit(api) {
     if (M.anchor) M.anchor(() => {
       if (!inShed()) return null;
       const q = $('edQuick'), r = q && q.getClientRects().length ? q.getBoundingClientRect() : null;
-      const m = $('gmMenu'), mw = (m && m.offsetWidth) || 72, mh = (m && m.offsetHeight) || 32;
-      if (!r || (window.innerWidth || 0) - r.right < mw + 14) return null;
+      const m = $('gmMenu'), mh = (m && m.offsetHeight) || 32;
+      // STORY-HOME-FIX (F10): the row that stands there (CONTRACTS, the garage's LOAD; MENU when shown) must fit before the
+      // panel on the right, not only the window: at 1280 the CONTRACTS pill covered the panel's story note. No room: the
+      // row goes under the top bar (gmLayout's own place)
+      const vis = e => e && !e.hidden && e.getClientRects().length ? e.offsetWidth || 0 : 0;
+      const mw = ['gmMenu', 'mapEntry', 'frEntry'].map(k => vis($(k))).filter(Boolean).reduce((a, w, i) => a + w + (i ? 8 : 0), 0) || 72;
+      const P = $('edProps'), pr = P && P.getClientRects().length ? P.getBoundingClientRect() : null;
+      if (!r) return null;
+      const edge = pr && pr.left > r.right ? pr.left : (window.innerWidth || 0);
+      if (edge - r.right < mw + 14) return null;
       return { top: r.top + (r.height - mh) / 2, left: r.right + 6 };
     });
   }

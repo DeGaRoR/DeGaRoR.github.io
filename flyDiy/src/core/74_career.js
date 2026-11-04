@@ -187,6 +187,8 @@ function careerNormalise(r) {
   // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
   if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
   else c.day = careerDayNorm(c.day);
+  // (WEATHER-SEASON) a day outside the flying season - an old save past 30 Sep - is lifted to the next opening
+  { const L = careerSeasonLand(c.day); if (L.layup) c.day = careerDayNorm(L); }
   if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
@@ -232,11 +234,35 @@ function careerDay(doc) {
 function careerDaySet(doc, o) {
   if (!doc || !doc.career) return crNo(doc, 'not a career');
   if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
-  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
+  const now = careerDay(doc);
+  let to = careerDayNorm(o);
+  // (WEATHER-SEASON) an instant past the season's close lands on the next opening: the winter layup, forward
+  const L = careerSeasonLand(to);
+  if (L.layup) to = careerDayNorm(L);
+  const dt = dayAbs(to) - dayAbs(now);
   if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
   const d = crClone(doc);
   d.career.day = to;
-  return { ok: true, doc: d, why: '', dt };
+  return { ok: true, doc: d, why: '', dt, layup: L.layup };
+}
+
+// ---- THE FLYING SEASON AND THE WINTER LAYUP (WEATHER-SEASON, the user's call of 3 Nov; study §5.3, §9.1) -----------
+// The career lives inside the season (20 May - 30 Sep, WEATHER_PLAN.SEASON: no snow, the crafted days' dates). An
+// instant whose LOCAL date is past the close lands on the next year's opening at civil dawn; one before the opening
+// (an old save, a hand-edited one) on that year's opening. Always FORWARD: the landing is later than the instant. The
+// story tells it (the page's 'flydiy:layup' event, day_clock.js).
+//   careerSeasonLand({date, utc}) -> { date, utc, layup: bool, season: the opening's year }
+const CAREER_SEASON = Object.freeze({ open: '05-20', close: '09-30' });
+function careerSeasonLand(o) {
+  const S = (typeof WEATHER_PLAN !== 'undefined' && WEATHER_PLAN.SEASON) || CAREER_SEASON;
+  const p = DAY.makeDay({ date: o.date, utc: o.utc });
+  const ld = p.localDate, md = ld.slice(5), y = +ld.slice(0, 4);
+  if (md >= S.open && md <= S.close) return { date: o.date, utc: o.utc, layup: false, season: y };
+  const yy = md > S.close ? y + 1 : y;
+  const q = DAY.makeDay({ date: yy + '-' + S.open, utc: 43200 });
+  const u = dayPresetUtc(q, 'dawn');
+  const r = dayFromAbs(q.jdn * 86400 + u);
+  return { date: r.date, utc: r.utc, layup: true, season: yy };
 }
 
 // ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------

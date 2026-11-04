@@ -1863,6 +1863,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
+      // BAY-MIRROR: the sea's shelter - the world's own calm field (28_island.js), the bytes its waterH scales the floats' swell
+      // by, so the water draws the bay as calm as the physics feels it (one source)
+      if (typeof WATER !== 'undefined' && WATER.setCalm && typeof world.calmField === 'function') WATER.setCalm(THREE, world.calmField());
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
