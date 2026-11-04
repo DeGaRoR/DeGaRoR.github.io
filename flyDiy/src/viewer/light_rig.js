@@ -233,7 +233,11 @@
   // move ~0.4 a degree through the twilight, which at 1x is a stop every
   // 5 minutes - imperceptible frame to frame.
   var EV_BASE = 0.92;
-  var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
+  // NIGHT-BRIGHT (the user 4 Nov: "if we don't see anything in the picture, then we don't see anything in the game, and that's not
+  // fun. So nights, particularly with auroras, should be sort of bright, even if we stylize that a little"): the twilight's knots
+  // +1 stop (-9: 10 -> 11, -6: 6 -> 7, sunset: 2.5 -> 3); the dark night's +1.75 is NIGHT_DEF.eye, a dial. Lamps, lenses and the aurora are
+  // authored to the exposure, so they hold where the land, the sea and the sky come up
+  var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 11], [-6, 7], [-0.833, 3], [10.6, 0.6], [33, 0], [90, 0]];
   function exposureStops(el) {
     var k = EV_KNOTS;
     // G2600: the NIGHT EYE dial - stops over the schedule once the night is dark (eased in from nautical to
@@ -284,7 +288,7 @@
   // and the deep night is the +16 the user saw on 8 Oct (GATE ATMO: astronomical night 12..16)
   // NIGHT-LOOK 1b (3 Nov): desat 0.9 -> 0.5, the moonlit blue the user asked to keep (the 18:20 sky band: master 60,84,106,
   // 0.9 69,77,89, 0.5 61,75,93); `lamp` the exposed luminance at which colour is whole (a lamp at night is display-white)
-  var NIGHT_DEF = { eye: 0, moon: 1, desat: 0.5, blue: 0.6, colourCd: 3, lamp: 0.5 };
+  var NIGHT_DEF = { eye: 1.75, moon: 1, desat: 0.5, blue: 0.6, colourCd: 3, lamp: 0.5 };
   var NIGHT = {}; for (var nk in NIGHT_DEF) NIGHT[nk] = NIGHT_DEF[nk];
   function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
   // the phase law: a phase's light over the full moon's (phase = the illuminated fraction, 06_solar)
