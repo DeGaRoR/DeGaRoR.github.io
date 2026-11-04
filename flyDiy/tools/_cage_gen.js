@@ -8880,7 +8880,7 @@ function cageSpec(P) {
                         fast: Math.round(+P.bhFast || 0), relief: Math.round(+P.bhRelief || 0), reliefH: P.bhReliefH != null ? +P.bhReliefH : 0.014,
                         lampBand: (() => {
                           const lm = +P.lightOn ? Math.round(+P.bhLamp || 0) : 0, dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
-                          return lm & 1 ? (lm & 2 ? dr + 0.125 : Math.max(0.08, dr + 0.045) + 0.05) : lm & 2 ? dr + 0.035 : 0;
+                          return lm & 1 ? (lm & 2 ? dr + 0.165 : Math.max(0.08, dr + 0.045) + 0.05) : lm & 2 ? dr + 0.065 : 0;
                         })(),
                         bandY: S.bandY, ps: P.planeScale || 1 };
   }

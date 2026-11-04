@@ -1765,17 +1765,26 @@ PAGE.post = (ctx) => {
     if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key: 'pax', kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
     const ax = [0, 0, 1];
     // THE STRIP: a shallow channel (the socket's alloy) with a diffuser in it, 35 mm under the top edge, across the
-    // middle 70 % of the face, following the top's own curve - narrower where the arch drops onto the shelf
+    // middle 70 % of the face, narrower where the arch drops onto the shelf. STRAIGHT, like every moulding on the wall
+    // (the user: the top edge's own path looks bad); only a true round arch bends it, on one clean curve
+    let stripMid = null;
     if (mode & 2) {
       const drop = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;   // under the top edge: a wing box across the cabin hides the top
       const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - (drop + 0.015) * sizeK > yMin + 0.015);
       let hw = 0.35;
       while (hw > 0.12 && !clear(hw)) hw -= 0.03;
+      const topsAt = f => { const a = []; for (let i = 0; i <= 10; i++) a.push(topAt(xc - f * W + 2 * f * W * i / 10)); return a; };
+      // a round arch: its crown well over its ends, no dip anywhere along it
+      const isArch = t => t[5] - Math.max(t[0], t[10]) > 0.025 * sizeK && t.every((y, i) => i === 0 || i === 10 || y >= (t[i - 1] + t[i + 1]) / 2 - 0.004 * sizeK);
+      let tops = topsAt(hw);
+      while (hw > 0.2 && !isArch(tops) && Math.max(...tops) - Math.min(...tops) > 0.06 * sizeK) tops = topsAt(hw -= 0.03);
+      const arch = isArch(tops), yEnd = Math.min(tops[0], tops[10]), yLine = Math.min(...tops);
       const pts = [];
-      for (let i = 0; clear(hw) && i <= 10; i++) {
-        const x = xc - hw * W + 2 * hw * W * i / 10, yt = topAt(x);
-        if (isFinite(yt)) pts.push([x, yt - drop * sizeK, zf]);
+      for (let i = 0; clear(hw) && tops.every(isFinite) && i <= 10; i++) {
+        const u = i / 5 - 1, x = xc + hw * W * u;
+        pts.push([x, (arch ? yEnd + (tops[5] - yEnd) * (1 - u * u) : yLine) - drop * sizeK, zf]);
       }
+      if (pts.length) stripMid = pts[5][1];
       if (pts.length >= 3) {
         const chan = Bag(sockM), lens = Bag(lensM);
         const wH = 0.013 * sizeK, wL = 0.009 * sizeK, dH = 0.008 * sizeK;
@@ -1809,7 +1818,7 @@ PAGE.post = (ctx) => {
       const yt = topAt(xc);
       if (!isFinite(yt)) return;
       const dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
-      const r = 0.045, q = [xc, yt - (mode & 2 ? dr + 0.075 : Math.max(0.08, dr + 0.045)) * sizeK, zf];
+      const r = 0.045, q = [xc, stripMid != null ? stripMid - 0.085 * sizeK : yt - (mode & 2 ? dr + 0.075 : Math.max(0.08, dr + 0.045)) * sizeK, zf];
       if (q[1] - r * sizeK < yMin + 0.01) return;                    // a low arch: no room under it
       if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
       lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
