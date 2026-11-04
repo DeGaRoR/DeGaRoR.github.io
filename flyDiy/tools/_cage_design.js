@@ -704,6 +704,17 @@ const SHAPE_SEED = { taperOn: 1, taperLen: 0.55, taperW: 0.78,
 //   noseDroop  0.10 — the tip pulled down onto the fuselage's own line
 //   ease/bulge 0.62 / 1.06 — the lag between z and the dims that makes the
 //              outline convex, and a little fullness at the shoulder
+// G3915: THE POD NACELLE (the user, 4 Nov, sketching it over the render: "why do you go down with your cowl? ...
+// it looks better, no need for your complex shape there"). The over-the-wing engine's cowl, when it is turned on,
+// is a POD round the engine (fitted: its size the engine's, _cage_cowl.js nacelleOfEngine) - so the mount writes
+// the pod's STYLE once: a straight barrel continuing the nacelle's lines (no top-line sweep, no axis rise, the
+// section round and level), closing only at the very end onto the spinner (a short bowl that bends late), no
+// openings at the propeller's end (the air comes in at the nacelle's nose: the inlet rows), no cheeks, no cut-out.
+// Every value stays the cowl's own row, the builder's to move.
+const NACELLE_POD = { cw_deckSweep: 0, cw_keelSweep: 0, cw_waistSweep: 0, cw_waist: 0, cw_lidRise: 0, cw_faceRise: 0,
+                      cw_deckH: 1, cw_keelH: 1, cw_lidShoulder: 0.72, cw_lidLen: 0.16, cw_lidRound: 0.62, cw_lidMode: 1,
+                      cw_sqAftTop: 0.55, cw_sqAftBot: 0.55, cw_sqFrontTop: 0.55, cw_sqFrontBot: 0.55,
+                      cw_apMode: 0, cw_scoopOn: 0, cw_lobeN: 0, cw_cutSpan: 0, cw_aftMode: 1 };
 const NOSE_AERO = { noseFinish: 1, noseLen: 0.95, cowlLoops: 4, noseTip: 0.98,
                     noseDroop: 0.10, cowlEase: 0.62, cowlBulge: 1.06 };
 // ...and the same set as IDENTITIES when the predicate is false, so a row
@@ -1528,10 +1539,10 @@ const DESIGN_ROWS = [
                                       NOSE_AERO) } },
       { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
         note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
-        // G3914: fitted - a cowl turned on here is a NACELLE sized to its engine (_cage_cowl.js nacelleOfEngine)
-        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0, fitNose: 1,
+        // G3914 / G3915: sealed - a cowl turned on here is a NACELLE sized to its engine (_cage_cowl.js nacelleOfEngine), its section the pod's rows
+        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0, fitNose: 2,
                                         cw_aftMode: 1, cw_tailLen: 1.0,
-                                        aeroAftOn: 1 }, NOSE_AERO) } },
+                                        aeroAftOn: 1 }, NOSE_AERO, NACELLE_POD) } },
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
