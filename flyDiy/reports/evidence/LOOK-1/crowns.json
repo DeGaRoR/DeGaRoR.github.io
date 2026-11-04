@@ -1,0 +1,58 @@
+{
+ "near_night": {
+  "before_mean": 0.0771,
+  "after_mean": 0.0885,
+  "ratio": 1.148,
+  "speck_before": 6.87,
+  "speck_after": 5.89
+ },
+ "near_blue": {
+  "before_mean": 0.4102,
+  "after_mean": 0.4312,
+  "ratio": 1.051,
+  "speck_before": 2.29,
+  "speck_after": 2.08
+ },
+ "near_golden": {
+  "before_mean": 0.2548,
+  "after_mean": 0.2688,
+  "ratio": 1.055,
+  "speck_before": 5.18,
+  "speck_after": 3.8
+ },
+ "near_noon": {
+  "before_mean": 0.1428,
+  "after_mean": 0.1545,
+  "ratio": 1.082,
+  "speck_before": 9.45,
+  "speck_after": 8.21
+ },
+ "forest_night": {
+  "before_mean": 0.0316,
+  "after_mean": 0.0379,
+  "ratio": 1.198,
+  "speck_before": 14.97,
+  "speck_after": 14.02
+ },
+ "forest_blue": {
+  "before_mean": 0.2381,
+  "after_mean": 0.2589,
+  "ratio": 1.088,
+  "speck_before": 4.03,
+  "speck_after": 3.53
+ },
+ "forest_golden": {
+  "before_mean": 0.0616,
+  "after_mean": 0.0718,
+  "ratio": 1.167,
+  "speck_before": 11.74,
+  "speck_after": 10.82
+ },
+ "forest_noon": {
+  "before_mean": 0.0421,
+  "after_mean": 0.0497,
+  "ratio": 1.181,
+  "speck_before": 7.36,
+  "speck_after": 7.23
+ }
+}

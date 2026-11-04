@@ -312002,3 +312002,15 @@ COSTS, by branch:
 - seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
 Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
 NEXT: L32a Thu 13:00, the last train, refs by 12:30.
+
+## LOOK-1-STUDY - THE NIGHT SPECKS ON THE TREES: DIAGNOSIS + METHODS (2026-11-04, A0, cloud: SwiftShader only; branch claude/look-1-study, no game code)
+Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/` (README).
+- THE CAUSE: the moon key lights the crown card by card (each leaf card's / impostor texel's own normal, nothing occluding
+  the crown's inside, a ~black hemisphere ground half at night); key held at 0 -> the specks go (crown median x7 darker).
+  Gold = the moon key's transmittance colour (0.92, 0.78, 0.58). NOT the grade (A0, GPU), the lamps (0.00), wrap/SSS (-2 %).
+- AMPLIFIER: `coverageMips` filters RGB straight off a canvas (alpha-0 RGB = 0): crowns 0.40-0.68x at mip 6, contrast 2-3x,
+  frozen into the impostor sheets (TREES-FROM-TWIGS §3.3's "colour dilation under the alpha" never shipped).
+- PLAN: 1 crown normals at night (one uniform, 0 programs, 0 by day); 2 alpha-weighted mips + a leaf-only level factor (a
+  REAL day-look change: the user judges); 3 the tier match re-measured with a night row; 4 golden backlit gain; 5 sway.
+- CLOUD RIGS BEWARE: on SwiftShader the game has NO sky probe (G1460) and lights Standard materials with a static boot-time
+  environment - every cloud night / blue-hour frame shows frosted or white trees that the GPU does not draw.
