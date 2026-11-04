@@ -1556,8 +1556,8 @@ function makePilot(sim, def, world, opts) {
     const F = P.F, c = side * P.W;
     P.side = side;
     return [
-      { name: 'DOWNWIND', A: wp(F, sJoin, c), B: wp(F, P.sIaf, c), h: P3_ ? Math.min(P.hC, P.hIaf + P.gD * P.W) : P.hC, V: P3_ ? 'pattern' : 'cruise', prof: P3_ },
-      { name: 'BASE', A: wp(F, P.sIaf, c), B: wp(F, P.sIaf, 0), h: P3_ ? P.hIaf : P.hC, V: 'turn', prof: P3_ },
+      { name: 'DOWNWIND', A: wp(F, sJoin, c), B: wp(F, P.sIaf, c), h: P3_ ? Math.min(P.hC, P.hIaf + P.gD * P.W) : P.hC, V: P3_ ? 'pattern' : 'cruise', prof: P3_, rest: P.W },
+      { name: 'BASE', A: wp(F, P.sIaf, c), B: wp(F, P.sIaf, 0), h: P3_ ? P.hIaf : P.hC, V: 'turn', prof: P3_, rest: 0 },
       { name: 'FINAL', A: wp(F, P.sIaf, 0), B: wp(F, P.sAim, 0) },
     ];
   };
@@ -1576,7 +1576,7 @@ function makePilot(sim, def, world, opts) {
       if (L.prof && ap.plan) {   // G3914: the height the leg's flown at, one rule (legAlt): never the ground 1.5 km past its end
         const P = ap.plan;
         L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
-        L.hPlan = Math.round(ap.altRef + (L.name === 'BASE' ? P.hIaf : Math.min(P.hC, P.hIaf + P.gD * P.W)));
+        L.hPlan = Math.round(ap.altRef + Math.min(P.hC, P.hIaf + P.gD * L.rest));
         L.hPlanA = prev != null ? prev : Math.round(ap.altRef + P.hC);
         prev = L.hPlan;
         continue;
@@ -2697,7 +2697,7 @@ function makePilot(sim, def, world, opts) {
       // 1.5 km ahead every step, the circuit rose and fell with the hills): 2 hSafe under the leg still to fly, said once
       if (L.prof && ap.plan) {
         const P = ap.plan, rem = Math.max(0, (L.B[0] - cg[0]) * g.ux + (L.B[1] - cg[2]) * g.uz);
-        const dRem = Math.max(0, rem + (L.name === 'DOWNWIND' ? P.W : 0) - 5 * Math.max(Vg, 10));
+        const dRem = Math.max(0, rem + L.rest - 5 * Math.max(Vg, 10));
         const hP = ap.altRef + Math.min(P.hC, P.hIaf + P.gD * dRem);
         const react = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.min(1500, rem + Rturn)) + Math.max(2 * A.hSafe, 40);
         if (react > hP + 1) {
@@ -2947,8 +2947,16 @@ function makePilot(sim, def, world, opts) {
         const side = P.sideForced ? P.side : Math.abs(cNow) < 100 ? P.side : (cNow > 0 ? 1 : -1);
         const sJoin = P.sAim + Math.max(400, 2 * Rturn);
         const entry = wp(FL, sJoin, side * P.W);
-        startLegs([{ name: 'ENROUTE', A: ahead, B: entry, h: P.hC, V: 'cruise', enroute: true }]
-          .concat(patternLegs(P, sJoin, side)));
+        // G3914: THE DOWNWIND IS JOINED AT 45 DEG FROM OUTSIDE (AC 90-66C). The circuit at 1,000 ft takes a longer climb-out, and an aeroplane
+        // it carried past the entry came back at it head-on: a corner of nearly 180 deg, its fillet clamped to a cusp no aeroplane can follow - the
+        // Cessna circled the entry for 300 s and the downwind for 300 s more. The turn onto the 45 deg line has its own fillet, on legs long enough
+        const Rj = VPatLeg() * VPatLeg() / (9.81 * Math.tan(bankLim)) * 1.05;
+        let dJ = Math.max(400, 2.5 * Rj), join45 = wp(FL, sJoin + dJ, side * (P.W + dJ));
+        for (let k = 0; k < 3 && Math.hypot(join45[0] - ahead[0], join45[1] - ahead[1]) < 2.5 * Rj; k++) { dJ += 1.5 * Rj; join45 = wp(FL, sJoin + dJ, side * (P.W + dJ)); }
+        const legsJ = patternLegs(P, sJoin, side);
+        startLegs(P3_ ? [{ name: 'ENROUTE', A: ahead, B: join45, h: P.hC, V: 'cruise', enroute: true },
+                         { name: 'ENROUTE', A: join45, B: entry, h: P.hC, V: 'pattern', prof: true, rest: (sJoin - P.sIaf) + P.W }].concat(legsJ)
+                      : [{ name: 'ENROUTE', A: ahead, B: entry, h: P.hC, V: 'cruise', enroute: true }].concat(legsJ));
       }
       if (tl0 > 3) pathFrom = [cg[0], cg[2]];
       ap.holdDir = climbDir;
