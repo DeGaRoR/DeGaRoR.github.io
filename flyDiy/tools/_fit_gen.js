@@ -76,53 +76,39 @@ const at = (F, u, v, w) => [
 // caller's `surf` — flat plates on a curved flank stand off at their corners,
 // which is the single most obvious way a bolted-on part can look wrong.
 function plateInto(bag, F, w, h, t, r, surf) {
-  const NU = 9, NV = 7;
+  // PILLAR-ANCHORS (3 Nov, the user: "I hate the pixelated shape used as a base"): THE OUTLINE IS A CURVE, NOT A
+  // GRID. The plate was a 9 x 7 grid with the points outside the rounded rectangle dropped, so every plate's edge was
+  // a staircase of grid cells. It is now RINGS of the outline itself - the rounded rectangle walked at 28 points
+  // (each corner a quarter circle of radius rr), scaled in toward the centre - so the edge is smooth at any size
+  // (28 x 2 quads + a fan, both sheets, ~280 triangles). The feather is kept: the outer ring stands at 15 % of `t`.
   const rr = Math.min(r || Math.min(w, h) * 0.30, Math.min(w, h) * 0.48);
-  const inner = [], outer = [];
-  for (let i = 0; i <= NU; i++) {
-    const ri = [], ro = [];
-    for (let j = 0; j <= NV; j++) {
-      const u = (i / NU - 0.5) * w, v = (j / NV - 0.5) * h;
-      // the rounded corner, as a real fillet on the plate's own outline
-      const du = Math.max(0, Math.abs(u) - (w / 2 - rr));
-      const dv = Math.max(0, Math.abs(v) - (h / 2 - rr));
-      const over = Math.hypot(du, dv);
-      if (over > rr) { ri.push(null); ro.push(null); continue; }
-      // the plate thins to nothing at its edge: a pressed panel has a
-      // feathered lip, and a slab has a step you can see from any angle
-      const edge = Math.min(1, (rr - over) / (rr * 0.42) + 0.15);
-      const P = surf ? surf(u, v) : at(F, u, v, 0);
-      const N = surf && surf.n ? surf.n(u, v) : F.n;
-      ri.push(bag.v(off(P, N, 0.0006)));
-      ro.push(bag.v(off(P, N, 0.0006 + t * edge)));
-    }
-    inner.push(ri); outer.push(ro);
-  }
-  const q = (A, B, i, j, flip) => {
-    const a = A[i][j], b = A[i + 1][j], c = A[i + 1][j + 1], d = A[i][j + 1];
-    if (a == null || b == null || c == null || d == null) return;
-    if (flip) bag.quad(a, d, c, b); else bag.quad(a, b, c, d);
+  const hu = w / 2 - rr, hv = h / 2 - rr, NC = 7;
+  const ol = [];
+  for (const [cu, cv, a0] of [[hu, hv, 0], [-hu, hv, Math.PI / 2], [-hu, -hv, Math.PI], [hu, -hv, 1.5 * Math.PI]])
+    for (let k = 0; k < NC; k++) { const a = a0 + (Math.PI / 2) * k / (NC - 1); ol.push([cu + rr * Math.cos(a), cv + rr * Math.sin(a)]); }
+  const RINGS = [1, 0.92, 0.55];                      // the outline scaled in; the feather lives in the outer band
+  const lift = [0.15, 1, 1];
+  const pt = (u, v, dz) => {
+    const P = surf ? surf(u, v) : at(F, u, v, 0);
+    const N = surf && surf.n ? surf.n(u, v) : F.n;
+    return bag.v(off(P, N, 0.0006 + dz));
   };
-  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
-    q(inner, null, i, j, true);
-    q(outer, null, i, j, false);
-  }
-  // the rim: wherever an outer point exists and its neighbour does not, close
-  // the plate's edge between the two sheets
-  for (let i = 0; i <= NU; i++) for (let j = 0; j <= NV; j++) {
-    const here = outer[i][j]; if (here == null) continue;
-    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    for (const [di, dj] of nb) {
-      const ii = i + di, jj = j + dj;
-      const out2 = (ii < 0 || jj < 0 || ii > NU || jj > NV) ? null : outer[ii][jj];
-      if (out2 != null) continue;
-      // walk one step along the edge to make a quad rather than a gap
-      const ti = di ? i : i + 1, tj = dj ? j : j + 1;
-      if (ti > NU || tj > NV) continue;
-      const h2 = outer[ti][tj], a2 = inner[ti][tj], a1 = inner[i][j];
-      if (h2 == null || a2 == null || a1 == null) continue;
-      bag.quad(a1, here, h2, a2);
+  const n = ol.length;
+  const outer = RINGS.map((k, ri) => ol.map(([u, v]) => pt(u * k, v * k, t * lift[ri])));
+  const inner = RINGS.map(k => ol.map(([u, v]) => pt(u * k, v * k, 0)));
+  const cO = pt(0, 0, t), cI = pt(0, 0, 0);
+  for (let ri = 0; ri + 1 < RINGS.length; ri++)
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      bag.quad(outer[ri][i], outer[ri][j], outer[ri + 1][j], outer[ri + 1][i]);
+      bag.quad(inner[ri][i], inner[ri + 1][i], inner[ri + 1][j], inner[ri][j]);
     }
+  const L = RINGS.length - 1;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    bag.tri(outer[L][i], outer[L][j], cO);
+    bag.tri(inner[L][j], inner[L][i], cI);
+    bag.quad(inner[0][i], inner[0][j], outer[0][j], outer[0][i]);      // the rim, closed
   }
 }
 
@@ -130,7 +116,18 @@ function plateInto(bag, F, w, h, t, r, surf) {
 // panel, lacing eyelets on fabric. THE COUNT IS DERIVED FROM THE PITCH, not
 // chosen: GEN_BUILD_GRAMMAR states real fastener pitches in millimetres and a
 // panel with eight screws whatever its size is a panel drawn by eye.
-function fastenRing(bag, F, w, h, t, pitch, r, surf) {
+// a hatch's SEAM: a 2 mm band along its outline, 1.5 mm off the skin - the drawn line of a hatch
+function seamLine(bag, F, w, h, r, surf) {
+  const rr = Math.min(r || Math.min(w, h) * 0.30, Math.min(w, h) * 0.48), hu = w / 2 - rr, hv = h / 2 - rr, NC = 7;
+  const ol = [];
+  for (const [cu, cv, a0] of [[hu, hv, 0], [-hu, hv, Math.PI / 2], [-hu, -hv, Math.PI], [hu, -hv, 1.5 * Math.PI]])
+    for (let k = 0; k < NC; k++) { const a = a0 + (Math.PI / 2) * k / (NC - 1); ol.push([cu + rr * Math.cos(a), cv + rr * Math.sin(a)]); }
+  const pt = (u, v) => { const P = surf ? surf(u, v) : at(F, u, v, 0); const N = surf && surf.n ? surf.n(u, v) : F.n; return bag.v(off(P, N, 0.0015)); };
+  const k0 = 1, k1 = 1 - 0.002 / Math.max(0.01, Math.min(w, h) * 0.5);
+  const A = ol.map(([u, v]) => pt(u * k0, v * k0)), B = ol.map(([u, v]) => pt(u * k1, v * k1));
+  for (let i = 0; i < ol.length; i++) { const j = (i + 1) % ol.length; bag.quad(A[i], A[j], B[j], B[i]); }
+}
+function fastenRing(bag, F, w, h, t, pitch, r, surf, flat) {
   const per = Math.PI * 0.5;               // rounded-rect perimeter, near enough
   const peri = 2 * (w + h) - (8 - 2 * per) * Math.min(w, h) * 0.15;
   const n = Math.max(6, Math.round(peri / Math.max(0.012, pitch)));
@@ -144,7 +141,8 @@ function fastenRing(bag, F, w, h, t, pitch, r, surf) {
     const u = cu * k, v = cv * k;
     const P = surf ? surf(u, v) : at(F, u, v, 0);
     const N = surf && surf.n ? surf.n(u, v) : F.n;
-    bolt(bag, off(P, N, t), N, r, r * 0.55);
+    if (flat) revolve(bag, off(P, N, t), N, [[r, 0], [r, flat], [0, flat]], 8, false);   // a flat head, drawn
+    else bolt(bag, off(P, N, t), N, r, r * 0.55);
   }
 }
 
@@ -163,10 +161,15 @@ const FORMS = {
   // The single most characteristic thing about it is the SCREWS, and their
   // pitch is the construction's own.
   plateOval(bags, F, S, ctx) {
-    const w = S.w || 0.15, h = S.h || 0.11, t = S.t || 0.0018;
-    plateInto(bags.paint, F, w, h, t, Math.min(w, h) * 0.42, ctx && ctx.surf);
-    fastenRing(bags.metal, F, w, h, t + 0.0006,
-      (ctx && ctx.pitch) || 0.048, 0.0035, ctx && ctx.surf);
+    // PILLAR-ANCHORS (3 Nov, the user: the access doors "should probably be almost a texture job only drawing a
+    // little trap somewhere"): THE HATCH IS DRAWN, NOT BOLTED ON. No plate at all - the skin under it is the hatch,
+    // in the skin's own colour - only its SEAM, a 2 mm dark line round it a hair proud, and flat screw heads. (A
+    // 0.4 mm plate was tried and failed: the fittings' paint is the livery's base colour, not the stripe it lands
+    // on, and that close to the skin it fought the skin for depth)
+    const w = S.w || 0.15, h = S.h || 0.11;
+    seamLine(bags.metal, F, w, h, Math.min(w, h) * 0.42, ctx && ctx.surf);
+    fastenRing(bags.metal, F, w * 0.90, h * 0.90, 0.0012,
+      (ctx && ctx.pitch) || 0.048, 0.0024, ctx && ctx.surf, 0.0004);
   },
 
   // the fabric inspection ring: a doped-on ring with lacing eyelets and NO
@@ -230,23 +233,25 @@ const FORMS = {
     revolve(bags.metal, F.p, F.n, [[d * 0.58, 0.0004], [0, 0.0004]], 24, false);
   },
 
-  // a hinged door — the oil filler flap, the baggage door. The door is a
-  // plate; the HINGE and the LATCH are what make it read as one, so they get
-  // the detail and the panel does not.
+  // a hinged door — the oil filler flap, the baggage door. The door is the
+  // skin, drawn by its seam; the HINGE and the LATCH are what make it read as
+  // one, so they get the detail and the panel does not.
   doorHinged(bags, F, S, ctx) {
-    const w = S.w || 0.17, h = S.h || 0.13, t = S.t || 0.006;
-    plateInto(bags.paint, F, w, h, t, Math.min(w, h) * 0.16, ctx && ctx.surf);
+    // PILLAR-ANCHORS (3 Nov, the user: the access doors' "pixelated anchor"): the door is the skin, drawn by its
+    // seam; the hinge and the latch stand on it
+    const w = S.w || 0.17, h = S.h || 0.13, t = 0.0015;
+    seamLine(bags.metal, F, w, h, Math.min(w, h) * 0.16, ctx && ctx.surf);
     // the piano hinge down the forward edge
     const hy = -h * 0.5;
     const n = Math.max(3, Math.round(w / 0.055));
     for (let i = 0; i < n; i++) {
       const u = (-0.5 + (i + 0.5) / n) * w * 0.92;
-      tube(bags.metal, at(F, u - w * 0.030, hy, t * 0.9),
-           at(F, u + w * 0.030, hy, t * 0.9), t * 0.42, 8);
+      tube(bags.metal, at(F, u - w * 0.030, hy, 0.0026),
+           at(F, u + w * 0.030, hy, 0.0026), 0.0024, 8);
     }
-    // the latch, on the aft edge: a small boss and a slot
+    // the latch, on the aft edge: a small flat boss (a drawn catch, 1.5 mm proud)
     revolve(bags.metal, at(F, 0, h * 0.40, t), F.n,
-      [[t * 1.5, 0], [t * 1.5, t * 0.5], [t * 0.9, t * 0.8]], 12, true);
+      [[0.007, 0], [0.007, 0.0012], [0.005, 0.0016], [0, 0.0016]], 12, false);
   },
 
   // the quick-drain valve: the boss in the skin and the stem you push up with
@@ -391,20 +396,28 @@ const FORMS = {
   // the boarding step: a bar on two legs, bolted through a ring frame. It
   // reaches DOWN and OUT, because that is where a foot goes.
   stepBoard(bags, F, S, ctx) {
-    const reach = S.reach || 0.15, w = S.w || 0.11, r = S.r || 0.011;
-    plateInto(bags.paint, F, w * 1.6, w * 0.75, 0.0020, w * 0.22,
-      ctx && ctx.surf);
-    // out along the normal, then the tread across it
-    const knee = off(F.p, F.n, reach * 0.86);
-    const a = at(F, -w * 0.5, 0, reach * 0.86), b = at(F, w * 0.5, 0, reach * 0.86);
-    for (const s of [-1, 1])
-      tube(bags.metal, at(F, s * w * 0.34, 0, 0.002),
-           at(F, s * w * 0.5, 0, reach * 0.86), r * 0.72, 8);
-    tube(bags.metal, a, b, r, 10);
-    // the tread's grip: three small bands rather than a texture
-    for (const t of [-0.28, 0, 0.28])
-      revolve(bags.metal, at(F, t * w, 0, reach * 0.86), F.side,
-        [[r * 1.22, -w * 0.016], [r * 1.22, w * 0.016]], 10, false);
+    // PILLAR-ANCHORS (3 Nov, the user: "I keep hating the step handle. I hate the pixelated shape used as a base, I
+    // hate the handle shape, this one has to be fully remodeled"; "always a narrow pillar step"). THE NARROW PILLAR
+    // STEP: no plate - a turned boss on the post, one round stem out of it bent down and out, and a small tread pad
+    // (a rounded disc with a lip) at its end; nothing wider than a pillar. S.reach the tread's stand-off, S.r the
+    // stem's radius; the tread 64 mm across
+    const reach = S.reach || 0.15, r = Math.min(S.r || 0.011, 0.010), d = 0.064;
+    revolve(bags.metal, F.p, F.n,
+      [[r * 2.3, 0.0004], [r * 2.3, 0.004], [r * 1.9, 0.009], [r * 1.25, 0.013]], 14, true);
+    // the stem: out of the boss, a smooth bend, down to the tread (F.fore is the frame's along; -v is down the
+    // flank on a side site - the stem drops a little so the pad sits below the boss, a foot's natural reach)
+    // DOWN on the skin: the world's -y laid into the site's tangent plane (a step on a flank drops toward the
+    // ground whatever the frame's own `fore` is)
+    const n = F.n, dd = -n[1];
+    let dn = [-n[0] * dd, -1 - n[1] * dd, -n[2] * dd];
+    const dl = Math.hypot(dn[0], dn[1], dn[2]);
+    dn = dl > 1e-6 ? [dn[0] / dl, dn[1] / dl, dn[2] / dl] : F.fore;
+    const Pt = (out, down) => [F.p[0] + n[0] * out + dn[0] * down, F.p[1] + n[1] * out + dn[1] * down, F.p[2] + n[2] * out + dn[2] * down];
+    const path = fillet([Pt(0.010, 0), Pt(reach * 0.55, 0), Pt(reach * 0.92, reach * 0.22)], r * 3, 6);
+    sweep(bags.metal, resample(path, 12), () => secRound(r, 10), true, n);
+    // the tread: a rounded pad, flat to the ground (its axis the world's up), at the stem's end
+    revolve(bags.metal, Pt(reach * 0.92, reach * 0.22 + r), [0, 1, 0],
+      [[0, -0.003], [d * 0.44, -0.003], [d * 0.5, 0], [d * 0.5, 0.004], [d * 0.44, 0.006], [0, 0.006]], 16, false);
   },
 
   // the grab handle: the same idea, one bolt-through each end, up where a
@@ -413,8 +426,10 @@ const FORMS = {
     const reach = S.reach || 0.07, w = S.w || 0.13, r = S.r || 0.009;
     for (const s of [-1, 1]) {
       const foot = at(F, s * w * 0.5, 0, 0);
+      // PILLAR-ANCHORS (3 Nov, the user: "the old U style would even be better" - clean and smooth): a turned
+      // foot, rounded into the bar, and a rounder bar (14 / 10 sides where it had 12 / 9)
       revolve(bags.paint, foot, F.n,
-        [[r * 2.0, 0.0006], [r * 2.0, r * 0.6], [r * 1.3, r * 0.9]], 12, true);
+        [[r * 2.0, 0.0006], [r * 2.0, r * 0.35], [r * 1.75, r * 0.75], [r * 1.25, r * 1.0]], 14, true);
     }
     // a filleted U: two uprights and a bar, rounded at both bends
     const path = fillet([
@@ -422,8 +437,8 @@ const FORMS = {
       at(F, -w * 0.5, 0, reach),
       at(F,  w * 0.5, 0, reach),
       at(F,  w * 0.5, 0, 0.002),
-    ], r * 2.2, 5);
-    sweep(bags.metal, resample(path, 26), () => secRound(r, 9), true, F.n);
+    ], r * 2.6, 5);
+    sweep(bags.metal, resample(path, 20), () => secRound(r, 10), true, F.n);
   },
 
   // the tie-down ring: the boss, and the ring hanging out of it. A tie-down

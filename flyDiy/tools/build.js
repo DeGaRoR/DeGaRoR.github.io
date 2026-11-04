@@ -174,6 +174,7 @@ const MANIFEST = {
     // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s
     // probe and 64_'s genAlphaForLift; genShakedown attaches it (not on a slim sheet)
     '64b_gen_design.js',
+    '64c_gen_aids.js',
     '65_gen_loadtest.js',
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
@@ -724,6 +725,9 @@ const MANIFEST = {
     // THE POST CHAIN, FLAT (G1441): after CAGE_PAGE exists, before the first layer chains PAGE.post - the
     // registrations, the drag preview's skips and the layers' recorded inputs (_cage_chain.js)
     '_cage_chain.js',
+    // THE SEAT LIBRARY (SEATS, 2026-11-02): the calibrated seat presets (seatType 3+); pure, reached by the crew's
+    // buildSeat at call time, so only before the crew
+    '_seat_gen.js',
     '_cage_crew.js',
     // THE INSTRUMENTS (the panel arc, session 2): the fit as a list, the
     // Instruments part's column and the join's `systems` seam; its geometry
@@ -735,7 +739,7 @@ const MANIFEST = {
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
-    '_fit_site.js', '_fit_gen.js',
+    '_fit_site.js', '_pillar_site.js', '_fit_gen.js',   // PILLAR-ANCHORS: the pillars and the doors, one record
     // THE HINGE SHAPES (G238): the same table/placer/shapes split, over
     // GEAR_KIT. Pure module, no post hook — only has to be before the layer.
     '_hinge_gen.js',

@@ -136,10 +136,11 @@
       night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null,
       // (G2742 STORY-PAGE, Q1) held while the story runs: the row stands greyed, its Track off
       held: c.held === true })).filter(c => prov[c.provider]);
-    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null }));
+    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null,
+                                              certLine: typeof f.certLine === 'string' ? f.certLine : '' }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
-      const certOf = {}; for (const f of fleet) certOf[f.slot] = f.cert;
-      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null }));
+      const certOf = {}, lineOf = {}; for (const f of fleet) { certOf[f.slot] = f.cert; lineOf[f.slot] = f.certLine; }
+      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null, certLine: lineOf[n] || '' }));
     }
     const DES = designs || (typeof CONTRACT_DESIGNS !== 'undefined' ? CONTRACT_DESIGNS : null);   // eslint-disable-line no-undef
     const v = career.voucher, vd = v && !v.used && DES && DES[v.model];
@@ -522,7 +523,9 @@
   function fleetParaHTML(M, st, f) {
     const C = f.cert, w = whereWord(M, f.where);
     return '<p>' + esc(w.charAt(0).toUpperCase() + w.slice(1)) + '.' +
-      '<span class="mmRw">' + (C ? esc(factsWord(C)) + (C.tasKmh ? ' · ' + fmt(C.tasKmh) + ' km/h' : '') : 'Its certificate is not read yet: open it in the garage.') + '</span></p>';
+      '<span class="mmRw">' + (C ? esc(factsWord(C)) + (C.tasKmh ? ' · ' + fmt(C.tasKmh) + ' km/h' : '') : 'Its certificate is not read yet: open it in the garage.') + '</span>' +
+      // CERT-GATES: what the bench signed (a mission needs it: 74_ contractCertNeed)
+      (f.certLine ? '<span class="mmRw">' + esc(f.certLine) + '</span>' : '') + '</p>';
   }
   function fleetListHTML(M, st) {
     const rows = fleetRows(M, st);
