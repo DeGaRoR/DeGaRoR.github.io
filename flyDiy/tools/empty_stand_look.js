@@ -27,7 +27,9 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/EMPTY-STAND'));
 const ONLY = opt('only', null), SECS = +opt('secs', 7200);
-const Q = 'gfx=laptop&tutor=0';
+// --plain: no ?tutor=0, step 1 only (does the first-launch chooser come up on a story career without the dev flag?)
+const PLAIN = argv.includes('--plain');
+const Q = PLAIN ? 'gfx=laptop' : 'gfx=laptop&tutor=0';
 const UA_DESK = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 const UA_PHONE = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Mobile Safari/537.36';
 const PROFILES = {
@@ -38,7 +40,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const T0 = Date.now();
 const log = (...a) => console.log('[' + ((Date.now() - T0) / 1000).toFixed(0).padStart(5) + ' s]', ...a);
 const freePort = () => new Promise((res, rej) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); s.on('error', rej); });
-const RES = path.join(OUT, 'results' + (ONLY ? '_' + ONLY : '') + '.json');
+const RES = path.join(OUT, 'results' + (ONLY ? '_' + ONLY : '') + (PLAIN ? '_plain' : '') + '.json');
 
 const R = { renderer: null, args: argv, url: Q, profiles: {} };
 (async () => {
@@ -93,7 +95,7 @@ async function runProfile(browser, prof, URL0) {
   const check = (k, ok, what, got) => { step(k).asserts.push({ ok: !!ok, what, got: got === undefined ? undefined : got }); save(); log(prof, k, ok ? 'PASS' : 'FAIL', what, got === undefined ? '' : JSON.stringify(got)); };
   const errsAt = k => P.pageErrors.filter(e => e.step === k).map(e => e.error);
   const shot = async (k, name, what, o = {}) => {
-    const f = prof + '_' + name + '.jpg';
+    const f = (PLAIN ? 'plain_' : '') + prof + '_' + name + '.jpg';
     await sleep(o.settle || 3000);
     await pg.screenshot({ path: path.join(OUT, f), type: 'jpeg', quality: 85, timeout: 240000 });
     P.shots.push({ step: k, file: f, what });
@@ -221,7 +223,7 @@ async function runProfile(browser, prof, URL0) {
     await record('1', 'stateAfterCancel');
   }
   await shot('1', '1_before', 'before: the career\'s first hangar (' + (start && start.name) + '), its aeroplane ' + s1.onStand + ' on the stand', { settle: 5000 });
-  if (!empty) { await ctx.close(); return; }
+  if (!empty || PLAIN) { await ctx.close(); return; }
 
   // ---- 2. Go to the empty hangar ------------------------------------------------------------------------------------
   step('2');
@@ -263,7 +265,9 @@ async function runProfile(browser, prof, URL0) {
   step('4').prints.bringButtons = bring;
   check('4', bring.length >= 1, 'the card lists a plane of yours with Bring here', bring);
   if (!bring.length) { await ctx.close(); return; }
-  const who = bring[0];
+  // the plane that stood in the first hangar (step 1's stand): brought here, that hangar is left empty for step 5
+  // (run 2 brought bring[0] - the story's Client Cub - and w1 kept Rufus: no empty hangar to go back to)
+  const who = bring.includes(s1.onStand) ? s1.onStand : bring[0];
   await pg.click('#gEmptyCard button[data-ge="bring"][data-n="' + who + '"]');
   const brought = await until('the plane on the stand', n => FLYDIY_STORE.onStand() === n && !document.body.classList.contains('gEmpty'), who, 1500, 600000).then(() => true, () => false);
   await sleep(6000);
