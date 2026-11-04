@@ -4,6 +4,8 @@
 //   PLANE_THUMB.get(key)        -> an image URL or null (null: the card draws its glyph). Keys: 'mine:<save name>' (the
 //                                  player's builds, drawn by this page), anything else a baked file under media/thumbs/
 //   PLANE_THUMB.saved(name)     the garage saved / loaded <name>: drawn once the page is still, if the stand still shows it
+// LIVE_DRAW OFF (A0 4 Nov, L31c): the first draw froze the page 6.1 s on L31b (perf-week list), so saved() does nothing and
+// 'mine:' keys read null (the player's own planes keep their glyph); the baked pictures stay. true below turns it back on.
 // THE DRAW: the game's own renderer, one orthographic eye from the aeroplane's left (plane_shot.js's profile, ported),
 // every visible mesh outside the aeroplane hidden for that one render (the room, the floor, the props), the scene's
 // background a radial studio gradient, no fog, the shadow map as it is (not redrawn). Rendered into a corner of the
@@ -11,6 +13,7 @@
 // the next frame draws over it. Kept in prefs per save name with the build's hash: an edit redraws it.
 'use strict';
 (function () {
+  const LIVE_DRAW = false;
   const W = 240, H = 120, SS = 2, FILL = 0.9, BG0 = '#2b2724', BG1 = '#0a0908';
   const PREF = 'flydiy.thumb.', BAKED = 'media/thumbs/';
   const cache = new Map();   // key -> url (the session's)
@@ -131,7 +134,7 @@
     // the garage saved (or loaded) <name>, now on the stand: one draw once the page is still (a save never waits on it);
     // nothing when the stored picture's hash is this build's
     saved(name, spec) {
-      if (!name) return;
+      if (!LIVE_DRAW || !name) return;
       const h = hashOf(spec || (window.GARAGE_SPEC && GARAGE_SPEC.get()));
       const L = prefs(); let old = null;
       try { old = L && JSON.parse(L.getItem(PREF + 'mine:' + name) || 'null'); } catch (e) {}
@@ -149,6 +152,7 @@
       if (!key) return null;
       if (cache.has(key)) return cache.get(key);
       if (key.startsWith('mine:')) {
+        if (!LIVE_DRAW) return null;                // a stored picture could be stale with no redraw: the glyph
         const L = prefs(); let v = null;
         try { v = L && JSON.parse(L.getItem(PREF + key) || 'null'); } catch (e) {}
         const url = v && v.url || null; cache.set(key, url); return url;
