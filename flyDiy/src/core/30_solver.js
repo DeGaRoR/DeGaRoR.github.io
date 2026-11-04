@@ -1546,13 +1546,20 @@ function makeSim(def, world) {
   const GEAR_EMERG_T = { crank: 25, freefall: 4, pump: 20, blow: 2 };
   // the transit's extra drag, x the gear's own at mid-travel (the legs broadside, the wells open) [TUNE]
   const GEAR_TRANSIT_K = 0.15;
+  // G1: the frac of the fold it retracts (a partial gear's stowed wheel rolls on its exposed tyre), and the lift: the
+  // drawn fold's MEASURED rise of the wheel's lowest point (params.retract.lift, the join's) - else the frame's rule,
+  // the lift to the highest of the wheel's members' anchors plus its radius, times the fraction
+  const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
+    const isMainN = new Set(def.refs.mains || []);
     for (const i of [...(def.refs.mains || []), def.refs.tw]) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
+      const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
+      if (typeof meas === 'number' && isFinite(meas)) { GH[i] = meas; continue; }
       let up = 0;
       for (const b of beams) if (b.a === i || b.b === i) up = Math.max(up, def.nodes[b.a === i ? b.b : b.a].p[1] - def.nodes[i].p[1]);
-      GH[i] = up + def.nodes[i].r;
+      GH[i] = (up + def.nodes[i].r) * RFRAC;
     }
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
@@ -1571,7 +1578,7 @@ function makeSim(def, world) {
     GR.pos += d;
     if (GR.pos > 1) GR.pos = 1; else if (GR.pos < 0) GR.pos = 0;
     GR.lift = 1 - GR.pos;
-    GR.cda[0] = P_.fusCdA[0] - RET.cdA * GR.lift + GEAR_TRANSIT_K * RET.cdA * CORE_MATH.sin(Math.PI * GR.pos);
+    GR.cda[0] = P_.fusCdA[0] - RET.cdA * RFRAC * GR.lift + GEAR_TRANSIT_K * RET.cdA * CORE_MATH.sin(Math.PI * GR.pos);   // G1: a partial gear keeps (1 - frac) of its drag up
     if (WB) WB.lift = GH.map((h, i) => GW[i] ? GR.lift * h : 0);
     // published on `out` (the physics worker's snapshot carries out whole: the page's lamps, horn and swing read these)
     out.gear = GR.pos; out.gearMov = GR.moving; out.gearWow = wow ? 1 : 0; out.gearEmerg = GR.emerg ? 1 : 0;
@@ -3790,7 +3797,7 @@ function makeSim(def, world) {
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === def.refs.tw;
-      if ((isMain || isTW) && (GR === null || GR.pos > 0.98)) {   // RETRACT-1: a wheel rolls down and locked; else it scrapes
+      if ((isMain || isTW) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {

@@ -18,6 +18,10 @@
 //      move; gearEmergency() - down and locked in the free fall's time (4 s, +-0.3 s)
 //   8. THE FORGETFUL PERSON'S OTHER DAY: the same person from seed 1935 lowers it and lands on its wheels; the expert
 //      never forgets
+//  10. THE FOLD (G1, the T-tail tourer drawn headless, _scene_headless): inward goes inboard and up and the starboard
+//      mirrors it, outward outboard, aft-flat aft with the wheel's axis upright, two axes two turns, a custom fold equal
+//      to the preset it copies, the fraction stopping part way, the preview posing the drawn units (and not the capture),
+//      the join's fraction and measured lift, the certificate strip, and a partial gear's downwind between the two
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -185,6 +189,68 @@ console.log('9 THE HORN');
   const sim = { out: { gear: 0, gearWow: 0, V: 40, alpha: 0 }, ctl: { thr: 0.1, flap: 0 }, eng: [] };
   for (let i = 0; i < 60; i++) { AP.audioParams(sim, { mode: 'chase', p: new Float64Array(3) }, dR, blk, null, 1 / 60); const tg = AM.airframeStep(blk, st, 1 / 60); seen.add(tg[AM.AF_PARAMS.indexOf('stall')] > 0.5 ? 'on' : 'off'); }
   check(seen.has('on') && seen.has('off'), 'the horn sounds intermittently on the stall voice', [...seen].join('/'));
+}
+
+// ---- 10. THE FOLD (G1): the chain, the presets, the fraction, the preview, the join's spec, the certificate ---------
+console.log('10 THE FOLD (G1)');
+{
+  const SH = require('./_scene_headless.js'), BJ = require('./_bake_joined.js');
+  const { D } = BJ.loadPanel();
+  const arch = D.ARCHETYPES.find(x => x.key === 'ttail');
+  const birth = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(arch.sel, arch.over) }).spec;
+  let W0 = null;   // the headless page's window (its gear layer's CAGE_GEAR_FOLD)
+  const sceneOf = over => { const S = SH.sceneBuild(birth, { over: Object.assign({ gearRetract: 1 }, over), garage: birth }); W0 = S.W; return S; };
+  const FOLD = () => W0.CAGE_GEAR_FOLD;
+  const at = (C, g) => { const M = FOLD().foldPose(C, g), h = C.hinge, v = [C.axle[0] - h[0], C.axle[1] - h[1], C.axle[2] - h[2]];
+    return [h[0] + M[0] * v[0] + M[1] * v[1] + M[2] * v[2], h[1] + M[3] * v[0] + M[4] * v[1] + M[5] * v[2], h[2] + M[6] * v[0] + M[7] * v[1] + M[8] * v[2]]; };
+  const wAxUp = C => { const M = FOLD().foldPose(C, 0), a = C.wAx; return [M[0] * a[0] + M[1] * a[1] + M[2] * a[2], M[3] * a[0] + M[4] * a[1] + M[5] * a[2], M[6] * a[0] + M[7] * a[1] + M[8] * a[2]]; };
+  sceneOf({});                       // (the page's gear layer, once: its fold's keys)
+  const K = FOLD().FOLD_KEYS;
+  const swOf = over => sceneOf(over).W.CAGE_GEAR.swing;
+  // inward: inboard and up, the starboard the port's mirror
+  let S = swOf({ gearFold: K.indexOf('inward') });
+  const dL = S.L.axle, uL = at(S.L, 0), uR = at(S.R, 0);
+  check(Math.abs(uL[0]) < Math.abs(dL[0]) - 0.1 && uL[1] > dL[1] + 0.1, 'inward: the port wheel goes inboard and up', uL.map(x => x.toFixed(2)).join(','));
+  check(Math.abs(uL[0] + uR[0]) < 1e-6 && Math.abs(uL[1] - uR[1]) < 1e-6 && Math.abs(uL[2] - uR[2]) < 1e-6, 'the starboard mirrors it');
+  check(at(S.T, 0)[2] < S.T.axle[2] - 0.1, 'the nose goes aft');
+  check(S.L.lift > 0.1 && S.T.lift > 0.1, 'the lift is measured', S.L.lift.toFixed(2) + ' / ' + S.T.lift.toFixed(2) + ' m');
+  // outward
+  S = swOf({ gearFold: K.indexOf('outward') });
+  check(Math.abs(at(S.L, 0)[0]) > Math.abs(S.L.axle[0]) + 0.1, 'outward: the wheel goes outboard');
+  // aft, the wheel turned flat
+  S = swOf({ gearFold: K.indexOf('aftFlat') });
+  check(at(S.L, 0)[2] < S.L.axle[2] - 0.1 && Math.abs(wAxUp(S.L)[1]) > 0.9, 'aft-flat: aft, the wheel\'s axis upright (it lies flat)', wAxUp(S.L).map(x => x.toFixed(2)).join(','));
+  // two turns
+  S = swOf({ gearFold: K.indexOf('skymaster') });
+  check(S.L.turns.length === 2, 'two axes: two turns');
+  // custom = the preset it copies
+  S = swOf({ gearFold: K.indexOf('custom'), gm1Ax: 0, gm1Ang: 90, gm2Ang: 0, gmTwist: 0 });
+  const Si = swOf({ gearFold: K.indexOf('inward') });
+  check(S.L.turns.length === 1 && Math.hypot(...at(S.L, 0).map((x, i) => x - at(Si.L, 0)[i])) < 1e-9, 'custom (fore-aft, 90) is the inward preset');
+  // the fraction: part way, less lift
+  const Sf = swOf({ gearFold: K.indexOf('inward'), gearRetFrac: 0.6 });
+  check(Sf.L.frac === 0.6 && Sf.L.lift < Si.L.lift - 0.05, 'the fraction 0.6 stops part way (less lift)', Sf.L.lift.toFixed(2) + ' < ' + Si.L.lift.toFixed(2));
+  // the preview: the editor's gearPos poses the drawn units (and only then)
+  const mOf = (over, nm) => { let m = null; sceneOf(over).scene.traverse(o => { if (o.name === nm) m = o.matrix.elements.slice(); }); return m; };
+  const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const m1 = mOf({ gearPos: 1 }, 'edWheelL'), m5 = mOf({ gearPos: 0.5 }, 'edWheelL');
+  check(m1 && m1.every((x, i) => Math.abs(x - I[i]) < 1e-12) && m5 && m5.some((x, i) => Math.abs(x - I[i]) > 1e-3), 'the preview: down is untouched, 0.5 turns the unit');
+  // the join's spec: the fraction and the measured lift; the preview never reaches it
+  const s0 = D.designBake(arch.sel, arch.over);
+  Object.assign(s0.cage, { gearRetract: 1, gearRetFrac: 0.6, gearPos: 0.3 });
+  const js = LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec.gear.retract;
+  check(js && js.frac === 0.6 && js.lift && js.lift.mains > 0 && js.lift.nose > 0, 'the join writes the fraction and the lift', JSON.stringify(js));
+  // the certificate: the rows at "fixed" are absent, the preview always
+  const off = C.genStolCageOff({ gearRetract: 0, gearRetT: 6, gearFold: 0, gearPos: 1, s1R: 0.2 });
+  const on = C.genStolCageOff({ gearRetract: 1, gearRetT: 6, gearFold: 0, gearPos: 0.3, s1R: 0.2 });
+  check(Object.keys(off).join() === 's1R' && Object.keys(on).join() === 'gearRetract,gearRetT,gearFold,s1R',
+        'the certificate: a fixed gear\'s rows and the preview count as absent', Object.keys(off).join() + ' | ' + Object.keys(on).join());
+  // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
+  const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
+  check(dS.params.retract.frac === 0.6, 'params carry the fraction');
+  const Us = fly(dS, { hold: 0, noEmerg: true, until: (s, ap) => ap.phase === 'BASE' });
+  check(Us.dwV > B.dwV + 0.1 && Us.dwV < U.dwV - 0.1, 'a partial gear up: the downwind between down and fully up',
+        B.dwV.toFixed(2) + ' < ' + Us.dwV.toFixed(2) + ' < ' + U.dwV.toFixed(2));
 }
 
 console.log(bad ? 'GATE RETRACT: FAIL (' + bad + ')' : 'GATE RETRACT: PASS');

@@ -3655,7 +3655,8 @@
           const S = data.gearSwing[u];
           if (!S || obj.parent !== grp) continue;          // the nose wheel rides inside its castor already
           if (!units[u]) { const g = new THREE.Group(); g.name = 'gearSwing' + u; g.matrixAutoUpdate = false; grp.add(g);
-                           units[u] = { obj: g, hinge: S.hinge, axis: S.axis, ang: S.ang, a: 0 }; }
+                           units[u] = { obj: g, hinge: S.hinge, leg: S.leg, twist: S.twist || 0, turns: S.turns || [],
+                                        frac: S.frac || 1, a: 1 }; }
           grp.remove(obj); units[u].obj.add(obj);
         }
         gearSwingRig = Object.keys(units).length ? Object.values(units) : null;
@@ -4713,17 +4714,28 @@
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
     // and every vertex moves by its own share of that travel.
-    // RETRACT-1: THE GEAR SWINGS - each unit's group turned about its hinge by (1 - out.gear) of its angle, conjugated
-    // by the capture's map (conjRot, G357); written only when the angle changed (a gear down or up costs nothing a
-    // frame), hidden once stowed (its draws saved in the cruise)
+    // RETRACT-1 / G1: THE GEAR FOLDS - each unit's group turned about its hinge by its CHAIN at the position out.gear
+    // (the gear layer's foldPose, replayed: s = (1 - pos) x frac; the wheel's twist about the leg across all of it, then
+    // the turns one after the other), each turn conjugated by the capture's map (conjRot, G357); written only when the
+    // position moved (a gear down or up costs nothing a frame); hidden once stowed - unless it retracts partly (frac < 1:
+    // the wheel stays in sight in its inset)
     if (model.gearSwingRig) {
       const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
       for (const U of model.gearSwingRig) {
-        const a = (1 - gp) * U.ang;
-        U.obj.visible = gp > 0.02;
-        if (a === U.a) continue;
-        U.a = a;
-        const R = conjRot(U.axis, a, U.M || (U.M = new Float64Array(9))), h = U.hinge;
+        U.obj.visible = gp > 0.02 || U.frac < 1;
+        if (gp === U.a) continue;
+        U.a = gp;
+        const s = Math.max(0, Math.min(1, 1 - gp)) * U.frac, nT = U.turns.length;
+        const R = U.M || (U.M = new Float64Array(9)), T9 = U.T9 || (U.T9 = new Float64Array(9)), W9 = U.W9 || (U.W9 = new Float64Array(9));
+        conjRot(U.leg, U.twist * s, R);
+        for (let k = 0; k < nT; k++) {
+          const tk = Math.max(0, Math.min(1, s * nT - k));
+          conjRot(U.turns[k].axis, U.turns[k].ang * tk, T9);
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+            W9[i * 3 + j] = T9[i * 3] * R[j] + T9[i * 3 + 1] * R[3 + j] + T9[i * 3 + 2] * R[6 + j];
+          R.set(W9);
+        }
+        const h = U.hinge;
         U.obj.matrix.set(R[0], R[1], R[2], h[0] - (R[0] * h[0] + R[1] * h[1] + R[2] * h[2]),
                          R[3], R[4], R[5], h[1] - (R[3] * h[0] + R[4] * h[1] + R[5] * h[2]),
                          R[6], R[7], R[8], h[2] - (R[6] * h[0] + R[7] * h[1] + R[8] * h[2]),

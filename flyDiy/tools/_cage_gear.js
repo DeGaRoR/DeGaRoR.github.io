@@ -64,6 +64,11 @@ Object.assign(gearDef, {
   gearFloats: 0,
   // RETRACT-1: fixed (0) by default; the cycle (s) and the actuation (0 electric, 1 hydraulic, 2 manual)
   gearRetract: 0, gearRetT: 6, gearRetAct: 1,
+  // G1 (the fold): the preview's position, the mains' and the nose's fold (a preset, or 'custom': up to two turns + the
+  // wheel's twist), the fraction it retracts (1 all the way; 0.6 a Catalina's or a DC-3's, the wheel left in its inset)
+  gearPos: 1, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1,
+  gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0,
+  gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
@@ -165,6 +170,81 @@ const station = (i, name) => [name, [
   ...legRows(i),
 ]];
 
+// G1 (RETRACT-STUDY §8.1): THE FOLD PRESETS - turns [axis, deg] about BODY axes through the leg's airframe end (axis 0
+// fore-aft, 1 lateral, 2 vertical; + the probed sense: inboard on 0 and 2, aft on 1), applied in order, and the wheel's
+// twist about its own leg (deg), applied first. The mains' are the port unit's; the starboard mirrors them. [TUNE]
+// each on its reference aeroplane (the Arrow first, §8.6): the angles here are the motions' shapes, not anyone's numbers
+const FOLD_PRESETS = {
+  inward:    { turns: [[0, 90]], twist: 0 },                 // Mooney, Bonanza, Arrow: inboard into the wing root
+  outward:   { turns: [[0, -90]], twist: 0 },                // Spitfire, Bf 109: outboard into the wing
+  aftFlat:   { turns: [[1, 90]], twist: 90 },                // P-40, F4U: aft, the wheel turned flat on the way
+  aftBelly:  { turns: [[1, 85], [2, 35]], twist: 90 },       // the Cessna RG's twist-and-tuck: aft and in, flat
+  skymaster: { turns: [[0, 45], [1, 90]], twist: 0 },        // two axes, then along the body (to check on a reference)
+  aft:       { turns: [[1, 90]], twist: 0 },                 // a nose leg aft (Arrow, Bonanza, 210)
+  fwd:       { turns: [[1, -90]], twist: 0 },                // a nose leg forward (air and gravity help it down)
+};
+const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom'];
+const FOLD_NOSE_KEYS = ['aft', 'fwd', 'custom'];
+const FOLD_LABELS = { inward: 'inward (into the wing root)', outward: 'outward', aftFlat: 'aft, the wheel turned flat',
+  aftBelly: 'aft and in, flat (twist-and-tuck)', skymaster: 'two axes (Skymaster)', aft: 'aft', fwd: 'forward',
+  custom: 'custom (the turns below)' };
+const FOLD_AX_LABELS = ['fore-aft', 'lateral', 'vertical'];
+const foldCustom = P => FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'custom';
+const foldNoseCustom = P => FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] === 'custom';
+// the unit's fold as written: { turns: [[axis, deg]], twist } - its preset's, or its custom rows'
+function foldOf(P, nose) {
+  if (nose) {
+    const k = FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] || 'aft';
+    if (k !== 'custom') return FOLD_PRESETS[k];
+    return { turns: [[Math.round(+P.gn1Ax || 0), +P.gn1Ang || 0], [Math.round(+P.gn2Ax || 0), +P.gn2Ang || 0]], twist: +P.gnTwist || 0 };
+  }
+  const k = FOLD_KEYS[Math.round(+P.gearFold || 0)] || 'inward';
+  if (k !== 'custom') return FOLD_PRESETS[k];
+  return { turns: [[Math.round(+P.gm1Ax || 0), +P.gm1Ang || 0], [Math.round(+P.gm2Ax || 0), +P.gm2Ang || 0]], twist: +P.gmTwist || 0 };
+}
+// ---- the chain's arithmetic (3 x 3 row-major) ----
+const fRot = (k, a) => { const c = Math.cos(a), s = Math.sin(a), C = 1 - c, x = k[0], y = k[1], z = k[2];
+  return [c + x * x * C, x * y * C - z * s, x * z * C + y * s, y * x * C + z * s, c + y * y * C, y * z * C - x * s,
+          z * x * C - y * s, z * y * C + x * s, c + z * z * C]; };
+const fMul = (A, B) => { const o = new Array(9);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o[i * 3 + j] = A[i * 3] * B[j] + A[i * 3 + 1] * B[3 + j] + A[i * 3 + 2] * B[6 + j];
+  return o; };
+const fApp = (M, v) => [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+const fNrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+// THE POSE at position g (1 down .. 0 up): s = (1 - g) x frac walks the chain - the twist across all of it, the turns one
+// after the other - and the 3 x 3 the unit turns by about its hinge
+function foldPose(C, g) {
+  const s = Math.max(0, Math.min(1, 1 - g)) * C.frac, n = C.turns.length;
+  let M = fRot(C.leg, C.twist * s);
+  C.turns.forEach((T, k) => { M = fMul(fRot(T.axis, T.ang * Math.max(0, Math.min(1, s * n - k))), M); });
+  return M;
+}
+// THE CHAIN of one unit, its senses probed: u the leg unit (root, axle, the moving end, the wheel's axis), key L / R / T
+function foldChain(u, key, P) {
+  const h = (u.root || u.moving || u.axle).slice(), ax = u.axle, top = u.moving || u.axle;
+  const F = foldOf(P, key === 'T'), side = key === 'R' ? -1 : 1;
+  const leg = fNrm([top[0] - h[0], top[1] - h[1], top[2] - h[2]]);
+  const C = { hinge: h, leg, twist: side * (F.twist || 0) * D2R, turns: [], frac: Math.max(0.3, Math.min(1, +P.gearRetFrac || 1)),
+              R: u.R || 0.2, wAx: u.waxis ? fNrm(u.waxis) : [1, 0, 0], axle: ax.slice() };
+  // the turns' senses, each on the axle where the turns before it left it
+  let M = fRot(leg, C.twist);
+  for (const [ai, deg] of F.turns) {
+    if (!deg) continue;
+    const base = ai === 1 ? [1, 0, 0] : ai === 2 ? [0, 1, 0] : [0, 0, 1];
+    const v = fApp(M, [ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]), w = fApp(fRot(base, 0.1), v);
+    const moved = ai === 1 ? w[2] - v[2]                                   // lateral: aft is -z
+                : Math.abs(h[0] + w[0]) - Math.abs(h[0] + v[0]);           // fore-aft, vertical: inboard is |x| down
+    const k = moved < -1e-9 ? base : moved > 1e-9 ? base.map(c => -c) : base;
+    C.turns.push({ axis: k, ang: deg * D2R });
+    M = fMul(fRot(k, deg * D2R), M);
+  }
+  // the LIFT: how far the wheel's lowest point rises, the gear up (at the fraction), over the ground (the pitch's frame)
+  const bottom = (c, a) => c[1] - C.R * Math.sqrt(Math.max(0, 1 - a[1] * a[1]));
+  const Mup = foldPose(C, 0), axUp = fApp(Mup, [ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]);
+  C.lift = Math.max(0, bottom([h[0] + axUp[0], h[1] + axUp[1], h[2] + axUp[2]], fApp(Mup, C.wAx)) - bottom(ax, C.wAx));
+  return C;
+}
+
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
 const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 &&
                                  Math.round(+P.wgPos) === 2);
@@ -184,6 +264,24 @@ const GROUP = ['9 · undercarriage', [
     ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable']],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
+    // G1 (RETRACT-STUDY §8.1): THE FOLD. A preset per unit, or 'custom': up to two turns, each about a body axis
+    // (fore-aft / lateral / vertical) by a signed angle whose + is PROBED (the axle moves inboard on fore-aft and
+    // vertical, aft on lateral), plus the wheel's own twist about its leg (to lie flatter); the mains' rows are the
+    // port unit's, the starboard mirrors them. The fraction stops the whole chain part way (the wheel in its inset)
+    ['gearPos', 'gear position (preview: 1 down, 0 up)', 0, 1, 0.01, { when: P => +P.gearRetract }],
+    ['gearFold', 'mains fold', 0, FOLD_KEYS.length - 1, 1, FOLD_KEYS.map(k => FOLD_LABELS[k]), { when: P => +P.gearRetract }],
+    ['gm1Ax', 'mains turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldCustom(P) }],
+    ['gm1Ang', 'mains turn 1: angle °', -180, 180, 1, { when: P => +P.gearRetract && foldCustom(P) }],
+    ['gm2Ax', 'mains turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldCustom(P) }],
+    ['gm2Ang', 'mains turn 2: angle ° (0: none)', -180, 180, 1, { when: P => +P.gearRetract && foldCustom(P) }],
+    ['gmTwist', 'mains wheel twist ° (about the leg)', -90, 90, 1, { when: P => +P.gearRetract && foldCustom(P) }],
+    ['gearFoldNose', 'nose fold', 0, FOLD_NOSE_KEYS.length - 1, 1, FOLD_NOSE_KEYS.map(k => FOLD_LABELS[k]), { when: P => +P.gearRetract }],
+    ['gn1Ax', 'nose turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldNoseCustom(P) }],
+    ['gn1Ang', 'nose turn 1: angle °', -180, 180, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
+    ['gn2Ax', 'nose turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldNoseCustom(P) }],
+    ['gn2Ang', 'nose turn 2: angle ° (0: none)', -180, 180, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
+    ['gnTwist', 'nose wheel twist ° (about the leg)', -90, 90, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
+    ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
   ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) * (Math.round(+P.wgPos) === 2 ? 1 : 0) > 0 }],
@@ -204,6 +302,7 @@ const GROUP = ['9 · undercarriage', [
 // a page that curated its own tree replaced the base panel outright, so an
 // appended group has to go into THAT array; otherwise the base append list.
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
+window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose };   // G1: the one fold
 
 // ---- the build ------------------------------------------------------------
 let group = null;
@@ -533,7 +632,8 @@ PAGE.post = ctx => {
       // the start and end anchor points remain in original position".
       legUnits.push({ bags: lb, kind: wu.wb.kind, axle: r.axle,
                       root: r.root || null, moving: r.tip || r.axle,
-                      wing: !!m });   // RETRACT-1: rooted on the wing (the inward fold) or on the body (aft)
+                      wing: !!m,      // RETRACT-1: rooted on the wing (the inward fold) or on the body (aft)
+                      waxis: r.axis || null, R: st.R });   // G1: the wheel's axis and radius (the lift)
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
@@ -656,30 +756,28 @@ PAGE.post = ctx => {
   // G133: say so when the low-wing rule took the legs — the one visible
   // trace of an automatic decision the builder never clicked
   if (onWing) notes.push('mains on wing');
-  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING, a retractable build's only - per unit (L / R
-  // mains, T the nose) the hinge (the leg's airframe end, `root`), the axis and the angle it turns through, up, in this
-  // layer's own frame (+x port, +y up, +z forward). A main rooted on the wing folds INWARD about the fore-aft axis
-  // (Mooney, Bonanza); one rooted on the body and the nose leg swing AFT and up about the lateral axis (the Cessna RG,
-  // every aft-retracting nose). 90 deg; the sense is PROBED (the axle must move inboard / aft), never assumed. The join
-  // carries it to the flown model (gearSwing, app.js gearSwingRig), quickshot --gear draws it (the one rule, twice read)
+  // RETRACT-1 / G1 (futureDesigns/RETRACT-STUDY-2026-11.md §8.1): THE FOLD, a retractable build's only - per unit (L / R
+  // mains, T the nose) the chain foldChain makes of its rows: the hinge (the leg's airframe end), the leg's axis, the twist,
+  // the turns with their probed senses, the fraction, and the LIFT the stowed wheel's lowest point rises by (the physics'
+  // contact plane, carried by the join). The join takes it to the flown model (gearSwing, app.js gearSwingRig); THE
+  // PREVIEW poses the units here at `gearPos` (the editor's slider, quickshot --gear) - the capture takes them down
+  // (_cage_join.js VIEW_STATE 'gear position')
   let swing = null;
   if (GEAR_RETRACTABLE(P)) {
-    const rod = (v, k, a) => { const c = Math.cos(a), s = Math.sin(a), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
-      return [v[0] * c + (k[1] * v[2] - k[2] * v[1]) * s + k[0] * d * (1 - c),
-              v[1] * c + (k[2] * v[0] - k[0] * v[2]) * s + k[1] * d * (1 - c),
-              v[2] * c + (k[0] * v[1] - k[1] * v[0]) * s + k[2] * d * (1 - c)]; };
     swing = {};
     for (const u of legUnits) {
       const key = u.kind === 'T' ? 'T' : u.kind;
-      const ax0 = u.moving || u.axle, h = u.root || ax0;
-      if (!ax0 || !h || swing[key]) continue;
-      const inward = key !== 'T' && u.wing;
-      let k = inward ? [0, 0, 1] : [1, 0, 0];
-      const v = [ax0[0] - h[0], ax0[1] - h[1], ax0[2] - h[2]], w = rod(v, k, 0.2);
-      const good = inward ? Math.abs(h[0] + w[0]) < Math.abs(h[0] + v[0]) : w[2] < v[2];
-      if (!good) k = k.map(c => -c);
-      swing[key] = { hinge: h.slice(), axis: k, ang: Math.PI / 2, mode: inward ? 'inward' : 'aft' };
+      if (!swing[key] && (u.axle || u.moving)) swing[key] = foldChain(u, key, P);
     }
+    const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos));
+    if (g < 1) group.traverse(o => {
+      const mm = /^ed(?:Leg|Wheel)([LRT])$/.exec(o.name || '') || (o.name === 'edCastorT' ? [0, 'T'] : null);
+      const C = mm && swing[mm[1]];
+      if (!C) return;
+      const M = foldPose(C, g), h = C.hinge, Mh = fApp(M, h);
+      o.matrix.set(M[0], M[1], M[2], h[0] - Mh[0], M[3], M[4], M[5], h[1] - Mh[1], M[6], M[7], M[8], h[2] - Mh[2], 0, 0, 0, 1);
+      o.matrix.decompose(o.position, o.quaternion, o.scale);
+    });
   }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     ...(swing ? { swing } : {}),

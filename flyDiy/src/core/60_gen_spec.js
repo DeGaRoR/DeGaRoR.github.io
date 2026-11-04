@@ -2715,8 +2715,16 @@ function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
   for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // RETRACT-1 / G1: THE RETRACTABLE GEAR'S ROWS, the same rule - with the gear FIXED (gearRetract 0) every one of them is
+  // a row every build before them lacked, and the preview's position (gearPos) is state whatever the gear: none of them
+  // withdraws a certificate, re-keys the certificate cache or moves a procured fingerprint (every caller of this one)
+  const fixed = !(+cage.gearRetract);
+  for (const k of GEN_RETRACT_ROWS) if (k in cage && (fixed || k === 'gearPos')) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
+// RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
+const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -5263,6 +5271,14 @@ function clampSpec(spec) {
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
     if (!['crank', 'freefall', 'pump', 'blow'].includes(r.emerg)) r.emerg = r.act === 'hydraulic' ? 'freefall' : 'crank';
+    // G1: the FRACTION of the fold it retracts (1 all the way: the key absent; 0.6 a Catalina's or a DC-3's - the stowed
+    // wheel still rolls), and the LIFT the drawn fold gives the wheel's lowest point (m, the join's measurement; absent:
+    // the frame's own rule, 30_solver GH x frac)
+    if (r.frac != null) { r.frac = genClamp(+r.frac || 1, 0.3, 1); if (r.frac >= 1) delete r.frac; }
+    if (r.lift && typeof r.lift === 'object') {
+      for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
+      if (!Object.keys(r.lift).length) delete r.lift;
+    } else delete r.lift;
     // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
     // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';

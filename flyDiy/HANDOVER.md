@@ -311143,3 +311143,10 @@ TIMED (light): the same boot picture (warm nav -> garage 96.7-101.9 s, better th
   one gear UNIT model for retracts, partial retraction, wells, doors and the amphibian; the motion chain (up to three turns + the
   wheel's twist + a fraction); red sliders, no diagnosis; the order G1-G7; the PIPER ARROW as the reference to fit - is the
   study's §8.
+- RETRACT G1 (2026-11-04): THE FOLD - a chain per unit (the wheel's twist about its leg, then up to two turns about body
+  axes through the hinge, each sense probed; the starboard mirrored), presets (inward, outward, aft-flat, aft-and-in,
+  two axes; the nose aft / forward) or custom rows, a retraction FRACTION (a partial gear rolls on its tyres up, keeps
+  1 - frac of its drag, stays drawn); the editor's preview row gearPos (quickshot --gear; the capture holds it down,
+  VIEW_STATE 'gear position'); the join writes gear.retract.lift (measured) and frac; app.js replays the chain;
+  genStolCageOff drops the retraction rows of a fixed gear (and the preview always) from every fingerprint. GATE RETRACT
+  §10. The study's §8.7.

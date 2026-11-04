@@ -1081,3 +1081,53 @@ The archetypes have never been fitted to a real aeroplane, and wells are where t
 - The Mooney needs its forward-raked fin, a garage gap.
 
 **What a model must show:** the gear DOWN, ideally with the wells and doors visible - the doors are what we will match.
+
+### 8.7 G1 AS BUILT (2026-11-04)
+
+- **The fold** (`tools/_cage_gear.js`: FOLD_PRESETS, foldOf, foldChain, foldPose; published as `CAGE_GEAR_FOLD`).
+  - A unit's chain is applied in this order:
+    1. the wheel's TWIST about its own leg (the leg's airframe end to the axle, or to the castor's top);
+    2. up to two TURNS about BODY axes through the hinge, one after the other.
+  - Each turn's sense is PROBED on the axle where the turns before it left it: + is inboard about the fore-aft and
+    vertical axes, and aft about the lateral axis. The starboard mirrors the port (the twist's sign flips).
+  - The pose at position g walks s = (1 - g) x frac: the twist across all of it, the turns one after the other.
+  - The presets [TUNE on a reference]:
+
+    | Unit | Preset | Turns and twist |
+    |---|---|---|
+    | mains | `inward` | fore-aft 90 |
+    | mains | `outward` | fore-aft -90 |
+    | mains | `aftFlat` | lateral 90, twist 90 |
+    | mains | `aftBelly` | lateral 85, then vertical 35, twist 90 |
+    | mains | `skymaster` | fore-aft 45, then lateral 90 |
+    | mains | `custom` | two turns + twist as rows |
+    | nose | `aft` | lateral 90 |
+    | nose | `fwd` | lateral -90 |
+    | nose | `custom` | as rows |
+
+- **Rows** (the retraction group; claimed by the mains part's 'retraction' and 'fold' groups):
+  - `gearPos` - the preview: 1 down, 0 up;
+  - `gearFold` and `gearFoldNose`;
+  - the custom rows `gm1Ax`/`gm1Ang`/`gm2Ax`/`gm2Ang`/`gmTwist` and `gn1Ax`…`gnTwist`;
+  - `gearRetFrac` - the fraction, 0.3-1.
+- **The preview:** the gear layer poses its drawn units at `gearPos`. quickshot `--gear` is that row. The join's capture
+  holds it at 1 (VIEW_STATE 'gear position', `hidden`: a panel row, not a rail control).
+- **The lift:** foldChain MEASURES how far the stowed wheel's lowest point rises. The join writes `gear.retract.lift`
+  { mains, nose } and `frac` (only when < 1). The solver's contact plane uses the measured lift; without it, the frame's
+  rule times the fraction.
+  - A PARTIAL gear (frac < 1) rolls on its exposed tyres when up, and keeps (1 - frac) of the gear's drag.
+  - Its stowed units stay drawn (visible) in flight.
+- **The flight** (`app.js` gearSwingRig) replays the same chain from the join's `gearSwing` (hinge, leg, twist,
+  turns, frac), each turn conjugated by the capture's map.
+- **The certificate** (`genStolCageOff`, every fingerprint's path): with the gear fixed, every retraction row is absent;
+  the preview is always absent. This also closes step 1's rows (`gearRetract`/`gearRetT`/`gearRetAct`), which were
+  counted on the core's path.
+- **GATE RETRACT §10:**
+  - inward goes inboard and up, mirrored; the nose goes aft; the lift is measured;
+  - outward goes outboard; aft-flat goes aft with the wheel lying flat; two axes give two turns; custom equals the
+    preset it copies;
+  - the fraction stops part way; the preview poses the units;
+  - the join writes the fraction and the lift; the certificate strip holds;
+  - a partial gear's downwind lies between the down and the fully up.
+- **Still the T-tail tourer's:** its 1.6 m track folds the two mains together under the belly. G2's red sliders are
+  what will say so.
