@@ -941,9 +941,9 @@ const AERO_SEC = {
   // and white Cub sits on grey floats) - its own pinned finish and its own colour, paintable on its own row; and the
   // deck board laid across the spreader bars, spruce
   floatBare: { parent: 'float', fin: 'agedAlu', label: 'the floats (EDO bare alloy)',
-              layer: 'gear', tintOwn: true },
+              layer: 'gear', tintOwn: true, metalOwn: true },
   floatBoard: { parent: 'float', fin: 'spruce', label: 'the float deck board',
-              layer: 'gear', noDec: true, tintOwn: true },
+              layer: 'gear', noDec: true, tintOwn: true, metalOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -1078,8 +1078,11 @@ function aeroSecResolve(sec, over, ctx) {
            fieldK: walk(over && over.field, chain).v,
            // G217: and the field's WAVELENGTH — the cowl's own, mostly
            fieldLK: walk(over && over.fieldL, chain).v,
-           // G215: the metal flake in the paint
-           metalK: walk(over && over.metal, chain).v };
+           // G215: the metal flake in the paint - FLOATS-CLASSIC: a row that is not paint (`metalOwn`: an EDO's bare
+           // alloy, its deck board) takes no flake from the paint up its chain, only its own row's (the user, 4 Nov:
+           // "the cessna and dc3 show clear banding" - the Cessna's float paint was metallic, and the flake's read of
+           // the detail sheet at a twelfth of its tile drew the aged alloy's two sheets as 0.2 m stripes)
+           metalK: walk(over && over.metal, row.metalOwn ? [sec] : chain).v };
 }
 
 // THE STOCK CUB'S STRUT PIN (G1911 STRUT-LIVERY, the user, 5 Oct: "the struts
@@ -1361,10 +1364,9 @@ function aeroHeight(kind, S, row) {
         // tenth of the sheet (smoothstep): the step is colour, not relief - a hard step turned every cell edge into a
         // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, and
         // the sheet's own mill grain and breakup over the lot. Periodic in S like every term here (the cells divide the
-        // tile). NO SCUFF LINES (the user, 4 Nov: "the cessna and dc3 show clear banding"): 37 narrow grooves a tile
-        // (pow 24 of a sine, 2-3 texels wide, one every 6.5 cm on the 2.4 m tile) are under a pixel at any garage
-        // distance and alias into broad stripes across the hull, in the normal and the roughness both - measured by
-        // A/B in the garage: the field off still striped, this bake as the plain sheet clean.
+        // tile). No scuff lines: 37 narrow grooves a tile (2-3 texels) are under a pixel at garage distance. (The
+        // stripes the user saw on the Cessna and the DC-3, 4 Nov, were the paint's FLAKE reading this sheet at a
+        // twelfth of its tile - see aeroSecResolve's `metalOwn`; the cells' shade rides B, which the flake reads.)
         const NU = 2, NV = 1, cw = S / NU, ch = S / NV;
         const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
         const sh = (iu, iv) => (hsh(((iu % NU) + NU) % NU * 7 + (((iv % NV) + NV) % NV) * 13 + 1) - 0.5) * 0.7;
