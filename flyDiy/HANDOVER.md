@@ -310492,6 +310492,21 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
   2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
 - IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
   Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
+### 6. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; on L31a adc53b25b)
+
+The user: "Focus on the aft bulkhead really". The study (claude/aft-bulkhead-look) found the wall shows only from forward of the beam,
+through the rear side glass, near black on tube, alloy and composite builds. Rows in the garage's aft wall group, all absent at default:
+bhStep bhShelfY bhShelfD (a hat shelf and recess), bhBevel, bhTwoTone (section bulkTrim), bhRelief bhReliefH (1 beads, 2 rolls, 3 frame),
+bhFast (1 screws, 2 rivets, section toele), bhNet (section baggage), bhLamp bhLampY (1 dome, 2 LED strip, 3 both), bhSling (tube builds).
+- WHERE: `cageInterior`'s bulkWall in `tools/_cage_gen.js` (flat in z, arcs cut by slicing the skin at a station, faces pushed to `add`),
+  `wallLamp` in `tools/_cage_light.js` (finds the wall by its `bhFace` faces), the rows in `tools/_cage_page5.js` and `_cage_parts.js`.
+- WHY THE STRIP IS STRAIGHT: the user 4 Nov, on it following the top edge: "do not follow this strange maybe ceiling path". It bends only
+  under a true round arch (`isArch` in wallLamp).
+- GATES AND GAPS: `reports/evidence/AFT-BULKHEAD/READY.md`. Stills: claude/aft-bulkhead-shots, `.../AFT-BULKHEAD/rows/ROWS.md`.
+  Default builds identical against L31a; FRAMECOST red only on master's own 5 rows.
+- OWED: L31c: the net under the lamp on shelf builds, relief on the upper panel, a smoothed inner outline. Next round: the Cub sling
+  clears the rear seat, accessories and placards, the Mosquito's flood lamp through the deck.
+
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might

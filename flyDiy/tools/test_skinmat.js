@@ -84,6 +84,8 @@ const SHAPES = [
   ['door panel', { doorOn: 1, cutParts: 1, intOn: 1, doorPanelOn: 1 }],
   // the drawn windows' panes and reveals exist only when a row draws
   ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }],
+  // the aft wall's rows: the upper panel and the net exist only when a row draws
+  ['aft wall', { intOn: 1, intCons: 3, intBulk: 1, bhStep: 1, bhBevel: 0.05, bhTwoTone: 1, bhNet: 1 }],
 ];
 const D = G.cageDefaults();
 const sections = new Set();

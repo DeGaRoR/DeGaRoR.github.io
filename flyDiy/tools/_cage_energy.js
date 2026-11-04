@@ -1300,7 +1300,7 @@ const TAG_WORDS = { body: 'skin', plywood: 'skin', skin: 'skin', ceilingLoop: 'r
   waistband: 'waist frame', woodFrame: 'frame', joint: 'frame', tube: 'frame', pillarTail: 'pillar', pillarPassenger: 'pillar',
   pillarCabin: 'pillar', pillarWindow: 'pillar', pillarFront: 'pillar', windshield: 'windscreen', pilotWindow: 'window',
   pasengerWindow: 'window', skyWindows: 'window', drawnPane: 'window', paneEdge: 'window frame', doorSeal: 'door seal',
-  bulkhead: 'bulkhead', dash: 'dash', dashFace: 'dash', fireProof: 'firewall', firewall: 'firewall', fireSeal: 'firewall',
+  bulkhead: 'bulkhead', bulkTrim: 'bulkhead', baggage: 'baggage net', dash: 'dash', dashFace: 'dash', fireProof: 'firewall', firewall: 'firewall', fireSeal: 'firewall',
   shoulder: 'shoulder', floorBoard: 'floor', seat: 'seat', engine: 'engine', cowl: 'cowl' };
 const tagWord = (ti, p) => {
   const raw = TAG_NAMES[ti] || 'surface', w = TAG_WORDS[raw] || raw;

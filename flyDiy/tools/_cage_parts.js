@@ -618,7 +618,7 @@ const CAGE_PARTS = [
 
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
-    sections: ['bulkhead', 'firewall', 'fireProof', 'fireSeal', 'tube',
+    sections: ['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'tube',
                'plywood', 'woodFrame', 'cloth',
                'composite', 'aluminium', 'toele'],
     groups: [
@@ -627,6 +627,8 @@ const CAGE_PARTS = [
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
+      ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 

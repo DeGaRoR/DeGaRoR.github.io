@@ -461,6 +461,9 @@ const AERO_ROLE = {
   // be set on it from the paint UI
   doorPanel: 'doorPad',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
+  // AFT-BULKHEAD (3 Nov): the aft wall's light upper panel and its cloth (the cargo net, the Cub's sling) - linings
+  // by name like the four above, the same finish whatever the aeroplane is built of
+  bulkTrim: 'liner', baggage: 'liner',
 };
 // THE CABIN IS DARKER THAN THE DAY (G206.1, the audit's §1.1 item 4). The
 // crew behind a pane were lit at the exterior's level — nothing in a
@@ -483,7 +486,8 @@ function aeroIsInside(section) {
 // the whole point of the construction dropdown reading "composite / steel
 // tube / plywood / aluminium" — so they resolve by name, not by construction
 const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
-                     toele: 'alclad' };
+                     toele: 'alclad',
+                     bulkTrim: 'gelcoat', baggage: 'fabric' };   // AFT-BULKHEAD: a moulded panel, webbing / canvas
 // THE BEAD IS A RUBBER SEAL (the user: "make the joints black by default,
 // they're currently white, it's odd"). It was `trim` in all four rows, and
 // painted trim's base is 0xd8dde4 — so every window and every door on every
