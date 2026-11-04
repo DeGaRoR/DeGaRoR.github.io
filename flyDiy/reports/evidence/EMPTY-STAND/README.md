@@ -19,6 +19,19 @@ dialog at step 7's reload (accepted by the rig).
 The career: a story career starts in the cabin's field shed `w1` (Cabin Strip) with Rufus on the stand, and HOME (the
 main hangar at Jolene AFB 13/31) is owned and empty: `garages()` = `HOME planes=[]`, `w1 planes=["Rufus"] (here)`.
 
+## The user's ruling on this look (4 Nov)
+
+> "An empty garage should automatically open the interface allowing to choose a plane, either existing or new, not to
+> be confusing. But no plane should be drawn yet."
+
+What that means against this evidence (for the Game session; this run changes no game code):
+- arriving in an empty hangar should OPEN the choice by itself, either one of yours (Bring here) or a new one (the
+  chooser), not leave a small card over the room to be found. Today `#gEmptyCard` shows and New aeroplane is one click
+  further;
+- **nothing is drawn on the stand until a plane is chosen.** F1 below breaks this at every empty state today;
+- F2 (the chooser opening by itself on a NEW story career, which has its starter) stays a fault: the ruling is about an
+  empty hangar, and that hangar is not empty.
+
 ## The verdict per step (run 3, desktop 1280x800; the phone 412x915)
 
 | step | DOM checks | picture | verdict |
