@@ -204,7 +204,7 @@ const AERO_WX_SUB_NONE = { col: [0.3, 0.3, 0.3], metal: 0, rough: 0.8, rust: 0, 
 // its base colour, its metalness and its roughness — not a hand-typed grey.
 // Resolved at material time, when AEROSKIN exists (this file loads first).
 const AERO_WX_SUB_FROM = {
-  alclad: 'bareAlu', trim: 'bareAlu', fireFoil: 'bareAlu', panelMetal: 'bareAlu', sillAlu: 'bareAlu',
+  alclad: 'bareAlu', trim: 'bareAlu', fireFoil: 'bareAlu', panelMetal: 'bareAlu', sillAlu: 'bareAlu', agedAlu: 'bareAlu',
   castAlu: 'castAlu', chrome: 'chrome', bronze: 'bronze', copper: 'copper',
   composite: 'composite', spruce: 'spruce', maple: 'maple', walnut: 'walnut', walnutFig: 'walnutFig',
 };
