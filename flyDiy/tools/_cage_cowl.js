@@ -523,6 +523,30 @@ function engineFaces(mesh, FS, P) {
     const x = Math.max(0.3, (+P.engNacAt || 0.35) * semi);
     const aft = aim === 2;
     const out = [];
+    // HULL-B8: A NACELLE OVER THE WING (the user, 4 Nov: "if you have to lift these engines so high up, you need a
+    // pylon. Wing mounted should remain anchored and in contact with the wing structure"). engNacOver 1 stands the
+    // nacelle ON the wing's top skin (its underside on the skin at the station, the block over the spars as the
+    // over-the-wing engine's: the LA-8's, a boat's propellers out of the spray); engNacLift raises it that far again
+    // on a PYLON - the over-the-wing mount's own bars and cables or fairing (_cage_eng.js drawPylonMount, engPylonFair)
+    // down to the front and rear spars either side. The block rows do not move an over-wing nacelle off its skin
+    const over = +P.engNacOver > 0, lift = over ? Math.max(0, +P.engNacLift || 0) : 0;
+    if (over) {
+      const NE = nacelleOfEngine(P);
+      const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
+      for (const s of [1, -1]) {
+        const e = W.leAt(s * x);
+        if (!e) continue;
+        const ch = (chPl && chPl.chordAt) ? chPl.chordAt(s * x) : 1.4;
+        const hN = NE ? NE.aftH : 0.5 * (e.yTop - e.yBot) + 0.10;
+        // (on the skin: the barrel sinks 0.03 into it - in contact, not touching at a line)
+        const yc = e.yTop + (lift > 0.02 ? lift : -0.03) + hN;
+        const face = { z: e.z - 0.30 * ch, yc, x: s * x, halfW: 0.20, halfH: hN, uv: null, waist: 0, synthetic: 1,
+                       chord: ch, over: true };
+        if (lift > 0.02) face.foot = { x: 0.12, y: e.yTop, zF: e.z - 0.20 * ch, zR: e.z - 0.62 * ch };
+        out.push({ face, aft, kind: 'nacelle' });
+      }
+      return out;
+    }
     for (const s of [1, -1]) {
       const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
       if (!e) continue;

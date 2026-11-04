@@ -494,19 +494,22 @@ function hullFitStep(P, stat) {
   if (!CG2 || !CG2.cageHullFit || !DAT || !DAT.fwOk || !CGM) return;      // the next build, when the CG is in
   hullFitPasses--;
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const fit = CG2.cageHullFit(P, (DAT.zFw - CGM[0]) / FS, (CGM[1] + DAT.yD) / FS);
-  if (!fit) { hullFitPasses = 0; return; }
-  // HULL-B5: and the tip floats' rows off the flown mass (HYDRO.hullTipFit, the frame's own rule) on the step it fitted
+  // HULL-B8: THE WHOLE FIT, the gate's and the matrix's own function (_cage_gen.js cageHullFitAll): the step by the
+  // 12-deg rule and the afterbody keel, the rest balance (the bow lengthened while the boat would rest bow down), the
+  // propellers' clearance over the water (a wing pair's block, a pylon's height), a wing pair counter-rotating, the
+  // tip floats (HYDRO.hullTipFit off the flown mass)
   const HY = HYc(), M = window.FLYDIY_MASS_MODEL;
-  if (+P.hullTips && HY && HY.hullTipFit && M > 0) {
-    const TB = CG2.cageHullTable(CG2.cageHullLines(Object.assign({}, P, fit)), FS);
-    const tf = TB && HY.hullTipFit({ sta: TB.sta }, M);
-    if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
-  }
+  if (!CG2.cageHullFitAll || !(M > 0)) { hullFitPasses = 0; return; }
+  const W = window.CAGE_WING, semi = W && W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
+  const fa = CG2.cageHullFitAll(P, { cg: CGM, mass: M, zFw: DAT.zFw, yD: DAT.yD, props: window.FLYDIY_PROPS_MODEL || null }, HY, { semi });
+  if (!fa) { hullFitPasses = 0; return; }
+  const fit = fa.rows;
+  window.CAGE_HULL_REST = { rest: fa.rest, notes: fa.notes };
   const moved = Object.keys(fit).some(k => Math.abs((+P[k] || 0) - fit[k]) > 1e-3);
   if (!moved) { hullFitPasses = 0; return; }
   Object.assign(P, fit);
-  if (stat) stat.textContent += '  ·  hull: the step 12 deg aft of the CG, the afterbody keel on 7 deg';
+  if (stat) stat.textContent += '  ·  hull: the step 12 deg aft of the CG, the afterbody keel on 7 deg' +
+    (fa.rest ? ', rests ' + fa.rest.trim.toFixed(1) + ' deg' : '') + (fa.notes.length ? ' - ' + fa.notes.join('; ') : '');
   setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
 }
 const prevPost = PAGE.post;

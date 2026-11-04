@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -571,6 +571,11 @@ const ENG_ITEMS = [
   // the inner one by engineFaces)
   ['engNacAt2', 'outer nacelle station (semispan)', 0.30, 0.90, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 6 }],
+  // HULL-B8: the wing nacelles OVER the wing - on its top skin, or lifted on a pylon (_cage_cowl.js engineFaces)
+  ['engNacOver', 'nacelles', 0, 1, 1, ['through the wing', 'over the wing (on the skin)'],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
+  ['engNacLift', 'nacelle pylon height', 0, 1.0, 0.01,
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) && +P.engNacOver > 0, dim: 'm' }],
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
@@ -586,7 +591,7 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
   ['engPylonFair', 'pylon', 0, 2, 1, ['bars + cables', 'fairing', 'wing-section fairing'],
-   { when: P => +P.engOn && Math.round(P.engMount) === 2 }],
+   { when: P => +P.engOn && (Math.round(P.engMount) === 2 || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
@@ -1245,6 +1250,13 @@ function engPlace(ctx, prev) {
         pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
         group.add(pl);
       } else drawPylonMount(group, f, P, GK, !!u.aft);
+    }
+    // HULL-B8: a wing nacelle lifted over the wing stands on the same mount, drawn about its own station
+    if (u.kind === 'nacelle' && f.foot && window.GEAR_KIT) {
+      const sub = new THREE.Group();
+      sub.position.x = f.x || 0;
+      drawPylonMount(sub, Object.assign({}, f, { x: 0 }), P, window.GEAR_KIT, !!u.aft);
+      group.add(sub);
     }
     // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
     // the engine's local frame; the group has just been placed on the thrust

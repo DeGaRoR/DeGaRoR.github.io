@@ -94,10 +94,10 @@ const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaFloa
     noseFinish: 1, noseLen: 1.3, cowlLoops: 4, noseTip: 0.98, noseDroop: 0.10, cowlEase: 0.62, cowlBulge: 1.06,
     s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3 });
 }
-// THE TILE'S FIT (cageHullFit, what its `after` writes off the flown CG): the step by the 12-deg rule, the afterbody
-// keel onto a 7-deg run - two passes, as the page's CG handshake settles it (the step moves the CG by grams)
-const cgOf = sp2 => { const d = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(sp2)))); let m = 0, x = 0, y = 0; for (const n of d.nodes) { m += n.m; x += n.m * n.p[0]; y += n.m * n.p[1]; } return [x / m, y / m, m]; };
-let spec = null, fitRows = null, joinErrs = [], tipProbe = null;
+// THE TILE'S FIT (_cage_gen.js cageHullFitAll, what the page's hullFitStep writes off the flown CG, mass and propeller
+// discs): the step by the 12-deg rule, the afterbody keel onto a 7-deg run, the rest balance (HULL-B8), the propellers'
+// clearance and the tip floats - two passes, as the page's CG handshake settles it (the step moves the CG by grams)
+let spec = null, fitRows = null, fitRest = null, joinErrs = [], tipProbe = null;
 for (let pass = 0; pass < 3; pass++) {
   // the last pass with the page-side probe: the tip floats as drawn (HULL-B5)
   if (pass === 2) process.env.FLYDIY_JOIN_PROBE = path.join(T, '_hull_tip_probe.js');
@@ -105,18 +105,18 @@ for (let pass = 0; pass < 3; pass++) {
   if (pass === 2) { delete process.env.FLYDIY_JOIN_PROBE; tipProbe = got.probe; }
   spec = got.spec; joinErrs = got.errors || [];
   if (pass === 2) break;
-  const [cx, cy, mass] = cgOf(spec);
+  const d = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec)))); let cx = 0, cy = 0, mass = 0;
+  for (const n of d.nodes) { mass += n.m; cx += n.m * n.p[0]; cy += n.m * n.p[1]; } cx /= mass; cy /= mass;
   const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
   const TB = G.cageHullTable(G.cageHullLines(P), FS), hr = spec.gear.hull;
   if (!TB || !hr) break;
-  const zFw = hr.x + TB.zStep * FS, yD = TB.yStep * FS - hr.y;
-  fitRows = G.cageHullFit(P, (zFw - cx) / FS, (cy + yD) / FS);
-  // HULL-B5: the tip floats' rows, the page's way (_cage_float.js hullFitStep: HYDRO.hullTipFit off the flown mass)
-  const tf = C.HYDRO.hullTipFit({ sta: G.cageHullTable(G.cageHullLines(Object.assign({}, P, fitRows)), FS).sta }, mass);
-  if (tf) { fitRows.hullTipKg = tf.kg; fitRows.hullTipY = tf.y; }
+  const fa = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d) },
+                              C.HYDRO, { semi: spec.geom && spec.geom.semi });
+  if (!fa) break;
+  fitRows = fa.rows; fitRest = fa.rest;
   Object.assign((raw.spec || raw).cage, fitRows);
 }
-console.log(`   the tile's fit: ${JSON.stringify(fitRows)}`);
+console.log(`   the tile's fit: ${JSON.stringify(fitRows)}; the table's rest ${JSON.stringify(fitRest)}`);
 const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 const world = C.makeWorld();
 let M = 0; for (const n of def.nodes) M += n.m;

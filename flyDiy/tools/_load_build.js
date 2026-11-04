@@ -86,7 +86,10 @@ function rawOf(x, patch) {
 function gameSpecFull(rawIn) {
   const raw0 = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
   // a BIRTH envelope (`birth`) rides to the child as a marker the child strips before anything reads the spec
-  const raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
+  let raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
+  // HULL-B8: a tile's `after` doors by name (designApply's `afters`: the rod's fit, the hull's), opened once before
+  // the first build as design_flow.js doApply opens them in the game
+  if (rawIn && Array.isArray(rawIn.afters) && rawIn.afters.length) raw = Object.assign({ __afters: rawIn.afters.slice() }, raw);
   const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
@@ -125,6 +128,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   const vm = require('vm'), zlib = require('zlib');
   const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
   const BIRTH = !!raw.__birth; delete raw.__birth;
+  const AFTERS = Array.isArray(raw.__afters) ? raw.__afters : []; delete raw.__afters;
   const SH = require(path.join(T, '_scene_headless.js'));
   // the layers the game draws and the harness leaves out by default: the tanks (and the bay and vessel kits they
   // stand on), the crew (whose feet a nose tank meets) and its characters, the instrument panel (its fit is a row)
@@ -178,6 +182,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // A BIRTH (the design flow's door, src/viewer/design_flow.js): the cowl layer is asked ONCE to fit the engine, as the
   // game asks for a card just born - a radial or a turbine takes its styled cowl. A saved build is never asked.
   if (BIRTH && W.CAGE_COWL_FIT_NEXT) W.CAGE_COWL_FIT_NEXT();
+  for (const a of AFTERS) if (/^CAGE_[A-Z_]+_NEXT$/.test(a) && typeof W[a] === 'function') try { W[a](); } catch (e) {}
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,

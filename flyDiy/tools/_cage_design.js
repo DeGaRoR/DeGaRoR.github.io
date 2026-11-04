@@ -196,9 +196,11 @@ const dorsalToRod = P => !+P.boomStyle ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalT
 // ...and the rod placed clear of a rear disc on the next build (_cage_eng.js CAGE_ROD_FIT_NEXT): the panel's door
 // (design_flow.js doApply runs `after`); designApply and the births never call it
 const rodFit = () => { if (W.CAGE_ROD_FIT_NEXT) W.CAGE_ROD_FIT_NEXT(); };
+rodFit.door = 'CAGE_ROD_FIT_NEXT';
 // HULL-B3: ...and the boat's starting lines off the flown CG on the next builds (_cage_float.js CAGE_HULL_FIT_NEXT:
 // the step by the 12-deg rule, the afterbody keel on a 7-deg run - _cage_gen.js cageHullFit)
 const hullFit = () => { if (W.CAGE_HULL_FIT_NEXT) W.CAGE_HULL_FIT_NEXT(); };
+hullFit.door = 'CAGE_HULL_FIT_NEXT';
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -692,6 +694,19 @@ const UTIL_REASON = 'the R-1830 class: no airframe the clamps allow can carry ' 
 const SHAPE_SEED = { taperOn: 1, taperLen: 0.55, taperW: 0.78,
                      boomMidOn: 1, boomMidT: 0.38, boomMidPinch: 0.86 };
 
+// HULL-B7: a hull's section at the step (deadrise, chine roundness, with or without the step's notch in the keel line
+// under it) - drawn, as the section tiles are, from the numbers the option writes
+function iconHull(beta, round, step) {
+  const t = Math.tan(beta * Math.PI / 180), cx = 32, top = 8, w = 20, yC = 26, yK = Math.min(37, yC + w * t);
+  const pts = [[cx - w, top], [cx - w, yC - 6 * round]];
+  if (round > 0) for (let i = 1; i <= 4; i++) { const a = i / 4; pts.push([cx - w + 4 * round * a, yC - 6 * round + 6 * round * a]); }
+  pts.push([cx, yK]);
+  for (let i = pts.length - 2; i >= 0; i--) pts.push([2 * cx - pts[i][0], pts[i][1]]);
+  const paths = [{ d: poly(pts) }];
+  if (step) paths.push({ d: 'M' + P2(cx - 6, yK - 1) + ' L' + P2(cx + 6, yK - 1), w: 1 });
+  return { vb: '0 0 64 40', paths };
+}
+const HULL_OFF = P => +P.hullOn ? null : 'a hull form shapes a boat: pick Undercarriage > Hull first';
 // THE AERODYNAMIC NOSE, AS A SHAPE AND NOT ONLY A SWITCH (2026-09-11, the
 // user's own recipe: "increase the length, increase the cowl count, max the
 // tip collapse, adjust the droop so the tip is in line with the fuselage,
@@ -1541,7 +1556,7 @@ const DESIGN_ROWS = [
         note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
         // G3914 / G3915: sealed - a cowl turned on here is a NACELLE sized to its engine (_cage_cowl.js nacelleOfEngine), its section the pod's rows
         writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0, fitNose: 2,
-                                        cw_aftMode: 1, cw_tailLen: 1.0,
+                                        cw_aftMode: 1, cw_tailLen: 0.55,
                                         aeroAftOn: 1 }, NOSE_AERO, NACELLE_POD) } },
     ] },
 
@@ -1566,9 +1581,11 @@ const DESIGN_ROWS = [
           noseAeroWhen(P => Math.round(P.engMount) >= 1)) } },
       { value: 2, label: 'Twin (wings)', icon: iconTopEngines(false, 2),
         note: 'a tractor nacelle a side, at the front spar; both pull',
+        // HULL-B8 (the user, 4 Nov: "you do not need the cowl going down in this configuration. Do the same linear
+        // shape as the pylon mounted one"): the wing nacelles wear the POD - the straight barrel, sealed to the engine
         writes: { cage: Object.assign({ engMount: 3, cw_aftMode: 1,
                                         cw_tailLen: 1.2, aeroAftOn: 1 },
-                                      NOSE_AERO) } },
+                                      NOSE_AERO, NACELLE_POD, { fitNose: 2 }) } },
       // G2790 ENGINE-CONFIGS (the user, 10 Oct: "the configuration nose
       // engine + pusher engine (Cessna Skymaster) ... activate the 3 and 4
       // engines configuration"). THE PUSH-PULL: the nose keeps its engine
@@ -1596,7 +1613,7 @@ const DESIGN_ROWS = [
         note: 'two tractor nacelles a side, inner and outer',
         writes: { cage: Object.assign({ engMount: 6, engNacAt: 0.30, engNacAt2: 0.62,
                                         cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1 },
-                                      NOSE_AERO) } },
+                                      NOSE_AERO, NACELLE_POD, { fitNose: 2 }) } },
     ] },
 
   // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
@@ -1812,6 +1829,34 @@ const DESIGN_ROWS = [
         note: 'the fuselage is the boat: the frames\' bottoms become a planing V with a step',
         writes: { cage: { s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3, hullTips: 1 },
                   spec: { gear: { type: 'hull' } } } },
+    ] },
+
+  // (after the Undercarriage row: designApply runs the rows in this order, and the Hull option's hard chine must not
+  // overwrite a Soft chine's)
+  // HULL-B7 (HULL-TYPES §3.4, the user 4 Nov: "keep going ... let's test this thing asap"): THE HULL FORM, a starter
+  // over the boat rows (and the two shared ones that make a chine hard or soft) - the families the base already
+  // flies; two steps, the pad, rails, sponsons are capabilities still to build (HULL-TYPES §3.6). Greyed until the
+  // Undercarriage tile's Hull has made the fuselage a boat
+  { key: 'hullForm', label: 'Hull form', kind: 'starter', group: 'structure', status: 'live', once: true,
+    help: 'the boat\'s bottom: deadrise, step, chine - a starting point, every row stays yours (Fuselage > boat hull)',
+    read: P => !+P.hullOn ? null : !+P.hullSteps ? 'stepless' : +P.botRound >= 0.3 ? 'soft' :
+      +P.hullBeta >= 25 ? 'deep' : +P.hullBeta <= 17 ? 'flat' : 'classic',
+    options: [
+      { value: 'classic', label: 'Classic V', icon: iconHull(22, 0, 1), off: HULL_OFF,
+        note: 'single step, 22 deg at the step: the Seabee, the Lake, the Widgeon',
+        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 3, botRound: 0 } } },
+      { value: 'deep', label: 'Deep V', icon: iconHull(28, 0, 1), off: HULL_OFF,
+        note: 'rough water: 28 deg at the step, a deeper step - the Seastar\'s kind',
+        writes: { cage: { hullBeta: 28, hullBetaBow: 45, hullBetaA: 22, hullSteps: 1, hullHs: 0.085, crKeel: 3, botRound: 0 } } },
+      { value: 'flat', label: 'Shallow V', icon: iconHull(15, 0, 1), off: HULL_OFF,
+        note: 'calm water, early planing: 15 deg - the light-sport boats',
+        writes: { cage: { hullBeta: 15, hullBetaBow: 30, hullBetaA: 13, hullSteps: 1, hullHs: 0.06, crKeel: 3, botRound: 0 } } },
+      { value: 'soft', label: 'Soft chine', icon: iconHull(22, 0.6, 1), off: HULL_OFF,
+        note: 'the V kept, the chine rounded into the topsides',
+        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 0.4, botRound: 0.55 } } },
+      { value: 'stepless', label: 'Stepless', icon: iconHull(8, 1, 0), off: HULL_OFF,
+        note: 'a round body with no step (the LISA Akoya\'s, on foils): slow to plane, hydrofins still to come',
+        writes: { cage: { hullBeta: 8, hullBetaBow: 20, hullBetaA: 8, hullSteps: 0, crKeel: 0, botRound: 1 } } },
     ] },
 
   { key: 'retract', label: 'Retraction', kind: 'discriminator',
@@ -3043,7 +3088,7 @@ function designMerge(a, b) {
 // label-vs-starting-values split.
 function designApply(P, sel, opts) {
   const seeds = !opts || opts.seeds !== false;
-  const cage = {}, spec = {}, missing = [];
+  const cage = {}, spec = {}, missing = [], afters = [];
   const work = Object.assign({}, P);
   const order = ['class', 'role'].concat(
     DESIGN_ROWS.map(r => r.key).filter(k => k !== 'class' && k !== 'role'));
@@ -3067,8 +3112,11 @@ function designApply(P, sel, opts) {
       }
       if (wr.spec) designMerge(spec, wr.spec);
     }
+    // HULL-B8: the option's `after` door BY NAME (a headless caller hands it to the page chain: _load_build.js
+    // gameSpecFull's `afters`, as design_flow.js doApply runs it in the game)
+    if (opt.after && opt.after.door && !afters.includes(opt.after.door)) afters.push(opt.after.door);
   }
-  return { cage, spec, missing };
+  return { cage, spec, missing, afters };
 }
 
 // G132: ONE option's seed, resolved against the live P — the panel's

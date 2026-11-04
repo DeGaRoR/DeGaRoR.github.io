@@ -1076,6 +1076,95 @@ function cageHullFit(P, cgZ, cgY, opt) {
   raise('tailPost', 'tailKeelY');
   return out;
 }
+// HULL-B8: THE BOAT'S WHOLE FIT, ONE FUNCTION for the page (_cage_float.js hullFitStep), the gate (_hull_check.js)
+// and the matrix (hull_matrix.js), so the three cannot drift. f: the flown aeroplane in the model frame (x aft, y up):
+// { cg: [x, y], mass, zFw, yD (the join's datums: model x = zFw - cage z * FS, model y = cage y * FS - yD), props:
+// [{ x, y, z, R }] (optional: the discs, HYDRO.propDiscs) }; HY: the hydro API (hullRestTrim, hullTipFit).
+//  1. THE STEP AND THE AFTERBODY (cageHullFit: 12 deg aft of the CG, the afterbody keel on 7 deg);
+//  2. THE BALANCE: the boat must REST bow up enough and its bow deck clear (HYDRO.hullRestTrim off the table: trim >=
+//     REST_TRIM_MIN, the bow deck >= REST_BOW_MIN). Short of it - a nose engine or a twin's pair at the leading edge
+//     puts the CG forward, the step follows it and the cabin's long afterbody floats the tail (the matrix: the Cessna
+//     hull with its own nose engine rested 15 deg bow down and nosed under) - the BOW is lengthened (noseLen, the
+//     shared row: a flying boat's long bow is the real answer, the Lake's and the Che-22's), the least that balances;
+//  3. THE PROPELLERS' CLEARANCE: each disc's lowest point over the rest waterline, the heel to a tip float added for
+//     a wing engine, at least PROP_WATER_CLEAR (FAR 23.925(b): 18 in for a seaplane); short of it a wing pair is
+//     stood on the wing's skin, then lifted on a pylon (engNacOver, engNacLift) and an over-the-wing engine on its pylon (engPylonH). A nose or a pusher disc
+//     has no such row: it is REPORTED (out.notes), the builder's choice;
+//  4. a wing PAIR counter-rotates (engRotate 1, below);
+//  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
+// Returns the rows to write (and `rest`, `notes`: what it read - not rows)
+const REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+function cageHullFitAll(P, f, HY, opt) {
+  const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+  if (!f || !f.cg || !(f.mass > 0)) return null;
+  const fitAt = P1 => cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS);
+  const restOf = P1 => {
+    const TB = cageHullTable(cageHullLines(P1), FS);
+    if (!TB || !HY || !HY.hullRestTrim) return null;
+    const sx = f.zFw - TB.zStep * FS, sy = TB.yStep * FS - f.yD;
+    const r = HY.hullRestTrim({ sta: TB.sta }, f.mass, f.cg[0] - sx, f.cg[1] - sy);
+    return r && Object.assign(r, { sx, sy, TB });
+  };
+  const okRest = r => r && !r.sunk && r.trim >= REST_TRIM_MIN && r.trim < REST_TRIM_MAX && r.bowDeck >= REST_BOW_MIN;
+  let fit = fitAt(P);
+  if (!fit) return null;
+  let r = restOf(Object.assign({}, P, fit));
+  const notes = [];
+  // (a NOSE engine rides the bow: a longer bow carries it forward, the CG with it, and the fit runs away - measured, the
+  // Cessna hull's own nose engine: noseLen 1.8, 2.6, 3.0 over three passes and the step chasing it. Reported instead)
+  const mount = Math.round(+P.engMount || 0), noseEngine = +P.engOn !== 0 && [0, 4, 5].includes(mount);
+  if (r && !okRest(r) && r.trim < REST_TRIM_MAX && noseEngine) notes.push('rests ' + r.trim.toFixed(1) + ' deg, the bow deck ' + r.bowDeck.toFixed(2) + ' m: a nose engine on a hull - the bow cannot be lengthened under it (Over the wing, or a pair on the wing)');
+  // (only a boat resting BOW DOWN is helped by a longer bow; one resting stern down - the CG aft of what the afterbody
+  // carries, a pusher on the pod's aft bulkhead - is reported: its cure is a longer afterbody, not a row yet)
+  const bowDown = r && (r.trim < REST_TRIM_MIN || r.bowDeck < REST_BOW_MIN) && r.trim < REST_TRIM_MAX;
+  if (r && r.trim >= REST_TRIM_MAX) notes.push('rests ' + r.trim.toFixed(1) + ' deg bow UP: the stern sinks - the CG is aft of what the afterbody carries');
+  if (r && bowDown && !noseEngine && o.balance !== false) {
+    const n0 = +P.noseLen || 0.6;
+    const at = nl => { const P1 = Object.assign({}, P, { noseLen: nl }), f1 = fitAt(P1); return f1 && { fit: Object.assign(f1, { noseLen: +nl.toFixed(3) }), r: restOf(Object.assign({}, P1, f1)) }; };
+    const top = at(NOSE_LEN_MAX);
+    if (top && okRest(top.r)) {
+      let lo = n0, hi = NOSE_LEN_MAX, best = top;
+      for (let k = 0; k < 14; k++) { const m = 0.5 * (lo + hi), t = at(m); if (t && okRest(t.r)) { hi = m; best = t; } else lo = m; }
+      fit = best.fit; r = best.r;
+    } else {
+      if (top) { fit = top.fit; r = top.r; }
+      notes.push('the bow at its longest still rests ' + (r ? r.trim.toFixed(1) + ' deg' : '?') + ': the CG is too far forward for this hull');
+    }
+  }
+  // the propellers over the rest waterline
+  if (r && f.props && f.props.length) {
+    const th = r.trim * Math.PI / 180;
+    const tipZ = (+P.hullTipAt || 0.85) * (o.semi || 5);
+    let need = 0;
+    for (const d of f.props) {
+      const x = d.x - r.sx, y = d.y - r.sy;
+      const low = (-x * Math.sin(th) + y * Math.cos(th)) - d.R - r.draft;
+      const heel = Math.abs(d.z || 0) > 0.5 && +P.hullTips ? 0.12 * Math.abs(d.z) / Math.max(1, tipZ) : 0;
+      need = Math.max(need, PROP_WATER_CLEAR + heel - low);
+    }
+    if (need > 0.005) {
+      // (a wing nacelle stays ON the wing: first onto its top skin, then up on a pylon - the user, 4 Nov: "if you have
+      // to lift these engines so high up, you need a pylon. Wing mounted should remain anchored and in contact with
+      // the wing structure". Each pass adds what is still short; the next build measures the discs again)
+      if ([3, 5, 6].includes(mount)) {
+        if (!(+P.engNacOver > 0)) { fit.engNacOver = 1; fit.engNacLift = 0; }
+        else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
+      }
+      else if (mount === 2) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
+      else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
+    }
+  }
+  // 4. A PAIR ON A HULL TURNS AGAINST ITSELF (engRotate 1, tops inward): a same-hand pair's torque, even at idle, rolled
+  // the Cessna twin hull onto a tip float and on past it (the matrix: 16 deg in 9 s, a disc in the water; counter-rotating,
+  // 2.6 deg, as with the engines off). Only a pair left at the same hand is turned
+  if ([3, 6].includes(mount) && !Math.round(+P.engRotate || 0)) fit.engRotate = 1;
+  if (+P.hullTips && HY && HY.hullTipFit) {
+    const TB = r ? r.TB : cageHullTable(cageHullLines(Object.assign({}, P, fit)), FS);
+    const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass);
+    if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
+  }
+  return { rows: fit, rest: r && { trim: r.trim, draft: r.draft, bowDeck: r.bowDeck }, notes };
+}
 function cageHullSpec(P) {
   const cl = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
   return { beta: cl(P.hullBeta, 0, 40, 22), betaBow: cl(P.hullBetaBow, 0, 60, 36), betaA: cl(P.hullBetaA, 0, 40, 18),
@@ -4614,9 +4703,9 @@ function cageInterior(m, S) {
       for (const s0 of nxt.keys()) {
         if (seen2.has(s0)) continue;
         const cyc = [s0]; seen2.add(s0);
-        for (let v = nxt.get(s0); v !== s0 && cyc.length <= nxt.size;
-             v = nxt.get(v)) { cyc.push(v); seen2.add(v); }
-        cycles.push(cyc);
+        let v = nxt.get(s0);
+        for (; v !== s0 && v !== undefined && cyc.length <= nxt.size; v = nxt.get(v)) { cyc.push(v); seen2.add(v); }
+        if (v === s0) cycles.push(cyc);     // (an open chain - an edge whose next is missing - is no loop: skipped, not thrown on)
       }
       if (cycles.length < 2) continue;
       cycles.sort((a, b) =>
@@ -9968,7 +10057,7 @@ if (typeof module !== 'undefined')
                      CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                     buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
@@ -9981,7 +10070,7 @@ if (typeof window !== 'undefined')
                    CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                   buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,

@@ -7465,7 +7465,8 @@
     // the CG and the aeroplane nosed over into the sea)
     { let cx = 0, cy = 0, mm = 0;
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
-      if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm; } }   // S1 (G451.1): the all-up mass, for the float advisor
+      if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm;
+        window.FLYDIY_PROPS_MODEL = typeof HYDRO !== 'undefined' && HYDRO.propDiscs ? HYDRO.propDiscs(def) : null; } }   // HULL-B8: the discs, for the boat's fit (_cage_gen.js cageHullFitAll)   // S1 (G451.1): the all-up mass, for the float advisor
     if (model) craft.add(model.grp);
     // (G1121.1: the flown bake's parked live meshes back in the graph for the walk - FLOWN_BAKE.withKept)
     if (model && window.SHADOW_NEAR) { const tag = () => SHADOW_NEAR.tagCraft(craft, model.grp); if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(tag); else tag(); }   // A6: the craft casts into its own shadow map and reads only that one (G1005: its cascade fitted to model.grp's sphere)
