@@ -85,8 +85,9 @@ const LITS = (() => { try { const fj = JSON.parse(fs.readFileSync(path.join(__di
   for (const q of fj.layers.sites) { const n = (q.items || []).filter(i => /house|cabin|store|lodge|shed|church|cannery|warehouse|boat|wharf|pier|floats|light|hangar|big\//i.test(i.key)).length; if (n) L.push([q.at.x, q.at.z, Math.min(n, 5)]); }
   for (const z of fj.layers.zones) if (/residential|commercial|industrial|harbour/.test(z.kind)) { let cx = 0, cz = 0; for (const p of z.poly) { cx += p[0]; cz += p[1]; } L.push([cx / z.poly.length, cz / z.poly.length, 4]); }
   return L; } catch (e) { return []; } })();
-// the photo scene's calm (the game's 8 kt weathercocked the taxi nose-left) and a night with the moon ahead of camera B, left of the plane (az 239, 10 deg up, 98 %): the silver path on the water
-const CALM = { wind: null }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
+// the photo scene's breeze (the user 4 Nov: "a little wave on the sea, not full calm ... calm taxiing, small breeze"): 4 kt on the nose (camera B's nose bears ~38),
+// so it holds its heading, nose right (the game's 8 kt from 250 weathercocked the taxi nose-left); and a night with the moon ahead of camera B, left of the plane (az 239, 10 deg up, 98 %): the silver path on the water
+const CALM = { wind: { kts: 4, dirDeg: 38, gust: 0, refH: 10 } }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
@@ -285,6 +286,8 @@ const SETUP = V => `(async () => {
     // L31a: after a worker placement the view's cgPos stays at the roll-out (the camera and the terrain's streaming follow it) while the page's sim.p and the model move: the photo scenes read the live points
     if (aim === 'compose' && !s.__nsCg) { s.__nsCg = 1; const gv = new THREE.Vector3(); s.cgPos = () => { const K0 = window.FLYDIY_COCKPIT_I, g = K0 && K0.model && K0.model.grp; if (g) { g.getWorldPosition(gv); return [gv.x, gv.y + (window.__nsLift || 0), gv.z]; } const q = s.p, N = q.length / 3; let x = 0, y = 0, z = 0; for (let i = 0; i < N; i++) { x += q[i * 3]; y += q[i * 3 + 1]; z += q[i * 3 + 2]; } return [x / N, y / N + (window.__nsLift || 0), z / N]; }; }
     if (aim === 'compose') window.__nsLift = ${+V.lift || 0};
+    // no thrown water in the picture (the user 4 Nov: "we need to see a wake, but no projections of water"): a RIG setting, the spray's and the sheets' meshes dark; the wake is the water's field, untouched
+    if (aim === 'compose') { let rootN = FLIGHT_PROBE.camera(); while (rootN.parent) rootN = rootN.parent; rootN.traverse(o => { if (o.isMesh && o.geometry && o.geometry.isInstancedBufferGeometry && !o.frustumCulled && (o.renderOrder === 3 || o.renderOrder === 4) && o.material) o.material.visible = false; }); }
   }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
   // the lens: the view's fov (the ref scene's 26), every other view the flight's own (46, put back)
