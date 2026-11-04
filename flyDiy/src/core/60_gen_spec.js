@@ -5004,6 +5004,7 @@ function clampSpec(spec) {
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
+    if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
     // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
     // positive (the prop axis points down at the front). A high pusher's
     // line of action runs above the CG and its thrust pitches the nose
@@ -6150,6 +6151,9 @@ function resolveSpec(spec) {
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
+             // HULL-B14: the over-the-wing pylon's FORM - 'blade' a single wing-section post on the centreline; absent the
+             // V legs to both roots (the frame braces each as it is)
+             ...(e.pylonForm === 'blade' && m === 'wingTop' ? { pylonForm: 'blade' } : {}),
              pushes: m === 'pusher' ? true : m === 'nose' ? false
                    : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
   });

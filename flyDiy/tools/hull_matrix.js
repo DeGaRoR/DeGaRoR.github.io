@@ -28,6 +28,8 @@ const ENGINES = {
           note: 'a pair of Rotax 912s on the wing (Che-27, LA-8)' },
   pushPull: { sel: { engCount: 'pushPull' }, cage: {}, engine: 'rotax 912 (flat)',
               note: 'a Rotax 912 in the nose and one pushing behind the cabin, the tail on twin booms (the Skymaster layout)' },
+  pylonBlade: { sel: { engMount: 'wingTop' }, cage: { engPylonH: 1.0, engPylonForm: 1, cowlOn: 1, noseLen: 1.3 },
+                note: 'the pylon pusher on ONE wing-section blade on the centreline (the Lake\'s, the SeaMax\'s), flown as braced' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
                   note: 'one engine on a pylon over the wing, pulling (the Seabird / Osprey class)' },
   four: { sel: { engCount: 4 }, cage: { noseLen: 1.3 }, engine: 'rotax 582',

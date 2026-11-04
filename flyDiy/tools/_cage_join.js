@@ -357,6 +357,8 @@ function cageJoinSpec(P, M, T) {
         // starboard -1 (down-going blades inboard). A single mount is +1.
         // G2790: a layout's pairs take the row per pair (port first); a
         // push-pull's rear hand is the clamp's (the nose's mirror)
+        // HULL-B14: the pylon's form (engPylonForm 1: one blade on the centreline) - absent at the V legs
+        ...(mk === 'wingTop' && Math.round(+P.engPylonForm || 0) === 1 ? { pylonForm: 'blade' } : {}),
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });

@@ -1727,6 +1727,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
         BM(WL, WR);
+        if (e.pylonForm === 'blade') {
+          // HULL-B14: ONE BLADE ON THE CENTRELINE (the user: "a single pillar that would be shaped like a wing ... depending
+          // on what we try to fit on it, it may be enough or not. And that's the physics and the breaking code that should
+          // tell us this"). Its root is a short fitting across the centreline at the front and the rear spar stations
+          // (BLADE_ROOT a side: the blade's own root width, its fitting's bolts), each tied to both roots' spar nodes and
+          // the roof; the mount pair stands on those four alone - no legs out to the roots, no cross-brace. Its lateral
+          // stiffness is that narrow root's: what it carries is the solver's and the break code's to say
+          const BLADE_ROOT = 0.06;
+          const yB = 0.25 * (P[wf.L.F[0]][1] + P[wf.R.F[0]][1] + P[wf.L.R[0]][1] + P[wf.R.R[0]][1]);
+          const xBF = 0.5 * (P[wf.L.F[0]][0] + P[wf.R.F[0]][0]), xBR = 0.5 * (P[wf.L.R[0]][0] + P[wf.R.R[0]][0]);
+          const [BFL, BFR] = NM(xBF, yB, BLADE_ROOT, 'PYB'), [BRL, BRR] = NM(xBR, yB, BLADE_ROOT, 'PYB');
+          BM(BFL, BFR); BM(BRL, BRR); BM(BFL, BRL); BM(BFR, BRR); BM(BFL, BRR);
+          for (const b of [BFL, BFR]) { BM(b, wf.L.F[0]); BM(b, wf.R.F[0]); BM(b, rg.TL); BM(b, rg.TR); }
+          for (const b of [BRL, BRR]) { BM(b, wf.L.R[0]); BM(b, wf.R.R[0]); BM(b, rg.TL); BM(b, rg.TR); }
+          for (const n of [WL, WR]) { BM(n, BFL); BM(n, BFR); BM(n, BRL); BM(n, BRR); }
+        } else
         for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
           const q = o === 'L' ? 'R' : 'L';
           BM(n, wf[o].F[0]); BM(n, wf[o].R[0]);

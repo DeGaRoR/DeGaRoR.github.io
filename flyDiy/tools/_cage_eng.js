@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engNacOver: 0, engNacLift: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -590,6 +590,9 @@ const ENG_ITEMS = [
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
+  // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
+  ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],
+   { when: P => +P.engOn && (Math.round(P.engMount) === 2 || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   ['engPylonFair', 'pylon', 0, 2, 1, ['bars + cables', 'fairing', 'wing-section fairing'],
    { when: P => +P.engOn && (Math.round(P.engMount) === 2 || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
@@ -660,6 +663,7 @@ const ENG_SEC = {
 // The fairing tapers from the feet's spread to the plate's width; cage metres, the layer's own frame.
 const PYLON_R = 0.021, PYLON_RAIL = 0.016, PYLON_CABLE = 0.0022;
 function drawPylonMount(group, f, P, GK, aft) {
+  if (Math.round(+P.engPylonForm || 0) === 1) return drawPylonBlade(group, f, P, GK, aft);
   const style = Math.max(0, Math.min(2, Math.round(+P.engPylonFair || 0)));
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch);
   // the plate stands UNDER the engine: a pusher's block hangs aft of its face, a tractor's forward of it
@@ -727,6 +731,27 @@ function drawPylonMount(group, f, P, GK, aft) {
       return pts;
     }, true, [0, 1, 0]);
   }
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+}
+// HULL-B14: THE SINGLE BLADE - one symmetric wing-section post on the mount's centreline, its chord the feet's (the
+// spars' stations) at the root narrowing to the plate's at the top, 12 % thick; the plate's underside faired into it
+function drawPylonBlade(group, f, P, GK, aft) {
+  const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch);
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05);
+  const ft = f.foot, yF = ft.y - 0.005, zF0 = 0.5 * (ft.zF + ft.zR), cF = Math.abs(ft.zF - ft.zR) + 0.10;
+  const fair = GK.Bag(), NS = 24, NR = 8, path = [], rows = [];
+  for (let i = 0; i <= NR; i++) { const t = i / NR;
+    path.push([0, yF + (y0 - yF) * t, zF0 + (zc - zF0) * t]); rows.push(cF + (Lp + 0.06 - cF) * t); }
+  GK.sweep(fair, path, (t, i) => {
+    const c = rows[i], pts = [], th = 0.12;
+    for (let k = 0; k < NS; k++) {
+      const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
+      const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+      pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * yt * c]);
+    }
+    return pts;
+  }, true, [0, 0, 1]);
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
 }
