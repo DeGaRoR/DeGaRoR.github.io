@@ -1706,7 +1706,7 @@ function hydroBuild(def, p, v) {
     // slammed it at 3.7 t and its keel nodes left at 9 km/s. Bounded the same way on the hull's own mass (at 20 m/s
     // ~160 kN a hull, sixteen times its planing lift: the bound bites only where the interval would overshoot)
     let free = 0;
-    if (rec.tip || rec.hull) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
+    if (rec.tip || rec.hull || rec.spon) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
     return Object.assign({ rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] }, free ? { free } : {});
   });
   // S1 (G451.1): THE HYDRO SUB-RATE. The water's forces are computed every

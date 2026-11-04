@@ -2863,6 +2863,50 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
       }
     }
+    // ---- HULL-B19: THE SPONSONS (HULL-TYPES §1.2 'sponsons': the Icon, the Seastar, the Flywhale, the Wal) - a short
+    // buoyant body a side ON the hull, its inboard deck edge against the hull's side at its station, partly in the water
+    // at rest (the fit's rows: kg by the roll-moment rule on its short arm, its keel half its depth under the rest
+    // waterline). A float of the family sized for its displacement (tipFloatParams), its three stations tied to the
+    // fuselage frame nearest and the next one - no struts: the hull and the sponson are one structure
+    const SP = HR.spon;
+    if (SP && SP.on) {
+      const fitS = HYDRO.hullTipFit(HR, gross || 400);
+      const kgS = SP.kg > 0 ? SP.kg : 2 * fitS.kg;
+      const SPP = HYDRO.tipFloatParams(kgS);
+      const ySrel = SP.y > -0.999 ? SP.y : fitS.draft - 0.5 * SPP.H;
+      const xsS = -(SP.x != null ? SP.x : 0.3), scH = HYDRO.sectionOf(HP, xsS === 0 ? -1e-9 : xsS);
+      const nearFS = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
+      for (const sd of [-1, 1]) {
+        const xT = xS + xsS + 0.10 * SPP.L, zT = sd * (scH.bd + (SP.w != null ? SP.w : 0.32)), yT = yS + ySrel;
+        const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
+        const Kt = [], Lt = [], Rt = [], Qt = [];
+        for (const xs of st3) {
+          const sc = HYDRO.sectionOf(SPP, xs === 0 ? -1e-9 : xs);
+          Kt.push(N(xT + xs, yT + sc.yk, zT, 'SPK'));
+          Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'SPD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'SPD'));
+          Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        }
+        const allT = [...Kt, ...Lt, ...Rt];
+        for (const i of allT) pt(i, SPP.mFloat / allT.length);
+        for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+        for (let i = 0; i < 2; i++) {
+          B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+        }
+        clusters.push({ cls: 'float', tag: 'SPON' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+        // the root: each station's inboard deck edge and keel to the nearest fuselage frame's side corners
+        const inb = sd < 0 ? Rt : Lt, o = sd < 0 ? 'L' : 'R';
+        for (let i = 0; i < 3; i++) {
+          const Fj = F[nearFS(xT + st3[i])];
+          B(inb[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh); B(inb[i], Fj['T' + o], 'gear', false, 'inner', undefined, KMh);
+          B(Kt[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh);
+        }
+        const slabS = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+          K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+        FLOATS.push({ side: sd, spon: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                      tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
+      }
+    }
   } else {
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
     // both deck edges at four stations (bow, the flat's end, the step, the

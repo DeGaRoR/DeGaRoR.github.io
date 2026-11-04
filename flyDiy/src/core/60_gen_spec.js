@@ -5350,6 +5350,13 @@ function clampSpec(spec) {
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
                    y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1 };
       } else h.tips = null;
+      // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
+      if (h.spon && typeof h.spon === 'object' && h.spon.on) {
+        const sp = h.spon;
+        h.spon = { on: 1, kg: Number.isFinite(+sp.kg) && +sp.kg > 0 ? genClamp(+sp.kg, 2, 3000) : 0,
+                   y: Number.isFinite(+sp.y) && +sp.y > -0.999 ? genClamp(+sp.y, -0.99, 2) : -1,
+                   x: genClamp(Number.isFinite(+sp.x) ? +sp.x : 0.3, -3, 5), w: genClamp(Number.isFinite(+sp.w) ? +sp.w : 0.32, 0.05, 3) };
+      } else delete h.spon;
     }
   } else if (S.gear.hull !== undefined) delete S.gear.hull;
   // (a 'hull' with no usable record keeps its type and flies on floats the frame sizes by the gross: a seaplane that

@@ -486,13 +486,7 @@ function engineFaces(mesh, FS, P) {
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
     // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
-    // HULL-B18: ...BUT THE THRUST LINE LIFTS THE COWL WITH THE ENGINE (engY): a tub's engine bay (the Icon's) stands
-    // high on the pod's face, the cowl - the pod's own section - riding up with it into a hump behind the cabin. The
-    // face carries the lift (engYIn) so the engine layer does not add it twice
-    // (on a HULL only, for now: one saved build - Twin_busher_floats_2, engY 0.26 - is a cowled pusher with a lifted
-    // thrust line, and its cowl stays where it was drawn until the user rules on it)
-    if (f && cowledPusher(P)) { const eY = +P.hullOn ? (+P.engY || 0) : 0;
-      return [{ face: eY ? Object.assign({}, f, { yc: f.yc + eY, engYIn: true }) : f, aft: true, kind: 'pusher' }]; }
+    if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {

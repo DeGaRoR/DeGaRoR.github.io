@@ -37,7 +37,7 @@ const ENGINES = {
   // (HULL-B18, the user: "an Icon puts its boom really low, keeps a large space behind the cabin and sticks the engine
   // in there"): THE TUB - the pod lengthened by an engine bay behind the cabin (paxLen), the pusher on its aft face with
   // the thrust line high on it (engY), the tail on a rod the rod fit sets LOW (under the hub's disc)
-  tub: { sel: { engMount: 'pusher' }, engine: 'rotax 915 iS', cage: { paxLen: 1.8, engY: 0.35, noseLen: 1.3, hullTubLen: 2.0, hullTubRise: 6, hullTubEnd: 0.3, cowlOn: 1 },
+  tub: { sel: { engMount: 'pusher' }, engine: 'rotax 915 iS', cage: { paxLen: 0.6, engY: 0.35, noseLen: 1.3, hullTubLen: 2.2, hullTubRise: 11, cowlOn: 1, hullSpon: 1, hullTips: 0 },
          note: 'the hull tub: cabin + engine bay in one pod, the pusher high on its aft face, the tail on a low rod boom (the Icon A5)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },

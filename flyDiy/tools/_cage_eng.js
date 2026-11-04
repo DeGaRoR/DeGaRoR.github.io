@@ -606,7 +606,7 @@ const ENG_ITEMS = [
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
   // fore-aft on a pod is `eng_mountGap`, on a block `engBlockZ`.
-  ['engY',      'up / down (thrust line)', -0.5, 1.0, 0.005,   // (HULL-B18: up to 1 m - a tub's pusher high on its engine bay)
+  ['engY',      'up / down (thrust line)', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
   // G477 (the Chinook, the user: "it probably needs the ability to tilt the
   // engine with regards to the frame"): the thrust line's TILT, degrees,
@@ -1285,48 +1285,13 @@ function engPlace(ctx, prev) {
     // flip is applied first): one sign for both.
     ug.rotation.x = (+P.engTilt || 0) * Math.PI / 180;
     ug.position.set((f.x || 0) + (u.aft ? -ax.x : ax.x),
-                    f.yc + ax.y + (f.engYIn ? 0 : (P.engY || 0)),
+                    f.yc + ax.y + (P.engY || 0),
                     u.aft ? f.z + zFw : f.z - zFw);
     if (ex > 0) {
       ng.position.z += ex * 1.5;
       if (pg) pg.position.z += ex * 2.0;
     }
     group.add(ug);
-    // HULL-B18b: THE ENGINE BAY's FAIRING (a tub's pusher lifted on its thrust line, the cowl riding up with it - the
-    // face carries engYIn): a rounded hump from the pod's roof at its aft face up into the cowl's underside, wide at
-    // the pod (it blends down onto the roof, reaching forward over it), narrowing into the cowl - the Icon's engine bay
-    // HULL-B18b: THE ENGINE BAY's FAIRING (a tub's pusher lifted on its thrust line, the cowl riding up with it - the
-    // face carries engYIn): the raised cowl's FRONT stands clear of the pod's face, open; a rounded nose closes it and
-    // runs forward over the pod's roof, rising from the roof (sunk into it) to the cowl's full section at the face -
-    // the Icon's engine bay hump. Drawn only (the engine sits where it flies either way)
-    if (u.kind === 'pusher' && f.engYIn) {
-      let roofAt = null;
-      try { const GG2 = window.GEAR_GEN, FS2 = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * (P.planeScale || 1);
-        const AF = GG2 && GG2.cageAirframe ? GG2.cageAirframe(mesh, FS2) : null;
-        if (AF) roofAt = z => { const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z)); const y = AF.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; }; } catch (e) {}
-      const hc = Math.round(+P.fitNose || 0) === 0 && +P.cw_aftH > 0 ? Math.min(f.halfH, +P.cw_aftH) : f.halfH;
-      const wc = Math.round(+P.fitNose || 0) === 0 && +P.cw_aftW > 0 ? Math.min(f.halfW, +P.cw_aftW) : f.halfW;
-      const LN = Math.max(0.5, 1.6 * hc), NZ = 14, NS = 32, pos = [], idx = [], x0 = f.x || 0;
-      for (let i = 0; i <= NZ; i++) {
-        const t = i / NZ, z = f.z + 0.02 + LN * (1 - t);                 // fore (t 0) -> the cowl's face (t 1)
-        const yR = roofAt ? roofAt(z) : null, yRoof = yR != null ? yR : f.yc - hc;
-        const g = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));          // a rounded nose
-        const hh = Math.max(0.02, hc * g), hw = Math.max(0.02, wc * g);
-        const yc = Math.max(yRoof + hh - 0.06, f.yc - (1 - g) * (f.yc - yRoof));
-        for (let k = 0; k < NS; k++) { const a = 2 * Math.PI * k / NS; pos.push(x0 + hw * Math.cos(a), yc + hh * Math.sin(a), z); }
-      }
-      for (let i = 0; i < NZ; i++) for (let k = 0; k < NS; k++) {
-        const a = i * NS + k, b = i * NS + (k + 1) % NS, c = (i + 1) * NS + k, d = (i + 1) * NS + (k + 1) % NS;
-        idx.push(a, b, c, b, d, c);
-      }
-      const g3 = new THREE.BufferGeometry();
-      g3.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g3.setIndex(idx); g3.computeVertexNormals();
-      const SM = window.CAGE_SECMAT;
-      const mt = (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount');
-      const bay = new THREE.Mesh(g3, mt); bay.name = 'engBayFairing'; bay.castShadow = true;
-      if (mt && 'side' in mt) mt.side = THREE.DoubleSide;
-      group.add(bay);
-    }
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
     if (u.kind === 'wingTop' && f.yBase != null && !u.tandemRear) {   // (HULL-B15: a tandem's one pylon, under its front unit)
@@ -1471,7 +1436,7 @@ function engPlace(ctx, prev) {
         const short = Math.max(0, (below ? (v * FS + RA.t * dz) - yAx : yAx - (v * FS + RA.t * dz)));
         let eMove = 0, left = short, eRow = null;
         if (short > 1e-3 && !cowledPusherRow(P)) {
-          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 1.0] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
+          const [k, lo, hi] = mountK === 1 ? ['engY', -0.5, 0.5] : mountK === 4 ? ['engBlockY', -0.6, 0.8] : [null];
           if (k) {
             const e0 = +P[k] || 0, e1 = Math.max(lo, Math.min(hi, e0 + (below ? 1 : -1) * short));
             eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove)); eRow = k;

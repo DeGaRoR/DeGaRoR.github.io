@@ -379,8 +379,15 @@ window.CAGE_PAGE = {
         ['hullAftDeg',  'afterbody keel run °',       2, 12, 0.5, { when: P => +P.hullOn }],
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
         ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
+        // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)
+        ['hullSpon',    'sponsons', 0, 1, 1, ['none', 'a side'], { when: P => +P.hullOn }],
+        ['hullSponX',   'sponsons forward of the step', -1.5, 2.5, 0.01, { when: P => +P.hullOn && +P.hullSpon, dim: 'len' }],
+        ['hullSponW',   'sponsons outboard of the side', 0.1, 1.5, 0.01, { when: P => +P.hullOn && +P.hullSpon, dim: 'len' }],
+        ['hullSponKg',  'sponson, each (displacement)', 0, 800, 1, { when: P => +P.hullOn && +P.hullSpon, dim: 'kg' }],
+        ['hullSponY',   'sponson keel over the step keel', -1, 2, 0.005, { when: P => +P.hullOn && +P.hullSpon, dim: 'len' }],
         ['hullTubRise', 'its keel rise °', 0, 25, 0.5, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
-        ['hullTubEnd',  'its end section (of the pod\'s)', 0.05, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
+        ['hullTubEnd',  'its end beam (of the pod\'s)', 0.05, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
+        ['hullTubH',    'its depth (of the pod\'s)', 0.1, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
         ['hullNoseBase', 'bow before the fit (0: not moved)', 0, 4, 0.01, { when: P => +P.hullOn && +P.hullNoseBase > 0, dim: 'len' }],
         // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
         ['hullTips',    'tip floats',                 0, 1, 1, ['none', 'on struts'], { when: P => +P.hullOn }],

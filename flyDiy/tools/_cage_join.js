@@ -423,7 +423,7 @@ function cageJoinSpec(P, M, T) {
       if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
     }
     // HULL-B2: the boat's measured lines ride the gear record as the floats' do
-    if (M.hull) spec.gear.hull = { sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips };
+    if (M.hull) spec.gear.hull = Object.assign({ sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips }, M.hull.spon ? { spon: M.hull.spon } : {});
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
@@ -1450,7 +1450,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY } };
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY },
+                       ...(+P.hullSpon ? { spon: { on: 1, kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW } } : {}) };
             const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];
             window.CAGE_HULL = { zStep: TB.zStep * FSh, keelY: TB.yStep * FSh, chineY: TB.yStep * FSh + sF.yc };
           } else NOTES.push(TB ? 'hull: no firewall anchor - the hull cannot be placed' : 'hull: no lines to measure');

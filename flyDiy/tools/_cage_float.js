@@ -578,10 +578,45 @@ function drawTub(scene, P) {
   const m = new THREE.Mesh(g, mat); m.name = 'edHullTub'; m.castShadow = true; m.receiveShadow = true;
   tubGroup.add(m); scene.add(tubGroup);
 }
+// HULL-B19: THE SPONSONS, drawn from the rows the frame flies (hullSponKg / Y / X / W: a float of the family sized for
+// its displacement, HYDRO.tipFloatParams) at the hull's side at their station (the hull's own table, cageHullTable) -
+// no struts: the sponson is part of the hull. Rows not fitted yet: nothing drawn (the frame flies the gross rule)
+let sponGroup = null;
+function drawSponsons(scene, P) {
+  if (sponGroup) { dispose(sponGroup); sponGroup = null; }
+  if (!scene || !+P.hullOn || !+P.hullSpon || !CG2 || !CG2.cageHullTable) return;
+  const kg = +P.hullSponKg, yRel = +P.hullSponY, HY = HYc(), FG = window.FLOAT_GEN;
+  if (!(kg > 0) || !(yRel > -0.999) || !HY || !HY.tipFloatParams || !FG) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const Pt = HY.tipFloatParams(kg), xsS = -(+P.hullSponX || 0.3), w = +P.hullSponW || 0.32;
+  const near = TB.sta.reduce((a, s) => Math.abs(s.x - xsS) < Math.abs(a.x - xsS) ? s : a, TB.sta[0]);
+  const yK = TB.yStep * FS + yRel, zSt = TB.zStep * FS - xsS - 0.10 * Pt.L;   // (the frame's xT, the cage's z forward)
+  const SM = window.CAGE_SECMAT;
+  const skinM = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xd8d2c2 })) || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55 });
+  sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
+  const o = FG.build(Pt, { HY, detail: 0, rudder: 0, paddle: 0, xAft: Pt.xAft });
+  for (const sd of [-1, 1]) {
+    const xC = sd * (near.bd + w);
+    const toC = v => [xC + v[2], yK + v[1], zSt - v[0]];
+    for (const part of [o.hull, o.deck]) {
+      if (!part || !part.idx || !part.idx.length) continue;
+      const n = part.pos.length / 3, pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const c = toC([part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]]); pos[i * 3] = c[0]; pos[i * 3 + 1] = c[1]; pos[i * 3 + 2] = c[2]; }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setIndex(n > 65535 ? new THREE.Uint32BufferAttribute(part.idx, 1) : new THREE.Uint16BufferAttribute(part.idx, 1)); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, skinM); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); if (skinM.side !== undefined) skinM.side = THREE.DoubleSide;
+      sponGroup.add(m);
+    }
+  }
+  scene.add(sponGroup);
+}
 PAGE.post = ctx => {
   const { scene, mesh, P, stat } = ctx;
   hullFitStep(P, stat);
   try { drawTub(scene, P); } catch (e) {}
+  try { drawSponsons(scene, P); } catch (e) {}
   // THE STARTER FIRES BEFORE THE CHAIN, like the engine's: the rows it
   // writes are read by this layer's own build below and by the join after
   if (+P.gearFloats) {
