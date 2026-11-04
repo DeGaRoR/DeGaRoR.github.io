@@ -69,6 +69,7 @@ function one(form, eng) {
   res.errors = errs;
   if (opt('save')) fs.writeFileSync(opt('save'), JSON.stringify({ spec }, null, 1));   // the fitted build, for quick_view
   if (!spec.gear.hull) { res.verdict = 'NO HULL (' + spec.gear.type + ')'; return res; }
+  if (opt('fitonly')) { res.verdict = 'FITTED'; return res; }   // (--fitonly: the fitted build only - for renders)
   const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
   let M = 0, mx = 0, my = 0; for (const n of def.nodes) { M += n.m; mx += n.m * n.p[0]; my += n.m * n.p[1]; } mx /= M; my /= M;
   const W = M * 9.81, hr = spec.gear.hull, fl = def.parts.floats;
