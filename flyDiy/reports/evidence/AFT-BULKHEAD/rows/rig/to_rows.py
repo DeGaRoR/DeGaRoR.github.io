@@ -3,7 +3,7 @@
 import sys, os, re
 from PIL import Image, ImageDraw, ImageFont
 src, dst = sys.argv[1], sys.argv[2]; study = sys.argv[3] if len(sys.argv) > 3 else None
-VIEW = {'bk-out--30-0-3': 'q34Fwd', 'bk-out--45-0-3': 'q45Fwd', 'bk-infwd': 'inFwd', 'bk-inclose-0.6': 'inClose', 'bk-inside-30': 'inSide'}
+VIEW = {'bk-out--30-0-3': 'q34Fwd', 'bk-out--45-0-3': 'q45Fwd', 'bk-infwd': 'inFwd', 'bk-inclose-0.6': 'inClose', 'bk-inside-30': 'inSide', 'bk-infwd--0.215-0-0.4@0.282': 'inFwdFwd'}
 DIR = {'BEFORE': 'before', 'FULL': 'full', 'TWINA': 'full', 'TWINB': 'full', 'FULLPAX0': 'full', 'TWINAPAX0': 'full', 'FLAT': 'flat', 'SLING': 'sling'}
 def dirOf(s): return DIR.get(s, 'relief' if s.startswith('RELIEF') or s == 'RIVETS' else 'misc')
 for d in set(DIR.values()) | {'relief', 'pairs', 'details'}: os.makedirs(os.path.join(dst, d), exist_ok=True)
@@ -36,9 +36,9 @@ for b, s in PAIRS:
         if (b, 'BEFORE', 'day', v) in have and (b, s, 'day', v) in have:
             pair(have[(b, 'BEFORE', 'day', v)], have[(b, s, 'day', v)], 'BEFORE', s, os.path.join(dst, 'pairs', '%s_BEFORE-%s_day_%s.jpg' % (b, s, v)))
 # the lamp: li_pax 0 | li_pax 1 at dusk, the pilot's eye
-for b, s0, s1 in (('cub', 'FULLPAX0', 'FULL'), ('twin', 'TWINAPAX0', 'TWINA'), ('jodel', 'FULLPAX0', 'FULL')):
-    if (b, s0, 'dusk', 'inFwd') in have and (b, s1, 'dusk', 'inFwd') in have:
-        pair(have[(b, s0, 'dusk', 'inFwd')], have[(b, s1, 'dusk', 'inFwd')], s1 + ' li_pax 0', s1 + ' li_pax 1', os.path.join(dst, 'pairs', '%s_%s_dusk_inFwd_pax0-pax1.jpg' % (b, s1)))
+for b, s0, s1, v in (('cub', 'FULLPAX0', 'FULL', 'inFwd'), ('twin', 'TWINAPAX0', 'TWINA', 'inFwd'), ('jodel', 'FULLPAX0', 'FULL', 'inFwdFwd')):
+    if (b, s0, 'dusk', v) in have and (b, s1, 'dusk', v) in have:
+        pair(have[(b, s0, 'dusk', v)], have[(b, s1, 'dusk', v)], s1 + ' li_pax 0', s1 + ' li_pax 1', os.path.join(dst, 'pairs', '%s_%s_dusk_%s_pax0-pax1.jpg' % (b, s1, v)))
 # screws | rivets on the twin's framed panel
 for v in ('q34Fwd', 'inClose'):
     if ('twin', 'RELIEF3', 'day', v) in have and ('twin', 'RIVETS', 'day', v) in have:

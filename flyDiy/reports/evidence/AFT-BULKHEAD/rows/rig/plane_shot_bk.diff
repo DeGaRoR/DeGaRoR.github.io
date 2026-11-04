@@ -1,5 +1,5 @@
 --- tools/plane_shot.js (origin/claude/aft-bulkhead 02220cf3, CR stripped)
-+++ tools/plane_shot_bk.js (scratch: AFT-BULKHEAD-LOOK rig/plane_shot_bk.diff + AFT-BULKHEAD-SHOTS inside/pt/rows:)
++++ tools/plane_shot_bk.js (scratch: AFT-BULKHEAD-LOOK rig/plane_shot_bk.diff + AFT-BULKHEAD-SHOTS inside/pt/rows:/BK_BAND)
 @@ -186,7 +186,7 @@
      // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
      // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
@@ -46,7 +46,7 @@
          const tv = Date.now(), name = v.replace(/[:/]/g, '-');
          const VR = { view: v }; BR.views.push(VR);
          try {
-@@ -261,6 +287,40 @@
+@@ -261,6 +287,43 @@
              asked = [a * Math.PI / 180, e * Math.PI / 180, d];
              await C.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
              VR.door = v.slice(0, v.indexOf(':')); if (VR.door === 'close') VR.close = true;
@@ -64,6 +64,9 @@
 +              ' for (const vi of vs) { const p = M.V[vi]; if (p[2] * k < zM - ' + (+(process.env.BK_DEPTH || 0.7)) + ') continue; b[0] = Math.min(b[0], p[0] * k); b[1] = Math.max(b[1], p[0] * k); b[2] = Math.min(b[2], p[1] * k); b[3] = Math.max(b[3], p[1] * k); }' +
 +              ' const cL = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, zM]; if ("' + mode + '" === "out" && ' + (a.length > 3 && isFinite(a[3])) + ') cL[1] = ' + (+a[3] || 0) + '; if (' + (yAim != null && isFinite(+yAim)) + ') cL[1] = ' + (+yAim || 0) + '; g.updateMatrixWorld(true); const W = p => g.parent.localToWorld(new THREE.Vector3(p[0], p[1], p[2]));' +
 +              ' const c = W(cL), mode = ' + JSON.stringify(mode) + ', a = ' + JSON.stringify(a) + '; let eL = null, eW = null;' +
++              // AFT-BULKHEAD-SHOTS (BK_BAND=1): inclose / inside aim at the band above the waist - midway from the waist to the face's top (the
++              // part a player sees; at 0.6 m the whole face does not fit the frame), the same height for a BEFORE and an AFTER of one build
++              ' if (' + (process.env.BK_BAND === '1') + ' && (mode === "inclose" || mode === "inside") && window.CAGE_CREW && CAGE_CREW.A) { cL[1] = (b[3] + CAGE_CREW.A.waistY) / 2; c.copy(W(cL)); }' +
 +              ' const cam = FLIGHT_PROBE.camera(); window.__bkHid = window.__bkHid || [];' +
 +              ' if (mode === "out") { const t = a[0] * Math.PI / 180, e = a[1] * Math.PI / 180; eL = [cL[0] + a[2] * Math.cos(e) * Math.cos(t), cL[1] + a[2] * Math.sin(e), cL[2] - a[2] * Math.cos(e) * Math.sin(t)]; eW = W(eL); cam.near = 0.5; }' +
 +              ' else if (mode === "infwd") { const E = window.CAGE_CREW_EYE; if (!E) return { err: "no pilot eye (CAGE_CREW_EYE)" }; eW = new THREE.Vector3().fromArray(E.p); eL = g.parent.worldToLocal(eW.clone()).toArray(); if (a.length >= 3) { eL = [eL[0] + a[0], eL[1] + a[1], eL[2] + a[2]]; eW = W(eL); } for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } cam.near = 0.03; }' +
@@ -87,7 +90,7 @@
            } else if (/^part:/.test(v)) {
              // THE PART: the editor's own selection names its meshes (hiBuild's overlays, userData.edHi) - their box is
              // the part's; the selection goes back to the whole aeroplane before the still, so no highlight is in it
-@@ -302,7 +362,7 @@
+@@ -302,7 +365,7 @@
            await C.ev('(() => { window.CAGE_UI_SCENE.visible = false; return 1; })()');
            await frames(3);
            const shotB = (await C.cmd('Page.captureScreenshot', { format: 'png', clip })).result.data;
@@ -96,7 +99,7 @@
            const P = await J('(' + ANALYSE + ')(' + JSON.stringify(shotA) + ', ' + JSON.stringify(shotB) + ')', 180000);
            VR.picture = P;
            // a frame that fails its check is kept beside the good ones as <name>_FAIL.png - a failure you can look at
-@@ -377,7 +437,7 @@
+@@ -377,7 +440,7 @@
    const builds = (opt('build', '') || '').split(',').filter(Boolean);
    const size = (opt('size', '1920x1080')).split('x').map(Number);
    const o = {
@@ -105,7 +108,7 @@
      views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
      root: path.resolve(opt('root', REPO)),
    };
-@@ -388,7 +448,7 @@
+@@ -388,7 +451,7 @@
      let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
      if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
    }

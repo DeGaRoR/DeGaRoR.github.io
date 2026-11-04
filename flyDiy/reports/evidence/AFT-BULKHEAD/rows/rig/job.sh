@@ -7,5 +7,7 @@ L=''; for v in ${V//,/ }; do n=$(echo "$v" | tr ':/' '--'); if [[ $v == rows:* ]
 if [ -z "$L" ] || [ "$L" = "${L//bk:/}" ]; then echo "$(date +%H:%M:%S) $b $set skip (all there)" >> $S/out/jobs.done; exit 0; fi
 if [ "$set" = dusk ]; then QS='idle=0&day=dusk'; DIM='--dim 0.12'; else QS='idle=0'; DIM=''; fi
 echo "=== $(date) views $L" >> $S/out/$set/$b.log
+[ -f $S/b/$b.rows.json ] && export BK_ROWS=$(cat $S/b/$b.rows.json)
+export BK_BAND=1
 timeout 3000 node tools/plane_shot_bk.js --build $S/b/$b.json --out $S/out/$set --size 1800x1000 --qs "$QS" $DIM --views "$L" >> $S/out/$set/$b.log 2>&1
 echo "$(date +%H:%M:%S) $b $set exit $?" >> $S/out/jobs.done

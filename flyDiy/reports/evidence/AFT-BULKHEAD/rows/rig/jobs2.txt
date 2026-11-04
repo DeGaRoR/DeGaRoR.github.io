@@ -1,0 +1,15 @@
+cub_BEFORE day bk:inclose/0.6,bk:inside/30
+cub_FULL day bk:inclose/0.6,bk:inside/30
+twin_BEFORE day bk:out/-30/0/3,bk:out/-45/0/3,bk:infwd,bk:inclose/0.6,bk:inside/30
+twin_TWINB day bk:out/-30/0/3,bk:out/-45/0/3,bk:infwd,bk:inclose/0.6,bk:inside/30
+twin_TWINB dusk bk:out/-30/0/3,bk:infwd
+cub_FULL flip rows:def,bk:infwd,rows:back,bk:out/-45/0/3
+twin_TWINB flip rows:def,bk:infwd,rows:back,bk:out/-45/0/3
+mosquito_FULL detail bk:pt/0.071/0.131/-0.26/60/35/1.2,bk:pt/0.071/0.131/-0.26/0/25/1.5
+mosquito_BEFORE detail bk:pt/0.071/0.131/-0.26/60/35/1.2,bk:pt/0.071/0.131/-0.26/0/25/1.5
+cub_SLING detail bk:pt/-0.149/0.124/-0.176/0/10/0.45
+cub_FULL detail bk:pt/-0.149/0.124/-0.176/0/10/0.45
+jodel_BEFORE day bk:infwd/-0.215/0/0.4@0.282
+jodel_FULL day bk:infwd/-0.215/0/0.4@0.282
+jodel_FULL dusk bk:infwd/-0.215/0/0.4@0.282
+jodel_FULLPAX0 dusk bk:infwd/-0.215/0/0.4@0.282
