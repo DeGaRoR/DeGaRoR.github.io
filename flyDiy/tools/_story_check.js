@@ -593,7 +593,7 @@ async function introRun() {
   ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 40,
      'played to its end: the world drawn from the shed for the whole cinematic, the last frame at the shed', (r.worldF / 30).toFixed(1) + ' s of world, ' + (r.near || 0).toFixed(1) + ' m from the shed');
   const df = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'design_flow.js'), 'utf8');
-  ok(H.FLYDIY_STORY_STARTER === 'Rufus' && df.includes('setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400)'),
+  ok(H.FLYDIY_STORY_STARTER === 'Rufus' && df.includes('setTimeout(() => { if (!window.FLYDIY_STORY_STARTER && !career()) openBirth(); }, 400)'),
      'the design flow\'s "New aeroplane" door stays shut on a New career with the story (its starter on the stand; the Game coordinator, 20 Oct)', H.FLYDIY_STORY_STARTER);
   ok(after(r.X), 'then the garage: its exposure, its air and its lens back, the radio free, the story at T0 on its card');
   r = await play(3);

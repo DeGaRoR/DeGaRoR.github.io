@@ -11,6 +11,7 @@
 // user's door, no GARAGE_SPEC.set, no localStorage seeding), and one PNG per named view with the UI hidden.
 //
 //   node flyDiy/tools/plane_shot.js --build <file.json>[,<file2.json>...] --out <dir>
+//                                 (G3800: an entry stock:<name> is the garage's own stock design, e.g. 'stock:piper cub')
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
@@ -19,6 +20,17 @@
 //                                 ~0.8 m the camera's near plane cuts the skin), at:<x>/<y>/<z>/<az>/<el>/<dist> a point
 //                                 of the layers' frame (metres) close, one framing for two builds -
 //                                 default q,s,t,f
+//        [--views hero:<yaw>/<el>/<fov>,profile]  PORTRAITS (2 Nov): the level airframe from <yaw> deg off the nose
+//                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens (then,
+//                                 optional, /<fill> the aeroplane's share of the frame, default 0.84 - <fill>c: of the
+//                                 inscribed circle instead, a maskable icon's safe zone - and /<W>x<H> the still's
+//                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); profile[/<fill>
+//                                 [/<W>x<H>]] the left side (the thumbnail); board:<fov>/<height> THE PLANE BOARD - the
+//                                 hero (yaw 38, el -12 or as asked, the lens) at 5:4 (or as asked) and a column of side / plan /
+//                                 front at one scale; cuts:<fov>/<side px>[/<el>[/<aspect>]] the four views matted alone; the left
+//                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
+//                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
+//        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
@@ -155,6 +167,171 @@ const ANALYSE = `async (a, b) => {
   return out;
 }`;
 
+// ---- PORTRAITS (PORTRAITS, 2 Nov; the user: "3/4 bottom-up shot, low FOV, possibly dark studio background" - "I'm
+// getting lost myself"): the aeroplane's picture for a card or a gallery, drawn by the page's own renderer into its own
+// camera, not the editor's orbit (whose lens is fixed and whose eye stops at the floor):
+//   hero:<yaw>/<el>/<fov>  the airframe LEVEL (the stance's pitch taken off - the air, not the ramp), the eye <yaw> deg
+//                          round from the nose to the aeroplane's left, <el> deg above (negative: below) the level
+//                          chord, a lens of <fov> deg (vertical); the box fitted to ~84 % of the frame, centred
+//   profile                the left side, an orthographic eye level with it, on its gear as it stands - the silhouette
+// A dark studio either way: the studio's black under a soft radial backdrop, the studio's own lights plus a portrait
+// key (low at the front, so a belly seen from below is lit) and a rim from behind; no pool, no floor. Drawn at 2x and
+// halved (the supersample is the anti-aliasing). The page's size, lens and pose come back as they were.
+const PORTRAIT = `(o) => {
+  const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera(), root = window.CAGE_UI_SCENE;
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const pitch0 = root.rotation.x;
+  if (o.kind !== 'profile') root.rotation.x = 0;   // the air's attitude for the hero and the board's 3-view; the thumbnail stands
+  root.updateMatrixWorld(true);
+  // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
+  // turned to the room; up is the room's)
+  const box = new THREE.Box3(), gb = new THREE.Box3();
+  root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb); });
+  const fwd = V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
+  const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
+  const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
+  // the fit's points: the drawn vertices themselves (a few hundred a mesh), not the box's corners - a 3/4 eye throws a
+  // box's corners far wider than the aeroplane (the 20:50 take's heroes filled half the frame, off centre)
+  const corners = [], pv = V();
+  root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
+    const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) corners.push(pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c)); });
+  if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
+  const fill = o.fill || 0.84;
+  // the aeroplane's own frame: the drawn points' extents along the nose, the left wing and up - the orthos' one scale
+  const ext = { f: [1e9, -1e9], l: [1e9, -1e9], u: [1e9, -1e9] };
+  for (const p of corners) for (const [k, ax] of [['f', fwd], ['l', left], ['u', up]]) { const v = p.dot(ax); if (v < ext[k][0]) ext[k][0] = v; if (v > ext[k][1]) ext[k][1] = v; }
+  const mid = k => (ext[k][0] + ext[k][1]) / 2, len = k => Math.max(0.1, ext[k][1] - ext[k][0]);
+  const cc = c.clone().addScaledVector(fwd, mid('f')).addScaledVector(left, mid('l')).addScaledVector(up, mid('u'));
+  // the hero: a lens of its own, the distance that holds every drawn point, then the target moved to centre what is seen
+  const heroCam = (fov, aspect, yawD, elD, fl, circle) => {
+    const yaw = yawD * Math.PI / 180, el = elD * Math.PI / 180;
+    const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
+    const cam = new THREE.PerspectiveCamera(fov, aspect, 0.05, 2000);
+    const tt = Math.tan(fov * Math.PI / 360), tv = tt * fl, th = tv * aspect;
+    let t = c.clone(), D = 1;
+    for (let it = 0; it < 3; it++) {
+      cam.position.copy(t).addScaledVector(d, 10); cam.up.copy(up); cam.lookAt(t); cam.updateMatrixWorld(true);
+      const rx = V(1, 0, 0).transformDirection(cam.matrixWorld), ry = V(0, 1, 0).transformDirection(cam.matrixWorld);
+      const off = c.clone().sub(t);
+      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, circle ? z + Math.hypot(p.dot(rx) / th, p.dot(ry) / tv) : Math.max(z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv)); }
+      cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+      let x0 = 1, x1 = -1, y0 = 1, y1 = -1; for (const p0 of corners) { const q = p0.clone().add(c).project(cam); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+      t.addScaledVector(rx, (x0 + x1) / 2 * tt * aspect * D).addScaledVector(ry, (y0 + y1) / 2 * tt * D);
+    }
+    cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t);
+    return cam;
+  };
+  // an orthographic eye from <from> (a unit axis of the aeroplane), <s> px a metre, centred on the drawn extents
+  const ortho = (from, camUp, w, h, s) => { const cam = new THREE.OrthographicCamera(-w / (2 * s), w / (2 * s), h / (2 * s), -h / (2 * s), 0.05, 2000);
+    cam.position.copy(cc).addScaledVector(from, 80); cam.up.copy(camUp); cam.lookAt(cc); return cam; };
+  // THE PANELS, in the still's px: { cam, x, y, w, h, low (the key from below: a hero seen from under), caption }
+  const panels = []; let OW = o.w, OH = o.h;
+  if (o.kind === 'hero') panels.push({ cam: heroCam(o.fov, o.w / o.h, o.yaw, o.el, fill, o.circle), x: 0, y: 0, w: o.w, h: o.h, low: true });
+  else if (o.kind === 'profile') {   // the left side, the nose to the frame's left (the thumbnail)
+    const s = Math.min(o.w * fill / len('f'), o.h * fill / len('u'));
+    panels.push({ cam: ortho(left, up, o.w, o.h, s), x: 0, y: 0, w: o.w, h: o.h });
+  } else if (o.kind === 'cuts') {
+    // THE CUT-OUTS (the user, 2 Nov 21:45: "look at actual pixels, and not just images bounding boxes, so images can
+    // 'interpenetrate' each other ... the difference between something that looks like a beautiful illustration and a
+    // simple collage"): the hero and the three orthos each alone, the background matted away (shot() below), for a
+    // composer that packs by the silhouettes. o.h: the side view's length in px; the plan and the front at its scale
+    const s = o.h / len('f'), ow = a => Math.round(s * a) + 24;
+    const ha = o.aspect || 1.25, Wh = Math.round(o.h * 1.25), Hh = Math.round(Wh / ha);   // the hero squarer (the user, 2 Nov: "a more square image, easier to composite")
+    panels.push({ name: 'hero_m' + Math.round(Math.abs(o.el)), cam: heroCam(o.fov, ha, o.yaw, o.el, 0.94), w: Wh, h: Hh, low: true });
+    panels.push({ name: 'side', cam: ortho(left, up, ow(len('f')), ow(len('u')), s), w: ow(len('f')), h: ow(len('u')), s });
+    panels.push({ name: 'top', cam: ortho(up, fwd, ow(len('l')), ow(len('f')), s), w: ow(len('l')), h: ow(len('f')), s });
+    panels.push({ name: 'front', cam: ortho(fwd, up, ow(len('l')), ow(len('u')), s), w: ow(len('l')), h: ow(len('u')), s });
+    for (const p of panels) { p.x = 0; p.y = 0; }
+  } else {
+    // THE PLANE BOARD (the user, 2 Nov: "a full board: top, side, front AND hero shot, well composited, without much
+    // margin between the pictures"): the hero on the left at 5:4 (the user picked a squarer hero, 2 Nov) the board's height; on the right one column, the three
+    // orthos at ONE scale - the side (the nose left), the plan below it (the nose up: span across, as the front's) and
+    // the front under the plan, the span of the two aligned - a 3-view drawing's column, sized so its height is the
+    // hero's; gutters of a few px
+    const Hb = o.h, g = 4, pad = Math.round(0.045 * Hb), L = len('f'), Sp = len('l'), Hh = len('u');
+    const s = (Hb - 2 * g - 6 * pad) / (L + 2 * Hh);
+    const Wc = Math.round(s * Math.max(L, Sp) + 2 * pad), hs = Math.round(s * Hh + 2 * pad), ht = Math.round(s * L + 2 * pad), hf = Hb - 2 * g - hs - ht;
+    const Wh = Math.round(Hb * (o.aspect || 1.25));
+    OW = Wh + g + Wc; OH = Hb;
+    panels.push({ cam: heroCam(o.fov, Wh / Hb, o.yaw, o.el, 0.86), x: 0, y: 0, w: Wh, h: Hb, low: true, caption: true });
+    panels.push({ cam: ortho(left, up, Wc, hs, s), x: Wh + g, y: 0, w: Wc, h: hs });
+    panels.push({ cam: ortho(up, fwd, Wc, ht, s), x: Wh + g, y: hs + g, w: Wc, h: ht });
+    panels.push({ cam: ortho(fwd, up, Wc, hf, s), x: Wh + g, y: hs + ht + 2 * g, w: Wc, h: hf });
+  }
+  for (const p of panels) { p.cam.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(p.cam); p.cam.updateMatrixWorld(true); p.cam.updateProjectionMatrix(); }
+  // the studio, dressed for a portrait: a backdrop a panel, the two lights, the pool out
+  const bgTex = (w, h) => { const bg = document.createElement('canvas'); bg.width = 512; bg.height = Math.max(8, Math.round(512 * h / w));
+    const g2 = bg.getContext('2d'), gr = g2.createRadialGradient(bg.width * 0.5, bg.height * 0.42, 0, bg.width * 0.5, bg.height * 0.5, Math.max(bg.width, bg.height) * 0.62);
+    gr.addColorStop(0, o.bg0); gr.addColorStop(1, o.bg1); g2.fillStyle = gr; g2.fillRect(0, 0, bg.width, bg.height);
+    const t = new THREE.CanvasTexture(bg); if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  for (const p of panels) p.bg = bgTex(p.w, p.h);
+  const lights = new THREE.Group();
+  const key = new THREE.DirectionalLight(0xfff0dc, o.key), rim = new THREE.DirectionalLight(0xe6eeff, o.rim);
+  rim.position.copy(c).addScaledVector(fwd, -7).addScaledVector(left, -2).addScaledVector(up, 6); rim.target.position.copy(c); key.target.position.copy(c);
+  lights.add(key, key.target, rim, rim.target); S.add(lights);
+  const hid = []; S.traverse(m => { if (m.visible && /^studio:pool$/.test(m.name || '')) { m.visible = false; hid.push(m); } });
+  const bg0 = S.background;
+  const sz = R.getSize(new THREE.Vector2()), pr = R.getPixelRatio();
+  let meta = {}; try { meta = (GARAGE_SPEC.get() || {}).meta || {}; } catch (e) {}
+  const shot = () => {
+    const out = document.createElement('canvas'); out.width = OW; out.height = OH;
+    const g = out.getContext('2d'); g.fillStyle = o.bg1; g.fillRect(0, 0, OW, OH); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    for (const p of panels) {
+      key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, p.low ? -2 : 3);
+      S.background = p.bg; R.setPixelRatio(1); R.setSize(p.w * o.ss, p.h * o.ss, false); R.render(S, p.cam);
+      g.drawImage(R.domElement, 0, 0, p.w * o.ss, p.h * o.ss, p.x, p.y, p.w, p.h);
+      if (p.caption && (meta.name || meta.reg)) {   // the name and the registration, the garage's type, low on the hero
+        const fs = Math.round(p.h * 0.034), x = p.x + Math.round(p.h * 0.04), y = p.y + p.h - Math.round(p.h * 0.045);
+        g.textBaseline = 'alphabetic'; g.fillStyle = '#e8ded0'; g.font = '600 ' + fs + "px 'IBM Plex Sans', system-ui, sans-serif";
+        g.fillText(String(meta.name || ''), x, y - (meta.reg ? Math.round(fs * 0.95) : 0));
+        if (meta.reg) { g.fillStyle = '#a89c8c'; g.font = '500 ' + Math.round(fs * 0.7) + "px 'IBM Plex Sans', system-ui, sans-serif"; g.fillText(String(meta.reg), x, y); }
+      }
+    }
+    return out.toDataURL('image/png').split(',')[1];
+  };
+  // A CUT-OUT: the panel drawn twice, on black and on white - the difference is the background's share (1 - alpha), the
+  // black draw over alpha the colour (difference matting: exact for the anti-aliased edge and the glass, as the blend
+  // happens in the output's values both times); normalised by an empty corner's difference, cropped to the silhouette
+  const grab = (p, col) => {
+    key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, p.low ? -2 : 3);
+    S.background = col; R.setPixelRatio(1); R.setSize(p.w * o.ss, p.h * o.ss, false); R.render(S, p.cam);
+    const cv = document.createElement('canvas'); cv.width = p.w; cv.height = p.h;
+    const g = cv.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(R.domElement, 0, 0, p.w * o.ss, p.h * o.ss, 0, 0, p.w, p.h);
+    return g.getImageData(0, 0, p.w, p.h).data;
+  };
+  const matte = p => {
+    const k = grab(p, new THREE.Color(0, 0, 0)), wt = grab(p, new THREE.Color(1, 1, 1));
+    const bgD = Math.max(1, ((wt[0] - k[0]) + (wt[1] - k[1]) + (wt[2] - k[2])) / 3);
+    const out = new ImageData(p.w, p.h), d = out.data; let x0 = p.w, y0 = p.h, x1 = -1, y1 = -1, n = 0;
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      const A = Math.max(0, Math.min(255, 255 * (1 - ((wt[i] - k[i]) + (wt[i + 1] - k[i + 1]) + (wt[i + 2] - k[i + 2])) / 3 / bgD)));
+      if (A < 2) continue;
+      const f = 255 / A; d[i] = Math.min(255, k[i] * f); d[i + 1] = Math.min(255, k[i + 1] * f); d[i + 2] = Math.min(255, k[i + 2] * f); d[i + 3] = A;
+      const x = j % p.w, y = (j / p.w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; n++;
+    }
+    if (!n) return { name: p.name, px: 0 };
+    const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+    cv.getContext('2d').putImageData(out, -x0, -y0);
+    return { name: p.name, png: cv.toDataURL('image/png').split(',')[1], w: cv.width, h: cv.height, px: n, s: p.s || null,
+             edge: x0 === 0 || y0 === 0 || x1 === p.w - 1 || y1 === p.h - 1 };
+  };
+  let a, b, cuts = null;
+  try {
+    if (o.kind === 'cuts') cuts = panels.map(matte);
+    else { a = shot(); root.visible = false; b = shot(); root.visible = true; }
+  } finally {
+    root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); for (const p of panels) p.bg.dispose();
+    for (const m of hid) m.visible = true;
+    root.rotation.x = pitch0; root.updateMatrixWorld(true);
+    R.setPixelRatio(pr); R.setSize(sz.x, sz.y, false);
+    try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+  }
+  const cam = panels[0].cam;
+  return { a, b, cuts, meta: { name: meta.name || null, reg: meta.reg || null }, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
+           box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
+}`;
+
 // ---- one boot, every build, every view ----------------------------------------------------------------------------
 async function shoot(o) {
   const R = { builds: [], errors: [], fails: [], t: {} };
@@ -207,7 +384,17 @@ async function shoot(o) {
     const fileNode = (await C.cmd('DOM.querySelector', { nodeId: doc.result.root.nodeId, selector: '#gFile' })).result.nodeId;
     if (!fileNode) throw Object.assign(new Error('no #gFile on the page (the fleet\'s Import)'), { code: EXIT.run });
 
-    for (const file of o.builds) {
+    // G3800: 'stock:*' - every stock design the garage offers (GARAGE_SPEC.stock())
+    if (o.builds.includes('stock:*')) { const names = await J('(GARAGE_SPEC.stock() || [])'); o.builds = o.builds.flatMap(b => b === 'stock:*' ? names.map(n => 'stock:' + n) : [b]); log('stock designs', JSON.stringify(names)); }
+    for (let file of o.builds) {
+      // G3800 (thumb_bake.js): 'stock:<name>' is the garage's own stock design - its spec written to a build file in --out
+      // and brought in through the same door as any file
+      if (/^stock:/.test(file)) {
+        const nm = file.slice(6), sp = await J('(GARAGE_SPEC.stockSpec(' + JSON.stringify(nm) + ') || null)');
+        if (!sp || !sp.cage) { log('no stock design', JSON.stringify(nm)); continue; }
+        file = path.join(o.out, 'stock_' + nm.replace(/[^\w.-]+/g, '-') + '.json');
+        fs.writeFileSync(file, JSON.stringify({ what: 'flydiy-build', stock: nm, spec: sp }));
+      }
       const tb = Date.now(), base = path.basename(file).replace(/\.json$/i, '');
       // (NEW-PLANE: a fresh profile's first launch opens the new-aeroplane chooser a moment after the boot, and the chooser
       // holds the frames behind it - closed before every build, as the player's cancel would)
@@ -225,12 +412,12 @@ async function shoot(o) {
         if (C.S.dialogs.length > d0) break;
         let got = {}; try { got = JSON.parse(await C.ev(probe, 60000)) || {}; } catch (e) {}
         same = keys.filter(k => typeof got[k] === 'number' && Math.abs(got[k] - wantCage[k]) <= 1e-6 * Math.max(1, Math.abs(wantCage[k]))).length;
-        if (keys.length && same / keys.length >= 0.9) break;
+        if (keys.length && same / keys.length >= o.same) break;
         if (i > 120 || left() <= 0) break;
       }
       BR.cageRows = keys.length; BR.cageSame = same;
       if (C.S.dialogs.length > d0) { fail(EXIT.build, base + ': the import said "' + C.S.dialogs.slice(d0).join(' / ') + '"'); continue; }
-      if (!keys.length || same / keys.length < 0.9) { fail(EXIT.build, base + ': the page\'s build is not the file\'s (' + same + ' of ' + keys.length + ' cage rows equal)'); continue; }
+      if (!keys.length || same / keys.length < o.same) { fail(EXIT.build, base + ': the page\'s build is not the file\'s (' + same + ' of ' + keys.length + ' cage rows equal)'); continue; }
       // the build settles: its box the same over two looks a few frames apart (the join's second round, the floats' datum)
       const box = '(() => { const o = window.CAGE_UI_SCENE; if (!o || typeof THREE === "undefined") return null; const b = new THREE.Box3().setFromObject(o); return b.isEmpty() ? null : [b.min.toArray(), b.max.toArray()].flat().map(v => +v.toFixed(3)); })()';
       let prev = null;
@@ -243,6 +430,50 @@ async function shoot(o) {
         const VR = { view: v }; BR.views.push(VR);
         try {
           let asked = null;
+          if (/^(hero:|board:|cuts:|profile($|\/))/.test(v)) {
+            // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
+            // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the aeroplane's share of the frame and the still's own size (the
+            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>[/<el>[/<hero aspect>]]; cuts the same, <side px>
+            const kind = v.split(/[:/]/)[0];
+            const hp = kind === 'profile' ? v.split('/').slice(1) : v.slice(kind.length + 1).split('/');
+            let po;
+            if (kind === 'board' || kind === 'cuts') po = { kind, yaw: 38, el: hp[2] != null ? parseFloat(hp[2]) : -12, aspect: hp[3] != null ? parseFloat(hp[3]) : 1.25, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
+            else {
+              const [yaw, el, fov, fill] = kind === 'profile' ? [90, 0, 0, parseFloat(hp[0])] : hp.slice(0, 4).map(parseFloat);
+              const fs = kind === 'profile' ? hp[0] : hp[3], sz = kind === 'profile' ? hp[1] : hp[4];
+              const ps = sz ? sz.split('x').map(Number) : o.psize;
+              po = { kind, yaw, el, fov, fill: fill || 0, circle: /c$/.test(fs || ''), w: ps[0], h: ps[1], ss: 2 };
+            }
+            Object.assign(po, o.look);
+            if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
+            const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
+            await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
+            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box });
+            if (pr.cuts) {   // THE CUT-OUTS: one transparent PNG a view + <base>_cuts.json (the orthos' px a metre, the name, the reg)
+              VR.cuts = [];
+              for (const k of pr.cuts) {
+                if (!k.px) throw Object.assign(new Error('the ' + k.name + ' cut-out is empty'), { code: EXIT.frame });
+                if (k.edge) throw Object.assign(new Error('the ' + k.name + ' cut-out touches its frame (cut off)'), { code: EXIT.frame });
+                const f = path.join(o.out, base + '_cut_' + k.name + '.png'); fs.writeFileSync(f, Buffer.from(k.png, 'base64'));
+                VR.cuts.push({ name: k.name, w: k.w, h: k.h, px: k.px, s: k.s, png: f });
+              }
+              fs.writeFileSync(path.join(o.out, base + '_cuts.json'), JSON.stringify({ build: base, meta: pr.meta, cuts: VR.cuts }, null, 1));
+              VR.t = +((Date.now() - tv) / 1000).toFixed(1);
+              log(base, v, 'ok', VR.t + ' s,', VR.cuts.map(k => k.name + ' ' + k.w + 'x' + k.h).join(', '));
+              continue;
+            }
+            const P = await J('(' + ANALYSE + ')(' + JSON.stringify(pr.a) + ', ' + JSON.stringify(pr.b) + ')', 180000);
+            VR.picture = P;
+            const bad = why => { const f = path.join(o.out, base + '_' + name + '_FAIL.png'); fs.writeFileSync(f, Buffer.from(pr.a, 'base64')); VR.failPng = f; return why; };
+            if (P.topShare > 0.97) throw Object.assign(new Error(bad('the portrait is one flat colour')), { code: EXIT.frame });
+            if (!(P.craftShare > 0.02)) throw Object.assign(new Error(bad('the aeroplane is not in the portrait (' + (100 * (P.craftShare || 0)).toFixed(2) + ' %)')), { code: EXIT.frame });
+            if (P.cut && P.cut.length) throw Object.assign(new Error(bad('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge')), { code: EXIT.frame });
+            const out = path.join(o.out, base + '_' + name + '.png');
+            fs.writeFileSync(out, Buffer.from(pr.a, 'base64'));
+            VR.png = out; VR.t = +((Date.now() - tv) / 1000).toFixed(1);
+            log(base, v, 'ok', VR.t + ' s,', 'aeroplane', (100 * P.craftShare).toFixed(1) + ' % of', P.w + 'x' + P.h, '->', path.relative(process.cwd(), out));
+            continue;
+          }
           if (PRESET[v]) {
             const label = PRESET[v][0];
             // the doors in order: the top bar's VIEWS button (PHONE-GARAGE G3724), the camera flyout's pill (the rail's,
@@ -421,15 +652,22 @@ async function pair(dirA, dirB, out, labels, chrome) {
     builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
     root: path.resolve(opt('root', REPO)),
+    psize: (opt('psize', '1800x1200')).split('x').map(Number),
+    same: +opt('same', 0.9),   // the share of the file's cage rows the page must hold (an old v7 / v8 file: the build's clamps and migrations pull more)
+    // the portrait's studio: the backdrop's centre and edge, the key's and the rim's strength
+    look: { bg0: opt('bg0', '#2b2724'), bg1: opt('bg1', '#0a0908'), key: +opt('key', 2.2), rim: +opt('rim', 2.6) },
   };
   // the arguments, before anything is launched (--dry stops here)
   if (!builds.length) bail(EXIT.run, '--build <file.json>[,<file2.json>]: which aeroplane(s)');
   for (const b of builds) {
+    if (/^stock:./.test(b)) continue;   // G3800: a stock design, read from the page
     if (!fs.existsSync(b)) bail(EXIT.build, 'no such build file: ' + b);
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
-    if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
+    // the garage's own rule (garage.js unwrap: a spec with a cage), not the export's label - the pool's NEW-SHAPES files
+    // name their recipe in `what` (PORTRAITS)
+    if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}(\/-?[\d.]+(\/[\d.]+)?)?$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');

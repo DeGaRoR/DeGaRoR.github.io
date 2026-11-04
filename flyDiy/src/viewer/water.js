@@ -1011,6 +1011,8 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0 };
+  // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
   // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,

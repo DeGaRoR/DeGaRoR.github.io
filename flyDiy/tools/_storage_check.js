@@ -268,7 +268,7 @@ function run(mut) {
     const T = { opened: [], moved: [], trips: 0, saved: 0, stand: 'Cub', inGarage: true, started: false, flEnded: false, wog: 1 };
     const Hx = Object.assign(Object.create(null), R, {
       world: { aerodromes: [{ id: 'HOME', name: 'Jolene AFB 13/31' }, { id: 'w3', name: 'Tamgas Hill Strip' }, { id: 'w9', name: 'Cabin Strip' }] },
-      playerLoad: () => doc, playerSave: () => { T.saved++; }, slotOnStand: () => T.stand, applyEnv: () => {}, storeChanged: () => {}, roomFollow: () => {},
+      playerLoad: () => doc, playerSave: () => { T.saved++; }, slotOnStand: () => (T.empty ? null : T.stand), CAREER_DEV: true, standEmptySet: on => { T.empty = !!on; }, applyEnv: () => {}, storeChanged: () => {}, roomFollow: () => {},
       storeMove: (n, to) => { T.moved.push(n + ':' + to.kind); T.stand = n; return { ok: true }; }, $: () => null, flyOpenSet: () => {},
       rollInScreen: after => { T.trips++; T.inGarage = true; after(); }, storeSyncHold: false, arrivalShown: false, baseId: 'HOME', console, Promise, String, Object,
       window: { GARAGE_SPEC: { open: n => { T.opened.push(n); T.stand = n; } }, FLYDIY_ROUTE: null },
@@ -291,12 +291,24 @@ function run(mut) {
     G.gotoGarage('w3.1');
     ok(doc.here === 'w3.1' && T.trips === 1 && T.moved.join() === 'Jodel:floor' && T.stand === 'Jodel',
        'gotoGarage on the ground after a flight: "The shed"\'s trip, the hangar is here (free), its plane worked on - onto the stand (G3613)', JSON.stringify({ here: doc.here, trips: T.trips, moved: T.moved }));
-    // STORY-HOME-FIX (F2, the STORY-HOME look 3 Nov: Rufus stood on an empty HOME's stand and rolled out from the cabin)
+    // EMPTY-STAND (the user 4 Nov on the STORY-HOME look's F2: "Empty hangar" - Rufus stood on an empty HOME's stand and
+    // rolled out from the cabin): the hangar becomes here, the stand EMPTY - its aeroplane neither loaded nor moved
     doc.sheds.w5 = shed('field', 'w5'); T.saved = 0;
-    const E = G.garagesList().find(x => x.id === 'w5') || {};
+    const opened0 = T.opened.length, moved0 = T.moved.length;
     G.gotoGarage('w5');
-    ok(doc.here === 'w3.1' && !T.saved && E.away === 'empty - fly an aeroplane to w5 first' && E.stand === null && !byId('w3.1').away,
-       'gotoGarage: an empty hangar at another field than the stand\'s aeroplane is refused, the map told why (garages().away); nothing moved (STORY-HOME-FIX F2)', JSON.stringify({ here: doc.here, away: E.away }));
+    const E = G.garagesList().find(x => x.id === 'w5') || {};
+    ok(doc.here === 'w5' && T.empty === true && T.opened.length === opened0 && T.moved.length === moved0 && E.stand === null && E.planes.length === 0 &&
+       doc.fleet.Jodel.hangar === 'w3.1',
+       'gotoGarage: an empty hangar opens with the stand EMPTY - the stand\'s aeroplane stays where it stands, nothing loaded or moved, garages() no stand there (EMPTY-STAND)', JSON.stringify({ here: doc.here, empty: T.empty, stand: E.stand }));
+    G.gotoGarage('w3.1');
+    // the look's F1 and F3 and the user's ruling on it: the build you look at (edSit) is not in `craft`
+    const edCss = rd('src/viewer/editor.css'), dfSrc = rd('src/viewer/design_flow.js');
+    ok(/edSit\.visible = showCage && !STAND_EMPTY;/.test(app) && /edSit\.visible = !on && showCage;/.test(app), 'the empty stand hides the build as well as the craft: no aeroplane drawn until one is chosen (the user 4 Nov; the look\'s F1)');
+    ok(/if \(on\) standEmptyAuto\(\);/.test(app) && /stTutLockV \|\| \(window\.DESIGN_FLOW && window\.DESIGN_FLOW\.isRig/.test(app) && /window\.NEW_PLANE\.open\(\{ offer: \{/.test(app), 'an arrival at an empty stand opens the choice by itself, existing or new (the user 4 Nov); not for a rig, not under a tutor\'s lock');
+    ok(/body\.mode-ws\.gEmpty, body\.mode-ws\.gEmpty\.info-off \{ --ws-left:0px; --ws-right:0px; \}/.test(edCss), 'the empty stand\'s view takes the columns\' room (the look\'s F3)');
+    ok(/!window\.FLYDIY_STORY_STARTER && !career\(\)/.test(dfSrc), 'the first-launch chooser never opens by itself over a career (the look\'s F2)');
+    ok(doc.here === 'w3.1' && T.moved.slice(moved0).join() === 'Jodel:floor',
+       'gotoGarage out of an empty stand to a hangar with its aeroplane: that aeroplane onto the stand (its load ends the empty stand - flydiy:specApplied) (EMPTY-STAND)', JSON.stringify({ here: doc.here, moved: T.moved.slice(moved0) }));
   }
   for (const f of ['fleet_stand.js', 'parked.js']) {
     const s = rd('src/viewer/' + f);

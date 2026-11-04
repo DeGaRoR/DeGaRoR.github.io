@@ -103,7 +103,7 @@ function material(aspect, kind, ui) {
   if (!S.mat) {
     S.cw = CW = cwFor(S.kind);
     S.mat = new THREE3.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.18, metalness: 0,
-      emissive: new THREE3.Color(0xffffff), emissiveIntensity: 0, side: THREE3.FrontSide });
+      emissive: new THREE3.Color(0xffffff), emissiveIntensity: 0, side: THREE3.FrontSide });  // pre-ok: 0 here, the glow below carries P
     S.mat.userData.aeroskin = 1;          // never the grey understudy
     S.mat.userData.panelSet = S.i ? 'gps2' : 'gps';   // the join's bucket key (G2815: the second display's own)
     S.mat.userData.inside = 1;
@@ -1020,7 +1020,7 @@ function bindOne(o, kind, face) {
   S.trHead = 0; S.trN = 0; S.have = false; S.acc = 0; S.trackAcc = 0; S.gs = 0; S.trk = 0; S.pT = 0;
   S.on = false; S.dark = false; S.boot = 0;
   paintDark(); S.dark = true;
-  if (S.mat) S.mat.emissiveIntensity = 0;
+  if (S.mat) S.mat.emissiveIntensity = 0;  // pre-ok: dark
 }
 // every frame: numbers only. CK: the cockpit (gpsOn, cg, nightK; sw: each unit's power button - G2814)
 function tick(dt, CK) {
@@ -1048,7 +1048,7 @@ function tickOne(dt, CK) {
     }
   }
   if (!on) {
-    if (!S.dark) { paintDark(); S.dark = true; S.mat.emissiveIntensity = 0; }
+    if (!S.dark) { paintDark(); S.dark = true; S.mat.emissiveIntensity = 0; }  // pre-ok: dark
     S.on = false; S.boot = 0; S.acc = 0;
     return false;
   }
@@ -1058,7 +1058,7 @@ function tickOne(dt, CK) {
   const hz = S.page === 'pfd' ? PFD_HZ : HZ;     // G2813: the attitude at 20 Hz, the map and the numbers at 4
   // the screen's own glow: the cockpit's night dimmer for what is read up close (CK.nightK, the faces' law)
   const glow = CK.nightK ? CK.nightK(0.92) : 1;
-  S.mat.emissiveIntensity = 0.9 * glow;
+  S.mat.emissiveIntensity = 0.9 * glow * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: x P like every lamp in the frame
   S.acc += dt; S.pT += dt;
   // (a tolerance: fifteen 1/60 s steps can sum to a hair under 1/4 s, and the cadence would slip to 3.75 Hz; the
   // remainder carries, so the repaints keep 4 Hz at any frame rate, and a long stall does not owe a burst)
@@ -1147,7 +1147,7 @@ const API = {
   paintPfd: (x, z, ui) => { use(ui || 0); FR.x = x; FR.z = z; paintPfd(); },
   // the shed: the units off, their standby pages, released by the flight (app.js enterGarage)
   standby: () => {
-    for (let i = 0; i < 2; i++) { use(i); S.bound = false; S.on = false; S.dark = false; S.boot = 0; if (S.mat) { S.mat.emissiveIntensity = 0; paintStandby(); } }
+    for (let i = 0; i < 2; i++) { use(i); S.bound = false; S.on = false; S.dark = false; S.boot = 0; if (S.mat) { S.mat.emissiveIntensity = 0; paintStandby(); } }  // pre-ok: dark
     use(0);
   },
   // GATE GPSFACE: a canvas factory for node, and the page painters by name

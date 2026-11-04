@@ -717,12 +717,25 @@ function renderBirth() {
         b.querySelector('b').textContent = c.name || c.file;
         b.querySelector('span').textContent = 'candidate official' + (c.note ? ' — ' + c.note : '');
         b.title = c.file + ': designed and built, not validated - no certificate';
+        b.dataset.thumb = 'cand:' + c.file; dfThumb(b);   // G3800: its side-profile picture, when there is one
         b.addEventListener('click', () => { closeBirth(); g.openCandidate(c); });
         grid.appendChild(b);
       }
     });
   }
 }
+
+// G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE): a candidate tile's picture, once (none = today's tile); a picture that
+// lands later ('plane-thumb') fills the tiles still without one
+function dfThumb(b) {
+  if (!b || b.querySelector('img.dfThumb') || typeof b.prepend !== 'function') return;
+  let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(b.dataset.thumb); } catch (e) { u = null; }
+  if (!u) return;
+  const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'dfThumb'; b.prepend(im);
+}
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => {
+  try { document.querySelectorAll('.dfCand[data-thumb]').forEach(dfThumb); } catch (e) {}
+});
 
 function birthFooter() {
   const f = document.createElement('div');
@@ -803,7 +816,10 @@ function maybeAutoOpen() {
     if (window.localStorage.getItem('flydiy.wip')) return;
     if (isRig()) return;
     const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
-    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400));
+    // EMPTY-STAND-LOOK F2: the chooser came up over a new story career in 2 of 3 runs (FLYDIY_STORY_STARTER read before the
+    // story's boot had set it): a career's own aeroplane, or its empty stand's choice, is the door - never this one
+    const career = () => window.FLYDIY_MODE === 'career' && !(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
+    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER && !career()) openBirth(); }, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {
@@ -811,7 +827,7 @@ if (typeof window !== 'undefined') {
   else window.addEventListener('load', maybeAutoOpen);
 }
 
-window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth,
+window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth, isRig,
                        bakeBirth, surpriseSel,
                        twinsOf, slotBlock, slotReset, sync };
 

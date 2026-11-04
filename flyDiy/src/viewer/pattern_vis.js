@@ -34,7 +34,7 @@ function buildPatternVis(THREE, pattern, groundY, core) {
   // everything else, and the night's schedule opens 15 stops: the pilot's planned legs (a line
   // in the sky) and the slope's ribbons blew to white bars on the horizon after dusk. These are
   // instruments drawn on the picture, so they keep their own colour: toneMapped off.
-  const mkMat = (col, op) => new THREE.MeshBasicMaterial({
+  const mkMat = (col, op) => new THREE.MeshBasicMaterial({  // pre-ok: the UI layer's ribbons (not light)
     color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
   const lineMat = (col, op) => new THREE.LineBasicMaterial({
     color: col, transparent: true, opacity: op, depthWrite: false, toneMapped: false });
@@ -235,7 +235,7 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       // lenses' law, 1.2 x (0.92 / exposure)^0.9; a PAPI is lit by day too).
       const unit = (x, z, bar, off) => {
         const g = new THREE.BoxGeometry(kind === 'vasi' ? 1.6 : 1.2, 0.9, 1.2);
-        const m = new THREE.MeshStandardMaterial({ color: dark, emissive: 0x000000, emissiveIntensity: 0, roughness: 0.6, metalness: 0.1 });
+        const m = new THREE.MeshStandardMaterial({ color: dark, emissive: 0x000000, emissiveIntensity: 0, roughness: 0.6, metalness: 0.1 });  // pre-ok: 0 here; papiUpdate drives it x P
         const box = new THREE.Mesh(g, m);
         box.position.set(x, gy(x, z) + 0.6, z);
         box.rotation.y = Math.atan2(-u[1], u[0]);
@@ -265,7 +265,7 @@ function buildPatternVis(THREE, pattern, groundY, core) {
           col = ang > P.gs + U.off ? P.white : P.red;
         }
         if (U.m.emissive.getHex() !== col) U.m.emissive.setHex(col);
-        U.m.emissiveIntensity = col ? lv : 0;
+        U.m.emissiveIntensity = col ? lv : 0;  // pre-ok: lv carries P (app.js papiUpdate)
       }
     }
   };

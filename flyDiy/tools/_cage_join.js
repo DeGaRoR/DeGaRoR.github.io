@@ -415,6 +415,7 @@ function cageJoinSpec(P, M, T) {
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
+      if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
     }
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
@@ -1691,7 +1692,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               const FSv = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * (+P.planeScale || 1);
               const hV = Math.max(0.05, +P.finVentralH || 0.4), cV = Math.max(0.1, +P.finVentralC || 0.6);
               const tip = Math.max(0.05, Math.min(1, +P.finVentralTip || 0.35));
-              M.Sv += (TBj ? 2 : 1) * 0.5 * (1 + tip) * cV * hV * FSv * FSv;
+              // (FLOATS-CLASSIC: the vintage lobe under a single fin is 0.841 c h - _cage_fin.js's outline integrated)
+              const lobeV = !TBj && Math.round(+P.finVentralShape || 0) === 1;
+              M.Sv += (TBj ? 2 : 1) * (lobeV ? 0.841 : 0.5 * (1 + tip)) * cV * hV * FSv * FSv;
             }
             M.dorsalArea = finM.areaDorsal;
             M.vTaper = finTaperAbove(finM, FNm);

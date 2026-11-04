@@ -48,6 +48,8 @@ const SEC = {
   joint:           '#d8dde4',
   boomTube:        '#8fa3b8',
   bulkhead:        '#8a7a5f',
+  bulkTrim:        '#d8d2c4',
+  baggage:         '#d9cfb0',
   firewall:        '#8a4a2f',
   fireProof:       '#d9dee3',
   fireSeal:        '#4a4f55',
@@ -306,7 +308,7 @@ const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // are the TRUSS's own cladding, switched on by their own row, so a "no skin"
 // build keeps them the way it keeps the tubes they are riveted to — the
 // user's rod ultralight lost them at skinOn 0 and read as bare pipe (G187).
-const INTSTRUCT = new Set(['bulkhead', 'firewall', 'fireProof', 'fireSeal',
+const INTSTRUCT = new Set(['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal',
                            'dash', 'dashFace', 'tube',
                            'woodFrame', 'aluminium', 'boomTube', 'taperPanel']);
 // WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
@@ -5645,7 +5647,8 @@ function buildMatPanel() {
     // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
     // every build made from it, and on a bubble it is that dark surround
     waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
-    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band',
+    bulkTrim: 'aft wall upper panel', baggage: 'cargo net / sling' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],
