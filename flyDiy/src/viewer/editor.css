@@ -912,6 +912,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
 /* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
 .gfCandRow .gfLoad { border-style:dashed; }
+/* G3800 (PLANE_THUMB): the card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
+.gfLoad img.gfThumb, .dfArch img.dfThumb, #npWrap .npTile img.npThumb { width:120px; height:60px; object-fit:contain; flex:none; display:block; border-radius:4px; }
+.gfLoad img.gfThumb { align-self:center; }
 
 .gfRow { display:flex; align-items:stretch; gap:4px; }
 
