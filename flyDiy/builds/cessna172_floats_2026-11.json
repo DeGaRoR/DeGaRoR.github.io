@@ -1007,8 +1007,8 @@
    "reg": "B-CESS"
   },
   "fuel": {
-   "litres": 25,
-   "tank": "nose"
+   "litres": 212,
+   "tank": "wing"
   },
   "systems": {
    "fit": "custom",
@@ -1286,17 +1286,13 @@
    "tint": null,
    "vessels": [
     {
-     "bay": "nose",
-     "capacity": 25,
-     "along": -0.11641046859487401,
-     "lv": 0.625,
+     "bay": "wingRoot",
+     "capacity": 212,
+     "along": null,
+     "lv": null,
      "rot": 0,
      "form": "box",
-     "dims": {
-      "L": 0.192,
-      "W": 0.866,
-      "H": 0.177
-     },
+     "dims": null,
      "finish": null,
      "hue": null,
      "tint": null
