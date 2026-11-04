@@ -310663,7 +310663,52 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
   2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
 - IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
   Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
-### 6. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; on L31a adc53b25b)
+### 6. THE CABIN'S UPPER HALF: HEADLINER, WALL TRIM, OVERHEAD CONSOLE (CABIN-INTERIOR, the user 3 Nov 08:40, via A0)
+The user picked the first cut of the proposal (evidence 2026-11-03/cabin-craft/INTERIOR-PROPOSAL.md): T1 + T2 + G1 now,
+visors (G3) and grab handles (G4) after; G2 roof ribs, G5 compass not now; headliner / wall / trim paintable, warm tan
+as one swatch; built on SEATS (claude/seats b7e28ac36) and the clean door panel (section 5). Three rows, all ABSENT
+at default (G3570: not in the defaults table, `absent: 0`), part "Headliner & trim" under Cabin fit (_cage_parts.js):
+- hdlOn (T1 THE HEADLINER): cageInterior's liner flags its visible (inner) faces only when a row is on; just before
+  the sheet is assembled, those inside the cabin (zNose0 back to the passenger ring, or the side glass's aft edge)
+  whose inward normal is >= 0.8 down become section `headliner` (0.8: the triplanar's ceiling plane dominates, so the
+  channels never stripe the flank). Role `hdl`, finish `headliner` (quilted headliner) in every construction column;
+  the new `quilt` bake: two puffed channels a 0.36 m tile (a listing seam every 18 cm along the fuselage), a stitched
+  groove either side of each seam, a brushed nap. Same faces, relabelled: the face count does not move.
+- wallTrimOn (T2 THE UPPER WALL TRIM): the rest of the visible liner above the waistband top (S.bandY) in the cabin ->
+  `cabWall`, role `wall`, finish `trimVinyl` (the `hide` bake kept low: vinyl, not leather). The panel joins at the
+  frame stations are NOT drawn yet (a tiled bake cannot place them; a follow-up if the stills ask).
+- ohConsoleOn (G1 THE OVERHEAD CONSOLE, _cage_crew.js buildOverheadConsole): a lofted moulded pod (0.30 m long, 0.21
+  wide on a two-abreast row / 0.16 single, 45 mm deep, easing into the ceiling at both ends) on the centreline, its
+  front 3 cm aft of the windscreen's aft-most edge (a raked screen reaches back over the heads), two eyeball vents
+  forward, two lamp bezels aft; 432 tris; M.dark (the crew's moulding: the join's existing bucket). It publishes its
+  lamp seats (A.ohc); the light layer's first rung on a closed cabin is `consoleAt`: the flood into the pilot-side
+  bezel, a front passenger's lamp into theirs. A closed cabin only; any glass over its footprint draws none.
+- The liner lists take the two sections: _cage_ui INTSKIN (the skin alpha, measureBox), _fit_site (no fitting laced
+  into them), the lamp code's ceiling, GATE CABINLAMP's roof set, quickshot's interior skip.
+- Paint: the two sections are the part's livery rows; the picker shows a section's SUGGESTED swatches ahead of the
+  recent colours (_cage_ui PK_SUGGEST: warm tan #c49a6c for both), ringed, never applied until clicked.
+- COST, named: the headliner and the wall trim are one material each, so +1 draw call each when on (the join keys a
+  bucket by its finish); the console adds none. Their bakes are 512 px detail sheets, kept on the phone's lite tier
+  (a fetch in the program the liner already runs).
+- Gates: CABINLAMP twin2con (the twin + the three rows: console, console, roof, roof - no lamp near glass), LIGHT (the
+  ladder text with consoleAt), SKINMAT (one headliner layout per construction).
+- CABIN-SHOTS FIXES (A0's cloud pictures through the glass, origin/claude/cabin-shots, 3 Nov 17:10):
+  - THE POD'S TOP ON THE CEILING UNDER EVERY POINT: one flat top at the lowest roof face's centroid, on the twin's roof
+    falling to its raked screen, put the nose 1.0 cm out through the skin (a black slot on the roof from outside) and
+    left 3.8 cm under the headliner aft (the Cub's nose 1.0 cm out too). Now a ray straight up the sheet's roof faces
+    at every lofted vertex (`yTop`): the top 4 mm into the liner, never more than halfway to the skin; skin alone, 2 mm
+    under it. 456 tris (the top closes along a centreline spine).
+  - THE LAMP IN ITS BEZEL: the bezel's radius is the lamp's (LAMP_R 19 mm, bezel 20/26 mm, A.ohc.r); consoleAt passes
+    `r` and its sink follows it (the 75 mm flood hung under a 52 mm bezel).
+  - A ROOF LAMP'S FLANGE UNDER THE SKIN (_cage_light.js `skinOver`): every point of the flange's rim (1.34 r, PROF.can)
+    needs a sheet face over it, 2 mm clear; a face over the seat that fails is retried 6 / 12 / 18 cm aft before the
+    roof rung gives up. Pre-existing on the twin with the console off: its two front domes through the windscreen frame
+    band; now on the roof 6-12 cm aft. The identity tool: the six validated builds unchanged.
+  - T2 IS THE FINISH ONLY: the wall trim's panel joins are not drawn (a follow-up, with G3 visors / G4 grab handles).
+  - Named: with the rows on the ceiling reads darker (the flood 6 cm lower in the console, no longer grazing the
+    ceiling; the headliner base 0x9d968a) - paint it (warm tan suggested).
+  - GATE PARTS has a headliner shape (the two sections exist only with their rows on).
+### 7. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; L31b, fixes L31c)
 
 The user: "Focus on the aft bulkhead really". The study (claude/aft-bulkhead-look) found the wall shows only from forward of the beam,
 through the rear side glass, near black on tube, alloy and composite builds. Rows in the garage's aft wall group, all absent at default:
@@ -310674,9 +310719,15 @@ bhFast (1 screws, 2 rivets, section toele), bhNet (section baggage), bhLamp bhLa
 - WHY THE STRIP IS STRAIGHT: the user 4 Nov, on it following the top edge: "do not follow this strange maybe ceiling path". It bends only
   under a true round arch (`isArch` in wallLamp).
 - GATES AND GAPS: `reports/evidence/AFT-BULKHEAD/READY.md`. Stills: claude/aft-bulkhead-shots, `.../AFT-BULKHEAD/rows/ROWS.md`.
-  Default builds identical against L31a; FRAMECOST red only on master's own 5 rows.
-- OWED: L31c: the net under the lamp on shelf builds, relief on the upper panel, a smoothed inner outline. Next round: the Cub sling
-  clears the rear seat, accessories and placards, the Mosquito's flood lamp through the deck.
+  Default builds identical against L31b; FRAMECOST red on the same 5 rows as master adc53b25b.
+- THE SECOND ROUND (L31c): the net stands under the lamp (`BH.lampBand`; `yNet` keeps wallLamp's strip and dome over it); the bevel's inner
+  edge and the screws take a smoothed outline (`at(p,k)`, the ring itself stays lumpy); a roll narrows to fit the upper panel; a bulkhead
+  flood lamp needs its whole flange on the wall or passes to the next rung (`bulkheadAt`, the Mosquito).
+- ON BY DEFAULT ONLY IN 4b: `builds/candidates/Twin_busher_floats_4b.json` carries these rows and section 6's (the user 4 Nov, for the
+  screenshot). The rows carry NO mass: 820.615 kg either way, in the ledger's model, not in truth. 4b's flight draws are not measured
+  (FRAMECOST reads default builds).
+- OWED, next week: the Cub sling clears the rear seat (a real FAIL, 20.8 cm), accessories, stickers and placards (the user: each picks a
+  place; 17 original designs in the evidence folder), mass for the interior if anyone asks.
 
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 

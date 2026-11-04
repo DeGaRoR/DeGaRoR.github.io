@@ -86,6 +86,7 @@ const NOT_SKIN = new Set([
   'bulkhead', 'bulkTrim', 'baggage', 'firewall', 'dash', 'dashFace', 'tube', 'woodFrame',   // (+ AFT-BULKHEAD's two)
   'aluminium',
   'plywood', 'cloth', 'composite', 'toele',                      // interior
+  'headliner', 'cabWall',                                        // (CABIN-INTERIOR: the liner's split)
   // the firewall's engine face and the seal round it: inside the cowl, not
   // on the outside of the aeroplane, and a fitting bolted there would be
   // invisible under the cowling

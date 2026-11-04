@@ -211,6 +211,19 @@ const AERO_FINISH = {
   liner:     { name: 'cabin cloth',  base: 0x8d8578, tile: 0.16,
                rough: 0.88, metal: 0.0, nrm: 0.55, alb: 0.30,
                hs: 0.7, bs: 1.0, bake: 'weave' },
+  // CABIN-INTERIOR (T1, the user 2-3 Nov: "more detail on the top of the cabin, which is currently a box ... what you
+  // see through windows"): THE HEADLINER. A real light-aircraft headliner is a vinyl or brushed cloth stretched in
+  // transverse channels between listing seams - so the `quilt` bake: two soft puffed channels a 0.36 m tile (a seam
+  // every 18 cm, along the fuselage on the ceiling's projection), a stitched groove at each seam, a fine brushed nap.
+  // The colour is the builder's (the section `headliner`); the base is the cabin cloth's own, a shade lighter.
+  headliner: { name: 'quilted headliner', base: 0x9d968a, tile: 0.36,
+               rough: 0.82, metal: 0.0, nrm: 0.85, alb: 0.30,
+               hs: 0.9, bs: 0.8, bake: 'quilt', quilts: 2 },
+  // T2: THE UPPER WALL TRIM - a moulded vinyl trim panel from the sill to the headliner: a fine pebble (the `hide`
+  // bake, kept low so it reads as vinyl, never as leather), semi-matte
+  trimVinyl: { name: 'vinyl trim',   base: 0xa29a8e, tile: 0.12,
+               rough: 0.62, metal: 0.0, nrm: 0.30, alb: 0.25,
+               hs: 0.6, bs: 0.7, bake: 'hide' },
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
                rough: 0.28, metal: 0.10, nrm: 0.25, alb: 0.08,
                hs: 0.6, bs: 0.5, bake: 'sheet',
@@ -460,6 +473,9 @@ const AERO_ROLE = {
   // so the pleated hide is the default in every column and any finish can
   // be set on it from the paint UI
   doorPanel: 'doorPad',
+  // CABIN-INTERIOR (T1/T2): the liner's ceiling and its upper walls, their own sections once the rows split them
+  // off (absent, every build keeps one liner): the headliner and the trim panel, the same in every column
+  headliner: 'hdl', cabWall: 'wall',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
   // AFT-BULKHEAD (3 Nov): the aft wall's light upper panel and its cloth (the cargo net, the Cub's sling) - linings
   // by name like the four above, the same finish whatever the aeroplane is built of
@@ -477,7 +493,7 @@ const AERO_ROLE = {
 // factory takes `inside` and the shader scales every lit term by
 // (1 - uCabin.x) on those fragments — sky, lamps and sun alike, because a
 // roof and a skin stop all three.
-const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire', 'sill', 'doorPad']);
+const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire', 'sill', 'doorPad', 'hdl', 'wall']);
 function aeroIsInside(section) {
   if (section === 'boomTube' || section === 'taperPanel') return false;
   return AERO_INSIDE_ROLES.has(AERO_ROLE[section]);
@@ -508,23 +524,28 @@ const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   glass:      { skin: 'gelcoat', rail: 'gelcoat', pillar: 'gelcoat',
                 struct: 'gelcoat', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the
@@ -532,11 +553,13 @@ const AERO_BY_CONS = {
   fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                             'skyWindows']);
@@ -1397,6 +1420,19 @@ function aeroHeight(kind, S, row) {
         const stitch = groove * 0.35 * Math.max(0, Math.sin(u * 40));
         const pebble = 0.06 * Math.sin(u * 23 + 1.3 * Math.sin(v * 17)) * Math.sin(v * 29 + 1.3 * Math.sin(u * 13));
         return 0.62 * roll - 0.25 * groove - stitch + pebble;
+      }
+      case 'quilt': {
+        // THE HEADLINER (CABIN-INTERIOR T1): `quilts` channels a tile along v, each a full soft puff (the cosine
+        // roll's square root - a stretched cloth over padding is round, then falls sharply into the seam), a
+        // narrow listing seam between them with a row of stitches either side, and a brushed nap along u
+        const n = (row && row.quilts > 0) ? row.quilts : 2;
+        const ph = (v * n) % (Math.PI * 2);
+        const puff = Math.sqrt(0.5 + 0.5 * Math.cos(ph));
+        const d = (ph - Math.PI) / 0.16;
+        const seam = Math.exp(-d * d);
+        const st = o => Math.exp(-Math.pow((ph - Math.PI - o) / 0.06, 2)) * Math.max(0, Math.sin(u * 56));
+        const nap = 0.05 * Math.sin(v * 3 + u * 97 + 1.1 * Math.sin(v * 41)) + 0.03 * Math.sin(u * 61 - v * 23);
+        return 0.70 * puff - 0.30 * seam - 0.12 * (st(0.34) + st(-0.34)) + nap;
       }
       case 'hide': {
         // LEATHER. The grain is a broad, soft PEBBLE with fine pores in it,
