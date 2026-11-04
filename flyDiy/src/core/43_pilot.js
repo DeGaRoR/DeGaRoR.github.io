@@ -1409,9 +1409,16 @@ function makePilot(sim, def, world, opts) {
     // the side whose ground under the downwind + base is lower
     const M = siteModelOf(to);
     let D = M ? M.dir[(u[0] * M.dir[1].u[0] + u[1] * M.dir[1].u[1]) > 0 ? 1 : 0] : null;
-    // G3914: only the ground under the final flown asks a slope (25_airfield reqTo): a shorter final clears less, so the longest one
-    // at the archetype's own slope is the one read
-    if (P3_ && D && M.reqTo) D = Object.assign({}, D, M.reqTo(D.k, p3Final(A.gs, hC, ST.patW * Rturn, ap.VAppr, ap.shortFld)));
+    // G3914: only the ground under the final flown asks a slope (25_airfield reqTo), and a steeper slope flies a shorter final: the
+    // least slope whose own final clears
+    if (P3_ && D && M.reqTo) {
+      let q = null;
+      for (let g = A.gs, gT = Math.max(A.gs, gsMax()); ; g += 0.005) {
+        q = M.reqTo(D.k, p3Final(g, hC, ST.patW * Rturn, ap.VAppr, ap.shortFld));
+        if (1.05 * q.reqGs <= g || g >= gT) break;
+      }
+      D = Object.assign({}, D, q);
+    }
     ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax())) : A.gs;
     // STOL-PILOT: THE STOL APPROACH IS STEEPER AND FLOWN ON POWER (FAA-H-8083-3: full flap, the power holding the speed,
     // the pitch the path; 50 ft cleared and the touchdown 300-500 ft on is 6-9.5 deg): gsStol (0.12, 6.8 deg) at the
@@ -1540,7 +1547,8 @@ function makePilot(sim, def, world, opts) {
       if (PR.join === 'downwind') join = 'downwind';
     }
     ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side, sideForced, join, protocol: PR };
-    if (P3_) { ap.plan.gD = gDes(); ap.plan.hIaf = Math.min(hC, aimAlt() + Diaf * ap.gs - ap.altRef); }
+    // (G3914: the base ends under the slope by 8 s of it: rolled out high on a slope the aeroplane only just makes, it is never caught)
+    if (P3_) { ap.plan.gD = gDes(); ap.plan.hIaf = Math.min(hC, aimAlt() + Math.max(0, Diaf - 8 * ap.VAppr) * ap.gs - ap.altRef); }
     ap.report.circuit = { hand: side > 0 ? 'left' : 'right', hC: Math.round(hC), join, declared: PR ? { hand: PR.hand || null, height: PR.height || null, join: PR.join || null } : null };
     return ap.plan;
   };
@@ -2428,6 +2436,9 @@ function makePilot(sim, def, world, opts) {
       let wKt = V < 1.1 * tVs0 ? 2
                 : (o.vs != null && satHi && Vc - V > 1) ? 2
                 : (satHi && Vc - V > 1) ? 0
+                // G3914: at idle on a steep final the weight stepped 1 -> 2 at 1 m/s over and the slope's feed-forward (gammaC, below) dropped out at 1.99:
+                // 7 deg of pitch at once, slow, back - sink 0.2-4.8 m/s, 8 s a cycle, on master's East Point too. Both now go by degrees
+                : (P3_ && satLo && o.vs == null && o.spdPri && ap.phase === 'FINAL') ? 1 + clamp(V - Vc, 0, 1)
                 : (satLo && V - Vc > 1 && o.vs == null) ? (o.spdPri && ap.phase === 'FINAL' ? 2 : 0.5)   // G1936: a short final holds its SPEED (the slip takes the height)
                 : 1;
       // G2125 PILOT-PROFILE: a phase may set the weight outright (o.wK: the land lift-off's run-up flies the height, the
@@ -2438,7 +2449,7 @@ function makePilot(sim, def, world, opts) {
       const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;
       const eB = (SEBrC - SEBr) / Math.max(V, 8);
       tIpit = clamp(tIpit + 0.15 * eB * dt, -0.10, 0.10);
-      const gammaC = (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
+      const gammaC = P3_ ? clamp(2 - tWk, 0, 1) * hdotC / Math.max(V, 8) : (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
       let thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.toCap ?? o.thMax ?? A.thMax);
       if (o.thMin != null && thC < o.thMin) thC = o.thMin;                 // G2125: the lift-off's nose lowered, not dropped
       holdPitch(thC);
@@ -2903,7 +2914,7 @@ function makePilot(sim, def, world, opts) {
         return P.join !== 'downwind' && sNow < sI - 300 && (dx * FL.ux + dz * FL.uz) / dl > 0.5; };   // P1.E: a 'downwind' protocol never straight-in
       if (ap.shortFld && P.sIaf < sIafN && !inBy(P.sIaf) && inBy(sIafN)) {
         P.sIaf = sIafN;
-        if (P3_) { P.sFaf = Math.max(P.sFaf, sIafN); P.hIaf = Math.min(P.hC, aimAlt() + (P.sAim - sIafN) * ap.gs - ap.altRef); }
+        if (P3_) { P.sFaf = Math.max(P.sFaf, sIafN); P.hIaf = Math.min(P.hC, aimAlt() + Math.max(0, P.sAim - sIafN - 8 * ap.VAppr) * ap.gs - ap.altRef); }
       }
       const toIaf = wp(FL, P.sIaf, 0);
       let straightIn = inBy(P.sIaf);
@@ -4337,7 +4348,7 @@ function makePilot(sim, def, world, opts) {
         // G1936: on a short field's base the first half of the landing flap
         flapTgt = (ap.shortFld && L.name === 'BASE') ? Math.max(fTO, 0.5 * fLDG) : 0;
         // G3914: in stages (FAA-H-8083-3 ch. 9): the first abeam the aim, half on the base, the rest with the final established (below)
-        if (P3_ && L.prof) flapTgt = L.name === 'BASE' ? Math.max(fTO, 0.5 * fLDG) : (ap.plan && sAl <= ap.plan.sAim) ? Math.max(fTO, 0.25 * fLDG) : 0;
+        if (P3_ && L.prof) flapTgt = fLDG <= 0 ? 0 : L.name === 'BASE' ? Math.max(fTO, 0.5 * fLDG) : (ap.plan && sAl <= ap.plan.sAim) ? Math.max(fTO, 0.25 * fLDG) : 0;
         // the card is judged on the settled downwind (41_test_pilot.js)
         if (cardAcc && ap.phase === 'DOWNWIND' && !climbMode && phaseT > 8) {
           cardAcc.n += dt;
@@ -4516,14 +4527,14 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
-          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
+          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0)) && (slopeCaptured || (P3_ && above > 0)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
           } else slipK = Math.max(0, slipK - dt / (aglG > hOff && eE > 0.5 ? 6 : 1.5));
         }
         // P0.5: the slope and the level before it are two references of the one law
-        if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: ap.shortFld });
+        if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: P3_ || ap.shortFld });
         // ABOVE THE SLOPE ON ENTRY (G434, the hill strip on Jolene): the enroute leg's clearance over
         // the ground under it (hClear) had left the aeroplane 30 m over the pattern height, the
         // level was latched THERE and the slope, descending to the aim, only fell away under it -
@@ -4536,11 +4547,11 @@ function makePilot(sim, def, world, opts) {
         // metal Cessna (31 m/s on 0.046), outside the 4 m capture: never captured, the whole final 6 m high, the flare
         // begun at the aim and the touch 80 m past it (pilot-42's Tamgas Hill: 100 m past the end, train 40 52 m). The
         // slope law carries the slope's sink and closes the height on top, inside the same steeper vsDn
-        else if (above > 4) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: ap.shortFld });
+        else if (above > 4) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: P3_ || ap.shortFld });
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
-        flapTgt = (P3_ && onPathF) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
+        flapTgt = (P3_ && onPathF && fLDG > 0) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
         // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
         // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
         // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
