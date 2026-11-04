@@ -625,6 +625,11 @@ function compose(chIn) {
                  stabSkin: { tint: ch.colour } };
   const spec = { paint: { job: 'full', sweep: 0.35, base: ch.colour, trim },
                  finish: { sections: tint } };
+  // A NEW AEROPLANE HAS ELECTRICS (the user 4 Nov: "the default build should feature some"): the single-seat class seeds
+  // day VFR with no battery, and only the trainer's role lifts it. The class's own row stays as it is, so no card and no
+  // saved build moves; a sailplane stays without (its electric sustainer flies off its own pack)
+  if (ch.class === 'ul1' && ch.mission !== 'trainer')
+    spec.systems = { elec: ch.engType === 'electric' ? { battery: 'lead' } : { battery: 'lead', alternator: 'gen20' } };   // (no belt on a motor)
   return { choices: ch, cleared, sel, over: { cage, spec }, cowlPreset: cowlPresetFor(ch),
            model: model ? model.name : null };
 }

@@ -14,12 +14,16 @@
 //                then 'media/thumbs/<file>' for a key it names (null for one it does not), and the cards hear
 //                'plane-thumb' (key '*') once.
 //   NEVER BREAKS draw() with no page (no THREE, no renderer, no aeroplane) returns null, never throws.
+//   THE LIVE DRAW is OFF (A0 4 Nov, L31c: the first draw froze the page 6.1 s on L31b): as shipped, saved() schedules
+//                nothing and 'mine:' reads null even with a picture stored; forget() and the bake still work. THE CACHE's
+//                rows run on the source with its one line flipped on, so the flag still turns back on a working draw.
 //   node tools/_plane_thumb_check.js [--selftest]  -> "GATE PLANETHUMB: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const rd = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const SELF = process.argv.includes('--selftest');
+const LIVE_OFF = 'const LIVE_DRAW = false;';
 async function run(src, files) {
   const fails = []; let checks = 0;
   const ok = (c, m) => { checks++; if (!c) fails.push(m); };
@@ -35,7 +39,29 @@ async function run(src, files) {
   const card = A.slice(A.indexOf('function storeCard(name)'), A.indexOf('function storeCard(name)') + 1200);
   ok(/PLANE_THUMB\.get\('mine:' \+ name\)/.test(card) && card.indexOf('PLANE_THUMB.get') < card.indexOf('PARKED.fleetThumb'), "app.js storeCard: PLANE_THUMB.get('mine:' + name) first");
   ok(/addEventListener\('plane-thumb'/.test(U), "storage_ui.js: redraws on 'plane-thumb'");
-  // ---- THE MODULE, in a stub window
+  // ---- THE LIVE DRAW OFF: the source as shipped, in its own stub window
+  ok(src.includes(LIVE_OFF), 'plane_thumb.js: ' + LIVE_OFF);
+  {
+    const st = new Map(), id = [], w = { localStorage: { getItem: k => st.has(k) ? st.get(k) : null, setItem: (k, v) => st.set(k, String(v)), removeItem: k => st.delete(k) },
+      requestIdleCallback: fn => { id.push(fn); return 1; }, dispatchEvent: () => {}, GARAGE_SPEC: { get: () => ({ cage: { a: 1 } }) } };
+    w.window = w;
+    const c = vm.createContext({ window: w, performance: { now: () => 0 }, setTimeout: fn => { id.push(fn); return 1; }, JSON, Map, Set, Math, Promise, document: {} });
+    c.requestIdleCallback = w.requestIdleCallback; c.GARAGE_SPEC = w.GARAGE_SPEC;
+    vm.runInContext(src, c, { filename: 'plane_thumb.js' });
+    const T0 = w.PLANE_THUMB;
+    if (T0) {
+      T0.saved('A');
+      ok(id.length === 0, 'live draw off: saved() schedules nothing');
+      st.set('flydiy.thumb.mine:A', JSON.stringify({ h: 'x', url: 'data:image/webp;base64,AAA' }));
+      ok(T0.get('mine:A') === null, "live draw off: get('mine:A') is null with a picture stored (the glyph)");
+      T0.forget('A');
+      ok(!st.has('flydiy.thumb.mine:A'), 'live draw off: forget() still drops a stored picture');
+      T0.baked = { 'stock:piper cub': 'stock_piper-cub.webp' };
+      ok(T0.get('stock:piper cub') === 'media/thumbs/stock_piper-cub.webp', 'live draw off: the baked pictures stay');
+    }
+  }
+  // ---- THE MODULE, in a stub window, its one line flipped on
+  src = src.replace(LIVE_OFF, 'const LIVE_DRAW = true;');
   const store = new Map(), events = [], idles = [];
   let fetched = 0, specNow = { cage: { a: 1 }, meta: { name: 'A' } };
   const win = {
@@ -96,6 +122,9 @@ async function run(src, files) {
   }
   // --selftest: each break must be caught
   const BREAKS = [
+    ['live draw left on', s => s.replace(LIVE_OFF, 'const LIVE_DRAW = true;'), f => f],
+    ['off: saved() still draws', s => s.replace('if (!LIVE_DRAW || !name) return;', 'if (!name) return;'), f => f],
+    ["off: 'mine:' reads the stored picture", s => s.replace('if (!LIVE_DRAW) return null;', ''), f => f],
     ['no save hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(name)', 'window.PLANE_THUMB.x(name)') })],
     ['no load hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(n)', 'window.PLANE_THUMB.x(n)') })],
     ['card asks PARKED first', s => s, f => Object.assign({}, f, { app: f.app.replace("try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}\n", '') })],

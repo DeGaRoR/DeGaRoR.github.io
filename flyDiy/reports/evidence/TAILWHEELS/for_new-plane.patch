@@ -1,0 +1,35 @@
+--- a/flyDiy/tools/_new_plane.js	2026-11-03 20:06:51.556477672 +0000
++++ b/flyDiy/tools/_new_plane.js	2026-11-03 20:06:51.624179818 +0000
+@@ -132,6 +132,8 @@
+       { key: 'tail', label: 'Layout', opts: () => [
+         O('conv', 'Conventional', '', icon('empennage', 'conv')), O('t', 'T-tail', 'the stab on the fin tip', icon('empennage', 't')),
+         O('cruci', 'Cruciform', '', icon('empennage', 'cruci')), O('v', 'V-tail', 'two canted panels, no fin', icon('empennage', 'v')),
++        // G3800 (TAILWHEELS): the inverted V on twin booms - a panel down from each boom, the tailwheels at the tips
++        O('iv', 'Inverted V', 'a panel down from each boom; the tailwheels ride the tips', icon('empennage', 'v')),
+       ] },
+       { key: 'fin', label: 'Fin design', opts: () => ['rounded', 'straight', 'swept', 'broad', 'tall'].map(k => {
+         const o = D().optionOf('finArch', k); return O(k, o.label, o.note, o.icon); }) },
+@@ -239,7 +241,9 @@
+   ['booms', 'twin', c => c.body === 'open' && 'an open frame has no skin to loft booms on: twin tubes, or a rod'],
+   // [CM 11] the stab cannot seat on a centre fin the booms do not have
+   ['tail', 't', c => /^twin/.test(c.booms || '') && 'twin booms have no centre fin for the stab to sit on'],
+-  ['tail', 'v', c => /^twin/.test(c.booms || '') && 'one canted panel per boom is not a V-tail (a garage gap: the inverted V)'],
++  ['tail', 'v', c => /^twin/.test(c.booms || '') && 'one canted panel per boom is not a V-tail: the inverted V is'],
++  // G3800 (TAILWHEELS): the inverted V roots on the booms - a twin boom's only
++  ['tail', 'iv', c => !/^twin/.test(c.booms || '') && 'the inverted V hangs from twin booms (one panel a boom)'],
+   // N4 (the user, 3 Nov via A0: "prop strike should refuse certificate"; "n4 can also be fixed through wing geometry"):
+   // the disc must not strike the wing. Measured in validation A: a pusher under a high wing or a parasol cleared it in
+   // 0 of 9 builds, an over-the-wing engine in 2 of 13 - both greyed here until a shaft/block row moves the disc behind
+@@ -277,7 +281,11 @@
+   // [VAL] a pusher on a tailwheel: the disc swings down to the ground as the tail sits (validation A: the ulm pusher
+   // taildragger sat 9.5 deg tail-down with the pilot unable to raise it - the Pod-and-boom and Archaeopteryx cards are
+   // tricycles, and so is every pusher pod)
+-  ['gear', 'tail', c => (c.engArch === 'pusher') && 'a pusher sits on a nose wheel: tail-down, its disc would swing into the ground'],
++  // G3800 (TAILWHEELS, the brief: "keep it only if the disc still strikes the ground tail-down: measure it"): ON TWIN
++  // BOOMS IT DOES NOT - the generator's twin-boom pusher on a tailwheel a boom sits 12.7 deg tail-down and its disc's
++  // lowest point clears the ground by 0.232 m (the gear page's tailwheel requirement 0.229 m), the tailwheel stopping the
++  // rotation there; the single pod's pusher keeps the [VAL] grey (validation A's case)
++  ['gear', 'tail', c => (c.engArch === 'pusher') && !/^twin/.test(c.booms || '') && 'a pusher sits on a nose wheel: tail-down, its disc would swing into the ground'],
+   ['engArch', 'pushPull', c => (c.class === 'ul1' || c.class === 'sail') && 'two engines and twin booms on a single-seat glider or ultralight'],
+   ['engArch', 'twin', c => c.class === 'sail' && 'a sailplane carries one sustainer'],
+   ['engArch', 'wingTop', c => c.class === 'sail' && 'a sailplane carries its sustainer on the nose or behind the pod'],

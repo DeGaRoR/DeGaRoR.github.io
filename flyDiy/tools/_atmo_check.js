@@ -161,6 +161,8 @@ console.log('5. the sources');
       yes(m.customProgramCacheKey() !== m2.customProgramCacheKey() && /ran\+\+/.test(m.customProgramCacheKey()), 'the program cache key still tells one hook from another');
       const m3 = new T.Material(); m3.onBeforeCompile = m.onBeforeCompile; const sh3 = { uniforms: {}, fragmentShader: '#include <fog_pars_fragment>', vertexShader: '' }; m3.onBeforeCompile(sh3, null);
       yes(ran === 2 && !!sh3.uniforms.uApAtlas, 'a hook copied from another material runs once and injects once');
+      const m4 = new T.Material(); m4.onBeforeCompile = m2.onBeforeCompile;
+      yes(m4.customProgramCacheKey() === m2.customProgramCacheKey(), 'the bare inject-only hook copied to another material stays one key (no atmo.inject+atmo.inject, one source linked twice)');
     } catch (e) { fail('the accessor on a stand-in THREE threw: ' + e.message); }
     if (had) g.THREE = old; else delete g.THREE;
     yes(okI, 'install() took the stand-in THREE'); }

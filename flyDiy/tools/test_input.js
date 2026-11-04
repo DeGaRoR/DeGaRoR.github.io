@@ -57,7 +57,7 @@ ck('the solver\'s sign convention is carried by the yaw scale (dr>0 is nose LEFT
   ck('no default key is Space, Enter or Escape (they belong to the buttons and flyouts)',
      !codes.some(c => c === 'Space' || c === 'Enter' || c === 'Escape'));
   ck('defaults bind by KeyboardEvent.code (layout-independent), not by .key',
-     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|Semicolon|Quote|F\d+)$/.test(c)));   // (G2480: ; ' the toe brakes - the brackets are the radio's station keys)
+     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|Semicolon|Quote|Slash|F\d+)$/.test(c)));   // (G2480: ; ' the toe brakes - the brackets are the radio's station keys; G3800: / the tailwheel lock)
 }
 ck('the pref key', API.PREF === 'flydiy.input');
 ck('head axes exist for the tracker that is not wired yet (six, pass-through)',
@@ -328,6 +328,18 @@ const mainsOf = c => ({ L: Math.max(0, Math.min(1, c.brake + (c.brakeD || 0))), 
   ck('...and off with the knob', c.brake === 0);
   const I2 = API.make({}); I2.importJSON(I.exportJSON());
   ck('G2480: the option round-trips through export / import', I2.opt('brakeSteer') === true);
+  // G3800 (TAILWHEELS): the lockable tailwheel's lock is on the hand - IN at the start, '/' toggles it OUT and back
+  {
+    const I3 = API.make({});
+    const lk = () => { const c3 = { de: 0, da: 0, dr: 0, thr: 0, brake: 0, brakeD: 0, flap: 0, wr: null, twLock: null }; I3.write(c3); return c3.twLock; };
+    const a = API.ACTIONS ? API.ACTIONS.find(x => x.id === 'twLock') : null;
+    ck('G3800: the tailwheel lock is an action on ctl.twLock with a default key', !!a && a.ctl === 'twLock' && API.DEFAULTS.bindings.twLock && API.DEFAULTS.bindings.twLock[0].dev === 'keyboard');
+    const l0 = lk(); I3.press('Slash', true); run(I3, 2); I3.press('Slash', false); run(I3, 2); const l1 = lk();
+    I3.press('Slash', true); run(I3, 2); I3.press('Slash', false); run(I3, 2); const l2 = lk();
+    ck('G3800: the lock starts IN (1), "/" takes it OUT (0) and back IN', l0 === 1 && l1 === 0 && l2 === 1);
+    I3.seed({ de: 0, dr: 0, da: 0, thr: 0, twLock: 0 });
+    ck('G3800: the hand takes the lock as the aeroplane has it (seed)', lk() === 0);
+  }
 }
 {
   // rudder pedals with TOE AXES (a TFRP: rudder on axis 2, toes on 0 / 1 resting at -1)

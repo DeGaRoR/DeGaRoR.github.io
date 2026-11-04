@@ -162,6 +162,7 @@ const AERO_WX_SUB = {
   fabric:      { col: [0.30, 0.28, 0.22], metal: 0.0,  rough: 0.90, rust: 0, chip: 0.0, hands: 0 },
   ply:         { col: [0.35, 0.22, 0.12], metal: 0.0,  rough: 0.70, rust: 0, chip: 0.6, hands: 0 },
   alclad:      { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.40, rust: 0, chip: 1.0, hands: 0 },
+  agedAlu:     { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.45, rust: 0, chip: 1.0, hands: 0 },   // (FLOATS-CLASSIC's old EDO: a chip shows bare alloy)
   composite:   { col: [0.60, 0.60, 0.58], metal: 0.0,  rough: 0.60, rust: 0, chip: 0.5, hands: 0 },
   // T41b (G2047, DMG-COMPOSITE's gelcoat finish): a chip in the gelcoat exposes the E-glass laminate under it - pale,
   // a little green-grey, the resin's matt (GATE WEATHER: every finish has a substrate row)
@@ -174,6 +175,8 @@ const AERO_WX_SUB = {
   walnutFig:   { col: [0.22, 0.13, 0.07], metal: 0.0,  rough: 0.75, rust: 0, chip: 0.5, hands: 0 },
   rubber:      { col: [0.05, 0.05, 0.05], metal: 0.0,  rough: 0.95, rust: 0, chip: 0.0, hands: 0 },
   liner:       { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.90, rust: 0, chip: 0.0, hands: 0 },
+  headliner:   { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.90, rust: 0, chip: 0.0, hands: 0 },
+  trimVinyl:   { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.80, rust: 0, chip: 0.0, hands: 1 },
   trim:        { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.45, rust: 0, chip: 1.0, hands: 1 },
   fireFoil:    { col: [0.60, 0.60, 0.60], metal: 0.90, rough: 0.50, rust: 0, chip: 0.0, hands: 0 },
   panelMetal:  { col: [0.60, 0.61, 0.62], metal: 0.90, rough: 0.50, rust: 0, chip: 0.0, hands: 1 },
@@ -204,7 +207,7 @@ const AERO_WX_SUB_NONE = { col: [0.3, 0.3, 0.3], metal: 0, rough: 0.8, rust: 0, 
 // its base colour, its metalness and its roughness — not a hand-typed grey.
 // Resolved at material time, when AEROSKIN exists (this file loads first).
 const AERO_WX_SUB_FROM = {
-  alclad: 'bareAlu', trim: 'bareAlu', fireFoil: 'bareAlu', panelMetal: 'bareAlu', sillAlu: 'bareAlu',
+  alclad: 'bareAlu', trim: 'bareAlu', fireFoil: 'bareAlu', panelMetal: 'bareAlu', sillAlu: 'bareAlu', agedAlu: 'bareAlu',
   castAlu: 'castAlu', chrome: 'chrome', bronze: 'bronze', copper: 'copper',
   composite: 'composite', spruce: 'spruce', maple: 'maple', walnut: 'walnut', walnutFig: 'walnutFig',
 };

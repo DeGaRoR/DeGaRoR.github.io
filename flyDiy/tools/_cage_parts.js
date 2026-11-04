@@ -836,7 +836,7 @@ const CAGE_PARTS = [
       ['construction', ['stCons']],
       // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
       // two angles — G2760: no second 'position' heading)
-      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant', 'stIvDir', 'stIvGap', 'stIvReach']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stThick', 'stThickTE']],
       ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
@@ -1233,6 +1233,16 @@ const CAGE_PARTS = [
     groups: [
       ['door panel', ['doorPanelOn', 'doorPanelT', 'doorPanelGap', 'doorPanelMargin',
                       'doorPanelPocket']],
+    ] },
+
+  // CABIN-INTERIOR (the user 2-3 Nov, the cabin's top half "seen through windows"): the headliner and the upper wall
+  // trim (the liner's ceiling and walls split into their own sections, off by default), paintable like the seats
+  { key: 'headliner', name: 'Headliner & trim', parent: 'fit', layer: 'cage',
+    sections: ['headliner', 'cabWall'],
+    when: P => +P.intOn,
+    place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
+    groups: [
+      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',

@@ -24,7 +24,7 @@
 // carries the button; the design flow's new-aeroplane cards list the pool; nothing in the core (the career catalogue,
 // the contracts, the story) names the pool.
 'use strict';
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), vm = require('vm');
 const T = __dirname, ROOT = path.join(T, '..');
 const DIR = path.join(ROOT, 'builds', 'candidates');
 const argv = process.argv.slice(2);
@@ -104,6 +104,38 @@ function sourceRows(S) {
   need('garage', /window\.addEventListener\('plane-thumb', \(\) => \{ if \(fleetEl && !fleetEl\.hidden\) renderFleet\(\); \}\)/, 'the open rack redraws when a picture lands');
   need('flow', /b\.dataset\.thumb = 'cand:' \+ c\.file; dfThumb\(b\)/, "the new-aeroplane candidate cards carry their picture ('cand:' + file)");
   need('np', /b\.dataset\.thumb = 'cand:' \+ c\.file; npThumb\(b\)/, "the chooser's candidate cards carry their picture ('cand:' + file)");
+  // CHOOSER-NOTES (the user 4 Nov): a career's player reads no developer's note or file, on any of the three cards
+  const rowIn = (mode, dev) => {
+    const m = /const candRow = c => \{[\s\S]*?\n  \};/.exec(S.garage);
+    if (!m) return null;
+    return vm.runInNewContext(m[0] + '\ncandRow({ file: "a.json", name: "A", note: "dev note" })', { window: { FLYDIY_MODE: mode, WELCOME: { mode: { dev } } }, Object });
+  };
+  const player = rowIn('career', false), devRow = rowIn('career', true), sand = rowIn('sandbox', false);
+  if (!player || player.note || /a\.json/.test(player.tip) || !/not validated/.test(player.tip) || player.file !== 'a.json') bad.push("garage: a career's candidate row still says the developer's note or file");
+  if (!devRow || devRow.note !== 'dev note' || !/a\.json/.test(devRow.tip)) bad.push('garage: the dev career lost the note and the file');
+  if (!sand || sand.note !== 'dev note' || !/a\.json/.test(sand.tip)) bad.push('garage: the sandbox lost the note and the file');
+  need('garage', /return candP\.then\(l => l\.map\(candRow\)\);/, "the pool's rows pass candRow");
+  for (const src of ['garage', 'flow', 'np']) if (/\.title = c\.file/.test(S[src])) bad.push(src + ": a candidate card's tooltip reads the file, not c.tip");
+  // G3800 (the user 4 Nov): the map's Fleet and Market rows carry the side profile; no picture = the row's glyph
+  const mapRows = thumb => {
+    const box = { module: { exports: {} }, console, window: thumb ? { PLANE_THUMB: { get: k => 'p/' + k } } : {} };
+    vm.runInNewContext(S.map, box);
+    const MM = box.module.exports, st = { at: null, item: null };
+    const M = { fleet: [{ slot: 'Cub', name: 'Cub', where: { kind: 'none' }, cert: null }], aeros: { A: { name: 'A', len: 500, wid: 20, elev: 0, surface: { cls: 'grass', word: 'grass' } } }, places: [] };
+    const sheet = { name: 'Scout', design: 'cub', makerName: 'B', line: 'l', cert: {}, price: { total: 9 }, rows: [] };
+    M.market = { P: { procureSheet: () => sheet }, mode: 'career', makers: [{ name: 'B', colour: '#fff', models: ['scout'] }], econ: '', voucher: null,
+      used: [{ id: 'u1', aero: 'A', design: 'jodel', colour: '#fff', words: { title: 'T', seller: 's' }, cert: {}, price: 1, catalogue: 2, condition: 0.5 }],
+      board: { mode: 'career', airframes: [], designs: [{ name: 'Mine', airframe: false }] } };
+    return { fleet: MM.fleetListHTML(M, st), market: MM.marketListHTML(M, st) };
+  };
+  try {
+    const on = mapRows(true), off = mapRows(false);
+    for (const [h, key] of [[on.fleet, 'mine:Cub'], [on.market, 'design:cub'], [on.market, 'design:jodel'], [on.market, 'mine:Mine']])
+      if (!h.includes('<img class="mmThumb" src="p/' + key + '"')) bad.push("map: no picture on the row of '" + key + "'");
+    if (/mmThumb/.test(off.fleet + off.market) || !/mmIc/.test(off.fleet) || !/mmIc/.test(off.market)) bad.push('map: with no picture a row must keep its glyph');
+  } catch (e) { bad.push('map: the rows did not draw - ' + e.message); }
+  need('map', /W\.addEventListener\('plane-thumb', \(\) => \{[^\n]*renderList\(\)/, 'the open list redraws when a picture lands');
+  need('map', /#mapScreen \.mmThumb\{width:120px;height:60px/, "the map's picture is the cards' 120 x 60");
   if (/localStorage[^\n]*candidates|candidates[^\n]*localStorage/.test(S.garage)) bad.push('garage: the pool must not live in localStorage');
   if (/builds\/candidates/.test(S.core)) bad.push('core: the career catalogue / contracts / story must not name the pool');
   return bad;
@@ -111,7 +143,7 @@ function sourceRows(S) {
 function sourcesNow() {
   const core = fs.readdirSync(path.join(ROOT, 'src', 'core')).filter(f => /\.js$/.test(f))
     .map(f => fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8')).join('\n');
-  return { garage: read('src/viewer/garage.js'), flow: read('src/viewer/design_flow.js'), np: read('src/viewer/new_plane.js'), body: read('src/viewer/body.html'), core };
+  return { garage: read('src/viewer/garage.js'), flow: read('src/viewer/design_flow.js'), np: read('src/viewer/new_plane.js'), map: read('src/viewer/map_menu.js'), body: read('src/viewer/body.html'), core };
 }
 
 // ---- every candidate loads, builds and draws ----------------------------------------------------------------------
@@ -161,6 +193,9 @@ if (SELF) {
   red('not a build', () => poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: '{"what":"x"}' }) }).bad);
   red('a path in the index', () => { const o = JSON.parse(P.index); o.planes[0].file = '../' + o.planes[0].file; return poolRows({ index: JSON.stringify(o), files: P.files }).bad; });
   red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '')", 'loadSpec(g.spec, c.name, g.plaque, g.log)') })));
+  red("a career's row keeps the note", () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("note: dev ? c.note : ''", 'note: c.note') })));
+  red('a tooltip reads the file', () => sourceRows(Object.assign({}, S, { np: S.np.replace('b.title = c.tip;', 'b.title = c.file;') })));
+  red('a map row without its picture', () => sourceRows(Object.assign({}, S, { map: S.map.replace("planeIc('design:' + L.design, ", "planeIc('', ") })));
   red('the rack group gone', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace('gfGroupH gfCandH">candidate official', 'gfGroupH">') })));
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
   red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });

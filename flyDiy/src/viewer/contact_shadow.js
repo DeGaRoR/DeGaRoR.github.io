@@ -212,7 +212,7 @@
   function blobsFor(sim, def, world, o) {
     if (!S.on || !sim || !def || !world || !world.terrainH || sim.hydro) return [];
     const H = world.terrainH, p = sim.p, R = def.refs || {}, tW = (o && o.tyreW) || null;
-    const ids = (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : []);
+    const ids = (R.mains || []).concat(R.tw != null && R.tw >= 0 ? [R.tw] : [], R.tw2 != null && R.tw2 >= 0 ? [R.tw2] : []);   // G3800: twin booms' two
     if (!ids.length) return [];
     _wh.length = 0;
     for (const i of ids) {

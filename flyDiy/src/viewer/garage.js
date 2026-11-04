@@ -728,6 +728,12 @@ function garageInit(api) {
   // index is fetched on the first open of the rack or the new-aeroplane cards and kept (an empty answer asks again).
   const CAND_DIR = 'builds/candidates/';
   let candP = null;
+  // CHOOSER-NOTES (the EMPTY-STAND look's F5; the user 4 Nov: "of course"): a career's player reads a candidate's name, not
+  // the developer's note or file; the sandbox and the dev career keep both. Every card reads its row from here
+  const candRow = c => {
+    const dev = !(window.FLYDIY_MODE === 'career' && !(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev));
+    return Object.assign({}, c, { note: dev ? c.note : '', tip: (dev ? c.file + ': ' : '') + 'designed and built, not validated - no certificate' });
+  };
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
@@ -735,7 +741,7 @@ function garageInit(api) {
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
-    return candP;
+    return candP.then(l => l.map(candRow));
   };
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
@@ -1204,7 +1210,7 @@ function garageInit(api) {
           row.className = 'gfRow gfCandRow';
           const b = rowBtn(c.name || c.file, 'candidate official' + (c.note ? ' · ' + c.note : ''));
           thumbOn(b, 'cand:' + c.file);
-          b.title = c.file + ' - designed and built, not validated: no certificate';
+          b.title = c.tip;
           b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
           row.appendChild(b);
           candBox.appendChild(row);

@@ -40,12 +40,13 @@ html.phone:where(:not(.phfly)) #edTopBar { left:8px !important; right:8px !impor
 html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
 html.phone:where(:not(.phfly)) #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
 html.phone:where(:not(.phfly)) #edTopBar { gap:6px; }
-html.phone:where(:not(.phfly)) #edQuick { gap:2px; padding:3px; }
+html.phone:where(:not(.phfly)) #edQuick { gap:2px; padding:3px; min-width:0; }
 /* the time button shows: it opens the time menu (TIME-CONTROLS). DESIGN-AIDS: the reference button is gone (its cut is the
    indicators' menu's last item), so its rule went with it */
 html.phone:where(:not(.phfly)) #edShelf { min-width:180px; }
 html.phone:where(:not(.phfly)) #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
-html.phone:where(:not(.phfly)) .edQuickBtn { min-width:40px; min-height:40px; }
+/* LIGHTS-WARN: 40 px while the row fits; a narrower phone, or one more button, shrinks them all rather than push the last off the screen */
+html.phone:where(:not(.phfly)) .edQuickBtn { flex:0 1 40px; min-width:0; min-height:40px; }
 /* the rail: the profile's four entries (phone.js), each a 48 px target, up the view's left edge */
 html.phone:where(:not(.phfly)) #edBotBar { left:8px; top:calc(50% + 22px); max-height:calc(100% - 70px); }
 html.phone:where(:not(.phfly)) #edRail { gap:2px; padding:4px; }

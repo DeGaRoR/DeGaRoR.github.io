@@ -127,6 +127,11 @@ function ruleUnits(np) {
   for (const cl of ['ul1', 'ulm', 'lsa', 'eab', 'n23', 'sail'])
     for (const f of fam) if (!np.why({ class: cl, engArch: 'nose' }, 'engType', f) && !np.modelFor(cl, f, 'nose')) noModel.push(cl + '/' + f);
   t(!noModel.length, 'every offered engine type has a catalogue model for the class', noModel.join(','));
+  // A NEW AEROPLANE HAS ELECTRICS (the user 4 Nov): the one class that seeds none gets them; the trainer's role and the others already do
+  const sysOf = c => np.compose(c).over.spec.systems;
+  const ulE = sysOf({ class: 'ul1', mission: 'bush' });
+  t(ulE && ulE.elec.battery === 'lead' && ulE.elec.alternator === 'gen20' && !sysOf({ class: 'ul1', mission: 'trainer' }) && !sysOf({ class: 'sail' }),
+    'a new single-seater carries a lead battery and a generator; the trainer and the sailplane write nothing');
   // random sets never hold a greyed option, and compose them
   let greyed = 0;
   for (let s = 1; s <= 40; s++) { const ch = np.randomChoices(s * 7919); const c = np.complete(ch); greyed += c.cleared.length; }

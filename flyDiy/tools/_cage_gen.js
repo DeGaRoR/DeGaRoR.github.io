@@ -3675,7 +3675,9 @@ function cageInterior(m, S) {
     const s0 = slice(z0);
     const up0 = arc(s0, bcx, yS, 0, Math.PI), lo0 = arc(s0, bcx, yS, Math.PI, 2 * Math.PI);
     if (!up0 || !lo0) return null;
-    const vtx = (p, k, z) => V.push([bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k), z]) - 1;
+    // a point of an outline, k inboard of the skin; on a smoothed outline (below) what lies inboard reads the smooth line
+    const at = (p, k) => k > 0 && p.sx != null ? [bcx + p.sx - p.dx * k, yS + p.sy - p.dy * k] : [bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k)];
+    const vtx = (p, k, z) => { const q = at(p, k); return V.push([q[0], q[1], z]) - 1; };
     const row = (A, k, z) => A.map(p => vtx(p, k, z));
     const strip = (ra, rb, m) => {
       for (let k = 0; k < ra.length - 1; k++) add.push({ v: [ra[k], ra[k + 1], rb[k + 1], rb[k]], m });
@@ -3761,6 +3763,23 @@ function cageInterior(m, S) {
     const UP = D > 0 ? up1 : up0;
     b = Math.min(b, minT(UP) - 0.05 / ps, D > 0 ? b : minT(lo0) - 0.05 / ps);
     if (b < 0.004 / ps) b = 0;
+    // the ring's lumps stop at the skin: the bevel's inner edge, the relief and the screw line run a smoothed outline (the
+    // user 4 Nov on the strip: not the ceiling's path), no further out than the bevel can take
+    if (rebuild) {
+      const lim = Math.max(0.7 * b, 0.006 / ps), R = 3;
+      let Q = UP.map(p => [p.dx * p.t, p.dy * p.t]);
+      for (let pass = 0; pass < 2; pass++)
+        Q = Q.map((_, i) => {
+          const r = Math.min(R, i, NA - i);
+          let x = 0, y = 0;
+          for (let j = i - r; j <= i + r; j++) { x += Q[j][0]; y += Q[j][1]; }
+          return [x / (2 * r + 1), y / (2 * r + 1)];
+        });
+      UP.forEach((p, i) => {
+        const over = Q[i][0] * p.dx + Q[i][1] * p.dy - (p.t + lim), f = over > 0 ? 1 - over / Math.hypot(Q[i][0], Q[i][1]) : 1;
+        p.sx = Q[i][0] * f; p.sy = Q[i][1] * f;
+      });
+    }
     const mU = BH.twoTone ? 'bulkTrim' : 'bulkhead', mL = 'bulkhead';
     const zU = z0 - D;                                          // the upper wall's outline station
     const zFace = rebuild ? zU - b : z0 + 0.0025;               // its face (the plain panel's front sheet)
@@ -3817,7 +3836,7 @@ function cageInterior(m, S) {
         }
       };
       const region = (A, k, z, m, up) => {
-        const pts = A.map(p => [bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k)]);
+        const pts = A.map(p => at(p, k));
         const ext = pts.reduce((v, p) => up ? Math.max(v, p[1]) : Math.min(v, p[1]), yS);
         const y0 = yS + (up ? 0.03 : -0.05) / ps, y1 = up ? ext - Math.max(e, (BH.lampBand || 0) / ps) : ext + e;
         if (up ? y1 - y0 < 0.06 / ps : y0 - y1 < 0.06 / ps) return;
@@ -3843,7 +3862,7 @@ function cageInterior(m, S) {
             if (Math.abs(far - y0) > 0.07 / ps) bead([[x, y0], [x, far]], 0.017 / ps, z, m);
           }
         } else if (BH.relief === 2) {    // rolled upholstery: tuck-and-roll, the rolls touching
-          const w = 0.034 / ps, nR = Math.floor((yHi - yLo) / (2 * w));
+          const w = up ? Math.min(0.034 / ps, Math.max(0.02 / ps, (yHi - yLo) / 6)) : 0.034 / ps, nR = Math.floor((yHi - yLo) / (2 * w));
           for (let j = 0; j < nR; j++) {
             const y = (up ? yLo : yHi) + (up ? 1 : -1) * (w + 2 * w * j);
             const sa = spanX(y - w), sb = spanX(y + w);
@@ -3881,7 +3900,7 @@ function cageInterior(m, S) {
         }
       };
       const line = (A, k, z) => {
-        const pts = A.map(p => [bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k)]);
+        const pts = A.map(p => at(p, k));
         let run = gap * 0.5;
         for (let i = 0; i < pts.length - 1; i++) {
           const a = pts[i], c = pts[i + 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
@@ -3897,9 +3916,11 @@ function cageInterior(m, S) {
     if (BH.net) {
       const A = D > 0 ? up0 : UP, kN = (D > 0 ? 0 : b) + 0.02 / ps;
       const zN = D > 0 ? z0 - 0.012 / ps : zFace + 0.012 / ps + reliefH;
-      const pt = p => [bcx + p.dx * (p.t - kN), yS + p.dy * (p.t - kN)];
-      const yArc = Math.max(...A.map(p => pt(p)[1]));
-      const yN0 = yS + 0.02 / ps, yN1 = yS + Math.min(0.30 / ps, 0.6 * (yArc - yS));   // a low net: bags on the shelf, the lamp clear above
+      const pt = p => at(p, kN);
+      const yArc = Math.max(...A.map(p => yS + p.dy * (p.t - kN)));
+      // a low net: bags on the shelf, the lamp clear above it - a recess too shallow for that keeps a low one, under the dome
+      const yNt = yS + Math.min(0.30 / ps, 0.6 * (yArc - yS)), yN0 = yS + 0.02 / ps;
+      const yN1 = Math.max(Math.min(yNt, yArc - (BH.lampBand || 0) / ps), Math.min(yNt, yN0 + 0.06 / ps));
       // the half-width the arc leaves at a height, on its narrower side
       const hw = y => {
         let w = Infinity;
@@ -3916,7 +3937,7 @@ function cageInterior(m, S) {
       };
       let half = 0.46 / ps;
       for (let j = 0; j <= 6; j++) half = Math.min(half, hw(yN0 + (yN1 - yN0) * j / 6) - 0.02 / ps);
-      if (half > 0.12 / ps && yN1 - yN0 > 0.07 / ps) {
+      if (half > 0.12 / ps && yN1 - yN0 > 0.05 / ps) {
         const nx = Math.max(4, Math.round(2 * half / (0.07 / ps))), ny = Math.max(2, Math.round((yN1 - yN0) / (0.06 / ps)));
         const wS = 0.005 / ps, bow = 0.02 / ps;
         const zAt = x => zN + bow * Math.sin(Math.PI * (x - bcx + half) / (2 * half));
@@ -4164,8 +4185,9 @@ function cageInterior(m, S) {
     }
     for (const fi of sel) {
       const f = F[fi];
-      add.push({ v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]),
-                 att: 1 });
+      const fIn = { v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]), att: 1 };
+      if (I.hdl || I.wall) fIn.lin = 1;                // CABIN-INTERIOR: the cabin's visible face (split below)
+      add.push(fIn);
       // the OUTER sheet closes the solid (skin winding — outward)
       add.push({ v: f.v.map(outerOf), m: matF(F[fi]), att: 1 });
       for (let e = 0; e < 4; e++) {
@@ -6895,6 +6917,34 @@ function cageInterior(m, S) {
   // shows the firewall, as the real assembly would. Aero noses carry no
   // capFace marks (nothing to drop); the pusher tail disc (also
   // capFace-marked) is kept — only the front opens.
+  // CABIN-INTERIOR (T1/T2, the user 2-3 Nov: the cabin's top "is currently a box ... let's really target the top
+  // half, what you see through windows"): THE HEADLINER AND THE UPPER WALL TRIM, split off the liner's visible face
+  // inside the cabin (the pilot and passenger sections, zNose0 back to the passenger ring - or, with none, the aft
+  // edge of the side glass). A ceiling face (its inward normal at least 0.8 down - the triplanar's ceiling plane
+  // dominant, so the channels never stripe the flank) is the headliner; the rest above the waistband top (the sill
+  // line, S.bandY) is the trim panel. Only with the rows on: every build without them keeps its one liner.
+  if (I.hdl || I.wall) {
+    const LINM = new Set(['plywood', 'cloth', 'composite', 'toele']);
+    const SIDEG = new Set(['pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+    let zA = zPax0;
+    if (!(zA > -1e8)) {
+      zA = 1e9;
+      for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
+      if (!(zA < 1e8)) zA = zCab0;
+    }
+    for (const f of add) {
+      if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
+      const p = f.v.map(i => V[i]);
+      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+      const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+      const ly = ny / (Math.hypot(nx, ny, nz) || 1);
+      const cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4, cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4;
+      if (cz < zA || cz >= zNose0) continue;
+      if (I.hdl && ly <= -0.8) f.m = 'headliner';
+      else if (I.wall && cy >= S.bandY && ly < 0.5) f.m = 'cabWall';
+    }
+  }
   let FK = F;
   if (I.fire) FK = F.filter(f => {
     if (!f.capFace) return true;
@@ -8864,6 +8914,8 @@ function cageSpec(P) {
                             pilotBelow: consG, pilotAbove: consG,
                             noseBelow: consG, noseAbove: consG },
                  shellT: Math.max(0.005, P.shellT || 0.035),
+                 // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
+                 ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
