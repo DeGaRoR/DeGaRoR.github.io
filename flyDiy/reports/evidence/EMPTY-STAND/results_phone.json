@@ -1,0 +1,286 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "args": [
+  "--only",
+  "phone"
+ ],
+ "url": "gfx=laptop&tutor=0",
+ "profiles": {
+  "phone": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "an aeroplane on the stand (FLYDIY_STORE.onStand())",
+       "got": "Rufus"
+      },
+      {
+       "ok": true,
+       "what": "no empty state (body.gEmpty off, no #gEmptyCard)",
+       "got": {
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "a second owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME HOME planes=[]",
+        "w1 w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "the first-launch chooser (#npWrap) stays shut on a story career (design_flow.js maybeAutoOpen)",
+       "got": {
+        "npWrap": false,
+        "open": false,
+        "starterFlag": "Rufus",
+        "wipKey": true,
+        "rig": false,
+        "webdriver": false
+       }
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "story": {
+       "beat": "T0",
+       "cabin": {
+        "aero": "w1",
+        "hangar": "w1"
+       },
+       "planes": {
+        "starter": "Rufus",
+        "client": "Client Cub",
+        "gift": null
+       }
+      },
+      "chooserAtStart": {
+       "npWrap": false,
+       "open": false,
+       "starterFlag": "Rufus",
+       "wipKey": true,
+       "rig": false,
+       "webdriver": false
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is HOME after Go there",
+       "got": "HOME"
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        36,
+        96,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        36,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin w1\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ]
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "phone_1_before.jpg",
+     "what": "before: the career's first hangar (the field shed at Cabin Strip), its aeroplane Rufus on the stand"
+    },
+    {
+     "step": "2",
+     "file": "phone_2x_map_go_row.jpg",
+     "what": "the map's Go row for HOME (before Go there)"
+    },
+    {
+     "step": "2",
+     "file": "phone_2_empty_stand.jpg",
+     "what": "the map's Go to the main hangar at Jolene AFB 13/31: the stand empty, #gEmptyCard, no Roll out"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": []
+  }
+ }
+}
