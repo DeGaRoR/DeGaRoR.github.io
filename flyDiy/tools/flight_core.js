@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b04082c2f1b989f8
+// body-sha256: 1262896878afd84a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36102,10 +36102,25 @@ function clampSpec(spec) {
       for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
       if (!Object.keys(r.lift).length) delete r.lift;
     } else delete r.lift;
+    // G3 (RETRACT-STUDY §8.3): THE WELLS the stowed units reserve, the join's measurement - per unit its station range x
+    // (the frame's body x), its band of the section lv (0 keel .. 1 top), its span fractions, and its litres in the body
+    // and in the wing. The bays give them up (60c genBayResolve). Only with a retraction; four at the most
+    if (Array.isArray(S.gear.wells)) {
+      const ok = w => w && typeof w === 'object' && Array.isArray(w.x) && w.x.length === 2 && w.x.every(v => isFinite(+v));
+      S.gear.wells = S.gear.wells.filter(ok).slice(0, 4).map(w => {
+        const pair = (a, lo, hi) => { const u = [genClamp(+a[0] || 0, lo, hi), genClamp(+a[1] || 0, lo, hi)]; return u[0] <= u[1] ? u : [u[1], u[0]]; };
+        const o = { unit: ['L', 'R', 'T'].includes(w.unit) ? w.unit : 'L', x: pair(w.x, -20, 40),
+                    bodyL: genClamp(+w.bodyL || 0, 0, 2000), wingL: genClamp(+w.wingL || 0, 0, 2000) };
+        if (Array.isArray(w.lv) && w.lv.length === 2) o.lv = pair(w.lv, 0, 1);
+        if (Array.isArray(w.span) && w.span.length === 2) o.span = pair(w.span, 0, 1.5);
+        return o;
+      });
+      if (!S.gear.wells.length) delete S.gear.wells;
+    } else delete S.gear.wells;
     // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
     // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
-  } else delete S.gear.retract;
+  } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once
@@ -37763,6 +37778,27 @@ const GEN_BAYS = {
 // open. The editor's own fit test is the finer instrument and overrules this
 // one where they disagree.
 const GEN_BAY_WALL = 0.035;              // metres of structure and trim, per side
+// G3 (RETRACT-STUDY §8.3): THE WELLS GIVE UP THEIR LITRES - a retracting gear's stowed units reserve their volume
+// (spec.gear.wells, the join's), and a bay holds that much less: a body bay by the share of each well's body litres in
+// its station range and its band of the section, a wing bay by the share of each well's wing litres in its span range.
+// No wells (every fixed build): 0, and the bay is what it was to the bit
+function genBayWellL(S, B, x0, x1) {
+  const WL = S && S.gear && S.gear.retract && Array.isArray(S.gear.wells) ? S.gear.wells : null;
+  if (!WL || !B) return 0;
+  const share = (a0, a1, b0, b1) => a1 > a0 ? Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) / (a1 - a0) : 0;
+  let L = 0;
+  for (const w of WL) {
+    if (B.on === 'wing') {
+      if (!(w.wingL > 0) || !w.span || (B.plane || 0) !== 0) continue;
+      L += w.wingL * share(w.span[0], w.span[1], B.span[0], B.span[1]);
+    } else if (B.on === 'body') {
+      if (!(w.bodyL > 0)) continue;
+      const lv = B.lv || [0, 1], wl = w.lv || [0, 1];
+      L += w.bodyL * share(w.x[0], w.x[1], x0, x1) * share(wl[0], wl[1], lv[0], lv[1]);
+    }
+  }
+  return L;
+}
 function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
@@ -37780,10 +37816,12 @@ function genBayResolve(S, key, ST) {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
     if (B.plane && !(S.wings && S.wings[B.plane])) return null;
-    const litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
+    let litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
+    const wellL = genBayWellL(S, B);                        // G3: the gear's wells in this span
+    if (wellL > 0) litres = Math.max(0, litres - wellL);
     return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
              plane: B.plane || 0,                    // G185: which plane holds it
-             span: B.span.slice(), litres,
+             span: B.span.slice(), litres, ...(wellL > 0 ? { wellL } : {}),
              // where its mass acts: the mid-span of the bay, both sides
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
   }
@@ -37827,8 +37865,10 @@ function genBayResolve(S, key, ST) {
       litres += Math.PI * a * b * (lv[1] - lv[0]) * ((x1 - x0) / N) * 1000;
     }
   }
+  const wellL = genBayWellL(S, B, x0, x1);                  // G3: the gear's wells in this bay
+  if (wellL > 0) litres = Math.max(0, litres - wellL);
   return { key, name: B.name, on: 'body', feed: B.feed, free: !!B.free,
-           x0, x1, lv: (B.lv || [0, 1]).slice(), litres,
+           x0, x1, lv: (B.lv || [0, 1]).slice(), litres, ...(wellL > 0 ? { wellL } : {}),
            // where its mass acts by default: the middle of the bay
            xMid: 0.5 * (x0 + x1) };
 }
