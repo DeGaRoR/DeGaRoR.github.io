@@ -1,0 +1,66 @@
+// AFT-BULKHEAD-SHOTS: the rows' headless checks (run by probe_run.js after each build). Frame: the layers' (CAGE_UI.MS x
+// CAGE_UNIT x planeScale), metres, +x port, +y up, +z forward.
+//  wall: the faces of bulkhead / bulkTrim / baggage, plus 'toele' (the fasteners' bare metal) and 'tube' faces inside the
+//        wall's z band (the sling's U), plus the wall lamp meshes (edLamp_pax within 8 cm of the wall's front)
+//  OUT:  a wall vertex is OUTSIDE the skin when the segment from the cabin's middle (0, yMid, z) to it crosses the hull
+//        (body, pillars, loops, the waist band, glass, pane edges, reveals, taper) an odd number of times
+//  SEATS: a seat / crew vertex whose forward ray (+z) meets a wall face is behind that face (in it): per mesh the count
+//        and the deepest, per section hit
+//  LAMP: the wall lamp meshes' materials (emissive, intensity, colour)
+const UI = window.CAGE_UI, G2 = window.CAGE2, M = UI && UI.MS; if (!M) return { err: 'no MS' };
+const k = (G2 ? G2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);
+const V = M.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
+const P = UI.P, A = window.CAGE_CREW.A, r3 = x => +(+x).toFixed(3);
+const HULL = /^(body|pillar\w*|ceilingLoop|waistband|floorLoop|windshield|pilotWindow|pasengerWindow|canopy|skylight|paneEdge|drawnPane|reveal|taper)$/;
+const WALL = /^(bulkhead|bulkTrim|baggage)$/;
+const wallF = M.F.filter(f => WALL.test(f.m));
+let z0 = 1e9, z1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+for (const f of wallF) for (const vi of f.v) { const p = V[vi]; z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+const inBand = f => f.v.every(vi => V[vi][2] > z0 - 0.03 && V[vi][2] < z1 + 0.03 && V[vi][0] > x0 - 0.03 && V[vi][0] < x1 + 0.03 && V[vi][1] > y0 - 0.03 && V[vi][1] < y1 + 0.03);
+const extraF = wallF.length ? M.F.filter(f => (f.m === 'toele' || f.m === 'tube') && inBand(f)) : [];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function rayTri(o, d, a, b, c) { const e1 = sub(b, a), e2 = sub(c, a), pv = cross(d, e2), det = dot(e1, pv); if (Math.abs(det) < 1e-14) return null;
+  const inv = 1 / det, tv = sub(o, a), u = dot(tv, pv) * inv; if (u < 0 || u > 1) return null; const qv = cross(tv, e1), v = dot(d, qv) * inv;
+  if (v < 0 || u + v > 1) return null; const t = dot(e2, qv) * inv; return t > 1e-6 ? t : null; }
+const tris = fs => { const T = []; for (const f of fs) for (let i = 1; i + 1 < f.v.length; i++) T.push([V[f.v[0]], V[f.v[i]], V[f.v[i + 1]], f.m]); return T; };
+// the hull near the wall's band only (speed)
+const hullT = tris(M.F.filter(f => HULL.test(f.m) && f.v.some(vi => V[vi][2] > z0 - 0.4 && V[vi][2] < z1 + 0.4)));
+const yMid = (A.waistY + A.roofY) / 2;
+// the light layer's wall lamp
+const sc = window.__scene; let lay = null, crew = null; sc.traverse(o => { if (o.name === 'cageLayer:light') lay = o; if (o.name === 'cageLayer:crew') crew = o; });
+sc.updateMatrixWorld(true);
+const inv = new THREE.Matrix4().copy(crew.parent.matrixWorld).invert();
+const vertsOf = m => { const g = m.geometry, pa = g && g.attributes && g.attributes.position; if (!pa) return []; const out = [], v = new THREE.Vector3(), Mx = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+  for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(Mx); out.push([v.x, v.y, v.z]); } return out; };
+const lamps = []; if (lay) lay.traverse(m => { if (m.isMesh && m.name === 'edLamp_pax') { const vs = vertsOf(m); if (!vs.length) return; const zc = vs.reduce((a, p) => a + p[2], 0) / vs.length; if (wallF.length && Math.abs(zc - z1) < 0.08 || (wallF.length && zc < z1 + 0.08 && zc > z0 - 0.02)) {
+  const mt = m.material; lamps.push({ verts: vs, n: vs.length, zc: r3(zc), y: [r3(Math.min(...vs.map(p => p[1]))), r3(Math.max(...vs.map(p => p[1])))], x: [r3(Math.min(...vs.map(p => p[0]))), r3(Math.max(...vs.map(p => p[0])))],
+    mat: { type: mt.type, name: mt.name, color: mt.color && mt.color.getHexString(), emissive: mt.emissive && mt.emissive.getHexString(), ei: mt.emissiveIntensity, vis: m.visible } }); } } });
+// ---- OUT
+const pts = []; const seen = new Set();
+for (const f of wallF.concat(extraF)) for (const vi of f.v) if (!seen.has(vi)) { seen.add(vi); pts.push([V[vi], f.m]); }
+for (const L of lamps) for (const p of L.verts) pts.push([p, 'lamp']);
+const outside = [];
+const EYE = (() => { const E = window.CAGE_CREW_EYE; if (!E || !E.p) return null; const v = new THREE.Vector3().fromArray(E.p).applyMatrix4(inv); return [v.x, v.y, v.z]; })();
+const hullAll = tris(M.F.filter(f => HULL.test(f.m)));
+const cross1 = (o, p, TT) => { const d = sub(p, o), D = Math.hypot(...d); if (D < 1e-6) return [0, 0]; const dn = d.map(x => x / D); let n = 0, last = 0;
+  for (const T of TT) { const t = rayTri(o, dn, T[0], T[1], T[2]); if (t != null && t < D) { n++; last = Math.max(last, t); } } return [n, D - last]; };
+// OUTSIDE = odd from the cabin's middle at the vertex's station AND odd from the pilot's eye (the whole hull): either origin alone can sit outside a tapering deck
+for (const [p, m] of pts) { const [n1, by1] = cross1([0, yMid, p[2]], p, hullT); const [n2, by2] = EYE ? cross1(EYE, p, hullAll) : [1, by1];
+  if (n2 % 2) outside.push({ m, p: p.map(r3), by: r3(by2), fromMid: n1 % 2 ? 1 : 0 }); }
+const outBy = {}; for (const q of outside) { const e = outBy[q.m] = outBy[q.m] || { n: 0, worst: null }; e.n++; if (!e.worst || q.by > e.worst.by) e.worst = q; }
+// ---- SEATS and the crew
+const wT = tris(wallF.concat(extraF.filter(f => f.m === 'tube' ? false : true)));
+const seatRes = {};
+crew.traverse(m => { if (!m.isMesh) return; let p = m, nm = null; while (p && p !== crew) { if (/^edSeat\d+$/.test(p.name || '') || /^char:/.test(p.name || '')) nm = p.name; p = p.parent; } if (!nm) return;
+  const vs = vertsOf(m); const e = seatRes[nm] = seatRes[nm] || { verts: 0, behind: 0, deepest: 0, bySec: {}, at: null };
+  for (let i = 0; i < vs.length; i += 1) { const q = vs[i]; e.verts++; if (q[0] < x0 || q[0] > x1 || q[1] < y0 || q[1] > y1 || q[2] > z1 + 0.01) continue;
+    let far = 0; const hs = {}; for (const T of wT) { const t = rayTri(q, [0, 0, 1], T[0], T[1], T[2]); if (t != null && t < 1.2) { far = Math.max(far, t); hs[T[3]] = Math.max(hs[T[3]] || 0, t); } }
+    if (far > 0) { e.behind++; for (const [s, t] of Object.entries(hs)) { const b = e.bySec[s] = e.bySec[s] || { n: 0, deepest: 0, at: null }; b.n++; if (t > b.deepest) { b.deepest = +t.toFixed(3); b.at = q.map(r3); } } if (far > e.deepest) { e.deepest = far; e.at = q.map(r3); } } } });
+for (const e of Object.values(seatRes)) e.deepest = r3(e.deepest);
+const fc = {}; for (const f of wallF.concat(extraF)) fc[f.m] = (fc[f.m] || 0) + 1;
+return { rows: ['intCons', 'bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhNet', 'bhLamp', 'bhRelief', 'bhReliefH', 'bhFast', 'bhSling', 'lightOn', 'li_pax'].map(x => x + '=' + P[x]).join(' '),
+  A: { waistY: r3(A.waistY), roofY: r3(A.roofY) }, wall: { faces: fc, bhFace: M.F.filter(f => f.bhFace).length, x: [r3(x0), r3(x1)], y: [r3(y0), r3(y1)], z: [r3(z0), r3(z1)] },
+  hullTris: hullT.length, eye: EYE && EYE.map(r3), tested: pts.length, outside: outBy,
+  lamps: lamps.map(L => ({ n: L.n, zc: L.zc, x: L.x, y: L.y, mat: L.mat })),
+  seats: seatRes, seatsAt: (window.CAGE_CREW.seatsAt || []).map(s => ({ x: r3(s.x), zBack: r3(s.zBack), filled: !!s.filled, pilot: !!s.pilot })) };

@@ -1,0 +1,116 @@
+--- tools/plane_shot.js (origin/claude/aft-bulkhead 02220cf3, CR stripped)
++++ tools/plane_shot_bk.js (scratch: AFT-BULKHEAD-LOOK rig/plane_shot_bk.diff + AFT-BULKHEAD-SHOTS inside/pt/rows:)
+@@ -186,7 +186,7 @@
+     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
+     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
+     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
+-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
++    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full') + (o.qs ? '&' + o.qs : '');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
+     log('page', url);
+     await C.cmd('Page.navigate', { url });
+     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
+@@ -232,10 +232,36 @@
+       const box = '(() => { const o = window.CAGE_UI_SCENE; if (!o || typeof THREE === "undefined") return null; const b = new THREE.Box3().setFromObject(o); return b.isEmpty() ? null : [b.min.toArray(), b.max.toArray()].flat().map(v => +v.toFixed(3)); })()';
+       let prev = null;
+       for (let i = 0; i < 20; i++) { await frames(3); const b = await J(box); if (b && prev && b.join() === prev.join()) break; prev = b; }
++      if (o.bodyA != null) {   // CABIN-SHOTS fallback: the editor's own 'fuselage α' dial (CAGE_VIEW.bodyA), then a rebuild
++        await C.ev('(() => { CAGE_VIEW.bodyA = ' + (+o.bodyA) + '; CAGE_VIEW.glassA = ' + (+o.bodyA) + '; CAGE_UI.build(); return 1; })()');
++        await frames(8);
++      }
++      if (o.dim != null) {   // CABIN-SHOTS: the phone studio has no hour - the rig dims its own lights and reflections (not the game's dusk)
++        BR.dim = await J('(() => { let sc = window.CAGE_UI_SCENE; while (sc.parent) sc = sc.parent; const f = ' + (+o.dim) + ', got = [];' +
++          ' sc.traverse(l => { if (!l.isLight || l.isPointLight || l.isSpotLight) return; let p = l, mine = false; while (p) { if (p === window.CAGE_UI_SCENE) mine = true; p = p.parent; } if (mine) return;' +
++          ' if (l.userData.__i0 == null) l.userData.__i0 = l.intensity; l.intensity = l.userData.__i0 * f; got.push(l.type + " " + l.userData.__i0.toFixed(2)); });' +
++          ' if ("environmentIntensity" in sc) sc.environmentIntensity = f; return { lights: got, envI: sc.environmentIntensity, pts: (() => { let n = 0, v = 0; window.CAGE_UI_SCENE.traverse(l => { if (l.isPointLight) { n++; if (l.visible && l.intensity > 0) v++; } }); return n + " point lights, " + v + " lit"; })() }; })()');
++        log('dim', JSON.stringify(BR.dim));
++        await frames(4);
++      }
++      if (o.settle) await frames(o.settle);
++      // CABIN-SHOTS: the page's own cabin lights after the load (type, intensity, visible, where) and the rows that drive them
++      BR.lights = await J('(() => { const out = []; window.CAGE_UI_SCENE.traverse(l => { if (l.isPointLight || l.isSpotLight) out.push([l.type, +l.intensity.toFixed(2), l.visible, l.position.toArray().map(v => +v.toFixed(2))]); });' +
++        ' const P = window.CAGE_UI && CAGE_UI.P, L = window.CAGE_LIGHT; return { lights: out, P: P && { lightOn: P.lightOn, li_flood: P.li_flood, li_pax: P.li_pax }, flood: L && L.sites && L.sites.flood && { rung: L.sites.flood.rung, p: L.sites.flood.p }, driven: L && L.driven && L.driven() }; })()');
++      log('lights', JSON.stringify(BR.lights));
+       BR.box = prev; BR.t = +((Date.now() - tb) / 1000).toFixed(1);
+       log(base, 'loaded in', BR.t + ' s,', same + '/' + keys.length, 'cage rows equal, box', JSON.stringify(prev));
+ 
++      const WALLN = '(() => { const M = CAGE_UI.MS, c = {}; let bh = 0; for (const f of M.F) { if (/^(bulkhead|bulkTrim|baggage)$/.test(f.m)) c[f.m] = (c[f.m] || 0) + 1; if (f.bhFace) bh++; } const L = []; window.CAGE_UI_SCENE.traverse(m => { if (m.isMesh && m.name === "edLamp_pax") { const b = new THREE.Box3().setFromObject(m); L.push(b.getCenter(new THREE.Vector3()).toArray().map(x => +x.toFixed(3))); } }); return { sec: c, bhFace: bh, paxLampMeshes: L.length, paxLampAt: L, rows: ["bhStep","bhBevel","bhTwoTone","bhNet","bhLamp","bhRelief","bhFast","bhSling","li_pax"].map(k => k + "=" + CAGE_UI.P[k]).join(" ") }; })()';
++      BR.wall0 = await J(WALLN); log('wall', JSON.stringify(BR.wall0));
+       for (const v of o.views) {
++        if (/^rows:\w+$/.test(v)) {   // AFT-BULKHEAD-SHOTS: a row change in the page (the editor's setParam + build), then the wall's counts again
++          const rows = JSON.parse(process.env.BK_ROWS || '{}')[v.slice(5)] || {};
++          await C.ev('(() => { for (const [k, x] of Object.entries(' + JSON.stringify(rows) + ')) CAGE_UI.setParam(k, x); CAGE_UI.build(); return 1; })()');
++          await frames(12);
++          const w = await J(WALLN); (BR.flips = BR.flips || []).push({ v, rows, wall: w }); log('rows', v, JSON.stringify(rows), '->', JSON.stringify(w));
++          continue;
++        }
+         const tv = Date.now(), name = v.replace(/[:/]/g, '-');
+         const VR = { view: v }; BR.views.push(VR);
+         try {
+@@ -261,6 +287,40 @@
+             asked = [a * Math.PI / 180, e * Math.PI / 180, d];
+             await C.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
+             VR.door = v.slice(0, v.indexOf(':')); if (VR.door === 'close') VR.close = true;
++          } else if (/^bk:/.test(v)) {
++            // AFT-BULKHEAD-LOOK (scratch): the eye aimed at the aft bulkhead's cabin face. The face: the sheet's `bulkhead` faces
++            // (CAGE_UI.MS x CAGE_UNIT x planeScale = the layers' frame, +x port, +z forward), its forward sheet's box centre.
++            //   bk:out/<deg aft of the port beam>/<el deg>/<dist m>[/<y m>]   outside, port ([y]: the aim's height instead of the face's middle)
++            //   bk:infwd[/<dx>/<dy>/<dz>]                            inside (the offset in the layers' frame, m), the eye at the pilot's eye (CAGE_CREW_EYE), the pilot's body hidden
++            //   bk:inclose/<d m>                                     inside, <d> forward of the face along the axis
++            const [vv, yAim] = v.slice(3).split('@'); const n = vv.split('/'); const mode = n[0], a = n.slice(1).map(Number);   // @<y>: the aim's height (m, layers' frame) instead of the face's middle
++            const fr = await J('(async () => { let g = null; window.CAGE_UI_SCENE.traverse(o => { if (!g && o.name === "cageLayer:crew") g = o; }); if (!g) return { err: "no crew layer" };' +
++              ' const UI = window.CAGE_UI, M = UI && UI.MS; if (!M) return { err: "no MS" }; const k = (window.CAGE2 ? CAGE2.CAGE_UNIT : 1) * ((UI.P && UI.P.planeScale) || 1);' +
++              ' const vs = new Set(); for (const f of M.F) if (f.m === "bulkhead" || f.m === "bulkTrim") for (const vi of f.v) vs.add(vi); if (!vs.size) for (const f of M.F) if (f.m === "baggage") for (const vi of f.v) vs.add(vi); if (!vs.size) return { err: "no bulkhead faces (intOn " + UI.P.intOn + ", intBulk " + UI.P.intBulk + ")" };' +
++              ' let zM = -1e9; for (const vi of vs) zM = Math.max(zM, M.V[vi][2] * k); const b = [1e9, -1e9, 1e9, -1e9];' +
++              ' for (const vi of vs) { const p = M.V[vi]; if (p[2] * k < zM - ' + (+(process.env.BK_DEPTH || 0.7)) + ') continue; b[0] = Math.min(b[0], p[0] * k); b[1] = Math.max(b[1], p[0] * k); b[2] = Math.min(b[2], p[1] * k); b[3] = Math.max(b[3], p[1] * k); }' +
++              ' const cL = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, zM]; if ("' + mode + '" === "out" && ' + (a.length > 3 && isFinite(a[3])) + ') cL[1] = ' + (+a[3] || 0) + '; if (' + (yAim != null && isFinite(+yAim)) + ') cL[1] = ' + (+yAim || 0) + '; g.updateMatrixWorld(true); const W = p => g.parent.localToWorld(new THREE.Vector3(p[0], p[1], p[2]));' +
++              ' const c = W(cL), mode = ' + JSON.stringify(mode) + ', a = ' + JSON.stringify(a) + '; let eL = null, eW = null;' +
++              ' const cam = FLIGHT_PROBE.camera(); window.__bkHid = window.__bkHid || [];' +
++              ' if (mode === "out") { const t = a[0] * Math.PI / 180, e = a[1] * Math.PI / 180; eL = [cL[0] + a[2] * Math.cos(e) * Math.cos(t), cL[1] + a[2] * Math.sin(e), cL[2] - a[2] * Math.cos(e) * Math.sin(t)]; eW = W(eL); cam.near = 0.5; }' +
++              ' else if (mode === "infwd") { const E = window.CAGE_CREW_EYE; if (!E) return { err: "no pilot eye (CAGE_CREW_EYE)" }; eW = new THREE.Vector3().fromArray(E.p); eL = g.parent.worldToLocal(eW.clone()).toArray(); if (a.length >= 3) { eL = [eL[0] + a[0], eL[1] + a[1], eL[2] + a[2]]; eW = W(eL); } for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } cam.near = 0.03; }' +
++              ' else if (mode === "inclose") { eL = [cL[0], cL[1], cL[2] + a[0]]; eW = W(eL); cam.near = 0.03; }' +
++              // AFT-BULKHEAD-SHOTS: bk:inside[/<deg>/<dx>/<dy>/<dz>] - the cabin's centre line between the front and the rear seats (the
++              // seat backs' mid z; one row: halfway from its back to the face), the pilot's eye height, looking aft-left <deg> (30): the aim is
++              // where that ray meets the face's plane, kept inside the face's box, at the face's middle height
++              ' else if (mode === "pt") { cL[0] = a[0]; cL[1] = a[1]; cL[2] = a[2]; c.copy(W(cL)); const t = a[3] * Math.PI / 180, e = a[4] * Math.PI / 180; eL = [cL[0] + a[5] * Math.cos(e) * Math.cos(t), cL[1] + a[5] * Math.sin(e), cL[2] - a[5] * Math.cos(e) * Math.sin(t)]; eW = W(eL); cam.near = Math.min(0.5, a[5] / 4); }' +
++              ' else if (mode === "inside") { const E = window.CAGE_CREW_EYE, CC = window.CAGE_CREW, ss = (CC && CC.seatsAt) || []; if (!E) return { err: "no pilot eye" };' +
++              ' const zb = [...new Set(ss.map(s => +s.zBack.toFixed(3)))].sort((p, q) => q - p); const ey = g.parent.worldToLocal(new THREE.Vector3().fromArray(E.p)).y;' +
++              ' const ez = zb.length >= 2 ? (zb[0] + zb[zb.length - 1]) / 2 : ((zb[0] != null ? zb[0] : cL[2] + 0.6) + cL[2]) / 2; const dg = (a[0] != null && isFinite(a[0]) ? a[0] : 30) * Math.PI / 180;' +
++              ' eL = [0 + (a[1] || 0), ey + (a[2] || 0), ez + (a[3] || 0)]; eW = W(eL); const tx = Math.min(b[1] - 0.04, Math.max(b[0] + 0.04, eL[0] + (eL[2] - cL[2]) * Math.tan(dg)));' +
++              ' cL[0] = tx; c.copy(W(cL)); cam.near = 0.03; for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } }' +
++              ' else return { err: "bk mode " + mode };' +
++              ' cam.updateProjectionMatrix(); const d = eW.clone().sub(c), D = d.length(), el = Math.asin(d.y / D), az = Math.atan2(d.z, d.x);' +
++              ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
++              ' const G = FLIGHT_PROBE.camGet(); FLIGHT_PROBE.pan(c.x - G.target[0], c.y - G.target[1], c.z - G.target[2]); FLIGHT_PROBE.camSet(az, el, D);' +
++              ' return { centre: c.toArray().map(x => +x.toFixed(3)), faceL: cL.map(x => +x.toFixed(3)), box: b.map(x => +x.toFixed(3)), eyeL: eL.map(x => +x.toFixed(3)), asked: [az, el, D], near: cam.near }; })()');
++            if (fr.err) throw Object.assign(new Error(fr.err), { code: EXIT.eye });
++            asked = fr.asked; Object.assign(VR, { bk: v, centre: fr.centre, faceL: fr.faceL, faceBox: fr.box, eyeL: fr.eyeL, near: fr.near }); VR.door = 'bk'; VR.close = true;
+           } else if (/^part:/.test(v)) {
+             // THE PART: the editor's own selection names its meshes (hiBuild's overlays, userData.edHi) - their box is
+             // the part's; the selection goes back to the whole aeroplane before the still, so no highlight is in it
+@@ -302,7 +362,7 @@
+           await C.ev('(() => { window.CAGE_UI_SCENE.visible = false; return 1; })()');
+           await frames(3);
+           const shotB = (await C.cmd('Page.captureScreenshot', { format: 'png', clip })).result.data;
+-          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
++          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; for (const m of (window.__bkHid || [])) m.visible = true; window.__bkHid = []; if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
+           const P = await J('(' + ANALYSE + ')(' + JSON.stringify(shotA) + ', ' + JSON.stringify(shotB) + ')', 180000);
+           VR.picture = P;
+           // a frame that fails its check is kept beside the good ones as <name>_FAIL.png - a failure you can look at
+@@ -377,7 +437,7 @@
+   const builds = (opt('build', '') || '').split(',').filter(Boolean);
+   const size = (opt('size', '1920x1080')).split('x').map(Number);
+   const o = {
+-    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'),
++    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'), qs: opt('qs', ''), settle: +opt('settle', 0), bodyA: opt('body-alpha', null), dim: opt('dim', null),
+     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
+     root: path.resolve(opt('root', REPO)),
+   };
+@@ -388,7 +448,7 @@
+     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
+     if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
+   }
+-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
++  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^rows:\w+$/.test(v) && !/^bk:\w+(\/[-\d.]+)*(@[-\d.]+)?$/.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
+   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
+   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
