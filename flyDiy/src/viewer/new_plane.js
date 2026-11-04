@@ -231,19 +231,19 @@ function renderStart(body) {
   // pool's whole builds (builds/candidates/, garage.js candidates) - a card opens the FILE as built, unnamed and with no
   // plaque; drawn when the pool's index answers, the same door the old overlay used (GARAGE_SPEC.openCandidate)
   const g0 = GS();
-  if (g0 && g0.candidates && g0.openCandidate) {
+  const poolCards = (rows, head, word) => {
     const host = document.createElement('div');
     body.appendChild(host);
     try {
-      g0.candidates().then(list => {
+      rows().then(list => {
         if (!list || !list.length || page !== 'start' || !isOpen()) return;
-        host.insertAdjacentHTML('beforeend', '<div class="npSecH">candidate official — built, not validated</div>');
+        host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(head) + '</div>');
         const gc = document.createElement('div');
         gc.className = 'npGrid npSmall';
         for (const c of list) {
           const b = document.createElement('button');
           b.type = 'button'; b.className = 'npTile';
-          b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
+          b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc(word + (c.note ? ' — ' + c.note : '')) + '</small>';
           b.title = c.tip;
           b.dataset.thumb = 'cand:' + c.file; npThumb(b);
           b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
@@ -252,6 +252,10 @@ function renderStart(body) {
         host.appendChild(gc);
       }, () => {});
     } catch (e) {}
+  };
+  if (g0 && g0.openCandidate) {
+    if (g0.officialPool) poolCards(g0.officialPool, 'official', 'official');   // (the user 4 Nov: "yes, both on the chooser")
+    if (g0.candidates) poolCards(g0.candidates, 'candidate official — built, not validated', 'candidate official');
   }
   // THE AUTHORED RECREATIONS: hand-made to a reference, baked as they are (one build, the same hand-over)
   const auth = d.ARCHETYPES.filter(a => g.authored(a));

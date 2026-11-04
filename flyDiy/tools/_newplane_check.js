@@ -202,6 +202,21 @@ async function flowCheck(np) {
     delete store.candidates; delete store.openCandidate;
     t(withPic === 1 && without === 0, 'a candidate tile wears PLANE_THUMB\'s one picture when it answers, today\'s tile without it (with ' + withPic + ', without ' + without + ')');
   }
+  // THE OFFICIAL GROUP (the user 4 Nov: "yes, both on the chooser"): the pool's official rows on the first screen, the candidate door
+  {
+    const opened = [];
+    store.officialPool = () => Promise.resolve([{ file: 'o.json', name: 'O', tip: 'official' }]);
+    store.candidates = () => Promise.resolve([{ file: 'c.json', name: 'C', tip: 't' }]);
+    store.openCandidate = c => { opened.push(c.file); };
+    UI.open(); await new Promise(r => setTimeout(r, 0));
+    const pool = tilesIn(doc.body.children.find(c => c.id === 'npWrap').querySelector('.npBody')).filter(b => b.dataset && /^cand:/.test(b.dataset.thumb || ''));
+    t(pool.length === 2 && pool[0].dataset.thumb === 'cand:o.json' && />official</.test(pool[0].innerHTML) && pool[1].dataset.thumb === 'cand:c.json' && /candidate official/.test(pool[1].innerHTML), 'the chooser: the official group first, then the candidates, each its word');
+    pool[0].click();
+    for (let i = 0; i < 200 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 5));
+    t(opened.join() === 'o.json' && !UI.isOpen() && cnt.set === 0 && cnt.bake === 0, 'an official card opens through the candidate door, once');
+    delete store.officialPool; delete store.candidates; delete store.openCandidate;
+    UI.LOG.generated = 0; cnt.view = null;
+  }
   // Cancel: nothing touched
   UI.open();
   t(UI.isOpen() && cnt.hold === true, 'the chooser opens full-screen and holds the render loop');

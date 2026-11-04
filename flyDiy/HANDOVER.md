@@ -312015,9 +312015,16 @@ official, the Cub's `regC` stays -0.18.
   Change a plane's list here, and in `builds/candidates/index.json` if it is a pool file; GATE PLANELISTS says when the two disagree.
 - **The pool.** Promoted from `review/`: Birdman, the v7 twin, the v8 pusher, twinBoomFail. Filed: B-ITES, Pawnee, the ultralight twin on
   floats (`VALIDATED.twinFloats` baked to `build_v7_ultralight_2026-09-05_floats.json`). `official: true` in the index (the flagship, the
-  STOL Cub) takes a plane off the candidate cards; the file stays. `cub_fittings_hand_2026-10.json` moved to `review/`, and a plane left in
+  STOL Cub) takes a plane off the candidate cards and puts it in the chooser's official group; the file stays. `cub_fittings_hand_2026-10.json` moved to `review/`, and a plane left in
   `review/` now means INTERNAL. `review/sailPlane.json` is the user's export, which holds only `{P: rows}` and which the load door refuses:
   its rows are filed as `spec.cage`.
+- **Official only means shown on the list** (the user, 4 Nov): an official plane does not become a reference plane for the test battery. Add
+  none to a gate as a reference. The career's plane list stays as it is until the used-plane and new-plane functions are built (next week or later).
+- **The chooser** keeps the flagship and the STOL Cub in its own "official" group, before the candidates (the user: "yes, both on the chooser"):
+  `GARAGE_SPEC.officialPool` reads the index's `official: true` rows.
+- **The official Cub's `regC`** 0.012 m (was -0.18): the user asked for the boom's true centre. At `regL` 3.66 m the boom's flank runs -0.248 to
+  +0.401 m, 0.649 m tall, its middle at sC +0.012 m. Paint only. The level black rail (sC +0.011 to +0.057 m, 0x262626) now crosses the upper half of
+  the near-black letters (0x141414, 0.20 m tall); a look is owed.
 - **The screen.** The rack's "all planes" button opens `NEW_PLANE.open({ all: true })`: the chooser's own panel, render held, a tile per
   row grouped Official / Candidates / Internal testing, the baked picture when there is one, the name alone when not. A press goes through
   `GARAGE_SPEC.openListed`: unnamed, no plaque, an empty log, like a candidate. Internal and the notes show in `dev.html` and the dev

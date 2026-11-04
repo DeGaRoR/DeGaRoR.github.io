@@ -82,7 +82,8 @@ function pageRows(S) {
   const need = (src, re, what) => { if (!re.test(S[src])) bad.push(src + ': ' + what); };
   need('garage', /const LISTS_FILE = 'builds\/lists\/plane_lists\.json'/, 'the lists are read from the repo file');
   need('garage', /!p\.official && typeof p\.file === 'string'/, "an official pool row is off the candidate cards");
-  need('garage', /planeLists, openListed,/, 'GARAGE_SPEC carries the lists');
+  need('garage', /planeLists, openListed, officialPool,/, 'GARAGE_SPEC carries the lists');
+  need('np', /poolCards\(g0\.officialPool, 'official', 'official'\)/, "the chooser's official group (the user 4 Nov: \"yes, both on the chooser\")");
   need('garage', /class="dfPill gfAll">all planes</, "the rack's button");
   need('garage', /\.gfAll'\)\.addEventListener\('click', \(\) => \{ closeFleet\(\); if \(window\.NEW_PLANE\) window\.NEW_PLANE\.open\(\{ all: true \}\)/, 'the button opens the screen');
   need('garage', /for \(const k in p\.over \|\| \{\}\) g\.spec\[k\] = Object\.assign\(\{\}, g\.spec\[k\], p\.over\[k\]\); loadSpec\(g\.spec, ''\)/, 'a row opens unnamed, no plaque, its sections laid over');
@@ -141,6 +142,7 @@ function stand(S, bad) {
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
     await red('the filter shows internal to a player', pageRows(Object.assign({}, S, { garage: S.garage.replace("(dev || p.list !== 'internal')", 'true') })));
     await red('the rack without its button', pageRows(Object.assign({}, S, { garage: S.garage.replace('gfAll">all planes<', 'gfAll"><') })));
+    await red('the chooser without its official group', pageRows(Object.assign({}, S, { np: S.np.replace("poolCards(g0.officialPool, 'official', 'official')", '0') })));
     await red('R1 undone', pageRows(Object.assign({}, S, { css: S.css.replace('--ws-right:0px !important', '--ws-right:0px') })));
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));
   }
