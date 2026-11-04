@@ -312018,3 +312018,5 @@ GATES (node, --no-build, jobs 3): WEATHERPLAN DAY CLOCK CLOUD UISMOKE WEATHER PA
 three browser census rows skipped: the change is UI text, no renderer path). Nothing built is committed.
 COSTS: none at run time - the guard is a branch at the panel's mount; the census rows (~5 min each on the cloud box) are
 the next train's to run.
+STATUS (4 Nov): claude/weather-blocks-2 1c052cc08 is green and pushed; claude/ready/weather-blocks is NOT - this session's
+push to a ready branch was refused as a deploy, so it waits for the user's own push.
