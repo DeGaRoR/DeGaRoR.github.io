@@ -1131,12 +1131,12 @@ function makePilot(sim, def, world, opts) {
   const P3_ = !!(A.p3 ?? true);
   let hPatDone = false;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
-  // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 300 ft at least (the
-  // last gate at which an approach may still be unstable), a quarter mile at the very least (AIM 4-3-3), and long enough that the
-  // height from the abeam point comes off at gDes over that same distance + the base - 150 s at most
+  // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
+  // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
+  // least (AIM 4-3-3), and long enough that the height from the abeam point comes off at gDes over that same distance + the base - 150 s at most
   const p3Final = (gs, hC, W, V, short) => {
     const gD = gDes();
-    return clamp(Math.max((short ? 60 : 45) * V, (short ? 152 : 91) / gs, (hC - gD * W) / (gs + gD)), 400, Math.max(400, 150 * V));
+    return clamp(Math.max((short ? 60 : 45) * V, (short ? 152 : 122) / gs, (hC - gD * W) / (gs + gD)), 400, Math.max(400, 150 * V));
   };
   const gammaGA = () => { const S = sheetOf(); return S && S.gammaClimb ? 0.8 * S.gammaClimb : 0.08; };
   const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null,
@@ -4527,7 +4527,7 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
-          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0)) && (slopeCaptured || (P3_ && above > 0)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
+          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
@@ -4635,7 +4635,8 @@ function makePilot(sim, def, world, opts) {
             const lim = {
               vLo: S.vLo, vHi: S.vHi,
               dev: Math.max(S.devMin, d * Math.tan(S.devDeg * Math.PI / 180)),
-              sink: Math.min(S.sinkMax, Math.max(S.sinkK * nomSink, nomSink + S.sinkAdd)),
+              // (G3914: 500 fpm is inside every gate - FAA-H-8083-3 ch. 9: 500-1000 fpm, under 500 by 300 ft: a Cub catching a 3 deg slope at 375 fpm went round for it)
+              sink: Math.min(S.sinkMax, Math.max(S.sinkK * nomSink, nomSink + S.sinkAdd, P3_ ? 2.54 : 0)),
               xt: Math.max(ST.gaXT, d * Math.tan(S.xtDeg * Math.PI / 180)) };
             const have = { vLo: iasF + tVAdapt - stabVf, vHi: stabVf - iasF - tVAdapt, dev: Math.abs(above), sink: stabSf, xt: Math.abs(sCr) };
             // G3491: HIGH ON A SHORT FINAL AT IDLE IS FLOWN WHILE THE TOUCH STILL FITS - from here at the slope it is flying, the
