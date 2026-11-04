@@ -310708,7 +310708,7 @@ at default (G3570: not in the defaults table, `absent: 0`), part "Headliner & tr
   - Named: with the rows on the ceiling reads darker (the flood 6 cm lower in the console, no longer grazing the
     ceiling; the headliner base 0x9d968a) - paint it (warm tan suggested).
   - GATE PARTS has a headliner shape (the two sections exist only with their rows on).
-### 7. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; on L31a adc53b25b)
+### 7. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; L31b, fixes L31c)
 
 The user: "Focus on the aft bulkhead really". The study (claude/aft-bulkhead-look) found the wall shows only from forward of the beam,
 through the rear side glass, near black on tube, alloy and composite builds. Rows in the garage's aft wall group, all absent at default:
@@ -310719,9 +310719,15 @@ bhFast (1 screws, 2 rivets, section toele), bhNet (section baggage), bhLamp bhLa
 - WHY THE STRIP IS STRAIGHT: the user 4 Nov, on it following the top edge: "do not follow this strange maybe ceiling path". It bends only
   under a true round arch (`isArch` in wallLamp).
 - GATES AND GAPS: `reports/evidence/AFT-BULKHEAD/READY.md`. Stills: claude/aft-bulkhead-shots, `.../AFT-BULKHEAD/rows/ROWS.md`.
-  Default builds identical against L31a; FRAMECOST red only on master's own 5 rows.
-- OWED: L31c: the net under the lamp on shelf builds, relief on the upper panel, a smoothed inner outline. Next round: the Cub sling
-  clears the rear seat, accessories and placards, the Mosquito's flood lamp through the deck.
+  Default builds identical against L31b; FRAMECOST red on the same 5 rows as master adc53b25b.
+- THE SECOND ROUND (L31c): the net stands under the lamp (`BH.lampBand`; `yNet` keeps wallLamp's strip and dome over it); the bevel's inner
+  edge and the screws take a smoothed outline (`at(p,k)`, the ring itself stays lumpy); a roll narrows to fit the upper panel; a bulkhead
+  flood lamp needs its whole flange on the wall or passes to the next rung (`bulkheadAt`, the Mosquito).
+- ON BY DEFAULT ONLY IN 4b: `builds/candidates/Twin_busher_floats_4b.json` carries these rows and section 6's (the user 4 Nov, for the
+  screenshot). The rows carry NO mass: 820.615 kg either way, in the ledger's model, not in truth. 4b's flight draws are not measured
+  (FRAMECOST reads default builds).
+- OWED, next week: the Cub sling clears the rear seat (a real FAIL, 20.8 cm), accessories, stickers and placards (the user: each picks a
+  place; 17 original designs in the evidence folder), mass for the interior if anyone asks.
 
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
