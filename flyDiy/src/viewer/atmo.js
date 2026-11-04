@@ -632,7 +632,7 @@ var ATMO = (function () {
         if (!w) { w = function (sh, r) { inject(sh); return f.call(this, sh, r); }; w.toString = () => 'atmo.inject+' + f.toString(); WRAP.set(f, w); }
         return w;
       },
-      set(f) { this._atmoHook = f || null; },
+      set(f) { this._atmoHook = (f && f !== injectOnly) ? f : null; },   // a copy of the bare inject is no hook: wrapping it keys one source twice
     });
     installed = true;
     return true;
