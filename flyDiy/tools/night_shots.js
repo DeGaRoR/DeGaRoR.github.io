@@ -295,6 +295,7 @@ const SETUP = V => `(async () => {
   // flight's own framing between them); camMode first - it puts the orbit's own distance back - then the lens, then the eye
   if ((aim === 'ref' || aim === 'compose') && FLIGHT_PROBE.camMode && FLIGHT_PROBE.camModeNow && FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');
   if (window.FLYDIY_HVIEW && FLYDIY_HVIEW.flyFov) { const cm = FLIGHT_PROBE.camera(); if (window.__fov0 == null) window.__fov0 = cm.fov; FLYDIY_HVIEW.flyFov(${+V.fov || 0} || window.__fov0); }
+  window.__nsAz = az;
   FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist}); if ((aim === 'ref' || aim === 'compose') && FLIGHT_PROBE.camSettle) FLIGHT_PROBE.camSettle();
   const LT = ${JSON.stringify(V.lights || null)}, K = window.FLYDIY_COCKPIT_I || null, lit = {};   // app.js's CK is module-local; the page hands it out as FLYDIY_COCKPIT_I
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
@@ -441,6 +442,20 @@ async function runPage(page) {
       if (PHOTO && !argv.includes("--hud")) await ev("(() => { let st = document.getElementById('__nsClean'); if (!st) { st = document.createElement('style'); st.id = '__nsClean'; st.textContent = 'body * { visibility: hidden !important; }'; document.head.appendChild(st); } const cs = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height); if (cs[0]) cs[0].style.setProperty('visibility', 'visible', 'important'); return 1; })()");   // a picture: no HUD, no card
       await sleep(300);
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
+      // THE SWEEP (the user 4 Nov: "you can try many angles in a single scene, saving you the load time"): --sweep 1, the settled scene from many
+      // eyes, each a camSet and a few frames. n name; da degrees round the plane from the view's own; dist m; eye m over the water; lift m over the plane's centre; fov deg
+      if (PHOTO && opt('sweep', null)) {
+        const CG = 1.6, EYES = [['low_close', 0, 15, 0.7, 1.3, 24], ['low_closer', 0, 11, 0.7, 1.5, 28], ['low_far', 0, 30, 0.8, 1.6, 22], ['wide', 0, 16, 0.9, 1.6, 36], ['wider', 0, 12, 0.8, 1.8, 46],
+          ['left20', -20, 20, 0.9, 1.3, 24], ['right20', 20, 20, 0.9, 1.3, 24], ['left45', -45, 18, 0.8, 1.4, 28], ['right45', 45, 18, 0.8, 1.4, 28], ['front', 60, 16, 0.8, 1.5, 30], ['belly', 15, 9, 0.6, 2.2, 40], ['high', 0, 22, 3.0, 0.6, 24]];
+        for (const [n, da, dist, eye, lift, fov] of EYES) {
+          const el = Math.asin(Math.max(-0.5, Math.min(0.5, (eye - CG - lift) / dist)));
+          await ev('(() => { window.__nsLift = ' + lift + '; FLYDIY_HVIEW.flyFov(' + fov + '); FLIGHT_PROBE.camSet(window.__nsAz + ' + (da / 57.29578) + ', ' + el + ', ' + dist + '); return 1; })()');
+          await ev(FRAMES(12)); await sleep(350);
+          const pa = await cmd('Page.captureScreenshot', { format: 'png' });
+          fs.mkdirSync(path.join(OUT, 'sweep'), { recursive: true });
+          fs.writeFileSync(path.join(OUT, 'sweep', V.name + vt + '_' + n + '.png'), Buffer.from(pa.result.data, 'base64'));
+        }
+      }
       if (PHOTO) await ev("(() => { const st = document.getElementById('__nsClean'); if (st) st.remove(); return 1; })()");
       const file = path.join(OUT, V.name + '_' + tag + vt + '.png');
       fs.writeFileSync(file, Buffer.from(png1.result.data, 'base64'));
