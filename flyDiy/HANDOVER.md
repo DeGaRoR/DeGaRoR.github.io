@@ -311345,3 +311345,12 @@ there is the evidence this core code was ported from).
 - STATUS (3 Nov ~20:30): claude/weather-season is complete and pushed; claude/ready/weather-season is NOT pushed - a
   ready branch is pushed on the user's own word (the user said so for weather-fixes; this one waits for theirs). It sits
   on L30b + claude/weather-fixes (merged), so it rides any train that carries weather-fixes, or after it.
+
+## A0 - train L31a, 4 Nov 2026 08:15
+
+IN (on L30d master 05f95aa76): claude/ready/pilot1-p1 bc280a3c9 (PILOT-1 P1), claude/ready/pilot1-tourknown 2ae58a7d9, claude/ready/w2-dry 7517f828c (the recorded water off w2), claude/ready/dmg-scuff-fix 18c8efd7c, claude/ready/day-saved-read 523184c49 (F9: a fresh career's weather-only pref), claude/ready/phone-no-gate 7f6ecf10c (phones load the phone garage directly; holds phone-map-stay), claude/ready/story-home-fix 09a391eba, claude/ready/scenery-place 15e1977fb, claude/ready/bay-mirror 70931162a, claude/ready/weather-season e74c3a155 (the user 4 Nov: "weather is done").
+OUT: stol-fixture-2 (the re-capture was not pushed), hut-11c (not needed), night-look-1 (its stills are at 09:30).
+BATTERY (66 + WEATHERPLAN + WEATHER run by hand on the same tree, both PASS): 58 PASS. WORLD, ROUTE and TAXICLEAR turned GREEN on this train.
+Red, standing: STOL (the fixture predates tank-fit: the same 7 rows as L30c, re-capture owed), VEHICLE (2 rows), DMGSKINGPU + DMGWRECK (first red at L30c's tank-fit), FRAMECOST (the same 5 rows as L30d), MEDIA (index.html 5.05 MiB gz against the 5 MiB budget: no page-size work, the user 14 Oct), ASSETS (same list as L30d), GEO (media/geo/chars not named by any manifest the gate parses: those files are unchanged since 26 Oct).
+Red, NEW and a rig fault: NIGHTVISIBILITY. Its check cuts jump() out of src/viewer/day_clock.js into a vm, and weather-season's jump() now calls seasonLand, which is declared outside the cut ("ReferenceError: seasonLand is not defined", tools/_nightvisibility_check.js:17). The game declares it at day_clock.js:138; the fix is a stub in the rig's context, for L31b.
+TIMED (light): 45 red against the 12 Oct baseline (L30d 49), the same boot picture: warm nav -> garage 103.5 / 131.6 s. Named on the perf-week list.
