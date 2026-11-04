@@ -737,7 +737,7 @@ function garageInit(api) {
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
@@ -747,6 +747,28 @@ function garageInit(api) {
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
+  // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
+  // aeroplane we have in three lists. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with
+  // no plaque and an empty log; a stock row as a stock design. INTERNAL and the developer's notes: dev only (dev.html, the dev career)
+  const LISTS_FILE = 'builds/lists/plane_lists.json';
+  let listsP = null;
+  const planeLists = () => {
+    if (!listsP) {
+      listsP = (typeof fetch === 'function' ? fetch(LISTS_FILE).then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+        .then(j => (j && Array.isArray(j.planes) ? j.planes : []), () => []);
+      listsP.then(l => { if (!l.length) listsP = null; });
+    }
+    const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
+    return listsP.then(l => l.filter(p => p && (dev || p.list !== 'internal')).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
+  };
+  const openListed = p => {
+    if (p.stock) { loadStock(p.stock); return; }
+    if (p.gen) { loadSpec(api.defaults(), ''); return; }
+    return fetch(p.file.split('/').map(encodeURIComponent).join('/'))
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, ''); })
+      .catch(e => alert('That aeroplane could not be loaded: ' + p.file + ' (' + ((e && e.message) || e) + ')'));
+  };
 
   let spec = api.defaults();
   let slotName = '';
@@ -1065,6 +1087,7 @@ function garageInit(api) {
     fleetEl.innerHTML =
       '<div class="gfBox">' +
         '<div class="gfH"><span>THE FLEET</span>' +
+          '<button type="button" class="dfPill gfAll">all planes</button>' +
           '<button type="button" class="dfPill gfClose">close</button></div>' +
         '<div class="gfSub"></div>' +
         '<div class="gfGroupH">your aeroplanes</div>' +
@@ -1079,6 +1102,7 @@ function garageInit(api) {
         '</div>' +
       '</div>';
     fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
+    fleetEl.querySelector('.gfAll').addEventListener('click', () => { closeFleet(); if (window.NEW_PLANE) window.NEW_PLANE.open({ all: true }); });
     if (typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => { if (fleetEl && !fleetEl.hidden) renderFleet(); });
     // the scrim closes it too — backing out of a load door costs one click
     fleetEl.addEventListener('click', e => {
@@ -1553,6 +1577,7 @@ function garageInit(api) {
       touch, commit, onCommit, exportFile,
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
+      planeLists, openListed,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },

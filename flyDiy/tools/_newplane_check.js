@@ -223,6 +223,31 @@ async function flowCheck(np) {
   t(brought === 'Rufus' && !UI.isOpen() && cnt.hold === false && cnt.set === 0 && cnt.bake === 0 && !doc.documentElement.classList._s.has('npOffer'), 'a press on a plane of yours: the panel closed, the hold released, the host told; nothing built here');
   UI.open(offerOf()); offerTiles()[1].click();
   t(bought === 1 && !UI.isOpen(), 'Buy one: the panel closed, the host told');
+  // ALL PLANES (PLANE-LISTS, the user 4 Nov): the lists grouped, a press opens through the garage; nothing built or loaded before it
+  {
+    const opened = [];
+    store.planeLists = () => Promise.resolve([{ n: 1, list: 'official', name: 'A', thumb: 'cand:a.json' }, { n: 2, list: 'candidates', name: 'B' }]);
+    store.openListed = p => { opened.push(p.name); };
+    W.PLANE_THUMB = { get: k => (k === 'cand:a.json' ? 'media/thumbs/a.webp' : null) };
+    UI.open({ all: true }); await new Promise(r => setTimeout(r, 0));
+    const wrap = doc.body.children.find(c => c.id === 'npWrap');
+    const listT = tilesIn(wrap.querySelector('.npBody')).filter(b => b.dataset.list);
+    t(UI._state().page === 'all' && cnt.hold === true && listT.length === 2 && listT[0].dataset.list === 'official' && listT[1].dataset.list === 'candidates' && /official/.test(listT[0].innerHTML) && /candidate/.test(listT[1].innerHTML),
+      'All planes: full-screen, the render held, the lists grouped, each row its word');
+    t(listT[0].children.some(c => c.className === 'npThumb') && !listT[1].children.some(c => c.className === 'npThumb'), 'All planes: the baked picture when there is one, a name alone when not');
+    t(cnt.set === 0 && cnt.bake === 0 && !opened.length, 'All planes: nothing built or loaded before a press');
+    listT[1].click();
+    for (let i = 0; i < 200 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 5));
+    t(opened.join() === 'B' && !UI.isOpen() && cnt.hold === false, 'All planes: a press opens that plane once, the panel closed, the hold released');
+    UI.open({ all: true }); await new Promise(r => setTimeout(r, 0));
+    UI._next();
+    t(UI._state().page === 'all' && UI.isOpen(), 'All planes: no generate here');
+    UI.close(); UI.open();
+    t(UI._state().page === 'start', 'the NEW button still opens the chooser');
+    UI.close();
+    delete store.planeLists; delete store.openListed; delete W.PLANE_THUMB;
+    UI.LOG.generated = 0; cnt.view = null;
+  }
   // the walk: start, then every step's first offered tile, row by row
   UI.open();
   const body = doc.body.children.find(c => c.id === 'npWrap') || doc.body.children[doc.body.children.length - 1];

@@ -47,9 +47,9 @@ function open(opts) {
   if (!NG() || !D()) return false;
   if (busy) return false;
   if (!el) build();
-  choices = {}; page = 'start'; stepI = 0; regText = '';
+  choices = {}; page = opts && opts.all ? 'all' : 'start'; stepI = 0; regText = '';
   offer = (opts && opts.offer) || null;
-  el.querySelector('.npTitle').textContent = offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
+  el.querySelector('.npTitle').textContent = page === 'all' ? 'ALL PLANES' : offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
   el.hidden = false;
   document.documentElement.classList.add('npOpen');
   document.documentElement.classList.toggle('npOffer', !!offer);
@@ -118,7 +118,7 @@ function skip() {
   advance();
 }
 function next() {
-  if (busy) return;
+  if (busy || page === 'all') return;
   if (page === 'start') { page = 'step'; stepI = 0; render(); return; }
   if (page === 'step') { skip(); return; }
   if (page === 'summary') generate();
@@ -146,18 +146,20 @@ function render() {
   const body = el.querySelector('.npBody');
   const dots = el.querySelector('.npDots');
   const st = steps();
-  dots.innerHTML = st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
+  dots.innerHTML = page === 'all' ? '' : st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
     '" title="' + esc(s.title) + '"></i>').join('') + '<i class="sum' + (page === 'summary' ? ' on' : '') + '" title="summary"></i>';
   const fb = el.querySelector('.npBack'), fs = el.querySelector('.npSkip'), fn = el.querySelector('.npNext');
   const hint = el.querySelector('.npHint');
   fb.disabled = page === 'start';
   fs.hidden = page !== 'step';
+  fb.hidden = fn.hidden = page === 'all';
   fn.textContent = page === 'summary' ? 'generate' : page === 'start' ? 'start ›' : 'next ›';
   fn.classList.toggle('npGo', page === 'summary');
   hint.textContent = page === 'step' ? 'step ' + (stepI + 1) + ' of ' + st.length + ' · skip takes the usual choice' : '';
   body.innerHTML = '';
   body.scrollTop = 0;
-  if (page === 'start') renderStart(body);
+  if (page === 'all') renderAll(body);
+  else if (page === 'start') renderStart(body);
   else if (page === 'step') renderStep(body, st[stepI]);
   else renderSummary(body);
 }
@@ -269,6 +271,40 @@ function renderStart(body) {
     }
     body.appendChild(ga);
   }
+}
+
+// ALL PLANES (PLANE-LISTS, the user 4 Nov): every aeroplane we have, read-only: the lists (GARAGE_SPEC.planeLists: internal is the
+// dev's), a tile each with its side profile when one is baked, a name alone when not. A press loads it through the garage's own
+// door (GARAGE_SPEC.openListed) and hands over like a candidate; nothing is built or loaded before the press
+function renderAll(body) {
+  let warn = '';
+  try { warn = GS().name() ? '' : 'loading one replaces the unsaved build on the stand'; } catch (e) {}
+  body.insertAdjacentHTML('beforeend', '<div class="npStepH"><b>Every aeroplane we have</b><span>a press puts it on the stand, unsaved' +
+    '</span></div>' + (warn ? '<div class="npLead"><em class="npWarn">' + esc(warn) + '</em></div>' : ''));
+  const g0 = GS();
+  if (!g0 || !g0.planeLists || !g0.openListed) return;
+  const host = document.createElement('div');
+  body.appendChild(host);
+  g0.planeLists().then(list => {
+    if (page !== 'all' || !isOpen()) return;
+    for (const [key, word] of [['official', 'official'], ['candidates', 'candidate'], ['internal', 'internal testing']]) {
+      const rows = list.filter(p => p.list === key);
+      if (!rows.length) continue;
+      host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(key === 'internal' ? 'internal testing' : key) + '</div>');
+      const grid = document.createElement('div');
+      grid.className = 'npGrid npSmall';
+      for (const p of rows) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'npTile'; b.dataset.list = key;
+        b.innerHTML = '<b>' + esc(p.name) + '</b><small>' + esc(word + (p.note ? ' — ' + p.note : '')) + '</small>';
+        b.title = p.tip || '';
+        if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
+        b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openListed(p); }));
+        grid.appendChild(b);
+      }
+      host.appendChild(grid);
+    }
+  }, () => {});
 }
 
 function renderStep(body, s) {
