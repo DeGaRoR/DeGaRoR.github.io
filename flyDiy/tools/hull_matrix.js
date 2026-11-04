@@ -33,6 +33,9 @@ const ENGINES = {
           note: 'the Cessna\'s own nose tractor (the control: a boat with its propeller at the bow)' },
 };
 
+// THE ROLL, whatever the heading: the body's lateral axis (x aft cross y up) out of the horizontal (HULL-B10: the up
+// axis's world z read the roll only on the reset heading - a boat yawed by its abort read 1 deg while it turned turtle)
+const rollOf = (xA, yU) => { const z1 = xA[2] * yU[0] - xA[0] * yU[2]; return Math.asin(Math.max(-1, Math.min(1, z1))) * 180 / Math.PI; };
 function one(form, eng) {
   const C = require('./flight_core.js'), G = require('./_cage_gen.js'), D = require('./_cage_design.js'), LB = require('./_load_build.js');
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), 'utf8'));
@@ -55,8 +58,9 @@ function one(form, eng) {
     const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
     const TB = G.cageHullTable(G.cageHullLines(P), FS), hr = spec.gear.hull;
     if (!TB) break;
-    fitAll = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d) },
-                              C.HYDRO, { semi: spec.geom && spec.geom.semi });
+    fitAll = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d),
+                                tipArm: ((d.parts.floats || []).find(q => q.tip) || { K: [] }).K.reduce((a, i) => Math.max(a, Math.abs(d.nodes[i].p[2])), 0) },
+                              C.HYDRO, { semi: d.nodes.reduce((a, n) => Math.max(a, Math.abs(n.p[2])), 0) });   // (the wing's tip: the furthest node off the centreline)
     if (!fitAll) break;
     Object.assign(sp.cage, fitAll.rows); Object.assign(fitRows, fitAll.rows);
     if (process.env.HM_DEBUG) console.error("pass", pass, JSON.stringify(fitAll.rows), JSON.stringify(fitAll.rest), fitAll.notes.join("; "));
@@ -81,7 +85,7 @@ function one(form, eng) {
   for (let s = 0; s < 600; s++) {
     sim.step(1 / 60);
     const [xA, yU] = sim.axes();
-    const trim = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI, roll = Math.asin(Math.max(-1, Math.min(1, yU[2]))) * 180 / Math.PI;
+    const trim = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI, roll = rollOf(xA, yU);
     if (!Number.isFinite(trim)) { ok = false; break; }
     upMin = Math.min(upMin, yU[1]);                 // (a boat that turned over reads a small roll and trim - the up axis says it)
     if (sim.out && sim.out.propWet) wetProp |= sim.out.propWet;
@@ -100,12 +104,14 @@ function one(form, eng) {
     pil.update(1 / 60); s2.step(1 / 60); Tt += 1 / 60;
     const v = s2.cgVel(), [xA, yU] = s2.axes();
     if (!Number.isFinite(v[0])) { fin = false; break; }
+    // (a solver that blew up flies too, at 1 km/s: a node faster than any aeroplane is a divergence, not a flight)
+    if (s % 30 === 0) { let vm = 0; for (let i = 0; i < s2.n; i++) vm = Math.max(vm, Math.abs(s2.v[i * 3]) + Math.abs(s2.v[i * 3 + 1]) + Math.abs(s2.v[i * 3 + 2])); if (vm > 300) { fin = false; break; } }
     const fx = s2.hydro.floats, wet = fx.reduce((a, x) => a + x.wet, 0) > 0, V = Math.hypot(v[0], v[2]);
     const hdg = Math.atan2(-xA[0], -xA[2]) * 180 / Math.PI;
     if ((pil.phase === 'ROLL' || pil.phase === 'LIFTOFF') && wet && lift == null) {
       if (hdg0 == null) hdg0 = hdg;
       swing = Math.max(swing, Math.abs(((hdg - hdg0 + 540) % 360) - 180));
-      maxRoll = Math.max(maxRoll, Math.abs(Math.asin(Math.max(-1, Math.min(1, yU[2]))) * 180 / Math.PI));
+      maxRoll = Math.max(maxRoll, Math.abs(rollOf(xA, yU)));
       let Rx = 0; for (const x of fx) Rx += -(x.out.F[0] * v[0] + x.out.F[2] * v[2]) / Math.max(0.3, V);
       if (V < 14 && Rx / W > hump) { hump = Rx / W; humpV = V; }
     }

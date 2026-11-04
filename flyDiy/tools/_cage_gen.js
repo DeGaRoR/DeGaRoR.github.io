@@ -1160,7 +1160,12 @@ function cageHullFitAll(P, f, HY, opt) {
   if ([3, 6].includes(mount) && !Math.round(+P.engRotate || 0)) fit.engRotate = 1;
   if (+P.hullTips && HY && HY.hullTipFit) {
     const TB = r ? r.TB : cageHullTable(cageHullLines(Object.assign({}, P, fit)), FS);
-    const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass);
+    // (HULL-B10: the moment rule - the CG's height over the step keel, the floats' arm, the engines' torque at full
+    // power P / w: the frame's tip floats stand at hullTipAt of the semispan)
+    const sy = r ? r.sy : TB && TB.yStep * FS - f.yD;
+    const pair = [3, 5, 6].includes(mount) && (Math.round(+P.engRotate || 0) || fit.engRotate);
+    const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
+    const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass, sy != null && (o.semi || f.tipArm > 0.5) ? { cgY: f.cg[1] - sy, arm: f.tipArm > 0.5 ? f.tipArm : (+P.hullTipAt || 0.85) * o.semi, torqueKgm: tq } : undefined);
     if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
   }
   return { rows: fit, rest: r && { trim: r.trim, draft: r.draft, bowDeck: r.bowDeck }, notes };

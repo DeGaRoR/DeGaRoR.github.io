@@ -110,8 +110,9 @@ for (let pass = 0; pass < 3; pass++) {
   const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
   const TB = G.cageHullTable(G.cageHullLines(P), FS), hr = spec.gear.hull;
   if (!TB || !hr) break;
-  const fa = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d) },
-                              C.HYDRO, { semi: spec.geom && spec.geom.semi });
+  const fa = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d),
+                                tipArm: ((d.parts.floats || []).find(q => q.tip) || { K: [] }).K.reduce((a, i) => Math.max(a, Math.abs(d.nodes[i].p[2])), 0) },
+                              C.HYDRO, { semi: d.nodes.reduce((a, n) => Math.max(a, Math.abs(n.p[2])), 0) });   // (the wing's tip: the furthest node off the centreline)
   if (!fa) break;
   fitRows = fa.rows; fitRest = fa.rest;
   Object.assign((raw.spec || raw).cage, fitRows);
