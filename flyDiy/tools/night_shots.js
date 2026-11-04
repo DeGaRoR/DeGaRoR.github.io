@@ -85,6 +85,8 @@ const LITS = (() => { try { const fj = JSON.parse(fs.readFileSync(path.join(__di
   for (const q of fj.layers.sites) { const n = (q.items || []).filter(i => /house|cabin|store|lodge|shed|church|cannery|warehouse|boat|wharf|pier|floats|light|hangar|big\//i.test(i.key)).length; if (n) L.push([q.at.x, q.at.z, Math.min(n, 5)]); }
   for (const z of fj.layers.zones) if (/residential|commercial|industrial|harbour/.test(z.kind)) { let cx = 0, cz = 0; for (const p of z.poly) { cx += p[0]; cz += p[1]; } L.push([cx / z.poly.length, cz / z.poly.length, 4]); }
   return L; } catch (e) { return []; } })();
+// the photo scene's calm (the game's 8 kt weathercocked the taxi nose-left) and a night with the moon ahead of camera B, left of the plane (az 239, 10 deg up, 98 %): the silver path on the water
+const CALM = { wind: null }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
@@ -140,10 +142,11 @@ const VIEWS = [
   // the user's pick (4 Nov, B): "camera lower and closer up, showing a little more sky ... the cabin lit, plus the aurora and the
   // plane" - 20 m, the eye ~1 m over the water, looking 1.2 m over the plane's centre (`lift`) so the tilt is 5 deg: the horizon drops, the plane
   // sits low with the summits and the sky over it, and less of the near water's blurred mirror shows (the first cut's 0.66 m eye, A0: the floats hung under a hard line)
-  { photo: 1, name: 'photo_day',   day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 8 },
-  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 14 },
-  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 10 },
-  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 12, js: 'if (window.AURORA) AURORA.on({ azDeg: ' + (FRAME ? FRAME.bearing : 0) + ' })' },
+  { photo: 1, name: 'photo_day',   day: Object.assign({}, APR_AM, FEW, CALM), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 8 },
+  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR, CALM), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 14 },
+  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR, CALM), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 10 },
+  { photo: 1, name: 'photo_moon',  day: Object.assign({}, MOON_AHEAD, CLEAR, CALM), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 12, js: 'if (window.AURORA) AURORA.on({ azDeg: ' + (FRAME ? FRAME.bearing : 0) + ' })' },
+  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR, CALM), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 12, js: 'if (window.AURORA) AURORA.on({ azDeg: ' + (FRAME ? FRAME.bearing : 0) + ' })' },
 ].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'scout' ? !!v.scout : SCENE === 'photo' ? !!v.photo : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !v.scout && !v.photo && !!v.twin === !!BUILD));
 
 // ---- in the page ----
