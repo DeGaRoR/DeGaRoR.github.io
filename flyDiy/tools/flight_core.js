@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e136ca269d3ddda9
+// body-sha256: 45fb244c896dc9d0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -20135,7 +20135,18 @@ function hydroBuild(def, p, v) {
     const ctx = tetraCtx(F, rec.tetra, rec.tetraLocal, p, v, rec.slab || null);
     const out = makeScratch(F);
     let mMin = Infinity; for (const i of rec.tetra) mMin = Math.min(mMin, def.nodes[i].m || 1);
-    return { rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] };
+    // HULL-B10: A TIP FLOAT RIDES ON ITS OWN FEW KILOGRAMS (5-11 kg: the strut floats of a boat, 61_gen_frame), on a
+    // strut to a wing station - not on the aeroplane's mass, so the dynamic terms held for the interval meet the same
+    // overshoot G2368 found on a float come off (the matrix: a soft-chine boat's tips struck at 20 m/s in a skip, a node
+    // at 9 km/s in the next frame). The same semi-implicit bound, by its own mass: one interval can at most stop its
+    // motion through the water (at 20 m/s and 360 Hz, ~50 kN on 7 kg - far over a real tip float's load)
+    // ...AND THE BOAT'S HULL: its record rides 15 nodes of ~1.2 kg tied to the fuselage frames (61_gen_frame's rigid
+    // cluster), the water's thousands of newtons met on 23 kg for the held interval - the soft-chine boat's skip
+    // slammed it at 3.7 t and its keel nodes left at 9 km/s. Bounded the same way on the hull's own mass (at 20 m/s
+    // ~160 kN a hull, sixteen times its planing lift: the bound bites only where the interval would overshoot)
+    let free = 0;
+    if (rec.tip || rec.hull) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
+    return Object.assign({ rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] }, free ? { free } : {});
   });
   // S1 (G451.1): THE HYDRO SUB-RATE. The water's forces are computed every
   // `every` substeps and HELD between (the held node forces in fh, added to
@@ -20345,8 +20356,38 @@ function hullTipFit(rec, grossKg, opt) {
   const o = opt || {}, M = Math.max(60, grossKg || 0), frac = o.frac != null ? o.frac : 0.06, clear = o.clear != null ? o.clear : 0.12;
   const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += secAreaTo(HP, sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
   let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < M) lo = m; else hi = m; }
-  return { kg: +(frac * M).toFixed(1), y: +(lo + clear).toFixed(3), draft: lo };
+  // HULL-B10: THE MOMENT RULE (with the CG's height and the floats' arm, opt.cgY over the step keel, opt.arm the
+  // float's station off the centreline; the fit passes them, the frame's fallback does not). The flat 6 % held the
+  // classic vee; the SOFT chine's round bottom has less stability of its own and turned turtle drifting at idle (the
+  // matrix: 54 kg floats, the boat over in 4 s at 1.5 m/s). The hull's own metacentric height at the level draft (GM =
+  // KB + BM - KG: BM the waterplane's inertia over the displaced volume, KB the volume's centroid) sets what the float
+  // must hold at HEEL_DESIGN, plus the engines' torque (opt.torqueKgm): float kg >= RULE_K x that moment / arm
+  let kg = frac * M, stab = null;
+  if (o.cgY != null && o.arm > 0.5) {
+    const n = 120, dx = HP.L / n, hb = (s, h) => {
+      // the section's half-breadth at height h (keel -> chine -> the deck's edge), the polygon secAreaTo cuts
+      const q = secPoly(HP, s), pts = [q.K, q.C, q.E, q.D];
+      if (h <= s.yk) return 0;
+      for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1];
+        if (h <= b[0]) return a[1] + (b[1] - a[1]) * (b[0] - a[0] > 1e-9 ? (h - a[0]) / (b[0] - a[0]) : 1); }
+      return pts[pts.length - 1][1];
+    };
+    let I = 0, V = 0, VB = 0;
+    for (let i = 0; i < n; i++) {
+      const sx = sectionOf(HP, -HP.xs + HP.L * (i + 0.5) / n), b = hb(sx, lo), A = secAreaTo(HP, sx, lo);
+      I += (2 / 3) * b * b * b * dx; V += A * dx;
+      if (A > 0) { let iA = 0; const k = 10; for (let j = 0; j < k; j++) iA += secAreaTo(HP, sx, sx.yk + (lo - sx.yk) * (j + 0.5) / k) * (lo - sx.yk) / k; VB += (lo * A - iA) * dx; }
+    }
+    if (V > 1e-6) {
+      const KB = VB / V, BM = I / V, GM = KB + BM - o.cgY;
+      const need = (M * Math.max(0, -GM) * Math.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
+      kg = Math.max(kg, need);
+      stab = { KB: +KB.toFixed(3), BM: +BM.toFixed(3), GM: +GM.toFixed(3), need: +need.toFixed(1) };
+    }
+  }
+  return { kg: +kg.toFixed(1), y: +(lo + clear).toFixed(3), draft: lo, stab };
 }
+const HEEL_DESIGN = 10, RULE_K = 2.0;
 // HULL-B8: THE HULL'S REST - the trim a boat floats at, off its table alone (the static balance: the displaced volume
 // equals the gross and its centre stands under the CG). cg in the table's frame (x aft of the step, y up from the step
 // keel, metres); trim in degrees, + bow up. The waterline is a plane at height w over the step keel and the boat
@@ -20389,7 +20430,10 @@ function propDiscs(def) {
   if (!N.length || !PR || !(PR.D > 0)) return [];
   const acc = [];
   N.forEach((n, j) => { const k = K[j] | 0, p = def.nodes[n].p; acc[k] = acc[k] || [0, 0, 0, 0]; acc[k][0] += p[0]; acc[k][1] += p[1]; acc[k][2] += p[2]; acc[k][3]++; });
-  return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2 }));
+  // (Q: the shaft torque at full power, N m - P / w off the engine's own row, the solver's EN: what the tip floats hold)
+  const EN = (def.params && def.params.engine) || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] || {}).engine;
+  const Q = EN && EN.powerW > 0 && EN.rpm > 0 ? EN.powerW / (EN.rpm * 2 * Math.PI / 60) * (EN.gear || 1) : 0;
+  return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2, Q }));
 }
 // ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
 // it is sized for, so one float sized for kg / 0.9 displaces kg)
