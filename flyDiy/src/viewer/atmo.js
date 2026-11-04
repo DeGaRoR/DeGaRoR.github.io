@@ -1119,7 +1119,6 @@ ${MIST_GLSL}
     const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)]);
     return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0]) / Math.max(1e-9, ref));
   }
-  const probes = [];   // every probe made (aurora.js adds its sphere to their bake scenes)
   function makeProbe(renderer, o) {
     o = o || {};
     if (!G.enabled || !THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
@@ -1142,7 +1141,7 @@ ${MIST_GLSL}
     const probe = {
       get texture() { return shown ? shown.texture : (rt ? rt.texture : null); },
       get fading() { return !!prevRt; }, get fade() { return fadeK; },
-      get bakes() { return bakes; }, get lastMs() { return lastMs; }, get scene() { return es; },   // aurora.js: its sphere in the bake
+      get bakes() { return bakes; }, get lastMs() { return lastMs; },
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
       bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
@@ -1197,12 +1196,11 @@ ${MIST_GLSL}
         return null;
       },
     };
-    probes.push(probe);
     return probe;
   }
 
   return {
-    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
+    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
