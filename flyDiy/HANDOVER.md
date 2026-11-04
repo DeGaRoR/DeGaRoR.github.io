@@ -311905,3 +311905,6 @@ panels leaning INWARD - plus the upright outward one, "all possible options").
 - **NOT CHECKED:** a pusher's disc against an upward A's panels (the twin fixtures here are tractors).
 - **PICTURES:** reports/evidence/TAILWHEELS/twin_invertedV_in_*, _out_*, twin_V_in_*, twin_V_out_* (the simplified
   renderer), builds/ the same names.
+ATMO-WRAP (HW-COVERAGE, 4 Nov): the bare inject is no hook (src/viewer/atmo.js, the accessor's setter)
+A material with no hook of its own is served ATMO's injectOnly. A copy of that assigned to another material (app.js's depth twin, hangar.js) was kept as a hook and wrapped: the key `atmo.inject+atmo.inject` against `atmo.inject`, one source linked twice. Measured on master adc53b25b: 4 of the nav's 87 redundant links, 3.2 s of 662 s link sum, so well under a second of boot. The setter now keeps no hook for it. Gate ATMO holds it with a row that fails without the fix. Not timed here: L31c's FRAMECOST judges it.
+The other redundant links are in PERF-WEEK-KNOWN-ISSUES.md row B4: 76 of the 87 split on three's own light counts (vendor/three.min.js:4172), parked for perf week.
