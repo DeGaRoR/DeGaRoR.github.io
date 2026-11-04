@@ -311118,3 +311118,11 @@ again - cb_o_firepit (camp_firepit) at (2116, -17244) with the four tents round 
 _small, 5-6.5 m from the fire, 5 m or more apart, doors to it) and cb_x_camp (trees, r 12); the six photoscanned people
 stay withdrawn. The tractors were kept all along. Re-cooked (premises, city, map, fleet spots: cb_sea's census sees the
 camp); gates re-run.
+
+**SCENERY-PLACE, THE F-104 WITHDRAWN** (the user, 4 Nov: "just remove the f104 and stop"): af_o_f104 and its clear out of
+the record - its spot 130 m abeam 13/31 stood behind the belt of trees, invisible from the runway (the still from 45 m over
+the runway showed nothing). What stays of SCENERY-PLACE: the two hydro powerhouses (+ the Upper Lake works), the quarry's
+machines and wreck, the gardens' tractors, the Cabin Lake camp's four tents, the mine's sign fix (signAt 0, itemPatches,
+GATE HOUSE 'signs'). Re-cooked; NAVAID PREMCOOK PREMISES HOUSE TAXICLEAR MAPBAKE CITYCOOK MEDIA CONTACT STAND SITE ANIMALS
+TREES PASS, SCENERYED red on 20b only (timing, as master), PARKED PASS run alone (`node --max-old-space-size=6144`: beside
+two other gates it ran out of node's 2 GB heap - a crash, not a verdict).

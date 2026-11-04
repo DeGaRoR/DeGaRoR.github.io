@@ -1,4 +1,4 @@
-# SCENERY-PLACE: Metlakatla's two hydro plants on Jolene, the construction machines, the tents, the F-104 by the runway, the mine's sign (3 Nov 2026, cloud, for A0)
+# SCENERY-PLACE: Metlakatla's two hydro plants on Jolene, the construction machines, the tents, the mine's sign (3 Nov 2026, cloud, for A0)
 
 The user, 3 Nov via A0: "go ahead and place all the new scenery we have". Then the user, the same evening, narrowing it:
 "The 2 hydroplants were the main thing. I actually did not want the other assets. The f104 should be next to the runway,
@@ -16,7 +16,7 @@ dev.html, sw.js, version.json and tools/flight_core.js are the train's). Branch:
 | `utility/hydro powerhouse` x2 | Metlakatla's two hydro plants (G2909, `tools/_navaid_gen.js`) | no ("the user positions") | **placed** |
 | `machine_excavator` `machine_backhoe` `machine_loader` `machine_crane` `machine_loader_rusty` `machine_skidsteer` `tractor_farm` `tractor_scan` | construction machines (G3665) | no | **placed** (the quarry, the Upper Lake works, the gardens) |
 | `loader_wreck` | the scenery kit's abandoned wheel loader | no | **placed** in the quarry with the machines |
-| `starfighter` | F-104G gate guardian | no | **placed** beside 13/31 |
+| `starfighter` | F-104G gate guardian | no | placed, moved beside 13/31, then **withdrawn** (the user, 4 Nov: "just remove the f104") |
 | `heating_plant` `bunker` `sky_rest` `observatory` `alma_*` `fishing_boat` `crowd_1..6` | the scenery kit | no | placed, then **withdrawn** (the user) - the six people too: the tents came back without them |
 | `tent_*` | the user's tents (G3145) | no | **placed** at the Cabin Lake shore camp (withdrawn, then back on the user's "Ok for the tent") |
 | `pylon_*` | high-voltage pylons (G3140) | no | **not placed**: nothing strings a line between two pylon props; r25 / r1 carry the road's distribution line past both plants |
@@ -40,7 +40,6 @@ water, and its yard is at -x.
 | qy_o_excavator / _loader / _skidsteer / _loader_rusty / _loader_wreck | the machines + the wreck | -2702..-2676, -7733..-7768 | mk_x_quarry's flat floor (39.6 m) by its workshop s34; the loader faces the excavator |
 | mk_o_tractor_farm, mk_o_tractor_scan | tractor_farm, tractor_scan | -2800, -8350 / -2804, -8341 | the community gardens (mk_gardens_shed); mk_ ids so they go with the town cut |
 | cb_o_firepit, cb_o_tent_big / _frame / _hiking / _small, cb_x_camp | camp_firepit + the four tents round it; trees r 12 | 2116, -17244 | Cabin Lake's shore 25 m above the water, 350 m abeam cb_sea's lane, 70 m from the slip's stand; the tents 5-6.5 m from the fire, 5 m or more apart, their doors to it |
-| af_o_f104 + af_o_f104_clear | starfighter, on the ground | -442.1, -73.9 | 130 m abeam 13/31's centreline on the side away from the club, 300 m NW of its middle, on the flat (0.1 m), parked along the runway; its tail 4.9 m over the runway against the 7.9 m the 1:7 transitional surface allows |
 
 GATE NAVAID section 5 now holds the powerhouses: each within 5 m (Upper Lake) or 10 m (Bayside) of its point, with its
 clear (~30 m).
@@ -102,8 +101,10 @@ not hide. The water is dark because the software rung draws no sky probe (G1460)
 | cabinlake_camp_above.jpg | the camp from above (taken with the six people at the fire, since withdrawn; the tents stand where they stood then) |
 | quarry_pilot.jpg / _above.jpg | the quarry floor: excavator, loader facing it, skid steer, the rusty loader by the workshop, the wreck to the W |
 | mine_sign_BEFORE_master_*.jpg, mine_sign_AFTER_pilot.jpg | section 3 |
-| afb_f104_above.jpg | the F-104 at (-442.1, -73.9), parked along 13/31, in its 12 m clearing |
-| afb_f104_runway.jpg | 13/31 from 45 m over its NW part, looking SE: the jet is hidden behind the belt of trees on the left (it stands 130 m from the centreline, the trees begin ~60-80 m out) |
 
 Not pictured: the gardens' tractors (the software rung composes the town-off variant, which drops every `mk_` entry; the
-tractors go with the town by design) (the F-104 at its new spot was taken on 4 Nov: below).
+tractors go with the town by design) (the F-104 was withdrawn).
+
+**4 Nov:** the F-104 withdrawn (the user: "just remove the f104 and stop"): its spot beside 13/31 stood behind the belt of
+trees, invisible from the runway. Re-cooked; NAVAID PREMCOOK PREMISES HOUSE TAXICLEAR MAPBAKE CITYCOOK MEDIA SCENERYED
+CONTACT PARKED STAND SITE ANIMALS TREES re-run: all PASS but SCENERYED 20b (the town composition's timing, red on master too); PARKED run alone with a 6 GB heap (three gates at once ran its node out of its 2 GB heap): PASS.
