@@ -3797,7 +3797,7 @@ function cageInterior(m, S) {
       const zN = D > 0 ? z0 - 0.012 / ps : zFace + 0.012 / ps;
       const pt = p => [bcx + p.dx * (p.t - kN), yS + p.dy * (p.t - kN)];
       const yArc = Math.max(...A.map(p => pt(p)[1]));
-      const yN0 = yS + 0.03 / ps, yN1 = yS + Math.min(0.42 / ps, 0.8 * (yArc - yS));
+      const yN0 = yS + 0.02 / ps, yN1 = yS + Math.min(0.30 / ps, 0.6 * (yArc - yS));   // a low net: bags on the shelf, the lamp clear above
       // the half-width the arc leaves at a height, on its narrower side
       const hw = y => {
         let w = Infinity;
@@ -3814,14 +3814,14 @@ function cageInterior(m, S) {
       };
       let half = 0.46 / ps;
       for (let j = 0; j <= 6; j++) half = Math.min(half, hw(yN0 + (yN1 - yN0) * j / 6) - 0.02 / ps);
-      if (half > 0.12 / ps && yN1 - yN0 > 0.10 / ps) {
-        const nx = Math.max(3, Math.round(2 * half / (0.13 / ps))), ny = Math.max(2, Math.round((yN1 - yN0) / (0.11 / ps)));
-        const wS = 0.011 / ps, bow = 0.02 / ps;
+      if (half > 0.12 / ps && yN1 - yN0 > 0.07 / ps) {
+        const nx = Math.max(4, Math.round(2 * half / (0.07 / ps))), ny = Math.max(2, Math.round((yN1 - yN0) / (0.06 / ps)));
+        const wS = 0.005 / ps, bow = 0.02 / ps;
         const zAt = x => zN + bow * Math.sin(Math.PI * (x - bcx + half) / (2 * half));
         const P = (x, y, z) => V.push([x, y, z]) - 1;
         for (let i = 0; i <= nx; i++) {
           const x = bcx - half + 2 * half * i / nx, z = zAt(x);
-          add.push({ v: [P(x - wS, yN0, z), P(x + wS, yN0, z), P(x + wS, yN1, z), P(x - wS, yN1, z)], m: 'baggage' });
+          add.push({ v: [P(x - wS, yN0 - wS, z), P(x + wS, yN0 - wS, z), P(x + wS, yN1 + wS, z), P(x - wS, yN1 + wS, z)], m: 'baggage' });
         }
         for (let j = 0; j <= ny; j++) {
           const y = yN0 + (yN1 - yN0) * j / ny, dz = 0.002 / ps;
