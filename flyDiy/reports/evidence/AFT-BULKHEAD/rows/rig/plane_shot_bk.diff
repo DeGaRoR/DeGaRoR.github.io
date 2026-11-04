@@ -1,5 +1,14 @@
 --- tools/plane_shot.js (origin/claude/aft-bulkhead 02220cf3, CR stripped)
-+++ tools/plane_shot_bk.js (scratch: AFT-BULKHEAD-LOOK rig/plane_shot_bk.diff + AFT-BULKHEAD-SHOTS inside/pt/rows:/BK_BAND)
++++ tools/plane_shot_bk.js (scratch: AFT-BULKHEAD-LOOK rig/plane_shot_bk.diff + AFT-BULKHEAD-SHOTS inside/pt/rows:/BK_BAND/stack)
+@@ -111,7 +111,7 @@
+     const m = JSON.parse(e.data);
+     if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+     if (m.method === 'Inspector.targetCrashed') S.crashed = true;
+-    if (m.method === 'Runtime.exceptionThrown') S.exc.push(((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text || '').split('\n')[0]);
++    if (m.method === 'Runtime.exceptionThrown') S.exc.push(((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text || '').split('\n')[0]), process.stdout.write('[page exception] ' + ((m.params.exceptionDetails.exception || {}).description || JSON.stringify(m.params.exceptionDetails)).split('\n').slice(0, 10).join(' | ') + '\n');
+     // an alert() (the import's "That file is not a flyDiy build") or a prompt: noted and dismissed, never left blocking
+     if (m.method === 'Page.javascriptDialogOpening') { S.dialogs.push(m.params.type + ': ' + m.params.message); cmd('Page.handleJavaScriptDialog', { accept: true }); }
+   };
 @@ -186,7 +186,7 @@
      // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
      // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
