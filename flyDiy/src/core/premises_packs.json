@@ -15,12 +15,12 @@
       "mk_mp_air",
       "mk_mf_air"
      ],
-     "record": "5c0b34573cc42102",
+     "record": "3a7357e45c9a07ac",
      "mods": 110,
      "places": {
       "things": 318,
       "cells": 41,
-      "hash": "ddee1ccf73ae68ee",
+      "hash": "3f68bf1976ba54f4",
       "failed": 0
      },
      "raster": {
@@ -34,12 +34,12 @@
     {
      "name": "town",
      "drop": [],
-     "record": "54258f95c888a16b",
+     "record": "19910d345fb45e60",
      "mods": 183,
      "places": {
       "things": 803,
       "cells": 71,
-      "hash": "70f582e893025fa3",
+      "hash": "d867b4133560c5fa",
       "failed": 0
      },
      "raster": {
@@ -9450,7 +9450,7 @@
     "page": "ceb7dd5720406f3f",
     "variants": {
      "default": {
-      "hash": "ddee1ccf73ae68ee",
+      "hash": "3f68bf1976ba54f4",
       "things": 318,
       "cells": [
        {
@@ -9858,15 +9858,15 @@
          8,
          -68
         ],
-        "sig": "p1-a54c862c3e7c0c83",
-        "src": "media/world/jolene/premises/p_8_m68.dd181b59.bin",
-        "raw": 38120,
+        "sig": "p1-8bc23be9f7f9a6a4",
+        "src": "media/world/jolene/premises/p_8_m68.91892751.bin",
+        "raw": 38202,
         "n": 13
        }
       ],
       "bytes": {
-       "raw": 1635882,
-       "ship": 244467
+       "raw": 1635964,
+       "ship": 244517
       },
       "tallies": {
        "src": "media/world/jolene/premises/t_default.bd1ed98b.bin",
@@ -9875,7 +9875,7 @@
       }
      },
      "town": {
-      "hash": "70f582e893025fa3",
+      "hash": "d867b4133560c5fa",
       "things": 803,
       "cells": [
        {
@@ -10583,15 +10583,15 @@
          8,
          -68
         ],
-        "sig": "p1-a54c862c3e7c0c83",
-        "src": "media/world/jolene/premises/p_8_m68.dd181b59.bin",
-        "raw": 38120,
+        "sig": "p1-8bc23be9f7f9a6a4",
+        "src": "media/world/jolene/premises/p_8_m68.91892751.bin",
+        "raw": 38202,
         "n": 13
        }
       ],
       "bytes": {
-       "raw": 6569684,
-       "ship": 1033352
+       "raw": 6569766,
+       "ship": 1033402
       },
       "tallies": {
        "src": "media/world/jolene/premises/t_town.667eff30.bin",
