@@ -66,7 +66,7 @@ Object.assign(gearDef, {
   gearRetract: 0, gearRetT: 6, gearRetAct: 1,
   // G1 (the fold): the preview's position, the mains' and the nose's fold (a preset, or 'custom': up to two turns + the
   // wheel's twist), the fraction it retracts (1 all the way; 0.6 a Catalina's or a DC-3's, the wheel left in its inset)
-  gearPos: 1, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1,
+  gearPos: 1, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0,
   gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0,
   gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
@@ -397,8 +397,102 @@ function foldFit(P, swing, AF, W) {
                      span: semi ? [Math.min(...ax) / semi, Math.max(...ax) / semi] : null,
                      straddle: mn[0] < 0 && mx[0] > 0 });
   }
+  // ---- G4 (RETRACT-STUDY §8.10): THE CUTS - where each unit goes through the body's skin, as a plan outline the knife
+  // cuts from below (_knife_gen.js knifeCut with a frame and a ceiling). The unit's points swept through the whole fold
+  // (WELL_G: finer than the fit's poses) and the points where a swept point crosses the skin between two poses; those
+  // inside the body (bodyIn) are the well's. The outline is their plan hull (exact) or their plan box with rounded
+  // corners (box, gearWellCut 1: the fallback), FIT.clear wider all round; the ceiling is their highest point and
+  // FIT.clear more. Two outlines that meet are cut as one (their hull, the higher ceiling). In the layer's metres here;
+  // the knife takes them in cage units (cutsCage)
+  out.cuts = wellCutsOf(units, bodyIn, +P.gearWellCut === 1 ? 'box' : 'exact');
   out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
   return out;
+}
+const WELL_G = Array.from({ length: 17 }, (_, i) => 1 - i / 16);
+// the plan hull (Andrew's monotone chain) of [z, x] points, CCW
+function hull2(pts) {
+  const P = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (P.length < 3) return P;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = [];
+  for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 1e-12) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 1e-12) hi.pop(); hi.push(p); }
+  lo.pop(); hi.pop();
+  return lo.concat(hi);
+}
+// two convex plan outlines overlap (separating axes)
+function hullsMeet(A, B) {
+  for (const H of [A, B]) for (let i = 0; i < H.length; i++) {
+    const a = H[i], b = H[(i + 1) % H.length], n = [b[1] - a[1], a[0] - b[0]];
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const p of A) { const d = p[0] * n[0] + p[1] * n[1]; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const p of B) { const d = p[0] * n[0] + p[1] * n[1]; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) return false;
+  }
+  return true;
+}
+function wellOutline(pz, mode, clr) {
+  if (mode === 'box') {
+    let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
+    for (const p of pz) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, p[1]); x1 = Math.max(x1, p[1]); }
+    z0 -= clr; z1 += clr; x0 -= clr; x1 += clr;
+    const r = Math.min(0.05, (z1 - z0) / 2, (x1 - x0) / 2), out = [];
+    const cs = [[z1 - r, x1 - r], [z0 + r, x1 - r], [z0 + r, x0 + r], [z1 - r, x0 + r]];
+    for (let c = 0; c < 4; c++) for (let i = 0; i <= 4; i++) {
+      const t = (c + i / 4) * Math.PI / 2;
+      out.push([cs[c][0] + r * Math.cos(t), cs[c][1] + r * Math.sin(t)]);
+    }
+    return hull2(out);
+  }
+  // exact: the hull of the points each grown by the clearance (a 12-gon round each hull corner)
+  const h = hull2(pz), grown = [];
+  for (const p of h) for (let k = 0; k < 12; k++) grown.push([p[0] + clr * Math.cos(k * Math.PI / 6), p[1] + clr * Math.sin(k * Math.PI / 6)]);
+  return hull2(grown);
+}
+function wellCutsOf(units, bodyIn, mode) {
+  const cuts = [];
+  for (const key in units) {
+    const U = units[key], all = U.pts.W.concat(U.pts.L), inside = [];
+    let prev = null, prevD = null;
+    for (const g of WELL_G) {
+      const ps = poseAll(U.C, all, g), ds = ps.map(bodyIn);
+      for (let i = 0; i < ps.length; i++) {
+        if (ds[i] > 0) inside.push(ps[i]);
+        if (prev && (ds[i] > 0) !== (prevD[i] > 0)) {         // crossing the skin between two poses
+          const t = prevD[i] / (prevD[i] - ds[i]), a = prev[i], b = ps[i];
+          inside.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+        }
+      }
+      prev = ps; prevD = ds;
+    }
+    if (inside.length < 3) continue;
+    let top = -Infinity;
+    for (const p of inside) top = Math.max(top, p[1]);
+    const pz = inside.map(p => [p[2], p[0]]);
+    cuts.push({ units: [key], mode, pz, hull: wellOutline(pz, mode, FIT.clear), ceil: top + FIT.clear });
+  }
+  // merge the ones that meet (their points together, the higher ceiling)
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 0; i < cuts.length && !again; i++) for (let j = i + 1; j < cuts.length && !again; j++)
+      if (hullsMeet(cuts[i].hull, cuts[j].hull)) {
+        const pz = cuts[i].pz.concat(cuts[j].pz);
+        cuts[i] = { units: cuts[i].units.concat(cuts[j].units), mode, pz, hull: wellOutline(pz, mode, FIT.clear),
+                    ceil: Math.max(cuts[i].ceil, cuts[j].ceil) };
+        cuts.splice(j, 1); again = true;
+      }
+  }
+  return cuts.map(c => ({ units: c.units, mode: c.mode, hull: c.hull, ceil: c.ceil }));
+}
+// the cuts in the knife's terms: cage units (metres / FS), the outline in the well frame's (u, v) = (z, -x), CCW
+function cutsCage(cuts, FS) {
+  return (cuts || []).map(c => {
+    let o = c.hull.map(p => [p[0] / FS, -p[1] / FS]);
+    let a2 = 0;
+    for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) o = o.slice().reverse();
+    return { units: c.units, mode: c.mode, outline: o, ceil: c.ceil / FS };
+  });
 }
 // the fifth test, the TANKS - read when the rows are refreshed (the energy layer runs after the gear): the stowed and
 // swept points inside a placed body tank's box or a wing tank's side boxes (_vessel_gen bodyPlace / wingPlace)
@@ -508,6 +602,9 @@ const GROUP = ['9 · undercarriage', [
     ['gn2Ang', 'nose turn 2: angle ° (0: none)', -180, 180, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
     ['gnTwist', 'nose wheel twist ° (about the leg)', -90, 90, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
     ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => +P.gearRetract }],
+    // G4 (RETRACT-STUDY §8.10): THE WELL'S OUTLINE, always cut exactly into the skin - the swept unit's own plan hull,
+    // or a rounded box round it (the fallback the user asked to keep: "so we have a fallback in case we struggle")
+    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
   ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) * (Math.round(+P.wgPos) === 2 ? 1 : 0) > 0 }],
@@ -1026,6 +1123,9 @@ PAGE.post = ctx => {
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
+    // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
+    // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
+    ...(fit && fit.cuts && fit.cuts.length ? { cuts: cutsCage(fit.cuts, FS) } : {}),
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

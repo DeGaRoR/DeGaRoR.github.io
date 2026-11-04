@@ -421,6 +421,9 @@ const AERO_ROLE = {
   // the recessed pane. Structure: it is the frame's own lip, so it follows
   // the construction like a bulkhead does (unfielded, the post-pass branch)
   reveal: 'struct',
+  // RETRACT G4: THE WHEEL WELL - its walls and ceiling, cut into the belly round a stowed unit (_cage_ui wellApply):
+  // structure, like a reveal (a well is a box of the frame's own sheet, primer-dark inside)
+  wheelWell: 'struct',
   // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
   // structure, so it follows the construction like every other bulkhead — and
   // `fireProof` is the sheet on its ENGINE side, which follows nothing: a

@@ -28,6 +28,12 @@
 //  12. THE RESERVATION (G3): a well per unit round its stowed wheel; a tank at a well meets it (body box turned, wing
 //      side box), one 2 m away does not; the join writes gear.wells; the under-floor bay gives up the mains' litres,
 //      the wing root a wide track's; no retraction, no wells; a fixed build's bays untouched
+//  13. THE WELLS CUT (G4): as born two cuts (the mains' merged, the nose's), convex CCW; every axle position inside the
+//      body lies inside its outline; the knife (_knife_gen knifeWells) cuts one closed loop per well, walls and a flat
+//      ceiling at the cut's height (section wheelWell), and carves the frames and liners out of the volume; the measured
+//      sheet is never cut; the box option (gearWellCut 1) is a rounded rectangle holding the exact hull and cuts as
+//      cleanly; a 3.2 m track cuts the nose alone; a 0.6 fraction cuts nothing; a fixed gear nothing; the preview row
+//      never moves the cut
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -297,6 +303,60 @@ console.log('10 THE FOLD (G1)');
     check(!('wells' in (C.clampSpec(fx) || fx).gear), 'no retraction, no wells (clampSpec drops them)');
     const d0 = C.buildGen(specOf(null)), b = C.genBayResolve(d0.spec, 'underFloor', d0.parts.ST);
     check(b && b.wellL === undefined, 'a fixed build\'s bays are untouched'); }
+  // ---- 13. THE WELLS CUT (G4): exact or box, the knife from below, the carve, the sheet never cut ----------------------
+  console.log('13 THE WELLS CUT (G4)');
+  { const KG = require('./_knife_gen.js');
+    const cutOf = over => { const Sx = sceneOf(Object.assign({ gearPos: 1 }, over)); return { Sx, cuts: Sx.W.CAGE_GEAR.cuts || null }; };
+    const inPoly = (o, u, v, tol) => o.every((a, i) => { const b = o[(i + 1) % o.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      return ((b[0] - a[0]) * (v - a[1]) - (b[1] - a[1]) * (u - a[0])) / l > -tol; });
+    const ccw = o => { let a = 0; for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length]; a += p[0] * q[1] - q[0] * p[1]; } return a > 0; };
+    const convex = o => o.every((a, i) => { const b = o[(i + 1) % o.length], c = o[(i + 2) % o.length];
+      return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) > -1e-12; });
+    // as born: the mains' wells meet under the belly (one cut) and the nose's forward
+    const ex = cutOf({}), FSx = ex.Sx.FS, sheet = ex.Sx.built.sheet;
+    check(ex.cuts && ex.cuts.length === 2 && ex.cuts.some(c => c.units.join() === 'R,L' || c.units.join() === 'L,R') && ex.cuts.some(c => c.units.join() === 'T')
+          && ex.cuts.every(c => c.mode === 'exact' && ccw(c.outline) && convex(c.outline)),
+          'as born: two cuts, the mains\' merged and the nose\'s, convex CCW outlines',
+          ex.cuts && ex.cuts.map(c => c.units.join('+') + ' ' + c.outline.length + ' pts').join(', '));
+    // the unit passes: every swept point inside the body, in plan, is inside its cut's outline (the knife's frame)
+    { const SWx = ex.Sx.W.CAGE_GEAR.swing, AFx = ex.Sx.W.CAGE_GEAR.AF; let worst = 0, n = 0;
+      for (const key of ['L', 'R', 'T']) { const C0 = SWx[key], cut = ex.cuts.find(c => c.units.includes(key));
+        for (let g = 0; g <= 1.0001; g += 0.1) { const p = at(C0, g);
+          if (p[2] < AFx.z0 || p[2] > AFx.z1) continue;
+          const cy = AFx.cyAt(p[2]), sf = AFx.surf(p[2], Math.atan2(p[0], cy - p[1]));
+          if (Math.hypot(sf[0], sf[1] - cy) - Math.hypot(p[0], p[1] - cy) <= 0) continue;
+          n++; if (!cut || !inPoly(cut.outline, p[2] / FSx, -p[0] / FSx, 1e-9)) worst++; } }
+      check(n > 0 && worst === 0, 'every axle position inside the body lies inside its well\'s outline', n + ' inside, ' + worst + ' out'); }
+    // the knife: one closed loop per cut, a ceiling at the cut's height, the walls; the carve leaves the volume empty
+    const m = KG.knifeWells(sheet, ex.cuts), st = m.knifeStats.slice(-(ex.cuts.length + 1));
+    check(st.slice(0, -1).every(s => s.loops === 1 && s.open === 0 && s.cut > 0), 'the knife: one closed loop per well',
+          st.slice(0, -1).map(s => s.loops + ' loop, ' + s.loopPts + ' pts, ' + s.open + ' open').join(' | '));
+    const ww = m.F.filter(f => f.m === 'wheelWell');
+    const ceilOk = ex.cuts.every(c => ww.some(f => f.v.every(i => Math.abs(m.V[i][1] - c.ceil) < 1e-9)));
+    check(ww.length > 20 && ceilOk, 'the well: walls and a flat ceiling at the cut\'s height (section wheelWell)', ww.length + ' faces');
+    const inVol = (X, skipWell) => { let k = 0; for (const f of X.F) { if (skipWell && f.m === 'wheelWell') continue;
+      let cx = 0, cy = 0, cz = 0; for (const i of f.v) { cx += X.V[i][0]; cy += X.V[i][1]; cz += X.V[i][2]; } const q = f.v.length;
+      if (ex.cuts.some(c => cy / q < c.ceil - 1e-6 && inPoly(c.outline, cz / q, -cx / q, -1e-4))) k++; } return k; };
+    const before = inVol(sheet, false), after = inVol(m, true);
+    check(before > 50 && after <= 2, 'the well is empty: the skin under it cut, the frames and liners in it carved', before + ' faces before, ' + after + ' after');
+    check(!sheet.F.some(f => f.m === 'wheelWell') && sheet.F.length < m.F.length && m.V.length > sheet.V.length && sheet.V.every((p, i) => p === m.V[i] || (p[0] === m.V[i][0] && p[1] === m.V[i][1] && p[2] === m.V[i][2])),
+          'the measured sheet is never cut (the knife cut a copy; the sheet\'s vertices keep their places)');
+    // the box: the rounded rectangle round the same points (it holds the exact hull)
+    const bx = cutOf({ gearWellCut: 1 });
+    check(bx.cuts && bx.cuts.length === 2 && bx.cuts.every(c => c.mode === 'box' && ccw(c.outline) && convex(c.outline))
+          && ex.cuts.every(c => { const b = bx.cuts.find(x => x.units.join() === c.units.join()); return b && c.outline.every(p => inPoly(b.outline, p[0], p[1], 1e-6)); }),
+          'box: a rounded rectangle per cut, the exact hull inside it');
+    { const mb = KG.knifeWells(bx.Sx.built.sheet, bx.cuts), sb = mb.knifeStats.slice(-(bx.cuts.length + 1), -1);
+      check(sb.every(s => s.loops === 1 && s.open === 0), 'box: the knife cuts it as cleanly'); }
+    // a wider track: the mains stow in the wing (G5's), the nose alone is cut; a fraction 0.6: nothing enters the body
+    const wd = cutOf({ s1X: 1.6 });
+    check(wd.cuts && wd.cuts.length === 1 && wd.cuts[0].units.join() === 'T', 'a 3.2 m track: the nose\'s well alone (the mains go into the wing)');
+    check(!cutOf({ s1X: 1.6, gearRetFrac: 0.6 }).cuts, 'a fraction 0.6: nothing goes into the body, no cut');
+    { const Sx = SH.sceneBuild(birth, { over: { gearRetract: 0 }, garage: birth });
+      check(!Sx.W.CAGE_GEAR.cuts, 'a fixed gear: no cut'); }
+    // the preview row never moves the cut (the wells are the whole fold's)
+    const half = cutOf({ gearPos: 0.4 });
+    check(JSON.stringify(half.cuts) === JSON.stringify(ex.cuts), 'the preview position does not move the cut'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

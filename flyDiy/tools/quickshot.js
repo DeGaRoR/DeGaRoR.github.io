@@ -5,7 +5,9 @@
 // slow for. Guide: tools/QUICKSHOT.md.
 //
 //   node tools/quickshot.js <build.json | --key <archetype>> <out-prefix> [options]
-//     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above
+//     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above;
+//                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4)
+//     --nowells / --noedges      the retractable gear's wells: drawn whole, uncut / the reserved boxes' edges not drawn
 //     --over '{"row":value}'     panel rows over the build (try a slider without saving a file)
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
 //     --w 1400                   picture width, px
@@ -56,7 +58,12 @@ const SKIP_SHEET = new Set(['tube', 'cloth', 'dash', 'dashFace', 'bulkhead', 'fi
   'shoulder', 'toele', 'plywood', 'floorBoard', 'seat']);
 const GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows', 'drawnPane']);
 const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
-const P = S.P, FS = S.FS, sheet = S.built.sheet;
+const P = S.P, FS = S.FS;
+// RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
+// layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
+const CUTS = !argv.includes('--nowells') && S.W.CAGE_GEAR && S.W.CAGE_GEAR.cuts;
+const sheet = CUTS ? require(path.join(ROOT, 'tools', '_knife_gen.js')).knifeWells(S.built.sheet, CUTS) : S.built.sheet;
+if (CUTS) console.log('wells cut: ' + CUTS.map(c => c.units.join('+') + ' ' + c.mode + ' (' + c.outline.length + ' pts, ceiling ' + (c.ceil * FS).toFixed(3) + ' m)').join(', '));
 const skin = P.base != null ? P.base : 0xe8a33a;
 const hex = c => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
 // the REGISTRATION's footprint (the decal is a texture layer this renderer does not draw): the faces whose field
@@ -69,6 +76,7 @@ for (const f of sheet.F) {
   if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
+    : f.m === 'wheelWell' ? [96, 100, 92]
     : /pillar/.test(f.m) ? [210, 140, 50] : [232, 163, 58];
   const off = f.cutOff || [0, 0, 0];
   for (let t = 1; t + 1 < f.v.length; t++) {
@@ -89,7 +97,7 @@ const segs = [];   // RETRACT G3: the gear's reserved wells (edWellGhost's edges
 S.scene.traverse(o => {
   if (o.isLineSegments && o.geometry && o.geometry.attributes && o.geometry.attributes.position) {
     let inWell = false; for (let q = o; q; q = q.parent) if (q.name === 'edWellGhost') inWell = true;
-    if (!inWell) return;
+    if (!inWell || argv.includes('--noedges')) return;
     const pa = o.geometry.attributes.position, m = o.material, col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [255, 160, 60];
     for (let i = 0; i + 1 < pa.count; i += 2) {
       const a = new THREE.Vector3().fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld), b = new THREE.Vector3().fromBufferAttribute(pa, i + 1).applyMatrix4(o.matrixWorld);
@@ -126,8 +134,16 @@ function view(name) {
     side: { u: p => -p[2], w: p => p[1], d: p => p[0] },                 // from starboard, the nose to the left
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
-    q: {},                                                                 // set below
+    bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
+    q: {}, qb: {},                                                         // set below
   }[name];
+  if (name === 'qb') {  // RETRACT G4: a three-quarter from ahead, starboard, BELOW (the wells): yaw 37 deg, pitch -28 deg
+    const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(-0.49), sp = Math.sin(-0.49);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
   if (name === 'q') {   // a three-quarter from ahead, starboard, above: yaw 37 deg, pitch 22 deg
     const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(0.38), sp = Math.sin(0.38);
     V.u = p => -p[2] * cy + p[0] * sy;

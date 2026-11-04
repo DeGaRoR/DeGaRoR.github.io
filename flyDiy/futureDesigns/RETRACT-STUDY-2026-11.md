@@ -1198,3 +1198,48 @@ The archetypes have never been fitted to a real aeroplane, and wells are where t
   - GATE CLIP's sweep of the gear's travel: until the wells are CUT (G4 / G5), a stowed unit is inside a closed skin
     by design, and CLIP would read every such build as clipping. It comes with the cuts.
 - **GATE RETRACT §12** holds the wells, the tank test, the spec, both bays' losses, and the fixed builds untouched.
+
+### 8.10 G4 AS BUILT (2026-11-04): the wells cut into the fuselage
+
+The user: "keep the option to cut rectangular or exact, so we have a fallback in case we struggle with exact". The
+cut is always exact (the knife); the OUTLINE it cuts is the row's choice.
+
+- **The row** `gearWellCut` (the retraction group, the mains' part): `exact (the swept unit's hull)` (0, the default) or
+  `box (a rounded rectangle)` (1). Like every retraction row it is absent from the cage when the gear is fixed
+  (CAGE_RETRACT_ROWS / GEN_RETRACT_ROWS), so no fixed build's certificate moves.
+- **The outline** (`tools/_cage_gear.js` wellCutsOf, at the end of foldFit; CAGE_GEAR.cuts):
+  - each unit's points (the tyre's two rims at two radii, the leg at five stations) posed through the whole fold at
+    17 positions, plus the points where a swept point crosses the skin between two of them;
+  - those inside the body (the airframe table's section) are the well's: exact = their plan hull grown by FIT.clear
+    (30 mm) all round; box = their plan box, 30 mm wider all round, the corners rounded (r 50 mm at most);
+  - the ceiling is their highest point plus 30 mm;
+  - two outlines that meet are cut as one (their points together, the higher ceiling) - as born, the mains' two wells
+    under the belly are one cut;
+  - published in the knife's terms: cage units, the outline in (u, v) = (z, -x), counter-clockwise.
+  - The preview position never moves it (the cut is the whole fold's). A unit that never enters the body (a 0.6
+    fraction on the T-tail tourer; the mains of a 3.2 m track, which stow in the wing) has no body cut.
+- **The knife from below** (`tools/_knife_gen.js`): knifeCut takes `opt.frame` (the projection straight down, t1 along
+  the body), `opt.outline` (the outline as given) and `opt.ceil` (the recess is a BOX: the pane is the flat ceiling at
+  that height, each point straight up from where the outline met the skin; the walls stand vertical; a wall of zero
+  height is not drawn). A face whose box in the frame misses the outline's passes as it is (the same output, ~20 %
+  faster). `knifeWells(sheet, cuts)` runs it per cut over the skin's sections only (WELL_MATS), section `wheelWell` for
+  the walls and the ceiling, then `knifeCarve`: every other face inside a well's prism (the frames, the liners, the
+  bulkheads below the floor) is clipped against the prism's planes and only its outside kept - the well is empty.
+  As born: two cuts, 64 + 34 loop points, one closed loop each, 477 interior faces carved, ~100 ms in node.
+- **Where it is cut** (`tools/_cage_ui.js` wellApply, after the post chain): the gear layer stands its legs on the
+  sheet, so it can only say where the wells are after the sheet is built. The DRAWN fuselage is cut, never the
+  measured sheet (MS, every layer's ctx.mesh, the dims, the glazed area: the legs, the wing deck and every contract
+  read the whole skin). The level-2 mesh is swapped for a cut one in place (eyePut: the scene slot, the materials by
+  section, the glass), and the eye sheet (the cockpit's and the flight capture's) is cut the same way when it is
+  made. A diagnostic view (surface, curvature, wire) draws the sheet as it is. A drag tick never cuts (its fuselage
+  stands uncut, so the deform preview keeps working); the release cuts it.
+- **The section** `wheelWell`: role `struct` in aeroskin (the construction's own frame finish, inside: the cabin's
+  darkness), labelled "wheel wells" in the finish panel.
+- **quickshot** cuts the wells as the editor does (`--nowells` draws the sheet whole), draws `wheelWell` grey, and has
+  two views for them: `bottom` and `qb` (three-quarter from below); `--noedges` leaves G3's boxes out.
+- **Not here, and why:**
+  - The wing's centre section (the wing layer's mesh) still runs through a mains well on a low wing: the wing's cut
+    is G5's.
+  - The well does not yet open and close: the doors are G6's (a part of the cut on the leg, a part a well door).
+  - GATE CLIP's sweep of the travel: next, now that the body has its wells (the wing's after G5).
+- **GATE RETRACT §13** holds it (see its header).
