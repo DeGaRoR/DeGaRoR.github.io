@@ -211,7 +211,7 @@ function renderStart(body) {
           const b = document.createElement('button');
           b.type = 'button'; b.className = 'npTile';
           b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
-          b.title = c.file + ': designed and built, not validated - no certificate';
+          b.title = c.tip;
           b.dataset.thumb = 'cand:' + c.file; npThumb(b);
           b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
           gc.appendChild(b);

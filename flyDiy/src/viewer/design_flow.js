@@ -716,7 +716,7 @@ function renderBirth() {
         b.innerHTML = '<b></b><span></span>';
         b.querySelector('b').textContent = c.name || c.file;
         b.querySelector('span').textContent = 'candidate official' + (c.note ? ' — ' + c.note : '');
-        b.title = c.file + ': designed and built, not validated - no certificate';
+        b.title = c.tip;
         b.dataset.thumb = 'cand:' + c.file; dfThumb(b);   // G3800: its side-profile picture, when there is one
         b.addEventListener('click', () => { closeBirth(); g.openCandidate(c); });
         grid.appendChild(b);
