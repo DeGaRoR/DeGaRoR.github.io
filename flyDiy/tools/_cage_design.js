@@ -1528,7 +1528,8 @@ const DESIGN_ROWS = [
                                       NOSE_AERO) } },
       { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
         note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
-        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0,
+        // G3914: fitted - a cowl turned on here is a NACELLE sized to its engine (_cage_cowl.js nacelleOfEngine)
+        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0, fitNose: 1,
                                         cw_aftMode: 1, cw_tailLen: 1.0,
                                         aeroAftOn: 1 }, NOSE_AERO) } },
     ] },

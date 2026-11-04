@@ -69,6 +69,11 @@ const P={
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
   aftMode:0, stubLen:0.5, tailLen:1.5, tailDrop:0.02, pylon:1,
+  // G3914: THE NACELLE'S AIR INLET (the user, 4 Nov: "a nacelle on a pusher should be allowed an air inlet ... a set
+  // of controls for the inlet"): an opening in the tail cone's tip - on a pusher the cone is the nacelle's NOSE, into
+  // the air - its width / height as fractions of the nacelle's section, the lip's roll, the duct's depth, its centre
+  // up / down. Off by default (every cowl as it was)
+  inletOn:0, inletW:0.42, inletH:0.42, inletLip:0.014, inletDuct:0.22, inletY:0,
   inheritStub:1, stubSqTop:0.81, stubSqBot:0.79, stubDeckH:0.99, stubWaist:0.34, stubKeelH:0.98,
   // propeller
   bladeN:2, propD:1.91, rootChord:0.165, tipChord:0.05, chordBulge:0.18,
@@ -1222,21 +1227,43 @@ function buildAft(group,mats){
     // Harmless while every material was DoubleSide; the skin is one-sided now.
     group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.host));
   }else{
+    // the tail cone; with the INLET (G3914) it is cut where its section has shrunk to the opening's larger axis, and
+    // a rolled lip turns in to the opening, a duct runs back into the nacelle and ends on a dark face
     const NS=22,rings=[];
+    const IW=P.inletOn?clamp(P.inletW,0.12,0.85):0, IH=P.inletOn?clamp(P.inletH,0.12,0.85):0;
+    const kc=Math.max(IW,IH), eCut=P.inletOn?Math.pow(Math.max(0,1-kc*kc),1/2.2):1;
+    const secAt=(e,k,ky)=>({a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*(ky==null?k:ky),0.012),
+      bB:Math.max(s0.bB*(ky==null?k:ky),0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
+      yw:s0.yw*k*(1-e),
+      // CABIN-CRAFT: the firewall's width by level, rounding out down the tail cone with the squareness
+      wT:s0.wT===1?1:lerp(s0.wT,1,e),wB:s0.wB===1?1:lerp(s0.wB,1,e)});
+    const ringOf=(sect,y0,z)=>AZ.map(th=>{const [x,y]=sectPt(th,sect);return new THREE.Vector3(x,y0+y,z);});
     for(let i=0;i<NS;i++){
-      const e=smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2))), ring=[];
-      for(let j=0;j<AZ.length;j++){
-        const th=AZ[j];
-        const [x,y]=sectPt(th,{a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*k,0.012),
-          bB:Math.max(s0.bB*k,0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
-          yw:s0.yw*k*(1-e),
-          // CABIN-CRAFT: the firewall's width by level, rounding out down the tail cone with the squareness
-          wT:s0.wT===1?1:lerp(s0.wT,1,e),wB:s0.wB===1?1:lerp(s0.wB,1,e)});
-        ring.push(new THREE.Vector3(x,s0.cy-P.tailDrop*e+y,-e*P.tailLen));
-      }
-      rings.push(ring);
+      const e=eCut*smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2)));
+      rings.push(ringOf(secAt(e,k),s0.cy-P.tailDrop*e,-e*P.tailLen));
     }
-    group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));
+    if(!P.inletOn){
+      group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));
+    }else{
+      // the lip: from the cone's cut ring, rolling forward and in, to the opening (W x H of the nacelle's section,
+      // its centre `inletY` x the section's height up), then the duct back into the nacelle
+      const zc=-eCut*P.tailLen, yc=s0.cy-P.tailDrop*eCut+P.inletY*s0.bT, lip=Math.max(0.002,P.inletLip);
+      const kOut=Math.sqrt(Math.max(0,1-Math.pow(eCut,2.2)));
+      const inner=secAt(eCut,IW,IH);
+      const mid={...inner,a:inner.a+lip*0.9,bT:inner.bT+lip*0.9,bB:inner.bB+lip*0.9};
+      const lipRings=[rings[rings.length-1],
+        ringOf(secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kOut+IH)/2+lip/s0.bT*0.5),(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
+        ringOf(mid,yc,zc-lip*1.2),
+        ringOf(inner,yc,zc-lip*0.4),
+        ringOf(inner,yc,zc+lip*0.6)];
+      group.add(new THREE.Mesh(loftRings(rings.concat(lipRings.slice(1)).reverse(),null),mats.skin));
+      // the duct, dark inside, ending on the engine's cooling face
+      const L=Math.max(0.02,P.inletDuct), duct=[];
+      for(let i=0;i<=4;i++) duct.push(ringOf({...inner,a:inner.a*(1-0.08*i/4),bT:inner.bT*(1-0.08*i/4),bB:inner.bB*(1-0.08*i/4)},yc,zc+lip*0.6+L*i/4));
+      group.add(new THREE.Mesh(loftRings(duct.slice().reverse(),null),mats.dark||mats.inner||mats.host));
+      const back=[duct[duct.length-1],ringOf({...inner,a:0.004,bT:0.004,bB:0.004},yc,zc+lip*0.6+L)];
+      group.add(new THREE.Mesh(loftRings(back.slice().reverse(),null),mats.dark||mats.inner||mats.host));
+    }
     if(P.pylon){
       const w=s0.a*0.42,h=s0.bT*1.5;
       const m=new THREE.Mesh(new THREE.BoxGeometry(w*2,h,P.tailLen*0.75),mats.host);

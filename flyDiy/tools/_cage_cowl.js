@@ -74,7 +74,8 @@ for (const g of ROWS) {
 // is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1 };
+// G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0 };
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -1143,6 +1144,21 @@ PAGE.post = ctx => {
 };
 // the layer's own build; `again` is the first pass's starter decision when the
 // wing places it again (returned here for that)
+// G3914: the nacelle's size off the engine it wraps: the envelope's half-span and half-height (about the crank, the
+// thrust line the face stands on) plus a clearance, the barrel its length plus a margin; null without an engine
+const NAC_CLEAR_W = 0.04, NAC_CLEAR_H = 0.10, NAC_MARGIN_L = 0.06, NAC_TAPER = 0.96;
+function nacelleOfEngine(P) {
+  try {
+    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+    const spec = specOf && +P.engOn ? specOf(P) : null;
+    const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
+    const e = R && R.env;
+    if (!e || !isFinite(e.x0) || !isFinite(e.y0)) return null;
+    return { aftW: Math.max(Math.abs(e.x0), Math.abs(e.x1)) + NAC_CLEAR_W,
+             aftH: Math.max(Math.abs(e.y0), Math.abs(e.y1)) + NAC_CLEAR_H,
+             cowlLen: Math.abs(e.z1 - e.z0) + NAC_MARGIN_L };
+  } catch (err) { return null; }
+}
 function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
@@ -1213,8 +1229,23 @@ function cowlPlace(ctx, again) {
   const mode = Math.round(P.fitNose);
   let fit = null;
   if (mode === 1 || mode === 2) {
-    CW.P.aftW = face.halfW;
-    CW.P.aftH = face.halfH;
+    // G3914: A NACELLE FITS ITS ENGINE (the user, 4 Nov: "your nacelle is much too big, no reason to have it this tall
+    // and wide"). Off the body (a pylon, a wing nacelle) there is no firewall to fit: the face is the engine's own
+    // plate (0.16 m half-width), so a fitted nacelle came out a third of the engine's width, and a free one wore the
+    // NOSE cowl's rows it was saved with (the Cessna's firewall: 1.14 x 0.89 m round a flat four 0.31 m tall). The
+    // size is the ENGINE's envelope (ENG_GEN.engResolve: the cylinders' span, the case's height) plus a clearance,
+    // and the barrel its length; the section stays the builder's (sealed) or the fit's (fitted)
+    const NE = station.synthetic ? nacelleOfEngine(P) : null;
+    CW.P.aftW = NE ? NE.aftW : face.halfW;
+    CW.P.aftH = NE ? NE.aftH : face.halfH;
+    // (the barrel HOLDS its width to the propeller's end: a pusher's cylinders sit there, and a nose cowl's taper
+    // - 0.76 on the Cessna - put their heads through the skin; the hardware on the case top takes the height's margin)
+    if (NE) {
+      CW.P.cowlLen = NE.cowlLen; if (P.cw_cowlLen !== undefined) P.cw_cowlLen = NE.cowlLen;
+      CW.P.taperW = Math.max(+CW.P.taperW || 0, NAC_TAPER); CW.P.taperH = Math.max(+CW.P.taperH || 0, NAC_TAPER);
+      if (P.cw_taperW !== undefined) P.cw_taperW = CW.P.taperW;
+      if (P.cw_taperH !== undefined) P.cw_taperH = CW.P.taperH;
+    }
   }
   if (mode === 1) {
     // SECTION FROM THE BODY (sectionFromFace), then the fitted values back on

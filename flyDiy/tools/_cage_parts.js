@@ -1005,6 +1005,8 @@ const CAGE_PARTS = [
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
       ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
+      // G3914: the pusher nacelle's air inlet (in the tail cone's tip)
+      ['nacelle inlet', ['cw_inletOn', 'cw_inletW', 'cw_inletH', 'cw_inletLip', 'cw_inletDuct', 'cw_inletY']],
       ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
                         'cw_fwLipIn'], EXPERT],
     ] },
