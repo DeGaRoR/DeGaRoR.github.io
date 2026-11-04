@@ -1045,7 +1045,7 @@ function cageHullTable(L, FS) {
 // Returns the rows to write (cage units), or null when the cage will not resolve. Pure.
 function cageHullFit(P, cgZ, cgY, opt) {
   const o = opt || {};
-  const aftDeg = o.aftDeg != null ? o.aftDeg : 7, rule = o.ruleDeg != null ? o.ruleDeg : 12;
+  const aftDeg = o.aftDeg != null ? o.aftDeg : (+P.hullAftDeg > 0 ? +P.hullAftDeg : 7), rule = o.ruleDeg != null ? o.ruleDeg : 12;
   const PH = Object.assign({}, P, { hullOn: 1 });
   const S = cageSpec(PH), R = cageResolve(S), H = cageHullSpec(PH);
   const rs = R.rings.filter(r => r.lv.keel).slice().sort((a, b) => cageKeelZ(a) - cageKeelZ(b));
@@ -1070,7 +1070,8 @@ function cageHullFit(P, cgZ, cgY, opt) {
     const r = R.rings.find(q => q.name === name);
     if (!r || cageKeelZ(r) >= zStep - 0.05 || !Number.isFinite(+P[key])) return;
     const want = line(cageKeelZ(r));
-    if (want > +P[key]) out[key] = +Math.min(want, (r.lv.waist ? r.lv.waist.y : want) - 0.05).toFixed(3);
+    // (raised onto the run; with o.exact - a tail-heavy boat's shallower run - also LOWERED onto it)
+    if (want > +P[key] || o.exact) out[key] = +Math.min(want, (r.lv.waist ? r.lv.waist.y : want) - 0.05).toFixed(3);
   };
   raise('pilPaxA', 'aftKeelY');
   raise('tailPost', 'tailKeelY');
@@ -1093,7 +1094,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  4. a wing PAIR counter-rotates (engRotate 1, below);
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
-const REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+const AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
   if (!f || !f.cg || !(f.mass > 0)) return null;
@@ -1117,19 +1118,44 @@ function cageHullFitAll(P, f, HY, opt) {
   // (only a boat resting BOW DOWN is helped by a longer bow; one resting stern down - the CG aft of what the afterbody
   // carries, a pusher on the pod's aft bulkhead - is reported: its cure is a longer afterbody, not a row yet)
   const bowDown = r && (r.trim < REST_TRIM_MIN || r.bowDeck < REST_BOW_MIN) && r.trim < REST_TRIM_MAX;
-  if (r && r.trim >= REST_TRIM_MAX) notes.push('rests ' + r.trim.toFixed(1) + ' deg bow UP: the stern sinks - the CG is aft of what the afterbody carries');
-  if (r && bowDown && !noseEngine && o.balance !== false) {
-    const n0 = +P.noseLen || 0.6;
+  // HULL-B12: THE BOW BOTH WAYS. The balance owns the bow once it has moved it (hullNoseBase: the builder's own,
+  // recorded the first time): it then takes the SHORTEST bow from the builder's up that rests the boat - shorter again
+  // when the CG moved aft since (the twin's 3.4 m was set before its nacelles went over the wing), never under the
+  // builder's own. Not chased under a nose engine (above)
+  const base = +P.hullNoseBase > 0 ? +P.hullNoseBase : 0;
+  if (r && (bowDown || base) && !noseEngine && o.balance !== false && !(r.trim >= REST_TRIM_MAX)) {
+    const n0 = base || (+P.noseLen || 0.6);
     const at = nl => { const P1 = Object.assign({}, P, { noseLen: nl }), f1 = fitAt(P1); return f1 && { fit: Object.assign(f1, { noseLen: +nl.toFixed(3) }), r: restOf(Object.assign({}, P1, f1)) }; };
-    const top = at(NOSE_LEN_MAX);
-    if (top && okRest(top.r)) {
-      let lo = n0, hi = NOSE_LEN_MAX, best = top;
-      for (let k = 0; k < 14; k++) { const m = 0.5 * (lo + hi), t = at(m); if (t && okRest(t.r)) { hi = m; best = t; } else lo = m; }
-      fit = best.fit; r = best.r;
-    } else {
-      if (top) { fit = top.fit; r = top.r; }
-      notes.push('the bow at its longest still rests ' + (r ? r.trim.toFixed(1) + ' deg' : '?') + ': the CG is too far forward for this hull');
+    const lo0 = at(n0);
+    let best = null;
+    if (lo0 && okRest(lo0.r)) best = lo0;
+    else {
+      const top = at(NOSE_LEN_MAX);
+      if (top && okRest(top.r)) {
+        let lo = n0, hi = NOSE_LEN_MAX; best = top;
+        for (let k = 0; k < 14; k++) { const m = 0.5 * (lo + hi), t = at(m); if (t && okRest(t.r)) { hi = m; best = t; } else lo = m; }
+      } else if (top) {
+        best = top;
+        notes.push('the bow at its longest still rests ' + (top.r ? top.r.trim.toFixed(1) + ' deg' : '?') + ': the CG is too far forward for this hull');
+      }
     }
+    if (best && Math.abs(best.fit.noseLen - (+P.noseLen || 0)) > 1e-3) {
+      fit = best.fit; r = best.r;
+      if (!base) fit.hullNoseBase = +n0.toFixed(3);
+    }
+  }
+  // HULL-B12: A TAIL-HEAVY BOAT (resting stern down, REST_TRIM_MAX or more - the CG aft of what the afterbody
+  // carries) takes a SHALLOWER afterbody run: hullAftDeg from the 7-deg rule down to AFT_DEG_MIN, the afterbody and
+  // tail keel rows set onto it (lowered as well as raised) - the deeper afterbody floats the stern. The least change
+  // that rests it; short of it, reported
+  if (r && r.trim >= REST_TRIM_MAX && o.balance !== false) {
+    const d0 = +P.hullAftDeg > 0 ? +P.hullAftDeg : 7;
+    const atD = dg => { const P1 = Object.assign({}, P, fit, { hullAftDeg: dg }), f1 = cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS, { exact: true });
+      return f1 && { fit: Object.assign({}, fit, f1, { hullAftDeg: +dg.toFixed(2) }), r: restOf(Object.assign({}, P1, f1)) }; };
+    let got = null;
+    for (let dg = d0 - 0.5; dg >= AFT_DEG_MIN - 1e-9; dg -= 0.5) { const t = atD(dg); if (t && t.r && t.r.trim < REST_TRIM_MAX) { got = t; break; } if (t) got = t; }
+    if (got) { fit = got.fit; r = got.r; }
+    if (!r || r.trim >= REST_TRIM_MAX) notes.push('rests ' + (r ? r.trim.toFixed(1) : '?') + ' deg bow UP with the afterbody at its shallowest (' + AFT_DEG_MIN + ' deg): the CG is aft of what this hull carries');
   }
   // the propellers over the rest waterline
   if (r && f.props && f.props.length) {
@@ -7860,6 +7886,9 @@ const CAGE_PARAMS = {
   //               the drawing (_cage_float.js HULL-B5) and the frame read one placement (HULL-B5)
   hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
+  // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
+  // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
+  hullAftDeg: 7, hullNoseBase: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -8675,7 +8704,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
-  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes

@@ -375,6 +375,9 @@ window.CAGE_PAGE = {
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
         ['hullHs',      'step depth',                 0.00, 0.25, 0.002,
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // HULL-B12: the afterbody keel's run behind the step (the fit's; shallower carries a tail-heavy boat's stern)
+        ['hullAftDeg',  'afterbody keel run °',       2, 12, 0.5, { when: P => +P.hullOn }],
+        ['hullNoseBase', 'bow before the fit (0: not moved)', 0, 4, 0.01, { when: P => +P.hullOn && +P.hullNoseBase > 0, dim: 'len' }],
         // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
         ['hullTips',    'tip floats',                 0, 1, 1, ['none', 'on struts'], { when: P => +P.hullOn }],
         ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && +P.hullTips }],

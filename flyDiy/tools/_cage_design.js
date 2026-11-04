@@ -1883,7 +1883,7 @@ const DESIGN_ROWS = [
   // Undercarriage tile's Hull has made the fuselage a boat
   { key: 'hullForm', label: 'Hull form', kind: 'starter', group: 'structure', status: 'live', once: true,
     help: 'the boat\'s bottom: deadrise, step, chine - a starting point, every row stays yours (Fuselage > boat hull)',
-    read: P => !+P.hullOn ? null : !+P.hullSteps ? 'stepless' : +P.botRound >= 0.3 ? 'soft' :
+    read: P => !+P.hullOn ? null : !+P.hullSteps ? 'stepless' : +P.crKeel < 1 ? 'soft' :
       +P.hullBeta >= 25 ? 'deep' : +P.hullBeta <= 17 ? 'flat' : 'classic',
     options: [
       { value: 'classic', label: 'Classic V', icon: iconHull(22, 0, 1), off: HULL_OFF,
@@ -1895,12 +1895,15 @@ const DESIGN_ROWS = [
       { value: 'flat', label: 'Shallow V', icon: iconHull(15, 0, 1), off: HULL_OFF,
         note: 'calm water, early planing: 15 deg - the light-sport boats',
         writes: { cage: { hullBeta: 15, hullBetaBow: 30, hullBetaA: 13, hullSteps: 1, hullHs: 0.06, crKeel: 3, botRound: 0 } } },
-      { value: 'soft', label: 'Soft chine', icon: iconHull(22, 0.6, 1), off: HULL_OFF,
-        note: 'the V kept, the chine rounded into the topsides',
-        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 0.4, botRound: 0.55 } } },
+      { value: 'soft', label: 'Soft chine', icon: iconHull(22, 0.35, 1), off: HULL_OFF,
+        // (HULL-B12, the user: "softpy has an extremely narrow hull, where seats do not fit" - botRound 0.55 rounded the
+        // bottom's corners IN, the chine with them: the waterplane a third narrower, the cabin floor too. The soft
+        // chine is the CREASE softened only - the section keeps the cabin's width)
+        note: 'the V kept, the chine crease softened into the topsides - the full width',
+        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 0.4, botRound: 0 } } },
       { value: 'stepless', label: 'Stepless', icon: iconHull(8, 1, 0), off: HULL_OFF,
         note: 'a round body with no step (the LISA Akoya\'s, on foils): slow to plane, hydrofins still to come',
-        writes: { cage: { hullBeta: 8, hullBetaBow: 20, hullBetaA: 8, hullSteps: 0, crKeel: 0, botRound: 1 } } },
+        writes: { cage: { hullBeta: 8, hullBetaBow: 20, hullBetaA: 8, hullSteps: 0, crKeel: 0, botRound: 0.25 } } },   // (B12: a light rounding - 1 narrowed it as the soft chine's did)
     ] },
 
   { key: 'retract', label: 'Retraction', kind: 'discriminator',
