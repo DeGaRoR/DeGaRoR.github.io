@@ -72,12 +72,12 @@
 +              ' else if (mode === "infwd") { const E = window.CAGE_CREW_EYE; if (!E) return { err: "no pilot eye (CAGE_CREW_EYE)" }; eW = new THREE.Vector3().fromArray(E.p); eL = g.parent.worldToLocal(eW.clone()).toArray(); if (a.length >= 3) { eL = [eL[0] + a[0], eL[1] + a[1], eL[2] + a[2]]; eW = W(eL); } for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } cam.near = 0.03; }' +
 +              ' else if (mode === "inclose") { eL = [cL[0], cL[1], cL[2] + a[0]]; eW = W(eL); cam.near = 0.03; }' +
 +              // AFT-BULKHEAD-SHOTS: bk:inside[/<deg>/<dx>/<dy>/<dz>] - the cabin's centre line between the front and the rear seats (the
-+              // seat backs' mid z; one row: halfway from its back to the face), the pilot's eye height, looking aft-left <deg> (30): the aim is
++              // seat backs' mid z; one row: 5 cm forward of its back, between the heads), the pilot's eye height, looking aft-left <deg> (30): the aim is
 +              // where that ray meets the face's plane, kept inside the face's box, at the face's middle height
 +              ' else if (mode === "pt") { cL[0] = a[0]; cL[1] = a[1]; cL[2] = a[2]; c.copy(W(cL)); const t = a[3] * Math.PI / 180, e = a[4] * Math.PI / 180; eL = [cL[0] + a[5] * Math.cos(e) * Math.cos(t), cL[1] + a[5] * Math.sin(e), cL[2] - a[5] * Math.cos(e) * Math.sin(t)]; eW = W(eL); cam.near = Math.min(0.5, a[5] / 4); }' +
 +              ' else if (mode === "inside") { const E = window.CAGE_CREW_EYE, CC = window.CAGE_CREW, ss = (CC && CC.seatsAt) || []; if (!E) return { err: "no pilot eye" };' +
 +              ' const zb = [...new Set(ss.map(s => +s.zBack.toFixed(3)))].sort((p, q) => q - p); const ey = g.parent.worldToLocal(new THREE.Vector3().fromArray(E.p)).y;' +
-+              ' const ez = zb.length >= 2 ? (zb[0] + zb[zb.length - 1]) / 2 : ((zb[0] != null ? zb[0] : cL[2] + 0.6) + cL[2]) / 2; const dg = (a[0] != null && isFinite(a[0]) ? a[0] : 30) * Math.PI / 180;' +
++              ' const ez = zb.length >= 2 ? (zb[0] + zb[zb.length - 1]) / 2 : (zb[0] != null ? zb[0] + 0.05 : cL[2] + 0.6); const dg = (a[0] != null && isFinite(a[0]) ? a[0] : 30) * Math.PI / 180;' +
 +              ' eL = [0 + (a[1] || 0), ey + (a[2] || 0), ez + (a[3] || 0)]; eW = W(eL); const tx = Math.min(b[1] - 0.04, Math.max(b[0] + 0.04, eL[0] + (eL[2] - cL[2]) * Math.tan(dg)));' +
 +              ' cL[0] = tx; c.copy(W(cL)); cam.near = 0.03; for (const m of (E.heads || [])) if (m.visible) { m.visible = false; window.__bkHid.push(m); } }' +
 +              ' else return { err: "bk mode " + mode };' +

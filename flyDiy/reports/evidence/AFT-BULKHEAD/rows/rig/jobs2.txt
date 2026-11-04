@@ -1,3 +1,5 @@
+jodel_BEFORE day bk:inside/30
+jodel_FULL day bk:inside/30
 cub_BEFORE day bk:inclose/0.6,bk:inside/30
 cub_FULL day bk:inclose/0.6,bk:inside/30
 twin_BEFORE day bk:out/-30/0/3,bk:out/-45/0/3,bk:infwd,bk:inclose/0.6,bk:inside/30
