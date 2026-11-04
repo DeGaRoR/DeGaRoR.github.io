@@ -90,7 +90,11 @@ final.
    airframe with a commercial certificate, the page writes that certificate from the bench, and econ_sim never runs the
    bench. Every career stops at "T5: clients.01 not flown". The study's harness signs each simulated airframe as the
    bench would (every design econ_sim flies is validated) and leaves the tool alone. The lasting fix is a `careerSign`
-   call in econ_sim where it materialises an airframe (queued as a separate task).
+   call in econ_sim before an accept. **Done since, in its own commit** (`benchSign` in tools/econ_sim.js). On master
+   with it, 160 careers on 20 seeds play with no error. The PROPOSED economy reads 4 / 8 / 12 contracts and meets every
+   pace, money-at-rest and route target, but **5 seeds of 20 per policy get stuck in segment 1**: the Cub is on the
+   story's route, the Rufus (one seat, no baggage) can fly no offer, and the wallet (~6 000) buys nothing. That is a
+   finding about the no-grant start, for the economy owner, not a tool fault.
 9. **Weights hold.**
    - Engines are within ±12 % of published dry mass (the R-1830 is +12 %); empty weights are within ±16 % on the Cub,
      C172, Jodel, Tiger Moth, RVs and DC-3.
@@ -593,7 +597,7 @@ rows patched on its own process's copy of the core, the code rules added as delt
 | P19 | **the used price: keep** (`procureUsedListing`) | catalogue × 0.4-0.8 = L × 0.46-0.92 | **unchanged**, still read from the ledger | it brackets real resale at 0.5-1.2× build cost (§A); it moves with every correction |
 | P20 | **selling (new)** | none (GAME §12.3 planned 0.5-0.8 × hull) | **min(0.75 × the listing at its condition, `paid`)**; condition 0.8 − 0.08 a repair (floor 0.4); story airframes 0 | no loop makes money (§A); 0.75 is the top of the real 15-25 % spread; 0.65 if the 4-seater's pace must stay at 6+ |
 | P21 | **the absolute money ×1.376** (one `ECON_BOOK.payScale`) | `CONTRACT_PAY` perKm 160, surf, baseF 2.7, story 2.6; build bases; `ROUTES_PAY.perKm` 30; `STORY_T6_FEE` 20 000; `CAREER_GRANT` 60 000 | ×1.376 (§B's table) | with P1-P15, econ_sim meets 24 / 26 targets and finishes every seed (§B); without it, 16 / 25 |
-| P22 | **econ_sim's certificate** (tools/econ_sim.js) | never signs an airframe: fails on master since L30d | a `careerSign` (safe + comm pass) where it materialises a validated design | the harness's shim, made permanent; queued as its own task |
+| P22 | **econ_sim's certificate** (tools/econ_sim.js) | never signs an airframe: fails on master since L30d | a `careerSign` (safe + comm pass) where it materialises a validated design | **done** (`benchSign`, its own commit); the harness's shim is now redundant and harmless |
 
 **What P1-P15 do to the planes** (ledger now → proposed; P16-P18 not included):
 
