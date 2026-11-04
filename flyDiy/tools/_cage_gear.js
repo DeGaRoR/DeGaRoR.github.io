@@ -245,6 +245,180 @@ function foldChain(u, key, P) {
   return C;
 }
 
+// ---- G2 (RETRACT-STUDY §8.2): DOES IT FIT? ------------------------------------------------------------------------------
+// The unit's points - the tyre (two faces x two rings x 12, the hub) and the leg (from a quarter of the way down: its
+// root end is in the structure by construction) - posed at six positions along the fold; four tests, each with the rows
+// a builder turns to put it right (they go RED in the editor - CAGE_ROW_BAD - and back the moment it fits):
+//   SKIN   fully up (a partial gear's exposure is declared), every point inside the body or the wing (15 mm in)
+//   SPAR   the stowed wheel inside the wing sits in ONE bay: it crosses neither spar (GEN_RULES.sparFront / sparRear)
+//   FLOOR  nothing inside the body rises over the cabin floor (floorY, 20 mm under it), at any position
+//   UNITS  the units clear each other (30 mm) at every position - the two mains under the belly, a main and the nose
+// (the TANKS are the fifth test, read when the rows are refreshed: the energy layer runs after this one - fitTanks)
+const FIT_G = [1, 0.8, 0.6, 0.4, 0.2, 0];
+const FIT = { wall: 0.015, floor: 0.02, gap: 0.03 };
+function unitPts(C) {
+  const a = C.wAx, R = C.R, hw = 0.38 * R, c = C.axle;
+  const ref = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const u = fNrm([a[1] * ref[2] - a[2] * ref[1], a[2] * ref[0] - a[0] * ref[2], a[0] * ref[1] - a[1] * ref[0]]);
+  const v = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]];
+  const W = [c.slice()];
+  for (const s of [-hw, hw]) for (const r of [R, 0.6 * R]) for (let k = 0; k < 12; k++) {
+    const ca = Math.cos(k * Math.PI / 6) * r, sa = Math.sin(k * Math.PI / 6) * r;
+    W.push([c[0] + a[0] * s + u[0] * ca + v[0] * sa, c[1] + a[1] * s + u[1] * ca + v[1] * sa, c[2] + a[2] * s + u[2] * ca + v[2] * sa]);
+  }
+  const h = C.hinge, L = [];
+  for (const f of [0.25, 0.4, 0.55, 0.7, 0.85]) L.push([h[0] + (c[0] - h[0]) * f, h[1] + (c[1] - h[1]) * f, h[2] + (c[2] - h[2]) * f]);
+  return { W, L };
+}
+const poseAll = (C, pts, g) => { const M = foldPose(C, g), h = C.hinge;
+  return pts.map(p => { const q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); return [h[0] + q[0], h[1] + q[1], h[2] + q[2]]; }); };
+// the rows each test hands the builder, per unit (the mains' s1 rows and fold, the nose's s2 rows and fold)
+const FIT_ROWS = {
+  L: { fold: ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist'], st: 's1' },
+  R: { fold: ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist'], st: 's1' },
+  T: { fold: ['gearFoldNose', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist'], st: 's2' },
+};
+const UNIT_WORD = { L: 'the left main', R: 'the right main', T: 'the nose wheel' };
+function foldFit(P, swing, AF, W) {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const out = { ok: true, why: [], rows: {}, tests: {} };
+  const fail = (test, unit, why, rows) => {
+    out.ok = false; out.why.push(why);
+    (out.tests[test] = out.tests[test] || []).push({ unit, why });
+    for (const k of rows) if (!out.rows[k]) out.rows[k] = why;
+  };
+  const sparF = (typeof GEN_RULES !== 'undefined' && GEN_RULES.sparFront) || 0.15;
+  const sparR = (typeof GEN_RULES !== 'undefined' && GEN_RULES.sparRear) || 0.65;
+  const FSm = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const floorY = (P.floorY != null ? +P.floorY : -0.5) * FSm;
+  // the body: inside its section at the point's station and angle (AF's table, metres); depth > 0 inside
+  const bodyIn = p => {
+    if (!AF || p[2] < AF.z0 || p[2] > AF.z1) return -1;
+    const cy = AF.cyAt(p[2]), ang = Math.atan2(p[0], cy - p[1]);
+    const s = AF.surf(p[2], ang), r = Math.hypot(s[0], s[1] - cy), d = Math.hypot(p[0], p[1] - cy);
+    return r - d;
+  };
+  // the wing: between its skins at the point's plan position (the drawn wing's probes); depth > 0 inside
+  const wingIn = p => {
+    if (!W || !W.underAt || !W.overAt) return -1;
+    const u = W.underAt(p[0], p[2]); if (!u) return -1;
+    const o = W.overAt(p[0], p[2]); if (!o) return -1;
+    return Math.min(p[1] - u.y, o.y - p[1]);
+  };
+  const leTe = new Map();
+  const chordFrac = p => {
+    if (!W || !W.leAt || !W.teAt) return null;
+    const kx = Math.round(p[0] * 50);
+    if (!leTe.has(kx)) { const le = W.leAt(kx / 50), te = W.teAt(kx / 50); leTe.set(kx, le && te ? [le.z, te.z] : null); }
+    const lt = leTe.get(kx);
+    return lt && lt[0] > lt[1] ? (lt[0] - p[2]) / (lt[0] - lt[1]) : null;
+  };
+  const units = {};
+  for (const key of Object.keys(swing)) units[key] = { C: swing[key], pts: unitPts(swing[key]) };
+  const posed = {};
+  for (const key in units) posed[key] = FIT_G.map(g => { const U = units[key];
+    return { W: poseAll(U.C, U.pts.W, g), L: poseAll(U.C, U.pts.L, g) }; });
+  for (const key in units) {
+    const C = units[key].C, R = FIT_ROWS[key], st = R.st, word = UNIT_WORD[key];
+    const up = posed[key][FIT_G.length - 1], all = up.W.concat(up.L);
+    // SKIN (fully up, a whole retraction only)
+    if (C.frac >= 0.999) {
+      // each point outside, classified: through the wing's skin (in its planform: by how much), out of the body (in
+      // its width: by how much), or OFF the wing's chord (aft of the trailing edge / ahead of the leading edge)
+      let wingMM = 0, bodyMM = 0, aftTE = 0, foreLE = 0, beyond = 0;
+      for (const p of all) {
+        const db = bodyIn(p), dw = wingIn(p);
+        if (Math.max(db, dw) >= FIT.wall) continue;
+        // within the body's width the envelope is the body and the wing's centre section together: out of the body
+        if (AF && p[2] >= AF.z0 && p[2] <= AF.z1 && Math.abs(p[0]) <= AF.halfWAt(p[2]) + 0.05) { bodyMM = Math.max(bodyMM, FIT.wall - Math.max(db, dw)); continue; }
+        const u = W && W.underAt ? W.underAt(p[0], p[2]) : null;
+        if (u) { wingMM = Math.max(wingMM, FIT.wall - dw); continue; }
+        const f = chordFrac(p);
+        if (f == null) beyond++; else if (f > 1) aftTE++; else if (f < 0) foreLE++; else beyond++;
+      }
+      const w = [];
+      if (wingMM > 0) w.push(Math.round(wingMM * 1000) + ' mm through the wing\'s skin');
+      if (bodyMM > 0) w.push(Math.round(bodyMM * 1000) + ' mm out of the body');
+      if (aftTE) w.push('aft of the wing\'s trailing edge');
+      if (foreLE) w.push('ahead of the leading edge');
+      if (beyond && !w.length) w.push('outside the wing and the body');
+      if (w.length) fail('skin', key, word + ', up, is not inside: ' + w.join(', '),
+                         R.fold.concat([st + 'R', st + 'Drop', 'gearRetFrac', 'wgThick'], aftTE || foreLE ? [st + 'Z', st + 'AxZ'] : []));
+    }
+    // SPAR (the stowed wheel's points inside the wing, one bay)
+    { let lo = Infinity, hi = -Infinity;
+      for (const p of up.W) if (wingIn(p) > 0 && !(bodyIn(p) > 0)) { const f = chordFrac(p); if (f != null) { lo = Math.min(lo, f); hi = Math.max(hi, f); } }
+      if (lo < hi && ((lo < sparF && hi > sparF) || (lo < sparR && hi > sparR)))
+        fail('spar', key, word + ' crosses the ' + (lo < sparF && hi > sparF ? 'front' : 'rear') + ' spar, up',
+             R.fold.concat([st + 'Z', st + 'AxZ', st + 'R', 'wgChord'])); }
+    // FLOOR (inside the body, at any position)
+    { let worst = 0;
+      for (const ps of posed[key]) for (const p of ps.W.concat(ps.L)) if (bodyIn(p) > 0 && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor);
+      if (worst > 0) fail('floor', key, word + ' rises ' + Math.round(worst * 1000) + ' mm into the cabin floor',
+                          R.fold.concat([st + 'Drop', st + 'R', 'floorY', 'gearRetFrac'])); }
+  }
+  // UNITS (pairwise, at every position)
+  const keys = Object.keys(units);
+  for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) {
+    const a = keys[i], b = keys[j];
+    let dmin = Infinity;
+    for (let k = 0; k < FIT_G.length; k++) {
+      const A = posed[a][k].W.concat(posed[a][k].L), B = posed[b][k].W.concat(posed[b][k].L);
+      for (const p of A) for (const q of B) { const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); if (d < dmin) dmin = d; }
+    }
+    if (dmin < FIT.gap) {
+      const both = a !== 'T' && b !== 'T';
+      fail('units', a + b, (both ? 'the two mains meet' : UNIT_WORD[a === 'T' ? b : a] + ' meets the nose wheel') + ' as they fold',
+           (both ? ['s1X'] : ['s1Z', 's2Z']).concat(FIT_ROWS[a].fold, FIT_ROWS[b].fold, [FIT_ROWS[a].st + 'Drop', FIT_ROWS[b].st + 'Drop', 's1R']));
+    }
+  }
+  out.posed = posed;
+  out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
+  return out;
+}
+// the fifth test, the TANKS - read when the rows are refreshed (the energy layer runs after the gear): the stowed and
+// swept points inside a placed body tank's box or a wing tank's side boxes (_vessel_gen bodyPlace / wingPlace)
+function fitTanks(fit) {
+  const E = window.CAGE_ENERGY, res = E && E.results ? E.results() : null;
+  if (!fit || !fit.posed || !res || !res.length) return [];
+  const hits = [];
+  for (const r of res) {
+    if (!r) continue;
+    let inside = null;
+    if (r.on === 'body' && r.c && r.e) {
+      const c = r.c, e = r.e, cs = Math.cos(-(r.rot || 0)), sn = Math.sin(-(r.rot || 0));
+      inside = p => { const dx = p[0] - c[0], dz = p[2] - c[2], x = dx * cs - dz * sn, z = dx * sn + dz * cs;
+        return Math.abs(x) <= e[0] && Math.abs(p[1] - c[1]) <= e[1] && Math.abs(z) <= e[2]; };
+    } else if (r.on === 'wing' && Array.isArray(r.sides) && r.sides.length) {
+      inside = p => r.sides.some(s => { const x0 = Math.min(s.x0, s.x1), x1 = Math.max(s.x0, s.x1);
+        if (p[0] < x0 || p[0] > x1) return false;
+        const f = (Math.abs(p[0]) - Math.abs(s.x0)) / Math.max(1e-6, Math.abs(s.x1) - Math.abs(s.x0));
+        const zF = s.zF0 + (s.zF1 - s.zF0) * f, zR = s.zR0 + (s.zR1 - s.zR0) * f;
+        return p[2] <= zF && p[2] >= zR && Math.abs(p[1] - s.y) <= (s.d || 0.1) / 2; });
+    }
+    if (!inside) continue;
+    for (const key in fit.posed) {
+      if (fit.posed[key].some(ps => ps.W.some(inside) || ps.L.some(inside))) { hits.push({ unit: key, tank: r }); break; }
+    }
+  }
+  return hits;
+}
+// THE RED ROWS (_cage_ui.js applyRowVis reads this after every build): row key -> the reason, or null when it fits
+window.CAGE_ROW_BAD = () => {
+  const G = window.CAGE_GEAR, fit = G && G.fit;
+  if (!fit) return null;
+  const rows = Object.assign({}, fit.rows);
+  for (const h of fitTanks(fit)) {
+    const why = UNIT_WORD[h.unit] + ' meets a tank (' + ((h.tank.bay && (h.tank.bay.name || h.tank.bay.key)) || h.tank.on) + ')';
+    for (const k of FIT_ROWS[h.unit].fold.concat([FIT_ROWS[h.unit].st + 'Z', 'gearRetFrac'])) if (!rows[k]) rows[k] = why;
+    if (!rows.gearRetract) rows.gearRetract = why;
+  }
+  return Object.keys(rows).length ? rows : null;
+};
+// the retraction row's own line: the first reason, or nothing
+const fitNote = () => { const B = window.CAGE_ROW_BAD ? window.CAGE_ROW_BAD() : null; if (!B) return '';
+  const w = [...new Set(Object.values(B))]; return 'does not fit: ' + w[0] + (w.length > 1 ? ' (+' + (w.length - 1) + ')' : ''); };
+
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
 const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 &&
                                  Math.round(+P.wgPos) === 2);
@@ -261,7 +435,7 @@ const GROUP = ['9 · undercarriage', [
   // spec.gear.retract from these; the flown aeroplane swings the units (app.js gearSwingRig) - no well is cut yet,
   // the stowed gear lies inside the skin (step 4 cuts the wells). The one predicate: GEAR_RETRACTABLE
   ['retraction', [
-    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable']],
+    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable'], { note: P => +P.gearRetract ? fitNote() : '' }],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
     // G1 (RETRACT-STUDY §8.1): THE FOLD. A preset per unit, or 'custom': up to two turns, each about a body axis
@@ -762,13 +936,16 @@ PAGE.post = ctx => {
   // contact plane, carried by the join). The join takes it to the flown model (gearSwing, app.js gearSwingRig); THE
   // PREVIEW poses the units here at `gearPos` (the editor's slider, quickshot --gear) - the capture takes them down
   // (_cage_join.js VIEW_STATE 'gear position')
-  let swing = null;
+  let swing = null, fit = null;
   if (GEAR_RETRACTABLE(P)) {
     swing = {};
     for (const u of legUnits) {
       const key = u.kind === 'T' ? 'T' : u.kind;
       if (!swing[key] && (u.axle || u.moving)) swing[key] = foldChain(u, key, P);
     }
+    // G2: the fit (the gear layer runs after the wing: CAGE_WING is this build's)
+    try { fit = foldFit(P, swing, AF, window.CAGE_WING); } catch (e) { fit = null; console.warn('gear fit:', e); }
+    if (fit && !fit.ok && stat) stat.textContent += '  ·  gear: ' + fit.why[0] + '!';
     const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos));
     if (g < 1) group.traverse(o => {
       const mm = /^ed(?:Leg|Wheel)([LRT])$/.exec(o.name || '') || (o.name === 'edCastorT' ? [0, 'T'] : null);
@@ -781,6 +958,7 @@ PAGE.post = ctx => {
   }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     ...(swing ? { swing } : {}),
+    ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

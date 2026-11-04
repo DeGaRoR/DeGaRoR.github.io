@@ -1131,3 +1131,41 @@ The archetypes have never been fitted to a real aeroplane, and wells are where t
   - a partial gear's downwind lies between the down and the fully up.
 - **Still the T-tail tourer's:** its 1.6 m track folds the two mains together under the belly. G2's red sliders are
   what will say so.
+
+### 8.8 G2 AS BUILT (2026-11-04): does it fit - the rows that go red
+
+- **The test** (`tools/_cage_gear.js` foldFit, in the gear layer's own build, after the wing: about 20-50 ms):
+  - **The points:** each unit's tyre (two faces x two rings x 12, plus the hub) and its leg (from a quarter of the way
+    down). They are posed at six positions along the fold: 1, 0.8, 0.6, 0.4, 0.2, 0.
+  - **SKIN:** fully up (a whole retraction only; a partial one declares its exposure), every point is inside the body
+    or the wing, 15 mm in. Within the body's width the envelope is the body and the wing's centre section together.
+    Points outside are said as: N mm through the wing's skin, N mm out of the body, aft of the trailing edge, or ahead
+    of the leading edge.
+  - **SPAR:** the stowed wheel's points inside the wing (out of the body) sit in one bay. Their chord fractions cross
+    neither GEN_RULES.sparFront nor sparRear.
+  - **FLOOR:** nothing inside the body rises above the cabin floor (floorY x scale, 20 mm under it), at any position.
+  - **UNITS:** the units clear each other by 30 mm at every position.
+  - **TANKS:** the fifth test, read when the rows refresh (`fitTanks`: the energy layer runs after the gear). A posed
+    point inside a body tank's box or a wing tank's side boxes counts.
+- **The red rows:**
+  - Each failed test names the rows a builder turns:
+
+    | Test | Rows |
+    |---|---|
+    | skin | the fold, the wheel radius, the leg drop, the fraction, the wing's thickness, and the gear's fore/aft when it sits off the chord |
+    | spar | the fold, the gear's fore/aft, the wheel, the wing chord |
+    | floor | the fold, the leg drop, the wheel, the floor, the fraction |
+    | units | the half track (mains) or the stations (a main and the nose), both folds, both legs, the wheel |
+    | tanks | the fold, the station, the fraction, the retraction switch |
+
+  - `window.CAGE_ROW_BAD()` gives each row key its reason. `_cage_ui.js` applyRowVis reads it after every build: a
+    flagged row turns red (`.rowBad`, editor.css) with the reason as its tooltip, and back the moment it fits.
+  - The retraction row carries the first reason as its note.
+  - No other layer's row definition changed: the red is keyed by the row's key.
+- **What the T-tail tourer as born says:**
+  - the two mains meet as they fold;
+  - each stows 79 mm out of the body, and the nose wheel 69 mm out.
+
+  A track of 3.2 m at a 0.6 fraction fits. Mains moved forward to 1.8 m cross the front spar when folded inward. A nose
+  turned 130° rises 222 mm into the cabin floor.
+- **GATE RETRACT §11** holds all of it, plus "a fixed gear: no fit, nothing red".

@@ -3780,8 +3780,20 @@ function applyRowVis() {
     if (vis && g.opts.when) { try { vis = !!g.opts.when(P); } catch (e) {} }
     g.el.style.display = vis ? '' : 'none';
   }
+  // RETRACT G2: ROWS THAT GO RED - a layer may publish window.CAGE_ROW_BAD() -> { rowKey: reason } (the retractable
+  // gear's fit, _cage_gear.js), read once a refresh: a flagged row turns red with the reason as its tooltip, and back
+  // the moment the next build says it fits. Nothing else about the row changes
+  let BAD = null;
+  if (typeof window.CAGE_ROW_BAD === 'function') { try { BAD = window.CAGE_ROW_BAD() || null; } catch (e) { BAD = null; } }
   for (const meta of ROWMETA) {
     const o = meta.opts;
+    { const why = BAD && BAD[meta.k];
+      if (why || meta.badOn) {
+        meta.row.classList.toggle('rowBad', !!why);
+        if (why) { if (!meta.badOn) meta.titleWas = meta.row.title || ''; meta.row.title = why; }
+        else meta.row.title = meta.titleWas || '';
+        meta.badOn = !!why;
+      } }
     if (o && (o.when || o.level)) {
       let vis = !(o.level === 'expert' && !EXPERT.on);
       if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }

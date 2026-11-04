@@ -311215,3 +311215,9 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
   VIEW_STATE 'gear position'); the join writes gear.retract.lift (measured) and frac; app.js replays the chain;
   genStolCageOff drops the retraction rows of a fixed gear (and the preview always) from every fingerprint. GATE RETRACT
   §10. The study's §8.7.
+- RETRACT G2 (2026-11-04): DOES IT FIT - the gear layer's foldFit (after the wing; ~20-50 ms): the units' tyre and leg points
+  at six positions; SKIN (up, whole retraction: inside the body or the wing, 15 mm in, said as through the wing's skin /
+  out of the body / off the chord), SPAR (one bay), FLOOR (under floorY), UNITS (30 mm apart); TANKS read at the rows'
+  refresh (fitTanks). window.CAGE_ROW_BAD() -> { row: reason }; _cage_ui.js applyRowVis turns a flagged row red
+  (.rowBad) with the reason as its tooltip, back when it fits; the retraction row's note says the first. GATE RETRACT
+  §11. The study's §8.8.

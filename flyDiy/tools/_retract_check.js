@@ -22,6 +22,9 @@
 //      mirrors it, outward outboard, aft-flat aft with the wheel's axis upright, two axes two turns, a custom fold equal
 //      to the preset it copies, the fraction stopping part way, the preview posing the drawn units (and not the capture),
 //      the join's fraction and measured lift, the certificate strip, and a partial gear's downwind between the two
+//  11. DOES IT FIT (G2, the T-tail tourer headless): as born the mains meet and stow out of the body, the half track,
+//      the fold and the leg go red; the fit costs under 300 ms; a wider track at a partial fold fits with nothing red;
+//      the mains forward cross the front spar; the nose turned too far rises into the floor; a fixed gear has no fit
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -245,6 +248,25 @@ console.log('10 THE FOLD (G1)');
   const on = C.genStolCageOff({ gearRetract: 1, gearRetT: 6, gearFold: 0, gearPos: 0.3, s1R: 0.2 });
   check(Object.keys(off).join() === 's1R' && Object.keys(on).join() === 'gearRetract,gearRetT,gearFold,s1R',
         'the certificate: a fixed gear\'s rows and the preview count as absent', Object.keys(off).join() + ' | ' + Object.keys(on).join());
+  // ---- 11. DOES IT FIT (G2): the four tests, the red rows, the time ----------------------------------------------
+  console.log('11 DOES IT FIT (G2)');
+  const fitOf = over => { const Sx = sceneOf(over); return { f: Sx.W.CAGE_GEAR.fit, bad: Sx.W.CAGE_ROW_BAD() }; };
+  let F = fitOf({});
+  check(F.f && !F.f.ok && F.f.tests.units && F.f.tests.skin, 'the T-tail tourer as born: the mains meet and stow out of the body',
+        F.f && F.f.why.slice(0, 2).join(' | '));
+  check(F.bad && F.bad.s1X && F.bad.gearFold && F.bad.s1Drop, 'and the rows to turn go red (the half track, the fold, the leg)',
+        F.bad && Object.keys(F.bad).slice(0, 8).join(','));
+  check(F.f.ms < 300, 'the fit is quick enough for a slider', F.f.ms + ' ms');
+  F = fitOf({ s1X: 1.6, gearRetFrac: 0.6 });
+  check(F.f && F.f.ok && F.bad === null, 'a wider track at a partial fold fits: nothing red');
+  F = fitOf({ gearFold: K.indexOf('inward'), s1Z: 1.8, s1X: 1.3 });
+  check(F.f.tests.spar && /front spar/.test(F.f.tests.spar[0].why) && F.bad.s1Z, 'the mains forward: the folded wheel crosses the front spar (s1Z red)',
+        F.f.tests.spar && F.f.tests.spar[0].why);
+  F = fitOf({ gearFoldNose: FOLD().FOLD_NOSE_KEYS.indexOf('custom'), gn1Ax: 1, gn1Ang: 130 });
+  check(F.f.tests.floor && F.bad.gn1Ang && F.bad.floorY, 'the nose turned too far: into the cabin floor (its turn and the floor red)',
+        F.f.tests.floor && F.f.tests.floor[0].why);
+  { const Sx = SH.sceneBuild(birth, { over: { gearRetract: 0 }, garage: birth });
+    check(!Sx.W.CAGE_GEAR.fit && Sx.W.CAGE_ROW_BAD() === null, 'a fixed gear: no fit, nothing red'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

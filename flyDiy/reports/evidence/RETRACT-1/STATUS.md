@@ -43,3 +43,19 @@ floats/student STOPPED 8edce1408883
 - **Stills (quickshot `--gear`, the T-tail tourer):**
   - `g1_folds_half_front.png`, `g1_folds_half_side.png`: the five mains folds half-way;
   - `g1_folds_up.png`: aft-flat and twist-and-tuck stowed, and inward at fraction 0.6.
+
+## G2 - does it fit (2026-11-04)
+
+- **GATE RETRACT:** PASS, §11 included. The T-tail tourer as born doesn't fit: its mains meet and stow 79 mm out of the
+  body. Its half track, fold and leg rows go red. The fit costs about 22 ms. Configurations held by the gate:
+  - a 3.2 m track at a 0.6 fraction fits, with nothing red;
+  - the mains moved forward cross the front spar;
+  - a nose turned too far rises into the floor;
+  - a fixed gear has no fit and nothing red.
+- **In the editor** (index.html, the phone-profile garage under SwiftShader, Playwright):
+  - the imported retract build has 19 rows red, each with its reason as the tooltip;
+  - the retraction row's note says "does not fit: the right main, up, is not inside: 79 mm out of the body (+2)";
+  - set to a 3.2 m track at a 0.6 fraction, no row is red; no page error;
+  - the still: `g2_red_rows.png` (the half track and the leg drop, red).
+- **Gates green:** VIEW, PARTS, DESIGN, JOIN, STARTER, UISMOKE, SPECFIX, GEAR.
+- **CLIP:** the nav aerial's 4 rows, the same as on master.
