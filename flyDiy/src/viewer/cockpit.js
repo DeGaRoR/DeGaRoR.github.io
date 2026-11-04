@@ -187,13 +187,13 @@ function make(THREE) {
   // merges a key's sites: its vertices are clustered), drawn with the aircraft, so the aircraft's mirror carries it into the
   // water. Sprites, not lights: three keys every lit program on the count of lights. m = its size in metres, e = its exposed
   // peak (authored to the exposure like the town's lamps).
-  const GLOW = { nav: { m: 1.1, e: 1.4 }, beacon: { m: 1.3, e: 1.6 }, land: { m: 2.2, e: 3 }, taxi: { m: 1.6, e: 2 } };
+  const GLOW = { nav: { m: 0.55, e: 1.1 }, beacon: { m: 0.6, e: 1.2 }, land: { m: 1.1, e: 2 }, taxi: { m: 0.8, e: 1.5 } };
   let glowTex = null;
   const glowMap = () => {
     if (glowTex || typeof document === 'undefined') return glowTex;
     const c = document.createElement('canvas'); c.width = c.height = 64;
     const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.12, 'rgba(255,255,255,0.55)'); r.addColorStop(0.4, 'rgba(255,255,255,0.1)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.1, 'rgba(255,255,255,0.45)'); r.addColorStop(0.3, 'rgba(255,255,255,0.08)'); r.addColorStop(0.6, 'rgba(255,255,255,0.012)'); r.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = r; g.fillRect(0, 0, 64, 64);
     glowTex = new THREE.CanvasTexture(c); return glowTex;
   };
@@ -235,7 +235,7 @@ function make(THREE) {
     }
     if (THREE.PointLight) {
       const fl = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'flood'));
-      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 2.4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
+      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
       const pd = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'pedal'));
       if (pd) { const L = new THREE.PointLight(0xffc27a, 0, 1.2, 1.6); L.position.copy(pd); model.grp.add(L); model.pedalLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
     }
@@ -444,7 +444,7 @@ function make(THREE) {
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      CK.model.floodLight.intensity = 3.2 * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
       CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk && CK.pw('sw_pedal') ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
