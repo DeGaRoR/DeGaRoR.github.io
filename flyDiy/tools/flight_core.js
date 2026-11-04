@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 62defc39bfcbfbe8
+// body-sha256: 2a8a065c1f5ac527
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36664,6 +36664,9 @@ const GEN_ENG_LAYOUTS = {
   pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
   tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
   quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+  // HULL-B15: THE TANDEM - two engines back to back on ONE over-the-wing pylon, the front one pulling, the rear one
+  // pushing (the Dornier Seastar's push-pull pylon; the Wal's tandem nacelles)
+  tandem:   { mounts: ['wingTop', 'wingTop'],         nacAt: [] },
 };
 // the layout key of an engine list, or null for every list the clamp keeps
 // to one mount / the classic pair (the pre-G2790 path, byte for byte)
@@ -36914,7 +36917,7 @@ function clampSpec(spec) {
     e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
-    e.pylon = genClampN(e.pylon, 0.05, 1.0);
+    e.pylon = genClampN(e.pylon, 0.05, 1.5);   // (HULL-B15: 1.5 m - a tandem's two discs over a cabin)
     // which way a WING engine faces (2026-09-04): null = the mount's own
     // (over the wing pushes, a pair pulls)
     if (!['puller', 'pusher'].includes(e.aim)) e.aim = null;
@@ -37299,6 +37302,9 @@ function clampSpec(spec) {
       W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
     }
     if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+    // the tandem's pair: one pylon (the front entry's height), the front pulling, the rear pushing, opposite hands
+    if (LAY === 'tandem') { E[1].pylon = E[0].pylon; E[0].aim = 'puller'; E[1].aim = 'pusher'; E[1].sense = -E[0].sense;
+      if (E[0].pylonForm) E[1].pylonForm = E[0].pylonForm; else delete E[1].pylonForm; }
   } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);
@@ -39793,7 +39799,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
-  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
@@ -41222,7 +41228,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
   // solver's per-engine thrust then makes a cut engine a real couple. The
   // single mounts and the classic pair run exactly the old loop.
-  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
   if (!noseEng || LAYF) {
     sec('engines');
@@ -41296,7 +41302,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         }
         hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(WL, WR); engIdx.push(0, 0);
+        engNodes.push(WL, WR); engIdx.push(iE, iE);   // (HULL-B15: a tandem's two entries, 0 and 1; a single mount 0)
+        if (LAYF) engCowl.push([WL, WR]);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
@@ -47300,7 +47307,7 @@ function genShakedown(def, opts) {
       out.engLayout = S.engLayout;
       out.propBoomClear = tb ? t.boomX - Math.max(0.04, t.boomR || 0.09) - S.propR : null;
       out.propStabClear = (tb && pu && t.hX != null) ? t.hX - pu.x : null;
-    } else if (S.engLayout === 'tri' || S.engLayout === 'quad') out.engLayout = S.engLayout;
+    } else if (S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem') out.engLayout = S.engLayout;
     out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
@@ -61808,7 +61815,7 @@ const TECH_ROWS = {
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
   // spec with more than one engine)
-  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
