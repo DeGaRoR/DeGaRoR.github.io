@@ -25,6 +25,9 @@
 //  11. DOES IT FIT (G2, the T-tail tourer headless): as born the mains meet and stow out of the body, the half track,
 //      the fold and the leg go red; the fit costs under 300 ms; a wider track at a partial fold fits with nothing red;
 //      the mains forward cross the front spar; the nose turned too far rises into the floor; a fixed gear has no fit
+//  12. THE RESERVATION (G3): a well per unit round its stowed wheel; a tank at a well meets it (body box turned, wing
+//      side box), one 2 m away does not; the join writes gear.wells; the under-floor bay gives up the mains' litres,
+//      the wing root a wide track's; no retraction, no wells; a fixed build's bays untouched
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -267,6 +270,33 @@ console.log('10 THE FOLD (G1)');
         F.f.tests.floor && F.f.tests.floor[0].why);
   { const Sx = SH.sceneBuild(birth, { over: { gearRetract: 0 }, garage: birth });
     check(!Sx.W.CAGE_GEAR.fit && Sx.W.CAGE_ROW_BAD() === null, 'a fixed gear: no fit, nothing red'); }
+  // ---- 12. THE RESERVATION (G3): the wells, the spec, the bays, the tanks -----------------------------------------
+  console.log('12 THE RESERVATION (G3)');
+  { const Sx = sceneOf({}), WL = Sx.W.CAGE_GEAR.wells, SW = Sx.W.CAGE_GEAR.swing;
+    const inBox = (w, p) => [0, 1, 2].every(i => p[i] >= w.min[i] && p[i] <= w.max[i]);
+    const centreUp = key => at(SW[key], 0);
+    check(WL && WL.length === 3 && WL.every(w => inBox(w, centreUp(w.unit))), 'a well per unit, round its stowed wheel',
+          WL && WL.map(w => w.unit + ' ' + (w.vol * 1000).toFixed(0) + ' L').join(', '));
+    const near = WL.find(w => w.unit === 'L'), c = [0, 1, 2].map(i => (near.min[i] + near.max[i]) / 2);
+    check(FOLD().wellHitsTank(near, { on: 'body', c, e: [0.1, 0.1, 0.1], rot: 0.3 })
+          && !FOLD().wellHitsTank(near, { on: 'body', c: [c[0] + 2, c[1], c[2]], e: [0.1, 0.1, 0.1], rot: 0 })
+          && FOLD().wellHitsTank(near, { on: 'wing', sides: [{ x0: near.min[0], x1: near.max[0], zF0: near.max[2], zF1: near.max[2], zR0: near.min[2], zR1: near.min[2], y: c[1], d: 0.1 }] }),
+          'a tank at a well meets it (a body box turned, a wing side box); one 2 m away does not'); }
+  const specRet = over => { const s = D.designBake(arch.sel, arch.over); Object.assign(s.cage, { gearRetract: 1 }, over);
+    return LB.gameSpecFull({ v: s.v, birth: 1, spec: s }).spec; };
+  const bayDrop = (spec, key) => { const d = C.buildGen(spec), n = JSON.parse(JSON.stringify(d.spec)); delete n.gear.wells;
+    const b1 = C.genBayResolve(d.spec, key, d.parts.ST), b0 = C.genBayResolve(n, key, d.parts.ST); return [b0.litres, b1.litres]; };
+  { const sp = specRet({});
+    check(Array.isArray(sp.gear.wells) && sp.gear.wells.length === 3 && sp.gear.wells.some(w => w.bodyL > 0), 'the join writes the wells into the spec',
+          sp.gear.wells && sp.gear.wells.map(w => w.unit + ' ' + w.bodyL + ' L body').join(', '));
+    const [u0, u1] = bayDrop(sp, 'underFloor');
+    check(u1 < u0 - 10, 'the mains\' wells take their litres from the under-floor bay', u0.toFixed(1) + ' -> ' + u1.toFixed(1) + ' L'); }
+  { const [w0, w1] = bayDrop(specRet({ s1X: 1.6 }), 'wingRoot');
+    check(w1 < w0 - 10, 'a wider track: the wells take theirs from the wing root', w0.toFixed(1) + ' -> ' + w1.toFixed(1) + ' L'); }
+  { const fx = JSON.parse(JSON.stringify(specRet({}))); delete fx.gear.retract;
+    check(!('wells' in (C.clampSpec(fx) || fx).gear), 'no retraction, no wells (clampSpec drops them)');
+    const d0 = C.buildGen(specOf(null)), b = C.genBayResolve(d0.spec, 'underFloor', d0.parts.ST);
+    check(b && b.wellL === undefined, 'a fixed build\'s bays are untouched'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

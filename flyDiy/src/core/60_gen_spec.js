@@ -5310,10 +5310,25 @@ function clampSpec(spec) {
       for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
       if (!Object.keys(r.lift).length) delete r.lift;
     } else delete r.lift;
+    // G3 (RETRACT-STUDY §8.3): THE WELLS the stowed units reserve, the join's measurement - per unit its station range x
+    // (the frame's body x), its band of the section lv (0 keel .. 1 top), its span fractions, and its litres in the body
+    // and in the wing. The bays give them up (60c genBayResolve). Only with a retraction; four at the most
+    if (Array.isArray(S.gear.wells)) {
+      const ok = w => w && typeof w === 'object' && Array.isArray(w.x) && w.x.length === 2 && w.x.every(v => isFinite(+v));
+      S.gear.wells = S.gear.wells.filter(ok).slice(0, 4).map(w => {
+        const pair = (a, lo, hi) => { const u = [genClamp(+a[0] || 0, lo, hi), genClamp(+a[1] || 0, lo, hi)]; return u[0] <= u[1] ? u : [u[1], u[0]]; };
+        const o = { unit: ['L', 'R', 'T'].includes(w.unit) ? w.unit : 'L', x: pair(w.x, -20, 40),
+                    bodyL: genClamp(+w.bodyL || 0, 0, 2000), wingL: genClamp(+w.wingL || 0, 0, 2000) };
+        if (Array.isArray(w.lv) && w.lv.length === 2) o.lv = pair(w.lv, 0, 1);
+        if (Array.isArray(w.span) && w.span.length === 2) o.span = pair(w.span, 0, 1.5);
+        return o;
+      });
+      if (!S.gear.wells.length) delete S.gear.wells;
+    } else delete S.gear.wells;
     // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
     // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
-  } else delete S.gear.retract;
+  } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once

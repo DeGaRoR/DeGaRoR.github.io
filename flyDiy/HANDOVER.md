@@ -311221,3 +311221,8 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
   refresh (fitTanks). window.CAGE_ROW_BAD() -> { row: reason }; _cage_ui.js applyRowVis turns a flagged row red
   (.rowBad) with the reason as its tooltip, back when it fits; the retraction row's note says the first. GATE RETRACT
   §11. The study's §8.8.
+- RETRACT G3 (2026-11-04): THE RESERVATION - CAGE_GEAR.wells (per unit the box round its stowed points + 30 mm: its body /
+  wing share, lv band, span), drawn as edges (amber fits / red not; quickshot draws them); spec gear.wells (the join, the
+  frame's body x); 60c genBayWellL - a body bay / the first plane's wing bay gives up the wells' litres (no wells: to the
+  bit); _cage_energy judgeAll - a tank meeting a well is red ('the retracted gear's well'). CLIP's sweep waits for the cuts.
+  GATE RETRACT §12. The study's §8.9.

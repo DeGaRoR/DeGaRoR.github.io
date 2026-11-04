@@ -85,7 +85,18 @@ if (GEARPOS != null) {
 }
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
+const segs = [];   // RETRACT G3: the gear's reserved wells (edWellGhost's edges), drawn over the picture
 S.scene.traverse(o => {
+  if (o.isLineSegments && o.geometry && o.geometry.attributes && o.geometry.attributes.position) {
+    let inWell = false; for (let q = o; q; q = q.parent) if (q.name === 'edWellGhost') inWell = true;
+    if (!inWell) return;
+    const pa = o.geometry.attributes.position, m = o.material, col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [255, 160, 60];
+    for (let i = 0; i + 1 < pa.count; i += 2) {
+      const a = new THREE.Vector3().fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld), b = new THREE.Vector3().fromBufferAttribute(pa, i + 1).applyMatrix4(o.matrixWorld);
+      segs.push({ a: [a.x, a.y, a.z], b: [b.x, b.y, b.z], col });
+    }
+    return;
+  }
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
   if (o.visible === false || /^edVessel_|^edFuel_|^edDum|^edCrew/.test(o.name || '')) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
@@ -175,6 +186,13 @@ function view(name) {
       const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= Wd || Y >= H) continue;
       const i = Y * Wd + X; out[i * 3] = m.col[0]; out[i * 3 + 1] = m.col[1]; out[i * 3 + 2] = m.col[2];
     }
+  }
+  for (const s of segs) {   // RETRACT G3: the wells' edges, 2 px, over everything
+    const ax = (V.u(s.a) - u0) * sc, ay = (w1 - V.w(s.a)) * sc, bx = (V.u(s.b) - u0) * sc, by = (w1 - V.w(s.b)) * sc;
+    const n = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))) + 1;
+    for (let k = 0; k <= n; k++) { const x = Math.round(ax + (bx - ax) * k / n), y = Math.round(ay + (by - ay) * k / n);
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= Wd || Y >= H) continue;
+        const i = Y * Wd + X; out[i * 3] = s.col[0]; out[i * 3 + 1] = s.col[1]; out[i * 3 + 2] = s.col[2]; } }
   }
   writePNG(OUT + '_' + name + '.png', out, Wd, H);
   console.log('wrote ' + OUT + '_' + name + '.png ' + Wd + 'x' + H + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');

@@ -1756,6 +1756,16 @@ function lightBox(r, sol) {
 // ALL BODY TANKS (the layout's and fitOf's door)
 function judgeAll(scene, inv, results, ctx) {
   for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
+  // RETRACT G3 (RETRACT-STUDY §8.3): THE GEAR'S WELLS ARE STRUCTURE - a tank that meets the volume a retracting gear's
+  // stowed unit reserves is red, as one through the skin is (the gear layer ran before this one: its wells are this
+  // build's). No retraction, no wells: nothing here runs
+  const WL = window.CAGE_GEAR && window.CAGE_GEAR.wells, F = window.CAGE_GEAR_FOLD;
+  if (WL && WL.length && F && F.wellHitsTank)
+    for (const r of results) {
+      if (!r || r.unmounted) continue;
+      const w = WL.find(x => F.wellHitsTank(x, r));
+      if (w) { r.ok = false; r.wellHit = w.unit; (r.why = r.why || []).push('the retracted gear\'s well (' + ({ L: 'left main', R: 'right main', T: 'nose' }[w.unit] || w.unit) + ')'); }
+    }
 }
 
 // ===========================================================================

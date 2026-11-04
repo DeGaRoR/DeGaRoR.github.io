@@ -458,6 +458,18 @@ function cageJoinSpec(P, M, T) {
         if (SWj.T) lift.nose = +SWj.T.lift.toFixed(4);
         if (Object.keys(lift).length) spec.gear.retract.lift = lift;
       }
+      // G3: THE WELLS, in the spec's own frame - the body's station x (the frame's: gear.x + the axle's z less the
+      // point's, cage +z forward), its band of the section (lv), the span fractions; the litres split between the body
+      // and the wing. The core's bays give them up (60c genBayResolve); the editor's tanks keep out (CAGE_GEAR.wells)
+      const WL = window.CAGE_GEAR && window.CAGE_GEAR.wells, msC = (window.CAGE_GEAR.contacts || []).filter(c => c.st && (c.st.single != null ? !c.st.single : c.st.x > 0.01));
+      if (WL && WL.length && typeof M.gearX === 'number' && msC.length) {
+        const zAx = msC.reduce((s, c) => s + c.p[2], 0) / msC.length, r3 = v => +v.toFixed(3);
+        spec.gear.wells = WL.map(w => ({ unit: w.unit,
+          x: [r3(M.gearX + zAx - w.max[2]), r3(M.gearX + zAx - w.min[2])],
+          ...(w.lv ? { lv: [r3(w.lv[0]), r3(w.lv[1])] } : {}),
+          ...(w.span ? { span: [r3(w.span[0]), r3(w.span[1])] } : {}),
+          bodyL: r3(w.vol * w.fBody * 1000), wingL: r3(w.vol * w.fWing * 1000) }));
+      }
     }
     // (...and it is drawn bare: the fairing fields the drag and the mass read follow the drawing - clampSpec says so too)
     if (spec.gear.retract) { spec.gear.fairing = spec.gear.twFairing = 'none'; spec.gear.legFair = spec.gear.twLegFair = 'none'; }

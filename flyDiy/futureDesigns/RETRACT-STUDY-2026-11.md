@@ -1169,3 +1169,32 @@ The archetypes have never been fitted to a real aeroplane, and wells are where t
   A track of 3.2 m at a 0.6 fraction fits. Mains moved forward to 1.8 m cross the front spar when folded inward. A nose
   turned 130° rises 222 mm into the cabin floor.
 - **GATE RETRACT §11** holds all of it, plus "a fixed gear: no fit, nothing red".
+
+### 8.9 G3 AS BUILT (2026-11-04): the reservation
+
+- **The wells** (`tools/_cage_gear.js`, the end of foldFit; CAGE_GEAR.wells): per unit, the box round its stowed points
+  (the tyre and the leg, fully up at its fraction) and 30 mm more. Each well carries:
+  - its share in the body and in the wing (by its points: a partial gear reserves only what goes inside);
+  - its band of the section at its station (lv: 0 keel .. 1 top);
+  - its span fractions;
+  - its volume.
+
+  The editor draws each as edges (a LineSegments overlay, outside the capture): amber when the fold fits, red when it
+  does not. quickshot draws them over its picture.
+- **The spec** (`gear.wells`, written by the join with the retraction only): per unit `{ unit, x: [station range, the
+  frame's body x = gear.x + the mains axle's z - the point's], lv, span, bodyL, wingL }`. clampSpec keeps four at the
+  most and drops them with the retraction.
+- **The core's bays** (`60c_gen_energy.js` genBayWellL, inside genBayResolve): a body bay gives up each well's body
+  litres by its share of the bay's station range and band; a wing bay gives up the wing litres by its share of the
+  span (the first plane). Every reader of the bays follows: the frame's vessels and the plaque's vessel fit. No wells,
+  no change, to the bit.
+  - As born: the cabin and under-floor bays lose 106.6 L (313.9 → 207.3 under the floor).
+  - With a 3.2 m track: the wing root loses 38.8 L (347.5 → 308.7).
+- **The editor's tanks** (`_cage_energy.js` judgeAll): any placed tank, body or wing, that meets a well is red, "the
+  retracted gear's well (left main)" (`wellHitsTank`: separating axes in plan, the tank turned about y, the heights'
+  overlap). The gear's own rows also go red against a tank (G2's fifth test).
+- **Not here, and why:**
+  - The crew fit: the floor test already keeps every well under the cabin floor.
+  - GATE CLIP's sweep of the gear's travel: until the wells are CUT (G4 / G5), a stowed unit is inside a closed skin
+    by design, and CLIP would read every such build as clipping. It comes with the cuts.
+- **GATE RETRACT §12** holds the wells, the tank test, the spec, both bays' losses, and the fixed builds untouched.

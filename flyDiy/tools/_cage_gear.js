@@ -255,7 +255,7 @@ function foldChain(u, key, P) {
 //   UNITS  the units clear each other (30 mm) at every position - the two mains under the belly, a main and the nose
 // (the TANKS are the fifth test, read when the rows are refreshed: the energy layer runs after this one - fitTanks)
 const FIT_G = [1, 0.8, 0.6, 0.4, 0.2, 0];
-const FIT = { wall: 0.015, floor: 0.02, gap: 0.03 };
+const FIT = { wall: 0.015, floor: 0.02, gap: 0.03, clear: 0.03 };   // clear: a well's room round its stowed unit (G3)
 function unitPts(C) {
   const a = C.wAx, R = C.R, hw = 0.38 * R, c = C.axle;
   const ref = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
@@ -373,6 +373,30 @@ function foldFit(P, swing, AF, W) {
     }
   }
   out.posed = posed;
+  // ---- G3 (RETRACT-STUDY §8.3): THE WELLS - the volume each stowed unit RESERVES. The box round its stowed points
+  // (the tyre and the leg, fully up at its fraction) and FIT.clear more, in this layer's frame; how much of it lies in
+  // the body and how much in the wing (by its points - a partial gear reserves only what goes inside); its band of the
+  // body's section (lv: 0 keel .. 1 top, at its station) and its span fractions (|x| over the semispan). The join
+  // writes it into the spec (gear.wells) and the core's bays give its litres up (60c genBayResolve); the energy layer
+  // keeps every tank out of it (wellHitsTank). Fixed: absent
+  out.wells = [];
+  const semi = W && W.semi > 0 ? W.semi : null;
+  for (const key in units) {
+    const up = posed[key][FIT_G.length - 1], pts = up.W.concat(up.L);
+    let nb = 0, nw = 0;
+    for (const p of pts) { if (bodyIn(p) > 0) nb++; else if (wingIn(p) > 0) nw++; }
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const p of pts) for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], p[i] - FIT.clear); mx[i] = Math.max(mx[i], p[i] + FIT.clear); }
+    const vol = (mx[0] - mn[0]) * (mx[1] - mn[1]) * (mx[2] - mn[2]);
+    const zm = 0.5 * (mn[2] + mx[2]);
+    let lv = null;
+    if (AF && zm >= AF.z0 && zm <= AF.z1) { const kl = AF.keelAt(zm), tp = AF.surf(zm, Math.PI)[1];
+      if (tp > kl) lv = [Math.max(0, (mn[1] - kl) / (tp - kl)), Math.min(1, (mx[1] - kl) / (tp - kl))]; }
+    const ax = [Math.abs(mn[0]), Math.abs(mx[0])];
+    out.wells.push({ unit: key, min: mn, max: mx, vol, fBody: nb / pts.length, fWing: nw / pts.length, lv,
+                     span: semi ? [Math.min(...ax) / semi, Math.max(...ax) / semi] : null,
+                     straddle: mn[0] < 0 && mx[0] > 0 });
+  }
   out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
   return out;
 }
@@ -403,6 +427,34 @@ function fitTanks(fit) {
   }
   return hits;
 }
+// G3: DOES A PLACED TANK MEET A WELL - a body tank's box (centre c, half extents e, yaw rot) or a wing tank's side boxes
+// against the well's box (separating axes in plan - the tank turned about y - and the heights' overlap)
+function wellHitsTank(w, r) {
+  if (!w || !r) return false;
+  const boxes = [];
+  if (r.on === 'body' && r.c && r.e) boxes.push({ c: r.c, e: r.e, rot: r.rot || 0 });
+  else if (r.on === 'wing' && Array.isArray(r.sides))
+    for (const s of r.sides) { const x0 = Math.min(s.x0, s.x1), x1 = Math.max(s.x0, s.x1), zs = [s.zF0, s.zF1, s.zR0, s.zR1];
+      const z0 = Math.min(...zs), z1 = Math.max(...zs), hd = (s.d || 0.1) / 2;
+      boxes.push({ c: [(x0 + x1) / 2, s.y, (z0 + z1) / 2], e: [(x1 - x0) / 2, hd, (z1 - z0) / 2], rot: 0 }); }
+  const wc = [(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2];
+  const we = [(w.max[0] - w.min[0]) / 2, (w.max[1] - w.min[1]) / 2, (w.max[2] - w.min[2]) / 2];
+  for (const b of boxes) {
+    if (Math.abs(b.c[1] - wc[1]) > b.e[1] + we[1]) continue;
+    const cs = Math.cos(b.rot), sn = Math.sin(b.rot), dx = b.c[0] - wc[0], dz = b.c[2] - wc[2];
+    // the plan's four axes: the well's x and z, the tank's turned u (cs, -sn) and v (sn, cs)
+    const ax = [[1, 0], [0, 1], [cs, -sn], [sn, cs]];
+    let sep = false;
+    for (const [ux, uz] of ax) {
+      const rW = we[0] * Math.abs(ux) + we[2] * Math.abs(uz);
+      const rT = b.e[0] * Math.abs(ux * cs - uz * sn) + b.e[2] * Math.abs(ux * sn + uz * cs);
+      if (Math.abs(dx * ux + dz * uz) > rW + rT) { sep = true; break; }
+    }
+    if (!sep) return true;
+  }
+  return false;
+}
+
 // THE RED ROWS (_cage_ui.js applyRowVis reads this after every build): row key -> the reason, or null when it fits
 window.CAGE_ROW_BAD = () => {
   const G = window.CAGE_GEAR, fit = G && G.fit;
@@ -476,7 +528,8 @@ const GROUP = ['9 · undercarriage', [
 // a page that curated its own tree replaced the base panel outright, so an
 // appended group has to go into THAT array; otherwise the base append list.
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
-window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose };   // G1: the one fold
+window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose,   // G1: the one fold
+                          wellHitsTank };                                                       // G3: the reservation
 
 // ---- the build ------------------------------------------------------------
 let group = null;
@@ -946,6 +999,19 @@ PAGE.post = ctx => {
     // G2: the fit (the gear layer runs after the wing: CAGE_WING is this build's)
     try { fit = foldFit(P, swing, AF, window.CAGE_WING); } catch (e) { fit = null; console.warn('gear fit:', e); }
     if (fit && !fit.ok && stat) stat.textContent += '  ·  gear: ' + fit.why[0] + '!';
+    // G3: THE WELLS SHOWN - each reserved box as edges (a LineSegments overlay: the capture takes meshes only, GATE
+    // VIEW's 'control cage' rule), amber when the fold fits, red when it does not
+    if (fit && fit.wells && fit.wells.length && THREE.LineSegments && THREE.EdgesGeometry) {
+      const wg = new THREE.Group(); wg.name = 'edWellGhost';
+      const lm = new THREE.LineBasicMaterial({ color: fit.ok ? 0xe0a23a : 0xe04a33, transparent: true, opacity: 0.9, depthTest: false });
+      for (const w of fit.wells) {
+        const bx = new THREE.BoxGeometry(w.max[0] - w.min[0], w.max[1] - w.min[1], w.max[2] - w.min[2]);
+        const ls = new THREE.LineSegments(new THREE.EdgesGeometry(bx), lm);
+        ls.position.set((w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2);
+        ls.renderOrder = 999; wg.add(ls); bx.dispose();
+      }
+      group.add(wg);
+    }
     const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos));
     if (g < 1) group.traverse(o => {
       const mm = /^ed(?:Leg|Wheel)([LRT])$/.exec(o.name || '') || (o.name === 'edCastorT' ? [0, 'T'] : null);
@@ -959,6 +1025,7 @@ PAGE.post = ctx => {
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
+    ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

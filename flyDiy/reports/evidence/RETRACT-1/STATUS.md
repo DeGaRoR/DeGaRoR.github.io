@@ -59,3 +59,19 @@ floats/student STOPPED 8edce1408883
   - the still: `g2_red_rows.png` (the half track and the leg drop, red).
 - **Gates green:** VIEW, PARTS, DESIGN, JOIN, STARTER, UISMOKE, SPECFIX, GEAR.
 - **CLIP:** the nav aerial's 4 rows, the same as on master.
+
+## G3 - the reservation (2026-11-04)
+
+- **GATE RETRACT:** PASS, §12 included. A well per unit round its stowed wheel; the tank test (body box turned, wing
+  side box, a tank 2 m off); the join's gear.wells; the under-floor bay 313.9 → 207.3 L as born; the wing root
+  347.5 → 308.7 L with a 3.2 m track; no retraction, no wells; a fixed build's bays untouched.
+- **In the editor** (Playwright, index.html):
+  - the T-tail tourer with a 3.2 m track and an 80 L wing-root tank: the tank is RED, "the retracted gear's well
+    (right main)";
+  - set fixed, the tank is fine again.
+  - One page error in the run, `crewEach ... reading 'grid'` (the nose tank's auto-fit, TANK-FIT): it happens
+    identically in a control run with no retraction at all, so it is master's, not this chantier's.
+- **Gates green:** VIEW, PARTS, DESIGN, JOIN, STARTER, UISMOKE, SPECFIX, GEAR, ENERGYBASE, BAY, ENERGY, TANKMOUNT.
+- **Stills (quickshot, the wells drawn as edges):**
+  - `g3_wells_born_*`: as born, the mains' two wells overlapping under the belly, the nose's forward, red;
+  - `g3_wells_widetrack_*`: a 3.2 m track, stowed, the wells under the wing roots.
