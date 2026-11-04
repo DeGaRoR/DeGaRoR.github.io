@@ -952,6 +952,10 @@ const GATES = [
   // rudder blade and the paddle where they belong, the user's 172 on 2350s
   // settled on the sea (~2 min)
   { id: 'WIPLINE', file: '_wipline_check.js', tier: 'core', wall: 200 },
+  // THE FLYING BOAT (HULL-B1..B3): the hull off invisible on every saved build; the Cessna made a boat through the
+  // game's load chain - one centreline hull from the drawn rings, two strut tip floats; settled, and the pilot takes
+  // it off the SEA lane (~2 min)
+  { id: 'HULL', file: '_hull_check.js', tier: 'core', wall: 150 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },

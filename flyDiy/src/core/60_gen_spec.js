@@ -5246,7 +5246,8 @@ function clampSpec(spec) {
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
   S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
-  if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  // HULL-B1: 'hull' - the fuselage is the boat (the cage's hullOn; its measured lines ride gear.hull)
+  if (!['taildragger', 'tricycle', 'floats', 'hull'].includes(S.gear.type)) S.gear.type = 'taildragger';
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
@@ -5277,6 +5278,31 @@ function clampSpec(spec) {
     f.x = f.x == null ? null : genClamp(f.x, -3, 6);
     f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
   } else S.gear.floats = null;
+  // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
+  // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
+  // datum). A row that is not six finite numbers drops the record. ABSENT otherwise -
+  // no key is added to a build that is not a boat.
+  if (S.gear.hull && typeof S.gear.hull === 'object') {
+    const h = S.gear.hull, K6 = ['x', 'yk', 'b', 'yc', 'bd', 'yd'];
+    const rows = Array.isArray(h.sta) ? h.sta.filter(r => r && K6.every(k => Number.isFinite(+r[k])))
+      .map(r => ({ x: genClamp(+r.x, -12, 16), yk: genClamp(+r.yk, -2, 4), b: genClamp(+r.b, 0, 3), yc: genClamp(+r.yc, -2, 4),
+                   bd: genClamp(+r.bd, 0, 3), yd: genClamp(+r.yd, -2, 5) })).sort((a, b) => a.x - b.x) : [];
+    const nF = rows.filter(r => r.x <= 0).length, nA = rows.length - nF;
+    if (rows.length > 200 || nF < 2 || nA < 2) delete S.gear.hull;
+    else {
+      h.sta = rows;
+      h.x = h.x == null || !Number.isFinite(+h.x) ? null : genClamp(+h.x, -4, 12);
+      h.y = h.y == null || !Number.isFinite(+h.y) ? null : genClamp(+h.y, -2.5, 2.0);
+      h.steps = h.steps === 0 ? 0 : 1;
+      // the strut tip floats (HULL-B3): absent = none
+      if (h.tips && typeof h.tips === 'object') {
+        h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.5, 0.98),
+                   vol: genClamp(Number.isFinite(+h.tips.vol) ? +h.tips.vol : 0.06, 0.02, 0.2) };
+      } else h.tips = null;
+    }
+  } else if (S.gear.hull !== undefined) delete S.gear.hull;
+  // (a 'hull' with no usable record keeps its type and flies on floats the frame sizes by the gross: a seaplane that
+  // floats, never a boat on phantom wheels - 61_gen_frame.js HULL-B3)
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once

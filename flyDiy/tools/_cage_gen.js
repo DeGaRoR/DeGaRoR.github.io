@@ -988,6 +988,142 @@ function cageResolve(S) {
 const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft',
                             'pilTaperB']);
 
+// ---------------------------------------------------------------------------
+// THE BOAT HULL (HULL-B1, futureDesigns/HULL-TYPES-2026-11.md §3.2). Not a second body builder: a READING of the
+// rings the frames already built. Per ring, the bottom becomes a V —
+//   the KEEL is the centre column (C.keel) at the ring's lowest point: the flat belly's height, or the botRound
+//     crown's — the number every frame's "bottom height" row already states, in both modes;
+//   the keel CORNERS become the CHINE, lifted to keel + half-width x tan(deadrise) (botRound lifts them up an arc;
+//     this is the same move on a straight line);
+//   the FLOOR stays on the chine->waist wall (the topsides), above the chine; the WAIST is the gunwale.
+// The STEP is a tight RING PAIR (the pillar idiom) inserted in the bay that holds it, the way step 2's guard rings
+// are: the fore ring is the bay's own section, the aft ring and everything aft of it carry the afterbody's keel —
+// the frames' bottom line + the step depth (so the afterbody keel's shape is the passenger / boom / tail frames').
+// Every function here is pure and is what the join measures for the water (HULL-B2): one reading, drawn and flown.
+// ---------------------------------------------------------------------------
+// the boat's lines for the water (HULL-B2): the crease-level cage's rings (the control cage the display subdivides,
+// the keel and chine creased onto it) in cage units; null when the hull is off
+function cageHullLines(P) {
+  if (!(+P.hullOn > 0)) return null;
+  const m = buildCage2(cageSpec(P), 1);
+  return m && m.hull || null;
+}
+// ...and in the WATER's frame (32_hydro: x aft of the step, y up from the step's keel, metres): the station table
+// spec.gear.hull carries (HULL-B2), with the step's own cage station and keel height for the join's placement.
+// Stepless: the origin is the keel at the step row's station all the same (the float frame needs one)
+function cageHullTable(L, FS) {
+  if (!L || !L.sta || L.sta.length < 4) return null;
+  const sta = L.sta, zs = L.zStep;
+  const fore = sta.find(s => s.side === 'F');
+  let yS;
+  if (fore) yS = fore.yk;
+  else {
+    let i = 0; while (i + 2 < sta.length && sta[i + 1].z < zs) i++;
+    const a = sta[i], c = sta[i + 1], t = c.z - a.z > 1e-9 ? Math.max(0, Math.min(1, (zs - a.z) / (c.z - a.z))) : 0;
+    yS = a.yk + (c.yk - a.yk) * t;
+  }
+  const out = [];
+  for (const s of sta) {
+    // the step pair: the fore ring IS x = 0 (the forebody's last), the aft ring the afterbody's first
+    const x = s.side === 'F' ? 0 : s.side === 'A' ? Math.max(1e-4, (zs - s.z) * FS) : (zs - s.z) * FS;
+    if (!s.side && Math.abs(x) < 1e-4) continue;
+    out.push({ x: +x.toFixed(5), yk: +((s.yk - yS) * FS).toFixed(5), b: +(s.b * FS).toFixed(5),
+               yc: +((s.yc - yS) * FS).toFixed(5), bd: +(s.bd * FS).toFixed(5), yd: +((s.yd - yS) * FS).toFixed(5) });
+  }
+  out.sort((a, b) => a.x - b.x);
+  return { sta: out, zStep: zs, yStep: yS, steps: L.on ? 1 : 0 };
+}
+// THE HULL'S STARTING LINES (HULL-B3), what the Undercarriage tile's Hull option writes ONCE (it is a starter: the
+// warn / undo contract) - the two facts a boat cannot float right without, both the seaplane's rules:
+//   the STEP 12 deg aft of the CG, off the vertical from the CG down to the keel (10-15: the floats' rule,
+//     _cage_float.js; a step 0.6 m aft of a Cessna's CG floated it 11 deg nose-down, measured, GATE HULL);
+//   the AFTERBODY keel rising aftDeg (7: the NACA families 4-9, HULL-TYPES §1.3) from the step: the frames aft of the
+//     step whose bottom height sits under that line are raised onto it (aftKeelY: the boom frame; tailKeelY: the
+//     tail frame) - never lowered. A cabin fuselage's long flat tail cone put the hull's centre of buoyancy a metre
+//     aft of the CG (measured on the Cessna: nose-down, the propeller in the water).
+// cgZ / cgY: the flown aeroplane's CG in the CAGE frame, cage units (the page: CAGE_DATUM + FLYDIY_CG_MODEL / FS).
+// Returns the rows to write (cage units), or null when the cage will not resolve. Pure.
+function cageHullFit(P, cgZ, cgY, opt) {
+  const o = opt || {};
+  const aftDeg = o.aftDeg != null ? o.aftDeg : 7, rule = o.ruleDeg != null ? o.ruleDeg : 12;
+  const PH = Object.assign({}, P, { hullOn: 1 });
+  const S = cageSpec(PH), R = cageResolve(S), H = cageHullSpec(PH);
+  const rs = R.rings.filter(r => r.lv.keel).slice().sort((a, b) => cageKeelZ(a) - cageKeelZ(b));
+  if (rs.length < 2 || !Number.isFinite(cgZ) || !Number.isFinite(cgY)) return null;
+  const keelAt = z => {
+    const lo = r => Math.min(r.lv.keel.y, r.lv.keel.yC != null ? r.lv.keel.yC : r.lv.keel.y);
+    if (z <= cageKeelZ(rs[0])) return lo(rs[0]);
+    for (let i = 0; i + 1 < rs.length; i++) {
+      const a = rs[i], b = rs[i + 1], za = cageKeelZ(a), zb = cageKeelZ(b);
+      if (z <= zb) return lo(a) + (lo(b) - lo(a)) * (zb - za > 1e-9 ? (z - za) / (zb - za) : 0);
+    }
+    return lo(rs[rs.length - 1]);
+  };
+  const cab = R.rings.find(r => r.name === 'pilCabA') || R.rings.find(r => /^pilCab/.test(r.name));
+  if (!cab) return null;
+  const zCab = cageKeelZ(cab);
+  const zStep = cgZ - Math.tan(rule * Math.PI / 180) * Math.max(0.1, cgY - keelAt(cgZ));
+  const out = { hullStepZ: +(zCab - zStep).toFixed(3) };
+  const yStep = keelAt(zStep), tA = Math.tan(aftDeg * Math.PI / 180);
+  const line = z => yStep + H.hs + (zStep - z) * tA;
+  const raise = (name, key) => {
+    const r = R.rings.find(q => q.name === name);
+    if (!r || cageKeelZ(r) >= zStep - 0.05 || !Number.isFinite(+P[key])) return;
+    const want = line(cageKeelZ(r));
+    if (want > +P[key]) out[key] = +Math.min(want, (r.lv.waist ? r.lv.waist.y : want) - 0.05).toFixed(3);
+  };
+  raise('pilPaxA', 'aftKeelY');
+  raise('tailPost', 'tailKeelY');
+  return out;
+}
+function cageHullSpec(P) {
+  const cl = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
+  return { beta: cl(P.hullBeta, 0, 40, 22), betaBow: cl(P.hullBetaBow, 0, 60, 36), betaA: cl(P.hullBetaA, 0, 40, 18),
+           stepAft: cl(P.hullStepZ, -3, 6, 0.3), hs: cl(P.hullHs, 0, 0.4, 0.07),
+           steps: Math.round(cl(P.hullSteps, 0, 1, 1)) };
+}
+const cageKeelZ = r => r.lv.keel ? r.lv.keel.z : r.lv.waist ? r.lv.waist.z : 0;
+// the hull's stations off the resolved rings (cage z, +forward): the step (the cabin frame's fore ring, stepAft
+// metres aft of it), the bow (the foremost keel point) and the tail
+function cageHullFrame(H, R, mirror) {
+  const cab = R.rings.find(r => r.name === 'pilCabA') || R.rings.find(r => /^pilCab/.test(r.name));
+  let zMax = -Infinity, zMin = Infinity;
+  for (const r of R.rings) { const z = cageKeelZ(r); zMax = Math.max(zMax, z); zMin = Math.min(zMin, z); }
+  for (const n of [R.noseTwin, R.noseRing]) if (n && n.lv && n.lv.keel)
+    zMax = Math.max(zMax, n.lv.keel.zC != null ? n.lv.keel.zC : n.lv.keel.z);
+  const zCab = cab ? cageKeelZ(cab) : 0.5 * (zMax + zMin);
+  const zStep = Math.max(zMin + 0.1, Math.min(zMax - 0.1, zCab - H.stepAft));
+  // (a mirrored pod's aft half is the front reflected: no step there; the V alone)
+  return { zStep, zBow: zMax, zTail: zMin, on: !mirror && H.steps > 0 && H.hs > 0 };
+}
+// the deadrise at a station: the step's, warped toward the bow as 32_hydro's sectionOf (t^2.5); the afterbody's aft
+function cageHullBeta(H, HF, z) {
+  if (z < HF.zStep) return H.betaA;
+  const t = Math.min(1, Math.max(0, (z - HF.zStep) / Math.max(1e-6, HF.zBow - HF.zStep)));
+  return H.beta + (H.betaBow - H.beta) * Math.pow(t, 2.5);
+}
+// one ring's bottom as a boat (in place). rise: the step depth on an afterbody ring, 0 forward of the step
+function cageHullVee(H, HF, lv, rise) {
+  const k = lv.keel;
+  if (!k) return;
+  const w = lv.waist, f = lv.floor;
+  const crown = Math.min(k.yC != null ? k.yC : k.y, k.y) + (rise || 0);
+  const tb = Math.tan(cageHullBeta(H, HF, k.z) * Math.PI / 180);
+  let yCh = Math.max(k.y + (rise || 0), crown + Math.abs(k.x) * tb);
+  // the chine stays under the gunwale: a small section (the tail cone) keeps a side above its V
+  if (w) yCh = Math.min(yCh, crown + 0.7 * Math.max(0, w.y - crown));
+  if (k.zC == null) k.zC = k.z;
+  k.yC = crown;
+  k.y = yCh;
+  if (f && w) {
+    // the topsides: the floor on the chine->gunwale line, a quarter of the way up at least
+    const fy = Math.max(f.y + (rise || 0), yCh + 0.25 * Math.max(0, w.y - yCh));
+    const t = (w.y - yCh) > 1e-6 ? Math.min(1, (fy - yCh) / (w.y - yCh)) : 0;
+    f.y = Math.min(fy, w.y);
+    f.x = k.x + (w.x - k.x) * t;
+  }
+}
+
 // step: 0 zones | 1 pillars+rails | 2 guard loops | 'crease' = step-1
 // geometry + edge crease tags (the canonical economic output)
 function buildCage2(S, step) {
@@ -1021,6 +1157,29 @@ function buildCage2(S, step) {
   const openRim = [], openFore = [];
   const R = cageResolve(S);
   const MIR = !!(S.config && S.config.mirror);
+  // HULL-B1: the boat hull's stations, and the bow's rings as a boat (they lie forward of any step)
+  const HULL = S.hull || null;
+  const HF = HULL ? cageHullFrame(HULL, R, MIR) : null;
+  const hullDone = new Set();
+  if (HULL) for (const n of [R.noseTwin, R.noseRing])
+    if (n && n.lv && !hullDone.has(n.lv)) { hullDone.add(n.lv); cageHullVee(HULL, HF, n.lv, 0); }
+  // HULL-B2: THE BOAT'S LINES as drawn — every emitted ring's keel (the centre column), chine (the keel corner) and
+  // gunwale (the waist), tail to bow, cage units: the body's rings, then the nose loft as EMITTED (the cowl loops and
+  // the collapsed nose ring of an aerodynamic bow - not the resolved ring before its loft: the water must meet the
+  // bow the builder sees); the join turns them into the water's station table (cageHullLines -> cageHullTable)
+  let hullNose = null;
+  const hullRecord = () => {
+    const sta = [];
+    const put = (lv, side) => {
+      const k = lv && lv.keel, w = lv && lv.waist;
+      if (!k || !w) return;
+      sta.push({ z: k.z, yk: k.yC != null ? k.yC : k.y, b: Math.abs(k.x), yc: k.y, bd: Math.abs(w.x), yd: w.y, side: side || null });
+    };
+    for (const r of seq) put(r.lv, r.hullSide);
+    for (const n of (hullNose || [])) put(n.lv, null);
+    sta.sort((p, q) => p.z - q.z);
+    return { zStep: HF.zStep, zBow: HF.zBow, on: HF.on, hs: HULL.hs, sta };
+  };
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
     : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
     : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', 'keel'];
@@ -1056,15 +1215,33 @@ function buildCage2(S, step) {
     seq.push(kept[k]); stOf.push(stN);
     if (k < kept.length - 1) {
       const b = bays[k];
-      if (b.guards)
-        for (const t of b.guards) {
-          seq.push(lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g'));
-          stOf.push(stN + t);
+      // HULL-B1: THE STEP's ring pair, in the bay that holds it, among the guards by t (a guard-like insert: the
+      // bay's material, its door and window keys and its station integers are untouched)
+      const ins = [];
+      if (b.guards) for (const t of b.guards) ins.push({ t, mk: () => lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g') });
+      if (HF && HF.on) {
+        const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
+        if (zA < HF.zStep && HF.zStep <= zB && zB - zA > 1e-6) {
+          const dt = 0.006 / (zB - zA);
+          const tF = Math.max(0.02 + dt, Math.min(0.98, (HF.zStep - zA) / (zB - zA))), tA = tF - dt;
+          ins.push({ t: tA, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tA, kept[k].name + '+s'), { hullSide: 'A' }) });
+          ins.push({ t: tF, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tF, kept[k].name + '+s'), { hullSide: 'F' }) });
+          ins.sort((p, q) => p.t - q.t);
         }
-      const subs = 1 + (b.guards ? b.guards.length : 0);
+      }
+      for (const e of ins) { seq.push(e.mk()); stOf.push(stN + e.t); }
+      const subs = 1 + ins.length;
       for (let s = 0; s < subs; s++) { bayOf.push(b.mat); openOf.push(b.open || null); }
       stN++;
     }
+  }
+
+  // HULL-B1: every ring's bottom as a boat — aft of the step (the step's aft ring included) on the afterbody's keel
+  if (HULL) for (const r of seq) {
+    if (!r.lv || hullDone.has(r.lv)) continue;
+    hullDone.add(r.lv);
+    const aft = HF.on && (r.hullSide === 'A' || (r.hullSide !== 'F' && cageKeelZ(r) < HF.zStep));
+    cageHullVee(HULL, HF, r.lv, aft ? HULL.hs : 0);
   }
 
   // guard levels on every ring (step 2)
@@ -1504,6 +1681,8 @@ function buildCage2(S, step) {
         tagE(a.M[k], b.M[k], w);
       }
     }
+    // HULL-B1: THE KEEL LINE — a V must stay a V under Catmull-Clark (the chine is crKeel's, above)
+    if (E && HULL && a.C.keel != null && b.C.keel != null) tagE(a.C.keel, b.C.keel, 3);
   }
   // ring-loop creases: pillar bands, caps and the windshield frame — what
   // the guard RINGS did. The window ring itself stays untagged (the
@@ -1524,6 +1703,12 @@ function buildCage2(S, step) {
       : nm === 'noseTip' ? (CW.frontCap != null ? CW.frontCap : 0.3)
       : 0;
     const crestOn = !!(S.config && S.config.crest && S.config.crest.h > 0);
+    // HULL-B1: THE STEP's two edges, across the bottom chine to chine (the step face stays a face)
+    if (HULL) seq.forEach((r, i) => {
+      if (!r.hullSide) return;
+      const o = ids[i];
+      if (o.P.keel != null && o.C.keel != null) { tagE(o.P.keel, o.C.keel, 3); tagE(o.C.keel, o.M.keel, 3); }
+    });
     seq.forEach((r, i) => {
       const w = fam(r.name);
       if (!w) return;
@@ -1589,6 +1774,7 @@ function buildCage2(S, step) {
     emitRodFree();
     const outA = E ? { V, F, E, A } : { V, F, A };
     if (openRim.length) { outA.openRim = openRim; outA.openFore = openFore; outA.seamKeys = ['openRim', 'openFore']; }
+    if (HULL) outA.hull = hullRecord();        // HULL-B2: the round body's rings ARE its bow
     return outA;
   }
 
@@ -1804,6 +1990,7 @@ function buildCage2(S, step) {
       noseSeq.push(tw);
     }
     noseSeq.push(prepNose(R.noseRing));
+    hullNose = noseSeq;                        // HULL-B2: the bow as emitted
     // The cowl loops and the nose rings CONTINUE THE ARC, they do not
     // re-read the ruler: noseSeq is an ordered loft forward of the
     // windscreen base, so sL keeps accumulating on the waist rail exactly as
@@ -2134,6 +2321,7 @@ function buildCage2(S, step) {
   if (seamSA.length) out.seamSA = seamSA;
   if (openRim.length) { out.openRim = openRim; out.openFore = openFore;    // G3511
                         out.seamKeys = ['openRim', 'openFore']; }
+  if (HULL) out.hull = hullRecord();          // HULL-B2 (see hullRecord)
   // half-only emission (the S2.5 aft-spec recursion): hand the caller
   // what the reflection needs — the aperture cap range, the pilCabB
   // ring ids, and this build's own pillar-plane z
@@ -7147,6 +7335,19 @@ const CAGE_PARAMS = {
   crFrontCap: 0.3, crNoseCap: 2,
   crKeel: 0,        // G319: the keel crease (flat belly between the lower longerons); G362: OFF by default — it squared every saved aeroplane
   botRound: 0,
+  // THE BOAT HULL (HULL-B1, futureDesigns/HULL-TYPES-2026-11.md §3, the user 3 Nov: "switch between boat hull and
+  // normal easily, with most controls shared"). hullOn reads every shared row in its old meaning: a frame's bottom
+  // height stays the section's LOWEST point (the keel, the centre column), the keel corners become the CHINE raised
+  // by their half-width x tan(deadrise), the waist is the gunwale. The boat rows below are the only new ones; all are
+  // ABSENT from spec.cage while hullOn is 0 (CAGE_HULL_ROWS), so a build that never was a boat is the build it was.
+  //   hullBeta / hullBetaBow / hullBetaA  deadrise at the step / warped toward the bow (t^2.5, 32_hydro's law) / aft
+  //   hullStepZ   the step, metres AFT of the cabin frame (the cabin pillar's fore ring)
+  //   hullHs      the step depth: the afterbody keel is the frames' bottom line + hullHs
+  //   hullSteps   0 stepless, 1 the step
+  //   hullTips / hullTipAt / hullTipVol  the strut tip floats (the boat's lateral stability): on, their station as a
+  //               fraction of the semispan, each one's displacement as a fraction of the gross (61_gen_frame HULL-B3)
+  hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
+  hullTips: 1, hullTipAt: 0.85, hullTipVol: 0.06,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -7959,7 +8160,10 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
-const CAGE_ZERO_ABSENT = ['pilotRear'];
+const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
+// HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
+const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
+  'hullTips', 'hullTipAt', 'hullTipVol'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
@@ -7988,6 +8192,7 @@ function cageToSpec(P) {
     if (k in CAGE_VIEW_KEYS) continue;
     if (P[k] === undefined) continue;
     if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
+    if (!(+P.hullOn > 0) && CAGE_HULL_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
     out[k] = P[k]; n++;
@@ -8052,6 +8257,8 @@ function cageSpec(P) {
   S.top = { round: P.topRound, angCeil: P.topAngCeil, angRoof: P.topAngRoof,
             comp: P.topComp, bubble: P.bubble ? 1 : 0,
             botRound: P.botRound };
+  // HULL-B1: the boat hull (absent = the fuselage, every path untouched: not even the key is written)
+  if (+P.hullOn > 0) S.hull = cageHullSpec(P);
   // the drawn windows (G245): absolute stations, both flanks mirrored.
   // The outline's sample step follows the bead: a point every ~bead width
   // is what the sweep's corner logic expects of a curved run
@@ -9746,7 +9953,7 @@ if (typeof module !== 'undefined')
                      CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                     buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
@@ -9759,7 +9966,7 @@ if (typeof window !== 'undefined')
                    CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                   buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,

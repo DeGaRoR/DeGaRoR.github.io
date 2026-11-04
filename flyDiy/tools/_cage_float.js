@@ -392,9 +392,32 @@ function streamlined(bag, a, b, t, chordK) {
   return GK.sweep(bag, [a, b], () => sect, true, [0, 0, 1]);
 }
 
+// HULL-B3: THE HULL TILE'S FIT (_cage_design.js gearLayout 'hull', `after: hullFit`): on the builds that follow the
+// pick, the step by the 12-deg rule off the FLOWN CG and the afterbody keel onto a 7-deg run (_cage_gen.js
+// cageHullFit - the same function GATE HULL fits with), written once into the rows - the step moves the CG by grams,
+// so up to three passes, each one only while the rows still move. The CG and the datums are the ones the float step
+// reads (app.js FLYDIY_CG_MODEL, the join's CAGE_DATUM)
+let hullFitPasses = 0;
+window.CAGE_HULL_FIT_NEXT = () => { hullFitPasses = 3; };
+function hullFitStep(P, stat) {
+  if (!hullFitPasses) return;
+  if (!+P.hullOn) { hullFitPasses = 0; return; }
+  const DAT = window.CAGE_DATUM, CGM = window.FLYDIY_CG_MODEL;
+  if (!CG2 || !CG2.cageHullFit || !DAT || !DAT.fwOk || !CGM) return;      // the next build, when the CG is in
+  hullFitPasses--;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const fit = CG2.cageHullFit(P, (DAT.zFw - CGM[0]) / FS, (CGM[1] + DAT.yD) / FS);
+  if (!fit) { hullFitPasses = 0; return; }
+  const moved = Object.keys(fit).some(k => Math.abs((+P[k] || 0) - fit[k]) > 1e-3);
+  if (!moved) { hullFitPasses = 0; return; }
+  Object.assign(P, fit);
+  if (stat) stat.textContent += '  ·  hull: the step 12 deg aft of the CG, the afterbody keel on 7 deg';
+  setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
+}
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   const { scene, mesh, P, stat } = ctx;
+  hullFitStep(P, stat);
   // THE STARTER FIRES BEFORE THE CHAIN, like the engine's: the rows it
   // writes are read by this layer's own build below and by the join after
   if (+P.gearFloats) {

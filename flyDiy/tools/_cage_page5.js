@@ -357,6 +357,25 @@ window.CAGE_PAGE = {
         ['ringCowl1W', 'cowl loop 1 width', -0.25, 0.25, 0.005],
         ['ringCowl2W', 'cowl loop 2 width', -0.25, 0.25, 0.005],
       ], 'open'],
+      // HULL-B1 (futureDesigns/HULL-TYPES-2026-11.md): THE BOAT HULL - a reading of the same frames, not a second
+      // body. The frames' bottom heights are the KEEL, their bottom widths the CHINE's half-beam, the waist the
+      // gunwale; these rows are the boat's own (absent from spec.cage while the hull is off). The Undercarriage
+      // tile's Hull option is the usual way in; the switch is here so the hull is reachable without it.
+      ['boat hull', [
+        ['hullOn',      'boat hull (the bottom planes)', 0, 1, 1, ['fuselage', 'boat hull']],
+        ['hullBeta',    'deadrise at the step °',     0, 40, 0.5, { when: P => +P.hullOn }],
+        ['hullBetaBow', 'deadrise at the bow °',      0, 60, 0.5, { when: P => +P.hullOn }],
+        ['hullBetaA',   'deadrise aft of the step °', 0, 40, 0.5, { when: P => +P.hullOn }],
+        ['hullSteps',   'step',                       0, 1, 1, ['stepless', 'one step'], { when: P => +P.hullOn }],
+        ['hullStepZ',   'step, aft of the cabin frame', -1.50, 3.00, 0.01,
+         { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        ['hullHs',      'step depth',                 0.00, 0.25, 0.002,
+         { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
+        ['hullTips',    'tip floats',                 0, 1, 1, ['none', 'on struts'], { when: P => +P.hullOn }],
+        ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && +P.hullTips }],
+        ['hullTipVol',  'tip float, each (of the gross)', 0.02, 0.20, 0.005, { when: P => +P.hullOn && +P.hullTips }],
+      ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the
         // BASE panel (_cage_ui) but this page REPLACES the tree, so

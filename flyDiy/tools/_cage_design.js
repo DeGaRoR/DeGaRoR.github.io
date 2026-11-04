@@ -196,6 +196,9 @@ const dorsalToRod = P => !+P.boomStyle ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalT
 // ...and the rod placed clear of a rear disc on the next build (_cage_eng.js CAGE_ROD_FIT_NEXT): the panel's door
 // (design_flow.js doApply runs `after`); designApply and the births never call it
 const rodFit = () => { if (W.CAGE_ROD_FIT_NEXT) W.CAGE_ROD_FIT_NEXT(); };
+// HULL-B3: ...and the boat's starting lines off the flown CG on the next builds (_cage_float.js CAGE_HULL_FIT_NEXT:
+// the step by the 12-deg rule, the afterbody keel on a 7-deg run - _cage_gen.js cageHullFit)
+const hullFit = () => { if (W.CAGE_HULL_FIT_NEXT) W.CAGE_HULL_FIT_NEXT(); };
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -401,6 +404,9 @@ function iconSide(o) {
   // a pair of floats: two struts down to a long hull with a step
   if (gr === 'floats') paths.push({ d: 'M14 26 L12 32', w: 1 }, { d: 'M26 26 L28 32', w: 1 },
                                   { d: 'M4 32 L8 30 L24 30 L24 32 L32 33 L32 35 L4 35 Z', w: 1 });
+  // HULL-B1: the body IS the boat - a deep forebody to a step under the cabin, the afterbody rising to the tail
+  if (gr === 'hull') paths.push({ d: 'M6 24 Q10 31 18 31 L30 31 L30 29 L56 23', w: 1.4 },
+                                { d: 'M2 30 L62 30', w: 0.6 });
   if (o.bigTyres) paths.push({ d: 'M18 30 a5 5 0 1 0 0.1 0', w: 1 });
   // THE PROPELLER IS WHERE THE MOUNT PUTS IT (2026-09-04, the user: "the
   // pusher does not push"): `prop: true` stays the nose line; 'pusher' is
@@ -1742,7 +1748,7 @@ const DESIGN_ROWS = [
     pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
-    read: P => +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
+    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
     // the spec channel carries the INTENT (`gear.type` is a real spec field
     // with a default); the join then measures the built cage and overwrites
     // it, and the two agreeing is exactly what the starter's cage values are
@@ -1753,7 +1759,7 @@ const DESIGN_ROWS = [
         icon: iconSide({ canopy: 'screen', gear: 'tail' }),
         writes: { cage: { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07,
                           s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0,
-                          s1On: 1, gearFloats: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0 },
                   spec: { gear: { type: 'taildragger' } } } },
       // THE STRUT IS THE LONG PART AND THE FORK IS THE SHORT ONE
       // (2026-09-11, alongside the nose-fairing repair). The height from the
@@ -1776,7 +1782,7 @@ const DESIGN_ROWS = [
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
                           s2Drop: 0.37, s2_twLegDrop: 0.09,
-                          s1On: 1, gearFloats: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
       // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
       // frame builds two floats sized by the gross (32_hydro's
@@ -1784,8 +1790,16 @@ const DESIGN_ROWS = [
       // garage until H2 draws the float and the join measures it.
       { value: 'floats', label: 'Floats',
         icon: iconSide({ canopy: 'screen', gear: 'floats' }),
-        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 1 },
+        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 1, hullOn: 0 },
                   spec: { gear: { type: 'floats' } } } },
+      // HULL-B1 (the user, 4 Nov: "Yes to Hull as a fourth Undercarriage option"): THE FUSELAGE IS THE BOAT. The
+      // wheel stations off, the floats off, the hull on (_cage_gen.js THE BOAT HULL: the same frames read as keel,
+      // chine and gunwale) with a hard chine - the boat rows stay the builder's (Fuselage > boat hull)
+      { value: 'hull', label: 'Hull', after: hullFit,
+        icon: iconSide({ canopy: 'screen', gear: 'hull' }),
+        note: 'the fuselage is the boat: the frames\' bottoms become a planing V with a step',
+        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3, hullTips: 1 },
+                  spec: { gear: { type: 'hull' } } } },
     ] },
 
   { key: 'retract', label: 'Retraction', kind: 'discriminator',

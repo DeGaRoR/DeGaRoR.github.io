@@ -2477,7 +2477,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, twX, twY, FLOATS = null;
-  if (S.gear.type !== 'floats') {
+  // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
+  const hullGear = S.gear.type === 'hull' && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
+  // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
+  // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
+  if (S.gear.type !== 'floats' && S.gear.type !== 'hull') {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
@@ -2578,6 +2582,116 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the tailwheel assembly, by size
   }
+  } else if (hullGear) {
+    // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
+    // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
+    // on exactly the hull the builder drew. It rides the floats' machinery whole - a rigid node body of five stations
+    // (keel + the two gunwales: near the bow, mid-forebody, the step, mid-afterbody, near the stern), the slab table
+    // for the force distribution, hydroBuild / tetraCtx unchanged - with its stations TIED INTO THE FUSELAGE'S OWN
+    // FRAMES (no struts: the hull is the fuselage). The step keel's station and height are the join's (gear.hull x,
+    // y: aft of the firewall, over the keel datum); the gunwales are the mains' refs (the pair the viewer and the
+    // ground pass keep; the join's pose reads their mean against the cage's step at the gunwale).
+    // THE MASS: the covering is the fuselage's and is billed there; the hull adds its PLANING BOTTOM's own structure
+    // (keel, step, the bottom's reinforcement) at GEN_RULES-free 3.0 kg per m2 of the planing bottom - INFERRED (a
+    // composite hull's bottom laminate over the fuselage's ~1.5 kg/m2 skin), stated, not measured.
+    const HR = S.gear.hull;
+    const HP = HYDRO.hullParamsFromTable(HR);
+    const xS = HR.x != null ? HR.x : gx, yS = HR.y != null ? HR.y : 0;
+    const FH = HYDRO.makeFloat(HP);
+    let aBot = 0; for (const pn of FH.panels) if (pn.kind === 'bottomF' || pn.kind === 'bottomA') aBot += pn.area0;
+    const mHull = 3.0 * aBot;
+    HP.mFloat = mHull;
+    const xBow = -HP.xs, xSt = HP.L - HP.xs;
+    const stas = [0.90 * xBow, 0.45 * xBow, 0, 0.40 * xSt, 0.85 * xSt];
+    const K = [], DL = [], DR = [], Q = [];
+    for (const xs of stas) {
+      const sc = HYDRO.sectionOf(HP, xs === 0 ? -1e-9 : xs);
+      const bd = Math.max(0.05, sc.bd);
+      K.push(N(xS + xs, yS + sc.yk, 0, 'HLK'));
+      DL.push(N(xS + xs, yS + sc.yd, -bd, 'HLD'));
+      DR.push(N(xS + xs, yS + sc.yd, bd, 'HLD'));
+      Q.push([xs, sc.yk, 0], [xs, sc.yd, -bd], [xs, sc.yd, bd]);
+    }
+    const all = [...K, ...DL, ...DR];
+    for (const i of all) pt(i, mHull / all.length);
+    const NMh = { noMass: true, kMul: 8 }, KMh = { kMul: 8 };
+    const NS = stas.length;
+    for (let i = 0; i + 1 < NS; i++) {
+      B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NMh); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh);
+      B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh);
+      B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh);
+    }
+    for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NMh); B(K[i], DR[i], 'gear', false, 'inner', undefined, NMh); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NMh); }
+    clusters.push({ cls: 'float', tag: 'HULL', nodes: all });
+    // THE TIES: each station to the fuselage frame nearest it (the bow to the firewall ring, and to the nose mount
+    // when there is one ahead of it; the stern to the last frame and the tail post), keel to both bottom corners,
+    // each gunwale to its side's bottom and top corners - internal members, inside the covering
+    const nearF = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
+    for (let i = 0; i < NS; i++) {
+      const Fj = F[nearF(xS + stas[i])];
+      B(K[i], Fj.BL, 'gear', false, 'inner', undefined, KMh); B(K[i], Fj.BR, 'gear', false, 'inner', undefined, KMh);
+      B(DL[i], Fj.BL, 'gear', false, 'inner', undefined, KMh); B(DL[i], Fj.TL, 'gear', false, 'inner', undefined, KMh);
+      B(DR[i], Fj.BR, 'gear', false, 'inner', undefined, KMh); B(DR[i], Fj.TR, 'gear', false, 'inner', undefined, KMh);
+    }
+    if (noseEng && EL >= 0 && ER >= 0) { B(K[0], EL, 'gear', false, 'inner', undefined, KMh); B(K[0], ER, 'gear', false, 'inner', undefined, KMh); }
+    B(K[NS - 1], TPB, 'gear', false, 'inner', undefined, KMh);
+    const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
+      K: [Q[i * 3][1], Q[i * 3][2]], DL: [Q[i * 3 + 1][1], Q[i * 3 + 1][2]], DR: [Q[i * 3 + 2][1], Q[i * 3 + 2][2]] })) };
+    FLOATS = [{ side: 0, hull: true, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
+                tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: HP, pos: [xS, yS, 0] }];
+    GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS;
+    // ---- THE STRUT TIP FLOATS (HULL-B3, the boat's lateral stability: HULL-TYPES §3.4 "Strut tip floats" - Seabee,
+    // Lake, SeaRey, the Goose; NACA TN-215: every boat but Dornier's stub types needs them. A flying boat with a high
+    // wing and its engine on a pylon has its CG well over its metacentre: the hull alone capsized in 4 s, measured,
+    // GATE HULL). Two small floats of the Wipline family (floatParamsFor: the pair displaces 180 % of what it is
+    // sized for, so one sized for tip.vol / 0.9 of the gross displaces tip.vol of it), hung under the wing at tip.at
+    // of the semispan on a strut pair to that station's spar nodes, their keel `clear` over the hull's own level
+    // waterline at the gross (solved here off the table: a level boat sits on its hull, a heel of a few degrees puts
+    // a float in). SIZED BY VOLUME for now - 6 % of the gross each by default, the Seabee / Lake class's practice,
+    // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
+    const TP = HR.tips;
+    if (TP && TP.on !== 0 && wf.L && wf.R) {
+      const Mg = Math.max(60, gross || 400);
+      // the hull's level draft at the gross: its sections' area under a level waterline, bisected
+      const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += HYDRO.secAreaTo(HP, HYDRO.sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
+      let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < Mg) lo = m; else hi = m; }
+      const yWL = yS + lo;
+      const TPP = HYDRO.floatParamsFor(Math.max(5, (TP.vol != null ? TP.vol : 0.06) * Mg / 0.9));
+      delete TPP._keel;
+      const tAt = TP.at != null ? TP.at : 0.85, clear = TP.clear != null ? TP.clear : 0.12;
+      for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+        // the spar station nearest tAt of the semispan
+        let j = 1, dB = Infinity;
+        for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * G.semi); if (e < dB) { dB = e; j = q; } }
+        const nF = nodes[W.F[j]].p, nR = nodes[W.R[j]].p;
+        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yWL + clear;
+        const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
+        const Kt = [], Lt = [], Rt = [], Qt = [];
+        for (const xs of st3) {
+          const sc = HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs);
+          Kt.push(N(xT + xs, yT + sc.yk, zT, 'TFK'));
+          Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'TFD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'TFD'));
+          Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        }
+        const allT = [...Kt, ...Lt, ...Rt];
+        for (const i of allT) pt(i, TPP.mFloat / allT.length);
+        for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+        for (let i = 0; i < 2; i++) {
+          B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+        }
+        clusters.push({ cls: 'float', tag: 'TIP' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+        // the struts: both deck edges at the step up to the station's front spar node, the aft deck to the rear one,
+        // a diagonal - streamlined tubes, stiff (kMul 8, the floats' rigging)
+        B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
+        B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
+        B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+        const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+          K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+        FLOATS.push({ side: sd, tip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                      tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
+      }
+    }
   } else {
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
     // both deck edges at four stations (bow, the flat's end, the step, the
@@ -3435,7 +3549,7 @@ function genFrame(S) {
   // from the CG down to the step keel (the rule is 10-15) — the inverse of
   // the taildragger's rake; and the wheels' axle station (S.gear.x, the
   // editor's or a fixture's) is not the step's, so it is not read for floats
-  const floatsGear = S.gear.type === 'floats';
+  const floatsGear = S.gear.type === 'floats' || (S.gear.type === 'hull' && !(S.gear.hull && Array.isArray(S.gear.hull.sta)));
   // ...unless the join measured the drawn float's step (S.gear.floats.x).
   // THE FLOATS' OWN MASS MOVES WITH THE STEP (H2, G389): the first pass
   // stood them at the wheels' station, and their 80 kg walking 0.9 m aft
@@ -3459,7 +3573,9 @@ function genFrame(S) {
            return Ma > 0 ? (Ma * ca + Mf * off + k * (Ma + Mf)) / Ma : cg[0] + k;
          })())
     : null;
-  const gx = (floatsGear ? stepGx
+  // HULL-B3: a boat's "gear station" is its measured step (gear.hull.x)
+  const hullStepX = S.gear.type === 'hull' && S.gear.hull && S.gear.hull.x != null ? S.gear.hull.x : null;
+  const gx = (hullStepX != null ? hullStepX : floatsGear ? stepGx
               : (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx))
              + S.place.gearDx;
   const tr = Math.max(0.5, (S.gear.track !== null && S.gear.track !== undefined

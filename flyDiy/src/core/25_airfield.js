@@ -992,6 +992,7 @@ function stripGear(x) {
     if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
     if (t === 'skis' || g.skis === true) return 'skis';
     if (t === 'floats') return 'floats';
+    if (t === 'hull') return 'floats';    // HULL-B1: a flying boat is water-only, as floats are (amphibian wheels: S4)
     return 'wheels';
   }
   return x.hydro ? 'floats' : 'wheels';

@@ -322,7 +322,26 @@ function chineHalfStep(P) {
   const tf = Math.tan(P.flare * D2R), tb = Math.tan(P.beta * D2R);
   return (P.B / 2 - P.H * tf) / Math.max(0.2, 1 - tb * tf);
 }
+// HULL-B2 (futureDesigns/HULL-TYPES-2026-11.md §3.5): A HULL FROM A STATION TABLE. The flying boat's hull is the
+// fuselage the cage DREW (_cage_gen.js THE BOAT HULL): the join samples its keel, chine and gunwale ring by ring
+// (cageHullLines) into P.table = { F: [...], A: [...] }, rows { x, yk, b, yc, bd, yd } in this frame (x aft of the
+// step, y up from the step's keel), F the forebody (x <= 0, bow first), A the afterbody (x > 0). Every consumer of a
+// section reads it through here (the loft, the step face, levelVolume, the half-beam table), so a table hull is
+// drawn and flown from one set of numbers; a hull without a table is the Wipline family's formula, untouched.
+function tableSection(P, x) {
+  const T = P.table, rows = x <= 0 ? T.F : T.A, n = rows.length;
+  let i = 0;
+  if (x <= rows[0].x) i = 0; else if (x >= rows[n - 1].x) i = n - 2;
+  else while (i + 2 < n && x > rows[i + 1].x) i++;
+  const a = rows[Math.max(0, i)], c = rows[Math.min(n - 1, i + 1)];
+  const t = c.x - a.x > 1e-9 ? Math.max(0, Math.min(1, (x - a.x) / (c.x - a.x))) : 0;
+  const L = k => a[k] + (c[k] - a[k]) * t;
+  const yk = L('yk'), b = Math.max(1e-4, L('b')), yc = Math.max(yk, L('yc'));
+  const yd = Math.max(yc + 0.01, L('yd')), bd = Math.max(b, L('bd'));
+  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd };
+}
 function sectionOf(P, x) {
+  if (P.table) return tableSection(P, x);
   const xs = P.xs, LA = P.L - P.xs, K = keelOf(P);
   const bS = chineHalfStep(P);
   let yk, b, beta, body;
@@ -1691,6 +1710,24 @@ function zeroTerms(out) {
 }
 // the hull's METRIC keys: everything a preset scales with its size (the
 // fractions — flatK, stemK, noseR, planK, bStern, the angles — do not)
+// HULL-B2: a flying boat's hull parameters from its measured table (spec.gear.hull, the join's cageHullLines): the
+// family's model constants, the table's own size (L, xs from its ends; B, H, the deadrises and the step depth read
+// at the step, for the terms that take a scalar: the beam's scale in the planing law, the ventilation's step depth),
+// no shell mass (the hull IS the fuselage: its covering is billed by the frame) and no load
+function hullParamsFromTable(rec, over) {
+  const F = rec.sta.filter(s => s.x <= 0).sort((a, b) => a.x - b.x), A = rec.sta.filter(s => s.x > 0).sort((a, b) => a.x - b.x);
+  if (F.length < 2 || A.length < 2) return null;
+  const s0 = F[F.length - 1], a0 = A[0];
+  const xs = -F[0].x, L = xs + A[A.length - 1].x;
+  const deg = s => Math.atan2(s.yc - s.yk, Math.max(1e-4, s.b)) / D2R;
+  const P = Object.assign({}, DEF, {
+    table: { F, A }, L, xs, B: 2 * s0.bd, H: s0.yd - s0.yk, beta: deg(s0), betaA: deg(a0), betaBow: deg(F[0]),
+    hs: Math.max(0, a0.yk - s0.yk), mFloat: 0, mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], cgFloat: [0, 0, 0],
+    nSta: 32, wrArea: rec.wrArea != null ? rec.wrArea : 0.06, wrDepth: rec.wrDepth != null ? rec.wrDepth : 0.30,
+    hull: true }, over || {});
+  delete P._keel;
+  return P;
+}
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
@@ -2542,7 +2579,7 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

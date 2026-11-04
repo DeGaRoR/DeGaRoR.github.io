@@ -450,3 +450,35 @@ The base plus the first five steps is **16.5 days**. Every row in §3.6 is about
 2. Are the five presets the right cut? Stepless (Akoya) is the one outside the classic forms. The pad bow has no
    confirmed reference and is a row only.
 3. Should the tip-float row be stated as a **moment ratio** (the sourced rule) rather than a volume?
+
+---
+
+## 6. IMPLEMENTATION NOTES: the base, as built (4 Nov 2026, HULL-B1..B3, HANDOVER G3911)
+
+The user, 4 Nov: *"Yes to Hull as a fourth Undercarriage option; start the base."* What changed from §3 while building it:
+
+- **Where the lines ride.** `spec.gear.hull` (beside `gear.floats`), not `spec.fuselage.hull`. The frame reads the
+  hull in its gear branch, as it reads the floats.
+- **The afterbody keel.** It is the frames' bottom line **plus the step depth**, all the way aft. It does not fade
+  into the next frame: a fade would turn the keel *down* aft wherever the frames run level.
+- **`hullStepZ`** is metres aft of the cabin frame's fore ring, so the cage stays pure (it does not know the CG). The
+  seaplane rule is the Hull tile's **one-shot fit** (`cageHullFit`, the tile's `after`), off the flown CG:
+  - the step 12° aft of the CG;
+  - the boom and tail frames' bottom heights raised onto a 7° afterbody run (never lowered).
+  It takes up to three passes, as the CG settles.
+- **Tip floats moved into the base.** The hull alone capsized in 4 s (a high wing, the engine on a pylon: the CG far
+  over the metacentre). The study's next step, strut tip floats, is now part of the base: three rows (`hullTips`,
+  `hullTipAt`, `hullTipVol`, 6 % of the gross each by default). They are flown as two small Wipline-family float
+  records on struts to the wing's spar nodes. **Not yet drawn in the garage**: the open item.
+- **The bow is the nose AS EMITTED.** The table takes the cowl loops and the collapsed nose ring, not the resolved
+  ring. The first cut stopped at the resolved ring, and the water met a 0.4 m² blunt face the builder never drew
+  (0.25 W of drag at 3 m/s).
+- **A Cessna is not a boat by the hull switch alone.** With its engine in the nose it floated 11° bow-down with the
+  propeller in the water. The boat that flies is the Cessna plus the Engine mount tile's 'Over the wing' (the nose
+  becomes a bow) plus the Hull tile. Even so it rests at −4.5° on the datum: its forebody is 2.3 m against a 4.6 m
+  afterbody, and the centre of buoyancy at level trim sits 0.27 m aft of the CG. A rest-trim readout in the panel is
+  the obvious next row.
+- **Machine shop.** `gear:hull` is segment 2 (the tricycle's), and stripGear reads a hull as water-only, as floats are.
+- **GATE HULL** (core): the hull off invisible on every saved build; the boat through the game's own load chain; the
+  measured table is the flown hull; settled; the pilot takes it off the SEA lane (hump R/W 0.26 at 8.4 m/s, airborne
+  at 26 s).

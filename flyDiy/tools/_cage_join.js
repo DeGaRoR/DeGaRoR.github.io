@@ -416,6 +416,8 @@ function cageJoinSpec(P, M, T) {
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
     }
+    // HULL-B2: the boat's measured lines ride the gear record as the floats' do
+    if (M.hull) spec.gear.hull = { sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips };
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
@@ -1219,7 +1221,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     const G2 = window.CAGE_GEAR || {};
     // H1 (G383): a float build declares itself — there are no contacts to
     // measure, and the frame sizes the floats from the gross
-    if (+P.gearFloats) M.gearType = 'floats';
+    // HULL-B1: the fuselage is the boat - no contacts either; its lines are measured below (gear.hull)
+    if (+P.hullOn) M.gearType = 'hull';
+    else if (+P.gearFloats) M.gearType = 'floats';
     else if (G2.contacts && G2.contacts.length) {
       const mains = G2.contacts.filter(c => c.st && !isSingle(c));
       const single = G2.contacts.find(isSingle);
@@ -1416,6 +1420,22 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
+      // HULL-B2: THE BOAT IS MEASURED - the drawn rings' keel, chine and gunwale (_cage_gen.js cageHullLines) as
+      // the water's station table (cageHullTable: x aft of the step, y up from its keel, metres), placed as the
+      // floats are: the step keel x aft of the firewall, y over the keel datum. The frame hangs the one centreline
+      // hull on the fuselage's own frames (61_gen_frame.js HULL-B3): what the builder drew is what floats.
+      if (+P.hullOn) {
+        try {
+          const C2 = window.CAGE2, FSh = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+          const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
+          if (TB && fwOk) {
+            M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, vol: +P.hullTipVol } };
+            const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];
+            window.CAGE_HULL = { zStep: TB.zStep * FSh, keelY: TB.yStep * FSh, chineY: TB.yStep * FSh + sF.yc };
+          } else NOTES.push(TB ? 'hull: no firewall anchor - the hull cannot be placed' : 'hull: no lines to measure');
+        } catch (e) { ERRS.push('the boat hull would not measure: ' + e.message); }
+      } else window.CAGE_HULL = null;
       // PILLAR-ANCHORS P4: THE PICKED STRUT PILLAR's ring station, metres aft of the firewall (the wing layer drew
       // the foot on it; the frame roots the strut on the ring nearest it)
       {
@@ -2047,8 +2067,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // between physical and 3d model", the tail nowhere near the frame's).
       const FLT = window.CAGE_FLOAT;
       const onFloats = !cm.length && FLT && FLT.zStep != null && FLT.keelY != null;
-      const cz = onFloats ? FLT.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
-            cy = onFloats ? FLT.keelY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
+      // HULL-B3: ON A HULL THE STEP'S CHINES ARE THE MAINS (the frame's refs.mains, 61_gen_frame.js): their mean is
+      // the step's station at the chine's height, which the hull measurement published in the cage frame
+      const HUL = window.CAGE_HULL;
+      const onHull = !cm.length && !onFloats && HUL && HUL.zStep != null && HUL.chineY != null;
+      const cz = onFloats ? FLT.zStep : onHull ? HUL.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
+            cy = onFloats ? FLT.keelY : onHull ? HUL.chineY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has
       // rotated... would you get confused with the plane's resting
       // position?" — yes, for three rounds). poseModel maps the visual's
