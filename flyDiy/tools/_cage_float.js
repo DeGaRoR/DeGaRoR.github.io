@@ -69,10 +69,18 @@ const PRESET_NAMES = HY0 ? HY0.FLOAT_PRESET_NAMES.slice() : ['Wipline 2350'];
 const CUSTOM = 'custom';
 PRESET_NAMES.push(CUSTOM);
 const CUSTOM_IDX = PRESET_NAMES.length - 1;
+// FLOATS-CLASSIC: the EDO rows come AFTER `custom`, so every saved fltPreset index (a Wipline row, or custom at 15)
+// still names what it named; picking one also turns the style row to the classic deck
+const EDO_NAMES = HY0 && HY0.EDO_PRESET_NAMES ? HY0.EDO_PRESET_NAMES.slice() : [];
+PRESET_NAMES.push(...EDO_NAMES);
+const isEdo = n => EDO_NAMES.indexOf(n) >= 0;
+const rowOf = n => HY0 && (HY0.FLOAT_PRESETS[n] || (HY0.EDO_PRESETS && HY0.EDO_PRESETS[n])) || null;
 const PRESET_LABELS = PRESET_NAMES.map(n => {
   if (n === CUSTOM) return 'custom (the dials as they are)';
-  const R = HY0 && HY0.FLOAT_PRESETS[n];
-  return R ? `${n} — ${R.L.toFixed(2)} m, ${R.disp} kg${R.est ? ' (est.)' : ''}` : n;
+  const R = rowOf(n);
+  // (FLOATS-CLASSIC: the pair's weight with rigging and its price, rigged and installed - the ledger bills it)
+  const pr = HY0 && HY0.floatPrice ? HY0.floatPrice(HY0.presetParams(n)) : 0;
+  return R ? `${n} — ${R.L.toFixed(2)} m, ${R.disp} kg, pair ${R.mSys} kg, ${pr.toLocaleString('en')} cr${R.est ? ' (est.)' : ''}` : n;
 });
 
 // ---- defaults ------------------------------------------------------------
@@ -82,13 +90,15 @@ const PRESET_LABELS = PRESET_NAMES.map(n => {
 // the 2350 and the rows follow. The frame's own sizing rule
 // (HYDRO.floatParamsFor: a pair displaces 180 % of the gross) is what a
 // spec with no drawn float still gets.
-const rowsOfParams = Q => ({
+const rowsOfParams = Q => Object.assign({
   fltL: Q.L, fltStep: Q.xs / Q.L, fltB: Q.B, fltH: Q.H, fltBeta: Q.beta, fltBetaBow: Q.betaBow,
   fltBetaA: Q.betaA, fltHs: Q.hs, fltAft: Q.aftAngle, fltAftCurve: Q.aftCurve, fltFlat: Q.flatK,
   fltStem: Q.stemK, fltRake: Q.rake, fltNoseR: Q.noseR, fltPlan: Q.planK, fltStern: Q.bStern,
   fltFlare: Q.flare, fltMass: Q.mFloat,
   fltSpreadAft: +(0.28 * (Q.scale || 1)).toFixed(2),      // the aft spreader bar, just aft of the step
-});
+  // FLOATS-CLASSIC: a catalogue row says its own style (an EDO row the classic deck, a Wipline row the flat one)
+  fltStyle: Q.style === 'edo' ? 1 : 0,
+}, Q.style === 'edo' ? { finVentralShape: 1 } : null);   // ...and an EDO kit's ventral is the plan's vintage lobe (once, like every row here)
 const DEF_ROWS = HY0 ? rowsOfParams(HY0.presetParams('Wipline 1450')) : {};
 // (the preset row itself boots at `custom`: a build saved before G451 must
 // not come back labelled as a catalogue row its dials never were)
@@ -100,9 +110,12 @@ Object.assign(PAGE.defaults = PAGE.defaults || {}, {
 }, DEF_ROWS, {
   fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
   fltStrutAng: 55, fltSpread: 1, fltSpreadAft: 0.36,
+  // FLOATS-CLASSIC: 0 = the Wipline (every build saved before), 1 = the EDO-style rounded deck; the deck board (EDO)
+  fltStyle: 0, fltBoard: 0,
 });
 
 const on = { when: P => +P.gearFloats };
+const STYLE_NAMES = ['Wipline (flat deck)', 'EDO classic (round top)'];
 const onM = { when: P => +P.gearFloats, dim: 'm' };
 const GROUP = ['9b · floats', [
   // the switch itself, so a builder can reach the floats without the starter
@@ -110,16 +123,20 @@ const GROUP = ['9b · floats', [
   // are off while it is on (the join reads the flag before the contacts)
   ['gearFloats', 'floats (instead of wheels)', 0, 1, 1],
   // THE CATALOGUE (G451): a Wipline row writes the hull rows once
-  ['fltPreset', 'Wipline preset (applies once)', 0, Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
+  ['fltPreset', 'float model (applies once)', 0, Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
    { when: P => +P.gearFloats, optLabels: PRESET_LABELS }],
+  // FLOATS-CLASSIC (the user, 3 Nov: "another model of floats. A rougher one, with rounded top ... use the same
+  // controls"): the style is the deck and the bow above the water, the finish and the fittings; every row below drives both
+  ['fltStyle', 'style', 0, 1, 1, STYLE_NAMES, on],
+  ['fltBoard', 'deck board across the spreaders', 0, 1, 1, { when: P => +P.gearFloats && Math.round(+P.fltStyle || 0) === 1 }],
   ['fltDetail', 'details (covers, hatch, cleats, straps, bumper)', 0, 1, 1, on],
   ['fltRudder', 'water rudders', 0, 1, 1, on],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
-    ['fltL',      'length',                        2.5, 11.0, 0.01, onM],
+    ['fltL',      'length',                        2.5, 14.0, 0.01, onM],
     ['fltStep',   'step (fraction from bow)',       0.45, 0.65, 0.005, on],
-    ['fltB',      'hull width (deck)',              0.40, 1.50, 0.01, onM],
-    ['fltH',      'hull height (step keel to deck)', 0.30, 1.30, 0.01, onM],
+    ['fltB',      'hull width (deck)',              0.40, 1.90, 0.01, onM],
+    ['fltH',      'hull height (step keel to deck)', 0.30, 1.50, 0.01, onM],
     ['fltBeta',   'deadrise at the step °',         8, 40, 0.5, on],
     ['fltBetaBow','deadrise at the bow °',          20, 65, 0.5, on],
     ['fltBetaA',  'deadrise (afterbody) °',         8, 35, 0.5, on],
@@ -133,19 +150,19 @@ const GROUP = ['9b · floats', [
     ['fltPlan',   'plan fullness',                  1.2, 4.0, 0.05, on],
     ['fltStern',  'stern beam ×',                   0.20, 0.80, 0.01, on],
     ['fltFlare',  'side flare °',                   0, 12, 0.5, on],
-    ['fltMass',   'hull mass (each)',               10, 400, 1, { when: P => +P.gearFloats, dim: 'kg' }],
+    ['fltMass',   'hull mass (each)',               10, 1200, 1, { when: P => +P.gearFloats, dim: 'kg' }],
   ], on],
   ['placement', [
     ['fltZ',     'step fore / aft (from the rule)', -1.5, 1.5, 0.01, onM],
-    ['fltDrop',  'keel below the belly',  0.20, 1.50, 0.01, onM],
+    ['fltDrop',  'keel below the belly',  0.20, 3.00, 0.01, onM],
     ['fltInc',   'keel incidence °',     -5, 10, 0.5, onM],
-    ['fltTrack', 'half track',            0.40, 1.60, 0.01, onM],
+    ['fltTrack', 'half track',            0.40, 3.50, 0.01, onM],
   ], on],
   ['struts', [
-    ['fltStrutR',  'strut thickness',      0.008, 0.040, 0.001, onM],
+    ['fltStrutR',  'strut thickness',      0.008, 0.090, 0.001, onM],
     ['fltStrutAng','strut root angle °',  20, 85, 1, on],
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
-    ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 1.20, 0.01, onM],
+    ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
   ], on],
 ]];
@@ -166,6 +183,9 @@ function hullParams(P) {
     // row: the family's; the keel and the stern's beam are the rows above)
     aftHold: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftHold : HY.DEF.aftHold, aftPow: HY.WIPLINE_AFT ? HY.WIPLINE_AFT.aftPow : HY.DEF.aftPow,
   });
+  // FLOATS-CLASSIC: the EDO deck over the same rows (absent on a Wipline: its record is the one it was)
+  // ...and the EDO's own afterbody PLAN (held 0, closing linearly: HY.EDO_AFT; the keel and the stern's beam stay rows)
+  if (Math.round(+P.fltStyle || 0) === 1 && HY.EDO_STYLE) Object.assign(Q, HY.EDO_STYLE, HY.EDO_AFT ? { aftHold: HY.EDO_AFT.aftHold, aftPow: HY.EDO_AFT.aftPow } : null);
   Q.scale = k;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
@@ -192,7 +212,11 @@ function applyFloatPreset(P, name) {
   const Q = HY && HY.presetParams(name);
   if (!Q) return false;
   Object.assign(P, rowsOfParams(Q));
+  // FLOATS-CLASSIC: an EDO kit's ventral is the plan's vintage lobe at the plan's proportions - its chord 3.0 times
+  // its depth (the long forward point; the plate's 0.6 x 0.4 drew a short bucket) - the depth row kept
+  if (Q.style === 'edo') P.finVentralC = Math.min(2.5, +((+P.finVentralH || 0.4) / 0.33).toFixed(2));
   return true;
+  // (rowsOfParams writes fltStyle: an EDO row turns the classic deck on, a Wipline row the flat one)
 }
 // ---- A LOAD STANDS THE FLOATS WHERE THE FILE SAVED THEM (G3700) ------------
 // The step follows the flown CG (the placement rule above, and the energy
@@ -267,7 +291,7 @@ function floatKitCard(ev, P) {
   try {
     let el = document.getElementById('fkCard');
     if (!el) { el = document.createElement('div'); el.id = 'fkCard'; document.body.appendChild(el); }
-    const HY = HYc(), R = HY && ev.model && HY.FLOAT_PRESETS && HY.FLOAT_PRESETS[ev.model];
+    const HY = HYc(), R = HY && ev.model && rowOf(ev.model);
     const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const propOf = q => (q && q.D > 0 ? q.D.toFixed(2) + ' m' + (q.N ? ', ' + q.N + '-blade' : '') + (q.pitch ? ', ' + q.pitch + ' pitch' : '') : 'the previous propeller');
     const lines = [];
@@ -276,10 +300,15 @@ function floatKitCard(ev, P) {
     else lines.push(['Propeller', ev.model && ev.model !== CUSTOM ? 'unchanged: no certified seaplane propeller is listed for the ' + esc(ev.model) + '.'
                                      : 'unchanged. Pick a Wipline model: one with a certified propeller (the 2350, for the Cessna 172) fits it.']);
     if (+P.gearFloats) {
-      lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats).' : 'not fitted (switch it on in the fin rows).']);
+      lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats)' +
+                  (Math.round(+P.finVentralShape || 0) === 1 ? ' - the vintage lobe of the EDO kits.' : '.') : 'not fitted (switch it on in the fin rows).']);
       lines.push(['Water rudders', +P.fltRudder ? 'fitted on both float sterns.' : 'off.']);
       const pairKg = R ? R.mSys : 2 * (+P.fltMass || 0);
-      lines.push(['Weight', '+' + Math.round(pairKg) + ' kg for the pair' + (R ? ' with its rigging (Wipaire)' : ' (the two hulls)') +
+      // FLOATS-CLASSIC: what the pair costs (HYDRO.floatPrice: the catalogue's, else the family's rate on its mass)
+      const HPc = hullParams(P), price = HY && HY.floatPrice ? HY.floatPrice(HPc) : 0;
+      if (price) lines.push(['Price', Math.round(price).toLocaleString('en') + ' credits for the pair, rigged and installed' +
+                             (HPc.style === 'edo' ? ' (EDO: out of production - the used market)' : ' (new)') + '; it replaces the wheels on the bill.']);
+      lines.push(['Weight', '+' + Math.round(pairKg) + ' kg for the pair' + (R ? ' with its rigging (' + (isEdo(ev.model) ? 'EDO' : 'Wipaire') + ')' : ' (the two hulls)') +
                   (R ? '; the ' + esc(ev.model) + ' is rated for ' + Math.round(R.gross).toLocaleString('en') + ' kg gross (' + Math.round(R.gross * 2.20462).toLocaleString('en') + ' lb).' : '; the bench re-measures the gross.')]);
     }
     el.innerHTML = '<div class="fkT">' + (+P.gearFloats ? 'Floats fitted' + (ev.model && ev.model !== CUSTOM ? ' - ' + esc(ev.model) : '') : 'Floats removed') + '</div>' +
@@ -306,6 +335,7 @@ if (typeof window !== 'undefined') {
   window.CAGE_FLOAT_KIT_CARD = floatKitCard;
   window.CAGE_FLOAT_PRESETS = PRESET_NAMES;
   window.CAGE_FLOAT_CUSTOM = CUSTOM_IDX;
+  window.CAGE_FLOAT_STYLES = STYLE_NAMES;
   // the energy layer's CG handshake asks before it rebuilds for a moved CG
   window.CAGE_FLOAT_HELD = () => !!held;
 }
@@ -340,6 +370,12 @@ const dirCage = m => { const r = rotInc(m); return [-r[2], r[1], -r[0]]; };
 // so a chine and a side wall keep counting), a frame every FLT_FRAME m, a rivet row every FLT_RAIL m. |mz|, so the
 // mirrored port float carries the same field.
 const FLT_FRAME = 0.75, FLT_RAIL = 0.25;
+// FLOATS-CLASSIC: an EDO's bulkheads every ~2 ft (a seam and a rivet row every 0.6 m along, a rivet line every 0.3 m
+// round), growing with the float (x sqrt(scale) past the family's 4.6 m: a 12.8 m Model 78 is not a 2000 with more
+// rows) - the same field, the shader's grammar draws it, nothing new compiles. (0.45 x 0.17 m was tried: every bay
+// is an oil-can dish in the grammar, and that dense a grid read as reptile scales.)
+const EDO_FRAME = 0.60, EDO_RAIL = 0.30;
+let FIELD_FRAME = FLT_FRAME, FIELD_RAIL = FLT_RAIL;
 function hullField(part) {
   const n = part.pos.length / 3, NB = 64;
   let x0 = Infinity, x1 = -Infinity;
@@ -353,7 +389,7 @@ function hullField(part) {
   for (let i = 0; i < n; i++) {
     const x = part.pos[i * 3], y = part.pos[i * 3 + 1], z = Math.abs(part.pos[i * 3 + 2]);
     const along = x - x0, around = z + Math.max(0, y - keel[binOf(x)]);
-    a[i * 4] = along; a[i * 4 + 1] = around; a[i * 4 + 2] = along / FLT_FRAME; a[i * 4 + 3] = around / FLT_RAIL;
+    a[i * 4] = along; a[i * 4 + 1] = around; a[i * 4 + 2] = along / FIELD_FRAME; a[i * 4 + 3] = around / FIELD_RAIL;
   }
   return new THREE.BufferAttribute(a, 4);
 }
@@ -424,6 +460,9 @@ PAGE.post = ctx => {
   if (!AF) { if (stat) stat.textContent += '  ·  floats: no skin to hang on'; return; }
 
   const HP = hullParams(P);
+  const edo = HP.style === 'edo';
+  const fk = edo ? Math.sqrt(Math.max(1, HP.scale || 1)) : 1;
+  FIELD_FRAME = edo ? EDO_FRAME * fk : FLT_FRAME; FIELD_RAIL = edo ? EDO_RAIL * fk : FLT_RAIL;
   INC = (+P.fltInc || 0) * D2R;
   const F = HY.makeFloat(Object.assign({}, HP, { mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
   // THE STEP STATION: 12 deg aft of the CG at the keel's depth below it,
@@ -460,10 +499,16 @@ PAGE.post = ctx => {
   // without one (protrusions, the rudder blade, the deck hardware) stay triplanar - one material never mixes the two
   // branches (_surf_check.js). Both are the 'float' section, so the livery paints them as one, and both alloy: every
   // float preset is a Wipline (riveted aluminium), whatever the fuselage is built of.
-  const hullM = () => (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
-    || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
-  const hullSkinM = () => (SM && SM('float', { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: 0xd8d2c2 }))
+  // FLOATS-CLASSIC: an EDO hull is BARE, AGED ALLOY whatever the aeroplane is painted (the section `floatBare`, its
+  // own finish `agedAlu`: a baked sheet of mismatched skins and seams, rougher and less metallic than a new sheet);
+  // the same two materials a Wipline's hull asks for, one section swapped - no new program, no new draw
+  const HSEC = edo ? 'floatBare' : 'float', HTINT = edo ? 0xa9afb4 : 0xd8d2c2;
+  const hullM = () => (SM && SM(HSEC, { cons: 'alloy', surf: 0, fieldM: 1, tint0: HTINT }))
+    || new THREE.MeshStandardMaterial({ color: HTINT, roughness: edo ? 0.62 : 0.55, metalness: 0.05 });
+  const hullSkinM = () => (SM && SM(HSEC, { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: HTINT }))
     || hullM();
+  const boardM = () => (SM && SM('floatBoard', { surf: 0, fieldM: 1, tint0: 0x8a6a45 }))
+    || new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8, metalness: 0.0 });
   const deckM = () => (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
     || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
   const strutM = () => (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
@@ -534,11 +579,14 @@ PAGE.post = ctx => {
     const rig = out ? out.rig : { fwd: -HP.flatK * HP.xs, aft: HP.xAft };
     const fit = (x, inb) => {
       const s = HY.sectionOf(HP, x === 0 ? -1e-9 : x);
-      const zOut = s.bd - 0.05 * sc;
+      // (FLOATS-CLASSIC: an EDO's fittings sit on the arc just inside its shoulder, FLOAT_GEN's EDO_FIT of it -
+      // its topside is an ellipse from the chine, so the old "5 cm in from the edge" is low on the flank)
+      const zOut = edo ? 0.85 * s.bd + 0.01 * sc : s.bd - 0.05 * sc;
       // inboard is the model's -z for the starboard float (toward the
       // centreline at cage +x), which the mirror handles for the port one
       const zm = (inb ? -1 : 1) * zOut * (mirror ? -1 : 1);
-      return toCage([x + 0.12 * sc, s.yd, zm], at);
+      // (FLOATS-CLASSIC: on a dome the fitting sits on the shoulder's own height; a flat deck's is yd)
+      return toCage([x + 0.12 * sc, HY.deckYAt ? HY.deckYAt(HP, s, zOut) : s.yd, zm], at);
     };
     rec.deck[tag] = { fwdIn: fit(rig.fwd, true), fwdOut: fit(rig.fwd, false), aftIn: fit(rig.aft, true), aftOut: fit(rig.aft, false) };
     fits[tag] = rec.deck[tag];
@@ -641,6 +689,19 @@ PAGE.post = ctx => {
     }
     rec.members.push({ pin: L.fwdIn, tip: R.fwdIn }, { pin: L.aftIn, tip: R.aftIn });
   }
+  // FLOATS-CLASSIC: THE DECK BOARD - planks laid fore and aft across the two spreader bars between the floats (the
+  // user's photo: "a wooden board across the spreaders"), a loading step; drawn only with the EDO style and the bars.
+  // It takes the draw the EDO's absent non-skid decks gave back (two), so the classic pair is a draw under the Wipline
+  const bdg = GK.Bag();
+  if (edo && +P.fltBoard && +P.fltSpread) {
+    const L = rec.deck.L, R = rec.deck.R, tb = 0.055 * sc;
+    // (the bars' tops are their fittings' height + 2 mm - lower() below: the planks lie ON them)
+    const yTop = Math.max(L.fwdOut[1], R.fwdOut[1], L.aftOut[1], R.aftOut[1]) + 0.003;
+    const zF = 0.5 * (L.fwdOut[2] + R.fwdOut[2]) + 0.12 * sc, zA = 0.5 * (L.aftOut[2] + R.aftOut[2]) - 0.12 * sc;
+    const span = Math.abs(L.fwdIn[0] - R.fwdIn[0]), w = Math.min(0.24, 0.10 * span), th = 0.022;
+    for (const dx of [-1.05 * w, 0, 1.05 * w])
+      GK.boxIn(bdg, [dx, yTop + 0.5 * th, 0.5 * (zF + zA)], [0.5 * w, 0.5 * th, 0.5 * Math.abs(zF - zA) + 0.10 * sc], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  }
   // what the roots stand on, for the status line: the pillar, or the door whose skin a root is on (a finding)
   rec.roots = { fwd: pilF ? pilF.key : null, aft: pilA ? pilA.key : null };
   // (snap off: the editor's status line only - the game's builds never ask)
@@ -657,6 +718,7 @@ PAGE.post = ctx => {
   }
   const sgp = new THREE.Group(); sgp.name = 'edFloatStruts';
   sg.mesh(sgp, strutM()); wg.mesh(sgp, wireM()); hg.mesh(sgp, hardM());
+  if (bdg.tris > 0) bdg.mesh(sgp, boardM());
   sgp.userData.strutMembers = rec.members.map(m => ({ pin: m.pin.slice(), tip: m.tip.slice() }));
   group.add(sgp);
 
@@ -684,12 +746,13 @@ PAGE.post = ctx => {
   rec.gy = gLow;
   window.CAGE_FLOAT = rec;
   if (stat) {
-    const R = HP.preset && HY.FLOAT_PRESETS[HP.preset];
+    const R = HP.preset && rowOf(HP.preset);
     const pilTxt = Math.round(+P.pilSnap || 0) === 1
       ? `struts on ${[pilF && pilF.key, pilA && pilA.key].filter(Boolean).join(' + ') || 'no'} pillar${pilF && pilA ? 's' : ''}${pilWhy.length ? ' (' + pilWhy.join(', ') + ')' : ''}, ` : '';
     const doorTxt = rec.rootsOnDoor && rec.rootsOnDoor.length ? `a strut root ON the ${rec.rootsOnDoor.join(' / ')} door, ` : '';
-    stat.textContent += `  ·  floats: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` + pilTxt + doorTxt +
-      `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull`;
+    stat.textContent += `  ·  floats${edo ? ' (EDO classic)' : ''}: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` + pilTxt + doorTxt +
+      `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull` +
+      (HY.floatPrice ? `, ${HY.floatPrice(HP).toLocaleString('en')} credits the pair` : '');
     // S1 (G451.1): THE SIZING ADVISOR — the flown aeroplane's all-up mass
     // (app.js publishes it with the CG) against the pair that is fitted
     const M = window.FLYDIY_MASS_MODEL;

@@ -1031,7 +1031,10 @@ function garageInit(api) {
     const txt = lsGet(SLOT + n);
     if (!txt) return void syncRibbon();
     try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log, g.images); }
-    catch (e) { alert('That saved build could not be read: ' + e.message); }
+    catch (e) { alert('That saved build could not be read: ' + e.message); return; }
+    // G3800: a save from before the cards had pictures gets its side profile the first time it stands (nothing when the
+    // stored picture is this build's)
+    try { if (window.PLANE_THUMB) window.PLANE_THUMB.saved(n); } catch (e) {}
   };
   const loadStock = nm => {
     const st = stockByName(nm);
@@ -1040,6 +1043,14 @@ function garageInit(api) {
     if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
   };
   let fleetEl = null;
+  // G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE - the user's side-profile picture on the plane cards): a row's picture
+  // when one exists, under the build's own key ('mine:' + the slot as stored, 'stock:' + its name, 'cand:' + the pool's
+  // file); none = today's row. The rack redraws when a picture lands ('plane-thumb')
+  const thumbOn = (b, key) => {
+    let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(key); } catch (e) { u = null; }
+    if (!u || typeof b.prepend !== 'function') return;
+    const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'gfThumb'; b.prepend(im);
+  };
   function buildFleet() {
     if (fleetEl) return;
     fleetEl = document.createElement('div');
@@ -1062,6 +1073,7 @@ function garageInit(api) {
         '</div>' +
       '</div>';
     fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
+    if (typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => { if (fleetEl && !fleetEl.hidden) renderFleet(); });
     // the scrim closes it too — backing out of a load door costs one click
     fleetEl.addEventListener('click', e => {
       if (e.target === fleetEl) closeFleet(); });
@@ -1112,6 +1124,7 @@ function garageInit(api) {
       row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
       const meta = n === slotName ? 'on the stand' : slotMeta(n);
       const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
+      thumbOn(b, 'mine:' + n);
       if (P && P.text) {
         const pl = document.createElement('i');
         pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
@@ -1131,6 +1144,7 @@ function garageInit(api) {
       del.addEventListener('click', () => {
         if (!confirm('Delete the saved build "' + n + '"?')) return;
         lsDel(SLOT + n);
+        try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
         if (slotName === n) slotName = '';
         slotsChanged({ deleted: n });
         syncRibbon();
@@ -1157,6 +1171,7 @@ function garageInit(api) {
         let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
         const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
         const b = rowBtn(n, 'buy in · ' + pw);
+        thumbOn(b, 'mine:' + n);
         b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
         b.disabled = p == null;
         b.addEventListener('click', () => {
@@ -1173,6 +1188,7 @@ function garageInit(api) {
       const row = document.createElement('div');
       row.className = 'gfRow';
       const b = rowBtn(s.name, 'stock design');
+      thumbOn(b, 'stock:' + s.name);
       b.addEventListener('click', () => { closeFleet(); loadStock(s.name); });
       row.appendChild(b);
       stockBox.appendChild(row);
@@ -1187,6 +1203,7 @@ function garageInit(api) {
           const row = document.createElement('div');
           row.className = 'gfRow gfCandRow';
           const b = rowBtn(c.name || c.file, 'candidate official' + (c.note ? ' · ' + c.note : ''));
+          thumbOn(b, 'cand:' + c.file);
           b.title = c.file + ' - designed and built, not validated: no certificate';
           b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
           row.appendChild(b);
@@ -1262,6 +1279,8 @@ function garageInit(api) {
     // G2221 (FLEET-PROPS A): the saved aeroplane's parked prop is baked on the garage's idle path, never in the world
     // (parked.js fleetQueue; nothing with FLYDIY_FLEET off - on by default since G2226)
     try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
+    // G3800: the plane cards' side profile, drawn once the stand is still (plane_thumb.js; never on the save's path)
+    try { if (window.PLANE_THUMB) window.PLANE_THUMB.saved(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not
   // really saved. It commits first for the same reason saving does, and more

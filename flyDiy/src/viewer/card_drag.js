@@ -39,6 +39,7 @@
     ['#bRun', 'benchRun', ''],        // the bench's run card (bench.js)
     ['#bAward', 'benchAward', ''],    // the bench's award / certificate (bench.js)
     ['#stCard', 'story', ''],         // the story's beat card (app.js)
+    ['#gEmptyCard', 'emptyStand', ''],   // EMPTY-STAND: the empty stand's card (app.js standEmptyCard; its buttons stay buttons)
     ['#stTim', 'tim', ''],            // Tim's band (app.js; its data-tim buttons stay buttons)
     ['#gmPanel', 'menu', '.gmHead'],  // the menu (app.js G3520): by its header, the rows are all buttons
     ['#frLoad', 'freight', ''],       // the freight loading panel (freight_load.js)

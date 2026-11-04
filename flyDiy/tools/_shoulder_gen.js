@@ -1034,7 +1034,7 @@ const PANEL_DEF = {
   mat: 'doorPanel',
 };
 
-const INNER_SKIP = new Set(['dash', 'dashFace', 'firewall', 'fireProof', 'fireSeal', 'bulkhead']);
+const INNER_SKIP = new Set(['dash', 'dashFace', 'firewall', 'fireProof', 'fireSeal', 'bulkhead', 'bulkTrim', 'baggage']);
 // innermost |x| on a flank at (y, z) among every face that is not trim, a
 // bead or the cabin's own furniture — the door's skin, its liner, its frames
 // — or null. The panel's base.

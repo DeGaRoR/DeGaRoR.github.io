@@ -5651,13 +5651,13 @@
   // as built. Nothing of it runs while nothing is damaged and no engine has seized: wreckFrame returns at its first test.
   // ?wreck=0 (or window.FLYDIY_WRECK = false at any time): the wreck as drawn before G1860, for the A/B.
   const WK = { model: null, P: null, W: null, T: null, t: null, rest: null, hid: [], idx: [], pos: [], rigs: null, cab: null, crew: new Map(), crewOff: false, crewT: null,
-               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, ms: { plan: 0, release: 0, frame: 0 } };
+               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, wires: [], wiresV: -1, ms: { plan: 0, release: 0, frame: 0 } };
   try { if (/[?&]wreck=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_wreck_stills.js): the parts, the bodies, the strikes, the cockpit rule's last word, the costs (ms)
   window.FLYDIY_WRECK_STATS = () => ({ on: window.FLYDIY_WRECK !== false, active: !!WK.model,
     parts: WK.P ? WK.P.parts.map(c => ({ kind: c.kind, gone: c.gone, why: c.why, crush: c.crush != null ? +c.crush.toFixed(3) : null })) : [],
     bodies: WK.W ? WK.W.bodies.map(B => ({ kind: B.kind, why: B.why, asleep: B.asleep, sunk: B.sunk, x: B.x.map(v => +v.toFixed(2)), tris: B.tris || 0 })) : [],
-    strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
+    wires: WK.wires.filter(w => w.obj.visible).map(w => ({ beam: w.beam, node: w.node, len: w.len })), strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
@@ -5683,6 +5683,7 @@
     const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
     wreckScraps(D, vel);                                             // G2046
+    wreckWires(D);                                                   // G2016
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
     WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
@@ -5917,6 +5918,24 @@
     WK.ms.release = Math.max(WK.ms.release, performance.now() - t0);
     return Bd;
   }
+  // G2016 (GEAR-FALLS): A SNAPPED GEAR WIRE'S ENDS DRAWN (WRECK_DEBRIS.wireEnds says why): new meshes from a leg's own material and
+  // attributes (no program links: wreckRelease's rule), each frame on its fitting, shortened over the ground; gone with their node
+  function wreckWires(D) {
+    if (WK.wiresV !== D.vB) { WK.wiresV = D.vB;
+      const leg = WK.P.parts.filter(c => c.kind === 'wheel' && c.objs).map(c => c.objs.map(o => wreckMeshesOf(o)).reduce((a, b) => a.concat(b), []).find(m => m.geometry && m.geometry.index && m.geometry.attributes.position)).find(Boolean);
+      for (const e of leg ? window.WRECK_DEBRIS.wireEnds(def, D.br, D.pc, sim.p) : []) {
+        if (WK.wires.some(w => w.beam === e.beam && w.node === e.node)) continue;
+        const T = window.WRECK_DEBRIS.wireTube(e), n = T.pos.length / 3, g = new THREE.BufferGeometry(), A = leg.geometry.attributes;
+        for (const k in A) { const at = A[k]; if (at.isInterleavedBufferAttribute || k === 'skinIndex' || k === 'skinWeight') continue;
+          g.setAttribute(k, new THREE.BufferAttribute(k === 'position' ? Float32Array.from(T.pos) : k === 'normal' ? Float32Array.from(T.nrm) : new at.array.constructor(n * at.itemSize), at.itemSize, at.normalized)); }
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, leg.material); m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false; m.frustumCulled = false; m.name = 'wreckWire'; scene.add(m);
+        WK.wires.push({ beam: e.beam, node: e.node, len: e.len, obj: m }); }
+      for (const w of WK.wires) if (D.pc && D.pc[w.node] !== 0) w.obj.visible = false; }
+    for (const w of WK.wires) { if (!w.obj.visible) continue;
+      const x = sim.p[w.node*3], y = sim.p[w.node*3+1], z = sim.p[w.node*3+2], sy = Math.max(0.05, Math.min(1, (y - world.terrainH(x, z)) / w.len));
+      w.obj.matrix.set(1, 0, 0, x, 0, sy, 0, y, 0, 0, 1, z, 0, 0, 0, 1); w.obj.matrixWorldNeedsUpdate = true; }
+  }
   // G2046 (DMG-SETTLE): THE ISLANDS ON A LOOSE PIECE (skin_break.js looseIslands says why) - a scrap of the snapshot riding
   // a piece of fewer than three nodes hung at its rest lever, in a frozen turn (the metal Cessna's dash face 45 cm over
   // the node lying on the ground). At each break event each record (a static bucket's: its ranges, as a cowl panel's) gives
@@ -6105,6 +6124,7 @@
     for (const [m, v] of WK.crew) m.visible = v;   // (DMG-D4b: the crew back)
     WK.crew.clear(); WK.crewOff = false; WK.crewT = null;
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
+    for (const w of WK.wires) { scene.remove(w.obj); w.obj.geometry.dispose(); } WK.wires = []; WK.wiresV = -1;   // (G2016)
     for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
@@ -6636,6 +6656,7 @@
   // build or a stock design - those roll out from the base, as every build did
   const slotOnStand = () => {
     try {
+      if (STAND_EMPTY) return null;     // EMPTY-STAND: nothing on the stand (the build behind it is not the room's)
       if (curKey !== 'gen') return null;
       const G = window.GARAGE_SPEC, n = G && G.name ? G.name() : '';
       const d = playerLoad();
@@ -8976,6 +8997,7 @@
   function storeStartNow() { try { return storeStart && storeStart.slot === slotOnStand() ? storeStart : null; } catch (e) { return null; } }
   function storeChanged() {
     try { if (inGarage) residentsSync(RES.bb); } catch (e) {}
+    try { if (STAND_EMPTY) standEmptyCard(); } catch (e) {}
     try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     try { if (window.FLYDIY_STORE && window.FLYDIY_STORE.onChange) window.FLYDIY_STORE.onChange(); } catch (e) {}
   }
@@ -9044,14 +9066,15 @@
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { aero, x: p.x, z: p.z, hdg: -p.ry, spot: p.spot } : null;
     } catch (e) { return null; }
   }
-  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
-  // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
+  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; the side
+  // profile when one is drawn (G3800 PLANE_THUMB; else PARKED.fleetThumb, none yet - else the card draws its glyph)
   function storeCard(name) {
     let spec = null;
     try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
     const c = typeof playerCardOf === 'function' ? playerCardOf(name, spec) : { name, gear: 'wheels', seats: 0 };
     let thumb = null;
-    try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
+    try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}
+    try { if (!thumb && window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
     return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
   }
   // G3587 (the playtest 24 Oct, item 10: "the storage interface ... says the Cub is on the stand while the ultralight
@@ -10728,6 +10751,132 @@
         return { beat: stTut ? stTut.beat : null, i: stTut ? stTut.i : -1, step: s ? s.id : null, wait: s ? s.wait || null : null, lock: stTutLockV ? Object.assign({}, stTutLockV) : null }; },
     };
   }
+  // EMPTY-STAND: THE STAND'S STATE AND ITS CARD. While it holds: no aeroplane drawn (`craft` hidden, applyStand), the
+  // editor's columns and Roll out stand down (body.gEmpty, editor.css), slotOnStand() is null - so Storage, the floor and
+  // the roll-out see no aeroplane and nothing is moved into this hangar by looking at it - and #gEmptyCard (draggable,
+  // card_drag.js) offers what fills it: a new aeroplane (the chooser), the Market (the map), or one of yours brought here
+  // (Storage's Send to - free, instant - then onto the stand). Any aeroplane put on the stand (a load fires
+  // 'flydiy:specApplied') ends it; a reload keeps it (flydiy.standEmpty = the hangar, re-checked after the boot)
+  let geWhy = '';
+  function standEmptySet(on) {
+    on = !!on;
+    if (on !== STAND_EMPTY) {
+      STAND_EMPTY = on; geWhy = '';
+      prefSet('flydiy.standEmpty', on ? String(playerLoad().here || '') : '');
+      try { document.body.classList.toggle('gEmpty', on); } catch (e) {}
+      try { craft.visible = !on; edSit.visible = !on && showCage; } catch (e) {}
+      setTimeout(resize, 220);   // (the view takes the columns' room: the canvas's width transitions, the buffer follows)
+      try { syncGoLabel(); } catch (e) {}
+      try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}
+    }
+    try { standEmptyCard(); } catch (e) { console.warn('flyDiy: the empty stand card -', e && e.message); }
+    if (on) standEmptyAuto();
+  }
+  // THE CHOICE OPENS BY ITSELF (the user 4 Nov, on the EMPTY-STAND look: "An empty garage should automatically open the
+  // interface allowing to choose a plane, either existing or new, not to be confusing. But no plane should be drawn yet."):
+  // standEmptySet(true) is an arrival (the map's Go, the base select, a reload). Cancel leaves the empty room and the card,
+  // the door back. Not for a rig (NEW-PLANE-HOLD: the chooser holds the render loop), nor under a tutor's lock (it holds
+  // every click outside its step: the panel could not be answered)
+  function standEmptyAuto() {
+    try {
+      if (stTutLockV || (window.DESIGN_FLOW && window.DESIGN_FLOW.isRig && window.DESIGN_FLOW.isRig())) return;
+      standEmptyChoose();
+    } catch (e) { console.warn('flyDiy: the empty stand choice -', e && e.message); }
+  }
+  function standEmptyChoose() {
+    if (!STAND_EMPTY || !inGarage || !window.NEW_PLANE || !window.NEW_PLANE.open) return false;
+    if (window.NEW_PLANE.isOpen()) return true;
+    const d = playerLoad(), g = garagesList().find(x => x.id === d.here);
+    return window.NEW_PLANE.open({ offer: {
+      title: 'The stand is empty - ' + (g ? g.name : String(d.here)),
+      line: 'choose what stands here: one of yours, or a new one',
+      rows: standEmptyRows(d), bring: standEmptyBring,
+      buy: $('mapEntry') ? () => gmMap('market') : null,
+    } });
+  }
+  // your aeroplanes, where they stand in words (F6: no raw ids); the story's client's plane is offered - T2 works on it -
+  // said as the client's, and last
+  function standEmptyRows(d) {
+    const G = garagesList(), A = (world && world.aerodromes) || [], s = stLive();
+    const client = s && s.planes && !s.planes.gift ? s.planes.client : null;
+    const aero = id => { const a = A.find(x => x.id === id); return (a && a.name) || id; };
+    return Object.keys(d.fleet || {}).sort((a, b) => (a === client) - (b === client) || a.localeCompare(b)).map(name => {
+      let P = null; try { P = playerPlace(d, name, world); } catch (e) { P = null; }
+      const shed = P && G.find(x => x.id === P.hangar);
+      const w = !P ? '' : P.kind === 'in' ? 'in ' + (shed ? shed.name : P.hangar) : P.kind === 'out' ? 'out at ' + aero(P.aero) : P.kind === 'away' ? 'away at ' + aero(P.aero) : P.text || '';
+      return { name, where: (name === client ? 'the client’s, ' : '') + w };
+    });
+  }
+  function standEmptyBring(n) {
+    const here = playerLoad().here, W = playerStoreWhere(playerLoad(), n);
+    const r = (W && W.hangar === here) ? { ok: true } : window.FLYDIY_STORE.sendTo(n, here);
+    const m = r.ok ? storeMove(n, { kind: 'floor' }) : r;
+    if (!m.ok) { geWhy = n + ': ' + (m.why || 'not now'); standEmptyCard(); }
+  }
+  // the base select's move (the routes panel): an empty hangar empty, and out of an empty stand that hangar's aeroplane
+  function standEmptyFollow() {
+    if (!CAREER_DEV || !inGarage) return;
+    const d = playerLoad(), n = garageStand(d, d.here).stand;
+    if (n && STAND_EMPTY) storeMove(n, { kind: 'floor' });
+    else if (!n) standEmptySet(standEmptyAt(d, d.here));
+  }
+  function standEmptyCard() {
+    let c = $('gEmptyCard');
+    if (!STAND_EMPTY || !inGarage) { if (c) c.hidden = true; return; }
+    const mk = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    if (!c) {
+      c = mk('div'); c.id = 'gEmptyCard'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'the stand is empty');
+      document.body.appendChild(c);
+      c.addEventListener('click', standEmptyClick);
+    }
+    const d = playerLoad(), g = garagesList().find(x => x.id === d.here);
+    c.textContent = '';
+    c.appendChild(mk('span', 'geTag', 'The stand is empty'));
+    c.appendChild(mk('b', 'geName', g ? g.name : String(d.here)));
+    c.appendChild(mk('p', 'geLine', 'Nothing of yours stands in here yet. Fill the stand:'));
+    const act = mk('div', 'geActs');
+    const btn = (words, ge, title) => { const b = mk('button', ge === 'new' ? 'pri' : '', words); b.type = 'button'; b.dataset.ge = ge; if (title) b.title = title; return b; };
+    act.appendChild(btn('New aeroplane', 'new', 'design one from the chooser - it is built on this stand'));
+    if ($('mapEntry')) act.appendChild(btn('Buy one', 'buy', 'the Market, on the map'));
+    c.appendChild(act);
+    const rows = standEmptyRows(d);
+    if (rows.length) {
+      c.appendChild(mk('p', 'geLine', 'Or bring one of yours here (free, instant):'));
+      const ul = mk('ul', 'geList');
+      for (const R of rows) {
+        const li = mk('li');
+        li.appendChild(mk('b', '', R.name));
+        li.appendChild(mk('small', '', R.where));
+        const b = btn('Bring here', 'bring'); b.dataset.n = R.name;
+        li.appendChild(b); ul.appendChild(li);
+      }
+      c.appendChild(ul);
+    }
+    if (geWhy) c.appendChild(mk('p', 'geWhy', geWhy));
+    c.hidden = false;
+  }
+  function standEmptyClick(ev) {
+    const b = ev.target && ev.target.closest ? ev.target.closest('button[data-ge]') : null;
+    if (!b) return;
+    const k = b.dataset.ge;
+    if (k === 'new') { if (!standEmptyChoose() && window.DESIGN_FLOW && window.DESIGN_FLOW.openBirth) window.DESIGN_FLOW.openBirth(); return; }
+    if (k === 'buy') { gmMap('market'); return; }
+    if (k === 'bring') standEmptyBring(b.dataset.n);
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('flydiy:specApplied', () => { if (STAND_EMPTY) standEmptySet(false); });   // an aeroplane on the stand
+    // a reload in an empty hangar comes back empty (the boot seed's own load has passed by then)
+    if (CAREER_DEV && typeof setTimeout === 'function') setTimeout(() => {
+      const R = window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function' ? window.FLYDIY_READY : Promise.resolve();
+      R.then(() => {
+        try {
+          const d = playerLoad(), at = prefGet('flydiy.standEmpty', '');
+          if (!at) return;
+          if (inGarage && at === d.here && standEmptyAt(d, d.here)) standEmptySet(true); else prefSet('flydiy.standEmpty', '');
+        } catch (e) {}
+      });
+    }, 0);
+  }
   // G3613 GARAGE-GO (the user 25 Oct: "We also need an interface in all game modes for moving between the garages. I
   // suggest the ability to teleport from the map, clicking on an owned garage allows to teleport there, with whatever
   // plane is in there"): THE GARAGE HALF of GAME-MENUS's map (G3640s: the markers, the confirm row). Every mode alike:
@@ -10753,28 +10902,29 @@
       const G = garageStand(d, id), here = d.here === id;
       const kind = ((typeof SHELLS === 'object' && SHELLS[sh.shell]) || {}).name || 'hangar';
       out.push({ id, name: sh.name || (id === PREM_MAIN && aero === 'HOME' ? 'the main hangar' : 'the ' + String(kind).toLowerCase()) + (a ? ' at ' + (a.name || a.id) : ''),
-                 aero, here, locked: !!sh.locked, why: garageWhy(sh), away: here ? '' : garageAway(d, id, sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
+                 aero, here, locked: !!sh.locked, why: garageWhy(sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
     }
     return out;
   }
-  // STORY-HOME-FIX (F2): AN EMPTY HANGAR while the aeroplane on the stand stands at another field - going there would show
-  // that aeroplane in a room it is not in, and its roll-out would leave from where it stands: the map says so instead
-  // (fly one in first). '' = no objection (a plane in there, the stand's own field, an unsaved build on the stand, or out of
-  // a flight: The shed's trip brings the flown aeroplane in where it landed)
-  function garageAway(d, id, sh) {
-    if (!inGarage || garageStand(d, id).stand) return '';
-    const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return '';
-    const aero = typeof sh.base === 'string' ? sh.base : 'HOME', W = playerStoreWhere(d, S);
-    if (W && W.aero === aero) return '';
-    const a = ((world && world.aerodromes) || []).find(x => x.id === aero);
-    return 'empty - fly an aeroplane to ' + (a ? a.name || a.id : aero) + ' first';
+  // EMPTY-STAND (the user, 4 Nov, on the STORY-HOME look's F2: "Empty hangar"): A HANGAR OF YOURS WITH NO AEROPLANE IN
+  // IT opens with the stand EMPTY - the aeroplane that was on the stand stays where it stands: not carried along, not
+  // drawn in a room it is not in, not rolled out from there (standEmptySet: the card says what fills it). True when the
+  // hangar holds none and the stand's saved aeroplane stands at another field, or the stand is empty already. The
+  // career's only: the sandbox's fleet stands where it was left, and HOME is its one garage
+  var STAND_EMPTY = false;
+  function standEmptyAt(d, id) {
+    const sh = d && d.sheds && d.sheds[id];
+    if (!CAREER_DEV || !sh || garageStand(d, id).stand) return false;
+    if (STAND_EMPTY) return true;
+    const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return false;
+    const W = playerStoreWhere(d, S), aero = typeof sh.base === 'string' ? sh.base : 'HOME';
+    return !(W && W.aero === aero);
   }
   function gotoGarage(id) {
     const d = playerLoad(), sh = d.sheds && d.sheds[id];
     if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
     if (sh.locked) return Promise.resolve({ ok: false, why: garageWhy(sh), stand: null });
     if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
-    const away = garageAway(d, id, sh); if (away) return Promise.resolve({ ok: false, why: away, stand: null });
     const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
     if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
     const r = playerGoTo(d, id);
@@ -10791,7 +10941,7 @@
             if (W.kind === 'floor') { storeSyncHold = true; try { window.GARAGE_SPEC.open(n); } finally { storeSyncHold = false; } }
             else storeMove(n, { kind: 'floor' });   // an inside slot: "Work on" (the floor swap, a resident's in the career)
             if (inGarage) applyEnv();
-          }
+          } else if (!n) standEmptySet(standEmptyAt(playerLoad(), id));   // EMPTY-STAND: nothing in there - the stand empty
           storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
         } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
         res({ ok: true, why: '', stand: slotOnStand() || null });
@@ -13669,6 +13819,7 @@
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
+    if (STAND_EMPTY && inGarage) return;   // EMPTY-STAND: nothing on the stand to roll out (the card says what fills it)
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
@@ -15085,8 +15236,8 @@
   // vanish the moment the editor opened. `showCage` is declared with the
   // meshes, up by `lines`/`proxy`.
   function applyStand() {
-    edSit.visible = showCage;
-    craft.visible = true;                       // the indicators live in here
+    edSit.visible = showCage && !STAND_EMPTY;   // (EMPTY-STAND: nothing on the stand, the build behind it not drawn)
+    craft.visible = !STAND_EMPTY;               // the indicators live in here (EMPTY-STAND: nothing on the stand)
     // THE CAGE ONLY EVER HIDES; IT NEVER SHOWS. With the cage standing, none
     // of the model's meshes belong on screen. With it down, WHICH of them
     // show is applySkinVis's ruling — this function forcing them all visible
@@ -15529,7 +15680,7 @@
           baseRows[where] = { kind: 'select', sel, options: held.map(x => x.h), labels: held.map(x => x.b.name + ' · ' + hangarWords(x.b, x.h, doc)) };
           sel.onchange = e => {
             const r = typeof playerGoTo === 'function' ? playerGoTo(playerLoad(), e.target.value) : null;
-            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; roomFollow(); }   // G2310: the room is that hangar's
+            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; roomFollow(); standEmptyFollow(); }   // G2310: the room is that hangar's (EMPTY-STAND: an empty one, empty)
             routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset();
           };
           lab.appendChild(sel);
@@ -19909,7 +20060,7 @@
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
-    if (edSit.visible) target.copy(edTarget).add(edPan);
+    if (edSit.visible || STAND_EMPTY) target.copy(edTarget).add(edPan);
     else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();

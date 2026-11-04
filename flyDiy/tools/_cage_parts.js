@@ -618,7 +618,7 @@ const CAGE_PARTS = [
 
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
-    sections: ['bulkhead', 'firewall', 'fireProof', 'fireSeal', 'tube',
+    sections: ['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'tube',
                'plywood', 'woodFrame', 'cloth',
                'composite', 'aluminium', 'toele'],
     groups: [
@@ -627,6 +627,8 @@ const CAGE_PARTS = [
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
+      ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 
@@ -786,7 +788,7 @@ const CAGE_PARTS = [
       // left here once the trunk has taken its rows is the root fillet
       ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
                 'finKeel']],
-      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
+      ['ventral', ['finVentralOn', 'finVentralShape', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`
@@ -1112,10 +1114,11 @@ const CAGE_PARTS = [
     when: P => (+P.gearFloats) * (+P.gearOn) > 0,
     gate: 'gearFloats',        // a switched-off part collapses to its switch
     place: { on: 'gearFloats', fore: 'fltZ', out: 'fltTrack', up: 'fltDrop', at: 'the step' },
-    sections: ['float', 'floatDeck'],
+    // (FLOATS-CLASSIC: the EDO style's bare hull and its deck board)
+    sections: ['float', 'floatDeck', 'floatBare', 'floatBoard'],
     groups: [
-      // G451: the Wipline preset (a starter), the details, and the family's rows
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle']],
+      // G451: the Wipline preset (a starter), the details, and the family's rows; FLOATS-CLASSIC: the style, the board
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
