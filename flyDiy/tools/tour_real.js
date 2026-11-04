@@ -306,10 +306,13 @@ const STATE = `JSON.stringify((() => {
   let st = JSON.parse(await ev(STATE)), lastT = st.t, lastTWall = Date.now(), rowsPulled = 0, evPulled = 0;
   const spd = []; let slowNow = false;
   const rows = [], phaseEv = [];
+  let lastSave = Date.now();
   const pull = async () => {
     const got = JSON.parse(await ev('JSON.stringify({ r: (window.__TR.rows || []).slice(' + rowsPulled + '), e: (window.__TR.ev || []).slice(' + evPulled + ') })'));
     for (const r of got.r) rows.push(r); rowsPulled += got.r.length;
     for (const e of got.e) phaseEv.push(e); evPulled += got.e.length;
+    // G3914: a run killed at its window's end keeps its track (samples.json was written at the end only: the 4 Nov page legs lost theirs on final)
+    if (Date.now() - lastSave > 30000) { lastSave = Date.now(); fs.writeFileSync(path.join(OUT, 'samples.partial.json'), JSON.stringify({ kind: 'page', partial: true, rows, ev: phaseEv })); }
   };
   let end = null;
   const flightStartWall = Date.now();
