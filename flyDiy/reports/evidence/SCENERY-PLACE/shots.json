@@ -1,0 +1,92 @@
+[
+ {
+  "name": "upper_hydro_pilot",
+  "eye": [
+   -437.2,
+   80,
+   -5627.5
+  ],
+  "rel": true,
+  "yaw": 57.2,
+  "pitch": -14.9,
+  "plane": [
+   -185,
+   -5790
+  ]
+ },
+ {
+  "name": "upper_hydro_above",
+  "eye": [
+   -185,
+   110,
+   -5790
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -185,
+   -5790
+  ]
+ },
+ {
+  "name": "bayside_hydro_pilot",
+  "eye": [
+   -1346.2,
+   70,
+   -8500
+  ],
+  "rel": true,
+  "yaw": 131.3,
+  "pitch": -14,
+  "plane": [
+   -1136,
+   -8315
+  ]
+ },
+ {
+  "name": "bayside_hydro_above",
+  "eye": [
+   -1136,
+   90,
+   -8315
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -1136,
+   -8315
+  ]
+ },
+ {
+  "name": "quarry_pilot",
+  "eye": [
+   -2562,
+   60,
+   -7932
+  ],
+  "rel": true,
+  "yaw": -143.1,
+  "pitch": -14.6,
+  "plane": [
+   -2700,
+   -7748
+  ]
+ },
+ {
+  "name": "quarry_above",
+  "eye": [
+   -2700,
+   110,
+   -7748
+  ],
+  "rel": true,
+  "yaw": 0,
+  "pitch": -89,
+  "plane": [
+   -2700,
+   -7748
+  ]
+ }
+]

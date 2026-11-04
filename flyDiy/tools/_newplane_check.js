@@ -49,6 +49,12 @@ function ruleUnits(np) {
   for (const s of S) for (const r of s.rows) for (const o of r.opts()) if (!o.icon || !o.icon.paths || !o.label) noIcon.push(r.key + '=' + o.value);
   t(!noIcon.length, 'every option carries its SVG symbol and a label', noIcon.slice(0, 5).join(', '));
   t(!np.ROW_KEYS.includes('prop') && !np.ROW_KEYS.includes('blades'), 'the propeller\'s blades are not a choice (the user: "not key")');
+  // NEW-PLANE-HOLD (A0, 3 Nov): the first-launch chooser holds the render loop, so a RIG (a fresh profile) must never get
+  // it by itself - GATE CLOUD's census drew 0 composites under it. The door's guard, read off the source
+  { const df = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'design_flow.js'), 'utf8');
+    const fn = (df.match(/function maybeAutoOpen\(\) \{[\s\S]*?\n\}/) || [''])[0];
+    t(/if \(isRig\(\)\) return;/.test(fn) && /webdriver/.test(df) && /HeadlessChrome/.test(df) && /newplane=1/.test(df),
+      'the first-launch chooser never opens by itself on a rig (webdriver / HeadlessChrome; ?newplane=1 forces it)'); }
   // every archetype reachable: its choice set, read back, holds no greyed option
   // (an AUTHORED card is drawn by hand to a reference and stays a card; one outside the chooser is printed, not failed)
   const unreach = [], authOut = [];

@@ -576,12 +576,14 @@ const PANELS = [
   ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'plate', true, true],
   // G2815: the 10 in displays - the metal Cessna (the widest dash) takes the pair, the PFD on the pilot's side, the MFD
   // across the middle, every dial kept; the C172 takes one on either side, but not a second beside it (its arched plate
-  // and the yokes leave no 208 mm under the crown); the Cub's one, in the middle, costs it three small gauges
+  // and the yokes leave no 208 mm under the crown); the Cub's one, in the middle, keeps every dial (GATE GPSFACE 3 Nov:
+// this row said it cost three small gauges, but G2815's own branch already laid out all twelve beside the 271 mm screen
+// on the 620 mm plate - the rows above hold the layout clean: no dial overlap, the GPS clear of every dial and switch)
   ['metal', 'bugReports/cessnaMetal (1).json', 'flatPair', 'plate', false, true],
   ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat', 'plate', false, true],
   ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat:copilot', 'plate', false, true],
   ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flatPair', 'plate', false, true],
-  ['cub', 'builds/cub_2026-09-20_corrected.json', 'flat', 'plate', false, false],
+  ['cub', 'builds/cub_2026-09-20_corrected.json', 'flat', 'plate', false, true],
 ];
 function dashOf(file, gps) {
   // one scene context per process is the layers' contract: each case its own child

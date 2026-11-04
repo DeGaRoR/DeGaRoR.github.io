@@ -9,6 +9,11 @@
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
+// THE SEAT TYPES' NAMES (SEATS, 2026-11-02): tools/_seat_gen.js SEAT_PRESETS order, the slider's labels (GATE SEATS
+// holds this list, the design rows' SEAT_STYLES and the presets to one order)
+const SEAT_TYPE_LABELS = ['tube & sling', 'carbon bucket', 'vintage airliner', 'touring', 'sculpted sport',
+  'executive leather', 'ultralight sling', 'aerobatic recline', 'vintage crew', 'heavy-duty work', 'woven cane',
+  'reclined tub', 'folding canvas', 'parachute bucket', 'bush utility'];
 // who the co-pilot's select offers (G204.1; G3700): 0 = 'mixed crew' (the
 // characters rotate through the seats, no two alike while there are enough
 // of them), 1.. = one registered character (52_char_codec.js CHAR_REG; none
@@ -697,9 +702,8 @@ window.CAGE_PAGE = {
     ['4c · crew & controls', [
       ['seats', [
         ['crewOn',    'crew layer',     0, 1, 1],
-        ['seatType',  'seat type',      0, 2, 1, ['tube frame',
-                                                  'composite shell',
-                                                  'airliner']],
+        // SEATS (2026-11-02): the seat library's presets, SEAT_PRESETS order (tools/_seat_gen.js; GATE SEATS)
+        ['seatType',  'seat type',      0, 14, 1, SEAT_TYPE_LABELS],
         // G180: the ROW — one abreast or two — in the cockpit AND in every
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
@@ -728,6 +732,11 @@ window.CAGE_PAGE = {
       // above). `paxSeatZ` places the row inside its bay off the bay's own
       // aft ring, the way `seatZ` places the pilot's off the cockpit's.
       ['passenger seats', [
+        // SEATS (2026-11-02, the user: "maybe that should be a flag too, pilot and passenger seats"): the cabin's own
+        // seat type. NOT IN THE DEFAULTS TABLE (absent = -1 = as the pilots', or the pilots' preset's own cabin seat):
+        // a build that never moved it saves no key
+        ['paxSeatType', 'seat type', -1, 14, 1, ['as the pilots\''].concat(SEAT_TYPE_LABELS),
+         { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
         ['seat2H',    'squab height',  -1, 1.50, 0.005,

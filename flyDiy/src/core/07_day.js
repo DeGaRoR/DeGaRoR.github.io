@@ -57,6 +57,12 @@ var DAY = (function () {
   // no fields moves nothing and `storm: null` is exactly today's day.
   const STORM_D = Object.freeze({ pre: 5400, dur: 2700, post: 7200, windK: 2.2, gustK: 2.5,
                                   veerDeg: 55, dTemp: -6, dQnh: -900, cover: 0.95, type: 'cb' });
+  const STORM_DT_RAMP = 600;                         // s: a front's temperature drop, centred on its `at` (F3)
+  // THE WIND MIXES THE MIST AWAY (WEATHER-FIXES F5): radiation fog lies only in near-calm air - full under MIST_CALM_KT[0]
+  // of surface wind, gone by MIST_CALM_KT[1] (it lifts into a stratus deck: the deck is the cloud's business, not this
+  // layer's). Read on the DECLARED 10 m wind times a front's windK - the day's own number, not a local sample.
+  const MIST_CALM_KT = [3, 10];
+  const KT_MS = 0.514444;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -83,12 +89,22 @@ var DAY = (function () {
   function makeDay(spec0, geo0) {
     const geo = Object.assign({}, GEO_DEFAULT, geo0 || {});
     const s = {};                                        // the declared spec (what round-trips)
+    // THE EFFECTIVE SPEC (WEATHER-SEASON, 2026-11-03): what every derived number reads. It IS the declared spec unless
+    // the spec names a `plan` - then 07d_weather_plan.js's answer for this instant laid over it (the career's weather:
+    // the temperature, the pressure, the dew, the wind, the decks, the turbidity, the column, the front). The declared
+    // spec still round-trips (spec()), so a plan saves as `plan`, never as its values, and the sandbox's own weather
+    // under it is kept untouched for when the plan is lifted.
+    let e = s;
     let jdn = 0, utc = 0, version = 0;
     const d = {};                                        // the derived block, rebuilt by recompute()
     let sunCache = null;
 
     function recompute() {
       const o = { jdn, utc, lat: geo.lat, lon: geo.lon };
+      if (s.plan && typeof WEATHER_PLAN !== 'undefined') {
+        const P = WEATHER_PLAN.at(jdn, utc, geo);
+        e = Object.assign({}, s, P.spec); d.plan = P.meta;
+      } else { e = s; d.plan = null; }
       const su = SOLAR.sun(o), mo = SOLAR.moon(o);
       const conv = geo.convergenceDeg || 0;
       d.sunEl = su.el; d.sunAz = su.az; d.sunAzGrid = ((su.az - conv) % 360 + 360) % 360;
@@ -114,7 +130,7 @@ var DAY = (function () {
       // Pure in `utc`: a gate that never advances the clock sees a frozen
       // front, and the viewer's clock walks it. The phase is named as well as
       // the number so a panel can say "the front arrives" without arithmetic.
-      const st = s.storm || null;
+      const st = e.storm || null;
       if (st && st.at != null) {
         const pre = st.pre != null ? +st.pre : STORM_D.pre;
         const dur = st.dur != null ? +st.dur : STORM_D.dur;
@@ -131,9 +147,18 @@ var DAY = (function () {
                     windK: 1 + (( st.windK != null ? +st.windK : STORM_D.windK) - 1) * I * I0,
                     gustK: 1 + (( st.gustK != null ? +st.gustK : STORM_D.gustK) - 1) * I * I0,
                     // the wind VEERS through the passage, not through the approach
+                    // ...and BACKS OFF WITH THE FRONT as it clears (WEATHER-FIXES F2, 2026-11-03): the veer held its
+                    // full value through `post` and the climate dropped it the tick I reached 0 (09_climate stormOf is
+                    // null at I = 0) - a 55 deg snap of the wind's direction at the end of every front. Times I from
+                    // the end of the passage, so it fades as the wind and the gusts do; the approach and the passage
+                    // are unchanged.
                     veer: (st.veerDeg != null ? +st.veerDeg : STORM_D.veerDeg) * I0
-                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)),
-                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * (t > at ? 1 : 0) * I,
+                          * smf((t - (at - pre * 0.25)) / (dur + pre * 0.25)) * (t < at + dur ? 1 : I),
+                    // THE DROP IS A RAMP, NOT A STEP (WEATHER-FIXES F3): it was `t > at ? 1 : 0` - the whole dTemp (-6 K
+                    // by default) in one tick at the passage, sigma ~2 % and the cloud base hundreds of metres in a frame.
+                    // A cold front's drop takes minutes: STORM_DT_RAMP centred on `at`, so the front is half through its
+                    // drop at the declared instant and all of it five minutes later.
+                    dTemp: (st.dTemp != null ? +st.dTemp : STORM_D.dTemp) * I0 * smf((t - at) / STORM_DT_RAMP + 0.5) * I,
                     dQnh: (st.dQnh != null ? +st.dQnh : STORM_D.dQnh) * I0 * I,
                     cover: st.cover != null ? +st.cover : STORM_D.cover,
                     type: st.type || STORM_D.type,
@@ -145,24 +170,24 @@ var DAY = (function () {
       // every existing day exactly where it was. The curve is a cosine peaking
       // three hours after solar noon (the lag of the ground's own heat); a
       // named cut, the real curve is asymmetric with a sharp post-dawn rise.
-      let T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
-      const swing = s.diurnalC != null ? +s.diurnalC : 0;
+      let T = e.oatC != null ? e.oatC : 15 + (e.dISA || 0);
+      const swing = e.diurnalC != null ? +e.diurnalC : 0;
       if (swing > 0) {
         const peak = (d.noonUtc != null ? d.noonUtc : 43200) + 3 * 3600;
         T += 0.5 * swing * CORE_MATH.cos(2 * Math.PI * (utc - peak) / 86400);
       }
       if (d.storm) T += d.storm.dTemp;
       d.oatEff = T;
-      d.qnhEff = (s.qnhPa != null ? s.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
-      const Td = s.dewC != null ? s.dewC : dewFromRh(T, s.rh != null ? s.rh : DEFAULT.rh);
-      d.oatC = T; d.dewC = Td; d.rh = s.dewC != null ? rhFromDew(T, Td) : (s.rh != null ? s.rh : DEFAULT.rh);
+      d.qnhEff = (e.qnhPa != null ? e.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
+      const Td = e.dewC != null ? e.dewC : dewFromRh(T, e.rh != null ? e.rh : DEFAULT.rh);
+      d.oatC = T; d.dewC = Td; d.rh = e.dewC != null ? rhFromDew(T, Td) : (e.rh != null ? e.rh : DEFAULT.rh);
       // THE BASE MOVES ONLY WHEN THE DAY MOVES IT, and then it is QUANTISED to
       // 20 m: the cloud renderer keys its weather-map fit on the deck's base
       // (clouds.js layKey) and re-fits over a dozen frames whenever it changes,
       // so a base creeping by centimetres with the diurnal swing would re-fit
       // the sky every frame. A still day is bit-identical to before.
       const baseRaw = clamp(125 * (T - Td), 0, 6000);
-      d.cloudBase = (swing > 0 || d.storm) ? Math.round(baseRaw / 20) * 20 : baseRaw;
+      d.cloudBase = (swing > 0 || d.storm || d.plan) ? Math.round(baseRaw / 20) * 20 : baseRaw;
       // what the sky is doing, the front included (the renderer reads these)
       d.cloudCoverEff = d.storm && d.storm.I > 0
         ? Math.max(day.cloudCover, day.cloudCover + (d.storm.cover - day.cloudCover) * d.storm.I)
@@ -172,12 +197,12 @@ var DAY = (function () {
       // makeAtmos reads has moved. The world rebuilds `atmos` on it, lazily, so
       // a clock tick through a swing or a front makes new air without a
       // version bump (GATE DAY: a VISUAL change leaves atmos the SAME object).
-      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (s.lapse || 'isa')
-               + ':' + (s.mixH != null ? Math.round(s.mixH) : '-')
-               + ':' + (s.inversion ? Math.round((s.inversion.dT || 0) * 100) + '/' + Math.round(s.inversion.thick || 0) : '-');
+      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (e.lapse || 'isa')
+               + ':' + (e.mixH != null ? Math.round(e.mixH) : '-')
+               + ':' + (e.inversion ? Math.round((e.inversion.dT || 0) * 100) + '/' + Math.round(e.inversion.thick || 0) : '-');
       // NOT the humidity (see AIR_KEYS)
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
-      const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
+      const tb = e.turbidity != null ? e.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
       // TWO NUMBERS OUT OF ONE HUMIDITY, AND THEY ARE NOT THE SAME MEDIUM. They sit
       // together deliberately, because keeping them apart is what went wrong before:
@@ -211,7 +236,21 @@ var DAY = (function () {
       const cov = clamp(d.cloudCoverEff != null ? d.cloudCoverEff : 0, 0, 1);
       const burn = clamp((d.sunElLag - 5) / 20, 0, 1) * (1 - cov);
       d.mistBurn = burn;
-      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn);
+      // ...and THE WIND (F5): the storm day's gale drew 1.4 /km of ground fog before this - `mistCalm` is what the wind
+      // leaves of the layer (1 in still air and on every day that declares no wind, so those are bit-identical)
+      const w = e.wind || null;
+      const wKt = !w ? 0 : w.kts != null ? +w.kts : w.mps != null ? +w.mps / KT_MS
+                : Array.isArray(w.base) ? Math.hypot(+w.base[0] || 0, +w.base[2] || 0) / KT_MS : 0;
+      const wEff = (Number.isFinite(wKt) ? wKt : 0) * (d.storm ? d.storm.windK : 1);
+      const q = clamp((wEff - MIST_CALM_KT[0]) / (MIST_CALM_KT[1] - MIST_CALM_KT[0]), 0, 1);
+      d.mistCalm = 1 - q * q * (3 - 2 * q);
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn) * d.mistCalm;
+      // THE PLAN'S OWN WEATHER BEYOND THE SPEC (WEATHER-SEASON): an ADVECTION fog it declares (a layer of saturated
+      // marine air, `fog.hold` - it neither needs the island's humidity nor burns off with the lagged sun; study §3.4),
+      // the rain (0..1, for the renderer and the forecast; W6 draws it), the night's aurora index (Kp, NIGHT-LOOK's)
+      const P = d.plan;
+      if (P && P.fogHold > 0) d.mistRho0 = Math.max(d.mistRho0, 0.0025 * P.fogHold);
+      d.rain = P ? P.rain : 0; d.auroraKp = P ? P.kp : 0; d.fogWhere = P ? P.fogWhere : null;
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -265,9 +304,9 @@ var DAY = (function () {
     // water it needs for the dew point and the condensation level.
     const air = () => {
       const a = {};
-      for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k];
-      if (s.oatC != null || s.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
-      if (s.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
+      for (const k of AIR_KEYS) if (e[k] != null) a[k] = e[k];
+      if (e.oatC != null || e.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
+      if (e.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
       if (a.oatC != null) delete a.dISA;              // one temperature, not two
       return a;
     };
@@ -275,34 +314,36 @@ var DAY = (function () {
     const day = {
       set, advance,
       spec: () => { const o = {}; for (const k of Object.keys(s).sort()) o[k] = s[k]; return JSON.parse(JSON.stringify(o)); },
-      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null) || s.diurnalC > 0 || !!s.storm; },
+      air, get hasAir() { return AIR_KEYS.some(k => e[k] != null) || e.diurnalC > 0 || !!e.storm; },
       // K2: the declared weather, for the panel and the URL
-      get wind() { return s.wind || null; },
-      get stormSpec() { return s.storm || null; },
-      get diurnalC() { return s.diurnalC != null ? +s.diurnalC : 0; },
+      get wind() { return e.wind || null; },
+      // WEATHER-SEASON: the plan the declared spec names (null: none) - the derived `plan` is its meta for this instant
+      get planSpec() { return s.plan || null; },
+      get stormSpec() { return e.storm || null; },
+      get diurnalC() { return e.diurnalC != null ? +e.diurnalC : 0; },
       // K4: how long the sea takes to answer the wind (0 = at once, as it always was)
-      get seaTau() { return s.seaTau != null ? Math.max(0, +s.seaTau) : 0; },
+      get seaTau() { return e.seaTau != null ? Math.max(0, +e.seaTau) : 0; },
       get version() { return version; },
       get geo() { return geo; },
       get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },
       get jd() { return SOLAR.jd(jdn, utc); },
       get rate() { return s.rate != null ? s.rate : 1; },
-      get turbidity() { return s.turbidity != null ? s.turbidity : DEFAULT.turbidity; },
+      get turbidity() { return e.turbidity != null ? e.turbidity : DEFAULT.turbidity; },
       get ozone() { return s.ozone != null ? s.ozone : DEFAULT.ozone; },
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
-      get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
-      get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      get cloudCover() { return e.cloudCover != null ? e.cloudCover : DEFAULT.cloudCover; },
+      get cloudType() { return e.cloudType || DEFAULT.cloudType; },
       get cloudSeed() { return s.cloudSeed != null ? (s.cloudSeed | 0) : DEFAULT.cloudSeed; },
       // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
       // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
       // (08_cloud_field.js layers()) stacks them without overlap
       get cloudUpper() {
-        const u = Array.isArray(s.cloudUpper) ? s.cloudUpper : [];
+        const u = Array.isArray(e.cloudUpper) ? e.cloudUpper : [];
         return u.slice(0, 2).map(o => { const r = { cover: clamp(+(o && o.cover) || 0, 0, 1), type: String((o && o.type) || 'ac') };
           if (o && o.base != null && isFinite(+o.base)) r.base = +o.base; if (o && o.thick != null && +o.thick > 0) r.thick = +o.thick; return r; });
       },
       get cloudLayers() { return [{ cover: day.cloudCover, type: day.cloudType, base: d.cloudBase }].concat(day.cloudUpper); },
-      get qnhPa() { return s.qnhPa != null ? s.qnhPa : 101325; },
+      get qnhPa() { return e.qnhPa != null ? e.qnhPa : 101325; },
       // utcFor(elDeg, rising) — the UT second on THIS civil day when the sun crosses an
       // elevation (bisection on the monotone half-day); null when it never does.
       // The presets (dawn, golden, dusk...) are built on it by the clock.
@@ -326,6 +367,8 @@ var DAY = (function () {
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
                      'mistBurn',                                                       // F3c: how much of the layer the morning has taken
+                     'mistCalm',                                                       // WEATHER-FIXES F5: how much of it the wind leaves
+                     'plan', 'rain', 'auroraKp', 'fogWhere',                           // WEATHER-SEASON: the plan's meta now, and what it brings
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }

@@ -111,8 +111,9 @@ if (SHD.first) {
     let wet = 0, where = null;
     const dryAt = (x, z, what) => { if (W.waterH(x, z) - W.terrainH(x, z) > 0.01) { wet++; if (!where) where = what + ' (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')'; } };
     for (const a of land) {
-      const R = C.siteRunway(a);
-      for (let q = -a.len / 2; q <= a.len / 2; q += 1) for (let off = -R.half; off <= R.half + 1e-6; off += 1.5) dryAt(a.x + R.dx * q + R.nx * off, a.z + R.dz * q + R.nz * off, a.id);
+      // (siteRunway has no half: -undefined made the loop sample nothing, and 3a read 0 wet samples on any tree - the half is wid / 2)
+      const R = C.siteRunway(a), hw = R.half != null ? R.half : R.wid / 2;
+      for (let q = -a.len / 2; q <= a.len / 2; q += 1) for (let off = -hw; off <= hw + 1e-6; off += 1.5) dryAt(a.x + R.dx * q + R.nx * off, a.z + R.dz * q + R.nz * off, a.id);
     }
     for (const e of REC.layers.surface) if (/^tp_y_|^mn_y_apron$/.test(e.id)) {
       const bb = C.PREMISES_GEN.polyBBox(e.poly);
@@ -212,10 +213,16 @@ function knownRed(b, L2, R) {
   // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
   // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
   // known on the same terms (no ISLAND-TOUR, the strike the water's, the leg's only fault, landed and stopped on w2)
+  // G3910 (PILOT-1 P1, the user 3 Nov via A0: "accept the dent, land P1 Wednesday"): THE CUB'S STRIKE MAY DENT. With the mine
+  // touched 18 m in (not 131) the Cub reaches 02/20 later (t 3171, not 3093.8), the same soft landing (sink 1.11 m/s, gPeak 1.4)
+  // and the same water - and the airframe is dented with the strike. Known with it only: the Cub, a dent beside the
+  // prop-strike, no yield, no break, no crash
   if ((b === 'c172' || b === 'cub') && L2.to === 'w2') {
-    const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing;
-    if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
-    return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
+    const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing, D = L2.damage || {};
+    const dent = b === 'cub' && L2.faults.some(f => f.k === 'prop-strike') && !D.yields && !D.breaks && !D.crashed;
+    if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike' || (dent && f.k === 'dent')) || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
+    const dented = L2.faults.some(f => f.k === 'dent');
+    return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out' + (dented ? ', the airframe dented with it (accepted by the user 3 Nov, G3910)' : '') + '; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
   }
   // G3079 (FLOATS-FIX, 18 Oct): THE RETURN LEG mk_sea > SEA is the same aeroplane's same finding. With the water flare on power the
   // outbound touch is soft (sink 1.87 -> 0.25 m/s) and no longer ends the tour, so the return leg is flown for the first time and

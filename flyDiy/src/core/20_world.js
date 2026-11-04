@@ -795,7 +795,15 @@ function makeWorld(seed, opts) {
       // floated 30 cm of water over ground the record itself says is dry land.
       // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
       // sample points on such a cell (2026-09-23).
-      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      // ...and NOT on ground the premises declare dry (ISLAND-TOUR G1971): a strip, a pad, an apron, a road - a land
+      // surface of the record. The cover grid calls 13 patches of 02/20's old concrete and one of 13/31's WATER (a 10 m
+      // cell over a wet, dark slab), and 0.30 m of water stood on the runway: the C172 rolling across it at 16 m/s
+      // nosed into it and rejected the take-off (GEAR-WATER's wheel in the water). Only a cover-water cell asks.
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) {
+        // (a pavement's edge and its first 10 m too - the strip's shoulder, where a wheel that runs off the edge rolls)
+        if (PM) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
+        return t + 0.3;
+      }
       return -Infinity;
     }
     const ws = HYD.water(x, z);
@@ -817,10 +825,17 @@ function makeWorld(seed, opts) {
     // 3.1: analytic, cheap enough to sample per hull vertex per substep),
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
+    // BAY-MIRROR (2026-11-03): a sheltered bay is calmer - the felt trains scaled by the island's shelter (28_island.js
+    // waveK: 1 on all open water, so the open sea is byte-for-byte what it was; the wind's ripple, 0.25, deep in a bay). The
+    // water shader lifts the near patch by the SAME factor from the same bytes (WATER.setCalm), so the hull sits in the wave
+    // it is drawn in
+    const k = WAVEK ? WAVEK(x, z) : 1;
     let y = 0;
     for (const w of SEA.W) if (w.felt !== false) y += w.A * CORE_MATH.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
-    return y;
+    return k < 1 ? y * k : y;
   }
+  // the island's shelter (null on the analytic world and the flat field: no bay, the sea everywhere as it was)
+  const CALM = ISL && typeof ISL.calmAt === 'function' ? ISL.calmAt : null, WAVEK = ISL && typeof ISL.waveK === 'function' ? ISL.waveK : null;
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
   // more consumer of setWeather's wind, never a second model). Amplitude
   // 0.018 m per m/s of wind (5 m/s: 0.09 m; 10: 0.18 - see setWind), wavelength 3 + 1.4 W
@@ -1138,10 +1153,23 @@ function makeWorld(seed, opts) {
     if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
     return atmos;
   }
+  // THE PLAN'S WIND (WEATHER-SEASON): under a weather plan the day's wind is the plan's (day.wind is the EFFECTIVE spec),
+  // so a set naming `plan` or `wind` takes it, and the tick re-resolves the climate whenever the plan's quantised wind
+  // moves (`day.plan.windKey`: 0.1 kt, 1 deg, 0.01 of gust - a few re-resolves an hour). The sea walks after it (the
+  // plan's seaTau). Without a plan every line is as it was.
+  let planWindKey = null;
+  function planWind() {
+    const k = day.plan ? day.plan.windKey : null;
+    if (k === planWindKey) return false;
+    planWindKey = k;
+    setWind(day.wind || null);
+    return true;
+  }
   function setDay(spec) {
     day.set(spec);
     airNow();
-    if (spec && 'wind' in spec) setWind(spec.wind || null);
+    if (day.plan || (spec && 'plan' in spec)) { planWindKey = NaN; planWind(); }   // NaN: equal to no key, so this set always takes the wind (a plan lifted gives the declared one back)
+    else if (spec && 'wind' in spec) setWind(spec.wind || null);
     else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
   }
   // dayTick(dt): the VIEWER's clock step - the day advances and the wind
@@ -1153,7 +1181,8 @@ function makeWorld(seed, opts) {
     const u0 = day.utc;
     day.advance(dt);
     const st1 = day.storm ? day.storm.I : 0;
-    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    if (day.plan && planWind()) { /* the plan's wind moved: setWind re-resolved the column, the front's hand with it */ }
+    else if (st0 !== st1 || (sw && day.storm)) climate.refresh();
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
@@ -1236,6 +1265,10 @@ function makeWorld(seed, opts) {
     day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // BAY-MIRROR: the sea's calm factor (0 a sheltered bay .. 1 the open sea) and its field, the bytes the water shader samples
+    calmAt: CALM ? (x, z) => CALM(x, z) : () => 1,
+    waveK: WAVEK ? (x, z) => WAVEK(x, z) : () => 1,   // the factor waterH puts on the sea's waves (the shelter with the wind's ripple kept)
+    calmField: () => ISL && typeof ISL.shelter === 'function' ? ISL.shelter() : null,
     // K4: the state the sea is walking toward, and the walk itself (the viewer
     // pushes world.sea at the shader when `seaChanged` says the trains moved)
     get seaTarget() { return seaTarget; }, seaRelax,

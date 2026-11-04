@@ -632,7 +632,7 @@
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
       put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
         // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
-        try { if (CAREER_DEV && world && world.day && typeof world.day.cloudCover === 'number') player.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+        try { const cv = CAREER_DEV && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') player.career.cover = Math.round(cv * 100) / 100; } catch (e) {}   // WEATHER-FIXES F7: the effective cover
         playerSave(); } },
     });
   }
@@ -4960,7 +4960,8 @@
     const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
-    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record, on the break list at the first break)
+    R.geo = geo; R.geos = [geo];
+    if (noPush) owner.scR = R; else { owner.brkR = R; BRK.recs.push(R); }   // (G2004: a scuff's record waits on owner.scR until the break path makes it - brkMakeRec)
     { const K = model.brk; if (K) { (K.allRecs || (K.allRecs = [])).push(R); K.recLive = true; } }   // (G1859.8: every record, for the heal)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
@@ -5230,6 +5231,12 @@
     const K = model.brk, SB = SKIN_BREAK, geo = K.geoOf.get(pa);
     if (!geo || !geo.index) return null;
     if (own.brkR) return own.brkR;
+    // (3 Nov, GATE DMGPAGEW: THE SCUFF'S RECORD IS THE BREAK PATH'S ONLY WHEN THE BREAK PATH MAKES IT - in its own order
+    // and budget (brkRecOrder, REC_BUDGET), here. Put on the owner at the roll-out, every group counted as made at the first
+    // break: the wall's inheritance bound all of them (47 records on the Cub's trunk, not 8) and an alclad bucket's live
+    // triangle was drawn 6 x its rest. Until then it waits on own.scR, which only the scuff reads)
+    if (own.scR) { const R = own.scR; if (noPush) return R;
+      own.scR = null; own.brkR = R; if (BRK.recs.indexOf(R) < 0) { BRK.recs.push(R); K.recLive = true; } return R; }
     const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
     const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
     for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
@@ -5328,7 +5335,7 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         brkMakeRec(own, pa, base, off, fab, o, inhOn).detached = true;   // (2 Nov: the one recipe, the scuff's too)
       } else {
-        // (G2004: a record the scuff made at the roll-out - its snapshot detached here, at the first break, as brkCage's own)
+        // (G2004: a record not detached yet - its snapshot detached here, as brkCage's own; the scuff's come through brkMakeRec above)
         if (!own.brkR.detached) { brkDetach(pa, geo, base); own.brkR.detached = true; }
         if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
       }
@@ -5445,8 +5452,8 @@
   // the switch flipped under a wreck: every record let go and made again on the other binding (the A/B rig's)
   function brkInhReset(groups) {
     brkRestore();
-    for (const [own] of groups) own.brkR = null;
-    for (const r of model.rigs) r.brkR = null;
+    for (const [own] of groups) { own.brkR = null; own.scR = null; }
+    for (const r of model.rigs) { r.brkR = null; r.scR = null; }
     const K = model.brk; if (K) { K.inhL = null; K.inhSt = null; K.inhIt = null; K.inhGone = -1; K.wallKey = null; }
     BRK.model = model;
   }
@@ -9149,7 +9156,7 @@
   // G2665: the day's cloud cover as the career last saw it (73_ contractSky: an overcast hides the moon) - kept on the
   // document beside its day, so the next offers are drawn under the sky the player saw
   function careerCoverNote(doc) {
-    try { if (doc && doc.career && world && world.day && typeof world.day.cloudCover === 'number') doc.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+    try { const cv = doc && doc.career && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') doc.career.cover = Math.round(cv * 100) / 100; } catch (e) {}
     return doc;
   }
   function careerFlightStart() { crOver = []; careerPlateSync(); }
@@ -9187,6 +9194,8 @@
       // airframe (77_ freightStopItems); none -> the typed kilos, CAREER-WIRE's fallback
       items: typeof freightStopItems === 'function' ? freightStopItems(d, flSlot) : null,
       row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
+      // CERT-GATES: the flying plane's certificates (a job it is not certified for moves nothing here)
+      cert: careerFlightCert(),
       hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
       // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
       // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
@@ -9223,6 +9232,41 @@
     }
     return out;
   }
+  // CERT-GATES (the user 3 Nov: "you can fly an uncertified plane, but you cannot engage it in any mission in the story mode"):
+  // THE BENCH SIGNS the career plane on the stand (74_ careerSignOfBench: its two verdicts on its f3) whenever the bench's
+  // state moves and at every roll-out; nothing to sign while the bench has no current check
+  function careerSignNow() {
+    try {
+      const n = slotOnStand(), d = playerLoad();
+      if (!n || !d || d.mode !== 'career' || !d.career || !d.career.airframes || !d.career.airframes[n] || typeof careerSign !== 'function') return;
+      const st = typeof window.BENCH_STATE === 'function' ? window.BENCH_STATE() : null;
+      if (!st || !st.comm) return;
+      const r = careerSign(d, n, careerSignOfBench(st, typeof window.BENCH_FP === 'function' ? window.BENCH_FP() : null, Math.round(d.clock || 0)));
+      if (r.ok && r.doc !== d) { player = r.doc; playerSave(); }
+    } catch (e) {}
+  }
+  // the flying plane's certificates for the stop record: its airframe's, judged on the fingerprint it rolled out with
+  function careerFlightCert() {
+    try {
+      const d = playerLoad(), A = flSlot && d.career && d.career.airframes ? d.career.airframes[flSlot] : null;
+      return typeof careerCertOf === 'function' ? careerCertOf(A, typeof window.BENCH_FP_OUT === 'function' ? window.BENCH_FP_OUT() : null) : null;
+    } catch (e) { return null; }
+  }
+  // B (the job is KEPT): said before leaving, never a lock - the flight is free, the stop moves nothing of a job this
+  // plane is not certified for (74_ contractOnStop). At the roll-out the stand's plane on the garage's fingerprint; in the
+  // air (the next leg) the flying one on the roll-out's (BENCH_FP_OUT: the editor is closed out there)
+  function careerCertWarn(inAir) {
+    try {
+      const d = playerLoad(), n = inAir ? flSlot : slotOnStand();
+      if (!n || !d || !d.career || typeof careerCertOf !== 'function') return;
+      const F = inAir ? window.BENCH_FP_OUT : window.BENCH_FP, fp = typeof F === 'function' ? F() : null;
+      const C = careerCertOf(d.career.airframes && d.career.airframes[n], fp);
+      const no = d.career.contracts.accepted.filter(id => { const need = contractCertNeed(careerContract(d, id)); return need && !C[need]; });
+      if (!no.length) return;
+      ecNote = 'Not certified for ' + (no.length === 1 ? 'your accepted job' : no.length + ' of your accepted jobs') + ' (' + (C.why || 'run the bench') + '): you can fly, the job waits for a certified plane';
+      if (CAREER_DEV) econWalletSync();
+    } catch (e) {}
+  }
   const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
     // G3260 (ROUTES): the map's lines and planes, each where it is on its route at the world's instant
     R.routes = routesMapOf(playerLoad(), world && world.day ? { date: world.day.date, utc: world.day.utc } : null, world && world.aerodromes);
@@ -9232,7 +9276,7 @@
   function careerAct(id, what) {
     let d = playerLoad();
     // G2742 (STORY-PAGE, Q1): the generated list is held while the story runs - its rows stand greyed, Track refused
-    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes after the move-in'); return careerRecord(); }
+    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes later in the story'); return careerRecord(); }
     const C = d.career.contracts;
     let r = null;
     if (what === 'accept') r = C.accepted.includes(id) ? null : careerAccept(d, id);
@@ -9907,7 +9951,7 @@
     } catch (e) { console.warn('flyDiy (story): the certificate -', e && e.message); }
   }
   if (STORY_PAGE) window.BENCH_CERTIFIED = storyCertified;
-  // Q1 ON THE MAP: the generated rows held (greyed, "after the move-in"), the story's own goal at the head of the list
+  // Q1 ON THE MAP: the generated rows held (greyed, "later in the story"), the story's own goal at the head of the list
   function storyRecord(R) {
     if (!STORY_PAGE || !R) return R;
     const d = playerLoad();
@@ -9916,7 +9960,7 @@
     const K = storyCardNow();
     // G2744 (the user: "the middle of nowhere"): while the story runs from the cabin, the map opens on it (`at`)
     const hereB = d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null;
-    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in',
+    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), held: 'later in the story',   // (STORY-HOME-FIX F4/F5: no step counter - G3356; HOME yours from the start)
                     at: hereB && hereB !== 'HOME' ? hereB : null } : null;
     return R;
   }
@@ -10708,15 +10752,28 @@
       const G = garageStand(d, id), here = d.here === id;
       const kind = ((typeof SHELLS === 'object' && SHELLS[sh.shell]) || {}).name || 'hangar';
       out.push({ id, name: sh.name || (id === PREM_MAIN && aero === 'HOME' ? 'the main hangar' : 'the ' + String(kind).toLowerCase()) + (a ? ' at ' + (a.name || a.id) : ''),
-                 aero, here, locked: !!sh.locked, why: garageWhy(sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
+                 aero, here, locked: !!sh.locked, why: garageWhy(sh), away: here ? '' : garageAway(d, id, sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
     }
     return out;
+  }
+  // STORY-HOME-FIX (F2): AN EMPTY HANGAR while the aeroplane on the stand stands at another field - going there would show
+  // that aeroplane in a room it is not in, and its roll-out would leave from where it stands: the map says so instead
+  // (fly one in first). '' = no objection (a plane in there, the stand's own field, an unsaved build on the stand, or out of
+  // a flight: The shed's trip brings the flown aeroplane in where it landed)
+  function garageAway(d, id, sh) {
+    if (!inGarage || garageStand(d, id).stand) return '';
+    const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return '';
+    const aero = typeof sh.base === 'string' ? sh.base : 'HOME', W = playerStoreWhere(d, S);
+    if (W && W.aero === aero) return '';
+    const a = ((world && world.aerodromes) || []).find(x => x.id === aero);
+    return 'empty - fly an aeroplane to ' + (a ? a.name || a.id : aero) + ' first';
   }
   function gotoGarage(id) {
     const d = playerLoad(), sh = d.sheds && d.sheds[id];
     if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
     if (sh.locked) return Promise.resolve({ ok: false, why: garageWhy(sh), stand: null });
     if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
+    const away = garageAway(d, id, sh); if (away) return Promise.resolve({ ok: false, why: away, stand: null });
     const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
     if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
     const r = playerGoTo(d, id);
@@ -12469,6 +12526,208 @@
     if (!isFinite(cx) || !isFinite(lx)) return null;
     return [cx - lx, cy - ly, cz - lz];
   }
+  // =========================================================================
+  // THE DESIGN AIDS (DESIGN-AIDS, the user 3 Nov: "we miss helpers in the garage. CG and neutral point are good, but
+  // maybe we could have center of lift, thrust vector, something to help with floats dimensioning and positioning?").
+  // Drawn in the room, in the posts' own group and style, from genDesignAids (64c_gen_aids.js) - the numbers the bench's
+  // certificate judges (WYSIWYG). Built where the posts are built (a release, a balance answer), never per frame; an
+  // aid that is off computes nothing. The menu (editor.js QUICK 'aids') toggles them through GARAGE_AIDS; the choice
+  // is a viewer preference (flydiy.aids), never the aeroplane's.
+  // =========================================================================
+  // (vars, not consts: placeIndicators / buildIndicators can run before this block, as stMarksOff's note says)
+  var AID_KEYS = [['cg', 'CG + neutral point'], ['lift', 'Centre of lift'], ['thrust', 'Thrust line'], ['floats', 'Floats'],
+                    ['range', 'CG range (loadings)'], ['tails', 'Tail volumes'], ['prop', 'Prop clearance'],
+                    ['stance', 'Ground stance'], ['doors', 'Door swing']];
+  var AID_PREF = 'flydiy.aids';
+  var aidPref = (() => { try { const o = JSON.parse(prefGet(AID_PREF, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } })();
+  function aidFloats() { return !!(def && def.parts && def.parts.floats && def.parts.floats.length); }
+  // the defaults: the CG posts on, the floats' aid on for a float build, the rest off
+  function aidOn(k) { if (!aidPref) return k === 'cg'; return Object.prototype.hasOwnProperty.call(aidPref, k) ? !!aidPref[k] : k === 'cg' ? true : k === 'floats' ? aidFloats() : false; }
+  // which aids this aeroplane has something to say about (the menu greys the others)
+  function aidApplies(k) {
+    if (k === 'floats') return aidFloats();
+    if (k === 'stance') return !aidFloats();
+    return true;
+  }
+  var gAid = [], gAidLabels = [], gAidData = null;
+  function aidsClear() {
+    if (!gAid) return;
+    for (const o of gAid) { gGrp.remove(o); if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }
+    for (const l of gAidLabels) { gGrp.remove(l); if (l.material) { if (l.material.map) l.material.map.dispose(); l.material.dispose(); } }
+    gAid = []; gAidLabels = [];
+  }
+  // the design frame (def.nodes: x aft, y up, z left) onto the posed lattice (sim.p), by the mains - the landmark the
+  // posts already stand on - and the body's axes: the same rigid placement the CG post makes along xA
+  function aidMap() {
+    const P = def && def.parts;
+    if (!P || P.GAL == null || P.GAR == null || P.GAL < 0 || P.GAR < 0) return null;
+    const a = P.GAL * 3, c = P.GAR * 3;
+    if (!sim || !sim.p || sim.p.length < Math.max(a, c) + 3 || !def.nodes[P.GAL] || !def.nodes[P.GAR]) return null;
+    const nL = def.nodes[P.GAL].p, nR = def.nodes[P.GAR].p;
+    const Md = [0, 1, 2].map(k => 0.5 * (nL[k] + nR[k])), Ms = [0, 1, 2].map(k => 0.5 * (sim.p[a + k] + sim.p[c + k]));
+    let xA = sim.axes()[0];
+    // a build with no third wheel (floats) stands LEVEL on its keels in the room (_cage_float.js: pitch 0), whatever
+    // attitude the sim's reset left it in: its axis is the level one
+    if (!(P.TW != null && P.TW >= 0)) { const h = Math.hypot(xA[0], xA[2]) || 1; xA = [xA[0] / h, 0, xA[2] / h]; }
+    const sg = (nL[2] - nR[2]) >= 0 ? 1 : -1;
+    let z = [0, 1, 2].map(k => sg * (sim.p[a + k] - sim.p[c + k]));
+    const dz = z[0] * xA[0] + z[1] * xA[1] + z[2] * xA[2];
+    z = z.map((v, k) => v - dz * xA[k]);
+    const zl = Math.hypot(z[0], z[1], z[2]) || 1; z = z.map(v => v / zl);
+    const y = [z[1] * xA[2] - z[2] * xA[1], z[2] * xA[0] - z[0] * xA[2], z[0] * xA[1] - z[1] * xA[0]];
+    return q => [0, 1, 2].map(k => Ms[k] + xA[k] * (q[0] - Md[0]) + y[k] * (q[1] - Md[1]) + z[k] * (q[2] - Md[2]));
+  }
+  function buildAids(bal, lin) {
+    if (!AID_KEYS) return;
+    aidsClear();
+    gAidData = null;
+    if (!inGarage || curKey !== 'gen' || !def || typeof genDesignAids !== 'function') return;
+    const want = AID_KEYS.filter(([k]) => k !== 'cg' && aidOn(k) && aidApplies(k)).map(([k]) => k);
+    if (!want.length) return;
+    const M = aidMap();
+    if (!M) return;
+    const A = genDesignAids(def, bal && isFinite(bal.cgX) ? { cgX: bal.cgX, npX: bal.npX, cBar: bal.cBar } : null,
+                            { propOff: typeof genAidPropOff === 'function' ? genAidPropOff(window.CAGE_ENG) : null });
+    gAidData = A;
+    const row = id => A.rows.filter(r => r.id === id)[0] || null;
+    const C = { pass: lin(0x6fd08a), warn: lin(0xffa13d), fail: lin(0xff6b5b), lift: lin(0x5ac8fa), thrust: lin(0xc792ea),
+                water: lin(0x4aa3ff), pale: lin(0xd3c3ae) };
+    const lvlC = r => C[(r && r.level) || 'pass'];
+    const V = [], Cc = [];
+    const seg = (p, q, col) => { const a = M(p), b = M(q); V.push(a[0], a[1], a[2], b[0], b[1], b[2]); for (let i = 0; i < 2; i++) Cc.push(col[0], col[1], col[2]); };
+    // a ROD with a head (an arrow), thick enough to read at a phone's 360 px: a mesh, not a 1 px line
+    const rod = (p, q, col, r, head) => {
+      const a = new THREE.Vector3().fromArray(M(p)), b = new THREE.Vector3().fromArray(M(q));
+      const d = new THREE.Vector3().subVectors(b, a), L = d.length();
+      if (!(L > 1e-4)) return;
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });
+      const hl = head ? Math.min(0.35 * L, r * 7) : 0;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L - hl, 8), mat);
+      m.position.copy(a).addScaledVector(d, (L - hl) / 2 / L);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
+      m.renderOrder = 998; m.frustumCulled = false;
+      gGrp.add(UIL ? UIL.claim(m) : m); gAid.push(m);
+      if (head) {
+        const h = new THREE.Mesh(new THREE.ConeGeometry(r * 2.6, hl, 10), mat.clone());
+        h.position.copy(a).addScaledVector(d, (L - hl / 2) / L);
+        h.quaternion.copy(m.quaternion); h.renderOrder = 998; h.frustumCulled = false;
+        gGrp.add(UIL ? UIL.claim(h) : h); gAid.push(h);
+      }
+    };
+    // G3906b's rule for the posts, for the aids too (the user 2 Nov: "at 360 px a label is a smudge over the aeroplane"):
+    // on a touch screen the aids draw without their words - the numbers are the bench's key issues
+    const label = (q, text, col, sub) => {
+      if (TOUCH_UI) return;
+      const sp = makeLabel(text, col, sub);
+      const w = M(q); sp.position.set(w[0], w[1], w[2]);
+      gGrp.add(UIL ? UIL.claim(sp) : sp); gAidLabels.push(sp);
+    };
+    const cg = A.cg, R2 = v => (Math.round(v * 100) / 100).toFixed(2);
+    // the ground (wheels) or the still water at gross (floats): where the bars lie
+    const yGround = A.floats && A.floats.waterY != null ? A.floats.waterY
+      : def.nodes.reduce((m, n) => Math.min(m, n.p[1] - (n.r || 0)), Infinity);
+    if (want.indexOf('lift') >= 0 && A.lift) {
+      for (const l of A.lift) {
+        const len = 0.5 + 2.6 * l.share, r = 0.02 + 0.03 * l.share;
+        rod([l.x, l.y, 0], [l.x, l.y + len, 0], C.lift, r, true);
+        seg([l.x, yGround, 0], [l.x, l.y, 0], C.lift);
+        label([l.x, l.y + len + 0.25, 0], 'centre of lift · ' + (l.kind === 'stab' ? 'stabiliser' : 'wing') + ' ' + Math.round(l.share * 100) + ' %',
+              C.lift, Math.round(l.area * 10) / 10 + ' m² · ' + R2(Math.abs(l.x - cg[0])) + ' m ' + (l.x >= cg[0] ? 'aft of' : 'ahead of') + ' the CG');
+      }
+    }
+    if (want.indexOf('thrust') >= 0 && A.thrust) {
+      const r = row('aid.thrust'), col = r && r.level !== 'pass' ? lvlC(r) : C.thrust;
+      for (const t of A.thrust) {
+        const p = t.at, L = 1.0 + 1.2 * Math.min(1, t.T / 3000);
+        rod(p, [p[0] - L, p[1], p[2]], col, 0.03, true);
+        seg([p[0] + 1.2, p[1], p[2]], [cg[0] - 2.5, p[1], p[2]], col);           // the thrust line, through the aeroplane
+        seg([cg[0], cg[1], 0], [cg[0], p[1], 0], col);                           // its offset from the CG
+        label([cg[0] - 0.9, p[1] + 0.25, 0], 'thrust ' + R2(Math.abs(t.dy)) + ' m ' + (t.dy >= 0 ? 'above' : 'below') + ' the CG', col,
+              'full power: nose-' + (t.Mup >= 0 ? 'up ' : 'down ') + Math.round(Math.abs(t.Mup)) + ' N m' + (t.elev != null ? ' · ' + Math.round(t.elev * 100) + ' % elevator' : ''));
+      }
+    }
+    if (want.indexOf('floats') >= 0 && A.floats) {
+      const F = A.floats, rs = row('aid.step'), rr = row('aid.reserve');
+      const cs = lvlC(rs), cr = lvlC(rr);
+      // the step: the line from the CG to the step keel, the vertical through the CG, and where the step should be
+      rod([cg[0], cg[1], 0], [F.stepX, F.keelY, 0], cs, 0.025, false);
+      seg([cg[0], cg[1], 0], [cg[0], F.keelY, 0], C.pale);
+      const wantX = cg[0] + Math.tan(F.want[2] * Math.PI / 180) * (cg[1] - F.keelY);
+      seg([cg[0], cg[1], 0], [wantX, F.keelY, 0], C.pass);
+      for (const sd of [1, -1]) {
+        seg([F.stepX, F.keelY, sd * F.z], [F.stepX, F.keelY + F.H, sd * F.z], cs);
+        // the waterline at gross, bow to stern on each float
+        if (F.waterY != null) rod([F.bowX, F.waterY, sd * F.z], [F.sternX, F.waterY, sd * F.z], cr, 0.02, false);
+      }
+      if (F.waterY != null) { seg([F.stepX, F.waterY, F.z], [F.stepX, F.waterY, -F.z], C.water); }
+      label([F.stepX, F.keelY - 0.2, 0], 'step ' + (F.ang >= 0 ? Math.round(F.ang) + '° aft of the CG' : Math.round(-F.ang) + '° AHEAD of the CG'), cs,
+            rs && rs.level !== 'pass' ? rs.fix.replace(/ \(the step to .*$/, '') : 'the rule ' + F.want[0] + '-' + F.want[1] + '°');
+      label([F.sternX, (F.waterY != null ? F.waterY : F.keelY) + 0.35, F.z], 'floats ' + (Math.round(F.reserve * 100) / 100).toFixed(2) + ' × the weight', cr,
+            rr && rr.level !== 'pass' ? rr.fix.split(':')[0] : 'waterline at gross · ' + Math.round(F.L * 10) / 10 + ' m long, ' + R2(F.track) + ' m apart');
+    }
+    if (want.indexOf('range') >= 0 && A.range) {
+      const Rg = A.range, r = row('aid.range'), y = yGround + 0.03;
+      const B = typeof genMarginBand === 'function' ? genMarginBand : null;
+      const bc = x => { const b = B && A.npX != null ? B((A.npX - x) / A.cBar) : null; return b ? C[b.band === 'red' ? 'fail' : b.band === 'orange' ? 'warn' : 'pass'] : C.pale; };
+      rod([Rg.fwdX, y, 0], [Rg.aftX, y, 0], lvlC(r), 0.035, false);
+      for (const c of Rg.corners) seg([c.cgX, y, -0.35], [c.cgX, y, 0.35], bc(c.cgX));
+      if (A.npX != null) seg([A.npX, y, -0.6], [A.npX, y, 0.6], C.fail);
+      label([0.5 * (Rg.fwdX + Rg.aftX), y + 0.3, 0.6], 'CG range ' + Math.round(Rg.smFwd * 100) + ' … ' + Math.round(Rg.smAft * 100) + ' % margin', lvlC(r),
+            'every seat, full fuel … reserves' + (r && r.level !== 'pass' ? ' · the aft corner ' + Rg.aft.label : ''));
+    }
+    if (want.indexOf('tails') >= 0 && A.tails && A.tails.at) {
+      const T = A.tails, at = T.at, w = (A.lift || []).filter(l => l.kind === 'wing')[0];
+      const lv = (v, lim) => v == null ? C.pale : v < lim[0] ? C.warn : C.pass;
+      if (w) seg([w.x, w.y, 0], [at[0], at[1], 0], C.pale);
+      if (T.Vh != null) label([at[0], at[1] + 0.9, 0], 'tail volume ' + T.Vh.toFixed(2), lv(T.Vh, T.VhTyp), 'typical ' + T.VhTyp[1].toFixed(2) + ' (warn under ' + T.VhTyp[0].toFixed(2) + ')');
+      if (T.Vv != null) label([at[0], at[1] + 1.5, 0], 'fin volume ' + T.Vv.toFixed(3), lv(T.Vv, T.VvTyp), 'typical ' + T.VvTyp[1].toFixed(3) + ' (warn under ' + T.VvTyp[0].toFixed(3) + ')');
+    }
+    if (want.indexOf('prop') >= 0 && A.prop) {
+      const r = row('aid.prop'), col = lvlC(r);
+      for (const p of A.prop) {
+        const c = p.at, N = 36;
+        for (let i = 0; i < N; i++) {
+          const a0 = i / N * 2 * Math.PI, a1 = (i + 1) / N * 2 * Math.PI;
+          seg([c[0], c[1] + p.R * Math.cos(a0), c[2] + p.R * Math.sin(a0)], [c[0], c[1] + p.R * Math.cos(a1), c[2] + p.R * Math.sin(a1)], col);
+        }
+        if (p.hit) rod([c[0], p.hit[1], p.hit[2]], p.hit, col, 0.025, false);
+        const gy = p.ground != null ? c[1] - p.R - p.ground : p.water != null ? c[1] - p.R - p.water : null;
+        if (gy != null) seg([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
+        label([c[0], c[1] + p.R + 0.3, c[2]], 'prop ' + (p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), col,
+              p.ground != null ? Math.round(p.ground * 100) + ' cm over the ground' : p.water != null ? Math.round(p.water * 100) + ' cm over the water at gross' : '');
+      }
+    }
+    if (want.indexOf('stance') >= 0 && A.stance) {
+      const S = A.stance, r = row('aid.stance'), col = lvlC(r);
+      rod([S.mainX, S.groundY, 0], [cg[0], cg[1], 0], col, 0.02, false);
+      seg([cg[0], cg[1], 0], [cg[0], S.groundY, 0], C.pale);
+      label([S.mainX, S.groundY - 0.25, 0], (S.trike ? 'tip-back ' : 'mains ') + Math.round(S.ang) + '°' + (S.trike ? '' : ' ahead of the CG'), col,
+            (S.trike && S.share != null ? 'nose wheel ' + Math.round(S.share * 100) + ' % · ' : '') + 'the rule ' + S.want[0] + '-' + S.want[1] + '°');
+    }
+    if (want.indexOf('doors') >= 0) {
+      // the door-swing check is the editor's (PILLAR-ANCHORS, PILLAR_SITE.doorSwingReport on an idle pass): its last answer
+      const DS = window.CAGE_DOORSWING, rep = DS && DS.last, PS = window.PILLAR_SITE;
+      const sx = def.spec && def.spec.cabin && Array.isArray(def.spec.cabin.seatsX) && def.spec.cabin.seatsX.length ? def.spec.cabin.seatsX[0] : cg[0];
+      const top = (def.spec && def.spec.cabin && def.spec.cabin.h) || 1.2;
+      if (rep && rep.doors && rep.doors.length) {
+        const red = rep.doors.filter(d => d.red);
+        label([sx, top + 0.6, 0], red.length ? 'door swing: ' + red.length + ' door' + (red.length > 1 ? 's' : '') + ' blocked' : 'doors swing clear', red.length ? C.warn : C.pass,
+              PS && PS.swingLine ? PS.swingLine(red[0] || rep.worst) : '');
+      } else label([sx, top + 0.6, 0], 'door swing: not measured', C.pale, rep ? 'no door on this build' : 'the editor measures it when the hand stops');
+    }
+    if (V.length) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Cc), 3));
+      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true }));
+      ls.frustumCulled = false; ls.renderOrder = 997;
+      gGrp.add(UIL ? UIL.claim(ls) : ls); gAid.push(ls);
+    }
+  }
+  window.GARAGE_AIDS = {
+    keys: AID_KEYS, on: aidOn, applies: aidApplies, data: () => gAidData,
+    set(k, v) { aidPref[k] = !!v; prefSet(AID_PREF, JSON.stringify(aidPref)); if (inGarage && curKey === 'gen') buildIndicators(); },
+  };
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
@@ -12580,36 +12839,39 @@
       for (const [dx, dz] of [[0.45, 0], [0, 0.45]])
         seg([px - dx, h, pz - dz], [px + dx, h, pz + dz], col);
     };
-    post(cg[0], cg[2], COL, 3.2);
-    // d: body-x offset NP - CG, aft positive; negative = the CG is BEHIND the
-    // neutral point and the aeroplane is statically unstable (the post reds)
-    const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
-    post(npx, npz, COL, 2.8);
-    // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
-    // changing with alpha — the aft limit the CG must stay ahead of — and the
-    // gap between the two posts IS the static margin. The centre of lift is a
-    // different thing and moves with alpha; labelling it that way would say
-    // something false about what the gap means.
-    // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
-    // to me apart from CG"). The rail's `legend` flyout says the rest.
-    // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
-    // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
-    // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
-    // margin, the band's colour the verdict
-    if (!TOUCH_UI) {
-      label(npx, 2.8, npz, 'neutral point', COL, smTxt);
-      label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
-    }
-    // and the margin itself, as a bar on the ground between the two posts
-    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
-    // ground contacts: where it actually touches, wheel by wheel
-    for (const k of ['GAL', 'GAR', 'TW']) {
-      const i = P[k]; if (i == null || i < 0) continue;   // H2: a float build has no third wheel
-      const n = def.nodes[i], y = sim.p[i * 3 + 1] - n.r;
-      const px = sim.p[i * 3], pz = sim.p[i * 3 + 2];
-      for (const [dx, dz] of [[0.28, 0], [0, 0.28]])
-        seg([px - dx, y, pz - dz], [px + dx, y, pz + dz], PALE);
-      seg([px, y, pz], [px, y + n.r, pz], PALE);
+    // DESIGN-AIDS: the CG + neutral point posts are the menu's first aid (on by default); off, the numbers stay (CG_READ)
+    if (aidOn('cg')) {
+      post(cg[0], cg[2], COL, 3.2);
+      // d: body-x offset NP - CG, aft positive; negative = the CG is BEHIND the
+      // neutral point and the aeroplane is statically unstable (the post reds)
+      const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
+      post(npx, npz, COL, 2.8);
+      // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
+      // changing with alpha — the aft limit the CG must stay ahead of — and the
+      // gap between the two posts IS the static margin. The centre of lift is a
+      // different thing and moves with alpha; labelling it that way would say
+      // something false about what the gap means.
+      // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
+      // to me apart from CG"). The rail's `legend` flyout says the rest.
+      // G3906b (the user 2 Nov 21:52 on the phone: "the CG indicator is taking too much space. We need something blended in
+      // the interface, not taking up estate. Original pc garage solution was good and more visual"): the phone draws the
+      // posts without their words - at 360 px a label is a smudge over the aeroplane; the taller post is the CG, the gap the
+      // margin, the band's colour the verdict
+      if (!TOUCH_UI) {
+        label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+        label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
+      }
+      // and the margin itself, as a bar on the ground between the two posts
+      seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
+      // ground contacts: where it actually touches, wheel by wheel
+      for (const k of ['GAL', 'GAR', 'TW']) {
+        const i = P[k]; if (i == null || i < 0) continue;   // H2: a float build has no third wheel
+        const n = def.nodes[i], y = sim.p[i * 3 + 1] - n.r;
+        const px = sim.p[i * 3], pz = sim.p[i * 3 + 2];
+        for (const [dx, dz] of [[0.28, 0], [0, 0.28]])
+          seg([px - dx, y, pz - dz], [px + dx, y, pz + dz], PALE);
+        seg([px, y, pz], [px, y + n.r, pz], PALE);
+      }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
@@ -12624,6 +12886,8 @@
     } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
+    // DESIGN-AIDS: the other aids, off the same balance the posts stand on (b: the balance job's, else the sheet's)
+    try { buildAids(b && P.GAL != null && P.GAR != null ? b : shakeOf(), lin); } catch (e) { if (typeof console !== 'undefined') console.warn('aids', e); }
     placeIndicators();
   }
 
@@ -13405,6 +13669,7 @@
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
+    if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
@@ -14911,6 +15176,7 @@
   // ROLL OUT reads the certificate but is NEVER locked: it is your aeroplane,
   // and building it wrong and learning why is content, not error.
   function syncGoLabel() {
+    if (CAREER_DEV) careerSignNow();   // CERT-GATES: the bench's change signs the career plane on the stand
     const b = $('bGo');
     if (!b || !inGarage) return;
     const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE()
@@ -15377,6 +15643,7 @@
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
+      if (CAREER_DEV) careerCertWarn(true);   // CERT-GATES: the next leg says it too
     }
     flNextLeg = nextLeg;
     // a To changed in the flare or the roll-out: the leg it asks for begins where the aeroplane stops
@@ -18874,6 +19141,21 @@
   // Guarded, so a core-only build still runs.
   if (typeof benchInit === 'function') benchInit({
     shake: () => shakeOf(),
+    // DESIGN-AIDS: the aids' numbers and rows for this aeroplane (the room draws the same: GARAGE_AIDS), the key issues
+    // with their sized remedies, and the static margin's levers measured on the bench's thread (two rebuilds, ~1-1.5 s:
+    // never on the page while there is a thread; the page's run where there is none)
+    aids: () => (curKey === 'gen' && def && typeof genDesignAids === 'function'
+      ? genDesignAids(def, shakeOf(), { propOff: typeof genAidPropOff === 'function' ? genAidPropOff(window.CAGE_ENG) : null }) : null),
+    keyIssues: (sh, A, lv) => (curKey === 'gen' && def && typeof genKeyIssues === 'function' ? genKeyIssues(def, sh, A, { spec: genSpec, lv: lv || null, levers: false }) : []),
+    levers: cb0 => {
+      const spec = genSpec, d = def;
+      let fired = false; const cb = lv => { if (!fired) { fired = true; cb0(lv); } };
+      const pageRun = () => setTimeout(() => { let lv = null; try { lv = genAidLevers(d, null, spec); } catch (e) {} cb(lv); }, 30);
+      const BW = window.BENCH_WORKER;
+      const w = BW && BW.start ? BW.start(m => { if (m && m.kind === 'levers') { w.kill(); cb(m.lv || null); } },
+                                          () => pageRun(), { versioned: true }) : null;
+      if (!w || !w.post({ kind: 'levers', seq: 1, spec })) { if (w) w.kill(); pageRun(); }
+    },
     // G3780 (the user 27 Oct: "Avoid an actual freeze at all costs"): cb once the sheet is known - asked of its thread
     shakeReady: cb => shakeReady(cb),
     // G3780 (STORY g3 27 Oct): the bench fingerprints only in the garage - out in the world the join's export reads a

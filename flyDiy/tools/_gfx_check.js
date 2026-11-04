@@ -271,14 +271,19 @@ console.log('GATE GFX');
   const firefoxAndroid = desk('Mali-G78', { uaMobile: undefined, ua: 'Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0', minSide: 0 });
   ok(!!WL.mobileWhy(phone) && !!WL.mobileWhy(ipad) && !!WL.mobileWhy(firefoxAndroid) && !WL.mobileWhy(touchLaptop) && !WL.mobileWhy(desk('x')),
      'the phone / tablet test: userAgentData.mobile, an iPad (a coarse pointer on 820 px, no mouse), Firefox on Android by its UA - and not a touch laptop nor a desktop');
-  ok(D(phone).screen === 'gate' && D(ipad).screen === 'gate', 'a phone and a tablet get the device gate');
+  // PHONE-NO-GATE (the user 3 Nov, via A0: "we support phone properly, so just load"): a phone or a tablet with WebGL2 is the
+  // phone profile at once - no card, whatever an older visit chose ("try anyway" or "Build on this phone"); ?profile=desktop
+  // keeps the trunk; ?devgate=1 still shows the (no-WebGL2) card. ON PURPOSE: this replaces the G2100 / G3905 gate checks
+  { const tryRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) };
+    const phoneRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'laptop', tried: true, profile: 'phone' }) };
+    ok(D(phone).screen === 'none' && D(phone).profile === 'phone' && D(ipad).screen === 'none' && D(ipad).profile === 'phone',
+       'a phone and a tablet: the phone profile at once, no card (' + D(phone).why + ')');
   ok(D(desk('', { webgl2: false })).screen === 'gate' && /WebGL2/.test(D(desk('', { webgl2: false })).why), 'a browser without WebGL2 gets the device gate');
-  ok(D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) }).screen === 'none', '"try anyway" is remembered (no gate the next time)');
-  // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too, as the phone profile - and only on a phone
-  { const phoneRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'laptop', tried: true, profile: 'phone' }) };
-    const dp = D(phone, phoneRec), dd = D(desk('NVIDIA GeForce RTX 3080'), phoneRec), dt = D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) });
-    ok(dp.screen === 'none' && dp.profile === 'phone' && !dd.profile && dt.profile === undefined && D(desk('NVIDIA GeForce RTX 3080')).profile === undefined,
-       '"build on this phone" remembered: the phone profile again with no gate; a desktop, "try anyway" and a first visit never get it'); }
+    ok(D(phone, tryRec).profile === 'phone' && D(phone, phoneRec).profile === 'phone' && D(phone, tryRec).screen === 'none',
+       'an older "try anyway" or "Build on this phone" on a phone: the phone profile too, no card');
+    ok(!D(desk('NVIDIA GeForce RTX 3080'), phoneRec).profile && D(desk('NVIDIA GeForce RTX 3080')).profile === undefined && D(phone, {}, '?profile=desktop').profile === undefined && D(phone, {}, '?profile=desktop').screen === 'none',
+       'a desktop never gets the phone profile (a phone record included); ?profile=desktop on a phone keeps the trunk, no card');
+    ok(D(phone, {}, '?devgate=1').screen === 'gate', '?devgate=1 still shows the device card (for a rig that looks at it)'); }
   // THE RIGS NEVER SEE EITHER SCREEN
   const rigs = [{ webdriver: true, userAgent: 'Mozilla/5.0 Chrome/140' }, { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/140.0' }];
   ok(rigs.every(n => D(desk('NVIDIA GeForce RTX 3080'), {}, '', n).screen === 'none' && D(phone, {}, '', n).screen === 'none' && D(desk('', { webgl2: false }), {}, '', n).screen === 'none'),
@@ -640,17 +645,10 @@ const modes = async () => {
     ok(w.screen() === 'menu', '?welcome=1 alone on localhost: the card, then the menu (the forced screen, whole)'); }
   { const w = await pg('?mode=garage', PAGES, Object.assign({}, seen));
     ok(w.FLYDIY_MODE === 'sandbox' && !w.FLYDIY_WELCOME && (w.warned || []).some(m => /mode=garage/.test(m)), '?mode=garage: the sandbox at once, said in the console'); }
-  // a phone: the device gate, then the menu
+  // a phone: no device card (PHONE-NO-GATE, the user 3 Nov) - the profile switch is the pure half's (this stub has no PROFILE,
+  // so the menu follows here; the page boots the phone garage)
   { const w = await pg('', PAGES, {}, { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile', userAgentData: { mobile: true } }, 'Adreno (TM) 740');
-    // G3905 (PHONE-1, the user 2 Nov): the gate says what the phone does now - the workshop fits, the island and the career still
-    // want a computer; the test flight and its button name only once the phone profile flies (profile.js TABLE.phone.fly)
-    const fl = w.PROFILE && w.PROFILE.TABLE && w.PROFILE.TABLE.phone && w.PROFILE.TABLE.phone.fly !== 'none';
-    const txt = w.$(x => x.tagName === 'p').map(x => x.textContent).join(' '), btn = (w.$(x => x.className === 'wplay')[0] || {}).textContent;
-    ok(w.screen() === 'card' && /workshop fits in a phone/.test(w.$(x => x.tagName === 'h1')[0].textContent) && /still need a computer/.test(txt) &&
-       btn === (fl ? 'Build and test-fly on this phone' : 'Build on this phone') && /test field/.test(txt) === !!fl,
-       'a phone: the device gate first - what the phone does (' + btn + '), the test flight said only when it ships');
-    w.$(x => x.className === 'wlink' && /try anyway/.test(x.textContent))[0].onclick(); await tick(); await tick();
-    ok(w.screen() === 'menu' && w.WELCOME.pick === 'potato', '..."try anyway": potato, then the menu'); }
+    ok(w.screen() !== 'card' && !w.$(x => x.className === 'wlink' && /try anyway/.test(x.textContent)).length, 'a phone: no device card, no "try anyway" (screen: ' + w.screen() + ')'); }
   // the CSS: every row a 48 px target or more, three greys and one accent, IBM Plex Sans
   const css = (/const CSS = `([\s\S]*?)`;/.exec(wsrc) || [])[1] || '';
   const mh = /#welcome \.wmode \{[^}]*min-height:(\d+)px/.exec(css);

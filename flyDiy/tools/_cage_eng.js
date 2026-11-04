@@ -1187,7 +1187,11 @@ function engPlace(ctx, prev) {
     // are built after this layer): the hub and the radius are kept here.
     let propHub = null;
     if (pg) { ug.updateMatrixWorld(true); const hv = new THREE.Vector3(); pg.getWorldPosition(hv); propHub = [hv.x, hv.y, hv.z]; }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc,
+    // DESIGN-AIDS: the blade plane's hub in the SAME frame as `at` (the unit's parent: the join's model frame, metres) -
+    // the drawn disc's offset from the mount the aids measure the prop's clearance from (app.js aidPropOff)
+    let propAt = null;
+    if (pg) { const pv = pg.position.clone(); ug.updateMatrix(); pv.applyMatrix4(ug.matrix); propAt = [pv.x, pv.y, pv.z]; }
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt,
                    at: [ug.position.x, ug.position.y, ug.position.z],
                    prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
                    propFit: null });

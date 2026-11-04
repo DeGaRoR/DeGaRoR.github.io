@@ -125,9 +125,23 @@ var CLOUD_FIELD = (function () {
     if (h <= 0 || h >= top) return 0;
     return smooth(0, T.bot, h) * (1 - smooth(T.top * top, top, h));
   }
+  // THE SKY YOU SEE IS THE EFFECTIVE ONE (WEATHER-FIXES F1, 2026-11-03). The low deck read the DECLARED cover and type,
+  // so a front's overcast and its cumulonimbus (07_day cloudCoverEff / cloudTypeEff) reached the thermals, the breeze,
+  // the mist's burn and the radio's words - and never the drawn sky. lowOf(day) is the low deck's { cover, type } as
+  // the day has it NOW: the declared numbers when nothing moves them (bit-identical: a plain object or a day with no
+  // front), else the effective ones, the cover in steps of LOW_EFF_STEP above the declared (the renderer re-thresholds
+  // and re-fits its map on every cover change - clouds.js mapsFor - so a front's continuous ramp would re-fit every
+  // few seconds; CLIMATE §10's "0.05 cover steps").
+  const LOW_EFF_STEP = 0.05;
+  function lowOf(day) {
+    const decl = clamp(day && day.cloudCover != null ? +day.cloudCover : 0.2, 0, 1);
+    const e = day && typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff) ? clamp(day.cloudCoverEff, 0, 1) : decl;
+    const cover = e === decl ? decl : clamp(decl + Math.round((e - decl) / LOW_EFF_STEP) * LOW_EFF_STEP, 0, 1);
+    return { cover, type: typeOf(day && (day.cloudTypeEff || day.cloudType)) };
+  }
   // layer(day) -> { base, thick, top, type }: the day's base (the dewpoint spread), the type's thickness
   function layer(day, override) {
-    const type = typeOf(day && day.cloudType), T = TYPES[type];
+    const type = lowOf(day).type, T = TYPES[type];
     let base = override && override.base != null ? override.base : (day && day.cloudBase != null ? day.cloudBase : 1000);
     base = clamp(base, 120, 5000);
     const thick = override && override.thick != null ? override.thick : T.thick;
@@ -141,7 +155,7 @@ var CLOUD_FIELD = (function () {
   // cover, its type and its index (the weather map and the drift are per deck).
   function layers(day, override) {
     const first = layer(day, override);
-    first.cover = clamp(day && day.cloudCover != null ? day.cloudCover : 0.2, 0, 1); first.index = 0;
+    first.cover = lowOf(day).cover; first.index = 0;
     const out = [first], up = (day && day.cloudUpper) || [];
     for (let i = 0; i < up.length && out.length < MAX_LAYERS; i++) {
       const u = up[i] || {}, type = typeOf(u.type), T = TYPES[type], prev = out[out.length - 1];
@@ -170,7 +184,7 @@ var CLOUD_FIELD = (function () {
     if (out[i]) Object.assign(out[i], patch);
     return out;
   }
-  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, typeOf, weatherMap, sample, coverFraction, profile, layer, layers, upperWith, columnOD, vnoise, fbm };
+  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
