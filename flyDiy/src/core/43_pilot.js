@@ -3728,7 +3728,11 @@ function makePilot(sim, def, world, opts) {
           // 1 s, and the roll's clock (the accelerate-stop's filter and its rules) starts there. Only a taildragger on
           // wheels over static T/W lineupTW (0.30) arms it: the user's Cub 0.27, the Jodel 0.23; the Cessnas are
           // tricycles, the float builds on the water - no validated aeroplane
-          if (rollS0 === null) { lineHold = false; lineOkT = 0; }
+          // G3914: ...AND OPENS IT SMOOTHLY. A step to full power from rest swings a taildragger of this class past its tailwheel's arc (G3800): the radial card at full tanks broke
+          // out 0.8 s into the roll, castoring it steers nothing, and it never left ROLL (900 s, gave up). Over the same 2 s as a profile's ramp the wheel holds and it lifts off at
+          // 15 s (13.9 before G3800). On a short field the brakes hold through the ramp (shortTO below), so it costs no run
+          const capR = (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) ? Math.min(GP.cap, 0.3) : GP.cap;
+          if (rollS0 === null) { lineHold = false; lineOkT = 0; thrRoll = Math.min(thrRoll, capR); }
           if (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) {
             if (!lineHold && Math.abs(e) > 0.26) { lineHold = true; lineOkT = 0; }
             if (lineHold) {
@@ -3737,8 +3741,8 @@ function makePilot(sim, def, world, opts) {
             }
           } else lineHold = false;
           if (lineHold) { capT = Math.min(capT, Math.max(0.2, (A.lineTaxiTW ?? 0.15) / STATIC_TW)); phaseT = 0; }
-          thrRoll = GP.cap < 1
-            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+          thrRoll = capR < 1
+            ? Math.min(capT, Math.max(thrRoll, capR) + (1 - capR) / (A.thrRampS ?? 2) * dt)
             : capT;
           // G1937 (PILOT-ONE, the user: the take-off "pulls on the stick much too fast, and hops" - on the WATER).
           // ON THE WATER THE POWER COMES IN OVER SECONDS. The throttle went from 0 to full in one step at 0.5 s:
