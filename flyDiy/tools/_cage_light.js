@@ -1210,7 +1210,8 @@ function sites(scene, group, P) {
       // the CEILING is the interior's own liner where there is one and the
       // skin's roof band otherwise — both are named, so neither is guessed
       const ROOF = { ceilingLoop: 1, body: 1, plywood: 1, cloth: 1,
-                     composite: 1, toele: 1, waistband: 1 };
+                     composite: 1, toele: 1, waistband: 1,
+                     headliner: 1, cabWall: 1 };   // CABIN-INTERIOR: the liner's split, still the liner
       // A CEILING FACES DOWN AND IS IN THE UPPER HALF OF THE CABIN. Both
       // halves are needed and the first cut had neither: filtering only on
       // "above the waist" and taking the LOWEST match returned a face 34 mm
@@ -1301,14 +1302,57 @@ function sites(scene, group, P) {
       return q ? [q.x * kU, q.y * kU, q.z * kU] : null;
     };
     const M0 = window.CAGE_UI && window.CAGE_UI.MS;
+    // THE FLANGE STAYS INSIDE (CABIN-SHOTS, 3 Nov: the twin's two front roof lamps showed as domes through the
+    // windscreen's frame band from outside - the flange, 1.34 r wide (PROF.can), lies flat on the liner where the roof
+    // falls to the screen, and its rim stood out through the skin). Every point of the rim (12 round it, in the
+    // flange's plane) must have a face of the sheet over it, 2 mm clear; else the rung is refused and the ladder goes on.
+    const skinOver = (q, ax, R) => {
+      const M = M0;
+      if (!M || !M.V || !M.F) return true;
+      const tris = [];
+      for (const f of M.F) {
+        if (f.v.length < 3) continue;
+        const pts = f.v.map(vi => [M.V[vi][0] * kU, M.V[vi][1] * kU, M.V[vi][2] * kU]);
+        if (!pts.some(p => p[1] > q[1] - 0.05 && Math.hypot(p[0] - q[0], p[2] - q[2]) < R + 0.15)) continue;
+        for (let n = 1; n + 1 < pts.length; n++) tris.push([pts[0], pts[n], pts[n + 1]]);
+      }
+      const u0 = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = nrm([ax[1] * u0[2] - ax[2] * u0[1], ax[2] * u0[0] - ax[0] * u0[2], ax[0] * u0[1] - ax[1] * u0[0]]);
+      const v = [ax[1] * u[2] - ax[2] * u[1], ax[2] * u[0] - ax[0] * u[2], ax[0] * u[1] - ax[1] * u[0]];
+      for (let n = 0; n < 12; n++) {
+        const t = 2 * Math.PI * n / 12, c = Math.cos(t) * R, sn = Math.sin(t) * R;
+        const x = q[0] + u[0] * c + v[0] * sn, y = q[1] + u[1] * c + v[1] * sn, z = q[2] + u[2] * c + v[2] * sn;
+        let over = false;
+        for (const [a, b, d] of tris) {
+          const dd = (b[2] - d[2]) * (a[0] - d[0]) + (d[0] - b[0]) * (a[2] - d[2]);
+          if (Math.abs(dd) < 1e-12) continue;
+          const l1 = ((b[2] - d[2]) * (x - d[0]) + (d[0] - b[0]) * (z - d[2])) / dd;
+          const l2 = ((d[2] - a[2]) * (x - d[0]) + (a[0] - d[0]) * (z - d[2])) / dd;
+          if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
+          if (l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * d[1] > y + 0.002) { over = true; break; }
+        }
+        if (!over) return false;
+      }
+      return true;
+    };
     // (CABIN-CRAFT: the ceiling-loop rail beside a skylight - G296's frame rung - left the ladder: it stands beside the glass)
     const roofAt = s => {
       // a face DIRECTLY over the seat (16 cm), and the lamp on that face —
       // not at the seat's own x under whatever the wider search found
       // (CABIN-CRAFT: ...or, when every face over the seat is flank, or beside or under glass, the nearest clear one
       // within 0.45 m: a skylight cabin's lamp moves to the solid roof fore or aft of the pane)
-      const cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind) || ceilAt(s.x, s.zBack + 0.12, 0.45, s.kind);
-      if (!cl) return null;
+      const R = 1.34 * (LIGHTS[s.kind].w / 2) * sizeK0;
+      const inside = c => c && skinOver([c.x, c.y, c.z], c.n || [0, -1, 0], R);
+      let cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind);
+      // a face over the seat whose flange would stand out (the roof falling to a raked screen): the same search a
+      // little further aft, over the head, before the ladder gives the roof up
+      if (cl && !inside(cl)) {
+        cl = null;
+        for (const dz of [0.06, 0, -0.06]) { const c = ceilAt(s.x, s.zBack + dz, 0.16, s.kind); if (inside(c)) { cl = c; break; } }
+        if (!cl) return null;
+      }
+      cl = cl || ceilAt(s.x, s.zBack + 0.12, 0.45, s.kind);
+      if (!cl || !inside(cl)) return null;
       const ax = cl.n || [0, -1, 0];
       return { p: off([cl.x, cl.y, cl.z], ax, sink(s.kind)), ax, onCeiling: true, rung: 'roof' };
     };
@@ -1446,10 +1490,23 @@ function sites(scene, group, P) {
     // bulkhead if available" - then the arch (only clear of the glass now), then the user's last resort. No rung is
     // ever on glass: each asks clearOfGlass.
     const archClear = s => { const m = archAt(s); return m && clearOfGlass(m.p, null, s.kind) ? m : null; };
+    // CABIN-INTERIOR G1: THE OVERHEAD CONSOLE, when the crew drew one (A.ohc, its lamp seats): the front row's lamps
+    // go into its bezels - the flood on the pilot's side, a front passenger's on theirs - first on a closed cabin's
+    // ladder (the console is never under glass: the crew draws none there)
+    const consoleAt = s => {
+      const O = A.ohc;
+      if (!O || !O.seats || !O.seats.length || Math.abs(s.zBack - O.zSeat) > 0.15) return null;
+      const sd = Math.abs(s.x) < 0.05 ? 0 : Math.sign(s.x);
+      const q = O.seats.find(o => o.sd === sd) || (O.seats.length === 1 ? O.seats[0] : null);
+      if (!q) return null;
+      // the fitting the bezel was cut for (CABIN-SHOTS: the 75 mm flood hung under a 52 mm bezel): its radius, its sink
+      const r = (O.r || LIGHTS[s.kind].w / 2);
+      return { p: off(q.p, [0, -1, 0], 0.62 * r * sizeK0 - 0.001), ax: [0, -1, 0], r, onCeiling: true, rung: 'console' };
+    };
     const LADDER = {
-      flood: [[roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
+      flood: [[consoleAt, roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
               [coamingAt, bulkheadAt, shoulderAt], [bulkheadAt, archClear, shoulderAt]],
-      pax:   [[roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
+      pax:   [[consoleAt, roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
               [bulkheadAt, shoulderAt]],
     };
     const mountAt = (kind, s) => {
