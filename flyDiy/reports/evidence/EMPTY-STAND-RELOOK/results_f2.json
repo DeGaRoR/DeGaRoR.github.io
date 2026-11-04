@@ -1,0 +1,415 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "args": [
+  "--careers",
+  "2"
+ ],
+ "url": "gfx=laptop&tutor=0",
+ "profiles": {
+  "career2": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the chooser (#npWrap) did NOT come up by itself on a new career (F2)",
+       "got": {
+        "npWrap": false,
+        "open": false,
+        "starterFlag": "Rufus",
+        "mode": "career",
+        "wipKey": true,
+        "webdriver": false,
+        "opened": 0
+       }
+      },
+      {
+       "ok": true,
+       "what": "the starter on the stand, no empty state",
+       "got": {
+        "onStand": "Rufus",
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "an owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME planes=[]",
+        "w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "chooserAtStart": {
+       "npWrap": false,
+       "open": false,
+       "starterFlag": "Rufus",
+       "mode": "career",
+       "wipKey": true,
+       "webdriver": false,
+       "opened": 0
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      }
+     }
+    },
+    "E": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is HOME after Go there",
+       "got": "HOME"
+      },
+      {
+       "ok": false,
+       "what": "Escape closes the offer chooser",
+       "got": {
+        "chooserOpen": true,
+        "menuOpen": true,
+        "gmPanelHidden": false,
+        "gmPanelDisplay": "none",
+        "npOffer": true,
+        "active": "stNoCard fl2 mode-ws gEmpty"
+       }
+      },
+      {
+       "ok": false,
+       "what": "a second Escape closes it",
+       "got": {
+        "chooserOpen": true,
+        "menuOpen": false,
+        "gmPanelHidden": true,
+        "gmPanelDisplay": "none",
+        "npOffer": true,
+        "active": "stNoCard fl2 mode-ws gEmpty"
+       }
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "before": {
+       "chooserOpen": true,
+       "menuOpen": false,
+       "gmPanelHidden": true,
+       "gmPanelDisplay": "none",
+       "npOffer": true,
+       "active": "stNoCard fl2 mode-ws gEmpty"
+      },
+      "afterEscape1": {
+       "chooserOpen": true,
+       "menuOpen": true,
+       "gmPanelHidden": false,
+       "gmPanelDisplay": "none",
+       "npOffer": true,
+       "active": "stNoCard fl2 mode-ws gEmpty"
+      },
+      "afterEscape2": {
+       "chooserOpen": true,
+       "menuOpen": false,
+       "gmPanelHidden": true,
+       "gmPanelDisplay": "none",
+       "npOffer": true,
+       "active": "stNoCard fl2 mode-ws gEmpty"
+      },
+      "afterCancel": {
+       "chooserOpen": false,
+       "menuOpen": false,
+       "gmPanelHidden": true,
+       "gmPanelDisplay": "none",
+       "npOffer": false,
+       "active": "stNoCard fl2 mode-ws gEmpty"
+      },
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nRufus\nin the field shed at Cabin Strip\nBRING HERE\nClient Cub\nthe client’s, out at Jolene AFB 13/31\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "f2_career2_1_new_career.jpg",
+     "what": "a new career, the opening skipped: the field shed at Cabin Strip, Rufus on the stand, no chooser"
+    },
+    {
+     "step": "E",
+     "file": "f2_career2_Ex_map_go_row.jpg",
+     "what": "the map's Go row for HOME (before Go there)"
+    },
+    {
+     "step": "E",
+     "file": "f2_career2_E1_after_escape.jpg",
+     "what": "the probe: one Escape on the offer chooser"
+    },
+    {
+     "step": "E",
+     "file": "f2_career2_E2_after_cancel.jpg",
+     "what": "the probe: after the Escapes (and cancel if needed)"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    {
+     "step": "E",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    }
+   ]
+  },
+  "career3": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the chooser (#npWrap) did NOT come up by itself on a new career (F2)",
+       "got": {
+        "npWrap": false,
+        "open": false,
+        "starterFlag": "Rufus",
+        "mode": "career",
+        "wipKey": true,
+        "webdriver": false,
+        "opened": 0
+       }
+      },
+      {
+       "ok": true,
+       "what": "the starter on the stand, no empty state",
+       "got": {
+        "onStand": "Rufus",
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "an owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME planes=[]",
+        "w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "chooserAtStart": {
+       "npWrap": false,
+       "open": false,
+       "starterFlag": "Rufus",
+       "mode": "career",
+       "wipKey": true,
+       "webdriver": false,
+       "opened": 0
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      }
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "f2_career3_1_new_career.jpg",
+     "what": "a new career, the opening skipped: the field shed at Cabin Strip, Rufus on the stand, no chooser"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": []
+  }
+ }
+}

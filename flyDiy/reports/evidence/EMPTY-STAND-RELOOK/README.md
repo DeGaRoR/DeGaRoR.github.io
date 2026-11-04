@@ -11,9 +11,9 @@ tiles, cancel and Escape; the card's buttons and its drag; a reload and the welc
 **Renderer:** `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)`. No frame time
 is quoted.
 
-**Page errors: none.** No `pageerror` and no console error in the run. Console warnings, verbatim:
-`flyDiy: the saved day was not readable - the game’s day` (steps 2, 4, 5, 6, 7, 7) and `dialog beforeunload: ` at step 5's
-reload (accepted by the rig).
+**Page errors: none.** No `pageerror` and no console error in any run (desktop, career 2, career 3). Console warnings,
+verbatim: `flyDiy: the saved day was not readable - the game’s day` (desktop steps 2, 4, 5, 6, 7, 7; career 2's probe) and
+`dialog beforeunload: ` at step 5's reload (accepted by the rig).
 
 The ruling (4 Nov): *"An empty garage should automatically open the interface allowing to choose a plane, either existing or
 new, not to be confusing. But no plane should be drawn yet."*
@@ -22,7 +22,7 @@ new, not to be confusing. But no plane should be drawn yet."*
 
 | step | asserts | verdict |
 |---|---|---|
-| 1 new career, opening skipped | 4/4: no chooser by itself (`npWrap` never built, `NEW_PLANE.LOG.opened` 0; `FLYDIY_MODE` career, starter Rufus), Rufus on the stand, HOME owned and empty, no page error. Careers 2 and 3: see below | **PASS** |
+| 1 new career, opening skipped | 4/4: no chooser by itself (`npWrap` never built, `NEW_PLANE.LOG.opened` 0; `FLYDIY_MODE` career, starter Rufus), Rufus on the stand, HOME owned and empty, no page error. **Careers 2 and 3 the same (4/4 each): F2 held in 3 of 3 fresh careers**, each read 15 s after the garage came up | **PASS** |
 | 2 map → HOME → Go there | 14/14: CHOOSE AN AEROPLANE open by itself 7 s after arrival; tiles Rufus ("in the field shed at Cabin Strip") then Client Cub ("the client’s, out at Jolene AFB 13/31"), last and named so; Buy one; Design a new aeroplane, Surprise me; `#stTim`, `#mapEntry`, `#stCard`, `#gmMenu`, `#gEmptyCard` all hidden, the panel on top at 5 points | **PASS** |
 | 3 cancel | 6/7: the chooser closed, `onStand()` null, `body.gEmpty`, `#gEmptyCard` shown, columns and Roll out hidden, **no aeroplane drawn** (F1 fixed, looked at). FAIL: the view is 640 px wide at x 0 (`#c` box `[0,0,640,800]`, buffer 640x800), the right half of the page bare light blue (F3, R1) | **FAIL** (F3) |
 | 4 drag; New aeroplane; Escape | 14/17: the card moved 470,96 → 110,276; New aeroplane opens the same CHOOSE AN AEROPLANE (all its asserts pass). FAIL: **Escape does not close it** (R2); the card checks after it fail with it (`#gEmptyCard` is hidden under `html.npOffer` while the chooser is up) | **FAIL** (R2) |
@@ -46,8 +46,10 @@ Order note: 8 was run between 7's arrival and 7's generate, because 8 needs an e
   (`app.js:18881-18886`): with `#gmPanel` shut and `gmBusy()` (`app.js:18685-18691`) not counting the chooser, it opens the
   menu and calls `stopImmediatePropagation()`, so `new_plane.js:90`'s Escape (registered later, when the panel is first
   built) never runs; the menu it opened is hidden by `html.npOffer` (`editor.css:1958`). Still `desktop_4c_after_escape.jpg`:
-  the chooser unchanged. (The first look's Escape worked: that chooser was not the offer one.) A probe in career 2 reads the
-  menu's state after Escape (below).
+  the chooser unchanged. (The first look's Escape worked: that chooser was not the offer one.) **Confirmed by the probe in
+  career 2** (`results_f2.json` step E): after one Escape `{chooserOpen:true, menuOpen:true, gmPanelHidden:false,
+  gmPanelDisplay:"none", npOffer:true}` - the menu opened, invisible; after a second `{chooserOpen:true, menuOpen:false}` - the
+  menu shut again, the chooser still up. Escape toggles a menu nobody sees; only cancel closes the chooser.
 - **F5, still open: the chooser lists "candidate official — built, not validated" with developer notes in a career**
   (below the fold of stills 2, 4b, 5a, 7a; the run's tile list: "open finding: the prop passes through the body", "the
   user's pick ~22:25 - it replaces _2 and _3, now in review/ - flies as meant with claude/ready/boom-reach's float-step fix",
@@ -77,13 +79,17 @@ Order note: 8 was run between 7's arrival and 7's generate, because 8 needs an e
 | `desktop_8b_map_closed_card.jpg` | step 8: the map closed: the cabin shed empty under its lamps, the card, **no aeroplane drawn**; half the page | PASS (F1) / FAIL (F3) |
 | `desktop_7b_summary.jpg` | step 7: Design a new aeroplane, 14 steps skipped: the summary (Experimental, touring, flat engine, low tapered wing, taildragger, plywood, cream), generate | PASS |
 | `desktop_7c_new_build_drawn.jpg` | step 7: generated: the cream "Garage build" drawn on the cabin shed's stand, the columns back | PASS |
+| `f2_career2_1_new_career.jpg`, `f2_career3_1_new_career.jpg` | careers 2 and 3, step 1: the cabin shed, Rufus on the stand, no chooser | PASS (F2) |
+| `f2_career2_Ex_map_go_row.jpg` | the probe: the map's Go row for HOME | PASS |
+| `f2_career2_E1_after_escape.jpg` | the probe: the chooser by itself, one Escape: still up (the menu opened behind it, hidden) | FAIL (R2) |
+| `f2_career2_E2_after_cancel.jpg` | the probe: a second Escape (still up), then cancel: HOME empty, the card, no aeroplane drawn; half the page | PASS (F1) / FAIL (F3) |
 
 ## The runs
 
 | run | results | stills |
 |---|---|---|
 | desktop, steps 1-8 | `results.json` | `desktop_*` |
-| careers 2 and 3, step 1 alone (F2's count) + the Escape probe in career 2 | `results_f2.json` | `f2_*` |
+| careers 2 and 3, step 1 alone (F2's count) + the Escape probe in career 2 (~25 min, two boots) | `results_f2.json` | `f2_*` |
 
 `results*.json` holds, per step, every assertion and, under `prints`, `FLYDIY_STORE.onStand()`, `body.gEmpty`, `doc().here`,
 the card's box and text, `#edRoll` / `#edWrap`, the chooser (title, tiles, what is over it), the canvas box and buffer,
