@@ -91,7 +91,7 @@ function caseTrip() {
     let vpSum = null, first = null, done = false, tod = null, legL = null, react = 0;
     PT.loadPanel();
     const A0 = C.buildGen(PT.specOf(BUILDS[name]).spec).params.ap, hClear = A0.hClear ?? 130, marg2 = Math.max(2 * A0.hSafe, 40);
-    const res = PT.runTrace({ key: BUILDS[name], world: 'jolene', to: 'mn_strip', maxS: full ? 1100 : 900, quiet: true, probeEvery: true, probe: (ap, sim, t) => {
+    const res = PT.runTrace({ key: BUILDS[name], world: 'jolene', to: 'mn_strip', maxS: full ? 1400 : 900,   /* G3914, rule (b): 1100 -> 1400, the longer circuits; the known red below needs its go-around after the divert to show */ quiet: true, probeEvery: true, probe: (ap, sim, t) => {
       const en = ap.phase === 'ENROUTE' || ap.phase === 'INBOUND';
       if (en && first === null) first = true;
       if (!en && first === true) { first = false; done = true; }

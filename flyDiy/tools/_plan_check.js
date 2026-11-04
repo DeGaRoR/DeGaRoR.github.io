@@ -88,7 +88,9 @@ function fly(name, key, island) {
   f.stopped = ap.phase === 'STOPPED';
   if (rows.length) {
     dwEnd = rows[rows.length - 1].t;
-    for (const r of rows) if (r.t > 8 && r.t < dwEnd - 12) { f.dwN++; const e = Math.abs(r.y - r.h); f.dwErr += e; f.dwMax = Math.max(f.dwMax, e); }
+    // G3914, rule (b): from where the aeroplane first meets the line: the stock build, climbing to 305 m, joins its downwind up to 41 m under it (it used to be level there)
+    const met = rows.findIndex(r => Math.abs(r.y - r.h) < 15);
+    for (const r of met >= 0 ? rows.slice(met) : []) if (r.t > 8 && r.t < dwEnd - 12) { f.dwN++; const e = Math.abs(r.y - r.h); f.dwErr += e; f.dwMax = Math.max(f.dwMax, e); }
   }
   // 3 the legs' planned heights
   let planOk = !!f.legsSeen, planWhy = '';
