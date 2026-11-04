@@ -43,7 +43,8 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // Codex's night floor): the default aeroplane held 180 m over HOME, the camera behind and above it toward the sunset,
 // the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
-const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0);
+// --frame '{"plane":[x,z],"bearing":deg}': the picked composition, frozen (the peaks' grid follows the roll-out's spot, so a --pick can move between runs; the same camera is the point of a step-vs-master pair)
+const PHOTO = SCENE === 'scout' || SCENE === 'photo', PICK = +opt('pick', 0), FRAME = JSON.parse(opt('frame', 'null'));
 const OUT = path.resolve(opt('out', PHOTO ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-04/night-' + SCENE + '/' + STEP : SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 // the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
 // 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
@@ -76,7 +77,7 @@ const LIT = { flood: 1, nav: 1, beacon: 1, land: 1, taxi: 1, instr: 1, pedal: 1,
 // the reference scene's days (06_solar): 19 Apr 2027 AKDT, the full moon (99.2 %) rising in the ESE as the sun sets in the
 // WNW - at 04:25Z the sun at -4.2 deg and the moon 7.8 deg up at az 126 true (107 grid), over the town and the summit
 const APR_DUSK = { date: '2027-04-20', utc: 4.42 * 3600 }, APR_BLUE = { date: '2027-04-20', utc: 4.75 * 3600 };   // -4.2 / -6.7 deg
-const APR_PM = { date: '2027-04-20', utc: 2.0 * 3600 };   // 18:00 AKDT: the sun ~14 deg up, the afternoon's light (the scout)
+const APR_AM = { date: '2027-04-20', utc: 17.0 * 3600 };   // 09:00 AKDT: a morning sun in the south-east, behind or beside the eye (the scout; the first scout's 18:00 sun blew the water out)
 const APR_NIGHT = { date: '2027-04-20', utc: 7 * 3600 };   // 23:00 AKDT: the sun at -19.9, the moon 19.8 deg up at az 162
 // the lit things of the island's premises (the fixture's sites whose items carry lit panes or lamps, and the town's built
 // zones), for the scene solver: [x, z, weight]
@@ -126,19 +127,19 @@ const VIEWS = [
   { user: 1, name: 'jolene_night',  day: { date: '2026-11-03', utc: 2.75 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 10 },
   // --scene scout / photo (A0 4 Nov, the user: "the framing is still wrong, no mountains in the background, no light on the plane,
   // camera angle poor, bad FOV, bad framing ... try to have them looking nice"): a photographer's frame - the twin on the water
-  // 3/4 front (the eye 35-45 deg off the nose), the eye low (~2.5 m over the water), a long lens (24 deg) at 22 m (the plane ~45 %
+  // 3/4 front (the eye 35-45 deg off the nose), the eye low (~2.5 m over the water), a long lens (24 deg) at 26 m (the plane ~45 %
   // of the width), a real peak stacked big behind it (aim 'compose': the plane on the line from the eye to the peak), the town's
   // lights low in the background, no open sea. scout = three compositions in a clear afternoon (the sun ~14 deg) for the user
-  // to pick; photo = the picked one (--pick N) at dusk, blue hour and night
-  { scout: 1, name: 'scout_a', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 0, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
-  { scout: 1, name: 'scout_b', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 1, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
-  { scout: 1, name: 'scout_c', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 2, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
-  { scout: 1, name: 'scout_d', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 3, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // three spares: the
-  { scout: 1, name: 'scout_e', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 4, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // three best go to
-  { scout: 1, name: 'scout_f', day: Object.assign({}, APR_PM, FEW), aim: 'compose', pick: 5, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },   // the user
-  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 14 },
-  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 10 },
-  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 22, fov: 24, lights: LIT, settle: 12 },
+  // to pick (a clear morning: the first scout's afternoon was contre-jour); photo = the picked one (--pick N) at dusk, blue hour and night
+  { scout: 1, name: 'scout_a', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 0, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 12 },
+  { scout: 1, name: 'scout_b', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 1, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },
+  { scout: 1, name: 'scout_c', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 2, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },
+  { scout: 1, name: 'scout_d', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 3, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },   // three spares: the
+  { scout: 1, name: 'scout_e', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 4, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },   // three best go to
+  { scout: 1, name: 'scout_f', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 5, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },   // the user
+  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 14 },
+  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },
+  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 12 },
 ].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'scout' ? !!v.scout : SCENE === 'photo' ? !!v.photo : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !v.scout && !v.photo && !!v.twin === !!BUILD));
 
 // ---- in the page ----
@@ -219,10 +220,12 @@ const SETUP = V => `(async () => {
   if (aim === 'compose') {   // THE PHOTOGRAPHER'S FRAME: peaks found on the terrain (400 m grid, 30 km round the roll-out; Mount Ardent always),
     // the eye 35 or 45 deg off the nose (port or starboard: the probe moves the plane, never turns it, so the LOOK is fixed by the
     // roll-out's heading and the plane goes on the line from the eye to the peak, 2-18 km short of it). Kept where the plane, the
-    // eye and a 15 m ring are water, the peak is not hidden by nearer ground, and the frame's width reaches land short of the
-    // peak (no open sea); scored on the peak's angle over the eye (10 deg cap, x3; under 3 deg pays 15), the lit things in the
-    // frame (x0.5, 20 cap) and the shore. The best per peak, best first: pick 0, 1, 2 are three different backdrops.
-    if (!window.__compose) {
+    // eye and a 15 m ring are water, the peak is not hidden by nearer ground (30 m of trees on it), and the frame's width reaches land
+    // within 7 km (no open sea) but no nearer than 1 km across the middle of the frame (scout 1: a wall of trees, no sky, no mountain:
+    // a low eye hides the far water anyway). The peak 3-10.5 deg up (the lens' top is 12: all of it in the frame), 0 or 7 deg either
+    // side of the plane. Scored on the peak's angle (x3) and the lit things in the frame (x0.8, 20 cap). The best per peak,
+    // best first, the best with the town's lights second: pick 0, 1, 2 are different backdrops.
+    if (!window.__compose && !${JSON.stringify(!!FRAME)}) {
       const ax = s.axes(), n = [-ax[0][0], -ax[0][2]], l = [-ax[2][0], -ax[2][2]], LITS = ${JSON.stringify(LITS)}, dist = ${+V.dist || 22};
       const nn = Math.hypot(n[0], n[1]) || 1; n[0] /= nn; n[1] /= nn; const ll = Math.hypot(l[0], l[1]) || 1; l[0] /= ll; l[1] /= ll;
       const hf = Math.atan(Math.tan((${+V.fov || 24} / 2) / 57.2958) * 16 / 9), cosHf = Math.cos(hf);
@@ -233,24 +236,28 @@ const SETUP = V => `(async () => {
       for (const q of cells) { if (peaks.length >= 10 || q[0] < 0.4 * (cells[0] ? cells[0][0] : 0)) break; if (peaks.every(p => Math.hypot(p[1] - q[1], p[2] - q[2]) > 3000)) peaks.push([q[0], q[1], q[2], 'peak' + peaks.length]); }
       const out = [];
       for (const P of peaks) { let bestP = null;
-        for (const side of [1, -1]) for (const off of [35, 45]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
-          for (let k = 2000; k <= 18000; k += 200) {
-            const px = P[1] - lk[0] * k, pz = P[2] - lk[1] * k, ex = px + e[0] * dist, ez = pz + e[1] * dist;
+        for (const side of [1, -1]) for (const off of [35, 45]) for (const beside of [0, 0.122, -0.122]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
+          const cb = Math.cos(beside), sb = Math.sin(beside), tp = [lk[0] * cb - lk[1] * sb, lk[0] * sb + lk[1] * cb];   // the line to the peak, beside the look
+          for (let k = 4000; k <= 24000; k += 250) {
+            const px = P[1] - tp[0] * k, pz = P[2] - tp[1] * k, ex = px + e[0] * dist, ez = pz + e[1] * dist;
             if (!wet(px, pz) || !wet(ex, ez)) continue;
             let ring = true; for (let r = 0; r < 8 && ring; r++) { const a = r * Math.PI / 4; if (!wet(px + Math.cos(a) * 15, pz + Math.sin(a) * 15)) ring = false; } if (!ring) continue;
             const ey = (w.waterH(px, pz) || 0) + 2.5, D = k + dist, pa = Math.atan2(P[0] - ey, D) * 57.2958;
-            let hid = false; for (let t = 300; t < D - 1500 && !hid; t += 150) { const g = w.terrainH(ex + lk[0] * t, ez + lk[1] * t); if (Math.atan2(g - ey, t) * 57.2958 > pa - 0.7) hid = true; } if (hid) continue;
+            if (pa < 3 || pa > 10.5) continue;
+            let hid = false; for (let t = 300; t < D - 1500 && !hid; t += 150) { const g = w.terrainH(ex + tp[0] * t, ez + tp[1] * t) + 30; if (Math.atan2(g - ey, t) * 57.2958 > pa - 1) hid = true; } if (hid) continue;
+            let near = false; for (const a of [-0.5 * hf, 0, 0.5 * hf]) { const ca = Math.cos(a), sa = Math.sin(a), rx = lk[0] * ca - lk[1] * sa, rz = lk[0] * sa + lk[1] * ca; for (let t = 60; t < 1000 && !near; t += 60) if (!wet(ex + rx * t, ez + rz * t)) near = true; } if (near) continue;
             let land = 0; for (let r = 0; r < 9; r++) { const a = -hf + 2 * hf * r / 8, ca = Math.cos(a), sa = Math.sin(a), rx = lk[0] * ca - lk[1] * sa, rz = lk[0] * sa + lk[1] * ca;
-              for (let t = 60; t <= Math.max(3000, D); t += 60) if (!wet(ex + rx * t, ez + rz * t)) { land++; break; } }
+              for (let t = 60; t <= 7000; t += 60) if (!wet(ex + rx * t, ez + rz * t)) { land++; break; } }
             let L = 0; for (const q of LITS) { const vx = q[0] - ex, vz = q[1] - ez, dd = Math.hypot(vx, vz); if (dd < 300 || dd > D) continue; if ((vx * lk[0] + vz * lk[1]) / dd < cosHf) continue; L += q[2]; }
-            const lf = land / 9, sc = Math.min(pa, 10) * 3 - (pa < 3 ? 15 : 0) + Math.min(L, 20) * 0.5 - (1 - lf) * 30;
-            if (!bestP || sc > bestP.sc) bestP = { sc, side, off, px, pz, look: lk, L, mt: +pa.toFixed(1), lf: +lf.toFixed(2), peak: P[3], peakAt: [Math.round(P[1]), Math.round(P[2])], peakH: Math.round(P[0]), km: +(D / 1000).toFixed(1) };
+            const lf = land / 9, sc = pa * 3 + Math.min(L, 20) * 0.8 - (1 - lf) * 30;
+            if (!bestP || sc > bestP.sc) bestP = { sc, side, off, beside: +(beside * 57.2958).toFixed(0), px, pz, look: lk, L, mt: +pa.toFixed(1), lf: +lf.toFixed(2), peak: P[3], peakAt: [Math.round(P[1]), Math.round(P[2])], peakH: Math.round(P[0]), km: +(D / 1000).toFixed(1) };
           } }
         if (bestP) out.push(bestP); }
       out.sort((a, b) => b.sc - a.sc);
+      const tw = out.findIndex(c => c.L >= 6); if (tw > 1) out.splice(1, 0, out.splice(tw, 1)[0]);   // the town's lights in the first two
       window.__compose = { list: out, peaks: peaks.map(p => [p[3], Math.round(p[0]), Math.round(p[1]), Math.round(p[2])]) };
     }
-    const C = window.__compose.list, R = C[Math.min(${+V.pick || 0}, C.length - 1)] || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
+    const FR = ${JSON.stringify(FRAME)}, C = FR ? [{ sc: 0, side: 1, px: FR.plane[0], pz: FR.plane[1], look: [Math.sin(FR.bearing / 57.29578), -Math.cos(FR.bearing / 57.29578)], L: 0, mt: 0, lf: 1, peak: 'frame' }] : window.__compose.list, R = C[Math.min(FR ? 0 : ${+V.pick || 0}, C.length - 1)] || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
     window.__refScene = Object.assign({ tried: C.length }, R); px = R.px; pz = R.pz; agl = window.__floatAgl; look = R.look;
   }
   if (aim === 'toward') { const T = ${JSON.stringify(V.to || [0, 0])}; const tx = T[0] - px, tz = T[1] - pz, h = Math.hypot(tx, tz) || 1; look = [tx / h, tz / h]; }
