@@ -384,7 +384,11 @@ for (const seed of [0, 1, 6, 12, 42]) {
     console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
   }
   if (SHD.take()) {
-    const F = L.flyTurn(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true, tMax: 30 });
+    // (G3800 TAILWHEELS: the calibration flies the path it was calibrated on - the route pivot the big airframe's alone
+    // (ap.taxiPivAll false, an instrument's): with every taildragger's pivot the blind Cub turned round short of the tram
+    // station, 4.2-4.6 m off it, and the instrument's control had nothing to see; measured: that pivot, not the wheel's law)
+    const dBl = Object.assign({}, LB[0].def, { params: Object.assign({}, LB[0].def.params, { ap: Object.assign({}, LB[0].def.params.ap, { taxiPivAll: false }) }) });
+    const F = L.flyTurn(C, WI, IX, dBl, tw, nv, POSE, { blindPilot: true, tMax: 30 });
     check(F.contacts > 0 && /station/.test(F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
   }
   console.log('  11 the turn-around' + SHD.tag + ' in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');

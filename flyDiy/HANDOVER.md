@@ -311758,3 +311758,150 @@ Red, new and NOT breaks:
 - ASSETS adds orphan media/thumbs rows: the thumbs' manifest is not one the gate parses, with L31c.
 DMGSCAR's Cub restOut + metal gouge pass only because the wreck lies differently: causes (stol-wing, cert-pod) NOT fixed. Gear-falls costs GF1-3 on the perf-week list. PLANE_THUMB's first draw froze the page 7.5-8.7 s in its rig: on the list, real-path timing 15:30.
 TIMED (light): 48 red against the 12 Oct baseline (L31a 45), warm nav -> garage 108.5 / 112.6 s, nothing new named.
+
+## G3800 - TAILWHEELS: THE TAIL CONTACT'S FOUR LAWS (STEERABLE, LOCKABLE, FIXED, SKID), A TAILWHEEL A BOOM, AND THE INVERTED V ON ITS TIP WHEELS (2026-11-03, cloud; branch claude/tailwheels, pushed as claude/ready/tailwheels; on master adb2d2a9)
+The user via A0 (3 Nov), verbatim: "the swivel tailwheel, is that done? If not yet done, let's do it with the skid directly, so we
+have a set of cool tailwheels. We may also authorize tailwheels on dual booms while we're at it." - "One wheel per boom, same
+settings for the twin planes. And maybe it's the opportunity to do the inverted V-tail and the ability of sticking wheels on top of
+the inverted V fins?" - the 29 Oct ruling: "let's not reinvent rule. Let's do what the cub does by default. Then the second option
+could be to have a manual lock" (plus a truly fixed one).
+- **THE FOUR KINDS (30_solver twLine, params.twMode; the gear page's "tail contact" row s2Steer, the design tile "Tail contact"):**
+  1. STEERABLE (default; the Scott 3200 class, the Cub's): the rudder's arm (twSteer 0.5 rad at full pedal) through the steering
+     springs (their give, TW_SCOTT.defl 0.06 rad at full grip, is the DRAWN fork's angle: flown in series with the tyre it
+     tightened the Jodel's taxi turn by 21 % - GATE DMGTYRE - so the link flies rigid); it BREAKS OUT when the tail is dragged along a track
+     past the pawl's arc (35 deg, the contact sliding > 0.15 m/s, held 0.25 s) and castors with the kingpin's friction (2.8 N m
+     at a C170's tail load, Scott's own "5 to 6 pounds" at the 3.5 in arm), re-engaging within 0.12 rad of the arm;
+  2. LOCKABLE (the DC-3's; G3575's 'full swivel' became this): ctl.twLock 1 = pinned straight, 0 = a free castor; the pin drops in
+     when the castoring fork passes within 0.12 rad of centre. The autopilot (43_pilot TWLK) locks it for the runway and the air
+     and unlocks it on the taxiways, the stand and the line-up; the hand has '/' (input.js 'twLock', the worker's hand packet);
+  3. FIXED: straight, rigid;
+  4. THE SKID: no wheel - a steel shoe, Coulomb in every direction at TW_SKID_MU (grass 0.36, paved 0.45; NASA's metal-skid
+     data, casex's steel-on-concrete), its drag the tail's only brake.
+  Sources and derivations: 00_registry TW_SCOTT / TW_SKID_MU, reports/evidence/TAILWHEELS/README.md. The published Scott arc and
+  spring rate were NOT reachable from this session (faa.gov, ntsb.gov, ntrs.nasa.gov blocked by the network policy): the arc is
+  the linked travel plus a margin (Univair: "positive steering control far beyond rudder travel"), the trail and the springs'
+  give are derived - said so in the registry.
+- **WHY THE BREAKOUT IS THE ARC, NOT THE SIDE FORCE (the brief asked for "the side force over the detent"):** measured with the
+  breakout off, the held side force over the tyre's static grip reads 1.05-1.30 at the AUTOPILOT'S OWN full-power start (the
+  tail creeping on the tyre's at-rest Coulomb law) and 1.18-1.52 in a braked pivot - no holding force separates them (G3575's
+  finding again). What differs is the tail SLIDING past the arc: the held track over the arc reads <= 0.63 on the autopilot's
+  take-off rolls, <= 0.17 on its roll-outs, >= 1 in every pivot. A spring give the size of the arc (0.35 rad, the first cut)
+  softened a light tail's cornering 5x: the inverted V's tip wheels ground-looped on the roll-out (132 deg).
+- **THE VALIDATED BUILDS (the brief: "as before or better"):** HOME's circuit from the line-up on the autopilot is master's to
+  the digit - the Cub 113.41 m roll / 3.01 deg / roll-out 11.23 deg / touchdown 1.30 m/s, the Jodel 194.1 / 1.61 / 3.70 / 1.01,
+  Rufus 71.51 / 2.49 / 5.94 / 0.50 - with no breakout on any runway. On the ground they turn tighter where they should: the brake
+  pivot 180 deg in 4.7 / 4.6 / 3.6 s (master 7.5 / 9.7 / 4.2: the linked wheel scrubbed round), broken out at ~1.2 s, CG within
+  0.19-0.25 spans, re-locked and rolling straight after (1.0 / 6.5 / 4.0 deg); a brake-free 180 deg on full rudder and power in
+  4.2 / 4.0 / 3.4 s (master 5.6 / 6.9 / 3.6).
+- **OLD SAVES:** s2Steer 0 / 1 load as the steerable wheel (no spec key); 2 (the DC-3's) as the lockable (gear.twMode 'lock');
+  a spec's twSwivel: true clamps to 'lock'. 3 / 4 are new.
+- **TWIN BOOMS, A TAIL CONTACT A BOOM (refs.tw2):** one under each boom's tail station (the gear layer: the boom's own belly,
+  CAGE_BOOMS; the frame: the boom's tail triangle the post), both on the same row and law with their own state; the leg is
+  lengthened to clear a pod that runs as far aft (a spec without its drawing). Before: one wheel under the pod's end.
+  wheelsOnGround / wheelContacts / placement (seatOnGround: the pair's middle) / the stance / hydro / contact shadows read both.
+  The second boom's fork is drawn with its leg (it rides, it does not yaw in the picture) - a named cut.
+- **THE INVERTED V ON TWIN BOOMS (tail.ivAngle / ivGap / ivS; the layout followed: the AAI RQ-7 Shadow's):** a panel down and
+  inboard from each boom, the tips ivGap apart (the Shadow's meet; here a gap so each carries its wheel). Each panel is the fin's
+  P4 truss in its canted plane, its strips 'vtail' on their own spar nodes (the canted normal from the deformed panel), so the
+  ruddervators mix as a V's. The V's sizing (S = max(Sh / cos^2 G, Sv / sin^2 G)) on the span the booms give; the design check's
+  Vh / Vv read the projections. The stab layer's mount 4 (stCant 20-55, stIvGap), the Empennage tile 'Inverted V' (twin booms
+  only), the join files ivAngle / ivGap / ivS; _tail_headless.js mirrors the stab layer (GATE FIN). THE TIP WHEELS: the gear
+  layer's legTipWheel (a short fork under each tip, or the skid's shoe), the frame's TW at each tip (hub R + 3 cm under it).
+  Signs measured at cruise (the generator's twin, 35 deg): dYaw/dr +10 765 (the conventional twin +5 508), dPitch/de +14 093
+  (+11 460), the rudder's pitch 0.5 % of the elevator's; 25-55 deg all the conventional's signs. The rudder's ROLL is still a V's
+  (-3 146 / dr; the fuselage V -3 062): the panels' antisymmetric lift outweighs their side force below the CG.
+- **THE AUTOPILOT:** the turn on the spot where the wheels cannot hold the route (G3480) is every taildragger's (pivG; the
+  walked turns stay the big airframe's, RgMin > 13) - a small one's when the turn truly refuses (0.6 rad held 1.5 s on the
+  rudder's stop; at the big airframe's 0.35 / 0.5 s the v7 ultralight pivoted in an ordinary turn off its stand, 2.6-2.9 m
+  off the line, GATE TAKEOFF's limit 2.5 m); a CASTORING tail contact (the lockable unlocked, the steerable broken out) is
+  steered on the toe brakes too, with the heading's RATE (39b groundSteer, 43 TAXI: brakeCastK 1.0, D 3.0, cap 0.8) - the
+  taxi law had no rate term ("the wheel steers the heading kinematically") and the castoring DC-3 circled on its stand; for
+  the lockable wheel a corner it pivoted stays turned, and a CUSP in the planner's route (HOME's works stand doubles back
+  on itself: a curvature of 2e15 at a doubled point) is a turn on the spot - the governor read it as 0 m/s for good.
+- **THE DC-3'S HOME TRIP (the brief's row) IS RED ON A CLEAN ORIGIN/MASTER TOO:** master's DC-3 (dc3_break --cases home,
+  the works stand (42, 32.5)) rolls off the route into the water north of the stand and stops at (13.5, 50.6), 96 s in, both
+  engines drowned - it never reaches the hold; this branch's reaches the same pond the same way (15.3, 50.2, 82 s). (Without
+  PILOT_CORE the tool can place it at (-113, 672): master swings 53 m off the line by 120 s.) Owed to the island's taxiway
+  beside that water, not to this branch. Its circuit from the line-up (dc3_break --cases circuit) is master's to the second:
+  lift-off at 21 s, touchdown at 268.4 s at 2.2 m/s, the go-around G3576 records.
+- **THE DRAWING:** the lockable wheel draws its lock pin and cable, the fixed its clamp collar, neither the steering arm or its
+  springs (castorUnit publishes no ears without a link); the skid its blade and steel shoe; the drawn castor follows the
+  solver (out.twState / twAng: the rudder's while steered, its own track castoring, straight locked or fixed). Under the
+  inverted V the fin layer stands down (_cage_fin, _tail_headless, the join) and CAGE_STAB.layOf(side) is the lay each half was
+  drawn with (the hinge layer's hinges and horns had hung on a phantom horizontal panel). tools/plane_shot.js gained --query
+  and the view tw:<az>/<el>/<dist>; THE PICTURES are the user's SIMPLIFIED RENDERER's (tools/quick_view.js - the user, mid-
+  session: "Use the simplified renderer for screenshots").
+- **THE INVERTED V'S CONTROL RUN (the user, 4 Nov, a garage picture: "that screenshots shows that the hinges did not like
+  that"):** the elevator's horn stands under its boom beside the panel's root, and the cable's exit (_cage_hinge cableExit)
+  was searched from 0.35 m (a chord x 2) ahead of it: every run forward along the flank crossed the panel's root, the
+  first clear exit stood up to 1.14 m up the boom (the twin busher on floats; 0.45 / 0.52 m on the twin-boom and
+  push-pull fixtures) and the cable lay along the boom's side to it. On the inverted V the search starts 8 cm ahead (the
+  Shadow's booms: the link leaves the boom over the horn): 0.09-0.14 m on all three. The join's declared hinge line read
+  the conventional lay (cageSurfLine: SB.lay with the side), not CAGE_STAB.layOf - it caught the right vertices only
+  because the band plane is the chord station's; it reads layOf now. GATE TAILWHEEL H (negative-verified on the old
+  code: FAIL 0.45 / 1.14 / 0.52 m). tools/plane_shot.js gained --probe <file.js> (an expression evaluated in the page
+  after the build settles - how the flown model was read for this).
+- **PHYSICS_V 7** (every taildragger's ground handling). The DMG certificate re-makes on the key; GATE DMGCERTCOST's reference
+  (tools/fixtures/dmg_certcost_ref.json) RE-WRITTEN (--write-ref) on this branch. The bench plaques shipped in builds/ (Rufus,
+  the Cub, the Jodel, the PA-18 on floats, the Cessnas ...) are f2 stamps: M1 re-stamps them on load when their hash is this body's
+  under any (GEN_SPEC_V <= 10, PHYSICS_V <= max(6, PHYSICS_V)) - bench.js 789, 76_procure 424 already take PHYSICS_V - so the bump
+  withdraws none of them; the R3 re-check runs on the first load.
+- **NOT ON MASTER (the brief's CM_OFF and the new-plane RULES live on claude/ready/config-matrix and claude/ready/new-plane):**
+  reports/evidence/TAILWHEELS/for_config-matrix.patch (CONFIG-MATRIX.md: the inverted V BUILT, the taildragger a wheel a boom;
+  CM_OFF needs nothing: the normal V and the T stay greyed on twin booms, the inverted V is its own tile) and
+  for_new-plane.patch (the chooser's 'Inverted V' option and its twin-booms-only rule; the "[VAL] a pusher on a tailwheel" grey
+  lifted on twin booms: MEASURED, the generator's twin-boom pusher on its boom wheels sits 12.7 deg tail-down and its disc's
+  lowest point clears the ground by 0.232 m - the gear page's tailwheel requirement 0.229 m; the single pod keeps the grey).
+- **GATE TAILWHEEL** (tools/_tailwheel_check.js, core, ~10 min, four probes at a time; the probe tools/tw_probe.js): the rows
+  the brief asked - the Cub's brake pivot within 2 spans and its re-lock; the brake-free 180 deg on full rudder and power (Cub,
+  Jodel, Rufus); HOME's circuit on the autopilot with no breakout on the runway (Cub, Jodel, Rufus); the DC-3 locked straight on
+  the full-power roll and pivoting unlocked; the skid's stop on grass and pavement against the wheel's; the fixed wheel's roll;
+  the twin taildragger standing on both wheels, rolling, pivoting, flying the circuit; the inverted V standing on its tip wheels,
+  pivoting, flying HOME's circuit and landing; the V's signs and volumes; the old saves. GATE INPUT: the lock's key and seed.
+- **GATES (the final core; jobs 3):** TAILWHEEL, INPUT, PILOT, PILOTS, TAXICLEAR, LINEUP, GEAR, ROUTES, CONTACT, GEN, JOIN,
+  SAVE, PARTS, DESIGN, DESIGNCHECK, STARTER, CAGEFIT, UISMOKE, UISMOKE-PHONE, TAKEOFF, SIMWORKER, FIN, SPECFIX, GENPAIRS,
+  HINGE, LOAD, PANEL PASS. RED = MASTER STANDING (each the same row on a clean origin/master adb2d2a9 worktree): DMGCERT
+  (the ultimate x1.1 breaks no member; BROKE AT -; the page's bench thread), DMGCERTCOST (the worker's certificate is
+  node's: 6.3e-8, the two V8s' last bits; its timing row passed this run), DMGTYRE 4 (the Jodel's taxi turn x0.784, the
+  metal Cessna's x0.664, the Cub's crosswind roll-out 27.2 / 62 deg - master's to the digit), CLIP (stock+ifr's navAerial
+  9.2 mm into edFinSkin). After the control-run fix: TAILWHEEL (with H), HINGE, CLIP (the same master row), JOIN, DESIGN,
+  CAGEFIT, UISMOKE, UISMOKE-PHONE, FIN, LOAD, PARTS, SAVE, SPECFIX, GEAR re-run - see the commit.
+- **THE PICTURES:** reports/evidence/TAILWHEELS/ (README.md): the simplified renderer's shots of each tail contact, the
+  twin taildragger, the inverted V (re-shot after the control-run fix), the busher's cable before / after, the pivot traces.
+
+## G3801 - THE V FROM THE BOOMS, ALL FOUR WAYS: DOWN & IN (G3800's), DOWN & OUT, UP & IN (AN A), UP & OUT - THE DOWNWARD ONES ON THEIR TIP WHEELS (2026-11-04, cloud; branch claude/tailwheels, pushed as claude/ready/tailwheels)
+The user, 4 Nov, verbatim: "can we also have inverted T-tail, but on the outside? And for the upward T-Tail, wan we also
+have an option where they face towards each other, inwards. SO we have all possible options, with little wheels if the V
+is downward?" (read as the V from the booms: G3800's inverted V with its panels run OUTBOARD, and the upright V with its
+panels leaning INWARD - plus the upright outward one, "all possible options").
+- **THE KEY:** spec.tail.ivDir - absent = 'downIn' (G3800's, the Shadow's; every saved inverted V unchanged), 'downOut',
+  'upIn', 'upOut'; tail.ivReach (m, an outward panel's tip outboard of its boom; default boomX - 0.15, the inward
+  default's size; clamped 0.2-2.0, kept only on an outward way). 60_gen_spec genIvDir / genIvReach (exported): an
+  inward panel's reach is boomX - ivGap / 2, an outward one's ivReach; the panel's span is the reach over cos(ivAngle).
+- **THE FRAME (61):** one panel a boom along (ud sin G, -side io cos G); TAIL.down / TAIL.out; the tip wheels only on a
+  downward V (TAIL.down), an upward one takes the booms' tailwheels (G3800's branch).
+- **THE MIX (62):** the strips' normal must come out of the upper face (the elevator's sense) and the rudder's mix sign
+  must push the tail starboard on dr > 0. A panel whose upper face leans INBOARD (down & in, up & out) mixes as a V's;
+  one leaning OUTBOARD (down & out, up & in) has the rudder's half reversed (strip side = boom side x -1), the span
+  order root -> tip on an upward panel. MEASURED at cruise on the generator's twin (35 deg): dYaw/dr +10 765 / +11 112
+  / +10 448 / +10 390, dPitch/de +14 093 / +14 178 / +13 740 / +13 752 (the conventional twin +5 508 / +11 460);
+  down & in to the digit as G3800's; the rudder's pitch 0.4-3.0 % of the elevator's (the upward ones the larger).
+- **THE DRAWING:** _cage_stab rows stIvDir (0 down & in, 1 down & out, 2 up & in, 3 up & out) and stIvReach (an
+  outward way's; stIvGap an inward one's); layOf: an inward half is the mirror half's lay at the far boom's x, an
+  outward one its own side's at its own boom's, the cant negated on a downward one; CAGE_IV_TIPS only on a downward
+  one (the gear layer's tip wheels; an upward one's are the booms'); window.CAGE_IV_DIR / CAGE_IV_REACH; the measure
+  carries ivDir / ivReach, the join files them (_tail_headless.js mirrors it). The join's ruddervator sense (sgn2) is
+  by the hinge axis's own lean now (-sign(axis.y): the port trailing edge to port on dr > 0 whichever way the panel
+  leans; the normal V's and the inverted V's read as before); the hSpan envelope's warning stands down on a V from the
+  booms (it flies ivS on its reach; an outward one's tip-to-tip ran past 4.5 m). The design page's Empennage tiles:
+  'Inverted V', 'Inverted V, outward', 'V, inward (an A)', 'V, outward' (twin booms only; iconBoomV, seen from
+  behind); the Stab sits slot's 4 reads 'A V from the booms'.
+- **GATE TAILWHEEL I** (the three new ways on the drawn twin as a taildragger: stands on its two contacts - down & out
+  0.31 deg, the upward ones 4.58 deg tail-down -, turns 180 deg on the brake 5.8 / 12.6 / 6.3 s within 0.24-0.33
+  spans, flies HOME's circuit and lands - touchdown 1.66 / 2.31 / 1.91 m/s, the roll-out inside 4 deg; down & out
+  lifts off at 36 s against the upward ones' 15, almost level on its tips; the signs at 25 / 40 / 55 deg; the clamp)
+  and H now four ways x three
+  fixtures (the links 0.09-0.15 m, the straps on their panels, the hinge 'declared', the drawn TE to port on dr > 0).
+- **NOT CHECKED:** a pusher's disc against an upward A's panels (the twin fixtures here are tractors).
+- **PICTURES:** reports/evidence/TAILWHEELS/twin_invertedV_in_*, _out_*, twin_V_in_*, twin_V_out_* (the simplified
+  renderer), builds/ the same names.

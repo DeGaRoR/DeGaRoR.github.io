@@ -4795,7 +4795,11 @@
           const tws = (def && def.params && typeof def.params.twSteer === 'number')
             ? def.params.twSteer : 0.5;
           const up = c.axis[1] < 0 ? -1 : 1;
-          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
+          // G3800 (TAILWHEELS): the fork as the solver has it (30_solver twLine: out.twState / twAng) - the rudder's
+          // while it steers, its own track while it castors, straight when locked or fixed (a skid has no fork)
+          const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+          const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+          c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
       }

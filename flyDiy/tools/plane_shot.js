@@ -15,10 +15,11 @@
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
-//                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design) -
+//                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design),
 //                                 fit:<key>/<az>/<el>/<dist> one placed fitting close (the flank facing the eye; under
 //                                 ~0.8 m the camera's near plane cuts the skin), at:<x>/<y>/<z>/<az>/<el>/<dist> a point
-//                                 of the layers' frame (metres) close, one framing for two builds -
+//                                 of the layers' frame (metres) close, one framing for two builds,
+//                                 tw:<az>/<el>/<dist> the eye on the drawn tail contact (G3800) -
 //                                 default q,s,t,f
 //        [--views hero:<yaw>/<el>/<fov>,profile]  PORTRAITS (2 Nov): the level airframe from <yaw> deg off the nose
 //                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens (then,
@@ -39,6 +40,8 @@
 //        [--keep-ui]              the still with the page's UI over it
 //        [--root <dir>]           the repo served (default: the one this file is in) - e.g. a throwaway archive of a branch
 //        [--fallback <dir>[;<dir>]]  _serve.js's fallback roots, in order (a tree over the main checkout's gitignored data)
+//        [--query k=v&k=v]        appended to the page's query (G3800)
+//        [--probe <file.js>]      an expression evaluated in the page after each build settles, printed `PROBE <build> <json>`
 //        [--dry]                  everything up to the browser: the arguments, the files, the browser found - no launch
 //   node flyDiy/tools/plane_shot.js --pair <dirA> <dirB> --out <dir> [--labels A,B]
 //                                 side-by-side composites of the PNGs both directories hold (SwiftShader | RTX)
@@ -366,7 +369,9 @@ async function shoot(o) {
     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
+    // (G3800: --query k=v&k=v rides the page's own query - a brief's switches)
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full')
+              + (opt('query') ? '&' + opt('query') : '');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
     log('page', url);
     await C.cmd('Page.navigate', { url });
     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
@@ -424,6 +429,9 @@ async function shoot(o) {
       for (let i = 0; i < 20; i++) { await frames(3); const b = await J(box); if (b && prev && b.join() === prev.join()) break; prev = b; }
       BR.box = prev; BR.t = +((Date.now() - tb) / 1000).toFixed(1);
       log(base, 'loaded in', BR.t + ' s,', same + '/' + keys.length, 'cage rows equal, box', JSON.stringify(prev));
+      // --probe <file.js>: an expression evaluated in the page once the build has settled, its value printed as one line
+      // `PROBE <base> <json>` (G3800: what the page drew where - the scene the still is of, not a headless copy)
+      if (opt('probe')) { try { log('PROBE', base, JSON.stringify(await C.ev(fs.readFileSync(opt('probe'), 'utf8'), 120000))); } catch (e) { log('PROBE', base, 'threw', e.message); } }
 
       for (const v of o.views) {
         const tv = Date.now(), name = v.replace(/[:/]/g, '-');
@@ -533,6 +541,22 @@ async function shoot(o) {
               ' return { centre: c.toArray().map(x => +x.toFixed(3)) }; })()');
             if (fr.err) throw Object.assign(new Error(fr.err), { code: EXIT.eye });
             Object.assign(VR, { fit: key, centre: fr.centre }); VR.door = 'fit'; VR.close = true;
+          } else if (/^tw:/.test(v)) {
+            // G3800: THE TAIL CONTACT, CLOSE - the eye on the drawn tail wheel / skid (its leg, fork and wheel meshes, the
+            // gear layer's edLegT / edCastorT / edWheelT and their children: on twin booms both of them)
+            const [a, e, d] = v.slice(3).split('/').map(Number);
+            const pr = await J('(async () => { const root = window.CAGE_UI_SCENE, b = new THREE.Box3(); root.updateMatrixWorld(true);' +
+              ' root.traverse(o => { let q = o, hit = false; for (; q; q = q.parent) if (/^ed(Wheel|Castor|Leg)T/.test(q.name || "")) { hit = true; break; }' +
+              '   if (hit && o.geometry) b.expandByObject(o); });' +
+              ' if (b.isEmpty()) return { err: "no tail contact drawn" };' +
+              ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
+              ' const g = FLIGHT_PROBE.camGet(), c = b.getCenter(new THREE.Vector3());' +
+              ' FLIGHT_PROBE.pan(c.x - g.target[0], c.y - g.target[1], c.z - g.target[2]);' +
+              ' return { centre: c.toArray().map(x => +x.toFixed(3)) }; })()');
+            if (pr.err) throw Object.assign(new Error(pr.err), { code: EXIT.eye });
+            asked = [a * Math.PI / 180, e * Math.PI / 180, d];
+            await C.ev('(() => { FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
+            Object.assign(VR, { centre: pr.centre, close: true }); VR.door = 'tw';
           } else if (/^part:/.test(v)) {
             // THE PART: the editor's own selection names its meshes (hiBuild's overlays, userData.edHi) - their box is
             // the part's; the selection goes back to the whole aeroplane before the still, so no highlight is in it
@@ -667,7 +691,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}(\/-?[\d.]+(\/[\d.]+)?)?$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^fit:\w+\/[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && !/^at:([-\d.]+\/){5}[\d.]+$/.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}(\/-?[\d.]+(\/[\d.]+)?)?$/.test(v) &&!/^(orbit|close|tw):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
