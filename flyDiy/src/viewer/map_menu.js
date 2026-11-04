@@ -1225,7 +1225,7 @@
 #mapScreen .mmGo button{flex:none;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ed-border);background:transparent;color:var(--ed-ink);font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
 #mapScreen .mmGo button.pri{background:var(--ed-acc);border-color:var(--ed-acc);color:var(--ed-acc-ink);font-weight:600}
 #mapScreen .mmGo button:disabled{opacity:.5;cursor:default}
-#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:10px;transform:none;max-width:none}
+#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:64px;transform:none;max-width:none}  /* STORY-HOME F8: clear of the ✕ (top 8, right 8, 48 px) */
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
 #mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
