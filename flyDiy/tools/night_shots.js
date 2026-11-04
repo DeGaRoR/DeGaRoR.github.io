@@ -405,6 +405,7 @@ async function runPage(page) {
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); const d = r.result;
       if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r))); return d.result.value; };
     await cmd('Page.enable'); await cmd('Runtime.enable');
+    if (opt('pilot', null)) await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'window.FLYDIY_CREW_PILOT=' + JSON.stringify(opt('pilot')) });   // --pilot james: the seat's body (the career's door, G2290)
     await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{for(const k of Object.keys(localStorage)) if(/^flydiy\\./.test(k)) localStorage.removeItem(k)}catch(e){}' });
     await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
     const url = 'http://localhost:' + SPORT + '/flyDiy/' + page + (Q ? '?' + Q : '');
@@ -465,6 +466,8 @@ async function runPage(page) {
         await ev("(()=>{const b=document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click(); return 1;})()"); await sleep(300);
         fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
         for (const [n, js] of JSON.parse(fs.readFileSync(opt('shots'), 'utf8'))) {
+          // '@5120x1440': the same paused scene at another size (an off-screen master: the page reallocates its targets; a size too big goes black, the smaller shots are already taken)
+          if (n[0] === '@') { const [wS, hS] = n.slice(1).split('x').map(Number); await cmd('Emulation.setDeviceMetricsOverride', { width: wS, height: hS, deviceScaleFactor: 1, mobile: false }); if (js) await ev('(() => { ' + js + ' ; return 1; })()'); await ev(FRAMES(40)); await sleep(1500); continue; }
           await ev('(() => { ' + js + ' ; return 1; })()'); await ev(FRAMES(16)); await sleep(250);
           const said = await ev('window.__say || null'); if (said) { fs.appendFileSync(path.join(OUT, 'shots', 'say.txt'), n + ' ' + JSON.stringify(said) + '\n'); await ev('window.__say = null'); }   // a shot's page numbers
           const ps = await cmd('Page.captureScreenshot', { format: 'png' });
