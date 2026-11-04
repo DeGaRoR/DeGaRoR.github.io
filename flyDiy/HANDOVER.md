@@ -312002,3 +312002,17 @@ COSTS, by branch:
 - seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
 Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
 NEXT: L32a Thu 13:00, the last train, refs by 12:30.
+
+## NIGHT-BRIGHT - NIGHTS YOU CAN SEE IN, BLUE AND WARM; THE SQUARE ON THE WATER FIXED (the user 4 Nov: "if we don't see anything in the picture, then we don't see anything in the game")
+
+Numbers, old -> new: EV knots -9: 10 -> 11, -6: 6 -> 7, sunset 2.5 -> 3; NIGHT_DEF eye 0 -> 1.75, moon 1 -> 0.3, desat .5 -> .3, new grade R .66 G .82 B 1.55 contrast 1.1 (the dark range only; warm lamplight and strong green keep out of it: the `keep` mask in NIGHT_GLSL); nightVisibility .8 -> 1.4; the sea's sheen (uWNight) new: k .38, colour .25/.42/1, 70 % flat, 30 % on the slopes; water detail at night up to 5 x, capped at 3.1 (none by day); flood 0xffd9a0 reach 4 -> 0xff9f50 reach 3.6, its gain from outside at night 3.2 -> 40 (CK.eyeOut; the seat's 3.2 unchanged); land/taxi/flood/pax lenses amber (1, .68, .34). Gates moved: ATMO 12..16 -> 12..18 stops at -18, NIGHTEXPOSURE -9: 10 -> 11.
+
+THE SQUARE (G2836, 19 Oct, 89005249b): every aircraft mesh is frustumCulled = false (app.js), so that filter left a stray 0.3 m part for the hull capture's sphere: a 64 px capture of one piece of the plane, a hard rectangle on the water. The box now reads model.grp (r 8.4 m on the 4b) and the centre rides it. COST NAMED: the capture's rectangle 64x64 -> up to 1024x768, hull CPU ~4 -> ~7 ms in one rig shot (not a timed number).
+
+NEW IN THE GAME, seen only in the photo rig, not flown: the lens glows (cockpit.js, 7 sprites on the 4b, one more program: first dusk compile named) and the aurora (aurora.js, app.js's first caller: from Kp 3 on the day's plan, exposure over 2^8, tiers current and up, one sphere, its program compiled and one probe bake on the first such night). Stars round on a long lens only (atmo.js, the wide view to the bit).
+
+Red-standing and open: the 4b's white tail lens sits between the booms at (4.02, .46, 0): no glow here, the card's site is FLAGSHIP's. The gold specks are not the grade (same pixels with nightEye off, k3/shots/specks.jpg): LOOK-1. Cottage windows x 2.5, the dock and the buoys: claude/night-photo, briefs/night-dock-2026-11-04.md.
+
+Rig trap: `await FLIGHT_PROBE.place({at,zeroV:true}); FLIGHT_PROBE.sim().cgPos()` returns the roll-out spot while the placed answer, sim.p and the model are right; night_shots reads the model group. The photo rig (--nose, --shots, --sweep names) stays on claude/night-photo with the worker's place yaw. 5120x2880 rendered black there, not looked at.
+
+Gates here, node only: NIGHTEXPOSURE NIGHTVISIBILITY ATMO LIGHT CABINLAMP WATER SCENERYLIGHTS WEATHERPLAN. Not run (they boot Chrome): CLOUD TARR UISMOKE FRAMECOST: L32a judges.

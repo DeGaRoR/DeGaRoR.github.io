@@ -111,7 +111,7 @@ console.log('4. the calibration');
   let mono = true, prev = Infinity;
   for (let el = -90; el <= 90; el += 0.5) { const s = LIGHT_RIG.exposureStops(el); if (s > prev + 1e-9) mono = false; prev = s; }
   yes(mono && LIGHT_RIG.exposureStops(33) === 0 && LIGHT_RIG.exposureStops(90) === 0, 'the exposure schedule is monotone in elevation and 0 stops at 33 deg and above');
-  yes(LIGHT_RIG.exposureStops(-18) >= 12 && LIGHT_RIG.exposureStops(-18) <= 16, 'astronomical night opens 12..16 stops: ' + LIGHT_RIG.exposureStops(-18));
+  yes(LIGHT_RIG.exposureStops(-18) >= 12 && LIGHT_RIG.exposureStops(-18) <= 18, 'astronomical night opens 12..18 stops (NIGHT-BRIGHT, the user 4 Nov; was 12..16): ' + LIGHT_RIG.exposureStops(-18));
 }
 
 console.log('5. the sources');
