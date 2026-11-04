@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 40f81cfb72a069f1
+// body-sha256: 0fe92deb97953b58
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19608,7 +19608,7 @@ function tableSection(P, x) {
   const L = k => a[k] + (c[k] - a[k]) * t;
   const yk = L('yk'), b = Math.max(1e-4, L('b')), yc = Math.max(yk, L('yc'));
   const yd = Math.max(yc + 0.01, L('yd')), bd = Math.max(b, L('bd'));
-  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd };
+  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd, yt: yd };   // (yt: the deck's top - FLOATS-CLASSIC's secAreaTo reads it; a hull's deck is its gunwale)
 }
 function sectionOf(P, x) {
   if (P.table) return tableSection(P, x);
