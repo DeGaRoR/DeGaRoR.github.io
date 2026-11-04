@@ -444,7 +444,7 @@ function make(THREE) {
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 3.2 * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      CK.model.floodLight.intensity = (CK.floodGain != null ? CK.floodGain : 3.2) * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
       CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk && CK.pw('sw_pedal') ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
