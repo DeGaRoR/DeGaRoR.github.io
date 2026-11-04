@@ -959,6 +959,11 @@ const GATES = [
   // rudder blade and the paddle where they belong, the user's 172 on 2350s
   // settled on the sea (~2 min)
   { id: 'WIPLINE', file: '_wipline_check.js', tier: 'core', wall: 200 },
+  // FLOATS-CLASSIC (2026-11-03): the EDO-style rounded deck - the Wipline line pinned to master's bits, the EDO
+  // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
+  // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
+  { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },

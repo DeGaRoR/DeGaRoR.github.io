@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a6c94c171113074b
+// body-sha256: caa187f3ddca328c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1622,22 +1622,12 @@ var DAY = (function () {
   function makeDay(spec0, geo0) {
     const geo = Object.assign({}, GEO_DEFAULT, geo0 || {});
     const s = {};                                        // the declared spec (what round-trips)
-    // THE EFFECTIVE SPEC (WEATHER-SEASON, 2026-11-03): what every derived number reads. It IS the declared spec unless
-    // the spec names a `plan` - then 07d_weather_plan.js's answer for this instant laid over it (the career's weather:
-    // the temperature, the pressure, the dew, the wind, the decks, the turbidity, the column, the front). The declared
-    // spec still round-trips (spec()), so a plan saves as `plan`, never as its values, and the sandbox's own weather
-    // under it is kept untouched for when the plan is lifted.
-    let e = s;
     let jdn = 0, utc = 0, version = 0;
     const d = {};                                        // the derived block, rebuilt by recompute()
     let sunCache = null;
 
     function recompute() {
       const o = { jdn, utc, lat: geo.lat, lon: geo.lon };
-      if (s.plan && typeof WEATHER_PLAN !== 'undefined') {
-        const P = WEATHER_PLAN.at(jdn, utc, geo);
-        e = Object.assign({}, s, P.spec); d.plan = P.meta;
-      } else { e = s; d.plan = null; }
       const su = SOLAR.sun(o), mo = SOLAR.moon(o);
       const conv = geo.convergenceDeg || 0;
       d.sunEl = su.el; d.sunAz = su.az; d.sunAzGrid = ((su.az - conv) % 360 + 360) % 360;
@@ -1663,7 +1653,7 @@ var DAY = (function () {
       // Pure in `utc`: a gate that never advances the clock sees a frozen
       // front, and the viewer's clock walks it. The phase is named as well as
       // the number so a panel can say "the front arrives" without arithmetic.
-      const st = e.storm || null;
+      const st = s.storm || null;
       if (st && st.at != null) {
         const pre = st.pre != null ? +st.pre : STORM_D.pre;
         const dur = st.dur != null ? +st.dur : STORM_D.dur;
@@ -1703,24 +1693,24 @@ var DAY = (function () {
       // every existing day exactly where it was. The curve is a cosine peaking
       // three hours after solar noon (the lag of the ground's own heat); a
       // named cut, the real curve is asymmetric with a sharp post-dawn rise.
-      let T = e.oatC != null ? e.oatC : 15 + (e.dISA || 0);
-      const swing = e.diurnalC != null ? +e.diurnalC : 0;
+      let T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      const swing = s.diurnalC != null ? +s.diurnalC : 0;
       if (swing > 0) {
         const peak = (d.noonUtc != null ? d.noonUtc : 43200) + 3 * 3600;
         T += 0.5 * swing * CORE_MATH.cos(2 * Math.PI * (utc - peak) / 86400);
       }
       if (d.storm) T += d.storm.dTemp;
       d.oatEff = T;
-      d.qnhEff = (e.qnhPa != null ? e.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
-      const Td = e.dewC != null ? e.dewC : dewFromRh(T, e.rh != null ? e.rh : DEFAULT.rh);
-      d.oatC = T; d.dewC = Td; d.rh = e.dewC != null ? rhFromDew(T, Td) : (e.rh != null ? e.rh : DEFAULT.rh);
+      d.qnhEff = (s.qnhPa != null ? s.qnhPa : 101325) + (d.storm ? d.storm.dQnh : 0);
+      const Td = s.dewC != null ? s.dewC : dewFromRh(T, s.rh != null ? s.rh : DEFAULT.rh);
+      d.oatC = T; d.dewC = Td; d.rh = s.dewC != null ? rhFromDew(T, Td) : (s.rh != null ? s.rh : DEFAULT.rh);
       // THE BASE MOVES ONLY WHEN THE DAY MOVES IT, and then it is QUANTISED to
       // 20 m: the cloud renderer keys its weather-map fit on the deck's base
       // (clouds.js layKey) and re-fits over a dozen frames whenever it changes,
       // so a base creeping by centimetres with the diurnal swing would re-fit
       // the sky every frame. A still day is bit-identical to before.
       const baseRaw = clamp(125 * (T - Td), 0, 6000);
-      d.cloudBase = (swing > 0 || d.storm || d.plan) ? Math.round(baseRaw / 20) * 20 : baseRaw;
+      d.cloudBase = (swing > 0 || d.storm) ? Math.round(baseRaw / 20) * 20 : baseRaw;
       // what the sky is doing, the front included (the renderer reads these)
       d.cloudCoverEff = d.storm && d.storm.I > 0
         ? Math.max(day.cloudCover, day.cloudCover + (d.storm.cover - day.cloudCover) * d.storm.I)
@@ -1730,12 +1720,12 @@ var DAY = (function () {
       // makeAtmos reads has moved. The world rebuilds `atmos` on it, lazily, so
       // a clock tick through a swing or a front makes new air without a
       // version bump (GATE DAY: a VISUAL change leaves atmos the SAME object).
-      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (e.lapse || 'isa')
-               + ':' + (e.mixH != null ? Math.round(e.mixH) : '-')
-               + ':' + (e.inversion ? Math.round((e.inversion.dT || 0) * 100) + '/' + Math.round(e.inversion.thick || 0) : '-');
+      d.airKey = Math.round(T * 1000) + ':' + Math.round(d.qnhEff * 10) + ':' + (s.lapse || 'isa')
+               + ':' + (s.mixH != null ? Math.round(s.mixH) : '-')
+               + ':' + (s.inversion ? Math.round((s.inversion.dT || 0) * 100) + '/' + Math.round(s.inversion.thick || 0) : '-');
       // NOT the humidity (see AIR_KEYS)
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
-      const tb = e.turbidity != null ? e.turbidity : DEFAULT.turbidity;
+      const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
       // TWO NUMBERS OUT OF ONE HUMIDITY, AND THEY ARE NOT THE SAME MEDIUM. They sit
       // together deliberately, because keeping them apart is what went wrong before:
@@ -1771,19 +1761,13 @@ var DAY = (function () {
       d.mistBurn = burn;
       // ...and THE WIND (F5): the storm day's gale drew 1.4 /km of ground fog before this - `mistCalm` is what the wind
       // leaves of the layer (1 in still air and on every day that declares no wind, so those are bit-identical)
-      const w = e.wind || null;
+      const w = s.wind || null;
       const wKt = !w ? 0 : w.kts != null ? +w.kts : w.mps != null ? +w.mps / KT_MS
                 : Array.isArray(w.base) ? Math.hypot(+w.base[0] || 0, +w.base[2] || 0) / KT_MS : 0;
       const wEff = (Number.isFinite(wKt) ? wKt : 0) * (d.storm ? d.storm.windK : 1);
       const q = clamp((wEff - MIST_CALM_KT[0]) / (MIST_CALM_KT[1] - MIST_CALM_KT[0]), 0, 1);
       d.mistCalm = 1 - q * q * (3 - 2 * q);
       d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn) * d.mistCalm;
-      // THE PLAN'S OWN WEATHER BEYOND THE SPEC (WEATHER-SEASON): an ADVECTION fog it declares (a layer of saturated
-      // marine air, `fog.hold` - it neither needs the island's humidity nor burns off with the lagged sun; study §3.4),
-      // the rain (0..1, for the renderer and the forecast; W6 draws it), the night's aurora index (Kp, NIGHT-LOOK's)
-      const P = d.plan;
-      if (P && P.fogHold > 0) d.mistRho0 = Math.max(d.mistRho0, 0.0025 * P.fogHold);
-      d.rain = P ? P.rain : 0; d.auroraKp = P ? P.kp : 0; d.fogWhere = P ? P.fogWhere : null;
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -1837,9 +1821,9 @@ var DAY = (function () {
     // water it needs for the dew point and the condensation level.
     const air = () => {
       const a = {};
-      for (const k of AIR_KEYS) if (e[k] != null) a[k] = e[k];
-      if (e.oatC != null || e.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
-      if (e.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
+      for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k];
+      if (s.oatC != null || s.diurnalC > 0 || d.storm) a.oatC = d.oatEff;
+      if (s.qnhPa != null || d.storm) a.qnhPa = d.qnhEff;
       if (a.oatC != null) delete a.dISA;              // one temperature, not two
       return a;
     };
@@ -1847,36 +1831,34 @@ var DAY = (function () {
     const day = {
       set, advance,
       spec: () => { const o = {}; for (const k of Object.keys(s).sort()) o[k] = s[k]; return JSON.parse(JSON.stringify(o)); },
-      air, get hasAir() { return AIR_KEYS.some(k => e[k] != null) || e.diurnalC > 0 || !!e.storm; },
+      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null) || s.diurnalC > 0 || !!s.storm; },
       // K2: the declared weather, for the panel and the URL
-      get wind() { return e.wind || null; },
-      // WEATHER-SEASON: the plan the declared spec names (null: none) - the derived `plan` is its meta for this instant
-      get planSpec() { return s.plan || null; },
-      get stormSpec() { return e.storm || null; },
-      get diurnalC() { return e.diurnalC != null ? +e.diurnalC : 0; },
+      get wind() { return s.wind || null; },
+      get stormSpec() { return s.storm || null; },
+      get diurnalC() { return s.diurnalC != null ? +s.diurnalC : 0; },
       // K4: how long the sea takes to answer the wind (0 = at once, as it always was)
-      get seaTau() { return e.seaTau != null ? Math.max(0, +e.seaTau) : 0; },
+      get seaTau() { return s.seaTau != null ? Math.max(0, +s.seaTau) : 0; },
       get version() { return version; },
       get geo() { return geo; },
       get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },
       get jd() { return SOLAR.jd(jdn, utc); },
       get rate() { return s.rate != null ? s.rate : 1; },
-      get turbidity() { return e.turbidity != null ? e.turbidity : DEFAULT.turbidity; },
+      get turbidity() { return s.turbidity != null ? s.turbidity : DEFAULT.turbidity; },
       get ozone() { return s.ozone != null ? s.ozone : DEFAULT.ozone; },
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
-      get cloudCover() { return e.cloudCover != null ? e.cloudCover : DEFAULT.cloudCover; },
-      get cloudType() { return e.cloudType || DEFAULT.cloudType; },
+      get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
+      get cloudType() { return s.cloudType || DEFAULT.cloudType; },
       get cloudSeed() { return s.cloudSeed != null ? (s.cloudSeed | 0) : DEFAULT.cloudSeed; },
       // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
       // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
       // (08_cloud_field.js layers()) stacks them without overlap
       get cloudUpper() {
-        const u = Array.isArray(e.cloudUpper) ? e.cloudUpper : [];
+        const u = Array.isArray(s.cloudUpper) ? s.cloudUpper : [];
         return u.slice(0, 2).map(o => { const r = { cover: clamp(+(o && o.cover) || 0, 0, 1), type: String((o && o.type) || 'ac') };
           if (o && o.base != null && isFinite(+o.base)) r.base = +o.base; if (o && o.thick != null && +o.thick > 0) r.thick = +o.thick; return r; });
       },
       get cloudLayers() { return [{ cover: day.cloudCover, type: day.cloudType, base: d.cloudBase }].concat(day.cloudUpper); },
-      get qnhPa() { return e.qnhPa != null ? e.qnhPa : 101325; },
+      get qnhPa() { return s.qnhPa != null ? s.qnhPa : 101325; },
       // utcFor(elDeg, rising) — the UT second on THIS civil day when the sun crosses an
       // elevation (bisection on the monotone half-day); null when it never does.
       // The presets (dawn, golden, dusk...) are built on it by the clock.
@@ -1901,7 +1883,6 @@ var DAY = (function () {
                      'sunElLag',                                                       // K3
                      'mistBurn',                                                       // F3c: how much of the layer the morning has taken
                      'mistCalm',                                                       // WEATHER-FIXES F5: how much of it the wind leaves
-                     'plan', 'rain', 'auroraKp', 'fogWhere',                           // WEATHER-SEASON: the plan's meta now, and what it brings
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }
@@ -2097,338 +2078,6 @@ function dayDuskDawnH(day) {
   const loc = u => ((((u + day.offsetH * 3600) % 86400) + 86400) % 86400) / 3600;
   return { dawnH: loc(dayPresetUtc(day, 'dawn')), duskH: loc(dayPresetUtc(day, 'dusk')) };
 }
-// ============================================================
-// GENERATED by tools/weather_days_pack.js from src/weather/days/<block>/*.json - never hand-edit (GATE WEATHERPLAN).
-// The crafted weather days: three seasonal blocks of 14 (early 20 May-2 Jul, high 3 Jul-15 Aug, late 16 Aug-30 Sep),
-// read by 07d_weather_plan.js. futureDesigns/WEATHER-DAYS-STUDY-2026-11.md §4, §10, Appendix B (the schema).
-// ============================================================
-const WEATHER_DAYS = Object.freeze({
-  early: [
-    {"v":1,"id":"cool-northwesterly","name":"Cool northwesterly","story":"Late May on the island: a fresh northwesterly off the mountains, air so clean the far ranges look close enough to touch, small cumulus racing south. Cold at dawn, bright all day, and a long blue evening that never quite turns to night.","fly":"easy","forecast":"Clear and cool. Northwest 6 kt at dawn, 10-11 kt in the afternoon. Visibility 90 km. A few small cumulus. A twilit night, clear; a chance of aurora low in the north.","temp":{"min":-1.5,"max":-0.5},"dew":[[4,-5.5],[15,-7],[27,-5.5]],"qnh":[[4,1021],[27,1023]],"wind":[[4,6,320,0.15],[10,9,320,0.2],[15,11,315,0.22],[20,7,320,0.15],[26,3,320,0.1]],"rich":{"breeze":0.4,"terrain":0.7,"thermals":0.4},"low":[[4,0,"cuh"],[11,0.08,"cuh"],[15,0.15,"cuh"],[19,0.06,"cuh"],[21,0,"cuh"]],"turbidity":1.9,"aurora":[[23,3],[25,4],[27,3]]},
-    {"v":1,"id":"calm-and-bright","name":"Calm and bright","story":"The wind drops away overnight and leaves a still, bright morning: the sound like glass at dawn, the first real sea breeze filling in after lunch. The day to try a seaplane landing.","fly":"easy","forecast":"Fine. Calm at dawn, glassy water until 11:00, sea breeze west 6-7 kt from 13:00. Visibility 60 km. Clear night.","temp":{"min":-1,"max":0.5},"dew":[[4,-4.5],[15,-5],[27,-4]],"qnh":[[4,1023],[27,1022]],"wind":[[4,1,60,0.05],[10,2,200,0.06],[14,6,245,0.12],[19,5,250,0.1],[24,1,90,0.05]],"rich":{"breeze":1,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.03,"cuh"],[16,0.06,"cuh"],[20,0,"cuh"]],"turbidity":2.3,"aurora":[]},
-    {"v":1,"id":"first-cumulus","name":"First cumulus","story":"The sun is strong now and the ground answers: by noon the first neat cumulus stand over the ridges, each one a thermal. A gentle westerly, and the season's first soaring day.","fly":"easy","forecast":"Fair. Cumulus from 11:00, base 1500 m. West 6-8 kt. Light thermal turbulence in the afternoon. Clear night.","temp":{"min":0,"max":1},"dew":[[4,-4],[15,-4.5],[27,-4]],"qnh":[[4,1021],[27,1020]],"wind":[[4,2,250,0.08],[11,5,250,0.15],[15,8,250,0.2],[20,5,250,0.12],[26,2,240,0.08]],"rich":{"breeze":0.8,"terrain":0.6,"thermals":0.8},"low":[[4,0,"cuh"],[11,0.08,"cuh"],[14,0.2,"cuh"],[18,0.15,"cuh"],[21,0,"cuh"]],"turbidity":2.5,"aurora":[]},
-    {"v":1,"id":"warm-spell","name":"Warm spell","story":"A warm southerly flow brings the first truly warm day of the year: shirtsleeves on the apron, a soft haze over the far hills, cumulus building over the ridges late in the day.","fly":"easy","forecast":"Warm, 21 C in the afternoon. Haze, visibility 25 km. Cumulus over the hills from 13:00, base 1700 m. Light southwest wind. Mild night.","temp":{"min":2,"max":5},"dew":[[4,-1.5],[15,-1],[27,-1.5]],"qnh":[[4,1020],[27,1018]],"wind":[[4,2,180,0.08],[11,4,200,0.12],[15,7,215,0.18],[20,5,210,0.12],[26,2,190,0.08]],"rich":{"breeze":1,"terrain":0.6,"thermals":0.8},"low":[[4,0.02,"cu"],[12,0.08,"cu"],[15,0.22,"cu"],[18,0.18,"cu"],[22,0.03,"cu"]],"turbidity":3.8,"aurora":[]},
-    {"v":1,"id":"valley-fog","name":"Valley fog","story":"The warm, still night leaves the lake valleys and the sound filled with fog, the ridges standing out of it like islands. It lifts by half past nine; the rest of the day is fine and warm.","fly":"easy-after-wait","waitUntil":"09:30","forecast":"Fog in the valleys and on the water at dawn, visibility under 1 km, lifting 08:30-09:30. Then fair, light southwest wind. Clear night.","temp":{"min":1,"max":1.5},"dew":[[4,1],[7,1],[10,-2.5],[15,-3],[27,-2.5]],"qnh":[[4,1018],[27,1018]],"wind":[[4,0,0,0],[9,1,200,0.05],[12,4,220,0.1],[16,6,230,0.12],[21,3,220,0.08],[26,2,200,0.06]],"rich":{"breeze":1,"terrain":0.4,"thermals":0.5},"low":[[4,0,"cuh"],[12,0.05,"cuh"],[15,0.12,"cuh"],[19,0.05,"cuh"],[22,0,"cuh"]],"fog":{"where":"low","hold":[[4,0.85],[7.5,0.7],[9,0.3],[10,0]]},"turbidity":3,"aurora":[]},
-    {"v":1,"id":"thickening-sky","name":"Thickening sky","story":"Still fine underneath, but the sky is turning: mares' tails in the morning, a grey veil spreading from the southwest by afternoon, the wind backing south. The radio is talking about the weekend.","fly":"easy","forecast":"Fair, high cloud thickening from the southwest. South 6 kt, 10-12 kt by evening. Pressure falling. A FRONT reaches the island the day after tomorrow: a southeast gale, rain.","temp":{"min":1,"max":0},"dew":[[4,-3],[15,-2.5],[27,-1]],"qnh":[[4,1018],[27,1012]],"wind":[[4,3,170,0.08],[11,6,175,0.12],[16,9,170,0.15],[21,11,160,0.18],[27,10,150,0.18]],"rich":{"breeze":0.6,"terrain":0.5,"thermals":0.3},"low":[[4,0.03,"cuh"],[12,0.08,"cuh"],[16,0.1,"cuh"],[21,0.04,"cuh"]],"up":[[4,0,"as",5000],[11,0.1,"as",5000],[16,0.35,"as",4500],[22,0.6,"as",4200],[27,0.7,"as",4000]],"turbidity":2.8,"aurora":[]},
-    {"v":1,"id":"grey-and-mild","name":"Grey and mild","story":"A mild, grey day under a low ceiling of stratocumulus, the air soft and damp, the southeasterly freshening through the evening and drizzle setting in after dark. Fly early; tomorrow is the gale.","fly":"easy","forecast":"Overcast, base 700 m, no rain until evening. Southeast 8 kt, 14 kt by night, drizzle after 21:00. GALE tomorrow: no flying from dawn to 17:30.","temp":{"min":2.5,"max":-1.5},"dew":[[4,-1.5],[15,-1],[27,1]],"qnh":[[4,1012],[27,1006]],"wind":[[4,9,150,0.12],[11,8,145,0.12],[16,9,145,0.15],[21,12,140,0.18],[27,14,135,0.2]],"rich":{"breeze":0.2,"terrain":0.6,"thermals":0},"low":[[4,0.6,"sc"],[9,0.82,"sc"],[18,0.86,"sc"],[27,0.9,"sc"]],"up":[[4,0.7,"as",4000],[27,0.8,"as",3600]],"rain":[[4,0],[19,0],[22,0.1],[27,0.15]],"turbidity":2.6,"aurora":[]},
-    {"v":1,"id":"spring-gale","name":"Spring gale","story":"The season's one real blow. A southeast gale through the morning with rain driving across the sound, the cloud down on the hills, the front through early afternoon with a squall and a sudden veer to the west; then it tears open, cold and sparkling, and by night the sky is clean.","fly":"storm","noFly":[["05:00","17:30"]],"forecast":"GALE WARNING, NO VFR FROM DAWN TO 17:30. Southeast 14-16 kt gusting 26, rain and low cloud from dawn, cloud base 250 m. The cold front 12:30-14:00: gusts to 38 kt, heavy rain, visibility 3 km, then veering west. Clearing from 17:00. Cold, clear night.","temp":{"min":3,"max":-3},"tAdd":[[4,0],[12.5,0],[13.5,-2.5],[18,-2],[27,-1]],"dew":[[4,1.5],[12,3],[15,2.5],[20,-3],[27,-5]],"qnh":[[4,1006],[12,998],[15,1001],[21,1007],[27,1011]],"wind":[[4,14,135,0.22],[9,16,135,0.28],[12,17,145,0.3],[14.5,14,220,0.35],[17,11,265,0.3],[22,6,280,0.18],[27,3,290,0.1]],"storm":{"at":13,"pre":2,"dur":1,"post":2.5,"windK":1.7,"gustK":1.6,"veerDeg":0,"dTemp":0,"dQnh":0,"cover":0.98,"type":"cb"},"rich":{"breeze":0,"terrain":1,"thermals":0,"aloftK":1.3,"veerDeg":20},"low":[[4,0.92,"sc"],[11,0.96,"sc"],[16,0.85,"sc"],[18,0.4,"sc"],[20.5,0.1,"sc"],[23,0.02,"sc"]],"up":[[4,0.85,"as",3200],[12,0.9,"as",3000],[16,0.5,"as",3500],[19,0.1,"as",4000],[21,0,"as",4000]],"rain":[[4,0.05],[8,0.2],[11,0.5],[13.2,0.95],[14.5,0.5],[16,0.2],[18,0.05],[19,0]],"turbidity":2.2,"aurora":[[23,3],[26,3]]},
-    {"v":1,"id":"spring-showers","name":"Spring showers","story":"The cold air behind the gale: a blustery northwesterly, heaped cumulus with hard white tops, sharp showers sweeping down the valleys with sunshine between. Bumpy and beautiful.","fly":"moderate","forecast":"Northwest 11 kt gusting 18. Cumulus, showers 12:00-17:00, base 1300 m, 5 km in showers, 80 km between. Showers dying by evening; clear, cold night.","temp":{"min":-2.5,"max":-2},"dew":[[4,-6.5],[15,-6.5],[27,-6]],"qnh":[[4,1012],[15,1016],[27,1019]],"wind":[[4,5,300,0.15],[10,10,305,0.3],[15,12,310,0.38],[19,8,310,0.28],[23,4,300,0.15]],"rich":{"breeze":0.3,"terrain":0.8,"thermals":0.8},"low":[[4,0.05,"cu"],[10,0.25,"cu"],[14,0.45,"cu"],[18,0.3,"cu"],[21,0.06,"cu"],[24,0,"cu"]],"rain":[[4,0],[11,0],[13,0.22],[16,0.25],[18.5,0.06],[20,0]],"turbidity":2,"aurora":[[23,3],[26,4]]},
-    {"v":1,"id":"crisp-dawn","name":"Crisp dawn","story":"The coldest dawn of the spring, the grass grey with dew and the air utterly still; by mid-morning a perfect, cloudless sky and 100 km of visibility. At night the aurora, pale green over the northern hills in the long twilight.","fly":"easy","forecast":"Clear and cold, 3-4 C at dawn. Calm, northwest 4-5 kt in the afternoon. Visibility 100 km. Clear night: aurora likely.","temp":{"min":-3,"max":-1},"dew":[[4,-7],[15,-7.5],[27,-5.5]],"qnh":[[4,1020],[27,1022]],"wind":[[4,1,320,0.05],[11,3,300,0.08],[15,5,290,0.1],[20,3,290,0.08],[26,1,300,0.05]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.02,"cuh"],[15,0.05,"cuh"],[19,0,"cuh"]],"turbidity":1.8,"aurora":[[22,4],[24,5],[27,4]]},
-    {"v":1,"id":"breezy-westerly","name":"Breezy westerly","story":"A brisk westerly sets in across the island, white horses on the sound and a steady crosswind on the club's runway all afternoon. Good practice for the hands; the lee of the ridges is rough.","fly":"moderate","forecast":"West 12-14 kt, gusting 20 in the afternoon. Moderate turbulence in the lee of the ridges. Fair-weather cumulus, base 1300 m. Wind easing after 20:00. Clear night.","temp":{"min":0,"max":-0.5},"dew":[[4,-4],[15,-4],[27,-3.5]],"qnh":[[4,1019],[27,1018]],"wind":[[4,8,265,0.18],[9,11,265,0.25],[14,14,260,0.32],[18,12,260,0.28],[22,7,255,0.2],[27,4,250,0.12]],"rich":{"breeze":0.3,"terrain":1,"thermals":0.4,"aloftK":1.25,"veerDeg":15},"low":[[4,0.1,"cuh"],[11,0.2,"cuh"],[16,0.25,"cuh"],[20,0.15,"cuh"],[24,0.05,"cuh"]],"turbidity":2.2,"aurora":[]},
-    {"v":1,"id":"june-cumulus","name":"June cumulus","story":"A classic early-summer day: neat, well-spaced cumulus drifting slowly east, a light sea breeze, the hills patterned with cloud shadows all afternoon.","fly":"easy","forecast":"Fair. Cumulus from late morning, base 1400 m. West 5 kt, sea breeze 8 kt in the afternoon. Clear night.","temp":{"min":0,"max":0.5},"dew":[[4,-3.5],[15,-4],[27,-3.5]],"qnh":[[4,1020],[27,1020]],"wind":[[4,2,260,0.08],[10,5,250,0.12],[15,8,250,0.15],[20,5,250,0.12],[26,2,240,0.08]],"rich":{"breeze":1,"terrain":0.5,"thermals":0.6},"low":[[4,0.03,"cuh"],[10,0.1,"cuh"],[14,0.25,"cuh"],[18,0.2,"cuh"],[21,0.03,"cuh"]],"turbidity":2.7,"aurora":[]},
-    {"v":1,"id":"long-light-evening","name":"Long light evening","story":"A gentle day that ends in the longest evening of the year: the wind gone by seven, the lakes like mirrors, the sun setting after half past nine and the sky staying blue and gold until past midnight.","fly":"easy","forecast":"Fair. West 6 kt, calm from 19:00. Few cumulus. Visibility 50 km. A bright twilit night, clear.","temp":{"min":0.5,"max":1},"dew":[[4,-3],[15,-3.5],[27,-3]],"qnh":[[4,1020],[27,1020]],"wind":[[4,2,270,0.06],[11,4,260,0.1],[15,6,255,0.12],[18.5,2,250,0.06],[21,0.5,250,0.02],[26,0.5,90,0.02]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.4},"low":[[4,0.02,"cuh"],[12,0.08,"cuh"],[16,0.1,"cuh"],[19,0.02,"cuh"],[21,0,"cuh"]],"turbidity":2.4,"aurora":[]},
-    {"v":1,"id":"midsummer-blue","name":"Midsummer blue","story":"A soft southerly, a sky of high, dappled altocumulus catching the low sun, and a night that is only a long blue dusk. The air turns humid late: the valleys may be misty by morning.","fly":"easy","forecast":"Fair. South 6-8 kt. Altocumulus from 15:00 at 3800 m. Visibility 40 km. A blue, twilit night, broken high cloud; mist possible in the valleys by dawn.","temp":{"min":0.5,"max":0.5},"dew":[[4,-3],[15,-3.5],[22,-2.5],[27,-1.5]],"qnh":[[4,1019],[27,1019]],"wind":[[4,3,180,0.08],[11,6,180,0.12],[15,8,180,0.15],[20,5,185,0.1],[26,2,200,0.06]],"rich":{"breeze":0.7,"terrain":0.5,"thermals":0.4},"low":[[4,0.02,"cuh"],[12,0.08,"cuh"],[16,0.08,"cuh"],[20,0.02,"cuh"]],"up":[[4,0,"ac",3800],[13,0.08,"ac",3800],[17,0.35,"ac",3800],[22,0.4,"ac",3800],[27,0.15,"ac",3800]],"turbidity":2.7,"aurora":[]}
-  ],
-  high: [
-    {"v":1,"id":"fair-cumulus","name":"Fair-weather cumulus","story":"The game's own day: small, well-split summer cumulus over the island, a light breeze off the sea, the hills side-lit all afternoon.","fly":"easy","forecast":"Fair. Small cumulus from late morning, base near 1500 m. Wind west 5 kt, sea breeze 8-10 kt in the afternoon. Clear night, a chance of aurora low in the north.","temp":{"min":0,"max":0},"dew":[[4,-4],[15,-4.5],[27,-4]],"qnh":[[4,1019],[27,1020]],"wind":[[4,3,260,0.1],[9,5,250,0.12],[15,8,250,0.15],[20,6,250,0.12],[26,3,240,0.1]],"rich":{"breeze":1,"terrain":0.5,"thermals":0.6},"low":[[4,0.05,"cuh"],[10,0.12,"cuh"],[14,0.25,"cuh"],[18,0.22,"cuh"],[21,0.05,"cuh"]],"turbidity":2.8,"aurora":[[22,2],[24,3],[27,2]]},
-    {"v":1,"id":"clear-high","name":"Clear high","story":"A high sits over the island: a calm, cool dawn, a cloudless sky all day, the sea breeze filling in after lunch. The day to learn a new aeroplane.","fly":"easy","forecast":"Clear. Calm at dawn, sea breeze west 8-10 kt from 13:00, dying at dusk. Visibility 60 km. Clear, still night: dew on the wings by morning.","temp":{"min":-1,"max":1},"dew":[[4,-5],[15,-5.5],[22,-3.5],[27,-1.5]],"qnh":[[4,1022],[27,1023]],"wind":[[4,1,90,0.05],[10,3,200,0.08],[15,7,250,0.12],[20,4,250,0.1],[26,1,60,0.05]],"rich":{"breeze":1,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.03,"cuh"],[16,0.04,"cuh"],[20,0,"cuh"]],"turbidity":2.4,"aurora":[[23,1],[26,1]]},
-    {"v":1,"id":"morning-fog","name":"Morning fog on the sound","story":"The still, clear night after the high has filled the sound and the valleys with fog. It burns off by half past ten; the afternoon is fine and clear. Wait it out with a coffee.","fly":"easy-after-wait","waitUntil":"10:30","forecast":"Fog over the water and in the valleys at dawn, visibility under 1 km, lifting 09:30-10:30. Then fair, light southwest wind. Clear night.","temp":{"min":-1.5,"max":0},"dew":[[4,-1.5],[7,-1.2],[11,-3.5],[15,-4.5],[27,-4]],"qnh":[[4,1022],[27,1020]],"wind":[[4,0,0,0],[9,1,180,0.05],[12,5,220,0.1],[16,7,240,0.12],[21,3,240,0.08],[26,2,220,0.05]],"rich":{"breeze":1,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.05,"cuh"],[15,0.12,"cuh"],[19,0.06,"cuh"],[22,0,"cuh"]],"fog":{"where":"low","hold":[[4,0.9],[8,0.8],[10,0.4],[11,0]]},"turbidity":3,"aurora":[[23,1],[26,1]]},
-    {"v":1,"id":"warm-hazy","name":"Warm and hazy","story":"The high at its peak: the warmest day of the fortnight, a milky haze over the far hills, cumulus building over the ridges in the afternoon. Short strips feel a little shorter.","fly":"easy","forecast":"Warm, 23-24 C at sea level in the afternoon. Haze, visibility 20 km. Cumulus over the hills from 13:00, base 1800 m. Wind light and variable, sea breeze southwest 8 kt. Mild night, a few clouds, the moon through haze.","temp":{"min":1.5,"max":5.5},"dew":[[4,-2.5],[15,-2],[27,-2.5]],"qnh":[[4,1020],[27,1017]],"wind":[[4,2,140,0.08],[11,3,200,0.12],[15,7,225,0.2],[20,5,220,0.15],[26,3,160,0.1]],"rich":{"breeze":1,"terrain":0.6,"thermals":0.9},"low":[[4,0.04,"cu"],[12,0.1,"cu"],[15,0.3,"cu"],[18,0.25,"cu"],[22,0.06,"cu"]],"turbidity":4.2,"aurora":[]},
-    {"v":1,"id":"high-cloud","name":"High cloud coming","story":"Still fine, but the sky is changing: a halo round the sun by noon, a thin veil thickening from the southwest by evening, the wind backing southeast. The front is two days out and the radio says so.","fly":"easy","forecast":"Fine, high cloud thickening from the southwest in the afternoon. Wind backing southeast 6-10 kt. Pressure falling slowly. Night: high overcast, the moon a pale disc. A FRONT is forecast for the day after tomorrow.","temp":{"min":1,"max":1.5},"dew":[[4,-2.5],[15,-2],[27,-1]],"qnh":[[4,1017],[27,1013]],"wind":[[4,3,150,0.08],[12,6,160,0.12],[17,9,150,0.15],[22,8,140,0.15],[27,8,135,0.15]],"rich":{"breeze":0.6,"terrain":0.5,"thermals":0.3},"low":[[4,0.05,"cuh"],[12,0.1,"cuh"],[16,0.12,"cuh"],[21,0.05,"cuh"]],"up":[[4,0,"as",5000],[10,0.1,"as",5000],[16,0.35,"as",4500],[22,0.6,"as",4200],[27,0.7,"as",4000]],"turbidity":3,"aurora":[]},
-    {"v":1,"id":"overcast-calm","name":"Overcast calm","story":"A grey, still, mild day under a flat deck of stratocumulus. Good visibility beneath it, the water like pewter, every sound carrying. At night the town and the dock lights double on the glassy water.","fly":"easy","forecast":"Overcast, base 750 m, no rain. Wind southeast 3-6 kt. Visibility 30 km below the cloud. Overcast night. The FRONT arrives tomorrow afternoon: gale-force gusts, rain, low cloud.","temp":{"min":2.5,"max":-1.5},"dew":[[4,-1.5],[15,-1],[27,0]],"qnh":[[4,1013],[27,1008]],"wind":[[4,6,140,0.1],[10,5,140,0.1],[16,6,145,0.12],[22,8,140,0.15],[27,11,135,0.18]],"rich":{"breeze":0.2,"terrain":0.5,"thermals":0},"low":[[4,0.55,"sc"],[9,0.85,"sc"],[18,0.88,"sc"],[27,0.9,"sc"]],"up":[[4,0.7,"as",4000],[27,0.75,"as",3800]],"turbidity":2.6,"aurora":[]},
-    {"v":1,"id":"the-storm","name":"The storm","story":"The front forecast for three days. A blustery southeast morning, rain from late morning, the cold front through mid-afternoon with gale-force gusts and the cloud on the hills, then the wind veers west and the sky tears open behind it. By midnight it is clear, cold and very still - and the northern sky is green.","fly":"storm","noFly":[["07:00","18:00"]],"forecast":"STORM WARNING, NO VFR 07:00-18:00. Southeast 14 kt gusting 20 by late morning, low cloud 250-300 m from 07:00, rain from 10:00. The cold front 13:30-15:00: wind veering southwest then west, gusts to 35 kt, cloud base 150 m, visibility 3 km in heavy rain. Clearing from 18:00, showers ending by dusk. Clear, cold night, aurora likely.","temp":{"min":3,"max":-2},"dew":[[4,0.5],[12,3],[15,3],[20,-3],[27,-5]],"qnh":[[4,1008],[13,1001],[16,1003],[22,1009],[27,1013]],"wind":[[4,11,135,0.2],[9,14,135,0.25],[12,16,140,0.3],[15,14,200,0.35],[18,12,270,0.3],[22,7,285,0.2],[27,3,290,0.1]],"storm":{"at":14,"pre":1.5,"dur":1,"post":2.5,"windK":1.6,"gustK":1.6,"veerDeg":0,"dTemp":0,"dQnh":0,"cover":0.98,"type":"cb"},"tAdd":[[4,0],[13.6,0],[14.6,-3],[19,-2.5],[27,-1]],"rich":{"breeze":0,"terrain":1,"thermals":0,"aloftK":1.3,"veerDeg":20},"low":[[4,0.9,"sc"],[11,0.95,"sc"],[16,0.9,"sc"],[18.5,0.45,"sc"],[21,0.15,"sc"],[23,0.03,"sc"]],"up":[[4,0.8,"as",3500],[12,0.9,"as",3000],[17,0.5,"as",3500],[20,0.1,"as",4000],[22,0,"as",4000]],"rain":[[4,0],[10,0.1],[12,0.45],[14.2,0.95],[15.5,0.5],[17,0.2],[19,0.05],[20,0]],"turbidity":2.2,"aurora":[[22,4],[24,5],[27,4]]},
-    {"v":1,"id":"showers-sunshine","name":"Showers and sunshine","story":"The day behind the front: a fresh northwest wind, towering cumulus with sharp edges, the odd shower trailing grey veils over the sound, and between them the clearest air of the summer. Bumpy, beautiful, a day for an alert pilot.","fly":"moderate","forecast":"Northwest 12 kt gusting 22 in the afternoon. Cumulus, scattered showers from noon, base 1400 m. Visibility excellent, 80 km, 5 km in showers. Showers dying at dusk; clear, cold night, strong aurora likely.","temp":{"min":-2.5,"max":-2},"dew":[[4,-6.5],[15,-6.5],[27,-6]],"qnh":[[4,1014],[15,1017],[27,1020]],"wind":[[4,4,300,0.15],[10,10,305,0.3],[15,13,310,0.38],[19,9,310,0.3],[23,4,300,0.15],[27,2,300,0.1]],"rich":{"breeze":0.3,"terrain":0.8,"thermals":0.8},"low":[[4,0.05,"cu"],[10,0.25,"cu"],[14,0.45,"cu"],[18,0.35,"cu"],[21,0.08,"cu"],[24,0,"cu"]],"rain":[[11,0],[13,0.2],[16,0.25],[19,0.08],[21,0]],"turbidity":2,"aurora":[[22,5],[24,6],[26,5],[28,3]]},
-    {"v":1,"id":"crisp-clear","name":"Crisp and clear","story":"A cold, sparkling morning after the aurora night: frost-blue shadows, the wind gone, every ridge sharp out to 80 km. A few small cumulus by afternoon.","fly":"easy","forecast":"Clear and cool. Calm at dawn, northwest 5 kt by afternoon. Visibility 80 km. Small cumulus 14:00-18:00. Clear, cold night, aurora possible.","temp":{"min":-3,"max":-1},"dew":[[4,-7],[15,-7],[27,-5.5]],"qnh":[[4,1021],[27,1023]],"wind":[[4,1,320,0.05],[11,3,300,0.08],[15,6,290,0.12],[20,4,280,0.1],[26,1,300,0.05]],"rich":{"breeze":0.8,"terrain":0.5,"thermals":0.5},"low":[[4,0,"cuh"],[12,0.05,"cuh"],[15,0.15,"cuh"],[19,0.04,"cuh"],[21,0,"cuh"]],"turbidity":2,"aurora":[[22,3],[25,4],[27,3]]},
-    {"v":1,"id":"ridge-day","name":"Ridge day","story":"A brisk west-southwest wind across the island all day: lift on every windward face, rough air in the lee and on short final into the valley strips. Crosswind practice at the club; glider pilots' heaven.","fly":"moderate","forecast":"West-southwest 15 kt, gusting 22 over the hills, 18 kt early afternoon. Moderate turbulence in the lee of the ridges. Fair-weather cumulus, base 1200 m. Wind easing at dusk; broken cloud at night, the moon between.","temp":{"min":0.5,"max":-0.5},"dew":[[4,-3.5],[15,-3.5],[27,-3]],"qnh":[[4,1018],[27,1017]],"wind":[[4,9,255,0.2],[9,13,255,0.28],[14,17,250,0.32],[18,14,250,0.3],[22,9,245,0.22],[27,6,240,0.15]],"rich":{"breeze":0.2,"terrain":1,"thermals":0.4,"aloftK":1.25,"veerDeg":15},"low":[[4,0.15,"cuh"],[11,0.25,"cuh"],[16,0.3,"cuh"],[20,0.25,"cuh"],[24,0.35,"cuh"],[27,0.3,"cuh"]],"turbidity":2.4,"aurora":[]},
-    {"v":1,"id":"thermal-day","name":"Thermal day","story":"The air settles and the sun goes to work: a deep mixed layer under a lid at 1900 m, a cumulus capping every thermal, strong climbs for those who look for them. Bumpy below the cloud after 13:00.","fly":"easy","forecast":"Warm and fair. Cumulus from 11:00, base rising to 1800 m, tops at the inversion near 1900 m. Wind southwest 6 kt. Moderate thermal turbulence 13:00-17:00 below 1800 m. Clear, mild night.","temp":{"min":0.5,"max":4},"dew":[[4,-3.5],[15,-4],[22,-2],[27,0]],"qnh":[[4,1018],[27,1017]],"column":{"mixH":[[4,50],[9,700],[15,1900],[19,1500],[24,300],[28,50]],"inversion":{"dT":[[4,0],[10,3],[20,3],[27,0]],"thick":200}},"wind":[[4,2,200,0.1],[11,5,210,0.2],[15,7,200,0.28],[20,4,200,0.15],[26,2,190,0.08]],"rich":{"breeze":0.8,"terrain":0.7,"thermals":1},"low":[[4,0,"cu"],[11,0.12,"cu"],[14,0.35,"cu"],[17,0.3,"cu"],[20,0.08,"cu"],[22,0,"cu"]],"turbidity":3,"aurora":[]},
-    {"v":1,"id":"sea-fog","name":"Sea fog bank","story":"Warm air over the cold sea: a bank of fog lies on the water and the seaplane bases until noon, pulls back offshore in the afternoon and creeps in again at dusk. Inland it is a fine day; at night the moon stands over a sea of fog.","fly":"moderate","forecast":"Fog and low stratus on the coast and the sea until 12:00, the seaplane bases closed; inland strips fine. Fog clearing offshore 12:00-18:00, returning from 20:00. Wind southwest 4-8 kt. Night: fog on the water, clear above.","temp":{"min":0.5,"max":-0.5},"dew":[[4,0.8],[9,0.6],[12,-0.5],[16,-1.5],[20,0.5],[27,1]],"qnh":[[4,1017],[27,1018]],"wind":[[4,3,220,0.08],[11,4,225,0.1],[15,8,230,0.15],[20,5,225,0.1],[26,3,220,0.08]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.3},"low":[[4,0.35,"st"],[9,0.4,"st"],[13,0.12,"st"],[17,0.05,"st"],[21,0.25,"st"],[27,0.4,"st"]],"fog":{"where":"sea","hold":[[4,1],[10.5,1],[12.5,0],[19,0],[21,1],[27,1]]},"turbidity":3.2,"aurora":[]},
-    {"v":1,"id":"golden-evening","name":"Golden evening","story":"A gentle, clear day that saves its best for last: the wind drops away after five, the lake and the sound go glass-calm, and the sun sets gold into a clean horizon. Then the stars, the moon, a curtain of aurora.","fly":"easy","forecast":"Fair. West 6 kt, calm from 18:00, glassy water in the evening. Few cumulus. Visibility 50 km. Clear night, aurora possible.","temp":{"min":-0.5,"max":0.5},"dew":[[4,-4.5],[15,-5],[27,-4]],"qnh":[[4,1020],[27,1021]],"wind":[[4,2,270,0.06],[11,4,260,0.1],[15,6,255,0.12],[18,2,250,0.06],[21,0.5,250,0.02],[26,0.5,90,0.02]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.4},"low":[[4,0.02,"cuh"],[12,0.1,"cuh"],[16,0.12,"cuh"],[19,0.03,"cuh"],[21,0,"cuh"]],"turbidity":2.5,"aurora":[[22,3],[24,4],[27,3]]},
-    {"v":1,"id":"light-southerly","name":"Light southerly","story":"The high slides east and a soft southerly sets in. A mackerel sky of altocumulus in the afternoon, catching the sunset pink. Easy flying; the evening is mild and the moon sails through the dappled cloud.","fly":"easy","forecast":"Fair, altocumulus from 14:00 at 3500 m. South 8 kt. Visibility 40 km. Broken altocumulus at night, clearing toward dawn.","temp":{"min":1,"max":0.5},"dew":[[4,-3],[15,-3],[27,-3.5]],"qnh":[[4,1018],[27,1019]],"wind":[[4,4,170,0.1],[11,7,175,0.12],[15,9,180,0.15],[20,6,180,0.12],[26,3,200,0.08]],"rich":{"breeze":0.7,"terrain":0.5,"thermals":0.4},"low":[[4,0.04,"cuh"],[12,0.12,"cuh"],[16,0.12,"cuh"],[20,0.03,"cuh"]],"up":[[4,0,"ac",3500],[12,0.1,"ac",3500],[16,0.4,"ac",3500],[22,0.5,"ac",3500],[27,0.15,"ac",3500]],"turbidity":2.7,"aurora":[[23,1],[26,2]]}
-  ],
-  late: [
-    {"v":1,"id":"late-summer-high","name":"Late-summer high","story":"The last of the summer's warmth: a still, hazy, golden day, the forest smelling of resin, cumulus building lazily over the ridges. The evenings are drawing in now, and the first truly dark nights have come back.","fly":"easy","forecast":"Warm, 21-22 C in the afternoon. Haze, visibility 25 km. Cumulus over the hills, base 1700 m. Southwest 5-7 kt. Clear, dark night.","temp":{"min":1.5,"max":3.5},"dew":[[4,-2],[15,-1.5],[27,-1.5]],"qnh":[[4,1020],[27,1019]],"wind":[[4,2,190,0.08],[11,4,210,0.12],[15,7,220,0.18],[20,4,215,0.12],[26,1,190,0.06]],"rich":{"breeze":1,"terrain":0.6,"thermals":0.8},"low":[[4,0.02,"cu"],[12,0.08,"cu"],[15,0.2,"cu"],[18,0.15,"cu"],[21,0.02,"cu"]],"turbidity":3.6,"aurora":[]},
-    {"v":1,"id":"valley-fog-autumn","name":"Valley fog, late summer","story":"The longer, cooler nights fill every valley with fog: from the club the island is a sea of white with the ridges standing out of it. It holds until ten, then melts from the edges in, and the afternoon is fine.","fly":"easy-after-wait","waitUntil":"10:30","forecast":"Fog in the valleys and on the water at dawn, visibility under 1 km, lifting 09:30-10:30. Then fair, light west wind. Clear, dark night.","temp":{"min":1,"max":1},"dew":[[4,1.2],[8,1],[11,-2],[15,-3],[27,-3]],"qnh":[[4,1019],[27,1019]],"wind":[[4,0,0,0],[9,1,250,0.05],[12,4,255,0.1],[16,6,255,0.12],[21,2,250,0.06],[26,1,240,0.04]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.5},"low":[[4,0,"cuh"],[12,0.05,"cuh"],[15,0.1,"cuh"],[19,0.03,"cuh"],[21,0,"cuh"]],"fog":{"where":"low","hold":[[4,0.9],[8,0.85],[10,0.4],[11,0]]},"turbidity":2.8,"aurora":[]},
-    {"v":1,"id":"golden-september","name":"Golden September","story":"A perfect, windless day with the low autumn sun lighting everything gold: the birches turning on the hills, the water still, the air clear. At night, a deep starry sky and a glow of aurora in the north.","fly":"easy","forecast":"Clear. Calm, west 4 kt in the afternoon. Visibility 70 km. Clear, cold night, aurora possible. A FRONT is forecast for the day after tomorrow.","temp":{"min":-1,"max":1},"dew":[[4,-4.5],[15,-5],[27,-4]],"qnh":[[4,1021],[27,1019]],"wind":[[4,1,270,0.05],[11,2,260,0.06],[15,4,255,0.1],[19,2,250,0.06],[24,1,200,0.04]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.02,"cuh"],[15,0.05,"cuh"],[18,0,"cuh"]],"turbidity":2.2,"aurora":[[22,3],[24,4],[27,3]]},
-    {"v":1,"id":"southerly-freshening","name":"Southerly freshening","story":"A fine morning gives way to a changing afternoon: a southerly breeze freshening, a milky veil of altostratus sliding over from the southwest, the barometer falling steadily. Fly in the morning; the front comes tomorrow.","fly":"easy","forecast":"Fair morning, high cloud thickening from 13:00. South 6 kt, 11-12 kt by evening. Pressure falling. STORM tomorrow: a front with a southeast gale and rain, no flying from dawn to 18:00.","temp":{"min":1,"max":0.5},"dew":[[4,-2.5],[15,-2],[27,-0.5]],"qnh":[[4,1019],[27,1011]],"wind":[[4,3,170,0.08],[11,6,170,0.12],[16,9,165,0.15],[21,11,155,0.18],[27,12,145,0.2]],"rich":{"breeze":0.5,"terrain":0.5,"thermals":0.3},"low":[[4,0.03,"cuh"],[12,0.06,"cuh"],[16,0.06,"cuh"],[20,0.03,"cuh"]],"up":[[4,0,"as",5000],[12,0.1,"as",5000],[16,0.4,"as",4500],[22,0.7,"as",4000],[27,0.8,"as",3600]],"turbidity":2.6,"aurora":[]},
-    {"v":1,"id":"first-autumn-storm","name":"The first autumn storm","story":"Autumn arrives in one afternoon. Rain from the southeast all morning, the cloud on the hills, then the cold front with a black squall line, a roaring gust and a sudden shift to the west. Behind it, a cold, rinsed sky, and at dusk the first ragged clearing.","fly":"storm","noFly":[["06:00","18:00"]],"forecast":"STORM WARNING, NO VFR FROM DAWN TO 18:00. Southeast 12-15 kt gusting 24, low cloud and rain from dawn, cloud base 250 m. The cold front 13:30-15:00: gusts to 35 kt, heavy rain, visibility 3 km, veering west. Showers clearing by dusk; a cold night.","temp":{"min":3,"max":-2.5},"tAdd":[[4,0],[13.6,0],[14.6,-3],[19,-2.5],[27,-1]],"dew":[[4,1],[12,3],[15,3],[20,-3],[27,-5]],"qnh":[[4,1011],[13,1000],[16,1002],[22,1008],[27,1012]],"wind":[[4,12,140,0.2],[9,14,140,0.25],[12,16,145,0.3],[15,14,210,0.35],[18,11,270,0.3],[22,7,285,0.2],[27,4,290,0.12]],"storm":{"at":14,"pre":1.5,"dur":1,"post":2.5,"windK":1.6,"gustK":1.6,"veerDeg":0,"dTemp":0,"dQnh":0,"cover":0.98,"type":"cb"},"rich":{"breeze":0,"terrain":1,"thermals":0,"aloftK":1.3,"veerDeg":20},"low":[[4,0.9,"sc"],[11,0.95,"sc"],[16,0.88,"sc"],[18.5,0.45,"sc"],[21,0.15,"sc"],[23,0.03,"sc"]],"up":[[4,0.85,"as",3400],[12,0.9,"as",3000],[17,0.5,"as",3500],[20,0.1,"as",4000],[22,0,"as",4000]],"rain":[[4,0],[9,0.15],[12,0.45],[14.2,0.95],[15.5,0.5],[17,0.2],[19,0.05],[20,0]],"turbidity":2.2,"aurora":[[23,3],[26,3]]},
-    {"v":1,"id":"clearing-showers","name":"Clearing showers","story":"The day behind the storm: a cold, gusty northwesterly, towering showers marching down the sound with rainbows behind them, and between them the clearest air of the year. By night the sky is swept clean and the aurora is out.","fly":"moderate","forecast":"Northwest 12 kt gusting 20. Cumulus and showers 11:00-17:00, base 1300 m, 5 km in showers. Visibility 90 km between. Clear, cold night: strong aurora likely.","temp":{"min":-2,"max":-2},"dew":[[4,-6],[15,-6.5],[27,-6]],"qnh":[[4,1013],[15,1017],[27,1020]],"wind":[[4,5,300,0.15],[10,10,305,0.3],[15,12,310,0.38],[19,8,310,0.28],[23,4,300,0.15],[27,2,300,0.1]],"rich":{"breeze":0.3,"terrain":0.8,"thermals":0.8},"low":[[4,0.06,"cu"],[10,0.28,"cu"],[14,0.45,"cu"],[18,0.3,"cu"],[21,0.05,"cu"],[24,0,"cu"]],"rain":[[4,0],[10,0],[12,0.22],[15,0.25],[17.5,0.06],[19,0]],"turbidity":1.9,"aurora":[[21,4],[23,5],[25,5],[28,3]]},
-    {"v":1,"id":"aurora-night","name":"Cold clear, aurora night","story":"Still, cold and utterly clear after the showers. A quiet day of long views and low light; and then, an hour after dusk, the northern sky begins to move: curtains of green with red at their tops, rising to the zenith by midnight. The night of the season.","fly":"easy","forecast":"Clear and cold, 5 C at dawn. Calm, northwest 4 kt in the afternoon. Visibility 100 km. Clear night: STRONG aurora expected from 21:00, overhead around midnight.","temp":{"min":-3.5,"max":-1.5},"dew":[[4,-7.5],[15,-8],[27,-6.5]],"qnh":[[4,1021],[27,1023]],"wind":[[4,2,320,0.05],[11,3,300,0.08],[15,4,290,0.1],[20,2,290,0.06],[26,1,300,0.04]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.4},"low":[[4,0,"cuh"],[12,0.02,"cuh"],[15,0.05,"cuh"],[18,0,"cuh"]],"turbidity":1.8,"aurora":[[20,4],[22,6],[24,7],[26,6],[28,4]]},
-    {"v":1,"id":"still-and-fair","name":"Still and fair","story":"A quiet, mild autumn day: thin mist on the lakes at sunrise that is gone by eight, light airs, a few small cumulus, the hills in their first autumn colour.","fly":"easy","forecast":"Fair. Mist on the lakes at dawn, gone by 08:00. Light and variable wind, southwest 5 kt in the afternoon. Visibility 50 km. Clear night, aurora possible.","temp":{"min":-1,"max":0},"dew":[[4,-4.5],[15,-4.5],[27,-3]],"qnh":[[4,1022],[27,1020]],"wind":[[4,1,200,0.05],[11,3,220,0.08],[15,5,230,0.1],[20,3,220,0.06],[26,2,180,0.05]],"rich":{"breeze":0.8,"terrain":0.4,"thermals":0.5},"low":[[4,0,"cuh"],[12,0.06,"cuh"],[15,0.12,"cuh"],[19,0.03,"cuh"],[21,0,"cuh"]],"turbidity":2.5,"aurora":[[22,3],[25,3]]},
-    {"v":1,"id":"grey-drizzle","name":"Grey drizzle","story":"A soft, grey, dripping day of the kind the coast is famous for: a low ceiling of stratus, fine drizzle on and off, the hilltops in the cloud and the water flat and dark. Flyable along the coast with care; the high strips are in cloud.","fly":"moderate","forecast":"Overcast, base 350-450 m, the hills in cloud. Light drizzle at times, visibility 8-10 km, 5 km in drizzle. Southeast 6-8 kt. Overcast night.","temp":{"min":2,"max":-2.5},"dew":[[4,-1.5],[12,0],[15,0.5],[27,-0.5]],"qnh":[[4,1014],[27,1013]],"wind":[[4,6,140,0.1],[11,7,145,0.12],[16,8,145,0.12],[22,6,140,0.1],[27,5,150,0.1]],"rich":{"breeze":0.1,"terrain":0.5,"thermals":0},"low":[[4,0.5,"st"],[8,0.85,"st"],[18,0.88,"st"],[24,0.8,"st"],[27,0.6,"st"]],"rain":[[4,0],[8,0],[10,0.12],[13,0.08],[16,0.14],[19,0.06],[22,0]],"turbidity":2.4,"aurora":[]},
-    {"v":1,"id":"southwest-ridge","name":"Southwest ridge day","story":"A fresh southwesterly behind the drizzle, the cloud lifting and breaking into bright cumulus: lift along every ridge facing the wind, a rough ride in the lee and on final into the valley strips.","fly":"moderate","forecast":"Southwest 13-15 kt, gusting 22 over the hills. Moderate turbulence in the lee. Cumulus, base 1100 m. Easing at dusk; broken cloud at night.","temp":{"min":0.5,"max":-0.5},"dew":[[4,-3.5],[15,-3.5],[27,-3]],"qnh":[[4,1013],[27,1016]],"wind":[[4,8,230,0.18],[9,12,230,0.26],[14,15,235,0.32],[18,12,235,0.28],[22,8,235,0.2],[27,5,240,0.14]],"rich":{"breeze":0.2,"terrain":1,"thermals":0.4,"aloftK":1.25,"veerDeg":15},"low":[[4,0.35,"cuh"],[10,0.3,"cuh"],[15,0.3,"cuh"],[20,0.25,"cuh"],[24,0.3,"cuh"],[27,0.2,"cuh"]],"turbidity":2.2,"aurora":[]},
-    {"v":1,"id":"indian-summer","name":"Indian summer","story":"A gift of a day: warm, still air under a big autumn high, a deep thermal layer under a lid at 1600 m, neat cumulus over the hills and the birches gold below them. The radio is already talking about the equinox gale.","fly":"easy","forecast":"Warm and fair, 18-19 C. Cumulus from 11:00, base 1500 m, tops near 1600 m. Southwest 5 kt. Thermal turbulence in the afternoon. A GALE is forecast for the day after tomorrow.","temp":{"min":1,"max":3.5},"dew":[[4,-3],[15,-3.5],[27,-2.5]],"qnh":[[4,1021],[27,1019]],"column":{"mixH":[[4,50],[10,700],[15,1600],[19,1200],[24,300],[28,50]],"inversion":{"dT":[[4,0],[10,2.5],[19,2.5],[27,0]],"thick":200}},"wind":[[4,1,200,0.08],[11,4,210,0.18],[15,6,205,0.25],[20,3,200,0.12],[26,1,190,0.06]],"rich":{"breeze":0.8,"terrain":0.7,"thermals":1},"low":[[4,0,"cu"],[11,0.1,"cu"],[14,0.28,"cu"],[17,0.22,"cu"],[20,0.05,"cu"],[22,0,"cu"]],"turbidity":2.9,"aurora":[]},
-    {"v":1,"id":"equinox-signs","name":"Equinox signs","story":"A deceptively fine morning, then every sign of what is coming: a halo round the sun, high cloud thickening fast, the wind backing southeast and rising through the evening, the barometer falling steeply. Bring the aeroplanes in.","fly":"easy","forecast":"Fair morning, high cloud thickening from 11:00. Southeast 6 kt, rising to 14 kt by midnight. Pressure falling fast. GALE WARNING for tomorrow: no flying from dawn to 18:00.","temp":{"min":0.5,"max":-0.5},"dew":[[4,-3],[15,-2.5],[27,0]],"qnh":[[4,1017],[27,1006]],"wind":[[4,3,160,0.1],[11,6,155,0.12],[16,8,150,0.15],[21,12,145,0.2],[27,15,140,0.22]],"rich":{"breeze":0.4,"terrain":0.6,"thermals":0.3},"low":[[4,0.03,"cuh"],[12,0.06,"cuh"],[16,0.05,"cuh"],[20,0.03,"cuh"]],"up":[[4,0,"as",5000],[10,0.15,"as",4800],[15,0.5,"as",4200],[21,0.8,"as",3600],[27,0.9,"as",3200]],"turbidity":2.5,"aurora":[]},
-    {"v":1,"id":"equinox-gale","name":"The equinox gale","story":"The big one, and the only day of the year the club stays shut. A full southeast gale from before dawn, rain hammering the hangar roof, the sea white and the cloud on the deck; the front through at midday with a screaming squall, and a long, wild, showery clearing. By midnight, stars.","fly":"storm","noFly":[["06:00","18:00"]],"forecast":"GALE WARNING, NO VFR FROM DAWN TO 18:00. Southeast 18 kt gusting 28 from dawn, heavy rain, cloud base 200 m. The cold front 12:00-13:30: gusts to 45 kt, visibility 2-3 km. Veering west, showers to dusk. Clearing overnight.","temp":{"min":3.5,"max":-3},"tAdd":[[4,0],[12,0],[13,-3],[18,-2.5],[27,-1.5]],"dew":[[4,2.5],[11,3.5],[14,2.5],[20,-3],[27,-5]],"qnh":[[4,1005],[11,995],[14,998],[21,1006],[27,1011]],"wind":[[4,15,140,0.25],[8,17,140,0.3],[11,18,145,0.32],[13.5,16,220,0.38],[16,14,270,0.35],[20,10,285,0.28],[24,6,290,0.2],[27,4,295,0.12]],"storm":{"at":12.5,"pre":2,"dur":1,"post":3,"windK":1.8,"gustK":1.7,"veerDeg":0,"dTemp":0,"dQnh":0,"cover":0.99,"type":"cb"},"rich":{"breeze":0,"terrain":1,"thermals":0,"aloftK":1.35,"veerDeg":20},"low":[[4,0.95,"sc"],[11,0.97,"sc"],[16,0.85,"sc"],[19,0.45,"sc"],[22,0.12,"sc"],[24,0.02,"sc"]],"up":[[4,0.9,"as",3000],[12,0.9,"as",2800],[17,0.5,"as",3500],[20,0.1,"as",4000],[22,0,"as",4000]],"rain":[[4,0.15],[7,0.4],[10,0.6],[12.5,1],[14,0.55],[16,0.3],[18.5,0.1],[20,0]],"turbidity":2.2,"aurora":[[24,3],[27,3]]},
-    {"v":1,"id":"bright-behind-the-gale","name":"Bright behind the gale","story":"The morning after: a brisk, cold northwesterly dropping through the day, the sea still running, the sky a hard bright blue with a few cumulus. Everything washed and sharp. At night, clear, cold, and the aurora again.","fly":"easy","forecast":"Northwest 10 kt gusting 15 in the morning, easing to 5 kt by afternoon. Fair, few cumulus, visibility 100 km. Clear, cold night: aurora likely.","temp":{"min":-2.5,"max":-1.5},"dew":[[4,-6.5],[15,-7],[27,-5]],"qnh":[[4,1013],[15,1018],[27,1021]],"wind":[[4,9,300,0.25],[9,10,305,0.25],[13,8,305,0.2],[17,5,300,0.12],[22,2,300,0.06]],"rich":{"breeze":0.5,"terrain":0.7,"thermals":0.5},"low":[[4,0.04,"cuh"],[11,0.12,"cuh"],[15,0.15,"cuh"],[19,0.03,"cuh"],[21,0,"cuh"]],"turbidity":1.8,"aurora":[[22,4],[24,5],[27,4]]}
-  ]
-});
-// ============================================================
-// THE WEATHER PLAN (WEATHER-SEASON, 2026-11-03) - the career's weather as a pure function of the instant.
-// futureDesigns/WEATHER-DAYS-STUDY-2026-11.md §3 (the model), §5 (the loop), §9-§10 (the user's calls: three seasonal
-// blocks of 14 days, the career's first day 15 July, the season 20 May-30 Sep with a winter layup).
-//
-// THERE IS STILL ONE DAY. This file holds no state and makes no second weather: 07_day.js recompute() calls
-// WEATHER_PLAN.at(jdn, utc, geo) when its spec names `plan`, and lays the answer OVER its declared fields as the
-// EFFECTIVE spec (the swing and the front already work that way). So the page and the physics worker - each with its
-// own DAY on the same spec - compute the same numbers with no message, advance() moves the weather without a version
-// bump, and every consumer (the solver's air, the climate's wind, the sky, the clouds, the mist, the sea, the radio,
-// the contracts, the forecast) reads ONE source.
-//
-//   THE BLOCKS     early 20 May-2 Jul (day 1 on 20 May), high 3 Jul-15 Aug (day 1 on 15 Jul: the career's first day is
-//                  the game's own fair-weather cumulus), late 16 Aug-30 Sep (day 1 on 16 Aug). A local date picks its
-//                  block by its month and day; its day is (date - the block's day 1) mod 14. Outside the season (the
-//                  sandbox's dates) the nearest block plays.
-//   THE WEATHER DAY owns 04:00 -> 28:00 local (its dawn, its afternoon, its evening and the night that follows).
-//   THE TRACKS     [[hour, value...], ...] on the weather day's hours; the day before and after are laid on the same
-//                  timeline (-24 / +24 h) and eased with a smoothstep, so a midnight AND a block's edge are one
-//                  interpolation - continuous by construction. A SETTING named once is a key at 15:00 (it blends into
-//                  its neighbours overnight); an EVENT (fog, rain, aurora, a temperature offset) a day does not name is
-//                  zero at both its ends (it never leaks into a neighbour).
-//   TEMPERATURE    Parton & Logan (1981) between the date's normals + the day's anomalies: the minimum at sunrise +
-//                  0.5 h, the peak ~15:00, an exponential night falling to the NEXT dawn's minimum.
-//   QUANTISED for the consumers that re-bake on a change (study §7 risks): the decks' cover in COVER_Q steps (clouds.js
-//   re-fits its map per cover), the turbidity in TURB_Q steps and moved only overnight (atmo.js re-bakes its LUTs on it),
-//   the wind's spec to 0.1 kt / 1 deg / 0.01 (the climate re-resolves on `windKey`). Temperature, pressure and dew are not.
-//   THE TURBIDITY IS A STEP AT 02:00 LOCAL, once a night: atmo.js re-bakes its sky tables (a JS bake) on every change, so
-//   the day's aerosol holds from 02:00 to the next 02:00 and changes in the darkest hour, where a step cannot be seen.
-// Pure: no Date, no THREE, no DOM, no random. GATE WEATHERPLAN.
-// ============================================================
-var WEATHER_PLAN = (function () {
-  'use strict';
-  const DAYS = typeof WEATHER_DAYS !== 'undefined' ? WEATHER_DAYS : { early: [], high: [], late: [] };
-  const BLOCKS = Object.freeze([
-    Object.freeze({ id: 'early', from: '05-20', to: '07-02', day1: '05-20', days: DAYS.early }),
-    Object.freeze({ id: 'high',  from: '07-03', to: '08-15', day1: '07-15', days: DAYS.high }),
-    Object.freeze({ id: 'late',  from: '08-16', to: '09-30', day1: '08-16', days: DAYS.late }),
-  ]);
-  // THE SEASON (the user's call, 3 Nov): the career's date stays inside it; 74_career.js lands a wait past its close on
-  // the next year's opening (the winter layup)
-  const SEASON = Object.freeze({ open: '05-20', close: '09-30' });
-  const WDAY_H0 = 4;
-  // Ketchikan-like monthly mean daily high / low (C), read at mid-month and interpolated continuously
-  const NORM = { 5: [14.5, 6.5], 6: [17, 9.5], 7: [18.5, 11.5], 8: [18.5, 11.5], 9: [15.5, 9], 10: [11, 5.5] };
-  const PL = { a: 1.6, b: 2.2, c: 0.5 };
-  const COVER_Q = 0.02, TURB_Q = 0.05, TURB_STEP_H = 26;   // 26 = 02:00 the next morning, on the weather day's clock
-  const EXP = x => CORE_MATH.pow(Math.E, x);
-  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  const smooth = x => { const q = clamp(x, 0, 1); return q * q * (3 - 2 * q); };
-  const mod = (a, n) => ((a % n) + n) % n;
-  const pad2 = n => String(n).padStart(2, '0');
-  const jdnOfMD = (y, md) => SOLAR.jdn(y, +md.slice(0, 2), +md.slice(3, 5));
-  const mdOf = j => { const c = SOLAR.civil(j); return pad2(c.m) + '-' + pad2(c.d); };
-  const dateOf = j => { const c = SOLAR.civil(j); return c.y + '-' + pad2(c.m) + '-' + pad2(c.d); };
-
-  // ---- the blocks ------------------------------------------------------------------------------------------------
-  function blockOf(j) { const k = mdOf(j); return BLOCKS.find(b => k >= b.from && k <= b.to) || (k < BLOCKS[0].from ? BLOCKS[0] : BLOCKS[2]); }
-  function idxOf(j) { const b = blockOf(j); return { b, i: mod(j - jdnOfMD(SOLAR.civil(j).y, b.day1), b.days.length || 1) }; }
-  const planAt = j => { const r = idxOf(j); return r.b.days[r.i] || {}; };
-  const inSeason = j => { const k = mdOf(j); return k >= SEASON.open && k <= SEASON.close; };
-
-  // ---- the almanac of a LOCAL date: sunrise / sunset as local hours, and the offset (06_solar + 07_day's tz rule) ---
-  const almC = new Map();
-  function alm(j, geo) {
-    const key = j + '|' + geo.lat + '|' + geo.lon;
-    let r = almC.get(key);
-    if (r) return r;
-    const tz = geo.tz, std = tz ? tz.std : 0;
-    const off = std + (tz && tz.dst === 'us' && DAY.usDst(j, 43200 - std * 3600, std) ? 1 : 0);
-    const ev = SOLAR.events({ jdn: j, lat: geo.lat, lon: geo.lon });
-    // a local date's hours are the UT seconds of its own civil date plus the offset; the poles (no rise) take 6 / 18
-    r = { off, tr: ev.rise != null ? ev.rise / 3600 + off : 6, ts: ev.set != null ? ev.set / 3600 + off : 18 };
-    if (almC.size > 400) almC.clear();
-    almC.set(key, r);
-    return r;
-  }
-  function normals(jf) {
-    const j = Math.floor(jf), c = SOLAR.civil(j), mid = SOLAR.jdn(c.y, c.m, 15);
-    const m0 = j >= mid ? c.m : c.m - 1, m1 = m0 + 1;
-    const a = NORM[m0] || (m0 < 5 ? NORM[5] : NORM[10]), b = NORM[m1] || (m1 < 5 ? NORM[5] : NORM[10]);
-    const ja = SOLAR.jdn(c.y, Math.max(1, m0), 15), jb = SOLAR.jdn(c.y + (m1 > 12 ? 1 : 0), ((m1 - 1) % 12) + 1, 15);
-    const f = clamp((jf - ja) / (jb - ja), 0, 1);
-    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-  }
-
-  // ---- the tracks -------------------------------------------------------------------------------------------------
-  const ABSENT = { 'fog.hold': [[4, 0], [27, 0]], 'column.mixH': [[15, 50]], 'column.inversion.dT': [[15, 0]],
-    'rich.breeze': [[15, 0]], 'rich.terrain': [[15, 0]], 'rich.thermals': [[15, 0]], 'rich.aloftK': [[15, 1]], 'rich.veerDeg': [[15, 0]],
-    low: [[4, 0, '*'], [27, 0, '*']], up: [[4, 0, '*'], [27, 0, '*']], rain: [[4, 0], [27, 0]], tAdd: [[4, 0], [27, 0]], aurora: [[4, 0], [27, 0]] };
-  const turbOf = D => (D && typeof D.turbidity === 'number' ? D.turbidity : 2.8);
-  const FIELDS = ['dew', 'qnh', 'wind', 'low', 'up', 'rain', 'tAdd', 'aurora', 'fog.hold', 'column.mixH', 'column.inversion.dT',
-                  'rich.breeze', 'rich.terrain', 'rich.thermals', 'rich.aloftK', 'rich.veerDeg'];
-  const keysC = new Map();
-  // every track of a weather day, its neighbours' keys shifted onto its timeline - built once per weather day
-  function keysOf(wj) {
-    let K = keysC.get(wj);
-    if (K) return K;
-    K = {};
-    for (const field of FIELDS) {
-      const out = [];
-      for (const dj of [-1, 0, 1]) {
-        const D = planAt(wj + dj), tr = field.split('.').reduce((o, k) => (o == null ? undefined : o[k]), D);
-        let arr = Array.isArray(tr) && tr.length ? tr : (tr != null && !Array.isArray(tr) ? [[15, tr]] : null);
-        if (!arr) arr = ABSENT[field] || null;
-        if (!arr) continue;
-        for (const k of arr) out.push({ h: k[0] + 24 * dj, k });
-      }
-      K[field] = out.sort((a, b) => a.h - b.h);
-    }
-    if (keysC.size > 64) keysC.clear();
-    keysC.set(wj, K);
-    return K;
-  }
-  function between(ks, h) {
-    if (!ks || !ks.length) return null;
-    if (h <= ks[0].h) return { a: ks[0], b: ks[0], s: 0 };
-    for (let i = 0; i + 1 < ks.length; i++) if (h <= ks[i + 1].h) { const a = ks[i], b = ks[i + 1]; return { a, b, s: smooth((h - a.h) / (b.h - a.h)) }; }
-    const z = ks[ks.length - 1]; return { a: z, b: z, s: 0 };
-  }
-  function scalar(K, field, h, dflt) {
-    const p = between(K[field], h);
-    if (!p) return dflt;
-    return p.a.k[1] + (p.b.k[1] - p.a.k[1]) * p.s;
-  }
-  // a deck: its cover, and a TYPE that only changes through (near) zero cover (the old type fades out to the midpoint,
-  // the new one in from it; GATE WEATHERPLAN refuses such a dip under cover by day)
-  function deck(K, field, h) {
-    const p = between(K[field], h);
-    if (!p) return null;
-    let A = p.a.k, B = p.b.k;
-    if (A[2] === '*') A = [A[0], A[1], B[2], B[3]];
-    if (B[2] === '*') B = [B[0], B[1], A[2], A[3]];
-    if (A[2] === '*') return { cover: 0, type: 'cuh', base: null, dip: false };
-    const base = A[3] != null ? A[3] + ((B[3] != null ? B[3] : A[3]) - A[3]) * p.s : null;
-    if (A[2] === B[2]) return { cover: A[1] + (B[1] - A[1]) * p.s, type: A[2], base, dip: false };
-    const u = p.a === p.b ? 0 : (h - p.a.h) / (p.b.h - p.a.h);
-    return u < 0.5 ? { cover: A[1] * (1 - smooth(u * 2)), type: A[2], base, dip: true } : { cover: B[1] * smooth(u * 2 - 1), type: B[2], base, dip: true };
-  }
-  // the synoptic wind as a VECTOR (a reversal passes through calm rather than swinging round at strength)
-  function windOf(K, h) {
-    const p = between(K.wind, h);
-    if (!p) return { kts: 0, dirDeg: 0, gust: 0 };
-    const A = p.a.k, B = p.b.k, D2R = Math.PI / 180;
-    const ax = A[1] * CORE_MATH.sin(A[2] * D2R), az = A[1] * CORE_MATH.cos(A[2] * D2R);
-    const bx = B[1] * CORE_MATH.sin(B[2] * D2R), bz = B[1] * CORE_MATH.cos(B[2] * D2R);
-    const x = ax + (bx - ax) * p.s, z = az + (bz - az) * p.s, kts = Math.hypot(x, z);
-    return { kts, dirDeg: kts > 0.05 ? mod(Math.atan2(x, z) / D2R, 360) : A[2], gust: A[3] + (B[3] - A[3]) * p.s };
-  }
-
-  // ---- the temperature (Parton & Logan) -------------------------------------------------------------------------
-  function tExt(j) { const D = planAt(j), n = normals(j), t = D.temp || {}; return { tmin: n[1] + (t.min || 0), tmax: n[0] + (t.max || 0) }; }
-  function tDay(j, h, geo) { const A = alm(j, geo), E = tExt(j), Y = A.ts - A.tr; return E.tmin + (E.tmax - E.tmin) * CORE_MATH.sin(Math.PI * (h - A.tr - PL.c) / (Y + 2 * PL.a)); }
-  function temperature(j, h, geo) {
-    const A = alm(j, geo);
-    if (h >= A.tr + PL.c && h <= A.ts) return tDay(j, h, geo);
-    const j0 = h > A.ts ? j : j - 1, A0 = alm(j0, geo), A1 = alm(j0 + 1, geo);
-    const Tset = tDay(j0, A0.ts, geo), Tn = tExt(j0 + 1).tmin;
-    const N = (24 - A0.ts) + A1.tr + PL.c, n = h > A0.ts ? h - A0.ts : h + 24 - A0.ts, e = EXP(-PL.b);
-    return Tn + (Tset - Tn) * (EXP(-PL.b * n / N) - e) / (1 - e);
-  }
-  const q = (v, s) => +(Math.round(v / s) * s).toFixed(6);   // a step, and no 7.800000000000001 in a spec that is saved and compared
-
-  // ---- THE EVALUATOR: (jdn, utc) of a UT instant -> the effective spec fields 07_day lays over its declared ones -----
-  function at(jdnU, utc, geo) {
-    const G = geo || DAY.GEO_DEFAULT;
-    const off = alm(jdnU, G).off;
-    let lsec = utc + off * 3600, j = jdnU;
-    while (lsec < 0) { lsec += 86400; j--; }
-    while (lsec >= 86400) { lsec -= 86400; j++; }
-    const h = lsec / 3600;
-    const wj = h < WDAY_H0 ? j - 1 : j, wh = h < WDAY_H0 ? h + 24 : h;
-    const D = planAt(wj), K = keysOf(wj), ix = idxOf(wj), nLow = normals(j + h / 24)[1];
-    const oatC = temperature(j, h, G) + scalar(K, 'tAdd', wh, 0);
-    const dewC = Math.min(oatC, nLow + scalar(K, 'dew', wh, -4));
-    const w = windOf(K, wh), rich = {};
-    for (const k of ['breeze', 'terrain', 'thermals', 'aloftK', 'veerDeg']) rich[k] = q(scalar(K, 'rich.' + k, wh, k === 'aloftK' ? 1 : 0), 0.02);
-    const wind = Object.assign({ kts: q(w.kts, 0.1), dirDeg: mod(Math.round(w.dirDeg), 360), gust: q(w.gust, 0.01), refH: 10 }, rich);
-    const low = deck(K, 'low', wh) || { cover: 0, type: 'cuh', dip: false }, up = deck(K, 'up', wh);
-    const invT = scalar(K, 'column.inversion.dT', wh, 0);
-    // the front: 07_day's own storm (its transient: the gusts, the boost, the cb at passage - §3.7), declared at the
-    // weather day's local hour, given to the day as UT seconds relative to THIS UT date (pure in utc)
-    let storm = null;
-    for (const dj of [-1, 0, 1]) {
-      const S = planAt(wj + dj).storm;
-      if (!S) continue;
-      const atAbs = (wj + dj) * 86400 + (S.at - off) * 3600;
-      storm = Object.assign({}, S, { at: atAbs - jdnU * 86400, pre: S.pre * 3600, dur: S.dur * 3600, post: S.post * 3600 });
-    }
-    const spec = {
-      oatC, qnhPa: 100 * scalar(K, 'qnh', wh, 1013.25), dewC, diurnalC: 0,
-      wind, seaTau: 900,
-      cloudCover: clamp(q(low.cover, COVER_Q), 0, 1), cloudType: low.type,
-      cloudUpper: up && up.cover > COVER_Q / 2 ? [{ cover: clamp(q(up.cover, COVER_Q), 0, 1), type: up.type, base: up.base != null ? Math.round(up.base / 20) * 20 : undefined }] : [],
-      turbidity: q(wh < TURB_STEP_H ? turbOf(D) : turbOf(planAt(wj + 1)), TURB_Q),
-      // the column (05_atmos K2): always the mixed branch under a plan, its depth sinking to 50 m on a day that names
-      // none, so no day boundary switches makeAtmos between its branches
-      lapse: 'mixed', mixH: Math.round(scalar(K, 'column.mixH', wh, 50)), inversion: invT > 0.01 ? { dT: q(invT, 0.05), thick: 200 } : null,
-      storm,
-    };
-    const meta = {
-      block: ix.b.id, idx: ix.i, id: D.id || null, name: D.name || null, fly: D.fly || null, weatherDate: dateOf(wj), localH: h,
-      rain: clamp(scalar(K, 'rain', wh, 0), 0, 1), kp: clamp(scalar(K, 'aurora', wh, 0), 0, 9),
-      fogHold: clamp(scalar(K, 'fog.hold', wh, 0), 0, 1), fogWhere: D.fog ? D.fog.where : null,
-      windKey: wind.kts.toFixed(1) + '|' + wind.dirDeg + '|' + wind.gust.toFixed(2) + '|' + rich.breeze + '|' + rich.terrain + '|' + rich.thermals + '|' + rich.aloftK + '|' + rich.veerDeg,
-      dipLow: low.dip && low.cover > 0.05, dipUp: !!(up && up.dip && up.cover > 0.05),
-    };
-    return { spec, meta };
-  }
-
-  // ---- THE CLASSIFIER (study §4.2): a VFR pilot's reading of a DAY's hour at sea level -> 'easy' | 'care' | 'NO' ---------
-  // reads only a DAY's derived fields, so it judges the live day and a scratch day alike
-  function surfaceVisKm(day) {
-    const R = 12 * CORE_MATH.pow(clamp(day.rain || 0, 0, 1), 1.5);
-    return 3.912 / (3.912 / day.visibilityKm + (day.mistRho0 || 0) * 1000 + (R > 0 ? 0.25 * CORE_MATH.pow(R, 0.63) : 0));
-  }
-  function flyClass(day) {
-    const w = day.wind || {}, st = day.storm;
-    const kts = (w.kts != null ? +w.kts : w.mps != null ? +w.mps / 0.514444 : 0) * (st ? st.windK : 1);
-    const gust = st ? Math.min(1.5, (w.gust || 0) * st.gustK + 0.25 * (st.gustK - 1)) : (w.gust || 0);
-    const gk = kts * (1 + gust), cover = day.cloudCoverEff != null ? day.cloudCoverEff : day.cloudCover;
-    const base = cover >= 0.5 ? day.cloudBase : 9999, vis = surfaceVisKm(day), rain = day.rain || 0;
-    if (kts <= 12 && gk <= 20 && base >= 600 && vis >= 8 && rain < 0.2) return 'easy';
-    if (kts <= 20 && gk <= 30 && base >= 300 && vis >= 3 && rain < 0.5) return 'care';
-    return 'NO';
-  }
-
-  // ---- THE FORECAST (study §5.4, §6.3): what the TIME menu, the radio and the pilots read. A scratch day on the same
-  // geo with the plan, at each hour - the live day is never touched. The block of each hour is its own date's.
-  const probe = (day, abs) => { const j = Math.floor(abs / 86400); return DAY.makeDay({ date: dateOf(j), utc: abs - j * 86400, plan: { id: 'season' } }, day.geo); };
-  const absOf = day => day.jdn * 86400 + day.utc;
-  function reading(d) {
-    const w = d.wind || {}, st = d.storm;
-    const kts = (w.kts || 0) * (st ? st.windK : 1), gust = st ? Math.min(1.5, (w.gust || 0) * st.gustK + 0.25 * (st.gustK - 1)) : (w.gust || 0);
-    return { localH: d.localSeconds / 3600, oatC: d.oatC, dewC: d.dewC, qnhHpa: d.qnhEff / 100,
-             windFromDeg: mod((w.dirDeg || 0) + (st ? st.veer : 0), 360), windKt: kts, gustKt: kts * (1 + gust),
-             cover: d.cloudCoverEff, type: d.cloudTypeEff, baseM: d.cloudBase, visKm: surfaceVisKm(d), rain: d.rain || 0,
-             kp: d.auroraKp || 0, flyClass: flyClass(d) };
-  }
-  // the day's card: which crafted day it is, its words, and the reading now
-  function today(day) {
-    const p = day.plan;
-    if (!p) return null;
-    const D = idxOf(SOLAR.jdn(+p.weatherDate.slice(0, 4), +p.weatherDate.slice(5, 7), +p.weatherDate.slice(8, 10))), R = D.b.days[D.i] || {};
-    return { block: D.b.id, idx: D.i, id: R.id, name: R.name, story: R.story, fly: R.fly, forecast: R.forecast,
-             noFly: R.noFly || [], waitUntil: R.waitUntil || null, weatherDate: p.weatherDate, now: reading(day) };
-  }
-  // the hours ahead (every `stepH`), each a reading
-  function hourly(day, hours, stepH) {
-    const A = absOf(day), n = hours != null ? hours : 24, s = stepH || 1, out = [];
-    for (let k = 0; k <= n; k += s) out.push(reading(probe(day, A + k * 3600)));
-    return out;
-  }
-  // the next n weather days after today's: their date, their name, their class and their forecast's first sentence
-  function outlook(day, n) {
-    const p = day.plan, out = [];
-    if (!p) return out;
-    const wj = SOLAR.jdn(+p.weatherDate.slice(0, 4), +p.weatherDate.slice(5, 7), +p.weatherDate.slice(8, 10));
-    for (let k = 1; k <= (n || 3); k++) {
-      const r = idxOf(wj + k), D = r.b.days[r.i] || {};
-      out.push({ date: dateOf(wj + k), block: r.b.id, id: D.id, name: D.name, fly: D.fly, storm: D.fly === 'storm',
-                 oneLine: String(D.forecast || '').split(/(?<=\.)\s/)[0] });
-    }
-    return out;
-  }
-  // the TIME menu's lines (day_ui.js menu ctx.forecast): today's name and forecast, then the outlook
-  function lines(day) {
-    const t = today(day);
-    if (!t) return [];
-    const L = [t.name + ' - ' + t.forecast];
-    for (const o of outlook(day, 3)) L.push(o.date.slice(5) + ' ' + o.name + (o.storm ? ' (STORM)' : '') + ': ' + o.oneLine);
-    return L;
-  }
-  return { BLOCKS, SEASON, NORM, COVER_Q, TURB_Q, WDAY_H0, blockOf, idxOf, planAt, inSeason, at, normals, flyClass, surfaceVisKm,
-           today, hourly, outlook, lines, reading };
-})();
-if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = WEATHER_PLAN;
 // ============================================================
 // THE CLOUD FIELD (CLOUDS C1, 2026-09-15) — the weather map, the height
 // profiles, the layer, the column. Pure: no THREE, no Date, node-runnable.
@@ -4602,15 +4251,7 @@ function makeWorld(seed, opts) {
       // floated 30 cm of water over ground the record itself says is dry land.
       // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
       // sample points on such a cell (2026-09-23).
-      // ...and NOT on ground the premises declare dry (ISLAND-TOUR G1971): a strip, a pad, an apron, a road - a land
-      // surface of the record. The cover grid calls 13 patches of 02/20's old concrete and one of 13/31's WATER (a 10 m
-      // cell over a wet, dark slab), and 0.30 m of water stood on the runway: the C172 rolling across it at 16 m/s
-      // nosed into it and rejected the take-off (GEAR-WATER's wheel in the water). Only a cover-water cell asks.
-      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) {
-        // (a pavement's edge and its first 10 m too - the strip's shoulder, where a wheel that runs off the edge rolls)
-        if (PM) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
-        return t + 0.3;
-      }
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
       return -Infinity;
     }
     const ws = HYD.water(x, z);
@@ -4632,17 +4273,10 @@ function makeWorld(seed, opts) {
     // 3.1: analytic, cheap enough to sample per hull vertex per substep),
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
-    // BAY-MIRROR (2026-11-03): a sheltered bay is calmer - the felt trains scaled by the island's shelter (28_island.js
-    // waveK: 1 on all open water, so the open sea is byte-for-byte what it was; the wind's ripple, 0.25, deep in a bay). The
-    // water shader lifts the near patch by the SAME factor from the same bytes (WATER.setCalm), so the hull sits in the wave
-    // it is drawn in
-    const k = WAVEK ? WAVEK(x, z) : 1;
     let y = 0;
     for (const w of SEA.W) if (w.felt !== false) y += w.A * CORE_MATH.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
-    return k < 1 ? y * k : y;
+    return y;
   }
-  // the island's shelter (null on the analytic world and the flat field: no bay, the sea everywhere as it was)
-  const CALM = ISL && typeof ISL.calmAt === 'function' ? ISL.calmAt : null, WAVEK = ISL && typeof ISL.waveK === 'function' ? ISL.waveK : null;
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
   // more consumer of setWeather's wind, never a second model). Amplitude
   // 0.018 m per m/s of wind (5 m/s: 0.09 m; 10: 0.18 - see setWind), wavelength 3 + 1.4 W
@@ -4960,23 +4594,10 @@ function makeWorld(seed, opts) {
     if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
     return atmos;
   }
-  // THE PLAN'S WIND (WEATHER-SEASON): under a weather plan the day's wind is the plan's (day.wind is the EFFECTIVE spec),
-  // so a set naming `plan` or `wind` takes it, and the tick re-resolves the climate whenever the plan's quantised wind
-  // moves (`day.plan.windKey`: 0.1 kt, 1 deg, 0.01 of gust - a few re-resolves an hour). The sea walks after it (the
-  // plan's seaTau). Without a plan every line is as it was.
-  let planWindKey = null;
-  function planWind() {
-    const k = day.plan ? day.plan.windKey : null;
-    if (k === planWindKey) return false;
-    planWindKey = k;
-    setWind(day.wind || null);
-    return true;
-  }
   function setDay(spec) {
     day.set(spec);
     airNow();
-    if (day.plan || (spec && 'plan' in spec)) { planWindKey = NaN; planWind(); }   // NaN: equal to no key, so this set always takes the wind (a plan lifted gives the declared one back)
-    else if (spec && 'wind' in spec) setWind(spec.wind || null);
+    if (spec && 'wind' in spec) setWind(spec.wind || null);
     else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
   }
   // dayTick(dt): the VIEWER's clock step - the day advances and the wind
@@ -4988,8 +4609,7 @@ function makeWorld(seed, opts) {
     const u0 = day.utc;
     day.advance(dt);
     const st1 = day.storm ? day.storm.I : 0;
-    if (day.plan && planWind()) { /* the plan's wind moved: setWind re-resolved the column, the front's hand with it */ }
-    else if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
@@ -5072,10 +4692,6 @@ function makeWorld(seed, opts) {
     day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
-    // BAY-MIRROR: the sea's calm factor (0 a sheltered bay .. 1 the open sea) and its field, the bytes the water shader samples
-    calmAt: CALM ? (x, z) => CALM(x, z) : () => 1,
-    waveK: WAVEK ? (x, z) => WAVEK(x, z) : () => 1,   // the factor waterH puts on the sea's waves (the shelter with the wind's ripple kept)
-    calmField: () => ISL && typeof ISL.shelter === 'function' ? ISL.shelter() : null,
     // K4: the state the sea is walking toward, and the walk itself (the viewer
     // pushes world.sea at the shader when `seaChanged` says the trains moved)
     get seaTarget() { return seaTarget; }, seaRelax,
@@ -6618,18 +6234,10 @@ function runwayLightPoints(a, aerodromes, paved) {
 // side (the pilot holds the centreline within a few metres; a wing spans
 // ten) — a hill beside the approach is not an obstacle, a ridge across it
 // is. The canopy is read within 20 m of each sample.
-// G3910 (PILOT-1 P1, the user 2 Nov: "I can't remember one, this is open"): ...AND A HILL BESIDE IT IS READ AS ONE. The
-// cone took the highest ground over the centreline and the two shoulders (+-34 m on an 18 m strip): Copperhead Mine
-// Street is cut across a sidehill - +0.1 m on the centreline 25 m out, +6.8 m on the uphill shoulder - and that
-// shoulder became 'the obstacle 25 m out (7 m)', a 15.2 deg approach and an aim 111 m into 250 m. Each sample across
-// the cone now stands under a LATERAL SURFACE: level out to the wingtip line (the strip's half width + `halfSpan`,
-// 6 m), rising 1:5 (`trans`, ICAO's transitional surface) past it - the uphill shoulder 34 m out is 3.8 m lower to
-// the cone; a ridge across the approach (high on the centreline too) is read as before
 function siteRunwayModel(aero, world, opts) {
   opts = opts || {};
   const R = siteRunway(aero);
   const clear = opts.clear ?? 15, screen = opts.screen ?? 15, reach = opts.reach ?? 6000, climbReach = opts.climbReach ?? 1500, step = opts.step ?? 100, canopy = opts.canopy ?? 18;
-  const halfSpan = opts.halfSpan ?? 6, trans = opts.trans ?? 0.2;
   const hasT = world && typeof world.terrainH === 'function';
   const floor = (x, z) => {                              // the terrain or the water over it
     if (!hasT) return aero.elev || 0;
@@ -6648,17 +6256,7 @@ function siteRunwayModel(aero, world, opts) {
   };
   const hAt = s => floor(R.end0.x + R.dx * s, R.end0.z + R.dz * s);   // the strip itself: no canopy
   const grade = (hAt(R.len) - hAt(0)) / R.len;
-  const half = R.wid / 2 + 25, tip = R.wid / 2 + halfSpan;
-  // G3910: the samples across the cone (the centreline, the wingtip lines, the shoulders) and the ground each stands
-  // under the lateral surface - the highest of them at (x0, z0) + v * d, c to the side
-  const across = (x0, z0, v, d) => {
-    let h = -Infinity;
-    for (const c of [-half, -tip, 0, tip, half]) {
-      const x = x0 + v[0] * d - v[1] * c, z = z0 + v[1] * d + v[0] * c;
-      h = Math.max(h, ground(x, z) - trans * Math.max(0, Math.abs(c) - tip));
-    }
-    return h;
-  };
+  const half = R.wid / 2 + 25;
   const ds = []; for (let d = 25; d < 600; d += 25) ds.push(d); for (let d = 600; d <= reach; d += step) ds.push(d);
   const dir = [];
   for (const k of [0, 1]) {
@@ -6670,8 +6268,12 @@ function siteRunwayModel(aero, world, opts) {
     const thrH = floor(thr.x, thr.z), farH = floor(far.x, far.z);
     let reqGs = 0, obst = null;
     for (const d of ds) {
-      // the highest ground across the corridor at this distance (G3910: under the lateral surface)
-      const h = across(thr.x, thr.z, [-u[0], -u[1]], d);
+      // the highest ground across the corridor at this distance
+      let h = -Infinity;
+      for (const c of [-half, 0, half]) {
+        const x = thr.x - u[0] * d - u[1] * c, z = thr.z - u[1] * d + u[0] * c;
+        h = Math.max(h, ground(x, z));
+      }
       const g = (h + clear - screen - thrH) / d;
       if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; }
     }
@@ -6686,7 +6288,11 @@ function siteRunwayModel(aero, world, opts) {
         if (d > climbReach) break;
         const straight = d <= dTurn;
         const v = straight ? u : ut, o = straight ? [far.x, far.z] : P0, dd = straight ? d : d - dTurn;
-        const h = across(o[0], o[1], v, dd);
+        let h = -Infinity;
+        for (const c of [-half, 0, half]) {
+          const x = o[0] + v[0] * dd - v[1] * c, z = o[1] + v[1] * dd + v[0] * c;
+          h = Math.max(h, ground(x, z));
+        }
         const g = (h + clear - screen - farH) / d;
         if (g > req) { req = g; ob = { d, h: Math.round(h * 10) / 10 }; }
       }
@@ -13495,91 +13101,6 @@ var ISLAND_GEN = (function () {
       if (c === WC.TREE && canopy && canopy[k] < reclass) return WC.SHRUB;
       return c;
     };
-    // THE SHELTER (BAY-MIRROR, 2026-11-03, the user: "we would need to treat the bays as lakes for the reflections I think,
-    // especially the main south bay, where the cannery and the hydroplants are"). A bay is the SEA's water: it wore the open
-    // ocean's 32 trains, so its mirror broke like the open sea's and its floats rocked on the ocean's swell, while a lake is
-    // glassy. The field below says how OPEN the water is, from the coastline alone - the wind's FETCH (the distance it
-    // blows over water before reaching a point, which is what grows a sea), traced UPWIND along 16 headings on 100 m
-    // cells and averaged: OPEN = mean over the headings of min(fetch, 10 km) / 10 km. Measured on Jolene: the open sea
-    // 0.6-0.9, an open coast 0.4-0.6 right at the shore, the south fjord 0.0-0.3, Port Chester 0.1-0.2. CALM = smoothstep
-    // (0.15, 0.40, OPEN) is 1 on every open water cell (the open sea is EXACTLY as it was) and 0 in a sheltered bay, with
-    // a smooth mouth. ONE SOURCE (ruling ap): makeWorld's waterH multiplies the felt trains by calmAt, the water shader
-    // reads the same bytes as a texture (render_world -> WATER.setCalm) for its swell, slopes, ripples and whitecaps, and
-    // the mirror's ring reads it for its plane's weight. Built on first use (~20 ms), deterministic, no state.
-    // The fetch is a semi-Lagrangian sweep per heading: F(p) = 0 on land, F(p - h d) + |h d| on water (the upstream value
-    // linearly interpolated across its row), the grid's edge open sea (F = the cap). Land cells take the mean of their
-    // water neighbours, ring by ring (6 rings), so the texture's bilinear filter does not lift a bay's shore toward 1.
-    // THE RIPPLE (A0, 3 Nov ~22:00: "a sheltered bay should be CALMER, not dead glassy whatever the wind"): the shelter takes
-    // away the fetch-built sea, not the wind's own ripple - the waves scale by ripple + (1 - ripple) x calm, so a bay keeps a
-    // quarter of the open sea's (JONSWAP: the height grows as the fetch's square root, and a bay's ~0.6 km against the ~10 km
-    // the open sea stands for is sqrt(0.06) = 0.25). The sea's amplitude is already the wind's (0.018 m per m/s), so the
-    // ripple goes glassy exactly when the wind does. waveK below; the shader reads the same dial (WATER.setCalm)
-    const SHELTER = { cell: 100, cap: 10000, dirs: 16, open0: 0.15, open1: 0.40, fill: 6, ripple: 0.25 };
-    let shelterF = null;
-    function shelter() {
-      if (shelterF) return shelterF;
-      const C = SHELTER.cell, NX = Math.ceil(W * cell / C), NZ = Math.ceil(Hn * cell / C), N = NX * NZ, CAP = SHELTER.cap;
-      // land: the majority of a 3 x 3 sample of the coast bytes over the cell (128 is the line, over it land)
-      const land = new Uint8Array(N), sub = C / cell, SO = [Math.floor(sub / 6), Math.floor(sub / 2), Math.floor(sub * 5 / 6)];
-      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { let l = 0, n = 0; const i0 = Math.floor(i * sub), j0 = Math.floor(j * sub);
-        for (let b = 0; b < 3; b++) { const jj = j0 + SO[b]; if (jj >= Hn) continue; const row = jj * W;
-          for (let a = 0; a < 3; a++) { const ii = i0 + SO[a]; if (ii < W) { n++; if (coast[row + ii] > 128) l++; } } }
-        land[j * NX + i] = n && l * 2 > n ? 1 : 0; }
-      // every heading is swept ROW BY ROW: a z-major heading on the grid, an x-major one on its transpose (rows along x)
-      const landT = new Uint8Array(N);
-      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) landT[i * NZ + j] = land[j * NX + i];
-      const open = new Float32Array(N), openT = new Float32Array(N), F = new Float32Array(N), inv = 1 / (CAP * SHELTER.dirs);
-      // sweep(L, R, K, s, t, acc): R rows of K cells, row r fed by row r - s; the upstream point sits t cells across, so its
-      // two cells and their weights are the same for every cell of the heading (o, f)
-      const sweep = (L, R, K, s, t, acc) => {
-        const step = C * Math.sqrt(1 + t * t), o = Math.floor(-t), f = -t - o, g = 1 - f;
-        for (let r = 0; r < R; r++) { const row = s > 0 ? r : R - 1 - r, up = row - s, base = row * K, ub = up * K, has = up >= 0 && up < R;
-          for (let c = 0; c < K; c++) { const q = base + c; if (L[q]) { F[q] = 0; continue; }
-            const c0 = c + o; let prev = CAP;
-            if (has && c0 >= 0 && c0 + 1 <= K - 1) prev = F[ub + c0] * g + F[ub + c0 + 1] * f;
-            else if (has && f === 0 && c0 === K - 1) prev = F[ub + c0];
-            const v = prev + step < CAP ? prev + step : CAP; F[q] = v; acc[q] += v * inv; } }
-      };
-      for (let d = 0; d < SHELTER.dirs; d++) {
-        const th = d / SHELTER.dirs * 2 * Math.PI, dx = Math.round(CORE_MATH.cos(th) * 1e9) / 1e9, dz = Math.round(CORE_MATH.sin(th) * 1e9) / 1e9;
-        if (Math.abs(dx) >= Math.abs(dz)) sweep(landT, NX, NZ, dx > 0 ? 1 : -1, dz / Math.abs(dx), openT);
-        else sweep(land, NZ, NX, dz > 0 ? 1 : -1, dx / Math.abs(dz), open);
-      }
-      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) open[j * NX + i] += openT[i * NZ + j];
-      // calm per water cell; land cells filled from their water neighbours ring by ring (a frontier), 1 where nothing reaches
-      const k = new Float32Array(N), have = new Uint8Array(N);
-      for (let q = 0; q < N; q++) if (!land[q]) { const u = Math.max(0, Math.min(1, (open[q] - SHELTER.open0) / (SHELTER.open1 - SHELTER.open0))); k[q] = u * u * (3 - 2 * u); have[q] = 1; }
-      // the frontier: land cells with a water (or already filled) neighbour; each ring takes the mean of its filled neighbours
-      const NB8 = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1];
-      let front = [];
-      for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { const q = j * NX + i; if (have[q]) continue;
-        for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ && have[jj * NX + ii] === 1) { front.push(q); break; } } }
-      for (let r = 0; r < SHELTER.fill && front.length; r++) {
-        const val = new Float32Array(front.length), next = [];
-        for (let f = 0; f < front.length; f++) { const q = front[f], i = q % NX, j = (q - i) / NX; let s = 0, n = 0;
-          for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ) { const p = jj * NX + ii; if (have[p] === 1) { s += k[p]; n++; } } }
-          val[f] = n ? s / n : 1; }
-        for (let f = 0; f < front.length; f++) { k[front[f]] = val[f]; have[front[f]] = 1; }
-        for (let f = 0; f < front.length; f++) { const q = front[f], i = q % NX, j = (q - i) / NX;
-          for (let m = 0; m < 16; m += 2) { const ii = i + NB8[m], jj = j + NB8[m + 1]; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ) { const p = jj * NX + ii; if (!have[p]) { have[p] = 2; next.push(p); } } } }
-        for (let f = 0; f < next.length; f++) have[next[f]] = 0;
-        front = next;
-      }
-      const u8 = new Uint8Array(N);
-      for (let q = 0; q < N; q++) u8[q] = have[q] ? Math.round(k[q] * 255) : 255;
-      shelterF = { x0: gx0, z0: gz0, cell: C, w: NX, h: NZ, calm: u8, open, land, dials: SHELTER };
-      return shelterF;
-    }
-    // calmAt(x, z): 0 (a sheltered bay: lake-calm) .. 1 (open water: the sea as it is) - bilinear over the u8 field the
-    // shader samples (texel centres at the cell centres, clamped at the edge like the texture: the grid's rim is open sea)
-    function calmAt(x, z) {
-      const S = shelterF || shelter(), u = (x - S.x0) / S.cell - 0.5, v = (z - S.z0) / S.cell - 0.5;
-      const uc = Math.max(0, Math.min(S.w - 1, u)), vc = Math.max(0, Math.min(S.h - 1, v));
-      const i = Math.min(S.w - 2, Math.floor(uc)), j = Math.min(S.h - 2, Math.floor(vc)), fu = uc - i, fv = vc - j, q = j * S.w + i, A = S.calm;
-      return ((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + S.w] * (1 - fu) + A[q + S.w + 1] * fu) * fv) / 255;
-    }
-    // waveK(x, z): the factor on the sea's waves - 1 on open water (calm 1: exactly 1), the ripple (0.25) deep in a bay
-    function waveK(x, z) { const c = calmAt(x, z); return c >= 1 ? 1 : SHELTER.ripple + (1 - SHELTER.ripple) * c; }
     // the square domain the baker walked; the grid may be narrower (sea)
     const b = H.bounds;
     return {
@@ -13593,8 +13114,6 @@ var ISLAND_GEN = (function () {
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
-      // BAY-MIRROR: the sea's shelter (null without a coast field: the open sea everywhere)
-      shelter: coast ? shelter : null, calmAt: coast ? calmAt : null, waveK: coast ? waveK : null,
       // (G1335) the carved lakebed (null without a lake field): makeWorld's terrainH and the far terrain's patches (the asset
       // is the raw DEM) take it as they take the sea's shelf; LAKE_BED the law's dials (GATE LAKEBED reads them)
       lakeBed, LAKE_BED,
@@ -19363,8 +18882,9 @@ const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 // is the hot path: halfBeamAt runs per wet vertex per substep).
 function keelTable(P) {
   const xs = P.xs, H = P.H;
-  const rN = P.noseR * H, sLen = P.stemK * H, rk = P.rake * D2R;
-  const Ht = H * (1 + (P.sheerK || 0));        // the deck at the tip, with the sheer
+  const rN = noseRof(P), sLen = P.stemK * H, rk = P.rake * D2R;
+  let Ht = H * (1 + (P.sheerK || 0));          // the deck at the tip, with the sheer
+  if (P.bowDrop) Ht *= 1 - P.bowDrop;          // FLOATS-CLASSIC: the EDO deck curving down to its nose (bowFade(1) = 1)
   const yFoot = Ht - rN - sLen;                // the stem's foot (the rocker's end)
   const xFoot = -xs + sLen * Math.tan(rk);     // ...raked aft of the tip
   const xF = -P.flatK * xs;                    // the flat's forward end
@@ -19391,13 +18911,53 @@ function keelTable(P) {
   return { at, xFoot, yFoot, xF, rN };
 }
 const keelOf = P => (P._keel && P._keel.P === P) ? P._keel.T : (P._keel = { P, T: keelTable(P) }).T;
+// FLOATS-CLASSIC (2026-11-03, the user: "another model of floats. A rougher one, with rounded top, feels more home
+// made ... use the same controls"): THE EDO-STYLE DECK. Three numbers a classic record carries (absent on every Wipline,
+// so a Wipline hull is the one it was, to the bit): `crownK`, the TOPSIDE's DOME - the centreline stands at the deck
+// line (the H row, so the box is the rows' box) and the dome's foot crownK of the way down from it to the chine, the
+// two joined by a quarter ellipse that leaves the side vertical and arrives level on the centreline. MEASURED, not
+// eyeballed (the user's giant-scale EDO float plan, 3 Nov, reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md): at
+// every former the topside is ONE half-ellipse from the chine (the widest point) to the crown - the half-widths fit
+// sqrt(1 - s^2) within 0.03 of the beam - over a slightly convex V of ~25 deg; the height 0.74-0.80 of the beam, the
+// chine at 0.30-0.33 of the height. So an EDO wears crownK 0.97 (the dome from 3 % over the chine: a stringer's
+// width of straight side) and its "hull width" row is the CHINE beam (chineHalfStep); `bowDrop`,
+// the deck curving down over the forebody's forward half to a nose that much lower (an EDO's deck line rolls into its
+// bow where a Wipline's sheer climbs to a high blunt one); `noseMul`, the nose round's radius times this (the soft
+// deck-to-stem curve that carries the rubber bumper). The bottom - the deadrises, the keel flat, the step, the
+// afterbody - is the rows' and the Wipline's; the rocker meets the lower nose, and the physics reads all of it (the
+// panels and levelVolume are this section). `style` ('edo') rides as a string beside them for the drawing.
+const noseRof = P => (P.noseMul ? P.noseR * P.noseMul : P.noseR) * P.H;
+const bowFade = t => { const u = Math.max(0, Math.min(1, (t - 0.5) / 0.5)); return u * u * (3 - 2 * u); };
+// the dome's height at the step (FLOATS-CLASSIC): crownK of the topside over the HIGHER chine of the step's two sides
+// (the forebody's, and the afterbody's a step up on its own deadrise), cached per hull like the keel
+function domeStepRec(P) {
+  if (P._dome && P._dome.P === P) return P._dome;
+  const bS = chineHalfStep(P), yt0 = deckAt(P, 0);
+  const ycF = bS * Math.tan(P.beta * D2R);
+  const ycA = Math.min(P.hs, 0.88 * P.H - bS * Math.tan(P.betaA * D2R)) + bS * Math.tan(P.betaA * D2R);
+  const c = P.crownK * Math.max(0, yt0 - Math.max(ycF, ycA));
+  // THE SIDE IS ONE SKIN THROUGH THE STEP: the afterbody's chine sits a step higher at the same beam, so its leaning
+  // side (chine to shoulder) is the side; the forebody's continues it DOWN AND OUT to its own, lower chine - wider by
+  // `wide` at the step (2.5 cm a side on an EDO 2000), fading back to the plan's beam over the forebody's aft 0.3.
+  // (Both sides on the plan's beam left the afterbody's side outboard of the forebody's: a forward-facing lip at the
+  // step, and the loft's step faces over-counted by its area - closure 0.01-0.08 m2 along x.)
+  const zsS = Math.min(1, P.shoulderZ != null ? P.shoulderZ : 0.69) * bS, ydS = yt0 - c;
+  const tS = Math.max(0, bS - zsS) / Math.max(1e-6, ydS - ycA);
+  const wide = Math.max(0, (zsS + ydS * tS) / (1 + Math.tan(P.beta * D2R) * tS) - bS);
+  const r = { P, c, wide };
+  // (not enumerable: a P is copied with Object.assign and JSON'd by readers; the identity check above drops a copy's)
+  Object.defineProperty(P, '_dome', { value: r, writable: true, configurable: true, enumerable: false });
+  return r;
+}
+const domeStep = P => domeStepRec(P).c;
 // the deck's line: level at H aft of the step, a sheer rising toward the
 // bow over the forebody (H sheerK t^2), rounding down into the stem over
 // the last noseR
 function deckAt(P, x) {
-  const rN = P.noseR * P.H, s = x + P.xs;
+  const rN = noseRof(P), s = x + P.xs;
   const t = x < 0 ? Math.min(1, -x / P.xs) : 0;
-  const Hd = P.H * (1 + (P.sheerK || 0) * t * t);
+  let Hd = P.H * (1 + (P.sheerK || 0) * t * t);
+  if (P.bowDrop) Hd *= 1 - P.bowDrop * bowFade(t);
   if (s >= rN) return Hd;
   const q = rN - Math.max(0, s);
   return Hd - rN + Math.sqrt(Math.max(0, rN * rN - q * q));
@@ -19406,18 +18966,21 @@ function deckAt(P, x) {
 const planF = (P, t) => Math.pow(Math.max(0, 1 - CORE_MATH.pow(Math.min(1, t), P.planK)), 0.5);
 // the chine half-beam at the step from the HULL WIDTH (deck at the step)
 function chineHalfStep(P) {
+  if (P.crownK) return P.B / 2;    // FLOATS-CLASSIC: an EDO is widest at its chine - the hull width IS the chine beam
   const tf = Math.tan(P.flare * D2R), tb = Math.tan(P.beta * D2R);
   return (P.B / 2 - P.H * tf) / Math.max(0.2, 1 - tb * tf);
 }
 function sectionOf(P, x) {
   const xs = P.xs, LA = P.L - P.xs, K = keelOf(P);
   const bS = chineHalfStep(P);
-  let yk, b, beta, body;
+  let yk, b, beta, body, bPlan;
   if (x <= 0) {
     body = 'F';
     const t = Math.min(1, -x / xs);
     yk = K.at(x);
     b = bS * planF(P, t);
+    bPlan = b;
+    if (P.crownK) b += domeStepRec(P).wide * (1 - smooth01(t / 0.3));   // FLOATS-CLASSIC: the side through the step (domeStepRec)
     // the warp lives in the forward third (t^2.5): the planing region aft
     // of the flat keeps the step's deadrise, or the hull loses its lift at
     // the hump (measured: t^1.6 read 25 deg a metre ahead of the step and
@@ -19445,20 +19008,100 @@ function sectionOf(P, x) {
   const hc = b * Math.tan(beta * D2R);
   const yc = yk + hc;
   // (the bow tip is a POINT: the 4 mm the deck keeps over the chine dies with the beam)
-  const yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
+  let yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
+  // FLOATS-CLASSIC: `yt` the centreline's top (the deck line); a Wipline's yt is its yd
+  const yt = yd;
+  if (P.crownK) {
+    // THE EDO TOPSIDE, MEASURED (the user's EDO plan, six formers - reports/evidence/FLOATS-CLASSIC/
+    // edo_plan_sections.md): from the chine (the widest point) the side LEANS IN ~23 deg, straight, up to a shoulder
+    // at ~0.69 of the half-beam and ~0.66 of the topside's height; above it the top is one elliptic arc to the crown,
+    // TANGENT at the shoulder to a `tumble`-deg lean (no knuckle, no lip). crownK is the arc's share of the topside;
+    // the arc's height is the STEP section's over the higher of its two chines wherever the hull is that deep (one
+    // topside across the step - the step is in the bottom only), crownK of the local topside where it is shallower.
+    const h = Math.min(domeStep(P), P.crownK * Math.max(0, yt - yc));
+    const zs = Math.min(1, P.shoulderZ != null ? P.shoulderZ : 0.69) * (bPlan != null ? bPlan : b);
+    yd = yt - h;
+    // the arc: an ellipse quarter from the shoulder to the crown with its tangent at the shoulder leaning `tumble`:
+    // sin(phiS) = q / (1 - q), q = h tan(tumble) / zs (closed form; q held under 0.45)
+    const q = zs > 1e-9 ? Math.min(0.45, h * Math.tan((P.tumble != null ? P.tumble : 23) * D2R) / zs) : 0;
+    const sn = q / (1 - q);
+    // THE FLUTED BOTTOM ("a Batman figure" - the user, reading the plan with us): on the big formers AHEAD OF THE STEP
+    // each half of the V is two shallow CONCAVE arcs of one radius - keel to a ridge, ridge to the chine - the ridge a
+    // small cusp at 0.55 of the half-beam standing ~8 % of the half-beam below the straight V (formers A, B, D: 7.4-9
+    // %), each arc cut ~6 % of its chord into the hull; aft of the step and toward the bow the V is straight. `flute`
+    // is the ridge's drop over the half-beam (the arcs' depth follows it), full from the step to half the forebody,
+    // gone by 0.85 of it; none on the afterbody
+    const tF = x <= 0 ? -x / xs : 0;
+    const fl = x <= 0 ? (P.flute || 0) * (1 - smooth01((tF - 0.5) / 0.35)) : 0;
+    const tb = Math.tan(beta * D2R), zr = 0.55 * b, yr = yk + zr * tb - fl * b;
+    const sag = 0.75 * fl;                          // the arcs' depth over their chord (0.06 at the full 0.08)
+    // a point f along a flute's chord, cut in by the arc (a parabola of the sagitta: inward = up and in)
+    const on = (y0, z0, y1, z1, f) => { const dz = z1 - z0, dy = y1 - y0, L = Math.hypot(dz, dy) || 1, o = 4 * sag * L * f * (1 - f);
+      return [y0 + f * dy + o * (dz / L), z0 + f * dz - o * (dy / L)]; };
+    // THE DRAWN FLUTES: two points on the keel's arc, the ridge, three on the chine's (FLOAT_GEN ringSide's slots: the
+    // EDO's keel and chine are sharp, their rounds' slots carry the arcs)
+    const flute = [on(yk, 0, yr, zr, 1 / 3), on(yk, 0, yr, zr, 2 / 3), [yr, zr], on(yr, zr, yc, b, 0.25), on(yr, zr, yc, b, 0.5), on(yr, zr, yc, b, 0.75)];
+    // THE PHYSICS' BOTTOM is two facets a side (keel, ridge, chine) - four doubled the water's cost afloat (20 s of
+    // the PA-18: 12.1 s of wall on Wipline 2100s, 23.7 on EDO 2000s) - its ridge raised by exactly the area the drawn
+    // flutes cut in (a ridge raised by d takes b d / 2): the same area, the same volume to the deck
+    const poly = [[yk, 0], ...flute, [yc, b]];
+    let cut = 0;
+    for (let i = 0; i + 1 < poly.length; i++) cut += poly[i][1] * poly[i + 1][0] - poly[i + 1][1] * poly[i][0];
+    cut -= (0 * yr - zr * yk) + (zr * yc - b * yr);          // the straight K-R-C's own sum: what is left is twice the cut
+    const yrP = yr + (b > 1e-9 ? Math.max(0, -cut) / b : 0);
+    return { x, yk, b, bd: zs, beta, hc, body, yc, yd, yt, arcC: h / (1 - sn), arcA: zs / Math.sqrt(1 - sn * sn), arcPhi: Math.asin(sn),
+             flute, fluteP: [[yrP, zr]] };
+  }
   // the deck edge: the side flares outward by a CONSTANT offset (the flare
   // angle over the side's height at the step — a chine that rises aft of
   // the step must not kink the gunwale line), dying with the beam so the
   // bow's plan closes to its point
   const bd = b + (P.H - bS * Math.tan(P.beta * D2R)) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B));
-  return { x, yk, b, bd, beta, hc, body, yc, yd };
+  return { x, yk, b, bd, beta, hc, body, yc, yd, yt };
 }
 // the section as a closed polygon in (y, z), keel to deck, starboard side
 // listed z >= 0 then mirrored: K, C, E (the gunwale's chamfer foot), D (the
 // deck edge). The PHYSICS loft and levelVolume both read exactly this.
 function secPoly(P, s) {
+  // FLOATS-CLASSIC: the EDO topside - C (the chine) to E (the shoulder) the leaning side, then the arc to T on the
+  // centreline in SIX FACETS a side, evenly in its angle - the drawn ring's own points (FLOAT_GEN ringSide), so the
+  // physics section IS the drawn one: D the first arc point, R the next four
+  if (P.crownK) {
+    // (the physics' arc is THREE facets a side, its two inner points pushed out along their radius to hold the drawn
+    // six facets' area - edoArcP; the bottom is fluteP's ridge: the same areas as drawn, a third of the panels)
+    const pts = edoArcP(s);
+    return { K: [s.yk, 0], B: s.fluteP, C: [s.yc, s.b], E: pts[0], D: pts[1], R: [pts[2]], T: [s.yt, 0], bv: 0, dome: true };
+  }
   const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
   return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
+}
+// the EDO arc's seven points, shoulder (k 0) to crown (k 6), evenly in the ellipse's angle: [y, z]
+function edoArc(s) {
+  const y0 = s.yt - s.arcC, out = [];
+  for (let k = 0; k <= 6; k++) {
+    const ph = s.arcPhi + (Math.PI / 2 - s.arcPhi) * k / 6;
+    out.push(k === 6 ? [s.yt, 0] : k === 0 ? [s.yd, s.bd] : [y0 + s.arcC * CORE_MATH.sin(ph), s.arcA * CORE_MATH.cos(ph)]);
+  }
+  return out;
+}
+// the PHYSICS' arc: four points (three facets), the two inner pushed out from the ellipse's centre by k so the fan
+// holds the six-facet drawn arc's area - (2k + k^2) / 2 sin(span / 3) = 3 sin(span / 6)
+function edoArcP(s) {
+  const y0 = s.yt - s.arcC, span = Math.PI / 2 - s.arcPhi;
+  const k = Math.sqrt(1 + 6 * Math.sin(span / 6) / Math.max(1e-9, Math.sin(span / 3))) - 1;
+  const out = [[s.yd, s.bd]];
+  for (let j = 1; j <= 2; j++) { const ph = s.arcPhi + span * j / 3; out.push([y0 + k * s.arcC * CORE_MATH.sin(ph), k * s.arcA * CORE_MATH.cos(ph)]); }
+  out.push([s.yt, 0]);
+  return out;
+}
+// the deck's height at a lateral offset z (the drawing's fittings, the deck hardware): a flat deck is yd; an EDO's is
+// its arc over the shoulder (the leaning side below it reads the shoulder)
+function deckYAt(P, s, z) {
+  if (!P.crownK) return s.yd;
+  const az = Math.abs(z);
+  if (az >= s.bd) return s.yd;
+  const ph = Math.acos(Math.min(1, az / Math.max(1e-9, s.arcA)));
+  return s.yt - s.arcC + s.arcC * Math.sin(ph);
 }
 
 function makeFloat(over = {}) {
@@ -19483,8 +19126,20 @@ function makeFloat(over = {}) {
     // in from D — the drawn float rounds it (rGun); one facet in the physics
     s.Em = push([s.x, q.E[0], -q.E[1]]); s.Ep = push([s.x, q.E[0], q.E[1]]);
     s.Dm = push([s.x, q.D[0], -q.D[1]]); s.Dp = push([s.x, q.D[0], q.D[1]]);
+    // FLOATS-CLASSIC: the dome's 30-75 deg pairs and its crown on the centreline (a flat deck has none): s.Rm / s.Rp
+    // run D (15 deg), the four, then T - the ladder every dome panel walks
+    if (q.dome) {
+      // the fluted bottom's ladder a side: K, the first flute's mid, the ridge, the second's mid, C
+      s.Bm = [s.K]; s.Bp = [s.K];
+      for (const q2 of q.B) { s.Bm.push(push([s.x, q2[0], -q2[1]])); s.Bp.push(push([s.x, q2[0], q2[1]])); }
+      s.Bm.push(s.Cm); s.Bp.push(s.Cp);
+      s.Rm = [s.Dm]; s.Rp = [s.Dp];
+      for (const r of q.R) { s.Rm.push(push([s.x, r[0], -r[1]])); s.Rp.push(push([s.x, r[0], r[1]])); }
+      s.T = push([s.x, q.T[0], 0]); s.Rm.push(s.T); s.Rp.push(s.T);
+    }
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
+  const dome = !!P.crownK;
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
   // different slopes, so it is split on its diagonal into two triangles
   // (the clip is then exact, and the pressure's direction with it); the
@@ -19503,8 +19158,14 @@ function makeFloat(over = {}) {
       // afterbody and every step face came out inward: the closure sum read
       // -2x their area and a level float felt 71 N fore-aft at rest)
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
+      if (dome) {
+        // (an EDO's bottom is four facets a side: the step face between the two bottoms is four quads a side)
+        for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
+          for (let k = 0; k + 1 < s0[L].length; k++) quad('step', s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], { side: sd, body: 'A', beta: 0, ref: rs });
+      } else {
       quad('step', s0.K, s1.K, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
+      }
       tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
       tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
       // G451: the flared side's chamfer foot and deck edge sit at different
@@ -19515,29 +19176,54 @@ function makeFloat(over = {}) {
       quad('side', s0.Ep, s1.Ep, s1.Dp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
       tri('side', s0.Em, s1.Em, s1.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       tri('side', s0.Ep, s1.Ep, s1.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
-      quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, { side: 0, body: 'A', beta: 0, ref: rs });
+      if (dome) {
+        for (const [L, sd] of [['Rm', -1], ['Rp', 1]])
+          for (let k = 0; k + 1 < s0[L].length; k++) quad(k < 1 ? 'side' : 'deck', s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], { side: sd, body: 'A', beta: 0, ref: rs });
+      } else quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, { side: 0, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
+    if (dome) {
+      // the EDO's fluted bottom: four facets a side (two per flute), each its own deadrise (the planing law reads it)
+      for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
+        for (let k = 0; k + 1 < s0[L].length; k++) {
+          const dr = s => { const a = V[s[L][k]], c = V[s[L][k + 1]]; return Math.atan2(c[1] - a[1], Math.max(1e-9, Math.abs(c[2] - a[2]))); };
+          const bt = Math.max(0, 0.5 * (dr(s0) + dr(s1)) / D2R);
+          quad(bk, s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], Object.assign({ side: sd, beta: bt }, m));
+        }
+    } else {
     quad(bk, s0.K, s1.K, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: 0.5 * (s0.beta + s1.beta) }, m));
     quad(bk, s0.K, s1.K, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: 0.5 * (s0.beta + s1.beta) }, m));
+    }
     quad('side', s0.Cm, s1.Cm, s1.Em, s0.Em, Object.assign({ side: -1, beta: 0 }, m));
     quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
     quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
     quad('bevel', s0.Ep, s1.Ep, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
-    quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
+    if (dome) {
+      // (the arc's first facet is the topside's SIDE - the chine's water runs on it; the rest is deck)
+      for (const [L, sd] of [['Rm', -1], ['Rp', 1]])
+        for (let k = 0; k + 1 < s0[L].length; k++) quad(k < 1 ? 'side' : 'deck', s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], Object.assign({ side: sd, beta: 0 }, m));
+    } else quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
   }
   { // bow cap and stern transom
     const s = sta[0];
     const rb = [s.x + 0.05, s.ref[1], 0];
-    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
+    if (dome) { tri('bow', s.K, s.Bm[1], s.Bp[1], { side: 0, body: 'F', beta: 0, ref: rb });
+                for (let k = 1; k + 1 < s.Bm.length; k++) quad('bow', s.Bm[k], s.Bm[k + 1], s.Bp[k + 1], s.Bp[k], { side: 0, body: 'F', beta: 0, ref: rb }); }
+    else tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
+    if (dome) { for (let k = 0; k + 2 < s.Rm.length; k++) quad('bow', s.Rm[k], s.Rp[k], s.Rp[k + 1], s.Rm[k + 1], { side: 0, body: 'F', beta: 0, ref: rb });
+                const n = s.Rm.length; tri('bow', s.Rm[n - 2], s.Rp[n - 2], s.T, { side: 0, body: 'F', beta: 0, ref: rb }); }
     const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
-    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
+    if (dome) { tri('stern', e.K, e.Bm[1], e.Bp[1], { side: 0, body: 'A', beta: 0, ref: re });
+                for (let k = 1; k + 1 < e.Bm.length; k++) quad('stern', e.Bm[k], e.Bm[k + 1], e.Bp[k + 1], e.Bp[k], { side: 0, body: 'A', beta: 0, ref: re }); }
+    else tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
+    if (dome) { for (let k = 0; k + 2 < e.Rm.length; k++) quad('stern', e.Rm[k], e.Rp[k], e.Rp[k + 1], e.Rm[k + 1], { side: 0, body: 'A', beta: 0, ref: re });
+                const n = e.Rm.length; tri('stern', e.Rm[n - 2], e.Rp[n - 2], e.T, { side: 0, body: 'A', beta: 0, ref: re }); }
   }
   // orient every panel OUTWARD (its normal away from the section's interior
   // point), and record the rest normal, area and centroid in the float frame
@@ -19557,7 +19243,7 @@ function makeFloat(over = {}) {
   const m = P.mFloat + P.mLoad;
   const cg = [0, 0, 0];
   for (let k = 0; k < 3; k++) cg[k] = (P.mFloat * P.cgFloat[k] + P.mLoad * P.cgLoad[k]) / m;
-  const H = Math.max(...sta.map(s => s.yd)) - Math.min(...sta.map(s => s.yk));
+  const H = Math.max(...sta.map(s => s.yt)) - Math.min(...sta.map(s => s.yk));   // (yt: a dome's crown; a flat deck's yd)
   const If = [P.mFloat / 12 * (H * H + P.B * P.B), P.mFloat / 12 * (P.L * P.L + P.B * P.B), P.mFloat / 12 * (P.L * P.L + H * H)];
   const I = [0, 0, 0];
   const shift = (mm, c, Ii) => {
@@ -19593,10 +19279,10 @@ function makeFloat(over = {}) {
 // polygon at y = hw, sharing nothing with the 3D clipper
 function secAreaTo(P, s, hw) {
   const q = secPoly(P, s);
-  const top = Math.min(hw, s.yd);
+  const top = Math.min(hw, s.yt);
   if (top <= s.yk) return 0;
-  // the starboard half-polygon keel -> C -> E -> D, then the centreline back
-  const pts = [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  // the starboard half-polygon keel -> C -> E -> D, then the centreline back (FLOATS-CLASSIC: a dome's R and its crown)
+  const pts = q.dome ? [q.K, ...q.B, q.C, q.E, q.D, ...q.R, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -20120,7 +19806,8 @@ function hullSide(F, ctx, water, t, out, apply) {
     const a = i0 + j * di, b = a + di, sa = sta[a], sb = sta[b];
     const Da = D[sa.K], Db = D[sb.K];
     if (Da <= 0 && Db <= 0) { Mrun = 0; continue; }
-    const Ta = Math.min(Math.max(0, Da), sa.yd - sa.yk), Tb = Math.min(Math.max(0, Db), sb.yd - sb.yk);
+    // (FLOATS-CLASSIC: the hull's depth is to its top, the crown - a flat deck's yt IS its yd, to the bit)
+    const Ta = Math.min(Math.max(0, Da), sa.yt - sa.yk), Tb = Math.min(Math.max(0, Db), sb.yt - sb.yk);
     let dI;
     if (Db > 0) {
       // the section b in the water: its impulse is the running maximum's (a shrinking section sheds, keeps it)
@@ -20821,7 +20508,7 @@ function floatParamsFor(grossKg, over) {
 const FLOAT_PRESETS = {
   'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
                      for: 'light sport (Carbon Cub SS, Legend Cub)' },
-  'Wipline 2100':  { L: 5.36, B: 0.74, H: 0.58, disp: 1054, flot: 1171, mSys: 125, gross: 1089,
+  'Wipline 2100':  { L: 5.36, B: 0.74, H: 0.58, disp: 1054, flot: 1171, mSys: 125, gross: 1089, price: 55000,
                      for: 'Piper PA-12 / PA-18, Cessna 170 / 172, Husky, Scout, CubCrafters' },
   'Wipline 2350':  { L: 5.97, B: 0.74, H: 0.58, disp: 1166, flot: 1295, mSys: 138, gross: 1157,
                      for: 'Cessna 172 / 175, Maule M6 / MX7' },
@@ -20857,7 +20544,93 @@ const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
 const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 'aftAngle', 'aftCurve', 'flatK', 'stemK',
                          'rake', 'noseR', 'planK', 'bStern', 'flare', 'bevel', 'rChine', 'rGun', 'rLip', 'rTransom',
                          'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
-                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow'];
+                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow',
+                         // FLOATS-CLASSIC: the EDO deck (present on a classic record only; `style` rides as a string)
+                         'crownK', 'bowDrop', 'noseMul', 'shoulderZ', 'tumble', 'flute'];
+// ---- FLOATS-CLASSIC: THE EDO FAMILY (2026-11-03) ----------------------------------------------------------------------
+// The user's reference photos (a PA-18 over a fjord, a PA-28 on grass) wear EDO floats: the PA-18S's type certificate
+// (FAA TCDS 1A2) lists "Edo 89-2000 floats", and the PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963). An EDO
+// is riveted aluminium with a ROUNDED deck, a bow that rolls down into a rubber bumper bolted through the bow bulkhead,
+// pump-out cups at the bulkheads, simple tube struts and spreader bars. ONE STYLE over the same rows (the Wipline's
+// bottom, step and afterbody; `EDO_STYLE` is the deck and the bow above the water, see deckAt / sectionOf) and a
+// catalogue of its own, kept apart from FLOAT_PRESETS so the Wipline row indices, the advisor and every saved build
+// stay what they were. The model number is the float's buoyancy in pounds fully submerged (the EDO convention), so
+// `flot` (the hull's volume to the deck, what the fit honours) IS the model number in kilograms; `disp` is taken as
+// flot / 1.1 (the Wipline sheets' ratio). SOURCED (links: reports/evidence/FLOATS-CLASSIC/README.md): the 89-2000's
+// 16 ft bumper to transom (the EDO book, quoted by owners) and its 263 lb installed pair (PA-18S); the Model 78
+// (C-47C / XC-47C, 1943, and N130Q today): 42 ft, 5 ft 8 in of beam, 29,000 lb a float. MEASURED (the user's
+// giant-scale EDO plan, 3 Nov - reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md): the top view's length over its
+// beam, 6.7; six formers' section law (EDO_STYLE) and the side view's profile (EDO_HULL). So: L sourced where it is
+// (2000, Model 78), else the 2000's scaled by the cube root of the buoyancy; B = L / 6.7 (the Model 78's own 1.73);
+// every shape number the plan's, and H SOLVED for the model number's buoyancy (edoPresetParams) - it lands at 0.73-0.76
+// of the beam on every row, inside the formers' 0.67-0.83: the measured shape and the model numbers agree. Every
+// dimension not sourced is est.
+// THE STYLE (what turns a hull EDO over the rows): the measured topside - the arc 0.34 of the topside over a shoulder
+// at 0.69 of the half-beam, its tangent there leaning 23 deg - and a LEVEL deck (the plan's deck runs parallel to the
+// flat keel ahead of the step: no sheer). The bow and the belly are the rows' (an EDO preset writes the measured ones,
+// EDO_HULL); bowDrop / noseMul (round 1, eyeballed) are retired - a record that carries them still reads them.
+const EDO_STYLE = { style: 'edo', crownK: 0.34, shoulderZ: 0.69, tumble: 23, sheerK: 0, flute: 0.08 };
+// THE EDO AFTERBODY PLAN, measured off the same plan's top view (the chine outline against its centreline): the beam
+// held from ~0.29 to ~0.53 L, then closing almost LINEARLY from the step to a WIDE stern, 0.70 of it - where a
+// Wipline holds its beam to the aft spreader bar and closes as the square to half (WIPLINE_AFT). The keel's rise is the
+// Wipline's (the plan's side view is drawn tilted at a resolution that does not resolve a degree)
+const EDO_AFT = { aftAngle: 9.1, aftCurve: 0, aftHold: 0, aftPow: 1.0, bStern: 0.70 };
+// THE EDO BELLY AND BOW, measured off the plan's side view (drawn tilted 4.6 deg; read against its own deck line,
+// which runs parallel to the flat keel ahead of the step) and its formers - an EDO preset writes these rows:
+//   the step at 0.573 L, 0.12 of the depth deep; the keel FLAT over 0.34 of the forebody from the step, then a convex
+//   rocker into a bow raked 45 deg, 0.40 of the depth tall, under a nose round of 0.15 (the nose's front at 0.85 of
+//   the depth) - fitted to eight keel points within 0.01 of the depth; NO near-vertical stem (a Wipline's is 12 deg);
+//   the deadrise ~23 deg on six formers (19-28; the big ones slightly hollow, kept straight here), 26 at the bow, 22
+//   aft; the afterbody keel rising to a stern 0.385 of the depth (the angle solved per hull, edoPresetParams; ~7-8
+//   deg - EDO_AFT's 9.1 is the side view's raw reading, a style-switched hull's); the plan full (planK 5.5:
+//   the beam 0.55 at 3 % of the length); no flare (the sides lean in, the style's tumble)
+const EDO_HULL = { xsK: 0.573, hsK: 0.12, beta: 23, betaBow: 26, betaA: 22, flatK: 0.34, stemK: 0.40, rake: 45, noseR: 0.15,
+                   planK: 5.5, flare: 0 };
+const EDO_PRESETS = {
+  'EDO 1320':     { L: 4.25, B: 0.63, H: 0.47, disp: 545,  flot: 599,   mSys: 75,   price: 12000,   gross: 590,   est: true,
+                    for: 'Piper J-3 / PA-11 (J-3C-65S 1,300 lb; a forum ~15 ft would put the measured hull at 0.62 of its beam - outside every former: the 2000 scaled, est.)' },
+  'EDO 1650':     { L: 4.58, B: 0.68, H: 0.55, disp: 680,  flot: 748,   mSys: 75,   gross: 700,   est: true,
+                    for: 'Cessna 140, PA-11, PA-18 (the 2000 is a 1650 with a plug ahead of the step)' },
+  'EDO 2000':     { L: 4.88, B: 0.73, H: 0.58, disp: 825,  flot: 907,   mSys: 119,  price: 15000,  gross: 798,   est: true,
+                    for: 'Piper PA-18S Super Cub, PA-28S-180 Cherokee, Cessna 170 (sourced: 16 ft, 263 lb a pair installed, PA-18S 1,760 lb)' },
+  'EDO 2440':     { L: 5.22, B: 0.78, H: 0.62, disp: 1006, flot: 1107,  mSys: 150,  gross: 1043,  est: true,
+                    for: 'Cessna 172 (248B-2440), 170B' },
+  'EDO 2870':     { L: 5.50, B: 0.82, H: 0.66, disp: 1183, flot: 1302,  mSys: 185,  price: 14500,  gross: 1447,  est: true,
+                    for: 'Cessna 180 / 182 (sourced: 3,190 lb seaplane gross)' },
+  'EDO 4580':     { L: 6.43, B: 0.96, H: 0.77, disp: 1888, flot: 2077,  mSys: 290,  gross: 2313,  est: true,
+                    for: 'de Havilland DHC-2 Beaver' },
+  'EDO 7170':     { L: 7.47, B: 1.11, H: 0.90, disp: 2956, flot: 3252,  mSys: 460,  gross: 3629,  est: true,
+                    for: 'de Havilland DHC-3 Otter, Noorduyn Norseman' },
+  'EDO 78-28000': { ownLB: true, L: 12.80, B: 1.73, H: 1.39, disp: 11958, flot: 13154, mSys: 2300, mHull: 1036, gross: 12700,
+                    for: 'Douglas C-47C / DC-3 (sourced: 42 ft, 5 ft 8 in beam, 29,000 lb a float, ~1 t each; H, mSys and gross est.)' },
+};
+const EDO_PRESET_NAMES = Object.keys(EDO_PRESETS);
+// ---- FLOATS-CLASSIC: WHAT A PAIR OF FLOATS WEIGHS AND COSTS ---------------------------------------------------------
+// The user (3 Nov): "It needs to come with weight and price". In the game's credits (dollar parity, 2025-26 - the
+// ledger's unit, 60_gen_spec GEN_PRICES), for the PAIR with its rigging, INSTALLED - the ledger bills it in place of
+// the wheels a float build does not have. Sources (links in the evidence README; prices are thin, forum and listing
+// figures, and say so):
+//   EDO - out of production: the USED market plus an installation (~5,000: Wipaire's quote to rig a PA-12, 5,300).
+//         SOURCED rows: 1320 a pair ~7,000 rigged (2005) -> 12,000; 2000 3,500-19,500, ~10,000 "a good set" ->
+//         15,000; 2870 8,700 with struts and spreaders -> 14,500 (2960s 5,900-8,500 in 2024). The rest on the line
+//         those three make, 5,000 installed + 85 a kilogram of system (est.) - the Model 78 a museum piece with no
+//         market at all.
+//   WIPLINE - new, quote-only (Wipaire publishes no prices): a 2100 pair 36,300 + 5,300 installed in an older quote,
+//         read to 2025-26 at 55,000 (est.; new Aerocets from 44,000, a PK 2050A 66,000 + 8,000 installed); the other
+//         rows at its rate, 440 a kilogram of system (est.).
+// A hull with no catalogue row (custom dials) is priced at its family's rate on its own system mass: the hull's
+// mFloat is 0.40 of the pair's system (presetParams), so the system is mFloat / 0.40.
+const FLOAT_PRICE_RATE = { wipline: { base: 0, perKg: 440 }, edo: { base: 5000, perKg: 85 } };
+function floatPrice(P) {
+  if (!P) return 0;
+  const edo = P.style === 'edo';
+  // a catalogue row prices its own family only (a Wipline row's name kept on a hull turned EDO is not its price)
+  const R = P.preset && (edo ? EDO_PRESETS[P.preset] : FLOAT_PRESETS[P.preset]);
+  if (R && R.price) return R.price;
+  const K = edo ? FLOAT_PRICE_RATE.edo : FLOAT_PRICE_RATE.wipline;
+  const sys = R ? R.mSys : (P.mFloat || DEF.mFloat) / 0.40;
+  return Math.round((K.base + K.perKg * sys) / 100) * 100;
+}
 // THE FINENESS. The catalogue's three dimensions and its flotation are
 // four facts; the family at the 2350's proportions fills its box to 49 %
 // and the 2350 needs 49 % — but the taller hulls (H/B 0.9 against the
@@ -20902,14 +20675,47 @@ function fineParams(P, f) {
 // are honoured, the family supplies everything between them. The hull's
 // mass is 0.40 of the pair's system weight (the struts, spreaders and
 // wires are billed by the frame).
+// THE EDO ROWS (FLOATS-CLASSIC.3): the plan's SHAPE, the model number's SIZE. Every proportion is the plan's - length
+// 6.65 beams (its top view), height 0.80 of the beam (its main formers A, B, D: 0.81-0.83; all six 0.67-0.83), the
+// section law (EDO_STYLE), the profile and the belly (EDO_HULL) - and the whole hull is SCALED until it displaces the
+// model number to its deck: the EDO 2000 comes out 4.6-4.7 m against the owners' "16 ft bumper to transom" (4.88,
+// the bumper included). The Model 78 is another, longer float (its own sourced 42 ft x 5 ft 8 in): its L and B are
+// kept and its height solved.
+const EDO_LB = 6.65, EDO_HB = 0.80;
+function edoPresetParams(name, over) {
+  const R = EDO_PRESETS[name];
+  const own = R.ownLB;              // sourced L and B (the Model 78): solve the height
+  // the side view's numbers are DIMENSIONLESS (its depth reads ~13 % taller than the formers at the same beam, so its
+  // raw angles do not carry): the bow's rake is the fitted curve's in this hull's own xs / H (45 deg at the fit's 5.2),
+  // the afterbody keel the angle that leaves the stern 0.385 of the depth deep (the plan's) with the step 0.12 deep
+  const mk = sz => {
+    const L = own ? R.L : sz, B = own ? R.B : sz / EDO_LB, Hh = own ? sz : EDO_HB * sz / EDO_LB;
+    const xs = EDO_HULL.xsK * L, LA = L - xs, k = L / DEF.L;
+    const rake = Math.atan(Math.tan(EDO_HULL.rake * D2R) * (xs / Hh) / 5.2) / D2R;
+    const aftAngle = Math.atan((1 - 0.385 - EDO_HULL.hsK) * Hh / LA) / D2R;
+    const P = scaleParams(DEF, k, Object.assign({}, EDO_AFT, EDO_STYLE, EDO_HULL, { L, B, H: Hh, xs, hs: EDO_HULL.hsK * Hh, rake, aftAngle,
+      mFloat: R.mHull != null ? R.mHull : 0.40 * R.mSys, preset: name, disp: R.disp }));
+    delete P.xsK; delete P.hsK; delete P._keel;
+    P.scale = k;
+    return P;
+  };
+  let lo = own ? 0.3 * R.B : 0.5 * R.L, hi = own ? 1.6 * R.B : 1.5 * R.L;
+  for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (makeFloat(mk(m)).volDeck * DEF.rho > R.flot) hi = m; else lo = m; }
+  const P = mk(0.5 * (lo + hi));
+  P.volRes = makeFloat(P).volDeck * P.rho / R.flot - 1;
+  return Object.assign(P, over || {});
+}
 function presetParams(name, over) {
+  // FLOATS-CLASSIC: an EDO row is its own hull - the plan's measured profile and section, its height solved for the
+  // model number (edoPresetParams); a Wipline row is the family's fineness fit, as it was
+  if (!FLOAT_PRESETS[name] && EDO_PRESETS[name]) return edoPresetParams(name, over);
   const R = FLOAT_PRESETS[name];
   if (!R) return null;
   const k = R.L / DEF.L;
   // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
   // where the sheer tops out — so the family's H (at the step) is that over
   // (1 + sheerK)
-  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp }));
+  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: R.mHull != null ? R.mHull : 0.40 * R.mSys, preset: name, disp: R.disp }));
   const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
   // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
   // wider transom — the small Wiplines, whose overall height leaves little
@@ -21631,6 +21437,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              EDO_STYLE, EDO_AFT, EDO_HULL, edoArc, edoArcP, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
@@ -36401,31 +36208,37 @@ function clampSpec(spec) {
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
     const f = S.gear.floats;
+    // FLOATS-CLASSIC (2026-11-03): an EDO-style record ('edo', the only style a record names - a Wipline carries none)
+    // may be an EDO Model 78 (the DC-3's: 12.8 m, 1.73 m of beam, ~1 t a hull), so ITS length, beam, hull mass and
+    // rudder depth get room the Wipline line never needed; every other record keeps the bounds it had, to the bit
+    if (f.style != null && f.style !== 'edo') delete f.style;
+    const big = f.style === 'edo';
     // G451: THE WIPLINE FAMILY (32_hydro DEF): the catalogue runs 4.6-9.9 m;
     // every key absent falls to the family's own (scaled to the length) in
     // the frame, so only what is present is clamped. A record from before
     // G451 (yBow, bBow, hSide, xFlat) carries keys the family no longer
     // reads; they ride along harmlessly and the hull is the family's.
-    f.L = genClamp(f.L || 4.3, 2.0, 12.0);
+    f.L = genClamp(f.L || 4.3, 2.0, big ? 16.0 : 12.0);
     f.xs = genClamp(f.xs || 0.553 * f.L, 0.3 * f.L, 0.7 * f.L);
-    f.B = genClamp(f.B || 0.67, 0.3, 1.6);
+    f.B = genClamp(f.B || 0.67, 0.3, big ? 2.2 : 1.6);
     f.beta = genClamp(f.beta == null ? 22 : f.beta, 0, 45);
     f.betaA = genClamp(f.betaA == null ? Math.min(f.beta, 18) : f.betaA, 0, 45);
     f.hs = genClamp(f.hs == null ? 0.013 * f.L : f.hs, 0, 0.2);
     f.aftAngle = genClamp(f.aftAngle == null ? 6.5 : f.aftAngle, 0, 15);
     f.bStern = genClamp(f.bStern == null ? 0.42 : f.bStern, 0.15, 1.0);
-    for (const [k, lo, hi] of [['H', 0.2, 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
+    for (const [k, lo, hi] of [['H', 0.2, big ? 2.0 : 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
                                ['rake', 0, 35], ['noseR', 0.02, 0.45], ['planK', 1.0, 5.0], ['flare', 0, 15], ['bevel', 0, 0.08],
                                ['rChine', 0, 0.05], ['rGun', 0, 0.08], ['rLip', 0, 0.04], ['rTransom', 0, 0.06],
                                ['railW', 0, 0.1], ['railT', 0, 0.02], ['keelW', 0, 0.12], ['keelH', 0, 0.03], ['skZ', 0.2, 0.8],
-                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, 0.6], ['wrDepth', 0.05, 0.8], ['mFloat', 5, 600],
-                               ['fineK', -0.7, 1], ['scale', 0.3, 3], ['xAft', 0.05, 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3]])
+                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, big ? 1.2 : 0.6], ['wrDepth', 0.05, big ? 1.4 : 0.8], ['mFloat', 5, big ? 2000 : 600],
+                               ['fineK', -0.7, 1], ['scale', 0.3, big ? 4 : 3], ['xAft', 0.05, big ? 3.0 : 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3],
+                               ['crownK', 0, 0.985], ['bowDrop', 0, 0.4], ['noseMul', 1, 3], ['shoulderZ', 0.3, 1], ['tumble', 0, 40], ['flute', 0, 0.2]])
       if (f[k] != null) f[k] = genClamp(+f[k] || 0, lo, hi);
     if (f.preset != null && typeof f.preset !== 'string') delete f.preset;
-    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, big ? 4.0 : 2.0);
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
-    f.x = f.x == null ? null : genClamp(f.x, -3, 6);
-    f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
+    f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
+    f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
   } else S.gear.floats = null;
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
@@ -41126,7 +40939,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
 
   // ---- 5. gear --------------------------------------------------------
   sec('gear');
-  spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
+  // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
+  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -41316,6 +41131,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                     mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
                   : HYDRO.floatParamsFor(gross || 400);
     delete FP._keel;
+    spend(HYDRO.floatPrice ? HYDRO.floatPrice(FP) : 0);   // FLOATS-CLASSIC: the pair, rigged and installed (credits)
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     // FIVE STATIONS (G451): bow, the flat's forward end (the front spreader
     // bar and the forward struts), the step (the tetra, the mains' ref),
@@ -41339,11 +41155,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, sc.yd);
+        // FLOATS-CLASSIC: an EDO's deck nodes sit where its fittings do, on the arc just inside the shoulder (0.85 of
+        // the shoulder's half-width: bd is the shoulder on an EDO, yd its height); a
+        // Wipline's are the deck edge over the chine half-beam, as they were
+        const zD = FP.crownK ? 0.85 * sc.bd : sc.b, yDn = FP.crownK ? HYDRO.deckYAt(FP, sc, zD) : sc.yd;
+        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, yDn);
         K.push(N(gx + kx, yK + ky, zc, 'FLK'));
-        DL.push(N(gx + dx, yK + dy, zc - sc.b, 'FLD'));
-        DR.push(N(gx + dx, yK + dy, zc + sc.b, 'FLD'));
-        Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        DL.push(N(gx + dx, yK + dy, zc - zD, 'FLD'));
+        DR.push(N(gx + dx, yK + dy, zc + zD, 'FLD'));
+        Q.push([xs, sc.yk, 0], [xs, yDn, -zD], [xs, yDn, zD]);
       }
       const all = [...K, ...DL, ...DR];
       const mEach = FP.mFloat / all.length;
@@ -55300,8 +55120,6 @@ function careerNormalise(r) {
   // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
   if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
   else c.day = careerDayNorm(c.day);
-  // (WEATHER-SEASON) a day outside the flying season - an old save past 30 Sep - is lifted to the next opening
-  { const L = careerSeasonLand(c.day); if (L.layup) c.day = careerDayNorm(L); }
   if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
@@ -55347,35 +55165,11 @@ function careerDay(doc) {
 function careerDaySet(doc, o) {
   if (!doc || !doc.career) return crNo(doc, 'not a career');
   if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
-  const now = careerDay(doc);
-  let to = careerDayNorm(o);
-  // (WEATHER-SEASON) an instant past the season's close lands on the next opening: the winter layup, forward
-  const L = careerSeasonLand(to);
-  if (L.layup) to = careerDayNorm(L);
-  const dt = dayAbs(to) - dayAbs(now);
+  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
   if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
   const d = crClone(doc);
   d.career.day = to;
-  return { ok: true, doc: d, why: '', dt, layup: L.layup };
-}
-
-// ---- THE FLYING SEASON AND THE WINTER LAYUP (WEATHER-SEASON, the user's call of 3 Nov; study §5.3, §9.1) -----------
-// The career lives inside the season (20 May - 30 Sep, WEATHER_PLAN.SEASON: no snow, the crafted days' dates). An
-// instant whose LOCAL date is past the close lands on the next year's opening at civil dawn; one before the opening
-// (an old save, a hand-edited one) on that year's opening. Always FORWARD: the landing is later than the instant. The
-// story tells it (the page's 'flydiy:layup' event, day_clock.js).
-//   careerSeasonLand({date, utc}) -> { date, utc, layup: bool, season: the opening's year }
-const CAREER_SEASON = Object.freeze({ open: '05-20', close: '09-30' });
-function careerSeasonLand(o) {
-  const S = (typeof WEATHER_PLAN !== 'undefined' && WEATHER_PLAN.SEASON) || CAREER_SEASON;
-  const p = DAY.makeDay({ date: o.date, utc: o.utc });
-  const ld = p.localDate, md = ld.slice(5), y = +ld.slice(0, 4);
-  if (md >= S.open && md <= S.close) return { date: o.date, utc: o.utc, layup: false, season: y };
-  const yy = md > S.close ? y + 1 : y;
-  const q = DAY.makeDay({ date: yy + '-' + S.open, utc: 43200 });
-  const u = dayPresetUtc(q, 'dawn');
-  const r = dayFromAbs(q.jdn * 86400 + u);
-  return { date: r.date, utc: r.utc, layup: true, season: yy };
+  return { ok: true, doc: d, why: '', dt };
 }
 
 // ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------
@@ -59832,9 +59626,9 @@ function storyChecklist(spec, base, items) {
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
 const STORY_BEATS = [
   { id: 'T0', title: 'The cabin', mask: 'finish',
-    brief: 'Your ultralight waits in the cabin’s shed. Make it yours - a colour, a name - then come and read the letter.',
+    brief: 'Your ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.',
     goal: { k: 'ack' } },
-  { id: 'T1', title: 'The move', brief: 'The old WWII field is our base now - its hangar is ours already. Fly the ultralight there.',
+  { id: 'T1', title: 'The move', brief: 'The proposal was accepted: the old WWII field is ours. Fly the ultralight there.',
     goal: { k: 'stop', at: 'home', plane: 'starter' },
     done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
   { id: 'T2', title: "The client's plane", mask: 'checklist',
@@ -59863,11 +59657,11 @@ const STORY_IDS = STORY_BEATS.map(b => b.id);
 // them. The corner card stays the OBJECTIVE; Tim is the voice.
 const STORY_TIM = {
   name: 'Tim', role: 'your friend and business partner',
-  T0: ['Morning! The ultralight has sat in the cabin’s shed all winter. Let\u2019s dust it off.',
+  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
        'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
        'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
-  T1: ['Good news: the old WWII airport is ready for us. It\u2019s our base of operations now. Come and join me there.',
+  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
   T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
   T3: ['Certified? Then fly it over to its owner.'],
@@ -59930,7 +59724,7 @@ function storyLadderStep(L, o) {
 const STORY_REG = 'N47RF';          // G3586: Rufus's own registration (fictional; the generator's meta.reg is F-PGAR)
 const STORY_TUTOR = {
   T0: [
-    { id: 'hello', say: 'Morning! The ultralight has sat in the cabin’s shed all winter. Let’s dust it off.' },
+    { id: 'hello', say: 'Morning! The ultralight has sat in this shed all winter. Let’s dust it off.' },
     { id: 'paint', wait: 'painted', allow: 'finish',
       say: 'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add a livery, or recolour any single piece. Give it a fresh coat: change any colour.' },
     { id: 'reg', wait: 'registered', allow: 'reg', pass: 'Keep ' + STORY_REG,
@@ -59939,7 +59733,7 @@ const STORY_TUTOR = {
       say: 'It’s pre-certified, so it flies as it is. No test bench in here, mind - certification happens at the WWII field’s hangar.' },
   ],
   T1: [
-    { id: 'news', say: 'Good news: the old WWII airport is ready for us. It’s our base of operations now. Come and join me there.' },
+    { id: 'news', say: 'Good news: we got the old WWII airport. It’s our base of operations now. Come and join me there.' },
     { id: 'ap', say: 'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.' },
     { id: 'roll', wait: 'flying', allow: 'rollout',
       say: 'Roll it out when you’re ready. Or skip the flight: you start on the final at the WWII field.' },
@@ -60267,9 +60061,8 @@ function storyApply(doc, e, o) {
     if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
     const was = !!d.sheds[id].locked;
     delete d.sheds[id].locked;
-    // STORY-HOME-FIX (F3): the hangar has been the player's since the start (STORY-1): the handing over - its ledger line,
-    // its words - only for an old save that still held it locked
-    if (was) { playerLedger(d, 'story', 0, id); line = 'The WWII field’s hangar is yours.'; }
+    playerLedger(d, 'story', 0, id);
+    if (was) line = 'The WWII field’s hangar is yours.';
   } else if (e.k === 'clientPlane') {
     const slot = o.slot || STORY_SLOTS.client;
     if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
@@ -60709,7 +60502,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, careerSeasonLand, CAREER_SEASON };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

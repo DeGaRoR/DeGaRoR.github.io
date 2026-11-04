@@ -1,0 +1,89 @@
+[run_gates] 1/5 jobs done · running SEAPLANE 30 s, PARTS 5 s
+=== SKINMAT ===
+sections 37, finishes 34, constructions 4, hardware 103 names over 9 layers
+GATE SKINMAT: PASS
+=== LIVERY ===
+
+[stderr]
+cage editor seed: ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:18:11)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:190:8)
+    at run (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+app.js seedEditor:20
+    finally { garageFloodArm(null); }
+              ^
+
+ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:20:15)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:190:8)
+    at run (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+
+Node.js v22.23.4
+(exit code 1)
+=== PARTS ===
+  ceilingLoop by zone: tail 192, boom 96, pax 16, taper 8
+  floorLoop by zone: tail 208, boom 120, pax 144, cabin 240, nose 240, taper 8, aftCabin 16, aftDeck 8
+GATE PARTS: PASS
+=== FLOATSCLASSIC ===
+ABSENT - the Wipline line is what it was
+  ok    every Wipline hull (15 rows + DEF) hashes to the pin taken off master
+  ok    a Wipline preset carries no EDO key (the join writes none)
+  ok    a Wipline section has no dome (yt === yd everywhere)
+CATALOG - the EDO rows
+  ok    EDO 1320: fits 599 kg at f 0.235 (beta 24.8 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 1650: fits 748 kg at f 0.185 (beta 24.2 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 2000: fits 907 kg at f 0.150 (beta 23.8 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 2440: fits 1107 kg at f 0.144 (beta 23.7 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 2870: fits 1302 kg at f 0.113 (beta 23.4 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 4580: fits 2077 kg at f 0.172 (beta 24.1 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 7170: fits 3252 kg at f 0.164 (beta 24.0 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+  ok    EDO 78-28000: fits 13154 kg at f 0.150 (beta 23.8 deg), drawn closed and outward, drawn/physics 0.10 %, bare deck
+DOME - the section and the reserve
+  ok    the crown at the deck line, the edge crownK H (0.079 m) under it
+  ok    levelVolume to the deck = volDeck (the section family and the panels agree)
+  ok    the dome is honest: the same rows flat-decked hold 953 kg, domed 907 kg, and the advisor's reserve reads the dome
+JOIN - the style rides the game's own load path
+  ok    as saved: the PA-18's float record names no style
+  ok    style row 1: the record carries the EDO deck over the same rows (same length and beam)
+  ok    the frame flies the dome (1115 kg to the deck against the flat deck's 1171)
+GATE FLOATSCLASSIC: PASS (17/17)
+(exit code 0)
+[run_gates] 4/5 jobs done · running SEAPLANE 60 s
+[run_gates] 4/5 jobs done · running SEAPLANE 90 s
+[run_gates] 4/5 jobs done · running SEAPLANE 120 s
+[run_gates] 4/5 jobs done · running SEAPLANE 150 s
+[run_gates] 4/5 jobs done · running SEAPLANE 180 s
+[run_gates] 4/5 jobs done · running SEAPLANE 210 s
+[run_gates] 4/5 jobs done · running SEAPLANE 240 s
+[run_gates] 4/5 jobs done · running SEAPLANE 270 s
+[run_gates] 4/5 jobs done · running SEAPLANE 300 s
+=== SEAPLANE ===
+PASS the track within 0.8 m (bound 10)
+
+GATE SEAPLANE: PASS
+
+──────── summary ────────
+SKINMAT   PASS     7.5 s
+LIVERY    FAIL     0.5 s
+PARTS     PASS     8.4 s
+FLOATSCLASSIC FAIL    25.4 s
+SEAPLANE  PASS   327.1 s
+total            368.9 s
+wall             327.1 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.
+exit 1

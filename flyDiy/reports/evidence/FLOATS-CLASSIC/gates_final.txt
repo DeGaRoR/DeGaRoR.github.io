@@ -1,0 +1,185 @@
+[run_gates] 0/22 jobs done · running UISMOKE 30 s, FLOATSCLASSIC-WATER 30 s
+[run_gates] 0/22 jobs done · running UISMOKE 60 s, FLOATSCLASSIC-WATER 60 s
+[run_gates] 0/22 jobs done · running UISMOKE 90 s, FLOATSCLASSIC-WATER 90 s
+[run_gates] 0/22 jobs done · running UISMOKE 120 s, FLOATSCLASSIC-WATER 120 s
+[run_gates] 0/22 jobs done · running UISMOKE 150 s, FLOATSCLASSIC-WATER 150 s
+[run_gates] 0/22 jobs done · running UISMOKE 180 s, FLOATSCLASSIC-WATER 180 s
+[run_gates] 0/22 jobs done · running UISMOKE 210 s, FLOATSCLASSIC-WATER 210 s
+[run_gates] 0/22 jobs done · running UISMOKE 240 s, FLOATSCLASSIC-WATER 240 s
+[run_gates] 1/22 jobs done · running UISMOKE 270 s, SEAPLANE 22 s
+[run_gates] 1/22 jobs done · running UISMOKE 300 s, SEAPLANE 52 s
+[run_gates] 1/22 jobs done · running UISMOKE 330 s, SEAPLANE 82 s
+[run_gates] 1/22 jobs done · running UISMOKE 360 s, SEAPLANE 112 s
+[run_gates] 1/22 jobs done · running UISMOKE 390 s, SEAPLANE 142 s
+[run_gates] 1/22 jobs done · running UISMOKE 420 s, SEAPLANE 172 s
+[run_gates] 1/22 jobs done · running UISMOKE 450 s, SEAPLANE 202 s
+[run_gates] 1/22 jobs done · running UISMOKE 480 s, SEAPLANE 232 s
+[run_gates] 1/22 jobs done · running UISMOKE 510 s, SEAPLANE 262 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 540 x 143, desktop small 448 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1937, handlers wired: _ce1001 _ce1005 _ce1009 _ce101 _ce1013 _ce1017 _ce1021 _ce1025 _ce1029 _ce1033 _ce1037 _ce104 _ce1041 _ce1044 _ce1052 _ce1055 _ce1066 _ce107 _ce1074 _ce1075 _ce1078 _ce1087 _ce1098 _ce110 _ce1106 _ce1109 _ce1115 _ce1119 _ce1125 _ce1129 _ce1133 _ce1137 _ce1141 _ce1149 _ce1155 _ce1158 _ce1165 _ce1166 _ce117 _ce1171 _ce1174 _ce1179 _ce1180 _ce1182 _ce1183 _ce1186 _ce1190 _ce1194 _ce1198 _ce1204 _ce1211 _ce1215 _ce1219 _ce122 _ce1223 _ce1227 _ce1231 _ce1235 _ce1239 _ce1243 _ce1247 _ce1251 _ce1257 _ce1261 _ce1265 _ce1268 _ce1274 _ce1277 _ce1278 _ce1279 _ce1282 _ce1292 _ce1293 _ce1297 _ce1300 _ce1311 _ce1319 _ce1322 _ce1328 _ce1332 _ce1338 _ce1342 _ce1346 _ce1350 _ce1354 _ce1362 _ce1368 _ce1371 _ce1378 _ce1379 _ce138 _ce1383 _ce1384 _ce1385 _ce1386 _ce1387 _ce1388 _ce1408 _ce1413 _ce1414 _ce1415 _ce1416 _ce1417 _ce1420 _ce1424 _ce1428 _ce143 _ce1432 _ce1436 _ce1440 _ce1444 _ce1448 _ce1452 _ce1457 _ce1458 _ce1459 _ce1462 _ce1466 _ce1470 _ce1477 _ce1480 _ce1485 _ce1486 _ce1488 _ce1489 _ce1490 _ce1493 _ce1497 _ce1501 _ce1505 _ce1511 _ce1518 _ce1522 _ce1526 _ce1530 _ce1534 _ce1538 _ce1542 _ce1546 _ce1550 _ce1554 _ce1558 _ce1564 _ce1568 _ce1572 _ce1575 _ce1581 _ce1584 _ce1585 _ce1586 _ce1589 _ce159 _ce1599 _ce1600 _ce1604 _ce1607 _ce1615 _ce1620 _ce1621 _ce1622 _ce1623 _ce1624 _ce1625 _ce1626 _ce1627 _ce1629 _ce1632 _ce1634 _ce1638 _ce1639 _ce164 _ce1640 _ce1641 _ce1642 _ce1647 _ce1649 _ce1653 _ce1659 _ce1663 _ce1668 _ce1669 _ce1671 _ce1672 _ce1675 _ce1679 _ce1683 _ce1687 _ce1691 _ce1695 _ce1699 _ce1703 _ce1714 _ce1718 _ce1722 _ce1726 _ce1734 _ce1740 _ce1743 _ce1747 _ce1755 _ce1760 _ce1761 _ce1762 _ce1763 _ce1764 _ce1765 _ce1766 _ce1767 _ce1769 _ce1772 _ce1774 _ce1778 _ce1779 _ce1780 _ce1781 _ce1782 _ce1787 _ce1789 _ce180 _ce1811 _ce1817 _ce1821 _ce1829 _ce1832 _ce1843 _ce1847 _ce185 _ce1851 _ce1859 _ce1862 _ce1873 _ce1877 _ce1881 _ce1889 _ce1892 _ce1896 _ce1907 _ce1911 _ce1915 _ce1923 _ce1926 _ce1930 _ce1941 _ce1949 _ce1950 _ce1953 _ce1962 _ce1970 _ce1973 _ce1977 _ce1988 _ce1992 _ce1996 _ce2004 _ce2007 _ce201 _ce2018 _ce2022 _ce206 _ce222 _ce227 _ce246 _ce265 _ce284 _ce303 _ce322 _ce341 _ce360 _ce37 _ce379 _ce402 _ce421 _ce444 _ce455 _ce463 _ce466 _ce472 _ce476 _ce482 _ce486 _ce490 _ce494 _ce498 _ce506 _ce512 _ce515 _ce522 _ce523 _ce528 _ce531 _ce536 _ce537 _ce539 _ce540 _ce543 _ce547 _ce551 _ce555 _ce56 _ce561 _ce568 _ce572 _ce576 _ce580 _ce584 _ce588 _ce592 _ce596 _ce600 _ce604 _ce608 _ce614 _ce618 _ce622 _ce625 _ce631 _ce634 _ce635 _ce636 _ce639 _ce649 _ce650 _ce654 _ce657 _ce665 _ce670 _ce671 _ce672 _ce673 _ce674 _ce675 _ce676 _ce677 _ce679 _ce682 _ce684 _ce688 _ce689 _ce690 _ce691 _ce692 _ce697 _ce699 _ce70 _ce71 _ce72 _ce721 _ce727 _ce73 _ce735 _ce736 _ce739 _ce74 _ce746 _ce747 _ce748 _ce749 _ce75 _ce750 _ce751 _ce756 _ce757 _ce758 _ce759 _ce76 _ce763 _ce764 _ce765 _ce766 _ce767 _ce768 _ce77 _ce772 _ce773 _ce774 _ce775 _ce779 _ce780 _ce783 _ce790 _ce791 _ce792 _ce793 _ce797 _ce798 _ce80 _ce802 _ce803 _ce807 _ce808 _ce809 _ce810 _ce811 _ce812 _ce816 _ce817 _ce818 _ce819 _ce820 _ce821 _ce825 _ce826 _ce83 _ce830 _ce831 _ce833 _ce840 _ce841 _ce842 _ce843 _ce847 _ce848 _ce849 _ce850 _ce854 _ce855 _ce856 _ce857 _ce86 _ce861 _ce862 _ce863 _ce864 _ce868 _ce869 _ce873 _ce874 _ce875 _ce877 _ce884 _ce885 _ce889 _ce89 _ce890 _ce891 _ce893 _ce900 _ce901 _ce902 _ce906 _ce907 _ce908 _ce909 _ce913 _ce914 _ce916 _ce92 _ce923 _ce924 _ce925 _ce929 _ce930 _ce931 _ce932 _ce936 _ce937 _ce938 _ce942 _ce943 _ce947 _ce948 _ce95 _ce952 _ce953 _ce955 _ce962 _ce963 _ce967 _ce968 _ce969 _ce973 _ce974 _ce978 _ce979 _ce98 _ce982 _ce988 _ce993 _ce997 bAP bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+[run_gates] 2/22 jobs done · running SEAPLANE 292 s, HYDRODYN 28 s
+[run_gates] 3/22 jobs done · running HYDRODYN 58 s, FLOATS 13 s
+[run_gates] 3/22 jobs done · running HYDRODYN 88 s, FLOATS 43 s
+[run_gates] 4/22 jobs done · running HYDRODYN 118 s, FLOATKIT 2 s
+[run_gates] 4/22 jobs done · running HYDRODYN 148 s, FLOATKIT 32 s
+[run_gates] 4/22 jobs done · running HYDRODYN 178 s, FLOATKIT 62 s
+[run_gates] 5/22 jobs done · running HYDRODYN 208 s, UISMOKE-PHONE 21 s
+[run_gates] 5/22 jobs done · running HYDRODYN 238 s, UISMOKE-PHONE 51 s
+=== UISMOKE-PHONE ===
+phone.css: 152 selectors, every one under html.phone (or hiding a phone-only element)
+STORAGE (phone): the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (✓ Jodel inside 2); Fly off
+GATE UISMOKE-PHONE: PASS
+[run_gates] 8/22 jobs done · running CLIP 24 s, DESIGN 3 s
+[run_gates] 14/22 jobs done · running JOIN 7 s, BUILD 2 s
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== SKINMAT ===
+sections 37, finishes 34, constructions 4, hardware 103 names over 9 layers
+GATE SKINMAT: PASS
+=== LIVERYREACH ===
+second plane: map + repaint (3 meshes moved, the swap alone left the copy)
+LIVERYREACH: 24 pass, 0 fail
+GATE LIVERYREACH: PASS
+=== LIVERY ===
+
+[stderr]
+cage editor seed: ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:18:11)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:190:8)
+    at run (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+app.js seedEditor:20
+    finally { garageFloodArm(null); }
+              ^
+
+ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:20:15)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:190:8)
+    at run (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+
+Node.js v22.23.4
+(exit code 1)
+=== SURF ===
+GATE SURF: PASS
+=== CLIP ===
+GATE CLIP — fittings against the drawn skin, at rest and posed
+  stock: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 298483 queries — 8635 ms (build 3706, trees 300)
+  rod: 52 fitting objects, 47 skins (fuselage 4928 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 357875 queries — 6597 ms (build 3248, trees 178)
+  twin: 64 fitting objects, 68 skins (fuselage 4352 t, orient 0 flipped/0 turned), 6 poses [rest +full -full flex tail+ tail-], 562865 queries — 6300 ms (build 2584, trees 187)
+  stock+ifr: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 299545 queries — 4499 ms (build 2234, trees 86)
+  FAIL stock+ifr/rest: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/+full: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/-full: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/flex: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21) — the fitting moves, the skin does not
+  stock+panel: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 324145 queries — 4726 ms (build 2212, trees 87)
+  ---- summary ----
+  stock: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  rod: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  twin: 0 NEW red, 2 known, 0 declared, worst 31.0 mm
+  stock+ifr: 4 NEW red, 0 known, 0 declared, worst 9.2 mm
+  stock+panel: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  FAIL no NEW fitting inside a skin or another layer at rest, at full travel or under flex (4 new, 2 known in the baseline)
+  wall 30757 ms over 5 builds
+  0/1 checks
+GATE CLIP: FAIL
+(exit code 1)
+=== CAGEFIT ===
+
+cageSpec(CAGE_PARAMS) identity: maxDev 0.000000 (step 0 v49)
+GATE CAGEFIT: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== STARTER ===
+3 starters, 4 architectures, 3 doors
+GATE STARTER: PASS
+=== FLOATKIT ===
+
+FLOATKIT: 21/21 ok
+GATE FLOATKIT: PASS
+=== SAVE ===
+  ok     FREIGHT-STRAP: the strapped load writes nothing into the build the shelf saves (no genSpec, no GARAGE_SPEC, no seat / baggage row)
+  20 targeted rows, 997 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+=== PARTS ===
+  ceilingLoop by zone: tail 192, boom 96, pax 16, taper 8
+  floorLoop by zone: tail 208, boom 120, pax 144, cabin 240, nose 240, taper 8, aftCabin 16, aftDeck 8
+GATE PARTS: PASS
+=== DESIGN ===
+52 rows, 215 options (1 declared with reasons), 32 archetypes (31 live)
+GATE DESIGN: PASS
+=== HYDRODYN ===
+PASS an aft-cabin tank (hull slice 2) in a 5 m/s pancake: its slice slammed to 551 kPa (the tank's breach 400) - holed 2 of 2, flooding 23 %, 22 %
+
+GATE HYDRODYN: PASS
+=== FLOATS ===
+PASS an idle taxi 20 s after the touch: 2.9 m/s (bound 5)
+
+GATE FLOATS: PASS
+=== WIPLINE ===
+PASS level in roll (0.12 deg)
+
+GATE WIPLINE: PASS
+=== FLOATSCLASSIC ===
+  ok    the frame flies the dome (1115 kg to the deck against the flat deck's 1171)
+17/17 checks
+GATE FLOATSCLASSIC: PASS
+=== FLOATSCLASSIC-WATER ===
+  ok    PA-18 on its floats, EDO classic: the hydroplane run lifts off - 22.6 s, 22.1 m/s, 235 m
+9/9 checks
+GATE FLOATSCLASSIC-WATER: PASS
+=== SEAPLANE ===
+PASS the track within 0.8 m (bound 10)
+
+GATE SEAPLANE: PASS
+=== HYDRO ===
+A0 sweep riverCells: 4824 >= 2924 >= 1953
+hydro: 528 reaches | 175.8 km | 365 lakes (28168 cells) | bake 903 ms | 14 checks, 0 failed
+GATE HYDRO: PASS
+
+──────── summary ────────
+UISMOKE   PASS   512.3 s
+UISMOKE-PHONE PASS    57.0 s
+BUILD     PASS     2.3 s
+SKINMAT   PASS     4.4 s
+LIVERYREACH PASS     0.1 s
+LIVERY    FAIL     0.3 s
+SURF      PASS     1.2 s
+CLIP      FAIL    31.4 s
+CAGEFIT   PASS     0.1 s
+JOIN      PASS     6.8 s
+STARTER   PASS     0.5 s
+FLOATKIT  PASS    71.2 s
+SAVE      PASS     0.6 s
+PARTS     PASS     4.7 s
+DESIGN    PASS    17.8 s
+HYDRODYN  PASS   244.3 s
+FLOATS    PASS    70.1 s
+WIPLINE   PASS    13.6 s
+FLOATSCLASSIC PASS    21.0 s
+FLOATSCLASSIC-WATER PASS   248.7 s
+SEAPLANE  PASS   309.3 s
+HYDRO     PASS     7.1 s
+total           1624.8 s
+wall             812.4 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.
+exit 1
