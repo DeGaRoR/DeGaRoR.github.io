@@ -9506,8 +9506,31 @@
     try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     return { ok: true, why: '', cost: r.cost, slot: copy };
   }
+  // PRICE-CAL: THE SALE (the fleet card's Sell, garage.js): what an airframe of the career fetches on the used market
+  // (76_economy econSaleValue: its used value at its age, never more than it cost) and why it cannot be sold now
+  // (econSaleWhy: the tutorial until T6's route is signed, a route flown on it, a story aeroplane). Its ledger is its
+  // saved build's (procureLedger, as careerImportPrice reads one).
+  function careerSaleOf(name) {
+    const d = playerLoad();
+    if (!d || d.mode !== 'career' || !d.career || !d.career.airframes || !d.career.airframes[name]) return null;
+    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const led = spec ? procureLedger(spec) : null;
+    const cost = led ? econLedgerCost(led) : 0;
+    return Object.assign({ cost }, econSaleValue(d, name, cost));
+  }
+  function careerSellNow(name) {
+    const S = careerSaleOf(name);
+    if (!S) return { ok: false, why: 'not an airframe of the career' };
+    const r = econSell(playerLoad(), name, S.cost);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
+    ecNote = 'sold ' + name + ': +' + ecFmt(r.value);
+    econWalletSync();
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    return { ok: true, why: '', value: r.value };
+  }
   if (CAREER_DEV) window.FLYDIY_ECON = {
-    price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
+    price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow, saleOf: careerSaleOf, sell: careerSellNow,
     wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
   };
   // ---- G2290 (PILOTS): WHO FLIES, IN THE CAREER (every function below runs only under CAREER_DEV) --------------------
@@ -19260,6 +19283,9 @@
     slotKey: CAREER_DEV ? (n => careerSaveKey(playerLoad(), n, playerSlotNames())) : null,
     importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
     importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
+    // PRICE-CAL: the fleet card's Sell (a career's own airframe: its used-market price, or why not now)
+    saleOf: CAREER_DEV ? (n => careerSaleOf(n)) : null,
+    sell: CAREER_DEV ? (n => careerSellNow(n)) : null,
     money: CAREER_DEV ? (v => ecFmt(v)) : null,
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)

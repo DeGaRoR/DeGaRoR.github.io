@@ -1470,9 +1470,12 @@ function genParams(S, fr, strips) {
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
                     (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
+  // PRICE-CAL step 2: an old airframe's surfaces (GEN_AGING dragK on each polar's Cd0; absent spec.aging: x1)
+  const AGk = genAgingOf(S).dragK, aged = P => (AGk === 1 || !P ? P : Object.assign({}, P, { Cd0: P.Cd0 * AGk }));
+  for (let k = 0; k < polarWings.length; k++) polarWings[k] = aged(polarWings[k]);
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0);   // G213
+  const polarTail = aged(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0));   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -1490,7 +1493,7 @@ function genParams(S, fr, strips) {
            : (S.tail.stabH || 0) >= 0.8 ? 't'
            : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
   const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
-  const polarFin = genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0);     // G213
+  const polarFin = aged(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0));     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -1634,6 +1637,9 @@ function genParams(S, fr, strips) {
     });
     if (sd > 0) cda.drag.stol = sd;      // G2822: reported; the force rides the strips (genStrips stXcd)
   }
+  // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
+  const AGd = genAgingOf(S).dragK;
+  if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -1678,7 +1684,9 @@ function genParams(S, fr, strips) {
     // read, the plaque's engine line and the coming burn/ventilation models
     // consume these instead of re-looking-up the registry at runtime. For a
     // fiche this IS the registry row's engine dict, so nothing moves.
-    engine: (S.pplant || POWERPLANTS[S.engine]).engine,
+    // (PRICE-CAL step 2: the solver's torque from a tired engine's power, a copy; absent spec.aging: the row itself)
+    engine: (() => { const E0 = (S.pplant || POWERPLANTS[S.engine]).engine, k = genAgingOf(S).powerK;
+      return k < 1 ? Object.assign({}, E0, { powerW: E0.powerW * k }) : E0; })(),
     // HOW MANY ENGINES, which is NOT how many mount nodes. `refs.engine` is the
     // two mount points of one engine here, and the solver used to multiply
     // thrust by its length — so a generated single fell on 2x its own prop.

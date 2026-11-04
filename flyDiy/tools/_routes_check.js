@@ -41,8 +41,11 @@ function run(M) {
   const O = M.routeOffer(d, 'A', 'B', 'Cub', { fields, design });
   ok(O.ok && O.doc === d && J(d) === d0, 'routeOffer: the terms, the document untouched', O.why);
   const T = O.offer || {};
-  ok(T.km === 5 && T.payloadKg === 90 && T.pay === 480 && T.down === 2880 && T.flyS === 2160 && T.tripS === 14400,
-     'the hand-computed case (G3359 table): 5 km, 90 kg payload -> 480 a round trip, a down payment of 2 880, 2 160 s flown, 14 400 s timetabled', J({ km: T.km, kg: T.payloadKg, pay: T.pay, down: T.down, fly: T.flyS, s: T.tripS }));
+  // (PRICE-CAL: the table's 480 is money of payRef's Cub; the pay rides econPayScale - 76_economy - so the trip is
+  // 480 x the scale, rounded as the routes round)
+  const PSc = (M.econPayScale || C.econPayScale)(), TRIP = Math.round(480 * PSc / 10) * 10, DOWN = 6 * TRIP;
+  ok(T.km === 5 && T.payloadKg === 90 && T.pay === TRIP && T.down === DOWN && T.flyS === 2160 && T.tripS === 14400,
+     'the hand-computed case (G3359 table): 5 km, 90 kg payload -> 480 x the pay scale (' + TRIP + ') a round trip, a down payment of 6 trips, 2 160 s flown, 14 400 s timetabled', J({ km: T.km, kg: T.payloadKg, pay: T.pay, down: T.down, fly: T.flyS, s: T.tripS }));
   const big = M.routeOffer(d, 'A', 'B', 'Cub', { fields, design: Object.assign({}, design, { seats: 4, bagKg: 40 }) });
   const fast = M.routeOffer(d, 'A', 'B', 'Cub', { fields, design: Object.assign({}, design, { cruiseKmh: 200 }) });
   ok(big.ok && big.offer.pay > T.pay && fast.ok && fast.offer.flyS < T.flyS && fast.offer.pay === T.pay, 'a bigger plane earns more a trip, a faster one flies its trip quicker: the route rewards the design',
@@ -62,7 +65,7 @@ function run(M) {
   ok(S.ok && J(d) === d0, 'routeSign: on a clone (the document handed in unchanged)', S.why);
   let e = S.doc;
   const R = S.route || {};
-  ok(e.wallet === w0 + 2880 && e.ledger.some(l => l.k === 'route' && l.amt === -2880 && l.ref === R.id), 'the down payment: +2 880 in the wallet, its ledger line (income)', e.wallet - w0);
+  ok(e.wallet === w0 + DOWN && e.ledger.some(l => l.k === 'route' && l.amt === -DOWN && l.ref === R.id), 'the down payment: +' + money(DOWN) + ' in the wallet, its ledger line (income)', e.wallet - w0);
   ok(R.plane === 'Cub' && R.pilot === 'brian' && R.a === 'A' && R.b === 'B' && R.signedAt === Math.round(t0) && R.trips === 0, 'the route: the plane, the pilot, A <-> B, signed at the career\'s instant', J(R));
   const W = M.playerStoreWhere(e, 'Cub');
   ok(W.kind === 'route' && W.a === 'A' && W.b === 'B' && M.playerWhere(e, 'Cub').kind === 'route' && e.career.pilots.brian.route === R.id && e.career.pilots.brian.plane === 'Cub',
@@ -90,13 +93,13 @@ function run(M) {
   r = M.routeSettle(e, t0 + 14399);
   ok(r.paid === 0, 'a round trip not yet complete (2 159 s): nothing paid', r.paid);
   r = M.routeSettle(e, t0 + 3 * 14400 + 10);
-  ok(r.ok && r.paid === 1440 && r.trips === 3 && r.doc.wallet === e.wallet + 1440 && J(e) === J(S.doc), 'three round trips: 3 x 480 = 1 440, on a clone', r.paid);
-  ok(r.doc.ledger.filter(l => l.k === 'routePay').length === 1 && r.doc.ledger.slice(-1)[0].amt === -1440, 'one ledger line for the settle');
+  ok(r.ok && r.paid === 3 * TRIP && r.trips === 3 && r.doc.wallet === e.wallet + 3 * TRIP && J(e) === J(S.doc), 'three round trips: 3 x ' + TRIP + ', on a clone', r.paid);
+  ok(r.doc.ledger.filter(l => l.k === 'routePay').length === 1 && r.doc.ledger.slice(-1)[0].amt === -3 * TRIP, 'one ledger line for the settle');
   const lines = M.routeSettleLines(r, [{ id: 'A', name: 'Field A' }, { id: 'B', name: 'Field B' }]);
-  ok(lines.length === 1 && /Field A – Field B/.test(lines[0].text) && /3 round trips/.test(lines[0].text) && /\+1 440/.test(lines[0].text), "the arrival card's line", lines[0] && lines[0].text);
+  ok(lines.length === 1 && /Field A – Field B/.test(lines[0].text) && /3 round trips/.test(lines[0].text) && lines[0].text.includes('+' + money(3 * TRIP)), "the arrival card's line", lines[0] && lines[0].text);
   e = r.doc;
   ok(M.routeSettle(e, t0 + 3 * 14400 + 10).paid === 0 && M.routeSettle(e, t0 + 100).paid === 0, 'settled twice at that instant, or at an earlier one: nothing more');
-  ok(M.routeSettle(e, t0 + 3.5 * 14400).paid === 0 && M.routeSettle(e, t0 + 4 * 14400).paid === 480, 'half a trip later nothing; the fourth trip complete: 480');
+  ok(M.routeSettle(e, t0 + 3.5 * 14400).paid === 0 && M.routeSettle(e, t0 + 4 * 14400).paid === TRIP, 'half a trip later nothing; the fourth trip complete: one trip');
   ok(M.routeSettle(e, { date: M.careerDay(e).date, utc: M.careerDay(e).utc + 5 * 14400 }).trips === 2, 'the instant as a day ({ date, utc }): the same count');
   const P0 = M.routePos(R, t0), P1 = M.routePos(R, t0 + 90), P2 = M.routePos(R, t0 + 180 + 900 + 90), P3 = M.routePos(R, t0 + 14400 - 1);
   ok(P0.leg === 'out' && P0.f === 0 && P1.leg === 'out' && Math.abs(P1.f - 0.5) < 1e-9 && P2.leg === 'back' && Math.abs(P2.f - 0.5) < 1e-9 && M.routePos(R, t0 + 500).leg === 'atB' && P3.leg === 'atA', 'the plane along its route: out, the turn at B, back, the turn at A', [P0, P1, P2, P3].map(p => p.leg + ' ' + p.f.toFixed(2)).join(', '));
@@ -111,11 +114,11 @@ function run(M) {
   ok(L3.fleet.Cub.kind !== 'route' && M.playerStoreWhere(L3, 'Cub').kind !== 'route' && !L3.career.pilots.brian.route, 'a fleet row on a route nobody runs: unlocked, placed again', M.playerStoreWhere(L3, 'Cub').kind);
   // ---- END
   const E = M.routeEnd(e, R.id, { now: t0 + 4 * 14400 + 1 });
-  ok(E.ok && J(e) === J(r.doc) && E.paid === 480, 'routeEnd on a clone: the trip flown since the last settle paid first', E.why || E.paid);
+  ok(E.ok && J(e) === J(r.doc) && E.paid === TRIP, 'routeEnd on a clone: the trip flown since the last settle paid first', E.why || E.paid);
   const We = M.playerStoreWhere(E.doc, 'Cub');
   ok(E.route.ended && We.kind !== 'route' && We.aero === 'B' && !M.routeOfPlane(E.doc, 'Cub'), 'the plane back at the route\'s home field (B: the end it was not signed at, with no hangar of yours at either)', J(We));
   ok(!E.doc.career.pilots.brian.route && E.doc.career.pilots.brian.plane === null && M.pilotsPick(E.doc, 'brian').ok, 'the pilot freed');
-  ok(E.doc.wallet === e.wallet + 480 && E.doc.ledger.slice(-1)[0].k === 'routeEnd' && E.doc.ledger.slice(-1)[0].amt === 0, 'no penalty: the ledger line at 0, the wallet only gains the trip flown');
+  ok(E.doc.wallet === e.wallet + TRIP && E.doc.ledger.slice(-1)[0].k === 'routeEnd' && E.doc.ledger.slice(-1)[0].amt === 0, 'no penalty: the ledger line at 0, the wallet only gains the trip flown');
   ok(M.routeSettle(E.doc, t0 + 50 * 14400).paid === 0, 'an ended route pays nothing more');
   ok(M.playerMove(E.doc, 'Cub', { kind: 'outside' }).why !== undefined && !/flies the route/.test(M.playerMove(E.doc, 'Cub', { kind: 'outside' }).why || ''), 'after the end: the storage moves it again (no route refusal)');
   ok(!M.routeEnd(E.doc, R.id).ok, 'ending an ended route: refused');
@@ -156,7 +159,7 @@ function story(M) {
   const D = a.doc, R = M.routesActive(D)[0] || {}, O = (M.storyOf(D).offers || []).find(x => x.k === 'route') || {};
   ok(a.ok && R.plane === 'Client Cub' && R.pilot === M.PILOTS_COMPANION && R.a === 'mk_sea' && R.b === 'SEA' && R.home === 'SEA',
      "storyApply's routeOffer signs a REAL route: the gift Cub, the companion, water to water - Cedar Harbour <-> the seaplane base, the Cub's home where it landed (no stub)", J({ plane: R.plane, pilot: R.pilot, a: R.a, b: R.b }));
-  ok(O.signed === true && !('stub' in O) && O.route === R.id && O.down === R.down && R.down > 0 && D.wallet === w0 + R.down + M.STORY_T6_FEE && O.fee === M.STORY_T6_FEE, 'the story records the route and its down payment; the wallet holds it and T6\'s commitment fee (G3359)', R.down);
+  ok(O.signed === true && !('stub' in O) && O.route === R.id && O.down === R.down && R.down > 0 && D.wallet === w0 + R.down + (M.econPay || C.econPay)(M.STORY_T6_FEE) && O.fee === (M.econPay || C.econPay)(M.STORY_T6_FEE), 'the story records the route and its down payment; the wallet holds it and T6\'s commitment fee (G3359)', R.down);
   ok(M.playerStoreWhere(D, 'Client Cub').kind === 'route' && !M.playerFlyStart(D, 'Client Cub').ok, '"the Cub disappears": locked on its route, never flown by the player');
   ok(/Route signed/.test(a.line) && a.line.includes(money(R.down)), 'the line (arrival card, beat card) names the down payment', a.line);
   const tim = M.storyTimLines('T7', D);
@@ -258,7 +261,7 @@ async function page() {
   d = fn.storyOnFlightEnd(d, out);
   const R = M.routesActive(d)[0] || {};
   const L = out.career.lines.find(l => l.k === 'story') || {};
-  ok(R.plane === 'Client Cub' && d.wallet === w0 + R.down + M.STORY_T6_FEE && M.storyOf(d).beat === 'T7', "the page's T6 (storyOnFlightEnd): the route signed, the down payment + the commitment fee in the wallet, T7", R.down);
+  ok(R.plane === 'Client Cub' && d.wallet === w0 + R.down + (M.econPay || C.econPay)(M.STORY_T6_FEE) && M.storyOf(d).beat === 'T7', "the page's T6 (storyOnFlightEnd): the route signed, the down payment + the commitment fee in the wallet, T7", R.down);
   ok(/Route signed/.test(L.text || '') && /Three aeroplanes/.test(L.text || ''), "the arrival card carries the route's line (with T7's occasions after it)", L.text);
   return fails;
 }

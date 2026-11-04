@@ -331,7 +331,7 @@ function run(mut) {
   // ==== THE CAREER: hiring, the place, growth ====================================
   const d0 = M.careerNew({ id: 't', seed: 'dev' });
   ok(eq(d0.career.roster, ['brian']) && d0.career.pilots.brian && d0.career.pilots.brian.fee === 0 && d0.career.pilotPick === 'brian', 'careerNew: the companion arrives, no fee, flies next');
-  ok(d0.wallet === M.CAREER_GRANT && d0.ledger.length === 1 && d0.ledger[0].k === 'grant', 'careerNew: the grant alone in the ledger (no sign-on line for the companion)');
+  ok(d0.wallet === (M.careerGrant ? M.careerGrant() : M.CAREER_GRANT) && d0.ledger.length === 1 && d0.ledger[0].k === 'grant', 'careerNew: the grant alone in the ledger (no sign-on line for the companion)');
   ok(M.pilotsPlace(d0, 'brian') === 'HOME', 'the companion starts at HOME');
   ok(eq(M.careerNormalise(clone(d0)), d0), 'careerNormalise is a fixpoint with the roster');
   const odd = clone(d0); odd.career.roster.push('ghost', 'brian'); odd.career.pilots.ghost = { aero: 'w3' }; odd.career.pilotPick = 'ghost';
