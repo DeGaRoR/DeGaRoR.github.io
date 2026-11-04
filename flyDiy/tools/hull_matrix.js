@@ -32,6 +32,8 @@ const ENGINES = {
                 note: 'the pylon pusher on ONE wing-section blade on the centreline (the Lake\'s, the SeaMax\'s), flown as braced' },
   aftBlade: { sel: { engMount: 'wingTop' }, engine: 'rotax 915 iS', cage: { engPylonH: 0.75, engPylonForm: 1, engBlockZ: -0.7, cowlOn: 1, noseLen: 1.3, taperW: 0.62, tailHalfW: 0.085 },
               note: 'the engine behind the cabin on a short blade, the tail cone slimmed to a boom (the Icon\'s, the SeaRey\'s silhouette on our rows)' },
+  icon: { sel: { engMount: 'wingTop' }, engine: 'rotax 915 iS', cage: { engPylonAt: 1, engPylonAft: 0.15, engPylonH: 0.55, engPylonForm: 1, engPylonFair: 3, cowlOn: 1, noseLen: 1.3, taperW: 0.62, tailHalfW: 0.085 },
+          note: 'the engine on the fuselage behind the cabin on a blended blade, its prop over a slim tail boom (the Icon A5, the Aventura)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

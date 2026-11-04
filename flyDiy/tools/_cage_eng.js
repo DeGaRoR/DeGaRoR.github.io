@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engNacOver: 0, engNacLift: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -591,6 +591,12 @@ const ENG_ITEMS = [
   ['engPylonH', 'pylon height', 0.05, 1.5, 0.01,
    { when: P => +P.engOn && [2, 7].includes(Math.round(P.engMount)), dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
+  // HULL-B17: WHERE the over-the-wing pylon stands - on the wing (its centre section, or the cabin roof between the roots)
+  // or on the fuselage BEHIND THE CABIN (the Icon's), engPylonAft behind the trailing edge
+  ['engPylonAt', 'pylon stands on', 0, 1, 1, ['the wing', 'the fuselage, behind the cabin'],
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 }],
+  ['engPylonAft', 'behind the trailing edge', 0, 1.5, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
   // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
   ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],
    { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],

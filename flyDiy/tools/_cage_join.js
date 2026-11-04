@@ -360,6 +360,8 @@ function cageJoinSpec(P, M, T) {
         // push-pull's rear hand is the clamp's (the nose's mirror)
         // HULL-B14: the pylon's form (engPylonForm 1: one blade on the centreline) - absent at the V legs
         ...(mk === 'wingTop' && Math.round(+P.engPylonForm || 0) === 1 ? { pylonForm: 'blade' } : {}),
+        // HULL-B17: the pylon on the fuselage behind the cabin (engPylonAt 1) - absent on the wing
+        ...(mk === 'wingTop' && Math.round(+P.engPylonAt || 0) === 1 ? { pylonAt: 'roof' } : {}),
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });

@@ -1727,7 +1727,26 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
         BM(WL, WR);
-        if (e.pylonForm === 'blade') {
+        if (e.pylonAt === 'roof') {
+          // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN - the pylon stands on the roof of the two rings either side of the
+          // engine's station (the nearest and the next one forward), its legs to their top corners, crossed; a blade
+          // stands on a narrow root fitting between them on the centreline. No member reaches the wing
+          const iA = iRing(e.x);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          if (iB === iA) iB = Math.max(0, iA - 1);
+          const rA = F[iA], rB = F[iB];
+          if (e.pylonForm === 'blade') {
+            const BLADE_ROOT = 0.06;
+            const [BAL, BAR] = NM(ST[iA].x, Math.max(P[rA.TL][1], P[rA.TR][1]), BLADE_ROOT, 'PYB'), [BBL, BBR] = NM(ST[iB].x, Math.max(P[rB.TL][1], P[rB.TR][1]), BLADE_ROOT, 'PYB');
+            BM(BAL, BAR); BM(BBL, BBR); BM(BAL, BBL); BM(BAR, BBR); BM(BAL, BBR);
+            for (const b of [BAL, BAR]) { BM(b, rA.TL); BM(b, rA.TR); }
+            for (const b of [BBL, BBR]) { BM(b, rB.TL); BM(b, rB.TR); }
+            for (const n of [WL, WR]) { BM(n, BAL); BM(n, BAR); BM(n, BBL); BM(n, BBR); }
+          } else for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
+            const q = o === 'L' ? 'R' : 'L';
+            BM(n, rA['T' + o]); BM(n, rB['T' + o]); BM(n, rA['T' + q]);   // the legs, and a cross-brace
+          }
+        } else if (e.pylonForm === 'blade') {
           // HULL-B14: ONE BLADE ON THE CENTRELINE (the user: "a single pillar that would be shaped like a wing ... depending
           // on what we try to fit on it, it may be enough or not. And that's the physics and the breaking code that should
           // tell us this"). Its root is a short fitting across the centreline at the front and the rear spar stations
@@ -1749,7 +1768,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           BM(n, wf[q].F[0]);                             // cross-brace
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
-        hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
+        hangEngine(e, [WL, WR], e.pylonAt === 'roof' ? [rg.TL, rg.TR] : [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
                    engDryM, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(iE, iE);   // (HULL-B15: a tandem's two entries, 0 and 1; a single mount 0)
         if (LAYF) engCowl.push([WL, WR]);

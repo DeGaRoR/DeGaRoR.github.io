@@ -512,6 +512,21 @@ function engineFaces(mesh, FS, P) {
     const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
     const aft = aim === 0 ? true : aim === 2;
+    // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN (engPylonAt 1 - the Icon's, the Aventura's: the engine stands on the
+    // roof aft of the wing, its prop over the tail boom). The mount's plate engPylonAft behind the trailing edge, its
+    // feet on the roof's crown there (the drawn skin, cageAirframe's top line) a fore-aft pair under the block; the
+    // frame braces it to the fuselage rings it stands on (61_gen_frame, engines[].pylonAt 'roof')
+    if (Math.round(+P.engPylonAt || 0) === 1) {
+      const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+      const zP = le.z - ch - Math.max(0, +P.engPylonAft || 0.15) + bz;
+      let yR = null;
+      try { if (AF) { const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, zP)); yR = AF.surf(zc, Math.PI)[1]; } } catch (e) { yR = null; }
+      if (yR == null || !isFinite(yR)) return [];
+      return [{ face: { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
+                        synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true,
+                        foot: { x: 0.10, y: yR, zF: zP + 0.10, zR: zP - 0.45 } },
+                aft, kind: 'wingTop' }];
+    }
     return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                       synthetic: 1, yBase: onRoof ? le.yBot : le.yTop, chord: ch, onRoof,
