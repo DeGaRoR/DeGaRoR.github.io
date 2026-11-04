@@ -157,6 +157,13 @@ const AERO_FINISH = {
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
                fld: 0.0025, fldL: 0.90, fldR: 0.4 },
+  // FLOATS-CLASSIC: OLD FLOAT ALLOY - an EDO that has seen forty summers: skins replaced one at a time (the
+  // `panels` bake: two sheets a 2.4 m tile, each its own shade and sheen, a lapped seam between them), oxide-dulled (less
+  // metal, more rough than new bare alloy), a slow field of dents (fld). One sheet texture like every finish's
+  agedAlu:   { name: 'aged float alloy', base: 0xa9afb4, tile: 2.40,
+               rough: 0.46, metal: 0.62, nrm: 0.55, alb: 0.42,
+               hs: 0.9, bs: 1.5, bake: 'panels',
+               fld: 0.0030, fldL: 0.55, fldR: 0.55 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
                hs: 0.9, bs: 0.8, bake: 'sheet',
@@ -934,6 +941,13 @@ const AERO_SEC = {
   // or black); the painted margin at the gunwale is the float's
   floatDeck: { parent: 'float', fin: 'rubberGrip', label: 'the float decks (non-skid)',
               layer: 'gear', noDec: true, tintOwn: true },
+  // FLOATS-CLASSIC (2026-11-03): an EDO-style float is BARE, AGED ALLOY whatever the aeroplane wears (the user's red
+  // and white Cub sits on grey floats) - its own pinned finish and its own colour, paintable on its own row; and the
+  // deck board laid across the spreader bars, spruce
+  floatBare: { parent: 'float', fin: 'agedAlu', label: 'the floats (EDO bare alloy)',
+              layer: 'gear', tintOwn: true, metalOwn: true },
+  floatBoard: { parent: 'float', fin: 'spruce', label: 'the float deck board',
+              layer: 'gear', noDec: true, tintOwn: true, metalOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -1068,8 +1082,11 @@ function aeroSecResolve(sec, over, ctx) {
            fieldK: walk(over && over.field, chain).v,
            // G217: and the field's WAVELENGTH — the cowl's own, mostly
            fieldLK: walk(over && over.fieldL, chain).v,
-           // G215: the metal flake in the paint
-           metalK: walk(over && over.metal, chain).v };
+           // G215: the metal flake in the paint - FLOATS-CLASSIC: a row that is not paint (`metalOwn`: an EDO's bare
+           // alloy, its deck board) takes no flake from the paint up its chain, only its own row's (the user, 4 Nov:
+           // "the cessna and dc3 show clear banding" - the Cessna's float paint was metallic, and the flake's read of
+           // the detail sheet at a twelfth of its tile drew the aged alloy's two sheets as 0.2 m stripes)
+           metalK: walk(over && over.metal, row.metalOwn ? [sec] : chain).v };
 }
 
 // THE STOCK CUB'S STRUT PIN (G1911 STRUT-LIVERY, the user, 5 Oct: "the struts
@@ -1343,6 +1360,30 @@ function aeroHeight(kind, S, row) {
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
+      }
+      case 'panels': {
+        // FLOATS-CLASSIC: MISMATCHED SKINS. A tile holds 2 x 1 sheets (fore-aft x round), each its own shade from a
+        // fixed hash - carried by the B channel into the roughness and the albedo (bs, alb), so one sheet reads a
+        // shade duller or brighter than its neighbour, the way a re-skinned float does. The shade EASES across a
+        // tenth of the sheet (smoothstep): the step is colour, not relief - a hard step turned every cell edge into a
+        // ridge and the hull read as reptile scales (the first cut, 3 x 2 cells). The seam is a faint lap groove, and
+        // the sheet's own mill grain and breakup over the lot. Periodic in S like every term here (the cells divide the
+        // tile). No scuff lines: 37 narrow grooves a tile (2-3 texels) are under a pixel at garage distance. (The
+        // stripes the user saw on the Cessna and the DC-3, 4 Nov, were the paint's FLAKE reading this sheet at a
+        // twelfth of its tile - see aeroSecResolve's `metalOwn`; the cells' shade rides B, which the flake reads.)
+        const NU = 2, NV = 1, cw = S / NU, ch = S / NV;
+        const hsh = k => { const q = Math.sin(k * 12.9898 + 4.1414) * 43758.5453; return q - Math.floor(q); };
+        const sh = (iu, iv) => (hsh(((iu % NU) + NU) % NU * 7 + (((iv % NV) + NV) % NV) * 13 + 1) - 0.5) * 0.7;
+        const cu = Math.floor(x / cw), cv = Math.floor(y / ch);
+        const fu = (x - cu * cw) / cw, fv = (y - cv * ch) / ch;
+        const ease = t => t * t * (3 - 2 * t);
+        const wu = fu < 0.1 ? 0.5 * ease(fu / 0.1) + 0.5 : fu > 0.9 ? 0.5 * ease((1 - fu) / 0.1) + 0.5 : 1;
+        const nu = fu < 0.5 ? cu - 1 : cu + 1;
+        const shade = wu * sh(cu, cv) + (1 - wu) * sh(nu, cv);
+        const dEdge = Math.min(fu, 1 - fu, fv, 1 - fv);
+        const lap = -0.10 * Math.exp(-Math.pow(dEdge / 0.006, 2));
+        return shade + lap + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+             + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
       case 'pleat': {
         // PLEATED UPHOLSTERY (the door panel, G3xx): `pleats` rounded rolls
@@ -4309,7 +4350,7 @@ function aeroGlassTint(THREE, o) {
 let AERO_GNONE = null;
 function aeroGlassNone(THREE) {
   if (!AERO_GNONE) {
-    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });
+    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });  // pre-ok: invisible (visible: false)
     AERO_GNONE.userData.aeroskin = 1;
   }
   return AERO_GNONE;

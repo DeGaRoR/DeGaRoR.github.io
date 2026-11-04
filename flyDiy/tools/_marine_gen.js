@@ -47,7 +47,7 @@ const T = (typeof THREE !== 'undefined') ? THREE : null;
 const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: col, roughness: 0.92, metalness: 0.0 }, o || {})) : { color: col };
 
 function makeMats() {
-  return {
+  const M = {
     deck: std(0x8b7f6b, { roughness: 0.94 }),
     pile: std(0x4a4038, { roughness: 0.96 }),
     beam: std(0x6b5f4e, { roughness: 0.95 }),
@@ -56,8 +56,10 @@ function makeMats() {
     rock: std(0x7c7a76, { roughness: 1.0 }),
     net: std(0x2f3a33, { roughness: 0.95, transparent: true, opacity: 0.30, side: T ? T.DoubleSide : 2, depthWrite: false }),
     buoy: std(0xe2583a, { roughness: 0.7 }),
-    glass: std(0xfff2cc, { roughness: 0.3, emissive: T ? 0xffcc66 : undefined, emissiveIntensity: T ? 0.6 : undefined }),
+    glass: std(0xfff2cc, { roughness: 0.3, emissive: T ? 0xffcc66 : undefined, emissiveIntensity: T ? 0.6 : undefined }),  // pre-ok: held x P below (preHold)
   };
+  if (T && M.glass && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(M.glass, 'emissiveIntensity', 0.6);   // G2620: the pier lamp's glass x P
+  return M;
 }
 const makeFinish = () => ({ MAT: makeMats(), SHADE_U: T && HG && HG.makeShadeU ? HG.makeShadeU() : null });
 const DEFAULT_FINISH = makeFinish();

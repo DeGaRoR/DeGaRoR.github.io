@@ -13,11 +13,11 @@ const BUILDS = ['cub', 'jodel', 'metal'];
 // the stump run 12 s (were 8): the wreck comes to rest in the run (a loose wheel rolled on to 8 s), its rest's hulls sealed
 const CASES = [
   { id: 'taxi', label: 'a 3 m/s taxi into a trunk', elev: 300, run: (k, o) => L.atTrunk(k, Object.assign({ D: 4, V: 3, thr: 0, secs: 8 }, o)) },
-  { id: 'noseover', label: 'a nose-over at 4 m/s', elev: 0, run: (k, o) => require('./_dmg_drive_lib.js').noseOver(k, Object.assign({ V: 4, secs: 8 }, o)) },
+  { id: 'noseover', label: 'a nose-over at 4 m/s', elev: 0, run: (k, o) => require('./_dmg_drive_lib.js').noseOver(k, Object.assign({ V: 4, secs: 12 }, o)) },   // (GEAR-FALLS, 4 Nov, rule (b): a gear gone, the wreck rests later - the Cub's hulls seal at 12.5 s; 8 s read it before they did)
   { id: 'fly0', label: '30 m/s into a trunk, the centreline', elev: 300, run: (k, o) => L.atTrunk(k, Object.assign({ D: 40, agl: 4, V: 30, thr: 0, secs: 12 }, o)) },
   { id: 'fly25', label: '30 m/s into a trunk, 2.5 m out', elev: 300, run: (k, o) => L.atTrunk(k, Object.assign({ D: 40, agl: 4, V: 30, thr: 0, secs: 12, off: 2.5 }, o)) },
   { id: 'drop', label: 'a drop onto the wheels at 10 ft/s (FAR 23.473 cap)', elev: 0, run: (k, o) => L.hardLanding(k, Object.assign({ sink: 0.3048 * 10, frames: 240 }, o)) },
-  { id: 'drop6', label: 'a severe drop onto the wheels at 6 m/s', elev: 0, run: (k, o) => L.hardLanding(k, Object.assign({ sink: 6, frames: 300 }, o)) },
+  { id: 'drop6', label: 'a severe drop onto the wheels at 6 m/s', elev: 0, run: (k, o) => L.hardLanding(k, Object.assign({ sink: 6, frames: 480 }, o)) },   // (GEAR-FALLS, 4 Nov, rule (b): as the nose-over's: its hulls seal at 9.1 s)
   // G2382 (DMG-SCAR2): the coordinator's runway nose-over - taxied at 12 m/s into a stump 35 cm high (the standard trunk's
   // 0.3 m radius), the ground PAVED everywhere (world.SURFACE 5: a scuff, no bowl, no furrow)
   { id: 'stump', label: 'a 12 m/s taxi into a 35 cm stump, on the runway (paved)', elev: 300, hard: true, run: (k, o) => L.atTrunk(k, Object.assign({ D: 8, V: 12, thr: 0, secs: 12, trunk: { r: 0.3, h: 0.35, sink: 0 }, surface: 5 }, o)) },
