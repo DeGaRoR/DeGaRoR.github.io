@@ -4548,7 +4548,9 @@ function makePilot(sim, def, world, opts) {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
           p3Closed = P3_ && ap.shortFld && fLDG <= 0 && aglG > hOff;
-          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
+          // (G3914: a flapless aeroplane on a long strip slips only in the last 80 m. Anywhere on final, the Caravan-alike and the four-engine card slipped 2.5 km out for +3 to +6 m the
+          // idle was already losing, then went round twice 15 m off the centreline; without it both land first try)
+          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0 && aglG < 80)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
