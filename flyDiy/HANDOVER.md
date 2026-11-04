@@ -311744,3 +311744,17 @@ fore side") and the water rudder ("a very vintage rounded ... river stone-like p
 - GATES (gates_round4.txt): FLOATSCLASSIC, FLOATSCLASSIC-WATER, FLOATKIT, FLOATS, WIPLINE, HYDRO, HYDRODYN, SEAPLANE,
   JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD PASS. RED, the
   same lines as a clean L30d: LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows).
+
+## A0 - train L31b, 4 Nov 2026 14:45
+
+IN (on L31a master adc53b25b): ready/nightvis-rig c96f522ae (A0), ready/nose-job-crew 9a956beaf (A0: the sliced nose job survives a crew change; node gates only, its page proof is AIRCRAFT-LOOKS' 15:30 probe), ready/stol-fixture-2 e077a37ae, ready/pilot-yawrate a9c1691ab (G3913, the Cub's sway), ready/gear-falls 069972044 (G2016), ready/twin4b-elec c7ea82dc5 (lead + gen20, bay 0.34, nav only by day), ready/empty-stand 0c24a98ca, ready/plane-thumb 42b9b323e, ready/plane-thumb-cards b597df34a (holds new-plane-thumb's row), ready/floats-classic d18ecea73, ready/aft-bulkhead e266fb9a7, ready/night-look-1 dad5bfdb1. A0 removed the stray builds/candidates/Twin_busher_floats_3.json a merge brought back (review/ holds it).
+OUT: tailwheels 2361f713d (a real conflict in tools/plane_shot.js with plane-thumb's tool commits): A0 re-cuts for L31c.
+BATTERY (76 asked, 74 kept): red, standing: VEHICLE, DMGSKINGPU, DMGWRECK, FRAMECOST (the same 5), MEDIA (now 5.10 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE (master's since before gear-falls).
+Red, new and NOT breaks:
+- STOL: 6 join rows again, the fixture is one train old: a spec row moved in this train. Re-capture once, after the last train.
+- CLOUD: 1 of 246, a source-pattern row on `const LAMPS` that night-look-1 changed the gain of: for NIGHT-LOOK, L31c.
+- WEATHER: finish agedAlu (floats-classic) has no substrate row: A0, L31c.
+- CONTRACTS: c172f.cost 95731 vs the certificate's 161775.4, twinf.cost 35551 vs 56250.9: floats-classic moved the float cost. Game, L31c; the market's numbers stale until then.
+- ASSETS adds orphan media/thumbs rows: the thumbs' manifest is not one the gate parses, with L31c.
+DMGSCAR's Cub restOut + metal gouge pass only because the wreck lies differently: causes (stol-wing, cert-pod) NOT fixed. Gear-falls costs GF1-3 on the perf-week list. PLANE_THUMB's first draw froze the page 7.5-8.7 s in its rig: on the list, real-path timing 15:30.
+TIMED (light): 48 red against the 12 Oct baseline (L31a 45), warm nav -> garage 108.5 / 112.6 s, nothing new named.
