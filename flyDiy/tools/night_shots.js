@@ -449,7 +449,9 @@ async function runPage(page) {
       if (PHOTO && opt('sweep', null)) {
         const CG = 1.6, EYES = [['low_close', 0, 15, 0.7, 1.3, 24], ['low_closer', 0, 11, 0.7, 1.5, 28], ['low_far', 0, 30, 0.8, 1.6, 22], ['wide', 0, 16, 0.9, 1.6, 36], ['wider', 0, 12, 0.8, 1.8, 46],
           ['left20', -20, 20, 0.9, 1.3, 24], ['right20', 20, 20, 0.9, 1.3, 24], ['left45', -45, 18, 0.8, 1.4, 28], ['right45', 45, 18, 0.8, 1.4, 28], ['front', 60, 16, 0.8, 1.5, 30], ['belly', 15, 9, 0.6, 2.2, 40], ['high', 0, 22, 3.0, 0.6, 24]];
+        const PICK_E = String(opt('sweep')) === '1' ? null : String(opt('sweep')).split(',');   // --sweep low_close,belly: only those eyes
         for (const [n, da, dist, eye, lift, fov] of EYES) {
+          if (PICK_E && !PICK_E.includes(n)) continue;
           const el = Math.asin(Math.max(-0.5, Math.min(0.5, (eye - CG - lift) / dist)));
           await ev('(() => { window.__nsLift = ' + lift + '; FLYDIY_HVIEW.flyFov(' + fov + '); FLIGHT_PROBE.camSet(window.__nsAz + ' + (da / 57.29578) + ', ' + el + ', ' + dist + '); return 1; })()');
           await ev(FRAMES(12)); await sleep(350);
@@ -464,6 +466,7 @@ async function runPage(page) {
         fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
         for (const [n, js] of JSON.parse(fs.readFileSync(opt('shots'), 'utf8'))) {
           await ev('(() => { ' + js + ' ; return 1; })()'); await ev(FRAMES(16)); await sleep(250);
+          const said = await ev('window.__say || null'); if (said) { fs.appendFileSync(path.join(OUT, 'shots', 'say.txt'), n + ' ' + JSON.stringify(said) + '\n'); await ev('window.__say = null'); }   // a shot's page numbers
           const ps = await cmd('Page.captureScreenshot', { format: 'png' });
           fs.writeFileSync(path.join(OUT, 'shots', V.name + vt + '_' + n + '.png'), Buffer.from(ps.result.data, 'base64'));
         }

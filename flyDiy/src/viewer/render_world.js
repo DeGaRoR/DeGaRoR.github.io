@@ -3027,6 +3027,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (const m of buoyMats) m.emissiveIntensity = kB;   // pre-ok: kB carries P
       }
       // the buoys ride the wave (and mark the level on a calm day)
+      if (typeof window !== 'undefined' && window.__noBuoys) for (const b of buoys) b.visible = false;   // NIGHT-PHOTO: the shot's dial
       for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, t) : 0) + 0.15; }
       // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
       // "it's important that we get the water line right"). With the shader

@@ -20221,7 +20221,7 @@
       if (WATER.proto && WATER.proto.hull && WATER.hullRender) {
         let hy = WF.waterDrawY ? WF.waterDrawY(cgM[0], cgM[2]) : null;
         if (hy == null && WF.waterDrawY) hy = WF.waterDrawY(camera.position.x, camera.position.z);
-        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops });
+        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops, model: model && model.grp });
       }
     }
     if (FR) FR.lap(FR.S.mirror);

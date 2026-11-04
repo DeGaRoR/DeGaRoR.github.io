@@ -198,11 +198,13 @@ function make(THREE) {
     glowTex = new THREE.CanvasTexture(c); return glowTex;
   };
   // a bucket's lamp sites: its vertices gathered 0.6 m apart
-  const lensSites = l => {
+  const lensSites = (l, grp) => {
+    const lp = new THREE.Vector3(); grp.updateWorldMatrix(true, true);
     const a = l.mesh.geometry && l.mesh.geometry.attributes && l.mesh.geometry.attributes.position, out = [];
     if (!a) return out;
     for (let i = 0; i < a.count; i++) {
-      const x = a.getX(i), y = a.getY(i), z = a.getZ(i);
+      lp.set(a.getX(i), a.getY(i), a.getZ(i)).applyMatrix4(l.mesh.matrixWorld); grp.worldToLocal(lp);   // a lens's mesh can carry its own place
+      const x = lp.x, y = lp.y, z = lp.z;
       let c = out.find(q => Math.hypot(q.x / q.n - x, q.y / q.n - y, q.z / q.n - z) < 0.6);
       if (!c) { c = { x: 0, y: 0, z: 0, n: 0 }; out.push(c); }
       c.x += x; c.y += y; c.z += z; c.n++;
@@ -215,7 +217,7 @@ function make(THREE) {
     model.glows = [];
     if (THREE.Sprite && glowMap()) for (const l of model.lamps || []) {
       const G = l.kind === 'lens' && GLOW[l.key]; if (!G || !l.mesh.material || !l.mesh.material.emissive) continue;
-      for (const p of lensSites(l)) {
+      for (const p of lensSites(l, model.grp)) {
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x000000, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }));  // pre-ok: colour 0 here; CK.glow drives it x P
         sp.position.copy(p); sp.scale.set(G.m, G.m, 1); sp.visible = false; sp.name = 'lensGlow:' + l.key; sp.raycast = () => {};
         model.grp.add(sp); model.glows.push({ sprite: sp, key: l.key, e: G.e, col: l.mesh.material.emissive.clone() });
