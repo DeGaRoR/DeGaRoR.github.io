@@ -1053,6 +1053,7 @@ function makePilot(sim, def, world, opts) {
         say('card-clamped', 'altitude ' + Math.round(card.alt) + ' m asked, ' +
             Math.round(c.altCmd) + ' m flown — the pilot sets the floor and the ceiling');
       ap.hCruise = c.altCmd;
+      hPatDone = true;   // G3914: an asked height is flown as asked, whatever it equals
       ap.budget = Math.max(ap.budget, 300 + c.altCmd * 1.5);
     }
     if (isFinite(card.V) && card.V > 0) {
@@ -1129,7 +1130,7 @@ function makePilot(sim, def, world, opts) {
   // aim, the height then lost at a gradient the aeroplane makes with the power back (gDes) over the rest of the downwind and a descending
   // base, rolled out on the slope; the final's length is the type's, in time. Off: the plan as it was, to the bit
   const P3_ = !!(A.p3 ?? true);
-  let hPatDone = false;
+  let hPatDone = false, deFlap0 = null;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
   // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
   // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
@@ -2030,7 +2031,7 @@ function makePilot(sim, def, world, opts) {
     const agl = cg[1] - ap.refAlt;
     const F = ap.frame;
     const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
-    // G3914: the circuit height, once the sheet can be read (a test card's own height stands)
+    // G3914: the circuit height, once the sheet can be read (setCard's own height stands)
     if (P3_ && !hPatDone) {
       hPatDone = true;
       const S = sheetOf();
@@ -4574,7 +4575,11 @@ function makePilot(sim, def, world, opts) {
         // never below the take-off setting) when the elevator sits on its stop; the cap holds for
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
         deF += (deHeld() - deF) * Math.min(1, dt / 0.5);
-        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
+        // G3914: THE BUDGET JUDGES THE FLAP, NOT THE SLOWING. Held at the half stage in the turn onto final, the STOL Cub slowed to 16 m/s, its elevator
+        // passed 0.18 from the speed alone, the cap froze it at half for the flight (more flap would have LOWERED the elevator: 0.26 -> -0.09),
+        // and it touched at 14.1 m/s for 11.5. So under the stages the elevator must rise while the flap is moving
+        if (P3_) deFlap0 = c.flap >= flapTgt - 0.01 ? null : deFlap0 == null ? deF : deFlap0;
+        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18 && (!P3_ || (deFlap0 != null && deF > deFlap0 + 0.05))) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
         if (FS && c.flap > fTO + 0.01 && deHeld() > 0.30) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
