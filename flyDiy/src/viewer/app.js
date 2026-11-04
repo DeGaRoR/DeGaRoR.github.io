@@ -12601,7 +12601,7 @@
       const a = new THREE.Vector3().fromArray(M(p)), b = new THREE.Vector3().fromArray(M(q));
       const d = new THREE.Vector3().subVectors(b, a), L = d.length();
       if (!(L > 1e-4)) return;
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
       const hl = head ? Math.min(0.35 * L, r * 7) : 0;
       const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L - hl, 8), mat);
       m.position.copy(a).addScaledVector(d, (L - hl) / 2 / L);
@@ -12881,7 +12881,7 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
     } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
@@ -20599,7 +20599,7 @@
     const shadowLs = shadowW ? lights.filter(L => L.castShadow && L.shadow && L.shadow.mapSize) : [], scratch = new Map();
     if (shadowW) SHADOW_WARM_LIGHTS = shadowLs.length;
     if (shadowW && !shadowLs.length) return Promise.resolve(0);
-    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;
+    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;  // pre-ok: a warm draw's stand-in, never on screen
     const shadowSwap = () => shadowLs.map(L => {
       const S = L.shadow, C = S.camera;
       const k = [S.map, S.mapSize.x, S.mapSize.y, S.autoUpdate, S.needsUpdate, S.matrix.clone(),
