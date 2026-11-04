@@ -2507,7 +2507,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // G210.2: a person is their own bucket, per character and per
             // material — two characters' skins must never merge
             (kud.charKey ? 'H' + kud.charKey + '.' + kud.charMat : '') +
-            (kud.aeroNoDec ? 'K' : '') +
+            (kud.aeroNoDec ? 'K' : '') + (kud.aeroNoLet ? 'NL' : '') +
             // the panel arc (session 4): the painted faces are one atlas
             // material and must never merge into a colour bucket (their uv
             // would be lost); a lamp's lens and cup are their own buckets per
@@ -2588,6 +2588,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
+          ...(ud.aeroNoLet ? { noLet: 1 } : {}),   // LOOKS-ROUND2: a float, paint without letters
           // G214: the skin's screws, as the editor drew them
           ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
           // G215: the metal flake in this section's paint
