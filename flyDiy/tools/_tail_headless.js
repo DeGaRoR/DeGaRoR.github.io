@@ -129,6 +129,10 @@ function buildStab(P, mesh, L, fin, approx) {
   const mount0 = Math.round(P.stMount || 0), mount = mount0 === 4 && !TB ? 0 : mount0;
   const IV = mount === 4;
   const ivGap = Math.max(0.10, Math.min(1.20, P.stIvGap == null ? 0.30 : +P.stIvGap || 0.30));
+  // G3801: the way and the reach, as _cage_stab.js reads them
+  const ivI = Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0))), ivOut = ivI % 2 === 1;
+  const ivReach = !TB ? 0 : ivOut ? Math.max(0.20, Math.min(2.0, P.stIvReach == null || !(+P.stIvReach > 0) ? TB.x - 0.15 : +P.stIvReach))
+                                  : TB.x - 0.5 * ivGap;
   const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35)) : Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
   // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
@@ -167,7 +171,7 @@ function buildStab(P, mesh, L, fin, approx) {
   if (TB && TB.x > 0) {
     let H = -Infinity;
     for (const p of s.V) H = Math.max(H, p[1] - rootLine);
-    const want = IV ? (TB.x - 0.5 * ivGap) / Math.cos(cant) / scaleOf(P)
+    const want = IV ? ivReach / Math.cos(cant) / scaleOf(P)
                     : (TB.x + Math.max(0, +P.stOver || 0)) / scaleOf(P) - (P.stX || 0);
     if (H > 1e-6 && want > 0.05) {
       const k = want / H;
@@ -185,7 +189,8 @@ function buildStab(P, mesh, L, fin, approx) {
   return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, inc: incDeg, clamped: m0.clamped || [],
            measure: Object.assign(
              FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
-             { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGap : null }) };
+             { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGap : null,
+               ivDir: IV ? ['downIn', 'downOut', 'upIn', 'upOut'][ivI] : null, ivReach: IV && ivOut ? ivReach : null }) };
 }
 
 function tailBuild(P, opts) {
@@ -225,7 +230,8 @@ function tailRows(t) {
   if (t.stab && t.stab.measure.areaTail > 0) {
     const m = t.stab.measure;
     out.hSpan = 2 * (m.span + m.rootX);
-    if (t.stab.mount === 4) { out.ivS = 2 * m.areaTail; out.ivAngle = t.stab.cant; out.ivGap = m.ivGap; }   // G3800
+    if (t.stab.mount === 4) { out.ivS = 2 * m.areaTail; out.ivAngle = t.stab.cant; out.ivGap = m.ivGap;   // G3800
+                              out.ivDir = m.ivDir; out.ivReach = m.ivReach; }                            // G3801
     else if (isV) { out.Svt = 2 * m.areaTail; out.tailCant = t.stab.cant; }
     else out.Sh = 2 * m.areaTail + 2 * m.rootX * m.chordRoot;
     out.hTaper = taperOf(m);
@@ -252,7 +258,9 @@ function tailApply(spec, rows) {
   const tl = spec.tail || (spec.tail = {});
   for (const k of ['hSpan', 'hChord', 'vHeight', 'vChord', 'Sh', 'Sv', 'Svt', 'hTaper', 'vTaper'])
     if (rows[k] > 0) tl[k] = rows[k];
-  if (rows.ivAngle >= 20) { tl.ivAngle = rows.ivAngle; tl.ivGap = rows.ivGap; if (rows.ivS > 0) tl.ivS = rows.ivS; }   // G3800
+  if (rows.ivAngle >= 20) { tl.ivAngle = rows.ivAngle; tl.ivGap = rows.ivGap; if (rows.ivS > 0) tl.ivS = rows.ivS;   // G3800
+    if (rows.ivDir && rows.ivDir !== 'downIn') tl.ivDir = rows.ivDir; else delete tl.ivDir;                         // G3801
+    if (rows.ivReach > 0) tl.ivReach = rows.ivReach; else delete tl.ivReach; }
   else if (rows.tailCant >= 20) { tl.type = 'v'; tl.vAngle = rows.tailCant; }
   if (typeof rows.dorsalArea === 'number') tl.dorsal = Object.assign({}, tl.dorsal || {}, { area: rows.dorsalArea });
   if (rows.elevChord > 0 || rows.rudChord > 0) {

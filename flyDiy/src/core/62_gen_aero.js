@@ -399,9 +399,15 @@ function genStrips(S, fr) {
     for (const pn of T.panels) {
       for (let b = 0; b < pn.nV; b++) {
         const u0 = b / pn.nV, u1 = (b + 1) / pn.nV;
-        strips.push({ kind: 'vtail', side: pn.side, t: 0.5, cosV: cV, sinV: sV, chord: pn.chordV(0.5 * (u0 + u1)),
+        // G3801: THE FOUR WAYS. The normal must come out on the panel's upper face (+y) for the elevator's sense, and
+        // `side` (the rudder's mix sign) must make the yaw force starboard for dr > 0: a panel whose upper face leans
+        // INBOARD (down-in, up-out) mixes as a V's, one leaning OUTBOARD (down-out, up-in: the A) the other way round.
+        // With sigma the span order (+1 root -> tip, up panels; -1 tip -> root, down) and rs the mix sign, the solver's
+        // normal (fOut - fIn) * rs x aft has y = sigma rs dz > 0 and rs nz = -sigma dy < 0 - both hold for every way
+        const rs = pn.side * (T.down === !T.out ? 1 : -1), dn = T.down !== false;
+        strips.push({ kind: 'vtail', side: rs, t: 0.5, cosV: cV, sinV: sV, chord: pn.chordV(0.5 * (u0 + u1)),
           area: (pn.b1 / pn.nV) * 0.5 * (pn.chordV(u0) + pn.chordV(u1)),
-          fIn: pn.VF[b + 1], fOut: pn.VF[b], rIn: pn.VR[b + 1], rOut: pn.VR[b],
+          fIn: pn.VF[dn ? b + 1 : b], fOut: pn.VF[dn ? b : b + 1], rIn: pn.VR[dn ? b + 1 : b], rOut: pn.VR[dn ? b : b + 1],
           w: [[pn.VF[b], cfV * 0.5], [pn.VF[b + 1], cfV * 0.5], [pn.VR[b], crV * 0.5], [pn.VR[b + 1], crV * 0.5]],
           wash: tailWash * R.stabWash });
       }

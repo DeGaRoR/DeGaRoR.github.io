@@ -40,6 +40,7 @@ function rawSpec(k) {
   const s = JSON.parse(JSON.stringify(C.GEN_DEFAULT));
   s.tail.type = 'twinBoom'; s.tail.boomX = 1.2; s.tail.boomLen = 3.5; s.fuselage.boom = 'twin';
   if (k === 'iv') s.tail.ivAngle = +opt('iv', 35);
+  if (k === 'iv' && opt('ivdir')) s.tail.ivDir = opt('ivdir');   // G3801: downOut / upIn / upOut
   if (k === 'tbpush') s.engines[0].mount = 'pusher';
   const CG = opt('cage') ? Object.fromEntries(opt('cage').split(',').map(q => { const [kk, x] = q.split('='); return [kk, isNaN(+x) ? x : +x]; })) : {};
   if (CG.s2Steer != null) { const m = { 2: 'lock', 3: 'fixed', 4: 'skid' }[CG.s2Steer]; if (m) s.gear.twMode = m; }

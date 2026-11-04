@@ -4324,6 +4324,19 @@ function genClone(o) {
   return o;
 }
 const genClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+// G3801: THE V FROM THE BOOMS, FOUR WAYS (tail.ivDir: absent = 'downIn', the Shadow's; 'downOut', 'upIn', 'upOut') -
+// which way each boom's panel runs, and its lateral reach from the boom's centre plane: an inward panel's is the booms'
+// (boomX - ivGap / 2: its tip ivGap / 2 off the centreline), an outward one's tail.ivReach (default boomX - 0.15, the
+// inward default's). The panel's own span is the reach over cos(ivAngle)
+function genIvDir(t) {
+  const d = t && t.ivDir;
+  return { up: d === 'upIn' || d === 'upOut', out: d === 'downOut' || d === 'upOut' };
+}
+function genIvReach(t) {
+  const bx = (t && t.boomX) || 1.2, D = genIvDir(t);
+  return Math.max(0.2, D.out ? (t.ivReach > 0 ? t.ivReach : bx - 0.15)
+                             : bx - 0.5 * (t.ivGap == null ? 0.30 : t.ivGap));
+}
 // null means "derive it" and must survive clamping — genClamp would coerce it
 // to 0 and hand back the lower bound, silently turning every AUTO field into a
 // pinned one. Nullable fields go through this.
@@ -5218,7 +5231,15 @@ function clampSpec(spec) {
     S.tail.ivAngle = genClamp(+S.tail.ivAngle, 20, 55);
     S.tail.ivGap = genClamp(S.tail.ivGap == null ? 0.30 : +S.tail.ivGap || 0, 0.10, 1.20);
     if (S.tail.ivS != null) S.tail.ivS = genClamp(+S.tail.ivS || 0.2, 0.20, 14.0); else delete S.tail.ivS;
-  } else { delete S.tail.ivAngle; delete S.tail.ivGap; delete S.tail.ivS; }
+    // G3801 (the user 4 Nov: "can we also have inverted T-tail, but on the outside? And for the upward T-Tail ... an
+    // option where they face towards each other, inwards. So we have all possible options, with little wheels if the V
+    // is downward"): THE V FROM THE BOOMS, FOUR WAYS - ivDir 'downIn' (the Shadow's, the default: no key), 'downOut',
+    // 'upIn', 'upOut'; an inward panel's span is the booms' (boomX - ivGap / 2), an outward one's is ivReach (m, the
+    // tip's lateral reach outboard of its boom; default boomX - 0.15, the inward default's)
+    if (['downOut', 'upIn', 'upOut'].indexOf(S.tail.ivDir) < 0) delete S.tail.ivDir;
+    if (/Out$/.test(S.tail.ivDir || '') && S.tail.ivReach != null) S.tail.ivReach = genClamp(+S.tail.ivReach || 0.2, 0.20, 2.0);
+    else delete S.tail.ivReach;
+  } else { delete S.tail.ivAngle; delete S.tail.ivGap; delete S.tail.ivS; delete S.tail.ivDir; delete S.tail.ivReach; }
   // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
@@ -5898,7 +5919,7 @@ function resolveSpec(spec) {
   // is the area. The effective Sh and Sv (reported, and what the design check's volumes read) are its projections
   if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null) {
     const G = S.tail.ivAngle * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
-    const b1 = Math.max(0.25, ((S.tail.boomX || 1.2) - 0.5 * (S.tail.ivGap == null ? 0.30 : S.tail.ivGap)) / cG);
+    const b1 = Math.max(0.25, genIvReach(S.tail) / cG);     // G3801: the four ways' own span
     let ivS = S.tail.ivS > 0 ? S.tail.ivS : Math.max(Sh / (cG * cG), Sv / (sG * sG));
     if (!(S.tail.ivS > 0)) { auto['tail.ivS'] = true; ivS = genClamp(ivS, 0.20, 14.0); }
     S.tail.ivS = ivS; S.tail.ivG = G;

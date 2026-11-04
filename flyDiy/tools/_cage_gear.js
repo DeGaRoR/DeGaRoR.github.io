@@ -279,14 +279,16 @@ PAGE.post = ctx => {
   // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
   // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
   // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
-  const IVg = !!TBg && Math.round(+P.stMount || 0) === 4 && +P.stOn !== 0;
+  const IVD = window.CAGE_IV_DIR ? window.CAGE_IV_DIR(P) : { up: false, out: false };   // G3801: the way
+  const IVg = !!TBg && Math.round(+P.stMount || 0) === 4 && +P.stOn !== 0 && !IVD.up;   // (an upward V: the booms' wheels)
   const tipMount = (st, sgn) => {
     if (!IVg || st.leg !== 3) return null;
     const gap = window.CAGE_IV_GAP ? window.CAGE_IV_GAP(P) : 0.30, G = Math.max(20, Math.min(55, +P.stCant || 35)) * D2R;
     const pub = window.CAGE_IV_TIPS && window.CAGE_IV_TIPS.find(q => Math.sign(q[0]) === sgn);
     const z = pub ? pub[2] : TBg.zTip + 0.25;
-    const y = pub ? pub[1] : 0.5 * (TBg.yTop(z) + TBg.yBot(z)) - (TBg.x - 0.5 * gap) * Math.tan(G);
-    const x0 = sgn * 0.5 * gap;
+    const reach = window.CAGE_IV_REACH ? window.CAGE_IV_REACH(P, TBg.x) : TBg.x - 0.5 * gap;
+    const y = pub ? pub[1] : 0.5 * (TBg.yTop(z) + TBg.yBot(z)) - reach * Math.tan(G);
+    const x0 = IVD.out ? (pub ? pub[0] : sgn * (TBg.x + reach)) : sgn * 0.5 * gap;
     const provider = () => ({ p: [x0, y, z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] });
     provider.x0 = x0; provider.tip = true;
     return provider;

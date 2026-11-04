@@ -74,6 +74,35 @@ the boom right over the horn, as in the Shadow's booms: **0.09 - 0.14 m** on all
 on the old code). `busher_invertedV_cable_before.png` / `_after.png` (`builds/busher_invertedV.json`: the fixture with
 the Empennage tile's write).
 
+## The V from the booms, all four ways (G3801)
+
+The user, 4 Nov: *"can we also have inverted T-tail, but on the outside? And for the upward T-Tail, can we also have an
+option where they face towards each other, inwards. So we have all possible options, with little wheels if the V is
+downward?"* Each boom carries one canted panel (`tail.ivDir`, the stab layer's row *V from the booms · way*, four
+Empennage tiles on twin booms):
+
+| way | the tile | tail contacts | sized by |
+|---|---|---|---|
+| down & in (the Shadow's, G3800) | Inverted V | a wheel at each tip | the gap between the tips |
+| down & out | Inverted V, outward | a wheel at each tip, outboard of the booms | its reach outboard (`ivReach`, default boom half-track − 0.15 m) |
+| up & in (an A) | V, inward (an A) | a tailwheel under each boom | the gap between the tips |
+| up & out (canted twin fins) | V, outward | a tailwheel under each boom | its reach outboard |
+
+**The mixing.** On down & in and up & out the panel's upper face leans inboard, as on a normal V; on down & out and up & in
+it leans outboard, so the rudder's half of the mix is reversed there (the elevator's never is). The aero strips take
+both from the panel's geometry, and the drawn ruddervators' sense comes from each hinge axis's own lean. Measured at
+cruise (GATE TAILWHEEL F and I, 35°): dYaw/dr +10 765 / +11 112 / +10 448 / +10 390, dPitch/de +14 093 / +14 178 /
++13 740 / +13 752 (the conventional twin +5 508 / +11 460), the rudder's pitch under 4 % of the elevator's. Every way's
+drawn trailing edges swing to port on a nose-left pedal (GATE TAILWHEEL H, three fixtures × four ways).
+
+**On the ground** (the drawn twin-boom fixture as a taildragger, 35°; GATE TAILWHEEL I): each stands on its two tail
+contacts (down & out 0.3°, up 4.6° tail-down), turns 180° on the brake (5.8 / 12.6 / 6.3 s; the A is the slow one,
+within 0.33 spans - not investigated further), and flies HOME's circuit and lands: touchdown 1.66 / 2.31 / 1.91 m/s,
+the roll-out inside 4°, all STOPPED (down & out lifts off at 36 s against the upward ways' 15: it sits almost level on
+its tip wheels, 0.3°, and rotates late).
+
+Pictures: `twin_invertedV_in_*`, `twin_invertedV_out_*`, `twin_V_in_*`, `twin_V_out_*` (`builds/` the same names).
+
 ## The pusher on twin-boom tailwheels
 
 The new-plane chooser's "[VAL] a pusher on a tailwheel" grey (claude/ready/new-plane, not on master): measured on the
@@ -110,6 +139,7 @@ fixture as a taildragger and with the inverted V, all through the game's own loa
 | `twin_taildragger_*` | twin booms, a tailwheel under each boom's end |
 | `twin_invertedV_*` | the inverted V on twin booms (30°, the tips 0.6 m apart), a castor wheel under each tip (re-shot after the control-run fix) |
 | `busher_invertedV_cable_*` | the inverted V's elevator cable before (a metre along the boom) and after (out of the boom over the horn) |
+| `twin_invertedV_in_*`, `twin_invertedV_out_*`, `twin_V_in_*`, `twin_V_out_*` | the V from the booms in its four ways (G3801), 35° |
 | `traces/pivot_*.png` (`.svg`, `.json`) | the 180° pivot on the inside brake, the CG's path from above, coloured by the tail contact's state: steerable (Cub), lockable unlocked (DC-3), fixed and skid (Tiger Moth-alike) |
 
 `for_config-matrix.patch`, `for_new-plane.patch`: the edits for the two branches not yet on master (see the HANDOVER).

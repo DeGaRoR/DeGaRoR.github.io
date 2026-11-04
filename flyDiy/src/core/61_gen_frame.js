@@ -2080,8 +2080,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
     const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
     const G = (t.ivAngle || 33) * Math.PI / 180, cG = Math.cos(G), sG = Math.sin(G);
-    const gapH = 0.5 * (t.ivGap == null ? 0.30 : t.ivGap);
-    const b1 = Math.max(0.25, (bx - gapH) / cG);                 // one panel's own span, root to tip
+    // G3801 (the user 4 Nov: "all possible options"): THE FOUR WAYS - up or down, in or out (genIvDir); an outward
+    // panel's span is its own reach (genIvReach), an inward one's the booms' less half the gap
+    const IVD = genIvDir(t), ud = IVD.up ? 1 : -1, io = IVD.out ? -1 : 1;
+    const b1 = Math.max(0.25, genIvReach(t) / cG);                // one panel's own span, root to tip
     const hTap = t.hTaper == null ? 1 : t.hTaper;
     const cMean = t.ivS > 0 ? t.ivS / (2 * b1) : (t.hChord || 0.6);
     const cRootV = 2 * cMean / (1 + hTap), cTipV = hTap * cRootV;
@@ -2093,8 +2095,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     for (const [sd, tg] of [['L', 'HTL'], ['R', 'HTR']]) { const q = chains[sd][iTail].T; nodes[q].tag = tg; if (sd === 'L') HTL = q; else HTR = q; }
     const panels = [];
     for (const [sd, sg] of [['R', 1], ['L', -1]]) {
-      // down and inboard along the panel (y, z), and its normal in that plane (up-ish, inboard-leaning)
-      const dy = -sG, dz = -sg * cG, ny = cG, nz = -sg * sG;
+      // along the panel (y, z) - down and inboard on the Shadow's (ud -1, io +1) - and its normal in that plane (up-ish)
+      const dy = ud * sG, dz = -sg * io * cG, ny = cG, nz = sg * io * ud * sG;
       const at = u => [yRoot + dy * b1 * u, sg * bx + dz * b1 * u];
       const VF = [], VR = [], VX = [], VX2 = [];
       for (let i = 0; i <= nV; i++) {
@@ -2135,7 +2137,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
                  b1, chordV(0), MB, { front: VF[0], rear: VR[0], tip: apex });
     }
-    TAIL = { vee: true, panels, b1, chordV, nV, G, sparFront: sparF, rearV: 1 - CT, twin: true,
+    TAIL = { vee: true, down: !IVD.up, out: IVD.out, panels, b1, chordV, nV, G, sparFront: sparF, rearV: 1 - CT, twin: true,
              VF: panels[0].VF, VR: panels[0].VR, VX: panels[0].VX, VX2: panels[0].VX2 };
     } else {
     MB = genSurfMaterial(S, 'stab');           // G213: the stab's own row
@@ -2630,7 +2632,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
-  } else if (BOOMS && TAIL && TAIL.vee) {
+  } else if (BOOMS && TAIL && TAIL.vee && TAIL.down) {   // (G3801: a V whose tips hang below the booms; up, the booms' own)
     // G3800 (TAILWHEELS): THE INVERTED V's TAIL CONTACTS ARE ITS TIPS - a small wheel (or the skid's shoe) under each
     // panel's tip, on a short fork (its hub a hand under the tip), the tip's section and apex its five anchors. The
     // three-point attitude is the tail's own geometry (the V's angle, the booms' height, the gap): no leg to choose

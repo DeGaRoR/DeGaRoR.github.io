@@ -683,8 +683,10 @@ function cageJoinSpec(P, M, T) {
     // G3800 (TAILWHEELS): the inverted V - stated whole when drawn, gone when not (a twin boom's V keys are its own)
     if (typeof M.ivAngle === 'number' && M.ivAngle >= 20) {
       tl.ivAngle = M.ivAngle; tl.ivGap = M.ivGap != null ? M.ivGap : 0.30; tl.ivS = M.ivS > 0 ? M.ivS : null;
+      // G3801: the way (down & in, the Shadow's, is no key) and an outward V's reach
+      tl.ivDir = M.ivDir && M.ivDir !== 'downIn' ? M.ivDir : null; tl.ivReach = M.ivReach > 0 ? M.ivReach : null;
       tl.Sh = null; tl.Sv = null;
-    } else if (M.tailJoined) { tl.ivAngle = null; tl.ivGap = null; tl.ivS = null; }   // (stated: the merge keeps an absent key)
+    } else if (M.tailJoined) { tl.ivAngle = null; tl.ivGap = null; tl.ivS = null; tl.ivDir = null; tl.ivReach = null; }   // (stated: the merge keeps an absent key)
   }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
@@ -1003,7 +1005,11 @@ function cageSurfHinge(pts, surf, opts) {
     // the rudder — the codec's second drive (50_model_codec applyHinges).
     // dr > 0 is nose LEFT: both trailing edges swing to port, which on the
     // port panel is DOWN along its own normal and on the starboard one UP.
-    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = port ? -1 : 1; }
+    // G3801: BY GEOMETRY - the trailing edge swings to PORT on both panels whichever way they lean (the four ways of a
+    // V from the booms: an up-and-in panel's port TE goes the other way round its hinge): a turn of +a about the axis
+    // moves the aft edge along axis x aft, whose z (port) is -axis.y - so the sign is -sign(axis.y); a flat axis keeps
+    // the side rule (a normal V's and the inverted V's read the same as before: their port axes rise, starboard fall)
+    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
   }
   else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
   else { out.drive = 'da'; out.sgn = port ? -1 : 1; }
@@ -1670,6 +1676,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             if (isIV) {
               // G3800: THE INVERTED V - its cant, its tip gap, both panels' true area (the V's Svt, measured)
               M.ivAngle = SBv.cant; M.ivGap = SBv.measure && SBv.measure.ivGap;
+              M.ivDir = SBv.measure && SBv.measure.ivDir; M.ivReach = SBv.measure && SBv.measure.ivReach;   // G3801
               if (M.Svt > 0) { M.ivS = M.Svt; delete M.Svt; }
             } else if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
               // the oval's own crown at the stab station (the frame puts
@@ -1765,6 +1772,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               ['hTaper', 'hTaper', ''], ['vTaper', 'vTaper', '']]) {
             const v = M[k], r = ENV[key];
             if (!(v > 0) || !r) continue;
+            // (G3801: a V from the booms flies its own panels - ivS on the reach the booms or ivReach give - and the
+            // tip-to-tip hSpan is a reading, not what the frame builds: an outward one's runs past the stab envelope)
+            if (k === 'hSpan' && typeof M.ivAngle === 'number' && M.ivAngle >= 20) continue;
             if (v < r[0] - 1e-9 || v > r[1] + 1e-9)
               ERRS.push(`tail: the drawn ${key} ${v.toFixed(3)}${unit} is outside the flown envelope ` +
                         `${r[0]}–${r[1]}${unit} and flies clamped — the drawn tail is not the flown tail`);

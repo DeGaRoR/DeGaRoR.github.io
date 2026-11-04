@@ -893,6 +893,18 @@ function iconLegFair(mode) {
 }
 // THE STEERING, the wheel seen from above: fixed (straight, no link), linked
 // (turned, a rod to the pedal), castor (turned, trailing behind its pivot)
+// G3801: THE V FROM THE BOOMS, seen from behind - the two booms' sections and each one's panel, the way it runs (0 down
+// & in, 1 down & out, 2 up & in, 3 up & out), a little wheel under a downward panel's tip
+function iconBoomV(mode) {
+  const up = mode >= 2, out = mode % 2 === 1, paths = [];
+  for (const [bx, sg] of [[22, -1], [42, 1]]) {
+    paths.push({ d: 'M' + (bx + 4) + ' 20 a4 4 0 1 0 -8 0 a4 4 0 1 0 8 0 Z' });
+    const tx = bx + (out ? sg : -sg) * 13, ty = 20 + (up ? -11 : 11);
+    paths.push({ d: 'M' + bx + ' 20 L' + tx + ' ' + ty, w: 2.6 });
+    if (!up) paths.push({ d: 'M' + (tx + 2) + ' ' + (ty + 4) + ' a2 2 0 1 0 -4 0 a2 2 0 1 0 4 0 Z', w: 1 });
+  }
+  return { vb: '0 0 64 40', paths };
+}
 function iconSteer(mode) {
   const box = (cx, cy, a) => {
     const c = Math.cos(a), s = Math.sin(a);
@@ -1542,7 +1554,7 @@ const DESIGN_ROWS = [
     // V is live: the stab layer cants its panels (stCant), roots them on the
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
-    read: P => Math.round(P.stMount) === 4 ? 'iv'
+    read: P => Math.round(P.stMount) === 4 ? ['iv', 'ivOut', 'bvIn', 'bvOut'][Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0)))]
              : +P.stCant >= 20 ? 'v'
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
@@ -1569,9 +1581,23 @@ const DESIGN_ROWS = [
       // G3800 (TAILWHEELS, the user 3 Nov): THE INVERTED V ON TWIN BOOMS (the RQ-7 Shadow's layout): a panel down and
       // inboard from each boom, no fin, the tail's wheels at the two tips (the gear page's tail contact, either kind)
       { value: 'iv', label: 'Inverted V', hide: P => !+P.boomTwin,
-        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }),
+        icon: iconBoomV(0),
         note: 'a panel down from each boom toward the centreline; the tailwheels ride the tips',
-        writes: { cage: { stMount: 4, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 } } },
+        writes: { cage: { stMount: 4, stIvDir: 0, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 } } },
+      // G3801 (the user 4 Nov: "inverted T-tail, but on the outside ... and for the upward ... facing towards each other,
+      // inwards. So we have all possible options, with little wheels if the V is downward"): THE OTHER THREE WAYS
+      { value: 'ivOut', label: 'Inverted V, outward', hide: P => !+P.boomTwin,
+        icon: iconBoomV(1),
+        note: 'a panel down and outboard from each boom; the tailwheels ride the tips',
+        writes: { cage: { stMount: 4, stIvDir: 1, stCant: 35, stX: 0, stY: 0, stZ: 0, finOn: 0 } } },
+      { value: 'bvIn', label: 'V, inward (an A)', hide: P => !+P.boomTwin,
+        icon: iconBoomV(2),
+        note: 'a panel up from each boom, leaning toward the other; a tailwheel under each boom',
+        writes: { cage: { stMount: 4, stIvDir: 2, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 } } },
+      { value: 'bvOut', label: 'V, outward', hide: P => !+P.boomTwin,
+        icon: iconBoomV(3),
+        note: 'a panel up and outboard from each boom - canted twin fins; a tailwheel under each boom',
+        writes: { cage: { stMount: 4, stIvDir: 3, stCant: 35, stX: 0, stY: 0, stZ: 0, finOn: 0 } } },
       // 'Twin boom' was a greyed tile here ("needs a twin tail CARRIER") and
       // the user read it as a stab option that did nothing: "either deleted
       // or made to work". It works where it belongs — the Booms tile (G271
@@ -1811,7 +1837,7 @@ const DESIGN_ROWS = [
       { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
       { value: 3, label: 'Between the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
-      { value: 4, label: 'Inverted V', icon: iconSeat(3),
+      { value: 4, label: 'A V from the booms', icon: iconSeat(3),
         hide: P => !+P.boomTwin, writes: { cage: { stMount: 4 } } },
     ] },
   { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',

@@ -75,10 +75,19 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stInc', 'incidence ° (LE up +)', -10, 10, 0.25],
     ['stMount', 'root sits', 0, 4, 1,
      ['on the boom keel', 'on the boom deck', 'on the fin tip',
-      'between the booms', 'inverted V (from the booms)']],
-    // G3800 (TAILWHEELS): the inverted V's gap between its two tips (metres; each tip carries the tail's wheel)
-    ['stIvGap', 'inverted V · gap between the tips', 0.10, 1.20, 0.01,
-     { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4, dim: 'len' }],
+      'between the booms', 'a V from the booms']],
+    // G3801 (the user 4 Nov: "all possible options, with little wheels if the V is downward"): which way each boom's
+    // panel runs - down & in is G3800's inverted V (the Shadow's); a downward V's tips carry the tail's wheels
+    ['stIvDir', 'V from the booms · way', 0, 3, 1,
+     ['down & in (inverted V)', 'down & out', 'up & in (an A)', 'up & out'],
+     { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4 }],
+    // G3800 (TAILWHEELS): an inward V's gap between its two tips (metres; a downward one's tips carry the tail's wheels)
+    ['stIvGap', 'V from the booms · gap between the tips', 0.10, 1.20, 0.01,
+     { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4 && Math.round(+P.stIvDir || 0) % 2 === 0, dim: 'len' }],
+    // G3801: an outward V's reach - its tip's distance outboard of the boom (metres; unset: the boom's half-track less
+    // 0.15, the inward default's size)
+    ['stIvReach', 'V from the booms · reach outboard', 0.20, 2.00, 0.01,
+     { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4 && Math.round(+P.stIvDir || 0) % 2 === 1, dim: 'len' }],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
     ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
@@ -171,6 +180,16 @@ const prevPost = PAGE.post;
 // G3800: the inverted V's tip gap (metres), the row's or 0.30
 const ivGapOf = P => Math.max(0.10, Math.min(1.20, P.stIvGap == null ? 0.30 : +P.stIvGap || 0.30));
 window.CAGE_IV_GAP = ivGapOf;
+// G3801: the way (0 down & in, 1 down & out, 2 up & in, 3 up & out) and the lateral reach from the boom's centre plane
+// to the tip (metres) - the spec's tail.ivDir / genIvReach, from the rows
+const IV_DIRS = ['downIn', 'downOut', 'upIn', 'upOut'];
+const ivDirOf = P => { const i = Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0)));
+  return { i, key: IV_DIRS[i], up: i >= 2, out: i % 2 === 1 }; };
+const ivReachOf = (P, bx) => ivDirOf(P).out
+  ? Math.max(0.20, Math.min(2.0, P.stIvReach == null || !(+P.stIvReach > 0) ? bx - 0.15 : +P.stIvReach))
+  : bx - 0.5 * ivGapOf(P);
+window.CAGE_IV_DIR = ivDirOf;
+window.CAGE_IV_REACH = ivReachOf;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
@@ -287,7 +306,7 @@ PAGE.post = ctx => {
     for (const p of s.V) H = Math.max(H, p[1] - rootLine);
     // G3800: the inverted V's panel runs from its boom's centre plane to gap / 2 off the centreline, canted: its own
     // span is that over cos(cant)
-    const want = IV ? (TB.x - 0.5 * ivGapOf(P)) / Math.cos(cantDeg * Math.PI / 180) / FSd
+    const want = IV ? ivReachOf(P, TB.x) / Math.cos(cantDeg * Math.PI / 180) / FSd
                     : (TB.x + Math.max(0, +P.stOver || 0)) / FSd - (P.stX || 0);
     if (H > 1e-6 && want > 0.05) {
       const k = want / H;
@@ -331,13 +350,18 @@ PAGE.post = ctx => {
                 inc, incZ: FIN.stabIncZ(m0, rootLine) };
   const ivTips = [];
   // the lay of each half (side +1 / -1), the one every layer that re-lays the stab must use (_cage_hinge's hinge lines)
-  const layOf = side => IV ? Object.assign({}, lay, { side: -side, rootX: -TB.x / FSd, cant: -cant }) : Object.assign({ side }, lay);
+  // (G3801: the four ways - an inward half is the mirror half's lay at the far boom's x, an outward one its own side's
+  // at its own boom's; the cant negated for a downward one, so the upper face stays up)
+  const IVD = ivDirOf(P);
+  const layOf = side => IV ? Object.assign({}, lay, { side: IVD.out ? side : -side, rootX: (IVD.out ? 1 : -1) * TB.x / FSd,
+                                                      cant: IVD.up ? cant : -cant })
+                           : Object.assign({ side }, lay);
   for (const side of [1, -1]) {
     // G3800: THE INVERTED V - each half laid from ITS boom (rootX the boom's centre plane) down and inboard: the mirror
     // half's lay at the far boom's x with the cant negated, so the panel's upper face stays up (the ruddervator's
     // sense is the elevator's, as on every V) and its winding is the mirror half's own
     const half = FIN.finToStab(disp, layOf(side));
-    if (IV) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
+    if (IV && !IVD.up) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
       let yMin = Infinity; for (const p of half.V) yMin = Math.min(yMin, p[1]);
       let sx = 0, sz = 0, n = 0; for (const p of half.V) if (p[1] < yMin + 0.02) { sx += p[0]; sz += p[2]; n++; }
       const FSt = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -393,7 +417,7 @@ PAGE.post = ctx => {
   }
   group.scale.setScalar(FS);
   scene.add(group);
-  window.CAGE_IV_TIPS = IV ? ivTips : null;          // G3800: read by the gear layer on the next build
+  window.CAGE_IV_TIPS = IV && !IVD.up ? ivTips : null;   // G3800: read by the gear layer on the next build (G3801: a downward V's)
 
   // THE LAY, published with the cage (2026-09-03). `cage` is in FIN space —
   // the stab is the fin model laid flat (G23) — so a caller holding a named
@@ -411,7 +435,8 @@ PAGE.post = ctx => {
     cant: cantDeg, mount, inc: incDeg,
     measure: Object.assign(
       FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
-      { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGapOf(P) : null }),
+      { rootX: IV ? TB.x : (P.stX || 0) * FS, cant: cantDeg, mount, ivGap: IV ? ivGapOf(P) : null,
+        ivDir: IV ? IVD.key : null, ivReach: IV && IVD.out ? ivReachOf(P, TB.x) : null }),
     clamped: m0.clamped || [] };                     // P3: the clamps that bit
   if (stat) {
     let t = `  ·  stab: L${L} ${s.V.length} v x2`;

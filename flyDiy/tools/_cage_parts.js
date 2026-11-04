@@ -834,7 +834,7 @@ const CAGE_PARTS = [
       ['construction', ['stCons']],
       // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
       // two angles — G2760: no second 'position' heading)
-      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant', 'stIvGap']],
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant', 'stIvDir', 'stIvGap', 'stIvReach']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stThick', 'stThickTE']],
       ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],

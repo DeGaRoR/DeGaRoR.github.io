@@ -311138,3 +311138,40 @@ could be to have a manual lock" (plus a truly fixed one).
   CAGEFIT, UISMOKE, UISMOKE-PHONE, FIN, LOAD, PARTS, SAVE, SPECFIX, GEAR re-run - see the commit.
 - **THE PICTURES:** reports/evidence/TAILWHEELS/ (README.md): the simplified renderer's shots of each tail contact, the
   twin taildragger, the inverted V (re-shot after the control-run fix), the busher's cable before / after, the pivot traces.
+
+## G3801 - THE V FROM THE BOOMS, ALL FOUR WAYS: DOWN & IN (G3800's), DOWN & OUT, UP & IN (AN A), UP & OUT - THE DOWNWARD ONES ON THEIR TIP WHEELS (2026-11-04, cloud; branch claude/tailwheels, pushed as claude/ready/tailwheels)
+The user, 4 Nov, verbatim: "can we also have inverted T-tail, but on the outside? And for the upward T-Tail, wan we also
+have an option where they face towards each other, inwards. SO we have all possible options, with little wheels if the V
+is downward?" (read as the V from the booms: G3800's inverted V with its panels run OUTBOARD, and the upright V with its
+panels leaning INWARD - plus the upright outward one, "all possible options").
+- **THE KEY:** spec.tail.ivDir - absent = 'downIn' (G3800's, the Shadow's; every saved inverted V unchanged), 'downOut',
+  'upIn', 'upOut'; tail.ivReach (m, an outward panel's tip outboard of its boom; default boomX - 0.15, the inward
+  default's size; clamped 0.2-2.0, kept only on an outward way). 60_gen_spec genIvDir / genIvReach (exported): an
+  inward panel's reach is boomX - ivGap / 2, an outward one's ivReach; the panel's span is the reach over cos(ivAngle).
+- **THE FRAME (61):** one panel a boom along (ud sin G, -side io cos G); TAIL.down / TAIL.out; the tip wheels only on a
+  downward V (TAIL.down), an upward one takes the booms' tailwheels (G3800's branch).
+- **THE MIX (62):** the strips' normal must come out of the upper face (the elevator's sense) and the rudder's mix sign
+  must push the tail starboard on dr > 0. A panel whose upper face leans INBOARD (down & in, up & out) mixes as a V's;
+  one leaning OUTBOARD (down & out, up & in) has the rudder's half reversed (strip side = boom side x -1), the span
+  order root -> tip on an upward panel. MEASURED at cruise on the generator's twin (35 deg): dYaw/dr +10 765 / +11 112
+  / +10 448 / +10 390, dPitch/de +14 093 / +14 178 / +13 740 / +13 752 (the conventional twin +5 508 / +11 460);
+  down & in to the digit as G3800's; the rudder's pitch 0.4-3.0 % of the elevator's (the upward ones the larger).
+- **THE DRAWING:** _cage_stab rows stIvDir (0 down & in, 1 down & out, 2 up & in, 3 up & out) and stIvReach (an
+  outward way's; stIvGap an inward one's); layOf: an inward half is the mirror half's lay at the far boom's x, an
+  outward one its own side's at its own boom's, the cant negated on a downward one; CAGE_IV_TIPS only on a downward
+  one (the gear layer's tip wheels; an upward one's are the booms'); window.CAGE_IV_DIR / CAGE_IV_REACH; the measure
+  carries ivDir / ivReach, the join files them (_tail_headless.js mirrors it). The join's ruddervator sense (sgn2) is
+  by the hinge axis's own lean now (-sign(axis.y): the port trailing edge to port on dr > 0 whichever way the panel
+  leans; the normal V's and the inverted V's read as before); the hSpan envelope's warning stands down on a V from the
+  booms (it flies ivS on its reach; an outward one's tip-to-tip ran past 4.5 m). The design page's Empennage tiles:
+  'Inverted V', 'Inverted V, outward', 'V, inward (an A)', 'V, outward' (twin booms only; iconBoomV, seen from
+  behind); the Stab sits slot's 4 reads 'A V from the booms'.
+- **GATE TAILWHEEL I** (the three new ways on the drawn twin as a taildragger: stands on its two contacts - down & out
+  0.31 deg, the upward ones 4.58 deg tail-down -, turns 180 deg on the brake 5.8 / 12.6 / 6.3 s within 0.24-0.33
+  spans, flies HOME's circuit and lands - touchdown 1.66 / 2.31 / 1.91 m/s, the roll-out inside 4 deg; down & out
+  lifts off at 36 s against the upward ones' 15, almost level on its tips; the signs at 25 / 40 / 55 deg; the clamp)
+  and H now four ways x three
+  fixtures (the links 0.09-0.15 m, the straps on their panels, the hinge 'declared', the drawn TE to port on dr > 0).
+- **NOT CHECKED:** a pusher's disc against an upward A's panels (the twin fixtures here are tractors).
+- **PICTURES:** reports/evidence/TAILWHEELS/twin_invertedV_in_*, _out_*, twin_V_in_*, twin_V_out_* (the simplified
+  renderer), builds/ the same names.

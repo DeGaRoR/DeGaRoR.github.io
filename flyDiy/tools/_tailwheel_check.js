@@ -31,10 +31,17 @@
 //    projections (Sh = S cos^2 G, Sv = S sin^2 G).
 // G. OLD SAVES: s2Steer 0 and 1 load as the steerable wheel (no key), 2 (G3575's full swivel, the DC-3's) as the
 //    lockable one; a spec's `twSwivel: true` clamps to `twMode: 'lock'`.
+// I. THE V FROM THE BOOMS, THE OTHER THREE WAYS (G3801, the user 4 Nov: "inverted T-tail, but on the outside ... the
+//    upward ... facing towards each other, inwards. So we have all possible options, with little wheels if the V is
+//    downward"): down & out stands on its two tip wheels, up & in and up & out on a tailwheel a boom; each turns 180 deg
+//    on the brake and flies HOME's circuit; their controls yaw and pitch the conventional tail's way (F's probe, the
+//    rudder's pitch under 4 %), the clamp keeps only the four ways, an outward V's reach only on an outward one.
 // H. THE INVERTED V'S HARDWARE (the user, 4 Nov, a picture: "the hinges did not like that" - the elevator's cable lay a
 //    metre along the boom to a boss up its flank): on every twin-boom fixture made an inverted V by the Empennage tile,
 //    each elevator's link leaves its boom within 0.3 m of the horn, the hinge straps sit on their own panel (inside its
-//    box), and the join's declared hinge line is the panel's own (the vertices it catches are the surface's: 'declared').
+//    box), and the join's declared hinge line is the panel's own (the vertices it catches are the surface's: 'declared');
+//    G3801: in all four ways, and the drawn ruddervators' trailing edges swing to PORT on a nose-left pedal on both
+//    panels (the join's sgn2, by the hinge axis's own lean).
 'use strict';
 const path = require('path'), { spawn } = require('child_process');
 const T = __dirname;
@@ -78,6 +85,9 @@ async function pool(jobs, n) {
     tigerF: ['--build', 'tiger', '--cage', 's2Steer=3', '--case', 'roll'],
     twintd: ['--build', 'twintd', '--case', 'stand,roll,pivot,circuit'],
     twiniv: ['--build', 'twiniv', '--case', 'stand,pivot,circuit'],
+    ivOut: ['--build', 'twiniv', '--cage', 'stIvDir=1', '--case', 'stand,pivot,circuit'],     // G3801
+    bvIn: ['--build', 'twiniv', '--cage', 'stIvDir=2', '--case', 'stand,pivot,circuit'],
+    bvOut: ['--build', 'twiniv', '--cage', 'stIvDir=3', '--case', 'stand,pivot,circuit'],
   };
   const keys = Object.keys(JOBS);
   const res = await pool(keys.map(k => JOBS[k]), +(process.env.TW_JOBS || 4));
@@ -160,12 +170,39 @@ async function pool(jobs, n) {
     const m0 = modeOf(0), m1 = modeOf(1), m2 = modeOf(2);
     ok(m0 === undefined && m1 === undefined && m2 === 'lock', `G the Cub saved with s2Steer 0 / 1 / 2 loads as ${m0 || 'steerable'} / ${m1 || 'steerable'} / ${m2}`); }
 
+  console.log('I. THE V FROM THE BOOMS, THE OTHER THREE WAYS');
+  for (const [k, nm, down] of [['ivOut', 'down & out', true], ['bvIn', 'up & in', false], ['bvOut', 'up & out', false]]) {
+    const st = g(k, 'stand'), p = g(k, 'pivot'), c = g(k, 'circuit');
+    ok(st.iv >= 20 && st.tailContacts === 2 && st.tailClear && st.tailClear.every(v => v < 0.03) && st.deckDeg > 0,
+       `I ${nm}: stands on its two ${down ? 'tip wheels' : 'boom tailwheels'} (clear ${JSON.stringify(st.tailClear)} m), deck ${st.deckDeg} deg tail-down`);
+    ok(p.t180 != null && p.withinSpans <= 2 && !p.crashed, `I ${nm}: turns 180 deg on the brake in ${p.t180} s within ${p.withinSpans} spans`);
+    ok(/LIFTOFF/.test(c.phases || '') && /STOPPED/.test(c.phases || '') && !c.crashed && c.touchdowns && c.touchdowns.length
+       && c.touchdowns[0].sink < 3 && c.rolloutHdgMaxDeg < 20,
+       `I ${nm}: takes off, flies HOME's circuit and lands (${c.touchdowns && c.touchdowns[0] ? c.touchdowns[0].sink : '-'} m/s), the roll-out ${c.rolloutHdgMaxDeg} deg (< 20)`);
+  }
+  { const mk = (iv, dir) => { const s = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); s.tail.type = 'twinBoom'; s.tail.boomX = 1.2; s.tail.boomLen = 3.5;
+                              s.fuselage.boom = 'twin'; s.tail.ivAngle = iv; s.tail.ivDir = dir; return s; };
+    const au = d => { const sim = C.makeSim(d, null); sim.reset(0); const V = d.params.ap.VCruise;
+      const at = (de, dr) => { sim.ctl.de = de; sim.ctl.dr = dr; return sim.probe([-V, 0, 0]); };
+      const b0 = at(0, 0), r = at(0, 0.2), e = at(0.2, 0);
+      return { Ydr: (r.yawLeft - b0.yawLeft) / 0.2, Pde: (e.pitchUp - b0.pitchUp) / 0.2, Pdr: (r.pitchUp - b0.pitchUp) / 0.2 }; };
+    for (const dir of ['downOut', 'upIn', 'upOut']) for (const ang of [25, 40, 55]) {
+      const d = C.buildGen(mk(ang, dir)), a = au(d);
+      ok(d.spec.tail.ivDir === dir && a.Ydr > 0 && a.Pde > 0 && Math.abs(a.Pdr) < 0.04 * Math.abs(a.Pde),
+         `I ${dir} ${ang} deg: dYaw/dr ${a.Ydr.toFixed(0)}, dPitch/de ${a.Pde.toFixed(0)} (the conventional's signs), x-talk ${(100 * Math.abs(a.Pdr / a.Pde)).toFixed(1)} % (< 4)`);
+    }
+    const cs = t => C.clampSpec(Object.assign(mk(35, undefined), { tail: Object.assign(mk(35).tail, t) })).tail;
+    const a1 = cs({ ivDir: 'sideways' }), a2 = cs({ ivDir: 'upIn', ivReach: 0.9 }), a3 = cs({ ivDir: 'downOut', ivReach: 5 });
+    ok(!('ivDir' in a1) && a2.ivDir === 'upIn' && !('ivReach' in a2) && a3.ivDir === 'downOut' && a3.ivReach === 2.0,
+       `I the clamp: an unknown way drops (${a1.ivDir}), an inward V keeps no reach (${a2.ivReach}), an outward one's 5 m reads ${a3.ivReach}`); }
+
   console.log('H. THE INVERTED V\'S HARDWARE');
   { const SH = require(path.join(T, '_scene_headless.js')), PH = require(path.join(T, '_pose_headless.js'));
     const W = SH.context().ctx, THREE = SH.context().THREE;
-    const IVT = { stMount: 4, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 };   // the Empennage tile's write
+    for (const dirI of [0, 1, 2, 3])
     for (const f of ['fixtures/build_v8_twin-boom_2026-09-11.json', 'fixtures/Twin_busher_floats_2.json',
                      'fixtures/build_v10_engcfg_pushpull_2026-10-22.json']) {
+      const IVT = { stMount: 4, stIvDir: dirI, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 };   // the Empennage tiles' write
       const fx = SH.loadFixture(path.join(T, f)), S = SH.sceneBuild(fx.spec || fx, { over: IVT });
       S.scene.updateMatrixWorld(true);
       const obj = {}; S.scene.traverse(o => { if (o.name) obj[o.name] = obj[o.name] || o; });
@@ -176,10 +213,20 @@ async function pool(jobs, n) {
         const pan = box('edStabSkin' + sd); if (pan && box('edSurf_elev' + sd)) pan.union(box('edSurf_elev' + sd));
         const hw = [box('edHinge_elev' + sd + '_metal'), box('edHinge_edStabSkin' + sd + '_metal')].filter(Boolean);
         const on = !!pan && hw.length === 2 && hw.every(b => pan.clone().expandByScalar(0.05).containsBox(b));
-        return { sd, len, on, from: H['elev' + sd] && H['elev' + sd].hingeFrom };
+        // the drawn ruddervator on a nose-left pedal (dr > 0): its trailing edge (the aft-most vertex) swings to PORT
+        // (+x, the cage's port) - the same turn the flown model applies (sgn2 * k2 * dr about the join's hinge)
+        const h = H['elev' + sd], sv = obj['edSurf_elev' + sd];
+        let te = null; if (sv) { sv.updateMatrixWorld(true); sv.traverse(o => { if (!o.isMesh) return; const pa = o.geometry.getAttribute('position');
+          for (let i = 0; i < pa.count; i++) { const v = new THREE.Vector3(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(o.matrixWorld); if (!te || v.z < te[2]) te = [v.x, v.y, v.z]; } }); }
+        let port = null;
+        if (h && te && h.drive2 === 'dr') { const a = h.sgn2 * 0.1, ax = h.axis, v = [0, 1, 2].map(k => te[k] - h.pivot[k]);
+          const c = Math.cos(a), s = Math.sin(a), dt = ax[0] * v[0] + ax[1] * v[1] + ax[2] * v[2];
+          const x1 = h.pivot[0] + v[0] * c + (ax[1] * v[2] - ax[2] * v[1]) * s + ax[0] * dt * (1 - c);
+          port = x1 - te[0]; }
+        return { sd, len, on, from: h && h.hingeFrom, port };
       });
-      ok(W.CAGE_STAB.mount === 4 && rows.every(r => r.len != null && r.len < 0.3 && r.on && r.from === 'declared'),
-         `H ${path.basename(f, '.json')}: the links ${rows.map(r => r.len == null ? '-' : r.len.toFixed(2)).join(' / ')} m (< 0.3), the straps on their panels ${rows.map(r => r.on).join(' / ')}, the hinge ${rows.map(r => r.from).join(' / ')}`);
+      ok(W.CAGE_STAB.mount === 4 && rows.every(r => r.len != null && r.len < 0.3 && r.on && r.from === 'declared' && r.port > 0),
+         `H ${['down & in', 'down & out', 'up & in', 'up & out'][dirI]} ${path.basename(f, '.json')}: the links ${rows.map(r => r.len == null ? '-' : r.len.toFixed(2)).join(' / ')} m (< 0.3), the straps on their panels ${rows.map(r => r.on).join(' / ')}, the hinge ${rows.map(r => r.from).join(' / ')}, the TE to port on dr > 0 ${rows.map(r => r.port == null ? '-' : (1000 * r.port).toFixed(0) + ' mm').join(' / ')}`);
     }
   }
 
