@@ -312249,3 +312249,18 @@ procureUsedSpec):
   delivered value, step 2 (slower, worse climb, longer take-off; the same mass and ledger; absent ×1). `--selftest`: 10 of 10.
 - UISMOKE: the fleet card's Sell (live, greyed in the tutorial, none on an unpriced row, asks, sells, clears the slot).
 - PROCURE's band read off PROCURE_COND; ECON allows `sale`.
+
+## A0 - train L32a, 5 Nov 2026 00:05
+
+IN (on L31c master c2ac56b39, all 6): ready/cessna-official c469da8c9, ready/twin4b-seat cf51c8db7, ready/looks-round2 8fb6d9717, ready/night-bright d91b60329, ready/plane-lists cf6133faa, claude/price-apply 5111a6552 (PRICE-CAL, the user asked PRICE-STUDY to implement; rode without a ready ref).
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.14 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE, STOL 6 join rows + radial fly (TAILWHEELS G3800, Pilot's L32b). CONTRACTS and PROCURE green again (PRICE-CAL re-derived). PRICE, LIVERY rig not in the list as its own red.
+Red, new and not a break: STOL part 1 card c172 def: the card's def moved in this train, cause not traced; Pilot's re-capture names it.
+TIMED (light): 57 red against the 12 Oct baseline (L31c 54). New: metal cockpit fps 28.1, p99 66.7 ms, over15 0.0246; floats water taxi @SEA fps 25.1 (L31c 26.7), p99 66.6, worst task 284 ms; warm nav -> garage cub 143.1 s (122.4), floats 134.0 s (122.2). One sample per row, not dated to a branch; first suspect night-bright's hull capture (64x64 -> up to 1024x768). On the perf-week list.
+COSTS, by branch:
+- cessna-official: 212 L wing root (POH 56 US gal), +44 kg dry, 153 kg fuel. Margins solo full 16.7 land, 14.9 floats. Floats over the 2350's 1157 kg rating above 2-up with 160 L; nothing stops an overload. Fingerprints move on both files. Loaded go-arounds (G3914) until Pilot's fix on L32b. DC-3 tail by eye; tools/dc3_build.js has the old rows.
+- twin4b-seat: seatH 0.01, real drop 7 cm (the commit says 5.2), all four seats move, rear pair not looked at. Stab held to L32b.
+- looks-round2: Remy 1.75 m, no flown number moved. Float letters off. Thumbs re-baked. Stearman shoe: TANDEM-FEET on L32b. Unseen in a page.
+- night-bright: moon 0.3 takes 70 % off moonlight on land, judged on the hero only. Aurora and lens glows in, node gates + one browser look. Flood's seat-view switch not proven. White patch under the landing lamp = model.spot, standing, on the list.
+- plane-lists: three lists, All planes screen, Client Cub cowl, R1 + R2, Cub regC +0.012 (the rail crosses the letters; user accepted), 4b + STOL Cub on the chooser. Official does not mean test reference. Unseen in a browser: Thu 10:00 relook.
+- PRICE-CAL: credits = USD, pay x1.432, used market on an age curve. Owed: Sell button, the makers' new sale hidden in a career, step 2, POD baseline, 5 of 20 seeds stuck at the Rufus.
+NEXT: L32b Thu 13:00, stragglers: pilot-loads, pilot-ramp (costs accepted), stol-fixture-3, thumbs-round3, twin4b-stab, tandem-feet, buoy-look, client-cub-look, livery-5.
