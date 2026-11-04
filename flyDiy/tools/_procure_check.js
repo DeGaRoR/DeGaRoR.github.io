@@ -324,7 +324,7 @@ function run(mut, extra) {
       ok(ids.includes(x.model) && validated.has(x.design), x.id + ': a validated model');
       const c = M.procureUsedCert(x);
       ok(M.contractCanDo(c, [{ do: 'land', to: x.aero }]).ok, x.id + ': flyable from ' + x.aero + ' (' + x.model + ' on ' + c.gear + ')');
-      ok(x.condition >= 0.4 && x.condition <= 0.8, x.id + ': condition ' + x.condition);
+      ok(x.condition >= M.PROCURE_COND[0] && x.condition <= M.PROCURE_COND[1], x.id + ': condition ' + x.condition + ' (PROCURE_COND)');
       ok(x.price === M.procureEconStub('used', { catalogue: x.catalogue, condition: x.condition }) && x.catalogue === M.procurePrice(x.model, x.opts).total, x.id + ': catalogue x condition');
       ok(x.kg >= 0 && x.kg <= 15 && x.hours > 0, x.id + ': 0-15 kg, its hours');
       const W = M.procureUsedWords(x);
@@ -372,8 +372,11 @@ function run(mut, extra) {
     ok(v.ok && v.doc.wallet === d.wallet && v.price.voucher && v.doc.career.voucher.used, 'the voucher pays one stock Scout (the Cub)');
     const v2 = M.procureBuyModel(v.doc, 'scout', {}, { slot: 'S2', slotNames: ['S'], fileSpec: FILE.cub });
     ok(v2.ok && !v2.price.voucher && v2.doc.wallet === v.doc.wallet - v2.price.total, 'a second one is paid');
-    const v3 = M.procureBuyModel(d, 'scout', { engine: 'o200' }, { slot: 'S', slotNames: [], fileSpec: FILE.cub });
-    ok(v3.ok && !v3.price.voucher && v3.doc.wallet < d.wallet && !v3.doc.career.voucher.used, 'the voucher does not pay a customised one');
+    // (PRICE-CAL: a customised Scout is dearer than the grant now - 88 350 against 85 900 - so the buyer holds the cash;
+    // what is held is the voucher's rule, not the grant's reach)
+    const dR = Object.assign(JSON.parse(JSON.stringify(d)), { wallet: d.wallet + 100000 });
+    const v3 = M.procureBuyModel(dR, 'scout', { engine: 'o200' }, { slot: 'S', slotNames: [], fileSpec: FILE.cub });
+    ok(v3.ok && !v3.price.voucher && v3.doc.wallet < dR.wallet && !v3.doc.career.voucher.used, 'the voucher does not pay a customised one');
     ok(M.playerWhere(v.doc, 'S').kind === 'in' && M.playerWhere(v.doc, 'S').hangar === 'HOME', 'delivered into the main hangar');
     const ri = M.procureBuyModel(d, 'meridian', { gear: 'floats' }, { slot: 'M', slotNames: [], fileSpec: FILE.c172f });
     ok(!ri.ok && ri.doc === d, 'the Meridian costs more than the grant: refused, the same document');
@@ -476,7 +479,8 @@ const BREAKS = [
   ['the market never refreshes', { s76: sub('const procureUsedEpoch = done => Math.floor(Math.max(0, done || 0) / PROCURE_USED_EVERY);', 'const procureUsedEpoch = done => 0;') }],
   ['more than four listings', { s76: sub('const PROCURE_USED_MAX = 4;', 'const PROCURE_USED_MAX = 6;') }],
   ['a listing stands where it cannot fly from', { s76: sub('  const can = fields.filter(f => procureFlyableAt(cert, f));', '  const can = fields;') }],
-  ['the condition leaves its band', { s76: sub('const PROCURE_COND = [0.4, 0.8];', 'const PROCURE_COND = [0.2, 0.95];') }],
+  // (PRICE-CAL: the condition is the age curve less the deductions, held to the band - the doctor takes the hold away)
+  ['the condition leaves its band', { s76: sub('  cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;', '  cond = Math.round((cond + 0.3) * 100) / 100;') }],
   ['the older panel is only words', { s76: sub("    if (down) { o.avionics = Object.keys(AV.vals).find(v => AV.vals[v].fit === down); older = true; }", '    if (down) { older = true; }') }],
   ['the extra kilos are only words', { s76: sub("  if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });", '') }],
   ['a used one is stationed at HOME', { s76: sub('  const r = prStation(d, slot, L.aero, { foot: o.foot });', "  const r = prStation(d, slot, 'HOME', { foot: o.foot });") }],

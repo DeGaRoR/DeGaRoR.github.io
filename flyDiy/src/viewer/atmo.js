@@ -733,6 +733,8 @@ ${MIST_GLSL}
         vec3 g = floor(d * 900.0);
         float h = hash13(g), h2 = hash13(g + 17.0);
         float star = smoothstep(0.985, 1.0, h) * (0.4 + 0.6 * h2);
+        // a star is a cell of the grid: once a cell spans several pixels (a long lens, a large screen) it read as a white square; round there, the game's wide view as it was
+        star *= mix(1.0 - smoothstep(0.08, 0.42, length(fract(d * 900.0) - 0.5)), 1.0, smoothstep(0.35, 0.9, 900.0 * length(fwidth(d))));
         // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
         // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
         // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
@@ -1119,6 +1121,7 @@ ${MIST_GLSL}
     const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)]);
     return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0]) / Math.max(1e-9, ref));
   }
+  const probes = [];   // every probe made (aurora.js adds its sphere to their bake scenes)
   function makeProbe(renderer, o) {
     o = o || {};
     if (!G.enabled || !THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
@@ -1141,7 +1144,7 @@ ${MIST_GLSL}
     const probe = {
       get texture() { return shown ? shown.texture : (rt ? rt.texture : null); },
       get fading() { return !!prevRt; }, get fade() { return fadeK; },
-      get bakes() { return bakes; }, get lastMs() { return lastMs; },
+      get bakes() { return bakes; }, get lastMs() { return lastMs; }, get scene() { return es; },   // aurora.js: its sphere in the bake
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
       bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
@@ -1196,11 +1199,12 @@ ${MIST_GLSL}
         return null;
       },
     };
+    probes.push(probe);
     return probe;
   }
 
   return {
-    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
+    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,

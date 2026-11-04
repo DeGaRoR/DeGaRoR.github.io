@@ -128,8 +128,9 @@ function run(mut, opts) {
     const D = M.CONTRACT_DESIGNS[k];
     ok(M.econAirframePrice(D.cost, home, WANTS[k]) === Math.round(D.cost * M.PREM_RATES.labourFit / B.round) * B.round, k + ': built in the fitted main hangar at the ledger x ' + M.PREM_RATES.labourFit);
     ok(M.econAirframePrice(D.cost, bare, WANTS[k]) === Math.round(D.cost * M.PREM_RATES.labourShort / B.round) * B.round, k + ': in a shed short of its verb at x ' + M.PREM_RATES.labourShort);
-    ok(M.econCatalogPrice(D.cost) === Math.round(D.cost * M.PREM_RATES.labourFit * B.makerMargin / B.round) * B.round && M.econCatalogPrice(D.cost) > M.econAirframePrice(D.cost, home, WANTS[k]),
-       k + ': a maker\'s catalogue price = scratch x ' + B.makerMargin + ', above building it yourself');
+    // (PRICE-CAL: ONE maker's margin, over the ledger - PROCURE's - where this read x0.8 x 1.35 = 1.08)
+    ok(M.econCatalogPrice(D.cost) === Math.round(D.cost * B.makerMargin / B.round) * B.round && M.econCatalogPrice(D.cost) > M.econAirframePrice(D.cost, bare, WANTS[k]),
+       k + ': a maker\'s catalogue price = the ledger x ' + B.makerMargin + ', above building it yourself, even short of the verb');
   }
   ok(B.makerMargin > 1 && B.makerMargin < 2, 'the makers\' margin is a margin (' + B.makerMargin + ')');
   // the repair: FREE everywhere (G2705 CAREER-DAMAGE, the user's ruling of 10 Oct, §R.4) - 0 for any bill, any labour
@@ -176,10 +177,10 @@ function run(mut, opts) {
   ok(R0.doc.mode === 'career' && R0.fleet.includes('c172') && R0.doc.sheds.w3 && R0.doc.sheds.tw_ski, 'the reference career holds what it bought (two side hangars, the C172)');
   ok(eq(M.econReference(M.ECON_REF.seeds[0]).at, R0.at), 'the reference career is deterministic');
   const allPay = R0.doc.career.contracts.done.reduce((a, x) => a + x.pay, 0);
-  ok(R0.doc.wallet === M.CAREER_GRANT + allPay - R0.spent, 'the reference wallet = the grant + the pay - the purchases (' + R0.doc.wallet + ')');
+  ok(R0.doc.wallet === M.careerGrant() + allPay - R0.spent, 'the reference wallet = the grant + the pay - the purchases (' + R0.doc.wallet + ')');
 
   // ==== NO RUNNING COST ANYWHERE (G-COST) ===========================================
-  const allowed = new Set(['grant', 'contract', 'purchase', 'repair', 'loan']);
+  const allowed = new Set(['grant', 'contract', 'purchase', 'repair', 'loan', 'sale']);   // (PRICE-CAL: a sale is income, never a running cost)
   const ledgerOk = (doc, what) => {
     const badL = doc.ledger.filter(l => { const c = M.econLedgerClass(l.k); return !(allowed.has(c) || (l.k === 'recover' && l.amt === 0) || (l.k === 'release' && l.amt <= 0)); });
     return ok(!badL.length, what + ': the ledger holds only grant / contract / purchase / repair / loan lines' + (badL.length ? ' (not: ' + badL.map(l => l.k + ' ' + l.amt).join(', ') + ')' : ''));
@@ -261,15 +262,17 @@ function run(mut, opts) {
   {
     const c = M.careerNew({ seed: 'loan' });
     const at = w => { const d = clone(c); d.wallet = w; return M.careerRefresh(d); };
-    ok(!M.careerOfferIds(at(-20000)).some(i => /^loan:/.test(i)) && !M.careerOfferIds(at(-19999)).some(i => /^loan:/.test(i)) && !M.careerOfferIds(at(0)).some(i => /^loan:/.test(i)),
-       'no loan at -20 000 or above');
-    const lo = at(-20001), ids = M.careerOfferIds(lo);
-    ok(ids[0] === 'loan:field:1', 'the loan job is offered exactly below -20 000, first (' + ids[0] + ')');
+    // (PRICE-CAL: the threshold is -20 000 of payRef's money, at today's prices like every absolute number of the book)
+    const T = Math.round(M.ECON_BOOK.loanBelow * M.econPayScale()), LO = T - 1, BACK = Math.ceil(-LO / 1000) * 1000;
+    ok(!M.careerOfferIds(at(T)).some(i => /^loan:/.test(i)) && !M.careerOfferIds(at(T + 1)).some(i => /^loan:/.test(i)) && !M.careerOfferIds(at(0)).some(i => /^loan:/.test(i)),
+       'no loan at ' + T + ' (-20 000 x the pay scale) or above');
+    const lo = at(LO), ids = M.careerOfferIds(lo);
+    ok(ids[0] === 'loan:field:1', 'the loan job is offered exactly below ' + T + ', first (' + ids[0] + ')');
     const L = M.careerContract(lo, 'loan:field:1');
     ok(L && L.kind === 'job' && L.provider === 'field' && L.loan === true && !M.contractValidate(L).length, 'the loan is a CONTRACT-MODEL job record of the Field Trust (' + M.contractValidate(L).join('; ') + ')');
     ok(['cub', 'jodel', 'c172'].every(d => M.contractDoers(M.contractSubsOf(L)).includes(d)), 'every wheeled validated design can fly it');
-    ok(M.contractPay(L).total === 21000 && M.careerMapRecord(lo, null, {}).contracts.find(x => x.id === 'loan:field:1').pay.total === 21000,
-       'it pays the wallet back up to ' + M.ECON_BOOK.loanTo + ' (21 000 on -20 001), on the map too');
+    ok(M.contractPay(L).total === BACK && M.careerMapRecord(lo, null, {}).contracts.find(x => x.id === 'loan:field:1').pay.total === BACK,
+       'it pays the wallet back up to ' + M.ECON_BOOK.loanTo + ' (' + BACK + ' on ' + LO + '), on the map too');
     const sb = clone(lo); sb.mode = 'sandbox';
     ok(!M.econLoanOffer(sb), 'the sandbox is never offered a loan');
     let d = M.careerAccept(lo, 'loan:field:1').doc;
@@ -277,7 +280,7 @@ function run(mut, opts) {
     const stop = (aero, o) => Object.assign({ how: 'stopped', aero, load: { kg: 10, pax: 0 }, row: { from: 'HOME', to: aero, t: 600 }, hour: 12 }, o || {});
     for (const s of [stop('HOME'), stop('w3')]) { const q = M.contractOnStop(d, 'loan:field:1', s, hooks); if (q.ok) d = q.doc; }
     const last = d.ledger[d.ledger.length - 1];
-    ok(d.career.contracts.done.some(x => x.id === 'loan:field:1') && d.wallet === -20001 + 21000 && last.k === 'loan' && last.amt === -21000,
+    ok(d.career.contracts.done.some(x => x.id === 'loan:field:1') && d.wallet === LO + BACK && last.k === 'loan' && last.amt === -BACK,
        'flown: the wallet back (' + d.wallet + '), a `loan` line');
     ledgerOk(d, 'a career with a loan');
     const again = clone(d); again.wallet = -30000; M.careerRefresh(again);
@@ -372,7 +375,7 @@ const BREAKS = [
   ['a kit priced in credits, not Cubs', { s76: sub('  for (const k of Object.keys(ECON_BOOK.kits)) o[k] = econRound(ECON_BOOK.kits[k] * econRefPrice());', '  for (const k of Object.keys(ECON_BOOK.kits)) o[k] = econRound(ECON_BOOK.kits[k] * 30000);') }],
   ['a kit costs nothing', { s76: sub('metal: 0.24,', 'metal: 0,') }],
   ['the airframe ignores the labour factor', { s76: sub('  return econRound((+cost || 0) * L);', '  return econRound(+cost || 0);') }],
-  ['the catalogue is cheaper than scratch', { s76: sub('  makerMargin: 1.35,', '  makerMargin: 0.9,') }],
+  ['the catalogue is cheaper than scratch', { s76: sub('  makerMargin: 1.15,', '  makerMargin: 0.9,') }],
   ['an ace costs less than a rookie', { s76: sub('signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 }', 'signOn: { rookie: 0.08, pilot: 0.16, ace: 0.04 }') }],
   ['the repair billed again', { s76: sub('function econRepairCost(bill, labour) {\n  return 0;', 'function econRepairCost(bill, labour) {\n  return econRound((Array.isArray(bill) ? bill : []).reduce((a, l) => a + (+l.cost || 0), 0) * (labour || 1));') }],
   ['a design\'s wants drift', { s76: sub("c172: ['metal'], c172f", "c172: ['tube'], c172f") }],
@@ -383,7 +386,7 @@ const BREAKS = [
   ['the pay halved', { s73: sub('  baseF: 2.7, story: 2.6,', '  baseF: 1.35, story: 1.3,') }],
   ['the hangars cheap', { s76: sub('  shells: { field: 3.6,', '  shells: { field: 0.4,') }],
   ['the bands widened', { s76: sub('  hangar1:  [11, 16],', '  hangar1:  [0, 60],') }],
-  ['the reference spends the grant first', { s76: sub('  const float = CAREER_GRANT, at = {}', '  const float = 0, at = {}') }],
+  ['the reference spends the grant first', { s76: sub('  const float = careerGrant(), at = {}', '  const float = 0, at = {}') }],
   // no running cost
   ['a running cost in the ledger', { s74: sub("  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);", "  playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);\n  playerCharge(d, 25, 'fuel', rec.id);") }],
   ['an hour flown costs', { s71: sub('  d.clock = (d.clock || 0) + s;', "  d.clock = (d.clock || 0) + s;\n  playerCharge(d, s / 36, 'hangarRent', null);") }],
@@ -392,11 +395,11 @@ const BREAKS = [
   ['a purchase on credit', { s76: sub("const econAfford = (doc, cost) => !doc || doc.mode !== 'career' || doc.wallet >= cost;", 'const econAfford = (doc, cost) => true;') }],
   ['a repair writes a ledger line', { s76: sub('  let d = ecClone(doc);\n  delete d.fleet[slot].damage;', "  let d = ecClone(doc);\n  playerLedger(d, 'repair', 0, slot);\n  delete d.fleet[slot].damage;") }],
   ['a write-off repaired', { s76: sub("  if (D.writeOff) return ecNo(doc, slot + ' is a write-off: scrap it or sell it as salvage');", '') }],
-  ['the loan at -20 000', { s76: sub('!(doc.wallet < ECON_BOOK.loanBelow)', '!(doc.wallet <= ECON_BOOK.loanBelow)') }],
+  ['the loan at the threshold', { s76: sub('!(doc.wallet < ECON_BOOK.loanBelow * econPayScale())', '!(doc.wallet <= ECON_BOOK.loanBelow * econPayScale() + 1)') }],
   ['the loan never offered', { s74: sub('  if (loan && !taken.has(loan)) out.unshift(loan);', '') }],
   ['the loan pays a job\'s rate', { s73: sub('  if (rec.loan && rec.pay && typeof rec.pay.total === \'number\' && isFinite(rec.pay.total)) total = rec.pay.total;', '') }],
   ['the loan writes a contract line', { s74: sub("rec.loan ? 'loan' : 'contract'", "'contract'") }],
-  ['the sandbox borrows', { s76: sub("  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow)) return null;", '  if (!doc || !(doc.wallet < ECON_BOOK.loanBelow)) return null;') }],
+  ['the sandbox borrows', { s76: sub("  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow * econPayScale())) return null;", '  if (!doc || !(doc.wallet < ECON_BOOK.loanBelow * econPayScale())) return null;') }],
   // the sandbox
   ['the sandbox charges', { s71: sub("  const free = doc.mode !== 'career';\n  if (!free) doc.wallet -= amt;", "  const free = doc.mode !== 'career';\n  doc.wallet -= amt;") }],
   ['the page charges the sandbox\'s save', { app: sub("if (CAREER_DEV && isNew) d = econMaterialiseNow(d, info.saved);", 'if (isNew) d = econMaterialiseNow(d, info.saved);') }],

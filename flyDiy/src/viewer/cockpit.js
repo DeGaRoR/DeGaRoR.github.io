@@ -182,8 +182,52 @@ function make(THREE) {
     if (!bb || !isFinite(bb.min.x)) return null;
     return new THREE.Vector3().addVectors(bb.min, bb.max).multiplyScalar(0.5);
   };
+  // NIGHT-LOOK step 2 (first piece): THE LENS GLOWS. A lens is a few pixels from outside, so at night the lamps did not read at
+  // all (the user 4 Nov: "no light on the plane"). A soft additive sprite on every outside lens, one per lamp site (a bucket
+  // merges a key's sites: its vertices are clustered), drawn with the aircraft, so the aircraft's mirror carries it into the
+  // water. Sprites, not lights: three keys every lit program on the count of lights. m = its size in metres, e = its exposed
+  // peak (authored to the exposure like the town's lamps).
+  const GLOW = { nav: { m: 0.55, e: 1.1 }, beacon: { m: 0.6, e: 1.2 }, land: { m: 1.1, e: 2 }, taxi: { m: 0.8, e: 1.5 } };
+  let glowTex = null;
+  const glowMap = () => {
+    if (glowTex || typeof document === 'undefined') return glowTex;
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.1, 'rgba(255,255,255,0.45)'); r.addColorStop(0.3, 'rgba(255,255,255,0.08)'); r.addColorStop(0.6, 'rgba(255,255,255,0.012)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+    glowTex = new THREE.CanvasTexture(c); return glowTex;
+  };
+  // a bucket's lamp sites: its vertices gathered 0.6 m apart
+  const lensSites = (l, grp) => {
+    const lp = new THREE.Vector3(); grp.updateWorldMatrix(true, true);
+    const a = l.mesh.geometry && l.mesh.geometry.attributes && l.mesh.geometry.attributes.position, out = [];
+    if (!a) return out;
+    for (let i = 0; i < a.count; i++) {
+      lp.set(a.getX(i), a.getY(i), a.getZ(i)).applyMatrix4(l.mesh.matrixWorld); grp.worldToLocal(lp);   // a lens's mesh can carry its own place
+      const x = lp.x, y = lp.y, z = lp.z;
+      let c = out.find(q => Math.hypot(q.x / q.n - x, q.y / q.n - y, q.z / q.n - z) < 0.6);
+      if (!c) { c = { x: 0, y: 0, z: 0, n: 0 }; out.push(c); }
+      c.x += x; c.y += y; c.z += z; c.n++;
+    }
+    return out.map(c => new THREE.Vector3(c.x / c.n, c.y / c.n, c.z / c.n));
+  };
   CK.setupLights = model => {
     if (!model || !model.grp || !THREE.SpotLight) return;
+    if (model.glows) for (const g of model.glows) { model.grp.remove(g.sprite); g.sprite.material.dispose(); }
+    model.glows = [];
+    if (THREE.Sprite && glowMap()) for (const l of model.lamps || []) {
+      // NIGHT-BRIGHT, the user 4 Nov: "warmer lights": the cabin's and the landing lamps' lenses amber (the nav lights keep their law); the white tail lens has no glow (the twin's site sits between the booms, a floating orb: FLAGSHIP's card)
+      if (l.mesh.material && l.mesh.material.emissive && (l.key === 'flood' || l.key === 'pax' || l.key === 'land' || l.key === 'taxi')) l.mesh.material.emissive.setRGB(1, 0.68, 0.34);
+      const G = l.kind === 'lens' && GLOW[l.key]; if (!G || !l.mesh.material || !l.mesh.material.emissive || (l.key === 'nav' && l.mesh.material.emissive.b > 0.5)) continue;
+      for (const p of lensSites(l, model.grp)) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x000000, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }));  // pre-ok: colour 0 here; CK.glow drives it x P
+        sp.position.copy(p); sp.scale.set(G.m, G.m, 1); sp.visible = false; sp.name = 'lensGlow:' + l.key; sp.raycast = () => {};
+        model.grp.add(sp); model.glows.push({ sprite: sp, key: l.key, e: G.e, col: l.mesh.material.emissive.clone() });
+      }
+    }
+    if (model.spot) { model.grp.remove(model.spot); model.grp.remove(model.spot.target); model.spot = null; }
+    for (const k of ['floodLight', 'pedalLight'])
+      if (model[k]) { model.grp.remove(model[k]); model[k] = null; }
     const lens = (model.lamps || []).find(l => l.kind === 'lens' && (l.key === 'land' || l.key === 'taxi'));
     const c = lensCentre(lens);
     if (c) {
@@ -195,7 +239,7 @@ function make(THREE) {
     }
     if (THREE.PointLight) {
       const fl = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'flood'));
-      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 2.4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
+      if (fl) { const L = new THREE.PointLight(0xff9f50, 0, 3.6, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
       const pd = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'pedal'));
       if (pd) { const L = new THREE.PointLight(0xffc27a, 0, 1.2, 1.6); L.position.copy(pd); model.grp.add(L); model.pedalLight = L; }  // pre-ok: intensity 0 here; CK.glow drives it x P
     }
@@ -393,9 +437,20 @@ function make(THREE) {
       CK.model.spot.intensity = (4.0 * land + 1.6 * taxi) * kOut;
       CK.model.spot.angle = land ? 0.30 : 0.62;
     }
+    // the lens glows: an exposed level (x P / the true exposure), in from the first dusk; by day nothing
+    if (CK.model && CK.model.glows && CK.model.glows.length) {
+      const ex = Wp.GFX && Wp.GFX.exposureBase && Wp.GFX.exposureBase() != null ? Wp.GFX.exposureBase() : 0.92;
+      const kG = clamp((Math.log2(Math.max(1, ex)) - 1.5) / 3, 0, 1) * Pp / Math.max(0.92, ex);
+      for (const g of CK.model.glows) {
+        const v = CK.lightOn && busOk && CK.pw('sw_' + g.key) ? clamp(+CK.sw['sw_' + g.key] || 0, 0, 1) : 0, on = v * (g.key === 'beacon' ? beacon : 1) * g.e * kG;
+        g.sprite.visible = on > 0;
+        if (on > 0) g.sprite.material.color.copy(g.col).multiplyScalar(on);   // pre-ok: kG carries P
+      }
+    }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      // NIGHT-BRIGHT, the user 4 Nov: "ensure the cabin is lit": from outside at night the flood reads through the glass at 40 (from the seat its 3.2, the instruments' night as it was); in from the first dusk, like the glows
+      CK.model.floodLight.intensity = (3.2 + (CK.eyeOut ? 36.8 * clamp((Math.log2(Math.max(1, Wp.GFX && Wp.GFX.exposureBase && Wp.GFX.exposureBase() || 1)) - 1.5) / 3, 0, 1) : 0)) * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
       CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk && CK.pw('sw_pedal') ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};

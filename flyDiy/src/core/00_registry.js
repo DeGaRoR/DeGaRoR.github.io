@@ -395,7 +395,7 @@ function hyp2(x, y) {
 // A blown row MUST carry critAlt and no other row may (GATE ATMOS §8).
 const POWERPLANTS = {
   a65_sensenich74: {
-    price: 9000,
+    price: 11000,   // PRICE-CAL: 9000 -> 11000 (shop overhaul $9.5-13k)
     engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2300 },
     // G158: 1202 N / 0.1941, the generator's own synthesis at standard pitch
     // (figure of merit 0.477 on a 1.88 m disc absorbing 48.5 kW) and inside
@@ -407,19 +407,19 @@ const POWERPLANTS = {
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 1202, kV2: 0.1941 },
   },
   r1830_hs23e50: {
-    price: 65000,
+    price: 78000,   // PRICE-CAL: 65000 -> 78000 (overhaul $60-100k (est.))
     // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
     // -92's 4 900 ft low-blower critical altitude
     engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2700, gear: 1.78 },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
-    price: 38000,
+    price: 52000,   // PRICE-CAL: 38000 -> 52000 (overhaul / rebuilt exchange $48-56k)
     engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
-    price: 3500,
+    price: 5300,   // PRICE-CAL: 3500 -> 5300 (the two-stroke median x1.5)
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6250, gear: 2.58 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
@@ -449,27 +449,27 @@ const POWERPLANTS = {
   // stroke without its reduction gearbox is not a powerplant, so its 43 kg is
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
-    price: 6000,
+    price: 8700,   // PRICE-CAL: 6000 -> 8700 (the four-stroke median x1.45)
     engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3200 },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 1012, kV2: 0.1406 },
   },
   rotax582_ivo: {
-    price: 5500,
+    price: 8800,   // PRICE-CAL: 5500 -> 8800 (new with its gearbox $8.2-9.5k)
     engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid', rpm: 6500, gear: 2.62 },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 1168, kV2: 0.182 },
   },
   jabiru2200_std: {
-    price: 15000,
+    price: 21800,   // PRICE-CAL: 15000 -> 21800 (the four-stroke median x1.45)
     engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3300 },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 1242, kV2: 0.1269 },
   },
   rotax912_warp: {
-    price: 18000,
+    price: 22000,   // PRICE-CAL: 18000 -> 22000 (new $20.6-23.7k)
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.27 },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
   o200_eprops: {
-    price: 24000,
+    price: 43000,   // PRICE-CAL: 24000 -> 43000 (rebuilt / new $40-47.5k)
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2750 },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
@@ -491,12 +491,12 @@ const POWERPLANTS = {
   // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
-    price: 48000,
+    price: 52000,   // PRICE-CAL: 48000 -> 52000 (overhaul $45-60k (est.))
     engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2300 },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
-    price: 22000,
+    price: 31900,   // PRICE-CAL: 22000 -> 31900 (the four-stroke median x1.45)
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
@@ -506,7 +506,7 @@ const POWERPLANTS = {
   // DERIVED as the catalogue's are: its static thrust 0.43 of the momentum ideal for 97 kW on a 2.59 m disc, the
   // Camel's 8 ft 6 in wooden two-blade.
   clerget9b_wood: {
-    price: 26000,
+    price: 37700,   // PRICE-CAL: 26000 -> 37700 (the four-stroke median x1.45)
     engine: { name: 'Clerget 9B', mass: 173, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 1250 },
     prop:   { name: '2-blade wood 2.59 m', D: 2.59, Tstatic: 2130, kV2: 0.300 },
   },
@@ -516,12 +516,12 @@ const POWERPLANTS = {
   // 0.477 reduction (2.096), a 60 deg upright V12 of 5.4 x 6.0 in, liquid cooled. The prop is DERIVED as the
   // catalogue's are (genPropSynth at four blades, 3.27 m - the Mk IX's 10 ft 9 in Rotol, standard pitch).
   merlin66_rotol4: {
-    price: 180000,
+    price: 261000,   // PRICE-CAL: 180000 -> 261000 (the four-stroke median x1.45)
     engine: { name: 'Rolls-Royce Merlin 66', mass: 744, powerW: 1283000, aspiration: 'super', critAlt: 1765, family: 'four', cooling: 'liquid', rpm: 3000, gear: 2.096 },
     prop:   { name: 'Rotol 4-blade 3.27 m', D: 3.27, Tstatic: 17131, kV2: 0.8032 },
   },
   rotec3600_std: {
-    price: 30000,
+    price: 43500,   // PRICE-CAL: 30000 -> 43500 (the four-stroke median x1.45)
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
@@ -544,12 +544,12 @@ const POWERPLANTS = {
   // thrust. Reproducing the Jabiru row exactly from the same three numbers is
   // how I know I ran the right formula.
   mikron3_wood: {
-    price: 16000,
+    price: 23200,   // PRICE-CAL: 16000 -> 23200 (the four-stroke median x1.45)
     engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2600 },
     prop:   { name: '2-pale bois 1.65 m', D: 1.65, Tstatic: 1094, kV2: 0.1495 },
   },
   gipsymajor1_wood: {
-    price: 26000,
+    price: 55000,   // PRICE-CAL: 26000 -> 55000 (zero-timed / overhauled GBP 34-55k)
     engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2350 },
     prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
   },
@@ -563,12 +563,12 @@ const POWERPLANTS = {
   // PROPS are genPropSynth's own output at two wooden blades of 2.30 and
   // 2.40 m at standard pitch; the prices are the bent four-stroke law's.
   hirth508_wood: {
-    price: 40000,
+    price: 58000,   // PRICE-CAL: 40000 -> 58000 (the four-stroke median x1.45)
     engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3000, gear: 1.5 },
     prop:   { name: '2-pale bois 2.30 m', D: 2.30, Tstatic: 3641, kV2: 0.2905 },
   },
   argus10c_wood: {
-    price: 38000,
+    price: 55100,   // PRICE-CAL: 38000 -> 55100 (the four-stroke median x1.45)
     engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2000 },
     prop:   { name: '2-pale bois 2.40 m', D: 2.40, Tstatic: 3340, kV2: 0.3163 },
   },
@@ -584,28 +584,28 @@ const POWERPLANTS = {
   //
   // THE FLATS: 100 -> 150 -> 180 -> 235 -> 310 -> 400 hp
   o320_mccauley: {
-    price: 28000,
+    price: 52000,   // PRICE-CAL: 28000 -> 52000 (overhaul exchange $48-56k)
     engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '2-blade alloy 1.93 m', D: 1.93, Tstatic: 2137, kV2: 0.2046 },
   },
   o540_hartzell: {
-    price: 38000,
+    price: 64000,   // PRICE-CAL: 38000 -> 64000 (overhaul exchange $61-67k)
     engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2575 },
     prop:   { name: '2-blade alloy 2.13 m', D: 2.13, Tstatic: 3073, kV2: 0.2492 },
   },
   io550_hartzell3: {
-    price: 42000,
+    price: 60900,   // PRICE-CAL: 42000 -> 60900 (the four-stroke median x1.45)
     engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '3-blade alloy 1.98 m', D: 1.98, Tstatic: 3716, kV2: 0.2528 },
   },
   io720_hartzell3: {
-    price: 45000,
+    price: 65300,   // PRICE-CAL: 45000 -> 65300 (the four-stroke median x1.45)
     engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2650 },
     prop:   { name: '3-blade alloy 2.03 m', D: 2.03, Tstatic: 4477, kV2: 0.2658 },
   },
   // the amateur turbo (the 912's blown sibling): 'turbo', held to 4 600 m
   rotax915_carbon: {
-    price: 34000,
+    price: 51600,   // PRICE-CAL: 34000 -> 51600 (new $48.5-55k)
     engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
   },
@@ -619,44 +619,44 @@ const POWERPLANTS = {
   // 'four' for both. The prop is genPropSynth's at 1.80 m, 3 carbon blades, standard pitch, 117 kW (the 915's row
   // through the same call gives its 2061 / 0.2090 exactly). Price: the game's ladder, the 915's +12 % with the power.
   rotax916_carbon: {
-    price: 38000,
+    price: 55300,   // PRICE-CAL: 38000 -> 55300 (new $51-60k)
     engine: { name: 'Rotax 916 iS', mass: 85.8, powerW: 117000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2216, kV2: 0.2090 },
   },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
-    price: 35000,
+    price: 50800,   // PRICE-CAL: 35000 -> 50800 (the four-stroke median x1.45)
     engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2450 },
     prop:   { name: '2-blade wood 2.20 m', D: 2.20, Tstatic: 2821, kV2: 0.2658 },
   },
   // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
   w670_hs2b: {
-    price: 36000,
+    price: 52200,   // PRICE-CAL: 36000 -> 52200 (the four-stroke median x1.45)
     engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2075 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
   },
   r755_hs2b: {
-    price: 41000,
+    price: 59500,   // PRICE-CAL: 41000 -> 59500 (the four-stroke median x1.45)
     engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2200 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
   },
   // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
   // nearly ground-boosted — rated to 500 m
   m14p_v530: {
-    price: 43000,
+    price: 62400,   // PRICE-CAL: 43000 -> 62400 (the four-stroke median x1.45)
     engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2900, gear: 1.52 },
     prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
   },
   // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
   // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
   r1340_hs12d40: {
-    price: 52000,
+    price: 75400,   // PRICE-CAL: 52000 -> 75400 (the four-stroke median x1.45)
     engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air', layout: 'radial', rpm: 2250 },
     prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
   },
   // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
   rotax503_wood: {
-    price: 4000,
+    price: 4700,   // PRICE-CAL: 4000 -> 4700 (zero-time rebuild ~$4.8k)
     engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6800, gear: 2.58 },
     prop:   { name: '2-blade wood 1.60 m', D: 1.60, Tstatic: 901, kV2: 0.1406 },
   },
@@ -739,12 +739,12 @@ const POWERPLANTS = {
   // 7.7 kN static on the Caravan's 2.69 m three-blade is inside the
   // published band. Prices are the second-hand market's: 5-7x an R-985.
   pt6a114a_hartzell3: {
-    price: 240000,
+    price: 390000,   // PRICE-CAL: 240000 -> 390000 (P&WC flat-rate overhaul $350-433k (2025))
     engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60, rpm: 1900, cs: true },
     prop:   { name: 'Hartzell 3-blade 2.69 m', D: 2.69, Tstatic: 7657, kV2: 0.4667 },
   },
   pt6a34_hartzell4: {
-    price: 265000,
+    price: 420000,   // PRICE-CAL: 265000 -> 420000 (P&WC flat rate $387-455k (2026))
     engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57, rpm: 2200, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
   },
@@ -753,12 +753,12 @@ const POWERPLANTS = {
   // the 850 and 1 050 shp rungs. Dry masses are P&W's; the props are
   // genPropSynth's output at each installation's four-blade diameter.
   pt6a42_hartzell4: {
-    price: 300000,
+    price: 455000,   // PRICE-CAL: 300000 -> 455000 (P&WC flat rate $420-489k (2026))
     engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70, rpm: 2000, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.36 m', D: 2.36, Tstatic: 8615, kV2: 0.4183 },
   },
   pt6a60a_hartzell4: {
-    price: 380000,
+    price: 590000,   // PRICE-CAL: 380000 -> 590000 (the turbine median x1.56)
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
@@ -893,16 +893,20 @@ function genEngineRpm(eng, propRpm) {
 // tracks the UNCERTIFIED side of each ladder (an E-811 costs 2.5x an EMRAX
 // for the paperwork; a custom build gets EMRAX pricing, which is the honest
 // direction). Fit checked in tools/_engcustom_check.js against every row.
+// PRICE-CAL 2026-11 (credits = USD 2025-26 at parity): each family's coefficient x its benchmarked rows' median
+// real/game ratio - four-stroke 60 -> 87 (x1.45, sixteen engines against overhaul / exchange or new prices), two-stroke
+// 90 -> 135 (x1.5), turbine 250 -> 390 (x1.56, the PT6As against P&WC's flat-rate overhaul); electric unchanged (no
+// benchmark). The shape (the exponents, the knee) is G134's / 2026-09-05's, unchanged.
 function genEnginePrice(family, powerW) {
   const kW = Math.max(0.05, (powerW || 0) / 1000);
   if (family === 'electric')
     return Math.round(kW < 3 ? 60 * CORE_MATH.pow(kW, 0.9)
                              : 300 * kW);
-  if (family === 'two') return Math.round(90 * CORE_MATH.pow(kW, 1.15));
+  if (family === 'two') return Math.round(135 * CORE_MATH.pow(kW, 1.15));
   // a turbine is the dear end of the market — 5-7x a radial of the same
   // power second-hand (a used PT6A-34 against a used R-985); fitted on the
   // two PT6A rows and banded by _engcustom_check like every other family
-  if (family === 'turbine') return Math.round(250 * CORE_MATH.pow(kW, 1.1));
+  if (family === 'turbine') return Math.round(390 * CORE_MATH.pow(kW, 1.1));
   // THE FOUR-STROKE LAW BENDS (2026-09-05): kW^1.3 is the AMATEUR market and
   // holds to the IO-360; above it the second-hand warbird market prices by
   // provenance more than by kilowatts. Fitted on the R-985 (336 kW, 48k) and
@@ -910,8 +914,8 @@ function genEnginePrice(family, powerW) {
   // both, where the straight law read 2.4x and 6.4x. The R-1830's waiver in
   // _engcustom_check is retired by this line.
   const knee = 130;
-  if (kW <= knee) return Math.round(60 * CORE_MATH.pow(kW, 1.3));
-  return Math.round(60 * CORE_MATH.pow(knee, 1.3) * CORE_MATH.pow(kW / knee, 0.35));
+  if (kW <= knee) return Math.round(87 * CORE_MATH.pow(kW, 1.3));
+  return Math.round(87 * CORE_MATH.pow(knee, 1.3) * CORE_MATH.pow(kW / knee, 0.35));
 }
 
 // ============================================================

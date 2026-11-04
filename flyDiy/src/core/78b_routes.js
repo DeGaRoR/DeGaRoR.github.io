@@ -62,7 +62,9 @@ function routeTerms(km, D) {
   // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
   const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
   const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
-  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
+  // PRICE-CAL: per km at today's prices (76_economy econPayScale)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
+  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * PS * (1 + payloadKg / P.kgUnit));
   return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b

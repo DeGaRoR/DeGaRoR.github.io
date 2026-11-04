@@ -809,6 +809,9 @@ function aeroDecOk(section) {
   // in: the user set the master colour and the booms stayed the trim's.
   // They wear the base paint, plain.
   if (row && row.noDec) return 0;
+  // LOOKS-ROUND2 (the user, 4 Nov, of a registration across the float: "Either remove or place elegantly"): a float keeps
+  // its paint layers and declines the letters - the fuselage's marking only ever landed on it by the field's accident
+  if (row && row.noLetters) return 0.5;
   if (row) return (row.role === 'skin' || AERO_DEC_LAYER.has(section)) ? 1 : 0;
   return AERO_DEC_ROLES.has(AERO_ROLE[section]) ? 1 : 0;
 }
@@ -958,7 +961,7 @@ const AERO_SEC = {
   // THE FLOATS (H2, G389): a pontoon is skinned like a fuselage and painted
   // with it — the body's own finish and colour unless the builder says so
   float:    { parent: 'body', role: 'skin', label: 'the floats',
-              layer: 'gear', wears: 'parent' },
+              layer: 'gear', wears: 'parent', noLetters: true },
   // G451: the non-skid coating on a Wipline's flat deck — a grip rubber
   // over the paint, its own colour (the catalogue's decks are dark grey
   // or black); the painted margin at the gunwale is the float's
@@ -968,7 +971,7 @@ const AERO_SEC = {
   // and white Cub sits on grey floats) - its own pinned finish and its own colour, paintable on its own row; and the
   // deck board laid across the spreader bars, spruce
   floatBare: { parent: 'float', fin: 'agedAlu', label: 'the floats (EDO bare alloy)',
-              layer: 'gear', tintOwn: true, metalOwn: true },
+              layer: 'gear', tintOwn: true, metalOwn: true, noLetters: true },
   floatBoard: { parent: 'float', fin: 'spruce', label: 'the float deck board',
               layer: 'gear', noDec: true, tintOwn: true, metalOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
@@ -3588,10 +3591,10 @@ const AERO_ALBEDO_FS = `
   float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
     // PHONE-EDIT-PERF (2 Nov, A0-approved desktop candidate 1): a section that takes no marking (uDecOk 0: the interior,
-    // the hardware, the booms - aeroDecOk answers 0 or 1) leaves the loop at once. Its weight w was 0 on every pass, so
+    // the hardware, the booms - aeroDecOk answers 0, 0.5 for paint without letters, or 1) leaves the loop at once. Its weight w was 0 on every pass, so
     // every pass added nothing (mix(x, dc, 0) is x; the accumulators start at 0): the same pixels, without 8 atlas
     // fetches and their SDF fwidth a fragment. uDecOk is a uniform, so the flow stays uniform (fwidth below is safe)
-    if (di >= uDecN || uDecOk < 0.5) break;
+    if (di >= uDecN || uDecOk < 0.25) break;
     // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
     // fuselage/flying/both scalar — the fin belongs with the fuselage and the
     // wing does not, and the old scalar could not say so.
@@ -3684,7 +3687,9 @@ const AERO_ALBEDO_FS = `
     // is not cut in half by a rounding error.
     float aOne = uDecE[di].z;
     float aSide = step(-0.02, aeroA.x) * step(0.0, vCraftNrm.x);
-    float w = ib.x * ib.y * uDecC[di].z * onMe * uDecOk
+    // (uDecE.x marks the letters: the one sdf page. uDecOk 0.5, a float: paint yes, letters no)
+    float w = ib.x * ib.y * uDecC[di].z * onMe
+            * (1.0 - uDecE[di].x * step(uDecOk, 0.75))
             * mix(1.0, aSide, step(0.5, aOne));
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
@@ -4735,6 +4740,7 @@ function aeroMaterial(THREE, o) {
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
   if (o.decals != null && !+o.decals) m.userData.aeroNoDec = 1;
+  if (+o.decals === 0.5) m.userData.aeroNoLet = 1;
   if (o.memF) m.userData.aeroMemF = o.memF.slice();
   // THE FIELD'S OWN SCALE, REMEMBERED (G216). `aStruct` is in whatever unit
   // the layer that built it works in — the cage's is CAGE_UNIT x planeScale,
