@@ -3746,7 +3746,7 @@ function cageInterior(m, S) {
 
     // ---- the wall ----
     let b = Math.max(0, BH.bevel / ps);
-    const rebuild = BH.step || b > 0 || BH.twoTone;
+    const rebuild = BH.step || b > 0 || BH.twoTone || BH.relief;
     // the skin must carry on behind the face as well as behind the outline (the twin's pod ends 7 cm behind its wall);
     // a step too shallow to stand anything on is no shelf at all
     const carries = z => !!arc(slice(z - 0.01 / ps), bcx, yS, 0, Math.PI);
@@ -3791,10 +3791,83 @@ function cageInterior(m, S) {
                        P(xL0 + e, yS - lip, z0), P(xR0 - e, yS - lip, z0)], m: mL });
       }
     }
+    // ---- the bas-relief: real low geometry on the faces, proud of them, smooth-shaded (shared vertices) ----
+    const reliefH = BH.relief ? BH.reliefH / ps : 0;
+    if (BH.relief) {
+      const bL = D > 0 ? 0 : b, e = 0.03 / ps;
+      const OFF = [-1, -0.55, 0, 0.55, 1], HT = [0, 0.72, 1, 0.72, 0];
+      // a bead along a path in a face's plane: a rounded section, its ends running out into the face
+      const bead = (path, w, z, m, closed) => {
+        let st = [];
+        if (closed) st = path.map(p => ({ p, f: 1 }));
+        else {
+          const a = path[0], c = path[1], L = Math.hypot(c[0] - a[0], c[1] - a[1]), tp = Math.min(w * 1.4, L / 3);
+          for (const [s, f] of [[0, 0], [tp * 0.5, 0.7], [tp, 1], [L - tp, 1], [L - tp * 0.5, 0.7], [L, 0]])
+            st.push({ p: [a[0] + (c[0] - a[0]) * s / L, a[1] + (c[1] - a[1]) * s / L], f });
+        }
+        const n = st.length, rows = st.map((q, i) => {
+          const pv = st[closed ? (i + n - 1) % n : Math.max(0, i - 1)].p, nx = st[closed ? (i + 1) % n : Math.min(n - 1, i + 1)].p;
+          const tx = nx[0] - pv[0], ty = nx[1] - pv[1], l = Math.hypot(tx, ty) || 1, ux = ty / l, uy = -tx / l;
+          const wf = q.f > 0 ? 1 : 0.5;
+          return OFF.map((o, k) => V.push([q.p[0] + ux * o * w * wf, q.p[1] + uy * o * w * wf, z + HT[k] * reliefH * q.f]) - 1);
+        });
+        for (let i = 0; i < n - (closed ? 0 : 1); i++) {
+          const ra = rows[i], rb = rows[(i + 1) % n];
+          for (let k = 0; k < OFF.length - 1; k++) add.push({ v: [ra[k], ra[k + 1], rb[k + 1], rb[k]], m });
+        }
+      };
+      const region = (A, k, z, m, up) => {
+        const pts = A.map(p => [bcx + p.dx * (p.t - k), yS + p.dy * (p.t - k)]);
+        const ext = pts.reduce((v, p) => up ? Math.max(v, p[1]) : Math.min(v, p[1]), yS);
+        const y0 = yS + (up ? 0.03 : -0.05) / ps, y1 = up ? ext - Math.max(e, (BH.lampBand || 0) / ps) : ext + e;
+        if (up ? y1 - y0 < 0.06 / ps : y0 - y1 < 0.06 / ps) return;
+        const cross = (axis, v) => {
+          const hit = [];
+          for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], c = pts[i + 1], da = a[axis] - v, dc = c[axis] - v;
+            if (da * dc > 0 || a[axis] === c[axis]) continue;
+            hit.push(a[1 - axis] + (c[1 - axis] - a[1 - axis]) * da / (da - dc));
+          }
+          return hit;
+        };
+        const spanX = y => { const h = cross(1, y); return h.length ? [Math.min(...h), Math.max(...h)] : null; };
+        const yLo = Math.min(y0, y1), yHi = Math.max(y0, y1);
+        if (BH.relief === 1) {           // pressed beads: the stiffening swages of a metal bulkhead
+          const sx = spanX(up ? y0 : Math.max(y1, y0 - 0.2 / ps));
+          if (!sx) return;
+          const nB = Math.max(2, Math.round((sx[1] - sx[0] - 2 * e) / (0.11 / ps)));
+          for (let i = 0; i <= nB; i++) {
+            const x = sx[0] + e + (sx[1] - sx[0] - 2 * e) * i / nB, h = cross(0, x);
+            if (!h.length) continue;
+            const far = up ? Math.min(y1, Math.max(...h) - e) : Math.max(y1, Math.min(...h) + e);
+            if (Math.abs(far - y0) > 0.07 / ps) bead([[x, y0], [x, far]], 0.017 / ps, z, m);
+          }
+        } else if (BH.relief === 2) {    // rolled upholstery: tuck-and-roll, the rolls touching
+          const w = 0.034 / ps, nR = Math.floor((yHi - yLo) / (2 * w));
+          for (let j = 0; j < nR; j++) {
+            const y = (up ? yLo : yHi) + (up ? 1 : -1) * (w + 2 * w * j);
+            const sa = spanX(y - w), sb = spanX(y + w);
+            if (!sa || !sb) continue;
+            const l = Math.max(sa[0], sb[0]) + e * 0.6, r = Math.min(sa[1], sb[1]) - e * 0.6;
+            if (r - l > 0.10 / ps) bead([[l, y], [r, y]], w, z, m);
+          }
+        } else {                         // a framed panel: a raised moulding round the face, one post down its middle
+          const fr = [];
+          for (const p of pts) {
+            const q = [bcx + (p[0] - bcx) * 0.92, Math.max(yLo, Math.min(yHi, yS + (p[1] - yS) * 0.92))];
+            if (!fr.length || Math.hypot(q[0] - fr[fr.length - 1][0], q[1] - fr[fr.length - 1][1]) > 0.004 / ps) fr.push(q);
+          }
+          if (fr.length >= 4) bead(fr, 0.014 / ps, z, m, true);
+          bead([[bcx, yLo], [bcx, yHi]], 0.014 / ps, z, m);
+        }
+      };
+      region(UP, b + e * 0.5, zFace, mU, true);
+      region(lo0, bL + e * 0.5, z0 - bL, mL, false);
+    }
     // ---- the cargo net: across the upper wall, or the recess's mouth ----
     if (BH.net) {
       const A = D > 0 ? up0 : UP, kN = (D > 0 ? 0 : b) + 0.02 / ps;
-      const zN = D > 0 ? z0 - 0.012 / ps : zFace + 0.012 / ps;
+      const zN = D > 0 ? z0 - 0.012 / ps : zFace + 0.012 / ps + reliefH;
       const pt = p => [bcx + p.dx * (p.t - kN), yS + p.dy * (p.t - kN)];
       const yArc = Math.max(...A.map(p => pt(p)[1]));
       const yN0 = yS + 0.02 / ps, yN1 = yS + Math.min(0.30 / ps, 0.6 * (yArc - yS));   // a low net: bags on the shelf, the lamp clear above
@@ -8768,12 +8841,18 @@ function cageSpec(P) {
   // for the tag on the face it sits on. The sling is the tube construction's.
   {
     const sling = +P.bhSling && consG === 'tube' ? 1 : 0;
-    if (+P.bhStep || +P.bhBevel > 0 || +P.bhTwoTone || +P.bhNet || +P.bhLamp || sling)
+    if (+P.bhStep || +P.bhBevel > 0 || +P.bhTwoTone || +P.bhNet || +P.bhLamp || +P.bhRelief || sling)
       S.interior.bh = { step: +P.bhStep ? 1 : 0, bevel: Math.max(0, +P.bhBevel || 0),
                         twoTone: +P.bhTwoTone ? 1 : 0, net: +P.bhNet ? 1 : 0, sling,
                         // metres: the shelf line over the waist band's top, the recess's depth (the sling's too)
                         shelfY: P.bhShelfY != null ? +P.bhShelfY : 0.15,
                         shelfD: Math.max(0.05, P.bhShelfD != null ? +P.bhShelfD : 0.25),
+                        // the relief: which pattern, how proud (m), and the band it leaves clear for the wall lamp
+                        relief: Math.round(+P.bhRelief || 0), reliefH: P.bhReliefH != null ? +P.bhReliefH : 0.014,
+                        lampBand: (() => {
+                          const lm = +P.lightOn ? Math.round(+P.bhLamp || 0) : 0, dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
+                          return lm & 1 ? (lm & 2 ? dr + 0.125 : Math.max(0.08, dr + 0.045) + 0.05) : lm & 2 ? dr + 0.035 : 0;
+                        })(),
                         bandY: S.bandY, ps: P.planeScale || 1 };
   }
   // (S5: the pod interior is LIVE — the pairs loop sweeps belly chines
