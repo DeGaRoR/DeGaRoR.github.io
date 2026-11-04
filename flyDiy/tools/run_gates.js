@@ -113,6 +113,9 @@ const GATES = [
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
+  // WEATHER-SEASON (2026-11-03): the career's weather plan - the pack, the blocks, the 42 days' rules, one source, the
+  // season walked, the world's air and wind under it, the forecast, the winter layup (a small gate: ~12 s)
+  { id: 'WEATHERPLAN', file: '_weatherplan_check.js', tier: 'core', wall: 15 },
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },

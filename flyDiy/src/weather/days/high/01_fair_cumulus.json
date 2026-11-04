@@ -1,0 +1,9 @@
+{ "v": 1, "id": "fair-cumulus", "name": "Fair-weather cumulus",
+  "story": "The game's own day: small, well-split summer cumulus over the island, a light breeze off the sea, the hills side-lit all afternoon.",
+  "fly": "easy", "forecast": "Fair. Small cumulus from late morning, base near 1500 m. Wind west 5 kt, sea breeze 8-10 kt in the afternoon. Clear night, a chance of aurora low in the north.",
+  "temp": { "min": 0, "max": 0 }, "dew": [[4, -4], [15, -4.5], [27, -4]],
+  "qnh": [[4, 1019], [27, 1020]],
+  "wind": [[4, 3, 260, 0.1], [9, 5, 250, 0.12], [15, 8, 250, 0.15], [20, 6, 250, 0.12], [26, 3, 240, 0.1]],
+  "rich": { "breeze": 1, "terrain": 0.5, "thermals": 0.6 },
+  "low": [[4, 0.05, "cuh"], [10, 0.12, "cuh"], [14, 0.25, "cuh"], [18, 0.22, "cuh"], [21, 0.05, "cuh"]],
+  "turbidity": 2.8, "aurora": [[22, 2], [24, 3], [27, 2]] }

@@ -1,0 +1,9 @@
+{ "v": 1, "id": "clear-high", "name": "Clear high",
+  "story": "A high sits over the island: a calm, cool dawn, a cloudless sky all day, the sea breeze filling in after lunch. The day to learn a new aeroplane.",
+  "fly": "easy", "forecast": "Clear. Calm at dawn, sea breeze west 8-10 kt from 13:00, dying at dusk. Visibility 60 km. Clear, still night: dew on the wings by morning.",
+  "temp": { "min": -1, "max": 1 }, "dew": [[4, -5], [15, -5.5], [22, -3.5], [27, -1.5]],
+  "qnh": [[4, 1022], [27, 1023]],
+  "wind": [[4, 1, 90, 0.05], [10, 3, 200, 0.08], [15, 7, 250, 0.12], [20, 4, 250, 0.1], [26, 1, 60, 0.05]],
+  "rich": { "breeze": 1, "terrain": 0.4, "thermals": 0.4 },
+  "low": [[4, 0.0, "cuh"], [12, 0.03, "cuh"], [16, 0.04, "cuh"], [20, 0.0, "cuh"]],
+  "turbidity": 2.4, "aurora": [[23, 1], [26, 1]] }

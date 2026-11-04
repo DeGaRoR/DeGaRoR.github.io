@@ -1,0 +1,9 @@
+{ "v": 1, "id": "crisp-clear", "name": "Crisp and clear",
+  "story": "A cold, sparkling morning after the aurora night: frost-blue shadows, the wind gone, every ridge sharp out to 80 km. A few small cumulus by afternoon.",
+  "fly": "easy", "forecast": "Clear and cool. Calm at dawn, northwest 5 kt by afternoon. Visibility 80 km. Small cumulus 14:00-18:00. Clear, cold night, aurora possible.",
+  "temp": { "min": -3, "max": -1 }, "dew": [[4, -7], [15, -7], [27, -5.5]],
+  "qnh": [[4, 1021], [27, 1023]],
+  "wind": [[4, 1, 320, 0.05], [11, 3, 300, 0.08], [15, 6, 290, 0.12], [20, 4, 280, 0.1], [26, 1, 300, 0.05]],
+  "rich": { "breeze": 0.8, "terrain": 0.5, "thermals": 0.5 },
+  "low": [[4, 0.0, "cuh"], [12, 0.05, "cuh"], [15, 0.15, "cuh"], [19, 0.04, "cuh"], [21, 0.0, "cuh"]],
+  "turbidity": 2.0, "aurora": [[22, 3], [25, 4], [27, 3]] }

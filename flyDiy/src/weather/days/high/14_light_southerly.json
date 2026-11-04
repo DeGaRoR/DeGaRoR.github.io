@@ -1,0 +1,10 @@
+{ "v": 1, "id": "light-southerly", "name": "Light southerly",
+  "story": "The high slides east and a soft southerly sets in. A mackerel sky of altocumulus in the afternoon, catching the sunset pink. Easy flying; the evening is mild and the moon sails through the dappled cloud.",
+  "fly": "easy", "forecast": "Fair, altocumulus from 14:00 at 3500 m. South 8 kt. Visibility 40 km. Broken altocumulus at night, clearing toward dawn.",
+  "temp": { "min": 1, "max": 0.5 }, "dew": [[4, -3], [15, -3], [27, -3.5]],
+  "qnh": [[4, 1018], [27, 1019]],
+  "wind": [[4, 4, 170, 0.1], [11, 7, 175, 0.12], [15, 9, 180, 0.15], [20, 6, 180, 0.12], [26, 3, 200, 0.08]],
+  "rich": { "breeze": 0.7, "terrain": 0.5, "thermals": 0.4 },
+  "low": [[4, 0.04, "cuh"], [12, 0.12, "cuh"], [16, 0.12, "cuh"], [20, 0.03, "cuh"]],
+  "up": [[4, 0.0, "ac", 3500], [12, 0.1, "ac", 3500], [16, 0.4, "ac", 3500], [22, 0.5, "ac", 3500], [27, 0.15, "ac", 3500]],
+  "turbidity": 2.7, "aurora": [[23, 1], [26, 2]] }

@@ -311288,3 +311288,60 @@ The user (3 Nov, via A0): "we would need to treat the bays as lakes for the refl
 - **The floats:** hydro_trim_table.js --world jolene --at SEA --sea A,L,dir (new): the floats Cessna's take-off at SEA, master vs branch - 5 m/s rig 26.9 s / 458 m vs 26.6 / 455, POH 21.7 / 292 vs 21.4 / 291; 8 m/s POH 23.1 / 310 vs 21.5 / 293; calm identical.
 - **Stills** (reports/evidence/BAY-MIRROR/, tools/perf/bay_stage.js via soft_still --stage, one run at a time - a run sharing the CPU with gates timed out): the south bay's ripple ridges -31 % (to the lake's level), Port Chester -22 %, the bay from 300 m -11 % (mirror weight 0.35 -> 0.52); the lake and the open sea unchanged. A long low ripple stays in the bay (the kept wind ripple). READY.md beside them.
 - **Left open:** the shader's G750 shore flattening (the near patch flat over the last 40 m to the coast line) has no physics twin (pre-existing); the ring's capture over a bay keeps the sea's capture settings (ringSkip, no MSAA) rather than the lake's; the editor cannot paint a shelter by hand (the field is the coastline's alone - a painted override would be a row in SHELTER).
+## WEATHER-SEASON - THE CAREER'S WEATHER IS THE PLAN: THREE SEASONAL BLOCKS OF 14 CRAFTED DAYS, ONE PURE FUNCTION OF THE INSTANT INSIDE THE DAY, THE FORECAST, THE WINTER LAYUP; GATE WEATHERPLAN (2026-11-03, cloud session for the user via A0; branch claude/weather-season off origin/master adb2d2a92 = L30b + claude/weather-fixes merged)
+The user's calls (3 Nov via A0): option B (three blocks), the 42 days approved ("seasons look OK"), the career's first
+day 15 July, the season 20 May - 30 Sep with a winter layup. The model and the days: futureDesigns/WEATHER-DAYS-
+STUDY-2026-11.md §3, §4, §5, §10 (branch claude/weather-blocks; the prototype futureDesigns/weather-days/plan_proto.js
+there is the evidence this core code was ported from).
+- THE DATA: src/weather/days/{early,high,late}/NN_<id>.json, one crafted day each (schema: the study's Appendix B).
+  `node tools/weather_days_pack.js` packs them into src/core/07c_weather_days.js (WEATHER_DAYS, GENERATED, ~38 KB) -
+  GATE WEATHERPLAN 1 holds the pack equal to the JSONs. Edit a day's JSON, run the pack, then build.
+- THE EVALUATOR: src/core/07d_weather_plan.js (WEATHER_PLAN, pure). Blocks by the LOCAL date's month-day: early
+  20 May-2 Jul (day 1 20 May), high 3 Jul-15 Aug (day 1 15 Jul = the career's first day = fair-cumulus), late
+  16 Aug-30 Sep (day 1 16 Aug); outside the season the nearest block. The weather day owns 04:00-28:00 local. Tracks
+  eased across the day before and after (a midnight and a block edge are one interpolation). Parton-Logan temperature
+  on Ketchikan-like normals + the day's anomalies. QUANTISED for the re-bakers: the decks' cover 0.02 (clouds.js
+  re-fits per change: <= 97 a day, one every ~15 min at real time - W3's GPU threshold removes the count), the
+  turbidity ONE STEP A NIGHT AT 02:00 (atmo.js re-bakes its sky tables on any change), the wind 0.1 kt / 1 deg / 0.01.
+  at(jdn, utc, geo) -> { spec (07_day's own fields), meta }; flyClass(day) (the study's §4.2 classifier); today /
+  hourly / outlook / lines (the forecast, on scratch days - the live day is never touched).
+- THE DAY: 07_day.js keeps ONE spec and grows an EFFECTIVE one, `e`: the declared spec, or (when it names `plan`) the
+  plan's answer for this instant laid over it. Every derived number, air(), hasAir and the weather getters (wind,
+  stormSpec, diurnalC, seaTau, turbidity, cloudCover, cloudType, cloudUpper, qnhPa) read `e`; set() and spec() keep
+  the declared one, so a plan round-trips as `plan` and the sandbox's own weather under it is untouched. advance()
+  moves the weather with no version bump. New derived: plan (the meta: block, idx, id, name, fly, weatherDate, rain,
+  kp, fogHold, fogWhere, windKey, dips), rain, auroraKp, fogWhere; an advection fog's hold raises mistRho0. No plan:
+  e === s, every line as before (GATE WEATHERPLAN 9, and every DAY / CLIMATE / FOG check).
+- THE WORLD: 20_world.js setDay takes the plan's wind on a set naming plan or wind (NaN key: always), dayTick re-resolves
+  the climate when day.plan.windKey moves (the front's hand rides the same setWind); a plan lifted gives the declared
+  wind back. The worker evaluates the same spec (sim_link mirrors spec(), which carries `plan`).
+- THE CAREER: day_clock.js career(hook) sets { plan: { id: 'season' } } (leaving the career sets plan: null); save()
+  writes the DECLARED decks (sp.*), never the plan's (study F8: the pref is the sandbox's). The TIME menu's forecast
+  door window.FLYDIY_FORECAST (TIME-CONTROLS' hook in day_ui.js menu, editor.js / app.js) = WEATHER_PLAN.lines.
+  The sandbox: ?plan=1, and DAY_CLOCK.plan(on) for GAME-MENUS' "play the plan" row (a session setting, not saved).
+- THE WINTER LAYUP: 74_career.js careerSeasonLand({date, utc}) -> the instant, or (its LOCAL date past 30 Sep, or before
+  20 May) the next opening at civil dawn, `layup: true`. careerDaySet applies it (forward; returns `layup`), the
+  normaliser lifts an out-of-season save, day_clock.js jump lands a career wait on it (why 'layup', a 'flydiy:layup'
+  event { from, to, season } - the story's beat hangs there: NOT BUILT, the card is Game's) and the career's tick
+  lands real time run past the close at the next moment on the ground.
+- GATE WEATHERPLAN (tools/_weatherplan_check.js, core, ~12 s): the pack; the blocks (the edges, 15 Jul = fair-cumulus,
+  the season); the 42 days' rules (the study's --check: unique ids, the fields, clear dawns, a storm forecast by the
+  two days before, its no-VFR window honest, no type change under cover by day, easy days >= 85 % easy, blocks >= 60 %:
+  early 87 %, high 79 %, late 72 %); one source (twice the same; advanced-to == set-at; no version bump); the season
+  walked every 2 min (T <= 0.08 K/min, Td 0.14, QNH 0.15 hPa, wind 0.15 kt, cover 0.03, base 20 m; the turbidity once
+  a night at 02:00); the world (the air, the wind through a day, a ticked world == a set one, the sea, a plan lifted);
+  the forecast (today, the storm two days ahead, the lines, across a block edge); the layup; no plan; the sources.
+  NEGATIVE PROOF: a stale pack and a storm window that misses its no-fly hours both go red.
+- NOT DONE (next): the rain's look (W6), the fog's `where` in the renderer (W3: FOG-MIST F2's layer by sea / valleys),
+  the aurora's look (NIGHT-LOOK reads day.auroraKp; the study's §3.8 visibility law), the clouds' GPU threshold (W3),
+  the contracts' night cover FROM THE FORECAST (today: the effective cover now), the pilots' and the AP's planned
+  winds (W5), "wait until the weather improves" (WEATHER_PLAN.flyClass is the reader it needs), the acceptance leg's
+  air record (W7), the layup's story card.
+- THE RUN (`--only=`, jobs 2, on 9fffdda39): WEATHERPLAN DAY CLIMATE CONTRACTS ECON CLOCK MISSIONS UISMOKE UISMOKE-PHONE
+  ATMO ATMOS HONESTY WATER PLAYER BUILD PASS; CLOUD 1 red - its source row on day_clock.js's save line, which now writes
+  the DECLARED decks (sp.cloudUpper): the row re-read (16e9705b4), CLOUD PASS with its census (current / gamer / ultra:
+  the clouds live, the composite 6 draws). FOG (2: app.js's MAIN camera) and STORY (the T0 beat card): master's
+  standing reds. (A0's L30c CLOUD census red was NOT this work: it stayed red without weather-fixes - NEW-PLANE's chooser.)
+- STATUS (3 Nov ~20:30): claude/weather-season is complete and pushed; claude/ready/weather-season is NOT pushed - a
+  ready branch is pushed on the user's own word (the user said so for weather-fixes; this one waits for theirs). It sits
+  on L30b + claude/weather-fixes (merged), so it rides any train that carries weather-fixes, or after it.
