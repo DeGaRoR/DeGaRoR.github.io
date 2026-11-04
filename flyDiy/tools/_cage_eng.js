@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -584,6 +584,9 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
+  // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
+  ['engPylonFair', 'pylon', 0, 2, 1, ['bars + cables', 'fairing', 'wing-section fairing'],
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
@@ -640,6 +643,88 @@ const ENG_SEC = {
   // what it does, and `emFirewall` is the airframe's, not the engine's.
   emMount: 'engMount',
 };
+// G3913: THE PYLON'S MOUNT (the user, 4 Nov: "the pylon should definitely have a nice shape. By default, it will be
+// a couple of bars anchored below ... This will be the mount, and this will be able to get a fairing, wing shaped, or
+// not ... You may even draw a few cables between the pillars of the mount, hidden if fairing is selected"). The box it
+// was is gone: a rail frame under the engine's mount plate, two legs a side from its ends down to the wing's top
+// skin at the root's front and rear spar stations (the face's `foot`; the frame braces the pylon's pair to both
+// roots' spars - drawn where it is flown), and
+//   engPylonFair 0  bracing CABLES: an X in each side's plane, an X across the front and the rear legs;
+//                1  a FAIRING over the legs, slab-sided (a rounded box section lofted from the feet to the plate);
+//                2  a WING-SECTION fairing (a symmetric 18 % aerofoil, chord fore / aft), the cables hidden.
+// The fairing tapers from the feet's spread to the plate's width; cage metres, the layer's own frame.
+const PYLON_R = 0.021, PYLON_RAIL = 0.016, PYLON_CABLE = 0.0022;
+function drawPylonMount(group, f, P, GK, aft) {
+  const style = Math.max(0, Math.min(2, Math.round(+P.engPylonFair || 0)));
+  const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch);
+  // the plate stands UNDER the engine: a pusher's block hangs aft of its face, a tractor's forward of it
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
+  const ft = f.foot, fx = Math.max(xt, ft.x);
+  // the feet stand on the skin: the legs end just inside it, never above it
+  const yF = ft.y - 0.005;
+  const bars = GK.Bag(), cab = GK.Bag();
+  const top = { fL: [-xt, y0, zF], fR: [xt, y0, zF], rL: [-xt, y0, zR], rR: [xt, y0, zR] };
+  const foot = { fL: [-fx, yF, ft.zF], fR: [fx, yF, ft.zF], rL: [-fx, yF, ft.zR], rR: [fx, yF, ft.zR] };
+  const at = (k, s) => top[k].map((v, a) => v + (foot[k][a] - v) * s);   // along a leg, 0 the plate .. 1 the foot
+  // the rail frame under the plate and the four legs: bare, with their cables (0); a FAIRING hides them (1, 2)
+  if (style === 0) {
+    GK.tube(bars, top.fL, top.fR, PYLON_RAIL, 10); GK.tube(bars, top.rL, top.rR, PYLON_RAIL, 10);
+    GK.tube(bars, top.fL, top.rL, PYLON_RAIL, 10); GK.tube(bars, top.fR, top.rR, PYLON_RAIL, 10);
+    for (const k of ['fL', 'fR', 'rL', 'rR']) GK.tube(bars, top[k], foot[k], PYLON_R, 12);
+    bars.mesh(group, matOf('emMount'));
+    // the bracing cables between the pillars: each side's plane, the front and the rear pairs
+    for (const [a, b] of [[top.fL, foot.rL], [top.rL, foot.fL], [top.fR, foot.rR], [top.rR, foot.fR],
+                          [top.fL, foot.fR], [top.fR, foot.fL], [top.rL, foot.rR], [top.rR, foot.rL]])
+      GK.tube(cab, a, b, PYLON_CABLE, 4);
+    cab.mesh(group, matOf('emMount'));
+    return;
+  }
+  // THE FAIRING: each side's leg pair faired as ONE streamlined panel (the faired cabane's idiom), from the plate's
+  // edge down to the root, its chord over the side's front and rear legs at every height plus a margin, thin across:
+  // a slab (1, a rounded flat section) or a wing section (2, a symmetric 14 % aerofoil); a fairing strip closes the
+  // plate's underside between the two panels
+  // (feet narrow enough - a wing with its centre - and the two panels merge into ONE pylon fairing on the centreline)
+  const fair = GK.Bag(), NS = 24, NR = 8, single = fx <= 0.16;
+  for (const sd of (single ? [0] : [-1, 1])) {
+    const kF = sd < 0 ? 'fL' : 'fR', kR = sd < 0 ? 'rL' : 'rR';
+    const path = [], rows = [], halfs = [];
+    for (let i = 0; i <= NR; i++) {
+      const sv = 1 - i / NR, a = at(kF, sv), b = at(kR, sv);            // foot -> plate
+      path.push([sd === 0 ? 0 : 0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2])]);
+      rows.push(Math.abs(a[2] - b[2]) + 0.12);
+      halfs.push(sd === 0 ? Math.abs(a[0]) + PYLON_R + 0.012 : PYLON_R + 0.012);
+    }
+    const sect = (t, i) => {
+      const c = rows[i], hw = halfs[i], pts = [];
+      for (let k = 0; k < NS; k++) {
+        const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang);
+        if (style === 1) {
+          pts.push([0.5 * c * Math.sign(ca) * Math.pow(Math.abs(ca), 0.35), hw * Math.sign(sa) * Math.pow(Math.abs(sa), 0.6)]);
+        } else {
+          const xc = 0.5 * (1 - ca), th = Math.max(0.10, Math.min(0.24, 2 * (hw - 0.004) / (0.6 * c)));
+          const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+          pts.push([(0.5 - xc) * c * 1.0 + 0.05 * c, (sa >= 0 ? 1 : -1) * yt * c]);
+        }
+      }
+      return pts;
+    };
+    GK.sweep(fair, path, sect, true, [0, 0, 1]);
+  }
+  // the plate's underside: a shallow streamlined fairing between the panels' tops, the rails inside it
+  {
+    const path = [[-xt - 0.01, y0 - 0.005, zc], [xt + 0.01, y0 - 0.005, zc]];
+    GK.sweep(fair, path, () => {
+      const pts = [];
+      for (let k = 0; k < NS; k++) {
+        const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang);
+        pts.push([0.025 * Math.sign(sa) * Math.pow(Math.abs(sa), 0.6), (0.5 * Lp + 0.06) * Math.sign(ca) * Math.pow(Math.abs(ca), 0.35)]);
+      }
+      return pts;
+    }, true, [0, 1, 0]);
+  }
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+}
 const matOf = name => {
   const A = AKM();
   // the livery section first, exactly as the propeller does it: AERO_HARD
@@ -1153,12 +1238,13 @@ function engPlace(ctx, prev) {
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
     if (u.kind === 'wingTop' && f.yBase != null) {
-      const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);
-      const pl = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, h, Math.max(0.25, 0.42 * (f.chord || 1))),
-        matOf('emMount'));
-      pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
-      group.add(pl);
+      const GK = window.GEAR_KIT;
+      if (!GK || !f.foot) {
+        const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);
+        const pl = new THREE.Mesh(new THREE.BoxGeometry(0.09, h, Math.max(0.25, 0.42 * (f.chord || 1))), matOf('emMount'));
+        pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
+        group.add(pl);
+      } else drawPylonMount(group, f, P, GK, !!u.aft);
     }
     // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
     // the engine's local frame; the group has just been placed on the thrust

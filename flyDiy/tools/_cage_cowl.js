@@ -493,12 +493,12 @@ function engineFaces(mesh, FS, P) {
     // ("no wing to sit on" - the frame hangs it all the same: 61_gen_frame braces the pylon to both roots' spars and
     // down to the roof ring). The pylon stands on the roof between the roots: the leading edge and the top read at
     // the nearest station either side where the wing answers, its foot at the roots' lower skin (the roof line)
-    let onRoof = false;
+    let onRoof = false, footX = 0.12;
     for (let k = 1; !le && k <= 30; k++) {
       const q = [W.leAt(0.05 * k), W.leAt(-0.05 * k)].filter(Boolean);
       if (q.length) {
         le = { z: Math.max(...q.map(r => r.z)), yTop: Math.max(...q.map(r => r.yTop)), yBot: Math.min(...q.map(r => r.yBot)) };
-        onRoof = true;
+        onRoof = true; footX = 0.05 * k;
       }
     }
     if (!le) return [];
@@ -509,7 +509,11 @@ function engineFaces(mesh, FS, P) {
     const aft = aim === 0 ? true : aim === 2;
     return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
-                      synthetic: 1, yBase: onRoof ? le.yBot : le.yTop, chord: ch, onRoof },
+                      synthetic: 1, yBase: onRoof ? le.yBot : le.yTop, chord: ch, onRoof,
+                      // G3913: THE MOUNT'S FEET (the engine layer draws the pylon's bars to them): the front and rear
+                      // spars' stations at the root (a quarter and two thirds of the chord), on the wing's top skin
+                      // either side - the frame braces the pylon's pair to both roots' spars (61_gen_frame)
+                      foot: { x: footX, y: le.yTop, zF: le.z - 0.20 * ch, zR: le.z - 0.62 * ch } },
               aft, kind: 'wingTop' }];
   }
   if (mount === 3) {

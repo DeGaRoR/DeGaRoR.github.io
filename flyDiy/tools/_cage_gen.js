@@ -1230,7 +1230,11 @@ function buildCage2(S, step) {
       if (HF && HF.on) {
         const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
         if (zA < HF.zStep && HF.zStep <= zB && zB - zA > 1e-6) {
-          const dt = 0.006 / (zB - zA);
+          // HULL-B6 (the user's wireframe review: "give your step a little bit of elongation ... you've squeezed 4
+          // edge loops into a tiny area"): the aft ring stands 0.6 x the step depth aft of the fore one (2 cm at least),
+          // a step face raked over a real length, its loops spaced once subdivided. The water keeps the step a
+          // vertical break at the fore ring (32_hydro's idealisation: the afterbody's first row from x 0+)
+          const dt = Math.max(0.02, 0.6 * HULL.hs) / (zB - zA);
           const tF = Math.max(0.02 + dt, Math.min(0.98, (HF.zStep - zA) / (zB - zA))), tA = tF - dt;
           ins.push({ t: tA, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tA, kept[k].name + '+s'), { hullSide: 'A' }) });
           ins.push({ t: tF, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tF, kept[k].name + '+s'), { hullSide: 'F' }) });
