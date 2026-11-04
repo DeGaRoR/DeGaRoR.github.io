@@ -448,8 +448,9 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
   // Never stick on bubble canopies or any sort of glass. Stick to the aft bulkhead if no other option, or into the
   // shoulder"): the ladder is ceiling -> aft bulkhead -> shoulder (a convertible's header, an open cockpit's coaming
   // first; a bubble from the bulkhead, its arch only clear of glass) and every rung asks clearOfGlass. GATE
-  // CABINLAMP measures the result on built aeroplanes; this holds the rule's text.
-  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, bulkheadAt, shoulderAt\], \[headerAt, bulkheadAt, shoulderAt\],\s*\[coamingAt, bulkheadAt, shoulderAt\], \[bulkheadAt, archClear, shoulderAt\]\]/.test(lit),
+  // CABINLAMP measures the result on built aeroplanes; this holds the rule's text. (CABIN-INTERIOR G1: a closed cabin's
+  // ladder starts at the overhead console when the crew drew one - it is never under glass)
+  check(/const LADDER = \{[\s\S]*?flood: \[\[consoleAt, roofAt, bulkheadAt, shoulderAt\], \[headerAt, bulkheadAt, shoulderAt\],\s*\[coamingAt, bulkheadAt, shoulderAt\], \[bulkheadAt, archClear, shoulderAt\]\]/.test(lit),
         'the cabin lamps no longer climb the mounting ladder per cabin top (closed / convertible / open / bubble)');
   check(/const clearOfGlass = \(p, nIn, kind\) =>/.test(lit) && /if \(q\.flat < CEIL_FLAT\) continue;/.test(lit) &&
         /clearOfGlass\(\[q\.x, q\.y, q\.z\], q\.n, kind\)/.test(lit) &&

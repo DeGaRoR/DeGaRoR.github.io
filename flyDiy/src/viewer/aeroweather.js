@@ -174,6 +174,8 @@ const AERO_WX_SUB = {
   walnutFig:   { col: [0.22, 0.13, 0.07], metal: 0.0,  rough: 0.75, rust: 0, chip: 0.5, hands: 0 },
   rubber:      { col: [0.05, 0.05, 0.05], metal: 0.0,  rough: 0.95, rust: 0, chip: 0.0, hands: 0 },
   liner:       { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.90, rust: 0, chip: 0.0, hands: 0 },
+  headliner:   { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.90, rust: 0, chip: 0.0, hands: 0 },
+  trimVinyl:   { col: [0.30, 0.28, 0.24], metal: 0.0,  rough: 0.80, rust: 0, chip: 0.0, hands: 1 },
   trim:        { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.45, rust: 0, chip: 1.0, hands: 1 },
   fireFoil:    { col: [0.60, 0.60, 0.60], metal: 0.90, rough: 0.50, rust: 0, chip: 0.0, hands: 0 },
   panelMetal:  { col: [0.60, 0.61, 0.62], metal: 0.90, rough: 0.50, rust: 0, chip: 0.0, hands: 1 },

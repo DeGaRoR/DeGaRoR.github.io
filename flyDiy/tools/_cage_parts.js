@@ -1235,6 +1235,16 @@ const CAGE_PARTS = [
                       'doorPanelPocket']],
     ] },
 
+  // CABIN-INTERIOR (the user 2-3 Nov, the cabin's top half "seen through windows"): the headliner and the upper wall
+  // trim (the liner's ceiling and walls split into their own sections, off by default), paintable like the seats
+  { key: 'headliner', name: 'Headliner & trim', parent: 'fit', layer: 'cage',
+    sections: ['headliner', 'cabWall'],
+    when: P => +P.intOn,
+    place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
+    groups: [
+      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
+    ] },
+
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
     groups: [
