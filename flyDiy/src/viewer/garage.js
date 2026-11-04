@@ -1158,6 +1158,29 @@ function garageInit(api) {
         hb.addEventListener('click', () => { try { api.bringHome(n); } catch (e) {} renderFleet(); });
         row.appendChild(hb);
       }
+      // PRICE-CAL: SELL (a career's own airframe) - at its used-market price (its age, never more than it cost you);
+      // greyed with the reason when it cannot be sold now (the tutorial, a route flown on it, a story aeroplane)
+      let sv = null;
+      try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
+      if (sv && api.sell) {
+        const pw = api.money ? api.money(sv.value) : String(sv.value);
+        const sb = document.createElement('button');
+        sb.type = 'button'; sb.className = 'gfSell'; sb.textContent = 'Sell';
+        sb.disabled = !!sv.why || !(sv.value > 0);
+        sb.title = sv.why ? 'Not for sale now: ' + sv.why
+          : 'Sell on the used market for ' + pw + (sv.cap ? ' (capped at what it cost you)' : '');
+        sb.addEventListener('click', () => {
+          if (!confirm('Sell “' + label(n) + '” on the used market for ' + pw + '? It leaves your fleet for good.')) return;
+          let r = null; try { r = api.sell(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+          if (r && !r.ok) { alert(r.why || 'refused'); return; }
+          lsDel(SLOT + n);
+          try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+          if (slotName === n) slotName = '';
+          slotsChanged({ deleted: n });
+          syncRibbon();
+        });
+        row.appendChild(sb);
+      }
       row.appendChild(del);
       mine.appendChild(row);
     }

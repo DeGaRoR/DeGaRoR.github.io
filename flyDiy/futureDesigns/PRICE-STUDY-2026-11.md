@@ -10,6 +10,24 @@ Van's, Controller, Barnstormers, Garmin, Wipaire and others) was blocked by the 
 figure comes from a search-result extract of the page linked. Treat them as indicative. A row marked ESTIMATE has no
 published figure behind it.
 
+## IMPLEMENTED, ROUND 2: SELL, STEP 2, ONE BASE FOR NEW / USED / DELIVERED (4 Nov 2026)
+
+- **The fleet card sells** at the used-market price of the plane's age, never more than it cost; no sales during the tutorial
+  (until T6's floats-Cub route is signed), none on a route, none for the story's aeroplanes.
+- **One base.**
+  - The zero-days value = 0.92 × the ledger.
+  - Used = it × the age curve (1 at zero days).
+  - New = it × 1.25 (the new bonus: the first owner's premium; = the makers' catalogue, unchanged).
+  - A build contract's client pays the delivered airframe's value (new for your build, used for a used one) unless the
+    contract is a fixed price.
+- **Step 2: age costs performance.** −1 % engine power per 400 h since overhaul (to −6 %), +0.1 % drag a year (to +5 %).
+  A 40-year-old, 2 000-hour Cub cruises 110 against 113 km/h, climbs 2.73 against 2.97 m/s and takes off in 169 against
+  156 m. Listings now run 1-40 years.
+- **The tutorial's exit is 54 270 credits** (econ_sim had been taking the grant off twice since 23 Oct, which also made its
+  "stuck at the Rufus" seeds). The agreed economy holds: a small plane every 3 contracts, the 4-seater at 6, a side hangar
+  at 11.
+- Details in the HANDOVER's PRICE-CAL.2 entry.
+
 ## IMPLEMENTED: PRICE-CAL (4 Nov 2026, branch `claude/price-apply`)
 
 The user (4 Nov): *"let's go and implement, we don't do anything with money now, so we can move stuff. Just take the

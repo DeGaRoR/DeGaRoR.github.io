@@ -53,8 +53,9 @@ const PROCURE_V = 1;
 const PROCURE_MARGIN = ECON_BOOK.makerMargin;   // PRICE-CAL: the ONE maker's margin over the ledger (76_economy), 1.15
 const PROCURE_USED_MAX = 4;            // at most four listings at once
 const PROCURE_USED_EVERY = 3;          // refreshed after every three completed contracts (CONTRACT_GEN.refreshEvery)
-const PROCURE_COND = [0.4, 0.8];       // a used aeroplane's price: catalogue × condition (PRICE-CAL: the condition is the
-                                        // age curve, 76_economy econAgeFactor, less the deductions - held to this band)
+const PROCURE_COND = [0.2, 0.8];       // a used aeroplane's price: catalogue × condition (PRICE-CAL: the condition is the
+                                        // age curve over the new price, 76_economy, less the deductions - held to this band;
+                                        // step 2: 0.2 at the bottom, the 40-year-olds that age now slows down)
 const PROCURE_DELIVERY = { main: 0, side: 400, perKm: 25 };   // a maker's delivery to a side hangar (the stub's)
 const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH_COSMETIC
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
@@ -105,6 +106,7 @@ const PROCURE_TEXT = {
   'used.title': PRT_('{m}, {h} hours'),
   'used.hours': PRT_('{h} hours on the engine since its last overhaul'),
   'used.built': PRT_('built {y}, {a} years old'),
+  'used.aged': PRT_('the engine gives {p} % of its rated power; {d} % more drag than new'),
   'used.repair.none': PRT_('no damage history'),
   'used.repair.gear': PRT_('the gear was replaced after a hard landing'),
   'used.repair.prop': PRT_('a new propeller after a prop strike'),
@@ -617,7 +619,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   const fp = procureFp(spec);
   const row = { from: 'maker', maker: PROCURE_MODELS[modelId].maker, model: modelId, design: P.design, opts: prClone(opt), fp,
                 cert: prClone(cert), factory: true, modified: false, price: total, at: Math.round(D2.clock || 0),
-                ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what it cost, and its ledger (a delivery and a sale read them): a maker's is new, age 0
+                paid: total, cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[P.design] ? Math.round(CONTRACT_DESIGNS[P.design].cost) : 0) };
   if (career) {
     D2.career.airframes[slot] = row;
     if (voucher) D2.career.voucher = Object.assign({}, D2.career.voucher, { used: true, slot });
@@ -677,9 +681,9 @@ function procureUsedListing(seed, epoch, i) {
   // the kilos of equipment fitted over the years (a real spec row: the cargo it carries)
   const kg = Math.round(Math.min(AG.kgMax, AG.kgPerYear * age * (0.5 + rng())));     // (the old kilos' draw, in its place)
   const seller = Math.floor(rng() * 6);
-  // condition: the age curve (1 new, 0.8 used, 0.40 at 24 years), less a repair, an older panel and the kilos, held to
-  // PROCURE_COND - the band the agreed economy was measured on
-  let cond = econAgeFactor(age) - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
+  // condition (over the NEW price): the age curve at zero days is 1 / (1 + newBonus) = 0.8, then falling; less a repair,
+  // an older panel and the kilos, held to PROCURE_COND
+  let cond = econAgeFactor(age) / (1 + ECON_BOOK.newBonus) - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
   cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;
   const built = (+String(CAREER_DAY0.date).slice(0, 4) || 2026) - age;
   const L = { id, model, design, opts: o, age, built, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
@@ -726,6 +730,9 @@ function procureUsedWords(L) {
   return {
     title: procureText('used.title', { m: procureText(M.name), h: L.hours }),
     facts: (L.age ? [procureText('used.built', { y: L.built, a: L.age })] : [])
+      .concat((() => { if (!L.age || typeof genAgingOf !== 'function') return [];
+        const G = genAgingOf({ aging: { years: L.age, engineHours: L.hours } });
+        return [procureText('used.aged', { p: Math.round(100 * G.powerK), d: Math.round(100 * (G.dragK - 1)) })]; })())
       .concat([procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)])
       .concat(L.older ? [procureText('used.older')] : []).concat(L.kg ? [procureText('used.kg', { k: L.kg })] : []),
     seller: procureText(L.seller),
@@ -736,6 +743,8 @@ function procureUsedWords(L) {
 function procureUsedSpec(L, fileSpec) {
   const s = procureSpec(L.model, L.opts, fileSpec);
   if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });
+  // PRICE-CAL step 2: AGE COSTS PERFORMANCE - its years and its engine's hours since overhaul (60_ GEN_AGING: power, drag)
+  if (L.age > 0) s.aging = { years: L.age, engineHours: L.hours || 0 };
   // PRICE-CAL: it LOOKS its age - the weathering the parked fleet already wears (71_ playerWearSpec, visual only: the
   // finish is cosmetic, outside the certificate's fingerprint)
   if (L.age > 0 && typeof playerWearSpec === 'function') return playerWearSpec(s, Math.min(1, L.age / ECON_BOOK.age.weatherAt));
@@ -762,7 +771,8 @@ function procureBuyUsed(doc, listingId, o) {
                 fp: procureFp(spec), cert: prClone(cert), factory: true, modified: false, price: L.price, at: Math.round(D2.clock || 0),
                 hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
                 // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
-                paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0 };
+                paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;

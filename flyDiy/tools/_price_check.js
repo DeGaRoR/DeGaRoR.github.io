@@ -133,10 +133,12 @@ function run(doctor) {
     ok(C.PROCURE_MARGIN === C.ECON_BOOK.makerMargin, 'PROCURE reads the one maker\'s margin');
     for (const k of Object.keys(C.CONTRACT_DESIGNS)) { const c = C.CONTRACT_DESIGNS[k].cost;
       ok(C.econCatalogPrice(c) === C.econRound(c * C.ECON_BOOK.makerMargin), k + ': the catalogue is the ledger x the margin'); }
-    // 5. THE TIERS
-    const A = C.ECON_BOOK.age;
-    ok(C.econAgeFactor(0) === 1 && Math.abs(C.econAgeFactor(1e-6) - A.s) < 1e-4, 'the curve: 1 new, ' + A.s + ' the moment it is used');
-    let prev = 2; for (let a = 0.5; a <= 80; a += 0.5) { const f = C.econAgeFactor(a); ok(f < prev && f > A.s * A.floor, 'the curve falls and holds its floor at ' + a + ' y'); prev = f; }
+    // 5. THE TIERS (one base: the zero-days value; used = it x the age curve; new = it x (1 + the new bonus))
+    const A = C.ECON_BOOK.age, B = C.ECON_BOOK, cubL = C.CONTRACT_DESIGNS.cub.cost;
+    ok(Math.abs(B.makerMargin - B.zeroK * (1 + B.newBonus)) < 1e-9, 'the makers\' margin IS the zero-days value x (1 + the new bonus) (' + B.makerMargin + ')');
+    ok(B.newBonus > 0 && C.econNewPrice(cubL) === C.econCatalogPrice(cubL) && C.econNewPrice(cubL) > C.econRound(C.econZeroValue(cubL)), 'the new price is the catalogue, above the zero-days value');
+    ok(C.econAgeFactor(0) === 1, 'the curve: 1 at zero days');
+    let prev = 2; for (let a = 0.5; a <= 80; a += 0.5) { const f = C.econAgeFactor(a); ok(f < prev && f > A.floor, 'the curve falls and holds its floor at ' + a + ' y'); prev = f; }
     let n = 0, sum = 0;
     for (let sd = 0; sd < 12; sd++) for (let e = 0; e < 6; e++) for (let i = 0; i < 4; i++) {
       const L = C.procureUsedListing('price' + sd, e, i); if (!L) continue; n++; sum += L.condition;
@@ -144,16 +146,43 @@ function run(doctor) {
       ok(L.age >= A.listAges[0] && L.age <= A.listAges[1] && L.built === 2026 - L.age, L.id + ': its age and its year agree');
       ok(L.hours >= 150 && L.hours <= 2950 && L.kg <= A.kgMax, L.id + ': its hours and its kilos are a used aeroplane\'s');
       ok(L.price === Math.round(L.catalogue * L.condition / 100) * 100, L.id + ': its price is the catalogue x its condition');
+      const fileOf = k => (fileOf.c || (fileOf.c = {}))[k] || (fileOf.c[k] = (() => { const D = C.CONTRACT_DESIGNS[k]; const j = JSON.parse(fs.readFileSync(path.join(ROOT, D.build), 'utf8')); return j.spec || j; })());
+      const sp = C.procureUsedSpec(L, fileOf(L.design));
+      ok(sp && sp.aging && sp.aging.years === L.age && sp.aging.engineHours === L.hours, L.id + ': its spec carries its age (the physics reads it)');
     }
     const mean = sum / Math.max(1, n);
     lines.push('  used market: ' + n + ' listings, mean condition ' + mean.toFixed(3));
-    ok(n > 100 && mean >= 0.55 && mean <= 0.60, 'the used market\'s mean condition where the agreed economy had it (' + mean.toFixed(3) + ')');
-    const d = C.careerNew({ id: 's', seed: 'price' }), cost = C.CONTRACT_DESIGNS.cub.cost, build = C.econAirframePrice(cost, d.sheds[C.PREM_MAIN], ['tube']);
-    d.career.airframes.own = { paid: build }; d.career.airframes.gift = { paid: 0 }; d.career.airframes.used = { paid: 20000, age: 8, v0: cost * 1.15, repairs: 1 };
-    const sOwn = C.econSaleValue(d, 'own', cost), sGift = C.econSaleValue(d, 'gift', cost), sUsed = C.econSaleValue(d, 'used', cost);
-    ok(sOwn.value > 0 && sOwn.value < build, 'an own build sells for less than it cost to build (' + sOwn.value + ' < ' + build + ')');
-    ok(sGift.value === 0, 'a story airframe sells for nothing');
-    ok(sUsed.value <= 20000, 'a used one never sells for more than it was bought for');
+    // (step 2: ages 1-40, the old planes slowed by GEN_AGING; measured 0.383 over 960 listings)
+    ok(n > 100 && mean >= 0.35 && mean <= 0.42, 'the used market\'s mean condition, ages 1-40 (' + mean.toFixed(3) + ')');
+    // THE SALE: the used price at its age, never more than it cost; locked in the tutorial and on a route; a story plane none
+    let dS = C.careerNew({ id: 's', seed: 'price' });
+    const st = C.storyNewCareer(dS, { aeros: [] }); if (st && st.doc) dS = st.doc;
+    const build = C.econAirframePrice(cubL, dS.sheds[C.PREM_MAIN], ['tube']);
+    dS.fleet.own = { hangar: null, aero: 'HOME' }; dS.career.airframes.own = { paid: build, cost: cubL, how: 'scratch' };
+    dS.fleet.used = { hangar: null, aero: 'HOME' }; dS.career.airframes.used = { paid: 20000, age: 25, v0: cubL * B.makerMargin, repairs: 1, from: 'used' };
+    dS.career.airframes.gift = { paid: 0, from: 'story' };
+    ok(C.econSell(dS, 'own', cubL).why === 'no sales during the tutorial', 'no sale during the tutorial (until T6\'s route is signed)');
+    const dT = JSON.parse(JSON.stringify(dS)); dT.career.story.beat = 'T7';
+    const sOwn = C.econSaleValue(dT, 'own', cubL), sUsed = C.econSaleValue(dT, 'used', cubL), sGift = C.econSaleValue(dT, 'gift', cubL);
+    ok(sOwn.value === build && sOwn.cap, 'an own build sells for what it cost (its 0.92 zero-days value capped at the 0.8 it cost: no loop makes money)');
+    ok(sUsed.value < 20000 && sUsed.value === C.econUsedValue({ v0: cubL * B.makerMargin, age: 25, ded: 0.08 }), 'a used one at its used value (' + sUsed.value + '), under what it cost');
+    ok(sGift.why && C.econSell(dT, 'gift', cubL).ok === false, 'a story airframe is not for sale');
+    const sold = C.econSell(dT, 'own', cubL);
+    ok(sold.ok && sold.doc.wallet === dT.wallet + build && !sold.doc.career.airframes.own && !(sold.doc.fleet && sold.doc.fleet.own)
+       && sold.doc.ledger.slice(-1)[0].k === 'sale' && C.econLedgerClass('sale') === 'sale', 'sold: the wallet credited, the airframe gone, a `sale` line');
+    // THE DELIVERED VALUE (a build contract's client pays it): new for an own build, used for a used one, null unknown
+    ok(C.econDeliveredValue({ cost: cubL }) === C.econNewPrice(cubL) && C.econDeliveredValue({ cost: cubL, age: 20 }) === C.econUsedValue({ cost: cubL, age: 20 })
+       && C.econDeliveredValue({}) === null, 'a delivered airframe: its new price, its used value when it has years, nothing when its ledger is unknown');
+    // STEP 2: AGE COSTS PERFORMANCE - and nothing else; absent, nothing moves
+    {
+      const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8')), sp0 = C.genMigrateSpec(j.spec || j);
+      const sp1 = JSON.parse(JSON.stringify(sp0)); sp1.aging = { years: 40, engineHours: 2000 };
+      const a = C.genShakedown(C.buildGen(sp0), sp0), b = C.genShakedown(C.buildGen(sp1), sp1);
+      const G = C.genAgingOf(sp1);
+      ok(G.powerK < 1 && G.dragK > 1 && C.genAgingOf(sp0).powerK === 1 && C.genAgingOf(sp0).dragK === 1, 'the aging factors (absent: 1 and 1)');
+      ok(b.VCruise < a.VCruise && b.climbRate < a.climbRate && b.TORun > a.TORun, 'an old, tired Cub is slower, climbs worse, takes off longer (' + (a.VCruise * 3.6).toFixed(1) + ' -> ' + (b.VCruise * 3.6).toFixed(1) + ' km/h)');
+      ok(Math.abs(a.mass - b.mass) < 1e-9 && Math.abs(a.cost - b.cost) < 1e-6, 'and nothing else: the same mass and the same ledger');
+    }
     // 6. THE LEDGER
     const shake = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); const sp = C.genMigrateSpec(j.spec || j); return { s: C.genShakedown(C.buildGen(sp), sp), S: C.resolveSpec(sp).spec }; };
     const cub = shake('builds/cub_2026-09-20_corrected.json');
@@ -186,8 +215,9 @@ const DOCTORS = [
   ['payRef re-derived to today\'s Cub (the anchor undone)', set(C.ECON_BOOK, 'payRef', 44683)],
   ['a second margin', set(C.ECON_BOOK, 'makerMargin', 1.08)],
   ['the age curve inverted', set(C.ECON_BOOK.age, 'tau', -27.5)],
-  ['the market aged to 40 years', () => { const a = C.ECON_BOOK.age.listAges; C.ECON_BOOK.age.listAges = [20, 40]; return () => { C.ECON_BOOK.age.listAges = a; }; }],
-  ['a sale over its cost', set(C.ECON_BOOK, 'sellK', 5)],
+  ['the market aged to 60-90 years', () => { const a = C.ECON_BOOK.age.listAges; C.ECON_BOOK.age.listAges = [60, 90]; return () => { C.ECON_BOOK.age.listAges = a; }; }],
+  ['no new bonus (new = used at zero days)', set(C.ECON_BOOK, 'newBonus', 0)],
+  ['age costs no power', set(C.GEN_AGING, 'powerPerHour', 0)],
   ['the lights unpriced', set(C.GEN_PRICES, 'lights', 0)],
   ['a tank filled again (the fuel in the vessel\'s price)', set(C.GEN_VESSELS.alu, 'priceM2', 15000)],
 ];

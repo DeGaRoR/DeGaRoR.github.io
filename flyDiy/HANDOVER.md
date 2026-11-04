@@ -311881,3 +311881,76 @@ econ_sim reads the grant and the fee through careerGrant / econPay, and T2's edi
   - the stuck-at-the-Rufus seeds;
   - POD's baseline re-taken by its owner;
   - the parked cooks re-baked at landing.
+
+## PRICE-CAL.2 - THE FLEET CARD SELLS, AGE COSTS PERFORMANCE (STEP 2), ONE BASE FOR NEW, USED AND DELIVERED, AND ECON-SIM'S DOUBLE GRANT (2026-11-04, PRICE-STUDY for A0, cloud; branch claude/price-apply)
+The user, 4 Nov:
+- "add the Sell button on the fleet card, at the used plane market price, and add step 2";
+- the tutorial "leaves you with a recurring stream of money and a big bonus from the floats cub contract ... enough to buy or
+  build yourself something, then 3-5 missions buy you a new small plane";
+- "No sales during the tuto (ends when we commit to the cub floats route)";
+- "the new ones, at the zero damage, plus a new bonus ... that is also the price we'd sell our planes, except if a build
+  contract is fixed price ... even the fixed price may be evaluated using the same method".
+
+**ECON-SIM LOST THE GRANT TWICE (fixed, tools/econ_sim.js).**
+- Since G3359 the story's own start (storyNewCareer) removes careerNew's grant line and its money. econ_sim ALSO took it off
+  the wallet before that, so every simulated story career began one grant short.
+- The tutorial ended at −31 630 in the sim. The real exit is **54 270 at T7** (T5's three jobs + T6's fee 28 600 + the
+  route's down payment).
+- The 5-in-20 "stuck at the Rufus" seeds were this bug, not the economy: none stall now.
+- The grant is now set after storyNewCareer (the config's, over STORY_GRANT).
+
+**ONE BASE (76_economy ECON_BOOK):**
+
+| | rule |
+|---|---|
+| zero-days value | ledger × `zeroK` 0.92 |
+| used | zero × `econAgeFactor(age)` × (1 − its deductions); the curve is 1 at zero days, floor 0.14, tau 27.5 (refit as continuous, the same numbers as before) |
+| new | zero × (1 + `newBonus` 0.25) = `econNewPrice` = the makers' catalogue (makerMargin 1.15, GATE PRICE holds makerMargin = zeroK × (1 + newBonus)) |
+| sale | the USED price at its age (`sellK` 1), capped at `paid` |
+| delivered | `econDeliveredValue(A)`: new for an own build, used for a used one |
+
+- **The sale's cap:** an own build in a fitted hangar is worth 0.92 at zero days and cost 0.8, so building to sell would print
+  money. With the cap it sells back at what it cost.
+- **The delivered value:** a build contract pays it (74_ careerComplete → contractPayTotal's `base`) unless the contract is
+  `pay.fixed`; a row without its ledger keeps the authored base (the offer card's estimate).
+- **Rows record their ledger:** airframe rows carry `cost` (econMaterialise; PROCURE's maker and used rows, which carry
+  `paid` too).
+- **A fixed price by the method** (the cheapest validated design that meets the contract): 8 of the 11 authored build
+  contracts are met by no validated design (an electric, a sub-300 kg plane, 6 g...), so the rule is the delivered value.
+
+**THE SALE (econSaleWhy / econSaleValue / econSell):**
+- Refused during the tutorial (story beats T0-T6: until T6's route is signed), on a route, for a story airframe, for one that
+  cost nothing.
+- Sold: out of the fleet (playerFleetReconcile) and the airframes, its pilot freed, `career.sold` (`how: 'market'`), a `sale`
+  ledger line (a new class, income; GATE ECON's allowed set).
+- The page: app.js `careerSaleOf` / `careerSellNow` (the slot's saved build → procureLedger → its cost), the garage API's
+  `saleOf` / `sell`.
+- garage.js's fleet rack has a **Sell** button per career airframe: its price in the title, greyed with the reason, a confirm,
+  then the slot leaves the shelf. `.gfSell` in editor.css.
+
+**STEP 2: AGE COSTS PERFORMANCE** (60_ GEN_AGING / genAgingOf; spec.aging = { years, engineHours }, written by
+procureUsedSpec):
+- **Power:** 1 % per 400 h since overhaul, to 6 %. Applied ONLY where power makes thrust: the prop's synthesis (resolveSpec's
+  P) and the solver's engine record (62_ def.engine, a copy). The powerplant row, its mass, exhaust and price are the engine's
+  as rated.
+- **Drag:** 0.1 % a year, to 5 %, on the body's CdA and every surface polar's Cd0.
+- **Absent: nothing moves** (×1 paths, the same objects).
+- Measured on the Cub, new vs 40 years and 2 000 h: cruise 113.0 → 109.8 km/h, climb 2.97 → 2.73 m/s, take-off 156 → 169 m;
+  mass and ledger identical.
+- **The listings:**
+  - ages 1-40 (`listAges`), PROCURE_COND 0.2-0.8, mean condition 0.383 (960 listings; was 0.574 at 1-14 years);
+  - the facts add "the engine gives 97 % of its rated power; 1 % more drag than new".
+
+**THE AGREED ECONOMY** (econ_sim PROPOSED, 20 seeds, with the grant fixed and build contracts at the delivered value):
+- pace: Cub-class 3, 4-seater 6, side hangar 11 (bands 3-4 / 6-8 / 8-12);
+- money at rest 0.50-2.8 everywhere;
+- route share 0.21 (router);
+- frugal, router and competitor finish segment 3 on 20 / 20, collector on 19 / 20;
+- the demo hours are as the user kept them.
+
+**GATES:**
+- GATE PRICE: the tiers (one base, the new bonus, the curve, the 1-40 market's mean, each listing's spec carrying `aging`),
+  the sale (locked in the tutorial, own = cost, used = its value, a story plane none, sold = credited + gone + `sale`), the
+  delivered value, step 2 (slower, worse climb, longer take-off; the same mass and ledger; absent ×1). `--selftest`: 10 of 10.
+- UISMOKE: the fleet card's Sell (live, greyed in the tutorial, none on an unpriced row, asks, sells, clears the slot).
+- PROCURE's band read off PROCURE_COND; ECON allows `sale`.

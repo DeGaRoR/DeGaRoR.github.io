@@ -301,8 +301,11 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   // (PRICE-CAL: careerNew pays the grant at today's prices, careerGrant(); a config's grant and fee are in the money of
   // the table they were written in - payRef's - and ride the same scale)
   const G0 = C.careerGrant ? C.careerGrant() : C.CAREER_GRANT, PAY = v => (C.econPay ? C.econPay(v) : v);
-  if (cfg.grant != null) { d.wallet = d.wallet - G0 + PAY(cfg.grant); }
-  S.income.grant = cfg.grant != null ? PAY(cfg.grant) : G0;
+  // (the grant is set AFTER storyNewCareer, below: since G3359 the story's own start removes careerNew's grant line
+  // and its money, and a wallet adjusted here too lost the grant twice - every story career began one grant short,
+  // the tutorial ended in the red and 5 seeds of 20 stalled at the Rufus with no money to buy anything)
+  const GRANT = cfg.grant != null ? PAY(cfg.grant) : G0;
+  S.income.grant = GRANT;
   S.abs = S.t0 = C.dayAbs(C.careerDay(d));
   const settle = () => {
     const r = C.routeSettle(d, S.abs);
@@ -374,7 +377,9 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   const addPlane = (slot, design, at, how, price) => {
     S.fleet[slot] = { design, at, how };
     d.fleet[slot] = { hangar: null, aero: at, kind: 'away' };
-    d.career.airframes[slot] = { from: how, design: C.CONTRACT_DESIGNS[design] ? design : undefined, paid: price || 0, at: Math.round(d.clock || 0) };
+    // (PRICE-CAL: its ledger on the row - a build contract's client pays the airframe's new price off it, 74_ careerComplete)
+    d.career.airframes[slot] = { from: how, design: C.CONTRACT_DESIGNS[design] ? design : undefined, paid: price || 0, at: Math.round(d.clock || 0),
+                                 cost: DESIGNS[design] ? Math.round(DESIGNS[design].cost) : undefined };
     S.owned.add(design);
   };
   const buy = (k, price, what, ref2) => {
@@ -390,6 +395,9 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
   stamp();
   let r = C.storyNewCareer(d, { aeros: AEROS });
   if (!r.ok) throw new Error('storyNewCareer: ' + r.why);
+  // the config's grant over the story's own (STORY_GRANT, what storyNewCareer leaves): PROPOSED 0, LIVE careerNew's
+  if (r.doc) d = r.doc;
+  d.wallet += GRANT - PAY(C.STORY_GRANT || 0);
   d = r.doc;
   const cabin = (r.cabin && r.cabin.aero) || 'HOME';
   addPlane('Rufus', 'rufus', cabin, 'story', 0);
@@ -647,7 +655,8 @@ function playCareer1(policyName, seed, cfg, DESIGNS) {
       if (rec.kind === 'build') {
         const cand = catalogue().filter(c => (c.k === 'airframe') && buildOk(DESIGNS[c.design], rec)).sort((a, b) => a.price - b.price)[0];
         if (!cand) continue;
-        const pay = C.contractPay(rec).total, net = pay - cand.price;
+        // (PRICE-CAL: the client pays the delivered airframe's new price - unless the contract is a fixed price)
+        const pay = (rec.pay && rec.pay.fixed) || !C.econNewPrice ? C.contractPay(rec).total : C.econNewPrice(DESIGNS[cand.design].cost), net = pay - cand.price;
         if (net <= 0 || d.wallet < cand.price) continue;
         const t = REAL_S.buildContract + 2 * LEG_OVH_S + (C.contractKm('HOME', contractSubsOfDeliver(rec)) || 0) / DESIGNS[cand.design].cruiseKmh * 3600;
         const sc = net / t * P.weight(rec, api());

@@ -1260,11 +1260,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 }
 
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
-function contractPayTotal(rec, got, medal) {
+function contractPayTotal(rec, got, medal, base) {
   const P = rec.pay || {};
   // (PRICE-CAL: a job's total was fixed by contractPay at today's prices when offered; an authored base is scaled here)
   let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total
     : Math.round(contractStoryBase(rec) * (typeof econPayScale === 'function' ? econPayScale() : 1) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
+  // (PRICE-CAL: a build contract's delivered airframe at its value to the client, handed in by careerComplete)
+  if (rec.kind === 'build' && typeof base === 'number' && isFinite(base) && base > 0) total = base;
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {

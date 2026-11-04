@@ -78,17 +78,24 @@ const ECON_BOOK = {
   // Cub's ledger was `payRef`. econPayScale() = econRefPrice() / payRef multiplies each of them, so a re-priced ledger
   // moves the pay with it and the career's paces, which ECON-SIM measured in CONTRACTS, hold by construction.
   payRef: 31203,
-  // PRICE-CAL: THE MARKET TIERS. V0 (the new value) = the ledger x makerMargin; a plane's value at an age is
-  // V0 x econAgeFactor(age): 1 new, then `s` the moment it is used, falling toward `floor` with `tau` years - fitted on
-  // same-type new/used pairs (C172S 2016+ / 2000s / 1970s, the 208B, 2025-26 asking: futureDesigns/price-study/
-  // age_curve.js, rms x1.12). The used market draws its listings' ages inside `listAges`: 1-14 years keeps the
-  // market's mean condition where the agreed economy had it (0.574 against the hours rule's ~0.58, measured over 960
-  // listings; 2-24 years, the whole 0.8-0.40 span of the curve, fell to 0.495 with a third on the floor). Older planes
-  // wait for age to cost performance (PRICE-STUDY §D step 2). A sale pays `sellK` (the dealer's spread, the top of the
-  // real 15-25 %) of the value, never more than the player paid (no loop makes money).
-  age: { s: 0.8, floor: 0.14, tau: 27.5, listAges: [1, 14], kgPerYear: 0.4, kgMax: 15, olderPerYear: 1 / 30,
+  // PRICE-CAL: THE MARKET TIERS, ONE BASE (the user 4 Nov: "the new ones, at the zero damage, plus a new bonus ... that
+  // is also the price we'd sell our planes, except if a build contract is fixed price ... even the fixed price may be
+  // evaluated using the same method"):
+  //   zero     the ZERO-DAYS value: an airframe the day it left the shop, no damage = the ledger x `zeroK`
+  //   used     zero x econAgeFactor(age) x (1 - its deductions): the curve 1 at zero days, falling toward `floor` with
+  //            `tau` years (fitted on same-type new/used pairs, futureDesigns/price-study/age_curve.js, rms x1.12)
+  //   new      zero x (1 + `newBonus`): the first owner's premium, 25 % - the real market's nearly-new plane sells at
+  //            ~0.8 of new (the fit's step). zero x 1.25 = the ledger x makerMargin: the makers' catalogue is NEW
+  //   sale     the fleet card's Sell: the USED price at its age (`sellK` 1), never more than the player paid - a build in
+  //            a fitted hangar (0.8) is worth 0.92 at zero days, and without the cap building to sell would print money
+  //   build    a build contract's fixed price is evaluated the same way: the NEW price of the cheapest validated design
+  //            that meets it (tools/_price_check.js holds the authored bases to it)
+  // The used market draws its listings' ages inside `listAges` (step 2: age now costs performance, 60_ GEN_AGING, so
+  // the old planes are back: 1-40 years, their condition held to PROCURE_COND).
+  zeroK: 0.92, newBonus: 0.25,
+  age: { floor: 0.14, tau: 27.5, listAges: [1, 40], kgPerYear: 0.4, kgMax: 15, olderPerYear: 1 / 30,
          hoursPerYear: [50, 120], weatherAt: 40 },
-  sellK: 0.75,
+  sellK: 1,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
   round: 100,
   loanBelow: -20000,
@@ -141,31 +148,77 @@ function econPayScale() {
 }
 // an absolute money number of the tables (pay, a fee, a grant) at today's prices, rounded as the book rounds
 const econPay = v => econRound((+v || 0) * econPayScale());
-// THE AGE CURVE (PRICE-CAL): 1 new (age 0 or less), else s x (floor + (1 - floor) x e^(-age / tau))
+// THE AGE CURVE (PRICE-CAL): the used value over the zero-days value - 1 at zero days, floor + (1 - floor) e^(-age/tau)
 function econAgeFactor(age) {
-  const A = ECON_BOOK.age, a = +age;
-  if (!(a > 0)) return 1;
-  return A.s * (A.floor + (1 - A.floor) * Math.exp(-a / A.tau));
+  const A = ECON_BOOK.age, a = Math.max(0, +age || 0);
+  return A.floor + (1 - A.floor) * Math.exp(-a / A.tau);
 }
-// A PLANE'S VALUE: V0 (a catalogue price, or the ledger x the margin) x the age curve x (1 - the listing's deductions)
-// - { v0 } or { cost } , age (years), ded (0..1, the repair / older panel / extra kilos a listing carries)
+// the zero-days value of a ledger, and the NEW price (zero x (1 + newBonus) = the makers' catalogue)
+const econZeroValue = cost => (+cost || 0) * ECON_BOOK.zeroK;
+const econNewPrice = cost => econRound(econZeroValue(cost) * (1 + ECON_BOOK.newBonus));
+// A USED PLANE'S VALUE: the zero-days value (or { v0 }: a NEW price, its listing's catalogue, taken back to zero days)
+// x the age curve x (1 - the deductions: a repair, an older panel, the extra kilos) - { cost } | { v0 }, age, ded
 function econUsedValue(o) {
   o = o || {};
-  const v0 = o.v0 != null ? +o.v0 : (+o.cost || 0) * ECON_BOOK.makerMargin;
-  return econRound(v0 * econAgeFactor(o.age) * (1 - Math.max(0, Math.min(1, +o.ded || 0))));
+  const z = o.v0 != null ? +o.v0 / (1 + ECON_BOOK.newBonus) : econZeroValue(o.cost);
+  return econRound(z * econAgeFactor(o.age) * (1 - Math.max(0, Math.min(1, +o.ded || 0))));
 }
-// WHAT A FLEET AIRFRAME SELLS FOR (PRICE-CAL; nothing calls it a purchase yet - the fleet card can show it):
-// min(sellK x its value at its age, what the player paid for it). An airframe of the player's own making is a used
-// plane the moment it has flown (age 0+: the curve's `s`); a story airframe (paid 0) sells for nothing.
-// (doc, slot, cost: its ledger) -> { value, paid, cap, age }
+// WHAT A FLEET AIRFRAME SELLS FOR (the fleet card's Sell): min(sellK x its used value at its age, what the player paid)
+// - a story airframe (paid 0) sells for nothing. (doc, slot, cost: its ledger) -> { value, paid, cap, age, why }
+// `why` is the refusal when it cannot be sold now: the tutorial (until T6's route is signed - the user 4 Nov: "no sales
+// during the tuto, ends when we commit to the cub floats route"), a route flown on it, a story airframe, not ours
+function econSaleWhy(doc, slot) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!doc || doc.mode !== 'career' || !A) return 'not an airframe of the career';
+  if (typeof storyOf === 'function') {
+    const st = storyOf(doc);
+    if (st && !st.open && ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'].includes(st.beat)) return 'no sales during the tutorial';
+  }
+  if (typeof routeOfPlane === 'function' && routeOfPlane(doc, slot)) return 'it flies a route: end the route first';
+  if (A.from === 'story' || A.client) return 'a story aeroplane is not for sale';
+  if (!(+A.paid > 0)) return 'it cost you nothing: not for sale';
+  return '';
+}
 function econSaleValue(doc, slot, cost) {
   const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
-  if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0 };
-  const age = Math.max(1e-3, +A.age || 0);
-  const ded = Math.min(0.5, 0.08 * (+A.repairs || 0));
+  if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0, why: 'not an airframe of the career' };
+  const age = Math.max(0, +A.age || 0);
+  const ded = Math.min(0.5, 0.08 * (+A.repairs || 0) + (A.damage ? 0.1 : 0));
   const v = econRound(ECON_BOOK.sellK * econUsedValue({ v0: A.v0 != null ? A.v0 : null, cost, age, ded }));
   const paid = Math.max(0, Math.round(+A.paid || 0));
-  return { value: Math.min(v, paid), paid, cap: v > paid ? 'what it cost you' : '', age: +age.toFixed(2) };
+  return { value: Math.min(v, paid), paid, cap: v > paid ? 'what it cost you' : '', age: +age.toFixed(2), why: econSaleWhy(doc, slot) };
+}
+// WHAT A CLIENT PAYS FOR A DELIVERED AIRFRAME (PRICE-CAL; the user 4 Nov: "the new ones, at the zero damage, plus a new
+// bonus ... that is also the price we'd sell our planes, except if a build contract is fixed price"): its NEW price
+// (the zero-days value + the new bonus) when it is the player's own making (no age), else its USED value at its age (a
+// used plane bought cheap and handed over is not a new one). null when its ledger is not on record: the contract's
+// authored base stands (the offer's estimate). (A: a career.airframes row)
+function econDeliveredValue(A) {
+  if (!A) return null;
+  const cost = +A.cost > 0 ? +A.cost : (A.v0 != null ? +A.v0 / ECON_BOOK.makerMargin : 0);
+  if (!(cost > 0)) return null;
+  if (+A.age > 0) return econUsedValue({ cost, age: +A.age, ded: Math.min(0.5, 0.08 * (+A.repairs || 0)) });
+  return econNewPrice(cost);
+}
+// THE SALE (the fleet card's Sell): the airframe out of the fleet and out of career.airframes (74_ careerHandover's
+// canonical drop: playerFleetReconcile, its pilot freed), on record (career.sold, `how: 'market'`), the wallet credited
+// with its sale value, a `sale` ledger line (income). Refused (the same document) with econSaleWhy's reason.
+// (doc, slot, cost: its ledger) -> { ok, doc, why, value }
+function econSell(doc, slot, cost) {
+  const why = econSaleWhy(doc, slot);
+  if (why) return ecNo(doc, why);
+  const sv = econSaleValue(doc, slot, cost);
+  if (!(sv.value > 0)) return ecNo(doc, 'it is worth nothing on the market');
+  const d = ecClone(doc), c = d.career;
+  if (d.fleet && d.fleet[slot] && typeof playerFleetReconcile === 'function') {
+    const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== slot));
+    for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];
+  }
+  delete c.airframes[slot];
+  for (const p of Object.keys(c.pilots || {})) if (c.pilots[p] && c.pilots[p].plane === slot) c.pilots[p].plane = null;
+  c.sold = (Array.isArray(c.sold) ? c.sold : []).concat([{ slot, how: 'market', at: Math.round(d.clock || 0), pay: sv.value, cost: sv.paid }]);
+  playerCharge(d, -sv.value, 'sale', slot);
+  return { ok: true, doc: d, why: '', value: sv.value };
 }
 // A PILOT'S SIGN-ON FEE (PILOTS): one time, by tier ('rookie' | 'pilot' | 'ace'); unknown tiers cost a pilot's
 function econSignOn(tier) {
@@ -188,6 +241,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  sale: 'sale',                                     // PRICE-CAL: an airframe sold on the market (econSell): income
   story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
 };
@@ -217,7 +271,8 @@ function econMaterialise(doc, slot, cost, wants, opts) {
   if (!r.ok) return r;
   const C = r.doc.career;
   if (C && C.airframes && typeof C.airframes === 'object')
-    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
+    // (PRICE-CAL: `cost` its LEDGER - what a client pays for it delivered, and the market for it sold, read it)
+    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, cost: Math.round(+cost || 0), how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
       opts.podPaid > 0 ? { podPaid: Math.round(opts.podPaid) } : {});   // G3465: its belly pod is in that price (76_procure: not billed twice)
   return { ok: true, doc: r.doc, cost: price, why: '' };
 }

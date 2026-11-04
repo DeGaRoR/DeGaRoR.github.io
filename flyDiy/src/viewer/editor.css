@@ -946,6 +946,13 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
   font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }
 .gfHome:hover { border-color:var(--ed-acc); color:var(--ed-acc); }
+/* PRICE-CAL: the fleet card's Sell - the home button's look, wider for its word; greyed (with its reason) when it
+   cannot be sold now */
+.gfSell { flex:0 0 auto; padding:0 8px; background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
+  font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.03em; cursor:pointer; }
+.gfSell:hover:not(:disabled) { border-color:var(--ed-acc); color:var(--ed-acc); }
+.gfSell:disabled { opacity:.4; cursor:default; }
 
 .gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
   padding:8px 2px; }

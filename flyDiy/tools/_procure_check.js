@@ -324,7 +324,7 @@ function run(mut, extra) {
       ok(ids.includes(x.model) && validated.has(x.design), x.id + ': a validated model');
       const c = M.procureUsedCert(x);
       ok(M.contractCanDo(c, [{ do: 'land', to: x.aero }]).ok, x.id + ': flyable from ' + x.aero + ' (' + x.model + ' on ' + c.gear + ')');
-      ok(x.condition >= 0.4 && x.condition <= 0.8, x.id + ': condition ' + x.condition);
+      ok(x.condition >= M.PROCURE_COND[0] && x.condition <= M.PROCURE_COND[1], x.id + ': condition ' + x.condition + ' (PROCURE_COND)');
       ok(x.price === M.procureEconStub('used', { catalogue: x.catalogue, condition: x.condition }) && x.catalogue === M.procurePrice(x.model, x.opts).total, x.id + ': catalogue x condition');
       ok(x.kg >= 0 && x.kg <= 15 && x.hours > 0, x.id + ': 0-15 kg, its hours');
       const W = M.procureUsedWords(x);

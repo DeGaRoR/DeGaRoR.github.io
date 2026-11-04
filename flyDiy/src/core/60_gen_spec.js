@@ -2509,6 +2509,22 @@ const GEN_INTAKES = {
                                             { u: 0.50, w: 0.075, n: 6 }] },
 };
 
+// AGE COSTS PERFORMANCE (PRICE-CAL step 2, futureDesigns/PRICE-STUDY-2026-11.md §D; the user 4 Nov: "we'd need to
+// degrade performance too for it to make sense"). spec.aging = { years, engineHours } - written on a USED aeroplane by
+// the market (76_procure procureUsedSpec), absent on everything built: absent = 1 and 1, a build bit for bit as before.
+//   power  the engine's rated power x (1 - min(powerMax, engineHours x powerPerHour)): a tired engine loses
+//          compression - 1 % per 400 h since its overhaul, to 6 % (the overhaul's TBO ~2 000 h: ~5 % at TBO)
+//   drag   every zero-lift drag (the body's axial CdA and each flying surface's Cd0) x (1 + min(dragMax, years x
+//          dragPerYear)): the paint layers, the patched fabric, the rigging - 0.1 % a year, to 5 % at 50 years
+const GEN_AGING = { powerPerHour: 1 / 40000, powerMax: 0.06, dragPerYear: 0.001, dragMax: 0.05 };
+function genAgingOf(S) {
+  const A = S && S.aging;
+  if (!A || typeof A !== 'object') return { powerK: 1, dragK: 1 };
+  const h = Math.max(0, +A.engineHours || 0), y = Math.max(0, +A.years || 0);
+  return { powerK: 1 - Math.min(GEN_AGING.powerMax, h * GEN_AGING.powerPerHour),
+           dragK: 1 + Math.min(GEN_AGING.dragMax, y * GEN_AGING.dragPerYear) };
+}
+
 // Bought, not built: things with a price that does not follow from their mass.
 // Credits. Nothing is unaffordable yet — the ledger records, it does not gate.
 // PRICE-CAL 2026-11 (futureDesigns/PRICE-STUDY-2026-11.md): CREDITS ARE USD 2025-26 AT PARITY, the convention the panel
@@ -5994,7 +6010,9 @@ function resolveSpec(spec) {
   {
     const pr = S.prop;
     put(pr, 'D', PP ? PP.prop.D : 1.80, 'prop.D');
-    const P = PP ? PP.engine.powerW : 48500;
+    // (PRICE-CAL step 2: a used aeroplane's tired engine - GEN_AGING - makes less thrust; the powerplant row, its mass,
+    // its exhaust and its price are the engine's as rated. Absent spec.aging: x1, as before)
+    const P = (PP ? PP.engine.powerW : 48500) * genAgingOf(S).powerK;
     // AUTO (G159, the user: "I would like some automatic control... could the
     // setup of the prop be assisted?"). The pitch class is the one dial on the
     // propeller with a right answer that a builder cannot read off a slider,

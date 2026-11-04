@@ -180,7 +180,7 @@ function run(mut, opts) {
   ok(R0.doc.wallet === M.careerGrant() + allPay - R0.spent, 'the reference wallet = the grant + the pay - the purchases (' + R0.doc.wallet + ')');
 
   // ==== NO RUNNING COST ANYWHERE (G-COST) ===========================================
-  const allowed = new Set(['grant', 'contract', 'purchase', 'repair', 'loan']);
+  const allowed = new Set(['grant', 'contract', 'purchase', 'repair', 'loan', 'sale']);   // (PRICE-CAL: a sale is income, never a running cost)
   const ledgerOk = (doc, what) => {
     const badL = doc.ledger.filter(l => { const c = M.econLedgerClass(l.k); return !(allowed.has(c) || (l.k === 'recover' && l.amt === 0) || (l.k === 'release' && l.amt <= 0)); });
     return ok(!badL.length, what + ': the ledger holds only grant / contract / purchase / repair / loan lines' + (badL.length ? ' (not: ' + badL.map(l => l.k + ' ' + l.amt).join(', ') + ')' : ''));

@@ -570,7 +570,12 @@ function contractOnStop(doc, contract, stop, hooks) {
 // the done list (the completed count the generator reads), and the offers refreshed (the follow-up among them)
 function careerComplete(d, rec, live, medal, events) {
   const c = d.career, C = c.contracts;
-  const pay = contractPayTotal(rec, live.got, medal);
+  // PRICE-CAL: a build contract pays what the delivered airframe is worth to its client - its NEW price (76_economy
+  // econDeliveredValue: the zero-days value + the new bonus; a used one at its used value) - unless the contract is a
+  // FIXED price (rec.pay.fixed: its authored base, as before). Its ledger unknown: the authored base stands.
+  const A = live && live.slot && c.airframes ? c.airframes[live.slot] : null;
+  const dv = rec.kind === 'build' && !(rec.pay && rec.pay.fixed) && typeof econDeliveredValue === 'function' ? econDeliveredValue(A) : null;
+  const pay = contractPayTotal(rec, live.got, medal, dv);
   playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);   // G2260: the Trust's loan job writes a `loan` line
   const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
   P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
