@@ -153,7 +153,7 @@
         try { v = L && JSON.parse(L.getItem(PREF + key) || 'null'); } catch (e) {}
         const url = v && v.url || null; cache.set(key, url); return url;
       }
-      // the bake's pictures ('stock:<name>', 'cand:<file stem>', 'arch:<key>'): its index fetched once, on the first ask;
+      // the bake's pictures ('stock:<name>', 'cand:<file stem>', 'design:<id>', 'arch:<key>'): its index fetched once, on the first ask;
       // the cards hear 'plane-thumb' (key '*') when it lands and draw again
       if (api.baked == null) { loadBaked(); return null; }
       const f = api.baked[key];

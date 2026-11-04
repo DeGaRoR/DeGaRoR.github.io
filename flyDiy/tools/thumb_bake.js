@@ -5,25 +5,38 @@
 // left side orthographic, level on its gear as it stands) at 480 x 240 and written as 240 x 120 webp into
 // media/thumbs/, with media/thumbs/index.json { thumbs: { key: file } } - what PLANE_THUMB.get(key) serves. Keys:
 // 'stock:<name>' (GARAGE_SPEC.stock()'s names) and 'cand:<file>' (the candidate index's `file`, e.g.
-// 'cand:tigermoth_2026-10.json'). The player's own builds are drawn in the page (plane_thumb.js), never here.
-//   node tools/thumb_bake.js [--gpu] [--secs 600] [--only stock|cand] [--keep <dir>] [--dry]
+// 'cand:tigermoth_2026-10.json'), and 'design:<id>' (the Market's builds, CONTRACT_DESIGNS' own files with the twin's
+// floats patch; not the stock presets, they may not be the same aeroplane). The player's own builds are drawn in the
+// page (plane_thumb.js), never here.
+//   node tools/thumb_bake.js [--gpu] [--secs 600] [--only stock|cand|design] [--keep <dir>] [--dry]
 // One plane_shot boot (a box run: the GPU lock, a slot). Python 3 + Pillow (webp) does the resize. Exit 0 = every
-// candidate and at least one stock design has its picture.
+// candidate and at least one stock design has its picture; a missing Market build is named, the Market's rows keep their glyph.
 'use strict';
-const fs = require('fs'), path = require('path'), os = require('os'), { spawnSync } = require('child_process');
+const fs = require('fs'), path = require('path'), os = require('os'), vm = require('vm'), { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2), flag = k => argv.includes('--' + k), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.join(ROOT, 'media', 'thumbs'), VIEW = 'profile/0.9/480x240', SUFFIX = '_profile-0.9-480x240.png';
 const only = opt('only', '');
 const cands = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'candidates', 'index.json'), 'utf8')).planes.map(p => p.file);
+const want = k => !only || only === k;
+const designs = vm.runInNewContext('(' + fs.readFileSync(path.join(ROOT, 'src', 'core', '72_contract_data.js'), 'utf8').match(/const CONTRACT_DESIGNS = (\{[\s\S]*?\n\});/)[1] + ')');
+const designIds = want('design') ? Object.keys(designs) : [];
 const builds = [];
-if (only !== 'cand') builds.push('stock:*');
-if (only !== 'stock') for (const f of cands) builds.push(path.join(ROOT, 'builds', 'candidates', f));
+if (want('stock')) builds.push('stock:*');
+if (want('cand')) for (const f of cands) builds.push(path.join(ROOT, 'builds', 'candidates', f));
 const tmp = opt('keep', null) || fs.mkdtempSync(path.join(os.tmpdir(), 'thumb_bake_'));
 fs.mkdirSync(tmp, { recursive: true });
+// the Market's builds, last (a run out of time loses these first): each file's spec as procureBaseSpec makes it, the floats patch applied
+for (const id of designIds) {
+  const D = designs[id], t = JSON.parse(fs.readFileSync(path.join(ROOT, D.build), 'utf8')), s = t.spec || t;
+  if (D.patch === 'floats') { s.gear = Object.assign({}, s.gear, { type: 'floats' }); s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); }
+  const f = path.join(tmp, 'design_' + id + '.json');
+  fs.writeFileSync(f, JSON.stringify({ what: 'flydiy-build', design: id, spec: s }));
+  builds.push(f);
+}
 const args = [path.join(__dirname, 'plane_shot.js'), '--views', VIEW, '--out', tmp, '--secs', opt('secs', '600'), '--build', builds.join(',')];
 if (flag('gpu')) args.push('--gpu');
-console.log('thumb_bake: ' + builds.length + ' entries (' + (only || 'stock + cand') + ') -> ' + tmp);
+console.log('thumb_bake: ' + builds.length + ' entries (' + (only || 'stock + cand + design') + ') -> ' + tmp);
 if (flag('dry')) { console.log('node ' + args.map(a => /[\s,]/.test(a) ? JSON.stringify(a) : a).join(' ')); process.exit(0); }
 const r = spawnSync(process.execPath, args, { stdio: 'inherit' });
 // what came out: <base>_profile-0.9-480x240.png, base = the candidate's file name, or stock_<slug> for a stock design
@@ -35,6 +48,7 @@ for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   let key = null, file = null;
   const cand = cands.find(c => c.replace(/\.json$/i, '') === base);
   if (cand) { key = 'cand:' + cand; file = 'cand_' + base + '.webp'; }
+  else if (/^design_/.test(base) && designs[base.slice(7)]) { key = 'design:' + base.slice(7); file = base + '.webp'; }
   else if (/^stock_/.test(base)) {
     let nm = null; try { nm = JSON.parse(fs.readFileSync(path.join(tmp, base + '.json'), 'utf8')).stock; } catch (e) {}
     if (nm) { key = 'stock:' + nm; file = base + '.webp'; }
@@ -49,8 +63,8 @@ fs.writeFileSync(py, 'import sys, json\nfrom PIL import Image\nfor a, b in json.
 fs.writeFileSync(jf, JSON.stringify(jobs));
 const p = jobs.length ? spawnSync('python', ['-I', py, jf], { stdio: 'inherit' }) : { status: 1 };
 if (p.status === 0) fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index, null, 1) + '\n');
-const keys = Object.keys(index.thumbs), gotStock = keys.filter(k => k.startsWith('stock:')).length;
-const missing = only === 'stock' ? [] : cands.filter(c => !index.thumbs['cand:' + c]);
-console.log('thumb_bake: ' + gotStock + ' stock + ' + (keys.length - gotStock) + ' candidate pictures -> ' + OUT +
-  (missing.length ? ' | MISSING ' + missing.join(', ') : '') + ' | plane_shot exit ' + r.status + ', resize exit ' + p.status);
-process.exit(r.status === 0 && p.status === 0 && !missing.length && (only === 'cand' || gotStock > 0) ? 0 : 1);
+const keys = Object.keys(index.thumbs), gotStock = keys.filter(k => k.startsWith('stock:')).length, gotDesign = keys.filter(k => k.startsWith('design:')).length;
+const missing = want('cand') ? cands.filter(c => !index.thumbs['cand:' + c]) : [], noDesign = designIds.filter(id => !index.thumbs['design:' + id]);
+console.log('thumb_bake: ' + gotStock + ' stock + ' + (keys.length - gotStock - gotDesign) + ' candidate + ' + gotDesign + ' market pictures -> ' + OUT +
+  (missing.length ? ' | MISSING ' + missing.join(', ') : '') + (noDesign.length ? ' | NO MARKET PICTURE ' + noDesign.join(', ') : '') + ' | plane_shot exit ' + r.status + ', resize exit ' + p.status);
+process.exit(r.status === 0 && p.status === 0 && !missing.length && (!want('stock') || gotStock > 0) ? 0 : 1);
