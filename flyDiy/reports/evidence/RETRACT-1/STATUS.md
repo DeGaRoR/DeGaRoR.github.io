@@ -75,3 +75,26 @@ floats/student STOPPED 8edce1408883
 - **Stills (quickshot, the wells drawn as edges):**
   - `g3_wells_born_*`: as born, the mains' two wells overlapping under the belly, the nose's forward, red;
   - `g3_wells_widetrack_*`: a 3.2 m track, stowed, the wells under the wing roots.
+
+## G4 - the wells cut into the fuselage (2026-11-04)
+
+- **The outline row** `gearWellCut`: exact (the swept unit's plan hull, the default) or box (a rounded rectangle, the
+  fallback). The knife cut is exact either way.
+- **Headless** (the T-tail tourer as born, stowed): two cuts, the mains' merged one and the nose's. One closed loop
+  each (64 and 34 points), a flat ceiling, vertical walls (section `wheelWell`), and 477 interior faces (frames,
+  liners, bulkheads) carved out of the wells. About 100 ms in node. The box option holds the exact hull and cuts as
+  cleanly. A 3.2 m track cuts the nose alone (its mains stow in the wing: G5). A 0.6 fraction and a fixed gear cut
+  nothing.
+- **In the editor** (index.html, the phone-profile garage under SwiftShader, Playwright, the imported retract build):
+  - the drawn fuselage wears both cuts (one mesh with `wheelWell`), 74-170 ms a cut on this box;
+  - the box option swaps in (20-point outlines) and back;
+  - with the capture's hold on, the eye sheet stands and wears the wells;
+  - the roll-out snapshot carries a `wheelWell` material (the flown visual has the wells);
+  - no page error.
+- **GATE RETRACT:** §13 added; the run's result is recorded below when it ends.
+- **Stills (quickshot, stowed, the reserved boxes off):**
+  - `g4_born_exact_qb.png`, `g4_born_exact_bottom.png`: as born, the exact outline;
+  - `g4_born_box_qb.png`: as born, the box outline;
+  - `g4_widetrack_nose_bottom.png`: a 3.2 m track, the nose well alone (the mains hang under the wing until G5).
+- **Known, next:** on a low wing the wing layer's centre section still crosses a mains well (G5 cuts the wing); the
+  doors are G6's; CLIP's sweep of the travel can come now for the body.

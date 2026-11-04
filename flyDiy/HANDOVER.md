@@ -311226,3 +311226,8 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
   frame's body x); 60c genBayWellL - a body bay / the first plane's wing bay gives up the wells' litres (no wells: to the
   bit); _cage_energy judgeAll - a tank meeting a well is red ('the retracted gear's well'). CLIP's sweep waits for the cuts.
   GATE RETRACT §12. The study's §8.9.
+- RETRACT G4 (2026-11-04): THE WELLS CUT - CAGE_GEAR.cuts (the swept unit's points inside the body: plan hull (exact) or
+  rounded box (row gearWellCut, the fallback), 30 mm clear, flat ceiling; meeting wells merged); _knife_gen knifeCut from
+  below (frame/outline/ceil: a box recess), knifeWells (section wheelWell) + knifeCarve (frames/liners out of the well);
+  _cage_ui wellApply cuts the DRAWN fuselage and the eye sheet after the chain (never MS; drag ticks keep the last cut);
+  quickshot cuts them (bottom/qb, --nowells, --noedges). GATE RETRACT §13. The study's §8.10.
