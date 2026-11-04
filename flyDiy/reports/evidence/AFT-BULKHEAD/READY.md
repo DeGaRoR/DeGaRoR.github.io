@@ -28,7 +28,7 @@ New rows on the garage's aft wall group. Every one is absent at default, so a bu
   SURF, EDBUGS (40 rows, 0 red), SHOULDER, PANEL, DASH, LIVERYREACH, DMGWALL, MATLIB.
 - **LIVERY FAIL, CLIP FAIL: both red on master adc53b25b as well** (run in the 10:55 slot).
   - CLIP, verbatim, same row: `stock+ifr/rest: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm)`.
-  - LIVERY: `garageFloodArm is not defined` in its rig when read on e6bcfb368. On adc53b25b only the FAIL was read, not the text.
+  - LIVERY, verbatim, same on both: `cage editor seed: ReferenceError: garageFloodArm is not defined` (its rig).
 - The 22 probe builds: 0 vertices of bulkhead, bulkTrim or baggage outside the skin. The probe does not test the screw heads.
 
 ## Identity and FRAMECOST, A0's slot 10:55, gpu lock CABININT
