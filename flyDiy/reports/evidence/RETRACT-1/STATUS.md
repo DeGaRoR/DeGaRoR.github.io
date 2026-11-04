@@ -31,3 +31,15 @@ floats/student STOPPED 8edce1408883
   (`run_gates.js --all`) is A0's to run on the box.
 - **Pictures:** `ttail_gear{1,0.5,0}_{front,side,q}.png`, the T-tail tourer drawn by `tools/quickshot.js --gear`
   (no game, no browser).
+
+## G1 - the fold (2026-11-04, merged with master L30d 05f95aa76)
+
+- **GATE RETRACT:** PASS, §10 included. The fold's semantics, the mirror, the fraction, the preview, the join's lift
+  and fraction, the certificate strip, and a partial gear's downwind between the two (50.22 < 50.46 < 51.06 m/s).
+- **Fixed builds bit-identical to master L30d's core:** 12 of 12, the same hashes as above.
+- **Gates green after the merge:** VIEW, PARTS, DESIGN, JOIN, STARTER, UISMOKE, SPECFIX, GEAR, INPUT, AUDIO, PILOTS.
+- **STOL:** red here and identically on master L30d (the six builds' join comparison against the 0fa773687 baseline and
+  the chinook card - A0's re-capture owed since the tank fit). Not this chantier's.
+- **Stills (quickshot `--gear`, the T-tail tourer):**
+  - `g1_folds_half_front.png`, `g1_folds_half_side.png`: the five mains folds half-way;
+  - `g1_folds_up.png`: aft-flat and twist-and-tuck stowed, and inward at fraction 0.6.
