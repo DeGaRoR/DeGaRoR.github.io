@@ -1055,6 +1055,7 @@ physics.
 | G2 | The red sliders: the swept volume per unit (sampled turns + the wheel's cylinder and the leg's capsules); the four tests; the rows that turn red | 2-3 |
 | G3 | The reservation (§8.3) | 2 |
 | G4 | The body cut: the knife from below, the well's walls and ceiling; `fitted` and `box` | 2-3 |
+| GM | THE MECHANISM (added 4 Nov after G4, §8.11): the trunnion inside the structure, the leg an oleo, the brace and the actuator modelled and animated, one kinematics for the editor, quickshot and the flight (WYSIWYG) | 5-7 |
 | G5 | The wing cut: the knife on the wing loft's lower skin, in the rib/spar field, the flex binding kept | 3-4 |
 | G6 | Doors: the leg door and the well doors from the cut, the door sequence | 3 |
 | G7 | The amphibian on the same units (§3.2's physics + the two float presets + the float well) | 7 |
@@ -1243,3 +1244,67 @@ cut is always exact (the knife); the OUTLINE it cuts is the row's choice.
   - The well does not yet open and close: the doors are G6's (a part of the cut on the leg, a part a well door).
   - GATE CLIP's sweep of the travel: next, now that the body has its wells (the wing's after G5).
 - **GATE RETRACT §13** holds it (see its header).
+
+### 8.11 GM - THE MECHANISM (the user, 4 Nov, after G4)
+
+The user, on G4's stills: "you did not animate the full mechanism, so the whole assembly rotates, instead of activating
+through a piston. You did not model the rotation points which should probably be put further into the fuselage. We
+should have a proper 3D model and animation of these retractable gears before we go further. WYSIWYG." And: "you
+should do G5 anyways, that's probably the cause of the yellow bars through. But you did not have a phase for correct
+modeling and animation of the landing gear, so that one should be done." GM comes before G5.
+
+**What G1-G4 drew** (measured on the T-tail tourer, headless):
+- The pivot was the fixed gear's root on the SKIN: the mains' pads on the wing's lower skin at |x| 0.70 (the circled
+  brackets, left behind as the leg swings) and the nose's plate under the belly. Nothing turns about a pin inside the
+  structure.
+- The whole leg group turns rigidly about that point: a spring-steel BLADE (the card's mains, s1Leg 0) swings bent into
+  the belly. No real aeroplane retracts a blade.
+- No brace, no actuator: nothing drives the leg or locks it down.
+- Two belly fittings sit inside the new wells: the transponder aerial in the mains' (the red fin) and the fuel drain in
+  the nose's.
+
+**The phase** (each step shipped with its stills, its gate rows and its browser check):
+
+- **GM1 - the trunnion and the leg.**
+  - A retracting leg is an OLEO (blade and bungee V are not offered with the retraction; the join's suspension is
+    'oleo': the physics follows the drawn leg).
+  - The PIVOT moves into the structure. Mains on a low wing: up inside the wing at the spar's line, at mid-depth. Nose:
+    inside the fuselage, above the well's ceiling line and below the floor, on a frame.
+  - The oleo runs from the trunnion through the well's opening to the axle. The trunnion is a cross-pin in two
+    bearing blocks bolted to the spar or the frame (static); the leg's yoke turns on it. No skin pad.
+  - The fold's hinge is the trunnion's point; the inward/outward turn's axis is the pin's.
+  - The access fittings are kept out of the wells (the aerial and the drain move to the nearest clear belly).
+- **GM2 - the actuation.** Per unit:
+  - a folding BRACE: a side brace for an inward/outward fold, a drag brace for an aft/forward one. Two links and a knee,
+    from a pivot on the structure to a pivot on the leg; over-centre (locked) down; folding as the leg swings.
+  - the ACTUATOR, by the actuation row:
+    - hydraulic: a cylinder and its chrome rod;
+    - electric: a motor and screw jack;
+    - manual: the Johnson bar's push-pull rod.
+
+    It runs from a structure pivot to a horn on the leg above the trunnion; its stroke and closed length are checked
+    (a real cylinder cannot extend past about twice its closed length).
+  - the wheel's TWIST (aft-flat, twist-and-tuck) turned by a link.
+- **GM3 - one kinematics** (WYSIWYG). Each mechanism part carries one of three rules:
+  - RIGID with the leg (the leg, the wheel, the yoke);
+  - AIMED between two moving points (the cylinder's body from its base pivot, its rod from the horn: they slide in
+    each other);
+  - the two-link KNEE (the brace, solved in its plane).
+
+  One pure function in the core poses every part from the gear position g, read by:
+  - the editor's preview row;
+  - quickshot `--gear`;
+  - the flown aeroplane (the snapshot carries the parts and their rules; app.js poses them with the same function,
+    replacing the rigid swing).
+- **GM4 - the proof.** GATE RETRACT §14:
+  - the trunnion inside the structure;
+  - the links' lengths constant over the whole fold (to 1e-6);
+  - the brace over-centre down;
+  - the actuator within its stroke, never inverted;
+  - every mechanism part, at every g, inside the skin or in the well's opening;
+  - the editor's pose equal to the flight's.
+
+  Also stills at g = 1, 0.66, 0.33, 0, and the browser rig in the garage and in flight.
+
+The yellow bars through the stowed mains (the wing's centre section running through the well on a low wing) are G5's,
+which follows GM. G6's doors then hang on GM's parts (the leg door rides the leg; the well doors on their own hinges).
