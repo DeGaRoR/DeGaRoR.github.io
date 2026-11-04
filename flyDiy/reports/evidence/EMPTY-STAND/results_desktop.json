@@ -1,0 +1,955 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "args": [
+  "--only",
+  "desktop"
+ ],
+ "url": "gfx=laptop&tutor=0",
+ "profiles": {
+  "desktop": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "an aeroplane on the stand (FLYDIY_STORE.onStand())",
+       "got": "Rufus"
+      },
+      {
+       "ok": true,
+       "what": "no empty state (body.gEmpty off, no #gEmptyCard)",
+       "got": {
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "a second owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME HOME planes=[]",
+        "w1 w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": false,
+       "what": "the first-launch chooser (#npWrap) stays shut on a story career (design_flow.js maybeAutoOpen)",
+       "got": {
+        "npWrap": true,
+        "open": true,
+        "starterFlag": "Rufus",
+        "wipKey": true,
+        "rig": false,
+        "webdriver": false
+       }
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "story": {
+       "beat": "T0",
+       "cabin": {
+        "aero": "w1",
+        "hangar": "w1"
+       },
+       "planes": {
+        "starter": "Rufus",
+        "client": "Client Cub",
+        "gift": null
+       }
+      },
+      "chooserAtStart": {
+       "npWrap": true,
+       "open": true,
+       "starterFlag": "Rufus",
+       "wipKey": true,
+       "rig": false,
+       "webdriver": false
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      },
+      "chooserAfterCancel": {
+       "open": false,
+       "onStand": "Rufus"
+      },
+      "stateAfterCancel": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is HOME after Go there",
+       "got": "HOME"
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        470,
+        96,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin w1\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ]
+     }
+    },
+    "3": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the card moved with the drag (~ -360, +180)",
+       "got": {
+        "before": [
+         470,
+         96,
+         340,
+         222
+        ],
+        "after": [
+         110,
+         276,
+         340,
+         222
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "the card stays where it was dropped (5 s later)",
+       "got": {
+        "after": [
+         110,
+         276,
+         340,
+         222
+        ],
+        "later": [
+         110,
+         276,
+         340,
+         222
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "still empty after the drag",
+       "got": {
+        "gEmpty": true,
+        "onStand": null
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin w1\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "boxes": {
+       "before": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "afterDrag": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "fiveSecondsLater": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardPos": {
+        "emptyStand": {
+         "x": 110,
+         "y": 276,
+         "w": 340
+        }
+       }
+      }
+     }
+    },
+    "4": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the card lists a plane of yours with Bring here",
+       "got": [
+        "Client Cub",
+        "Rufus"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Bring here: Rufus on the stand (FLYDIY_STORE.onStand())",
+       "got": "Rufus"
+      },
+      {
+       "ok": true,
+       "what": "the empty state ended (body.gEmpty off, card hidden)",
+       "got": {
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "Roll out back",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "bringButtons": [
+       "Client Cub",
+       "Rufus"
+      ],
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "HOME",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": "",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       }
+      ],
+      "cardWhy": null
+     }
+    },
+    "5": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for w1",
+       "got": {
+        "hidden": false,
+        "text": "Go to the field shed at Cabin Strip?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is w1 after Go there",
+       "got": "w1"
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        110,
+        276,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error (the trip)",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "New aeroplane opens the chooser (#npWrap)",
+       "got": {
+        "hidden": false,
+        "text": "NEW AEROPLANE\ncancel\nChoose the main things - the size, the engines, the wing, the gear, the tail, the cabin, what it is made of and its colour. Nothing is built until you press generate; then you are in the editor with every slider.\nDesign a new aeroplane\nfourteen short choices, then one build\nSurp",
+        "npOpen": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "Escape closes the chooser, the stand still empty, the card back",
+       "got": {
+        "closed": true,
+        "gEmpty": true,
+        "card": true,
+        "onStand": null
+       }
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the field shed at Cabin Strip?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "stateEmptyAgain": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin HOME\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "cardBoxAfterTrip": [
+       110,
+       276,
+       340,
+       222
+      ],
+      "chooser": {
+       "hidden": false,
+       "text": "NEW AEROPLANE\ncancel\nChoose the main things - the size, the engines, the wing, the gear, the tail, the cabin, what it is made of and its colour. Nothing is built until you press generate; then you are in the editor with every slider.\nDesign a new aeroplane\nfourteen short choices, then one build\nSurp",
+       "npOpen": true
+      },
+      "afterChooserEscape": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin HOME\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "chooserClosed": true
+     }
+    },
+    "6": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "Buy one opens the map on its Market list",
+       "got": {
+        "open": true,
+        "list": "market",
+        "title": "Market",
+        "selected": [
+         "Market"
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      },
+      {
+       "ok": true,
+       "what": "the map closed: the stand still empty, the card back",
+       "got": {
+        "gEmpty": true,
+        "card": true,
+        "onStand": null
+       }
+      }
+     ],
+     "prints": {
+      "map": {
+       "open": true,
+       "list": "market",
+       "title": "Market",
+       "selected": [
+        "Market"
+       ]
+      },
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin HOME\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "afterMapClosed": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin HOME\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    },
+    "7": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        110,
+        276,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "after the reload: still empty in w1",
+       "got": {
+        "here": "w1",
+        "pref": "w1"
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "continue",
+         "career",
+         "careers",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nClient Cub\nout at HOME\nBRING HERE\nRufus\nin HOME\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "cardBoxBeforeReload": [
+       110,
+       276,
+       340,
+       222
+      ]
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "desktop_1a_chooser_at_start.jpg",
+     "what": "FINDING: the New aeroplane chooser up by itself over the story's first hangar (before its cancel)"
+    },
+    {
+     "step": "1",
+     "file": "desktop_1_before.jpg",
+     "what": "before: the career's first hangar (the field shed at Cabin Strip), its aeroplane Rufus on the stand"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2x_map_go_row.jpg",
+     "what": "the map's Go row for HOME (before Go there)"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2_empty_stand.jpg",
+     "what": "the map's Go to the main hangar at Jolene AFB 13/31: the stand empty, #gEmptyCard, no Roll out"
+    },
+    {
+     "step": "3",
+     "file": "desktop_3_card_dragged.jpg",
+     "what": "the card dragged down-left by its body (it moved and stays)"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4_brought_here.jpg",
+     "what": "Bring here: Rufus on the main hangar at Jolene AFB 13/31's stand, the empty state over"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5x_map_go_row.jpg",
+     "what": "the map's Go row for w1 (before Go there)"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5a_empty_again.jpg",
+     "what": "back to the field shed at Cabin Strip (its plane now at the main hangar at Jolene AFB 13/31): the stand empty again"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5b_new_aeroplane_chooser.jpg",
+     "what": "the card's New aeroplane: the full-screen chooser"
+    },
+    {
+     "step": "6",
+     "file": "desktop_6_buy_one_market.jpg",
+     "what": "the card's Buy one: the map's Market"
+    },
+    {
+     "step": "7",
+     "file": "desktop_7_reload_still_empty.jpg",
+     "what": "a reload (Continue) while empty: still empty, the card back"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    {
+     "step": "1",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "5",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "7",
+     "text": "dialog beforeunload: "
+    },
+    {
+     "step": "7",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    }
+   ]
+  }
+ }
+}
