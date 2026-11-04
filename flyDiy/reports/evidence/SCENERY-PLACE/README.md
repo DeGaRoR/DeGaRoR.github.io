@@ -102,6 +102,8 @@ not hide. The water is dark because the software rung draws no sky probe (G1460)
 | cabinlake_camp_above.jpg | the camp from above (taken with the six people at the fire, since withdrawn; the tents stand where they stood then) |
 | quarry_pilot.jpg / _above.jpg | the quarry floor: excavator, loader facing it, skid steer, the rusty loader by the workshop, the wreck to the W |
 | mine_sign_BEFORE_master_*.jpg, mine_sign_AFTER_pilot.jpg | section 3 |
+| afb_f104_above.jpg | the F-104 at (-442.1, -73.9), parked along 13/31, in its 12 m clearing |
+| afb_f104_runway.jpg | 13/31 from 45 m over its NW part, looking SE: the jet is hidden behind the belt of trees on the left (it stands 130 m from the centreline, the trees begin ~60-80 m out) |
 
 Not pictured: the gardens' tractors (the software rung composes the town-off variant, which drops every `mk_` entry; the
-tractors go with the town by design) and the F-104 at its new spot (moved after the stills; the user said stop).
+tractors go with the town by design) (the F-104 at its new spot was taken on 4 Nov: below).
