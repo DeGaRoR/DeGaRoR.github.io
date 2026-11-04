@@ -89,16 +89,17 @@ const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaFloa
   // bow (noseLen, a shared row), and what the Undercarriage tile's Hull option writes (_cage_design.js gearLayout 'hull')
   sp.gear = Object.assign({}, sp.gear, { type: 'hull' }); delete sp.gear.floats;
   sp.cage = Object.assign({}, sp.cage, { engMount: 2, wgPos: 0, cowlOn: 0, cw_aftMode: 1, cw_tailLen: 1.0, aeroAftOn: 1,
+    engPylonH: 1.0,   // G3912: the pylon tall enough that the Cessna's 2.06 m propeller clears the cabin (the layer's prop check)
     noseFinish: 1, noseLen: 1.3, cowlLoops: 4, noseTip: 0.98, noseDroop: 0.10, cowlEase: 0.62, cowlBulge: 1.06,
     s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3 });
 }
 // THE TILE'S FIT (cageHullFit, what its `after` writes off the flown CG): the step by the 12-deg rule, the afterbody
 // keel onto a 7-deg run - two passes, as the page's CG handshake settles it (the step moves the CG by grams)
 const cgOf = sp2 => { const d = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(sp2)))); let m = 0, x = 0, y = 0; for (const n of d.nodes) { m += n.m; x += n.m * n.p[0]; y += n.m * n.p[1]; } return [x / m, y / m]; };
-let spec = null, fitRows = null;
+let spec = null, fitRows = null, joinErrs = [];
 for (let pass = 0; pass < 3; pass++) {
-  const got = LB.gameSpec(JSON.parse(JSON.stringify(raw)));
-  spec = got && got.spec ? got.spec : got;
+  const got = LB.gameSpecFull(JSON.parse(JSON.stringify(raw)));
+  spec = got.spec; joinErrs = got.errors || [];
   if (pass === 2) break;
   const [cx, cy] = cgOf(spec);
   const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -123,6 +124,8 @@ const X0 = 0, Z0 = 1600, h = world.waterH(X0, Z0);
   console.log(`   ${def.nodes.length} nodes, gross ${f(M, 1)} kg; the hull: ${hr ? hr.sta.length : 0} measured stations, L ${f(F0 && F0.P.L, 2)} m, beam ${f(F0 && F0.P.B, 2)} m, ` +
               `deadrise ${f(F0 && F0.P.beta, 1)} / ${f(F0 && F0.P.betaA, 1)} deg, step ${f(F0 && F0.P.hs, 3)} m at x ${f(hr && hr.x, 2)} aft of the firewall; displaces ${f(disp, 0)} kg to the gunwale (${f(disp / M, 2)} x gross)`);
   verdict(spec.gear.type === 'hull' && !!hr, `the join measured the hull (gear.type ${spec.gear.type}, ${hr ? hr.sta.length : 0} stations)`);
+  // G3912: the build the gate flies is the one the garage draws - no join error (an engine flown and not drawn was one)
+  verdict(!joinErrs.length, `the join files no error (${joinErrs.length ? joinErrs.join(' | ') : 'none'})`);
   verdict(fl && fl[0].side === 0 && fl[0].hull === true && fl.filter(x => x.hull).length === 1 && fl.filter(x => x.tip).length === 2 && cl.length === 3, `one centreline hull record and two strut tip floats (${fl ? fl.length : 0} water records, ${cl.length} rigid clusters)`);
   // drawn = flown: the water's sections at the table's own stations are the table's rows
   let worst = 0;

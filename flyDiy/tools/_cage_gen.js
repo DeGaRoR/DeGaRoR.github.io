@@ -1107,19 +1107,27 @@ function cageHullVee(H, HF, lv, rise) {
   const k = lv.keel;
   if (!k) return;
   const w = lv.waist, f = lv.floor;
-  const crown = Math.min(k.yC != null ? k.yC : k.y, k.y) + (rise || 0);
   const tb = Math.tan(cageHullBeta(H, HF, k.z) * Math.PI / 180);
-  let yCh = Math.max(k.y + (rise || 0), crown + Math.abs(k.x) * tb);
-  // the chine stays under the gunwale: a small section (the tail cone) keeps a side above its V
-  if (w) yCh = Math.min(yCh, crown + 0.7 * Math.max(0, w.y - crown));
+  // the V as it stands without the step (crown0, chine0), then the step's rise on the bottom alone
+  const crown0 = Math.min(k.yC != null ? k.yC : k.y, k.y);
+  const chineOf = (cr, ky) => {
+    let y = Math.max(ky, cr + Math.abs(k.x) * tb);
+    // the chine stays under the gunwale: a small section (the tail cone) keeps a side above its V
+    if (w) y = Math.min(y, cr + 0.7 * Math.max(0, w.y - cr));
+    return y;
+  };
+  const yCh0 = chineOf(crown0, k.y);
+  const crown = crown0 + (rise || 0), yCh = chineOf(crown, k.y + (rise || 0));
   if (k.zC == null) k.zC = k.z;
   k.yC = crown;
   k.y = yCh;
   if (f && w) {
-    // the topsides: the floor on the chine->gunwale line, a quarter of the way up at least
-    const fy = Math.max(f.y + (rise || 0), yCh + 0.25 * Math.max(0, w.y - yCh));
-    const t = (w.y - yCh) > 1e-6 ? Math.min(1, (fy - yCh) / (w.y - yCh)) : 0;
-    f.y = Math.min(fy, w.y);
+    // THE TOPSIDES DO NOT STEP (HULL-B4, the wireframe review): the floor sits on the UN-STEPPED chine->gunwale line,
+    // a quarter of the way up at least, so the step's two rings carry the same floor point and the step face ends
+    // at the chine - only the bottom steps (the first cut raised the floor with the keel: the step climbed the side)
+    const fy = Math.max(f.y, yCh0 + 0.25 * Math.max(0, w.y - yCh0));
+    const t = (w.y - yCh0) > 1e-6 ? Math.min(1, (fy - yCh0) / (w.y - yCh0)) : 0;
+    f.y = Math.min(Math.max(fy, yCh + 0.02 * Math.max(0, w.y - yCh)), w.y);
     f.x = k.x + (w.x - k.x) * t;
   }
 }

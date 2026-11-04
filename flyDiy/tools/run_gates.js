@@ -1177,6 +1177,9 @@ const GATES = [
   // (centreline: no yaw; the twin fixture the control), the three certify (bench to the ultimate HELD), the join and
   // the design tiles. Flights and certificates in parallel children (~3-4 min at --jobs=4).
   { id: 'ENGCONFIG', file: '_engconfig_check.js', tier: 'core', wall: 240 },
+  // G3912: THE OVER-THE-WING ENGINE IS DRAWN WHERE IT FLIES on every wing centre a cabin wears (the user's Cessna:
+  // a removed centre drew none and filed "not drawn" where no gate looked) - through the game's load chain (~70 s)
+  { id: 'ENGDRAWN', file: '_engdrawn_check.js', tier: 'core', wall: 90 },
   // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
