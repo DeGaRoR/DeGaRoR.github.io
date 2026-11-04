@@ -311178,3 +311178,101 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
 Why: STORY-HOME-LOOK F9 (claude/story-home-look 3e2004ca): day_clock.js logs "the saved day was not readable" on career boots. Cause (G2650 SIM-CLOCK's career keep, not TIME-CONTROLS): in the career, save() keeps the sandbox's own instant from the pref (read() || {}). On a profile with no sandbox day yet that keep is {}, so the pref is written with the weather and NO date/utc. The next read() (the next save, every 30 s, or the next boot) took that for a broken day (G2630's guard), warned, and returned null: the saved weather was dropped along with it.
 What changed: day_clock.js read(): G2630's guard applies to a pref that HAS an instant (a date or a utc) that is not readable. A pref with neither is the weather alone and is read as it is (bind already falls back to the game's day when there is no date and keeps the weather). GATE CLOCK: a fresh career's saves write the weather alone, read with no warning; a sandbox boot on that pref gets a new player's instant and the saved weather. With master's day_clock.js that row is red with the F9 warning.
 Gates: CLOCK DAY HONESTY CLIMATE MEDIA HANGAR NIGHTVISIBILITY SIMWORKER BUILT (node); UISMOKE + CLOUD (they read day_clock.js) are left to the train's battery.
+
+## SCENERY-PLACE - EVERY BUILT-BUT-UNPLACED OCTOBER SCENERY ASSET STOOD ON JOLENE: THE TWO HYDRO POWERHOUSES, THE TENTS, THE CONSTRUCTION MACHINES, THE SCENERY KIT (2026-11-03, cloud, for A0; claude/ready/scenery-place off origin/master adb2d2a9 = L30b)
+
+The user, 3 Nov via A0: "I know I said wait, but actually, you should go ahead and place all the new scenery we have." Scenery
+only: no plot, garage, shed or owner moved; the record's rev stays 23; no src/ file but the map pack (map_bake.js's).
+Evidence: reports/evidence/SCENERY-PLACE/README.md (the inventory, the placement table, the gates, the stills).
+
+**WHAT WENT WHERE** (tools/fixtures/island_jolene.json; every record written as the fixture's own are):
+- THE HYDRO POWERHOUSES (G2909, key utility/hydro powerhouse), each a site with its tree-clear exclude r 30 m (`<id>_clear`,
+  as s_vor_ann_clear), the generator's +z (the riprap side) toward the road and the water, its yard at -x:
+  - hy_s_upper "Island Power - Upper Lake hydro" AT Purple Lake's point (-174.7, -5780.2), at.yaw 2.1434, P {riprap 2.5}
+    (25 x 10 default). Its foot runs 6.2..15.6 m (a cut into the hillside: the shelf's bank law widens the cut); r25 unmoved.
+  - hy_s_bayside "Island Power - Bayside hydro" 6.4 m off Chester Lake's candidate A (-1135.9, -8315.4), at.yaw 0.8476,
+    P {hL 12, hW 10, riprap 2.5, yardL 7, yardW 6} (the aerial's 10 x 12 m roof). Why not ON A: the user's boat yard now
+    stands there (o13-o17, five boats 7-14 m from the point, on a19's gravel); candidate B is the user's marine supply (s22).
+    5.7 m NE along r1 and 3 m back from it clears the boats, the road (3.2 m off its pavement) and s22.
+  - GATE NAVAID 5 now holds them: each within 5 / 10 m of its point, its clear present (~30 m).
+- THE PENSTOCK WORKS beside Upper Lake: hy_t_works (a flatten, abs 9.5, falloff 6) + hy_t_works_clear, machine_crane and
+  machine_backhoe on it.
+- THE QUARRY (mk_x_quarry's floor, 39.6 m, by the workshop s34): machine_excavator, machine_loader (facing it),
+  machine_skidsteer, machine_loader_rusty, and the scenery kit's loader_wreck in the corner. ids qy_o_*.
+- THE COMMUNITY GARDENS (mk_gardens_shed): tractor_farm, tractor_scan - ids mk_o_tractor_* so they go with the town cut.
+- THE CABIN LAKE CAMP (the lake shore 25 m above the water, 350 m abeam cb_sea's lane, 70 m from the slip's stand):
+  camp_firepit + the four tents (tent_big, tent_frame, tent_hiking, tent_small) round it + the six photoscanned people
+  (crowd_1..6) at the fire; cb_x_camp (trees, r 12).
+- MOUNT ARDENT (the summit's east shoulder, 85-90 m from mt_s_meteo): the observatory on mt_t_observatory and the ALMA
+  12 m antenna as ONE record (alma_base `with` alma_fork + alma_dish, the placer's assembly form) on mt_t_antenna.
+- THE OLD AIR BASE: heating_plant on the old base's flat NW of the field (-780, -860; 495 m abeam 13/31, outside every
+  approach funnel, 27 m off r11, its long side along it), the F-104G starfighter as the gate guardian by r2 at the field's
+  entrance (185 m abeam 13/31, 7 m under its transitional surface); their clears. TRAP (cost a pass): the WORLD's aerodrome
+  heading is (cos hdg, sin hdg) - `aerodromes[i].hdg`, the record's runway `hdg` the same number - NOT (sin, cos): vetted
+  the (sin, cos) way the first heating-plant spot (840, -680) looked 404 m off 02/20 and was ON its extended centreline 280 m
+  past end0; GATE TAXICLEAR 11a caught it (the turn-around plans at w2 end0 within 2 m of its footprint).
+- THE COAST: the WW2 bunker on the bluff S of Greywater (640, -4280; the sea 42 m off, its face to it) on gw_t_bunker; the
+  ruined sky_rest tower on the headland W of Ridgeback (-1420, -3325; 480 m from any road, 250 m above the shore) on its
+  own ground (1.2 m over its 45 m foot, 'ground'); their clears.
+  TRAP (cost a pass): THE PREMISES' GROUND PATCH is built in 64 m chunks round ANY placed entry (render_premises
+  activeChunks), and a road side over the patch reads within 5 mm of it (GATE CONTACT 'road side', a count of rev 28 +10 %
+  + 20): the ruin's first spot, 120 m off r5, cost 127 of them for no gain; the Upper Lake plant on r25 costs 664 and has to
+  stand there (its point). Keep a new placement's chunks off the roads where its point allows (the count: 7516 -> 8180 of
+  8301).
+- THE STEEL TRAWLER (fishing_boat) at anchor off Bayside (-1480, -8560), on 'flat' with dy = -seabed - 1.6 (the ferry's form).
+
+**THE SIGN AT THE OLD MINE** (A0's extra item, the user ~20:55: "there is a sign at the old mine, next to the parking spot.
+It's in the way, remove it. It does not collide, but goes through"): the air taxi office (mn_s_mine/airtaxi, house/air taxi
+office: signAt 1, the board ON POSTS by the path) stood its board 10.8 m from mn_strip's stand - inside a parked aeroplane's
+wing. Its P.signAt 0: the board over the door. The save carries mn_s_mine, so the AFB (19) manifest gains `itemPatches`
+{site: {item: {P key: value}}} (GATE SCENERYED 15 applies it after the ship, as fieldPatches - a re-ship must apply it
+again). THE RULE, gated: GATE HOUSE 'signs' - every house sign on posts in the cooked places (both variants) 17.5 m (the
+DC-3's half-span + 3) or more from every stand, plot stand and fleet tie-down spot; red on the old cook (the mine's 10.8 m),
+green after. No other sign on Jolene was inside it (the next: the flying club's, 47.9 m from HOME's stand).
+
+**NOT PLACED, AND WHY**: the five pylon families (infra_gen.js) - nothing strings a line between two pylon props (the
+`attach` points wait for a line tool; powerline.js strings the ROAD's poles), and r25 / r1 already carry their distribution
+poles and cable past both plants: a wire-less lattice line would be a row of sticks (and a 230 kV line is not the island's
+grid). The driveable car's parts (car_conquer_*) - the vehicle shell's pieces, hidden in the placer as parts. The pier kit's
+older unplaced vehicles / pier modules - not October's scenery.
+
+**THE COOKS** re-run on the new record: the fleet's spots (src/viewer/fleet_spots_pack.js: TAXICLEAR 10 - the F-104 is a
+solid thing within 400 m of HOME's stand), premises (media/world/jolene/premises + src/core/premises_packs.json), the city
+(media/city/jolene/metlakatla + src/core/city_packs.json: the gardens' tractors and the quarry are town cells), the map
+(media/map + src/viewer/map_pack.js: GATE MAPBAKE 6 counts every site item's footprint). Built files untouched in git.
+
+**GATES** (the final record, its four cooks re-run; `--no-build --jobs=3`): 39 PASS - NAVAID PREMCOOK PREMISES HOUSE (signs)
+ASSETBUDGET TAXICLEAR (4 shards) SCENERY SITE CONTRACTS UISMOKE MAPBAKE CITYCOOK MEDIA NAMES PREMRASTER GAMEPREM PAVEMENT
+STAGES HONESTY SIMWORKER LOOKS CONTACT ANIMALS TREES GRASSSIDES SPLAT HYDRODYN STRIPSURF GE CITYHOST MISSIONS ROUTES STORAGE
+STOREDRAW TOWNKIT KITHOST METKIT LIFE STAND. RED and red on clean origin/master adb2d2a9 with the same failing rows (diffed):
+ASSETS GEO LAKEBED RWYLIGHTS SCENERYED (20b, the town composition's 2500 ms on a loaded box) STORY TREEHIT VEHICLE WORLD.
+FRAMECOST: A0's, on the GPU box. **PICTURES**: tools/soft_still.js + reports/evidence/SCENERY-PLACE/stage_place.js
+(plane_shot.js has no world): one boot, the paused aeroplane parked 400 m over each place - THE PREMISES STREAM ROUND THE
+AEROPLANE (render_premises STREAM.reach 6 km), not the free eye: a still of a place 8 km from HOME drew nothing of it until
+the aeroplane went there (the test mode keeps it at HOME).
+
+**SCENERY-PLACE, NARROWED** (the user, 3 Nov, the same evening: "The 2 hydroplants were the main thing. I actually did not
+want the other assets. The f104 should be next to the runway, OK for construction machines, but not the factories, they
+look bad, nor the abandoned plant and nothing more on Mount Ardent than the already placed meteo observatory."). WITHDRAWN
+from the record (and so from what this entry lists above): the Cabin Lake camp (tents, fire pit, crowd), Mount Ardent's
+observatory and antenna and their pads, the heating plant, the bunker and its pad, the sky-rest ruin, the trawler. KEPT:
+the two hydro powerhouses + the Upper Lake works (crane, backhoe), the quarry's machines and wreck, the gardens' tractors,
+the mine's sign fix + GATE HOUSE 'signs' + the manifest's itemPatches. MOVED: the F-104G (af_o_f104) to (-442.1, -73.9),
+130 m abeam 13/31 on the side away from the club, parked along it (its tail 4.9 m over the runway; the 1:7 transitional
+surface allows 7.9). Re-cooked (premises, city, map, fleet spots); gates as above (39 PASS, the same nine reds as master's,
+row for row). The withdrawn placements stay in the session's scratch generator only: a later ask can stand them from this
+entry's points.
+
+**SCENERY-PLACE, THE TENTS BACK** (the user, 3 Nov: "Ok for the tent, the tractors too"): the Cabin Lake shore camp stands
+again - cb_o_firepit (camp_firepit) at (2116, -17244) with the four tents round it (cb_o_tent_big / _frame / _hiking /
+_small, 5-6.5 m from the fire, 5 m or more apart, doors to it) and cb_x_camp (trees, r 12); the six photoscanned people
+stay withdrawn. The tractors were kept all along. Re-cooked (premises, city, map, fleet spots: cb_sea's census sees the
+camp); gates re-run.
+
+**SCENERY-PLACE, THE F-104 WITHDRAWN** (the user, 4 Nov: "just remove the f104 and stop"): af_o_f104 and its clear out of
+the record - its spot 130 m abeam 13/31 stood behind the belt of trees, invisible from the runway (the still from 45 m over
+the runway showed nothing). What stays of SCENERY-PLACE: the two hydro powerhouses (+ the Upper Lake works), the quarry's
+machines and wreck, the gardens' tractors, the Cabin Lake camp's four tents, the mine's sign fix (signAt 0, itemPatches,
+GATE HOUSE 'signs'). Re-cooked; NAVAID PREMCOOK PREMISES HOUSE TAXICLEAR MAPBAKE CITYCOOK MEDIA CONTACT STAND SITE ANIMALS
+TREES PASS, SCENERYED red on 20b only (timing, as master), PARKED PASS run alone (`node --max-old-space-size=6144`: beside
+two other gates it ran out of node's 2 GB heap - a crash, not a verdict).
