@@ -43,8 +43,10 @@ var DAY_CLOCK = (function () {
   const read = () => {
     try {
       const v3 = JSON.parse(localStorage.getItem(PREF) || 'null');
-      // G2630: a saved day whose clock is not a finite number (or whose date is not a date) is set aside - the game's day
-      if (v3 && !(typeof v3.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v3.date) && Number.isFinite(v3.utc))) {
+      // G2630: a saved day whose clock is not a finite number (or whose date is not a date) is set aside - the game's day.
+      // A pref with NO instant at all is the weather alone: the career's save on a profile with no sandbox day yet
+      // (save()'s keep is {}) - it is read as it is (bind falls back to the game's day and keeps the weather)
+      if (v3 && (v3.date != null || v3.utc != null) && !(typeof v3.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v3.date) && Number.isFinite(v3.utc))) {
         console.warn('flyDiy: the saved day was not readable - the game’s day'); return null;
       }
       if (v3) return v3;
