@@ -1,0 +1,2661 @@
+{
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "args": [],
+ "url": "gfx=laptop&tutor=0",
+ "profiles": {
+  "desktop": {
+   "steps": {
+    "1": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the chooser (#npWrap) did NOT come up by itself on a new career (F2)",
+       "got": {
+        "npWrap": false,
+        "open": false,
+        "starterFlag": "Rufus",
+        "mode": "career",
+        "wipKey": true,
+        "webdriver": false,
+        "opened": 0
+       }
+      },
+      {
+       "ok": true,
+       "what": "the starter on the stand, no empty state",
+       "got": {
+        "onStand": "Rufus",
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "an owned hangar elsewhere that holds no aeroplane",
+       "got": [
+        "HOME planes=[]",
+        "w1 planes=[\"Rufus\"] (here)"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "career",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "opening": "skipped (its Skip button)",
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       }
+      ],
+      "chooserAtStart": {
+       "npWrap": false,
+       "open": false,
+       "starterFlag": "Rufus",
+       "mode": "career",
+       "wipKey": true,
+       "webdriver": false,
+       "opened": 0
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": null,
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": null,
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "plan": {
+       "start": "w1",
+       "empty": "HOME"
+      }
+     }
+    },
+    "2": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for HOME",
+       "got": {
+        "hidden": false,
+        "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is HOME after Go there",
+       "got": "HOME"
+      },
+      {
+       "ok": true,
+       "what": "the chooser opened by itself on arrival"
+      },
+      {
+       "ok": true,
+       "what": "#npWrap open",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "titled CHOOSE AN AEROPLANE",
+       "got": "CHOOSE AN AEROPLANE"
+      },
+      {
+       "ok": true,
+       "what": "tiles for Rufus and the Client Cub",
+       "got": [
+        "Rufus",
+        "Client Cub"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the tiles in words (no raw id: w1, HOME)",
+       "got": [
+        "Rufus: in the field shed at Cabin Strip - bring it here, free and instant",
+        "Client Cub: the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the client's plane last and named so",
+       "got": {
+        "offer": "bring",
+        "name": "Client Cub",
+        "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       }
+      },
+      {
+       "ok": true,
+       "what": "a Buy one tile",
+       "got": [
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the new-aeroplane doors (Design a new aeroplane, Surprise me)",
+       "got": [
+        "Design a new aeroplane",
+        "Surprise me",
+        "Air Camper-alike",
+        "aerobatic biplane"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Tim's band and CONTRACTS not over it (and nothing else)",
+       "got": {
+        "over": {
+         "stTim": false,
+         "stSkip": false,
+         "stCard": false,
+         "mapEntry": false,
+         "gmMenu": false,
+         "gmPanel": false,
+         "gEmptyCard": false,
+         "frEntry": false
+        },
+        "top": [
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap"
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the main hangar at Jolene AFB 13/31?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "chooser": {
+       "open": true,
+       "title": "CHOOSE AN AEROPLANE",
+       "head": "The stand is empty - the main hangar at Jolene AFB 13/31 choose what stands here: one of yours, or a new one",
+       "secs": [
+        "one of yours",
+        "or a new one",
+        "start like one of the shed's designs - the choices filled in, yours to change",
+        "candidate official — built, not validated",
+        "or take an authored recreation as it was drawn"
+       ],
+       "tiles": [
+        {
+         "offer": "bring",
+         "name": "Rufus",
+         "note": "in the field shed at Cabin Strip - bring it here, free and instant"
+        },
+        {
+         "offer": "bring",
+         "name": "Client Cub",
+         "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        },
+        {
+         "offer": null,
+         "name": "Design a new aeroplane",
+         "note": "fourteen short choices, then one build"
+        },
+        {
+         "offer": null,
+         "name": "Surprise me",
+         "note": "a random set of working choices - you see them before anything is built"
+        },
+        {
+         "offer": null,
+         "name": "Air Camper-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "aerobatic biplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "sesquiplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Caravan-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "RV-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Savannah-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Single-seat ultralight",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin-582 floatplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Motorglider",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Radial tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Electric trainer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "T-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "V-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "DA62-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin bush hauler",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "P-38-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Trimotor",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Four-engine starter",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Beaver-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": "candidate official — radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": "candidate official — wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body"
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": "candidate official — rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "DC-3-alike",
+         "note": "candidate official — full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2"
+        },
+        {
+         "offer": null,
+         "name": "STOL Cub",
+         "note": "candidate official — the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)"
+        },
+        {
+         "offer": null,
+         "name": "Cub, fittings by hand",
+         "note": "candidate official — the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)"
+        },
+        {
+         "offer": null,
+         "name": "Twin busher floats 4b",
+         "note": "candidate official — the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row"
+        },
+        {
+         "offer": null,
+         "name": "ugly bi",
+         "note": "candidate official — the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown"
+        },
+        {
+         "offer": null,
+         "name": "mosquito",
+         "note": "candidate official — B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)"
+        },
+        {
+         "offer": null,
+         "name": "Cub-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Jodel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "C172-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Chinook-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Spitfire-alike (WIP)",
+         "note": "WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown"
+        },
+        {
+         "offer": null,
+         "name": "Skymaster-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Push-pull starter",
+         "note": ""
+        }
+       ],
+       "over": {
+        "stTim": false,
+        "stSkip": false,
+        "stCard": false,
+        "mapEntry": false,
+        "gmMenu": false,
+        "gmPanel": false,
+        "gEmptyCard": false,
+        "frEntry": false
+       },
+       "top": [
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap"
+       ],
+       "npOffer": true
+      },
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    },
+    "3": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "cancel closes the chooser",
+       "got": false
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        470,
+        96,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": false,
+       "what": "the view across the full width of the page (F3)",
+       "got": {
+        "box": [
+         0,
+         0,
+         640,
+         800
+        ],
+        "buffer": [
+         640,
+         800
+        ],
+        "page": [
+         1280,
+         800
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "chooser": {
+       "open": false
+      },
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nRufus\nin the field shed at Cabin Strip\nBRING HERE\nClient Cub\nthe client’s, out at Jolene AFB 13/31\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "view": {
+       "box": [
+        0,
+        0,
+        640,
+        800
+       ],
+       "buffer": [
+        640,
+        800
+       ],
+       "page": [
+        1280,
+        800
+       ]
+      }
+     }
+    },
+    "4": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the card moved with the drag",
+       "got": {
+        "before": [
+         470,
+         96,
+         340,
+         222
+        ],
+        "after": [
+         110,
+         276,
+         340,
+         222
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "the card's New aeroplane opens the chooser"
+      },
+      {
+       "ok": true,
+       "what": "#npWrap open",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "titled CHOOSE AN AEROPLANE",
+       "got": "CHOOSE AN AEROPLANE"
+      },
+      {
+       "ok": true,
+       "what": "tiles for Rufus and the Client Cub",
+       "got": [
+        "Rufus",
+        "Client Cub"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the tiles in words (no raw id: w1, HOME)",
+       "got": [
+        "Rufus: in the field shed at Cabin Strip - bring it here, free and instant",
+        "Client Cub: the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the client's plane last and named so",
+       "got": {
+        "offer": "bring",
+        "name": "Client Cub",
+        "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       }
+      },
+      {
+       "ok": true,
+       "what": "a Buy one tile",
+       "got": [
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the new-aeroplane doors (Design a new aeroplane, Surprise me)",
+       "got": [
+        "Design a new aeroplane",
+        "Surprise me",
+        "Air Camper-alike",
+        "aerobatic biplane"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Tim's band and CONTRACTS not over it (and nothing else)",
+       "got": {
+        "over": {
+         "stTim": false,
+         "stSkip": false,
+         "stCard": false,
+         "mapEntry": false,
+         "gmMenu": false,
+         "gmPanel": false,
+         "gEmptyCard": false,
+         "frEntry": false
+        },
+        "top": [
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap"
+        ]
+       }
+      },
+      {
+       "ok": false,
+       "what": "Escape closes it",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": false,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        0,
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": false,
+       "what": "the card where it was dropped",
+       "got": {
+        "dropped": [
+         110,
+         276,
+         340,
+         222
+        ],
+        "now": [
+         0,
+         0,
+         0,
+         0
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "boxes": {
+       "before": [
+        470,
+        96,
+        340,
+        222
+       ],
+       "afterDrag": [
+        110,
+        276,
+        340,
+        222
+       ]
+      },
+      "chooser": {
+       "open": true,
+       "title": "CHOOSE AN AEROPLANE",
+       "head": "The stand is empty - the main hangar at Jolene AFB 13/31 choose what stands here: one of yours, or a new one",
+       "secs": [
+        "one of yours",
+        "or a new one",
+        "start like one of the shed's designs - the choices filled in, yours to change",
+        "candidate official — built, not validated",
+        "or take an authored recreation as it was drawn"
+       ],
+       "tiles": [
+        {
+         "offer": "bring",
+         "name": "Rufus",
+         "note": "in the field shed at Cabin Strip - bring it here, free and instant"
+        },
+        {
+         "offer": "bring",
+         "name": "Client Cub",
+         "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        },
+        {
+         "offer": null,
+         "name": "Design a new aeroplane",
+         "note": "fourteen short choices, then one build"
+        },
+        {
+         "offer": null,
+         "name": "Surprise me",
+         "note": "a random set of working choices - you see them before anything is built"
+        },
+        {
+         "offer": null,
+         "name": "Air Camper-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "aerobatic biplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "sesquiplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Caravan-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "RV-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Savannah-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Single-seat ultralight",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin-582 floatplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Motorglider",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Radial tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Electric trainer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "T-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "V-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "DA62-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin bush hauler",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "P-38-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Trimotor",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Four-engine starter",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Beaver-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": "candidate official — radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": "candidate official — wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body"
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": "candidate official — rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "DC-3-alike",
+         "note": "candidate official — full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2"
+        },
+        {
+         "offer": null,
+         "name": "STOL Cub",
+         "note": "candidate official — the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)"
+        },
+        {
+         "offer": null,
+         "name": "Cub, fittings by hand",
+         "note": "candidate official — the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)"
+        },
+        {
+         "offer": null,
+         "name": "Twin busher floats 4b",
+         "note": "candidate official — the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row"
+        },
+        {
+         "offer": null,
+         "name": "ugly bi",
+         "note": "candidate official — the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown"
+        },
+        {
+         "offer": null,
+         "name": "mosquito",
+         "note": "candidate official — B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)"
+        },
+        {
+         "offer": null,
+         "name": "Cub-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Jodel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "C172-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Chinook-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Spitfire-alike (WIP)",
+         "note": "WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown"
+        },
+        {
+         "offer": null,
+         "name": "Skymaster-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Push-pull starter",
+         "note": ""
+        }
+       ],
+       "over": {
+        "stTim": false,
+        "stSkip": false,
+        "stCard": false,
+        "mapEntry": false,
+        "gmMenu": false,
+        "gmPanel": false,
+        "gEmptyCard": false,
+        "frEntry": false
+       },
+       "top": [
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap"
+       ],
+       "npOffer": true
+      },
+      "afterEscape": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    },
+    "5": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "after the reload, the chooser opened by itself"
+      },
+      {
+       "ok": true,
+       "what": "#npWrap open",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "titled CHOOSE AN AEROPLANE",
+       "got": "CHOOSE AN AEROPLANE"
+      },
+      {
+       "ok": true,
+       "what": "tiles for Rufus and the Client Cub",
+       "got": [
+        "Rufus",
+        "Client Cub"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the tiles in words (no raw id: w1, HOME)",
+       "got": [
+        "Rufus: in the field shed at Cabin Strip - bring it here, free and instant",
+        "Client Cub: the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the client's plane last and named so",
+       "got": {
+        "offer": "bring",
+        "name": "Client Cub",
+        "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       }
+      },
+      {
+       "ok": true,
+       "what": "a Buy one tile",
+       "got": [
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the new-aeroplane doors (Design a new aeroplane, Surprise me)",
+       "got": [
+        "Design a new aeroplane",
+        "Surprise me",
+        "Air Camper-alike",
+        "aerobatic biplane"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Tim's band and CONTRACTS not over it (and nothing else)",
+       "got": {
+        "over": {
+         "stTim": false,
+         "stSkip": false,
+         "stCard": false,
+         "mapEntry": false,
+         "gmMenu": false,
+         "gmPanel": false,
+         "gEmptyCard": false,
+         "frEntry": false
+        },
+        "top": [
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap"
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        110,
+        276,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "still in HOME",
+       "got": "HOME"
+      },
+      {
+       "ok": false,
+       "what": "the view across the full width of the page (F3)",
+       "got": {
+        "box": [
+         0,
+         0,
+         640,
+         800
+        ],
+        "buffer": [
+         640,
+         800
+        ],
+        "page": [
+         1280,
+         800
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "welcome": [
+       {
+        "menu": true,
+        "h1": "",
+        "rows": [
+         "continue",
+         "career",
+         "careers",
+         "sandbox",
+         "garage(disabled)",
+         "settings"
+        ],
+        "play": false,
+        "tryAnyway": false
+       }
+      ],
+      "chooser": {
+       "open": true,
+       "title": "CHOOSE AN AEROPLANE",
+       "head": "The stand is empty - the main hangar at Jolene AFB 13/31 choose what stands here: one of yours, or a new one",
+       "secs": [
+        "one of yours",
+        "or a new one",
+        "start like one of the shed's designs - the choices filled in, yours to change",
+        "candidate official — built, not validated",
+        "or take an authored recreation as it was drawn"
+       ],
+       "tiles": [
+        {
+         "offer": "bring",
+         "name": "Rufus",
+         "note": "in the field shed at Cabin Strip - bring it here, free and instant"
+        },
+        {
+         "offer": "bring",
+         "name": "Client Cub",
+         "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        },
+        {
+         "offer": null,
+         "name": "Design a new aeroplane",
+         "note": "fourteen short choices, then one build"
+        },
+        {
+         "offer": null,
+         "name": "Surprise me",
+         "note": "a random set of working choices - you see them before anything is built"
+        },
+        {
+         "offer": null,
+         "name": "Air Camper-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "aerobatic biplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "sesquiplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Caravan-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "RV-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Savannah-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Single-seat ultralight",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin-582 floatplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Motorglider",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Radial tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Electric trainer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "T-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "V-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "DA62-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin bush hauler",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "P-38-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Trimotor",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Four-engine starter",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Beaver-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": "candidate official — radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": "candidate official — wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body"
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": "candidate official — rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "DC-3-alike",
+         "note": "candidate official — full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2"
+        },
+        {
+         "offer": null,
+         "name": "STOL Cub",
+         "note": "candidate official — the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)"
+        },
+        {
+         "offer": null,
+         "name": "Cub, fittings by hand",
+         "note": "candidate official — the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)"
+        },
+        {
+         "offer": null,
+         "name": "Twin busher floats 4b",
+         "note": "candidate official — the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row"
+        },
+        {
+         "offer": null,
+         "name": "ugly bi",
+         "note": "candidate official — the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown"
+        },
+        {
+         "offer": null,
+         "name": "mosquito",
+         "note": "candidate official — B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)"
+        },
+        {
+         "offer": null,
+         "name": "Cub-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Jodel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "C172-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Chinook-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Spitfire-alike (WIP)",
+         "note": "WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown"
+        },
+        {
+         "offer": null,
+         "name": "Skymaster-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Push-pull starter",
+         "note": ""
+        }
+       ],
+       "over": {
+        "stTim": false,
+        "stSkip": false,
+        "stCard": false,
+        "mapEntry": false,
+        "gmMenu": false,
+        "gmPanel": false,
+        "gEmptyCard": false,
+        "frEntry": false
+       },
+       "top": [
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap"
+       ],
+       "npOffer": true
+      },
+      "afterCancel": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "HOME",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe main hangar at Jolene AFB 13/31\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nRufus\nin the field shed at Cabin Strip\nBRING HERE\nClient Cub\nthe client’s, out at Jolene AFB 13/31\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "HOME",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "view": {
+       "box": [
+        0,
+        0,
+        640,
+        800
+       ],
+       "buffer": [
+        640,
+        800
+       ],
+       "page": [
+        1280,
+        800
+       ]
+      }
+     }
+    },
+    "6": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the chooser (the card's New aeroplane)"
+      },
+      {
+       "ok": true,
+       "what": "the panel closed",
+       "got": false
+      },
+      {
+       "ok": true,
+       "what": "Rufus on the stand",
+       "got": "Rufus"
+      },
+      {
+       "ok": true,
+       "what": "gEmpty off, the card gone",
+       "got": {
+        "gEmpty": false,
+        "card": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "the columns (#edWrap) and Roll out back",
+       "got": {
+        "edWrap": true,
+        "rollOut": true
+       }
+      },
+      {
+       "ok": true,
+       "what": "the view back to its column",
+       "got": {
+        "box": [
+         320,
+         0,
+         320,
+         800
+        ],
+        "buffer": [
+         320,
+         800
+        ],
+        "page": [
+         1280,
+         800
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "chooser": {
+       "open": true,
+       "title": "CHOOSE AN AEROPLANE",
+       "head": "The stand is empty - the main hangar at Jolene AFB 13/31 choose what stands here: one of yours, or a new one",
+       "secs": [
+        "one of yours",
+        "or a new one",
+        "start like one of the shed's designs - the choices filled in, yours to change",
+        "candidate official — built, not validated",
+        "or take an authored recreation as it was drawn"
+       ],
+       "tiles": [
+        {
+         "offer": "bring",
+         "name": "Rufus",
+         "note": "in the field shed at Cabin Strip - bring it here, free and instant"
+        },
+        {
+         "offer": "bring",
+         "name": "Client Cub",
+         "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        },
+        {
+         "offer": null,
+         "name": "Design a new aeroplane",
+         "note": "fourteen short choices, then one build"
+        },
+        {
+         "offer": null,
+         "name": "Surprise me",
+         "note": "a random set of working choices - you see them before anything is built"
+        },
+        {
+         "offer": null,
+         "name": "Air Camper-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "aerobatic biplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "sesquiplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Caravan-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "RV-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Savannah-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Single-seat ultralight",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin-582 floatplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Motorglider",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Radial tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Electric trainer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "T-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "V-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "DA62-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin bush hauler",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "P-38-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Trimotor",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Four-engine starter",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Beaver-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": "candidate official — radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": "candidate official — wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body"
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": "candidate official — rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "DC-3-alike",
+         "note": "candidate official — full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2"
+        },
+        {
+         "offer": null,
+         "name": "STOL Cub",
+         "note": "candidate official — the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)"
+        },
+        {
+         "offer": null,
+         "name": "Cub, fittings by hand",
+         "note": "candidate official — the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)"
+        },
+        {
+         "offer": null,
+         "name": "Twin busher floats 4b",
+         "note": "candidate official — the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row"
+        },
+        {
+         "offer": null,
+         "name": "ugly bi",
+         "note": "candidate official — the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown"
+        },
+        {
+         "offer": null,
+         "name": "mosquito",
+         "note": "candidate official — B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)"
+        },
+        {
+         "offer": null,
+         "name": "Cub-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Jodel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "C172-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Chinook-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Spitfire-alike (WIP)",
+         "note": "WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown"
+        },
+        {
+         "offer": null,
+         "name": "Skymaster-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Push-pull starter",
+         "note": ""
+        }
+       ],
+       "over": {
+        "stTim": false,
+        "stSkip": false,
+        "stCard": false,
+        "mapEntry": false,
+        "gmMenu": false,
+        "gmPanel": false,
+        "gEmptyCard": false,
+        "frEntry": false
+       },
+       "top": [
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap"
+       ],
+       "npOffer": true
+      },
+      "state": {
+       "onStand": "Rufus",
+       "gEmpty": false,
+       "here": "HOME",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": "",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "view": {
+       "box": [
+        320,
+        0,
+        320,
+        800
+       ],
+       "buffer": [
+        320,
+        800
+       ],
+       "page": [
+        1280,
+        800
+       ]
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": true,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": false,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       }
+      ]
+     }
+    },
+    "7": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the map opens with its garage icons (#mapEntry)"
+      },
+      {
+       "ok": true,
+       "what": "the map's Go row offers \"Go there\" for w1",
+       "got": {
+        "hidden": false,
+        "text": "Go to the field shed at Cabin Strip?\nempty\nGo there\nStay"
+       }
+      },
+      {
+       "ok": true,
+       "what": "\"Go there\" pressed"
+      },
+      {
+       "ok": true,
+       "what": "doc().here is w1 after Go there",
+       "got": "w1"
+      },
+      {
+       "ok": true,
+       "what": "the chooser opened by itself on arrival in the empty w1"
+      },
+      {
+       "ok": true,
+       "what": "#npWrap open",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "titled CHOOSE AN AEROPLANE",
+       "got": "CHOOSE AN AEROPLANE"
+      },
+      {
+       "ok": true,
+       "what": "tiles for Rufus and the Client Cub",
+       "got": [
+        "Rufus",
+        "Client Cub"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the tiles in words (no raw id: w1, HOME)",
+       "got": [
+        "Rufus: in the main hangar at Jolene AFB 13/31 - bring it here, free and instant",
+        "Client Cub: the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the client's plane last and named so",
+       "got": {
+        "offer": "bring",
+        "name": "Client Cub",
+        "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+       }
+      },
+      {
+       "ok": true,
+       "what": "a Buy one tile",
+       "got": [
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "what": "the new-aeroplane doors (Design a new aeroplane, Surprise me)",
+       "got": [
+        "Design a new aeroplane",
+        "Surprise me",
+        "Air Camper-alike",
+        "aerobatic biplane"
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Tim's band and CONTRACTS not over it (and nothing else)",
+       "got": {
+        "over": {
+         "stTim": false,
+         "stSkip": false,
+         "stCard": false,
+         "mapEntry": false,
+         "gmMenu": false,
+         "gmPanel": false,
+         "gEmptyCard": false,
+         "frEntry": false
+        },
+        "top": [
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap",
+         "npWrap"
+        ]
+       }
+      },
+      {
+       "ok": true,
+       "what": "the card's New aeroplane: the chooser again"
+      },
+      {
+       "ok": true,
+       "what": "the summary reached (skip through the steps)",
+       "got": 15
+      },
+      {
+       "ok": true,
+       "what": "generate: gEmpty off, the card gone",
+       "got": {
+        "gEmpty": false,
+        "card": false,
+        "onStand": null
+       }
+      },
+      {
+       "ok": true,
+       "what": "the editor's columns back",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "mapDoor": "#mapEntry",
+      "goRow": {
+       "hidden": false,
+       "text": "Go to the field shed at Cabin Strip?\nempty\nGo there\nStay"
+      },
+      "mapStillOpen": false,
+      "chooser": {
+       "open": true,
+       "title": "CHOOSE AN AEROPLANE",
+       "head": "The stand is empty - the field shed at Cabin Strip choose what stands here: one of yours, or a new one",
+       "secs": [
+        "one of yours",
+        "or a new one",
+        "start like one of the shed's designs - the choices filled in, yours to change",
+        "candidate official — built, not validated",
+        "or take an authored recreation as it was drawn"
+       ],
+       "tiles": [
+        {
+         "offer": "bring",
+         "name": "Rufus",
+         "note": "in the main hangar at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "bring",
+         "name": "Client Cub",
+         "note": "the client’s, out at Jolene AFB 13/31 - bring it here, free and instant"
+        },
+        {
+         "offer": "buy",
+         "name": "Buy one",
+         "note": "the Market, on the map"
+        },
+        {
+         "offer": null,
+         "name": "Design a new aeroplane",
+         "note": "fourteen short choices, then one build"
+        },
+        {
+         "offer": null,
+         "name": "Surprise me",
+         "note": "a random set of working choices - you see them before anything is built"
+        },
+        {
+         "offer": null,
+         "name": "Air Camper-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "aerobatic biplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "sesquiplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Caravan-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "RV-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Savannah-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Single-seat ultralight",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin-582 floatplane",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Motorglider",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Radial tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Electric trainer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "T-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "V-tail tourer",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "DA62-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Twin bush hauler",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "P-38-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Trimotor",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Four-engine starter",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Beaver-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": "candidate official — radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": "candidate official — wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body"
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": "candidate official — rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)"
+        },
+        {
+         "offer": null,
+         "name": "DC-3-alike",
+         "note": "candidate official — full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2"
+        },
+        {
+         "offer": null,
+         "name": "STOL Cub",
+         "note": "candidate official — the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)"
+        },
+        {
+         "offer": null,
+         "name": "Cub, fittings by hand",
+         "note": "candidate official — the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)"
+        },
+        {
+         "offer": null,
+         "name": "Twin busher floats 4b",
+         "note": "candidate official — the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row"
+        },
+        {
+         "offer": null,
+         "name": "ugly bi",
+         "note": "candidate official — the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown"
+        },
+        {
+         "offer": null,
+         "name": "mosquito",
+         "note": "candidate official — B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)"
+        },
+        {
+         "offer": null,
+         "name": "Cub-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Tiger Moth-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Stearman-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Camel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Jodel-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "C172-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Chinook-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Spitfire-alike (WIP)",
+         "note": "WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown"
+        },
+        {
+         "offer": null,
+         "name": "Skymaster-alike",
+         "note": ""
+        },
+        {
+         "offer": null,
+         "name": "Push-pull starter",
+         "note": ""
+        }
+       ],
+       "over": {
+        "stTim": false,
+        "stSkip": false,
+        "stCard": false,
+        "mapEntry": false,
+        "gmMenu": false,
+        "gmPanel": false,
+        "gEmptyCard": false,
+        "frEntry": false
+       },
+       "top": [
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap",
+        "npWrap"
+       ],
+       "npOffer": true
+      },
+      "state": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "designPath": [
+       "step 1 of 14 · skip takes the usual choice",
+       "step 2 of 14 · skip takes the usual choice",
+       "step 3 of 14 · skip takes the usual choice",
+       "step 4 of 14 · skip takes the usual choice",
+       "step 5 of 14 · skip takes the usual choice",
+       "step 6 of 14 · skip takes the usual choice",
+       "step 7 of 14 · skip takes the usual choice",
+       "step 8 of 14 · skip takes the usual choice",
+       "step 9 of 14 · skip takes the usual choice",
+       "step 10 of 14 · skip takes the usual choice",
+       "step 11 of 14 · skip takes the usual choice",
+       "step 12 of 14 · skip takes the usual choice",
+       "step 13 of 14 · skip takes the usual choice",
+       "step 14 of 14 · skip takes the usual choice",
+       "generate"
+      ],
+      "afterGenerate": {
+       "onStand": null,
+       "gEmpty": false,
+       "here": "w1",
+       "card": false,
+       "cardBox": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "cardText": null,
+       "rollOut": true,
+       "edWrap": true,
+       "modeWs": true,
+       "pref": "",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      },
+      "newPlaneLog": {
+       "opened": 4,
+       "generated": 1
+      },
+      "view": {
+       "box": [
+        320,
+        0,
+        320,
+        800
+       ],
+       "buffer": [
+        320,
+        800
+       ],
+       "page": [
+        1280,
+        800
+       ]
+      },
+      "garages": [
+       {
+        "id": "HOME",
+        "name": "the main hangar at Jolene AFB 13/31",
+        "aero": "HOME",
+        "here": false,
+        "locked": false,
+        "planes": [
+         "Rufus"
+        ],
+        "stand": "Rufus"
+       },
+       {
+        "id": "w1",
+        "name": "the field shed at Cabin Strip",
+        "aero": "w1",
+        "here": true,
+        "locked": false,
+        "planes": [],
+        "stand": null
+       }
+      ]
+     }
+    },
+    "8": {
+     "asserts": [
+      {
+       "ok": true,
+       "what": "the chooser closed",
+       "got": false
+      },
+      {
+       "ok": true,
+       "what": "Buy one opens the map on its Market list",
+       "got": {
+        "open": true,
+        "list": "market"
+       }
+      },
+      {
+       "ok": true,
+       "what": "FLYDIY_STORE.onStand() is null",
+       "got": null
+      },
+      {
+       "ok": true,
+       "what": "body.gEmpty is set",
+       "got": true
+      },
+      {
+       "ok": true,
+       "what": "#gEmptyCard is shown",
+       "got": [
+        110,
+        276,
+        340,
+        222
+       ]
+      },
+      {
+       "ok": true,
+       "what": "Roll out (#edRoll) and the editor columns (#edWrap) hidden",
+       "got": {
+        "rollOut": false,
+        "edWrap": false
+       }
+      },
+      {
+       "ok": true,
+       "what": "the map closed, still in w1",
+       "got": {
+        "closed": true,
+        "here": "w1"
+       }
+      },
+      {
+       "ok": true,
+       "what": "no page error",
+       "got": []
+      }
+     ],
+     "prints": {
+      "map": {
+       "open": true,
+       "list": "market"
+      },
+      "mapClosed": true,
+      "afterMapClosed": {
+       "onStand": null,
+       "gEmpty": true,
+       "here": "w1",
+       "card": true,
+       "cardBox": [
+        110,
+        276,
+        340,
+        222
+       ],
+       "cardText": "THE STAND IS EMPTY\nthe field shed at Cabin Strip\n\nNothing of yours stands in here yet. Fill the stand:\n\nNEW AEROPLANE\nBUY ONE\n\nOr bring one of yours here (free, instant):\n\nRufus\nin the main hangar at Jolene AFB 13/31\nBRING HERE\nClient Cub\nthe client’s, out at Jolene AFB 13/31\nBRING HERE",
+       "rollOut": false,
+       "edWrap": false,
+       "modeWs": true,
+       "pref": "w1",
+       "render": {
+        "calls": 1,
+        "triangles": 2
+       },
+       "fleet": [
+        "Rufus",
+        "Client Cub"
+       ],
+       "holds": {
+        "holdRender": false,
+        "rollHold": false,
+        "craftAway": 0,
+        "inGarage": true,
+        "running": true
+       }
+      }
+     }
+    }
+   },
+   "shots": [
+    {
+     "step": "1",
+     "file": "desktop_1_new_career.jpg",
+     "what": "a new career, the opening skipped: the field shed at Cabin Strip, Rufus on the stand, no chooser"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2x_map_go_row.jpg",
+     "what": "the map's Go row for HOME (before Go there)"
+    },
+    {
+     "step": "2",
+     "file": "desktop_2_chooser_by_itself.jpg",
+     "what": "arrived in the main hangar at Jolene AFB 13/31: CHOOSE AN AEROPLANE open by itself"
+    },
+    {
+     "step": "3",
+     "file": "desktop_3_empty_room.jpg",
+     "what": "cancelled: the main hangar at Jolene AFB 13/31 empty, the card, the room across the page - NO AEROPLANE DRAWN (F1): the still, looked at"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4a_card_dragged.jpg",
+     "what": "the card dragged down-left by its body; the room still empty"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4b_new_aeroplane_chooser.jpg",
+     "what": "the card's New aeroplane: the same CHOOSE AN AEROPLANE"
+    },
+    {
+     "step": "4",
+     "file": "desktop_4c_after_escape.jpg",
+     "what": "Escape: still empty, the card where it was dropped - NO AEROPLANE DRAWN (F1): the still, looked at"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5a_reload_chooser.jpg",
+     "what": "a reload (Continue) while empty: CHOOSE AN AEROPLANE by itself"
+    },
+    {
+     "step": "5",
+     "file": "desktop_5b_reload_cancelled.jpg",
+     "what": "after the reload, cancelled: the empty room - NO AEROPLANE DRAWN (F1): the still, looked at"
+    },
+    {
+     "step": "6",
+     "file": "desktop_6_rufus_on_stand.jpg",
+     "what": "the chooser's Rufus: Rufus on the main hangar at Jolene AFB 13/31's stand, the columns back"
+    },
+    {
+     "step": "7",
+     "file": "desktop_7x_map_go_row.jpg",
+     "what": "the map's Go row for w1 (before Go there)"
+    },
+    {
+     "step": "7",
+     "file": "desktop_7a_chooser_by_itself.jpg",
+     "what": "arrived in the field shed at Cabin Strip (empty since 6): CHOOSE AN AEROPLANE by itself"
+    },
+    {
+     "step": "8",
+     "file": "desktop_8a_buy_one_market.jpg",
+     "what": "the chooser's Buy one: the map on its Market"
+    },
+    {
+     "step": "8",
+     "file": "desktop_8b_map_closed_card.jpg",
+     "what": "the map closed: the card, the stand still empty - NO AEROPLANE DRAWN (F1): the still, looked at"
+    },
+    {
+     "step": "7",
+     "file": "desktop_7b_summary.jpg",
+     "what": "Design a new aeroplane, every step skipped: the summary, before generate"
+    },
+    {
+     "step": "7",
+     "file": "desktop_7c_new_build_drawn.jpg",
+     "what": "generated: the new build on the field shed at Cabin Strip's stand (looked at: drawn)"
+    }
+   ],
+   "pageErrors": [],
+   "consoleErrors": [],
+   "warnings": [
+    {
+     "step": "2",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "4",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "5",
+     "text": "dialog beforeunload: "
+    },
+    {
+     "step": "5",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "6",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "7",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    },
+    {
+     "step": "7",
+     "text": "flyDiy: the saved day was not readable - the game’s day"
+    }
+   ]
+  }
+ }
+}
