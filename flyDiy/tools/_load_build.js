@@ -183,6 +183,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // game asks for a card just born - a radial or a turbine takes its styled cowl. A saved build is never asked.
   if (BIRTH && W.CAGE_COWL_FIT_NEXT) W.CAGE_COWL_FIT_NEXT();
   for (const a of AFTERS) if (/^CAGE_[A-Z_]+_NEXT$/.test(a) && typeof W[a] === 'function') try { W[a](); } catch (e) {}
+  // HULL-B13: 'engPreset:<catalogue name>' - the Engine model tile's own write, headless: the preset's rows applied to
+  // the editor's P before the first build (_cage_eng.js CAGE_ENG_APPLY_PRESET, the birth flow's door) and its index set
+  let ENG_PENDING = (AFTERS.find(a => /^engPreset:/.test(a)) || '').slice(10) || null;
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,
@@ -194,6 +197,11 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // _cage_ui.js build()'s rows written before the sheet: the aft section's copy of the front (mirror), the layers'
   // own coercions (PAGE.coerce), the hinge finish row (-1 = a build from before the row: the finish's own pick)
   const PREBUILD = P => {
+    if (ENG_PENDING && typeof W.CAGE_ENG_APPLY_PRESET === 'function' && W.ENG_PAGE && W.ENG_PAGE.presetNames) {
+      const i = W.ENG_PAGE.presetNames().indexOf(ENG_PENDING);
+      if (i >= 0) { W.CAGE_ENG_APPLY_PRESET(P, ENG_PENDING); P.engPreset = i; }
+      ENG_PENDING = null;
+    }
     if (P.mirror && W.CAGE2.CAGE_AFT_SUB)
       for (const [ak, fk, thr] of W.CAGE2.CAGE_AFT_SUB) if (P[ak] != null && P[ak] < thr && P[fk] != null) P[ak] = P[fk];
     for (const f of (W.CAGE_PAGE.coerce || [])) try { f(P); } catch (e) {}

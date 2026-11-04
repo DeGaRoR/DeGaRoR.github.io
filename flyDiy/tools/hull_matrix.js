@@ -21,12 +21,17 @@ const FORMS = ['classic', 'deep', 'flat', 'soft', 'stepless'];
 const ENGINES = {
   pylon: { sel: { engMount: 'wingTop' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
            note: 'one engine on a pylon over the wing, pushing, in a pod nacelle (Lake, Seabee)' },
-  twin: { sel: { engCount: 2 }, cage: { noseLen: 1.3 },
-          note: 'a pair on the wing (Che-27, LA-8)' },
+  // (HULL-B13, the user: "putting four times even 150 horsepower is huge power for such sports light planes" - the
+  // pair and the four carry engines sized to the boat - the catalogue's preset applied as the Engine model tile does,
+  // _load_build's 'engPreset:<name>' after; the Cessna's O-540 stays on the single pylon)
+  twin: { sel: { engCount: 2 }, cage: { noseLen: 1.3 }, engine: 'rotax 912 (flat)',
+          note: 'a pair of Rotax 912s on the wing (Che-27, LA-8)' },
+  pushPull: { sel: { engCount: 'pushPull' }, cage: {}, engine: 'rotax 912 (flat)',
+              note: 'a Rotax 912 in the nose and one pushing behind the cabin, the tail on twin booms (the Skymaster layout)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
                   note: 'one engine on a pylon over the wing, pulling (the Seabird / Osprey class)' },
-  four: { sel: { engCount: 4 }, cage: { noseLen: 1.3 },
-          note: 'two pairs on the wing, inner and outer (the big boats\' layout)' },
+  four: { sel: { engCount: 4 }, cage: { noseLen: 1.3 }, engine: 'rotax 582',
+          note: 'two pairs of Rotax 582s on the wing, inner and outer (the big boats\' layout, at sport size)' },
   pusher: { sel: { engMount: 'pusher' }, cage: {},
             note: 'a pusher on the pod\'s aft bulkhead, the tail on a rod (SeaRey, Aventura)' },
   nose: { sel: {}, cage: {},
@@ -50,7 +55,7 @@ function one(form, eng) {
   // THE FIT CYCLE, the page's (_cage_float.js hullFitStep): build, read the flown CG / mass / propeller discs, fit
   // (_cage_gen.js cageHullFitAll: the step, the balance, the propellers' clearance, the tip floats), build again
   for (let pass = 0; pass < 4; pass++) {
-    const got = LB.gameSpecFull(Object.assign(JSON.parse(JSON.stringify(raw)), { afters: ap.afters.filter(a => a !== 'CAGE_HULL_FIT_NEXT') }));
+    const got = LB.gameSpecFull(Object.assign(JSON.parse(JSON.stringify(raw)), { afters: ap.afters.filter(a => a !== 'CAGE_HULL_FIT_NEXT').concat(E.engine ? ['engPreset:' + E.engine] : []) }));
     spec = got.spec; errs = got.errors || [];
     if (pass === 3 || !spec.gear.hull) break;
     const d = defOf(spec); let cx = 0, cy = 0, mass = 0;
@@ -75,7 +80,7 @@ function one(form, eng) {
   const W = M * 9.81, hr = spec.gear.hull, fl = def.parts.floats;
   res.gross = +M.toFixed(0);
   res.stepDeg = +(Math.atan2(hr.x - mx, my - hr.y) * 180 / Math.PI).toFixed(1);
-  res.engines = (spec.engines || []).map(e => e.mount).join('+');
+  res.engines = (spec.engines || []).map(e => e.mount + ':' + e.type).join('+');
   // SETTLE (the sea south of home, 0.2 m drop, idle)
   const world = C.makeWorld(), X0 = 0, Z0 = 1600, h = world.waterH(X0, Z0);
   const sim = C.makeSim(def, world); sim.reset(0);
