@@ -458,6 +458,16 @@ async function runPage(page) {
           fs.writeFileSync(path.join(OUT, 'sweep', V.name + vt + '_' + n + '.png'), Buffer.from(pa.result.data, 'base64'));
         }
       }
+      // THE SHOTS: --shots <file.json>, [[name, js], ...]: the scene paused on the frame just taken (the same instant), a page change, a capture - tones and dials A/B with no load
+      if (PHOTO && opt('shots', null)) {
+        await ev("(()=>{const b=document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click(); return 1;})()"); await sleep(300);
+        fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
+        for (const [n, js] of JSON.parse(fs.readFileSync(opt('shots'), 'utf8'))) {
+          await ev('(() => { ' + js + ' ; return 1; })()'); await ev(FRAMES(16)); await sleep(250);
+          const ps = await cmd('Page.captureScreenshot', { format: 'png' });
+          fs.writeFileSync(path.join(OUT, 'shots', V.name + vt + '_' + n + '.png'), Buffer.from(ps.result.data, 'base64'));
+        }
+      }
       if (PHOTO) await ev("(() => { const st = document.getElementById('__nsClean'); if (st) st.remove(); return 1; })()");
       const file = path.join(OUT, V.name + '_' + tag + vt + '.png');
       fs.writeFileSync(file, Buffer.from(png1.result.data, 'base64'));

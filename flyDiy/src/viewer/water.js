@@ -483,7 +483,7 @@ const WATER = (() => {
           // NIGHT-BRIGHT, THE SEA'S SHEEN (stylised; the user 4 Nov: "the water is completely black"): at a low eye the surface mirrors the ridge,
           // so at night it was as black as the ridge. Wave slopes do turn a grazing ray up to the higher, brighter sky - this says so at one
           // uniform's cost, in the reflection, so the Fresnel, the hull's mirror and the lamps' reflections stay over it. 0 by day
-          iblRadiance += uWNight.rgb;
+          iblRadiance += uWNight.rgb * (uWNight.a + (1.0 - uWNight.a) * smoothstep(0.01, 0.09, length(wNw.xz)));   // a share flat, the rest on the ripples' slopes: a flat lift reads milky
           #ifdef W_HULL
           // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
           // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
@@ -1386,6 +1386,7 @@ const WATER = (() => {
   function hullRender(THREE, renderer, scene, camera, waterY, root, opts) {
     opts = opts || {};
     if (!PROTO.hull || MIR.mode === 'off' || !U || !root || !root.parent || !(waterY !== null && waterY !== undefined && Number.isFinite(waterY))) { if (HULL.on) hullOff(); return false; }
+    if (HULL.off) { if (HULL.on) hullOff(); return false; }   // NIGHT-PHOTO: a rig's A/B
     const t0 = performance.now();
     // the aircraft's sphere: its local box re-read every 2 s (a build can change), its centre every frame
     if (t0 - HULL.rAt > 2000 || !HULL.c) {
@@ -1641,12 +1642,12 @@ const WATER = (() => {
   }
   // frame(dtWall): the clock (free-running only when setTime did not speak), the reduced phases, the drift
   // NIGHT-BRIGHT: the sheen, an exposed level (x P / the true exposure), in from dusk, none under an exposure of ~3 (the day's to the bit)
-  const NIGHT_SEA = { k: 0.3, col: [0.62, 0.8, 1.0] };
+  const NIGHT_SEA = { k: 0.3, col: [0.62, 0.8, 1.0], flat: 1 };
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
       const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
-      U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, 0);
+      U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
@@ -1690,7 +1691,7 @@ const WATER = (() => {
   }
   const roughJS = s2 => Math.pow(Math.max(s2, 1e-5), 0.25);
 
-  const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
+  const API = { nightSea: NIGHT_SEA, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
