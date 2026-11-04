@@ -33,7 +33,7 @@
       float wob = 0.5 * fbm(az * 18.0 + seed + uT * 0.01);
       float rays = 0.3 + 0.5 * pow(n1(az * 260.0 + seed * 3.0 + wob * 9.0 + uT * 0.02), 2.0) + 0.45 * pow(n1(az * 700.0 + seed * 5.0 + wob * 21.0), 3.0);
       float along = smoothstep(0.22, 0.62, fbm(az * 5.0 + seed * 7.0 + uT * 0.008));
-      vec3 green = vec3(0.13, 1.0, 0.42), red = vec3(0.62, 0.12, 0.48), edge = vec3(0.55, 1.0, 0.68);
+      vec3 green = vec3(0.12, 1.0, 0.2), red = vec3(0.62, 0.12, 0.48), edge = vec3(0.5, 1.0, 0.45);
       vec3 col = mix(green, red, smoothstep(0.55, 1.5, x));
       col = mix(col, edge, (1.0 - smoothstep(0.0, 0.22, x)) * 0.45);
       return col * lower * upper * rays * along * strength;

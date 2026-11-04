@@ -313,8 +313,9 @@
     '  float rod = (1.0 - smoothstep(uNightEye.z, uNightEye.w, log2(max(Lp, 1e-30)) + uNightEye.y)) * uNightEye.x * uNightTint.a;',
     '#ifdef TONE_MAPPING',
     '  float Lx = Lp * toneMappingExposure, dark = 1.0 - smoothstep(0.25 * uNightLamp, uNightLamp, Lx);',
-    '  rod *= dark;',
-    '  float gr = uNightEye.x * dark;',
+    '  float keep = (1.0 - smoothstep(0.3, 0.7, (c.r - c.b) / max(Lp, 1e-5))) * (1.0 - smoothstep(0.45, 0.85, (c.g - max(c.r, c.b)) / max(Lp, 1e-5)));',
+    '  rod *= dark * keep;',
+    '  float gr = uNightEye.x * (1.0 - smoothstep(0.45, 1.5, Lx)) * keep;',
     '  return mix(c, Ls * uNightTint.rgb, rod) * mix(vec3(1.0), uNightGrade.rgb * pow(max(Lx, 1e-5) / 0.25, uNightGrade.a - 1.0), gr);',
     '#else',
     '  return mix(c, Ls * uNightTint.rgb, rod);',
@@ -322,7 +323,9 @@
     '}'].join('\n');
   var BLUE_TINT = [0.86, 1.0, 1.37];   // moonlight's blue-grey, luma ~1
   // nightGrade(el, scale): the grade's uniforms for a sun elevation and the room's radiance scale (ATMO.U.scale)
+  var gradeEl = null, gradeScale = 1;
   function nightGrade(el, scale) {
+    gradeEl = el; gradeScale = scale;
     var s = smooth01((-0.833 - el) / 5.167);   // 0 at sunset, 1 at civil dusk
     var u = nightU.uNightEye.value, t = nightU.uNightTint.value;
     var y = Math.log(SUN_LUX / Math.max(1e-9, scale || 1)) / Math.LN2;
@@ -390,6 +393,7 @@
   function onPre(fn) { if (typeof fn === 'function') preFns.push(fn); return fn; }
   function setNight(o) {
     if (o) for (var k in o) if (k in NIGHT_DEF && typeof o[k] === 'number' && isFinite(o[k])) NIGHT[k] = o[k];
+    if (gradeEl != null) nightGrade(gradeEl, gradeScale);   // the sky's step may be asleep (a paused scene, its throttle)
     return night();
   }
   function night() { var o = {}; for (var k in NIGHT) o[k] = NIGHT[k]; return o; }

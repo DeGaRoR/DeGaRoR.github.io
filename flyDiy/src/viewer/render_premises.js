@@ -383,8 +383,8 @@ function make(THREE, scene, world, rec0, opts) {
     const Pp = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P) ? LIGHT_RIG.P() : 1;
     const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0) * Pp, kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex) * Pp;
     // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
-    for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
-    LAMPS.kLit = on * kGlass * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
+    const litX = (typeof window !== 'undefined' && window.__litX) || 1; for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * litX * (LAMPS.muted ? 0 : 1);
+    LAMPS.kLit = on * kGlass * litX * (LAMPS.muted ? 0 : 1); if (TARR) TARR.lit.value = LAMPS.kLit;   // the town's lit panes (G574): the base rides the slot
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
     // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
     const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9) * Pp;
