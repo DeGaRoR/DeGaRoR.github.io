@@ -138,11 +138,12 @@ const VIEWS = [
   { scout: 1, name: 'scout_e', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 4, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },   // three best go to
   { scout: 1, name: 'scout_f', day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: 5, el: 0.03, dist: 26, fov: 24, lights: LIT, settle: 10 },   // the user
   // the user's pick (4 Nov, B): "camera lower and closer up, showing a little more sky ... the cabin lit, plus the aurora and the
-  // plane" - 20 m, the eye 1.2 m under the plane's centre (a negative el: it looks up 3.4 deg, the horizon drops, the sky opens)
-  { photo: 1, name: 'photo_day',   day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: PICK, el: -0.06, dist: 20, fov: 24, lights: LIT, settle: 8 },
-  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: -0.06, dist: 20, fov: 24, lights: LIT, settle: 14 },
-  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: -0.06, dist: 20, fov: 24, lights: LIT, settle: 10 },
-  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: -0.06, dist: 20, fov: 24, lights: LIT, settle: 12, js: 'if (window.AURORA) AURORA.on({ azDeg: ' + (FRAME ? FRAME.bearing : 0) + ' })' },
+  // plane" - 20 m, the eye ~1 m over the water, looking 1.2 m over the plane's centre (`lift`) so the tilt is 5 deg: the horizon drops, the plane
+  // sits low with the summits and the sky over it, and less of the near water's blurred mirror shows (the first cut's 0.66 m eye, A0: the floats hung under a hard line)
+  { photo: 1, name: 'photo_day',   day: Object.assign({}, APR_AM, FEW), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 8 },
+  { photo: 1, name: 'photo_dusk',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 14 },
+  { photo: 1, name: 'photo_blue',  day: Object.assign({}, APR_BLUE, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 10 },
+  { photo: 1, name: 'photo_night', day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'compose', pick: PICK, el: -0.091, lift: 1.22, dist: 20, fov: 24, lights: LIT, settle: 12, js: 'if (window.AURORA) AURORA.on({ azDeg: ' + (FRAME ? FRAME.bearing : 0) + ' })' },
 ].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'scout' ? !!v.scout : SCENE === 'photo' ? !!v.photo : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !v.scout && !v.photo && !!v.twin === !!BUILD));
 
 // ---- in the page ----
@@ -269,7 +270,11 @@ const SETUP = V => `(async () => {
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
   if (aim === 'ref' && agl == null) agl = 2;
   if (agl != null) { const cg = s.cgPos(), wh = w.waterH ? w.waterH(px, pz) : null, gy = Math.max(w.terrainH(px, pz), Number.isFinite(wh) ? wh : -1e9) + agl;   // the sea's level IS 0 (|| -1e9 sank the plane 13 m)
-    await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
+    await FLIGHT_PROBE.place({ at: [px, gy, pz], zeroV: true });
+    // L31a: after a worker placement the view's cgPos stays at the roll-out (the camera and the terrain's streaming follow it) while the page's sim.p and the model move: the photo scenes read the live points
+    if (aim === 'compose' && !s.__nsCg) { s.__nsCg = 1; s.cgPos = () => { const q = s.p, N = q.length / 3; let x = 0, y = 0, z = 0; for (let i = 0; i < N; i++) { x += q[i * 3]; y += q[i * 3 + 1]; z += q[i * 3 + 2]; } return [x / N, y / N + (window.__nsLift || 0), z / N]; }; }
+    if (aim === 'compose') window.__nsLift = ${+V.lift || 0};
+  }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
   // the lens: the view's fov (the ref scene's 26), every other view the flight's own (46, put back)
   // the ref scene's eye is the plain orbit (diag3: the night frame sat closer than the blue and dusk ones of the same run, the
@@ -375,7 +380,10 @@ async function runPage(page) {
     if (!tgt) throw new Error('no page target');
     const ws = new WebSocket(tgt.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
     let id = 0; const waits = new Map();
-    ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); } };
+    let conN = 0; const conLog = t => { if (conN++ < 60) console.log('CONSOLE ' + String(t).slice(0, 700)); };   // the page's errors in the run's log (a frame that lost the plane says why here)
+    ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+      if (m.method === 'Runtime.exceptionThrown') conLog('EXC ' + JSON.stringify(m.params.exceptionDetails.exception ? m.params.exceptionDetails.exception.description : m.params.exceptionDetails.text));
+      if (m.method === 'Runtime.consoleAPICalled' && (m.params.type === 'error' || (m.params.args[0] && /^NSDIAG/.test(m.params.args[0].value || '')))) conLog(m.params.type + ' ' + m.params.args.map(q => q.value != null ? q.value : q.description).join(' ')); };
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); const d = r.result;
       if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r))); return d.result.value; };
@@ -401,6 +409,8 @@ async function runPage(page) {
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
     await sleep(3000);   // the overlay gone + 3 s
+    // the flight's electrics while it RUNS, before the first view pauses it (a lamp dark with master + alt on: the rig, or a player's state?)
+    for (let i = 0; i < 3; i++) { await ev("(() => { const K = window.FLYDIY_COCKPIT_I, b = K && K.bus, e = FLIGHT_PROBE.sim(); console.log('NSDIAG running bus', JSON.stringify(b ? { V: b.V, ok: b.ok, soc: b.soc, master: b.master, alt: b.alt, altOn: b.altOn, loadA: b.loadA, busOk: K.busOk, btn: document.getElementById('bPause').textContent, hud: e.t } : 'no bus')); return 1; })()"); await sleep(1500); }
     const tag = path.basename(page, '.html') + (Q ? '_' + Q.replace(/\W+/g, '') : '') + BTAG;
     fs.mkdirSync(OUT, { recursive: true });
     const hasNight = await ev('!!(window.LIGHT_RIG && window.LIGHT_RIG.setNight)');
@@ -414,7 +424,7 @@ async function runPage(page) {
       const plan2 = await ev(SETUP(V));            // again: the aeroplane and the orbit where they were asked (a fit or a probe moved nothing, but be sure)
       if (opt('after', null)) await ev('(() => { ' + opt('after') + ' ; return 1; })()');   // --after '<js>': a page change after the lights are set, before the frames (a tuning round)
       await ev(FRAMES(120)); await sleep(1500);
-      if (PHOTO) await ev("(() => { let st = document.getElementById('__nsClean'); if (!st) { st = document.createElement('style'); st.id = '__nsClean'; st.textContent = 'body * { visibility: hidden !important; }'; document.head.appendChild(st); } const cs = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height); if (cs[0]) cs[0].style.setProperty('visibility', 'visible', 'important'); return 1; })()");   // a picture: no HUD, no card
+      if (PHOTO && !argv.includes("--hud")) await ev("(() => { let st = document.getElementById('__nsClean'); if (!st) { st = document.createElement('style'); st.id = '__nsClean'; st.textContent = 'body * { visibility: hidden !important; }'; document.head.appendChild(st); } const cs = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height); if (cs[0]) cs[0].style.setProperty('visibility', 'visible', 'important'); return 1; })()");   // a picture: no HUD, no card
       await sleep(300);
       const png1 = await cmd('Page.captureScreenshot', { format: 'png' });
       if (PHOTO) await ev("(() => { const st = document.getElementById('__nsClean'); if (st) st.remove(); return 1; })()");
