@@ -2403,7 +2403,10 @@ function makePilot(sim, def, world, opts) {
       if (o.vs != null) hdotC = o.vs;
       else if (o.gs != null) {
         const d = ap.xAim - sAl, hGS = aimAlt() + Math.max(0, d) * o.gs;
-        hdotC = -(o_.Vg ?? V) * o.gs + 0.2 * (hGS - cg[1]);
+        // G3914: THE SLOPE'S SINK IS THE CLOSING SPEED'S. In the arc onto final the aeroplane moves mostly across the runway and the slope hardly falls: sinking at
+        // the whole ground speed x gs took the Cessna from 2 m over the slope to 8 m under it in 9 s, then level on 0.48 throttle to meet it again
+        const vClose = P3_ && ap.phase === 'FINAL' ? (o_.Vg ?? V) * clamp(nose[0] * F.ux + nose[1] * F.uz, 0, 1) : (o_.Vg ?? V);
+        hdotC = -vClose * o.gs + 0.2 * (hGS - cg[1]);
       } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
       hdotC = clamp(hdotC, vsDn, vsUp);
       const VdotC = clamp(0.33 * (Vc - V), -1.5, 1.5);
