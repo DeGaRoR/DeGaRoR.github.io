@@ -248,7 +248,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
-  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
@@ -1677,7 +1677,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
   // solver's per-engine thrust then makes a cut engine a real couple. The
   // single mounts and the classic pair run exactly the old loop.
-  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
   if (!noseEng || LAYF) {
     sec('engines');
@@ -1751,7 +1751,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         }
         hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(WL, WR); engIdx.push(0, 0);
+        engNodes.push(WL, WR); engIdx.push(iE, iE);   // (HULL-B15: a tandem's two entries, 0 and 1; a single mount 0)
+        if (LAYF) engCowl.push([WL, WR]);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism

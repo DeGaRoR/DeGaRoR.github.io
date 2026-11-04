@@ -1176,7 +1176,7 @@ function cageHullFitAll(P, f, HY, opt) {
         if (!(+P.engNacOver > 0)) { fit.engNacOver = 1; fit.engNacLift = 0; }
         else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
       }
-      else if (mount === 2) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
+      else if (mount === 2 || mount === 7) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
       else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
     }
   }

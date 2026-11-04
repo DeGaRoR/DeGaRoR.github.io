@@ -4775,6 +4775,9 @@ const GEN_ENG_LAYOUTS = {
   pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
   tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
   quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+  // HULL-B15: THE TANDEM - two engines back to back on ONE over-the-wing pylon, the front one pulling, the rear one
+  // pushing (the Dornier Seastar's push-pull pylon; the Wal's tandem nacelles)
+  tandem:   { mounts: ['wingTop', 'wingTop'],         nacAt: [] },
 };
 // the layout key of an engine list, or null for every list the clamp keeps
 // to one mount / the classic pair (the pre-G2790 path, byte for byte)
@@ -5025,7 +5028,7 @@ function clampSpec(spec) {
     e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
-    e.pylon = genClampN(e.pylon, 0.05, 1.0);
+    e.pylon = genClampN(e.pylon, 0.05, 1.5);   // (HULL-B15: 1.5 m - a tandem's two discs over a cabin)
     // which way a WING engine faces (2026-09-04): null = the mount's own
     // (over the wing pushes, a pair pulls)
     if (!['puller', 'pusher'].includes(e.aim)) e.aim = null;
@@ -5410,6 +5413,9 @@ function clampSpec(spec) {
       W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
     }
     if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+    // the tandem's pair: one pylon (the front entry's height), the front pulling, the rear pushing, opposite hands
+    if (LAY === 'tandem') { E[1].pylon = E[0].pylon; E[0].aim = 'puller'; E[1].aim = 'pusher'; E[1].sense = -E[0].sense;
+      if (E[0].pylonForm) E[1].pylonForm = E[0].pylonForm; else delete E[1].pylonForm; }
   } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);

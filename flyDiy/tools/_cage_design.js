@@ -1586,7 +1586,7 @@ const DESIGN_ROWS = [
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
     group: 'propulsion', status: 'live', twin: ['engMount'],
     help: 'count and placement are one choice — a twin puts them on the wing',
-    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4 })[Math.round(P.engMount)] || 1,
+    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4, 7: 'tandem' })[Math.round(P.engMount)] || 1,
     options: [
       // one engine: back to the nose unless a single mount is already chosen
       // ...AND THE COUNT DECIDES THE NOSE TOO, because a pair on the wing
@@ -1623,6 +1623,13 @@ const DESIGN_ROWS = [
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)),
                           boomTwin: 1, taperOn: 1, stMount: 3, stX: 0, stCant: 0, finOn: 1,
                           boomX: P => Math.max(+P.boomX || 1.2, 0.5 * (+P.cw_propD || 1.8) + 0.30) } } },
+      // HULL-B15: THE TANDEM (the user: "some push-pull ... maybe with a single mount for two engines"): two engines
+      // back to back on one over-the-wing pylon, the front pulling, the rear pushing - the Seastar's; centreline thrust
+      // over a high wing, the nose and the tail faired, the pods the straight nacelle
+      { value: 'tandem', label: 'Push-pull (one pylon)', icon: iconTopEngines(false, 0, true),
+        note: 'two engines back to back on one pylon over the wing, one pulling, one pushing (the Seastar)',
+        writes: { cage: Object.assign({ engMount: 7, wgPos: 0, cowlOn: 1, fitNose: 2, cw_aftMode: 1, cw_tailLen: 0.55, aeroAftOn: 1 },
+                                      NOSE_AERO, NACELLE_POD) } },
       // THE THREE: the nose engine and a tractor nacelle a side (the Ford
       // Trimotor / Ju 52) — the nose keeps its cowl, the nacelles wear the
       // same cowl scaled to their faces with a nacelle tail

@@ -281,7 +281,7 @@ function run(core, edSrc) {
   // the design tiles, through the real design table
   const tileGreys = (key) => PANEL.DES.rowOptions(PANEL.DES.DESIGN_ROWS.find(r => r.key === key)).filter(o => !o.inactive)
     .filter(o => !!E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === key), o)).map(o => o.value);
-  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2, 'pushPull', 3, 4], gearLayout: ['trike', 'hull'], canopy: ['bubble'], suspension: [], covering: [], planes: [] };
+  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2, 'pushPull', 'tandem', 3, 4], gearLayout: ['trike', 'hull'], canopy: ['bubble'], suspension: [], covering: [], planes: [] };
   const tb = Object.keys(TILE_EXPECT).filter(k => J(tileGreys(k)) !== J(TILE_EXPECT[k]));
   // (ENGINE-CONFIGS-2: the push-pull, the three and the four are several engines - greyed with the twin)
   ok(!tb.length, 'the design tiles at segment 1: construction (composite, aluminium, aluminium tube, glassfibre), electric and turbine, the twin (and the push-pull, the three, the four), the tricycle, the boat hull (HULL-B1: segment 2), the bubble - and nothing else',

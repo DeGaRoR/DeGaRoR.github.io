@@ -299,11 +299,11 @@ function cageJoinSpec(P, M, T) {
       // (60_gen_spec GEN_ENG_LAYOUTS) — one entry per drawn unit, in the
       // order engineFaces lists them, each entry's own mount
       const mK = Math.round(P.engMount || 0);
-      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : null;
+      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : mK === 7 ? 'tandem' : null;
       // the mounts of each layout, GEN_ENG_LAYOUTS' own lists (the join runs
       // as a node module in GATE JOIN, where the core's globals are not)
       const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
-                     quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
+                     quad: ['wing', 'wing', 'wing', 'wing'], tandem: ['wingTop', 'wingTop'] }[LAY];
       // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
       const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
@@ -314,7 +314,8 @@ function cageJoinSpec(P, M, T) {
       const one = (i, mk) => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
-        ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
+        ...(LAY === 'tandem' ? { aim: i === 0 ? 'puller' : 'pusher' }
+            : aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
         // DRAWN. The frame placed a nose engine by the prop rule

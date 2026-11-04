@@ -558,13 +558,14 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
-  ['engMount',  'mount', 0, 6, 1,
+  ['engMount',  'mount', 0, 7, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)', 'nose + pusher (push-pull)',
-    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)'],
+    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)',
+    'push-pull on one pylon (tandem)'],
    { when: P => +P.engOn }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
-   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],
+   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],   // (a tandem's aims are its own)
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   // G2790: the four's outer pair (kept 0.10 of the semispan outboard of
@@ -587,14 +588,14 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
-  ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
+  ['engPylonH', 'pylon height', 0.05, 1.5, 0.01,
+   { when: P => +P.engOn && [2, 7].includes(Math.round(P.engMount)), dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
   // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
   ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],
-   { when: P => +P.engOn && (Math.round(P.engMount) === 2 || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
+   { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   ['engPylonFair', 'pylon', 0, 2, 1, ['bars + cables', 'fairing', 'wing-section fairing'],
-   { when: P => +P.engOn && (Math.round(P.engMount) === 2 || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
+   { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
@@ -662,6 +663,10 @@ const ENG_SEC = {
 //                2  a WING-SECTION fairing (a symmetric 18 % aerofoil, chord fore / aft), the cables hidden.
 // The fairing tapers from the feet's spread to the plate's width; cage metres, the layer's own frame.
 const PYLON_R = 0.021, PYLON_RAIL = 0.016, PYLON_CABLE = 0.0022;
+// HULL-B16: the cooling tower's scale up a pylon fairing, t 0 at the wing .. 1 at the nacelle: a hyperbola with its
+// waist a little above the middle, so the foot flares most (2.0 x at the wing, 1.7 x at the nacelle, 1 at the waist)
+const PYLON_WAIST = 0.55, PYLON_WAIST_A = 0.32;
+const pylonFlare = t => Math.sqrt(1 + ((t - PYLON_WAIST) / PYLON_WAIST_A) ** 2);
 function drawPylonMount(group, f, P, GK, aft) {
   if (Math.round(+P.engPylonForm || 0) === 1) return drawPylonBlade(group, f, P, GK, aft);
   const style = Math.max(0, Math.min(2, Math.round(+P.engPylonFair || 0)));
@@ -693,15 +698,21 @@ function drawPylonMount(group, f, P, GK, aft) {
   // a slab (1, a rounded flat section) or a wing section (2, a symmetric 14 % aerofoil); a fairing strip closes the
   // plate's underside between the two panels
   // (feet narrow enough - a wing with its centre - and the two panels merge into ONE pylon fairing on the centreline)
-  const fair = GK.Bag(), NS = 24, NR = 8, single = fx <= 0.16;
+  // HULL-B16: THE COOLING TOWER (the user: "the same fin section in the middle, but that would get wider when it gets to
+  // the cowl, and even wider at the bottom when it gets to the wing ... these nuclear power plant chimney shape"): ONE
+  // fin section held up the height, its scale a hyperbola of the height - narrowest at its waist, flaring into the
+  // nacelle above and further into the wing below (pylonFlare); the legs inside it at every height
+  const fair = GK.Bag(), NS = 24, NR = 16, single = fx <= 0.16;
+  const mid = (k0, k1) => { const a = at(k0, 0.5), b = at(k1, 0.5); return Math.abs(a[2] - b[2]) + 0.12; };
   for (const sd of (single ? [0] : [-1, 1])) {
     const kF = sd < 0 ? 'fL' : 'fR', kR = sd < 0 ? 'rL' : 'rR';
-    const path = [], rows = [], halfs = [];
+    const path = [], rows = [], halfs = [], c0 = mid(kF, kR);
     for (let i = 0; i <= NR; i++) {
       const sv = 1 - i / NR, a = at(kF, sv), b = at(kR, sv);            // foot -> plate
+      const fl = pylonFlare(i / NR);
       path.push([sd === 0 ? 0 : 0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2])]);
-      rows.push(Math.abs(a[2] - b[2]) + 0.12);
-      halfs.push(sd === 0 ? Math.abs(a[0]) + PYLON_R + 0.012 : PYLON_R + 0.012);
+      rows.push(Math.max(Math.abs(a[2] - b[2]) + 0.12, c0 * (1 + 0.45 * (fl - 1))));
+      halfs.push((sd === 0 ? Math.abs(a[0]) + PYLON_R + 0.012 : PYLON_R + 0.012) * fl);
     }
     const sect = (t, i) => {
       const c = rows[i], hw = halfs[i], pts = [];
@@ -739,12 +750,13 @@ function drawPylonMount(group, f, P, GK, aft) {
 function drawPylonBlade(group, f, P, GK, aft) {
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch);
   const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05);
-  const ft = f.foot, yF = ft.y - 0.005, zF0 = 0.5 * (ft.zF + ft.zR), cF = Math.abs(ft.zF - ft.zR) + 0.10;
-  const fair = GK.Bag(), NS = 24, NR = 8, path = [], rows = [];
-  for (let i = 0; i <= NR; i++) { const t = i / NR;
-    path.push([0, yF + (y0 - yF) * t, zF0 + (zc - zF0) * t]); rows.push(cF + (Lp + 0.06 - cF) * t); }
+  const ft = f.foot, yF = ft.y - 0.005, zF0 = 0.5 * (ft.zF + ft.zR);
+  // (HULL-B16: one fin section, the plate's chord, held up the height and flared at both ends - pylonFlare)
+  const fair = GK.Bag(), NS = 24, NR = 16, path = [], rows = [], thk = [], c0 = Lp + 0.06;
+  for (let i = 0; i <= NR; i++) { const t = i / NR, fl = pylonFlare(t);
+    path.push([0, yF + (y0 - yF) * t, zF0 + (zc - zF0) * t]); rows.push(c0 * (1 + 0.45 * (fl - 1))); thk.push(0.12 * (1 + 0.55 * (fl - 1))); }
   GK.sweep(fair, path, (t, i) => {
-    const c = rows[i], pts = [], th = 0.12;
+    const c = rows[i], pts = [], th = thk[i];
     for (let k = 0; k < NS; k++) {
       const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
       const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
@@ -1018,7 +1030,7 @@ PAGE.post = ctx => {
   if (EW) EW.place('eng', ctx, engPlace, () => {
     const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
     // (ENGINE-CONFIGS-2: the three's and the four's nacelles stand on the wing too - mounts 5 and 6)
-    if (!+P.engOn || ![2, 3, 5, 6].includes(m) || !NF || !NF.engineFaces) return null;
+    if (!+P.engOn || ![2, 3, 5, 6, 7].includes(m) || !NF || !NF.engineFaces) return null;
     const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
     return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
   });
@@ -1267,7 +1279,7 @@ function engPlace(ctx, prev) {
     group.add(ug);
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
-    if (u.kind === 'wingTop' && f.yBase != null) {
+    if (u.kind === 'wingTop' && f.yBase != null && !u.tandemRear) {   // (HULL-B15: a tandem's one pylon, under its front unit)
       const GK = window.GEAR_KIT;
       if (!GK || !f.foot) {
         const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);

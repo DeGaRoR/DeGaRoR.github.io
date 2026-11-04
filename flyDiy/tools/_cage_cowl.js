@@ -123,13 +123,13 @@ const GROUP = ['2b · cowl', [
    { when: P => +P.cowlOn }],
   // (FIREWALL RULE: only off the body - a pylon, a nacelle - where the face is the engine's own plate)
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
-   { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(+P.engMount || 0)) }],
+   { when: P => +P.cowlOn && [2, 3, 5, 6, 7].includes(Math.round(+P.engMount || 0)) }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
                         // the nacelle rows only mean something off the body
                         g.id === 'g_aft'
-                          ? { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(P.engMount || 0)) }
+                          ? { when: P => +P.cowlOn && [2, 3, 5, 6, 7].includes(Math.round(P.engMount || 0)) }
                           : { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -456,9 +456,13 @@ const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
   [1, 4].includes(Math.round(+P.engMount || 0));
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
-  if (mount >= 4 && mount <= 6) {
+  if (mount >= 4 && mount <= 7) {
     const one = (m, extra) => engineFaces(mesh, FS, Object.assign({}, P, { engMount: m }, extra || {}));
     if (mount === 4) return one(0).concat(one(1));
+    // HULL-B15: THE TANDEM - the over-the-wing mount's face twice, back to back: the front unit pulls (its block
+    // forward of the face), the rear one pushes (aft of it), a hand's gap between their plates; one pylon (the first)
+    if (mount === 7) return one(2, { engAim: 1 }).map(u => Object.assign(u, { face: Object.assign({}, u.face, { z: u.face.z + 0.04 }) }))
+      .concat(one(2, { engAim: 2 }).map(u => Object.assign(u, { face: Object.assign({}, u.face, { z: u.face.z - 0.04 }), tandemRear: true })));
     if (mount === 5) return one(0).concat(one(3));
     const inner = +P.engNacAt || 0.30, outer = Math.max(inner + 0.10, +P.engNacAt2 || 0.62);
     return one(3, { engNacAt: inner }).concat(one(3, { engNacAt: outer }));
