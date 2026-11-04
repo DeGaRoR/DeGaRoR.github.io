@@ -254,6 +254,12 @@ the body aft for exactly this reason.
 | the supercharger casing and the long intake under the nose | OPEN |
 | a waist row along the body (the line where a fighter's sides turn under) | OPEN |
 | the induction's side (as for the DH.82, above) | OPEN |
+| a twin's datum: no nose engine, the propellers on the nacelles (the DC-3) | added: `"datum": "nose"` (stations aft of the fuselage's nose tip) and `"level": "body"` (heights above its deepest section's centre), both sides; `refmatch.py --dump-ref` (the match frame, every role and marker, for slicing by hand) |
+| a big wing's taper under 0.45 and a crank chord over 2.10 m (the DC-3's 4.63 m centre section, 0.30 taper) | added: the big envelope's `taper` 0.25-1 and `crankChord` to 5 m (spans past 18 m only); the editor's `wgCrankChord` to 5 m and `wgTipX` to 4 m |
+| holding the user's shape choices while a fitter places the rest | added: `fit_tail.js ... --hold k=v,...` |
+| a fin station: the hinge ahead of the tail post (the DC-3's rudder overhangs the cone 0.5 m, ours 1.9 m) | OPEN: reached by the Cub start's own rows this time |
+| a dorsal fillet that curves CONCAVE into the spine (the DC-3's): ours stands convex above it | OPEN: the dorsal left off, the LE run to the spine |
+| a nacelle role in the tool, and the nacelles / props' station (the DC-3's nacelle 2.98-6.88 m aft of the nose, ours 3.59-6.98) | OPEN: step 3 |
 
 ## 8. The Camel log (27 Oct 2026)
 
@@ -369,3 +375,33 @@ Where it stopped: step 1 (the lengths) half-done - `fit_body.py` from 0.173 to 0
 sections, the plan, the tail and the gear not started. To resume: `match.sh spitfire` (unblock the card in a scratch
 copy), then the order of section 3; the gaps it met are section 7's last six rows.
 
+
+## 11. The DC-3 (27 Oct 2026): STEP 1 and the surfaces, the user steering
+
+Reference: `refs/dc3.glb`, Sketchfab "Dc3" by manilov.ap, CC-BY-4.0. Not a card: the sandbox DC-3 is `tools/dc3_build.js`'s
+rows, and the fit is its `DC3_FIT` (v1 since 28 Oct: laid over the study's rows in every build, `tools/fixtures/dc3_2026-10.json`).
+- **Scale:** span 28.96 m (95 ft, NASM), length anchored at 19.66 m (64 ft 6 in, NASM; factor 1.031). Height not anchored
+  (NASM's 5.16 m is three-point).
+- **Align: `pca`, not `wing`.** The model is yawed ~25 deg but flies level in its file; `align: wing` took the wing's second
+  principal axis as the chord, and a swept LE with outer dihedral tilts it 11.3 deg (aft is higher) - the model came out
+  nose-up on its tail. Check the fuselage axis's pitch before trusting an alignment.
+- **Datum: the nose, level on the body** (`"datum": "nose"`, `"level": "body"`). The props' plane mixed our nacelle's
+  misplacement (the prop 0.46 m ahead of the LE against 2.17) into every body station.
+- **The model's main wheels are retracted** (the user): the main wheel's station from the model, its extended place from
+  the user's drawing (down 1.3 m and 0.28 m aft); the tailwheel from the model (16.96 m aft, under the tailplane).
+- Step 1 result: tail post 19.203 (19.195); wing plan 1 - IoU 0.065 (0.783), LE / TE within 9 cm, chord line within 1 cm;
+  body half-width 1.088 (1.088); tailplane LE / TE / span within 7 mm; fin top 3.546 (3.548), TE +7 cm.
+- The user's steering: the section round top and bottom (`topRound` / `botRound` 1; roofY / keelY brought in around it - the
+  round options make the section deeper); five front rings (`cowlLoops` 5); the fin from the Cub preset with the rudder
+  straightened and the LE curved (`fit_tail --hold`, 0.22), the tailplane the Chinook's with the elevator's ends round.
+- `fit_tail.js` stab went wrong on this build (span 10.6 against 7.8, the aeroplane resting on the tailplane): the stab was
+  set by hand, its macro rows from the measured offsets.
+- Open: the flight sheet's design check (`pitch.sm` -0.017 at the worst loading corner, `yaw.dutch`), the nacelles and
+  props (step 3), the cockpit glazing, the concave dorsal (section 7).
+- **v1 (28 Oct), the user's last batch:** the cockpit halved and a ninth bay; the nacelles placed by `engBlockZ` (the whole
+  nacelle, engine and cowl and propeller, metre for metre - `cw_noseOff` moves the prop alone, `eng_mountGap` is case radii)
+  and `engNacAt`: the spinner, its axis and its span station on the reference's; the tailwheel the reference's (its drop is
+  `s2_twLegDrop`: `s2Drop` does nothing on a tailwheel leg); a NEW ROW `noseDome` (nose roundness, cone -> dome: the front
+  rings on a quarter-ellipse spaced along the arc) at 0.3 - with the tip collapsed (noseTip 0.98), uncreased (crNoseCap 0,
+  crFrontCap 0) and the nose joint band off, one smooth tip; the outer dihedral 6.5 (at the reference's 7.5 the Dutch roll
+  diverged). Flown: the circuit and a first-time landing; the HOME trip 0 contacts, 0 breaks.

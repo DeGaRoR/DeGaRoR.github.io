@@ -73,9 +73,9 @@ function storyChecklist(spec, base, items) {
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
 const STORY_BEATS = [
   { id: 'T0', title: 'The cabin', mask: 'finish',
-    brief: 'Your ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.',
+    brief: 'Your ultralight waits in the cabin’s shed. Make it yours - a colour, a name - then come and read the letter.',
     goal: { k: 'ack' } },
-  { id: 'T1', title: 'The move', brief: 'The proposal was accepted: the old WWII field is ours. Fly the ultralight there.',
+  { id: 'T1', title: 'The move', brief: 'The old WWII field is our base now - its hangar is ours already. Fly the ultralight there.',
     goal: { k: 'stop', at: 'home', plane: 'starter' },
     done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
   { id: 'T2', title: "The client's plane", mask: 'checklist',
@@ -104,11 +104,11 @@ const STORY_IDS = STORY_BEATS.map(b => b.id);
 // them. The corner card stays the OBJECTIVE; Tim is the voice.
 const STORY_TIM = {
   name: 'Tim', role: 'your friend and business partner',
-  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
+  T0: ['Morning! The ultralight has sat in the cabin’s shed all winter. Let\u2019s dust it off.',
        'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
        'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
-  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
+  T1: ['Good news: the old WWII airport is ready for us. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
   T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
   T3: ['Certified? Then fly it over to its owner.'],
@@ -171,7 +171,7 @@ function storyLadderStep(L, o) {
 const STORY_REG = 'N47RF';          // G3586: Rufus's own registration (fictional; the generator's meta.reg is F-PGAR)
 const STORY_TUTOR = {
   T0: [
-    { id: 'hello', say: 'Morning! The ultralight has sat in this shed all winter. Let’s dust it off.' },
+    { id: 'hello', say: 'Morning! The ultralight has sat in the cabin’s shed all winter. Let’s dust it off.' },
     { id: 'paint', wait: 'painted', allow: 'finish',
       say: 'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add a livery, or recolour any single piece. Give it a fresh coat: change any colour.' },
     { id: 'reg', wait: 'registered', allow: 'reg', pass: 'Keep ' + STORY_REG,
@@ -180,7 +180,7 @@ const STORY_TUTOR = {
       say: 'It’s pre-certified, so it flies as it is. No test bench in here, mind - certification happens at the WWII field’s hangar.' },
   ],
   T1: [
-    { id: 'news', say: 'Good news: we got the old WWII airport. It’s our base of operations now. Come and join me there.' },
+    { id: 'news', say: 'Good news: the old WWII airport is ready for us. It’s our base of operations now. Come and join me there.' },
     { id: 'ap', say: 'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.' },
     { id: 'roll', wait: 'flying', allow: 'rollout',
       say: 'Roll it out when you’re ready. Or skip the flight: you start on the final at the WWII field.' },
@@ -296,21 +296,20 @@ function storyNormalise(s) {
 // the story of a career document, or null (the sandbox, a career without one)
 const storyOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.story) ? storyNormalise(doc.career.story) : null;
 // G2743 THE CABIN, GRANTED: the shed on the cabin's plot (BASE_OFFERS[aero].plots[plot]) is the player's, free - the
-// story's gift, no ledger charge - and HOME's shed is LOCKED until T1 (71_ playerShedLocked: the start owns ONLY the
-// cabin, the user 18 Oct). `here` is the cabin. A cabin with no plot on offer -> refused with the reason (the start
-// stays at HOME's garage and the page says why; never a guess).
+// story's gift, no ledger charge. HOME's club stays yours and open (STORY-1, the user 29 Oct: the start owns BOTH - the
+// Shed for you, the club for the business; the lock until T1 was an overreach). `here` is the cabin. A cabin with no
+// plot on offer -> refused with the reason (the start stays at HOME's garage and the page says why; never a guess).
 function storyGrantCabin(d, aero, plot) {
   const O = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero], P = O && O.plots[plot || aero];
   if (!P) return 'no shed to hold at ' + aero + ' (BASE_OFFERS has no plot there)';
   const id = plot || aero, shell = P.shells[0];
   if (!d.sheds[id]) d.sheds[id] = { shell, kits: (P.kits || []).slice(), base: aero, tenure: 'own',
     dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price: 0, since: 0, story: true };
-  if (d.sheds[PREM_MAIN] && id !== PREM_MAIN) d.sheds[PREM_MAIN].locked = 'story';
   d.here = id;
   return null;
 }
 // a new career WITH the story (STORY-PAGE calls this once, at New career): the starter plane's slot is bound by the page;
-// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin and locks HOME until T1
+// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin (HOME stays yours: STORY-1)
 function storyStart(doc, starterSlot, o) {
   if (!doc || doc.mode !== 'career' || !doc.career) return { ok: false, doc, why: 'not a career' };
   if (doc.career.story) return { ok: false, doc, why: 'the story has already started' };
@@ -383,8 +382,6 @@ function storyStep(doc, ev, ctx) {
   const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
   s.done.push(B.id);
   if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
-  // G2743: T1's reward - the WWII field's hangar is ours: HOME's lock (storyStart) is lifted
-  if (B.id === 'T1' && d.sheds && d.sheds[PREM_MAIN] && d.sheds[PREM_MAIN].locked) delete d.sheds[PREM_MAIN].locked;
   const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
   if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
@@ -450,7 +447,7 @@ function storyCabinShed(aero, clock) {
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
-// in it, and the WWII field's hangar is held for the move (`locked`: T1's 'hangar' effect hands it over). No cabin on the
+// in it, and the WWII field's hangar stays yours and open (STORY-1, the user 29 Oct: both from the start). No cabin on the
 // island yet: the story starts at HOME, the reason recorded for the beat card. The starter's airframe row is written here;
 // its slot (the envelope) is the page's, and the page's lift stands it in the cabin's shed once the slot exists.
 // o: { aeros: world.aerodromes, starter? } -> { ok, doc, effects, cabin, why }
@@ -469,7 +466,6 @@ function storyNewCareer(doc, o) {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
     d.here = C.id;
-    if (d.sheds.HOME) d.sheds.HOME.locked = 'story';
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
@@ -489,7 +485,8 @@ function storyClientSpec(cub) {
   return s;
 }
 // EACH EFFECT, APPLIED (storyStep hands them; the page fetches what a plane needs first and passes it in o):
-//   hangar      the WWII field's hangar is ours: the lock lifted, a ledger line at 0
+//   hangar      the WWII field's hangar: its ledger line at 0 (it has been yours from the start - STORY-1; an older
+//               career's lock is lifted here and by playerNormalise, and only then the line says so)
 //   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
 //               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
 //   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
@@ -509,9 +506,11 @@ function storyApply(doc, e, o) {
   if (e.k === 'hangar') {
     const id = PREM_MAIN;
     if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
+    const was = !!d.sheds[id].locked;
     delete d.sheds[id].locked;
-    playerLedger(d, 'story', 0, id);
-    line = 'The WWII field’s hangar is yours.';
+    // STORY-HOME-FIX (F3): the hangar has been the player's since the start (STORY-1): the handing over - its ledger line,
+    // its words - only for an old save that still held it locked
+    if (was) { playerLedger(d, 'story', 0, id); line = 'The WWII field’s hangar is yours.'; }
   } else if (e.k === 'clientPlane') {
     const slot = o.slot || STORY_SLOTS.client;
     if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
@@ -627,7 +626,6 @@ function storyCard(doc, o) {
   }
   const notes = [];
   if (s.note) notes.push(s.note);
-  if (B.id === 'T0' && doc.sheds && doc.sheds.HOME && doc.sheds.HOME.locked) notes.push('The WWII field’s hangar is not yours yet.');
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }

@@ -309,7 +309,7 @@ const CAGE_PARTS = [
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge', 'noseDome']],
       // G3510: the round body's front — its forward section and the cone to
       // the engine face (or the point), the rows G19 wrote
       ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop', 'aeroRound']],
@@ -488,7 +488,8 @@ const CAGE_PARTS = [
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
-      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4', 'paxOcc5', 'paxOcc6',
+                  'paxOcc7', 'paxOcc8', 'paxOcc9', 'paxOcc10', 'paxOcc11', 'paxOcc12']],
       // G3511: each bay open at the top on its own row
       ['opening', ['paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']],
       // G1321 (the user: "map these sections to their respective parts in
@@ -675,7 +676,7 @@ const CAGE_PARTS = [
     place: { fore: 'wgStrutZ', out: 'wgStrutX',
              at: 'the foot, on the fuselage side' },
     groups: [
-      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
+      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil']],
     ] },
 
   // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
@@ -775,7 +776,7 @@ const CAGE_PARTS = [
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finCons', 'finDorsal', 'finKeel', 'finProject'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
     order: ['fitted', 'type', 'g:size', 'size'],
     rename: { size: 'outline points' },
@@ -783,7 +784,7 @@ const CAGE_PARTS = [
     groups: [
       // 'root', not a second 'fitted' heading under the trunk's own: what is
       // left here once the trunk has taken its rows is the root fillet
-      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal',
+      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
                 'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
@@ -872,7 +873,7 @@ const CAGE_PARTS = [
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
-      ['doors', ['hgDoor', 'hgDoorEdge', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
+      ['doors', ['hgDoor', 'hgDoorEdge', 'doorStop', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
       ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
@@ -972,7 +973,8 @@ const CAGE_PARTS = [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
-                                   'cw_sqAftTop', 'cw_sqAftBot']],
+                                   'cw_sqAftTop', 'cw_sqAftBot',
+                                   'cw_wAftTop', 'cw_wAftBot']],   // CABIN-CRAFT: the width by level
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
@@ -1167,7 +1169,9 @@ const CAGE_PARTS = [
   { key: 'fit', name: 'Cabin fit', parent: 'cabin', layer: 'crew' },
 
   { key: 'seats', name: 'Seats', parent: 'fit', layer: 'crew',
-    sections: ['seatTrim'],
+    // SEATS (2026-11-02, the user: "a couple of configurable colors ... base, accent and seam"): the base upholstery
+    // (seatTrim, the section since G332), the accent panels, the seams (piping, stitching, bindings), the frame / shell
+    sections: ['seatTrim', 'seatAccent', 'seatSeam', 'seatFrame'],
     when: P => +P.crewOn,
     place: { type: ['seatType', 'seatLayout'], fore: 'seatZ', up: 'seatH',
              at: 'on the cabin floor' },
@@ -1175,7 +1179,7 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
@@ -1275,6 +1279,13 @@ const CAGE_PARTS = [
   // layer its geometry (the dials themselves, `edGauge_*`).
   { key: 'instruments', name: 'Instruments', parent: 'fit', layer: 'panel',
     panel: 'CAGE_PANEL' },
+
+  // THE FURNISHING (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing accounted accurately, its own
+  // row"). The seats' kind and the cabin's trim as billed choices, through the same door as the Instruments
+  // (`panel: 'CAGE_FURNISH'`, tools/_cage_furnish.js, writing `spec.outfit`); the bill they add up to is the
+  // ledger's own `furnish` row. No parameters, no sections: the seats themselves are the crew layer's.
+  { key: 'furnishing', name: 'Furnishing', parent: 'fit', layer: 'crew',
+    panel: 'CAGE_FURNISH' },
 
   // =========================================================================
   // BUILD — what is true of the aeroplane rather than of one of its parts.

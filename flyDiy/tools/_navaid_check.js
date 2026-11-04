@@ -10,7 +10,10 @@
 //              procedural mast; <= 3 500 tris at lod 0
 //   4 CATALOGUE  keys navaid/... and utility/...; every entry has a foot, a ground rule, its lights slot
 //   5 SITES    the ANN VOR/DME in the Jolene record near its real point (> 60 m is a fault, > 5 m an editor nudge), its
-//              tree-clear exclude ~30 m round it (the user's rule: cleared only there); the powerhouses are not placed
+//              tree-clear exclude ~30 m round it (the user's rule: cleared only there); the two hydro powerhouses
+//              (SCENERY-PLACE, 3 Nov - the user via A0: "go ahead and place all the new scenery we have") at their
+//              G2909 points (Upper Lake within 5 m of Purple Lake's; Bayside within 10 m of Chester Lake's candidate A,
+//              which the user's boat yard now holds), each with its tree-clear exclude ~30 m round it
 //   6 LAZY     the generator is NOT in index.html's static list (build.js MANIFEST.lazy), and every lazy trigger
 //              (world_boot, the house worker) matches both namespaces
 // Run: node tools/_navaid_check.js        (one final `GATE NAVAID: ...`)
@@ -107,8 +110,8 @@ for (const e of cat) {
   if (!e.ground || !e.ground.need) fail(`4 catalogue: ${e.key} has no ground rule`);
   if (!e.slots || e.slots.lights !== 'stats.lit.lights') fail(`4 catalogue: ${e.key} does not publish its lights`);
 }
-// 5 SITES: the ANN VOR/DME placed at its real point (the user, 12 Oct: "You can put the VOR"; the hydro powerhouses are
-// catalogue assets the user positions - their points are in HANDOVER), with its tree-clear exclude round it
+// 5 SITES: the ANN VOR/DME placed at its real point (the user, 12 Oct: "You can put the VOR"), with its tree-clear exclude
+// round it; the hydro powerhouses placed too since SCENERY-PLACE (the user, 3 Nov: "place all the new scenery we have")
 {
   const rec = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8'));
   const L = rec.layers || {};
@@ -126,7 +129,17 @@ for (const e of cat) {
       if (r < 29 || r > 45) fail(`5 sites: the clear round s_vor_ann reaches ${r.toFixed(0)} m (the disc and its shelter want ~30)`);
     }
   }
-  if ((L.sites || []).some(s => (s.items || []).some(it => /^utility\//.test(it.key)))) notes.push('5 sites: a utility/ site is placed (placed by the user)');
+  // the hydro powerhouses (SCENERY-PLACE, 3 Nov): each placed near its point, its tree-clear exclude round it
+  for (const [id, pt, far] of [['hy_s_upper', POINTS.purple, 5], ['hy_s_bayside', POINTS.chester, 10]]) {
+    const S = (L.sites || []).find(s => s.id === id);
+    if (!S || !(S.items || []).some(it => it.key === 'utility/hydro powerhouse')) { fail(`5 sites: ${id} (a hydro powerhouse) is not in the Jolene record`); continue; }
+    const d = Math.hypot(S.at.x - pt.x, S.at.z - pt.z);
+    if (d > far) fail(`5 sites: ${id} stands ${d.toFixed(1)} m from its point (${far} m allowed)`);
+    else notes.push(`5 sites: ${id} ${d.toFixed(1)} m off its point`);
+    const ex = (L.exclude || []).concat(L.areas || []).find(a => a.id === id + '_clear');
+    if (!ex || !(ex.what || (ex.props && ex.props.exclude) || []).toString().includes('trees')) fail(`5 sites: ${id} has no tree-clear exclude (${id}_clear)`);
+    else { const r = Math.max(...ex.poly.map(q => Math.hypot(q[0] - S.at.x, q[1] - S.at.z))); if (r < 25 || r > 45) fail(`5 sites: the clear round ${id} reaches ${r.toFixed(0)} m (~30 wanted)`); }
+  }
 }
 // 6 LAZY
 {

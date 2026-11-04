@@ -642,8 +642,12 @@ if (plots.length) {
   const PMv = M.plotMoves || {};
   // (G3020: and the fields the manifest patches after the ship - fieldPatches {entry id: {field: value}}, SCENERY-ED-1's HOME rework on rev 28)
   const FPa = M.fieldPatches || {};
+  // (SCENERY-PLACE, 3 Nov: and one site item's P keys the manifest patches after the ship - itemPatches {site id: {item id:
+  //  {P key: value}}} - a field patch would carry the site's whole item list; the mine's air taxi office's sign off its posts)
+  const IPa = M.itemPatches || {};
   const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
     if (FPa[c.id]) Object.assign(c, JSON.parse(JSON.stringify(FPa[c.id])));
+    if (IPa[c.id] && Array.isArray(c.items)) for (const it of c.items) if (it && IPa[c.id][it.id]) it.P = Object.assign({}, it.P || {}, JSON.parse(JSON.stringify(IPa[c.id][it.id])));
     // (MINE-GARAGE-SIDE 26 Oct: a move may turn the plot too - a third number, its heading)
     if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; if (PMv[c.id][p.id].length > 2) p.hdg = PMv[c.id][p.id][2]; }
     return JSON.stringify(c); };
@@ -1091,6 +1095,11 @@ if (plots.length) {
   check(!('rail' in rd('rc')) && !('poles' in rd('rc')) && !('polesSide' in rd('rc')), '30 a road that says nothing composes as before (no new key)');
   const RP30 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(/if \(!RAIL \|\| rd\.rail === 'off'\) return null;/.test(RP30) && /if \(!PWR \|\| rd\.poles === 'off'\) return null;/.test(RP30) && /mode: rd\.rail \|\| 'auto'/.test(RP30) && /mode: rd\.poles \|\| 'auto'/.test(RP30), '30 the renderer builds both from those fields');
+  // (G3576, the user's explicit permission 26 Oct: a taxiway stands no power line - and the island's taxiways are HOME's two arms)
+  check(/if \(rd\.taxiway\) return null;/.test(RP30), '30 a taxiway stands no power line (render_premises buildLine, G3576)');
+  { const JT = PG.compose(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, synth, { raster: false });
+    const tw = (JT.roads || JT.rec.layers.roads).filter(r => r.taxiway).map(r => r.id).sort().join(' ');
+    check(tw === 'r_taxi_e r_taxi_ne', '30 ...the island\'s taxiways are HOME\'s two arms', tw); }
   // (and the edit reaches the renderer: a road's own key holds the composed road, so a guardrail row's change draws that road again)
   const K0 = PG.roadBuildKeys(O30), r30b = JSON.parse(JSON.stringify(r30)); r30b.layers.roads[2].rail = 'off';
   const K1 = PG.roadBuildKeys(PG.compose(r30b, synth));

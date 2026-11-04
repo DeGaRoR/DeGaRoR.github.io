@@ -45,7 +45,10 @@
   const FEEDS = {
     crew: ['light', 'energy'],
     cowl: ['eng', 'access'], cowlAft: [], eng: ['access'],
-    wing: ['brace', 'gear', 'float', 'fin', 'stab', 'access', 'light', 'energy', 'hinge', 'pod'],
+    // (PHONE-EDIT-PERF, 2 Nov: no wing > float - the float layer reads no wing global (its step stands on the CG and the
+    // airframe skin, its legs on the gear's: gear > float holds that); it re-ran on every wing tick, ~45 ms a tick on the
+    // user's S20 FE, and a floatplane's release runs it anyway (_cage_ui: the float layer forced, the CG))
+    wing: ['brace', 'gear', 'fin', 'stab', 'access', 'light', 'energy', 'hinge', 'pod'],
     brace: [], gear: ['float', 'fin', 'stab', 'access', 'hinge', 'pod'], float: [],
     fin: ['stab', 'access', 'light', 'hinge'], stab: ['access', 'light', 'hinge'],
     access: [], light: [], energy: [], hinge: [], pod: [], panel: [], ext: [],

@@ -3417,7 +3417,11 @@ const faceShafts = cam => {
 // uploads nothing; and the room is left with it hidden (polishHide at the roll-out), so the next entry's passes skip it.
 const _pInv = new THREE.Matrix4(), _pEye = new THREE.Vector3();
 let polishFrames = 0, polishWarm = -1;
-const polishFollow = (cam, renderer, scene) => {
+// W6d (GAME-MENUS' link-stack diag, 2 Nov): \`target\` - the one the room draws into (the AA target; null = the canvas). The
+// compile ran with whatever was bound at the frame's end - the CANVAS ('srgb'): three programs (a basic, two physical with
+// the room's CUBEUV environment) keyed for an output the room never draws to, linked for nothing at frame 66, and the
+// real ones ('srgb-linear') left to link on the first frame outside - the roll-out shot's. undefined: as bound (as before)
+const polishFollow = (cam, renderer, scene, target) => {
   const O = POLISH_OUT;
   if (!O || !cam) return false;
   cam.getWorldPosition(_pEye).applyMatrix4(_pInv.copy(G.matrixWorld).invert());
@@ -3426,7 +3430,10 @@ const polishFollow = (cam, renderer, scene) => {
     ROOM_POLISH.compiled = true;
     const R = ROOM_POLISH, go = () => { if (ROOM_POLISH === R && polishWarm < 0 && !R.warmed) polishWarm = 0; };
     O.visible = true;
-    try { renderer.compileAsync(O, cam, scene).then(go, go); } catch (e) { go(); }
+    const prevT = target !== undefined && renderer.getRenderTarget ? renderer.getRenderTarget() : null;
+    try { if (target !== undefined && renderer.setRenderTarget) renderer.setRenderTarget(target); renderer.compileAsync(O, cam, scene).then(go, go); }
+    catch (e) { go(); }
+    finally { if (target !== undefined && renderer.setRenderTarget) renderer.setRenderTarget(prevT); }
     O.visible = false;
   }
   if (polishWarm >= 0) {

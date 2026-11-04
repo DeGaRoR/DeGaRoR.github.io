@@ -32,8 +32,12 @@
 // with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
 // (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
 const CAREER_V = 2;
-// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
-const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
+// the career's first day: 15 JULY, 16:00 AKDT, as UT (WEATHER-DAYS, the user's call of 3 Nov via A0: a new moon on the
+// 14th, so the career's first fortnight runs from the darkest, starriest nights to a full moon on the 29th; 16.8 h of
+// day, a dark core of 2.3 h past -12 deg, the aurora near full strength - futureDesigns/WEATHER-DAYS-STUDY-2026-11.md
+// §9.2). The hour is the game's own (viewer/day_clock.js GAME_DAY, 16:00 local, the sun side-lighting the island); the
+// DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
+const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -183,6 +187,8 @@ function careerNormalise(r) {
   // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
   if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
   else c.day = careerDayNorm(c.day);
+  // (WEATHER-SEASON) a day outside the flying season - an old save past 30 Sep - is lifted to the next opening
+  { const L = careerSeasonLand(c.day); if (L.layup) c.day = careerDayNorm(L); }
   if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
@@ -228,11 +234,35 @@ function careerDay(doc) {
 function careerDaySet(doc, o) {
   if (!doc || !doc.career) return crNo(doc, 'not a career');
   if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
-  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
+  const now = careerDay(doc);
+  let to = careerDayNorm(o);
+  // (WEATHER-SEASON) an instant past the season's close lands on the next opening: the winter layup, forward
+  const L = careerSeasonLand(to);
+  if (L.layup) to = careerDayNorm(L);
+  const dt = dayAbs(to) - dayAbs(now);
   if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
   const d = crClone(doc);
   d.career.day = to;
-  return { ok: true, doc: d, why: '', dt };
+  return { ok: true, doc: d, why: '', dt, layup: L.layup };
+}
+
+// ---- THE FLYING SEASON AND THE WINTER LAYUP (WEATHER-SEASON, the user's call of 3 Nov; study §5.3, §9.1) -----------
+// The career lives inside the season (20 May - 30 Sep, WEATHER_PLAN.SEASON: no snow, the crafted days' dates). An
+// instant whose LOCAL date is past the close lands on the next year's opening at civil dawn; one before the opening
+// (an old save, a hand-edited one) on that year's opening. Always FORWARD: the landing is later than the instant. The
+// story tells it (the page's 'flydiy:layup' event, day_clock.js).
+//   careerSeasonLand({date, utc}) -> { date, utc, layup: bool, season: the opening's year }
+const CAREER_SEASON = Object.freeze({ open: '05-20', close: '09-30' });
+function careerSeasonLand(o) {
+  const S = (typeof WEATHER_PLAN !== 'undefined' && WEATHER_PLAN.SEASON) || CAREER_SEASON;
+  const p = DAY.makeDay({ date: o.date, utc: o.utc });
+  const ld = p.localDate, md = ld.slice(5), y = +ld.slice(0, 4);
+  if (md >= S.open && md <= S.close) return { date: o.date, utc: o.utc, layup: false, season: y };
+  const yy = md > S.close ? y + 1 : y;
+  const q = DAY.makeDay({ date: yy + '-' + S.open, utc: 43200 });
+  const u = dayPresetUtc(q, 'dawn');
+  const r = dayFromAbs(q.jdn * 86400 + u);
+  return { date: r.date, utc: r.utc, layup: true, season: yy };
 }
 
 // ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------
@@ -275,6 +305,8 @@ function careerContract(doc, id) {
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
   // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
   if (/^loan:/.test(id) && typeof econLoanJob === 'function') return econLoanJob(doc, id);
+  // CERT-GATES: the "no questions asked" job, one per refresh (76_ econShadyJob)
+  if (/^shady:/.test(id) && typeof econShadyJob === 'function') return econShadyJob(doc, id);
   return null;
 }
 function careerNeedsOk(doc, rec) {
@@ -287,6 +319,75 @@ function careerNeedsOk(doc, rec) {
   if ((N.of || []).some(c => nOf(c) < c.n)) return false;
   if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
   return (N.after || []).every(a => done.includes(a));
+}
+
+// ---- CERT-GATES: WHAT A MISSION NEEDS, WHAT A PLANE HOLDS ----------------------------------------------------------
+// (the user 3 Nov: "you can fly an uncertified plane, but you cannot engage it in any mission in the story mode";
+// "All passenger, freight, competition and order jobs should have it for sure"; A: every board job needs the
+// COMMERCIAL certificate, surveys included; B: an accepted job is KEPT - nothing of it moves until a certified plane
+// flies it. briefs/cert-gates-design-2026-11-03.md)
+// THE CERTIFICATE OF A CAREER PLANE, per slot: career.airframes[slot].sign { fp, safe, comm, when, why } - the bench's
+// signature (app.js careerSignNow) on the build's f3 (bench.js BENCH_FP), its two verdicts from BENCH_STATE() (the
+// airworthiness one: every gating test held; the commercial one: 64b genCertTiers' comm, 'pass' | 'warn' | 'fail' - a
+// warn is still a certificate). A maker's airframe (factory, not modified) and the story's starter (the tutor's
+// "pre-certified") hold both until modified; procureOnSaveCert drops a signature a new f3 outgrew.
+const CERT_NEED_WORDS = { safe: 'an airworthiness certificate', comm: 'a commercial certificate' };
+// a contract record -> 'comm' | 'safe' | null: a shady job ("no questions asked") needs nothing; every board job, the
+// Trust's loan job, every client order, every timed competition, anything that pays, carries or flies people for a
+// client needs the commercial one; what is left (an unpaid flight with nothing aboard) the airworthiness one
+function contractCertNeed(rec) {
+  if (!rec) return null;
+  if (rec.shady) return null;
+  if (rec.kind === 'job' || rec.loan || rec.kind === 'build' || rec.timers) return 'comm';
+  const P = rec.pay || {};
+  const pays = (typeof P.total === 'number' && P.total > 0) || (+P.base || 0) > 0 || (P.bonus || []).length > 0;
+  const carries = contractSubsOf(rec).some(s => s.load && ((+s.load.kg || 0) > 0 || (+s.load.pax || 0) > 0));
+  return pays || carries ? 'comm' : 'safe';
+}
+// an airframe row (+ the fingerprint of the build that flies, when known) -> { safe, comm, why }
+function careerCertOf(A, fp) {
+  if (!A) return { safe: false, comm: false, why: 'not an airframe of the career' };
+  if (!A.modified && (A.factory || (A.from === 'story' && A.story === 'starter')))
+    return { safe: true, comm: true, why: A.factory ? 'the maker\'s certificate' : 'pre-certified' };
+  const S = A.sign;
+  if (!S || !S.fp) return { safe: false, comm: false, why: 'not certified: run the bench' };
+  if (fp != null && fp !== S.fp) return { safe: false, comm: false, why: 'changed since the bench signed it: run the bench' };
+  const safe = S.safe === 'pass' || S.safe === 'warn', comm = safe && (S.comm === 'pass' || S.comm === 'warn');
+  return { safe, comm, why: !safe ? 'not airworthy' + (S.why ? ' (' + S.why + ')' : ': the bench check fails')
+                                  : !comm ? 'no commercial certificate' + (S.why ? ' (' + S.why + ')' : '') : '' };
+}
+// does any plane of the fleet hold `need` (its signature as it stands: the bench re-signs at every roll-out). A fleet
+// with no plane at all (a new career before its voucher) is not refused: the voucher buys a maker's plane, and the stop
+// judges every flight
+function careerFleetHolds(doc, need) {
+  if (!need) return true;
+  const af = (doc && doc.career && doc.career.airframes) || {}, F = Object.keys((doc && doc.fleet) || {});
+  return !F.length || F.some(n => careerCertOf(af[n])[need]);
+}
+// the fleet card's line: "airworthy ✓ · commercial ✗ (doors)" / "not certified: run the bench"
+function careerCertLine(A, fp) {
+  const C = careerCertOf(A, fp);
+  if (!C.safe) return C.why.charAt(0).toUpperCase() + C.why.slice(1);
+  return 'airworthy ✓ · commercial ' + (C.comm ? '✓' : '✗' + (A && A.sign && A.sign.why ? ' (' + A.sign.why + ')' : ''));
+}
+// the bench's state -> a signature (null while the bench has no current check: nothing to sign). Pure: the page hands
+// BENCH_STATE() and BENCH_FP() in. `why` names the commercial fails (their row ids, as the bench reports them)
+function careerSignOfBench(st, fp, when) {
+  if (!st || !fp || !st.comm) return null;
+  const C = st.comm, air = !!st.passed;
+  const fails = (C.fails || []).map(id => String(id).replace(/^[a-z]+\./, ''));
+  return { fp, safe: air ? 'pass' : 'fail', comm: !air ? 'fail' : C.verdict === 'fail' ? 'fail' : C.verdict, when: when || null,
+           why: !air ? 'the airworthiness tests are not all held' : C.verdict === 'fail' ? fails.join(', ') : '' };
+}
+// write it on the slot's airframe (a clone; the same document when it is the same signature)
+function careerSign(doc, slot, sign) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A || !sign) return { ok: false, doc, why: A ? 'nothing to sign' : 'not an airframe of the career' };
+  const S = A.sign;
+  if (S && S.fp === sign.fp && S.safe === sign.safe && S.comm === sign.comm && S.why === sign.why) return { ok: true, doc, why: 'the same signature' };
+  const d = crClone(doc);
+  d.career.airframes[slot].sign = Object.assign({}, sign);
+  return { ok: true, doc: d, why: '' };
 }
 
 // ---- THE OFFERS -------------------------------------------------------------------------------------------------
@@ -313,6 +414,9 @@ function careerOfferIds(doc) {
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);
+  // CERT-GATES: the "no questions asked" job, from the second refresh on (76_ econShadyOffer)
+  const shady = typeof econShadyOffer === 'function' ? econShadyOffer(doc) : null;
+  if (shady && !taken.has(shady) && careerContract(doc, shady)) out.push(shady);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
   for (const id of builds) {
@@ -340,6 +444,11 @@ function careerAccept(doc, id) {
   if (!careerOfferIds(doc).includes(id)) return crNo(doc, id + ' is not on offer');
   const rec = careerContract(doc, id);
   if (!rec) return crNo(doc, 'no contract ' + id);
+  // CERT-GATES: refused while no plane of the fleet holds the certificate it needs (a client order's plane is built
+  // after the accept: its delivery is judged at the stop)
+  const need = contractCertNeed(rec);
+  if (need && rec.kind !== 'build' && !careerFleetHolds(doc, need))
+    return crNo(doc, 'This job needs ' + CERT_NEED_WORDS[need] + ', and none of your aeroplanes holds one: run the bench');
   const d = crClone(doc), D = d.career.contracts;
   D.accepted.push(id);
   D.live[id] = { stage: 0, subs: rec.stages[0].subs.map(() => false), picked: rec.stages[0].subs.map(() => false), got: {} };
@@ -389,6 +498,12 @@ function contractOnStop(doc, contract, stop, hooks) {
   if (!stop || typeof stop !== 'object') return crNo(doc, 'no stop record');
   if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');
   if (!stop.aero) return crNo(doc, 'stopped off an aerodrome: nothing is delivered');
+  // CERT-GATES (B: the job is KEPT): a plane not certified for the job moves nothing of it - no load picked up, nothing
+  // delivered, no step done - and the job waits, accepted, for a certified plane (a stop without the certificate facts
+  // is an older caller's: judged as before)
+  const need = contractCertNeed(rec);
+  if (need && stop.cert && !stop.cert[need])
+    return crNo(doc, 'not certified for this job (it needs ' + CERT_NEED_WORDS[need] + (stop.cert.why ? '; ' + stop.cert.why : '') + '): nothing picked up, nothing delivered');
   const L = C.live[id] || { stage: 0, subs: [], picked: [], got: {} };
   const st = rec.stages[L.stage];
   if (!st) return crNo(doc, id + ' has no stage ' + L.stage);
@@ -563,6 +678,16 @@ function careerOnStop(doc, stop, hooks) {
   let C = doc.career.contracts;
   let d = doc, moved = false;
   const events = [], why = {};
+  // CERT-GATES: A CRASH WITH A "NO QUESTIONS ASKED" JOB ACCEPTED fails it, and the word gets around: every provider
+  // loses ECON_SHADY.crashRep (76_)
+  if (stop && stop.wrecked && typeof ECON_SHADY !== 'undefined') for (const id of C.accepted.filter(x => /^shady:/.test(x))) {
+    const f = careerFail(d, id, 'crashed on a job nobody asked questions about');
+    if (!f.ok) continue;
+    d = f.doc; moved = true;
+    for (const p of Object.keys(d.career.providers)) { const P = d.career.providers[p]; P.rep = Math.max(0, +((P.rep || 0) - ECON_SHADY.crashRep).toFixed(3)); }
+    events.push(...f.events, { k: 'rep', id, all: -ECON_SHADY.crashRep, why: 'the word gets around' });
+  }
+  C = d.career.contracts;
   // (MISSIONS-P2) THE FAILURE RULES FIRST (§3.4): a mission in progress on this flight (the tracked one, or one with a
   // step done or a load aboard) whose rules the stop breaks - a crash, someone hurt, the freight harmed, the airframe
   // damaged where it says fail - FAILS, and is offered again (the restart). The page hands a crash's stop here too.

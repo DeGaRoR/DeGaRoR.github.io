@@ -1,0 +1,11 @@
+{ "v": 1, "id": "morning-fog", "name": "Morning fog on the sound",
+  "story": "The still, clear night after the high has filled the sound and the valleys with fog. It burns off by half past ten; the afternoon is fine and clear. Wait it out with a coffee.",
+  "fly": "easy-after-wait", "waitUntil": "10:30",
+  "forecast": "Fog over the water and in the valleys at dawn, visibility under 1 km, lifting 09:30-10:30. Then fair, light southwest wind. Clear night.",
+  "temp": { "min": -1.5, "max": 0 }, "dew": [[4, -1.5], [7, -1.2], [11, -3.5], [15, -4.5], [27, -4]],
+  "qnh": [[4, 1022], [27, 1020]],
+  "wind": [[4, 0, 0, 0.0], [9, 1, 180, 0.05], [12, 5, 220, 0.1], [16, 7, 240, 0.12], [21, 3, 240, 0.08], [26, 2, 220, 0.05]],
+  "rich": { "breeze": 1, "terrain": 0.4, "thermals": 0.4 },
+  "low": [[4, 0.0, "cuh"], [12, 0.05, "cuh"], [15, 0.12, "cuh"], [19, 0.06, "cuh"], [22, 0.0, "cuh"]],
+  "fog": { "where": "low", "hold": [[4, 0.9], [8, 0.8], [10, 0.4], [11, 0]] },
+  "turbidity": 3.0, "aurora": [[23, 1], [26, 1]] }

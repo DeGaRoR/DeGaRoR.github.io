@@ -243,7 +243,9 @@ async function checks(page, cdp, log, frames) {
   say('fine', await knobCheck(page, cdp, 150, true));
   {
     const r = await rowProbe(page, 0);
-    const plus = await page.evaluate(k => { const b = document.querySelector('#edRows .r[data-k="' + k + '"] .phPlus'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; }, r.key);
+    // G3901 (PHONE-EDIT-LAYOUT): the - / + are the value's editor's - a tap on the row's value opens it
+    await tapEl('#edRows .r[data-k="' + r.key + '"] .v');
+    const plus = await page.evaluate(() => { const b = document.querySelector('#phEdit:not([hidden]) .phPlus'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
     await countEvents(page, r.key);
     await tapAt(plus[0], plus[1]);
     await sleep(500);

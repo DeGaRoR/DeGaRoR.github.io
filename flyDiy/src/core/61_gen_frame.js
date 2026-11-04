@@ -1302,7 +1302,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { if (s.x < boxRear - 0.01) r = i; });
       return r;
     })();
-    const strutRoot = F[Math.min(nearestRing(xF), iBox)][opposeTag + sd];
+    // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
+    // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
+    const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
+    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -2874,9 +2877,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // strut sends the pod to the strut station's spar pair instead
       const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
       const L2 = wf.L, R2 = wf.R;
-      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
-      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
-                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+      const ok = !v.unmounted && L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      // TANK-FIT (Part 3): no strut, no pod - billed nowhere, its fuel not aboard (it was sent to the spar pair at
+      // 0.3 of the span: a phantom tank nobody drew). The resolved spec says so (unmounted) and the editor shows why.
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]] : [];
+      if (!ok) v.unmounted = true;
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
@@ -2894,10 +2899,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // `pair` is a weighted node list [[node, share], ...] — two entries for a
     // wing tank, four for a body tank between rings, sharing to 1.
-    if (r.emptyKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
+    if (r.emptyKg > 0 && pair.length) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
                          spend(r.price); }
     v._pair = pair; v._res = r;
-    fuelTotalM += r.payloadKg;
+    if (pair.length) fuelTotalM += r.payloadKg;
   }
   sec('fuel');
   const fuelM = fuelTotalM;
@@ -2975,7 +2980,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SEATS: one per position, at the weight of the kind you chose.
     // Spread over the seat frames so they sit where the people sit — the
     // cabin rings, which is where `pt` already puts the occupants.
-    const seatM = seat.kg * seats;
+    // ...each at the kind DRAWN there (SEATS, 2026-11-02): cabin.seatsKg is the join's seat-by-seat mass when the
+    // seats differ from the outfit's row; absent, every seat is the row's, as before
+    const seatsKg = Array.isArray(cb.seatsKg) ? cb.seatsKg : null;
+    const seatKgAt = i => (seatsKg && typeof seatsKg[i] === 'number') ? seatsKg[i] : seat.kg;
+    let seatM = 0;
+    for (let i = 0; i < seats; i++) seatM += seatKgAt(i);
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
@@ -2998,6 +3008,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
       cowlM = per * Math.max(0.1, cb.noseGap) *
               (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
+      // CABIN-CRAFT (2026-11-02): A FIREWALL NARROWER AT THE TOP (or the bottom) IS LESS SKIN - the drawn section's
+      // girth over the round one's (genSectW, the drag build-up's own walk), averaged firewall -> nose where it fades
+      // to 1. Absent rows: no factor, the bit it was.
+      const cwW = genCowlWidths(S);
+      if (cwW) {
+        const girth = w => { let L = 0, pv = null;
+          for (let i = 0; i <= 48; i++) { const q = w ? genSectW(2 * Math.PI * i / 48, a2, b2, b2, 2, 2, w.top, w.bot)
+                                                      : genSect(2 * Math.PI * i / 48, a2, b2, b2, 2, 2);
+            if (pv) L += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; }
+          return L; };
+        const g1 = girth(null);
+        if (g1 > 0) cowlM *= 0.5 * (1 + girth(cwW) / g1);
+      }
     }
     // THE EXHAUST, from the power it carries. Electric has none.
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
@@ -3033,8 +3056,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
     // same term in its fixed point); pass 1 bills nothing here
+    // (G2806: the fraction is genFurnK's - the chosen trim, else the tier's exactly as before)
     const furnM = (GG && GG.W0 > 0)
-      ? (O.furnK[genSystemsResolve(S).tier] || 0) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
+      ? genFurnK(S) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the
@@ -3043,9 +3067,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                 bill(m, 0); };
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
+    // THE FURNISHING IS ITS OWN ROW (G2806, AVIONICS-GPS phase 2; the user, 11 Oct): the chairs and the lining bill
+    // to a section of their own, `furnish`, so the plaque and the price show them apart from the cowl and the
+    // glass. The section marker moves; the masses go on the same nodes IN THE SAME ORDER as before, so the
+    // airframe the solver flies is the same to the last bit (tools/avionics_parity.js).
+    sec('furnish');
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seatKgAt(i), true);
     else half(F[1].BL, F[1].BR, seatM);
+    sec('outfit');
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
     // nose mount they were billed on ring 0 — the WINDSCREEN BASE, the
@@ -3070,13 +3100,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
+    sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
     else {
     half(F[1].BL, F[1].BR, 0.5 * furnM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
     }
-    spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                     28 * (exhM + plumbM + ctlM) + 60 * furnM));
+    // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
+    // lining) carved out of it, so the total is the credit it was
+    const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
+                                28 * (exhM + plumbM + ctlM) + 60 * furnM);
+    const furnCr = Math.round(seat.price * seats + 60 * furnM);
+    spend(furnCr);
+    sec('outfit');
+    spend(outfitCr - furnCr);
   }
   sec('paint');
   {
@@ -3317,7 +3354,7 @@ function genDesignGross(S, a, cg) {
   const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
-  const O = GEN_OUTFIT, fK = (O.furnK && O.furnK[genSystemsResolve(S).tier]) || 0;
+  const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
   const furnOf = W => fK * Math.max(0, O.furnKgPerKg * W - O.furnKgOffset);
   let W = Mfix + Ms;
   for (let i = 0; i < G.iterations; i++) {

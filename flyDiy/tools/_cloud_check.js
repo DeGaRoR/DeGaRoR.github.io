@@ -194,6 +194,27 @@ console.log('7. several decks (A6): the field');
   const D = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '07_day.js'), 'utf8');
   yes(/get cloudUpper\(\)/.test(D) && /get cloudLayers\(\)/.test(D) && /slice\(0, 2\)/.test(D), 'the day publishes cloudUpper (sanitised, two at most) and cloudLayers');
 }
+console.log('7a. the sky you see is the effective one (WEATHER-FIXES F1, 2026-11-03)');
+{
+  // a plain day (no effective fields) and a 07_day day with no front: the declared deck, to the bit
+  const plain = { cloudCover: 0.37, cloudType: 'cuh', cloudBase: 1200 };
+  yes(F.layers(plain)[0].cover === 0.37 && F.layers(plain)[0].type === 'cuh', 'no effective fields: the declared cover and type, exactly');
+  yes(F.layers(Object.assign({ cloudCoverEff: 0.37, cloudTypeEff: 'cuh' }, plain))[0].cover === 0.37, 'an effective cover equal to the declared: the declared, exactly');
+  // a front: its overcast and its cumulonimbus reach the drawn deck
+  const front = Object.assign({}, plain, { cloudCoverEff: 0.95, cloudTypeEff: 'cb' }), L = F.layers(front);
+  yes(L[0].type === 'cb' && Math.abs(L[0].cover - 0.97) < 1e-9 && F.layer(front).thick === F.TYPES.cb.thick,
+      `a front's overcast and its cumulonimbus are the drawn low deck (0.37 cuh -> ${L[0].cover.toFixed(2)} ${L[0].type})`);
+  // ...in steps above the declared, so a front's ramp re-fits the map a handful of times, not every few seconds
+  const seen = new Set();
+  for (let e = 0.37; e <= 0.95 + 1e-9; e += 0.001) seen.add(F.layers(Object.assign({}, plain, { cloudCoverEff: e }))[0].cover.toFixed(6));
+  const steps = [...seen].map(Number).sort((a, b) => a - b);
+  yes(steps.length <= 14 && steps.every((v, i) => i === 0 || Math.abs(v - steps[i - 1] - F.LOW_EFF_STEP) < 1e-9),
+      `a 0.37 -> 0.95 ramp in 0.001s draws ${steps.length} covers, ${F.LOW_EFF_STEP} apart (the map re-fits on each)`);
+  yes(F.layers(Object.assign({}, plain, { cloudCoverEff: 0.38 }))[0].cover === 0.37, 'a front barely begun leaves the declared deck alone');
+  yes(F.layers(Object.assign({}, plain, { cloudCoverEff: 1.4 }))[0].cover === 1, 'clamped to 1');
+  const cj = src('viewer/clouds.js');
+  yes(/CLOUD_FIELD\.layers\(day,/.test(cj), 'clouds.js draws CLOUD_FIELD.layers(day) - the effective sky');
+}
 console.log('7b. several decks + the look: the march (static)');
 {
   const cj = src('viewer/clouds.js');
@@ -218,7 +239,7 @@ console.log('7b. several decks + the look: the march (static)');
     yes(/H\.range\(host, 'cover', 0, 1, 0\.05, \(\) => up\(\)\.cover/.test(CU) && /cf\.upperWith\(day\(\)\.cloudUpper, di, patch\)/.test(CU) && /H\.range\(host, 'base', 500, 9000, 100/.test(CU), 'the clouds panel carries the upper decks (cover, type, base)');
     yes(/k: 'clouds', label: 'clouds'/.test(A) && /window\.CLOUDS_UI\.mount\(body/.test(A) && /day: \(typeof DAY_CLOCK !== 'undefined'\) \? DAY_CLOCK : null/.test(A), 'the flight rail has the clouds item and mounts the panel with the day clock');
     yes(/head\('sky'\)/.test(CU) && /head\('cirrus veil'\)/.test(CU) && /head\('look'\)/.test(CU) && /head\('motion'\)/.test(CU) && /head\('render'\)/.test(CU) && /PRESETS = \[/.test(CU), 'the panel: presets, the decks, the veil, the look, the motion, the render');
-    yes(/PREF = 'flydiy\.clouds'/.test(CU) && /API\.apply\(\);/.test(CU) && /cloudUpper: day\.cloudUpper && day\.cloudUpper\.length \? day\.cloudUpper : null/.test(src('viewer/day_clock.js')), 'the look is saved as flydiy.clouds and applied at load; the weather is saved with the day');
+    yes(/PREF = 'flydiy\.clouds'/.test(CU) && /API\.apply\(\);/.test(CU) && /cloudUpper: Array\.isArray\(sp\.cloudUpper\) && sp\.cloudUpper\.length \? sp\.cloudUpper : null/.test(src('viewer/day_clock.js')), 'the look is saved as flydiy.clouds and applied at load; the weather is saved with the day (WEATHER-SEASON: its DECLARED decks, never a plan\'s)');
     yes(/'clouds_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'clouds_ui.js is in the build'); }
   // 2026-09-20: ONE DAY PANEL on both rails (day_ui.js) - the flight's `day` slot and the shed's `night` flyout mount the same
   // module in their own rows; #selCond stays the keeper (pressed through its own change), DAY_CLOCK the one state (no #selTime)
@@ -229,7 +250,10 @@ console.log('7b. several decks + the look: the march (static)');
     yes(/const d = edSection\(body, 'night', [^\n]*\n\s*if \(d\) buildDay\(d\);/.test(E) && /if \(c\) buildClouds\(c\);/.test(E) && /rowsHost = edSection\(body, 'shed\.light'/.test(E) && /window\.DAY_UI\.mount\(body, H, dayCtx\(\)\)/.test(E) && /rows: \['lights', 'world lights', 'ground bounce'\]/.test(E), 'the shed\'s night flyout mounts it, the clouds in a fold beside it, the borrowed light rows in their own (the tree\'s mood select not borrowed)');
     yes(/window\.CLOUDS_UI\.mount\(body, railRows\(\), dayCtx\(\)\)/.test(E), 'the clouds and the day share the rail\'s row vocabulary (railRows)');
     yes(!/id="selTime"/.test(B) && !/flS\('Time'\)/.test(A), '#selTime is gone: the presets are pills, DAY_CLOCK the one state');
-    yes(/k: 'time', state: 'DAY_CLOCK preset'/.test(E) && /CK\.preset\(P\[\(i \+ 1\) % P\.length\]\)/.test(E), 'the quick bar\'s time button presses the clock, not the mood');
+    // TIME-CONTROLS (L30a, rule b): the quick bar's time button opens the time menu (DAY_UI.menu on DAY_CLOCK) in its own
+    // pop card, no longer a preset cycle - the clock stays the one state, never the mood
+    yes(/k: 'time', state: 'DAY_CLOCK \(the time menu\)'/.test(E) && /window\.EDITOR_QUICK_POP\(window\.EDITOR_QUICK_POPPED === 'time' \? null : 'time'\)/.test(E)
+      && /time: \{ head: 'Time', build\(body\) \{/.test(E) && /window\.DAY_UI\.menu\(body, railRows\(\), Object\.assign\(dayCtx\(\)/.test(E), 'the quick bar\'s time button opens the time menu on the clock, not the mood');
     yes(/'day_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'day_ui.js is in the build'); }
   // G436.12: the mood select's cloud coupling retired, the NIGHT on the flight rail, the lights rule in the cockpit
   { const E = src('viewer/editor.js'), CKS = src('viewer/cockpit.js'), PI = src('core/43_pilot.js'), CU = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');

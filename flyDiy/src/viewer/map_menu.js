@@ -136,10 +136,11 @@
       night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null,
       // (G2742 STORY-PAGE, Q1) held while the story runs: the row stands greyed, its Track off
       held: c.held === true })).filter(c => prov[c.provider]);
-    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null }));
+    let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null,
+                                              certLine: typeof f.certLine === 'string' ? f.certLine : '' }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
-      const certOf = {}; for (const f of fleet) certOf[f.slot] = f.cert;
-      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null }));
+      const certOf = {}, lineOf = {}; for (const f of fleet) { certOf[f.slot] = f.cert; lineOf[f.slot] = f.certLine; }
+      fleet = Object.keys(live.fleet).sort().map(n => ({ slot: n, name: n, where: whereOf(live, n), cert: certOf[n] || null, certLine: lineOf[n] || '' }));
     }
     const DES = designs || (typeof CONTRACT_DESIGNS !== 'undefined' ? CONTRACT_DESIGNS : null);   // eslint-disable-line no-undef
     const v = career.voucher, vd = v && !v.used && DES && DES[v.model];
@@ -149,7 +150,7 @@
     // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
     const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
       at: typeof raw.story.at === 'string' ? raw.story.at : null,
-      step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
+      rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
     // G3260 (ROUTES): the routes your planes fly (78b_routes.js routesMapOf, app.js careerRecord): the two ends, the plane
     // where it is on the line now (f: 0 at a, 1 at b), its pilot
     const routes = (raw.routes || []).filter(r => r && aeros[r.a] && aeros[r.b]).map(r => ({ id: String(r.id), plane: String(r.plane), pilot: r.pilot || null,
@@ -418,7 +419,7 @@
   function storyHTML(M) {
     const S = M.story;
     if (!S) return '';
-    return '<div class="mmStory" role="note"><span class="mmTag">The story' + (S.step ? ' · ' + S.step + ' of ' + S.of : '') + '</span><b>' + esc(S.title) + '</b>' +
+    return '<div class="mmStory" role="note"><span class="mmTag">The story</span><b>' + esc(S.title) + '</b>' +
       '<p>' + esc(S.brief) + '</p>' + (S.rows.length ? '<ul>' + S.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '✓ ' : '· ') + esc(r.words) + '</li>').join('') + '</ul>' : '') +
       '<p class="mmFine">The rest of the work comes ' + esc(S.held || 'later') + '.</p></div>';
   }
@@ -522,7 +523,9 @@
   function fleetParaHTML(M, st, f) {
     const C = f.cert, w = whereWord(M, f.where);
     return '<p>' + esc(w.charAt(0).toUpperCase() + w.slice(1)) + '.' +
-      '<span class="mmRw">' + (C ? esc(factsWord(C)) + (C.tasKmh ? ' · ' + fmt(C.tasKmh) + ' km/h' : '') : 'Its certificate is not read yet: open it in the garage.') + '</span></p>';
+      '<span class="mmRw">' + (C ? esc(factsWord(C)) + (C.tasKmh ? ' · ' + fmt(C.tasKmh) + ' km/h' : '') : 'Its certificate is not read yet: open it in the garage.') + '</span>' +
+      // CERT-GATES: what the bench signed (a mission needs it: 74_ contractCertNeed)
+      (f.certLine ? '<span class="mmRw">' + esc(f.certLine) + '</span>' : '') + '</p>';
   }
   function fleetListHTML(M, st) {
     const rows = fleetRows(M, st);
@@ -1222,7 +1225,7 @@
 #mapScreen .mmGo button{flex:none;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ed-border);background:transparent;color:var(--ed-ink);font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
 #mapScreen .mmGo button.pri{background:var(--ed-acc);border-color:var(--ed-acc);color:var(--ed-acc-ink);font-weight:600}
 #mapScreen .mmGo button:disabled{opacity:.5;cursor:default}
-#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:10px;transform:none;max-width:none}
+#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:64px;transform:none;max-width:none}  /* STORY-HOME F8: clear of the ✕ (top 8, right 8, 48 px) */
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
 #mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
@@ -1358,7 +1361,7 @@
     if (!g) return '';
     const what = g.stand ? 'with ' + g.stand + (g.planes.length > 1 ? ' and ' + (g.planes.length - 1) + ' more' : '') : 'empty';
     const shed = !!(D.body && D.body.classList.contains('mode-ws'));   // (from a flight, your own garage is the way back: the shed's trip)
-    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : '');
+    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : g.away || '');   // (STORY-HOME-FIX F2: an empty hangar elsewhere)
     return '<span class="mmGoT">' + (why ? esc(g.name) : 'Go to <b>' + esc(g.name) + '</b>?') + '<small>' + esc(why || what) + '</small></span>' +
       (why ? '' : '<button type="button" class="pri" data-act="goyes"' + (st.going ? ' disabled' : '') + '>' + (st.going ? 'Going…' : 'Go there') + '</button>') +
       '<button type="button" data-act="gox" aria-label="close">' + (why ? 'OK' : 'Stay') + '</button>';

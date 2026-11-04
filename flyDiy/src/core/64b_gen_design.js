@@ -233,6 +233,8 @@ function genDesignCheck(def, sh, simIn, opts) {
   // the approach: the speed the crosswind and the elevator's authority are judged at
   const Vs = (sh && sh.Vs) || g.Vs || 20;
   const rows = [];
+  // (DESIGN-AIDS: a row's certificate tier is GEN_CERT_TIER's, read where it is judged - genCertTierOf - never written
+  // into the sheet: the sheet's bytes stay master's)
   const row = (o) => rows.push(Object.assign({ level: 'pass', unit: '', fix: '' }, o));
   const r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
   const t = S && S.tail, geom = S && S.geom;
@@ -476,6 +478,18 @@ function genDesignCheck(def, sh, simIn, opts) {
           why: 'full rudder holds ' + r2(bMax * 180 / Math.PI) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h',
           fix: lvl === 'pass' ? '' : 'a bigger rudder (more of the fin\'s chord, or more fin)' });
   }
+  // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): A POD ON STRUTS
+  // THE WING DOES NOT HAVE is not fitted (60_gen_spec `unmounted`: not billed, not aboard) - the design fails on it.
+  // Absent on every build without one (no row: the check is the bytes it was). The editor's DRAWN fit (a tank through
+  // the skin, the crew) is the bench's to add (bench.js: CAGE_ENERGY's verdict), the core never draws a tank.
+  {
+    const off = ((S && S.energy && S.energy.vessels) || []).map((v, i) => [v, i]).filter(([v]) => v && v.unmounted);
+    for (const [v, i] of off)
+      row({ id: 'wb.tank' + i, group: 'wb', tier: 'safe', label: 'Tank ' + (i + 1) + ' is fitted', value: (+v.capacity || 0) + ' L', level: 'fail',
+            limit: 'every tank the design carries is fitted to the aeroplane',
+            why: 'it hangs on the lift struts, and this wing has none: not fitted, it carries no fuel',
+            fix: 'give the wing its lift struts back, or move the tank to another bay' });
+  }
   const worst = rows.some(r => r.level === 'fail') ? 'fail' : rows.some(r => r.level === 'warn') ? 'warn' : 'pass';
   return { verdict: worst, rows,
            modes: { spiral: lat.spiral, roll: lat.roll, dutch: lat.dutch, short: sp },
@@ -504,4 +518,35 @@ function genMarginBand(sm) {
     fix: 'move weight aft or the wing forward, or give the tail more area' };
   return { band: 'green', mark: '', title: 'stable',
     why: 'a ' + pct + ' % margin: the nose comes back by itself after a gust', fix: '' };
+}
+
+// ---- DESIGN-AIDS (the user 3 Nov: "Planes get certified when they're safe to fly, they get their commercial
+// certification when they're robust and practical"): THE TIER OF EVERY CHECK, one table. 'safe' = the airworthiness
+// certificate (a fail withholds it); 'comm' = the commercial certificate (robust and practical: on the airworthiness
+// certificate it is a WARNING, never a rejection). A row not named here is 'safe' (an unknown check keeps the stricter
+// reading). The aids' rows (64c_gen_aids.js) carry their own tier; `proposed: true` on a safe row = a NEW check that
+// would newly reject: it stays a warning until the user rules (the bench reads it so).
+//   pitch.sm      the static margin as drawn (the game's sheet runs corners: false: the normal loading) - safe
+//   pitch.Vh/Vv   the tail volumes against Raymer's sizing table: a headroom rule, the modes are the safety - comm
+//   ctl.elevator / ctl.flare  judged at the FORWARD loading corner: commercial (the user's call D3, 3 Nov)
+//   the modes and the other controls (MIL-F-8785C worse than Level 2, FAR 23.233) - safe
+//   aid.step / aid.reserve / aid.prop  the float step ahead of the CG, a reserve under 1.8 x, a prop within 5 cm of
+//                 the structure (or under the ground / water bars): PROMOTED to safe by the user (D1, 3 Nov) - they
+//                 refuse the airworthiness certificate
+const GEN_CERT_TIER = { 'pitch.sm': 'safe', 'pitch.Vh': 'comm', 'pitch.short': 'safe', 'ctl.elevator': 'comm', 'ctl.flare': 'comm',
+  'yaw.Vv': 'comm', 'yaw.cnb': 'safe', 'roll.clb': 'safe', 'roll.spiral': 'safe', 'yaw.dutch': 'safe', 'roll.mode': 'safe',
+  'ctl.aileron': 'safe', 'ctl.droop': 'safe', 'ctl.rudder': 'safe',
+  'aid.step': 'safe', 'aid.reserve': 'safe', 'aid.prop': 'safe', 'aid.range': 'comm', 'aid.thrust': 'comm', 'aid.stance': 'comm',
+  'aid.doors': 'comm' };
+function genCertTierOf(id) { return GEN_CERT_TIER[id] || 'safe'; }
+// a row list -> the two certificates' verdicts: the airworthiness one fails only on a safe, non-proposed fail; every
+// other non-pass is a warning on it; the commercial one fails on any fail (the safe tier's included: an aeroplane
+// that is not safe is not commercial either)
+function genCertTiers(rows) {
+  const R = (rows || []).map(r => Object.assign({}, r, { tier: r.tier || genCertTierOf(r.id) }));
+  const safeFail = R.filter(r => r.tier === 'safe' && r.level === 'fail' && !r.proposed);
+  const warns = R.filter(r => r.level !== 'pass' && safeFail.indexOf(r) < 0);
+  const commFail = R.filter(r => r.level === 'fail');
+  return { safe: safeFail.length ? 'fail' : warns.length ? 'warn' : 'pass', safeFail, warns,
+           comm: commFail.length ? 'fail' : R.some(r => r.level === 'warn') ? 'warn' : 'pass', commFail };
 }

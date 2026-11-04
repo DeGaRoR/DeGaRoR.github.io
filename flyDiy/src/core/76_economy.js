@@ -221,6 +221,70 @@ function econLoanJob(doc, id) {
   return rec;
 }
 
+// ---- CERT-GATES: THE SHADY CONTRACTS ("no questions asked") ---------------------------------------------------------
+// (the user 3 Nov: "a few contracts which are a little more shady where the certification is not required"; C: they
+// pay MORE than normal work - risk money - give NO reputation, and cost reputation on a crash.) At most one per offer
+// refresh, from the second on (epoch >= 1), on the existing board under an unnamed contact (the Field Trust's tab holds
+// the card: no new world content). Never passengers: a parcel with no paperwork (5-20 kg), a survey "for a private
+// client", or a part-built aeroplane ferried (flown, nothing aboard). It leans to the far and the short (a strip of 400 m
+// or less, the longer routes) and to the dark (a night or dawn arrival at 70 %, the board's own night windows).
+// WHY THE CERTIFICATE STAYS WORTH HAVING: one such job per refresh against the board's fifteen; no reputation from it;
+// a crash with one accepted costs EVERY provider 0.5 (rep runs 0-5, a board job gains 0.1: five jobs each); and the
+// stories, the orders and the passengers stay closed to an uncertified plane.
+const ECON_SHADY = { payX: 1.5, crashRep: 0.5, kg: [5, 20], nightP: 0.7, fromEpoch: 1, shortM: 400, tries: 12,
+                     kinds: { parcel: 0.5, survey: 0.3, ferry: 0.2 } };
+const ECON_SHADY_TEXT = {
+  'job.shady.parcel.title': { t: 'No questions asked: a parcel', draft: true },
+  'job.shady.parcel.brief': { t: 'A parcel for {to}, no paperwork, no names. Land, leave it by the hangar, leave.', draft: true },
+  'job.shady.survey.title': { t: 'No questions asked: a look', draft: true },
+  'job.shady.survey.brief': { t: 'A private client wants pictures of {at}. Fly over it, come back, forget the place.', draft: true },
+  'job.shady.ferry.title': { t: 'No questions asked: a ferry', draft: true },
+  'job.shady.ferry.brief': { t: 'Someone\'s half-finished aeroplane has to be at {to}. Fly it there; nobody asks what it is.', draft: true },
+};
+if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_SHADY_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_SHADY_TEXT[k];
+function econShadyOffer(doc) {
+  const c = doc && doc.career;
+  if (!c || doc.mode !== 'career' || typeof contractEpoch !== 'function') return null;
+  const e = contractEpoch(c.contracts.done.length);
+  if (e < ECON_SHADY.fromEpoch) return null;
+  const id = 'shady:' + e;
+  if ((c.contracts.failed || []).some(f => f.id === id)) return null;   // crashed once: not offered again
+  return id;
+}
+function econShadyJob(doc, id) {
+  const m = /^shady:(\d+)$/.exec(id || '');
+  if (!m || typeof contractRng !== 'function') return null;
+  const c = doc && doc.career, seed = c ? c.seed : '';
+  const sky = c && typeof careerOfferSky === 'function' ? careerOfferSky(doc) : undefined;
+  const F = CONTRACT_FIELDS, land = Object.keys(F).filter(k => F[k].surf !== 'water');
+  for (let t = 0; t < ECON_SHADY.tries; t++) {
+    const rng = contractRng(seed + '|' + id + '|' + t);
+    const kind = ctPick(rng, Object.keys(ECON_SHADY.kinds), k => ECON_SHADY.kinds[k]);
+    const from = ctPick(rng, land, k => (F[k].len > ECON_SHADY.shortM ? 1 : 0));
+    // the far and the short: a short strip weighs three times, and every strip by its distance
+    const to = ctPick(rng, land.filter(k => k !== from), k => (F[k].len <= ECON_SHADY.shortM ? 3 : 1) * (contractKm(from, k, F) || 0));
+    if (!from || !to) continue;
+    let stages;
+    if (kind === 'survey') stages = [{ subs: [{ do: 'survey', from, at: to }] }, { subs: [{ do: 'land', to: from }] }];
+    else if (kind === 'ferry') stages = [{ subs: [{ do: 'fly', from, to }] }];
+    else stages = [{ subs: [{ do: 'carry', from, to, load: { kg: ctDraw(rng, ECON_SHADY.kg[0], ECON_SHADY.kg[1], 1, 1), pax: 0 } }] }];
+    if (!contractDoers([].concat(...stages.map(s => s.subs)), F).length) continue;
+    // the dark: a night or dawn arrival at 70 % (the board's own windows, 73_ ctNightOf, drawn until one opens)
+    let nt = null;
+    if (sky !== null && kind !== 'survey' && rng() < ECON_SHADY.nightP)
+      for (let k = 0; k < 16 && !nt; k++) nt = ctNightOf(seed + '|' + id + '|' + t + '|' + k, sky !== undefined ? sky : contractSky(CONTRACT_NIGHT.sky0, 0));
+    if (nt) stages[stages.length - 1].subs[0].when = nt.when;
+    const rec = contractNormalise(Object.assign({
+      id, provider: 'field', kind: 'job', title: 'job.shady.' + kind + '.title', brief: 'job.shady.' + kind + '.brief', shady: kind,
+      stages, pay: { base: 0 }, rep: { provider: 'field', gain: 0 }, repeat: false, seed: String(seed), epoch: +m[1],
+    }, nt ? { night: nt.night } : {}));
+    const P = contractPay(rec, F);
+    rec.pay = Object.assign(P, { total: Math.round(P.total * ECON_SHADY.payX / CONTRACT_PAY.round) * CONTRACT_PAY.round, shadyX: ECON_SHADY.payX });
+    return rec;
+  }
+  return null;
+}
+
 // ---- THE CALIBRATION (stated as data, held by GATE ECON) ---------------------------------------------------------
 // With CONTRACT-MODEL's pay (CONTRACT_PAY: ECONOMY's since G2260), a career that flies the matched validated
 // design reaches, in CONTRACTS COMPLETED (not hours: there are no running costs):

@@ -904,7 +904,9 @@ const GEN_ACCESS = {
     // build in the battery.
     at: () => ({ sL: -0.35, lv: 'crown' }),
     snap: 'bay', side: 'centre',
-    form: 'capProud', size: { d: 0.075, h: 0.014 },
+    // G2808 (E8): with a fuel sight gauge fitted, its wire stands up through the cap (_fit_gen.js capSight)
+    form: R => (Array.isArray(R.items) && R.items.includes('fuelSight')) ? 'capSight' : 'capProud',
+    size: { d: 0.075, h: 0.014, wire: 0.11 },
   },
   fuelCapWing: {
     name: 'Wing filler cap',
@@ -1068,7 +1070,9 @@ const GEN_ACCESS = {
   staticPort: {
     name: 'Static port',
     serves: 'the altimeter, the ASI and the VSI',
-    need: R => R.systems === 'minimal' ? 0 : 2,
+    // G2808: wherever an instrument reads the static line (the items as fitted), else the tier's answer
+    need: R => Array.isArray(R.items) ? (R.items.some(k => k === 'asi' || k === 'alt' || k === 'vsi') ? 2 : 0)
+                                      : (R.systems === 'minimal' ? 0 : 2),
     // aft of the cabin, on the flank at waist height: the flattest and least
     // disturbed piece of skin an aeroplane has
     at: R => ({ sL: R.cabinAft + 0.30, lv: 1.85 }),
@@ -1079,7 +1083,10 @@ const GEN_ACCESS = {
     name: 'Venturi',
     serves: 'the vacuum for the turn indicator, on an aeroplane with no'
           + ' engine-driven pump',
-    need: R => (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube')) ? 1 : 0,
+    // G2808 (E5): drawn where the fit's suction IS a venturi (billed on the build: systems.elec.vac), on any
+    // airframe - it followed the tier's NAME and the tube airframes, so a custom fit with one drew none
+    need: R => (R.vac !== undefined ? R.vac === 'venturi'
+                : (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube'))) ? 1 : 0,
     at: () => ({ sL: 0.34, lv: 1.45 }),
     snap: 'ring', side: 'port',
     form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
@@ -1302,6 +1309,9 @@ function genAccessNeeds(S) {
     avionics:  (() => { const r = genSystemsResolve(S);
                         return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                                  xpdr: r.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
+    items:     genSystemsResolve(S).items,
+    vac:       genSystemsResolve(S).vac,
     material:  f.material || 'tubeFabric',
     cargo:     (S.cargo && S.cargo.len) || 0,
     engine:    !!((S.engines && S.engines.length) || S.engine),
@@ -1375,6 +1385,9 @@ function genAccessNeedsCage(P, extra) {
       const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
       return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
                xpdr: T.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
+    items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
+    vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
@@ -1747,7 +1760,47 @@ const GEN_SEATS = {
   basic:    { name: 'Moulded pan',        kg: 7.0,  price: 400 },
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
+  // THE SEAT LIBRARY'S PRESETS (SEATS, 2026-11-02): one row per drawn seat type (tools/_seat_gen.js SEAT_PRESETS, the
+  // masses argued in docs/SEATS-REFERENCES.md). The join measures each drawn seat's row into cabin.seatsKg, so a
+  // build weighs the seats it draws; type 0 is `sling` above, the row every saved build already bills.
+  carbon:      { name: 'Carbon bucket',     kg: 4.5,  price: 1400 },
+  airliner:    { name: 'Vintage airliner',  kg: 18.0, price: 1100 },
+  touring:     { name: 'Touring',           kg: 14.0, price: 1300 },
+  sculpted:    { name: 'Sculpted sport',    kg: 9.0,  price: 2400 },
+  executive:   { name: 'Executive leather', kg: 18.0, price: 2900 },
+  ultralight:  { name: 'Ultralight sling',  kg: 3.5,  price: 150 },
+  aerobatic:   { name: 'Aerobatic recline', kg: 6.0,  price: 1600 },
+  vintageCrew: { name: 'Vintage crew',      kg: 20.0, price: 1000 },
+  work:        { name: 'Heavy-duty work',   kg: 16.0, price: 2200 },
+  cane:        { name: 'Woven cane',        kg: 3.0,  price: 300 },
+  reclined:    { name: 'Reclined tub',      kg: 3.0,  price: 700 },
+  folding:     { name: 'Folding canvas',    kg: 2.5,  price: 100 },
+  parachute:   { name: 'Parachute bucket',  kg: 8.0,  price: 800 },
+  utility:     { name: 'Bush utility',      kg: 12.0, price: 700 },
 };
+// the cage's seatType -> its GEN_SEATS row (the order of SEAT_PRESETS; append only - the index rides in every save)
+const GEN_SEAT_TYPES = ['sling', 'carbon', 'airliner', 'touring', 'sculpted', 'executive', 'ultralight', 'aerobatic',
+                        'vintageCrew', 'work', 'cane', 'reclined', 'folding', 'parachute', 'utility'];
+// THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
+// accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
+// heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
+// now the fraction was the INSTRUMENT TIER's (a minimal panel bought a bare cabin, an IFR panel a lined one, whatever
+// was drawn: AVIONICS-STATUS §1A's hidden coupling). `spec.outfit.trim` chooses it; ABSENT (every save before this
+// row), it is the tier's, exactly as before - so a save that never touches the row bills what it did, byte for byte.
+//   k  the fraction of Raymer's furnishings (0.0582 W0 - 29.5 kg); priced at the outfit's 60 cr a kilo
+const GEN_TRIM = {
+  bare:  { name: 'Bare',            k: 0,    note: 'paint on the tubes and a rubber floor mat: a J-3' },
+  light: { name: 'Light trim',      k: 0.25, note: 'side pads, a floor mat, no headliner: a Champ or a Jodel' },
+  lined: { name: 'Lined',           k: 0.5,  note: 'side panels, carpet, a headliner: a basic trainer' },
+  full:  { name: 'Lined and quiet', k: 1.0,  note: 'the lot, soundproofed, with the heater ducted: a 172 as delivered' },
+};
+// THE LINING'S FRACTION: the chosen trim's, else the instrument tier's (the rule every save before G2806 bills by).
+// The ONE reader for the frame's furnishing and the design gross's fixed point (61_gen_frame), so the two agree.
+function genFurnK(S) {
+  const t = S && S.outfit && S.outfit.trim;
+  if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
+  return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
+}
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
@@ -1912,7 +1965,8 @@ const GEN_INSTR = {
              power: 'elec', amps: 0.02 },
   clock:   { name: '8-day clock',          d: 0.0572, kg: 0.25, price: 240,
              power: 'none', note: 'mechanical; a digital one is ~150' },
-  hobbs:   { name: 'hour meter',           d: 0,      kg: 0.10, price: 110,
+  // (G2808: drawn - a 2-1/4 in counter on the panel; it was faceless, billed and powered and never seen)
+  hobbs:   { name: 'hour meter',           d: 0.0572, kg: 0.10, price: 110,
              power: 'elec', amps: 0.02 },
   compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
              power: 'none', coaming: true, note: 'Airpath C2300 class' },
@@ -1952,6 +2006,44 @@ const GEN_ELEC = {
   // the harness: master + breakers + the wire, once, plus a little per item
   harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
 };
+// THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
+// The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
+// It moves no mass and no price: the parts genSystemsResolve lists are the bill's own rows broken out (the harness
+// row split into the bus - the master contactor, the bus bar and the breaker panel - and the wire), each `at` the
+// frame station 61_gen_frame bills it on (`firewallLow` the firewall ring's lower pair, `engine` the accessory case
+// = the engine pair, `panel` the firewall ring's top pair, where the dash hangs). The engine bay draws the battery,
+// the generator and the starter from these (no longer from its own rows); the dash draws the breakers.
+//   dims  a box, m (length x width x height, the battery's case); len / dia a can (the rotating machines)
+const GEN_ELEC_PARTS = {
+  battery: {
+    lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
+    lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+  },
+  alternator: {
+    gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
+    alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+  },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
+  // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
+  bus: { kg: 0.45, perBreaker: 0.03 },
+  // a breaker's rating: the next standard push-to-reset size over 1.4 x what it feeds (a Klixon 7274's sizes);
+  // the alternator's field breaker is 5 A whatever the alternator
+  breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
+  breakerMargin: 1.4, fieldA: 5,
+};
+// THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
+// GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
+const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+// the interior lamps share one breaker ('cabinLt'); each outside light has its own (named apart from the radios':
+// the NAV receiver's breaker is 'nav', the navigation lights' 'navLt')
+const GEN_LIGHT_BREAKER = { taxi: 'taxiLt', beacon: 'beaconLt', land: 'landLt', nav: 'navLt',
+                            flood: 'cabinLt', instr: 'cabinLt', pedal: 'cabinLt', pax: 'cabinLt' };
+function genBreakerSize(amps) {
+  const P = GEN_ELEC_PARTS, need = Math.max(1, (+amps || 0) * P.breakerMargin);
+  for (const s of P.breakerSizes) if (s >= need - 1e-9) return s;
+  return P.breakerSizes[P.breakerSizes.length - 1];
+}
 // THE AVIONICS. The radios need a bus; the aerials that carry them are
 // GEN_ACCESS rows (comm / nav / transponder) and read this through
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
@@ -1973,16 +2065,43 @@ const GEN_AVIONICS = {
     vor:  { name: 'VOR receiver + CDI',   kg: 1.6, price: 2200, amps: 0.5, later: true,
             note: 'a second-hand KX 155 + KI 208; navaids are a world item' },
   },
+  // G2803 (AVIONICS-GPS phase 2): the GPS is DRAWN now - a unit on the panel's plate whose screen is the moving map
+  // (src/viewer/gps_face.js) - so its rows lose `later` and carry their FACE: the unit's front (w x h) and the
+  // screen in it (sw x sh), m, from the makers' drawings. Mass, price and draw are unchanged. The portable is drawn
+  // in a panel cradle (the plate is where the layout has room; a yoke mount is the crew layer's, not this one's).
   gps: {
     none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
-    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5, later: true,
-                note: 'aera 660 class on a yoke mount' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0, later: true,
-                note: 'GPS 175 class' },
-    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5, later: true,
-                note: 'G3X Touch / HDX class with ADAHRS and magnetometer' },
+    // G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS"):
+    // the face is the unit's housing ROUND its screen - a frame, a band of four softkeys (`keys`: under the screen, or a
+    // column on its left for a slim navigator) and, where the face leaves the room, the dual knob on the pilot's right.
+    // The glass unit's was 198 x 159 mm round a 155 x 93 screen, drawn on its side (159 wide): half of it blank housing.
+    // `knob`: the unit has the dual knob (a portable has none: its screen is centred)
+    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
+                face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
+                note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
+                note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
+    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
+                face: { w: 0.193, h: 0.115, sw: 0.155, sh: 0.093, keys: 'below', knob: true },
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page' },
+    // G2815 (the user, 27 Oct: "a larger version, more like a tablet or a small screen. Typically what you'd see fitted in
+    // cessna skyhawks. I don't expect all other instruments to fit then ... 2 of them, one configured PFD by default, one
+    // MFD ... or only 1 of them, and if one ... on the pilot side or the passenger side"): the G1000 class display, one
+    // (`flat`: the PFD; systems.gpsSide 'pilot' or 'copilot', written only once picked) or two (`flatPair`: the PFD in front of the pilot,
+    // the MFD with its engine strip beside it). Its face: a 10.4 in 4:3 screen in a 271 x 208 mm bezel, a knob each side
+    // (`knobs: 'both'`), twelve softkey caps under the glass (`keysN`) of which four switch (`keySlots`: the same four
+    // KEYS the smaller units have). Mass, price and draw are per display x n (GDU 1040 class: 2.7 kg, ~4 A)
+    flat:     { name: '10 in glass display', kg: 2.9, price: 9500, amps: 4.0,
+                face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 1 },
+                note: 'G1000 GDU 1040 class with ADAHRS (a 10.4 in 1024 x 768 screen, 271 x 208 mm): the PFD, the map on its page' },
+    flatPair: { name: 'twin 10 in displays (PFD + MFD)', kg: 5.8, price: 19000, amps: 8.0,
+                face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 2 },
+                note: 'G1000 class, a Skyhawk\'s: the PFD in front of the pilot, the MFD with its engine strip beside it' },
   },
 };
+// G2815: where a single big display stands - in front of the pilot or of the passenger beside him
+const GEN_GPS_SIDES = ['pilot', 'copilot'];
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe
 // need to be flown; basic is the user's minimum set (speed, altitude,
 // attitude, climb, compass, clock, rpm, fuel) with the electrics that feed a
@@ -2017,7 +2136,14 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //   (keys), dropped[] ({key, why}), rows[] ({key, group, name, kg, price,
 //   amps}), bill.panel/elec/avionics {kg, price}, kg, price, loads[] ({key,
 //   amps}), hasBus, battAh, altA, starter (bool), vac (key)
-function genSystemsResolve(S) {
+// G2801 (AVIONICS-GPS phase 2) adds, moving nothing in the bill:
+//   loads[].av      the radios ride the AVIONICS bus, behind the avionics master
+//   loads[].cb      the breaker that feeds the load
+//   breakers[]      {key, A, feeds[], group} - one per powered dial and radio, the alternator's field, and (with
+//                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
+//   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
+//                   the bus and the wire split the harness row and add up to it exactly
+function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
   const T = GEN_SYSTEMS[tier];
@@ -2027,6 +2153,8 @@ function genSystemsResolve(S) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
+  // G2815: a single big display's side (only for it: no other fit carries the key)
+  if (avionics.gps === 'flat') avionics.gpsSide = sy.gpsSide === 'copilot' ? 'copilot' : 'pilot';
   // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
   // on a wire, so the minimal tier's sight glass becomes the pack's own
   // meter, and the `fuel` key reads GEN_INSTR.fuel.charge - fed by the pack,
@@ -2041,6 +2169,11 @@ function genSystemsResolve(S) {
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
+  // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
+  // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
+  // not drawn, so it is not carried: off the bill, off the bus. The panel layer lays out from its own state, which
+  // never holds this list, so a dial dropped here is offered the dash again on every build.
+  const noRoom = new Set(Array.isArray(sy.noRoom) ? sy.noRoom.filter(k => typeof k === 'string') : []);
   for (const k of src) {
     const r = rowOf(k);
     if (!r || seen.has(k)) continue;
@@ -2051,10 +2184,12 @@ function genSystemsResolve(S) {
     if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
+    if (noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); continue; }
     items.push(k);
   }
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
+    else if (avionics[k] !== 'none' && noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); avionics[k] = 'none'; }
   // the bill, row by row
   const rows = [], loads = [];
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
@@ -2071,17 +2206,65 @@ function genSystemsResolve(S) {
     if (r.kg > 0 || r.price > 0)
       rows.push({ key: k + ':' + elec[k], group: 'elec', name: r.name, kg: r.kg, price: r.price, amps: 0 });
   }
+  // G2815: a pair whose second display (the MFD) found no room on the dash is drawn - and billed - as the one display
+  const pairLost = avionics.gps === 'flatPair' && noRoom.has('gps2');
+  if (pairLost) dropped.push({ key: 'gps2', why: 'no room on the dash' });
   for (const k of ['com', 'xpdr', 'nav', 'gps']) {
-    const r = GEN_AVIONICS[k][avionics[k]];
+    let r = GEN_AVIONICS[k][avionics[k]];
+    if (k === 'gps' && pairLost) r = Object.assign({}, GEN_AVIONICS.gps.flat, { name: GEN_AVIONICS.gps.flat.name + ' (the MFD: no room)' });
     if (r.kg > 0 || r.price > 0) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
-      nPowered++; loads.push({ key: k, amps: r.amps || 0 });
+      nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
                 kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+  }
+  // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
+  const breakers = [];
+  if (hasBus) {
+    // (a breaker the dash had no room for is not fitted: its load is fed straight off the bus, G2808)
+    for (const l of loads) {
+      if (noRoom.has('breaker:' + l.key)) continue;
+      l.cb = l.key;
+      breakers.push({ key: l.key, A: genBreakerSize(l.amps), feeds: [l.key], group: l.av ? 'avionics' : 'panel' });
+    }
+    if (elec.alternator !== 'none' && !noRoom.has('breaker:field'))
+      breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
+    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : [];
+    const lb = {};
+    for (const k of Object.keys(GEN_LIGHT_AMPS)) {
+      if (!lit.includes(k)) continue;
+      const b = GEN_LIGHT_BREAKER[k];
+      if (noRoom.has('breaker:' + b)) continue;
+      if (!lb[b]) { lb[b] = { key: b, A: 0, feeds: [], group: 'lights', amps: 0 }; breakers.push(lb[b]); }
+      lb[b].feeds.push(k); lb[b].amps += GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1);
+    }
+    for (const b of Object.values(lb)) { b.A = genBreakerSize(b.amps); delete b.amps; }
+  }
+  // THE PARTS (G2801): the electrics rows as installed things, each where the frame bills it
+  const parts = [];
+  {
+    const PT = GEN_ELEC_PARTS;
+    const put = (k, at) => {
+      const v = elec[k], r = GEN_ELEC[k][v], g = PT[k] && PT[k][v];
+      if (!(r && r.kg > 0)) return;
+      parts.push(Object.assign({ key: k, kind: v, name: r.name, kg: r.kg, at }, g ? cleanPart(g) : {}));
+    };
+    const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
+    put('battery', 'firewallLow');
+    put('alternator', 'engine');
+    put('starter', 'engine');
+    put('vac', 'engine');
+    const hr = rows.find(r => r.key === 'harness');
+    if (hr) {
+      const busKg = +Math.min(hr.kg, PT.bus.kg + PT.bus.perBreaker * breakers.length).toFixed(3);
+      parts.push({ key: 'bus', kind: 'bus', name: 'master contactor, bus bar and ' + breakers.length + ' breakers',
+                   kg: busKg, at: 'panel', breakers: breakers.length });
+      parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
+    }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -2092,7 +2275,7 @@ function genSystemsResolve(S) {
     items, elec, avionics, dropped, rows,
     bill: { panel, elec: el, avionics: av },
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
-    loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
@@ -4246,7 +4429,10 @@ const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
   taper: [0.45, 1.0], xLE: [-1.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00] },
+  // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
+  // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
+  // wing is inside the small box, which is unchanged
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
   second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
@@ -4275,13 +4461,25 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E0 = genWingEnv(w.span);                         // G3503: the big envelope past 18 m asked
   // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
-  const E = k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
-    span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0;
+  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
+    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
+  let E = envOf(w.span);
+  const big = genEnvBig(w.span), chord0 = w.chord;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
+  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
+  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
+  // it: a wing that is small or big from the start takes exactly the path it always did
+  if (genEnvBig(w.span) !== big) {
+    E = envOf(w.span);
+    w.chord = genClamp(chord0, ...E.chord);
+    w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
+                              Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  }
   w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
@@ -4326,7 +4524,7 @@ function clampWing(w, S, k) {
     const reach = Math.tan(30 * Math.PI / 180) *
                   Math.max(0.5, 0.5 * w.span - 0.3);
     if (w.crankChord != null)
-      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+      w.crankChord = genClamp(w.crankChord, ...(E.crankChord || [0.55, 2.10]));
     if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
     if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
     // G189: loft cuts are finite stations strictly inside the semispan,
@@ -4648,6 +4846,7 @@ function clampSpec(spec) {
     if (!sy.avionics || typeof sy.avionics !== 'object') sy.avionics = {};
     for (const k of ['com', 'xpdr', 'nav', 'gps'])
       if (sy.avionics[k] != null && !GEN_AVIONICS[k][sy.avionics[k]]) sy.avionics[k] = null;
+    if (sy.gpsSide != null && !GEN_GPS_SIDES.includes(sy.gpsSide)) delete sy.gpsSide;   // G2815 (written only when picked)
   }
   const ct = S.controls;
   clampControls(ct);
@@ -4713,6 +4912,12 @@ function clampSpec(spec) {
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
     ? cb.seatsX.map(x => genClamp(x, 0.05, 25)) : null;   // (G3573: 12 -> 25 m - the full-size DC-3's aft rows stand past 12 m; only a seat that far aft moves)
+  // SEATS (2026-11-02): each drawn seat's mass, kg, seat order - the join writes it only when a seat weighs other than
+  // the outfit's row, so ABSENT is every save before and every all-default cabin (and stays absent: no key is added)
+  if (cb.seatsKg !== undefined)
+    cb.seatsKg = Array.isArray(cb.seatsKg) && cb.seatsKg.length &&
+                 cb.seatsKg.every(x => typeof x === 'number' && isFinite(x) && x > 0)
+      ? cb.seatsKg.map(x => genClamp(x, 0.5, 60)) : undefined;
   // G180: the drawn capacity — a whole number of seats, or null = the table's;
   // and the occupancy — a list of 0/1 per seat, or null = the first N. A
   // malformed list reads as "derived", never as a crash or a jump, the same
@@ -4864,6 +5069,8 @@ function clampSpec(spec) {
   S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 4000 : 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
+  // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
+  if (S.outfit.trim != null && !GEN_TRIM[S.outfit.trim]) delete S.outfit.trim;
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';
@@ -4907,8 +5114,14 @@ function clampSpec(spec) {
     // hand-written spec land on the same aeroplane.
     if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
+    // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
+    // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
+    // holds nothing here - the litres are the fitted tanks' - and the frame bills it nowhere (it was billed on the
+    // wing's spar pair: a phantom tank, its fuel flown where nothing was drawn).
+    const strutted = !!(S.bracing && S.bracing.type === 'strut');
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
@@ -4940,7 +5153,7 @@ function clampSpec(spec) {
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
         v.tint = null;
-      total += v.capacity;
+      if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
     else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
@@ -4971,6 +5184,11 @@ function clampSpec(spec) {
   S.wings.forEach((wk, k) => clampWing(wk, S, k));
   {
     const br = S.bracing;
+    // PILLAR-ANCHORS (P4, the user 3 Nov: "which pillar is less important; the most important is that anchors land on
+    // a pillar"): THE LIFT STRUT'S ROOT STATION, metres aft of the firewall, when the builder picked a pillar (the
+    // join writes the picked pillar's ring station; 61_gen_frame roots the strut on the ring nearest it). Absent or
+    // null = the frame's own rule, every build before the row - nothing is added to a spec that does not state it
+    if (br.strutAt != null) br.strutAt = isFinite(+br.strutAt) && +br.strutAt >= 0 ? +br.strutAt : null;
     if (!['none', 'N', 'I'].includes(br.interplane)) br.interplane = 'none';
     br.interplaneAt = genClamp(br.interplaneAt == null ? 0.62 : br.interplaneAt, 0.30, 0.95);
     if (!['none', 'both', 'flying'].includes(br.wires)) br.wires = 'both';
@@ -5069,6 +5287,8 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
+  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';

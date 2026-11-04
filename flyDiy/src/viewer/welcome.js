@@ -10,9 +10,11 @@
 // - ONCE PER GRAPHICS CARD. The choice is remembered under the card's name (localStorage flydiy.welcome); a new card
 //   asks again, the graphics menu's "re-check my computer" row asks again in place. ?gfx=<preset> skips it (the preset
 //   is already chosen), and so does a choice already saved in the menu (flydiy.gfx): THE PLAYER'S CHOICE ALWAYS WINS.
-// - THE DEVICE GATE. A phone or a tablet (userAgentData.mobile, or a coarse pointer on a small screen) and a browser
-//   without WebGL2 get a polite page instead: what was detected, flyDiy is for a computer for now, and a "try anyway
-//   (experimental)" link that continues on potato.
+// - A PHONE OR A TABLET (userAgentData.mobile, or a coarse pointer on a small screen) with WebGL2 LOADS THE PHONE PROFILE,
+//   no card and no choice (the user 3 Nov, via A0: "we should get rid of the message 'try anyway' and 'build on phone'
+//   for now, we support phone properly, so just load"); ?profile=desktop still forces the trunk.
+// - THE DEVICE GATE. A browser without WebGL2 gets a polite page instead: what was detected, flyDiy needs WebGL2, and a
+//   "try anyway (experimental)" link that continues on potato.
 // - THE LOST CONTEXT. A canvas of the game that loses its WebGL context (the GTX 660 drew 0 frames on gamer) gets a
 //   clear message offering potato, never a blank screen.
 // - THE RIGS NEVER SEE ANY OF IT (gfx_settings.js's RIG: navigator.webdriver or HeadlessChrome; ?welcome=1 /
@@ -173,10 +175,14 @@
     if (isLocal(host) && !force('welcome', q) && !force('devgate', q)) { out.why = 'localhost (a rig or a dev server)'; return out; }
     if (/[?&]gfx=[a-z]/.test(q) && !force('welcome', q) && !force('devgate', q)) { out.why = '?gfx= chose the preset'; return out; }
     let rec = null; try { rec = JSON.parse(read(store, KEY) || 'null'); } catch (e) {}
-    // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too - the phone profile again, no gate
-    if (out.mobile && env.webgl2 && rec && rec.tried && rec.profile === 'phone' && !force('devgate', q)) { out.profile = 'phone'; out.why = 'the phone garage, chosen before'; return out; }
-    if (force('devgate', q) || ((out.mobile || !env.webgl2) && !(rec && rec.tried))) {
-      out.screen = 'gate'; out.why = !env.webgl2 ? 'no WebGL2' : out.mobile; return out;
+    // PHONE-NO-GATE (the user 3 Nov): a phone or a tablet with WebGL2 is the phone profile at once - no card, whatever an
+    // older visit chose there ("try anyway" or "Build on this phone"); ?profile=desktop (profile.js) keeps the trunk
+    if (out.mobile && env.webgl2 && !force('devgate', q)) {
+      if (!/[?&]profile=desktop(&|$)/.test(q || '')) out.profile = 'phone';
+      out.why = 'a phone or tablet (' + out.mobile + '): the phone garage'; return out;
+    }
+    if (force('devgate', q) || (!env.webgl2 && !(rec && rec.tried))) {
+      out.screen = 'gate'; out.why = !env.webgl2 ? 'no WebGL2' : '?devgate=1'; return out;
     }
     if (force('welcome', q)) { out.screen = 'welcome'; out.why = '?welcome=1'; return out; }
     if (rec && rec.gpu === gpuName) { out.why = 'this card was seen (' + rec.preset + ')'; return out; }
@@ -341,23 +347,15 @@
     paint();
     try { play.focus(); } catch (e) {}
   });
-  // THE DEVICE GATE: resolves 'potato' when the player tries anyway (it never resolves otherwise: nothing loads)
-  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - "Build on this phone": the garage alone, laid out for a touch screen, on the
-  // lightest picture (profile.js 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button
+  // THE DEVICE GATE: resolves 'potato' when the player tries anyway (it never resolves otherwise: nothing loads). Only a
+  // browser without WebGL2 sees it (or ?devgate=1): a phone with WebGL2 boots the phone profile and never gets here
+  // (PHONE-NO-GATE, the user 3 Nov - the "Build on this phone" choice and its card are gone)
   const showGate = (env, d) => new Promise(res => {
     const { card } = open();
-    card.appendChild(el('h1', null, 'flyDiy is made for a computer, for now'));
-    card.appendChild(el('p', null, !env.webgl2
-      ? 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge or Firefox on a desktop or a laptop has it.'
-      : 'Phones and tablets do not have the memory the island needs yet: the browser closes the page before it has loaded. The garage alone fits: build your aeroplane here, save it, and fly it on a computer.'));
+    card.appendChild(el('h1', null, 'flyDiy needs WebGL2'));
+    card.appendChild(el('p', null, 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge, Firefox or Safari has it, on a computer or a phone.'));
     facts(card, env, d);
-    card.appendChild(el('p', null, 'Open this page on a desktop or a laptop to fly.'));
     const foot = el('div', 'wfoot');
-    if (env.webgl2) {
-      const ph = el('button', 'wplay', 'Build on this phone'); ph.type = 'button';
-      ph.onclick = () => { W.document.getElementById('welcome').remove(); res('phone'); };
-      foot.appendChild(ph);
-    }
     const go = el('button', 'wlink', 'try anyway (experimental)'); go.type = 'button';
     go.onclick = () => { W.document.getElementById('welcome').remove(); res('potato'); };
     foot.appendChild(go);
@@ -633,11 +631,7 @@
   if (d.screen === 'none' && md.mode) return;   // today's skip, byte for byte: nothing shown, nothing held
   const t0 = Date.now();
   // the graphics card (or the device gate) first, as today; then the menu unless the mode is known
-  const first = d.screen === 'gate' ? showGate(API.env, d).then(p => {
-      // G2100: "Build on this phone" - the profile switched before the boot (the loader, the promote and app.js follow),
-      // the preset is the profile's (gfx_settings.js reads PROFILE.get('preset')), so the pick stays null
-      if (p === 'phone') { if (W.PROFILE) W.PROFILE.set('phone', 'the device gate: build on this phone'); remember(W.localStorage, d, 'laptop', { tried: true, profile: 'phone' }); return null; }
-      remember(W.localStorage, d, p, { tried: true }); return p; })
+  const first = d.screen === 'gate' ? showGate(API.env, d).then(p => { remember(W.localStorage, d, p, { tried: true }); return p; })
     : d.screen === 'welcome' ? showWelcome(API.env, d, md.mode ? null : { next: 'menu' }).then(p => { remember(W.localStorage, d, p); return p; })
     : Promise.resolve(null);
   W.FLYDIY_WELCOME = first

@@ -173,6 +173,12 @@ const SHOT_EVAL = opt('shot-eval', null);
 // --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
 // recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
 const PROFILE_LIVE = opt('profile-live', null);
+// --trace <secs> (G1998, HWCOV): a Chrome trace of every process (the GPU process's ANGLE work, the compositor, the main
+// thread's tasks) from just before the roll-out click for <secs> s, written beside the JSON as <label>.trace.json (open
+// it in chrome://tracing or Perfetto). For the cold freeze that sits off the main thread (the frames stop, no long task)
+const TRACE = opt('trace', null);
+const TRACE_CATS = 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
+  + 'disabled-by-default-gpu.service,disabled-by-default-gpu.angle,disabled-by-default-gpu.decoder,gpu.capture,__metadata';
 // --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
 // debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
 const PRE = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('pre', null));
@@ -240,10 +246,12 @@ function preScript() {
   // G1945 DEST-TO: the pref is v2 { base, to } - a --from that is not the base rides as the rigs' `spawn` (no picker has it)
   lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManualRig","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
   if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
-  if (VARIANT === 'nomet') {
-    const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+  // G3205 (METLA-ONOFF): 'nomet-sea' keeps the runways (the Metlakatla seaplane base stays a destination: the OFF side flies the
+  // same route under ?town=1, the town's premises gone); --fixture <file> filters the SERVED tree's fixture (a --url run)
+  if (VARIANT === 'nomet' || VARIANT === 'nomet-sea') {
+    const F = JSON.parse(fs.readFileSync(opt('fixture', null) ? path.resolve(opt('fixture')) : path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
     let cut = 0;
-    for (const k of Object.keys(F.layers)) if (Array.isArray(F.layers[k])) {
+    for (const k of Object.keys(F.layers)) if (Array.isArray(F.layers[k]) && !(VARIANT === 'nomet-sea' && k === 'runways')) {
       const n = F.layers[k].length;
       F.layers[k] = F.layers[k].filter(e => !(e && typeof e.id === 'string' && e.id.startsWith('mk_')));
       cut += n - F.layers[k].length;
@@ -289,9 +297,9 @@ const INSTALL = `(() => {
   if (W && W.worldUpdate && !W.__rpW) { const wu = W.worldUpdate; W.worldUpdate = function (cg) { const t = performance.now(); const r = wu.apply(this, arguments); wuMs += performance.now() - t; return r; }; W.__rpW = 1; }
   // the CPU side of every renderer.render() (the scene, the mirror, the probes: submit + any sync
   // stall), three's shadow pass inside it, and each premises stream step
-  let rMs = 0, shMs = 0, pmMs = 0, pmN = 0;
+  let rMs = 0, shMs = 0, pmMs = 0, pmN = 0, dcN = 0, trN = 0;   // (G3200: the draw calls and triangles of every render() a frame)
   const RD = W && W.renderer;
-  if (RD && !RD.__rp) { const rr = RD.render; RD.render = function () { const t = performance.now(); const x = rr.apply(this, arguments); rMs += performance.now() - t; return x; };
+  if (RD && !RD.__rp) { const rr = RD.render; RD.render = function () { const I = RD.info && RD.info.render, keep = RD.info && !RD.info.autoReset, c0 = keep && I ? I.calls : 0, t0 = keep && I ? I.triangles : 0; const t = performance.now(); const x = rr.apply(this, arguments); rMs += performance.now() - t; if (I) { dcN += I.calls - c0; trN += I.triangles - t0; } return x; };
     const SM = RD.shadowMap; if (SM && SM.render) { const sr = SM.render; SM.render = function () { const t = performance.now(); const x = sr.apply(this, arguments); shMs += performance.now() - t; return x; }; }
     RD.__rp = 1; }
   const PR = W && W.premises;
@@ -330,14 +338,16 @@ const INSTALL = `(() => {
       +rMs.toFixed(2), +shMs.toFixed(2), +pmMs.toFixed(2), pmN, x == null ? null : +x.toFixed(2), z == null ? null : +z.toFixed(2),
       apPh, V == null ? null : +V.toFixed(2), onG, hAgl == null ? null : +hAgl.toFixed(2), +mirMs.toFixed(2), mirN, +fldMs.toFixed(2), WT && WT.stats && R.waterGpu ? +WT.stats.gpuMs.toFixed(3) : null, man, wph ]
       // G820 (C1c): THE PHYSICS WORKER'S readings (?simw): its step's cost (ms, eased), its dilation, its steps a turn at most (ms)
-      .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })()));
+      .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })())
+      // G3200 (PERF-LEDGER): the frame's draw calls and triangles over every renderer.render() (the shadow maps' inside), at 29 / 30
+      .concat([dcN, trN]));
     R.wph = wph;
     // G3415 THE TOWN METER of this frame (render_world filled premises.townFrame in this frame's worldUpdate): [town ms, items
     // visited, KB allocated (null unless --town-alloc), then each part's ms in premises.town.parts' order]
     { const PRx = W && W.premises, TF = PRx && PRx.townFrame, TP = PRx && PRx.town;
       R.tw.push(TF ? [+TF[0].toFixed(3), TF[1], TF[2] === TF[2] ? +TF[2].toFixed(2) : null].concat(TP ? Array.from(TP.lastParts, v => +v.toFixed(3)) : []) : null); }
     R.fr[R.fr.length - 1].push(heldN);
-    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; heldN = 0;
+    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; heldN = 0; dcN = 0; trN = 0;
     return endW(workMs, physMs, steps, now);
   };
   return 'installed';
@@ -399,8 +409,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (!tgt) throw new Error('no page target');
   const ws = new WebSocket(tgt.webSocketDebuggerUrl);
   await new Promise(r => ws.onopen = r);
-  let id = 0; const waits = new Map(); const exc = [];
+  let id = 0; const waits = new Map(); const exc = []; const traceEv = []; let traceEnd = null;
   ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.method === 'Tracing.dataCollected') traceEv.push(...m.params.value); if (m.method === 'Tracing.tracingComplete' && traceEnd) traceEnd();
     if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n')[0]); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async (expr, timeoutMs) => {
@@ -450,6 +461,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  let traceDone = Promise.resolve(0);
+  if (TRACE) {
+    const r = await cmd('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordContinuously', includedCategories: TRACE_CATS.split(',') } });
+    if (r.error) console.log('  trace: ' + JSON.stringify(r.error));
+    else { console.log('  trace on (' + TRACE + ' s from the click)');
+      traceDone = sleep(+TRACE * 1000).then(() => new Promise(res => { traceEnd = () => res(traceEv.length); cmd('Tracing.end'); })); }
+  }
   // G833 (C2a): THE LOADING'S TOWN STEP - its own time (BOOT.log), the long tasks inside it (the main thread's share),
   // and the house worker's account (src/viewer/house_worker.js: its world's init, the recompose, what it generated and
   // what came from its IndexedDB cache). Cold (--cold: an empty cache) vs warm (a second run on the same profile: the
@@ -695,6 +713,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
+  if (TRACE) { const n = await Promise.race([traceDone, sleep(60000).then(() => -1)]);
+    const f = OUT.replace(/.json$/, '.trace.json'); fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, JSON.stringify({ traceEvents: traceEv })); console.log('  trace: ' + traceEv.length + ' events' + (n < 0 ? ' (no tracingComplete in 60 s)' : '') + ' -> ' + f); }
   let profTop = null;
   if (prof) {
     // self time per node = its samples x the mean interval; aggregated by function (name + script + line) and by script
@@ -779,7 +800,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     wStepP90: rs.some(r => r[26] != null) ? +pct(rs.filter(r => r[26] != null).map(r => r[26]), 0.9).toFixed(2) : null,
     wDilMin: rs.some(r => r[27] != null) ? +Math.min(...rs.filter(r => r[27] != null).map(r => r[27])).toFixed(3) : null,
     workP90: +pct(rs.map(r => r[2]), 0.9).toFixed(1),
-    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2),
+    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), drawsMed: med(rs.map(r => r[29] || 0)), trisMed: med(rs.map(r => r[30] || 0)), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2),
     dist: FD.dist(dt, rs.map(r => r[6])) }; };   // G1360: the histogram, p50..p99.9, over 1.5x / 3x the frame's cap, over 100 ms / 1 s
   const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
   // the gate numbers

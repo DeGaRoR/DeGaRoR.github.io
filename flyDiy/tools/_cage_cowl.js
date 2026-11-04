@@ -70,8 +70,13 @@ for (const g of ROWS) {
 // from the first click. A birth still seeds the section from the fuselage
 // once (see `sectionFromFace` in PAGE.post), and `fitted` is one click away
 // for a builder who wants the body to keep winning.
+// CABIN-CRAFT (2026-11-02): ROWS ABSENT AT THEIR DEFAULT (the G3570 floor-height rule). The firewall's width by level
+// is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
+// every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
+// shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1 };
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
-for (const k of SHOWN) cowlDef['cw_' + k] = CW.P[k];
+for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -101,7 +106,10 @@ const groupItems = g => g.rows
                                                    : r.hi,
                 r.step, rowNames(r)];
     const w = r.when ? panelWhen(r.when) : null;
-    if (w) it.push({ when: w });
+    const o = {};
+    if (w) o.when = w;
+    if (r.k in ABSENT_AT) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    if (Object.keys(o).length) it.push(o);
     return it;
   });
 
@@ -112,8 +120,9 @@ const GROUP = ['2b · cowl', [
     'fitted — size and section follow the fuselage',
     'sealed — size follows, the section is yours'],
    { when: P => +P.cowlOn }],
+  // (FIREWALL RULE: only off the body - a pylon, a nacelle - where the face is the engine's own plate)
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
-   { when: P => +P.cowlOn }],
+   { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(+P.engMount || 0)) }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
@@ -434,6 +443,16 @@ function noseFace(mesh, FS, end) {
 // as engines[i]): 4 push-pull = the nose face + the aft bulkhead's (the
 // Skymaster); 5 = the nose + a nacelle pair at `engNacAt` (the Trimotor);
 // 6 = two nacelle pairs, inner at `engNacAt`, outer at `engNacAt2`.
+// FIREWALL RULE (CABIN-CRAFT, the user 2 Nov ~22:25: "I think the back cowl should be constrained to stick to the
+// firewall, so I don't even know why this option exists. Only the stand and the cowl length should be editable in this
+// axis"): A COWL ON A BODY FACE (the nose, the pusher's aft face) STARTS AT THE FIREWALL. Neither the stand-off
+// (cowlGap) nor, on a cowled pusher, the engine block (engBlockZ / engBlockY, which moved the whole face - the cowl
+// with the engine) takes it off; fore and aft, the engine STAND (eng_mountGap) and the COWL LENGTH are what move. A
+// face OFF the body (a pylon, a nacelle: the engine's own plate, no firewall) keeps both - they are how it is placed.
+// No saved build moved (the survey of every repo build and the flagship's files: the cowled pushers and the body
+// cowls all sat at 0; the Chinook's block is on a cowl-less pusher, the twin floatplane's gap on nacelles).
+const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
+  [1, 4].includes(Math.round(+P.engMount || 0));
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   if (mount >= 4 && mount <= 6) {
@@ -449,12 +468,20 @@ function engineFaces(mesh, FS, P) {
   const bz = +P.engBlockZ || 0, by = +P.engBlockY || 0;
   const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
+    // CONFIG-MATRIX: ONLY A BODY THAT ENDS AT A BULKHEAD HAS AN AFT FACE (_cage_gen.js cageAftEngineFace, the rule
+    // the sheet's aperture follows; or the page's own rear-aperture row). Without one the aft-most cap noseFace finds
+    // is the NOSE's - or, on an aerodynamic nose, the windscreen band - and the pusher was bolted there facing aft,
+    // its disc in front of the cabin. No face, no engine: the engine layer says why and the join files it.
+    const C2 = window.CAGE2;
+    if (C2 && C2.cageAftEngineFace && !+P.rearAperture && !C2.cageAftEngineFace(P)) return [];
     const f = noseFace(mesh, FS, 'tail');
     // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
     // is where the mount bolts, and a Chinook's engine sits over the wing's
     // trailing edge, a third of a metre ahead of where the pod ends — the
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
+    // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
+    if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
@@ -823,6 +850,7 @@ function cowlForEngine(P, face, stat, dec) {
   }
   else {
     hit = cowlArchStarter(P);
+    if (birthPreset) { if (!presetNext) presetNext = birthPreset; birthPreset = null; }
     // an asked-for PRESET wins this build (the arch starter above has still
     // recorded the architecture, so it does not fire on the next one instead)
     if (presetNext) {
@@ -1005,6 +1033,12 @@ const COWL_PRESETS = {
 window.CAGE_COWL_PRESET_KEYS = Object.keys(COWL_PRESETS);
 let presetNext = null;
 window.CAGE_COWL_PRESET_NEXT = key => { presetNext = String(key); };
+// NEW-PLANE (3 Nov): THE BIRTH'S PRESET. The new-plane generator gives every aeroplane the cowl preset of its engine
+// type (the user: "The cowl gets its preset from Engine type and engine architecture"), but a birth is a LOAD, and a
+// load clears `presetNext` (PAGE.load below: a load is not a row change). This door survives the load and is spent on
+// the birth's first cowl build - or dropped by a build with no cowl, so it can never fire later behind the builder's back.
+let birthPreset = null;
+window.CAGE_COWL_BIRTH_PRESET = key => { birthPreset = key ? String(key) : null; };
 // every row's own range, so a scaled size can never leave its slider
 const ROW_RANGE = {};
 for (const g of ROWS) for (const r of (g.rows || []))
@@ -1095,7 +1129,7 @@ function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
-  if (!P.cowlOn) return null;
+  if (!P.cowlOn) { birthPreset = null; return null; }
 
   LIVE_P = P;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -1134,6 +1168,8 @@ function cowlPlace(ctx, again) {
   for (const k of SHOWN) {
     const v = P['cw_' + k];
     if (v !== undefined && CW.P[k] !== undefined) CW.P[k] = v;
+    // CABIN-CRAFT: an absent row is its default, not the last aeroplane's value (CW.P is one object for every build)
+    else if (v == null && k in ABSENT_AT) CW.P[k] = ABSENT_AT[k];
   }
   // THE AFT SECTION IS THE FIREWALL — its size AND its shape. One section, not
   // two that are asked to agree.
@@ -1315,8 +1351,9 @@ function cowlPlace(ctx, again) {
     }
     // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
     // the flat firewall cap (noseFace). The builder's stand-off adds to it.
+    // (FIREWALL RULE: the stand-off applies off the body only - a body face's cowl starts at its firewall)
     ug.position.set(f.x || 0, f.yc,
-                    f.z + (u.aft ? -1 : 1) * ((P.cowlGap || 0) + (f.seat || 0)));
+                    f.z + (u.aft ? -1 : 1) * ((f.synthetic ? (P.cowlGap || 0) : 0) + (f.seat || 0)));
     // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
     // the face, scaled like the cage parts (explodeD is cage units, this
     // group is metres, so × FS); the engine layer stages the cone and the

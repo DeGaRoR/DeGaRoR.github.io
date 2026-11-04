@@ -336,7 +336,9 @@ function extAt(cache, sL) {
   return E[E.length - 1];
 }
 
-function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
+// opts.noFit (TANK-FIT, 2026-11-03): skip the corners-against-the-sections fit (the layer's verdict is the drawn
+// clearance now, and this fit was most of a placement's cost) - `fitsSkin` then reads true and `clear` null
+function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache, opts) {
   const out = { on: 'body', ok: false, why: [] };
   if (!B_ || !mesh || !bay) { out.why.push('no bay'); return out; }
   const wallU = (wall == null ? 0.035 : wall) / FS;
@@ -431,7 +433,7 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   const prof = cache ? cache.prof
     : B_.bayProfile(mesh, s0 - pad, s1 + pad, wallU,
                     Math.max(4, Math.ceil((s1 - s0) / (0.08 / FS)) + 2));
-  const fit = B_.baySolidFits(prof, samples);
+  const fit = (opts && opts.noFit) ? { fits: true, worst: Infinity, at: null, outside: 0 } : B_.baySolidFits(prof, samples);
 
   // inside its BAY: every sample's station within [x0, x1], and its height
   // within the band (the band is where the bay is, the skin is where the body is)

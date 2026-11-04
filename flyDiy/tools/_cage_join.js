@@ -51,6 +51,7 @@ const CAGE_JOIN_ENGINES = {
   'continental IO-550': 'io550_hartzell3',
   'lycoming IO-720': 'io720_hartzell3',
   'rotax 915 iS': 'rotax915_carbon',
+  'rotax 916 iS': 'rotax916_carbon',   // FLAGSHIP (2 Nov)
   'Ranger L-440': 'ranger440_wood',
   'Continental W-670': 'w670_hs2b',
   'Jacobs R-755': 'r755_hs2b',
@@ -435,6 +436,10 @@ function cageJoinSpec(P, M, T) {
     // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
+    // G3575: THE FULL-SWIVEL THIRD WHEEL - the steering row's third type (GEAR_PAGE.STEERS[2]) reaches the physics; the
+    // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
+    // and the def are what they were, to the bit
+    if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -518,6 +523,28 @@ function cageJoinSpec(P, M, T) {
   // the measured seat stations (see M.seatsX above); absent = the frame's own
   // pillar rule, which is what every fiche and every older save still gets
   if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
+  // PILLAR-ANCHORS P4: a picked strut pillar's station; a pick returned to auto CLEARS the one the game's spec holds
+  // (the garage's merge keeps a key the export leaves out). A build that never picked states nothing: its spec is
+  // byte for byte what it was
+  if (spec.bracing) {
+    if (typeof M.strutAt === 'number' && isFinite(M.strutAt)) spec.bracing.strutAt = M.strutAt;
+    else {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAt != null); } catch (e) {}
+      if (had) spec.bracing.strutAt = null;
+    }
+  }
+  // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
+  // a cabin of tube & sling seats (3.0 kg, the `sling` row every save bills) keeps its spec - and its certificate -
+  // exactly as it was. Back to all-default after heavier seats, it is cleared (null: the resolver reads it absent,
+  // and the garage's merge cannot keep the stale masses)
+  if (Array.isArray(M.seatsKg) && M.seatsKg.length) {
+    const GS = typeof GEN_SEATS !== 'undefined' ? GEN_SEATS : null;
+    const row = GS && (GS[(spec.outfit && spec.outfit.seats) || 'sling'] || GS.sling);
+    const base = row ? row.kg : 3.0;
+    if (M.seatsKg.some(k => Math.abs(k - base) > 1e-6)) cabin.seatsKg = M.seatsKg;
+    else if (spec.cabin && Array.isArray(spec.cabin.seatsKg)) cabin.seatsKg = null;
+  }
   // G180: the drawn CAPACITY and the seat-by-seat OCCUPANCY, both off the same
   // seat list as seatsX (see M.seats / M.occupied above). Written whenever
   // measured — an all-empty cabin is a real answer, same ruling as `pax`.
@@ -1389,9 +1416,36 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
+      // PILLAR-ANCHORS P4: THE PICKED STRUT PILLAR's ring station, metres aft of the firewall (the wing layer drew
+      // the foot on it; the frame roots the strut on the ring nearest it)
+      {
+        const CW = window.CAGE_WING;
+        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
+      }
+      // PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK'S ANSWER, a note per door that is RED (under 20 mm of
+      // clearance somewhere in its 0-90 deg swing). The sweep is ~1 s a door, so the join never runs it (export is
+      // called on every preview): it reads the last answer the editor's idle pass left (_cage_hinge.js) when it is
+      // this build's, and says nothing otherwise. A note, not an error: the build flies either way - the user decides
+      // per build what moves (STATUS of PILLAR-ANCHORS)
+      {
+        const DS = window.CAGE_DOORSWING, PSm = window.PILLAR_SITE;
+        if (DS && DS.last && DS.P === P && PSm)
+          for (const d of DS.last.doors) if (d.red) NOTES.push('door swing: ' + PSm.swingLine(d) + ' — under ' + DS.last.redMM + ' mm');
+      }
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
+      // CONFIG-MATRIX step 4: a T or V tail on twin booms is a greyed combination; a build that holds one loads as it
+      // is, with this notice (the stab flies as drawn and measured)
+      if (+P.boomTwin && (+P.stCant >= 20 || Math.round(+P.stMount || 0) === 2))
+        NOTES.push('tail: ' + (+P.stCant >= 20 ? 'a V-tail' : 'a stab on the fin tip') + ' on twin booms is not a ' +
+                   'configuration the garage builds (its tile is greyed) - it flies as drawn');
       {
+        // CONFIG-MATRIX: an engine the mount lists and the engine layer could not bolt on (no face on this body)
+        // flies at the rule's station where nothing is drawn - an ERROR row, the bench's failed test, never silent
+        const EL = window.CAGE_ENG_LOST;
+        if (EL && EL.got < EL.want)
+          ERRS.push('engine: ' + (EL.want - EL.got) + ' of ' + EL.want + ' not drawn — ' + EL.why +
+                    '; it flies where nothing is drawn');
         const CE = window.CAGE_ENG;
         if (CE && Array.isArray(CE.units) && CE.units.length) {
           M.engUnits = CE.units.map(u =>
@@ -1443,6 +1497,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             .map(s => zFw - s.zBack - SEAT_CG_FWD)
             .filter(x => isFinite(x) && x > 0.05);
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
+          // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner
+          // seats behind two crew seats weighs what it draws, seat for seat (the user: "MASS/CG honest")
+          const kg = CRW.seatsAt.map(s => +s.kg);
+          if (kg.every(v => isFinite(v) && v > 0) && kg.length === CRW.seatsAt.length) M.seatsKg = kg;
         }
         // the MAINS STATION: with gear.x measured, the wheels-to-axles
         // calibration collapses to off[0] = zFw − cg0[0] — the visual's
@@ -1591,6 +1649,30 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
             return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
           };
+          // THE FIN'S TAPER IS ITS PLANFORM ABOVE THE DECK (NEW-PLANE, the user 3 Nov: "make the join measure the fin
+          // above the deck"). The drawn sheet runs down the tail post to the keel, so its 25 % slice sat at the tail
+          // cone, where fin and rudder span the whole cone: every fin in the shed read 0.15-0.22 (the user's validated
+          // Cub 0.217, every FIN_ARCH preset; even a tip 1.5x its root read 0.34) and flew the envelope's 0.35 clamp,
+          // whatever was drawn. The flown fin is what stands in the air: its span starts at the highest point of the
+          // boom's top line under the sheet's chord (the fin layer's own `deck`, the line its root is projected onto),
+          // and the taper is the 75 % slice over the 25 % of THAT span. No deck (a tube-less sketch) or a sheet wholly
+          // under it: the whole sheet, as before.
+          const finTaperAbove = (m, F) => {
+            const D = F && F.deck;
+            if (!m || !D || typeof D.top !== 'function' || !(m.FS > 0) || !(m.span > 0)) return taperOf(m);
+            const FS = m.FS, zA = m.z0 / FS, zB = m.z1 / FS;
+            let yDeck = -Infinity;
+            for (let i = 0; i <= 16; i++) {
+              const z = zA + (zB - zA) * i / 16;
+              let y = NaN; try { y = +D.top(z); } catch (e) { y = NaN; }
+              if (isFinite(y)) yDeck = Math.max(yDeck, y);
+            }
+            const t0 = (yDeck - m.y0 / FS) * FS;              // metres from the sheet's foot to the deck
+            const above = m.span - t0;
+            if (!isFinite(t0) || t0 <= 0 || above < 0.25 * m.span) return taperOf(m);
+            const a = m.chordAt(t0 + 0.25 * above), b = m.chordAt(t0 + 0.75 * above);
+            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : taperOf(m);
+          };
           if (stabM && stabM.areaTail > 0) {
             if (isV) M.Svt = 2 * stabM.areaTail;
             else M.Sh = 2 * stabM.areaTail + 2 * stabM.rootX * stabM.chordRoot;
@@ -1612,7 +1694,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               M.Sv += (TBj ? 2 : 1) * 0.5 * (1 + tip) * cV * hV * FSv * FSv;
             }
             M.dorsalArea = finM.areaDorsal;
-            M.vTaper = taperOf(finM);
+            M.vTaper = finTaperAbove(finM, FNm);
             if (finM.ctlFrac > 0) M.rudChord = finM.ctlFrac;
             else NOTES.push('tail: the fin is drawn UNCUT — no rudder is drawn, the default rudder chord flies');
           }
@@ -1834,6 +1916,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (window.CAGE_PANEL && window.CAGE_PANEL.toSpec)
       try { M.systems = window.CAGE_PANEL.toSpec(); }
       catch (e) { ERRS.push('the instruments could not be written to the build: '
+                            + e.message); }
+    // ...AND THE FURNISHING (G2806), the Furnishing column's answer: the seats' kind and the trim (the trim only
+    // when one was chosen - an unset row writes no key, so a save that never opened it keeps its bytes)
+    if (window.CAGE_FURNISH && window.CAGE_FURNISH.toSpec)
+      try { const o = window.CAGE_FURNISH.toSpec(); if (o) M.outfit = o; }
+      catch (e) { ERRS.push('the furnishing could not be written to the build: '
                             + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.
@@ -2882,6 +2970,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             out2.ctl.perSI = c.per / S.k;              // one turn per this much SI
           }
           if (c.steps) out2.ctl.steps = c.steps;
+          if (c.padR) out2.ctl.padR = c.padR;          // G2802: a small part's own pick pad (a breaker at a 16 mm pitch)
         }
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirA(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
@@ -2986,6 +3075,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!f) unfit.push(k);
         }
         if (unfit.length) lights.unfit = unfit;
+        // G2808 (W7): the beacon's rate, which the flight flashed at a fixed 45 rpm (written only off the default)
+        if (Pl.li_beaconRpm != null && +Pl.li_beaconRpm !== 45) lights.beaconRpm = +Pl.li_beaconRpm;
       }
     } catch (e) {}
     // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in

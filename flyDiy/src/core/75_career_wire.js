@@ -185,6 +185,13 @@ function careerMapMark(doc, id, fleet, F) {
   const rec = careerContract(doc, id);
   return rec && typeof freightMark === 'function' ? freightMark(rec, fleet, F) : null;
 }
+// THE SKY'S COVER FOR THE MOON (WEATHER-FIXES F7, 2026-11-03): the EFFECTIVE cover (07_day cloudCoverEff - a front's
+// overcast hides the moon as a declared one does), else the declared, else undefined (no day: the job's own stamp)
+function careerSkyCover(day) {
+  if (!day) return undefined;
+  if (typeof day.cloudCoverEff === 'number' && isFinite(day.cloudCoverEff)) return day.cloudCoverEff;
+  return typeof day.cloudCover === 'number' ? day.cloudCover : undefined;
+}
 // careerMapRecord(careerDoc, world, opts) -> the record above. `world` names the fleet's places (playerPlace);
 // opts: { certs: {slot: design row}, board: [{name, design}], fields, cards: {slot: freight card} }.
 function careerMapRecord(doc, world, opts) {
@@ -202,7 +209,7 @@ function careerMapRecord(doc, world, opts) {
                ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };
   const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {
@@ -223,7 +230,9 @@ function careerMapRecord(doc, world, opts) {
   };
   const fleet = Object.keys(doc.fleet || {}).sort().map(n => {
     const W = typeof playerWhere === 'function' ? playerWhere(doc, n) : { kind: 'none', aero: null, hangar: null };
-    return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n) };
+    // (CERT-GATES) the fleet card's certificate line (74_ careerCertLine: airworthy ✓ · commercial ✗ (doors))
+    return { slot: n, name: n, where: { kind: W.kind, aero: W.aero, hangar: W.hangar }, cert: certOf(n),
+             certLine: typeof careerCertLine === 'function' ? careerCertLine(af[n]) : '' };
   });
   // the designs the mark reads, per airframe: the career's design row (its card), else the shakedown's row
   const cards = opts.cards || {};
@@ -298,6 +307,9 @@ function careerStopRecord(o) {
   if (o.spec && typeof o.spec === 'object') out.spec = o.spec;
   if (Array.isArray(o.occ)) out.occ = o.occ.filter(x => x && typeof x === 'object').map(x => ({ name: x.name || null, band: Math.max(0, Math.min(4, Math.round(+x.band || 0))) }));
   if (o.freight && typeof o.freight === 'object') out.freight = { harmed: !!o.freight.harmed };
+  // (CERT-GATES) the flying plane's certificates (74_ careerCertOf off its airframe and the roll-out's fingerprint): a job it
+  // is not certified for moves nothing at this stop (contractOnStop)
+  if (o.cert && typeof o.cert === 'object') out.cert = { safe: !!o.cert.safe, comm: !!o.cert.comm, why: String(o.cert.why || '') };
   // (MISSIONS-P3) who got on and off here ({ on: [person ids], off: [...] } - the crowd's boarding), the flight's local
   // departure hour (else the stop's hour less the flight)
   if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };

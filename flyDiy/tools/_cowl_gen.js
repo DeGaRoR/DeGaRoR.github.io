@@ -33,6 +33,13 @@ const P={
   fwLipOn:1, fwLipR:0.004, fwLipRise:0, fwLipIn:0.025,
   // section control points: width, plus independent top and bottom apex + squareness
   sqAftTop:0.82, sqAftBot:0.82, sqFrontTop:0.54, sqFrontBot:0.48,
+  // CABIN-CRAFT (2026-11-02, the user: "the 'back cowl' is constrained to a square section. The profile of the cabin
+  // here is not really square, it tightens at the top"): THE FIREWALL SECTION'S WIDTH BY LEVEL. `aftW` is the width at
+  // the widest line (the waist); `wAftTop` / `wAftBot` are the width at the top line and at the bottom line, as a
+  // fraction of it - the sides run straight from the waist to each line, so a cabin narrower at the roof than at the
+  // sill is drawable. Carried to the barrel end, where the section is the barrel's own again (1). 1 / 1 is the
+  // rounded rectangle every cowl had: the factor is exactly 1 there, so every point is the bit it was.
+  wAftTop:1, wAftBot:1,
   // FASTENERS, PARTING LINE, OIL DOOR (G94). 110 mm is the camloc pitch a
   // light aeroplane is actually built to; 16 mm is the head across the flats.
   fastOn:1, fastPitch:0.11, fastD:0.016,
@@ -318,12 +325,15 @@ function seamInset(z){
 function sectionAtZ(z){
   if(!LID) prepareLid();
   const cy=spineY(z), cl=Math.max(P.cowlLen,1e-4);
-  let a,nT,nB;
+  let a,nT,nB,wT=1,wB=1;
   if(z<=cl){
     const u=clamp(z/cl,0,1);                       // straight: constant slope
     a=lerp(P.aftW,P.aftW*P.taperW,u);
     nT=sqExp(lerp(eSqAftTop(),P.sqFrontTop,u));
     nB=sqExp(lerp(eSqAftBot(),P.sqFrontBot,u));
+    // CABIN-CRAFT: the width by level, firewall -> barrel end (absent / 1 = 1, to the bit)
+    if(P.wAftTop!=null&&+P.wAftTop!==1) wT=lerp(+P.wAftTop,1,u);
+    if(P.wAftBot!=null&&+P.wAftBot!==1) wB=lerp(+P.wAftBot,1,u);
   }else{
     const u=LID.A.uOf(z);
     a=Math.max(LID.A.at(z),0.003);
@@ -336,18 +346,23 @@ function sectionAtZ(z){
   const yw = z<=LID.W.z0 ? LID.W.k*hLin : LID.W.c.at(z);
   const si=seamInset(z);
   if(si){ a=Math.max(a-si,0.003); bT=Math.max(bT-si,0.003); bB=Math.max(bB-si,0.003); }
-  return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT};
+  return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT,wT,wB};
 }
 /* one section point, given the four control values */
 /* Six control points, not four: the sides now sit at the waist height yw
    rather than on the spine, so each half spans from the waist to its own apex.
    yw = 0 reproduces the old rounded-rectangle section exactly. */
+/* CABIN-CRAFT: the half's width factor `w` (wT / wB, absent = 1) narrows the section with height - 1 at the waist,
+   w at the line - so the sides of a square section run straight from one to the other (a trapezoid, rounded as the
+   squareness says). w = 1 skips it: the point is the bit it was. */
 function sectPt(th,s){
   const c=Math.cos(th), sn=Math.sin(th), up=sn>=0;
   const yw=s.yw||0, n=up?s.nT:s.nB, e=2/n;
   const h=Math.max(up?s.bT-yw:s.bB+yw,0.002);
-  return [Math.sign(c)*Math.pow(Math.abs(c),e)*s.a,
-          yw+(up?1:-1)*Math.pow(Math.abs(sn),e)*h];
+  const v=Math.pow(Math.abs(sn),e), w=up?s.wT:s.wB;
+  const k=(w!=null&&w!==1)?1+(w-1)*v:1;
+  return [Math.sign(c)*Math.pow(Math.abs(c),e)*s.a*k,
+          yw+(up?1:-1)*v*h];
 }
 function lobeAt(th,z){
   if(P.lobeN<1||P.lobeAmp<=0) return 0;
@@ -371,7 +386,10 @@ function sectF(x,y,z){
   const s=sectionAtZ(z);
   const dy=y-s.cy-s.yw, up=dy>=0;
   const h=Math.max(up?s.bT-s.yw:s.bB+s.yw,0.002), n=up?s.nT:s.nB;
-  return Math.pow(Math.abs(x/s.a),n)+Math.pow(Math.abs(dy/h),n);
+  // CABIN-CRAFT: the half-width at this height (sectPt's own factor, at the point's own level)
+  const w=up?s.wT:s.wB;
+  const aw=(w!=null&&w!==1)?s.a*(1+(w-1)*Math.min(1,Math.abs(dy/h))):s.a;
+  return Math.pow(Math.abs(x/aw),n)+Math.pow(Math.abs(dy/h),n);
 }
 /* where does the Z-line through (px,py) pierce the surface? */
 function pierceZ(px,py){
@@ -1211,7 +1229,9 @@ function buildAft(group,mats){
         const th=AZ[j];
         const [x,y]=sectPt(th,{a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*k,0.012),
           bB:Math.max(s0.bB*k,0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
-          yw:s0.yw*k*(1-e)});
+          yw:s0.yw*k*(1-e),
+          // CABIN-CRAFT: the firewall's width by level, rounding out down the tail cone with the squareness
+          wT:s0.wT===1?1:lerp(s0.wT,1,e),wB:s0.wB===1?1:lerp(s0.wB,1,e)});
         ring.push(new THREE.Vector3(x,s0.cy-P.tailDrop*e+y,-e*P.tailLen));
       }
       rings.push(ring);

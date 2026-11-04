@@ -1,0 +1,179 @@
+{
+ "when": "2026-10-05T23:57:27.507Z",
+ "size": [
+  800,
+  450
+ ],
+ "builds": {
+  "cub": {
+   "build": "builds/cub_2026-09-20_corrected.json",
+   "noscuff": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "sameAsNoscuff": true,
+   "stills": [
+    "cub_overview_before.jpg",
+    "cub_under_before.jpg",
+    "cub_nose_before.jpg",
+    "cub_belly_before.jpg",
+    "cub_wing_before.jpg",
+    "cub_pane_before.jpg",
+    "cub_overview_after.jpg",
+    "cub_under_after.jpg",
+    "cub_nose_after.jpg",
+    "cub_belly_after.jpg",
+    "cub_wing_after.jpg",
+    "cub_pane_after.jpg"
+   ],
+   "arm": {
+    "meshes": 466,
+    "links": 9,
+    "front": true,
+    "uDmgM": 0.68
+   },
+   "crashLinks": 0,
+   "measure": [
+    {
+     "pct": 8.7158203125,
+     "mean": 2.550166015625,
+     "lum": -0.9807374550781384,
+     "layer": "crush",
+     "view": "nose",
+     "ok": true
+    },
+    {
+     "pct": 31.392578125,
+     "mean": 8.805517578125,
+     "lum": 1.1319919218750185,
+     "layer": "scrape",
+     "view": "belly",
+     "ok": true
+    },
+    {
+     "pct": 23.8759765625,
+     "mean": 11.729716796875,
+     "lum": -3.802025351562462,
+     "layer": "torn",
+     "view": "wing",
+     "ok": true
+    },
+    {
+     "pct": 3.802734375,
+     "mean": 1.95171875,
+     "lum": 1.7694007324219008,
+     "layer": "glass",
+     "view": "pane",
+     "ok": true
+    }
+   ],
+   "cost": {
+    "plain": 7171.4000000003725,
+    "armedOff": 7662.5,
+    "armedIntact": 7582.699999999721,
+    "armedFull": 11253.5,
+    "links": 0,
+    "ratioFull": 1.569,
+    "ratioIntact": 1.057
+   },
+   "sourcesEnd": {
+    "n": 98,
+    "hash": "7249e28b",
+    "links": 49
+   },
+   "errors": []
+  },
+  "metal": {
+   "build": "bugReports/cessnaMetal (1).json",
+   "noscuff": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 66,
+    "hash": "5e93b8af",
+    "links": 33
+   },
+   "sameAsNoscuff": true,
+   "stills": [
+    "metal_overview_before.jpg",
+    "metal_under_before.jpg",
+    "metal_nose_before.jpg",
+    "metal_belly_before.jpg",
+    "metal_wing_before.jpg",
+    "metal_pane_before.jpg",
+    "metal_overview_after.jpg",
+    "metal_under_after.jpg",
+    "metal_nose_after.jpg",
+    "metal_belly_after.jpg",
+    "metal_wing_after.jpg",
+    "metal_pane_after.jpg"
+   ],
+   "arm": {
+    "meshes": 704,
+    "links": 10,
+    "front": true,
+    "uDmgM": 0.745
+   },
+   "crashLinks": 0,
+   "measure": [
+    {
+     "pct": 5.3076171875,
+     "mean": 0.956787109375,
+     "lum": -0.601755998046896,
+     "layer": "crush",
+     "view": "nose",
+     "ok": true
+    },
+    {
+     "pct": 20.80859375,
+     "mean": 5.27341796875,
+     "lum": 4.10701179687525,
+     "layer": "scrape",
+     "view": "belly",
+     "ok": true
+    },
+    {
+     "pct": 5.7802734375,
+     "mean": 1.75060546875,
+     "lum": 0.8386121757812542,
+     "layer": "torn",
+     "view": "wing",
+     "ok": true
+    },
+    {
+     "pct": 0,
+     "mean": 0,
+     "lum": 0,
+     "layer": "glass",
+     "view": "pane",
+     "ok": false
+    }
+   ],
+   "cost": {
+    "plain": 6087.600000000559,
+    "armedOff": 6743.200000000186,
+    "armedIntact": 6770.5,
+    "armedFull": 11071.599999999627,
+    "links": 0,
+    "ratioFull": 1.819,
+    "ratioIntact": 1.112
+   },
+   "sourcesEnd": {
+    "n": 106,
+    "hash": "6fe3372f",
+    "links": 53
+   },
+   "errors": []
+  }
+ }
+}

@@ -720,6 +720,27 @@ function garageInit(api) {
     for (const s of STOCK) if (s.name === n) return s;
     return null;
   };
+  // ---- CANDIDATE OFFICIAL (the user, 2 Nov) ----------------------------------------------------------------------
+  // THE STAGING POOL: aeroplanes designed and built, not validated - committed files under builds/candidates/ (its
+  // index.json names them), so every machine shows the same ones and none of them lives in the browser's storage. A
+  // candidate opens like a stock design: UNNAMED, no plaque, an empty logbook (it claims no certificate), and in a career
+  // its first Save is the purchase any new airframe is. Not in the career's catalogue, the contracts or the story. The
+  // index is fetched on the first open of the rack or the new-aeroplane cards and kept (an empty answer asks again).
+  const CAND_DIR = 'builds/candidates/';
+  let candP = null;
+  const candidates = () => {
+    if (!candP) {
+      candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),
+              () => []);
+      candP.then(l => { if (!l.length) candP = null; });
+    }
+    return candP;
+  };
+  const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
+    .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
 
   let spec = api.defaults();
   let slotName = '';
@@ -830,7 +851,7 @@ function garageInit(api) {
   function touch() {
     if (committing || !LS || typeof setTimeout !== 'function') return;
     if (touchT && typeof clearTimeout === 'function') clearTimeout(touchT);
-    touchT = setTimeout(() => { touchT = null; commit(); }, 400);
+    touchT = setTimeout(() => { touchT = null; const FR = window.FLIGHT_REC; if (FR && FR.time) FR.time('garage commit', commit); else commit(); }, 400);
   }
 
   // ---- the shelf --------------------------------------------------------
@@ -1033,6 +1054,8 @@ function garageInit(api) {
         '<div class="gfMine"></div>' +
         '<div class="gfGroupH">stock designs</div>' +
         '<div class="gfStock"></div>' +
+        '<div class="gfGroupH gfCandH">candidate official — built, not validated</div>' +
+        '<div class="gfCand"></div>' +
         '<div class="gfFoot">' +
           '<span class="gfHint">import and export are on the ribbon' +
             ' \u2014 or drop a .json on the window</span>' +
@@ -1154,6 +1177,23 @@ function garageInit(api) {
       row.appendChild(b);
       stockBox.appendChild(row);
     }
+    // CANDIDATE OFFICIAL: the pool's files, drawn when the index answers (the rack is usable before it does)
+    const candBox = fleetEl.querySelector('.gfCand');
+    if (candBox) {
+      candBox.innerHTML = '';
+      candidates().then(list => {
+        candBox.innerHTML = '';
+        for (const c of list) {
+          const row = document.createElement('div');
+          row.className = 'gfRow gfCandRow';
+          const b = rowBtn(c.name || c.file, 'candidate official' + (c.note ? ' · ' + c.note : ''));
+          b.title = c.file + ' - designed and built, not validated: no certificate';
+          b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
+          row.appendChild(b);
+          candBox.appendChild(row);
+        }
+      });
+    }
     // the same honesty as the birth flow: loading over an UNSAVED build is
     // the destructive path, and it says so before it is walked through
     const sub = fleetEl.querySelector('.gfSub');
@@ -1240,6 +1280,24 @@ function garageInit(api) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
+  // EXPORT ALL (CANDIDATE OFFICIAL, the user 2 Nov: "all my planes available in one place, not depending on the local
+  // storage of the machine"): every saved build in this browser - the sandbox's and every career's - in ONE file, each as
+  // its slot holds it (spec, plaque, logbook, pictures). Hand it over and tools/candidates_add.js files it into the pool.
+  // What is saved, as saved: changes on the stand not yet saved are not in it.
+  function exportAllFile() {
+    const builds = [];
+    for (const n of slotNames()) {
+      try { const o = JSON.parse(lsGet(SLOT + n) || 'null'); if (o && o.spec) builds.push(Object.assign({ slot: n }, o)); } catch (e) {}
+    }
+    if (!builds.length) return void alert('No saved aeroplanes in this browser yet - Save one first.');
+    const day = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify({ what: 'flydiy-fleet', v: 1, date: day, builds })], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'flydiy-all-aeroplanes-' + day + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   // THE FRONT DOOR (NEW-AIRCRAFT §8.1) is a BUTTON on the ribbon — a verb
   // hiding in a load list is exactly the misfiling the ribbon exists to end.
   if ($('gNew')) $('gNew').addEventListener('click', () => {
@@ -1256,6 +1314,10 @@ function garageInit(api) {
     const r = new FileReader();
     r.onload = () => {
       try {
+        // an EXPORT ALL file holds many builds: it is the pool's input (tools/candidates_add.js), not one aeroplane
+        let o = null; try { o = JSON.parse(String(r.result)); } catch (e) {}
+        if (o && o.what === 'flydiy-fleet' && Array.isArray(o.builds))
+          return void alert('That is an "export all" file of ' + o.builds.length + ' aeroplanes - import opens one build (export one from its slot).');
         const got = unwrap(String(r.result));
         loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
                  got.plaque, got.log, got.images);
@@ -1268,6 +1330,7 @@ function garageInit(api) {
     fileIn.addEventListener('change', () => readFile(fileIn.files && fileIn.files[0]));
   // THE JSON DOORS, ON THE RIBBON beside the other four verbs
   if ($('gExport')) $('gExport').addEventListener('click', exportFile);
+  if ($('gExportAll')) $('gExportAll').addEventListener('click', exportAllFile);
   if ($('gImport')) $('gImport').addEventListener('click',
     () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
   // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
@@ -1415,6 +1478,8 @@ function garageInit(api) {
       // aeroplane that will fly, through this.
       preview: j => merge(spec, JSON.parse(JSON.stringify(j))),
       resolved: () => api.resolved(),
+      // G2806: the built aeroplane's ledger (genFrame's bill by section) - the Furnishing column reads its own row
+      ledger: () => (api.ledger ? api.ledger() : null),
       // a PERSIST door like the other two: the fleet rack and the gates read
       // it, and a stale answer here is the same lie in a smaller room
       json: () => { commit();
@@ -1461,6 +1526,9 @@ function garageInit(api) {
       // debounced autosave a slider fires, `commit` the immediate one every
       // persist takes. See the note on `commit` above.
       touch, commit, onCommit, exportFile,
+      // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
+      // every saved build in one file - the design flow's new-aeroplane cards read the first two
+      candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
     };

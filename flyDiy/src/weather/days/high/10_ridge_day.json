@@ -1,0 +1,9 @@
+{ "v": 1, "id": "ridge-day", "name": "Ridge day",
+  "story": "A brisk west-southwest wind across the island all day: lift on every windward face, rough air in the lee and on short final into the valley strips. Crosswind practice at the club; glider pilots' heaven.",
+  "fly": "moderate", "forecast": "West-southwest 15 kt, gusting 22 over the hills, 18 kt early afternoon. Moderate turbulence in the lee of the ridges. Fair-weather cumulus, base 1200 m. Wind easing at dusk; broken cloud at night, the moon between.",
+  "temp": { "min": 0.5, "max": -0.5 }, "dew": [[4, -3.5], [15, -3.5], [27, -3]],
+  "qnh": [[4, 1018], [27, 1017]],
+  "wind": [[4, 9, 255, 0.2], [9, 13, 255, 0.28], [14, 17, 250, 0.32], [18, 14, 250, 0.3], [22, 9, 245, 0.22], [27, 6, 240, 0.15]],
+  "rich": { "breeze": 0.2, "terrain": 1.0, "thermals": 0.4, "aloftK": 1.25, "veerDeg": 15 },
+  "low": [[4, 0.15, "cuh"], [11, 0.25, "cuh"], [16, 0.3, "cuh"], [20, 0.25, "cuh"], [24, 0.35, "cuh"], [27, 0.3, "cuh"]],
+  "turbidity": 2.4, "aurora": [] }

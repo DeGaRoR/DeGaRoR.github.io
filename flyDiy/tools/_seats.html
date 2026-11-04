@@ -1,0 +1,186 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Seat studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- THE SEAT STUDIO (SEATS, 2026-11-02): every seat type the crew layer draws (the seat library's presets), alone on a neutral cyclorama, with the
+     finish system's own materials. Open it in a browser to orbit one seat (?seat=4), or let tools/seat_shot.js shoot
+     the contact sheet (SEAT_BENCH.sheet()). The seat is built by the crew's own buildSeat (window.CAGE_CREW_SEAT) over
+     a stub cabin: a flat floor at y 0, a 1.2 m cabin, the rows below. -->
+<style>
+  :root { --bg: #e9e8e4; --ink: #22252a; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #stat { position: fixed; left: 12px; top: 10px; white-space: pre; }
+</style></head>
+<body>
+<canvas id="c"></canvas><div id="stat"></div>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/core/00_registry.js"></script>
+<script src="../src/core/60_gen_spec.js"></script>
+<script src="../src/core/60b_gen_loft.js"></script>
+<script src="../src/core/60c_gen_energy.js"></script>
+<script src="../src/viewer/vessel_tex.js"></script>
+<script src="../src/viewer/skin_tex.js"></script>
+<script src="../src/viewer/wood_tex.js"></script>
+<script src="../src/viewer/aeroweather.js"></script>
+<script src="../src/viewer/aeroskin.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_seat_gen.js"></script>
+<script src="_cage_crew.js"></script>
+<script>
+'use strict';
+(() => {
+const D2R = Math.PI / 180;
+const Q = new URLSearchParams(location.search);
+const cv = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe4e3df);
+const camera = new THREE.PerspectiveCamera(28, 1, 0.02, 30);
+const LU = Math.PI;                       // r186's physical light unit (see _panel.html)
+// the studio: a key from the front-left above, a fill from the right, a rim from behind, a soft sky
+const key = new THREE.DirectionalLight(0xfff4e6, 1.7 * LU);
+key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -1.2, right: 1.2, top: 1.2, bottom: -1.2, near: 0.1, far: 8 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01;
+const fill = new THREE.DirectionalLight(0xdfe8ff, 0.7 * LU);
+const rim = new THREE.DirectionalLight(0xffffff, 1.1 * LU);
+scene.add(key, key.target, fill, fill.target, rim, rim.target);
+scene.add(new THREE.HemisphereLight(0xf2f4f8, 0x8d8a84, 0.55 * LU));
+{ // an environment for the reflections: a soft studio gradient with two softboxes
+  const W = 512, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#f4f5f7'); grd.addColorStop(0.48, '#d9dadc'); grd.addColorStop(0.52, '#8f8c87'); grd.addColorStop(1, '#5c5a56');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#ffffff'; g.fillRect(W * 0.18, H * 0.16, W * 0.12, H * 0.20); g.fillRect(W * 0.62, H * 0.22, W * 0.08, H * 0.14);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  scene.environment = new THREE.PMREMGenerator(renderer).fromEquirectangular(t).texture;
+}
+// the cyclorama: a floor curving up into a back wall, matte
+{
+  const g = new THREE.PlaneGeometry(14, 14, 1, 1);
+  const floor = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+}
+// the stub cabin the seat is built in (the crew's anchor record, faked): flat floor, 1.2 m wide, 1.45 m to the roof
+// the studio is not a cabin: the finish system's cabin darkening (uCabin, 0.81 in the game) is switched off here
+if (window.AEROSKIN && window.AEROSKIN.aeroSetCabin) window.AEROSKIN.aeroSetCabin(THREE, { coverage: 0 });
+const A = { floorAt: () => 0, halfW: 0.60, roofY: 1.45, zBack: 0, waistY: 0.5 };
+let host = null, lastStats = null;
+function build(type, opt) {
+  if (host) { scene.remove(host); host.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  host = new THREE.Group(); scene.add(host);
+  const pre = window.SEAT_GEN.PRESET_OF(type);
+  const P = { seatType: type, seatH: (opt && opt.h != null) ? opt.h : 0.10,
+              seatRake: (opt && opt.rake != null) ? opt.rake : (pre ? pre.rake : 13),
+              seatTilt: (opt && opt.tilt != null) ? opt.tilt : (pre ? pre.tilt : 3), seatLayout: 0 };
+  const sg = new THREE.Group(); host.add(sg);
+  const SP = { h: P.seatH, rake: P.seatRake, tilt: P.seatTilt };
+  const pl = { section: opt && opt.pax ? 1 : 0, pilot: !(opt && opt.pax) };
+  const r = window.CAGE_CREW_SEAT.buildSeat(sg, A, P, 0, 0, false, SP, pl);
+  let tris = 0, draws = 0;
+  host.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; draws++;
+    tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; } });
+  lastStats = { type, key: pre ? pre.key : 'none', name: pre ? pre.name : 'type ' + type,
+                kg: pre ? ((opt && opt.pax && pre.kgPax != null) ? pre.kgPax : pre.kg) : null, tris, draws, panY: +r.panY.toFixed(3), backH: +r.backH.toFixed(3) };
+  return lastStats;
+}
+// frame the seat: its box, an eye on a bearing (az from +z, the seat's front, toward +x, the occupant's left)
+function shoot(az, el, w, h, frame) {
+  const box = frame ? frame.clone() : new THREE.Box3().setFromObject(host);
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const R = 0.5 * Math.hypot(s.x, s.y, s.z);
+  const d = R / Math.sin(camera.fov * D2R / 2) * 0.86;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const a = az * D2R, e = el * D2R;
+  camera.position.set(c.x + d * Math.cos(e) * Math.sin(a), c.y + d * Math.sin(e), c.z + d * Math.cos(e) * Math.cos(a));
+  camera.lookAt(c);
+  // the key from the camera's left and above, the rim from behind
+  key.position.set(c.x + 2.5 * Math.sin(a - 0.9), c.y + 3.2, c.z + 2.5 * Math.cos(a - 0.9)); key.target.position.copy(c);
+  fill.position.set(c.x + 2 * Math.sin(a + 1.4), c.y + 1.0, c.z + 2 * Math.cos(a + 1.4)); fill.target.position.copy(c);
+  rim.position.set(c.x - 2 * Math.sin(a), c.y + 2.2, c.z - 2 * Math.cos(a)); rim.target.position.copy(c);
+  renderer.render(scene, camera);
+  return cv;
+}
+// THE CONTACT SHEET: one column per seat, its 3/4 view over its side view, a caption with its numbers
+function sheet(list, o) {
+  const tw = (o && o.tw) || 520, th = (o && o.th) || 520, cap = 74;
+  const cols = (o && o.cols) || list.length;
+  const rowsN = Math.ceil(list.length / cols);
+  const out = document.createElement('canvas');
+  out.width = cols * tw; out.height = rowsN * (2 * th + cap);
+  const g = out.getContext('2d');
+  g.fillStyle = '#e4e3df'; g.fillRect(0, 0, out.width, out.height);
+  const stats = [];
+  list.forEach((it, i) => {
+    const st = build(it.type, it);
+    st.label = it.label || st.name;
+    stats.push(st);
+    const x = (i % cols) * tw, y = Math.floor(i / cols) * (2 * th + cap);
+    g.drawImage(shoot(it.az != null ? it.az : 35, 16, tw, th), x, y);
+    g.drawImage(shoot(90, 4, tw, th), x, y + th);
+    g.fillStyle = '#22252a'; g.font = '600 20px system-ui, sans-serif';
+    g.fillText(st.label, x + 14, y + 2 * th + 28);
+    g.font = '14px system-ui, sans-serif'; g.fillStyle = '#4a4e55';
+    g.fillText((st.kg != null ? st.kg + ' kg · ' : '') + st.tris + ' tris · ' + st.draws + ' draws · rake ' + (it.rake != null ? it.rake : '') , x + 14, y + 2 * th + 52);
+    g.strokeStyle = '#c9c7c1'; g.strokeRect(x + 0.5, y + 0.5, tw - 1, 2 * th + cap - 1);
+  });
+  return { url: out.toDataURL('image/png'), stats };
+}
+// THE LOD SHEET: one row per seat, its three levels (hero / mid / phone) side by side, the same 3/4 eye and the same
+// framing (the hero's box frames all three, so the levels compare pixel for pixel)
+function lodSheet(list, o) {
+  const tw = (o && o.tw) || 360, cap = 46, names = ['hero', 'mid', 'phone'];
+  const groups = (o && o.groups) || 2;                  // seats per row of the page
+  const rowsN = Math.ceil(list.length / groups);
+  const out = document.createElement('canvas');
+  out.width = groups * 3 * tw; out.height = rowsN * (tw + cap);
+  const g = out.getContext('2d');
+  g.fillStyle = '#e4e3df'; g.fillRect(0, 0, out.width, out.height);
+  const stats = [];
+  list.forEach((it, i) => {
+    const gx = (i % groups) * 3 * tw, gy = Math.floor(i / groups) * (tw + cap);
+    const row = { label: it.label || (window.SEAT_GEN.PRESET_OF(it.type) || {}).name, lv: [] };
+    let frame = null;
+    for (let L = 0; L < 3; L++) {
+      window.SEAT_GEN.force = L;
+      const st = build(it.type, it);
+      if (!frame) frame = new THREE.Box3().setFromObject(host);
+      g.drawImage(shoot(35, 16, tw, tw, frame), gx + L * tw, gy);
+      row.lv.push({ tris: st.tris, draws: st.draws });
+      g.fillStyle = '#4a4e55'; g.font = '13px system-ui, sans-serif';
+      g.fillText(names[L] + ' · ' + st.tris + ' tris · ' + st.draws + ' draws', gx + L * tw + 10, gy + tw + 36);
+    }
+    window.SEAT_GEN.force = 0;
+    g.fillStyle = '#22252a'; g.font = '600 16px system-ui, sans-serif';
+    g.fillText(row.label, gx + 10, gy + tw + 18);
+    g.strokeStyle = '#c9c7c1'; g.strokeRect(gx + 0.5, gy + 0.5, 3 * tw - 1, tw + cap - 1);
+    stats.push(row);
+  });
+  return { url: out.toDataURL('image/png'), stats };
+}
+// one seat, one view, big (a close-up for the validation)
+function single(type, az, el, w, h, opt) { const st = build(type, opt); shoot(az, el, w, h); return { url: cv.toDataURL('image/png'), stats: st }; }
+// the studio shows the HERO (the game builds the mid since SEATS-COST): the LOD sheet sets its own levels
+if (window.SEAT_GEN && window.SEAT_GEN.force == null) window.SEAT_GEN.force = 0;
+window.SEAT_BENCH = { build, shoot, sheet, lodSheet, single, A };
+// interactive: ?seat=N, drag to orbit
+const T = +(Q.get('seat') || 4);
+let az = 35, el = 16;
+const draw = () => { shoot(az, el, cv.clientWidth, cv.clientHeight); document.getElementById('stat').textContent = JSON.stringify(lastStats); };
+build(T); draw();
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; });
+cv.addEventListener('pointermove', e => { if (!drag) return; az -= (e.clientX - drag[0]) * 0.4; el = Math.max(-10, Math.min(80, el + (e.clientY - drag[1]) * 0.3)); drag = [e.clientX, e.clientY]; draw(); });
+cv.addEventListener('pointerup', () => { drag = null; });
+window.SEAT_BENCH.ready = true;
+})();
+</script>
+</body></html>

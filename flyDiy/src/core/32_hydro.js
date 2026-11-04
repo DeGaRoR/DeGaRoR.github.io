@@ -2519,10 +2519,30 @@ function wetCompute(WB, fh, dtH) {
   return wet;
 }
 
+// G2385 (DMG-RECAL2; ported 2 Nov): THE HEELS' MARGIN - how far (rad) the hull may still pitch up before the stern's keel
+// comes down to the step keel's height: the least, over the floats, of the angle the line from the step's keel point to the
+// stern's makes above the horizontal at the pose p (each float's own tetra, its barycentrics). The pilot reads it once, at
+// the flare's start: a touch pitched past it puts the heels in first (FAA-H-8083-23, as recalled: the sterns touch, the
+// bows slap down, a skip). Measured at the first touch (7 Oct): the twin on floats +1.3..+1.9 deg at 6.9-7.5 deg of pitch
+// (its limit ~8.8), the Cessna on floats -1.2 at 6.5 (its limit ~5.3)
+function hydroHeel(HY, p) {
+  let lo = Infinity;
+  const K = [0, 0, 0], S = [0, 0, 0];
+  for (const fx of HY.floats) {
+    const F = fx.F, T = fx.ctx.T, lam = fx.ctx.lam, ks = F.sta[F.sta.length - 1].K;
+    for (const [i, o] of [[F.edge.K, K], [ks, S]]) {
+      o[0] = o[1] = o[2] = 0;
+      for (let k = 0; k < 4; k++) { const a = lam[i * 4 + k], j = T[k] * 3; o[0] += a * p[j]; o[1] += a * p[j + 1]; o[2] += a * p[j + 2]; }
+    }
+    lo = Math.min(lo, Math.atan2(S[1] - K[1], Math.hypot(S[0] - K[0], S[2] - K[2])));
+  }
+  return lo;
+}
+
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

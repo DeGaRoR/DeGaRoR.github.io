@@ -995,6 +995,51 @@ function flankSite(FL, z, y, ax) {
   al = [al[0] / L, al[1] / L, al[2] / L];
   return { p: [h.x, y, z], n: n.slice(), along: al };
 }
+// PILLAR-ANCHORS (2026-11-02): A FITTING ON A PILLAR. The band z0..z1 (cage units, a pillar of PILLAR_SITE's
+// record), the target height y, the footprint's half sizes (hl fore-aft, hh up-down - fore-aft held inside the
+// band less 2 mm, a step's plate is wider than a 75 mm post and its centre column is what must stand on it): the
+// nearest rectangle to (band middle, y) - walked up and down by 5 mm steps, `reach` either way - whose every sample
+// is on skin that is NOT a door's (the pillar's own faces, the frame round it), off every pane. -> a site on the
+// outermost skin there ({ p, n, along }, cage units) or null.
+function pillarSite(mesh, sgn, z0, z1, y, hl, hh, o) {
+  o = o || {};
+  const U = +o.FS || 1, reach = (o.reach || 0.25) / U, step = 0.005 / U;
+  const zc = 0.5 * (z0 + z1), hz = Math.max(0.002 / U, Math.min(hl, 0.5 * (z1 - z0) - 0.002 / U));
+  const FL = flankOf(mesh, sgn, { z0: z0 - 0.2 / U, z1: z1 + 0.2 / U, y0: y - reach - 0.3 / U, y1: y + reach + 0.3 / U });
+  const ok = f => !f.doorKey && !FLANK_SKIP.has(f.m);
+  for (let k = 0; k * step <= reach; k++)
+    for (const sg of k ? [1, -1] : [1]) {
+      const yy = y + sg * k * step;
+      if (o.avoid && o.avoid(zc, yy)) continue;
+      if (rectClear(FL, zc, yy, [1, 0], hz, hh, ok)) {
+        const st = flankSite(FL, zc, yy, [0, 1]);
+        if (st) return st;
+      }
+    }
+  return null;
+}
+// OFF A DOOR, ANYWHERE NEAR (PILLAR-ANCHORS): the nearest rectangle to (z, y) - 1 cm steps out to `reach`, a step
+// along the body counting twice a step up or down and down before up (a plate that was on a door's bottom goes under
+// its sill before it goes along to a post or up it) - whose
+// samples are all on skin that is not a door's (or what `o.ok` accepts), off the glass, and that `avoid` does not
+// refuse. -> a site or null.
+function clearSite(mesh, sgn, z, y, hl, hh, o) {
+  o = o || {};
+  const U = +o.FS || 1, reach = (o.reach || 0.4) / U, step = 0.01 / U;
+  const FL = flankOf(mesh, sgn, { z0: z - reach - hl - 0.1 / U, z1: z + reach + hl + 0.1 / U, y0: y - reach - hh - 0.1 / U, y1: y + reach + hh + 0.1 / U });
+  const ok = o.ok || (f => !f.doorKey && !FLANK_SKIP.has(f.m));
+  const c = [];
+  for (let dz = -reach; dz <= reach + 1e-9; dz += step)
+    for (let dy = -reach; dy <= reach + 1e-9; dy += step)
+      c.push({ z: z + dz, y: y + dy, s: 2 * Math.abs(dz) + Math.abs(dy) + (dy > 0 ? 0.5 * step : 0) });
+  c.sort((a, b) => a.s - b.s);
+  for (const q of c) {
+    if (q.s > 2 * reach) break;
+    if (o.avoid && o.avoid(q.z, q.y)) continue;
+    if (rectClear(FL, q.z, q.y, [1, 0], hl, hh, ok)) { const st = flankSite(FL, q.z, q.y, [1, 0]); if (st) return st; }
+  }
+  return null;
+}
 // the run's z at height y (its polyline, ordered by y)
 function runZAt(run, y) {
   const pts = (run.pts || [run.A, run.B]).slice().sort((p, q) => p[1] - q[1]);
@@ -1105,7 +1150,7 @@ function handleOffGlass(mesh, site, o) {
   return null;
 }
 
-const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt, doorHandleSite,
+const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt, doorHandleSite, pillarSite, clearSite,
               doorHandleOnSkin, handleOffGlass, flankOf, rectClear,
               sectionArc, AX_RAIL, crownSite, crownRings, crownAtZ, geoMesh,
               NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };

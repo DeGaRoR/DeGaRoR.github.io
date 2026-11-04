@@ -1,0 +1,44 @@
+tools/flight_core.js (2232.4 KB), index.html (11424.4 KB), dev.html (107.4 KB) — syntax OK, 938 ms
+[run_gates] 0/6 jobs done · running DMGSKIN 30 s, UISMOKE 30 s
+[run_gates] 0/6 jobs done · running DMGSKIN 60 s, UISMOKE 60 s
+[run_gates] 0/6 jobs done · running DMGSKIN 90 s, UISMOKE 90 s
+[run_gates] 0/6 jobs done · running DMGSKIN 120 s, UISMOKE 120 s
+[run_gates] 0/6 jobs done · running DMGSKIN 150 s, UISMOKE 150 s
+[run_gates] 0/6 jobs done · running DMGSKIN 180 s, UISMOKE 180 s
+[run_gates] 4/6 jobs done · running UISMOKE 210 s, DMGSCUFF 29 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1847, handlers wired: _ce100 _ce1001 _ce1007 _ce1011 _ce1019 _ce1022 _ce103 _ce1031 _ce1035 _ce1039 _ce1047 _ce1050 _ce1059 _ce106 _ce1063 _ce1067 _ce1075 _ce1078 _ce1082 _ce109 _ce1091 _ce1095 _ce1099 _ce1107 _ce1110 _ce1114 _ce112 _ce1123 _ce1131 _ce1132 _ce1135 _ce1144 _ce115 _ce1152 _ce1155 _ce1159 _ce1168 _ce1172 _ce1176 _ce118 _ce1184 _ce1187 _ce1196 _ce1200 _ce121 _ce124 _ce132 _ce142 _ce146 _ce150 _ce156 _ce161 _ce162 _ce164 _ce165 _ce166 _ce169 _ce173 _ce177 _ce181 _ce185 _ce189 _ce193 _ce199 _ce204 _ce210 _ce217 _ce218 _ce219 _ce220 _ce221 _ce222 _ce227 _ce228 _ce229 _ce230 _ce234 _ce235 _ce236 _ce237 _ce238 _ce239 _ce243 _ce244 _ce245 _ce246 _ce250 _ce251 _ce254 _ce258 _ce262 _ce266 _ce270 _ce274 _ce281 _ce291 _ce301 _ce307 _ce311 _ce317 _ce321 _ce325 _ce329 _ce333 _ce341 _ce347 _ce350 _ce357 _ce358 _ce363 _ce366 _ce37 _ce371 _ce372 _ce374 _ce375 _ce376 _ce379 _ce383 _ce387 _ce391 _ce397 _ce404 _ce408 _ce412 _ce416 _ce420 _ce424 _ce428 _ce432 _ce436 _ce440 _ce444 _ce450 _ce454 _ce458 _ce461 _ce467 _ce470 _ce471 _ce472 _ce475 _ce485 _ce486 _ce49 _ce490 _ce493 _ce498 _ce520 _ce526 _ce534 _ce535 _ce538 _ce545 _ce546 _ce547 _ce548 _ce549 _ce550 _ce555 _ce556 _ce557 _ce558 _ce562 _ce563 _ce564 _ce565 _ce566 _ce567 _ce571 _ce572 _ce573 _ce574 _ce578 _ce579 _ce582 _ce589 _ce590 _ce591 _ce592 _ce596 _ce597 _ce601 _ce602 _ce606 _ce607 _ce608 _ce609 _ce610 _ce611 _ce615 _ce616 _ce617 _ce618 _ce619 _ce62 _ce620 _ce624 _ce625 _ce629 _ce630 _ce632 _ce639 _ce640 _ce641 _ce642 _ce646 _ce647 _ce648 _ce649 _ce653 _ce654 _ce655 _ce656 _ce660 _ce661 _ce662 _ce663 _ce667 _ce668 _ce672 _ce673 _ce674 _ce676 _ce683 _ce684 _ce688 _ce689 _ce691 _ce698 _ce699 _ce700 _ce704 _ce705 _ce706 _ce707 _ce711 _ce712 _ce714 _ce721 _ce722 _ce723 _ce727 _ce728 _ce729 _ce730 _ce734 _ce735 _ce736 _ce74 _ce740 _ce741 _ce745 _ce746 _ce750 _ce751 _ce753 _ce760 _ce761 _ce765 _ce766 _ce767 _ce771 _ce772 _ce776 _ce777 _ce780 _ce786 _ce791 _ce795 _ce799 _ce803 _ce807 _ce811 _ce815 _ce819 _ce823 _ce827 _ce831 _ce834 _ce842 _ce845 _ce85 _ce854 _ce86 _ce862 _ce863 _ce866 _ce87 _ce875 _ce88 _ce880 _ce884 _ce89 _ce890 _ce894 _ce899 _ce90 _ce900 _ce902 _ce903 _ce904 _ce907 _ce91 _ce911 _ce915 _ce919 _ce92 _ce923 _ce927 _ce931 _ce935 _ce94 _ce945 _ce949 _ce953 _ce961 _ce967 _ce97 _ce970 _ce974 _ce979 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selFrom selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== DMGSKIN ===
+  ok    app.js: the skin's break path (11 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+[run_gates] 5/6 jobs done · running DMGSCUFF 59 s
+=== DMGSCUFF ===
+  ok    the solver records the slide only behind DMG_ON (2 call sites)
+(93/93 checks, 76 s)
+GATE DMGSCUFF: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== WEATHER ===
+layers 25, colours 8, substrates 33, benches 27
+GATE WEATHER: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+
+──────── summary ────────
+UISMOKE   PASS   237.0 s
+DMGSKIN   PASS   181.6 s
+DMGSCUFF  PASS    75.9 s
+BUILD     PASS     5.6 s
+WEATHER   PASS     0.2 s
+JOIN      PASS    15.4 s
+total            515.7 s
+wall             257.4 s  (jobs 4)
+
+BATTERY: PASS

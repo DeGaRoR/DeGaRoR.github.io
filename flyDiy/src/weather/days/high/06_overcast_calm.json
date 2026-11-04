@@ -1,0 +1,10 @@
+{ "v": 1, "id": "overcast-calm", "name": "Overcast calm",
+  "story": "A grey, still, mild day under a flat deck of stratocumulus. Good visibility beneath it, the water like pewter, every sound carrying. At night the town and the dock lights double on the glassy water.",
+  "fly": "easy", "forecast": "Overcast, base 750 m, no rain. Wind southeast 3-6 kt. Visibility 30 km below the cloud. Overcast night. The FRONT arrives tomorrow afternoon: gale-force gusts, rain, low cloud.",
+  "temp": { "min": 2.5, "max": -1.5 }, "dew": [[4, -1.5], [15, -1], [27, 0]],
+  "qnh": [[4, 1013], [27, 1008]],
+  "wind": [[4, 6, 140, 0.1], [10, 5, 140, 0.1], [16, 6, 145, 0.12], [22, 8, 140, 0.15], [27, 11, 135, 0.18]],
+  "rich": { "breeze": 0.2, "terrain": 0.5, "thermals": 0.0 },
+  "low": [[4, 0.55, "sc"], [9, 0.85, "sc"], [18, 0.88, "sc"], [27, 0.9, "sc"]],
+  "up": [[4, 0.7, "as", 4000], [27, 0.75, "as", 3800]],
+  "turbidity": 2.6, "aurora": [] }

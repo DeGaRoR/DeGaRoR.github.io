@@ -16,6 +16,11 @@ function makeWorld(seed, opts) {
   // premise). Without it every line below is the analytic world, byte for
   // byte (GATE WORLD's goldens).
   const ISL = (opts && opts.island) || null;
+  // THE TEST FIELD (G3790, PHONE-TESTFLIGHT; the user, 27 Oct: "1 building, 1 runway, and some infinite thing"):
+  // opts.flat is the analytic world with every stage subtracted - the ground 0 everywhere, HOME alone (the same strip,
+  // heading and site: its hangar is the one building), no water, no towns or roads, no generated strips, no trees. The
+  // stages below short-circuit on it; without it every line is the analytic world byte for byte (GATE WORLD's goldens)
+  const FLAT = !ISL && !!(opts && opts.flat);
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
   // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
@@ -144,7 +149,7 @@ function makeWorld(seed, opts) {
     // point of a 1 m grid over the box; GATE GE pins the identity. The island
     // never reaches here (h0 routes it to its raster) and the premises layer
     // composes on top. opts.exactGround keeps the long path for the proof.
-    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
+    if (FLAT || (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90)) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -239,6 +244,7 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
+  if (FLAT) aerodromes.splice(1);   // (the test field: HOME alone, at 0)
   // an island with premises: the analytic HOME record goes the moment the
   // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
@@ -299,7 +305,10 @@ function makeWorld(seed, opts) {
   // the island's water (28_island hydro): 'map' (the default since G2990) the map's lakes, no rivers; 'blend' (G413)
   // the map's lakes and the bake's rivers between them; 'proc' (G405) the analytic bake's lakes and rivers
   const HM = ISL ? ISL.hydro : 'proc';
-  const HYD = bakeHydrology(
+  // (the test field bakes nothing: dry everywhere, no reach, no lake - the bake's own shape, empty)
+  const HYD = FLAT ? { rivers: [], lakeCount: 0, lakeCells: 0, riverCells: 0, segCount: 0, lakeSurf: [],
+    carve: (x, z, h) => h, water: () => -Infinity, riverWater: () => -Infinity, seaAt: () => false, distW: () => 1e9,
+    grids: null, stats: { bakeMs: 0, N: 0, maxAcc: 0, cellW: (BOUNDS.x1 - BOUNDS.x0) / 512 } } : bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
@@ -345,7 +354,7 @@ function makeWorld(seed, opts) {
   // the stage-1 grids, organic road network grown from the home airfield,
   // bridges across water runs, building footprints. Roads add a shallow
   // grading term to terrainH below.
-  const SET = ISL
+  const SET = ISL || FLAT
     ? { settlements: [], roads: [], buildings: [], roadNear: () => 1e9, roadDelta: (x, z, h) => h,
         inCore: () => false, stats: { bakeMs: 0 } }
     : bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
@@ -388,13 +397,13 @@ function makeWorld(seed, opts) {
   // G1253 NO GENERATED STRIPS ON AN ISLAND (QUICK-BYTES): the island never took them (below, and baseH grades none),
   // and its search found none on Jolene - so AERO.surfaceAt / inBox / grade (the biomes' aeroSurf, the trees' box
   // and treeGround) already answered -1 / false / h. The stub says so without the 1 587-candidate scan (14-20 ms)
-  const AERO = ISL
+  const AERO = ISL || FLAT
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
-  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
+  if (!ISL && !FLAT) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
@@ -688,7 +697,7 @@ function makeWorld(seed, opts) {
   // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  {
+  if (!FLAT) {   // (the test field stands no tree)
     const GS = 64, G0x = BOUNDS.x0, G0z = BOUNDS.z0;   // ±12000 m (24 km domain, W6): GN 375
     const GNx = Math.ceil((BOUNDS.x1 - BOUNDS.x0) / GS), GNz = Math.ceil((BOUNDS.z1 - BOUNDS.z0) / GS);
     for (let gz = 0; gz < GNz; gz++) for (let gx = 0; gx < GNx; gx++) {
@@ -786,7 +795,15 @@ function makeWorld(seed, opts) {
       // floated 30 cm of water over ground the record itself says is dry land.
       // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
       // sample points on such a cell (2026-09-23).
-      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      // ...and NOT on ground the premises declare dry (ISLAND-TOUR G1971): a strip, a pad, an apron, a road - a land
+      // surface of the record. The cover grid calls 13 patches of 02/20's old concrete and one of 13/31's WATER (a 10 m
+      // cell over a wet, dark slab), and 0.30 m of water stood on the runway: the C172 rolling across it at 16 m/s
+      // nosed into it and rejected the take-off (GEAR-WATER's wheel in the water). Only a cover-water cell asks.
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) {
+        // (a pavement's edge and its first 10 m too - the strip's shoulder, where a wheel that runs off the edge rolls)
+        if (PM) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
+        return t + 0.3;
+      }
       return -Infinity;
     }
     const ws = HYD.water(x, z);
@@ -808,10 +825,17 @@ function makeWorld(seed, opts) {
     // 3.1: analytic, cheap enough to sample per hull vertex per substep),
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
+    // BAY-MIRROR (2026-11-03): a sheltered bay is calmer - the felt trains scaled by the island's shelter (28_island.js
+    // waveK: 1 on all open water, so the open sea is byte-for-byte what it was; the wind's ripple, 0.25, deep in a bay). The
+    // water shader lifts the near patch by the SAME factor from the same bytes (WATER.setCalm), so the hull sits in the wave
+    // it is drawn in
+    const k = WAVEK ? WAVEK(x, z) : 1;
     let y = 0;
     for (const w of SEA.W) if (w.felt !== false) y += w.A * CORE_MATH.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
-    return y;
+    return k < 1 ? y * k : y;
   }
+  // the island's shelter (null on the analytic world and the flat field: no bay, the sea everywhere as it was)
+  const CALM = ISL && typeof ISL.calmAt === 'function' ? ISL.calmAt : null, WAVEK = ISL && typeof ISL.waveK === 'function' ? ISL.waveK : null;
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
   // more consumer of setWeather's wind, never a second model). Amplitude
   // 0.018 m per m/s of wind (5 m/s: 0.09 m; 10: 0.18 - see setWind), wavelength 3 + 1.4 W
@@ -968,7 +992,9 @@ function makeWorld(seed, opts) {
     }
     return SURFACE.GRASS;
   };
-  const surface = ISL ? islandSurface : B.surface;
+  // (the test field: grass, under whatever a strip or a premises surface says there)
+  const flatSurface = (x, z) => { const a = aeroSurfAll(x, z); return a >= 0 ? a : SURFACE.GRASS; };
+  const surface = ISL ? islandSurface : FLAT ? flatSurface : B.surface;
   // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
   // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
   // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
@@ -1127,10 +1153,23 @@ function makeWorld(seed, opts) {
     if (k !== atmosKey) { atmosKey = k; atmos = k == null ? ATMOS_ISA : makeAtmos(day.air()); }
     return atmos;
   }
+  // THE PLAN'S WIND (WEATHER-SEASON): under a weather plan the day's wind is the plan's (day.wind is the EFFECTIVE spec),
+  // so a set naming `plan` or `wind` takes it, and the tick re-resolves the climate whenever the plan's quantised wind
+  // moves (`day.plan.windKey`: 0.1 kt, 1 deg, 0.01 of gust - a few re-resolves an hour). The sea walks after it (the
+  // plan's seaTau). Without a plan every line is as it was.
+  let planWindKey = null;
+  function planWind() {
+    const k = day.plan ? day.plan.windKey : null;
+    if (k === planWindKey) return false;
+    planWindKey = k;
+    setWind(day.wind || null);
+    return true;
+  }
   function setDay(spec) {
     day.set(spec);
     airNow();
-    if (spec && 'wind' in spec) setWind(spec.wind || null);
+    if (day.plan || (spec && 'plan' in spec)) { planWindKey = NaN; planWind(); }   // NaN: equal to no key, so this set always takes the wind (a plan lifted gives the declared one back)
+    else if (spec && 'wind' in spec) setWind(spec.wind || null);
     else climate.refresh();                   // a front or a swing moved: re-resolve the column (K2)
   }
   // dayTick(dt): the VIEWER's clock step - the day advances and the wind
@@ -1142,7 +1181,8 @@ function makeWorld(seed, opts) {
     const u0 = day.utc;
     day.advance(dt);
     const st1 = day.storm ? day.storm.I : 0;
-    if (st0 !== st1 || (sw && day.storm)) climate.refresh();
+    if (day.plan && planWind()) { /* the plan's wind moved: setWind re-resolved the column, the front's hand with it */ }
+    else if (st0 !== st1 || (sw && day.storm)) climate.refresh();
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
@@ -1185,6 +1225,7 @@ function makeWorld(seed, opts) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
+    flat: FLAT,   // G3790: the test field (opts.flat) - the physics worker makes its own with the same switch
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
@@ -1224,6 +1265,10 @@ function makeWorld(seed, opts) {
     day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // BAY-MIRROR: the sea's calm factor (0 a sheltered bay .. 1 the open sea) and its field, the bytes the water shader samples
+    calmAt: CALM ? (x, z) => CALM(x, z) : () => 1,
+    waveK: WAVEK ? (x, z) => WAVEK(x, z) : () => 1,   // the factor waterH puts on the sea's waves (the shelter with the wind's ripple kept)
+    calmField: () => ISL && typeof ISL.shelter === 'function' ? ISL.shelter() : null,
     // K4: the state the sea is walking toward, and the walk itself (the viewer
     // pushes world.sea at the shader when `seaChanged` says the trains moved)
     get seaTarget() { return seaTarget; }, seaRelax,
