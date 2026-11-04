@@ -2005,7 +2005,7 @@ const MISSION_PREF_KINDS = {
   thrust:     { of: 'spec.engines[].mount',  values: ['tractor', 'pusher'] },
   wing:       { of: 'spec.wing.position',    values: ['high', 'mid', 'low', 'parasol'] },
   tail:       { of: 'spec.tail.type',        values: ['conventional', 'v', 'twinBoom'] },
-  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats'] },
+  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats', 'hull'] },
   canopy:     { of: 'spec.cabin.canopy.style', values: ['screen', 'bubble'] },
   suspension: { of: 'spec.gear.suspension',  values: ['bungee'] },
 };
@@ -7927,7 +7927,7 @@ const TECH_TABLE = {
   'av.nav:none': 1, 'av.nav:vor': 2,
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
-  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2,
+  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
   'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
@@ -7941,7 +7941,7 @@ const TECH_TABLE = {
 };
 // the gear types and canopy styles clampSpec accepts (60_gen_spec.js clampSpec: an unknown is rewritten to the first);
 // GATE TECH probes clampSpec with each and with an unknown, so this list cannot drift from it
-const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats'];
+const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats', 'hull'];
 const TECH_CANOPY_STYLES = ['screen', 'bubble'];
 // the powertrain families of the editor's `engPower` row (piston / electric / turbine), read off POWERPLANTS: a family
 // opens with the first of its engines
