@@ -62,6 +62,7 @@
 #hsStore .hsCard.hsDragging { opacity:.45; border-style:dashed; border-color:var(--ed-acc); }
 #hsStore .hsThumb { flex:0 0 auto; width:56px; height:38px; border-radius:5px; background:var(--ed-track);
   border:1px solid var(--ed-hair); display:block; object-fit:cover; }
+#hsStore img.hsThumb { width:76px; object-fit:contain; background:#14110f; }   /* G3800: the 2:1 side profile, whole */
 #hsStore .hsTxt { flex:1 1 110px; min-width:0; display:flex; flex-direction:column; gap:2px; }
 #hsStore .hsName { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #hsStore .hsMeta { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
@@ -102,7 +103,7 @@
     if (document.getElementById('hsStoreCss')) return;
     const s = mk('style'); s.id = 'hsStoreCss'; s.textContent = CSS; document.head.appendChild(s);
   }
-  // the card's picture: the fleet bake's thumbnail when one exists (none yet: PARKED.fleetThumb is the door), else a
+  // the card's picture: the side profile when one is drawn (G3800 PLANE_THUMB, via app.js storeCard), else a
   // plan-view glyph drawn by gear (a float pair, skis, a wheel track)
   function thumb(c) {
     if (c.thumb && (c.thumb.tagName === 'IMG' || c.thumb.tagName === 'CANVAS')) { c.thumb.className = 'hsThumb'; return c.thumb; }
@@ -392,6 +393,8 @@
     if (W.FLYDIY_STORE) W.FLYDIY_STORE.onChange = () => render();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+  // G3800: a card's side profile drawn (or the bake's index landed) while the shelves are open: draw them again
+  W.addEventListener('plane-thumb', () => { if (ST.el && !ST.el.hidden) render(); });
   // app.js may publish FLYDIY_STORE after this file ran: the redraw hook is set again on open
   const open0 = open;
   W.STORAGE_UI = { open: () => { wire(); return open0(); }, close, render, move, ask, fly, routeAsk, routeSign, routeEnd, state: ST };

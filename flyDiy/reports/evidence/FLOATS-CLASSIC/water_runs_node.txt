@@ -1,0 +1,24 @@
+== run_cessnaFloatsWOrks_edo.log
+mass 950 kg  reserve 2.01 sized  floats 1.23,-1.09,-0.80 | 1.23,-1.09,0.80
+engine centres [[-1.16,0.8,0]] deck tops -0.67,-0.67
+AFLOAT t 20 s: trim 1.21 deg, draft 0.328 m, min deck-edge freeboard -0.036 m, |v| 0.027 m/s, bad false, propWet 0
+PHASES 0.0 ROLL V0.0 | 23.4 LIFTOFF V28.4
+HYDROPLANE: LIFT-OFF at 23.5 s, 28.5 m/s, 348 m; hump R/W 0.200 at 18.9 m/s; trim max 9.0; Vmax 31.8; end climb at 26.8 s; propWet 0
+== run_cessnaFloatsWOrks_wip.log
+mass 949 kg  reserve 2.13 sized  floats 1.23,-1.09,-0.80 | 1.23,-1.09,0.80
+engine centres [[-1.16,0.8,0]] deck tops -0.60,-0.60
+AFLOAT t 20 s: trim 1.08 deg, draft 0.330 m, min deck-edge freeboard 0.001 m, |v| 0.035 m/s, bad false, propWet 0
+PHASES 0.0 ROLL V0.0 | 23.6 LIFTOFF V28.2
+HYDROPLANE: LIFT-OFF at 23.7 s, 28.4 m/s, 350 m; hump R/W 0.207 at 20.0 m/s; trim max 8.9; Vmax 31.7; end climb at 27.1 s; propWet 0
+== run_pa18_floats_2026-10-23_edo.log
+mass 753 kg  reserve 2.96 sized  floats 0.99,-1.00,-0.80 | 0.99,-1.00,0.80
+engine centres [[-0.98,0.6,0]] deck tops -0.55,-0.55
+AFLOAT t 20 s: trim -0.64 deg, draft 0.298 m, min deck-edge freeboard 0.034 m, |v| 0.010 m/s, bad false, propWet 0
+PHASES 0.0 ROLL V0.0 | 22.1 LIFTOFF V21.4
+HYDROPLANE: LIFT-OFF at 22.6 s, 22.1 m/s, 235 m; hump R/W 0.163 at 10.2 m/s; trim max 13.4; Vmax 23.1; end climb at 25.6 s; propWet 0
+== run_pa18_floats_2026-10-23_wip.log
+mass 752 kg  reserve 3.12 oversized  floats 0.99,-1.00,-0.80 | 0.99,-1.00,0.80
+engine centres [[-0.98,0.6,0]] deck tops -0.43,-0.43
+AFLOAT t 20 s: trim -0.89 deg, draft 0.301 m, min deck-edge freeboard 0.120 m, |v| 0.005 m/s, bad false, propWet 0
+PHASES 0.0 ROLL V0.0 | 22.2 LIFTOFF V21.4
+HYDROPLANE: LIFT-OFF at 22.7 s, 22.1 m/s, 236 m; hump R/W 0.164 at 10.1 m/s; trim max 13.4; Vmax 23.1; end climb at 25.7 s; propWet 0

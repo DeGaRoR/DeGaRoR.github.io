@@ -146,7 +146,7 @@
     const list = [...PEND].filter(waiting); PEND.clear();
     if (!list.length) return 0;
     if (!FL) { FL = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }),
-                      mat: MATLIB.shared(THREE, 'basic', { colorWrite: false, depthWrite: false, depthTest: false }, 'geoflush') };   // (MATLIB's: GATE ASSETS)
+                      mat: MATLIB.shared(THREE, 'basic', { colorWrite: false, depthWrite: false, depthTest: false }, 'geoflush') };   // (MATLIB's: GATE ASSETS)  pre-ok: colorWrite false
                 FL.scene.matrixWorldAutoUpdate = false; }
     const keep = list.map(g => [g, g.drawRange.start, g.drawRange.count]), meshes = [];
     for (const g of list) { g.setDrawRange(0, 0); const m = new THREE.Mesh(g, FL.mat); m.frustumCulled = false; m.matrixAutoUpdate = false; FL.scene.add(m); meshes.push(m); }

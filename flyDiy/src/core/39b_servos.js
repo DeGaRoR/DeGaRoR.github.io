@@ -58,7 +58,7 @@ const SERVO_GAINS = {
   // roll / yaw in the air
   hdgP: 0.7, hdgD: 0.9, bankLim: 0.30, bankSlew: 0.18,
   rollP: 2.0, rollD: 2.0, daMax: 0.30,
-  betaK: 0.3, yawDampK: 0.6, ariK: 0.35, drAirMax: 0.25,
+  betaK: 0.3, yawDampK: 0.6, yawRateK: 0.8, ariK: 0.35, drAirMax: 0.25,
   // G2080: THE BALL CENTRED - the slip integrated into a standing rudder (the right boot a pilot holds on a climb
   // at full power; the propeller's torque, P-factor and swirl make it), rad of rudder per rad.s of slip, its stop
   betaI: 0.6, drTrimMax: 0.20,
@@ -331,7 +331,12 @@ function makeServos(sim, def, opts) {
     // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
     // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
     S.drTrim = clamp(S.drTrim - g('betaI') * S.betaIK * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
-    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
+    // G3913 (the user, 4 Nov: the Cub "swaying right and left ... worse till landing"): THE DAMPER ALSO READS THE NOSE. yawDampK works on
+    // eAR, the rate of the TRACK against the target: on a gusty final the Cub's nose wagged +-1.2 deg at 4.6-4.8 s (the wind has no peak
+    // there: its own weathercock mode) with the track still and the rudder at 0.013 p-p, so nothing damped it. Behind the student's 0.35 s
+    // the mode closed through the bank and diverged: heading 34-55 deg p-p, the gear broken. yawRateK is on eR, washed out as eAR is
+    // (a steady turn asks nothing). Node, the Cub, HOME > w3 in 8 kts: expert 2.3 -> 1.3 deg, student 34 -> 6 deg p-p, last 30 s of final
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow) - g('yawRateK') * (S.eR - S.eRslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a

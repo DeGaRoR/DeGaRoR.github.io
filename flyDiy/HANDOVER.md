@@ -310065,6 +310065,177 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 - WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
+## G2600-G2601 - MOONLIGHT: THE NIGHT WAS BLACK BECAUSE THE EXPOSURE NEVER MOVED (LIGHT-SMOOTH's ease never made its first write, 3 Oct) AND THE MOON LIT FROM THE SUN'S SIDE OF THE GROUND (since G408); THE MOON AS THE KEY, THE PHASE LAW, THE NIGHT EYE, THE NIGHT'S DIALS; THE FRAME'S fp16 PRECISION MEASURED - A PRE-EXPOSURE PROPOSED, NOT BUILT (2026-10-08, MOONLIGHT for A0, local GPU; branch claude/moonlight-g2600 off train 40 bcf62797; G2602-G2609 unused)
+
+The user (7 Oct): "currently the night is absolutely dark, which is mostly fine, but can we have some full moon nights,
+where it's possible to see something, so VFR at night, even though super dangerous, becomes somehow possible?"
+
+### THE DIAGNOSIS (measured: tools/moonlight_shots.js, train 40 vs this branch, gamer and current, 1600x900)
+1. **G2601 - THE EXPOSURE WAS STUCK AT EVERY HOUR.** render_world's light ease (G1352, 79337daf9) starts `LE.setEx = NaN`
+   and wrote the exposure only when `Math.abs(LE.ex - LE.setEx) > step` - false against NaN, forever. exSet never ran;
+   lightEase then re-took the stale base every frame (`LE.setEx !== exBaseNow()`). The renderer kept the boot row's
+   1.12 since 3 Oct. Live on train 40: noon 1.12 (the schedule 0.92), 15:00 1.12 (1.04), 17:00 1.12 (1.34), sunset
+   1.12 (2.79), the full-moon night 1.12 (32 911: +15 stops). The night's whole adaptation never arrived; the day ran
+   +0.28 stop bright at noon and dim through the dusk. Fix: `!(abs <= step)`. ITS OWN COMMIT (42a140f76), because it
+   moves the day back to the schedule - noon_stand mean code 131 -> 120. **THE USER RULED (8 Oct, on
+   sheet_day_dusk_g2601.jpg, via A0): "yeah, that's better, keep that" - option A, the schedule as designed (noon 0.92,
+   the alps anchor).** Option B (EV_BASE 1.12, the whole curve +0.28 stop) was not taken and has no stills.
+2. **G2600 - THE MOON LIT FROM THE WRONG SIDE OF THE EARTH.** dayApply wrote SUN (the key's placement, the shadow maps,
+   the impostors' depth) from day.sun at every hour, held 2 deg over the horizon. Below -1.2 deg the key is the MOON
+   (sky_light's hysteresis) - so the moonlight came from the sun's bearing under the horizon, grazing at 2 deg: a level
+   field took sin 2 = 3.5 % of it and every tree's shadow ran for hundreds of metres (train 40's keyY 0.035 at every
+   night view; after 0.588 = the moon at 36 deg). The shed has aimed at the moon since S5 (hangar.js applyDay).
+3. **The phase law was linear** (a half moon gave 50 % of the full). Physically ~9 % (Allen 1973 / Krisciunas &
+   Schaefer 1991: m(a) = -12.73 + 0.026|a| + 4e-9 a^4): LIGHT_RIG.moonE(phase), read by the key, the sky, the clouds,
+   the mist - one law. Full 1, 75 % lit 0.23, half 0.091, quarter 0.026, new 3e-4.
+4. **An overcast let the moon through**: the clouds' ground shadow (the splice) and the CPU column (sunT) faded with the
+   SUN, so at night no cloud shadowed the moon. Both along the key now (the sun's by day: unchanged).
+5. **The default date has no night**: 21 June at 55 N - the 'night' preset is the sun at -11.5 with the half moon below
+   the horizon. NOT changed here (A0: SIM-CLOCK G2650 owns the clock and adds "next full moon"); the stills set dates.
+
+### THE NUMBERS (mean code over the 3D view, sky band, ground band; train 40 -> this branch with G2600 + G2601; gamer)
+| view (2026-09-26 00:30 AKDT, full moon 36 deg, unless named) | before | after |
+|---|---|---|
+| noon_stand (12:45) | 131 (ex 1.12) | 120 (ex 0.92: G2601) |
+| full_stand (the HOME stand, down the runway) | 1 / sky 4 / gnd 0 | 17 / sky 39 / gnd 7 |
+| full_sea_moon_ahead (300 m over HOME, toward the sea) | 1 | 34 / sky 48 / gnd 13 |
+| full_final (150 m) | 1 | 21 / sky 38 |
+| half moon (10-03 02:00, 52 % lit, 33 deg) | 1 | 2 (black: 9 % of the full) |
+| new moon (10-10) | 1 | 2 (black, as asked) |
+| overcast (0.9-1 st) | 1 | 6-15 |
+
+current: the same within a code. The before frames are black at every night view - train 40 exactly as the user saw it.
+
+### THE fp16 FRAME - MEASURED (the resolve target read back over a ground band, after both fixes)
+Since G448.3 the linear compositing holds UN-EXPOSED radiance in a HalfFloat target (the exposure is the blit's). A
+moonlit night is ~1e-7..1e-6 of that scale: fp16 SUBNORMALS, stepped in 5.96e-8. Measured: full_stand's ground band
+holds 6-11 distinct values, 100 % subnormal, least 1.8e-7; full_final's ground band ONE value (5.96e-8, the least
+subnormal there is); the sea view 75 values (the water's reflection is brighter); the half and the new moon read 0
+(flushed). On screen: the land is a flat black mass with no texture under a readable sky and sea - posterised by the
+target's precision, not by the light. The moonlit sky and water are mostly above it; the forest and the fields are not.
+
+### PROPOSAL (NOT BUILT - A0 puts it to the user): A PRE-EXPOSURE
+Write the frame at radiance x P and tone-map with exposure / P (Frostbite's pre-exposure), P = 2^(the schedule's stops,
+whole stops) once the sun is under -6 deg and 1 above it: the day is bit-identical, the night's radiance lands in fp16's
+normal range (P = 2^15 puts the moonlit field at ~0.01: ten bits of mantissa instead of a handful of levels). WHERE: the
+light's units, not the materials - three's built-in materials cannot take one shared uniform without an onBeforeCompile
+on every program (~88), and a chunk override needs a uniform three does not upload. So: applyDay's `unit` x P (the key,
+the hemisphere, the ground half), ATMO.U.scale x P (the dome, the aerial perspective, the clouds, the mist - one scale;
+the probe re-bakes from the dome), GFX.setExposure keeps the TRUE exposure as its base (every dimmer that reads
+exposureBase stays right) and puts base / P x step x eye on the renderer. THE COST is the audit: every writer of
+absolute light must take x P - the emissives (hangar 6, cockpit 3 (CK.nightK), parked 2, app 2, scenery_life, props,
+pattern_vis, matlib), the runway lights, the premises lamps, the craft's lights, the house windows - and every unlit
+MeshBasicMaterial in the frame (LIGHT_RIG.census lists the 'unlit' kind: those would read 1/P at night). Zero cost per
+frame. One session, with GATE LIGHT growing a check that the census's sources all take P.
+
+### WHAT WAS BUILT
+- render_world: keyAim(d) - SUN (2 deg floor) and KEY_SKY (true) along the key, the moon's when sky_light says the
+  moon is the key. KEY_SKY exported; the spray's light and the glare (app.js) read it. WORLD.relight() drops the
+  re-apply guard without a day version bump (the dials). G2601: the ease's first exposure write.
+- light_rig: THE NIGHT - moonPhaseLaw / moonE, the night-eye grade (NIGHT_GLSL + nightU + nightGrade(el, scale)), the
+  night stops (exposureStops + NIGHT.eye eased in from -12 to -18 deg; 0 above -12: the day and the twilight are the
+  schedule's to the bit), NIGHT / NIGHT_DEF / setNight / night / nightDefaults.
+- THE NIGHT EYE (Purkinje / mesopic): in aa_resolve's blit, on the radiance just before the one tone map (linear
+  compositing), a uniform branch skipped by day (share 0 above -0.833 deg). The rods' share is per pixel on its
+  ABSOLUTE luminance (radiance x SUN_LUX / the room's scale -> cd/m2): 0 at `colourCd` (3), 1 a thousandth of it (CIE
+  mesopic 0.005-5); the rods' grey is Larson-Rushmeier-Piatko's scotopic luminance at the sRGB primaries (0.033 0.765
+  0.202) tinted toward moonlight's blue-grey. A lamp stays coloured because it is bright. The GLSL and the uniforms
+  are light_rig's; aa_resolve builds its shaders at the material now (light_rig loads after it). Display compositing
+  (the fallback) and a frame with no resolve target get no grade (a named cut).
+- clouds: keyDir - the splice's direction and sunT along the key.
+- atmo: U.eMoon through the phase law; the moon washes the faint stars out (a full moon leaves the brightest 30 %:
+  the limiting magnitude ~6.5 -> ~4.5; by day the star term is already 0).
+- moon_ui.js (new, after day_ui.js - which is SIM-CLOCK's): the left rail's NIGHT section, "the moonlight": moonlight
+  (0-3x), night eye (-1..+3 stops), night colour (0-100 % grey), moonlight blue, colour vision (0.3-30 cd/m2), stars
+  (0-3x); double-click a name = its default; kept in localStorage flydiy.night.v1; a line on the moon's phase, height, lux.
+- tools/moonlight_shots.js: the fixed frames, before | after pages, the numbers, the fp16 readback, the noon proof
+  with an in-page control, --variants for the dials, the dusk / sunset pair.
+
+### GATES
+node --check on every touched file; run_gates --only=AA,POSTFX,DAY,ATMO,CLOUD,WORLDRENDER,LIGHT,PROGRAMS,UISMOKE
+PASS (00:50-00:55, A0's window; all node, none boots Chrome).
+
+### THE TUNED ROUND (8 Oct 09:30-09:52, gamer; reports/evidence/MOONLIGHT/)
+- sheet_full_moon.jpg (rows: the stand, the sea with the moon ahead, the moon behind, the 150 m final; columns: train
+  40 | night eye 0 | +1 | +2): 0 reads the water and the sky but leaves the land black; **+1 is the dangerous-but-
+  flyable night** (the coast, the lakes, the strips, the ridges and the horizon; mean code 42-56 at the stand and over
+  the sea, the sky 67-79); +2 is a dusk (67-85). DEFAULTS SET: night eye +1, night colour 0.9, moonlight blue 0.6
+  (0.85 vs 0.95 is hardly to be told apart; a lamp-lit aeroplane keeps its colour either way - it is bright).
+  THE USER (8 Oct, via A0): "full moon defaults look good enough for now" - the defaults stand; no more dial tuning.
+  The pre-exposure proposal is parked until the user asks.
+- sheet_moon_overcast_half_new.jpg: the moon overhead (a disc, a faint corona, the faint stars washed out near it);
+  overcast (the panel's deck still broken - the CLOUD note); the half moon at +1: the horizon and a glint on the sea
+  only (code 4); the new moon: black under the stars (code 2), as asked.
+- sheet_day_dusk_g2601.jpg (train 40 | both fixes; noon, 17:00, sunset): **at sunset train 40's ground is black** (the
+  stuck 1.12 for 5.2) and G2601 gives the dusk back; noon a shade darker (0.92 for 1.12); 17:00 alike.
+- THE NOON PROOF OF G2600 ALONE (train 40 vs this branch with G2601 reverted, a fixed place, the ease ON): 166 674
+  bytes differ (max 170) against an in-page control of 350-418 bytes - NOT pixel-identical. The readout points at the
+  ease, not at G2600: the hemisphere read 1.703 / 1.705 / 1.706 on the same noon in three page runs (the ease writes in
+  0.4 % steps, so what it rests on depends on the clock's history). The proof with the ease off (noonx_*: the light
+  written at once, no history) is owed - tonight's window 21:40.
+- rig: the stand views after the first were not at the stand (the aeroplane stayed where 'over' put it) - fixed (the
+  stand is kept at the first view and put back).
+
+### OPEN / NAMED CUTS
+- the noon pixel proof of G2600 alone with the ease off (tonight, 21:40-22:20).
+- CLOUD (not fixed here, A0): the panel's overcast (0.9 st) at night still shows breaks and stars after 12 s.
+- a multi-deck sky's shadow tile is shifted along the SUN in its bake (uSun is the clouds' lighting): at night with an
+  upper deck the decks' shadows are not offset along the moon. One deck (the default) is exact.
+- the hemisphere's starlight floor (3e-7) is colourless (its colour is E / max(E, 1e-6) ~ 0): a moonless night is
+  exactly 0 under it - what the user asked for; a real airglow would be ~1/300 of the full moon.
+- a day with the moon up: the sky and the hemisphere carry moonE x the moon's sky, now through the phase law - a
+  change of < 1e-6 relative (the noon frames have the moon down).
+- no moon-glint dial: the moon's path on the water is the water's own GGX on the key and the probe's moon (seen).
+
+## G2620 - PRE-EXPOSURE: THE NIGHT'S FRAME AT RADIANCE x P (2^14 under -6.5 deg) - BUILT, GATED (27/28 + CLOUD's pin fixed), STILLS 9 Oct: THE PRECISION FIXED, THE DAY WITHIN THE CROSS-PAGE FLOOR, NO MEAN FLASH AT THE SWITCH - NOT READY: A GLINT ON THE WATER FOR ~1 s AFTER THE SWITCH; THE AEROPLANE'S LIGHTS AND THE PANEL NOT YET SEEN (2026-10-09, branch claude/pre-exposure-g2620 on claude/moonlight-g2600 on train 42; G2621-G2629 unused)
+
+The design, the audit and the gate are in light_rig.js THE PRE-EXPOSURE and GATE LIGHT's G2620 rows (the sweep with named
+exemptions and its negative control). Stills (reports/evidence/PRE-EXPOSURE, moonlight build | this, gamer, 9 Oct 11:30):
+- fp16 (the ground band's distinct values): full stand 5 (all subnormal) -> 753 normal; final 8 -> 1 362; half moon
+  2 -> 2 279; new moon 1 -> 1 395. The pictures alike (mean codes +1..+3: the subnormal truncation gone), no light lost
+  (sheet_pre_exposure.jpg: the stand, the final, the lit apron).
+- THE DAY: every light number identical; the pixels differ 101k bytes at noon, 48k at 17:00 - and train 40 against ITSELF
+  across two page runs differs 160k (the trees' sway and streaming, the aeroplane, the HUD digits; the in-page control is
+  83-387). So: identical within the cross-page floor. (G2600 alone: 98k, the same verdict.)
+- THE SWITCH (--crossing, 0.05 deg steps): at -6.55 deg, |d mean| 0.3 code against up to 2.3 round it - no frame flash.
+  BUT a bright orange glint on the water toward the sun at steps 12-14 (~1 s after the switch), gone by step 16
+  (crop_cross_glint.jpg). Undiagnosed: the mirror's re-capture or the probe's cut / its fade on the next bake (the
+  crossing bumps the day's version every step) are the suspects. OWED before READY.
+- OWED: the aeroplane's nav / landing lights and the panel at night - the rig's forced switches and cockpit camera took no
+  effect (both pages black there); a still that shows them.
+- PERF: zero per-frame work (one uniform branch already counted; listeners only at a switch) - A0's train-44 strict pass.
+
+## NIGHT-LOOK STEP 1 - G2600 MOONLIGHT + G2620 PRE-EXPOSURE MERGED ONTO MASTER, CODEX'S NIGHT WORK KEPT (2026-11-02, NIGHT-LOOK for A0; branch claude/night-look)
+
+The user, 2 Nov: "ok with the study on night" (flydiy-notes/NIGHT-LOOK-STUDY-2026-11.md), and "you incorporate the
+codex work, right?". This is the 8-9 Oct night (the two sections above) merged onto master (L29i) on top of what Codex
+landed on 30 Oct (PERF NIGHTLIGHT / NIGHTVISIBILITY): it keeps Codex's work and adds the frame's real levels plus the
+night eye's grade.
+- THE EASE'S SEED: Codex's form (`!Number.isFinite(LE.setEx) || ...`), not G2601's: the same fix, landed first.
+- THE KEY'S AIM: ONE place. Codex's rule (the moon when SKY_LIGHT.isMoon, after applyDay) now calls G2600's
+  keyAim(d), so SUN (2 deg floor, the shadow maths) and KEY_SKY (the true direction: the spray, the glare, app.js's
+  flare) move together. G2600's own post-applyDay keyAim(day.moon) was dropped as a duplicate.
+- THE FLOOR UNDER THE PRE-EXPOSURE: Codex's nightFloor is an EXPOSED level. Under P the hemisphere is in units x P and
+  the renderer's exposure is ex / P, so applyDay hands it ex / P. Without that, the floor came out 2^14 too weak and
+  the land went black again.
+- THE PROBES: one cut for a clock cut (Codex: LE.cut) or a P switch (G2620: preCut), so both bake at once.
+- aa_resolve: master's shared-uniform blit (G1998c) and the eye's GPU factor (EYE-GPU) kept. The night eye runs after
+  the eye's factor, before the one tone map. The blit's uniforms take LIGHT_RIG.nightU by reference, and the fragment
+  text is built at the material (fs()).
+- GATE LIGHT's G2620 sweep over master's sources since 9 Oct: 12 new writers, all outside the world's light (a prop
+  icon's offscreen scene, a zero-intensity warm group, the load card's plate, the car prints' black, the premises
+  editor's discs), tagged pre-ok. studio.js (the phone garage's black studio) is exempt as a whole: the garage, P = 1.
+  The probe-cut assertion now reads the merged form. GATE LIGHT PASS.
+- STILL OPEN from G2620 (9 Oct): the ~1 s glint on the water toward the sun after the switch at -6.5 deg, and the
+  aeroplane's own lights and the panel at night not yet seen in a still. Both are judged on the NIGHT-LOOK bench:
+  tools/night_shots.js --scene ref|user --step step1 (refscene/<step>/ in the evidence).
+- THE NIGHT EYE'S STOP: NIGHT_DEF.eye 0, not 1. The +1 of 8 Oct was over a +15 night, and Codex's +16 is that same
+  level. So the deep night stays at +16 (GATE ATMO's 12..16), and the eye's stop is a dial on the left rail's NIGHT
+  (moon_ui.js). The grade itself (night colour 0.9, blue 0.6, colour vision 3 cd/m2) is the 8 Oct default.
+- Codex's gates follow the merged shapes: NIGHTVISIBILITY (the floor at ex / P; the probe block's `LE.cut ||
+  preCut`) and NIGHTEXPOSURE (the aim block run with keyAim, and KEY_SKY asserted too).
+- Run here (node only, none boots a browser): LIGHT, ATMO, NIGHTEXPOSURE, NIGHTVISIBILITY, AA, POSTFX, WATER, PROGRAMS
+  PASS. OWED in a slot: CLOUD (it boots headless Chrome on the GPU), DAY, UISMOKE, and the core battery + FRAMECOST.
 
 ## TRAIN PHONE-1a (A0, Mon 2 Nov) - the phone garage, release 1a (the user's night test): the layout, no more 8 s slider waits, the phone look, the CG chip
 
@@ -310492,6 +310663,21 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
   2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
 - IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
   Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
+### 6. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; on L31a adc53b25b)
+
+The user: "Focus on the aft bulkhead really". The study (claude/aft-bulkhead-look) found the wall shows only from forward of the beam,
+through the rear side glass, near black on tube, alloy and composite builds. Rows in the garage's aft wall group, all absent at default:
+bhStep bhShelfY bhShelfD (a hat shelf and recess), bhBevel, bhTwoTone (section bulkTrim), bhRelief bhReliefH (1 beads, 2 rolls, 3 frame),
+bhFast (1 screws, 2 rivets, section toele), bhNet (section baggage), bhLamp bhLampY (1 dome, 2 LED strip, 3 both), bhSling (tube builds).
+- WHERE: `cageInterior`'s bulkWall in `tools/_cage_gen.js` (flat in z, arcs cut by slicing the skin at a station, faces pushed to `add`),
+  `wallLamp` in `tools/_cage_light.js` (finds the wall by its `bhFace` faces), the rows in `tools/_cage_page5.js` and `_cage_parts.js`.
+- WHY THE STRIP IS STRAIGHT: the user 4 Nov, on it following the top edge: "do not follow this strange maybe ceiling path". It bends only
+  under a true round arch (`isArch` in wallLamp).
+- GATES AND GAPS: `reports/evidence/AFT-BULKHEAD/READY.md`. Stills: claude/aft-bulkhead-shots, `.../AFT-BULKHEAD/rows/ROWS.md`.
+  Default builds identical against L31a; FRAMECOST red only on master's own 5 rows.
+- OWED: L31c: the net under the lamp on shelf builds, relief on the upper panel, a smoothed inner outline. Next round: the Cub sling
+  clears the rear seat, accessories and placards, the Mosquito's flood lamp through the deck.
+
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
@@ -311354,3 +311540,221 @@ BATTERY (66 + WEATHERPLAN + WEATHER run by hand on the same tree, both PASS): 58
 Red, standing: STOL (the fixture predates tank-fit: the same 7 rows as L30c, re-capture owed), VEHICLE (2 rows), DMGSKINGPU + DMGWRECK (first red at L30c's tank-fit), FRAMECOST (the same 5 rows as L30d), MEDIA (index.html 5.05 MiB gz against the 5 MiB budget: no page-size work, the user 14 Oct), ASSETS (same list as L30d), GEO (media/geo/chars not named by any manifest the gate parses: those files are unchanged since 26 Oct).
 Red, NEW and a rig fault: NIGHTVISIBILITY. Its check cuts jump() out of src/viewer/day_clock.js into a vm, and weather-season's jump() now calls seasonLand, which is declared outside the cut ("ReferenceError: seasonLand is not defined", tools/_nightvisibility_check.js:17). The game declares it at day_clock.js:138; the fix is a stub in the rig's context, for L31b.
 TIMED (light): 45 red against the 12 Oct baseline (L30d 49), the same boot picture: warm nav -> garage 103.5 / 131.6 s. Named on the perf-week list.
+
+### PLANE-THUMB-CARDS reconciled with NEW-PLANE-THUMB (4 Nov, A0): one picture per candidate tile
+src/viewer/new_plane.js keeps PLANE-THUMB-CARDS' npThumb: the tile asks once for PLANE_THUMB.get('cand:' + c.file), and a 'plane-thumb' event fills the tiles still without one, in place, with no redraw of the screen. NEW-PLANE-THUMB (cloud session 01RorUqE6GL185zmnCrbumTb, 1187cae58) is dropped from L31b; its thumbOf, its redraw and its editor.css row are not taken, its GATE NEWPLANE row is (a tile wears the picture when PLANE_THUMB answers, today's tile without it). Archetype tiles keep their SVG. PLANE_THUMB itself lands from claude/plane-thumb.
+## FLOATS-CLASSIC - THE EDO-STYLE ROUNDED-DECK FLOAT: A STYLE OVER THE SAME ROWS, AN EDO CATALOGUE TO THE DC-3's MODEL 78, THE WIPLINE LINE TO THE BIT (2026-11-03, FLOATS-CLASSIC for A0, a CLOUD session: node + SwiftShader, no GPU; branch claude/floats-classic off master adb2d2a9 = train L30b)
+The user (3 Nov, via A0): "another model of floats. A rougher one, with rounded top, feels more home made ... We have the
+Wipline line, this one could be called something else, but use the same controls? ... Or maybe have 3? But let's not make
+it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on EDO 28000 floats, that's a cool target".
+- THE FAMILY (sources: reports/evidence/FLOATS-CLASSIC/README.md): the PA-18S's TCDS 1A2 lists Edo 89-2000 floats; the
+  PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963); the 89-2000 is ~16 ft bumper to transom, 263 lb a pair
+  installed; the C-47C / XC-47C (1943, and N130Q flying today) on EDO Model 78s: 42 ft, 5 ft 8 in of beam, 29,000 lb a
+  float, about a ton each. The model number is the float's buoyancy in pounds fully submerged.
+- HOW TODAY'S FLOATS WORK (the map, file:line on master adb2d2a9): the hull is ONE section family, src/core/32_hydro.js -
+  DEF (the Wipline 2350's lines at 4.6 m) 166, keelTable 277, deckAt 310, sectionOf 325, secPoly 372 (the physics
+  polygon K C E D), makeFloat 377 (the panels: bottomF/A, side, bevel, deck, step, bow, stern; volDeck), secAreaTo 507,
+  levelVolume 1395, FLOAT_PRESETS 1734 (15 Wipline rows), FLOAT_SPEC_KEYS 1770, fineParams 1805 / presetParams 1818 (the
+  fineness fit to the row's flotation), floatAdvice 1850 (the reserve: the pair's displacement over the all-up mass,
+  1.8 needed). The drawing reads the same sections at drawing resolution: tools/_float_gen.js ringSide 140 / buildHull
+  232 / buildDeck 482 / build 651. The editor: tools/_cage_float.js (the rows 107-150, hullParams 157, the post 396: the
+  hull, the truss, the stand), the join copies FLOAT_SPEC_KEYS into spec.gear.floats (tools/_cage_join.js 410), the
+  normaliser clamps them (src/core/60_gen_spec.js 5215), the frame builds five stations a float and hands the record's P
+  to HYDRO.makeFloat (src/core/61_gen_frame.js 2599) - the panels the water pushes on are the drawn hull's. The
+  "hydro tables / _hydro_gen.js" of the brief: tools/_hydro_gen.js is a 7-line shim; there is no table - the hull is
+  computed from the section family every time.
+- THE STYLE (`fltStyle`: 0 'Wipline (flat deck)', 1 'EDO classic (round top)'; names proposed below). Every hull row
+  drives both. The classic is three numbers on the record, ABSENT on a Wipline (EDO_STYLE: crownK 0.16, bowDrop 0.12,
+  noseMul 1.8, plus `style: 'edo'` as a string): THE DOME - the centreline at the deck line (the H row: the box is the
+  rows' box), the deck edge crownK H under it, a quarter ellipse between that leaves the side vertical and arrives level;
+  THE BOW - the deck rolls down over the forebody's forward half to a nose bowDrop lower, the nose round x noseMul (the
+  soft curve that wears the bumper), the rocker meeting that lower nose. The bottom (deadrises, keel flat, step,
+  afterbody) is the rows'. PHYSICS (WYSIWYG): sectionOf gains `yt` (the crown; a Wipline's yt === yd), secPoly a dome
+  (E, D at 30 deg, M at 60 deg, T on the centreline; D and M pushed out DOME_K = 1.0263 so three facets hold the drawn
+  six's area), makeFloat its panels (8 quads a slice for 7, the step slivers, the bow and stern caps), secAreaTo /
+  levelVolume / volDeck / floatAdvice read it: the drawn hull is the physics loft's within 0.10 % on every EDO row
+  (a Wipline is -0.26 %, as it was). The dome is honest: the same rows flat-decked hold 953 kg, domed 907 (the EDO
+  2000); the PA-18's own floats in the classic style hold 1115 kg a float against 1171.
+- THE CATALOGUE (EDO_PRESETS, kept APART from FLOAT_PRESETS: the advisor, the Wipline indices and every saved fltPreset
+  are untouched; the preset row lists them after `custom`, index 16+, and a pick sets the style): EDO 1320, 1650, 2000,
+  2440, 2870, 4580, 7170, 78-28000. `flot` = the model number in kg; L / B sourced where a source exists (1320, 2000,
+  Model 78), else scaled from the displacement on the Wipline line; H then SOLVED so the fit lands at fineness 0.1 (23-25
+  deg of deadrise: NACA TN-716's 20-25 for V-bottom floats - the Wipline line's heights put an EDO at 32-34). est: true
+  on every row but the Model 78's L and B.
+- THE DRAWING: _float_gen ringSide's dome branch (the same point count, the loft one grid), buildDeckEdo (no non-skid
+  coating; a round hand-hole cover a bay on the crown, a pump-out cup a bulkhead on the shoulder, horn cleats bow and
+  stern, the spreader saddles and strut fittings ON the dome via HYDRO.deckYAt), the bumper 22 mm thick and 13 cm deep
+  (a Wipline's 12 mm x 4 cm). The layer: the hull on the new section `floatBare` (pinned finish `agedAlu`, its own colour:
+  bare grey whatever the aeroplane is painted), the rivet field at an EDO's bulkhead pitch (a seam every 0.6 m, a row
+  every 0.3 m round, x sqrt(scale) on the big floats: the same shader grammar; 0.45 x 0.17 m read as reptile scales -
+  every bay is an oil-can dish in the grammar), the deck board (`fltBoard`, EDO only: three spruce planks fore and aft across the spreader bars, the
+  section `floatBoard`). `agedAlu` is one new AERO_FINISH row and its sheet bake 'panels' (2 mismatched skins a 2.4 m
+  tile, each its own shade and sheen eased across a tenth of the sheet - colour, not relief: a hard step drew a ridge
+  at every cell edge -, a faint lap groove, a few scuffs) - a texture, no new program (the
+  hook's source is the program key; nothing in the GLSL moved). DRAWS (the PA-18 build's float layer, headless): Wipline
+  19 meshes / 11 materials, EDO classic 17 / 9, with the board 18 / 10 - never more than the Wipline. Phone: the lite tier drops the structure grammar
+  (the rivets) and the field as on every skin; the panels sheet stays (one fetch the skin made anyway).
+- THE DC-3 (A0's target): the rows, the normaliser and the sliders reach the EDO Model 78. The normaliser widens ONLY for
+  a record that says style 'edo': L 12 -> 16, B 1.6 -> 2.2, H 1.5 -> 2.0, mFloat 600 -> 2000, wrArea 0.6 -> 1.2, wrDepth
+  0.8 -> 1.4, scale 3 -> 4, xAft 2 -> 3, track 2 -> 4, y -2.5 -> -4.5, x 6 -> 12; every Wipline record keeps its bounds to
+  the bit. The editor's sliders are wider for everyone (fltL 14, fltB 1.9, fltH 1.5, fltMass 1200, fltTrack 3.5, fltDrop
+  3.0, fltStrutR 0.09, fltSpreadAft 2.4): a slider's range is the UI's reach, never a saved value. The candidate
+  (builds/candidates/dc3_2026-10.json, its old float record cleared - G3700 held its station) on 78-28000s, half track
+  2.6 m (under the nacelles), keel 2.9 m under the belly (the 3.4 m props 0.55 m over the decks): 10,702 kg, the pair
+  26,449 kg to the deck, RESERVE 2.47; afloat 2.1 deg nose up, 0.72 m of keel draft (the stern deck edge awash, the crown
+  0.13 m over it - an EDO at gross); taxies 127 m in 30 s at a quarter throttle; the hydroplane run lifts off at 43 s,
+  37 m/s, 804 m (hump R/W 0.13 at 16.5 m/s).
+- PHYSICS, MEASURED (node, the hydroplane run's own loop): the PA-18 floats build, Wipline -> EDO classic: lift-off 22.7
+  -> 22.6 s, 236 -> 235 m, the hump R/W 0.164 -> 0.163; rest trim -0.9 -> -0.6 deg; the deck edge's least freeboard 12 ->
+  3 cm (the dome takes the corner). The Cessna floats build: 23.7 -> 23.5 s, 350 -> 348 m; reserve 2.13 -> 2.01.
+- ABSENT AT DEFAULT: every Wipline hull (15 rows + DEF) hashes to master's (GATE FLOATSCLASSIC pins it); the PA-18 and the
+  Cessna floats builds through the game's load path give master's spec but for the two new cage rows at their defaults
+  (fltStyle 0, fltBoard 0) and an identical def (nodes, beams, float hulls).
+- GATE FLOATSCLASSIC (core, ~1 s warm; the join's children ~25 s cold) and FLOATSCLASSIC-WATER (full, ~6 min): see the
+  gate's header.
+- TOOLS: plane_shot.js passes &idle=0 (PHONE-EDIT-PERF's idle hold froze the phone shed's canvas 5 s after the last touch:
+  every still on master failed "hiding it changes 0.00 % of the pixels") and has a bow:<az>/<el>/<dist> view;
+  float_water_shot.js is water_look_shots' float scenario for a Linux cloud box (stills only).
+- A THIRD FAMILY (the user's Super Legend on PK amphibious floats): NOT a third deck style. A PK is a flat-deck, flat-
+  skinned deep V (the Wipline style already is one); what makes it a PK is the amphibian - retractable wheels in the
+  hull, a nose wheel in each bow - which G451 left owed. When the amphibian is built, PK rows (PK 2050A for the Super
+  Legend) are a preset on the Wipline style. Two styles, no headache.
+- NAMES PROPOSED (the row reads 'EDO classic (round top)'; the user picks): "EDO classic", "Bush float", "Round-top".
+- GATES (node): new FLOATSCLASSIC (core) and FLOATSCLASSIC-WATER (full) PASS; FLOATKIT, FLOATS, SEAPLANE, HYDRODYN,
+  HYDRO, WIPLINE, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD
+  PASS (SKINMAT: agedAlu on the bare-metal list; PARTS: the Floats part claims fltStyle / fltBoard and the two
+  sections). RED HERE AND ON A CLEAN origin/master, the same lines: CLIP (navAerial 9.2 mm into edFinSkin on
+  stock+ifr), JOINPARITY (3 rows), LIVERY (its harness: garageFloodArm is not defined). Evidence and pictures:
+  reports/evidence/FLOATS-CLASSIC/.
+- Owed: the user's eye on the dome's height (crownK 0.16) and the bow drop; the classic's own afterbody (it wears the
+  Wipline's G1930 plan); the EDO rows' heights are fitted, not measured; the DC-3's floats at the rule station sit 2.1 deg
+  nose up - fltZ is the builder's dial.
+- MERGED origin/master e6bcfb36 (train L30c) at the end: master had added plane_shot's &idle=0 itself (NEW-PLANE), kept;
+  the bow view kept. On the merged tree 16 gates PASS (FLOATSCLASSIC, FLOATKIT, FLOATS, WIPLINE, HYDRO, JOIN, SAVE, PARTS,
+  DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE: evidence gates_merged_L30c.txt); the long
+  ones (UISMOKE, HYDRODYN, SEAPLANE, FLOATSCLASSIC-WATER) were green on the pre-merge tree (gates_final.txt).
+
+## FLOATS-CLASSIC.2 - THE EDO SECTION MEASURED OFF A PLAN, NOT EYEBALLED; EVERY FLOAT MODEL WEIGHS AND COSTS (2026-11-03, FLOATS-CLASSIC for A0, cloud - node + SwiftShader; branch claude/floats-classic)
+The user, on the first cut: "I still find them a tad flat on top ... Did you find blueprints or accurate measurements?
+If not, we'll need these not to eyeball it ... It needs to come with weight and price". Answer: no - the first dome
+(crownK 0.16 of H over a flared side) WAS eyeballed; a web search found no EDO offsets (none reachable: NACA WR L-722,
+EDO drawing 14390 and the 1997 Model Aviation pattern are the leads, all behind the network). The user then supplied a
+giant-scale (1/4-1/5) EDO float plan: top view, side view, a dozen formers.
+- MEASURED (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_section_measured.png): every former's topside is
+  ONE QUARTER ELLIPSE from the chine - the widest point - to the crown (the half-widths sit on sqrt(1 - s^2) within
+  ~0.03 of the beam but the noisiest rows); height 0.74-0.80 of the beam, the chine at 0.30-0.33 of the height, ~25 deg
+  of slightly convex V; the top view: length 6.7 beams, a blunt bow (0.55 of the beam at 3 % of the length), the
+  afterbody closing almost linearly to a 0.70 stern. The eyeballed top had a near-vertical wall with a shallow cap.
+- THE HULL NOW (32_hydro): crownK 0.97 = the dome from 3 % of the topside over the chine; the dome's height is the STEP
+  section's over the higher of its two chines (domeStep, cached non-enumerable like _keel), so the topside is one curve
+  across the step (tying it to the local chine leaked the loft at the step: closure 0.01-0.08 m2 in x); the hull-width
+  row is the CHINE beam (chineHalfStep); the physics section is the drawn one - six 15 deg facets a side, DOME_K gone -
+  drawn = physics within 0.09 %; the lower two dome facets are 'side' panels (the water runs on them), the rest
+  'deck'; hullSide's depth reads yt (a flat deck's yt is its yd, to the bit). EDO_AFT: the afterbody plan held 0,
+  closing linearly (aftPow 1) to bStern 0.70. The frame's float deck nodes and the drawn fittings sit on the dome's
+  upper shoulder (0.72 of the half-beam: the deck edge is the chine now); the water rudder's post reads the crown; the
+  paddle rides the ellipse's flank. The normaliser's crownK clamp 0.4 -> 0.985 (it was flying a smaller dome than the
+  drawing - GATE FLOATSCLASSIC caught it).
+- THE CATALOGUE: L sourced where it is (1320, 2000, Model 78), else the 2000's by the cube root of the buoyancy; B = L /
+  6.7 (the Model 78's sourced 1.73); the fineness pinned at 25 deg and H solved for the model number: H lands at 0.80 of
+  the beam on every row (0.69 on the long 1320) - the plan's band; the fit then lands at 25-26 deg.
+- WEIGHT: sourced figures in - the 1320 pair 165 lb installed (75 kg), the 2000 263 lb (119), the 2870 ~410 lb (185, off
+  a 2960's 425), the Model 78 2,284 lb A FLOAT (`mHull` 1036 kg: presetParams takes a row's own hull mass over 0.40 of
+  the system).
+- PRICE (HYDRO.floatPrice, credits = 2025-26 dollars, the PAIR rigged and installed; FLOAT_PRICE_RATE): EDO is out of
+  production - the used market + ~5,000 to install: 1320 12,000, 2000 15,000, 2870 14,500 sourced (forum and listing
+  figures), the rest on their line 5,000 + 85 / kg of system (est.); Wipline new, quote-only: the 2100 55,000 (an older
+  36,300 + 5,300 installed quote read to today; est.), the rest at 440 / kg (est.). A row prices its own family only (a
+  Wipline row's name on a hull turned EDO is priced as an EDO); custom dials at the family's rate on mFloat / 0.40.
+  61_gen_frame bills it in the 'gear' row IN PLACE OF the wheels (a float build paid for two wheels and a tailwheel it
+  did not have, and for floats nothing): the PA-18 floats build's gear row 3,140 -> 56,990 credits. This moves every
+  float build's ledger cost (Wipline included) - an economy change, no physics. The row labels, the float card and the
+  status line show weight and price.
+- MEASURED ON THE WATER (GATE FLOATSCLASSIC-WATER): the DC-3 on 78-28000s 11,115 kg, reserve 2.37, 1.9 deg nose up,
+  0.74 m of draft, lift-off 53.4 s / 1006 m; the PA-18 in EDO classic over its Wipline rows: 973 kg a float to the deck
+  (the flat deck's 1171), reserve 2.58, lift-off 23.5 s / 245 m (Wipline 22.7 s / 236 m).
+
+## FLOATS-CLASSIC.3 - THE WHOLE EDO HULL OFF THE PLAN: THE BELLY, THE PROFILE, THE SIDES (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .2: "the belly looks exactly the same as the Wipline line. And I'm not even sure there is the shoulder in the
+one I gave you ... did you pay sufficient attention ... to the actual profile and the shape of the float". No: .2 read
+two small formers (one with its chine cropped off) and kept the Wipline's bottom, profile, bow and step.
+- READ (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_measured_vs_model.png): all six formers, the top view
+  and the side view, on x4-x5 crops with an original-pixel grid. SECTION: widest at the chine, the sides LEAN IN ~23
+  deg (19-30) to a shoulder at 0.69 (0.63-0.74) of the half-beam, ~2/3 up the topside, a round top over it; no chine
+  lip; height 0.67-0.83 of the beam; the BELLY CONVEX on the big mid-body formers (A, B, D: ~10 deg from the keel, ~31
+  to the chine), a straight V at the ends; ~23 deg (not .2's 25). PROFILE (the side view, drawn tilted 4.6 deg, read
+  against its deck): a LEVEL deck (parallel to the flat keel: no sheer), the keel flat over ~0.4 of the forebody, a
+  convex rocker into a raked round bow (the nose's front 0.85 of the depth), NO near-vertical stem, a small step (0.12
+  of the depth; a Wipline's ~0.17) at 0.573 L, a stern 0.385 of the depth deep. PLAN: L/B 6.65, the beam full 0.29-0.53
+  L, a blunt bow, a linear afterbody to 0.70. The side view reads ~13 % deeper than the formers at the same beam: only
+  its ratios are used.
+- MODEL (32_hydro): EDO_STYLE = crownK 0.34 (the arc's share of the topside) + shoulderZ 0.69 + tumble 23 (the arc's
+  tangent at the shoulder) + belly 0.5 (the bottom's mid point at half the straight V's height, faded to a straight V
+  by 0.8 of the forebody / 0.9 of the afterbody) + sheerK 0; bowDrop / noseMul retired (still read if a record has
+  them). The section: K, M (the belly's mid), C, the leaning side to E (the shoulder), six arc facets to T - the drawn
+  ring's own points (edoArc), the physics' two bottom facets each with its own deadrise. THE SIDE IS ONE SKIN THROUGH
+  THE STEP (domeStepRec): the afterbody's side is the side, the forebody's chine a little wider at the step (2-3 cm a
+  side on the 2000, faded by 0.3 of the forebody) - both on the plan's beam left the afterbody's side outboard of the
+  forebody's, a forward-facing lip, and the loft leaked (0.01-0.08 m2 in x). EDO_HULL (an EDO preset writes these
+  rows): step 0.573 L / 0.12 of the depth, keel flat 0.34, stem 0.40, rake 45 deg at xs/H 5.2 (rescaled to each hull's
+  own proportions), nose round 0.15 - fitted to the plan's eight keel points within 0.01 of the depth - deadrise 23 /
+  bow 26 / aft 22, planK 5.5, flare 0; the afterbody angle solved for a 0.385 stern. edoPresetParams: the plan's
+  proportions (L/B 6.65, H/B 0.80) SCALED to the model number's buoyancy - the EDO 2000 4.67 m (15.3 ft; the owners'
+  16 ft is bumper to transom), the 1320 4.07 m; the Model 78 keeps its sourced 42 ft x 5 ft 8 in and its height is
+  solved (0.70 of the beam). FLOAT_GEN: the EDO's drawn bottom has the belly's crease, its keel round the inner facet's
+  slope, its chine round the outer's; no sister keelsons or chine straps (the plan notches its stringers INSIDE) - the
+  keel strip only. Fittings and the frame's deck nodes at 0.85 of the shoulder's half-width, on the arc. Drawn =
+  physics within 0.04 %; every Wipline hull master's to the bit (the pin).
+- PICTURES (the user: "use the simple rendering tool for screenshots, not the game"): tools/quickshot.js - the PA-18 on
+  Wipline 2100s vs on EDO 2000s (its certified float) head on and side by side, the Cessna on EDO 2440s, the DC-3.
+- Not modelled: the formers' station-by-station variation beyond the belly fade (one mean law); the plan's slight
+  shoulder knuckle (smoothed to ~10 deg between facets); the internal stringers.
+- GATES (round 3, on the tree merged with master L30d 05f95aa7): FLOATSCLASSIC, FLOATSCLASSIC-WATER (13/13), FLOATKIT, FLOATS,
+  WIPLINE, HYDRO, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE PASS; GEN,
+  UISMOKE, HYDRODYN, SEAPLANE PASS on round 2's tree (gates_round2_GEN.txt; round 3 moved the EDO hull only). RED, the same
+  rows on a clean L30d (gates_master_L30d.txt): LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows, node =
+  page on five builds since L30c).
+
+## FLOATS-CLASSIC.4 - THE FLUTED "BATMAN" BOTTOM, THE VINTAGE VENTRAL, THE RIVER-STONE RUDDER (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .3, reading the plan with us: the big formers ahead of the step are "a Batman figure" - each half of the V
+is little circle arcs cut slightly into it, of one radius, barely meeting; the smaller formers and those aft of the
+step are straight. Also: the plan's ventral fin ("a tic-tac shape on one side, and then it just goes further toward the
+fore side") and the water rudder ("a very vintage rounded ... river stone-like profile").
+- .3 WAS WRONG ABOUT THE BELLY: it read the ridge's cusp as a CONVEX belly. Measured again (formers A, B, D): the ridge
+  at 0.55 of the half-beam, 7.4-9 % of the half-beam below the straight V; each arc's sagitta ~6 % of its chord.
+- MODEL (32_hydro sectionOf): EDO_STYLE `belly` retired for `flute` 0.08 (the ridge's drop over the half-beam; the arcs'
+  sagitta 0.75 of it), full from the step to half the forebody, gone by 0.85 of it, none aft. `s.flute` = six drawn
+  points a side (two on the keel's arc, the ridge, three on the chine's - parabolas of the sagitta); `s.fluteP` = the
+  physics' ridge, RAISED by exactly the area the flutes cut in (polyline shoelace, closed form) so the physics stays two
+  bottom facets a side (668 panels; four facets doubled the water's cost). Drawn = physics within 0.09 %.
+  FLOAT_GEN ringSide: the EDO's keel and chine are sharp, so the keel round's slots + support carry the first arc and the
+  ridge, the chine support + the chine round's four slots the second arc, the chine and a hair of the side (RING_N and
+  BOTTOM_N unchanged, the loft one grid). The Wipline branch is the old code (the pin holds).
+- THE VENTRAL (_cage_fin, row `finVentralShape` 1 "vintage lobe", any card): u0(v) = 0.36 (1 - sqrt(1 - v)) - a PARABOLA
+  from the tip on the belly (~50 deg on the plan) tangent into a level bottom, a round aft end over 0.82-1.0. Its area
+  0.841 c h (was 0.884 with a quarter-ellipse nose that started vertical); the join flies it. An EDO preset sets the
+  lobe at chord = depth / 0.33 (the plan's ~3.0).
+- THE WATER RUDDER (FLOAT_GEN, EDO only): a superellipse pebble (n 3 above, 2.2 below), 1.15 as wide as tall (was 0.95),
+  its area wrArea and foot wrDepth - the numbers waterRudder() reads.
+- PICTURES (tools/quickshot.js): edo_details_plan_vs_model.png (the plan's former A, ventral and rudder beside the
+  model's), the head-on, side and three-quarter shots regenerated.
+- WATER (floatsclassic_water4.txt, 13/13): PA-18 on EDO 2000s reserve 2.45, lift-off 23.8 s / 232 m; the PA-18's
+  Wipline rows in EDO style 2.42, 23.1 s / 238 m; DC-3 on EDO 78-28000s reserve 2.39, 2.5 deg afloat, 57.6 s / 1,040 m.
+  Physics panels unchanged (668 an EDO hull).
+- GATES (gates_round4.txt): FLOATSCLASSIC, FLOATSCLASSIC-WATER, FLOATKIT, FLOATS, WIPLINE, HYDRO, HYDRODYN, SEAPLANE,
+  JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD PASS. RED, the
+  same lines as a clean L30d: LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows).
+
+## A0 - train L31b, 4 Nov 2026 14:45
+
+IN (on L31a master adc53b25b): ready/nightvis-rig c96f522ae (A0), ready/nose-job-crew 9a956beaf (A0: the sliced nose job survives a crew change; node gates only, its page proof is AIRCRAFT-LOOKS' 15:30 probe), ready/stol-fixture-2 e077a37ae, ready/pilot-yawrate a9c1691ab (G3913, the Cub's sway), ready/gear-falls 069972044 (G2016), ready/twin4b-elec c7ea82dc5 (lead + gen20, bay 0.34, nav only by day), ready/empty-stand 0c24a98ca, ready/plane-thumb 42b9b323e, ready/plane-thumb-cards b597df34a (holds new-plane-thumb's row), ready/floats-classic d18ecea73, ready/aft-bulkhead e266fb9a7, ready/night-look-1 dad5bfdb1. A0 removed the stray builds/candidates/Twin_busher_floats_3.json a merge brought back (review/ holds it).
+OUT: tailwheels 2361f713d (a real conflict in tools/plane_shot.js with plane-thumb's tool commits): A0 re-cuts for L31c.
+BATTERY (76 asked, 74 kept): red, standing: VEHICLE, DMGSKINGPU, DMGWRECK, FRAMECOST (the same 5), MEDIA (now 5.10 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE (master's since before gear-falls).
+Red, new and NOT breaks:
+- STOL: 6 join rows again, the fixture is one train old: a spec row moved in this train. Re-capture once, after the last train.
+- CLOUD: 1 of 246, a source-pattern row on `const LAMPS` that night-look-1 changed the gain of: for NIGHT-LOOK, L31c.
+- WEATHER: finish agedAlu (floats-classic) has no substrate row: A0, L31c.
+- CONTRACTS: c172f.cost 95731 vs the certificate's 161775.4, twinf.cost 35551 vs 56250.9: floats-classic moved the float cost. Game, L31c; the market's numbers stale until then.
+- ASSETS adds orphan media/thumbs rows: the thumbs' manifest is not one the gate parses, with L31c.
+DMGSCAR's Cub restOut + metal gouge pass only because the wreck lies differently: causes (stol-wing, cert-pod) NOT fixed. Gear-falls costs GF1-3 on the perf-week list. PLANE_THUMB's first draw froze the page 7.5-8.7 s in its rig: on the list, real-path timing 15:30.
+TIMED (light): 48 red against the 12 Oct baseline (L31a 45), warm nav -> garage 108.5 / 112.6 s, nothing new named.

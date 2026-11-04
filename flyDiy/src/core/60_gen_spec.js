@@ -439,6 +439,9 @@ const GEN_DAMAGE_DEFAULT = true;
 //     the Jodel's card read 6.14 g against the band's 6.14; at a third 6.06; at a quarter 6.05 - the crashes alike);
 //   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
 //     (sim.damageBreak: "this joint let go") release it whole, as before.
+//   - GEAR-FALLS (the user, 4 Nov: "broken landing trains were really one of the first asks ... the plane has to behave
+//     like it loses a connection, a wheel, a leg"): NOT a wheel's gear. One load member of a leg or a tailwheel, severed or
+//     kinked, lets its joint go whole (30_solver gearGrp); its wires only snap. A float's struts keep the third.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
@@ -5251,31 +5254,37 @@ function clampSpec(spec) {
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
     const f = S.gear.floats;
+    // FLOATS-CLASSIC (2026-11-03): an EDO-style record ('edo', the only style a record names - a Wipline carries none)
+    // may be an EDO Model 78 (the DC-3's: 12.8 m, 1.73 m of beam, ~1 t a hull), so ITS length, beam, hull mass and
+    // rudder depth get room the Wipline line never needed; every other record keeps the bounds it had, to the bit
+    if (f.style != null && f.style !== 'edo') delete f.style;
+    const big = f.style === 'edo';
     // G451: THE WIPLINE FAMILY (32_hydro DEF): the catalogue runs 4.6-9.9 m;
     // every key absent falls to the family's own (scaled to the length) in
     // the frame, so only what is present is clamped. A record from before
     // G451 (yBow, bBow, hSide, xFlat) carries keys the family no longer
     // reads; they ride along harmlessly and the hull is the family's.
-    f.L = genClamp(f.L || 4.3, 2.0, 12.0);
+    f.L = genClamp(f.L || 4.3, 2.0, big ? 16.0 : 12.0);
     f.xs = genClamp(f.xs || 0.553 * f.L, 0.3 * f.L, 0.7 * f.L);
-    f.B = genClamp(f.B || 0.67, 0.3, 1.6);
+    f.B = genClamp(f.B || 0.67, 0.3, big ? 2.2 : 1.6);
     f.beta = genClamp(f.beta == null ? 22 : f.beta, 0, 45);
     f.betaA = genClamp(f.betaA == null ? Math.min(f.beta, 18) : f.betaA, 0, 45);
     f.hs = genClamp(f.hs == null ? 0.013 * f.L : f.hs, 0, 0.2);
     f.aftAngle = genClamp(f.aftAngle == null ? 6.5 : f.aftAngle, 0, 15);
     f.bStern = genClamp(f.bStern == null ? 0.42 : f.bStern, 0.15, 1.0);
-    for (const [k, lo, hi] of [['H', 0.2, 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
+    for (const [k, lo, hi] of [['H', 0.2, big ? 2.0 : 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
                                ['rake', 0, 35], ['noseR', 0.02, 0.45], ['planK', 1.0, 5.0], ['flare', 0, 15], ['bevel', 0, 0.08],
                                ['rChine', 0, 0.05], ['rGun', 0, 0.08], ['rLip', 0, 0.04], ['rTransom', 0, 0.06],
                                ['railW', 0, 0.1], ['railT', 0, 0.02], ['keelW', 0, 0.12], ['keelH', 0, 0.03], ['skZ', 0.2, 0.8],
-                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, 0.6], ['wrDepth', 0.05, 0.8], ['mFloat', 5, 600],
-                               ['fineK', -0.7, 1], ['scale', 0.3, 3], ['xAft', 0.05, 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3]])
+                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, big ? 1.2 : 0.6], ['wrDepth', 0.05, big ? 1.4 : 0.8], ['mFloat', 5, big ? 2000 : 600],
+                               ['fineK', -0.7, 1], ['scale', 0.3, big ? 4 : 3], ['xAft', 0.05, big ? 3.0 : 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3],
+                               ['crownK', 0, 0.985], ['bowDrop', 0, 0.4], ['noseMul', 1, 3], ['shoulderZ', 0.3, 1], ['tumble', 0, 40], ['flute', 0, 0.2]])
       if (f[k] != null) f[k] = genClamp(+f[k] || 0, lo, hi);
     if (f.preset != null && typeof f.preset !== 'string') delete f.preset;
-    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, big ? 4.0 : 2.0);
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
-    f.x = f.x == null ? null : genClamp(f.x, -3, 6);
-    f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
+    f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
+    f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
   } else S.gear.floats = null;
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
