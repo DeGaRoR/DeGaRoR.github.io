@@ -1,0 +1,28 @@
+{
+ "what": "flydiy-thumbs",
+ "v": 1,
+ "baked": "2026-11-04",
+ "view": "profile/0.9/480x240",
+ "thumbs": {
+  "cand:Twin_busher_floats_4b.json": "cand_Twin_busher_floats_4b.webp",
+  "cand:camel_2026-10.json": "cand_camel_2026-10.webp",
+  "cand:cub_fittings_hand_2026-10.json": "cand_cub_fittings_hand_2026-10.webp",
+  "cand:dc3_2026-10.json": "cand_dc3_2026-10.webp",
+  "design:c172": "design_c172.webp",
+  "design:c172f": "design_c172f.webp",
+  "design:cub": "design_cub.webp",
+  "design:jodel": "design_jodel.webp",
+  "design:twinf": "design_twinf.webp",
+  "cand:mosquito.json": "cand_mosquito.webp",
+  "cand:stearman_2026-10.json": "cand_stearman_2026-10.webp",
+  "stock:cessna 172": "stock_cessna-172.webp",
+  "stock:chinook": "stock_chinook.webp",
+  "stock:jodel D112": "stock_jodel-D112.webp",
+  "stock:jodel": "stock_jodel.webp",
+  "stock:piper cub": "stock_piper-cub.webp",
+  "stock:sailplane": "stock_sailplane.webp",
+  "cand:stol_cub_showcase.json": "cand_stol_cub_showcase.webp",
+  "cand:tigermoth_2026-10.json": "cand_tigermoth_2026-10.webp",
+  "cand:ugly_bi.json": "cand_ugly_bi.webp"
+ }
+}

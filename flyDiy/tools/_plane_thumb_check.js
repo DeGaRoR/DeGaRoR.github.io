@@ -71,6 +71,8 @@ async function run(src, files) {
   specNow = { cage: { a: 3 } };
   for (let i = 0; i < 40 && idles.length; i++) idles.shift()();
   ok(JSON.parse(store.get('flydiy.thumb.mine:A')).h === h, 'a draw whose stand changed under it stores nothing');
+  // (draw() is null on this stub whatever the stand does, so the line above can't see the re-check: the source is read for it)
+  ok(/if \(standHash\(\) !== q\.h\) return;/.test(src), 'saved(): the stand is re-checked before the draw');
   T.forget('A');
   ok(!store.has('flydiy.thumb.mine:A') && T.get('mine:A') === null, 'forget() drops the picture');
   // THE BAKE
