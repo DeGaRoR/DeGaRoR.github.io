@@ -88176,6 +88176,16 @@ declared". PILOTS' copy renamed `PLT_` (41 uses, same function, same text) and G
 
 READY for the GAME COORDINATOR: claude/freight-load-g2345 53aa937 (the code, the gates and the stills; the gate texts and this section ride one docs-only commit on top)
 
+## G2404 - SEATS-OUT: A CARGO LOAD THAT NEEDS THE ROOM TAKES THE EMPTY BACK SEATS OUT BY ITSELF, FOR THAT LOAD ONLY (2026-11-04, for the user: "maybe cargo missions should allow for removing the back seats temporarily?"; branch claude/ready/seats-out off master)
+
+The seat chips existed since FREIGHT-LOAD (G2346); the proposal never used them, so a load that only fits with a seat out opened with an item on the ground, and at a STOP (no view, the next leg placed by the packer) stayed there and the delivery was refused.
+- **77_ freightLoadBest**: every seat in when the whole load fits legally; else only the EMPTY seats it needs, the back row first, when that makes the whole load legal. Only possible over the limits: NEVER proposed (the user's call, 4 Nov) - the seats stay in, the item on the ground, the hand may still take a seat out (red and allowed). A passenger's seat never goes. The view opens on it (the bar says which seats), the chips put them back; a stop's next leg takes it (78_ freightStrapNext).
+- **Temporary**: the seats out live in the session and career.load only, never in the build; the record leaves at delivery, every seat is back.
+- **The stand** hides the chair while the accepted load rides (app.js fsChairs: the seat's identity group - the join's snapshot asks each mesh for its own `visible`, no bake changes). **The sim** takes the chair's kilos off (78_ chairsOff, 61_'s billing negated). The loading view's report does NOT take them off (the card has no seat masses): it reads a few kilos heavy, on the safe side.
+- **An item left on the ground is said** on the flight's warn line and the logbook's flags ('ashore').
+- **OWED, stated plainly: the chair still draws in FLIGHT** - it is baked into the flown mesh and the flown model has no seats of its own, so a crate in that space overlaps it until the join bakes seats apart (a bake + cook change, full process).
+- **Gates**: GATE FREIGHT rows (the crates on the C172, back row first, no more than needed, passengers' seats, a load that fits, the Cub's illegal two crates, the chair's kilos and station, a generated job at a stop, seats back at delivery) + 7 doctored rules; UISMOKE, PARKED, SAVE, BUILD. Pushed to ready only green.
+
 ## G2400-G2404 - FREIGHT-STRAP: THE ACCEPTED LOAD STRAPPED - POINT MASSES IN THE SIM (WORKER AND INLINE, BIT-EQUAL; NOTHING ACCEPTED = THE SIM UNTOUCHED), A JOB'S PASSENGERS IN THEIR SEATS, THE BAGGAGE ALLOWANCE OFF; THE LOAD DRAWN WITH RATCHET STRAPS ON THE STAND AND IN FLIGHT (3 DRAWS A LOAD); THE STOP DELIVERS AND THE NEXT STAGE ARRIVES PLACED; AN OVER-LIMIT LOAD SAID, NEVER REFUSED (2026-10-08 -> 11, FREIGHT-STRAP for the GAME COORDINATOR, local - the box's RTX 3080; branch claude/freight-strap-g2400 off origin/claude/game-integration 1f553a9d, worktree D:/Dev/wt-fstrap; G2404 unused)
 
 The brief: futureDesigns/game/FREIGHT-2026-10-07.md §2 (the user: "the load will be strapped visually and physically once
@@ -310065,6 +310075,177 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 - WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
+## G2600-G2601 - MOONLIGHT: THE NIGHT WAS BLACK BECAUSE THE EXPOSURE NEVER MOVED (LIGHT-SMOOTH's ease never made its first write, 3 Oct) AND THE MOON LIT FROM THE SUN'S SIDE OF THE GROUND (since G408); THE MOON AS THE KEY, THE PHASE LAW, THE NIGHT EYE, THE NIGHT'S DIALS; THE FRAME'S fp16 PRECISION MEASURED - A PRE-EXPOSURE PROPOSED, NOT BUILT (2026-10-08, MOONLIGHT for A0, local GPU; branch claude/moonlight-g2600 off train 40 bcf62797; G2602-G2609 unused)
+
+The user (7 Oct): "currently the night is absolutely dark, which is mostly fine, but can we have some full moon nights,
+where it's possible to see something, so VFR at night, even though super dangerous, becomes somehow possible?"
+
+### THE DIAGNOSIS (measured: tools/moonlight_shots.js, train 40 vs this branch, gamer and current, 1600x900)
+1. **G2601 - THE EXPOSURE WAS STUCK AT EVERY HOUR.** render_world's light ease (G1352, 79337daf9) starts `LE.setEx = NaN`
+   and wrote the exposure only when `Math.abs(LE.ex - LE.setEx) > step` - false against NaN, forever. exSet never ran;
+   lightEase then re-took the stale base every frame (`LE.setEx !== exBaseNow()`). The renderer kept the boot row's
+   1.12 since 3 Oct. Live on train 40: noon 1.12 (the schedule 0.92), 15:00 1.12 (1.04), 17:00 1.12 (1.34), sunset
+   1.12 (2.79), the full-moon night 1.12 (32 911: +15 stops). The night's whole adaptation never arrived; the day ran
+   +0.28 stop bright at noon and dim through the dusk. Fix: `!(abs <= step)`. ITS OWN COMMIT (42a140f76), because it
+   moves the day back to the schedule - noon_stand mean code 131 -> 120. **THE USER RULED (8 Oct, on
+   sheet_day_dusk_g2601.jpg, via A0): "yeah, that's better, keep that" - option A, the schedule as designed (noon 0.92,
+   the alps anchor).** Option B (EV_BASE 1.12, the whole curve +0.28 stop) was not taken and has no stills.
+2. **G2600 - THE MOON LIT FROM THE WRONG SIDE OF THE EARTH.** dayApply wrote SUN (the key's placement, the shadow maps,
+   the impostors' depth) from day.sun at every hour, held 2 deg over the horizon. Below -1.2 deg the key is the MOON
+   (sky_light's hysteresis) - so the moonlight came from the sun's bearing under the horizon, grazing at 2 deg: a level
+   field took sin 2 = 3.5 % of it and every tree's shadow ran for hundreds of metres (train 40's keyY 0.035 at every
+   night view; after 0.588 = the moon at 36 deg). The shed has aimed at the moon since S5 (hangar.js applyDay).
+3. **The phase law was linear** (a half moon gave 50 % of the full). Physically ~9 % (Allen 1973 / Krisciunas &
+   Schaefer 1991: m(a) = -12.73 + 0.026|a| + 4e-9 a^4): LIGHT_RIG.moonE(phase), read by the key, the sky, the clouds,
+   the mist - one law. Full 1, 75 % lit 0.23, half 0.091, quarter 0.026, new 3e-4.
+4. **An overcast let the moon through**: the clouds' ground shadow (the splice) and the CPU column (sunT) faded with the
+   SUN, so at night no cloud shadowed the moon. Both along the key now (the sun's by day: unchanged).
+5. **The default date has no night**: 21 June at 55 N - the 'night' preset is the sun at -11.5 with the half moon below
+   the horizon. NOT changed here (A0: SIM-CLOCK G2650 owns the clock and adds "next full moon"); the stills set dates.
+
+### THE NUMBERS (mean code over the 3D view, sky band, ground band; train 40 -> this branch with G2600 + G2601; gamer)
+| view (2026-09-26 00:30 AKDT, full moon 36 deg, unless named) | before | after |
+|---|---|---|
+| noon_stand (12:45) | 131 (ex 1.12) | 120 (ex 0.92: G2601) |
+| full_stand (the HOME stand, down the runway) | 1 / sky 4 / gnd 0 | 17 / sky 39 / gnd 7 |
+| full_sea_moon_ahead (300 m over HOME, toward the sea) | 1 | 34 / sky 48 / gnd 13 |
+| full_final (150 m) | 1 | 21 / sky 38 |
+| half moon (10-03 02:00, 52 % lit, 33 deg) | 1 | 2 (black: 9 % of the full) |
+| new moon (10-10) | 1 | 2 (black, as asked) |
+| overcast (0.9-1 st) | 1 | 6-15 |
+
+current: the same within a code. The before frames are black at every night view - train 40 exactly as the user saw it.
+
+### THE fp16 FRAME - MEASURED (the resolve target read back over a ground band, after both fixes)
+Since G448.3 the linear compositing holds UN-EXPOSED radiance in a HalfFloat target (the exposure is the blit's). A
+moonlit night is ~1e-7..1e-6 of that scale: fp16 SUBNORMALS, stepped in 5.96e-8. Measured: full_stand's ground band
+holds 6-11 distinct values, 100 % subnormal, least 1.8e-7; full_final's ground band ONE value (5.96e-8, the least
+subnormal there is); the sea view 75 values (the water's reflection is brighter); the half and the new moon read 0
+(flushed). On screen: the land is a flat black mass with no texture under a readable sky and sea - posterised by the
+target's precision, not by the light. The moonlit sky and water are mostly above it; the forest and the fields are not.
+
+### PROPOSAL (NOT BUILT - A0 puts it to the user): A PRE-EXPOSURE
+Write the frame at radiance x P and tone-map with exposure / P (Frostbite's pre-exposure), P = 2^(the schedule's stops,
+whole stops) once the sun is under -6 deg and 1 above it: the day is bit-identical, the night's radiance lands in fp16's
+normal range (P = 2^15 puts the moonlit field at ~0.01: ten bits of mantissa instead of a handful of levels). WHERE: the
+light's units, not the materials - three's built-in materials cannot take one shared uniform without an onBeforeCompile
+on every program (~88), and a chunk override needs a uniform three does not upload. So: applyDay's `unit` x P (the key,
+the hemisphere, the ground half), ATMO.U.scale x P (the dome, the aerial perspective, the clouds, the mist - one scale;
+the probe re-bakes from the dome), GFX.setExposure keeps the TRUE exposure as its base (every dimmer that reads
+exposureBase stays right) and puts base / P x step x eye on the renderer. THE COST is the audit: every writer of
+absolute light must take x P - the emissives (hangar 6, cockpit 3 (CK.nightK), parked 2, app 2, scenery_life, props,
+pattern_vis, matlib), the runway lights, the premises lamps, the craft's lights, the house windows - and every unlit
+MeshBasicMaterial in the frame (LIGHT_RIG.census lists the 'unlit' kind: those would read 1/P at night). Zero cost per
+frame. One session, with GATE LIGHT growing a check that the census's sources all take P.
+
+### WHAT WAS BUILT
+- render_world: keyAim(d) - SUN (2 deg floor) and KEY_SKY (true) along the key, the moon's when sky_light says the
+  moon is the key. KEY_SKY exported; the spray's light and the glare (app.js) read it. WORLD.relight() drops the
+  re-apply guard without a day version bump (the dials). G2601: the ease's first exposure write.
+- light_rig: THE NIGHT - moonPhaseLaw / moonE, the night-eye grade (NIGHT_GLSL + nightU + nightGrade(el, scale)), the
+  night stops (exposureStops + NIGHT.eye eased in from -12 to -18 deg; 0 above -12: the day and the twilight are the
+  schedule's to the bit), NIGHT / NIGHT_DEF / setNight / night / nightDefaults.
+- THE NIGHT EYE (Purkinje / mesopic): in aa_resolve's blit, on the radiance just before the one tone map (linear
+  compositing), a uniform branch skipped by day (share 0 above -0.833 deg). The rods' share is per pixel on its
+  ABSOLUTE luminance (radiance x SUN_LUX / the room's scale -> cd/m2): 0 at `colourCd` (3), 1 a thousandth of it (CIE
+  mesopic 0.005-5); the rods' grey is Larson-Rushmeier-Piatko's scotopic luminance at the sRGB primaries (0.033 0.765
+  0.202) tinted toward moonlight's blue-grey. A lamp stays coloured because it is bright. The GLSL and the uniforms
+  are light_rig's; aa_resolve builds its shaders at the material now (light_rig loads after it). Display compositing
+  (the fallback) and a frame with no resolve target get no grade (a named cut).
+- clouds: keyDir - the splice's direction and sunT along the key.
+- atmo: U.eMoon through the phase law; the moon washes the faint stars out (a full moon leaves the brightest 30 %:
+  the limiting magnitude ~6.5 -> ~4.5; by day the star term is already 0).
+- moon_ui.js (new, after day_ui.js - which is SIM-CLOCK's): the left rail's NIGHT section, "the moonlight": moonlight
+  (0-3x), night eye (-1..+3 stops), night colour (0-100 % grey), moonlight blue, colour vision (0.3-30 cd/m2), stars
+  (0-3x); double-click a name = its default; kept in localStorage flydiy.night.v1; a line on the moon's phase, height, lux.
+- tools/moonlight_shots.js: the fixed frames, before | after pages, the numbers, the fp16 readback, the noon proof
+  with an in-page control, --variants for the dials, the dusk / sunset pair.
+
+### GATES
+node --check on every touched file; run_gates --only=AA,POSTFX,DAY,ATMO,CLOUD,WORLDRENDER,LIGHT,PROGRAMS,UISMOKE
+PASS (00:50-00:55, A0's window; all node, none boots Chrome).
+
+### THE TUNED ROUND (8 Oct 09:30-09:52, gamer; reports/evidence/MOONLIGHT/)
+- sheet_full_moon.jpg (rows: the stand, the sea with the moon ahead, the moon behind, the 150 m final; columns: train
+  40 | night eye 0 | +1 | +2): 0 reads the water and the sky but leaves the land black; **+1 is the dangerous-but-
+  flyable night** (the coast, the lakes, the strips, the ridges and the horizon; mean code 42-56 at the stand and over
+  the sea, the sky 67-79); +2 is a dusk (67-85). DEFAULTS SET: night eye +1, night colour 0.9, moonlight blue 0.6
+  (0.85 vs 0.95 is hardly to be told apart; a lamp-lit aeroplane keeps its colour either way - it is bright).
+  THE USER (8 Oct, via A0): "full moon defaults look good enough for now" - the defaults stand; no more dial tuning.
+  The pre-exposure proposal is parked until the user asks.
+- sheet_moon_overcast_half_new.jpg: the moon overhead (a disc, a faint corona, the faint stars washed out near it);
+  overcast (the panel's deck still broken - the CLOUD note); the half moon at +1: the horizon and a glint on the sea
+  only (code 4); the new moon: black under the stars (code 2), as asked.
+- sheet_day_dusk_g2601.jpg (train 40 | both fixes; noon, 17:00, sunset): **at sunset train 40's ground is black** (the
+  stuck 1.12 for 5.2) and G2601 gives the dusk back; noon a shade darker (0.92 for 1.12); 17:00 alike.
+- THE NOON PROOF OF G2600 ALONE (train 40 vs this branch with G2601 reverted, a fixed place, the ease ON): 166 674
+  bytes differ (max 170) against an in-page control of 350-418 bytes - NOT pixel-identical. The readout points at the
+  ease, not at G2600: the hemisphere read 1.703 / 1.705 / 1.706 on the same noon in three page runs (the ease writes in
+  0.4 % steps, so what it rests on depends on the clock's history). The proof with the ease off (noonx_*: the light
+  written at once, no history) is owed - tonight's window 21:40.
+- rig: the stand views after the first were not at the stand (the aeroplane stayed where 'over' put it) - fixed (the
+  stand is kept at the first view and put back).
+
+### OPEN / NAMED CUTS
+- the noon pixel proof of G2600 alone with the ease off (tonight, 21:40-22:20).
+- CLOUD (not fixed here, A0): the panel's overcast (0.9 st) at night still shows breaks and stars after 12 s.
+- a multi-deck sky's shadow tile is shifted along the SUN in its bake (uSun is the clouds' lighting): at night with an
+  upper deck the decks' shadows are not offset along the moon. One deck (the default) is exact.
+- the hemisphere's starlight floor (3e-7) is colourless (its colour is E / max(E, 1e-6) ~ 0): a moonless night is
+  exactly 0 under it - what the user asked for; a real airglow would be ~1/300 of the full moon.
+- a day with the moon up: the sky and the hemisphere carry moonE x the moon's sky, now through the phase law - a
+  change of < 1e-6 relative (the noon frames have the moon down).
+- no moon-glint dial: the moon's path on the water is the water's own GGX on the key and the probe's moon (seen).
+
+## G2620 - PRE-EXPOSURE: THE NIGHT'S FRAME AT RADIANCE x P (2^14 under -6.5 deg) - BUILT, GATED (27/28 + CLOUD's pin fixed), STILLS 9 Oct: THE PRECISION FIXED, THE DAY WITHIN THE CROSS-PAGE FLOOR, NO MEAN FLASH AT THE SWITCH - NOT READY: A GLINT ON THE WATER FOR ~1 s AFTER THE SWITCH; THE AEROPLANE'S LIGHTS AND THE PANEL NOT YET SEEN (2026-10-09, branch claude/pre-exposure-g2620 on claude/moonlight-g2600 on train 42; G2621-G2629 unused)
+
+The design, the audit and the gate are in light_rig.js THE PRE-EXPOSURE and GATE LIGHT's G2620 rows (the sweep with named
+exemptions and its negative control). Stills (reports/evidence/PRE-EXPOSURE, moonlight build | this, gamer, 9 Oct 11:30):
+- fp16 (the ground band's distinct values): full stand 5 (all subnormal) -> 753 normal; final 8 -> 1 362; half moon
+  2 -> 2 279; new moon 1 -> 1 395. The pictures alike (mean codes +1..+3: the subnormal truncation gone), no light lost
+  (sheet_pre_exposure.jpg: the stand, the final, the lit apron).
+- THE DAY: every light number identical; the pixels differ 101k bytes at noon, 48k at 17:00 - and train 40 against ITSELF
+  across two page runs differs 160k (the trees' sway and streaming, the aeroplane, the HUD digits; the in-page control is
+  83-387). So: identical within the cross-page floor. (G2600 alone: 98k, the same verdict.)
+- THE SWITCH (--crossing, 0.05 deg steps): at -6.55 deg, |d mean| 0.3 code against up to 2.3 round it - no frame flash.
+  BUT a bright orange glint on the water toward the sun at steps 12-14 (~1 s after the switch), gone by step 16
+  (crop_cross_glint.jpg). Undiagnosed: the mirror's re-capture or the probe's cut / its fade on the next bake (the
+  crossing bumps the day's version every step) are the suspects. OWED before READY.
+- OWED: the aeroplane's nav / landing lights and the panel at night - the rig's forced switches and cockpit camera took no
+  effect (both pages black there); a still that shows them.
+- PERF: zero per-frame work (one uniform branch already counted; listeners only at a switch) - A0's train-44 strict pass.
+
+## NIGHT-LOOK STEP 1 - G2600 MOONLIGHT + G2620 PRE-EXPOSURE MERGED ONTO MASTER, CODEX'S NIGHT WORK KEPT (2026-11-02, NIGHT-LOOK for A0; branch claude/night-look)
+
+The user, 2 Nov: "ok with the study on night" (flydiy-notes/NIGHT-LOOK-STUDY-2026-11.md), and "you incorporate the
+codex work, right?". This is the 8-9 Oct night (the two sections above) merged onto master (L29i) on top of what Codex
+landed on 30 Oct (PERF NIGHTLIGHT / NIGHTVISIBILITY): it keeps Codex's work and adds the frame's real levels plus the
+night eye's grade.
+- THE EASE'S SEED: Codex's form (`!Number.isFinite(LE.setEx) || ...`), not G2601's: the same fix, landed first.
+- THE KEY'S AIM: ONE place. Codex's rule (the moon when SKY_LIGHT.isMoon, after applyDay) now calls G2600's
+  keyAim(d), so SUN (2 deg floor, the shadow maths) and KEY_SKY (the true direction: the spray, the glare, app.js's
+  flare) move together. G2600's own post-applyDay keyAim(day.moon) was dropped as a duplicate.
+- THE FLOOR UNDER THE PRE-EXPOSURE: Codex's nightFloor is an EXPOSED level. Under P the hemisphere is in units x P and
+  the renderer's exposure is ex / P, so applyDay hands it ex / P. Without that, the floor came out 2^14 too weak and
+  the land went black again.
+- THE PROBES: one cut for a clock cut (Codex: LE.cut) or a P switch (G2620: preCut), so both bake at once.
+- aa_resolve: master's shared-uniform blit (G1998c) and the eye's GPU factor (EYE-GPU) kept. The night eye runs after
+  the eye's factor, before the one tone map. The blit's uniforms take LIGHT_RIG.nightU by reference, and the fragment
+  text is built at the material (fs()).
+- GATE LIGHT's G2620 sweep over master's sources since 9 Oct: 12 new writers, all outside the world's light (a prop
+  icon's offscreen scene, a zero-intensity warm group, the load card's plate, the car prints' black, the premises
+  editor's discs), tagged pre-ok. studio.js (the phone garage's black studio) is exempt as a whole: the garage, P = 1.
+  The probe-cut assertion now reads the merged form. GATE LIGHT PASS.
+- STILL OPEN from G2620 (9 Oct): the ~1 s glint on the water toward the sun after the switch at -6.5 deg, and the
+  aeroplane's own lights and the panel at night not yet seen in a still. Both are judged on the NIGHT-LOOK bench:
+  tools/night_shots.js --scene ref|user --step step1 (refscene/<step>/ in the evidence).
+- THE NIGHT EYE'S STOP: NIGHT_DEF.eye 0, not 1. The +1 of 8 Oct was over a +15 night, and Codex's +16 is that same
+  level. So the deep night stays at +16 (GATE ATMO's 12..16), and the eye's stop is a dial on the left rail's NIGHT
+  (moon_ui.js). The grade itself (night colour 0.9, blue 0.6, colour vision 3 cd/m2) is the 8 Oct default.
+- Codex's gates follow the merged shapes: NIGHTVISIBILITY (the floor at ex / P; the probe block's `LE.cut ||
+  preCut`) and NIGHTEXPOSURE (the aim block run with keyAim, and KEY_SKY asserted too).
+- Run here (node only, none boots a browser): LIGHT, ATMO, NIGHTEXPOSURE, NIGHTVISIBILITY, AA, POSTFX, WATER, PROGRAMS
+  PASS. OWED in a slot: CLOUD (it boots headless Chrome on the GPU), DAY, UISMOKE, and the core battery + FRAMECOST.
 
 ## TRAIN PHONE-1a (A0, Mon 2 Nov) - the phone garage, release 1a (the user's night test): the layout, no more 8 s slider waits, the phone look, the CG chip
 
@@ -310492,6 +310673,72 @@ the back window) and at -0.6 it hung 0.6 m behind the pod (evidence 2026-11-03/c
   2224 faces per door (master 2156). Only the three Cessnas carry the panel (metal, floats, C172).
 - IDENTITY: draw hash only (spec / def / mass / certKey / procureFp / ledger / fly20 identical on the six validated builds).
   Stills: evidence 2026-11-03/cabin-craft/BRAKE_{cub,c172}_{front,side}.png, DOOR_c172_side.png (node renders).
+### 6. THE CABIN'S UPPER HALF: HEADLINER, WALL TRIM, OVERHEAD CONSOLE (CABIN-INTERIOR, the user 3 Nov 08:40, via A0)
+The user picked the first cut of the proposal (evidence 2026-11-03/cabin-craft/INTERIOR-PROPOSAL.md): T1 + T2 + G1 now,
+visors (G3) and grab handles (G4) after; G2 roof ribs, G5 compass not now; headliner / wall / trim paintable, warm tan
+as one swatch; built on SEATS (claude/seats b7e28ac36) and the clean door panel (section 5). Three rows, all ABSENT
+at default (G3570: not in the defaults table, `absent: 0`), part "Headliner & trim" under Cabin fit (_cage_parts.js):
+- hdlOn (T1 THE HEADLINER): cageInterior's liner flags its visible (inner) faces only when a row is on; just before
+  the sheet is assembled, those inside the cabin (zNose0 back to the passenger ring, or the side glass's aft edge)
+  whose inward normal is >= 0.8 down become section `headliner` (0.8: the triplanar's ceiling plane dominates, so the
+  channels never stripe the flank). Role `hdl`, finish `headliner` (quilted headliner) in every construction column;
+  the new `quilt` bake: two puffed channels a 0.36 m tile (a listing seam every 18 cm along the fuselage), a stitched
+  groove either side of each seam, a brushed nap. Same faces, relabelled: the face count does not move.
+- wallTrimOn (T2 THE UPPER WALL TRIM): the rest of the visible liner above the waistband top (S.bandY) in the cabin ->
+  `cabWall`, role `wall`, finish `trimVinyl` (the `hide` bake kept low: vinyl, not leather). The panel joins at the
+  frame stations are NOT drawn yet (a tiled bake cannot place them; a follow-up if the stills ask).
+- ohConsoleOn (G1 THE OVERHEAD CONSOLE, _cage_crew.js buildOverheadConsole): a lofted moulded pod (0.30 m long, 0.21
+  wide on a two-abreast row / 0.16 single, 45 mm deep, easing into the ceiling at both ends) on the centreline, its
+  front 3 cm aft of the windscreen's aft-most edge (a raked screen reaches back over the heads), two eyeball vents
+  forward, two lamp bezels aft; 432 tris; M.dark (the crew's moulding: the join's existing bucket). It publishes its
+  lamp seats (A.ohc); the light layer's first rung on a closed cabin is `consoleAt`: the flood into the pilot-side
+  bezel, a front passenger's lamp into theirs. A closed cabin only; any glass over its footprint draws none.
+- The liner lists take the two sections: _cage_ui INTSKIN (the skin alpha, measureBox), _fit_site (no fitting laced
+  into them), the lamp code's ceiling, GATE CABINLAMP's roof set, quickshot's interior skip.
+- Paint: the two sections are the part's livery rows; the picker shows a section's SUGGESTED swatches ahead of the
+  recent colours (_cage_ui PK_SUGGEST: warm tan #c49a6c for both), ringed, never applied until clicked.
+- COST, named: the headliner and the wall trim are one material each, so +1 draw call each when on (the join keys a
+  bucket by its finish); the console adds none. Their bakes are 512 px detail sheets, kept on the phone's lite tier
+  (a fetch in the program the liner already runs).
+- Gates: CABINLAMP twin2con (the twin + the three rows: console, console, roof, roof - no lamp near glass), LIGHT (the
+  ladder text with consoleAt), SKINMAT (one headliner layout per construction).
+- CABIN-SHOTS FIXES (A0's cloud pictures through the glass, origin/claude/cabin-shots, 3 Nov 17:10):
+  - THE POD'S TOP ON THE CEILING UNDER EVERY POINT: one flat top at the lowest roof face's centroid, on the twin's roof
+    falling to its raked screen, put the nose 1.0 cm out through the skin (a black slot on the roof from outside) and
+    left 3.8 cm under the headliner aft (the Cub's nose 1.0 cm out too). Now a ray straight up the sheet's roof faces
+    at every lofted vertex (`yTop`): the top 4 mm into the liner, never more than halfway to the skin; skin alone, 2 mm
+    under it. 456 tris (the top closes along a centreline spine).
+  - THE LAMP IN ITS BEZEL: the bezel's radius is the lamp's (LAMP_R 19 mm, bezel 20/26 mm, A.ohc.r); consoleAt passes
+    `r` and its sink follows it (the 75 mm flood hung under a 52 mm bezel).
+  - A ROOF LAMP'S FLANGE UNDER THE SKIN (_cage_light.js `skinOver`): every point of the flange's rim (1.34 r, PROF.can)
+    needs a sheet face over it, 2 mm clear; a face over the seat that fails is retried 6 / 12 / 18 cm aft before the
+    roof rung gives up. Pre-existing on the twin with the console off: its two front domes through the windscreen frame
+    band; now on the roof 6-12 cm aft. The identity tool: the six validated builds unchanged.
+  - T2 IS THE FINISH ONLY: the wall trim's panel joins are not drawn (a follow-up, with G3 visors / G4 grab handles).
+  - Named: with the rows on the ceiling reads darker (the flood 6 cm lower in the console, no longer grazing the
+    ceiling; the headliner base 0x9d968a) - paint it (warm tan suggested).
+  - GATE PARTS has a headliner shape (the two sections exist only with their rows on).
+### 7. THE AFT WALL'S ROWS (AFT-BULKHEAD, the user 3-4 Nov, via A0; L31b, fixes L31c)
+
+The user: "Focus on the aft bulkhead really". The study (claude/aft-bulkhead-look) found the wall shows only from forward of the beam,
+through the rear side glass, near black on tube, alloy and composite builds. Rows in the garage's aft wall group, all absent at default:
+bhStep bhShelfY bhShelfD (a hat shelf and recess), bhBevel, bhTwoTone (section bulkTrim), bhRelief bhReliefH (1 beads, 2 rolls, 3 frame),
+bhFast (1 screws, 2 rivets, section toele), bhNet (section baggage), bhLamp bhLampY (1 dome, 2 LED strip, 3 both), bhSling (tube builds).
+- WHERE: `cageInterior`'s bulkWall in `tools/_cage_gen.js` (flat in z, arcs cut by slicing the skin at a station, faces pushed to `add`),
+  `wallLamp` in `tools/_cage_light.js` (finds the wall by its `bhFace` faces), the rows in `tools/_cage_page5.js` and `_cage_parts.js`.
+- WHY THE STRIP IS STRAIGHT: the user 4 Nov, on it following the top edge: "do not follow this strange maybe ceiling path". It bends only
+  under a true round arch (`isArch` in wallLamp).
+- GATES AND GAPS: `reports/evidence/AFT-BULKHEAD/READY.md`. Stills: claude/aft-bulkhead-shots, `.../AFT-BULKHEAD/rows/ROWS.md`.
+  Default builds identical against L31b; FRAMECOST red on the same 5 rows as master adc53b25b.
+- THE SECOND ROUND (L31c): the net stands under the lamp (`BH.lampBand`; `yNet` keeps wallLamp's strip and dome over it); the bevel's inner
+  edge and the screws take a smoothed outline (`at(p,k)`, the ring itself stays lumpy); a roll narrows to fit the upper panel; a bulkhead
+  flood lamp needs its whole flange on the wall or passes to the next rung (`bulkheadAt`, the Mosquito).
+- ON BY DEFAULT ONLY IN 4b: `builds/candidates/Twin_busher_floats_4b.json` carries these rows and section 6's (the user 4 Nov, for the
+  screenshot). The rows carry NO mass: 820.615 kg either way, in the ledger's model, not in truth. 4b's flight draws are not measured
+  (FRAMECOST reads default builds).
+- OWED, next week: the Cub sling clears the rear seat (a real FAIL, 20.8 cm), accessories, stickers and placards (the user: each picks a
+  place; 17 original designs in the evidence folder), mass for the interior if anyone asks.
+
 ## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
 
 The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
@@ -311174,6 +311421,587 @@ IN (on L30c master e6bcfb368): claude/ready/seats-cost a1fc604f7 (SEATS: the 15 
 BATTERY (69): 64 PASS. Red: ROUTE (the Cub capsizes on its roll-out at w2 after 741 s) and WORLD ("13/31 approaches under 4 % both ways") - BOTH RED THE SAME ON L30c MASTER (A0's 22:40 baseline), so L30c's, not this train's: suspects tank-fit's heavier Cub nose with G1971's water on 02/20 (the w2-dry fix 7517f828c gates tonight) and the hut lattice's footprints for 13/31's fans (HWCOV, with TAXICLEAR 11c). DMGSKINGPU (the GPU tear's read-back places) and DMGWRECK (a body corner 11.9 cm inside a live cabin bay) - no baseline run, named for Deform / TANK-FIT. DMGPAGEW (the scuff fix rides Wed), FRAMECOST 5, ASSETS, HANDLE, TECH: standing. BUILT: stale before the push (rebuilt here).
 TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothing new.
 
+## DAY-SAVED-READ - A FRESH CAREER'S SAVED DAY IS READ, NOT SET ASIDE AS "NOT READABLE" (2026-11-03, GAME-MENUS, LOCAL; for Wed's first train; claude/ready/day-saved-read, on master e6bcfb368)
+Why: STORY-HOME-LOOK F9 (claude/story-home-look 3e2004ca): day_clock.js logs "the saved day was not readable" on career boots. Cause (G2650 SIM-CLOCK's career keep, not TIME-CONTROLS): in the career, save() keeps the sandbox's own instant from the pref (read() || {}). On a profile with no sandbox day yet that keep is {}, so the pref is written with the weather and NO date/utc. The next read() (the next save, every 30 s, or the next boot) took that for a broken day (G2630's guard), warned, and returned null: the saved weather was dropped along with it.
+What changed: day_clock.js read(): G2630's guard applies to a pref that HAS an instant (a date or a utc) that is not readable. A pref with neither is the weather alone and is read as it is (bind already falls back to the game's day when there is no date and keeps the weather). GATE CLOCK: a fresh career's saves write the weather alone, read with no warning; a sandbox boot on that pref gets a new player's instant and the saved weather. With master's day_clock.js that row is red with the F9 warning.
+Gates: CLOCK DAY HONESTY CLIMATE MEDIA HANGAR NIGHTVISIBILITY SIMWORKER BUILT (node); UISMOKE + CLOUD (they read day_clock.js) are left to the train's battery.
+
+## SCENERY-PLACE - EVERY BUILT-BUT-UNPLACED OCTOBER SCENERY ASSET STOOD ON JOLENE: THE TWO HYDRO POWERHOUSES, THE TENTS, THE CONSTRUCTION MACHINES, THE SCENERY KIT (2026-11-03, cloud, for A0; claude/ready/scenery-place off origin/master adb2d2a9 = L30b)
+
+The user, 3 Nov via A0: "I know I said wait, but actually, you should go ahead and place all the new scenery we have." Scenery
+only: no plot, garage, shed or owner moved; the record's rev stays 23; no src/ file but the map pack (map_bake.js's).
+Evidence: reports/evidence/SCENERY-PLACE/README.md (the inventory, the placement table, the gates, the stills).
+
+**WHAT WENT WHERE** (tools/fixtures/island_jolene.json; every record written as the fixture's own are):
+- THE HYDRO POWERHOUSES (G2909, key utility/hydro powerhouse), each a site with its tree-clear exclude r 30 m (`<id>_clear`,
+  as s_vor_ann_clear), the generator's +z (the riprap side) toward the road and the water, its yard at -x:
+  - hy_s_upper "Island Power - Upper Lake hydro" AT Purple Lake's point (-174.7, -5780.2), at.yaw 2.1434, P {riprap 2.5}
+    (25 x 10 default). Its foot runs 6.2..15.6 m (a cut into the hillside: the shelf's bank law widens the cut); r25 unmoved.
+  - hy_s_bayside "Island Power - Bayside hydro" 6.4 m off Chester Lake's candidate A (-1135.9, -8315.4), at.yaw 0.8476,
+    P {hL 12, hW 10, riprap 2.5, yardL 7, yardW 6} (the aerial's 10 x 12 m roof). Why not ON A: the user's boat yard now
+    stands there (o13-o17, five boats 7-14 m from the point, on a19's gravel); candidate B is the user's marine supply (s22).
+    5.7 m NE along r1 and 3 m back from it clears the boats, the road (3.2 m off its pavement) and s22.
+  - GATE NAVAID 5 now holds them: each within 5 / 10 m of its point, its clear present (~30 m).
+- THE PENSTOCK WORKS beside Upper Lake: hy_t_works (a flatten, abs 9.5, falloff 6) + hy_t_works_clear, machine_crane and
+  machine_backhoe on it.
+- THE QUARRY (mk_x_quarry's floor, 39.6 m, by the workshop s34): machine_excavator, machine_loader (facing it),
+  machine_skidsteer, machine_loader_rusty, and the scenery kit's loader_wreck in the corner. ids qy_o_*.
+- THE COMMUNITY GARDENS (mk_gardens_shed): tractor_farm, tractor_scan - ids mk_o_tractor_* so they go with the town cut.
+- THE CABIN LAKE CAMP (the lake shore 25 m above the water, 350 m abeam cb_sea's lane, 70 m from the slip's stand):
+  camp_firepit + the four tents (tent_big, tent_frame, tent_hiking, tent_small) round it + the six photoscanned people
+  (crowd_1..6) at the fire; cb_x_camp (trees, r 12).
+- MOUNT ARDENT (the summit's east shoulder, 85-90 m from mt_s_meteo): the observatory on mt_t_observatory and the ALMA
+  12 m antenna as ONE record (alma_base `with` alma_fork + alma_dish, the placer's assembly form) on mt_t_antenna.
+- THE OLD AIR BASE: heating_plant on the old base's flat NW of the field (-780, -860; 495 m abeam 13/31, outside every
+  approach funnel, 27 m off r11, its long side along it), the F-104G starfighter as the gate guardian by r2 at the field's
+  entrance (185 m abeam 13/31, 7 m under its transitional surface); their clears. TRAP (cost a pass): the WORLD's aerodrome
+  heading is (cos hdg, sin hdg) - `aerodromes[i].hdg`, the record's runway `hdg` the same number - NOT (sin, cos): vetted
+  the (sin, cos) way the first heating-plant spot (840, -680) looked 404 m off 02/20 and was ON its extended centreline 280 m
+  past end0; GATE TAXICLEAR 11a caught it (the turn-around plans at w2 end0 within 2 m of its footprint).
+- THE COAST: the WW2 bunker on the bluff S of Greywater (640, -4280; the sea 42 m off, its face to it) on gw_t_bunker; the
+  ruined sky_rest tower on the headland W of Ridgeback (-1420, -3325; 480 m from any road, 250 m above the shore) on its
+  own ground (1.2 m over its 45 m foot, 'ground'); their clears.
+  TRAP (cost a pass): THE PREMISES' GROUND PATCH is built in 64 m chunks round ANY placed entry (render_premises
+  activeChunks), and a road side over the patch reads within 5 mm of it (GATE CONTACT 'road side', a count of rev 28 +10 %
+  + 20): the ruin's first spot, 120 m off r5, cost 127 of them for no gain; the Upper Lake plant on r25 costs 664 and has to
+  stand there (its point). Keep a new placement's chunks off the roads where its point allows (the count: 7516 -> 8180 of
+  8301).
+- THE STEEL TRAWLER (fishing_boat) at anchor off Bayside (-1480, -8560), on 'flat' with dy = -seabed - 1.6 (the ferry's form).
+
+**THE SIGN AT THE OLD MINE** (A0's extra item, the user ~20:55: "there is a sign at the old mine, next to the parking spot.
+It's in the way, remove it. It does not collide, but goes through"): the air taxi office (mn_s_mine/airtaxi, house/air taxi
+office: signAt 1, the board ON POSTS by the path) stood its board 10.8 m from mn_strip's stand - inside a parked aeroplane's
+wing. Its P.signAt 0: the board over the door. The save carries mn_s_mine, so the AFB (19) manifest gains `itemPatches`
+{site: {item: {P key: value}}} (GATE SCENERYED 15 applies it after the ship, as fieldPatches - a re-ship must apply it
+again). THE RULE, gated: GATE HOUSE 'signs' - every house sign on posts in the cooked places (both variants) 17.5 m (the
+DC-3's half-span + 3) or more from every stand, plot stand and fleet tie-down spot; red on the old cook (the mine's 10.8 m),
+green after. No other sign on Jolene was inside it (the next: the flying club's, 47.9 m from HOME's stand).
+
+**NOT PLACED, AND WHY**: the five pylon families (infra_gen.js) - nothing strings a line between two pylon props (the
+`attach` points wait for a line tool; powerline.js strings the ROAD's poles), and r25 / r1 already carry their distribution
+poles and cable past both plants: a wire-less lattice line would be a row of sticks (and a 230 kV line is not the island's
+grid). The driveable car's parts (car_conquer_*) - the vehicle shell's pieces, hidden in the placer as parts. The pier kit's
+older unplaced vehicles / pier modules - not October's scenery.
+
+**THE COOKS** re-run on the new record: the fleet's spots (src/viewer/fleet_spots_pack.js: TAXICLEAR 10 - the F-104 is a
+solid thing within 400 m of HOME's stand), premises (media/world/jolene/premises + src/core/premises_packs.json), the city
+(media/city/jolene/metlakatla + src/core/city_packs.json: the gardens' tractors and the quarry are town cells), the map
+(media/map + src/viewer/map_pack.js: GATE MAPBAKE 6 counts every site item's footprint). Built files untouched in git.
+
+**GATES** (the final record, its four cooks re-run; `--no-build --jobs=3`): 39 PASS - NAVAID PREMCOOK PREMISES HOUSE (signs)
+ASSETBUDGET TAXICLEAR (4 shards) SCENERY SITE CONTRACTS UISMOKE MAPBAKE CITYCOOK MEDIA NAMES PREMRASTER GAMEPREM PAVEMENT
+STAGES HONESTY SIMWORKER LOOKS CONTACT ANIMALS TREES GRASSSIDES SPLAT HYDRODYN STRIPSURF GE CITYHOST MISSIONS ROUTES STORAGE
+STOREDRAW TOWNKIT KITHOST METKIT LIFE STAND. RED and red on clean origin/master adb2d2a9 with the same failing rows (diffed):
+ASSETS GEO LAKEBED RWYLIGHTS SCENERYED (20b, the town composition's 2500 ms on a loaded box) STORY TREEHIT VEHICLE WORLD.
+FRAMECOST: A0's, on the GPU box. **PICTURES**: tools/soft_still.js + reports/evidence/SCENERY-PLACE/stage_place.js
+(plane_shot.js has no world): one boot, the paused aeroplane parked 400 m over each place - THE PREMISES STREAM ROUND THE
+AEROPLANE (render_premises STREAM.reach 6 km), not the free eye: a still of a place 8 km from HOME drew nothing of it until
+the aeroplane went there (the test mode keeps it at HOME).
+
+**SCENERY-PLACE, NARROWED** (the user, 3 Nov, the same evening: "The 2 hydroplants were the main thing. I actually did not
+want the other assets. The f104 should be next to the runway, OK for construction machines, but not the factories, they
+look bad, nor the abandoned plant and nothing more on Mount Ardent than the already placed meteo observatory."). WITHDRAWN
+from the record (and so from what this entry lists above): the Cabin Lake camp (tents, fire pit, crowd), Mount Ardent's
+observatory and antenna and their pads, the heating plant, the bunker and its pad, the sky-rest ruin, the trawler. KEPT:
+the two hydro powerhouses + the Upper Lake works (crane, backhoe), the quarry's machines and wreck, the gardens' tractors,
+the mine's sign fix + GATE HOUSE 'signs' + the manifest's itemPatches. MOVED: the F-104G (af_o_f104) to (-442.1, -73.9),
+130 m abeam 13/31 on the side away from the club, parked along it (its tail 4.9 m over the runway; the 1:7 transitional
+surface allows 7.9). Re-cooked (premises, city, map, fleet spots); gates as above (39 PASS, the same nine reds as master's,
+row for row). The withdrawn placements stay in the session's scratch generator only: a later ask can stand them from this
+entry's points.
+
+**SCENERY-PLACE, THE TENTS BACK** (the user, 3 Nov: "Ok for the tent, the tractors too"): the Cabin Lake shore camp stands
+again - cb_o_firepit (camp_firepit) at (2116, -17244) with the four tents round it (cb_o_tent_big / _frame / _hiking /
+_small, 5-6.5 m from the fire, 5 m or more apart, doors to it) and cb_x_camp (trees, r 12); the six photoscanned people
+stay withdrawn. The tractors were kept all along. Re-cooked (premises, city, map, fleet spots: cb_sea's census sees the
+camp); gates re-run.
+
+**SCENERY-PLACE, THE F-104 WITHDRAWN** (the user, 4 Nov: "just remove the f104 and stop"): af_o_f104 and its clear out of
+the record - its spot 130 m abeam 13/31 stood behind the belt of trees, invisible from the runway (the still from 45 m over
+the runway showed nothing). What stays of SCENERY-PLACE: the two hydro powerhouses (+ the Upper Lake works), the quarry's
+machines and wreck, the gardens' tractors, the Cabin Lake camp's four tents, the mine's sign fix (signAt 0, itemPatches,
+GATE HOUSE 'signs'). Re-cooked; NAVAID PREMCOOK PREMISES HOUSE TAXICLEAR MAPBAKE CITYCOOK MEDIA CONTACT STAND SITE ANIMALS
+TREES PASS, SCENERYED red on 20b only (timing, as master), PARKED PASS run alone (`node --max-old-space-size=6144`: beside
+two other gates it ran out of node's 2 GB heap - a crash, not a verdict).
+## BAY-MIRROR - THE SHELTERED BAYS CALM TOWARD A LAKE: A SHELTER FIELD FROM THE COASTLINE SCALES THE SEA'S WAVES (waterH AND THE SHADER, ONE SOURCE), THE WIND'S RIPPLE KEPT, THE AUTO RING TAKES THE LAKE'S RULE OVER A BAY (2026-11-03, BAY-MIRROR for A0, cloud - node gates + SwiftShader stills; claude/ready/bay-mirror on origin/master 05f95aa7 = L30d, rebased from adb2d2a9)
+The user (3 Nov, via A0): "we would need to treat the bays as lakes for the reflections I think, especially the main south bay, where the cannery and the hydroplants are". A0 (~22:00): "a sheltered bay should be CALMER, not dead glassy whatever the wind".
+- **The cause (measured before any change, reports/evidence/BAY-MIRROR/README.md section 1):** a bay is the SEA's body. water.js:594 gives the sea wave 1.0 / detail 1.0 / foam 0.62, :596 a lake 0 / 0.55 / 2.0; the 32 trains' slopes enter the normal (:285, :364) that the mirror's lookup walks by (:438-443) - 0.056 RMS slope at the rigs' 5 m/s sea, 0 on a lake (the whole difference on the 'simple' tier). The AUTO ring fades the sea's plane at 300-400 m and 1.0-1.3 km from land, never a lake's (:1161-1164: 0.35 from 300 m over the fjord). 20_world.js:819-822: the floats rode the open ocean's swell in a bay. Not the cause: the roughness law (the same for both), mPlane, the ring's land distance.
+- **The bays:** the main south bay = the south fjord (Purple Lake's powerhouse at its head, the two canneries, the net pens; the game's own SEA base at (360, -3660) is in it); Port Chester (Cedar Harbour's cannery, the Port Chester powerhouse); the west cove (-3700, -5000); the lee of the fjord mouth's headlands. mk_sea and cb_sea are open water.
+- **The change:**
+  - 28_island.js shelter() / calmAt() / waveK(): the wind's fetch traced upwind on 16 headings (one semi-Lagrangian sweep each, 100 m cells, the grid's rim open sea), OPEN = mean(min(fetch, 10 km) / 10 km), CALM = smoothstep(0.15, 0.40, OPEN) - 1 on 96.2 % of Jolene's sea cells (open water the same doubles and pixels), 0 deep in a bay, a dissolve at the mouth; land cells filled from their water neighbours; lazy, ~35 ms warm / ~100-140 ms cold, CORE_MATH. waveK = 0.25 + 0.75 x calm (SHELTER.ripple: JONSWAP's height ~ sqrt(fetch), a bay's ~0.6 km against ~10 km) - the sea's amplitude is the wind's, so a bay is glassy only in calm air.
+  - 20_world.js waterH(x, z, t) x waveK (world.calmAt / waveK / calmField exported); render_world.js hands world.calmField() to WATER.setCalm; water.js uWCalm (R8, one more sampler: the program 8 -> 9 units with the hull, read off the GL program) + uWRipple from the field's dials: the near patch's lift x waveK, the sea's row mixed toward the lake's (swell slopes, ripple tile), the whitecaps' cover x waveK; mirrorRender: over a bay (1 - calm at the eye) the ring's weight is sea + (1 - sea) x bay - the lake's rule, no second capture; after the 'off' return.
+- **Gates:** WATER (section 7 THE BAYS: the field, waterH to the bit on open water, the ripple, one source CPU = core to 0, the shader's terms; the sampler row names five; the ring row pins the new weight), GFX, FLOATS, SEAPLANE, HYDRODYN, UISMOKE, UISMOKE-PHONE, SIMWORKER, WETFX, WIPLINE, WORLDRENDER, UILAYER, SHADOWSKY, CLIMATE, HYDRO, MEDIA, SITE: PASS on the final code; WETFX-PAGE, METKIT, AUDIO, TESTFIELD, STRIPGROUND, FLIGHTREC: PASS on the commit before the ripple (b336645e), not re-run. No SPRAY gate exists (GATE WATER 6 holds the spray). Red here AND on a clean origin/master adb2d2a9 with the same rows: TOUR, DESTTO (ltd:floats gives up at mk_sea, the same event times; the gate's island has no sea state, waterH returns before the shelter), VEHICLE, LAKEBED, WORLD, ASSETS, PARKED (heap OOM).
+- **Re-gated after the rebase on L30d:** the same set PASS except MEDIA - red on clean L30d with the same row (index.html 5.03 MiB gzipped over the 5 MiB budget: master's build 5.0142 MiB, this branch +4.7 KB).
+- **The floats:** hydro_trim_table.js --world jolene --at SEA --sea A,L,dir (new): the floats Cessna's take-off at SEA, master vs branch - 5 m/s rig 26.9 s / 458 m vs 26.6 / 455, POH 21.7 / 292 vs 21.4 / 291; 8 m/s POH 23.1 / 310 vs 21.5 / 293; calm identical.
+- **Stills** (reports/evidence/BAY-MIRROR/, tools/perf/bay_stage.js via soft_still --stage, one run at a time - a run sharing the CPU with gates timed out): the south bay's ripple ridges -31 % (to the lake's level), Port Chester -22 %, the bay from 300 m -11 % (mirror weight 0.35 -> 0.52); the lake and the open sea unchanged. A long low ripple stays in the bay (the kept wind ripple). READY.md beside them.
+- **Left open:** the shader's G750 shore flattening (the near patch flat over the last 40 m to the coast line) has no physics twin (pre-existing); the ring's capture over a bay keeps the sea's capture settings (ringSkip, no MSAA) rather than the lake's; the editor cannot paint a shelter by hand (the field is the coastline's alone - a painted override would be a row in SHELTER).
+## WEATHER-SEASON - THE CAREER'S WEATHER IS THE PLAN: THREE SEASONAL BLOCKS OF 14 CRAFTED DAYS, ONE PURE FUNCTION OF THE INSTANT INSIDE THE DAY, THE FORECAST, THE WINTER LAYUP; GATE WEATHERPLAN (2026-11-03, cloud session for the user via A0; branch claude/weather-season off origin/master adb2d2a92 = L30b + claude/weather-fixes merged)
+The user's calls (3 Nov via A0): option B (three blocks), the 42 days approved ("seasons look OK"), the career's first
+day 15 July, the season 20 May - 30 Sep with a winter layup. The model and the days: futureDesigns/WEATHER-DAYS-
+STUDY-2026-11.md §3, §4, §5, §10 (branch claude/weather-blocks; the prototype futureDesigns/weather-days/plan_proto.js
+there is the evidence this core code was ported from).
+- THE DATA: src/weather/days/{early,high,late}/NN_<id>.json, one crafted day each (schema: the study's Appendix B).
+  `node tools/weather_days_pack.js` packs them into src/core/07c_weather_days.js (WEATHER_DAYS, GENERATED, ~38 KB) -
+  GATE WEATHERPLAN 1 holds the pack equal to the JSONs. Edit a day's JSON, run the pack, then build.
+- THE EVALUATOR: src/core/07d_weather_plan.js (WEATHER_PLAN, pure). Blocks by the LOCAL date's month-day: early
+  20 May-2 Jul (day 1 20 May), high 3 Jul-15 Aug (day 1 15 Jul = the career's first day = fair-cumulus), late
+  16 Aug-30 Sep (day 1 16 Aug); outside the season the nearest block. The weather day owns 04:00-28:00 local. Tracks
+  eased across the day before and after (a midnight and a block edge are one interpolation). Parton-Logan temperature
+  on Ketchikan-like normals + the day's anomalies. QUANTISED for the re-bakers: the decks' cover 0.02 (clouds.js
+  re-fits per change: <= 97 a day, one every ~15 min at real time - W3's GPU threshold removes the count), the
+  turbidity ONE STEP A NIGHT AT 02:00 (atmo.js re-bakes its sky tables on any change), the wind 0.1 kt / 1 deg / 0.01.
+  at(jdn, utc, geo) -> { spec (07_day's own fields), meta }; flyClass(day) (the study's §4.2 classifier); today /
+  hourly / outlook / lines (the forecast, on scratch days - the live day is never touched).
+- THE DAY: 07_day.js keeps ONE spec and grows an EFFECTIVE one, `e`: the declared spec, or (when it names `plan`) the
+  plan's answer for this instant laid over it. Every derived number, air(), hasAir and the weather getters (wind,
+  stormSpec, diurnalC, seaTau, turbidity, cloudCover, cloudType, cloudUpper, qnhPa) read `e`; set() and spec() keep
+  the declared one, so a plan round-trips as `plan` and the sandbox's own weather under it is untouched. advance()
+  moves the weather with no version bump. New derived: plan (the meta: block, idx, id, name, fly, weatherDate, rain,
+  kp, fogHold, fogWhere, windKey, dips), rain, auroraKp, fogWhere; an advection fog's hold raises mistRho0. No plan:
+  e === s, every line as before (GATE WEATHERPLAN 9, and every DAY / CLIMATE / FOG check).
+- THE WORLD: 20_world.js setDay takes the plan's wind on a set naming plan or wind (NaN key: always), dayTick re-resolves
+  the climate when day.plan.windKey moves (the front's hand rides the same setWind); a plan lifted gives the declared
+  wind back. The worker evaluates the same spec (sim_link mirrors spec(), which carries `plan`).
+- THE CAREER: day_clock.js career(hook) sets { plan: { id: 'season' } } (leaving the career sets plan: null); save()
+  writes the DECLARED decks (sp.*), never the plan's (study F8: the pref is the sandbox's). The TIME menu's forecast
+  door window.FLYDIY_FORECAST (TIME-CONTROLS' hook in day_ui.js menu, editor.js / app.js) = WEATHER_PLAN.lines.
+  The sandbox: ?plan=1, and DAY_CLOCK.plan(on) for GAME-MENUS' "play the plan" row (a session setting, not saved).
+- THE WINTER LAYUP: 74_career.js careerSeasonLand({date, utc}) -> the instant, or (its LOCAL date past 30 Sep, or before
+  20 May) the next opening at civil dawn, `layup: true`. careerDaySet applies it (forward; returns `layup`), the
+  normaliser lifts an out-of-season save, day_clock.js jump lands a career wait on it (why 'layup', a 'flydiy:layup'
+  event { from, to, season } - the story's beat hangs there: NOT BUILT, the card is Game's) and the career's tick
+  lands real time run past the close at the next moment on the ground.
+- GATE WEATHERPLAN (tools/_weatherplan_check.js, core, ~12 s): the pack; the blocks (the edges, 15 Jul = fair-cumulus,
+  the season); the 42 days' rules (the study's --check: unique ids, the fields, clear dawns, a storm forecast by the
+  two days before, its no-VFR window honest, no type change under cover by day, easy days >= 85 % easy, blocks >= 60 %:
+  early 87 %, high 79 %, late 72 %); one source (twice the same; advanced-to == set-at; no version bump); the season
+  walked every 2 min (T <= 0.08 K/min, Td 0.14, QNH 0.15 hPa, wind 0.15 kt, cover 0.03, base 20 m; the turbidity once
+  a night at 02:00); the world (the air, the wind through a day, a ticked world == a set one, the sea, a plan lifted);
+  the forecast (today, the storm two days ahead, the lines, across a block edge); the layup; no plan; the sources.
+  NEGATIVE PROOF: a stale pack and a storm window that misses its no-fly hours both go red.
+- NOT DONE (next): the rain's look (W6), the fog's `where` in the renderer (W3: FOG-MIST F2's layer by sea / valleys),
+  the aurora's look (NIGHT-LOOK reads day.auroraKp; the study's §3.8 visibility law), the clouds' GPU threshold (W3),
+  the contracts' night cover FROM THE FORECAST (today: the effective cover now), the pilots' and the AP's planned
+  winds (W5), "wait until the weather improves" (WEATHER_PLAN.flyClass is the reader it needs), the acceptance leg's
+  air record (W7), the layup's story card.
+- THE RUN (`--only=`, jobs 2, on 9fffdda39): WEATHERPLAN DAY CLIMATE CONTRACTS ECON CLOCK MISSIONS UISMOKE UISMOKE-PHONE
+  ATMO ATMOS HONESTY WATER PLAYER BUILD PASS; CLOUD 1 red - its source row on day_clock.js's save line, which now writes
+  the DECLARED decks (sp.cloudUpper): the row re-read (16e9705b4), CLOUD PASS with its census (current / gamer / ultra:
+  the clouds live, the composite 6 draws). FOG (2: app.js's MAIN camera) and STORY (the T0 beat card): master's
+  standing reds. (A0's L30c CLOUD census red was NOT this work: it stayed red without weather-fixes - NEW-PLANE's chooser.)
+- STATUS (3 Nov ~20:30): claude/weather-season is complete and pushed; claude/ready/weather-season is NOT pushed - a
+  ready branch is pushed on the user's own word (the user said so for weather-fixes; this one waits for theirs). It sits
+  on L30b + claude/weather-fixes (merged), so it rides any train that carries weather-fixes, or after it.
+
+## A0 - train L31a, 4 Nov 2026 08:15
+
+IN (on L30d master 05f95aa76): claude/ready/pilot1-p1 bc280a3c9 (PILOT-1 P1), claude/ready/pilot1-tourknown 2ae58a7d9, claude/ready/w2-dry 7517f828c (the recorded water off w2), claude/ready/dmg-scuff-fix 18c8efd7c, claude/ready/day-saved-read 523184c49 (F9: a fresh career's weather-only pref), claude/ready/phone-no-gate 7f6ecf10c (phones load the phone garage directly; holds phone-map-stay), claude/ready/story-home-fix 09a391eba, claude/ready/scenery-place 15e1977fb, claude/ready/bay-mirror 70931162a, claude/ready/weather-season e74c3a155 (the user 4 Nov: "weather is done").
+OUT: stol-fixture-2 (the re-capture was not pushed), hut-11c (not needed), night-look-1 (its stills are at 09:30).
+BATTERY (66 + WEATHERPLAN + WEATHER run by hand on the same tree, both PASS): 58 PASS. WORLD, ROUTE and TAXICLEAR turned GREEN on this train.
+Red, standing: STOL (the fixture predates tank-fit: the same 7 rows as L30c, re-capture owed), VEHICLE (2 rows), DMGSKINGPU + DMGWRECK (first red at L30c's tank-fit), FRAMECOST (the same 5 rows as L30d), MEDIA (index.html 5.05 MiB gz against the 5 MiB budget: no page-size work, the user 14 Oct), ASSETS (same list as L30d), GEO (media/geo/chars not named by any manifest the gate parses: those files are unchanged since 26 Oct).
+Red, NEW and a rig fault: NIGHTVISIBILITY. Its check cuts jump() out of src/viewer/day_clock.js into a vm, and weather-season's jump() now calls seasonLand, which is declared outside the cut ("ReferenceError: seasonLand is not defined", tools/_nightvisibility_check.js:17). The game declares it at day_clock.js:138; the fix is a stub in the rig's context, for L31b.
+TIMED (light): 45 red against the 12 Oct baseline (L30d 49), the same boot picture: warm nav -> garage 103.5 / 131.6 s. Named on the perf-week list.
+
+### PLANE-THUMB-CARDS reconciled with NEW-PLANE-THUMB (4 Nov, A0): one picture per candidate tile
+src/viewer/new_plane.js keeps PLANE-THUMB-CARDS' npThumb: the tile asks once for PLANE_THUMB.get('cand:' + c.file), and a 'plane-thumb' event fills the tiles still without one, in place, with no redraw of the screen. NEW-PLANE-THUMB (cloud session 01RorUqE6GL185zmnCrbumTb, 1187cae58) is dropped from L31b; its thumbOf, its redraw and its editor.css row are not taken, its GATE NEWPLANE row is (a tile wears the picture when PLANE_THUMB answers, today's tile without it). Archetype tiles keep their SVG. PLANE_THUMB itself lands from claude/plane-thumb.
+## FLOATS-CLASSIC - THE EDO-STYLE ROUNDED-DECK FLOAT: A STYLE OVER THE SAME ROWS, AN EDO CATALOGUE TO THE DC-3's MODEL 78, THE WIPLINE LINE TO THE BIT (2026-11-03, FLOATS-CLASSIC for A0, a CLOUD session: node + SwiftShader, no GPU; branch claude/floats-classic off master adb2d2a9 = train L30b)
+The user (3 Nov, via A0): "another model of floats. A rougher one, with rounded top, feels more home made ... We have the
+Wipline line, this one could be called something else, but use the same controls? ... Or maybe have 3? But let's not make
+it a headache." A0 (20:00): the references ARE EDO floats; "there is a DC3 on EDO 28000 floats, that's a cool target".
+- THE FAMILY (sources: reports/evidence/FLOATS-CLASSIC/README.md): the PA-18S's TCDS 1A2 lists Edo 89-2000 floats; the
+  PA-28S-180 was approved on Edo 89-2000s (TCDS 2A13, 1963); the 89-2000 is ~16 ft bumper to transom, 263 lb a pair
+  installed; the C-47C / XC-47C (1943, and N130Q flying today) on EDO Model 78s: 42 ft, 5 ft 8 in of beam, 29,000 lb a
+  float, about a ton each. The model number is the float's buoyancy in pounds fully submerged.
+- HOW TODAY'S FLOATS WORK (the map, file:line on master adb2d2a9): the hull is ONE section family, src/core/32_hydro.js -
+  DEF (the Wipline 2350's lines at 4.6 m) 166, keelTable 277, deckAt 310, sectionOf 325, secPoly 372 (the physics
+  polygon K C E D), makeFloat 377 (the panels: bottomF/A, side, bevel, deck, step, bow, stern; volDeck), secAreaTo 507,
+  levelVolume 1395, FLOAT_PRESETS 1734 (15 Wipline rows), FLOAT_SPEC_KEYS 1770, fineParams 1805 / presetParams 1818 (the
+  fineness fit to the row's flotation), floatAdvice 1850 (the reserve: the pair's displacement over the all-up mass,
+  1.8 needed). The drawing reads the same sections at drawing resolution: tools/_float_gen.js ringSide 140 / buildHull
+  232 / buildDeck 482 / build 651. The editor: tools/_cage_float.js (the rows 107-150, hullParams 157, the post 396: the
+  hull, the truss, the stand), the join copies FLOAT_SPEC_KEYS into spec.gear.floats (tools/_cage_join.js 410), the
+  normaliser clamps them (src/core/60_gen_spec.js 5215), the frame builds five stations a float and hands the record's P
+  to HYDRO.makeFloat (src/core/61_gen_frame.js 2599) - the panels the water pushes on are the drawn hull's. The
+  "hydro tables / _hydro_gen.js" of the brief: tools/_hydro_gen.js is a 7-line shim; there is no table - the hull is
+  computed from the section family every time.
+- THE STYLE (`fltStyle`: 0 'Wipline (flat deck)', 1 'EDO classic (round top)'; names proposed below). Every hull row
+  drives both. The classic is three numbers on the record, ABSENT on a Wipline (EDO_STYLE: crownK 0.16, bowDrop 0.12,
+  noseMul 1.8, plus `style: 'edo'` as a string): THE DOME - the centreline at the deck line (the H row: the box is the
+  rows' box), the deck edge crownK H under it, a quarter ellipse between that leaves the side vertical and arrives level;
+  THE BOW - the deck rolls down over the forebody's forward half to a nose bowDrop lower, the nose round x noseMul (the
+  soft curve that wears the bumper), the rocker meeting that lower nose. The bottom (deadrises, keel flat, step,
+  afterbody) is the rows'. PHYSICS (WYSIWYG): sectionOf gains `yt` (the crown; a Wipline's yt === yd), secPoly a dome
+  (E, D at 30 deg, M at 60 deg, T on the centreline; D and M pushed out DOME_K = 1.0263 so three facets hold the drawn
+  six's area), makeFloat its panels (8 quads a slice for 7, the step slivers, the bow and stern caps), secAreaTo /
+  levelVolume / volDeck / floatAdvice read it: the drawn hull is the physics loft's within 0.10 % on every EDO row
+  (a Wipline is -0.26 %, as it was). The dome is honest: the same rows flat-decked hold 953 kg, domed 907 (the EDO
+  2000); the PA-18's own floats in the classic style hold 1115 kg a float against 1171.
+- THE CATALOGUE (EDO_PRESETS, kept APART from FLOAT_PRESETS: the advisor, the Wipline indices and every saved fltPreset
+  are untouched; the preset row lists them after `custom`, index 16+, and a pick sets the style): EDO 1320, 1650, 2000,
+  2440, 2870, 4580, 7170, 78-28000. `flot` = the model number in kg; L / B sourced where a source exists (1320, 2000,
+  Model 78), else scaled from the displacement on the Wipline line; H then SOLVED so the fit lands at fineness 0.1 (23-25
+  deg of deadrise: NACA TN-716's 20-25 for V-bottom floats - the Wipline line's heights put an EDO at 32-34). est: true
+  on every row but the Model 78's L and B.
+- THE DRAWING: _float_gen ringSide's dome branch (the same point count, the loft one grid), buildDeckEdo (no non-skid
+  coating; a round hand-hole cover a bay on the crown, a pump-out cup a bulkhead on the shoulder, horn cleats bow and
+  stern, the spreader saddles and strut fittings ON the dome via HYDRO.deckYAt), the bumper 22 mm thick and 13 cm deep
+  (a Wipline's 12 mm x 4 cm). The layer: the hull on the new section `floatBare` (pinned finish `agedAlu`, its own colour:
+  bare grey whatever the aeroplane is painted), the rivet field at an EDO's bulkhead pitch (a seam every 0.6 m, a row
+  every 0.3 m round, x sqrt(scale) on the big floats: the same shader grammar; 0.45 x 0.17 m read as reptile scales -
+  every bay is an oil-can dish in the grammar), the deck board (`fltBoard`, EDO only: three spruce planks fore and aft across the spreader bars, the
+  section `floatBoard`). `agedAlu` is one new AERO_FINISH row and its sheet bake 'panels' (2 mismatched skins a 2.4 m
+  tile, each its own shade and sheen eased across a tenth of the sheet - colour, not relief: a hard step drew a ridge
+  at every cell edge -, a faint lap groove, a few scuffs) - a texture, no new program (the
+  hook's source is the program key; nothing in the GLSL moved). DRAWS (the PA-18 build's float layer, headless): Wipline
+  19 meshes / 11 materials, EDO classic 17 / 9, with the board 18 / 10 - never more than the Wipline. Phone: the lite tier drops the structure grammar
+  (the rivets) and the field as on every skin; the panels sheet stays (one fetch the skin made anyway).
+- THE DC-3 (A0's target): the rows, the normaliser and the sliders reach the EDO Model 78. The normaliser widens ONLY for
+  a record that says style 'edo': L 12 -> 16, B 1.6 -> 2.2, H 1.5 -> 2.0, mFloat 600 -> 2000, wrArea 0.6 -> 1.2, wrDepth
+  0.8 -> 1.4, scale 3 -> 4, xAft 2 -> 3, track 2 -> 4, y -2.5 -> -4.5, x 6 -> 12; every Wipline record keeps its bounds to
+  the bit. The editor's sliders are wider for everyone (fltL 14, fltB 1.9, fltH 1.5, fltMass 1200, fltTrack 3.5, fltDrop
+  3.0, fltStrutR 0.09, fltSpreadAft 2.4): a slider's range is the UI's reach, never a saved value. The candidate
+  (builds/candidates/dc3_2026-10.json, its old float record cleared - G3700 held its station) on 78-28000s, half track
+  2.6 m (under the nacelles), keel 2.9 m under the belly (the 3.4 m props 0.55 m over the decks): 10,702 kg, the pair
+  26,449 kg to the deck, RESERVE 2.47; afloat 2.1 deg nose up, 0.72 m of keel draft (the stern deck edge awash, the crown
+  0.13 m over it - an EDO at gross); taxies 127 m in 30 s at a quarter throttle; the hydroplane run lifts off at 43 s,
+  37 m/s, 804 m (hump R/W 0.13 at 16.5 m/s).
+- PHYSICS, MEASURED (node, the hydroplane run's own loop): the PA-18 floats build, Wipline -> EDO classic: lift-off 22.7
+  -> 22.6 s, 236 -> 235 m, the hump R/W 0.164 -> 0.163; rest trim -0.9 -> -0.6 deg; the deck edge's least freeboard 12 ->
+  3 cm (the dome takes the corner). The Cessna floats build: 23.7 -> 23.5 s, 350 -> 348 m; reserve 2.13 -> 2.01.
+- ABSENT AT DEFAULT: every Wipline hull (15 rows + DEF) hashes to master's (GATE FLOATSCLASSIC pins it); the PA-18 and the
+  Cessna floats builds through the game's load path give master's spec but for the two new cage rows at their defaults
+  (fltStyle 0, fltBoard 0) and an identical def (nodes, beams, float hulls).
+- GATE FLOATSCLASSIC (core, ~1 s warm; the join's children ~25 s cold) and FLOATSCLASSIC-WATER (full, ~6 min): see the
+  gate's header.
+- TOOLS: plane_shot.js passes &idle=0 (PHONE-EDIT-PERF's idle hold froze the phone shed's canvas 5 s after the last touch:
+  every still on master failed "hiding it changes 0.00 % of the pixels") and has a bow:<az>/<el>/<dist> view;
+  float_water_shot.js is water_look_shots' float scenario for a Linux cloud box (stills only).
+- A THIRD FAMILY (the user's Super Legend on PK amphibious floats): NOT a third deck style. A PK is a flat-deck, flat-
+  skinned deep V (the Wipline style already is one); what makes it a PK is the amphibian - retractable wheels in the
+  hull, a nose wheel in each bow - which G451 left owed. When the amphibian is built, PK rows (PK 2050A for the Super
+  Legend) are a preset on the Wipline style. Two styles, no headache.
+- NAMES PROPOSED (the row reads 'EDO classic (round top)'; the user picks): "EDO classic", "Bush float", "Round-top".
+- GATES (node): new FLOATSCLASSIC (core) and FLOATSCLASSIC-WATER (full) PASS; FLOATKIT, FLOATS, SEAPLANE, HYDRODYN,
+  HYDRO, WIPLINE, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD
+  PASS (SKINMAT: agedAlu on the bare-metal list; PARTS: the Floats part claims fltStyle / fltBoard and the two
+  sections). RED HERE AND ON A CLEAN origin/master, the same lines: CLIP (navAerial 9.2 mm into edFinSkin on
+  stock+ifr), JOINPARITY (3 rows), LIVERY (its harness: garageFloodArm is not defined). Evidence and pictures:
+  reports/evidence/FLOATS-CLASSIC/.
+- Owed: the user's eye on the dome's height (crownK 0.16) and the bow drop; the classic's own afterbody (it wears the
+  Wipline's G1930 plan); the EDO rows' heights are fitted, not measured; the DC-3's floats at the rule station sit 2.1 deg
+  nose up - fltZ is the builder's dial.
+- MERGED origin/master e6bcfb36 (train L30c) at the end: master had added plane_shot's &idle=0 itself (NEW-PLANE), kept;
+  the bow view kept. On the merged tree 16 gates PASS (FLOATSCLASSIC, FLOATKIT, FLOATS, WIPLINE, HYDRO, JOIN, SAVE, PARTS,
+  DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE: evidence gates_merged_L30c.txt); the long
+  ones (UISMOKE, HYDRODYN, SEAPLANE, FLOATSCLASSIC-WATER) were green on the pre-merge tree (gates_final.txt).
+
+## FLOATS-CLASSIC.2 - THE EDO SECTION MEASURED OFF A PLAN, NOT EYEBALLED; EVERY FLOAT MODEL WEIGHS AND COSTS (2026-11-03, FLOATS-CLASSIC for A0, cloud - node + SwiftShader; branch claude/floats-classic)
+The user, on the first cut: "I still find them a tad flat on top ... Did you find blueprints or accurate measurements?
+If not, we'll need these not to eyeball it ... It needs to come with weight and price". Answer: no - the first dome
+(crownK 0.16 of H over a flared side) WAS eyeballed; a web search found no EDO offsets (none reachable: NACA WR L-722,
+EDO drawing 14390 and the 1997 Model Aviation pattern are the leads, all behind the network). The user then supplied a
+giant-scale (1/4-1/5) EDO float plan: top view, side view, a dozen formers.
+- MEASURED (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_section_measured.png): every former's topside is
+  ONE QUARTER ELLIPSE from the chine - the widest point - to the crown (the half-widths sit on sqrt(1 - s^2) within
+  ~0.03 of the beam but the noisiest rows); height 0.74-0.80 of the beam, the chine at 0.30-0.33 of the height, ~25 deg
+  of slightly convex V; the top view: length 6.7 beams, a blunt bow (0.55 of the beam at 3 % of the length), the
+  afterbody closing almost linearly to a 0.70 stern. The eyeballed top had a near-vertical wall with a shallow cap.
+- THE HULL NOW (32_hydro): crownK 0.97 = the dome from 3 % of the topside over the chine; the dome's height is the STEP
+  section's over the higher of its two chines (domeStep, cached non-enumerable like _keel), so the topside is one curve
+  across the step (tying it to the local chine leaked the loft at the step: closure 0.01-0.08 m2 in x); the hull-width
+  row is the CHINE beam (chineHalfStep); the physics section is the drawn one - six 15 deg facets a side, DOME_K gone -
+  drawn = physics within 0.09 %; the lower two dome facets are 'side' panels (the water runs on them), the rest
+  'deck'; hullSide's depth reads yt (a flat deck's yt is its yd, to the bit). EDO_AFT: the afterbody plan held 0,
+  closing linearly (aftPow 1) to bStern 0.70. The frame's float deck nodes and the drawn fittings sit on the dome's
+  upper shoulder (0.72 of the half-beam: the deck edge is the chine now); the water rudder's post reads the crown; the
+  paddle rides the ellipse's flank. The normaliser's crownK clamp 0.4 -> 0.985 (it was flying a smaller dome than the
+  drawing - GATE FLOATSCLASSIC caught it).
+- THE CATALOGUE: L sourced where it is (1320, 2000, Model 78), else the 2000's by the cube root of the buoyancy; B = L /
+  6.7 (the Model 78's sourced 1.73); the fineness pinned at 25 deg and H solved for the model number: H lands at 0.80 of
+  the beam on every row (0.69 on the long 1320) - the plan's band; the fit then lands at 25-26 deg.
+- WEIGHT: sourced figures in - the 1320 pair 165 lb installed (75 kg), the 2000 263 lb (119), the 2870 ~410 lb (185, off
+  a 2960's 425), the Model 78 2,284 lb A FLOAT (`mHull` 1036 kg: presetParams takes a row's own hull mass over 0.40 of
+  the system).
+- PRICE (HYDRO.floatPrice, credits = 2025-26 dollars, the PAIR rigged and installed; FLOAT_PRICE_RATE): EDO is out of
+  production - the used market + ~5,000 to install: 1320 12,000, 2000 15,000, 2870 14,500 sourced (forum and listing
+  figures), the rest on their line 5,000 + 85 / kg of system (est.); Wipline new, quote-only: the 2100 55,000 (an older
+  36,300 + 5,300 installed quote read to today; est.), the rest at 440 / kg (est.). A row prices its own family only (a
+  Wipline row's name on a hull turned EDO is priced as an EDO); custom dials at the family's rate on mFloat / 0.40.
+  61_gen_frame bills it in the 'gear' row IN PLACE OF the wheels (a float build paid for two wheels and a tailwheel it
+  did not have, and for floats nothing): the PA-18 floats build's gear row 3,140 -> 56,990 credits. This moves every
+  float build's ledger cost (Wipline included) - an economy change, no physics. The row labels, the float card and the
+  status line show weight and price.
+- MEASURED ON THE WATER (GATE FLOATSCLASSIC-WATER): the DC-3 on 78-28000s 11,115 kg, reserve 2.37, 1.9 deg nose up,
+  0.74 m of draft, lift-off 53.4 s / 1006 m; the PA-18 in EDO classic over its Wipline rows: 973 kg a float to the deck
+  (the flat deck's 1171), reserve 2.58, lift-off 23.5 s / 245 m (Wipline 22.7 s / 236 m).
+
+## FLOATS-CLASSIC.3 - THE WHOLE EDO HULL OFF THE PLAN: THE BELLY, THE PROFILE, THE SIDES (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .2: "the belly looks exactly the same as the Wipline line. And I'm not even sure there is the shoulder in the
+one I gave you ... did you pay sufficient attention ... to the actual profile and the shape of the float". No: .2 read
+two small formers (one with its chine cropped off) and kept the Wipline's bottom, profile, bow and step.
+- READ (reports/evidence/FLOATS-CLASSIC/edo_plan_sections.md, edo_measured_vs_model.png): all six formers, the top view
+  and the side view, on x4-x5 crops with an original-pixel grid. SECTION: widest at the chine, the sides LEAN IN ~23
+  deg (19-30) to a shoulder at 0.69 (0.63-0.74) of the half-beam, ~2/3 up the topside, a round top over it; no chine
+  lip; height 0.67-0.83 of the beam; the BELLY CONVEX on the big mid-body formers (A, B, D: ~10 deg from the keel, ~31
+  to the chine), a straight V at the ends; ~23 deg (not .2's 25). PROFILE (the side view, drawn tilted 4.6 deg, read
+  against its deck): a LEVEL deck (parallel to the flat keel: no sheer), the keel flat over ~0.4 of the forebody, a
+  convex rocker into a raked round bow (the nose's front 0.85 of the depth), NO near-vertical stem, a small step (0.12
+  of the depth; a Wipline's ~0.17) at 0.573 L, a stern 0.385 of the depth deep. PLAN: L/B 6.65, the beam full 0.29-0.53
+  L, a blunt bow, a linear afterbody to 0.70. The side view reads ~13 % deeper than the formers at the same beam: only
+  its ratios are used.
+- MODEL (32_hydro): EDO_STYLE = crownK 0.34 (the arc's share of the topside) + shoulderZ 0.69 + tumble 23 (the arc's
+  tangent at the shoulder) + belly 0.5 (the bottom's mid point at half the straight V's height, faded to a straight V
+  by 0.8 of the forebody / 0.9 of the afterbody) + sheerK 0; bowDrop / noseMul retired (still read if a record has
+  them). The section: K, M (the belly's mid), C, the leaning side to E (the shoulder), six arc facets to T - the drawn
+  ring's own points (edoArc), the physics' two bottom facets each with its own deadrise. THE SIDE IS ONE SKIN THROUGH
+  THE STEP (domeStepRec): the afterbody's side is the side, the forebody's chine a little wider at the step (2-3 cm a
+  side on the 2000, faded by 0.3 of the forebody) - both on the plan's beam left the afterbody's side outboard of the
+  forebody's, a forward-facing lip, and the loft leaked (0.01-0.08 m2 in x). EDO_HULL (an EDO preset writes these
+  rows): step 0.573 L / 0.12 of the depth, keel flat 0.34, stem 0.40, rake 45 deg at xs/H 5.2 (rescaled to each hull's
+  own proportions), nose round 0.15 - fitted to the plan's eight keel points within 0.01 of the depth - deadrise 23 /
+  bow 26 / aft 22, planK 5.5, flare 0; the afterbody angle solved for a 0.385 stern. edoPresetParams: the plan's
+  proportions (L/B 6.65, H/B 0.80) SCALED to the model number's buoyancy - the EDO 2000 4.67 m (15.3 ft; the owners'
+  16 ft is bumper to transom), the 1320 4.07 m; the Model 78 keeps its sourced 42 ft x 5 ft 8 in and its height is
+  solved (0.70 of the beam). FLOAT_GEN: the EDO's drawn bottom has the belly's crease, its keel round the inner facet's
+  slope, its chine round the outer's; no sister keelsons or chine straps (the plan notches its stringers INSIDE) - the
+  keel strip only. Fittings and the frame's deck nodes at 0.85 of the shoulder's half-width, on the arc. Drawn =
+  physics within 0.04 %; every Wipline hull master's to the bit (the pin).
+- PICTURES (the user: "use the simple rendering tool for screenshots, not the game"): tools/quickshot.js - the PA-18 on
+  Wipline 2100s vs on EDO 2000s (its certified float) head on and side by side, the Cessna on EDO 2440s, the DC-3.
+- Not modelled: the formers' station-by-station variation beyond the belly fade (one mean law); the plan's slight
+  shoulder knuckle (smoothed to ~10 deg between facets); the internal stringers.
+- GATES (round 3, on the tree merged with master L30d 05f95aa7): FLOATSCLASSIC, FLOATSCLASSIC-WATER (13/13), FLOATKIT, FLOATS,
+  WIPLINE, HYDRO, JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, STARTER, LIVERYREACH, SURF, BUILD, UISMOKE-PHONE PASS; GEN,
+  UISMOKE, HYDRODYN, SEAPLANE PASS on round 2's tree (gates_round2_GEN.txt; round 3 moved the EDO hull only). RED, the same
+  rows on a clean L30d (gates_master_L30d.txt): LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows, node =
+  page on five builds since L30c).
+
+## FLOATS-CLASSIC.4 - THE FLUTED "BATMAN" BOTTOM, THE VINTAGE VENTRAL, THE RIVER-STONE RUDDER (2026-11-03, FLOATS-CLASSIC for A0, cloud)
+The user on .3, reading the plan with us: the big formers ahead of the step are "a Batman figure" - each half of the V
+is little circle arcs cut slightly into it, of one radius, barely meeting; the smaller formers and those aft of the
+step are straight. Also: the plan's ventral fin ("a tic-tac shape on one side, and then it just goes further toward the
+fore side") and the water rudder ("a very vintage rounded ... river stone-like profile").
+- .3 WAS WRONG ABOUT THE BELLY: it read the ridge's cusp as a CONVEX belly. Measured again (formers A, B, D): the ridge
+  at 0.55 of the half-beam, 7.4-9 % of the half-beam below the straight V; each arc's sagitta ~6 % of its chord.
+- MODEL (32_hydro sectionOf): EDO_STYLE `belly` retired for `flute` 0.08 (the ridge's drop over the half-beam; the arcs'
+  sagitta 0.75 of it), full from the step to half the forebody, gone by 0.85 of it, none aft. `s.flute` = six drawn
+  points a side (two on the keel's arc, the ridge, three on the chine's - parabolas of the sagitta); `s.fluteP` = the
+  physics' ridge, RAISED by exactly the area the flutes cut in (polyline shoelace, closed form) so the physics stays two
+  bottom facets a side (668 panels; four facets doubled the water's cost). Drawn = physics within 0.09 %.
+  FLOAT_GEN ringSide: the EDO's keel and chine are sharp, so the keel round's slots + support carry the first arc and the
+  ridge, the chine support + the chine round's four slots the second arc, the chine and a hair of the side (RING_N and
+  BOTTOM_N unchanged, the loft one grid). The Wipline branch is the old code (the pin holds).
+- THE VENTRAL (_cage_fin, row `finVentralShape` 1 "vintage lobe", any card): u0(v) = 0.36 (1 - sqrt(1 - v)) - a PARABOLA
+  from the tip on the belly (~50 deg on the plan) tangent into a level bottom, a round aft end over 0.82-1.0. Its area
+  0.841 c h (was 0.884 with a quarter-ellipse nose that started vertical); the join flies it. An EDO preset sets the
+  lobe at chord = depth / 0.33 (the plan's ~3.0).
+- THE WATER RUDDER (FLOAT_GEN, EDO only): a superellipse pebble (n 3 above, 2.2 below), 1.15 as wide as tall (was 0.95),
+  its area wrArea and foot wrDepth - the numbers waterRudder() reads.
+- PICTURES (tools/quickshot.js): edo_details_plan_vs_model.png (the plan's former A, ventral and rudder beside the
+  model's), the head-on, side and three-quarter shots regenerated.
+- WATER (floatsclassic_water4.txt, 13/13): PA-18 on EDO 2000s reserve 2.45, lift-off 23.8 s / 232 m; the PA-18's
+  Wipline rows in EDO style 2.42, 23.1 s / 238 m; DC-3 on EDO 78-28000s reserve 2.39, 2.5 deg afloat, 57.6 s / 1,040 m.
+  Physics panels unchanged (668 an EDO hull).
+- GATES (gates_round4.txt): FLOATSCLASSIC, FLOATSCLASSIC-WATER, FLOATKIT, FLOATS, WIPLINE, HYDRO, HYDRODYN, SEAPLANE,
+  JOIN, SAVE, PARTS, DESIGN, CAGEFIT, SKINMAT, UISMOKE, UISMOKE-PHONE, STARTER, LIVERYREACH, SURF, BUILD PASS. RED, the
+  same lines as a clean L30d: LIVERY (its harness), CLIP (navAerial, stock+ifr), JOINPARITY (8 rows).
+
+## A0 - train L31b, 4 Nov 2026 14:45
+
+IN (on L31a master adc53b25b): ready/nightvis-rig c96f522ae (A0), ready/nose-job-crew 9a956beaf (A0: the sliced nose job survives a crew change; node gates only, its page proof is AIRCRAFT-LOOKS' 15:30 probe), ready/stol-fixture-2 e077a37ae, ready/pilot-yawrate a9c1691ab (G3913, the Cub's sway), ready/gear-falls 069972044 (G2016), ready/twin4b-elec c7ea82dc5 (lead + gen20, bay 0.34, nav only by day), ready/empty-stand 0c24a98ca, ready/plane-thumb 42b9b323e, ready/plane-thumb-cards b597df34a (holds new-plane-thumb's row), ready/floats-classic d18ecea73, ready/aft-bulkhead e266fb9a7, ready/night-look-1 dad5bfdb1. A0 removed the stray builds/candidates/Twin_busher_floats_3.json a merge brought back (review/ holds it).
+OUT: tailwheels 2361f713d (a real conflict in tools/plane_shot.js with plane-thumb's tool commits): A0 re-cuts for L31c.
+BATTERY (76 asked, 74 kept): red, standing: VEHICLE, DMGSKINGPU, DMGWRECK, FRAMECOST (the same 5), MEDIA (now 5.10 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE (master's since before gear-falls).
+Red, new and NOT breaks:
+- STOL: 6 join rows again, the fixture is one train old: a spec row moved in this train. Re-capture once, after the last train.
+- CLOUD: 1 of 246, a source-pattern row on `const LAMPS` that night-look-1 changed the gain of: for NIGHT-LOOK, L31c.
+- WEATHER: finish agedAlu (floats-classic) has no substrate row: A0, L31c.
+- CONTRACTS: c172f.cost 95731 vs the certificate's 161775.4, twinf.cost 35551 vs 56250.9: floats-classic moved the float cost. Game, L31c; the market's numbers stale until then.
+- ASSETS adds orphan media/thumbs rows: the thumbs' manifest is not one the gate parses, with L31c.
+DMGSCAR's Cub restOut + metal gouge pass only because the wreck lies differently: causes (stol-wing, cert-pod) NOT fixed. Gear-falls costs GF1-3 on the perf-week list. PLANE_THUMB's first draw froze the page 7.5-8.7 s in its rig: on the list, real-path timing 15:30.
+TIMED (light): 48 red against the 12 Oct baseline (L31a 45), warm nav -> garage 108.5 / 112.6 s, nothing new named.
+
+## G3800 - TAILWHEELS: THE TAIL CONTACT'S FOUR LAWS (STEERABLE, LOCKABLE, FIXED, SKID), A TAILWHEEL A BOOM, AND THE INVERTED V ON ITS TIP WHEELS (2026-11-03, cloud; branch claude/tailwheels, pushed as claude/ready/tailwheels; on master adb2d2a9)
+The user via A0 (3 Nov), verbatim: "the swivel tailwheel, is that done? If not yet done, let's do it with the skid directly, so we
+have a set of cool tailwheels. We may also authorize tailwheels on dual booms while we're at it." - "One wheel per boom, same
+settings for the twin planes. And maybe it's the opportunity to do the inverted V-tail and the ability of sticking wheels on top of
+the inverted V fins?" - the 29 Oct ruling: "let's not reinvent rule. Let's do what the cub does by default. Then the second option
+could be to have a manual lock" (plus a truly fixed one).
+- **THE FOUR KINDS (30_solver twLine, params.twMode; the gear page's "tail contact" row s2Steer, the design tile "Tail contact"):**
+  1. STEERABLE (default; the Scott 3200 class, the Cub's): the rudder's arm (twSteer 0.5 rad at full pedal) through the steering
+     springs (their give, TW_SCOTT.defl 0.06 rad at full grip, is the DRAWN fork's angle: flown in series with the tyre it
+     tightened the Jodel's taxi turn by 21 % - GATE DMGTYRE - so the link flies rigid); it BREAKS OUT when the tail is dragged along a track
+     past the pawl's arc (35 deg, the contact sliding > 0.15 m/s, held 0.25 s) and castors with the kingpin's friction (2.8 N m
+     at a C170's tail load, Scott's own "5 to 6 pounds" at the 3.5 in arm), re-engaging within 0.12 rad of the arm;
+  2. LOCKABLE (the DC-3's; G3575's 'full swivel' became this): ctl.twLock 1 = pinned straight, 0 = a free castor; the pin drops in
+     when the castoring fork passes within 0.12 rad of centre. The autopilot (43_pilot TWLK) locks it for the runway and the air
+     and unlocks it on the taxiways, the stand and the line-up; the hand has '/' (input.js 'twLock', the worker's hand packet);
+  3. FIXED: straight, rigid;
+  4. THE SKID: no wheel - a steel shoe, Coulomb in every direction at TW_SKID_MU (grass 0.36, paved 0.45; NASA's metal-skid
+     data, casex's steel-on-concrete), its drag the tail's only brake.
+  Sources and derivations: 00_registry TW_SCOTT / TW_SKID_MU, reports/evidence/TAILWHEELS/README.md. The published Scott arc and
+  spring rate were NOT reachable from this session (faa.gov, ntsb.gov, ntrs.nasa.gov blocked by the network policy): the arc is
+  the linked travel plus a margin (Univair: "positive steering control far beyond rudder travel"), the trail and the springs'
+  give are derived - said so in the registry.
+- **WHY THE BREAKOUT IS THE ARC, NOT THE SIDE FORCE (the brief asked for "the side force over the detent"):** measured with the
+  breakout off, the held side force over the tyre's static grip reads 1.05-1.30 at the AUTOPILOT'S OWN full-power start (the
+  tail creeping on the tyre's at-rest Coulomb law) and 1.18-1.52 in a braked pivot - no holding force separates them (G3575's
+  finding again). What differs is the tail SLIDING past the arc: the held track over the arc reads <= 0.63 on the autopilot's
+  take-off rolls, <= 0.17 on its roll-outs, >= 1 in every pivot. A spring give the size of the arc (0.35 rad, the first cut)
+  softened a light tail's cornering 5x: the inverted V's tip wheels ground-looped on the roll-out (132 deg).
+- **THE VALIDATED BUILDS (the brief: "as before or better"):** HOME's circuit from the line-up on the autopilot is master's to
+  the digit - the Cub 113.41 m roll / 3.01 deg / roll-out 11.23 deg / touchdown 1.30 m/s, the Jodel 194.1 / 1.61 / 3.70 / 1.01,
+  Rufus 71.51 / 2.49 / 5.94 / 0.50 - with no breakout on any runway. On the ground they turn tighter where they should: the brake
+  pivot 180 deg in 4.7 / 4.6 / 3.6 s (master 7.5 / 9.7 / 4.2: the linked wheel scrubbed round), broken out at ~1.2 s, CG within
+  0.19-0.25 spans, re-locked and rolling straight after (1.0 / 6.5 / 4.0 deg); a brake-free 180 deg on full rudder and power in
+  4.2 / 4.0 / 3.4 s (master 5.6 / 6.9 / 3.6).
+- **OLD SAVES:** s2Steer 0 / 1 load as the steerable wheel (no spec key); 2 (the DC-3's) as the lockable (gear.twMode 'lock');
+  a spec's twSwivel: true clamps to 'lock'. 3 / 4 are new.
+- **TWIN BOOMS, A TAIL CONTACT A BOOM (refs.tw2):** one under each boom's tail station (the gear layer: the boom's own belly,
+  CAGE_BOOMS; the frame: the boom's tail triangle the post), both on the same row and law with their own state; the leg is
+  lengthened to clear a pod that runs as far aft (a spec without its drawing). Before: one wheel under the pod's end.
+  wheelsOnGround / wheelContacts / placement (seatOnGround: the pair's middle) / the stance / hydro / contact shadows read both.
+  The second boom's fork is drawn with its leg (it rides, it does not yaw in the picture) - a named cut.
+- **THE INVERTED V ON TWIN BOOMS (tail.ivAngle / ivGap / ivS; the layout followed: the AAI RQ-7 Shadow's):** a panel down and
+  inboard from each boom, the tips ivGap apart (the Shadow's meet; here a gap so each carries its wheel). Each panel is the fin's
+  P4 truss in its canted plane, its strips 'vtail' on their own spar nodes (the canted normal from the deformed panel), so the
+  ruddervators mix as a V's. The V's sizing (S = max(Sh / cos^2 G, Sv / sin^2 G)) on the span the booms give; the design check's
+  Vh / Vv read the projections. The stab layer's mount 4 (stCant 20-55, stIvGap), the Empennage tile 'Inverted V' (twin booms
+  only), the join files ivAngle / ivGap / ivS; _tail_headless.js mirrors the stab layer (GATE FIN). THE TIP WHEELS: the gear
+  layer's legTipWheel (a short fork under each tip, or the skid's shoe), the frame's TW at each tip (hub R + 3 cm under it).
+  Signs measured at cruise (the generator's twin, 35 deg): dYaw/dr +10 765 (the conventional twin +5 508), dPitch/de +14 093
+  (+11 460), the rudder's pitch 0.5 % of the elevator's; 25-55 deg all the conventional's signs. The rudder's ROLL is still a V's
+  (-3 146 / dr; the fuselage V -3 062): the panels' antisymmetric lift outweighs their side force below the CG.
+- **THE AUTOPILOT:** the turn on the spot where the wheels cannot hold the route (G3480) is every taildragger's (pivG; the
+  walked turns stay the big airframe's, RgMin > 13) - a small one's when the turn truly refuses (0.6 rad held 1.5 s on the
+  rudder's stop; at the big airframe's 0.35 / 0.5 s the v7 ultralight pivoted in an ordinary turn off its stand, 2.6-2.9 m
+  off the line, GATE TAKEOFF's limit 2.5 m); a CASTORING tail contact (the lockable unlocked, the steerable broken out) is
+  steered on the toe brakes too, with the heading's RATE (39b groundSteer, 43 TAXI: brakeCastK 1.0, D 3.0, cap 0.8) - the
+  taxi law had no rate term ("the wheel steers the heading kinematically") and the castoring DC-3 circled on its stand; for
+  the lockable wheel a corner it pivoted stays turned, and a CUSP in the planner's route (HOME's works stand doubles back
+  on itself: a curvature of 2e15 at a doubled point) is a turn on the spot - the governor read it as 0 m/s for good.
+- **THE DC-3'S HOME TRIP (the brief's row) IS RED ON A CLEAN ORIGIN/MASTER TOO:** master's DC-3 (dc3_break --cases home,
+  the works stand (42, 32.5)) rolls off the route into the water north of the stand and stops at (13.5, 50.6), 96 s in, both
+  engines drowned - it never reaches the hold; this branch's reaches the same pond the same way (15.3, 50.2, 82 s). (Without
+  PILOT_CORE the tool can place it at (-113, 672): master swings 53 m off the line by 120 s.) Owed to the island's taxiway
+  beside that water, not to this branch. Its circuit from the line-up (dc3_break --cases circuit) is master's to the second:
+  lift-off at 21 s, touchdown at 268.4 s at 2.2 m/s, the go-around G3576 records.
+- **THE DRAWING:** the lockable wheel draws its lock pin and cable, the fixed its clamp collar, neither the steering arm or its
+  springs (castorUnit publishes no ears without a link); the skid its blade and steel shoe; the drawn castor follows the
+  solver (out.twState / twAng: the rudder's while steered, its own track castoring, straight locked or fixed). Under the
+  inverted V the fin layer stands down (_cage_fin, _tail_headless, the join) and CAGE_STAB.layOf(side) is the lay each half was
+  drawn with (the hinge layer's hinges and horns had hung on a phantom horizontal panel). tools/plane_shot.js gained --query
+  and the view tw:<az>/<el>/<dist>; THE PICTURES are the user's SIMPLIFIED RENDERER's (tools/quick_view.js - the user, mid-
+  session: "Use the simplified renderer for screenshots").
+- **THE INVERTED V'S CONTROL RUN (the user, 4 Nov, a garage picture: "that screenshots shows that the hinges did not like
+  that"):** the elevator's horn stands under its boom beside the panel's root, and the cable's exit (_cage_hinge cableExit)
+  was searched from 0.35 m (a chord x 2) ahead of it: every run forward along the flank crossed the panel's root, the
+  first clear exit stood up to 1.14 m up the boom (the twin busher on floats; 0.45 / 0.52 m on the twin-boom and
+  push-pull fixtures) and the cable lay along the boom's side to it. On the inverted V the search starts 8 cm ahead (the
+  Shadow's booms: the link leaves the boom over the horn): 0.09-0.14 m on all three. The join's declared hinge line read
+  the conventional lay (cageSurfLine: SB.lay with the side), not CAGE_STAB.layOf - it caught the right vertices only
+  because the band plane is the chord station's; it reads layOf now. GATE TAILWHEEL H (negative-verified on the old
+  code: FAIL 0.45 / 1.14 / 0.52 m). tools/plane_shot.js gained --probe <file.js> (an expression evaluated in the page
+  after the build settles - how the flown model was read for this).
+- **PHYSICS_V 7** (every taildragger's ground handling). The DMG certificate re-makes on the key; GATE DMGCERTCOST's reference
+  (tools/fixtures/dmg_certcost_ref.json) RE-WRITTEN (--write-ref) on this branch. The bench plaques shipped in builds/ (Rufus,
+  the Cub, the Jodel, the PA-18 on floats, the Cessnas ...) are f2 stamps: M1 re-stamps them on load when their hash is this body's
+  under any (GEN_SPEC_V <= 10, PHYSICS_V <= max(6, PHYSICS_V)) - bench.js 789, 76_procure 424 already take PHYSICS_V - so the bump
+  withdraws none of them; the R3 re-check runs on the first load.
+- **NOT ON MASTER (the brief's CM_OFF and the new-plane RULES live on claude/ready/config-matrix and claude/ready/new-plane):**
+  reports/evidence/TAILWHEELS/for_config-matrix.patch (CONFIG-MATRIX.md: the inverted V BUILT, the taildragger a wheel a boom;
+  CM_OFF needs nothing: the normal V and the T stay greyed on twin booms, the inverted V is its own tile) and
+  for_new-plane.patch (the chooser's 'Inverted V' option and its twin-booms-only rule; the "[VAL] a pusher on a tailwheel" grey
+  lifted on twin booms: MEASURED, the generator's twin-boom pusher on its boom wheels sits 12.7 deg tail-down and its disc's
+  lowest point clears the ground by 0.232 m - the gear page's tailwheel requirement 0.229 m; the single pod keeps the grey).
+- **GATE TAILWHEEL** (tools/_tailwheel_check.js, core, ~10 min, four probes at a time; the probe tools/tw_probe.js): the rows
+  the brief asked - the Cub's brake pivot within 2 spans and its re-lock; the brake-free 180 deg on full rudder and power (Cub,
+  Jodel, Rufus); HOME's circuit on the autopilot with no breakout on the runway (Cub, Jodel, Rufus); the DC-3 locked straight on
+  the full-power roll and pivoting unlocked; the skid's stop on grass and pavement against the wheel's; the fixed wheel's roll;
+  the twin taildragger standing on both wheels, rolling, pivoting, flying the circuit; the inverted V standing on its tip wheels,
+  pivoting, flying HOME's circuit and landing; the V's signs and volumes; the old saves. GATE INPUT: the lock's key and seed.
+- **GATES (the final core; jobs 3):** TAILWHEEL, INPUT, PILOT, PILOTS, TAXICLEAR, LINEUP, GEAR, ROUTES, CONTACT, GEN, JOIN,
+  SAVE, PARTS, DESIGN, DESIGNCHECK, STARTER, CAGEFIT, UISMOKE, UISMOKE-PHONE, TAKEOFF, SIMWORKER, FIN, SPECFIX, GENPAIRS,
+  HINGE, LOAD, PANEL PASS. RED = MASTER STANDING (each the same row on a clean origin/master adb2d2a9 worktree): DMGCERT
+  (the ultimate x1.1 breaks no member; BROKE AT -; the page's bench thread), DMGCERTCOST (the worker's certificate is
+  node's: 6.3e-8, the two V8s' last bits; its timing row passed this run), DMGTYRE 4 (the Jodel's taxi turn x0.784, the
+  metal Cessna's x0.664, the Cub's crosswind roll-out 27.2 / 62 deg - master's to the digit), CLIP (stock+ifr's navAerial
+  9.2 mm into edFinSkin). After the control-run fix: TAILWHEEL (with H), HINGE, CLIP (the same master row), JOIN, DESIGN,
+  CAGEFIT, UISMOKE, UISMOKE-PHONE, FIN, LOAD, PARTS, SAVE, SPECFIX, GEAR re-run - see the commit.
+- **THE PICTURES:** reports/evidence/TAILWHEELS/ (README.md): the simplified renderer's shots of each tail contact, the
+  twin taildragger, the inverted V (re-shot after the control-run fix), the busher's cable before / after, the pivot traces.
+
+## G3801 - THE V FROM THE BOOMS, ALL FOUR WAYS: DOWN & IN (G3800's), DOWN & OUT, UP & IN (AN A), UP & OUT - THE DOWNWARD ONES ON THEIR TIP WHEELS (2026-11-04, cloud; branch claude/tailwheels, pushed as claude/ready/tailwheels)
+The user, 4 Nov, verbatim: "can we also have inverted T-tail, but on the outside? And for the upward T-Tail, wan we also
+have an option where they face towards each other, inwards. SO we have all possible options, with little wheels if the V
+is downward?" (read as the V from the booms: G3800's inverted V with its panels run OUTBOARD, and the upright V with its
+panels leaning INWARD - plus the upright outward one, "all possible options").
+- **THE KEY:** spec.tail.ivDir - absent = 'downIn' (G3800's, the Shadow's; every saved inverted V unchanged), 'downOut',
+  'upIn', 'upOut'; tail.ivReach (m, an outward panel's tip outboard of its boom; default boomX - 0.15, the inward
+  default's size; clamped 0.2-2.0, kept only on an outward way). 60_gen_spec genIvDir / genIvReach (exported): an
+  inward panel's reach is boomX - ivGap / 2, an outward one's ivReach; the panel's span is the reach over cos(ivAngle).
+- **THE FRAME (61):** one panel a boom along (ud sin G, -side io cos G); TAIL.down / TAIL.out; the tip wheels only on a
+  downward V (TAIL.down), an upward one takes the booms' tailwheels (G3800's branch).
+- **THE MIX (62):** the strips' normal must come out of the upper face (the elevator's sense) and the rudder's mix sign
+  must push the tail starboard on dr > 0. A panel whose upper face leans INBOARD (down & in, up & out) mixes as a V's;
+  one leaning OUTBOARD (down & out, up & in) has the rudder's half reversed (strip side = boom side x -1), the span
+  order root -> tip on an upward panel. MEASURED at cruise on the generator's twin (35 deg): dYaw/dr +10 765 / +11 112
+  / +10 448 / +10 390, dPitch/de +14 093 / +14 178 / +13 740 / +13 752 (the conventional twin +5 508 / +11 460);
+  down & in to the digit as G3800's; the rudder's pitch 0.4-3.0 % of the elevator's (the upward ones the larger).
+- **THE DRAWING:** _cage_stab rows stIvDir (0 down & in, 1 down & out, 2 up & in, 3 up & out) and stIvReach (an
+  outward way's; stIvGap an inward one's); layOf: an inward half is the mirror half's lay at the far boom's x, an
+  outward one its own side's at its own boom's, the cant negated on a downward one; CAGE_IV_TIPS only on a downward
+  one (the gear layer's tip wheels; an upward one's are the booms'); window.CAGE_IV_DIR / CAGE_IV_REACH; the measure
+  carries ivDir / ivReach, the join files them (_tail_headless.js mirrors it). The join's ruddervator sense (sgn2) is
+  by the hinge axis's own lean now (-sign(axis.y): the port trailing edge to port on dr > 0 whichever way the panel
+  leans; the normal V's and the inverted V's read as before); the hSpan envelope's warning stands down on a V from the
+  booms (it flies ivS on its reach; an outward one's tip-to-tip ran past 4.5 m). The design page's Empennage tiles:
+  'Inverted V', 'Inverted V, outward', 'V, inward (an A)', 'V, outward' (twin booms only; iconBoomV, seen from
+  behind); the Stab sits slot's 4 reads 'A V from the booms'.
+- **GATE TAILWHEEL I** (the three new ways on the drawn twin as a taildragger: stands on its two contacts - down & out
+  0.31 deg, the upward ones 4.58 deg tail-down -, turns 180 deg on the brake 5.8 / 12.6 / 6.3 s within 0.24-0.33
+  spans, flies HOME's circuit and lands - touchdown 1.66 / 2.31 / 1.91 m/s, the roll-out inside 4 deg; down & out
+  lifts off at 36 s against the upward ones' 15, almost level on its tips; the signs at 25 / 40 / 55 deg; the clamp)
+  and H now four ways x three
+  fixtures (the links 0.09-0.15 m, the straps on their panels, the hinge 'declared', the drawn TE to port on dr > 0).
+- **NOT CHECKED:** a pusher's disc against an upward A's panels (the twin fixtures here are tractors).
+- **PICTURES:** reports/evidence/TAILWHEELS/twin_invertedV_in_*, _out_*, twin_V_in_*, twin_V_out_* (the simplified
+  renderer), builds/ the same names.
+ATMO-WRAP (HW-COVERAGE, 4 Nov): the bare inject is no hook (src/viewer/atmo.js, the accessor's setter)
+A material with no hook of its own is served ATMO's injectOnly. A copy of that assigned to another material (app.js's depth twin, hangar.js) was kept as a hook and wrapped: the key `atmo.inject+atmo.inject` against `atmo.inject`, one source linked twice. Measured on master adc53b25b: 4 of the nav's 87 redundant links, 3.2 s of 662 s link sum, so well under a second of boot. The setter now keeps no hook for it. Gate ATMO holds it with a row that fails without the fix. Not timed here: L31c's FRAMECOST judges it.
+The other redundant links are in PERF-WEEK-KNOWN-ISSUES.md row B4: 76 of the 87 split on three's own light counts (vendor/three.min.js:4172), parked for perf week.
+## CUB-WINDOW - the official Cub takes the drawn rear window, the flash off, the registration smaller (Game, 4 Nov 2026)
+
+The user 4 Nov: "That one actually needs to become the official one", "Do it now"; on the plane sheet ~17:20: a single Cub, "Remove the diagonal line, make the marling less tall and center it on the boom". Ruling: flydiy-notes/PLANE-LIST-RULING-2026-11-04.md section 2.
+- builds/cub_2026-09-20_corrected.json: the 14 paxWin rows of cub_quadwin_2026-10 (the two files are now one Cub but for the two rows below). finish.decals: m1On 0 (the diagonal was layer 1, marking kit 3 flash, G445.6; the Client Cub has no m1 and no diagonal; the level black waist rail is the waistband section and stays), regH 0.30 -> 0.20.
+- regC stays -0.18, regL 3.66: mid-boom lengthwise, centred in the panel under the waist rail. The boom's true vertical centre is about sC 0, where the black rail runs. A0 is asking the user; a change is one row for L32a.
+- The window moves the Cub: fingerprint raw 0f83faee -> 1ad1a668, joined a23a58ec -> 01fd7f78 (structure only), glazedM2 1.876 -> 1.774, mass 476.873 -> 476.448 kg, CG x 0.6827 -> 0.6823, y 0.5817 -> 0.5811, 84 node masses, 404 beam k/c. No PHYSICS_V bump. Bench not re-run. CONTRACT_DESIGNS.cub unchanged. stol_cub_kit and stol_cub_showcase keep today's Cub. The flash and regH move no fingerprint group and no def byte, by a comparison run with the fittings rows in; decals unseen in a browser (quickshot draws none).
+- cub_fittings_hand_2026-10's 5 rows NOT merged: a Claude session wrote them as FITMANUAL's ask (ea62fd810), not the user, and they put the handle on the glass (HANDLE 14, FITMANUAL 2). Commit 85f191cf8 tried them, eabc53eb1 took them out. That file goes to INTERNAL in L32a.
+- QUADWIN row 3: the check updated for the intended change, its old-window reference is now the Cub without the rows.
+
+JOINPARITY RE-CAPTURED (node tools/join_parity_page.js, tools/fixtures/join_parity_page.json, on this Cub, 4 Nov 17:45-17:57, the load chain had moved since 3 Nov): 8 FAIL -> 5 FAIL. Metal Cessna, Cessna floats and twin floatplane (2 rows; its page mass 487.244 -> 476.578 kg, cause not traced) now match. Still red:
+- Cub node = page: 476.448 / 477.395 kg (the capture's page Cub moved 461.660 -> 477.395 kg, the Cub's +15 kg, on master too, cause not traced).
+- Jodel node = page: 471.789 / 464.182 kg. The capture did NOT absorb this one: the page's Jodel stayed at 464.18, node moved +7.6 kg, cause not traced.
+- Cub, the nose tank: 476.19 kg as written, 477.39 in the game (passed on the old capture).
+- tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte; no tool flies a validated build raw. A capture cannot fix these two; both red on master.
+OPEN, cause not traced, A0's next-week list: the Jodel's and Cub's node/page tank split: node deck 44 L (Cub) / 53 L (Jodel), fit auto; page box 45 L; Cub wgChordTip node 1.7 / page 1.75. Read off a spec diff, not chased. The window's own rows agree between node and page (glazedM2 1.774 both); master's Cub was not captured for a side-by-side.
+
+Gates on this Cub (node, no Chrome), reds named. Same red on master's Cub file: STOL, POD, DMGINST, ENGCONFIG, CONTRACTS, RADIALDIV's cub row (HANDS OFF -46.2 deg, passed to Pilot). Red on the window run only, rows naming other planes (A0's next-week list): RADIALDIV mosquito + mosquito_1, PROCURE 6 (meridian@c172f, tern@twinf), HANDLE 2 (Twin_busher_floats_2), DMGTYRE 2 (Jodel, metal Cessna), APSMOOTH 1 (c172). Not run: PILOT, TOUR, DESTTO, the Chrome gates (the train).
+
+## A0 - train L31c, 4 Nov 2026 20:25
+
+IN (on L31b master af8116aa9, all 11 asked): ready/tailwheels-m ec8bba366, ready/atmo-wrap 211577ef2, ready/pilot1-circuit dae12f30a (G3914), ready/lights-warn 27ee00733, ready/s39-lights 67cf94193, ready/buoy-lamps e6655f61f, ready/aft-bulkhead-2 918c89330, ready/chooser-profile cbac52543, ready/seats-out 7342040f1, ready/cub-window 6a86eb616, ready/thumb-nolive b71ffbf29.
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.13 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE, CONTRACTS c172f + twinf (the float cost; market numbers stale), STOL 6 join rows (fixture one train old, Pilot re-captures for L32a). CLOUD, WEATHER, CANDIDATES green again.
+Red, NEW and not a break:
+- STOL part 1: the "radial" card flies 4 s off the fixture, fly fingerprint only (def and draw same), 1 of 32 cards. Cause not traced: Pilot names it in the re-capture, not blessed by it.
+TIMED (light): 54 red against the 12 Oct baseline (L31b 48). New reds: metal chase loop 21.8 ms + render 14.7 ms; cub taxi chase @HOME p99 66.6 ms, over15 0.027; cub fuseWidth busy 393 -> 806 ms; shader compile on one sample cub cockpit 14.8 -> 37.3 s, metal chase 15.3 -> 32.8 s; cub cockpit garage 95 -> 127.5 s; warm nav -> garage 122.4 / 122.2 s (108.5 / 112.6). One sample per row, not dated to a branch. On the perf-week list.
+COSTS, by branch:
+- aft-bulkhead-2: 4b meshes 407 -> 417, verts +1282, no mass in the ledger (model gap); flight draws on 4b not measured; Cub sling still fails 20.8 cm, off by default; fixes unseen on a real page except one twin frame.
+- lights-warn: phone top bar buttons 34-35 px at 390 wide, 31-32 at 360 with the triangle up, below the 40 px target, no gate; ul1 non-trainer +13.7 kg; saved planes with lights and no electrics show the triangle; nav by day on every plane with electrics, battery only 5.2-6.4 h then bus off; nav lit in flight unseen.
+- pilot1-circuit: longer flights, Cub circuit 406 s; good full stop limit 340 -> 440 s, same-strip 420 -> 560, climb limit 14 -> 16 deg, gate always allows 500 fpm. Step 4 NOT met: Rufus expert touches 70-74 m in vs a 15 m aim, student 35 m past the 250 m end (master 32); Rufus page leg did not reach the mine, node proof only. TOUR East Point + float Cessna mk_sea prop strike intermittent: Pilot answers Thu 12:00.
+- cub-window: JOINPARITY 5 FAIL. Paint unseen in a browser. NEXT WEEK, high: node and page may fly different Cub and Jodel tanks (node 44 / 53 L deck, page 45 L box), cause not traced.
+- seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
+Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
+NEXT: L32a Thu 13:00, the last train, refs by 12:30.
 ## G3911 - HULL-B1..B3: THE FLYING BOAT, BASE - THE FUSELAGE IS THE HULL, READ FROM THE SAME FRAMES; THE DRAWN RINGS ARE THE FLOWN HULL; STRUT TIP FLOATS; GATE HULL (2026-11-04, cloud, the user via A0: "Yes to Hull as a fourth Undercarriage option; start the base"; study futureDesigns/HULL-TYPES-2026-11.md §3 + §6; branch claude/hull-types)
 THE RULE (the user, 3 Nov): "reuse existing controls from the cage ... switch between boat hull and normal easily, with most controls shared". So the hull is a READING of the rings the frames already build, not a second body builder.
 - CAGE (tools/_cage_gen.js THE BOAT HULL, applied in buildCage2 only when S.hull exists): per ring, the keel CENTRE COLUMN (C.keel, the belly's middle vertex) is the KEEL at the ring's lowest point - the number every frame's "bottom height" states in both modes; the keel CORNERS become the CHINE, lifted to keel + half-width x tan(deadrise) (botRound's move on a straight line); the floor stays on the chine->waist wall; the waist is the gunwale. Deadrise at the step / warped to the bow (32_hydro's t^2.5) / aft. THE STEP is a tight ring pair inserted like step 2's guard rings (the bay's material, door and window keys untouched; named <ring>+s, flagged hullSide F/A); the afterbody keel is the frames' bottom line + hullHs all the way aft. Creases: the keel line (C.keel) and both step rings' bottom edges at 3; the chine is crKeel's (the tile writes 3).

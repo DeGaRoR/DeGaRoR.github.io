@@ -621,7 +621,7 @@ const CAGE_PARTS = [
 
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
-    sections: ['bulkhead', 'firewall', 'fireProof', 'fireSeal', 'tube',
+    sections: ['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'tube',
                'plywood', 'woodFrame', 'cloth',
                'composite', 'aluminium', 'toele'],
     groups: [
@@ -630,6 +630,8 @@ const CAGE_PARTS = [
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
+      ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 
@@ -789,7 +791,7 @@ const CAGE_PARTS = [
       // left here once the trunk has taken its rows is the root fillet
       ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
                 'finKeel']],
-      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
+      ['ventral', ['finVentralOn', 'finVentralShape', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`
@@ -837,7 +839,7 @@ const CAGE_PARTS = [
       ['construction', ['stCons']],
       // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
       // two angles — G2760: no second 'position' heading)
-      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant', 'stIvDir', 'stIvGap', 'stIvReach']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stThick', 'stThickTE']],
       ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
@@ -1117,10 +1119,11 @@ const CAGE_PARTS = [
     when: P => (+P.gearFloats) * (+P.gearOn) > 0,
     gate: 'gearFloats',        // a switched-off part collapses to its switch
     place: { on: 'gearFloats', fore: 'fltZ', out: 'fltTrack', up: 'fltDrop', at: 'the step' },
-    sections: ['float', 'floatDeck'],
+    // (FLOATS-CLASSIC: the EDO style's bare hull and its deck board)
+    sections: ['float', 'floatDeck', 'floatBare', 'floatBoard'],
     groups: [
-      // G451: the Wipline preset (a starter), the details, and the family's rows
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle']],
+      // G451: the Wipline preset (a starter), the details, and the family's rows; FLOATS-CLASSIC: the style, the board
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
@@ -1235,6 +1238,16 @@ const CAGE_PARTS = [
     groups: [
       ['door panel', ['doorPanelOn', 'doorPanelT', 'doorPanelGap', 'doorPanelMargin',
                       'doorPanelPocket']],
+    ] },
+
+  // CABIN-INTERIOR (the user 2-3 Nov, the cabin's top half "seen through windows"): the headliner and the upper wall
+  // trim (the liner's ceiling and walls split into their own sections, off by default), paintable like the seats
+  { key: 'headliner', name: 'Headliner & trim', parent: 'fit', layer: 'cage',
+    sections: ['headliner', 'cabWall'],
+    when: P => +P.intOn,
+    place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
+    groups: [
+      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',

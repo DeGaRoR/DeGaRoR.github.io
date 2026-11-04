@@ -13,6 +13,9 @@
 //   node tools/build.js && node tools/hydro_trim_table.js              this tree's core
 //   node tools/hydro_trim_table.js --core <path/to/flight_core.js>     another tree's (the before of a change)
 //   options: --only key[,key]  --max 90  --json <file>
+//   BAY-MIRROR (2026-11-03): --world jolene --at <aerodrome id> [--sea A,L,dir]: the same flight on the island (its premises
+//     fixture, through the --core tree's own island_node.js), started 600 m short of the lane's centre and pointed down the
+//     lane, on a pinned sea (e.g. 0.09,10,0.4 = the 5 m/s sea) - the take-off run on a sheltered bay, before and after
 // keys: c172r_stc (the 172R + 2350, STC 82x43 prop, the STC gross 1,157 kg), c172r_land (the land prop, gross),
 //       floats (bugReports/cessnaFloatsWOrks.json as built), wipline (tools/fixtures/build_v10_c172_wipline2350,
 //       as built), twin (GATE FLOATS' twin on floats: build_v7_ultralight + the float patch).
@@ -58,12 +61,29 @@ function latHold(sim, L) {
   sim.ctl.dr = Math.max(-1, Math.min(1, 2 * e + 1.0 * de));
   sim.ctl.da = Math.max(-1, Math.min(1, 2 * roll + 0.5 * dr));
 }
+const WORLD_ID = opt('world', null), AT = opt('at', null), SEA_PIN = opt('sea', null);
+let islandW = null;
+function theWorld() {
+  if (!WORLD_ID) return C.makeWorld();
+  const coreDir = path.dirname(path.resolve(opt('core', path.join(T, 'flight_core.js'))));
+  if (!islandW) islandW = require(path.join(coreDir, 'island_node.js')).islandWorld(WORLD_ID, { premises: fs.readFileSync(path.join(coreDir, 'fixtures', 'island_' + WORLD_ID + '.json'), 'utf8') });
+  return islandW;
+}
 function fly(def, poh) {
-  const world = C.makeWorld(), X0 = 0, Z0 = 1600, h = world.waterH(X0, Z0);
+  const world = theWorld();
+  let X0 = 0, Z0 = 1600, hdg = null;
+  if (AT) { const a = (world.aerodromes || []).find(q => q.id === AT); if (!a) throw new Error('hydro_trim_table: no aerodrome ' + AT);
+    hdg = a.hdg; X0 = a.x - Math.cos(hdg) * 600; Z0 = a.z - Math.sin(hdg) * 600; }
+  const h = world.waterH(X0, Z0);
   def.params.damage = true;
   world.setWind({ base: [0, 0, 0], gust: 0, refH: 10 });
+  // (after the wind: setWind draws the day's sea from the wind, so a pin set before it is gone)
+  if (SEA_PIN) { const [A, L, d] = SEA_PIN.split(',').map(Number); world.setSea({ A, L, dir: d }); }
   const sim = C.makeSim(def, world); sim.reset(0);
   const M = mass(def), Wt = M * 9.81, p = sim.p, v = sim.v, iK = def.refs.mains[0];
+  if (hdg !== null) {   // pointed down the lane: the airframe turned about the vertical through its main gear (body x runs nose to tail, sim.axes)
+    const [xA] = sim.axes(), turn = hdg + Math.PI - Math.atan2(xA[2], xA[0]), c = Math.cos(turn), sn = Math.sin(turn), ox = p[iK * 3], oz = p[iK * 3 + 2];
+    for (let i = 0; i < sim.n; i++) { const dx = p[i * 3] - ox, dz = p[i * 3 + 2] - oz; p[i * 3] = ox + dx * c - dz * sn; p[i * 3 + 2] = oz + dx * sn + dz * c; } }
   { const dx = X0 - p[iK * 3], dz = Z0 - p[iK * 3 + 2], dy = (h + 0.3) - p[iK * 3 + 1];
     for (let i = 0; i < sim.n; i++) { p[i * 3] += dx; p[i * 3 + 1] += dy; p[i * 3 + 2] += dz; v[i * 3] = v[i * 3 + 1] = v[i * 3 + 2] = 0; } }
   sim.ctl.thr = 0;
@@ -99,7 +119,9 @@ function fly(def, poh) {
   }
   const b = def.parts.floats[0].P.B;
   hump.Cv = hump.V / Math.sqrt(9.81 * b);
-  return { M: Math.round(M), Vr: +Vr.toFixed(1), hump, past, air: out, crashed, swing };
+  const sE = st();
+  return { M: Math.round(M), Vr: +Vr.toFixed(1), hump, past, air: out, crashed, swing, track: Math.atan2(sE.z - z0, sE.x - x0) * 180 / Math.PI,
+           at: AT ? { id: AT, x: +X0.toFixed(0), z: +Z0.toFixed(0), waveK: world.waveK ? +world.waveK(X0, Z0).toFixed(3) : 1 } : null };
 }
 const f = (v, d = 3) => (v == null || !Number.isFinite(v)) ? '-' : (+v).toFixed(d);
 // GATE HYDROTRIM flies these same flights (require: no table printed)
@@ -113,7 +135,8 @@ for (const [key, c] of Object.entries(CASES)) {
     rows.push(Object.assign({ key, tech: poh ? 'poh' : 'rig' }, r));
     console.log(`${key.padEnd(10)} ${poh ? 'POH      ' : 'G3390 rig'} | ${r.M} kg | hump R/W ${f(r.hump.R)} at ${f(r.hump.V, 1)} m/s, trim ${f(r.hump.trim, 1)} | ` +
       (r.air ? `LIFT-OFF ${f(r.air.t, 1)} s, ${f(r.air.V, 1)} m/s, run ${Math.round(r.air.dist)} m` : `not off in ${MAXS} s`) +
-      (poh ? ` (Vr ${r.Vr} m/s)` : '') + ` | swing ${f(r.swing, 1)} deg` + (r.crashed ? ` | ${r.crashed}` : ''));
+      (poh ? ` (Vr ${r.Vr} m/s)` : '') + ` | swing ${f(r.swing, 1)} deg` + (r.crashed ? ` | ${r.crashed}` : '') +
+      (r.at ? ` | at ${r.at.id} (${r.at.x}, ${r.at.z}) waveK ${r.at.waveK}, track ${f(r.track, 0)} deg` : ''));
   }
 }
 if (opt('json')) fs.writeFileSync(path.resolve(opt('json')), JSON.stringify(rows, null, 1));

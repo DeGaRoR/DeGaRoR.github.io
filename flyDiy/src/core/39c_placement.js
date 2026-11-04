@@ -59,11 +59,13 @@ function seatOnGround(sim, groundH, refs) {
       let ax = 0, ay = 0, az = 0, cM = 0;
       for (const i of M) { ax += P[i * 3]; ay += P[i * 3 + 1]; az += P[i * 3 + 2]; cM += clr(i); }
       ax /= M.length; ay /= M.length; az /= M.length; cM /= M.length;
-      let ux = P[tw * 3] - ax, uz = P[tw * 3 + 2] - az;
+      // G3800: a twin boom's two tail contacts stand for one at their middle (the pitch about the mains, no roll)
+      const t2 = refs.tw2 != null && refs.tw2 >= 0 ? refs.tw2 : tw;
+      let ux = 0.5 * (P[tw * 3] + P[t2 * 3]) - ax, uz = 0.5 * (P[tw * 3 + 2] + P[t2 * 3 + 2]) - az;
       const L = Math.hypot(ux, uz);
       if (L < 0.2) break;
       ux /= L; uz /= L;
-      const hT = P[tw * 3 + 1] - ay, Rr = Math.hypot(L, hT), want = hT - (clr(tw) - cM);
+      const hT = 0.5 * (P[tw * 3 + 1] + P[t2 * 3 + 1]) - ay, Rr = Math.hypot(L, hT), want = hT - (0.5 * (clr(tw) + clr(t2)) - cM);
       if (Math.abs(want) >= Rr) break;
       const th = Math.asin(want / Rr) - Math.atan2(hT, L);
       if (!(Math.abs(th) < 0.35) || Math.abs(th) < 1e-5) break;   // 20 deg: past that it is not a stand

@@ -569,7 +569,7 @@ function run(mut) {
       const repMx = st.placed.reduce((a, q) => a + q.kg * 0.5 * (q.at.x0 + q.at.x1), 0);
       ok(worst < 1e-9 && near(mx, repMx, 1e-6), nm + ': each item\'s kilos and centre on the rings; the items\' x-moment = the report\'s (' + repMx.toFixed(3) + ' kg.m)');
       const seatKg = R.seats.reduce((a, q) => a + q.kg, 0);
-      ok(near(R.kg, M.freightKg(st.placed)) && near(R.dm, R.kg + seatKg - R.baggageOff, 1e-9) && R.baggageOff === def.spec.baggage,
+      ok(near(R.kg, M.freightKg(st.placed)) && near(R.dm, R.kg + seatKg - R.baggageOff - R.chairsOff, 1e-9) && R.baggageOff === def.spec.baggage,
          nm + ': the adds = the items ' + R.kg + ' kg + the passengers ' + seatKg + ' kg - the baggage allowance ' + R.baggageOff + ' kg');
       if (k === 'c172' && pax === 1) ok(R.seats.every(q => q.kg === 0), nm + ': the job\'s passenger IS the build\'s co-pilot (seat 1): no seat changes');
       if (k === 'c172' && pax === 0) ok(R.seats[1] && R.seats[1].kg === -occKg, nm + ': the build\'s co-pilot gives their ' + occKg + ' kg back (the job seats nobody there)');
@@ -670,6 +670,54 @@ function run(mut) {
       ok(/FST\.flags = R && got && typeof freightStrapFlags === 'function' \? freightStrapFlags\(got\.A, got\.card\) : \[\];/.test(appSrc) && /function fsWarnSync\(\)/.test(appSrc)
          && /r\.load = \{ items: FA\.items, kg: Math\.round\(FA\.dm \* 10\) \/ 10, flags: FA\.flags \};/.test(appSrc),
          'the page says the flags on the brief before take-off (fsWarnSync) and writes them on the logbook row (r.load.flags)');
+    }
+    // THE SEATS THE LOAD NEEDS OUT (G2404 SEATS-OUT; the user, 4 Nov): the proposal takes out only the empty seats it needs, the
+    // back row first, when that makes the whole load legal; a chair's kilos go with it; delivered, every seat is back
+    {
+      const crates = M.freightItems({ kg: 120 }, 'goods.parts'), c7 = K.c172;
+      const sIn = M.freightLoadNew(c7, crates, { pax: 0 }), sB = M.freightLoadBest(c7, crates, { pax: 0 });
+      const rB = M.freightLoadReport(c7, sB);
+      ok(sIn.placed.length < crates.length && sB.seatsOut.length > 0 && sB.placed.length === sB.items.length && rB.ok,
+         'the C172, 120 kg of crates: seats in, ' + sIn.placed.length + ' of ' + crates.length + ' aboard; the proposal takes seat(s) ' + J(sB.seatsOut) + ' out - all aboard, within every limit');
+      const backFirst = c7.seats.filter(q => q.i > 0).map(q => q.i).sort((a, b) => b - a).slice(0, sB.seatsOut.length).sort((a, b) => a - b);
+      ok(J(sB.seatsOut) === J(backFirst), 'the back row goes first (' + J(sB.seatsOut) + ')');
+      if (sB.seatsOut.length > 1) {
+        const fewer = M.freightLoadNew(c7, crates, { pax: 0, seatsOut: sB.seatsOut.slice(1) });
+        ok(!(fewer.placed.length === fewer.items.length && M.freightLoadReport(c7, fewer).ok), 'and no more of them than the load needs');
+      } else ok(sB.seatsOut.length === 1, 'and no more of them than the load needs (one)');
+      const sP = M.freightLoadBest(c7, crates, { pax: 1 });
+      ok(!sP.seatsOut.includes(0) && !sP.seatsOut.includes(1), 'a passenger\'s seat and the pilot\'s never go (' + J(sP.seatsOut) + ')');
+      const mail = M.freightItems({ kg: 60 }, 'goods.mail');
+      ok(J(M.freightLoadBest(c7, mail, { pax: 1 }).seatsOut) === '[]' && J(M.freightLoadBest(c7, mail, { pax: 1 }).placed) === J(M.freightLoadNew(c7, mail, { pax: 1 }).placed), 'a load that fits with every seat in takes none out');
+      const sC = M.freightLoadBest(K.cub, crates, { pax: 0 });
+      ok(J(sC.seatsOut) === '[]' && sC.placed.length < crates.length, 'only possible over the limits (the Cub\'s two crates): never proposed - the seats stay in, the crate on the ground; the hand may still');
+      const A7 = M.freightAccepted(M.freightLoadRecord(c7, sB, { slot: 'S' })), R7 = M.freightStrapAdds(D.c172, A7, { card: c7 });
+      const R70 = M.freightStrapAdds(D.c172, Object.assign({}, A7, { seatsOut: [] }), { card: c7 });
+      const chairs = sB.seatsOut.map(i => [M.freightStrapChairKg(D.c172.spec, i), D.c172.spec.cab.seatsX[i]]), chairKg = chairs.reduce((a, q) => a + q[0], 0), chairMx = chairs.reduce((a, q) => a + q[0] * q[1], 0);
+      ok(chairKg > 0 && near(R7.chairsOff, chairKg) && near(R70.dm - R7.dm, chairKg, 1e-9) && near(R70.mom[0] - R7.mom[0], chairMx, 1e-9),
+         'a seat taken out leaves its chair\'s kilos on the ground, at its station (' + chairKg.toFixed(1) + ' kg)');
+      ok(M.freightStrapFlags(M.freightAccepted(M.freightLoadRecord(K.cub, sC, { slot: 'S' })), K.cub).some(f => f.k === 'ashore') && !M.freightStrapFlags(A7, c7).some(f => f.k === 'ashore'),
+         'an item left on the ground is said on the brief; all aboard, nothing said');
+      // the job: a generated load that needs a seat out, placed at a stop's proposal; delivered, the seats are back
+      let pk = null;
+      for (const sd of ['seats', 'strap', 'wire3', 'dev', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']) {
+        const dd = M.careerNew({ id: 'fs2', seed: sd });
+        const id = dd.career.contracts.offered.find(i => { const r = M.careerContract(dd, i); if (!r || r.kind !== 'job') return false;
+          const L = r.stages[0].subs[0].load; if (!L || !(L.items || []).length || r.stages[0].subs[0].when) return false;
+          const f = M.freightFits(c7, L.items, { pax: L.pax || 0 }); return f.ok && f.seatsOut.length > 0; });
+        if (id) { pk = { d: dd, id }; break; }
+      }
+      if (ok(!!pk, 'a generated job whose load needs a seat out, on offer')) {
+        const d3 = M.careerTrack(M.careerAccept(pk.d, pk.id).doc, pk.id).doc;
+        d3.career.airframes.Ces = { design: 'c172' };
+        const N3 = M.freightStrapNext(d3, 'Ces', c7);
+        ok(N3.how === 'proposed' && N3.rec.seatsOut.length > 0 && !N3.rec.ashore.length && N3.rec.ok, 'the stop\'s proposal takes the seats out too (' + pk.id + ': seat(s) ' + J(N3.rec.seatsOut) + ', every item aboard)');
+        const dn3 = clone(N3.doc); dn3.career.contracts.live[pk.id].subs[N3.rec.sub] = true;
+        ok(!M.freightStrapFor(M.freightLoadSettle(dn3), 'Ces', 'c172'), 'delivered: the record leaves with its seats out - every seat back');
+      }
+      const flS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'freight_load.js'), 'utf8'), apS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+      ok(/freightLoadBest\(card, job\.items, \{ pax: job\.pax \}\)/.test(flS) && /fsChairs\(got, loading\);/.test(apS),
+         'the view opens on that proposal; the stand hides the chairs the accepted load took out');
     }
     // NOTHING ACCEPTED: no masses, no drawing
     ok(M.freightStrapAdds(D.cub, null) === null && M.freightStrapAdds(D.cub, M.freightAccepted({ career: {} })) === null, 'nothing accepted: no masses (the sim is never asked)');
@@ -822,6 +870,14 @@ const BREAKS = [
   ['the next stage arrives unplaced', { s78: sub("  if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };", "  return { doc, rec: null, how: 'none', why: J.why };") }],
   ['the player\'s placement proposed over', { s78: sub("  if (J.rec) return { doc, rec: J.rec, how: 'kept', why: '' };", '') }],
   ['another airframe\'s load flown', { s78: sub('  if (slot != null && A.slot != null && A.slot !== String(slot)) return null;', '') }],
+  // G2404 (SEATS-OUT)
+  ['the proposal keeps every seat in', { s77: sub('  if (!F.ok || !F.seatsOut.length) return base;', '  return base;') }],
+  ['the proposal takes out every empty seat', { s77: sub('  for (let k = 1; k <= empty.length; k++) {', '  for (let k = empty.length; k <= empty.length; k++) {') }],
+  ['the front seats go first', { s77: sub('.sort((a, b) => b - a);\n  for (let k = 1;', '.sort((a, b) => a - b);\n  for (let k = 1;') }],
+  ['an illegal load is proposed with seats out', { s77: sub('  if (!F.ok || !F.seatsOut.length) return base;', '  if (!F.seatsOut.length) return base;') }],
+  ['the stop keeps every seat in', { s78: sub('  const st = freightLoadBest(card, J.items, { pax: J.pax });', '  const st = freightLoadNew(card, J.items, { pax: J.pax });') }],
+  ['a seat out keeps its chair\'s kilos', { s78: sub('{ fsBillAt(def, seatsXo[i], -kg, raw, true); chairsOff += kg; }', '{ chairsOff += kg; }') }],
+  ['an item left on the ground is not said', { s78: sub('  if (Array.isArray(acc.ashore) && acc.ashore.length) {', '  if (false) {') }],
   ['an over-MTOW load flies silently', { s78: sub('  if (acc.mass > K.mtow + 1e-6) {', '  if (false) {') }],
   ['a CG out of range flies silently', { s78: sub('    if (side) out.push(', '    if (false) out.push(') }],
   ['the strap reaches for the clock',{ s78: s => s + '\nfunction fsNow() { return Date.now(); }\n' }],

@@ -58,7 +58,7 @@ const SERVO_GAINS = {
   // roll / yaw in the air
   hdgP: 0.7, hdgD: 0.9, bankLim: 0.30, bankSlew: 0.18,
   rollP: 2.0, rollD: 2.0, daMax: 0.30,
-  betaK: 0.3, yawDampK: 0.6, ariK: 0.35, drAirMax: 0.25,
+  betaK: 0.3, yawDampK: 0.6, yawRateK: 0.8, ariK: 0.35, drAirMax: 0.25,
   // G2080: THE BALL CENTRED - the slip integrated into a standing rudder (the right boot a pilot holds on a climb
   // at full power; the propeller's torque, P-factor and swirl make it), rad of rudder per rad.s of slip, its stop
   betaI: 0.6, drTrimMax: 0.20,
@@ -83,6 +83,9 @@ const SERVO_GAINS = {
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G3077: the toe brake past the rudder's stop (groundSteer): brake per unit of rudder demand past the stop, its cap
   brakeDK: 1.0, brakeDMax: 0.3,
+  // G3800 (TAILWHEELS): the toe brakes as THE steer while the tailwheel castors (groundSteer): per unit of the heading
+  // law's rudder demand, and its cap
+  brakeCastK: 1.0, brakeCastMax: 0.8, brakeCastD: 3.0,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
   waterStepK: 1,
@@ -331,7 +334,12 @@ function makeServos(sim, def, opts) {
     // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
     // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
     S.drTrim = clamp(S.drTrim - g('betaI') * S.betaIK * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
-    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
+    // G3913 (the user, 4 Nov: the Cub "swaying right and left ... worse till landing"): THE DAMPER ALSO READS THE NOSE. yawDampK works on
+    // eAR, the rate of the TRACK against the target: on a gusty final the Cub's nose wagged +-1.2 deg at 4.6-4.8 s (the wind has no peak
+    // there: its own weathercock mode) with the track still and the rudder at 0.013 p-p, so nothing damped it. Behind the student's 0.35 s
+    // the mode closed through the bank and diverged: heading 34-55 deg p-p, the gear broken. yawRateK is on eR, washed out as eAR is
+    // (a steady turn asks nothing). Node, the Cub, HOME > w3 in 8 kts: expert 2.3 -> 1.3 deg, student 34 -> 6 deg p-p, last 30 s of final
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow) - g('yawRateK') * (S.eR - S.eRslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a
@@ -563,6 +571,15 @@ function makeServos(sim, def, opts) {
       if (over > 0) { c.brakeD = clamp(Math.sign(-kP * e - kD * S.eR - S.gI) * g('brakeDK') * over, -g('brakeDMax'), g('brakeDMax')); S.bdOn = true; }
       else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
     } else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
+    // G3800 (TAILWHEELS): A CASTORING TAILWHEEL STEERS NOTHING (30_solver twLine: a lockable wheel unlocked to taxi, or a
+    // steerable one broken out) - the crews steer on the toe brakes and the engines (FAA-H-8083-3: differential braking
+    // where the rudder cannot hold the direction), so tail down on the wheels the heading law's demand goes to the
+    // differential brake as well as the rudder, at any power. Not one line runs while the wheel steers
+    { const tws = o.twState;
+      if (tws && (tws[0] === 1 || tws[1] === 1) && FT.groundP1D && !onWater && onG > 0 && !tailUp) {
+        const u = -kP * e - kD * S.eR;
+        c.brakeD = clamp(g('brakeCastK') * u, -g('brakeCastMax'), g('brakeCastMax')); S.bdOn = true;
+      } }
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround

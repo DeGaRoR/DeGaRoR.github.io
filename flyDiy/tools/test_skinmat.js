@@ -82,8 +82,16 @@ const SHAPES = [
                      intOn: 1 }],
   // the door inner panel is off by default; its section exists only here
   ['door panel', { doorOn: 1, cutParts: 1, intOn: 1, doorPanelOn: 1 }],
+  // CABIN-INTERIOR: the headliner and the upper wall trim exist only with their rows, one per construction (each
+  // splits a different liner)
+  ['headliner tube', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 1, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner carbon', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 0, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner wood', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 2, hdlOn: 1, wallTrimOn: 1 }],
+  ['headliner metal', { doorOn: 1, cutParts: 1, intOn: 1, intCons: 3, hdlOn: 1, wallTrimOn: 1 }],
   // the drawn windows' panes and reveals exist only when a row draws
   ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }],
+  // the aft wall's rows: the upper panel and the net exist only when a row draws
+  ['aft wall', { intOn: 1, intCons: 3, intBulk: 1, bhStep: 1, bhBevel: 0.05, bhTwoTone: 1, bhNet: 1 }],
 ];
 const D = G.cageDefaults();
 const sections = new Set();
@@ -163,8 +171,10 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   // stays a dielectric hide. A PAINTED panel would be `trim`, and still is.
   // `sillAlu` (G325.1) is the sill shoulder's hammered sheet — Metal051C's
   // metalness map measures a flat 255 too — a bent bare alloy trim.
+  // `agedAlu` (FLOATS-CLASSIC) is an EDO float's skin: bare alloy, never painted, dulled by oxide (0.62, under bareAlu's
+  // 0.90) - a bare metal, not a paint that crept up.
   const bare =
-    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal|sillAlu)$/
+    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal|sillAlu|agedAlu)$/
     .test(k);
   check(bare || r.metal <= 0.25,
     `finish ${k}: metalness ${r.metal} on a painted surface`);

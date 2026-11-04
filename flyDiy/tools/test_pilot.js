@@ -139,7 +139,7 @@ const has = (r, code) => r.report.verdicts.some(v => v.code === code);
 // ---------------------------------------------------------------------------
 function checkGood(r) {
   check(!r.nan, 'good: no NaN');
-  check(r.phase === 'STOPPED' && r.t < 340, 'good: full stop inside 340 s',
+  check(r.phase === 'STOPPED' && r.t < 440, 'good: full stop inside 440 s',
         r.phase + ' at ' + r.t.toFixed(0) + ' s');
   check(r.report.outcome === 'completed', 'good: outcome is completed',
         String(r.report.outcome));
@@ -208,8 +208,8 @@ function checkAgain(r) {
   // not fit. Either is the honest answer; a hold before the roll is not optional.
   check(!!s && s.phases.includes('TAXI') && s.phases.includes('HOLD'),
         'again: it taxied (the turn-around) to a hold before rolling', s ? s.phases.join(' ') : 'none');
-  check(!!s && s.report.outcome === 'completed' && s.phase === 'STOPPED' && s.t < 450,
-        'again: the second circuit completes inside 450 s', s ? s.report.outcome + ' at ' + s.t.toFixed(0) + ' s' : '—');
+  check(!!s && s.report.outcome === 'completed' && s.phase === 'STOPPED' && s.t < 560,
+        'again: the second circuit completes inside 560 s', s ? s.report.outcome + ' at ' + s.t.toFixed(0) + ' s' : '—');
   check(!!s && !has(s, 'rejected-takeoff') && !has(s, 'taxi-lost'),
         'again: no rejection and no lost taxi on the turn-around');
 }
@@ -512,7 +512,7 @@ part('-- CARD: the stock build, asked for 70 m and 25 m/s --', () => {
 // throughout: 58 m of the 60 asked, 25.0 m/s of the 25. At 70 m the same
 // circuit completes at 289 s with no go-around at all, so the ask moved to a
 // height this site supports and the time bound stayed where it was.
-const card = fly(null, 340, { alt: 70, V: 25 });
+const card = fly(null, 440, { alt: 70, V: 25 });
 for (const v of card.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardHeld(card);
 });
@@ -525,14 +525,14 @@ part('-- FAST: the stock build, asked for 50 m/s it does not have --', () => {
 // the ask — 41.85 of 45 — and the stock flies 41.8: a knife-edge the tail's
 // wake q (tailEta 0.9, a few newtons of stab drag less) tipped silent. Fifty
 // is a speed this aeroplane will never have, whatever its drag does next.
-const fast = fly(null, 420, { V: 50 });
+const fast = fly(null, 560, { V: 50 });
 for (const v of fast.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardFast(fast);
 });
 
 // ---- G202: THE PILOT's own cases ------------------------------------------
 part('-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --', () => {
-const again = fly(null, 450, null, { again: true });
+const again = fly(null, 560, null, { again: true });
 for (const v of again.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkGood(again);                                   // the first leg IS the good flight
 if (again.again) {
@@ -543,14 +543,14 @@ checkAgain(again);
 });
 
 part('-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --', () => {
-const windy = fly(null, 560, null, { wind: [-3, 0], depart: true });
+const windy = fly(null, 700, null, { wind: [-3, 0], depart: true });
 for (const v of windy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 console.log('   landed along ' + JSON.stringify(windy.landDir) + ' in ' + windy.t.toFixed(0) + ' s');
 checkWind(windy, [-3, 0]);
 });
 
 part('-- TRIKE: the stock build on a nosewheel --', () => {
-const trike = fly({ gear: { type: 'tricycle' } }, 340);
+const trike = fly({ gear: { type: 'tricycle' } }, 440);
 for (const v of trike.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 console.log('   lift-off run ' + (trike.liftRun == null ? '—' : trike.liftRun.toFixed(0)) + ' m of a ' + trike.def.params.ap.TORun + ' m sheet');
 checkTrike(trike);

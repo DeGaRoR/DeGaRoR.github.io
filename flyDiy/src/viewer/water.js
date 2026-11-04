@@ -142,6 +142,7 @@ const WATER = (() => {
     uniform vec4 uWMisc;       // x: shore fade width (m), y: lake depth per metre of field, z: lake depth cap (m), w: foam on
     uniform vec4 uWLook;       // G794: x: the reflection kept whole over a thin column, y: the column's slanted path (1 on, 0 = G460's); G798: z: the shore's lap foam (0 off); G799: w: the wet bed
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
+    uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m); the wind's ripple kept in a bay (its dials.ripple)
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
     #ifdef W_HULL
@@ -159,6 +160,14 @@ const WATER = (() => {
       if (uWSdfOn < 0.5) return vec2(-1e4, 1e4);
       vec4 t = texture2D(uWSdf, (xz - uWGrid.xy) / uWGrid.zw);
       return vec2((t.b * 255.0 - 128.0) * 4.0, (t.a * 255.0 - 128.0) * 4.0);   // (coast: sea < 0, lake: inside > 0)
+    }
+    // THE SHELTER (BAY-MIRROR): the factor on the sea's waves - 1 on open water (the sea as it was), the wind's ripple
+    // (uWRipple, 0.25) deep in a sheltered bay - 28_island.js waveK, the one waterH scales its felt trains by, from the same
+    // bytes (texel centres at the cells' centres)
+    float wCalm(vec2 xz) {
+      if (uWCalmOn < 0.5) return 1.0;
+      float c = texture2D(uWCalm, (xz - uWCalmG.xy) * uWCalmG.zw).r;
+      return c >= 1.0 ? 1.0 : uWRipple + (1.0 - uWRipple) * c;
     }
     // the water column under this pixel: the sea's shelf (28_island.js seaFloor: -5 m at the line, -14 by
     // 500 m out) capped by a beach slope so the line itself is 0 deep; a lake by its field; else the body's own
@@ -248,7 +257,7 @@ const WATER = (() => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;' + GLSL_GERSTNER)
+      .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;\nuniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;' + GLSL_GERSTNER)
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
         vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
         float wh = 0.0;
@@ -258,6 +267,8 @@ const WATER = (() => {
           // (flat from 6 m out), so on a shore the displaced 3.8 m grid no longer saws the waterline across the beach - the
           // line is the far plane's own there, whatever the patch does further out
           if (uWSdfOn > 0.5) { float sd = (texture2D(uWSdf, (wp0.xz - uWGrid.xy) / uWGrid.zw).b * 255.0 - 128.0) * 4.0; wh *= smoothstep(-6.0, -40.0, sd); }
+          // BAY-MIRROR: a sheltered bay's swell is scaled down by the shelter, as waterH scales the floats' (one source)
+          if (uWCalmOn > 0.5) { float wc = texture2D(uWCalm, (wp0.xz - uWCalmG.xy) * uWCalmG.zw).r; wh *= wc >= 1.0 ? 1.0 : uWRipple + (1.0 - uWRipple) * wc; }
         }
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWP0 = wp0; vWBody = aWater;`);
@@ -282,8 +293,13 @@ const WATER = (() => {
         // the slope-variance law was written for (Bruneton's Jacobian norm), and the glitter stays sharp
         // along the horizon as it does on a real sea. The felt band's per-train fade reads it too.
         float wFp = clamp(sqrt(length(dFdx(vWP0.xz)) * length(dFdy(vWP0.xz))), 1.0e-4, 1.0e4);
-        vec3 wS = wGerstnerS(vWP.xz, wFp) * uWBody[wB].x;
-        vec4 wDet = detailNormal(vWP.xz, wFp); wDet.xy *= uWBody[wB].y;
+        // BAY-MIRROR (the user, 3 Nov: "we would need to treat the bays as lakes for the reflections"): on the sea's body the
+        // shelter blends the sea's row toward the lake's - the swell's slopes and the ripple tile - so a sheltered bay is a
+        // lake's calm mirror and the open sea (wK 1) is exactly as it was; the colour, the depth and the shore stay the sea's
+        float wK = wB == 0 ? wCalm(vWP0.xz) : 1.0;
+        vec4 wRow = wB == 0 ? mix(uWBody[1], uWBody[0], wK) : uWBody[wB];
+        vec3 wS = wGerstnerS(vWP.xz, wFp) * wRow.x;
+        vec4 wDet = detailNormal(vWP.xz, wFp); wDet.xy *= wRow.y;
         vec4 wIn = wInter(vWP.xz);
         float wSig = uWWave.w > 0.5 ? wSigma2(wFp) : 0.0;
         // foam: the fold's crests, the tile's crests where the fold is high, the shore's lap, the field's own
@@ -296,7 +312,7 @@ const WATER = (() => {
           // the RMS, not the sum; the threshold is the Gaussian quantile of the cover, 0.85 sqrt(-2 ln c) - 0.35:
           // 3 % -> 1.9 sigma, 10 % -> 1.5, 0.4 % -> 2.5 - so the fraction of the sea in foam IS the cover)
           float foldN = wS.z / max(uWFoam.x, 1.0e-4);
-          float cv = uWFoam.y * (uWBody[wB].z < 1.5 ? 1.0 : 0.0);
+          float cv = uWFoam.y * (uWBody[wB].z < 1.5 ? 1.0 : 0.0) * wK;   // (BAY-MIRROR: the whitecaps' cover thins with the shelter - none in a calm bay)
           float tq = 0.85 * sqrt(-2.0 * log(max(cv, 1.0e-4))) - 0.35;
           float crest = smoothstep(tq, tq + 0.6, foldN) * (0.45 + 0.55 * wDet.z) * step(0.001, cv);
           // THE SHORE'S LAP: a band of foam over the last 4 m of the field, breathing with the swell's height at
@@ -614,7 +630,7 @@ const WATER = (() => {
 
   // ---- the uniforms (one set; every material instance shares them by reference) -----------------
   let U = null, mat = null, T3 = null;
-  const IN = { sdf: null, grid: null, wind: [0, 0], inter: null, box: [0, 0, 0] };   // the inputs, kept so a call before make() is not lost
+  const IN = { sdf: null, grid: null, wind: [0, 0], inter: null, box: [0, 0, 0], calm: null };   // the inputs, kept so a call before make() is not lost
   const T = { t: 0, set: false, seen: 0, free: 0 };   // the clock: t, whether setTime spoke this frame
   let seaKey = '', trains = [];                       // the trains as last packed
   function makeU(THREE) {
@@ -627,6 +643,7 @@ const WATER = (() => {
       uWAbs: { value: arr(4) }, uWSct: { value: arr(4) }, uWBody: { value: arr(4) },
       uWMisc: { value: v4(S.shoreFade, S.lakeK, S.lakeCap, 1) }, uWFoam: { value: v4(1, 0, 0, 0) },
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
+      uWCalm: { value: null }, uWCalmG: { value: v4(0, 0, 1, 1) }, uWCalmOn: { value: 0 }, uWRipple: { value: 1 },   // BAY-MIRROR
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
@@ -994,6 +1011,8 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0 };
+  // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
   // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,
@@ -1159,9 +1178,15 @@ const WATER = (() => {
     // weight is today's (the 500 -> 900 m height fade above), its capture today's (grass and cover in it); only the inland dissolve
     // is kept, so a lake's mirror never switches at its shore either
     let ringW = 1; const lake = Math.abs(waterY - MIR.seaY) > 0.5, RG = RING && !lake; MIR.lake = lake;
+    // BAY-MIRROR (the user, 3 Nov: "treat the bays as lakes for the reflections"): over a sheltered bay (the sea's plane, the
+    // shelter's calm at the eye under 1) the sea's ring gives way to the LAKE's rule - the inland dissolve alone, the 500 -> 900 m
+    // height fade above - by the bay's own weight, so the mouth is a dissolve. The same capture, the same plane: only its
+    // weight. Over open water (calm 1) the ring is exactly as it was
+    const bay = lake ? 0 : 1 - calmAtCPU(camera.position.x, camera.position.z); MIR.bay = bay;
     if (RING) { const ld = ringLandDist(camera.position, opts.isLand || MIR.landAt, now, waterY);
       const inland = 1 - sstep(0, MIR.ringIn, MIR.waterD);
-      ringW = lake ? inland : (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld)) * inland; MIR.ringW = ringW; }   // (round 2: x the inland fade)
+      const sea = (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld));
+      ringW = lake ? inland : (bay > 0 ? sea + (1 - sea) * bay : sea) * inland; MIR.ringW = ringW; }   // (round 2: x the inland fade)
     MIR.w = mirW * ringW;
     if (!U || MIR.w <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
     if (RG && MIR.nth > 1 && MIR.last && (++MIR.frameN % MIR.nth) !== 0) { U.uWMirror4.value.x = MIR.w; return false; }   // (the guard: every nth frame - the weight still follows every frame)
@@ -1487,6 +1512,7 @@ const WATER = (() => {
     mat.onBeforeCompile = hook;   // through ATMO's accessor: the key is 'atmo.inject+' + this hook's source
     setTier(S.tier);
     setWind(IN.wind[0], IN.wind[1]); setSDF(IN.sdf, IN.grid && { x: IN.grid[0], y: IN.grid[1], z: IN.grid[2], w: IN.grid[3] }); setInteraction(IN.inter, IN.box[0], IN.box[1], IN.box[2]);
+    setCalm(THREE, IN.calm);
     if (trains.length) setSea({ W: trains });
     return mat;
   }
@@ -1537,6 +1563,35 @@ const WATER = (() => {
     if (!U) return;
     U.uWSdf.value = IN.sdf; U.uWSdfOn.value = IN.sdf ? 1 : 0;
     if (IN.grid) U.uWGrid.value.set(IN.grid[0], IN.grid[1], IN.grid[2], IN.grid[3]);
+  }
+  // THE SHELTER (BAY-MIRROR): setCalm(THREE, field) - the world's calmField() ({ x0, z0, cell, w, h, calm: Uint8Array },
+  // 28_island.js), the same bytes its waterH scales the felt trains by, as one R8 texture (linear, clamped: the cells'
+  // centres are the texels' - the core's calmAt interpolates the same way) and, on the CPU, the ring's calm at the eye.
+  // null: no shelter (the analytic world, the flat field) - uWCalmOn 0, the sea everywhere as it was
+  const CALM = { field: null, tex: null };
+  function calmAtCPU(x, z) {
+    const S = CALM.field; if (!S) return 1;
+    const u = Math.max(0, Math.min(S.w - 1, (x - S.x0) / S.cell - 0.5)), v = Math.max(0, Math.min(S.h - 1, (z - S.z0) / S.cell - 0.5));
+    const i = Math.min(S.w - 2, Math.floor(u)), j = Math.min(S.h - 2, Math.floor(v)), fu = u - i, fv = v - j, q = j * S.w + i, A = S.calm;
+    return ((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + S.w] * (1 - fu) + A[q + S.w + 1] * fu) * fv) / 255;
+  }
+  // the wind's ripple a bay keeps (the field's own dial: one number for the physics and the eye) and the wave factor on the CPU
+  const calmRipple = () => CALM.field && CALM.field.dials && Number.isFinite(CALM.field.dials.ripple) ? CALM.field.dials.ripple : 1;
+  function waveKCPU(x, z) { const c = calmAtCPU(x, z), r = calmRipple(); return c >= 1 ? 1 : r + (1 - r) * c; }
+  function setCalm(THREE, field) {
+    const F = field && field.calm && field.w > 1 && field.h > 1 ? field : null;
+    IN.calm = F;
+    if (CALM.field !== F) { if (CALM.tex) { CALM.tex.dispose(); CALM.tex = null; } CALM.field = F; }
+    if (!U) return;
+    if (F && !CALM.tex && THREE && THREE.DataTexture) {
+      const t = new THREE.DataTexture(F.calm, F.w, F.h, THREE.RedFormat, THREE.UnsignedByteType);
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+      t.flipY = false; t.unpackAlignment = 1; t.needsUpdate = true; t.name = 'waterCalm';
+      CALM.tex = t;
+    }
+    U.uWCalm.value = CALM.tex; U.uWCalmOn.value = F && CALM.tex ? 1 : 0;
+    if (F) U.uWCalmG.value.set(F.x0, F.z0, 1 / (F.w * F.cell), 1 / (F.h * F.cell));
+    U.uWRipple.value = F ? calmRipple() : 1;
   }
   // THE INTERACTION SLOT (H7 writes it): a world-locked texture over [x0, x0+size] x [z0, z0+size];
   // RG = slope over [-2, 2] (0.5 = flat), B = foam, A unused. Linear, clamped, no mips.
@@ -1626,7 +1681,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR, setCoast, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
+    mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;

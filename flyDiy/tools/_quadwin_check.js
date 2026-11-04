@@ -104,7 +104,11 @@ function run() {
   const fix = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'cub_quadwin_2026-10.json'), 'utf8'));
   const cub = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8'));
   const Pq = Object.assign({}, G.cageFromSpec(fix.spec || fix), SKIN_ONLY);
-  const Po = Object.assign({}, G.cageFromSpec(cub.spec || cub), SKIN_ONLY);
+  // the old window's reference: the Cub without the drawn rear window its file took (CUB-WINDOW, the user 4 Nov)
+  const cubOld = JSON.parse(JSON.stringify(cub.spec || cub));
+  for (const k of Object.keys(cubOld.cage)) if (/^paxWin(Q[1-4][ZY]|R[1-4])$/.test(k)) delete cubOld.cage[k];
+  Object.assign(cubOld.cage, { paxWinN: 0, paxWinShape: 0 });
+  const Po = Object.assign({}, G.cageFromSpec(cubOld), SKIN_ONLY);
   const S = G.cageSpec(Pq), win = S.windows.find(w => w.row === 1);
   check(win && win.shape === 'quad' && !win.refused, '2 the Cub\'s rear window is a quad, not refused', win && win.refused);
   const sh = sheetOf(Pq), wt = watertight(sh);

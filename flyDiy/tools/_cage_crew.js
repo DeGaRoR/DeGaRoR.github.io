@@ -1046,6 +1046,136 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
   tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
   return { obj: gL, label: 'flap lever' };
 }
+// THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
+// the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
+// heads - the 172's and every light twin's: two eyeball vents forward, two reading-lamp seats aft, one each side.
+// THE LAMPS LAND ON IT: its seats go out on the anchors (A.ohc) and the light layer's console rung puts the front
+// row's lamps there (the flood on the pilot's side), so part 2's cabin lamp sits on a real fitting. The ceiling is
+// the sheet's own (the lowest downward liner / headliner / roof face over the station). A closed cabin only, and
+// never under glass: a skylight or a canopy over the station draws no console. Off by default (an absent row). The
+// pod is the crew's dark moulding and its vents the same: buckets the cabin already has, no new draw call.
+function buildOverheadConsole(gRoot, A, P, mesh, front) {
+  A.ohc = null;
+  if (!+P.ohConsoleOn || !front.length || Math.round(+P.canopy || 0) !== 0) return null;
+  if (!mesh || !mesh.V || !mesh.F || !(A.roofY > A.waistY)) return null;
+  const K = window.GEAR_KIT;
+  if (!K) return null;
+  const k = A.k, V = mesh.V;
+  const zS = front.reduce((a, s) => a + s.zBack, 0) / front.length;
+  const ROOF = new Set(['ceilingLoop', 'body', 'plywood', 'cloth', 'composite', 'toele', 'waistband', 'headliner']);
+  const GL = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+  const mid = (A.waistY + A.roofY) / 2;
+  // ITS FRONT IS THE WINDSCREEN'S HEADER: the pod starts 3 cm aft of the windscreen's aft-most edge on the centreline
+  // (a raked screen reaches back over the front row's heads - the twin's by 30 cm), and never more than 47 cm ahead
+  // of the seat backs
+  let zWs = Infinity;
+  for (const f of mesh.F) {
+    if (f.m !== 'windshield') continue;
+    for (const vi of f.v) { const q = V[vi]; if (q[1] * k > mid && Math.abs(q[0] * k) < 0.25) zWs = Math.min(zWs, q[2] * k); }
+  }
+  const LEN = 0.30, W = front.length > 1 ? 0.21 : 0.16, D = 0.045;
+  const zc = Math.min(zS + 0.47, isFinite(zWs) ? zWs - 0.03 : Infinity) - LEN / 2;
+  // THE CEILING UNDER EVERY POINT OF THE POD (CABIN-SHOTS, 3 Nov: one flat top at the lowest roof face's centroid,
+  // on the twin's roof falling to its raked screen, put the pod's nose 1.0 cm out through the skin - a black slot on
+  // the roof from outside - and left a 3.8 cm gap under the headliner aft; the Cub's nose 1.0 cm out too). A ray
+  // straight up at (x, z) meets the sheet's roof faces: the lowest is the liner, the next the skin over it. The pod's
+  // top sits 4 mm into the liner, never more than halfway to the skin (the twin's nose has 7 mm between them); with
+  // no liner (the skin alone) it stops 2 mm under the skin.
+  const tris = [];
+  for (const f of mesh.F) {
+    if (f.v.length < 3) continue;
+    let cx = 0, cy = 0, cz = 0;
+    for (const vi of f.v) { cx += V[vi][0]; cy += V[vi][1]; cz += V[vi][2]; }
+    cx *= k / f.v.length; cy *= k / f.v.length; cz *= k / f.v.length;
+    if (cy < mid) continue;
+    if (GL.has(f.m)) {                                      // glass over the station: no console
+      if (Math.abs(cx) < W / 2 + 0.06 && Math.abs(cz - zc) < LEN / 2 + 0.06) return null;
+      continue;
+    }
+    if (!ROOF.has(f.m) || Math.abs(cx) > W / 2 + 0.10 || Math.abs(cz - zc) > LEN / 2 + 0.10) continue;
+    const q = f.v.map(vi => [V[vi][0] * k, V[vi][1] * k, V[vi][2] * k]);
+    for (let n = 1; n + 1 < q.length; n++) tris.push([q[0], q[n], q[n + 1]]);
+  }
+  const yTop = (x, z) => {
+    const ys = [];
+    for (const [a, b, c] of tris) {
+      const dd = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+      if (Math.abs(dd) < 1e-12) continue;
+      const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / dd;
+      const l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / dd;
+      if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
+      const y = l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * c[1];
+      if (y > mid) ys.push(y);
+    }
+    if (!ys.length) return NaN;
+    ys.sort((p, q) => p - q);
+    const yIn = ys[0], yOut = ys.find(y => y > yIn + 0.0015);
+    return yOut == null ? yIn - 0.002 : yIn + Math.min(0.004, 0.5 * (yOut - yIn));
+  };
+  // the pod: a rounded section lofted fore and aft, easing to the ceiling at both ends (a moulding, not a box);
+  // every point of its top on the ceiling over it, so it is closed against the liner from every view
+  const pod = K.Bag(), NS = 12, NU = 10, LAMP_R = 0.019;
+  const ease = t => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * t - 1), 4)), 0.25);
+  const zOf = i => zc + LEN / 2 - (i / NS) * LEN;
+  const topC = [];
+  for (let i = 0; i <= NS; i++) { const y = yTop(0, zOf(i)); if (!isFinite(y)) return null; topC.push(y); }
+  const topAt = (x, z) => {                                 // the ceiling at (x, z), or the centreline's under a miss
+    const y = yTop(x, z);
+    if (isFinite(y)) return y;
+    const u = Math.max(0, Math.min(NS, (zc + LEN / 2 - z) / LEN * NS)), i0 = Math.min(NS - 1, Math.floor(u));
+    return topC[i0] + (topC[i0 + 1] - topC[i0]) * (u - i0);
+  };
+  const rows = [];
+  for (let i = 0; i <= NS; i++) {
+    const t = i / NS, e = ease(t), z = zOf(i), hw = (W / 2) * e, d = D * Math.sqrt(e);
+    const r = [];
+    for (let j = 0; j <= NU; j++) {
+      const th = Math.PI * j / NU;                          // 0 at +x, PI at -x, through the bottom
+      const cs = Math.cos(th), sn = Math.sin(th);
+      const sx = Math.sign(cs) * Math.pow(Math.abs(cs), 0.6), sy = Math.pow(sn, 0.6);
+      r.push(pod.v([hw * sx, topAt(hw * sx, z) - (d + 0.004) * sy, z]));
+    }
+    rows.push(r);
+  }
+  for (let i = 0; i < NS; i++) for (let j = 0; j < NU; j++)
+    pod.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
+  // the top, closed against the liner along the centreline (one spine point a row)
+  const spine = topC.map((y, i) => pod.v([0, y, zOf(i)]));
+  for (let i = 0; i < NS; i++) {
+    pod.quad(spine[i], spine[i + 1], rows[i + 1][0], rows[i][0]);
+    pod.quad(spine[i + 1], spine[i], rows[i][NU], rows[i + 1][NU]);
+  }
+  // the pod's underside at (z, x): the section's own depth there (|x| across the half-width gives the angle)
+  const bot = (z, x = 0) => {
+    const e = ease((zc + LEN / 2 - z) / LEN), hw = (W / 2) * e;
+    const ax = hw > 1e-6 ? Math.min(1, Math.abs(x) / hw) : 0;
+    const cs = Math.pow(ax, 1 / 0.6), sy = Math.pow(Math.sqrt(Math.max(0, 1 - cs * cs)), 0.6);
+    return topAt(x, z) - (D * Math.sqrt(e) + 0.004) * sy;
+  };
+  // the two eyeball vents forward (a bezel ring and the ball in it), the lamps' bezels aft
+  const fit = K.Bag();
+  const xs = front.length > 1 ? [0.052, -0.052] : [0];
+  const ring = (x, z, r0, r1, h) => {
+    const y = bot(z, x), N = 14, a = [], b = [];
+    for (let n = 0; n < N; n++) {
+      const t = 2 * Math.PI * n / N, cx = Math.cos(t), cz = Math.sin(t);
+      a.push(fit.v([x + cx * r1, y + 0.002, z + cz * r1]));
+      b.push(fit.v([x + cx * r0, y - h, z + cz * r0]));
+    }
+    for (let n = 0; n < N; n++) fit.quad(a[n], a[(n + 1) % N], b[(n + 1) % N], b[n]);
+    const c = fit.v([x, y - h, z]);
+    for (let n = 0; n < N; n++) fit.tri(b[n], b[(n + 1) % N], c);
+  };
+  for (const x of xs) ring(x, zc + 0.075, 0.016, 0.022, 0.012);    // the vents' bezels and balls
+  for (const x of xs) ring(x, zc - 0.075, LAMP_R + 0.001, LAMP_R + 0.007, 0.003);  // the reading lamps' bezels (the lamp sits in it)
+  const g = new THREE.Group();
+  g.name = 'edOhConsole';
+  gRoot.add(g);
+  pod.mesh(g, M.dark); fit.mesh(g, M.dark);
+  A.ohc = { zSeat: zS, r: LAMP_R,
+            seats: xs.map(x => ({ sd: Math.abs(x) < 0.01 ? 0 : Math.sign(x), p: [x, bot(zc - 0.075, x) - 0.003, zc - 0.075] })) };
+  return A.ohc;
+}
 // THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
 // hanging off the box, a bushing, the rod and a T handle; it slides aft.
 function buildBrakeKnob(gRoot, A, P, sx) {
@@ -2959,6 +3089,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP, pl));
   });
   const pilot = seats.find(s => s.pilot);
+  // CABIN-INTERIOR G1: the overhead console, over the front row (the pilot's and the seats beside it)
+  try {
+    const front = pilot ? seats.filter(s => Math.abs(s.zBack - pilot.zBack) < 0.15) : [];
+    buildOverheadConsole(group, A, P, mesh, front);
+  } catch (e) { A.ohc = null; console.warn('overhead console:', e); }
 
   // ---- controls ----
   // A STATION PER SEAT. Side-by-side carries DUAL CONTROLS (user

@@ -153,8 +153,8 @@
       if (typeof propWarm !== 'function' || typeof propMesh !== 'function') return Promise.resolve(null);
       return propWarm(key).then(() => new Promise(res => setTimeout(res, 120))).then(() => {
         const N = 96, g = propMesh(THREE, key), scene = new THREE.Scene();
-        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));
-        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);
+        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));  // pre-ok: the prop icon's own offscreen scene (a thumbnail, not the world's frame)
+        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);  // pre-ok: the prop icon's own offscreen scene
         const box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()), r = Math.max(sz.x, sz.y, sz.z, 0.1) * 0.62;
         const cam = new THREE.PerspectiveCamera(32, 1, r * 0.05, r * 40); cam.position.set(c.x + r * 2.0, c.y + r * 1.45, c.z + r * 2.4); cam.lookAt(c);
         const rt = new THREE.WebGLRenderTarget(N, N), prev = renderer.getRenderTarget(), cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
@@ -2135,7 +2135,7 @@
     const pos = new Float32Array(ids.length * 3);
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({  // pre-ok: colorWrite false (the next line)
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
@@ -2872,7 +2872,7 @@
         const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
                   : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK)
                   : null;
-        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }  // pre-ok: a lamp clone at 0 - cockpit.js drives it x P
       }
       if (data.cage && m.char && window.CAGE_CHAR &&
           window.CAGE_CHAR.flatMaterial) {
@@ -2920,7 +2920,7 @@
       if (m.emis && m.tex) {
         common.emissive = new THREE.Color(m.emis[0], m.emis[1], m.emis[2]);
         common.emissiveMap = texs[m.tex];
-        common.emissiveIntensity = EMIS_GAIN;
+        common.emissiveIntensity = EMIS_GAIN;  // pre-ok: held x P below (preHold, the faces)
       }
       // A NAMED SHEET THAT IS NOT THERE IS NOT A WHITE ONE. `map: undefined` with
       // the default tint renders the group flat WHITE, which is the worst of the
@@ -2940,6 +2940,7 @@
       // is not AEROSKIN's) takes the cabin's darkness through the small hook
       if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
         AEROSKIN.aeroCabinHook(THREE, std, 1);
+      if (m.emis && m.tex && window.LIGHT_RIG && LIGHT_RIG.preHold) LIGHT_RIG.preHold(std, 'emissiveIntensity', EMIS_GAIN);   // G2620: the faces' constant glow x P
       return matCache[mn] = std;
     };
     const grp = new THREE.Group();
@@ -3539,7 +3540,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -4794,7 +4795,11 @@
           const tws = (def && def.params && typeof def.params.twSteer === 'number')
             ? def.params.twSteer : 0.5;
           const up = c.axis[1] < 0 ? -1 : 1;
-          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
+          // G3800 (TAILWHEELS): the fork as the solver has it (30_solver twLine: out.twState / twAng) - the rudder's
+          // while it steers, its own track while it castors, straight when locked or fixed (a skid has no fork)
+          const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+          const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+          c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
       }
@@ -4960,7 +4965,8 @@
     const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
-    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record, on the break list at the first break)
+    R.geo = geo; R.geos = [geo];
+    if (noPush) owner.scR = R; else { owner.brkR = R; BRK.recs.push(R); }   // (G2004: a scuff's record waits on owner.scR until the break path makes it - brkMakeRec)
     { const K = model.brk; if (K) { (K.allRecs || (K.allRecs = [])).push(R); K.recLive = true; } }   // (G1859.8: every record, for the heal)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
@@ -5230,6 +5236,12 @@
     const K = model.brk, SB = SKIN_BREAK, geo = K.geoOf.get(pa);
     if (!geo || !geo.index) return null;
     if (own.brkR) return own.brkR;
+    // (3 Nov, GATE DMGPAGEW: THE SCUFF'S RECORD IS THE BREAK PATH'S ONLY WHEN THE BREAK PATH MAKES IT - in its own order
+    // and budget (brkRecOrder, REC_BUDGET), here. Put on the owner at the roll-out, every group counted as made at the first
+    // break: the wall's inheritance bound all of them (47 records on the Cub's trunk, not 8) and an alclad bucket's live
+    // triangle was drawn 6 x its rest. Until then it waits on own.scR, which only the scuff reads)
+    if (own.scR) { const R = own.scR; if (noPush) return R;
+      own.scR = null; own.brkR = R; if (BRK.recs.indexOf(R) < 0) { BRK.recs.push(R); K.recLive = true; } return R; }
     const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
     const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
     for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
@@ -5328,7 +5340,7 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         brkMakeRec(own, pa, base, off, fab, o, inhOn).detached = true;   // (2 Nov: the one recipe, the scuff's too)
       } else {
-        // (G2004: a record the scuff made at the roll-out - its snapshot detached here, at the first break, as brkCage's own)
+        // (G2004: a record not detached yet - its snapshot detached here, as brkCage's own; the scuff's come through brkMakeRec above)
         if (!own.brkR.detached) { brkDetach(pa, geo, base); own.brkR.detached = true; }
         if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
       }
@@ -5445,8 +5457,8 @@
   // the switch flipped under a wreck: every record let go and made again on the other binding (the A/B rig's)
   function brkInhReset(groups) {
     brkRestore();
-    for (const [own] of groups) own.brkR = null;
-    for (const r of model.rigs) r.brkR = null;
+    for (const [own] of groups) { own.brkR = null; own.scR = null; }
+    for (const r of model.rigs) { r.brkR = null; r.scR = null; }
     const K = model.brk; if (K) { K.inhL = null; K.inhSt = null; K.inhIt = null; K.inhGone = -1; K.wallKey = null; }
     BRK.model = model;
   }
@@ -5643,13 +5655,13 @@
   // as built. Nothing of it runs while nothing is damaged and no engine has seized: wreckFrame returns at its first test.
   // ?wreck=0 (or window.FLYDIY_WRECK = false at any time): the wreck as drawn before G1860, for the A/B.
   const WK = { model: null, P: null, W: null, T: null, t: null, rest: null, hid: [], idx: [], pos: [], rigs: null, cab: null, crew: new Map(), crewOff: false, crewT: null,
-               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, ms: { plan: 0, release: 0, frame: 0 } };
+               strikes: [], seen: null, eye: null, eyeCut: null, eyeT: -1, env: null, wires: [], wiresV: -1, ms: { plan: 0, release: 0, frame: 0 } };
   try { if (/[?&]wreck=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_wreck_stills.js): the parts, the bodies, the strikes, the cockpit rule's last word, the costs (ms)
   window.FLYDIY_WRECK_STATS = () => ({ on: window.FLYDIY_WRECK !== false, active: !!WK.model,
     parts: WK.P ? WK.P.parts.map(c => ({ kind: c.kind, gone: c.gone, why: c.why, crush: c.crush != null ? +c.crush.toFixed(3) : null })) : [],
     bodies: WK.W ? WK.W.bodies.map(B => ({ kind: B.kind, why: B.why, asleep: B.asleep, sunk: B.sunk, x: B.x.map(v => +v.toFixed(2)), tris: B.tris || 0 })) : [],
-    strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
+    wires: WK.wires.filter(w => w.obj.visible).map(w => ({ beam: w.beam, node: w.node, len: w.len })), strikes: WK.strikes.slice(), eyeCut: WK.eyeCut, eye: WK.eye, crewOff: WK.crewOff, crewHidden: WK.crew.size, cab: WK.cab ? { bay: WK.cab.bay, d0: +WK.cab.d0.toFixed(3) } : null, ms: Object.assign({}, WK.ms) });
   function wreckState() {
     if (!window.WRECK_DEBRIS || window.FLYDIY_WRECK === false || !model || model.gen || !model.wreckBuild || !sim || !def) { if (WK.model) wreckHeal(); return null; }
     if (WK.model && WK.model !== model) wreckHeal();
@@ -5675,6 +5687,7 @@
     const ids = OFF && OFF.release ? [] : WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
     wreckScraps(D, vel);                                             // G2046
+    wreckWires(D);                                                   // G2016
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
     WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
@@ -5909,6 +5922,24 @@
     WK.ms.release = Math.max(WK.ms.release, performance.now() - t0);
     return Bd;
   }
+  // G2016 (GEAR-FALLS): A SNAPPED GEAR WIRE'S ENDS DRAWN (WRECK_DEBRIS.wireEnds says why): new meshes from a leg's own material and
+  // attributes (no program links: wreckRelease's rule), each frame on its fitting, shortened over the ground; gone with their node
+  function wreckWires(D) {
+    if (WK.wiresV !== D.vB) { WK.wiresV = D.vB;
+      const leg = WK.P.parts.filter(c => c.kind === 'wheel' && c.objs).map(c => c.objs.map(o => wreckMeshesOf(o)).reduce((a, b) => a.concat(b), []).find(m => m.geometry && m.geometry.index && m.geometry.attributes.position)).find(Boolean);
+      for (const e of leg ? window.WRECK_DEBRIS.wireEnds(def, D.br, D.pc, sim.p) : []) {
+        if (WK.wires.some(w => w.beam === e.beam && w.node === e.node)) continue;
+        const T = window.WRECK_DEBRIS.wireTube(e), n = T.pos.length / 3, g = new THREE.BufferGeometry(), A = leg.geometry.attributes;
+        for (const k in A) { const at = A[k]; if (at.isInterleavedBufferAttribute || k === 'skinIndex' || k === 'skinWeight') continue;
+          g.setAttribute(k, new THREE.BufferAttribute(k === 'position' ? Float32Array.from(T.pos) : k === 'normal' ? Float32Array.from(T.nrm) : new at.array.constructor(n * at.itemSize), at.itemSize, at.normalized)); }
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, leg.material); m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false; m.frustumCulled = false; m.name = 'wreckWire'; scene.add(m);
+        WK.wires.push({ beam: e.beam, node: e.node, len: e.len, obj: m }); }
+      for (const w of WK.wires) if (D.pc && D.pc[w.node] !== 0) w.obj.visible = false; }
+    for (const w of WK.wires) { if (!w.obj.visible) continue;
+      const x = sim.p[w.node*3], y = sim.p[w.node*3+1], z = sim.p[w.node*3+2], sy = Math.max(0.05, Math.min(1, (y - world.terrainH(x, z)) / w.len));
+      w.obj.matrix.set(1, 0, 0, x, 0, sy, 0, y, 0, 0, 1, z, 0, 0, 0, 1); w.obj.matrixWorldNeedsUpdate = true; }
+  }
   // G2046 (DMG-SETTLE): THE ISLANDS ON A LOOSE PIECE (skin_break.js looseIslands says why) - a scrap of the snapshot riding
   // a piece of fewer than three nodes hung at its rest lever, in a frozen turn (the metal Cessna's dash face 45 cm over
   // the node lying on the ground). At each break event each record (a static bucket's: its ranges, as a cowl panel's) gives
@@ -6097,6 +6128,7 @@
     for (const [m, v] of WK.crew) m.visible = v;   // (DMG-D4b: the crew back)
     WK.crew.clear(); WK.crewOff = false; WK.crewT = null;
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
+    for (const w of WK.wires) { scene.remove(w.obj); w.obj.geometry.dispose(); } WK.wires = []; WK.wiresV = -1;   // (G2016)
     for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
@@ -6628,6 +6660,7 @@
   // build or a stock design - those roll out from the base, as every build did
   const slotOnStand = () => {
     try {
+      if (STAND_EMPTY) return null;     // EMPTY-STAND: nothing on the stand (the build behind it is not the room's)
       if (curKey !== 'gen') return null;
       const G = window.GARAGE_SPEC, n = G && G.name ? G.name() : '';
       const d = playerLoad();
@@ -7379,7 +7412,7 @@
       S.commit();
       if (D.sheets) D.sheets.commit(waterFx.t);
       // lit by the world's own sun and sky, in the eye's frame
-      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+      if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position;   /* G2600: the key's direction (the moon's at night) */ sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
         S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
     if (tW) waterFx.ms = performance.now() - tW;
@@ -8369,7 +8402,7 @@
     if (patVis) {
       if (patVis.papiUpdate) {   // G449: the PAPI's lenses at the runway lights' level (a lamp judged at the day's exposure, dimmed back through the night's schedule)
         const cgP = sim.cgPos(), exP = (window.GFX && GFX.exposureBase && GFX.exposureBase() != null) ? GFX.exposureBase() : 0.92;
-        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9));
+        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9) * (window.LIGHT_RIG && LIGHT_RIG.P ? LIGHT_RIG.P() : 1));   // G2620: x P
       }
       if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
     }
@@ -8969,6 +9002,7 @@
   function storeStartNow() { try { return storeStart && storeStart.slot === slotOnStand() ? storeStart : null; } catch (e) { return null; } }
   function storeChanged() {
     try { if (inGarage) residentsSync(RES.bb); } catch (e) {}
+    try { if (STAND_EMPTY) standEmptyCard(); } catch (e) {}
     try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     try { if (window.FLYDIY_STORE && window.FLYDIY_STORE.onChange) window.FLYDIY_STORE.onChange(); } catch (e) {}
   }
@@ -9037,14 +9071,15 @@
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { aero, x: p.x, z: p.z, hdg: -p.ry, spot: p.spot } : null;
     } catch (e) { return null; }
   }
-  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
-  // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
+  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; the side
+  // profile when one is drawn (G3800 PLANE_THUMB; else PARKED.fleetThumb, none yet - else the card draws its glyph)
   function storeCard(name) {
     let spec = null;
     try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
     const c = typeof playerCardOf === 'function' ? playerCardOf(name, spec) : { name, gear: 'wheels', seats: 0 };
     let thumb = null;
-    try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
+    try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}
+    try { if (!thumb && window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
     return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
   }
   // G3587 (the playtest 24 Oct, item 10: "the storage interface ... says the Cub is on the stand while the ultralight
@@ -9270,7 +9305,7 @@
   function careerAct(id, what) {
     let d = playerLoad();
     // G2742 (STORY-PAGE, Q1): the generated list is held while the story runs - its rows stand greyed, Track refused
-    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes after the move-in'); return careerRecord(); }
+    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes later in the story'); return careerRecord(); }
     const C = d.career.contracts;
     let r = null;
     if (what === 'accept') r = C.accepted.includes(id) ? null : careerAccept(d, id);
@@ -9945,7 +9980,7 @@
     } catch (e) { console.warn('flyDiy (story): the certificate -', e && e.message); }
   }
   if (STORY_PAGE) window.BENCH_CERTIFIED = storyCertified;
-  // Q1 ON THE MAP: the generated rows held (greyed, "after the move-in"), the story's own goal at the head of the list
+  // Q1 ON THE MAP: the generated rows held (greyed, "later in the story"), the story's own goal at the head of the list
   function storyRecord(R) {
     if (!STORY_PAGE || !R) return R;
     const d = playerLoad();
@@ -9954,7 +9989,7 @@
     const K = storyCardNow();
     // G2744 (the user: "the middle of nowhere"): while the story runs from the cabin, the map opens on it (`at`)
     const hereB = d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null;
-    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in',
+    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), held: 'later in the story',   // (STORY-HOME-FIX F4/F5: no step counter - G3356; HOME yours from the start)
                     at: hereB && hereB !== 'HOME' ? hereB : null } : null;
     return R;
   }
@@ -10095,8 +10130,8 @@
     if (!sg || sg === '0,0') { sg = '2,1'; try { sg = localStorage.getItem(CRAFT_LIGHTS) || sg; } catch (e) {} }
     if (!stIntroLampGrp || stIntroLampGrp.userData.sig !== sg) {
       const [np, ns] = sg.split(',').map(Number), g = new THREE.Group();
-      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));  // pre-ok: a warm-up variant at intensity 0 (a program key, no light)
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }  // pre-ok: a warm-up variant at intensity 0
       g.userData.sig = sg; g.name = 'storyIntroLamps'; stIntroLampGrp = g;
     }
     if (stIntroLampGrp.children.length && stIntroLampGrp.parent !== scene) scene.add(stIntroLampGrp);
@@ -10721,6 +10756,132 @@
         return { beat: stTut ? stTut.beat : null, i: stTut ? stTut.i : -1, step: s ? s.id : null, wait: s ? s.wait || null : null, lock: stTutLockV ? Object.assign({}, stTutLockV) : null }; },
     };
   }
+  // EMPTY-STAND: THE STAND'S STATE AND ITS CARD. While it holds: no aeroplane drawn (`craft` hidden, applyStand), the
+  // editor's columns and Roll out stand down (body.gEmpty, editor.css), slotOnStand() is null - so Storage, the floor and
+  // the roll-out see no aeroplane and nothing is moved into this hangar by looking at it - and #gEmptyCard (draggable,
+  // card_drag.js) offers what fills it: a new aeroplane (the chooser), the Market (the map), or one of yours brought here
+  // (Storage's Send to - free, instant - then onto the stand). Any aeroplane put on the stand (a load fires
+  // 'flydiy:specApplied') ends it; a reload keeps it (flydiy.standEmpty = the hangar, re-checked after the boot)
+  let geWhy = '';
+  function standEmptySet(on) {
+    on = !!on;
+    if (on !== STAND_EMPTY) {
+      STAND_EMPTY = on; geWhy = '';
+      prefSet('flydiy.standEmpty', on ? String(playerLoad().here || '') : '');
+      try { document.body.classList.toggle('gEmpty', on); } catch (e) {}
+      try { craft.visible = !on; edSit.visible = !on && showCage; } catch (e) {}
+      setTimeout(resize, 220);   // (the view takes the columns' room: the canvas's width transitions, the buffer follows)
+      try { syncGoLabel(); } catch (e) {}
+      try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}
+    }
+    try { standEmptyCard(); } catch (e) { console.warn('flyDiy: the empty stand card -', e && e.message); }
+    if (on) standEmptyAuto();
+  }
+  // THE CHOICE OPENS BY ITSELF (the user 4 Nov, on the EMPTY-STAND look: "An empty garage should automatically open the
+  // interface allowing to choose a plane, either existing or new, not to be confusing. But no plane should be drawn yet."):
+  // standEmptySet(true) is an arrival (the map's Go, the base select, a reload). Cancel leaves the empty room and the card,
+  // the door back. Not for a rig (NEW-PLANE-HOLD: the chooser holds the render loop), nor under a tutor's lock (it holds
+  // every click outside its step: the panel could not be answered)
+  function standEmptyAuto() {
+    try {
+      if (stTutLockV || (window.DESIGN_FLOW && window.DESIGN_FLOW.isRig && window.DESIGN_FLOW.isRig())) return;
+      standEmptyChoose();
+    } catch (e) { console.warn('flyDiy: the empty stand choice -', e && e.message); }
+  }
+  function standEmptyChoose() {
+    if (!STAND_EMPTY || !inGarage || !window.NEW_PLANE || !window.NEW_PLANE.open) return false;
+    if (window.NEW_PLANE.isOpen()) return true;
+    const d = playerLoad(), g = garagesList().find(x => x.id === d.here);
+    return window.NEW_PLANE.open({ offer: {
+      title: 'The stand is empty - ' + (g ? g.name : String(d.here)),
+      line: 'choose what stands here: one of yours, or a new one',
+      rows: standEmptyRows(d), bring: standEmptyBring,
+      buy: $('mapEntry') ? () => gmMap('market') : null,
+    } });
+  }
+  // your aeroplanes, where they stand in words (F6: no raw ids); the story's client's plane is offered - T2 works on it -
+  // said as the client's, and last
+  function standEmptyRows(d) {
+    const G = garagesList(), A = (world && world.aerodromes) || [], s = stLive();
+    const client = s && s.planes && !s.planes.gift ? s.planes.client : null;
+    const aero = id => { const a = A.find(x => x.id === id); return (a && a.name) || id; };
+    return Object.keys(d.fleet || {}).sort((a, b) => (a === client) - (b === client) || a.localeCompare(b)).map(name => {
+      let P = null; try { P = playerPlace(d, name, world); } catch (e) { P = null; }
+      const shed = P && G.find(x => x.id === P.hangar);
+      const w = !P ? '' : P.kind === 'in' ? 'in ' + (shed ? shed.name : P.hangar) : P.kind === 'out' ? 'out at ' + aero(P.aero) : P.kind === 'away' ? 'away at ' + aero(P.aero) : P.text || '';
+      return { name, where: (name === client ? 'the client’s, ' : '') + w };
+    });
+  }
+  function standEmptyBring(n) {
+    const here = playerLoad().here, W = playerStoreWhere(playerLoad(), n);
+    const r = (W && W.hangar === here) ? { ok: true } : window.FLYDIY_STORE.sendTo(n, here);
+    const m = r.ok ? storeMove(n, { kind: 'floor' }) : r;
+    if (!m.ok) { geWhy = n + ': ' + (m.why || 'not now'); standEmptyCard(); }
+  }
+  // the base select's move (the routes panel): an empty hangar empty, and out of an empty stand that hangar's aeroplane
+  function standEmptyFollow() {
+    if (!CAREER_DEV || !inGarage) return;
+    const d = playerLoad(), n = garageStand(d, d.here).stand;
+    if (n && STAND_EMPTY) storeMove(n, { kind: 'floor' });
+    else if (!n) standEmptySet(standEmptyAt(d, d.here));
+  }
+  function standEmptyCard() {
+    let c = $('gEmptyCard');
+    if (!STAND_EMPTY || !inGarage) { if (c) c.hidden = true; return; }
+    const mk = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    if (!c) {
+      c = mk('div'); c.id = 'gEmptyCard'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'the stand is empty');
+      document.body.appendChild(c);
+      c.addEventListener('click', standEmptyClick);
+    }
+    const d = playerLoad(), g = garagesList().find(x => x.id === d.here);
+    c.textContent = '';
+    c.appendChild(mk('span', 'geTag', 'The stand is empty'));
+    c.appendChild(mk('b', 'geName', g ? g.name : String(d.here)));
+    c.appendChild(mk('p', 'geLine', 'Nothing of yours stands in here yet. Fill the stand:'));
+    const act = mk('div', 'geActs');
+    const btn = (words, ge, title) => { const b = mk('button', ge === 'new' ? 'pri' : '', words); b.type = 'button'; b.dataset.ge = ge; if (title) b.title = title; return b; };
+    act.appendChild(btn('New aeroplane', 'new', 'design one from the chooser - it is built on this stand'));
+    if ($('mapEntry')) act.appendChild(btn('Buy one', 'buy', 'the Market, on the map'));
+    c.appendChild(act);
+    const rows = standEmptyRows(d);
+    if (rows.length) {
+      c.appendChild(mk('p', 'geLine', 'Or bring one of yours here (free, instant):'));
+      const ul = mk('ul', 'geList');
+      for (const R of rows) {
+        const li = mk('li');
+        li.appendChild(mk('b', '', R.name));
+        li.appendChild(mk('small', '', R.where));
+        const b = btn('Bring here', 'bring'); b.dataset.n = R.name;
+        li.appendChild(b); ul.appendChild(li);
+      }
+      c.appendChild(ul);
+    }
+    if (geWhy) c.appendChild(mk('p', 'geWhy', geWhy));
+    c.hidden = false;
+  }
+  function standEmptyClick(ev) {
+    const b = ev.target && ev.target.closest ? ev.target.closest('button[data-ge]') : null;
+    if (!b) return;
+    const k = b.dataset.ge;
+    if (k === 'new') { if (!standEmptyChoose() && window.DESIGN_FLOW && window.DESIGN_FLOW.openBirth) window.DESIGN_FLOW.openBirth(); return; }
+    if (k === 'buy') { gmMap('market'); return; }
+    if (k === 'bring') standEmptyBring(b.dataset.n);
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('flydiy:specApplied', () => { if (STAND_EMPTY) standEmptySet(false); });   // an aeroplane on the stand
+    // a reload in an empty hangar comes back empty (the boot seed's own load has passed by then)
+    if (CAREER_DEV && typeof setTimeout === 'function') setTimeout(() => {
+      const R = window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function' ? window.FLYDIY_READY : Promise.resolve();
+      R.then(() => {
+        try {
+          const d = playerLoad(), at = prefGet('flydiy.standEmpty', '');
+          if (!at) return;
+          if (inGarage && at === d.here && standEmptyAt(d, d.here)) standEmptySet(true); else prefSet('flydiy.standEmpty', '');
+        } catch (e) {}
+      });
+    }, 0);
+  }
   // G3613 GARAGE-GO (the user 25 Oct: "We also need an interface in all game modes for moving between the garages. I
   // suggest the ability to teleport from the map, clicking on an owned garage allows to teleport there, with whatever
   // plane is in there"): THE GARAGE HALF of GAME-MENUS's map (G3640s: the markers, the confirm row). Every mode alike:
@@ -10750,6 +10911,20 @@
     }
     return out;
   }
+  // EMPTY-STAND (the user, 4 Nov, on the STORY-HOME look's F2: "Empty hangar"): A HANGAR OF YOURS WITH NO AEROPLANE IN
+  // IT opens with the stand EMPTY - the aeroplane that was on the stand stays where it stands: not carried along, not
+  // drawn in a room it is not in, not rolled out from there (standEmptySet: the card says what fills it). True when the
+  // hangar holds none and the stand's saved aeroplane stands at another field, or the stand is empty already. The
+  // career's only: the sandbox's fleet stands where it was left, and HOME is its one garage
+  var STAND_EMPTY = false;
+  function standEmptyAt(d, id) {
+    const sh = d && d.sheds && d.sheds[id];
+    if (!CAREER_DEV || !sh || garageStand(d, id).stand) return false;
+    if (STAND_EMPTY) return true;
+    const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return false;
+    const W = playerStoreWhere(d, S), aero = typeof sh.base === 'string' ? sh.base : 'HOME';
+    return !(W && W.aero === aero);
+  }
   function gotoGarage(id) {
     const d = playerLoad(), sh = d.sheds && d.sheds[id];
     if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
@@ -10771,7 +10946,7 @@
             if (W.kind === 'floor') { storeSyncHold = true; try { window.GARAGE_SPEC.open(n); } finally { storeSyncHold = false; } }
             else storeMove(n, { kind: 'floor' });   // an inside slot: "Work on" (the floor swap, a resident's in the career)
             if (inGarage) applyEnv();
-          }
+          } else if (!n) standEmptySet(standEmptyAt(playerLoad(), id));   // EMPTY-STAND: nothing in there - the stand empty
           storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
         } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
         res({ ok: true, why: '', stand: slotOnStand() || null });
@@ -11104,7 +11279,7 @@
   // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
   // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
   const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
-                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null, chairs: [] };
   const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
   const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
   function fsAccepted() {
@@ -11438,6 +11613,17 @@
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
     seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
+  // G2404 (SEATS-OUT): THE CHAIRS THE ACCEPTED LOAD TOOK OUT, on the stand, for as long as it rides; delivered, they are back.
+  // The seat's identity group goes (the join's snapshot asks each MESH for its own `visible`, so no bake changes); a cage
+  // rebuild makes new groups, the tick hides them again; the loading view owns them while it is open. In flight the chair
+  // is baked into the flown mesh and still draws (owed: the flown model has no seats of its own).
+  function fsChairs(got, loading) {
+    if (loading || !inGarage) return;
+    const want = got && Array.isArray(got.A.seatsOut) ? got.A.seatsOut : [];
+    if (!want.length && !FST.chairs.length) return;
+    for (const i of new Set(FST.chairs.concat(want))) { const o = edSitP.getObjectByName('edSeat' + (i + 1)); if (o) o.visible = !want.includes(i); }
+    FST.chairs = want.slice();
+  }
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -11482,6 +11668,7 @@
       }
     }
     fsPeople();
+    fsChairs(got, loading);
     fsWarnSync();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
@@ -11509,7 +11696,7 @@
     state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
                     simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
                     drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
-                    seats: FST.R ? FST.R.seats : null, hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    seats: FST.R ? FST.R.seats : null, chairs: FST.chairs.slice(), hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
                     rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
     stop: fsStop,
     rigLoad: fsRigLoad,
@@ -12581,7 +12768,7 @@
       const a = new THREE.Vector3().fromArray(M(p)), b = new THREE.Vector3().fromArray(M(q));
       const d = new THREE.Vector3().subVectors(b, a), L = d.length();
       if (!(L > 1e-4)) return;
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
       const hl = head ? Math.min(0.35 * L, r * 7) : 0;
       const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L - hl, 8), mat);
       m.position.copy(a).addScaledVector(d, (L - hl) / 2 / L);
@@ -12861,7 +13048,7 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
     } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
@@ -13020,14 +13207,14 @@
     // disappearing inside the covering.
     const bar = (col, order) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
       m.frustumCulled = false; m.renderOrder = order; m.visible = false;
       grp.add(m); return m;
     };
     // THE RED FLAG is a marker, not a recoloured member: the covering is
     // normally on during a test, and a red line under fabric is no flag at all.
     const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));
+      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
     flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
     grp.add(flag);
     craft.add(grp);
@@ -13649,6 +13836,7 @@
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
+    if (STAND_EMPTY && inGarage) return;   // EMPTY-STAND: nothing on the stand to roll out (the card says what fills it)
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
@@ -14153,8 +14341,8 @@
     let want = '2,1'; try { want = localStorage.getItem(CRAFT_LIGHTS) || want; } catch (e) {}
     if (!lightStandIns || lightStandIns.userData.sig !== want) {
       const [np, ns] = want.split(',').map(Number), g = new THREE.Group();
-      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));  // pre-ok: intensity 0: a compile stand-in
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }  // pre-ok: intensity 0: a compile stand-in
       g.userData.sig = want; g.name = 'craftLightStandIns'; lightStandIns = g;
     }
     if (!lightStandIns.children.length) return fn();
@@ -15065,8 +15253,8 @@
   // vanish the moment the editor opened. `showCage` is declared with the
   // meshes, up by `lines`/`proxy`.
   function applyStand() {
-    edSit.visible = showCage;
-    craft.visible = true;                       // the indicators live in here
+    edSit.visible = showCage && !STAND_EMPTY;   // (EMPTY-STAND: nothing on the stand, the build behind it not drawn)
+    craft.visible = !STAND_EMPTY;               // the indicators live in here (EMPTY-STAND: nothing on the stand)
     // THE CAGE ONLY EVER HIDES; IT NEVER SHOWS. With the cage standing, none
     // of the model's meshes belong on screen. With it down, WHICH of them
     // show is applySkinVis's ruling — this function forcing them all visible
@@ -15509,7 +15697,7 @@
           baseRows[where] = { kind: 'select', sel, options: held.map(x => x.h), labels: held.map(x => x.b.name + ' · ' + hangarWords(x.b, x.h, doc)) };
           sel.onchange = e => {
             const r = typeof playerGoTo === 'function' ? playerGoTo(playerLoad(), e.target.value) : null;
-            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; roomFollow(); }   // G2310: the room is that hangar's
+            if (r && r.ok) { player = r.doc; playerSave(); baseId = player.sheds[player.here].base; roomFollow(); standEmptyFollow(); }   // G2310: the room is that hangar's (EMPTY-STAND: an empty one, empty)
             routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset();
           };
           lab.appendChild(sel);
@@ -17235,6 +17423,7 @@
     night(body) {
       const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField };
       if (window.DAY_UI) window.DAY_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
+      if (window.MOON_UI) window.MOON_UI.mount(body, H);   // G2600: the night's dials (the moonlight, the night eye, the night colour, the stars)
       // THE AEROPLANE'S LIGHTS: the cockpit's own switches (CK.sw), pressed from the rail - the
       // same write a click on the panel makes, and the same claim: a switch the hand set stays
       // the hand's until the next sunset or sunrise, when the pilot's rule takes all of them again
@@ -19888,7 +20077,7 @@
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
-    if (edSit.visible) target.copy(edTarget).add(edPan);
+    if (edSit.visible || STAND_EMPTY) target.copy(edTarget).add(edPan);
     else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();
@@ -20053,7 +20242,7 @@
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
-      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? (k => [k.x, k.y, k.z])(WF.KEY_SKY || WF.SUN_SKY) : null);   // G2600: the moon's glare when the moon is the key
       if (d) {
         glareDir.set(d[0], d[1], d[2]);
         SKY_GLARE.setOccluders(() => inShed ? [garageScene()] : [craft]);
@@ -20578,7 +20767,7 @@
     const shadowLs = shadowW ? lights.filter(L => L.castShadow && L.shadow && L.shadow.mapSize) : [], scratch = new Map();
     if (shadowW) SHADOW_WARM_LIGHTS = shadowLs.length;
     if (shadowW && !shadowLs.length) return Promise.resolve(0);
-    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;
+    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;  // pre-ok: a warm draw's stand-in, never on screen
     const shadowSwap = () => shadowLs.map(L => {
       const S = L.shadow, C = S.camera;
       const k = [S.map, S.mapSize.x, S.mapSize.y, S.autoUpdate, S.needsUpdate, S.matrix.clone(),

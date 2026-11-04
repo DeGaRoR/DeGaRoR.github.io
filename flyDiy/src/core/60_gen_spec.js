@@ -439,6 +439,9 @@ const GEN_DAMAGE_DEFAULT = true;
 //     the Jodel's card read 6.14 g against the band's 6.14; at a third 6.06; at a quarter 6.05 - the crashes alike);
 //   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
 //     (sim.damageBreak: "this joint let go") release it whole, as before.
+//   - GEAR-FALLS (the user, 4 Nov: "broken landing trains were really one of the first asks ... the plane has to behave
+//     like it loses a connection, a wheel, a leg"): NOT a wheel's gear. One load member of a leg or a tailwheel, severed or
+//     kinked, lets its joint go whole (30_solver gearGrp); its wires only snap. A float's struts keep the third.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
@@ -3350,7 +3353,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //   6  2026-10-08, G2470 JODEL-PITCH: the Munk body couple's arm along the body (30_solver; it was measured in the world
 //      x-y plane, x1/cos(heading) and off near world +-z) - the certificate's flown cases that turn off x move (the Jodel's
 //      steps a frame more); the probes along the def's x do not
-const PHYSICS_V = 6;
+//   7  2026-11-03, G3800 TAILWHEELS: every taildragger's tail contact flies a law (30_solver twLine) - the steerable
+//      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
+//      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
+//      move; the plaque's probes in the air do not
+const PHYSICS_V = 7;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -4340,6 +4347,19 @@ function genClone(o) {
   return o;
 }
 const genClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+// G3801: THE V FROM THE BOOMS, FOUR WAYS (tail.ivDir: absent = 'downIn', the Shadow's; 'downOut', 'upIn', 'upOut') -
+// which way each boom's panel runs, and its lateral reach from the boom's centre plane: an inward panel's is the booms'
+// (boomX - ivGap / 2: its tip ivGap / 2 off the centreline), an outward one's tail.ivReach (default boomX - 0.15, the
+// inward default's). The panel's own span is the reach over cos(ivAngle)
+function genIvDir(t) {
+  const d = t && t.ivDir;
+  return { up: d === 'upIn' || d === 'upOut', out: d === 'downOut' || d === 'upOut' };
+}
+function genIvReach(t) {
+  const bx = (t && t.boomX) || 1.2, D = genIvDir(t);
+  return Math.max(0.2, D.out ? (t.ivReach > 0 ? t.ivReach : bx - 0.15)
+                             : bx - 0.5 * (t.ivGap == null ? 0.30 : t.ivGap));
+}
 // null means "derive it" and must survive clamping — genClamp would coerce it
 // to 0 and hand back the lower bound, silently turning every AUTO field into a
 // pinned one. Nullable fields go through this.
@@ -5242,6 +5262,24 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
+  // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
+  // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
+  // the two tips), ivS (m2, both panels' true area: the join's measure, or null - derived from the volumes). Off twin
+  // booms, or absent: no key at all
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null && isFinite(+S.tail.ivAngle)) {
+    S.tail.ivAngle = genClamp(+S.tail.ivAngle, 20, 55);
+    S.tail.ivGap = genClamp(S.tail.ivGap == null ? 0.30 : +S.tail.ivGap || 0, 0.10, 1.20);
+    if (S.tail.ivS != null) S.tail.ivS = genClamp(+S.tail.ivS || 0.2, 0.20, 14.0); else delete S.tail.ivS;
+    // G3801 (the user 4 Nov: "can we also have inverted T-tail, but on the outside? And for the upward T-Tail ... an
+    // option where they face towards each other, inwards. So we have all possible options, with little wheels if the V
+    // is downward"): THE V FROM THE BOOMS, FOUR WAYS - ivDir 'downIn' (the Shadow's, the default: no key), 'downOut',
+    // 'upIn', 'upOut'; an inward panel's span is the booms' (boomX - ivGap / 2), an outward one's is ivReach (m, the
+    // tip's lateral reach outboard of its boom; default boomX - 0.15, the inward default's)
+    if (['downOut', 'upIn', 'upOut'].indexOf(S.tail.ivDir) < 0) delete S.tail.ivDir;
+    if (/Out$/.test(S.tail.ivDir || '') && S.tail.ivReach != null) S.tail.ivReach = genClamp(+S.tail.ivReach || 0.2, 0.20, 2.0);
+    else delete S.tail.ivReach;
+  } else { delete S.tail.ivAngle; delete S.tail.ivGap; delete S.tail.ivS; delete S.tail.ivDir; delete S.tail.ivReach; }
   // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
@@ -5252,31 +5290,37 @@ function clampSpec(spec) {
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
     const f = S.gear.floats;
+    // FLOATS-CLASSIC (2026-11-03): an EDO-style record ('edo', the only style a record names - a Wipline carries none)
+    // may be an EDO Model 78 (the DC-3's: 12.8 m, 1.73 m of beam, ~1 t a hull), so ITS length, beam, hull mass and
+    // rudder depth get room the Wipline line never needed; every other record keeps the bounds it had, to the bit
+    if (f.style != null && f.style !== 'edo') delete f.style;
+    const big = f.style === 'edo';
     // G451: THE WIPLINE FAMILY (32_hydro DEF): the catalogue runs 4.6-9.9 m;
     // every key absent falls to the family's own (scaled to the length) in
     // the frame, so only what is present is clamped. A record from before
     // G451 (yBow, bBow, hSide, xFlat) carries keys the family no longer
     // reads; they ride along harmlessly and the hull is the family's.
-    f.L = genClamp(f.L || 4.3, 2.0, 12.0);
+    f.L = genClamp(f.L || 4.3, 2.0, big ? 16.0 : 12.0);
     f.xs = genClamp(f.xs || 0.553 * f.L, 0.3 * f.L, 0.7 * f.L);
-    f.B = genClamp(f.B || 0.67, 0.3, 1.6);
+    f.B = genClamp(f.B || 0.67, 0.3, big ? 2.2 : 1.6);
     f.beta = genClamp(f.beta == null ? 22 : f.beta, 0, 45);
     f.betaA = genClamp(f.betaA == null ? Math.min(f.beta, 18) : f.betaA, 0, 45);
     f.hs = genClamp(f.hs == null ? 0.013 * f.L : f.hs, 0, 0.2);
     f.aftAngle = genClamp(f.aftAngle == null ? 6.5 : f.aftAngle, 0, 15);
     f.bStern = genClamp(f.bStern == null ? 0.42 : f.bStern, 0.15, 1.0);
-    for (const [k, lo, hi] of [['H', 0.2, 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
+    for (const [k, lo, hi] of [['H', 0.2, big ? 2.0 : 1.5], ['betaBow', 10, 70], ['aftCurve', 0, 0.3], ['flatK', 0.05, 0.7], ['stemK', 0.05, 0.7],
                                ['rake', 0, 35], ['noseR', 0.02, 0.45], ['planK', 1.0, 5.0], ['flare', 0, 15], ['bevel', 0, 0.08],
                                ['rChine', 0, 0.05], ['rGun', 0, 0.08], ['rLip', 0, 0.04], ['rTransom', 0, 0.06],
                                ['railW', 0, 0.1], ['railT', 0, 0.02], ['keelW', 0, 0.12], ['keelH', 0, 0.03], ['skZ', 0.2, 0.8],
-                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, 0.6], ['wrDepth', 0.05, 0.8], ['mFloat', 5, 600],
-                               ['fineK', -0.7, 1], ['scale', 0.3, 3], ['xAft', 0.05, 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3]])
+                               ['skW', 0, 0.08], ['skH', 0, 0.03], ['wrArea', 0.01, big ? 1.2 : 0.6], ['wrDepth', 0.05, big ? 1.4 : 0.8], ['mFloat', 5, big ? 2000 : 600],
+                               ['fineK', -0.7, 1], ['scale', 0.3, big ? 4 : 3], ['xAft', 0.05, big ? 3.0 : 2.0], ['sheerK', 0, 0.5], ['aftHold', 0, 0.6], ['aftPow', 1, 3],
+                               ['crownK', 0, 0.985], ['bowDrop', 0, 0.4], ['noseMul', 1, 3], ['shoulderZ', 0.3, 1], ['tumble', 0, 40], ['flute', 0, 0.2]])
       if (f[k] != null) f[k] = genClamp(+f[k] || 0, lo, hi);
     if (f.preset != null && typeof f.preset !== 'string') delete f.preset;
-    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, big ? 4.0 : 2.0);
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
-    f.x = f.x == null ? null : genClamp(f.x, -3, 6);
-    f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
+    f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
+    f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
   } else S.gear.floats = null;
   // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
   // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
@@ -5315,8 +5359,12 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
-  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
-  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
+  // G3800 (TAILWHEELS): THE TAIL CONTACT'S KIND - 'lock' (the lockable wheel, the DC-3's), 'fixed', 'skid', or no key
+  // at all: the steerable wheel (the Scott kind, every taildragger's default). G3575's full swivel (`twSwivel: true`, the
+  // DC-3's only) is the lockable wheel now: a saved one loads as 'lock', and the old key goes
+  if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
+  delete S.gear.twSwivel;
+  if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -5937,6 +5985,21 @@ function resolveSpec(spec) {
     // a built V keeps its measured span and chord as the builder's own
     if (!built) auto['tail.hSpan'] = auto['tail.hChord'] = true;
     auto['tail.vHeight'] = auto['tail.vChord'] = true;
+  }
+
+  // G3800 (TAILWHEELS): ---- THE INVERTED V ON TWIN BOOMS: the V's own sizing (the area that meets BOTH volumes: Sh /
+  // cos^2 G or Sv / sin^2 G, whichever binds - the same projections), on the span the booms give it: each panel runs
+  // from its boom to ivGap / 2 off the centreline, (boomX - ivGap / 2) / cos G long. A measured area (the join's ivS)
+  // is the area. The effective Sh and Sv (reported, and what the design check's volumes read) are its projections
+  if (S.tail.type === 'twinBoom' && S.tail.ivAngle != null) {
+    const G = S.tail.ivAngle * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
+    const b1 = Math.max(0.25, genIvReach(S.tail) / cG);     // G3801: the four ways' own span
+    let ivS = S.tail.ivS > 0 ? S.tail.ivS : Math.max(Sh / (cG * cG), Sv / (sG * sG));
+    if (!(S.tail.ivS > 0)) { auto['tail.ivS'] = true; ivS = genClamp(ivS, 0.20, 14.0); }
+    S.tail.ivS = ivS; S.tail.ivG = G;
+    S.tail.hChord = ivS / (2 * b1);
+    S.tail.Sh = ivS * cG * cG;
+    S.tail.Sv = ivS * sG * sG;
   }
 
   // 5. gear — the two hard geometric constraints of a taildragger.

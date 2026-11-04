@@ -2056,6 +2056,18 @@ function editorInit(api) {
           icon: '<path d="M5.6 15.6V5.2M3 5.2h5.2"/><path d="M12.4 15.6V7.4"/><path d="M12.4 3.2l-2.3 3.4h4.6z"/>' };
       },
       act: () => qPopOpen(qPop === 'aids' ? null : 'aids') },
+    // ---- LIGHTS THAT CANNOT LIGHT (the user 4 Nov: "We need a warning for no electrics"): shown only while there is
+    // something to say. No `row`: it reports the build (_cage_light.js lightWarnings), it sets nothing.
+    { k: 'lightsWarn', state: 'CAGE_LIGHT.warnings (reads the build, keeps nothing)',
+      why: 'lights fitted with no battery and no generator stay dark, and a fitted landing or taxi light with no wing bay ' +
+           'is not drawn: the row alone says fitted, so the bar says what it cannot do, and the card opens the part to fix it',
+      view: () => {
+        const w = lightWarnsNow();
+        return { on: qPop === 'lightsWarn', hide: !w.length, warn: true, title: w.length ? w[0].text : '',
+          // a warning triangle
+          icon: '<path d="M9 3.2l6.6 11.6H2.4z"/><path d="M9 7.6v3.4M9 12.6v.4"/>' };
+      },
+      act: () => qPopOpen(qPop === 'lightsWarn' ? null : 'lightsWarn') },
     // ---- the sound (G1710, SND-BOOMBOX; the user 2026-10-05: "a toggle button next to the existing toggles ... sound
     // on/off, and another one cycling the radios") ------------------------
     // No `row`: the rail's `sound` item is AUDIO.mount's own panel, not borrowed rows, so there is no row to name. The
@@ -2195,7 +2207,22 @@ function editorInit(api) {
   // outside it and the bar, on a second press of its button, and when a MENU page takes the rows
   let qPop = null, qPopOff = null;
   // TIME-CONTROLS: a card with a body of its own, not a rail item's - built here, rebuilt after a pick (its scroll kept)
+  // what the lights cannot do on this build, off the panel's current systems (a release of any row, a load)
+  function lightWarnsNow() {
+    const L = window.CAGE_LIGHT, A = window.CAGE_PANEL;
+    if (!L || !L.warnings || !A || !A.toSpec || typeof genSystemsResolve !== 'function') return [];
+    try { return L.warnings(genSystemsResolve({ systems: A.toSpec() })); } catch (e) { return []; }
+  }
   const QPOP_OWN = {
+    lightsWarn: { head: 'Lights', build(body) {
+      for (const w of lightWarnsNow()) {
+        const p = document.createElement('p'); p.className = 'edLightWarn'; p.textContent = w.text; body.appendChild(p);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'edAid';
+        b.textContent = w.part === 'lights' ? 'Open the lights' : 'Open the electrics';
+        b.onclick = () => { qPopOpen(null); select(w.part); };
+        body.appendChild(b);
+      }
+    } },
     time: { head: 'Time', build(body) {
       if (!window.DAY_UI || !window.DAY_UI.menu) return;
       const again = () => { if (qPop !== 'time') return; const keep = body.scrollTop; while (body.firstChild) body.removeChild(body.firstChild);
@@ -2320,8 +2347,16 @@ function editorInit(api) {
     if (M.anchor) M.anchor(() => {
       if (!inShed()) return null;
       const q = $('edQuick'), r = q && q.getClientRects().length ? q.getBoundingClientRect() : null;
-      const m = $('gmMenu'), mw = (m && m.offsetWidth) || 72, mh = (m && m.offsetHeight) || 32;
-      if (!r || (window.innerWidth || 0) - r.right < mw + 14) return null;
+      const m = $('gmMenu'), mh = (m && m.offsetHeight) || 32;
+      // STORY-HOME-FIX (F10): the row that stands there (CONTRACTS, the garage's LOAD; MENU when shown) must fit before the
+      // panel on the right, not only the window: at 1280 the CONTRACTS pill covered the panel's story note. No room: the
+      // row goes under the top bar (gmLayout's own place)
+      const vis = e => e && !e.hidden && e.getClientRects().length ? e.offsetWidth || 0 : 0;
+      const mw = ['gmMenu', 'mapEntry', 'frEntry'].map(k => vis($(k))).filter(Boolean).reduce((a, w, i) => a + w + (i ? 8 : 0), 0) || 72;
+      const P = $('edProps'), pr = P && P.getClientRects().length ? P.getBoundingClientRect() : null;
+      if (!r) return null;
+      const edge = pr && pr.left > r.right ? pr.left : (window.innerWidth || 0);
+      if (edge - r.right < mw + 14) return null;
       return { top: r.top + (r.height - mh) / 2, left: r.right + 6 };
     });
   }
@@ -2354,6 +2389,16 @@ function editorInit(api) {
     window.REF_ON_CHANGE = syncQuick;
     hookXray();
     syncQuick();
+    // the warning follows the build: once a second while the bar is on screen, repainted only when its words change
+    let lightWarnWas = '';
+    setInterval(() => {
+      if (!bar.offsetParent) return;
+      const now = lightWarnsNow().map(w => w.key).join();
+      if (now === lightWarnWas) return;
+      lightWarnWas = now;
+      if (!now && qPop === 'lightsWarn') qPopOpen(null);
+      syncQuick();
+    }, 1000);
   }
 
   // ...and the flyout's own checkbox is the other way this state moves. Same
@@ -2382,6 +2427,8 @@ function editorInit(api) {
       b.setAttribute('aria-label', st.title);
       b.disabled = !!st.off;
       b.classList.toggle('on', !!st.on && !st.off);
+      b.hidden = !!st.hide;
+      b.classList.toggle('warn', !!st.warn);
     }
   }
 

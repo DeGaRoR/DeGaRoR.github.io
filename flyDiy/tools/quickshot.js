@@ -47,7 +47,7 @@ const THREE = SH.context().THREE;
 
 // ---- the triangles, world metres, with a colour --------------------------------------------------------------
 const SKIP_SHEET = new Set(['tube', 'cloth', 'dash', 'dashFace', 'bulkhead', 'fireProof', 'firewall', 'fireSeal',
-  'shoulder', 'toele', 'plywood', 'floorBoard', 'seat']);
+  'shoulder', 'toele', 'plywood', 'floorBoard', 'seat', 'bulkTrim', 'baggage', 'headliner', 'cabWall']);
 const GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows', 'drawnPane']);
 const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
 const P = S.P, FS = S.FS, sheet = S.built.sheet;

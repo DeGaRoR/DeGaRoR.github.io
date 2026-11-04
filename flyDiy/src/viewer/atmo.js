@@ -579,6 +579,10 @@ var ATMO = (function () {
   const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
   const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
+  // G2620 THE PRE-EXPOSURE: a switch rescales the dome's scale and its copies in the frame it happens (the update copies
+  // U.scale into the aerial perspective and the mist BEFORE applyDay writes it - without this the switch frame's haze
+  // would carry the old unit); applyDay then writes the same value from the day
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
@@ -607,7 +611,7 @@ var ATMO = (function () {
     SC.fog_pars_fragment = (SC.fog_pars_fragment || '') + '\n#ifdef USE_FOG\n' + AP_PARS_FRAG + '\n#endif\n';
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
-    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
+    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {  // pre-ok: a list of material kinds, not a writer
       const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
     }
     // EVERY MATERIAL TAKES THE SAMPLER, a hook of its own or not (G432.2, the user: "check why the
@@ -632,7 +636,7 @@ var ATMO = (function () {
         if (!w) { w = function (sh, r) { inject(sh); return f.call(this, sh, r); }; w.toString = () => 'atmo.inject+' + f.toString(); WRAP.set(f, w); }
         return w;
       },
-      set(f) { this._atmoHook = f || null; },
+      set(f) { this._atmoHook = (f && f !== injectOnly) ? f : null; },   // a copy of the bare inject is no hook: wrapping it keys one source twice
     });
     installed = true;
     return true;
@@ -729,6 +733,12 @@ ${MIST_GLSL}
         vec3 g = floor(d * 900.0);
         float h = hash13(g), h2 = hash13(g + 17.0);
         float star = smoothstep(0.985, 1.0, h) * (0.4 + 0.6 * h2);
+        // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
+        // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
+        // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
+        // By day the term is already 0 (the sky hides every star): the day is untouched.
+        float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
+        star *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
         vec3 tint = mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2);
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
         L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
@@ -951,7 +961,7 @@ ${MIST_GLSL}
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
-    U.eMoon.value = day ? (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase : 0;
+    U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
     // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
     // night sky is ~1e-6 of the sun - under 6e-5 a half float is subnormal and steps in 6e-8: at the night's
@@ -1116,7 +1126,7 @@ ${MIST_GLSL}
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
     es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
-    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });
+    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
     const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
     const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
     const capNow = () => { if (!o.cap) return cap0; const c = o.cap(); return cap0.setRGB(c[0], c[1], c[2]); };
@@ -1135,7 +1145,8 @@ ${MIST_GLSL}
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
       bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
-        capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day));
+        capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day))
+          .multiplyScalar(o.pre && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: the cap is an unlit colour - x P like every radiance in the world's frame
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         const next = pmrem.fromScene(es, 0.035, 1, 100);
         lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;

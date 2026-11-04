@@ -315,10 +315,18 @@ function runwayLightPoints(a, aerodromes, paved) {
 // side (the pilot holds the centreline within a few metres; a wing spans
 // ten) — a hill beside the approach is not an obstacle, a ridge across it
 // is. The canopy is read within 20 m of each sample.
+// G3910 (PILOT-1 P1, the user 2 Nov: "I can't remember one, this is open"): ...AND A HILL BESIDE IT IS READ AS ONE. The
+// cone took the highest ground over the centreline and the two shoulders (+-34 m on an 18 m strip): Copperhead Mine
+// Street is cut across a sidehill - +0.1 m on the centreline 25 m out, +6.8 m on the uphill shoulder - and that
+// shoulder became 'the obstacle 25 m out (7 m)', a 15.2 deg approach and an aim 111 m into 250 m. Each sample across
+// the cone now stands under a LATERAL SURFACE: level out to the wingtip line (the strip's half width + `halfSpan`,
+// 6 m), rising 1:5 (`trans`, ICAO's transitional surface) past it - the uphill shoulder 34 m out is 3.8 m lower to
+// the cone; a ridge across the approach (high on the centreline too) is read as before
 function siteRunwayModel(aero, world, opts) {
   opts = opts || {};
   const R = siteRunway(aero);
   const clear = opts.clear ?? 15, screen = opts.screen ?? 15, reach = opts.reach ?? 6000, climbReach = opts.climbReach ?? 1500, step = opts.step ?? 100, canopy = opts.canopy ?? 18;
+  const halfSpan = opts.halfSpan ?? 6, trans = opts.trans ?? 0.2;
   const hasT = world && typeof world.terrainH === 'function';
   const floor = (x, z) => {                              // the terrain or the water over it
     if (!hasT) return aero.elev || 0;
@@ -337,9 +345,19 @@ function siteRunwayModel(aero, world, opts) {
   };
   const hAt = s => floor(R.end0.x + R.dx * s, R.end0.z + R.dz * s);   // the strip itself: no canopy
   const grade = (hAt(R.len) - hAt(0)) / R.len;
-  const half = R.wid / 2 + 25;
+  const half = R.wid / 2 + 25, tip = R.wid / 2 + halfSpan;
+  // G3910: the samples across the cone (the centreline, the wingtip lines, the shoulders) and the ground each stands
+  // under the lateral surface - the highest of them at (x0, z0) + v * d, c to the side
+  const across = (x0, z0, v, d) => {
+    let h = -Infinity;
+    for (const c of [-half, -tip, 0, tip, half]) {
+      const x = x0 + v[0] * d - v[1] * c, z = z0 + v[1] * d + v[0] * c;
+      h = Math.max(h, ground(x, z) - trans * Math.max(0, Math.abs(c) - tip));
+    }
+    return h;
+  };
   const ds = []; for (let d = 25; d < 600; d += 25) ds.push(d); for (let d = 600; d <= reach; d += step) ds.push(d);
-  const dir = [];
+  const dir = [], scans = [];
   for (const k of [0, 1]) {
     const sg = k === 0 ? -1 : 1;
     const u = [R.dx * sg, R.dz * sg];                 // the landing direction
@@ -348,14 +366,12 @@ function siteRunwayModel(aero, world, opts) {
     const aim = { x: td.x - u[0] * 70, z: td.z - u[1] * 70 };
     const thrH = floor(thr.x, thr.z), farH = floor(far.x, far.z);
     let reqGs = 0, obst = null;
+    const line = []; scans.push(line);
     for (const d of ds) {
-      // the highest ground across the corridor at this distance
-      let h = -Infinity;
-      for (const c of [-half, 0, half]) {
-        const x = thr.x - u[0] * d - u[1] * c, z = thr.z - u[1] * d + u[0] * c;
-        h = Math.max(h, ground(x, z));
-      }
+      // the highest ground across the corridor at this distance (G3910: under the lateral surface)
+      const h = across(thr.x, thr.z, [-u[0], -u[1]], d);
       const g = (h + clear - screen - thrH) / d;
+      line.push([d, g, h]);
       if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; }
     }
     let reqClimb = Infinity, climbObst = null, climbTurn = 0;
@@ -369,11 +385,7 @@ function siteRunwayModel(aero, world, opts) {
         if (d > climbReach) break;
         const straight = d <= dTurn;
         const v = straight ? u : ut, o = straight ? [far.x, far.z] : P0, dd = straight ? d : d - dTurn;
-        let h = -Infinity;
-        for (const c of [-half, 0, half]) {
-          const x = o[0] + v[0] * dd - v[1] * c, z = o[1] + v[1] * dd + v[0] * c;
-          h = Math.max(h, ground(x, z));
-        }
+        const h = across(o[0], o[1], v, dd);
         const g = (h + clear - screen - farH) / d;
         if (g > req) { req = g; ob = { d, h: Math.round(h * 10) / 10 }; }
       }
@@ -384,7 +396,15 @@ function siteRunwayModel(aero, world, opts) {
                reqGs: Math.round(reqGs * 1e4) / 1e4, obst, reqClimb: Math.round(reqClimb * 1e4) / 1e4, climbObst, climbTurn,
                grade: Math.round(grade * sg * 1e4) / 1e4, thrH: Math.round(thrH * 10) / 10, farH: Math.round(farH * 10) / 10 });
   }
-  return { R, hAt, grade, dir, ground, floor };
+  // G3914 (PILOT-1 P3): THE SLOPE OVER THE FINAL THAT IS FLOWN. reqGs reads 6 km of ground, and a straight line from the threshold
+  // over all of it: East Point's 721 m hill 5.2 km out asked 7.7 deg of a final that begins 2 km from the strip (a circuit
+  // height clears that hill long before the final begins). The same scan, out to `dMax`
+  const reqTo = (k, dMax) => {
+    let reqGs = 0, obst = null;
+    for (const [d, g, h] of scans[k]) { if (d > dMax) break; if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; } }
+    return { reqGs: Math.round(reqGs * 1e4) / 1e4, obst };
+  };
+  return { R, hAt, grade, dir, ground, floor, reqTo };
 }
 // THE DIRECTION, SCORED. One number per direction over the model, a wind
 // and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, LDGrun, TORun,
@@ -405,6 +425,7 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
   for (const D of model.dir) {
     const why = [];
     let sc = 0;
+    const reqGs = lim.finalReach && model.reqTo ? model.reqTo(D.k, lim.finalReach).reqGs : D.reqGs;   // G3914: over the final flown
     if (wind) {
       const hw = -(wind[0] * D.u[0] + wind[1] * D.u[1]); sc += 3 * hw; why.push('wind ' + hw.toFixed(1));
       // a tailwind past 2.5 m/s (the 5 kt of every POH) costs 30 per m/s more: 5 m/s down the strip weighs as much as an approach at its limit
@@ -416,8 +437,8 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
     if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
     if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
-    if (land && D.reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
-    else if (land && D.reqGs > gsNom) { sc -= 100 * (D.reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
+    if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
+    else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     if (D.reqClimb > climb) { sc -= 1000; why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
     else if (D.reqClimb > 0.5 * climb) { sc -= 100 * (D.reqClimb - 0.5 * climb) / climb; why.push('climb-out ' + (D.reqClimb * 100).toFixed(1) + '%' + (D.climbTurn ? (D.climbTurn > 0 ? ' turning right' : ' turning left') : '')); }
     if (pref) { const pl = Math.hypot(pref[0], pref[1]) || 1, p = (D.u[0] * pref[0] + D.u[1] * pref[1]) / pl; sc += 0.5 * p; if (oneWay && p < 0) { sc -= 500; why.push('one-way'); } }

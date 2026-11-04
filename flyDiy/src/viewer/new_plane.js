@@ -35,18 +35,24 @@ function svgFor(icon) {
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 let el = null, choices = {}, page = 'start', stepI = 0, busy = false, regText = '';
+// EMPTY-STAND (the user 4 Nov: an empty garage opens the choice, "either existing or new"): the host's offer on the first
+// screen - { title, line, rows: [{ name, where }], bring(name), buy() or null } (app.js standEmptyChoose); none = the NEW button
+let offer = null;
 // what the panel did, for the flow check (GATE NEWPLANE): renders, builds asked, the spec handed over
 const LOG = { opened: 0, renders: 0, generated: 0, lastSpec: null };
 
 function hold(on) { try { if (window.FLYDIY_UI_HOLD) window.FLYDIY_UI_HOLD(!!on); } catch (e) {} }
 
-function open() {
+function open(opts) {
   if (!NG() || !D()) return false;
   if (busy) return false;
   if (!el) build();
   choices = {}; page = 'start'; stepI = 0; regText = '';
+  offer = (opts && opts.offer) || null;
+  el.querySelector('.npTitle').textContent = offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
   el.hidden = false;
   document.documentElement.classList.add('npOpen');
+  document.documentElement.classList.toggle('npOffer', !!offer);
   LOG.opened++;
   hold(true);
   render();
@@ -54,11 +60,23 @@ function open() {
 }
 function close() {
   if (!el) return;
-  el.hidden = true;
+  el.hidden = true; offer = null;
   document.documentElement.classList.remove('npOpen');
+  document.documentElement.classList.remove('npOffer');
   hold(false);
 }
 const isOpen = () => !!(el && !el.hidden);
+// G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE): a candidate card's side-profile picture, once (none = today's card);
+// a picture that lands later ('plane-thumb') fills the cards still without one
+function npThumb(b) {
+  if (!b || b.querySelector('img.npThumb') || typeof b.prepend !== 'function') return;
+  let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(b.dataset.thumb); } catch (e) { u = null; }
+  if (!u) return;
+  const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'npThumb'; b.prepend(im);
+}
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => {
+  try { if (el) el.querySelectorAll('.npTile[data-thumb]').forEach(npThumb); } catch (e) {}
+});
 
 function build() {
   el = document.createElement('div');
@@ -144,8 +162,32 @@ function render() {
   else renderSummary(body);
 }
 
+// the offer's half of the first screen: a press closes the panel and hands over (nothing built or loaded here)
+function renderOffer(body) {
+  const o = offer;
+  body.insertAdjacentHTML('beforeend', '<div class="npStepH"><b>' + esc(o.title) + '</b><span>' + esc(o.line) + '</span></div>');
+  const tile = (kind, name, note, f) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'npTile'; b.dataset.offer = kind;
+    b.innerHTML = '<b>' + esc(name) + '</b><small>' + esc(note) + '</small>';
+    b.addEventListener('click', () => { close(); f(); });
+    return b;
+  };
+  const grid = document.createElement('div');
+  grid.className = 'npGrid npStartGrid';
+  const bring = o.bring;
+  for (const r of o.rows || []) grid.appendChild(tile('bring', r.name, (r.where ? r.where + ' - ' : '') + 'bring it here, free and instant', () => bring(r.name)));
+  if (o.buy) { const buy = o.buy; grid.appendChild(tile('buy', 'Buy one', 'the Market, on the map', () => buy())); }
+  if (grid.children.length) {
+    body.insertAdjacentHTML('beforeend', '<div class="npSecH">one of yours</div>');
+    body.appendChild(grid);
+  }
+  body.insertAdjacentHTML('beforeend', '<div class="npSecH">or a new one</div>');
+}
+
 function renderStart(body) {
   const g = NG(), d = D();
+  if (offer) renderOffer(body);
   let warn = '';
   try { warn = GS().name() ? '' : 'generating replaces the unsaved build on the stand'; } catch (e) {}
   body.insertAdjacentHTML('beforeend',
@@ -200,7 +242,8 @@ function renderStart(body) {
           const b = document.createElement('button');
           b.type = 'button'; b.className = 'npTile';
           b.innerHTML = '<b>' + esc(c.name || c.file) + '</b><small>' + esc('candidate official' + (c.note ? ' — ' + c.note : '')) + '</small>';
-          b.title = c.file + ': designed and built, not validated - no certificate';
+          b.title = c.tip;
+          b.dataset.thumb = 'cand:' + c.file; npThumb(b);
           b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openCandidate(c); }));
           gc.appendChild(b);
         }

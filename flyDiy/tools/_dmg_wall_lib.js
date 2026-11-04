@@ -57,7 +57,7 @@ function snapshotOf(file, opts) {
   const W = r.W, THREE = W.THREE, P = r.P;
   const s = r.built.sheet;
   const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
-  const INTSTRUCT = new Set(['tube', 'woodFrame', 'aluminium', 'bulkhead', 'firewall', 'reveal']);
+  const INTSTRUCT = new Set(['tube', 'woodFrame', 'aluminium', 'bulkhead', 'bulkTrim', 'baggage', 'firewall', 'reveal']);
   const skinCull = nm => !GLASSM.has(nm) && !INTSTRUCT.has(nm) && nm !== 'joint' && nm !== 'doorSeal' && nm !== 'paneEdge';
   const sd0 = (P.skinOn == null || P.skinOn) ? s : Object.assign({}, s, { F: s.F.filter(f => !skinCull(f.m)) });
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0 : Object.assign({}, sd0, { F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') });

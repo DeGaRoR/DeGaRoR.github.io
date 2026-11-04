@@ -1,0 +1,107 @@
+=== LIVERY ===
+
+[stderr]
+cage editor seed: ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:18:11)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:190:8)
+    at run (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+app.js seedEditor:20
+    finally { garageFloodArm(null); }
+              ^
+
+ReferenceError: garageFloodArm is not defined
+    at seedEditor (app.js seedEditor:20:15)
+    at app.js seedEditor:28:1
+    at app.js seedEditor:28:17
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.seed (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:190:8)
+    at run (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:282:56)
+    at Object.<anonymous> (/tmp/claude-0/-home-user-DeGaRoR-github-io/09fb4daf-ee98-531b-827b-a75868084356/scratchpad/m30c/flyDiy/tools/_livery_check.js:473:26)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+
+Node.js v22.23.4
+(exit code 1)
+[run_gates] 1/3 jobs done · running JOINPARITY 30 s, CLIP 30 s
+=== CLIP ===
+GATE CLIP — fittings against the drawn skin, at rest and posed
+  stock: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 292007 queries — 7734 ms (build 4921, trees 149)
+  rod: 52 fitting objects, 47 skins (fuselage 4928 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 350489 queries — 6180 ms (build 3779, trees 104)
+  twin: 64 fitting objects, 68 skins (fuselage 4352 t, orient 0 flipped/0 turned), 6 poses [rest +full -full flex tail+ tail-], 553663 queries — 6656 ms (build 3084, trees 134)
+  stock+ifr: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 293351 queries — 5811 ms (build 3803, trees 101)
+  FAIL stock+ifr/rest: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/+full: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/-full: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+  FAIL stock+ifr/flex: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21) — the fitting moves, the skin does not
+  stock+panel: 49 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 316897 queries — 5533 ms (build 3449, trees 72)
+  ---- summary ----
+  stock: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  rod: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  twin: 0 NEW red, 2 known, 0 declared, worst 31.0 mm
+  stock+ifr: 4 NEW red, 0 known, 0 declared, worst 9.2 mm
+  stock+panel: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  FAIL no NEW fitting inside a skin or another layer at rest, at full travel or under flex (4 new, 2 known in the baseline)
+  wall 31914 ms over 5 builds
+  0/1 checks
+GATE CLIP: FAIL
+(exit code 1)
+[run_gates] 2/3 jobs done · running JOINPARITY 60 s
+[run_gates] 2/3 jobs done · running JOINPARITY 90 s
+[run_gates] 2/3 jobs done · running JOINPARITY 120 s
+[run_gates] 2/3 jobs done · running JOINPARITY 150 s
+[run_gates] 2/3 jobs done · running JOINPARITY 180 s
+=== JOINPARITY ===
+== 1. node's load path against the page's own spec (tools/fixtures/join_parity_page.json) ==
+PASS the page capture holds every validated build (cub, jodel, metal, floats, twinFloats)
+     (the load chain's files changed since the capture of 2026-11-03T16:00:12.115Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+FAIL Cub              node = page: n 97/97 nb 404/404 mass 476.873/461.660 kg, worst 9.24e-1 - FIRST: node 0 (S0BL).m 22.120036523784403 vs 22.084393101166487  [chain computed]
+FAIL Jodel            node = page: n 115/115 nb 502/502 mass 471.789/464.183 kg, worst 1.51e-1 - FIRST: node 0 (S0BL).m 29.442796790601474 vs 29.419645325650723  [chain computed]
+FAIL metal Cessna     node = page: n 107/107 nb 452/452 mass 885.825/885.824 kg, worst 1.03e-2 - FIRST: node 0 (S0BL).m 48.04002908482854 vs 48.04002817004862  [chain computed]
+PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.22720 / page 1.22720, y -1.09042 / page -1.09042 (within 5 mm)
+FAIL Cessna floats    node = page: n 134/134 nb 543/543 mass 949.483/949.482 kg, worst 1.10e-2 - FIRST: node 0 (S0BL).m 47.72458631971632 vs 47.7245857871045  [chain computed]
+FAIL twin floatplane  the float station (the page's CG handshake, declared): x 1.23332 / page 1.21434, y -0.45639 / page -0.45973 (within 5 mm)
+FAIL twin floatplane  node = page: n 123/123 nb 500/500 mass 476.642/487.244 kg, worst 5.79e-1 - FIRST: node 0 (S0BL).m 24.645032280430932 vs 24.652894130166654  [chain computed]
+== 2. the file as written is NOT the game's aeroplane (the pre-G1985 loaders) ==
+PASS metal Cessna: the engine nodes as written at x -0.510 m, in the game at -1.162 (the join's engines[0].x = -1.1619)
+PASS Cub: the nose tank's nodes as written 0.924 m over the firewall's foot, in the game 0.000; 476.19 kg as written, 461.66 in the game (the tank 28 L)
+== 3. the chain is a pure function of its inputs ==
+PASS metal Cessna: two fresh computations and the cache agree to the byte
+PASS Cub: two fresh computations and the cache agree to the byte
+== 4. the game's spec saved and opened again (question 4) ==
+PASS Cub              save -> open: n 97/97 nb 404/404 mass 476.873/476.873 kg, worst 0.00e+0, engines[0].x -0.8920 carried
+PASS Jodel            save -> open: n 115/115 nb 502/502 mass 471.789/471.789 kg, worst 0.00e+0, engines[0].x -0.9855 carried
+PASS metal Cessna     save -> open: n 107/107 nb 452/452 mass 885.825/885.825 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS Cessna floats    save -> open: n 134/134 nb 543/543 mass 949.483/949.483 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS twin floatplane  save -> open: n 123/123 nb 500/500 mass 476.578/476.578 kg, worst 0.00e+0
+== 5. every loader of a validated build goes through tools/_load_build.js ==
+FAIL tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte (so it is held like it)
+PASS the legacy list only shrinks: 19 of at most 19, every one still raw (owner Deform)
+PASS the incoming list only shrinks: 5 of at most 5
+  OPEN pod_still.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN pod_trials.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_check.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_fly.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _radialdiv_check.js reads a validated build raw [owner RADIAL-DIVERGE, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+FAIL no tool flies a validated build raw: _aids_check.js, _apsmooth_check.js, _canfly_check.js, _certgates_check.js, _engtorque_check.js, _fit_manual_check.js, _floatdup_check.js, _missions_check.js, _quadwin_check.js, _terrainmatch_check.js, dmg_glass_stills.js, dmg_scuff_bench.js, dmg_scuff_evidence.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js, hydro_trim_table.js, terrain_match.js, terrain_still.js
+PASS pilot_trace.js loads saved builds through tools/_load_build.js
+PASS _treecrash_lib.js loads saved builds through tools/_load_build.js
+GATE JOINPARITY: 8 FAIL
+(exit code 1)
+
+──────── summary ────────
+LIVERY    FAIL     0.3 s
+CLIP      FAIL    32.7 s
+JOINPARITY FAIL   185.6 s
+total            218.6 s
+wall             185.6 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.
+exit 1

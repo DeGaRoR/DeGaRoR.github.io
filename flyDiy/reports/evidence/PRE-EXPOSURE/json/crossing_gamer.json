@@ -1,0 +1,548 @@
+[
+ {
+  "view": "cross",
+  "k": 0,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 1.3389,
+   "base": 1.3389
+  },
+  "still": {
+   "meanY": 0.2918,
+   "meanCode": 122,
+   "skyY": 0.02392,
+   "skyCode": 43.9,
+   "groundY": 0.36623,
+   "groundCode": 153.4
+  },
+  "dMean": 0,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_00_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 1,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.05,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 50.78,
+   "base": 50.78
+  },
+  "still": {
+   "meanY": 0.12253,
+   "meanCode": 86.6,
+   "skyY": 0.065,
+   "skyCode": 76,
+   "groundY": 0.13098,
+   "groundCode": 92.7
+  },
+  "dMean": -35.4,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_01_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 2,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.1,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 55.049,
+   "base": 55.049
+  },
+  "still": {
+   "meanY": 0.09375,
+   "meanCode": 74.3,
+   "skyY": 0.06776,
+   "skyCode": 77.6,
+   "groundY": 0.0672,
+   "groundCode": 65.6
+  },
+  "dMean": -12.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_02_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 3,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.15,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 58.125,
+   "base": 58.125
+  },
+  "still": {
+   "meanY": 0.07814,
+   "meanCode": 65.2,
+   "skyY": 0.06941,
+   "skyCode": 78.6,
+   "groundY": 0.03464,
+   "groundCode": 45.6
+  },
+  "dMean": -9.1,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_03_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 4,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.2,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 61.327,
+   "base": 61.327
+  },
+  "still": {
+   "meanY": 0.0693,
+   "meanCode": 58.3,
+   "skyY": 0.07043,
+   "skyCode": 79.2,
+   "groundY": 0.01713,
+   "groundCode": 30.7
+  },
+  "dMean": -6.9,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_04_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 5,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.25,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 64.259,
+   "base": 64.259
+  },
+  "still": {
+   "meanY": 0.06487,
+   "meanCode": 53,
+   "skyY": 0.07143,
+   "skyCode": 79.8,
+   "groundY": 0.00785,
+   "groundCode": 18.7
+  },
+  "dMean": -5.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_05_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 6,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.3,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 67.331,
+   "base": 67.331
+  },
+  "still": {
+   "meanY": 0.06304,
+   "meanCode": 49.1,
+   "skyY": 0.07229,
+   "skyCode": 80.3,
+   "groundY": 0.00336,
+   "groundCode": 10.1
+  },
+  "dMean": -3.9,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_06_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 7,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.35,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 70.581,
+   "base": 70.581
+  },
+  "still": {
+   "meanY": 0.06268,
+   "meanCode": 46.8,
+   "skyY": 0.07328,
+   "skyCode": 80.9,
+   "groundY": 0.00128,
+   "groundCode": 4.6
+  },
+  "dMean": -2.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_07_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 8,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.4,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 74.044,
+   "base": 74.044
+  },
+  "still": {
+   "meanY": 0.06307,
+   "meanCode": 45.7,
+   "skyY": 0.07427,
+   "skyCode": 81.5,
+   "groundY": 0.00044,
+   "groundCode": 1.8
+  },
+  "dMean": -1.1,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_08_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 9,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.45,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 77.19,
+   "base": 77.19
+  },
+  "still": {
+   "meanY": 0.06365,
+   "meanCode": 45.4,
+   "skyY": 0.07503,
+   "skyCode": 82,
+   "groundY": 0.00015,
+   "groundCode": 0.6
+  },
+  "dMean": -0.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_09_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 10,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.5,
+   "pre": {
+    "P": 1,
+    "switches": 0,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 80.495,
+   "base": 80.495
+  },
+  "still": {
+   "meanY": 0.06414,
+   "meanCode": 45.3,
+   "skyY": 0.07536,
+   "skyCode": 82.2,
+   "groundY": 0.00007,
+   "groundCode": 0.3
+  },
+  "dMean": -0.1,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_10_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 11,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.55,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0051256,
+   "base": 83.977
+  },
+  "still": {
+   "meanY": 0.06485,
+   "meanCode": 45.6,
+   "skyY": 0.0759,
+   "skyCode": 82.5,
+   "groundY": 0.00005,
+   "groundCode": 0.2
+  },
+  "dMean": 0.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_11_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 12,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.6,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0053384,
+   "base": 87.465
+  },
+  "still": {
+   "meanY": 0.06546,
+   "meanCode": 45.8,
+   "skyY": 0.07623,
+   "skyCode": 82.7,
+   "groundY": 0.00005,
+   "groundCode": 0.2
+  },
+  "dMean": 0.2,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_12_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 13,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.65,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0055509,
+   "base": 90.946
+  },
+  "still": {
+   "meanY": 0.06762,
+   "meanCode": 47,
+   "skyY": 0.07666,
+   "skyCode": 83,
+   "groundY": 0.00008,
+   "groundCode": 0.2
+  },
+  "dMean": 1.2,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_13_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 14,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.7,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0057865,
+   "base": 94.806
+  },
+  "still": {
+   "meanY": 0.06958,
+   "meanCode": 47.7,
+   "skyY": 0.07686,
+   "skyCode": 83.1,
+   "groundY": 0.00008,
+   "groundCode": 0.2
+  },
+  "dMean": 0.7,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_14_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 15,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.75,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0060432,
+   "base": 99.013
+  },
+  "still": {
+   "meanY": 0.06839,
+   "meanCode": 47.2,
+   "skyY": 0.07784,
+   "skyCode": 83.7,
+   "groundY": 0.00008,
+   "groundCode": 0.2
+  },
+  "dMean": -0.5,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_15_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 16,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.8,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0063253,
+   "base": 103.63
+  },
+  "still": {
+   "meanY": 0.07054,
+   "meanCode": 48,
+   "skyY": 0.07825,
+   "skyCode": 83.9,
+   "groundY": 0.00017,
+   "groundCode": 0.3
+  },
+  "dMean": 0.8,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_16_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 17,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.85,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0065858,
+   "base": 107.9
+  },
+  "still": {
+   "meanY": 0.07076,
+   "meanCode": 47.9,
+   "skyY": 0.0787,
+   "skyCode": 84.2,
+   "groundY": 0.00004,
+   "groundCode": 0.1
+  },
+  "dMean": -0.1,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_17_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 18,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.9,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0068809,
+   "base": 112.74
+  },
+  "still": {
+   "meanY": 0.06974,
+   "meanCode": 47.3,
+   "skyY": 0.07903,
+   "skyCode": 84.4,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "dMean": -0.6,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_18_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 19,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -6.95,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0071907,
+   "base": 117.81
+  },
+  "still": {
+   "meanY": 0.0705,
+   "meanCode": 47.6,
+   "skyY": 0.07963,
+   "skyCode": 84.8,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "dMean": 0.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_19_index_gfxgamer.png"
+ },
+ {
+  "view": "cross",
+  "k": 20,
+  "page": "index_gfxgamer",
+  "info": {
+   "el": -7,
+   "pre": {
+    "P": 16384,
+    "switches": 1,
+    "held": 3,
+    "listeners": 5
+   },
+   "exR": 0.0075323,
+   "base": 123.41
+  },
+  "still": {
+   "meanY": 0.07138,
+   "meanCode": 47.9,
+   "skyY": 0.08033,
+   "skyCode": 85.2,
+   "groundY": 0.00003,
+   "groundCode": 0.1
+  },
+  "dMean": 0.3,
+  "file": "reports/evidence/PRE-EXPOSURE/crossing/cross_20_index_gfxgamer.png"
+ }
+]

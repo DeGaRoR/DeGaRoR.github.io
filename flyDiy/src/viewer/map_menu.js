@@ -150,7 +150,7 @@
     // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
     const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
       at: typeof raw.story.at === 'string' ? raw.story.at : null,
-      step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
+      rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
     // G3260 (ROUTES): the routes your planes fly (78b_routes.js routesMapOf, app.js careerRecord): the two ends, the plane
     // where it is on the line now (f: 0 at a, 1 at b), its pilot
     const routes = (raw.routes || []).filter(r => r && aeros[r.a] && aeros[r.b]).map(r => ({ id: String(r.id), plane: String(r.plane), pilot: r.pilot || null,
@@ -419,7 +419,7 @@
   function storyHTML(M) {
     const S = M.story;
     if (!S) return '';
-    return '<div class="mmStory" role="note"><span class="mmTag">The story' + (S.step ? ' · ' + S.step + ' of ' + S.of : '') + '</span><b>' + esc(S.title) + '</b>' +
+    return '<div class="mmStory" role="note"><span class="mmTag">The story</span><b>' + esc(S.title) + '</b>' +
       '<p>' + esc(S.brief) + '</p>' + (S.rows.length ? '<ul>' + S.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '✓ ' : '· ') + esc(r.words) + '</li>').join('') + '</ul>' : '') +
       '<p class="mmFine">The rest of the work comes ' + esc(S.held || 'later') + '.</p></div>';
   }
@@ -493,6 +493,12 @@
       (on ? '<div class="mmBody">' + body + '</div>' : '') + '</div>';
   }
   const icHTML = (glyph, colour, label) => '<i class="mmIc" style="background:' + esc(colour) + '" aria-label="' + esc(label) + '">' + esc(glyph) + '</i>';
+  // G3800 (PLANE_THUMB; the user 4 Nov): the side profile on the Fleet and Market rows, the cards' 120 x 60; none = the row's
+  // glyph. Keys: 'mine:' + the slot as stored (the rack's); 'design:' + the CONTRACT_DESIGNS id a maker's or a used row sells
+  const planeIc = (key, ic) => {
+    let u = null; try { u = W && W.PLANE_THUMB && W.PLANE_THUMB.get(key); } catch (e) { u = null; }
+    return u ? '<img class="mmThumb" src="' + esc(u) + '" alt="" width="120" height="60" loading="lazy" decoding="async">' : ic;
+  };
   const sectHTML = t => '<h3 class="mmSect">' + esc(t) + '</h3>';
   const actHTML = (word, at, sec, off) => '<button type="button" class="mmAct' + (sec ? ' sec' : '') + '" ' + at + (off ? ' disabled' : '') + '>' + esc(word) + '</button>';
   // THE FACTS A PLAYER DECIDES ON, one line (the rest stays in the garage): seats, payload, gear, range - off either
@@ -531,7 +537,7 @@
     const rows = fleetRows(M, st);
     if (!rows.length) return '<p class="mmEmpty">' + (st.at ? 'None of your aeroplanes is at ' + esc(placeName(M, st.at)) + '.' :
       'No aeroplanes yet: save a build in the garage' + (M.market ? ', or buy one on the Market' : '') + '.') + '</p>';
-    return rows.map(f => itemHTML(st, 'f:' + f.slot, icHTML('✈', '#e9dcc0', 'your aeroplane'), esc(f.name), f.cert ? fmt(payKg(f.cert)) + ' kg' : '—', fleetParaHTML(M, st, f))).join('');
+    return rows.map(f => itemHTML(st, 'f:' + f.slot, planeIc('mine:' + f.slot, icHTML('✈', '#e9dcc0', 'your aeroplane')), esc(f.name), f.cert ? fmt(payKg(f.cert)) + ' kg' : '—', fleetParaHTML(M, st, f))).join('');
   }
 
   // ---- PILOTS (G2290; GAME-2026-10-06.md §9): your pilots, then the 2-3 looking for work. Every word comes off the
@@ -632,7 +638,7 @@
     for (const d of B.designs) {
       const af = B.airframes.find(a => a.slot === d.name);
       const what = d.airframe ? (af && af.modified ? 'an airframe, modified' : af && af.factory ? 'an airframe, factory-certified' : 'an airframe') : 'a design';
-      h += itemHTML(st, 'b:' + d.name, icHTML(d.airframe ? '✈' : '✎', '#e9dcc0', what), esc(d.name), '',
+      h += itemHTML(st, 'b:' + d.name, planeIc('mine:' + d.name, icHTML(d.airframe ? '✈' : '✎', '#e9dcc0', what)), esc(d.name), '',
         '<p>' + (d.airframe ? 'An airframe of yours: filing it as a design keeps a copy on the board (free).' : 'A design on your board: building it makes an airframe in the main hangar, at the ledger\'s price.') + '</p>' +
         '<div class="mmActs">' + actHTML(d.airframe ? 'Save as design' : 'Build this design', 'data-board="' + (d.airframe ? 'save' : 'build') + '" data-slot="' + esc(d.name) + '"') + '</div>');
     }
@@ -646,13 +652,13 @@
       h += sectHTML('The makers · validated designs only');
       for (const mk of K.makers) for (const id of mk.models) {
         const S = sheetOf(M, st, id);
-        h += itemHTML(st, 'm:' + id, icHTML('◆', mk.colour, mk.name), esc(S.name), fmt(voucherPays(K, S) ? 0 : S.price.total), modelCardHTML(M, st, id));
+        h += itemHTML(st, 'm:' + id, planeIc('design:' + S.design, icHTML('◆', mk.colour, mk.name)), esc(S.name), fmt(voucherPays(K, S) ? 0 : S.price.total), modelCardHTML(M, st, id));
       }
     }
     const used = usedRows(M, st);
     h += sectHTML('Used, where they stand');
     if (!used.length) h += '<p class="mmEmpty">' + (st.at ? 'Nothing for sale at ' + esc(placeName(M, st.at)) + '.' : 'Nothing for sale right now: new listings come after three more contracts.') + '</p>';
-    for (const L of used) h += itemHTML(st, 'u:' + L.id, icHTML(USED_GLYPH, L.colour, 'used'), esc(L.words.title), fmt(L.price), usedCardHTML(M, st, L.id));
+    for (const L of used) h += itemHTML(st, 'u:' + L.id, planeIc('design:' + L.design, icHTML(USED_GLYPH, L.colour, 'used')), esc(L.words.title), fmt(L.price), usedCardHTML(M, st, L.id));
     return h + (st.at ? '' : boardHTML(M, K, st));
   }
   // the used listings on the map, at their aerodrome (with the Market list)
@@ -1225,7 +1231,7 @@
 #mapScreen .mmGo button{flex:none;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ed-border);background:transparent;color:var(--ed-ink);font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
 #mapScreen .mmGo button.pri{background:var(--ed-acc);border-color:var(--ed-acc);color:var(--ed-acc-ink);font-weight:600}
 #mapScreen .mmGo button:disabled{opacity:.5;cursor:default}
-#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:10px;transform:none;max-width:none}
+#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:64px;transform:none;max-width:none}  /* STORY-HOME F8: clear of the ✕ (top 8, right 8, 48 px) */
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
 #mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
@@ -1247,6 +1253,9 @@
 #mapScreen .mmRowI+.mmBody{padding-left:50px}
 #mapScreen .mmRowI:has(.mmIcF){grid-template-columns:40px 1fr auto}
 #mapScreen .mmRowI:has(.mmIcF)+.mmBody{padding-left:66px}
+#mapScreen .mmRowI:has(.mmThumb){grid-template-columns:120px 1fr auto}
+#mapScreen .mmRowI:has(.mmThumb)+.mmBody{padding-left:16px}
+#mapScreen .mmThumb{width:120px;height:60px;object-fit:contain;display:block;border-radius:4px}
 #mapScreen .mmIc{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;line-height:1;color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink)}
 #mapScreen .mmIcF{width:40px;height:40px;object-fit:cover;object-position:50% 25%;background:var(--ed-hair);border-color:var(--ed-hair)}
 #mapScreen .mmSect{margin:0;padding:16px 16px 7px;font:600 10.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:var(--ed-faint);border-bottom:1px solid var(--ed-hair)}
@@ -1658,6 +1667,8 @@
     W.removeEventListener('keydown', onKey, true); W.removeEventListener('resize', onResize);
     const b = D.getElementById('mapEntry'); if (b && b.focus) b.focus();
   }
+  // G3800: a picture that lands while the list is up fills its row
+  W.addEventListener('plane-thumb', () => { if (root && root.parentNode && M && (listOf(st) === 'fleet' || listOf(st) === 'market')) renderList(); });
   W.MAP_MENU = Object.assign({ open, close, isOpen: () => !!(root && root.parentNode), state: () => st, model: () => M,
                                view: () => Object.assign({}, V), set: o => { Object.assign(st, o || {}); render(); },
                                zoomTo: (x, z, k) => { const v = view(); V.s = clamp(V.fit * k, V.fit, sMax()); V.tx = v.width / 2 - ((x - pack.x0) / pack.mpp) * V.s; V.ty = v.height / 2 - ((z - pack.z0) / pack.mpp) * V.s; place(); },

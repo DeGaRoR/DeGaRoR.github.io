@@ -252,10 +252,10 @@ function home(lim) {
   for (; k < 60 * +opt('homeSecs', 1300); k++) {
     H.step(); TK.tick();
     // (G3578: --log, the pilot's status every second on the ground before the take-off - the line-up's conditions)
-    if (LOG && k % 60 === 0 && !wasAir && !R.touchdowns.length && /LINEUP|STOP|HOLD|DEPART/.test(H.ap.phase || '')) {
+    if (LOG && k % 60 === 0 && !wasAir && !R.touchdowns.length && /LINEUP|STOP|HOLD|DEPART|TAXI/.test(H.ap.phase || '')) {
       const st = H.ap.status || {}, cg = sim.cgPos(), c = sim.ctl || {};
       console.error(r2(k / 60) + ' ' + H.ap.phase + ' cg ' + r2(cg[0]) + ',' + r2(cg[2]) + ' V ' + r2(Math.hypot(sim.cgVel()[0], sim.cgVel()[2])) +
-        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr));
+        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr) + ' br ' + r2(c.brake) + ' | tw ' + JSON.stringify(sim.out && sim.out.twState) + ' lock ' + c.twLock);   // (G3800: the tail contact)
     }
     const ap = H.ap; if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); if (ph === 'GOAROUND') (R.goArounds = R.goArounds || []).push(ap.gaWhy || null); }
     const onG = sim.wheelsOnGround(), v = sim.cgVel(), cg = sim.cgPos(), h = cg[1] - W.terrainH(cg[0], cg[2]);

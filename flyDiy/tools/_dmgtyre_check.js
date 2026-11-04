@@ -67,7 +67,9 @@ const rolls = Promise.all(WINDS.map(trace));
 const VAC = Object.assign({}, C.ATMOS_ISA, { rho: () => 1e-9, sigma: () => 1e-9 / C.ATMOS_ISA.rho(0) });
 function settled(key, params) {
   const d = L.defOf(key, { elastic: true });
-  Object.assign(d.params, params);
+  // (G3800 TAILWHEELS: the tyre's law alone - the tail contact on the FIXED law, the bare tyre; the steerable wheel's
+  // springs in series and its breakout are 30_solver twLine's, gated by GATE TAILWHEEL)
+  Object.assign(d.params, { twMode: 3 }, params);
   const { W, strip } = L.flatWorld(0);
   const sim = C.makeSim(d, W); sim.reset(0);
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));

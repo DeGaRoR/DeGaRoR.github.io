@@ -373,7 +373,7 @@ function surfaceList(scene, P, FS, mesh) {
     for (const side of [1, -1]) {
       const nm = 'elev' + (side > 0 ? 'R' : 'L');
       if (!objOf[nm]) continue;
-      const lay = Object.assign({}, SB.lay, { side });
+      const lay = SB.layOf ? SB.layOf(side) : Object.assign({}, SB.lay, { side });   // (G3800: the inverted V's own lay)
       const map = p => FIN.finToStab({ V: [p], F: [] }, lay).V[0];
       const laid = L.map(p => V.mul(map([0, p[0], p[1]]), F2));
       // the slab's own normal, through the same map: the fin's thickness
@@ -971,7 +971,12 @@ PAGE.post = ctx => {
           // eye's side, a reach forward of the horn, at the height nearest
           // the eye's so the run is mostly along the aeroplane; the bush is
           // the static airframe's hardware, not the fin part's.
-          const reach = Math.max(0.35, s.chord * 2.0);
+          // (G3800: THE INVERTED V's horn stands under its boom, beside the panel's root - a run forward along the flank
+          // crosses that root until it is clear of the panel's leading edge, and the first clear exit was a metre up the
+          // boom with the cable lying along its side (the user's picture, 4 Nov). There, as in the Shadow's booms, the
+          // link comes out of the boom right over the horn: the exit is searched from a few centimetres ahead of it)
+          const ivS = s.kind === 'elev' && window.CAGE_STAB && window.CAGE_STAB.mount === 4;
+          const reach = ivS ? 0.08 : Math.max(0.35, s.chord * 2.0);
           const ex = cableExit(scene, mesh, FS, eye, reach, s.A[0], S);
           if (ex) pin = HG.fairlead(bagsFor(ex.host).metal, ex.p, ex.n, V.nrm(V.sub(eye, ex.p)), S);
           else pin = HG.at(F, -reach, S.hornReach, 0);   // an open frame: nothing to exit
@@ -1032,8 +1037,12 @@ PAGE.post = ctx => {
           const eye = V.add(hc, V.mul(side, sg * reach));
           revolve(bm.metal, V.add(eye, V.mul(up, -0.007)), up,
                   [[0.009, 0], [0.009, 0.014]], 8, true);
-          const e = CU.ears.find(q => q[0] * eye[0] > 0);
-          if (!e) continue;
+          // (G3800: the NEAREST ear on the eye's side of the castor - on twin booms the castor rides one boom, and only
+          // that boom's rudder horn reaches it; the other boom's horn finds none within the run's reach)
+          const cx = 0.5 * (CU.ears[0][0] + (CU.ears[1] || CU.ears[0])[0]);
+          const e = CU.ears.filter(q => (q[0] - cx) * (eye[0] - cx) > 0)
+            .sort((a, b) => V.len(V.sub(a, eye)) - V.len(V.sub(b, eye)))[0];
+          if (!e || V.len(V.sub(e, eye)) > 1.5) continue;
           const tip = V.add(eye, V.mul(up, -0.010));
           const bag = { steel: K.Bag(), alloy: K.Bag() };
           GGs.steerRun(bag, e, tip);

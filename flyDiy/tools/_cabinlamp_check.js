@@ -33,22 +33,27 @@ const SET = {
   bubble: { f: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' },
   skylight: { f: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json' },
   twin2: { f: 'tools/fixtures/Twin_busher_floats_2.json' },
+  // CABIN-INTERIOR G1: the user's twin with the overhead console (and the headliner it hangs from): the front row's
+  // lamps in the console's bezels, the rear row's on the roof
+  twin2con: { f: 'tools/fixtures/Twin_busher_floats_2.json',
+              patch: j => { Object.assign(j.spec.cage, { ohConsoleOn: 1, hdlOn: 1, wallTrimOn: 1 }); return j; } },
 };
 // the expected rung of each lamp, flood first then the passengers in seat order
 const EXPECT = {
   cub: ['roof', 'roof'], jodel: ['roof', 'roof'], metal: ['roof', 'roof', 'roof', 'roof'],
   floats: ['bulkhead', 'bulkhead', 'roof', 'roof'], twinFloats: ['roof'], rufus: ['roof'],
   bubble: ['bulkhead'], skylight: ['bulkhead', 'bulkhead', 'roof', 'roof'], twin2: ['roof', 'roof', 'roof', 'roof'],
+  twin2con: ['console', 'console', 'roof', 'roof'],
 };
-const ROOF = new Set(['ceilingLoop', 'body', 'plywood', 'cloth', 'composite', 'toele', 'waistband']);
-const ON = { roof: m => ROOF.has(m), bulkhead: m => m === 'bulkhead' || m === 'firewall', shoulder: () => true,
+const ROOF = new Set(['ceilingLoop', 'body', 'plywood', 'cloth', 'composite', 'toele', 'waistband', 'headliner', 'cabWall']);
+const ON = { console: () => true, roof: m => ROOF.has(m), bulkhead: m => m === 'bulkhead' || m === 'firewall', shoulder: () => true,
              header: () => true, coaming: () => true, arch: () => true };
 
 const fail = [];
 for (const key of Object.keys(SET)) {
   const B = SET[key];
   let r;
-  try { r = B.v ? LB.loadValidated(B.v) : LB.loadBuild(B.f); }
+  try { r = B.v ? LB.loadValidated(B.v) : LB.loadBuild(B.f, B.patch ? { patch: B.patch } : undefined); }
   catch (e) { fail.push(key + ': the load door failed - ' + String(e.message).slice(0, 200)); continue; }
   const p = r.probe;
   if (!p || !p.lamps) { fail.push(key + ': no probe (' + JSON.stringify(p).slice(0, 120) + ')'); continue; }

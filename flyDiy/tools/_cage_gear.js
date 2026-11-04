@@ -137,7 +137,9 @@ const station = (i, name) => [name, [
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
   // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
-  ['s' + i + 'Steer', 'steering',     i === 2 ? 1 : 0, 2, 1, GP.STEERS, i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2] }) : sOn(i)],
+  // G3800: the third wheel's own four kinds (GP.TW_STEERS; 0 an old save's, shown and flown as 1)
+  ['s' + i + 'Steer', i === 2 ? 'tail contact' : 'steering', i === 2 ? 1 : 0, i === 2 ? 4 : 2, 1, i === 2 ? GP.TW_STEERS : GP.STEERS,
+   i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2, 3, 4] }) : sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
@@ -268,8 +270,40 @@ PAGE.post = ctx => {
   // (One cage-side remap first: tailwheel stations are TAIL-RELATIVE —
   // see the defaults note above. The bench keeps absolute stations.)
   const stations = GP.gearStations(P);
+  // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): on TWIN BOOMS the
+  // tailwheel is a pair, one under each boom's tail end (CAGE_BOOMS, the wing layer's; tail-relative to the boom's own
+  // end as it is to the pod's on a single body), the same row for both
+  const TBg = (+P.boomTwin && typeof window !== 'undefined' && window.CAGE_BOOMS && window.CAGE_BOOMS.yBot) ? window.CAGE_BOOMS : null;
   for (const st of stations)
-    if (st.leg === 3) st.z = AF.z0 + Math.max(0.02, st.z);
+    if (st.leg === 3) st.z = (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+  // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
+  // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
+  // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
+  const IVD = window.CAGE_IV_DIR ? window.CAGE_IV_DIR(P) : { up: false, out: false };   // G3801: the way
+  const IVg = !!TBg && Math.round(+P.stMount || 0) === 4 && +P.stOn !== 0 && !IVD.up;   // (an upward V: the booms' wheels)
+  const tipMount = (st, sgn) => {
+    if (!IVg || st.leg !== 3) return null;
+    const gap = window.CAGE_IV_GAP ? window.CAGE_IV_GAP(P) : 0.30, G = Math.max(20, Math.min(55, +P.stCant || 35)) * D2R;
+    const pub = window.CAGE_IV_TIPS && window.CAGE_IV_TIPS.find(q => Math.sign(q[0]) === sgn);
+    const z = pub ? pub[2] : TBg.zTip + 0.25;
+    const reach = window.CAGE_IV_REACH ? window.CAGE_IV_REACH(P, TBg.x) : TBg.x - 0.5 * gap;
+    const y = pub ? pub[1] : 0.5 * (TBg.yTop(z) + TBg.yBot(z)) - reach * Math.tan(G);
+    const x0 = IVD.out ? (pub ? pub[0] : sgn * (TBg.x + reach)) : sgn * 0.5 * gap;
+    const provider = () => ({ p: [x0, y, z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] });
+    provider.x0 = x0; provider.tip = true;
+    return provider;
+  };
+  const boomMount = (st, sgn) => {
+    if (!TBg || st.leg !== 3) return null;
+    if (IVg) return tipMount(st, sgn);
+    const x0 = sgn * TBg.x;
+    const provider = (zOff, dx) => {
+      const z = st.z + (zOff || 0);
+      return { p: [x0 + (dx || 0), TBg.yBot(z), z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] };
+    };
+    provider.x0 = x0; provider.keelAt = z => TBg.yBot(z);
+    return provider;
+  };
 
   // G133: THE NEAREST SURFACE ABOVE THE WHEEL (user's rule). When the
   // WING'S UNDERSIDE at the axle's own span sits lower than the fuselage
@@ -428,7 +462,7 @@ PAGE.post = ctx => {
   // lateral offset says (two identical contacts otherwise).
   const isSingle = st => st.single != null ? !!st.single : st.x <= 0.01;
   for (const st of stations) {
-    const sides = (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
+    const sides = (st.leg === 3 && TBg) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r;
@@ -439,14 +473,16 @@ PAGE.post = ctx => {
                      tail: st.fairTail, rake: st.fairRake, width: st.fairW };
       // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
       // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
-      const m = st.root === 1 ? null : wingMount(st, sgn);
+      const bm = boomMount(st, sgn);             // G3800: a twin boom's tailwheel on its boom
+      const m = (st.root === 1 || bm) ? null : wingMount(st, sgn);
       // THE OPEN FRAME (2026-09-04, spec §1.7): with no skin the fuselage
       // contract is a surface that is not there — the leg roots on the
       // nearest truss member instead, with a pivot (see openMount); the
       // low-wing rule still wins where it applies
-      const rm = m ? null : rodMount(st);
-      const om = (m || rm) ? null : openMount(st, sgn);
-      if (m) { st.mount = m; onWing++; }
+      const rm = (m || bm) ? null : rodMount(st);
+      const om = (m || rm || bm) ? null : openMount(st, sgn);
+      if (bm) st.mount = bm;
+      else if (m) { st.mount = m; onWing++; }
       else if (rm) st.mount = rm;
       else if (om) st.mount = om;
       else delete st.mount;
@@ -460,15 +496,19 @@ PAGE.post = ctx => {
         // proxies route the spinning parts to the wheel unit, the fork
         // (and now its spat, G133) to the castor unit, and the spring —
         // with its trouser shroud — stays in the leg unit
+        // (G3800: on twin booms the -x boom's fork is THE castor - refs.tw, model z < 0; the other boom's fork is
+        // drawn with its leg: it rides its spring, it does not yaw in the picture)
         const cb = allBags();
-        const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
+        const yaws = !TBg || sgn < 0;
+        const proxy = Object.assign({}, lb, wu.wb, yaws ? { castorBags: cb } : {});
         // G326: the steering springs run to the RUDDER'S horn, which the
         // hinge layer draws — so it draws the runs too, from the ears the
         // castor publishes below. Without that layer (a bench without it)
         // the castor keeps its own picture.
         st.steerByHinge = !!window.HINGE_GEN;
-        r = GG.legTailwheel(proxy, AFx, st.P, st);
-        if (r.castor)
+        r = (st.mount && st.mount.tip && GG.legTipWheel) ? GG.legTipWheel(proxy, AFx, st.P, st)   // G3800: the V's tips
+          : GG.legTailwheel(proxy, AFx, st.P, st);
+        if (r.castor && yaws)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle, ears: r.castor.ears };
       } else {

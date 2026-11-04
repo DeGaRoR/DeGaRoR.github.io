@@ -18,7 +18,7 @@
 //                     flight ... 1 building, 1 runway, and some infinite thing. Only ability is to do a circuit"): the
 //                     garage page still has no world (Roll out / Fly / the route pickers are not offered); the bench's
 //                     Test flight row and the menu's line hand off to THE FLIGHT VARIANT below. 'none' = no test flight
-//                     (the row and the line go, the welcome says "Build on this phone"): THE ONE SWITCH
+//                     (the row and the line go): THE ONE SWITCH
 //   ui      'touch'   html.phone: phone.css re-lays the workshop (the view over a sheet in portrait, beside it in
 //                     landscape, a tab bar in the thumb zone) and phone.js gives the sliders a finger knob (R4-R13)
 //   preset  'laptop'  the lightest picture (POTATO-DEEP's rung under potato), unless ?gfx= says otherwise
@@ -40,7 +40,7 @@
 // garage, never into a loop. P.flyEnd (the way back to the shed) reloads the garage page.
 //
 // How a page becomes a phone: ?profile=phone (any device - the rigs, the S20's adb run, a desktop to look at it);
-// welcome.js's device gate on a phone or tablet ("Build on this phone" - "Build and test-fly on this phone" once the test field ships, G3905 - remembered); ?profile=desktop forces the trunk.
+// welcome.js on a phone or tablet with WebGL2, at once with no card (PHONE-NO-GATE, the user 3 Nov); ?profile=desktop forces the trunk.
 (function () {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;

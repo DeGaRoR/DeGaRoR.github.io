@@ -36,6 +36,10 @@ const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
                     return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
     followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
                  'bench - to place this corner (tick again: back to the rectangle)' }]));
+// AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
+// is the tube construction's (intCons 1, 'tube' in the generator's consG) and draws no wall
+const bhSling = P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1 && !!+P.bhSling;
+const bhWall = P => +P.intOn && +P.intBulk && !bhSling(P);
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -413,6 +417,27 @@ window.CAGE_PAGE = {
         // 0 where it has always sat, +1 the aft face.
         ['bulkZ',     'bulkhead station', -1, 1, 0.05,
          { when: P => +P.intOn && +P.intBulk }],
+        // AFT-BULKHEAD (the user 3 Nov: "focus on the aft bulkhead ... design interesting aft bulkheads"): the aft
+        // wall's own rows (_cage_gen.js bulkWall; the lamp is _cage_light.js's). NOT IN THE DEFAULTS TABLE (G3570):
+        // a build that never sets one saves no key and draws the plain panel as before
+        ['bhStep',    'hat shelf (stepped)', 0, 1, 1, { when: P => bhWall(P), absent: 0 }],
+        ['bhShelfY',  'shelf height over the waist', 0, 0.60, 0.005,
+         { when: P => (bhWall(P) && (+P.bhStep || +P.bhTwoTone || +P.bhNet)) || bhSling(P), absent: 0.15, dim: 'len' }],
+        ['bhShelfD',  'shelf depth',         0.05, 0.60, 0.005,
+         { when: P => (bhWall(P) && +P.bhStep) || bhSling(P), absent: 0.25, dim: 'len' }],
+        ['bhBevel',   'moulded bevel',       0, 0.15, 0.005, { when: P => bhWall(P), absent: 0, dim: 'len' }],
+        ['bhTwoTone', 'light upper panel',   0, 1, 1, { when: P => bhWall(P), absent: 0 }],
+        ['bhRelief',  'bas-relief',          0, 3, 1, ['none', 'pressed beads', 'rolled upholstery', 'framed panel'],
+         { when: P => bhWall(P), absent: 0 }],
+        ['bhReliefH', 'relief depth',        0.004, 0.03, 0.001, { when: P => bhWall(P) && +P.bhRelief, absent: 0.014, dim: 'len' }],
+        ['bhFast',    'fasteners',           0, 2, 1, ['none', 'screws', 'rivets'], { when: P => bhWall(P), absent: 0 }],
+        ['bhNet',     'cargo net',           0, 1, 1, { when: P => bhWall(P), absent: 0 }],
+        ['bhLamp',    'wall lamp',           0, 3, 1, ['none', 'dome', 'LED strip', 'dome + strip'],
+         { when: P => bhWall(P) && +P.lightOn, absent: 0 }],
+        ['bhLampY',   'wall lamp drop',      0.02, 0.4, 0.005,
+         { when: P => bhWall(P) && +P.lightOn && +P.bhLamp, absent: 0.035, dim: 'len' }],
+        ['bhSling',   'open frame + sling',  0, 1, 1,
+         { when: P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1, absent: 0 }],
         // (`cutParts` had a row here — retired 2026-09-14: the cut is
         // always on, and the stock cub had been born with it off)
       ]],
@@ -657,6 +682,15 @@ window.CAGE_PAGE = {
         ['doorPanelMargin', 'edge margin',    0.01, 0.10, 0.005,
          { when: P => +P.doorPanelOn, dim: 'len' }],
         ['doorPanelPocket', 'map pocket',     0, 1, 1, { when: P => +P.doorPanelOn }],
+      ]],
+      // CABIN-INTERIOR (the user 2-3 Nov: "more detail on the top of the cabin, which is currently a box ... what you
+      // see through windows"; the first cut, 3 Nov 08:40: the headliner, the upper wall trim, the overhead console).
+      // NOT IN THE DEFAULTS TABLE (G3570, as floorUp): a build that never turns one on saves no key and draws as before
+      ['headliner', [
+        ['hdlOn',       'headliner',        0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['wallTrimOn',  'upper wall trim',  0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['ohConsoleOn', 'overhead console', 0, 1, 1,
+         { when: P => +P.crewOn && Math.round(+P.canopy || 0) === 0, absent: 0 }],
       ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,

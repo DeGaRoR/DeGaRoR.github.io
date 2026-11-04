@@ -24,7 +24,7 @@
 //     along the whole leg, the pilot 1.5 km ahead of where it is), and never
 //     under the leg's height over the datum; the FINAL ends on the ground
 //   4 on the settled downwind (8 s in, 12 s before its end) the aeroplane
-//     flies within 15 m of the downwind's planned height
+//     flies within 15 m of the downwind's planned height (G3914: at that point of its line)
 //   5 on FINAL the target is the slope's (or the latched level) and the
 //     point is the aim
 //   6 both flights stop
@@ -69,10 +69,14 @@ function fly(name, key, island) {
       if (I.to !== L.name || I.x !== L.B[0] || I.z !== L.B[1]) f.toBad++;
       if (!(Math.abs(I.h - ap.afcs.sel.alt) < 1e-6)) f.hBad++;
       if (!I.path || !I.path.pts || I.path.pts.length < 2) f.pathBad++;
-      const under = I.h - L.hPlan;
+      const under = I.h - (L.prof ? L.hPlanA : L.hPlan);   // (G3914: a descending leg's plan is its line, from hPlanA)
       if (!L.enroute && under > 15) { f.planUnder++; f.planUnderAt = L.name + ' ' + Math.round(I.h) + ' against ' + L.hPlan; }
       if (!L.enroute) f.liftOld = Math.max(f.liftOld, I.h - (ap.altRef + (L.h != null ? L.h : ap.hCruise)));
-      if (ph === 'DOWNWIND') rows.push({ t: ap.t - phaseT0, y: sim.cgPos()[1], h: L.hPlan });
+      if (ph === 'DOWNWIND') {
+        const cgP = sim.cgPos(), rem = Math.hypot(cgP[0] - L.B[0], cgP[2] - L.B[1]);
+        // G3914: the line at this point: level until L.dDes before B, then down at the plan's gradient
+        rows.push({ t: ap.t - phaseT0, y: cgP[1], h: L.prof ? L.hPlan + Math.min(L.dDes || 0, rem) * ap.plan.gD : L.hPlan });
+      }
     }
     if (ph === 'FINAL') {
       f.finN++;
@@ -84,7 +88,9 @@ function fly(name, key, island) {
   f.stopped = ap.phase === 'STOPPED';
   if (rows.length) {
     dwEnd = rows[rows.length - 1].t;
-    for (const r of rows) if (r.t > 8 && r.t < dwEnd - 12) { f.dwN++; const e = Math.abs(r.y - r.h); f.dwErr += e; f.dwMax = Math.max(f.dwMax, e); }
+    // G3914, rule (b): from where the aeroplane first meets the line: the stock build, climbing to 305 m, joins its downwind up to 41 m under it (it used to be level there)
+    const met = rows.findIndex(r => Math.abs(r.y - r.h) < 15);
+    for (const r of met >= 0 ? rows.slice(met) : []) if (r.t > 8 && r.t < dwEnd - 12) { f.dwN++; const e = Math.abs(r.y - r.h); f.dwErr += e; f.dwMax = Math.max(f.dwMax, e); }
   }
   // 3 the legs' planned heights
   let planOk = !!f.legsSeen, planWhy = '';

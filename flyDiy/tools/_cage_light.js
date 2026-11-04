@@ -152,6 +152,23 @@ for (const k of INT) defaults['li_' + k] = 0;
 // stays on the master (A0's ruling): the flown wing is unchanged.
 for (const k of EXT.concat(INT)) defaults['li_' + k + 'Fit'] = 1;
 const fitted = (P, k) => P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
+// LIGHTS THAT CANNOT LIGHT (the user 4 Nov: "We need a warning for no electrics"; the flagship flew dark with every row
+// saying fitted). Pure, so GATE LIGHT holds it; the garage's top bar says it (editor.js QUICK 'lightsWarn'). `sys` is
+// genSystemsResolve's record, `sites` this layer's own (wingLampNone: the wing cut no bay, so no lens and no lamp)
+function lightWarnings(P, sys, sites) {
+  const out = [];
+  if (!P || !+P.lightOn) return out;
+  if (sys && !(sys.battAh > 0) && !(sys.altA > 0) && EXT.concat(INT).some(k => fitted(P, k)))
+    out.push({ key: 'power', part: 'instruments',
+               text: 'Lights fitted, no power: no battery and no generator, so every lamp stays dark. Fit them under electrics, or take the lights off.' });
+  const lost = sites && sites.wingLampNone ? ['land', 'taxi'].filter(k => fitted(P, k)) : [];
+  if (lost.length)
+    out.push({ key: 'bay', part: 'lights',
+               text: (lost.length > 1 ? 'Landing and taxi lights are' : lost[0] === 'land' ? 'The landing light is' : 'The taxi light is') +
+                     ' fitted, but the wing cuts no bay for them at this station, so none is drawn. Move the wing bay along the wing.' });
+  return out;
+}
+window.CAGE_LIGHT_WARNINGS = lightWarnings;
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 const items = [
@@ -237,7 +254,7 @@ function lensMat(key, level, colOver) {
   // is the lens colour darkened, the emissive term the lamp's as before
   const m = new THREE.MeshStandardMaterial({
     color: new THREE.Color(col).multiplyScalar(0.32), emissive: new THREE.Color(col),
-    emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,
+    emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,  // pre-ok: a lens's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
   // the G38 understudy replaces every lit material with flat grey unless it is
   // told not to; a lamp that goes grey is a lamp nobody can see is on
@@ -280,7 +297,7 @@ function cupMat(level, colOver, on, key, k) {
   const row = MAT.lodge;
   const m = new THREE.MeshStandardMaterial({
     color: row.col, roughness: row.rough, metalness: row.metal,
-    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,
+    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,  // pre-ok: a cup's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
   m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
   if (key) { m.userData.lampCup = key; m.userData.lampCol = col;   // the panel arc
@@ -596,7 +613,7 @@ function driveRotor(R, camera) {
   const rpm = +R.rpm || 0;
   if (rpm <= 0) {                       // parked: steady, mirror stopped
     R.rot.rotation.set(0, 0, 0);
-    R.mat.emissiveIntensity = R.base;
+    R.mat.emissiveIntensity = R.base * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: x P (the beacon's rotor turns in the world too)
     return;
   }
   const ph = beaconPhase(nowSec(), rpm);
@@ -616,7 +633,7 @@ function driveRotor(R, camera) {
   vCam.setFromMatrixPosition(camera.matrixWorld).applyMatrix4(mInv);
   const g = beaconGain(ph, R.ax, R.e1, R.e2,
                        [vCam.x - R.p[0], vCam.y - R.p[1], vCam.z - R.p[2]]);
-  R.mat.emissiveIntensity = R.base * g;
+  R.mat.emissiveIntensity = R.base * g * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1);   // G2620: x P
 }
 function tick() {
   tickRAF = 0;
@@ -1210,7 +1227,8 @@ function sites(scene, group, P) {
       // the CEILING is the interior's own liner where there is one and the
       // skin's roof band otherwise — both are named, so neither is guessed
       const ROOF = { ceilingLoop: 1, body: 1, plywood: 1, cloth: 1,
-                     composite: 1, toele: 1, waistband: 1 };
+                     composite: 1, toele: 1, waistband: 1,
+                     headliner: 1, cabWall: 1 };   // CABIN-INTERIOR: the liner's split, still the liner
       // A CEILING FACES DOWN AND IS IN THE UPPER HALF OF THE CABIN. Both
       // halves are needed and the first cut had neither: filtering only on
       // "above the waist" and taking the LOWEST match returned a face 34 mm
@@ -1301,14 +1319,57 @@ function sites(scene, group, P) {
       return q ? [q.x * kU, q.y * kU, q.z * kU] : null;
     };
     const M0 = window.CAGE_UI && window.CAGE_UI.MS;
+    // THE FLANGE STAYS INSIDE (CABIN-SHOTS, 3 Nov: the twin's two front roof lamps showed as domes through the
+    // windscreen's frame band from outside - the flange, 1.34 r wide (PROF.can), lies flat on the liner where the roof
+    // falls to the screen, and its rim stood out through the skin). Every point of the rim (12 round it, in the
+    // flange's plane) must have a face of the sheet over it, 2 mm clear; else the rung is refused and the ladder goes on.
+    const skinOver = (q, ax, R) => {
+      const M = M0;
+      if (!M || !M.V || !M.F) return true;
+      const tris = [];
+      for (const f of M.F) {
+        if (f.v.length < 3) continue;
+        const pts = f.v.map(vi => [M.V[vi][0] * kU, M.V[vi][1] * kU, M.V[vi][2] * kU]);
+        if (!pts.some(p => p[1] > q[1] - 0.05 && Math.hypot(p[0] - q[0], p[2] - q[2]) < R + 0.15)) continue;
+        for (let n = 1; n + 1 < pts.length; n++) tris.push([pts[0], pts[n], pts[n + 1]]);
+      }
+      const u0 = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = nrm([ax[1] * u0[2] - ax[2] * u0[1], ax[2] * u0[0] - ax[0] * u0[2], ax[0] * u0[1] - ax[1] * u0[0]]);
+      const v = [ax[1] * u[2] - ax[2] * u[1], ax[2] * u[0] - ax[0] * u[2], ax[0] * u[1] - ax[1] * u[0]];
+      for (let n = 0; n < 12; n++) {
+        const t = 2 * Math.PI * n / 12, c = Math.cos(t) * R, sn = Math.sin(t) * R;
+        const x = q[0] + u[0] * c + v[0] * sn, y = q[1] + u[1] * c + v[1] * sn, z = q[2] + u[2] * c + v[2] * sn;
+        let over = false;
+        for (const [a, b, d] of tris) {
+          const dd = (b[2] - d[2]) * (a[0] - d[0]) + (d[0] - b[0]) * (a[2] - d[2]);
+          if (Math.abs(dd) < 1e-12) continue;
+          const l1 = ((b[2] - d[2]) * (x - d[0]) + (d[0] - b[0]) * (z - d[2])) / dd;
+          const l2 = ((d[2] - a[2]) * (x - d[0]) + (a[0] - d[0]) * (z - d[2])) / dd;
+          if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
+          if (l1 * a[1] + l2 * b[1] + (1 - l1 - l2) * d[1] > y + 0.002) { over = true; break; }
+        }
+        if (!over) return false;
+      }
+      return true;
+    };
     // (CABIN-CRAFT: the ceiling-loop rail beside a skylight - G296's frame rung - left the ladder: it stands beside the glass)
     const roofAt = s => {
       // a face DIRECTLY over the seat (16 cm), and the lamp on that face —
       // not at the seat's own x under whatever the wider search found
       // (CABIN-CRAFT: ...or, when every face over the seat is flank, or beside or under glass, the nearest clear one
       // within 0.45 m: a skylight cabin's lamp moves to the solid roof fore or aft of the pane)
-      const cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind) || ceilAt(s.x, s.zBack + 0.12, 0.45, s.kind);
-      if (!cl) return null;
+      const R = 1.34 * (LIGHTS[s.kind].w / 2) * sizeK0;
+      const inside = c => c && skinOver([c.x, c.y, c.z], c.n || [0, -1, 0], R);
+      let cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind);
+      // a face over the seat whose flange would stand out (the roof falling to a raked screen): the same search a
+      // little further aft, over the head, before the ladder gives the roof up
+      if (cl && !inside(cl)) {
+        cl = null;
+        for (const dz of [0.06, 0, -0.06]) { const c = ceilAt(s.x, s.zBack + dz, 0.16, s.kind); if (inside(c)) { cl = c; break; } }
+        if (!cl) return null;
+      }
+      cl = cl || ceilAt(s.x, s.zBack + 0.12, 0.45, s.kind);
+      if (!cl || !inside(cl)) return null;
       const ax = cl.n || [0, -1, 0];
       return { p: off([cl.x, cl.y, cl.z], ax, sink(s.kind)), ax, onCeiling: true, rung: 'roof' };
     };
@@ -1352,7 +1413,7 @@ function sites(scene, group, P) {
       const zS = s.zBack + 0.05, yT = A.waistY + 0.66 * (A.roofY - A.waistY), xT = s.x * 0.7;
       const cand = [];
       for (const f of M0.F) {
-        if ((f.m !== 'bulkhead' && f.m !== 'firewall') || f.v.length < 3) continue;
+        if ((f.m !== 'bulkhead' && f.m !== 'bulkTrim' && f.m !== 'firewall') || f.v.length < 3) continue;   // (+ AFT-BULKHEAD's upper panel)
         let cx = 0, cy = 0, cz = 0;
         for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
         cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
@@ -1387,6 +1448,23 @@ function sites(scene, group, P) {
         if (d < bd && clearOfGlass(q.p, q.n, s.kind)) { bd = d; best = q; }
       }
       if (!best) return null;
+      // THE WHOLE FLANGE ON THE WALL: a low wall under a bubble left it over the top edge, and the Mosquito's flood stood
+      // out through the deck behind the canopy. It comes down until it fits; a wall too low for that is the next rung's
+      const rim = 1.34 * (LIGHTS[s.kind].w / 2) * Math.max(0.2, +P.li_lampSize || 1);
+      let top = -1e9;
+      for (const q of cand) {
+        if (q.p[2] < zB - 0.08) continue;
+        for (let i = 0, j = q.poly.length - 1; i < q.poly.length; j = i++) {
+          const a = q.poly[i], b = q.poly[j];
+          if ((a[0] > best.p[0]) !== (b[0] > best.p[0])) top = Math.max(top, a[1] + (b[1] - a[1]) * (best.p[0] - a[0]) / (b[0] - a[0]));
+        }
+      }
+      const yFit = top - rim - 0.01;
+      if (top > -1e9 && best.p[1] > yFit) {
+        if (yFit < A.waistY) return null;
+        const zF = best.p[2] - best.n[1] * (yFit - best.p[1]) / best.n[2];
+        best = { p: [best.p[0], yFit, zF], n: best.n };
+      }
       const ax = aimAt(best.p, [s.x, A.waistY - 0.05, s.zBack + 0.45]);
       return { p: off(best.p, ax, sink(s.kind)), ax, onCeiling: false, rung: 'bulkhead' };
     };
@@ -1429,10 +1507,23 @@ function sites(scene, group, P) {
     // bulkhead if available" - then the arch (only clear of the glass now), then the user's last resort. No rung is
     // ever on glass: each asks clearOfGlass.
     const archClear = s => { const m = archAt(s); return m && clearOfGlass(m.p, null, s.kind) ? m : null; };
+    // CABIN-INTERIOR G1: THE OVERHEAD CONSOLE, when the crew drew one (A.ohc, its lamp seats): the front row's lamps
+    // go into its bezels - the flood on the pilot's side, a front passenger's on theirs - first on a closed cabin's
+    // ladder (the console is never under glass: the crew draws none there)
+    const consoleAt = s => {
+      const O = A.ohc;
+      if (!O || !O.seats || !O.seats.length || Math.abs(s.zBack - O.zSeat) > 0.15) return null;
+      const sd = Math.abs(s.x) < 0.05 ? 0 : Math.sign(s.x);
+      const q = O.seats.find(o => o.sd === sd) || (O.seats.length === 1 ? O.seats[0] : null);
+      if (!q) return null;
+      // the fitting the bezel was cut for (CABIN-SHOTS: the 75 mm flood hung under a 52 mm bezel): its radius, its sink
+      const r = (O.r || LIGHTS[s.kind].w / 2);
+      return { p: off(q.p, [0, -1, 0], 0.62 * r * sizeK0 - 0.001), ax: [0, -1, 0], r, onCeiling: true, rung: 'console' };
+    };
     const LADDER = {
-      flood: [[roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
+      flood: [[consoleAt, roofAt, bulkheadAt, shoulderAt], [headerAt, bulkheadAt, shoulderAt],
               [coamingAt, bulkheadAt, shoulderAt], [bulkheadAt, archClear, shoulderAt]],
-      pax:   [[roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
+      pax:   [[consoleAt, roofAt, bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt], [bulkheadAt, shoulderAt],
               [bulkheadAt, shoulderAt]],
     };
     const mountAt = (kind, s) => {
@@ -1514,15 +1605,15 @@ function applyDrive() {
   const L = driveLevels;
   for (const e of lampMats) {
     const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
-    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
-    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);
+    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;  // pre-ok: the shed's night drive (P = 1 there)
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);  // pre-ok: the shed's night drive (P = 1 there)
   }
   for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
   // the dial faces are the panel layer's one emissive material (the instrument dimmer)
   const PL = window.CAGE_PANEL, fm = PL && PL.material ? PL.material('faces') : null;
   if (fm) {
     if (fm.userData.liBase == null) fm.userData.liBase = fm.emissiveIntensity;
-    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;
+    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;  // pre-ok: the shed's night drive (P = 1 there)
   }
 }
 const level = (P, k) => {
@@ -1731,6 +1822,102 @@ PAGE.post = (ctx) => {
     drawn[key] = (drawn[key] || 0) + 1;
     return o;
   };
+  // AFT-BULKHEAD: the wall lamp on the aft wall's tagged face - its station, its top edge sampled across it
+  function wallLamp(mode, paxSites) {
+    const M = window.CAGE_UI && window.CAGE_UI.MS;
+    if (!M || !M.V || !M.F) return;
+    const kU = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) * (P.planeScale || 1);
+    const faces = M.F.filter(f => f.bhFace && f.v.length >= 3);
+    if (!faces.length) return;
+    let zf = 0, n = 0, x0 = 1e9, x1 = -1e9, yMin = 1e9;
+    for (const f of faces) for (const vi of f.v) {
+      const q = M.V[vi];
+      zf += q[2] * kU; n++;
+      if (q[1] * kU < yMin) yMin = q[1] * kU;
+      if (q[0] * kU < x0) x0 = q[0] * kU;
+      if (q[0] * kU > x1) x1 = q[0] * kU;
+    }
+    zf /= n;
+    const xc = (x0 + x1) / 2, W = x1 - x0;
+    // the cargo net stands in front of the wall: the lamp keeps above it (the strip narrower, a dome with no room left off)
+    let yNet = -1e9;
+    for (const f of M.F) if (f.m === 'baggage') for (const vi of f.v) if (M.V[vi][1] * kU > yNet) yNet = M.V[vi][1] * kU;
+    // the face's top at a lateral station: the highest of its edges crossing it
+    const topAt = x => {
+      let y = -Infinity;
+      for (const f of faces) for (let e = 0; e < f.v.length; e++) {
+        const a = M.V[f.v[e]], b = M.V[f.v[(e + 1) % f.v.length]];
+        const ax = a[0] * kU, bx = b[0] * kU;
+        if ((ax - x) * (bx - x) > 0 || ax === bx) continue;
+        y = Math.max(y, (a[1] + (b[1] - a[1]) * (x - ax) / (bx - ax)) * kU);
+      }
+      return y;
+    };
+    const lv = level(P, 'pax'), col = LIGHTS.pax.col;
+    const lensM = lensMat('pax', lv, col), sockM = cupMat(lv, col, reflectOn, 'pax', SOCK_K);
+    if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key: 'pax', kind: 'lens', mat: lensM, lv });
+    if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key: 'pax', kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
+    const ax = [0, 0, 1];
+    // THE STRIP: a shallow channel (the socket's alloy) with a diffuser in it, 35 mm under the top edge, across the
+    // middle 70 % of the face, narrower where the arch drops onto the shelf. STRAIGHT, like every moulding on the wall
+    // (the user: the top edge's own path looks bad); only a true round arch bends it, on one clean curve
+    let stripMid = null;
+    if (mode & 2) {
+      const drop = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;   // under the top edge: a wing box across the cabin hides the top
+      const clear = f => [xc - f * W, xc + f * W].every(x => topAt(x) - (drop + 0.015) * sizeK > yMin + 0.015 && topAt(x) - (drop + 0.013) * sizeK > yNet + 0.003);
+      let hw = 0.35;
+      while (hw > 0.12 && !clear(hw)) hw -= 0.03;
+      const topsAt = f => { const a = []; for (let i = 0; i <= 10; i++) a.push(topAt(xc - f * W + 2 * f * W * i / 10)); return a; };
+      // a round arch: its crown well over its ends, no dip anywhere along it
+      const isArch = t => t[5] - Math.max(t[0], t[10]) > 0.07 * sizeK && t.every((y, i) => i === 0 || i === 10 || y >= (t[i - 1] + t[i + 1]) / 2 - 0.004 * sizeK);
+      let tops = topsAt(hw);
+      while (hw > 0.2 && !isArch(tops) && Math.max(...tops) - Math.min(...tops) > 0.06 * sizeK) tops = topsAt(hw -= 0.03);
+      const arch = isArch(tops), yEnd = Math.min(tops[0], tops[10]), yLine = Math.min(...tops);
+      const pts = [];
+      for (let i = 0; clear(hw) && tops.every(isFinite) && i <= 10; i++) {
+        const u = i / 5 - 1, x = xc + hw * W * u;
+        pts.push([x, (arch ? yEnd + (tops[5] - yEnd) * (1 - u * u) : yLine) - drop * sizeK, zf]);
+      }
+      if (pts.length) stripMid = pts[5][1];
+      if (pts.length >= 3) {
+        const chan = Bag(sockM), lens = Bag(lensM);
+        const wH = 0.013 * sizeK, wL = 0.009 * sizeK, dH = 0.008 * sizeK;
+        const at = (i, s, h) => {
+          const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+          const tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+          const ux = -ty / l, uy = tx / l;             // in the face, across the strip (up)
+          return [pts[i][0] + ux * s, pts[i][1] + uy * s, pts[i][2] + h];
+        };
+        const rowOf = (bag, s, h) => pts.map((_, i) => bag.v(...at(i, s, h)));
+        const ribbon = (bag, ra, rb) => { for (let i = 0; i < ra.length - 1; i++) bag.quad(ra[i], ra[i + 1], rb[i + 1], rb[i]); };
+        // the channel: back, the two walls
+        const bL = rowOf(chan, -wH, 0.001), bR = rowOf(chan, wH, 0.001);
+        const tL = rowOf(chan, -wH, dH), tR = rowOf(chan, wH, dH);
+        ribbon(chan, bL, bR); ribbon(chan, bL, tL); ribbon(chan, tR, bR);
+        // the diffuser: three facets, a shallow crown
+        const l0 = rowOf(lens, -wL, dH * 0.7), l1 = rowOf(lens, -wL * 0.35, dH * 0.95),
+              l2 = rowOf(lens, wL * 0.35, dH * 0.95), l3 = rowOf(lens, wL, dH * 0.7);
+        ribbon(lens, l0, l1); ribbon(lens, l1, l2); ribbon(lens, l2, l3);
+        for (const m of [chan.mesh(group), lens.mesh(group)]) {
+          if (!m) continue;
+          m.name = 'edLamp_pax';
+          m.userData.lampKey = 'pax';
+        }
+        drawn.pax = (drawn.pax || 0) + 1;
+      }
+    }
+    // THE DOME: a 90 mm fitting in the face's middle, under the strip when both - not where a passenger lamp already
+    // landed on this wall (the bulkhead rung)
+    if (mode & 1) {
+      const yt = topAt(xc);
+      if (!isFinite(yt)) return;
+      const dr = P.bhLampY != null ? Math.max(0.02, +P.bhLampY) : 0.035;
+      const r = 0.045, q = [xc, stripMid != null ? stripMid - 0.085 * sizeK : yt - (mode & 2 ? dr + 0.075 : Math.max(0.08, dr + 0.045)) * sizeK, zf];
+      if (q[1] - r * sizeK < Math.max(yMin + 0.01, yNet + 0.003)) return;   // a low arch, or the net: no room under it
+      if (paxSites.some(s => Math.hypot(s.p[0] - q[0], s.p[1] - q[1], s.p[2] - q[2]) < r + LIGHTS.pax.w / 2 + 0.03)) return;
+      lamp('pax', { p: [q[0], q[1], q[2] + 0.62 * r * sizeK - 0.001], ax, r });
+    }
+  }
 
   // ---- OUTSIDE ------------------------------------------------------------
   // (G2796: each one only when it is FITTED - a light the builder took off has
@@ -1748,6 +1935,13 @@ PAGE.post = (ctx) => {
   if (S.flood && fit('flood')) lamp('flood', S.flood);
   if (S.pedal && fit('pedal')) lamp('pedal', S.pedal);
   if (fit('pax')) for (const s of (S.pax || [])) lamp('pax', s);
+  // AFT-BULKHEAD (3 Nov): THE WALL LAMP (`bhLamp`: 1 a dome, 2 an LED strip under the top edge, 3 both), on the
+  // passenger dimmer. The study: the face is seen only through the rear side glass, near-black on most builds because
+  // the cabin's darkness takes every light off an inside section - the lamps' too - and spares only what EMITS. So the
+  // wall's own lamp is the one thing on it that cannot go dark. Its lens, cup and socket are the passenger lamps'
+  // own materials (one bucket each, already there when a passenger lamp is); the face is the generator's
+  // (_cage_gen.js bulkWall tags it `bhFace`).
+  if (fit('pax') && Math.round(+P.bhLamp || 0)) wallLamp(Math.round(+P.bhLamp), S.pax || []);
 
   armRotors();       // the beacon starts turning as soon as it is built
 
@@ -1774,7 +1968,7 @@ PAGE.post = (ctx) => {
   // glows at once, its light follows. With every dimmer at 0 the count is the pre-G2782 count, boot included.
   const lit = [];
   if (S.wingLampR && fit('land')) {
-    const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
+    const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,  // pre-ok: the editor cage's light (the garage, P = 1)
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
     l.target.position.set(S.wingLampR.p[0], S.wingLampR.p[1] - 8, S.wingLampR.p[2] + 60);
@@ -1784,7 +1978,7 @@ PAGE.post = (ctx) => {
   if (S.flood && fit('flood')) {
     // G3449 (the user 22 Oct, Rufus's cabin at T0: "flood *4 looks good"): 4x the lamp (0.9 -> 4.0) and its reach
     // 2.4 -> 4.5 m - at 0.9 / 2.4 the cabin flood on an open ultralight under a 9.8 m wing did not show in the shed
-    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 4.0, 4.5, 1.6);
+    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 4.0, 4.5, 1.6);  // pre-ok: the editor cage's light (the garage, P = 1)
     l.position.set(...S.flood.p);
     l.castShadow = false;
     group.add(l); lit.push(['flood', l]);
@@ -1793,7 +1987,7 @@ PAGE.post = (ctx) => {
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
   if (S.pedal && fit('pedal')) {
-    const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
+    const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);  // pre-ok: the editor cage's light (the garage, P = 1)
     l.position.set(...S.pedal.p);
     l.castShadow = false;
     group.add(l); lit.push(['pedal', l]);
@@ -1832,7 +2026,7 @@ PAGE.post = (ctx) => {
       if (!drawn[k]) continue;
       board.declare('ac_' + k, 'aircraft: ' + LIGHTS[k].name, 'emissive', () => {
         group.traverse(o => {
-          if (o.material && o.material.emissive) o.material.emissiveIntensity = 0;
+          if (o.material && o.material.emissive) o.material.emissiveIntensity = 0;  // pre-ok: 0: the mute
         });
       });
     }
@@ -1847,6 +2041,7 @@ PAGE.post = (ctx) => {
   if (+P.lightSw && !(window.CAGE_PANEL && window.CAGE_PANEL.switches)) buildSwitches(group, P);
 
   window.CAGE_LIGHT = { LIGHTS, EXT, INT, sites: S, drawn,
+                        warnings: sys => lightWarnings(P, sys, S),
                         lit: lit.map(x => x[0]),
                         // the panel arc (session 4): the flight rebuilds a
                         // lamp's lens and cup through the same factories

@@ -121,7 +121,12 @@ const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
 // G3575 (DC3-2, the user 26 Oct: "do the swivelling tailwheel ... if no one uses castor, you may ... replace it with your full
 // swivel mechanics"): 'castor' was the picture's only (every third wheel flew linked); its slot is now the FULL SWIVEL
 // wheel, the one of the three the physics reads (_cage_join gear.twSwivel) - no saved build carried it
-const STEERS = ['fixed', 'linked', 'full swivel'];   // (the third wheel's row shows 'linked' and 'full swivel' only: _cage_gear.js)
+const STEERS = ['fixed', 'linked', 'full swivel'];   // (the MAINS' row - picture only; the third wheel's is TW_STEERS)
+// G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT, four kinds that fly (30_solver twLine): 1 the steerable
+// Scott-type wheel (the Cub's, the default), 2 the lockable wheel (the DC-3's: locked straight for the runway, a free
+// castor to taxi), 3 fixed straight, 4 the tail skid. Every index keeps its number: 0 (an old 'fixed' that flew linked)
+// is shown as 1 and flies 1; G3575's 2 ('full swivel', the DC-3's) is the lockable wheel
+const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
@@ -212,6 +217,6 @@ const gearStations = P => {
   return out;
 };
 
-window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, WHEEL_ROWS,
+window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, TW_STEERS, WHEEL_ROWS,
                      PRESETS, gearDefaults, gearLegP, gearStations };
 })();

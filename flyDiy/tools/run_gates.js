@@ -113,6 +113,9 @@ const GATES = [
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
+  // WEATHER-SEASON (2026-11-03): the career's weather plan - the pack, the blocks, the 42 days' rules, one source, the
+  // season walked, the world's air and wind under it, the forecast, the winter layup (a small gate: ~12 s)
+  { id: 'WEATHERPLAN', file: '_weatherplan_check.js', tier: 'core', wall: 15 },
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
@@ -181,6 +184,11 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // G3800 TAILWHEELS: the tail contact's four laws (the steerable Scott kind's pivot and re-lock, a brake-free 180 deg,
+  // no breakout on the autopilot's runway; the lockable DC-3 locked straight and pivoting unlocked; the skid's stop; the
+  // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
+  // signs and volumes, the old saves' migration (~10 min, four probes at a time)
+  { id: 'TAILWHEEL', file: '_tailwheel_check.js', tier: 'core', weight: 4, wall: 600 },
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
@@ -329,6 +337,7 @@ const GATES = [
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  { id: 'GEARFALL', file: '_gear_fall_check.js', tier: 'core', weight: 1, wall: 120 },
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
@@ -507,6 +516,9 @@ const GATES = [
   // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
   // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
   { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
+  // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
+  // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
+  { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
@@ -956,6 +968,11 @@ const GATES = [
   // game's load chain - one centreline hull from the drawn rings, two strut tip floats; settled, and the pilot takes
   // it off the SEA lane (~2 min)
   { id: 'HULL', file: '_hull_check.js', tier: 'core', wall: 150 },
+  // FLOATS-CLASSIC (2026-11-03): the EDO-style rounded deck - the Wipline line pinned to master's bits, the EDO
+  // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
+  // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
+  { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },
