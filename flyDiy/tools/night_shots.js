@@ -87,7 +87,7 @@ const LITS = (() => { try { const fj = JSON.parse(fs.readFileSync(path.join(__di
   return L; } catch (e) { return []; } })();
 // the photo scene's breeze (the user 4 Nov: "a little wave on the sea, not full calm ... calm taxiing, small breeze"): 4 kt on the nose (camera B's nose bears ~38),
 // so it holds its heading, nose right (the game's 8 kt from 250 weathercocked the taxi nose-left); and a night with the moon ahead of camera B, left of the plane (az 239, 10 deg up, 98 %): the silver path on the water
-const CALM = { wind: { kts: 4, dirDeg: NOSE != null ? +NOSE : 38, gust: 0, refH: 10 } }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
+const CALM = { wind: { kts: +opt('kts', 4), dirDeg: NOSE != null ? +NOSE : 38, gust: 0, refH: 10 } }, MOON_AHEAD = { date: '2027-09-14', utc: 11.5 * 3600 };
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
