@@ -380,7 +380,7 @@ function tableSection(P, x) {
   const L = k => a[k] + (c[k] - a[k]) * t;
   const yk = L('yk'), b = Math.max(1e-4, L('b')), yc = Math.max(yk, L('yc'));
   const yd = Math.max(yc + 0.01, L('yd')), bd = Math.max(b, L('bd'));
-  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd };
+  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd, yt: yd };   // (yt: the deck's top - FLOATS-CLASSIC's secAreaTo reads it; a hull's deck is its gunwale)
 }
 function sectionOf(P, x) {
   if (P.table) return tableSection(P, x);
