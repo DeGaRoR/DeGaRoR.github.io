@@ -91,7 +91,11 @@ floats/student STOPPED 8edce1408883
   - with the capture's hold on, the eye sheet stands and wears the wells;
   - the roll-out snapshot carries a `wheelWell` material (the flown visual has the wells);
   - no page error.
-- **GATE RETRACT:** §13 added; the run's result is recorded below when it ends.
+- **GATE RETRACT:** PASS with §13. Its first run found the box's 50 mm corners cutting the exact hull's corner
+  clearance (~6 mm) and the sampled arcs 0.6 mm inside the arc; the box is now rounded by the clearance and its arcs
+  circumscribed (9668e6ebe).
+- **Gates green (one battery after the fix):** RETRACT, KNIFE, QUADWIN, UISMOKE, JOIN, SPECFIX, GEAR, PARTS, DESIGN,
+  VIEW.
 - **Stills (quickshot, stowed, the reserved boxes off):**
   - `g4_born_exact_qb.png`, `g4_born_exact_bottom.png`: as born, the exact outline;
   - `g4_born_box_qb.png`: as born, the box outline;
