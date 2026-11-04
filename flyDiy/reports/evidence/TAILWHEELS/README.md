@@ -64,6 +64,16 @@ The rudder's roll is still a V's (−3 146 per unit dr at 35°, the fuselage V's
 ±0.68 m outweighs their side force below the CG. The sizing is the V's (S = max(Sh / cos²G, Sv / sin²G)) on the span the
 booms give; the design check's volumes read its projections.
 
+### Its control run (the user, 4 Nov: "that screenshots shows that the hinges did not like that")
+
+The elevator's horn stands under its boom, beside the panel's root. The cable's exit was searched from 0.35 m ahead of
+the horn (a chord × 2, the conventional tail's rule): every run forward along the boom crossed the panel's root, and the
+first clear exit was up to **1.14 m** up the boom (the twin busher on floats; 0.45 / 0.52 m on the twin-boom and
+push-pull fixtures), the cable lying along the boom's side to a boss at mid-length. On the inverted V the link now leaves
+the boom right over the horn, as in the Shadow's booms: **0.09 - 0.14 m** on all three (GATE TAILWHEEL H, which fails
+on the old code). `busher_invertedV_cable_before.png` / `_after.png` (`builds/busher_invertedV.json`: the fixture with
+the Empennage tile's write).
+
 ## The pusher on twin-boom tailwheels
 
 The new-plane chooser's "[VAL] a pusher on a tailwheel" grey (claude/ready/new-plane, not on master): measured on the
@@ -98,7 +108,8 @@ fixture as a taildragger and with the inverted V, all through the game's own loa
 | `cub_fixed_*` | the fixed wheel: no steering arm or springs; the clamp collar and its bolt |
 | `cub_skid_*`, `tiger_skid_*` | the tail skid: the blade carried down from the leaf spring to a bolted steel shoe on the wheel's contact line |
 | `twin_taildragger_*` | twin booms, a tailwheel under each boom's end |
-| `twin_invertedV_*` | the inverted V on twin booms (30°, the tips 0.6 m apart), a castor wheel under each tip |
+| `twin_invertedV_*` | the inverted V on twin booms (30°, the tips 0.6 m apart), a castor wheel under each tip (re-shot after the control-run fix) |
+| `busher_invertedV_cable_*` | the inverted V's elevator cable before (a metre along the boom) and after (out of the boom over the horn) |
 | `traces/pivot_*.png` (`.svg`, `.json`) | the 180° pivot on the inside brake, the CG's path from above, coloured by the tail contact's state: steerable (Cub), lockable unlocked (DC-3), fixed and skid (Tiger Moth-alike) |
 
 `for_config-matrix.patch`, `for_new-plane.patch`: the edits for the two branches not yet on master (see the HANDOVER).

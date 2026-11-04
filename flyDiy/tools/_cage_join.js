@@ -939,7 +939,7 @@ function cageSurfLine(surf, L) {
     const FS = SBh.measure.FS;
     const side = S2h === 'elevR' ? 1 : -1;     // 'R' is the cage's +x
     const laid = FIN2.finToStab({ V: SBh.measure.hinge.line.map(p => [0, p[0], p[1]]), F: [] },
-                                Object.assign({}, SBh.lay, { side })).V;
+                                SBh.layOf ? SBh.layOf(side) : Object.assign({}, SBh.lay, { side })).V;   // (G3800: the inverted V's own lay)
     return laid.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
   }
   return null;

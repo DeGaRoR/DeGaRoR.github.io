@@ -26,6 +26,7 @@
 //        [--root <dir>]           the repo served (default: the one this file is in) - e.g. a throwaway archive of a branch
 //        [--fallback <dir>[;<dir>]]  _serve.js's fallback roots, in order (a tree over the main checkout's gitignored data)
 //        [--query k=v&k=v]        appended to the page's query (G3800)
+//        [--probe <file.js>]      an expression evaluated in the page after each build settles, printed `PROBE <build> <json>`
 //        [--dry]                  everything up to the browser: the arguments, the files, the browser found - no launch
 //   node flyDiy/tools/plane_shot.js --pair <dirA> <dirB> --out <dir> [--labels A,B]
 //                                 side-by-side composites of the PNGs both directories hold (SwiftShader | RTX)
@@ -235,6 +236,9 @@ async function shoot(o) {
       for (let i = 0; i < 20; i++) { await frames(3); const b = await J(box); if (b && prev && b.join() === prev.join()) break; prev = b; }
       BR.box = prev; BR.t = +((Date.now() - tb) / 1000).toFixed(1);
       log(base, 'loaded in', BR.t + ' s,', same + '/' + keys.length, 'cage rows equal, box', JSON.stringify(prev));
+      // --probe <file.js>: an expression evaluated in the page once the build has settled, its value printed as one line
+      // `PROBE <base> <json>` (G3800: what the page drew where - the scene the still is of, not a headless copy)
+      if (opt('probe')) { try { log('PROBE', base, JSON.stringify(await C.ev(fs.readFileSync(opt('probe'), 'utf8'), 120000))); } catch (e) { log('PROBE', base, 'threw', e.message); } }
 
       for (const v of o.views) {
         const tv = Date.now(), name = v.replace(/[:/]/g, '-');

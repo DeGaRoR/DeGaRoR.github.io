@@ -31,6 +31,10 @@
 //    projections (Sh = S cos^2 G, Sv = S sin^2 G).
 // G. OLD SAVES: s2Steer 0 and 1 load as the steerable wheel (no key), 2 (G3575's full swivel, the DC-3's) as the
 //    lockable one; a spec's `twSwivel: true` clamps to `twMode: 'lock'`.
+// H. THE INVERTED V'S HARDWARE (the user, 4 Nov, a picture: "the hinges did not like that" - the elevator's cable lay a
+//    metre along the boom to a boss up its flank): on every twin-boom fixture made an inverted V by the Empennage tile,
+//    each elevator's link leaves its boom within 0.3 m of the horn, the hinge straps sit on their own panel (inside its
+//    box), and the join's declared hinge line is the panel's own (the vertices it catches are the surface's: 'declared').
 'use strict';
 const path = require('path'), { spawn } = require('child_process');
 const T = __dirname;
@@ -155,6 +159,29 @@ async function pool(jobs, n) {
     const modeOf = v => J.loadBuild('builds/cub_2026-09-20_corrected.json', { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, { s2Steer: v }); return j; } }).spec.gear.twMode;
     const m0 = modeOf(0), m1 = modeOf(1), m2 = modeOf(2);
     ok(m0 === undefined && m1 === undefined && m2 === 'lock', `G the Cub saved with s2Steer 0 / 1 / 2 loads as ${m0 || 'steerable'} / ${m1 || 'steerable'} / ${m2}`); }
+
+  console.log('H. THE INVERTED V\'S HARDWARE');
+  { const SH = require(path.join(T, '_scene_headless.js')), PH = require(path.join(T, '_pose_headless.js'));
+    const W = SH.context().ctx, THREE = SH.context().THREE;
+    const IVT = { stMount: 4, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 };   // the Empennage tile's write
+    for (const f of ['fixtures/build_v8_twin-boom_2026-09-11.json', 'fixtures/Twin_busher_floats_2.json',
+                     'fixtures/build_v10_engcfg_pushpull_2026-10-22.json']) {
+      const fx = SH.loadFixture(path.join(T, f)), S = SH.sceneBuild(fx.spec || fx, { over: IVT });
+      S.scene.updateMatrixWorld(true);
+      const obj = {}; S.scene.traverse(o => { if (o.name) obj[o.name] = obj[o.name] || o; });
+      const box = n => obj[n] ? new THREE.Box3().setFromObject(obj[n]) : null;
+      const H = PH.surfHinges(S, PH.collect(S, THREE, {}));
+      const rows = ['R', 'L'].map(sd => {
+        const lk = (W.CAGE_HINGE.links || []).find(L => L.key === 'elev' + sd), len = lk ? Math.hypot(...[0, 1, 2].map(k => lk.pin[k] - lk.tip[k])) : null;
+        const pan = box('edStabSkin' + sd); if (pan && box('edSurf_elev' + sd)) pan.union(box('edSurf_elev' + sd));
+        const hw = [box('edHinge_elev' + sd + '_metal'), box('edHinge_edStabSkin' + sd + '_metal')].filter(Boolean);
+        const on = !!pan && hw.length === 2 && hw.every(b => pan.clone().expandByScalar(0.05).containsBox(b));
+        return { sd, len, on, from: H['elev' + sd] && H['elev' + sd].hingeFrom };
+      });
+      ok(W.CAGE_STAB.mount === 4 && rows.every(r => r.len != null && r.len < 0.3 && r.on && r.from === 'declared'),
+         `H ${path.basename(f, '.json')}: the links ${rows.map(r => r.len == null ? '-' : r.len.toFixed(2)).join(' / ')} m (< 0.3), the straps on their panels ${rows.map(r => r.on).join(' / ')}, the hinge ${rows.map(r => r.from).join(' / ')}`);
+    }
+  }
 
   console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   console.log('GATE TAILWHEEL: ' + (fails.length ? 'FAIL (' + fails.length + ')' : 'PASS'));
