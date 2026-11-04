@@ -10,7 +10,7 @@
 (function () {
   if (typeof window === 'undefined') return;
   const W = window;
-  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 5, heightDeg: 11, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
+  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 8, heightDeg: 11, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
   const D = Object.assign({}, DEF);
   const U = { uK: { value: 0 }, uT: { value: 0 }, uAz: { value: 0 }, uWide: { value: 1 }, uBase: { value: 0.1 }, uHgt: { value: 0.1 } };
   const VS = `
@@ -30,14 +30,14 @@
     vec3 sheet(float az, float el, float seed, float base, float hgt, float s, float soft) {
       float da0 = atan(sin(az - uAz), cos(az - uAz));
       float u = uAz + da0 * (1.0 + 0.9 * max(el, 0.0));
-      float fold = 0.030 * sin(u * 3.1 + seed + uT * 0.02) + 0.020 * sin(u * 8.3 + seed * 2.1 - uT * 0.03) + 0.022 * (fbm(u * 11.0 + seed + uT * 0.012) - 0.5) + 0.008 * (fbm(u * 47.0 + seed * 3.0) - 0.5);
+      float fold = 0.030 * sin(u * 5.1 + seed + uT * 0.02) + 0.020 * sin(u * 14.3 + seed * 2.1 - uT * 0.03) + 0.024 * (fbm(u * 21.0 + seed + uT * 0.012) - 0.5) + 0.009 * (fbm(u * 83.0 + seed * 3.0) - 0.5);
       float x = (el - base - fold) / hgt;
       float w = 0.6 * fbm(u * 16.0 + seed + uT * 0.01);
-      float rA = n1(u * 95.0 + seed * 3.0 + w * 7.0 + uT * 0.03), rB = n1(u * 310.0 + seed * 5.0 + w * 17.0 - uT * 0.02), rC = fbm(u * 26.0 + seed * 9.0 + uT * 0.015);
+      float rA = n1(u * 210.0 + seed * 3.0 + w * 9.0 + uT * 0.03), rB = n1(u * 640.0 + seed * 5.0 + w * 23.0 - uT * 0.02), rC = fbm(u * 58.0 + seed * 9.0 + uT * 0.015);
       float reach = 0.55 + 1.5 * rC * rC + 0.5 * rA;
       float lower = smoothstep(-0.03 - soft, 0.015 + soft, x), upper = exp(-max(x, 0.0) * 2.6 / reach);
-      float rays = 0.14 + 0.95 * rA * rA + 0.7 * rB * rB * rB;
-      float along = smoothstep(0.42, 0.56, fbm(u * 4.3 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 21.0 + seed * 2.0 + uT * 0.02), 3.0);
+      float rays = 0.07 + 0.95 * rA * rA + 0.8 * rB * rB * rB;
+      float along = smoothstep(0.42, 0.56, fbm(u * 7.0 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 37.0 + seed * 2.0 + uT * 0.02), 3.0);
       float I = lower * upper * rays * along * bright * s * (1.0 + 1.3 * exp(-max(x, 0.0) * 7.0));   // the curtain is brightest just over its hem
       float hem = (1.0 - smoothstep(-0.03, 0.03, x)) * max(1.0 - soft * 4.0, 0.0), top = smoothstep(0.25, 0.95, x / reach), mid = smoothstep(0.2, 0.9, x / reach);
       vec3 col = mix(vec3(0.06, 1.0, 0.2), vec3(0.03, 0.8, 0.42), mid);
@@ -52,7 +52,7 @@
       float mask = 1.0 - smoothstep(uWide * 0.5, uWide, da);
       vec3 c = sheet(az, el, 1.3, uBase, uHgt, 1.0, 0.0) + sheet(az, el, 4.7, uBase + 0.05, uHgt * 0.9, 0.6, 0.12) + sheet(az, el, 9.1, uBase - 0.024, uHgt * 0.5, 0.6, 0.02) + sheet(az, el, 13.3, uBase + 0.13, uHgt * 1.2, 0.22, 0.3);
       // the veil: the display's soft light in the air around the bright rays
-      float v = 0.11 * smoothstep(0.0, 0.12, el) * exp(-max(el - 0.1, 0.0) * 3.6) * (0.5 + 0.8 * fbm(az * 3.0 + 2.0 + uT * 0.004));
+      float v = 0.06 * smoothstep(0.0, 0.12, el) * exp(-max(el - 0.1, 0.0) * 3.6) * (0.5 + 0.8 * fbm(az * 3.0 + 2.0 + uT * 0.004));
       c += vec3(0.12, 0.9, 0.5) * v;
       gl_FragColor = vec4(c * mask * smoothstep(0.0, 0.03, d.y) * uK, 1.0);
     }`;

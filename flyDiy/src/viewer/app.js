@@ -2358,6 +2358,7 @@
   // root has no parent, so three's world IS the aeroplane's frame), fed the
   // controls' grp-local transforms through shadow groups; the drawn skeleton
   // under grp takes the solved joint locals, and is what `dress` reads.
+  if (typeof window !== 'undefined') window.__buildPeople = (d, g, c) => buildPeople(d, g, c);   // NIGHT-PHOTO: the shot's crew
   function buildPeople(data, grp, ctlMoves) {
     const recs = data && data.cage && data.people;
     const CC = window.CAGE_CHAR, CW = window.CAGE_CREW;
