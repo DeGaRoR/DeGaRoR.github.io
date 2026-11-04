@@ -182,6 +182,22 @@ async function flowCheck(np) {
   t(UI.isOpen() && cnt.hold === true, 'the chooser opens full-screen and holds the render loop');
   UI.close();
   t(!UI.isOpen() && cnt.hold === false && cnt.set === 0 && cnt.bake === 0, 'cancel leaves the stand untouched, the hold released');
+  // EMPTY-STAND (the user 4 Nov: an empty garage opens the choice, "either existing or new"): the host's offer, handed over
+  // on a press; nothing composed or built; the NEW button's chooser has none
+  let brought = null, bought = 0;
+  const offerOf = () => ({ offer: { title: 'The stand is empty', line: 'choose', rows: [{ name: 'Rufus', where: 'in the shed' }], bring: n => { brought = n; }, buy: () => { bought++; } } });
+  const offerTiles = () => tilesIn(doc.body.children.find(c => c.id === 'npWrap').querySelector('.npBody')).filter(b => b.dataset.offer);
+  UI.open();
+  t(offerTiles().length === 0 && !doc.documentElement.classList._s.has('npOffer'), 'the NEW button\'s chooser carries no offer');
+  UI.close();
+  UI.open(offerOf());
+  const oT = offerTiles();
+  t(oT.length === 2 && /Rufus/.test(oT[0].innerHTML) && oT[0].dataset.offer === 'bring' && oT[1].dataset.offer === 'buy' && doc.documentElement.classList._s.has('npOffer'), 'the offer: one of yours and the Market, on the first screen');
+  t(tilesIn(doc.body.children.find(c => c.id === 'npWrap').querySelector('.npBody')).some(b => /npLit/.test(b.className)), 'the offer keeps the new-aeroplane door beside it');
+  oT[0].click();
+  t(brought === 'Rufus' && !UI.isOpen() && cnt.hold === false && cnt.set === 0 && cnt.bake === 0 && !doc.documentElement.classList._s.has('npOffer'), 'a press on a plane of yours: the panel closed, the hold released, the host told; nothing built here');
+  UI.open(offerOf()); offerTiles()[1].click();
+  t(bought === 1 && !UI.isOpen(), 'Buy one: the panel closed, the host told');
   // the walk: start, then every step's first offered tile, row by row
   UI.open();
   const body = doc.body.children.find(c => c.id === 'npWrap') || doc.body.children[doc.body.children.length - 1];

@@ -803,7 +803,10 @@ function maybeAutoOpen() {
     if (window.localStorage.getItem('flydiy.wip')) return;
     if (isRig()) return;
     const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
-    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400));
+    // EMPTY-STAND-LOOK F2: the chooser came up over a new story career in 2 of 3 runs (FLYDIY_STORY_STARTER read before the
+    // story's boot had set it): a career's own aeroplane, or its empty stand's choice, is the door - never this one
+    const career = () => window.FLYDIY_MODE === 'career' && !(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
+    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER && !career()) openBirth(); }, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {
@@ -811,7 +814,7 @@ if (typeof window !== 'undefined') {
   else window.addEventListener('load', maybeAutoOpen);
 }
 
-window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth,
+window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth, isRig,
                        bakeBirth, surpriseSel,
                        twinsOf, slotBlock, slotReset, sync };
 

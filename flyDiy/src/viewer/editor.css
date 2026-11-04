@@ -1954,6 +1954,8 @@ html.phone #edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v {
 /* EMPTY-STAND (the user 4 Nov: "Empty hangar"): the stand empty - the editor's columns and Roll out stand down, the card
    (app.js standEmptyCard, body-level, draggable) says what fills it */
 body.gEmpty :is(#edWrap, #edInfo, #edRoll) { display:none !important; }
+body.mode-ws.gEmpty, body.mode-ws.gEmpty.info-off { --ws-left:0px; --ws-right:0px; }   /* the columns gone, the view takes their room */
+html.npOffer :is(#stTim, #stSkip, #stCard, #gmMenu, #gmPanel, #mapEntry, #frEntry, #gEmptyCard) { display:none !important; }   /* the empty stand's choice: nothing over it */
 #gEmptyCard { position:fixed; left:max(12px, calc(50% - 170px)); top:96px; z-index:40; width:min(340px, calc(100vw - 24px));
   max-height:calc(100vh - 180px); overflow:auto; box-sizing:border-box; background:var(--ed-plate); border:1px solid var(--ed-border);
   border-radius:10px; padding:10px 14px 12px; font:400 12px/1.4 'IBM Plex Sans', sans-serif; font-style:normal; color:var(--ed-ink);

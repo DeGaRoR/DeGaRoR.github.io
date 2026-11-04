@@ -10735,11 +10735,54 @@
       STAND_EMPTY = on; geWhy = '';
       prefSet('flydiy.standEmpty', on ? String(playerLoad().here || '') : '');
       try { document.body.classList.toggle('gEmpty', on); } catch (e) {}
-      try { craft.visible = !on; } catch (e) {}
+      try { craft.visible = !on; edSit.visible = !on && showCage; } catch (e) {}
+      setTimeout(resize, 220);   // (the view takes the columns' room: the canvas's width transitions, the buffer follows)
       try { syncGoLabel(); } catch (e) {}
       try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}
     }
     try { standEmptyCard(); } catch (e) { console.warn('flyDiy: the empty stand card -', e && e.message); }
+    if (on) standEmptyAuto();
+  }
+  // THE CHOICE OPENS BY ITSELF (the user 4 Nov, on the EMPTY-STAND look: "An empty garage should automatically open the
+  // interface allowing to choose a plane, either existing or new, not to be confusing. But no plane should be drawn yet."):
+  // standEmptySet(true) is an arrival (the map's Go, the base select, a reload). Cancel leaves the empty room and the card,
+  // the door back. Not for a rig (NEW-PLANE-HOLD: the chooser holds the render loop), nor under a tutor's lock (it holds
+  // every click outside its step: the panel could not be answered)
+  function standEmptyAuto() {
+    try {
+      if (stTutLockV || (window.DESIGN_FLOW && window.DESIGN_FLOW.isRig && window.DESIGN_FLOW.isRig())) return;
+      standEmptyChoose();
+    } catch (e) { console.warn('flyDiy: the empty stand choice -', e && e.message); }
+  }
+  function standEmptyChoose() {
+    if (!STAND_EMPTY || !inGarage || !window.NEW_PLANE || !window.NEW_PLANE.open) return false;
+    if (window.NEW_PLANE.isOpen()) return true;
+    const d = playerLoad(), g = garagesList().find(x => x.id === d.here);
+    return window.NEW_PLANE.open({ offer: {
+      title: 'The stand is empty - ' + (g ? g.name : String(d.here)),
+      line: 'choose what stands here: one of yours, or a new one',
+      rows: standEmptyRows(d), bring: standEmptyBring,
+      buy: $('mapEntry') ? () => gmMap('market') : null,
+    } });
+  }
+  // your aeroplanes, where they stand in words (F6: no raw ids); the story's client's plane is offered - T2 works on it -
+  // said as the client's, and last
+  function standEmptyRows(d) {
+    const G = garagesList(), A = (world && world.aerodromes) || [], s = stLive();
+    const client = s && s.planes && !s.planes.gift ? s.planes.client : null;
+    const aero = id => { const a = A.find(x => x.id === id); return (a && a.name) || id; };
+    return Object.keys(d.fleet || {}).sort((a, b) => (a === client) - (b === client) || a.localeCompare(b)).map(name => {
+      let P = null; try { P = playerPlace(d, name, world); } catch (e) { P = null; }
+      const shed = P && G.find(x => x.id === P.hangar);
+      const w = !P ? '' : P.kind === 'in' ? 'in ' + (shed ? shed.name : P.hangar) : P.kind === 'out' ? 'out at ' + aero(P.aero) : P.kind === 'away' ? 'away at ' + aero(P.aero) : P.text || '';
+      return { name, where: (name === client ? 'the client’s, ' : '') + w };
+    });
+  }
+  function standEmptyBring(n) {
+    const here = playerLoad().here, W = playerStoreWhere(playerLoad(), n);
+    const r = (W && W.hangar === here) ? { ok: true } : window.FLYDIY_STORE.sendTo(n, here);
+    const m = r.ok ? storeMove(n, { kind: 'floor' }) : r;
+    if (!m.ok) { geWhy = n + ': ' + (m.why || 'not now'); standEmptyCard(); }
   }
   // the base select's move (the routes panel): an empty hangar empty, and out of an empty stand that hangar's aeroplane
   function standEmptyFollow() {
@@ -10767,16 +10810,15 @@
     act.appendChild(btn('New aeroplane', 'new', 'design one from the chooser - it is built on this stand'));
     if ($('mapEntry')) act.appendChild(btn('Buy one', 'buy', 'the Market, on the map'));
     c.appendChild(act);
-    const names = Object.keys(d.fleet || {}).sort();
-    if (names.length) {
+    const rows = standEmptyRows(d);
+    if (rows.length) {
       c.appendChild(mk('p', 'geLine', 'Or bring one of yours here (free, instant):'));
       const ul = mk('ul', 'geList');
-      for (const n of names) {
-        let P = null; try { P = playerPlace(d, n, world); } catch (e) { P = null; }
+      for (const R of rows) {
         const li = mk('li');
-        li.appendChild(mk('b', '', n));
-        li.appendChild(mk('small', '', P && P.text ? P.text : ''));
-        const b = btn('Bring here', 'bring'); b.dataset.n = n;
+        li.appendChild(mk('b', '', R.name));
+        li.appendChild(mk('small', '', R.where));
+        const b = btn('Bring here', 'bring'); b.dataset.n = R.name;
         li.appendChild(b); ul.appendChild(li);
       }
       c.appendChild(ul);
@@ -10788,15 +10830,9 @@
     const b = ev.target && ev.target.closest ? ev.target.closest('button[data-ge]') : null;
     if (!b) return;
     const k = b.dataset.ge;
-    if (k === 'new') { if (window.DESIGN_FLOW && window.DESIGN_FLOW.openBirth) window.DESIGN_FLOW.openBirth(); return; }
+    if (k === 'new') { if (!standEmptyChoose() && window.DESIGN_FLOW && window.DESIGN_FLOW.openBirth) window.DESIGN_FLOW.openBirth(); return; }
     if (k === 'buy') { gmMap('market'); return; }
-    if (k === 'bring') {
-      const n = b.dataset.n, here = playerLoad().here;
-      const W = playerStoreWhere(playerLoad(), n);
-      const r = (W && W.hangar === here) ? { ok: true } : window.FLYDIY_STORE.sendTo(n, here);
-      const m = r.ok ? storeMove(n, { kind: 'floor' }) : r;
-      if (!m.ok) { geWhy = n + ': ' + (m.why || 'not now'); standEmptyCard(); }
-    }
+    if (k === 'bring') standEmptyBring(b.dataset.n);
   }
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('flydiy:specApplied', () => { if (STAND_EMPTY) standEmptySet(false); });   // an aeroplane on the stand
@@ -15171,7 +15207,7 @@
   // vanish the moment the editor opened. `showCage` is declared with the
   // meshes, up by `lines`/`proxy`.
   function applyStand() {
-    edSit.visible = showCage;
+    edSit.visible = showCage && !STAND_EMPTY;   // (EMPTY-STAND: nothing on the stand, the build behind it not drawn)
     craft.visible = !STAND_EMPTY;               // the indicators live in here (EMPTY-STAND: nothing on the stand)
     // THE CAGE ONLY EVER HIDES; IT NEVER SHOWS. With the cage standing, none
     // of the model's meshes belong on screen. With it down, WHICH of them
@@ -19994,7 +20030,7 @@
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
-    if (edSit.visible) target.copy(edTarget).add(edPan);
+    if (edSit.visible || STAND_EMPTY) target.copy(edTarget).add(edPan);
     else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();

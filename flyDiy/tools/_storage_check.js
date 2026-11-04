@@ -301,6 +301,12 @@ function run(mut) {
        doc.fleet.Jodel.hangar === 'w3.1',
        'gotoGarage: an empty hangar opens with the stand EMPTY - the stand\'s aeroplane stays where it stands, nothing loaded or moved, garages() no stand there (EMPTY-STAND)', JSON.stringify({ here: doc.here, empty: T.empty, stand: E.stand }));
     G.gotoGarage('w3.1');
+    // the look's F1 and F3 and the user's ruling on it: the build you look at (edSit) is not in `craft`
+    const edCss = rd('src/viewer/editor.css'), dfSrc = rd('src/viewer/design_flow.js');
+    ok(/edSit\.visible = showCage && !STAND_EMPTY;/.test(app) && /edSit\.visible = !on && showCage;/.test(app), 'the empty stand hides the build as well as the craft: no aeroplane drawn until one is chosen (the user 4 Nov; the look\'s F1)');
+    ok(/if \(on\) standEmptyAuto\(\);/.test(app) && /stTutLockV \|\| \(window\.DESIGN_FLOW && window\.DESIGN_FLOW\.isRig/.test(app) && /window\.NEW_PLANE\.open\(\{ offer: \{/.test(app), 'an arrival at an empty stand opens the choice by itself, existing or new (the user 4 Nov); not for a rig, not under a tutor\'s lock');
+    ok(/body\.mode-ws\.gEmpty, body\.mode-ws\.gEmpty\.info-off \{ --ws-left:0px; --ws-right:0px; \}/.test(edCss), 'the empty stand\'s view takes the columns\' room (the look\'s F3)');
+    ok(/!window\.FLYDIY_STORY_STARTER && !career\(\)/.test(dfSrc), 'the first-launch chooser never opens by itself over a career (the look\'s F2)');
     ok(doc.here === 'w3.1' && T.moved.slice(moved0).join() === 'Jodel:floor',
        'gotoGarage out of an empty stand to a hangar with its aeroplane: that aeroplane onto the stand (its load ends the empty stand - flydiy:specApplied) (EMPTY-STAND)', JSON.stringify({ here: doc.here, moved: T.moved.slice(moved0) }));
   }
