@@ -11464,6 +11464,7 @@
     CRW.all = !!q && q[1] === '1';
   } catch (e) {}
   // the module and the cast's manifests (no bins, no maps), early: fsPeople re-seats a job's passengers as cast members
+  if (typeof window !== 'undefined') window.__crowdPrep = () => crowdPrep();   // NIGHT-PHOTO: the shot's crew
   function crowdPrep() {
     if (CRW.prep) return CRW.prep;
     return (CRW.prep = Promise.resolve(window.FLYDIY_LAZY ? window.FLYDIY_LAZY('crowd') : null)

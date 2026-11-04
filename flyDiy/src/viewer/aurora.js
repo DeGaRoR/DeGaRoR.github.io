@@ -10,7 +10,7 @@
 (function () {
   if (typeof window === 'undefined') return;
   const W = window;
-  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 8, heightDeg: 11, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
+  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 9.5, heightDeg: 4, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
   const D = Object.assign({}, DEF);
   const U = { uK: { value: 0 }, uT: { value: 0 }, uAz: { value: 0 }, uWide: { value: 1 }, uBase: { value: 0.1 }, uHgt: { value: 0.1 } };
   const VS = `
@@ -25,21 +25,21 @@
     float h1(float x) { return fract(sin(x * 127.1) * 43758.5453); }
     float n1(float x) { float i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(h1(i), h1(i + 1.0), f); }
     float fbm(float x) { return 0.5 * n1(x) + 0.3 * n1(x * 2.13 + 3.1) + 0.2 * n1(x * 4.37 + 7.7); }
-    // ONE SHEET (the user 4 Nov: "for the sake of the screenshot"; previewed by a hand port on the CPU). The rays run up the magnetic field and converge on the
-    // magnetic zenith, so the azimuth spreads toward the top of the fan; a ray's own reach tears the top into a drapery; a thin magenta hem under the green, teal above it, violet at the top
+    // ONE RIBBON (the user 5 Nov: "we want to see bands and ripples" and "it looks too tall", not "a wall of fire"; previewed by a hand port on the CPU): it snakes across the sky, the rays stand on its
+    // hem and converge on the magnetic zenith, each ray's own reach tears the top; a thin magenta hem, the green, then violet; brightest just over the hem, and it ENDS: the sky above it is the night's
     vec3 sheet(float az, float el, float seed, float base, float hgt, float s, float soft) {
       float da0 = atan(sin(az - uAz), cos(az - uAz));
       float u = uAz + da0 * (1.0 + 0.9 * max(el, 0.0));
-      float fold = 0.030 * sin(u * 5.1 + seed + uT * 0.02) + 0.020 * sin(u * 14.3 + seed * 2.1 - uT * 0.03) + 0.024 * (fbm(u * 21.0 + seed + uT * 0.012) - 0.5) + 0.009 * (fbm(u * 83.0 + seed * 3.0) - 0.5);
+      float fold = 0.034 * sin(u * 8.0 + seed + uT * 0.02) + 0.016 * sin(u * 19.0 + seed * 2.1 - uT * 0.03) + 0.012 * (fbm(u * 15.0 + seed + uT * 0.012) - 0.5) + 0.003 * (fbm(u * 70.0 + seed * 3.0) - 0.5);
       float x = (el - base - fold) / hgt;
-      float w = 0.6 * fbm(u * 16.0 + seed + uT * 0.01);
+      float w = 0.6 * fbm(u * 26.0 + seed + uT * 0.01);
       float rA = n1(u * 210.0 + seed * 3.0 + w * 9.0 + uT * 0.03), rB = n1(u * 640.0 + seed * 5.0 + w * 23.0 - uT * 0.02), rC = fbm(u * 58.0 + seed * 9.0 + uT * 0.015);
-      float reach = 0.55 + 1.5 * rC * rC + 0.5 * rA;
-      float lower = smoothstep(-0.03 - soft, 0.015 + soft, x), upper = exp(-max(x, 0.0) * 2.6 / reach);
-      float rays = 0.07 + 0.95 * rA * rA + 0.8 * rB * rB * rB;
-      float along = smoothstep(0.42, 0.56, fbm(u * 7.0 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 37.0 + seed * 2.0 + uT * 0.02), 3.0);
-      float I = lower * upper * rays * along * bright * s * (1.0 + 1.3 * exp(-max(x, 0.0) * 7.0));   // the curtain is brightest just over its hem
-      float hem = (1.0 - smoothstep(-0.03, 0.03, x)) * max(1.0 - soft * 4.0, 0.0), top = smoothstep(0.25, 0.95, x / reach), mid = smoothstep(0.2, 0.9, x / reach);
+      float reach = 0.5 + 1.1 * rC * rC + 0.35 * rA;
+      float lower = smoothstep(-0.05 - soft, 0.03 + soft, x), upper = exp(-max(x, 0.0) * 3.0 / reach);
+      float rays = 0.3 + 0.75 * rA * rA + 0.55 * rB * rB * rB;
+      float along = smoothstep(0.34, 0.5, fbm(u * 9.0 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 37.0 + seed * 2.0 + uT * 0.02), 3.0);
+      float I = lower * upper * rays * along * bright * s * (1.0 + 1.5 * exp(-max(x, 0.0) * 6.0));
+      float hem = (1.0 - smoothstep(-0.05, 0.05, x)) * max(1.0 - soft * 4.0, 0.0), top = smoothstep(0.3, 1.0, x / reach), mid = smoothstep(0.15, 0.7, x / reach);
       vec3 col = mix(vec3(0.06, 1.0, 0.2), vec3(0.03, 0.8, 0.42), mid);
       col = mix(col, vec3(0.62, 0.12, 0.8), top);
       col = mix(col, vec3(0.9, 0.16, 0.6), hem * 0.8);
@@ -50,11 +50,10 @@
       if (d.y <= 0.0 || uK <= 0.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
       float az = atan(d.x, -d.z), el = asin(d.y), da = abs(atan(sin(az - uAz), cos(az - uAz)));
       float mask = 1.0 - smoothstep(uWide * 0.5, uWide, da);
-      vec3 c = sheet(az, el, 1.3, uBase, uHgt, 1.0, 0.0) + sheet(az, el, 4.7, uBase + 0.05, uHgt * 0.9, 0.6, 0.12) + sheet(az, el, 9.1, uBase - 0.024, uHgt * 0.5, 0.6, 0.02) + sheet(az, el, 13.3, uBase + 0.13, uHgt * 1.2, 0.22, 0.3);
-      // the veil: the display's soft light in the air around the bright rays
-      float v = 0.06 * smoothstep(0.0, 0.12, el) * exp(-max(el - 0.1, 0.0) * 3.6) * (0.5 + 0.8 * fbm(az * 3.0 + 2.0 + uT * 0.004));
+      vec3 c = sheet(az, el, 1.3, uBase, uHgt, 1.0, 0.0) + sheet(az, el, 4.7, uBase + 0.055, uHgt * 0.9, 0.6, 0.03) + sheet(az, el, 9.1, uBase - 0.03, uHgt * 0.7, 0.5, 0.02);
+      float v = 0.03 * smoothstep(0.05, 0.15, el) * exp(-max(el - 0.17, 0.0) * 9.0);
       c += vec3(0.12, 0.9, 0.5) * v;
-      gl_FragColor = vec4(c * mask * smoothstep(0.0, 0.03, d.y) * uK, 1.0);
+      gl_FragColor = vec4(c * mask * smoothstep(0.0, 0.03, d.y) * (1.0 - smoothstep(0.27, 0.34, el)) * uK, 1.0);
     }`;
   let meshes = [], mat = null, cam = null;
   const put = () => {
