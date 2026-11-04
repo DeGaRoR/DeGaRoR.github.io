@@ -726,8 +726,13 @@ const HULL_OFF = P => +P.hullOn ? null : 'a hull form shapes a boat: pick Underc
 // section round and level), closing only at the very end onto the spinner (a short bowl that bends late), no
 // openings at the propeller's end (the air comes in at the nacelle's nose: the inlet rows), no cheeks, no cut-out.
 // Every value stays the cowl's own row, the builder's to move.
+// HULL-B9 (the user, 4 Nov, again over the render: "Adopt the linear design I corrected first, including on the
+// wings" - the sketch: the cowl a straight barrel to the propeller, the tail cone after it): no bowl onto the
+// spinner. The barrel holds its section to the propeller's end and closes in a 5 cm rounded lip onto a flat face
+// round the spinner (lidLen 0.05, the bend at its last 8 %: lidShoulder 0.92, the end control on the barrel's
+// line: lidRound 0.96). The over-the-wing pod and the wing nacelles (Twin, Four) wear the same rows
 const NACELLE_POD = { cw_deckSweep: 0, cw_keelSweep: 0, cw_waistSweep: 0, cw_waist: 0, cw_lidRise: 0, cw_faceRise: 0,
-                      cw_deckH: 1, cw_keelH: 1, cw_lidShoulder: 0.72, cw_lidLen: 0.16, cw_lidRound: 0.62, cw_lidMode: 1,
+                      cw_deckH: 1, cw_keelH: 1, cw_lidShoulder: 0.92, cw_lidLen: 0.05, cw_lidRound: 0.96, cw_lidMode: 1,
                       cw_sqAftTop: 0.55, cw_sqAftBot: 0.55, cw_sqFrontTop: 0.55, cw_sqFrontBot: 0.55,
                       cw_apMode: 0, cw_scoopOn: 0, cw_lobeN: 0, cw_cutSpan: 0, cw_aftMode: 1 };
 const NOSE_AERO = { noseFinish: 1, noseLen: 0.95, cowlLoops: 4, noseTip: 0.98,
