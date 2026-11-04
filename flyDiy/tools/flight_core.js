@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2d27e9e12e08f153
+// body-sha256: 12f13b2c75e14f3c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -20934,7 +20934,7 @@ function hydroBuild(def, p, v) {
     // slammed it at 3.7 t and its keel nodes left at 9 km/s. Bounded the same way on the hull's own mass (at 20 m/s
     // ~160 kN a hull, sixteen times its planing lift: the bound bites only where the interval would overshoot)
     let free = 0;
-    if (rec.tip || rec.hull) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
+    if (rec.tip || rec.hull || rec.spon) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
     return Object.assign({ rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] }, free ? { free } : {});
   });
   // S1 (G451.1): THE HYDRO SUB-RATE. The water's forces are computed every
@@ -37239,6 +37239,13 @@ function clampSpec(spec) {
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
                    y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1 };
       } else h.tips = null;
+      // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
+      if (h.spon && typeof h.spon === 'object' && h.spon.on) {
+        const sp = h.spon;
+        h.spon = { on: 1, kg: Number.isFinite(+sp.kg) && +sp.kg > 0 ? genClamp(+sp.kg, 2, 3000) : 0,
+                   y: Number.isFinite(+sp.y) && +sp.y > -0.999 ? genClamp(+sp.y, -0.99, 2) : -1,
+                   x: genClamp(Number.isFinite(+sp.x) ? +sp.x : 0.3, -3, 5), w: genClamp(Number.isFinite(+sp.w) ? +sp.w : 0.32, 0.05, 3) };
+      } else delete h.spon;
     }
   } else if (S.gear.hull !== undefined) delete S.gear.hull;
   // (a 'hull' with no usable record keeps its type and flies on floats the frame sizes by the gross: a seaplane that
@@ -42414,6 +42421,50 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
         FLOATS.push({ side: sd, tip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
                       tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
+      }
+    }
+    // ---- HULL-B19: THE SPONSONS (HULL-TYPES §1.2 'sponsons': the Icon, the Seastar, the Flywhale, the Wal) - a short
+    // buoyant body a side ON the hull, its inboard deck edge against the hull's side at its station, partly in the water
+    // at rest (the fit's rows: kg by the roll-moment rule on its short arm, its keel half its depth under the rest
+    // waterline). A float of the family sized for its displacement (tipFloatParams), its three stations tied to the
+    // fuselage frame nearest and the next one - no struts: the hull and the sponson are one structure
+    const SP = HR.spon;
+    if (SP && SP.on) {
+      const fitS = HYDRO.hullTipFit(HR, gross || 400);
+      const kgS = SP.kg > 0 ? SP.kg : 2 * fitS.kg;
+      const SPP = HYDRO.tipFloatParams(kgS);
+      const ySrel = SP.y > -0.999 ? SP.y : fitS.draft - 0.5 * SPP.H;
+      const xsS = -(SP.x != null ? SP.x : 0.3), scH = HYDRO.sectionOf(HP, xsS === 0 ? -1e-9 : xsS);
+      const nearFS = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
+      for (const sd of [-1, 1]) {
+        const xT = xS + xsS + 0.10 * SPP.L, zT = sd * (scH.bd + (SP.w != null ? SP.w : 0.32)), yT = yS + ySrel;
+        const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
+        const Kt = [], Lt = [], Rt = [], Qt = [];
+        for (const xs of st3) {
+          const sc = HYDRO.sectionOf(SPP, xs === 0 ? -1e-9 : xs);
+          Kt.push(N(xT + xs, yT + sc.yk, zT, 'SPK'));
+          Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'SPD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'SPD'));
+          Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        }
+        const allT = [...Kt, ...Lt, ...Rt];
+        for (const i of allT) pt(i, SPP.mFloat / allT.length);
+        for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+        for (let i = 0; i < 2; i++) {
+          B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+        }
+        clusters.push({ cls: 'float', tag: 'SPON' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+        // the root: each station's inboard deck edge and keel to the nearest fuselage frame's side corners
+        const inb = sd < 0 ? Rt : Lt, o = sd < 0 ? 'L' : 'R';
+        for (let i = 0; i < 3; i++) {
+          const Fj = F[nearFS(xT + st3[i])];
+          B(inb[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh); B(inb[i], Fj['T' + o], 'gear', false, 'inner', undefined, KMh);
+          B(Kt[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh);
+        }
+        const slabS = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+          K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+        FLOATS.push({ side: sd, spon: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                      tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
       }
     }
   } else {
