@@ -537,7 +537,7 @@ function run() {
     {
       const dayUp = { sunUp: true }, dayNight = { sunUp: false };
       CK.frame(1 / 60, sim, null, { day: dayUp, byHand: false });
-      check(CK.sw.sw_nav === 0 && CK.sw.sw_beacon === 0 && CK.sw.sw_instr === 0 && CK.sw.sw_land === 0 && CK.sw.sw_taxi === 0, 'lights: by day the rule leaves every light off (the design\'s beacon included)');
+      check(CK.sw.sw_nav === 1 && CK.sw.sw_beacon === 0 && CK.sw.sw_instr === 0 && CK.sw.sw_land === 0 && CK.sw.sw_taxi === 0, 'lights: by day the rule burns the nav lights, every other light off (the design\'s beacon included)');
       CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });   // a hand on the stick, the sun gone: still, on the ground (Veas 0, 20 m over the field)
       check(CK.sw.sw_nav === 1 && CK.sw.sw_beacon === 1 && CK.sw.sw_instr === 1 && CK.sw.sw_taxi === 1 && CK.sw.sw_land === 0, 'lights: at night, by hand, nav + beacon + panel + the taxi light (low and slow), not the landing light');
       sim.out.Veas = 30; CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });
@@ -547,8 +547,11 @@ function run() {
       CK.sw.sw_land = 1; CK.handSw.sw_land = true; CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });
       check(CK.sw.sw_land === 1, 'lights: a switch the hand set is the hand\'s (the rule leaves it)');
       CK.frame(1 / 60, sim, null, { day: dayUp, byHand: true });
-      check(CK.sw.sw_land === 0 && CK.sw.sw_nav === 0 && !CK.handSw.sw_land, 'lights: at sunrise the rule takes every switch again (the hand\'s claim ends at the edge)');
+      check(CK.sw.sw_land === 0 && CK.sw.sw_nav === 1 && !CK.handSw.sw_land, 'lights: at sunrise the rule takes every switch again (the hand\'s claim ends at the edge)');
+      CK.sw.sw_nav = 0;   // (the rig's lamp: the pose and click checks below start it off, as the design's)
       sim.out.Veas = 0; sim.cgPos = () => [0, 120, 0]; CK.handSw = {};
+      // the user 4 Nov: "nav lights only by day" - nav burns by day, nothing else does
+      { const d = typeof CK.lightsFor === 'function' ? CK.lightsFor({ sunUp: true }, 0, 10) : {}; check(d.nav === 1 && !d.beacon && !d.instr && !d.flood && !d.pedal && !d.land && !d.taxi, 'lights: by day the rule burns the nav lights and nothing else'); }
       check(typeof CK.lightsFor === 'function' && CK.lightsFor({ sunUp: false }, 0, 10).taxi === 1 && CK.lightsFor({ sunUp: true }, 0, 10).taxi === 0, 'lights: the rule is a pure function of the day, the speed and the height');
     }
     // a still aeroplane on the ground: the venturi makes no suction - and the
@@ -718,7 +721,7 @@ function run() {
       CKa.bind(model, model.data, sim, spec, { fieldElev: 100, pilotKey: 'ch1' });
       check(CKa.dashAction('lightNav') && +CKa.sw.sw_nav === 1 && CKa.handSw.sw_nav === true, 'dash: lightNav throws the nav switch and marks it the hand');
       CKa.frame(1 / 60, sim, null, { day: { sunUp: true }, byHand: true });
-      check(+CKa.sw.sw_nav === 1, 'dash: ...and the light rule (day: nav off) no longer overrides it');
+      check(+CKa.sw.sw_nav === 1, 'dash: ...and the light rule no longer overrides it');
       CKa.dashAction('dimInstr'); CKa.dashAction('dimInstr');
       check(near(+CKa.sw.sw_instr, 0.5) && CKa.handSw.sw_instr === true, 'dash: dimInstr steps a quarter at a time, the hand\'s from then on', CKa.sw.sw_instr);
       check(CKa.dashAction('master') && +CKa.sw.sw_master === 0, 'dash: master toggles');
