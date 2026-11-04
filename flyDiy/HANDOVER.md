@@ -311986,3 +311986,19 @@ JOINPARITY RE-CAPTURED (node tools/join_parity_page.js, tools/fixtures/join_pari
 OPEN, cause not traced, A0's next-week list: the Jodel's and Cub's node/page tank split: node deck 44 L (Cub) / 53 L (Jodel), fit auto; page box 45 L; Cub wgChordTip node 1.7 / page 1.75. Read off a spec diff, not chased. The window's own rows agree between node and page (glazedM2 1.774 both); master's Cub was not captured for a side-by-side.
 
 Gates on this Cub (node, no Chrome), reds named. Same red on master's Cub file: STOL, POD, DMGINST, ENGCONFIG, CONTRACTS, RADIALDIV's cub row (HANDS OFF -46.2 deg, passed to Pilot). Red on the window run only, rows naming other planes (A0's next-week list): RADIALDIV mosquito + mosquito_1, PROCURE 6 (meridian@c172f, tern@twinf), HANDLE 2 (Twin_busher_floats_2), DMGTYRE 2 (Jodel, metal Cessna), APSMOOTH 1 (c172). Not run: PILOT, TOUR, DESTTO, the Chrome gates (the train).
+
+## A0 - train L31c, 4 Nov 2026 20:25
+
+IN (on L31b master af8116aa9, all 11 asked): ready/tailwheels-m ec8bba366, ready/atmo-wrap 211577ef2, ready/pilot1-circuit dae12f30a (G3914), ready/lights-warn 27ee00733, ready/s39-lights 67cf94193, ready/buoy-lamps e6655f61f, ready/aft-bulkhead-2 918c89330, ready/chooser-profile cbac52543, ready/seats-out 7342040f1, ready/cub-window 6a86eb616, ready/thumb-nolive b71ffbf29.
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.13 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE, CONTRACTS c172f + twinf (the float cost; market numbers stale), STOL 6 join rows (fixture one train old, Pilot re-captures for L32a). CLOUD, WEATHER, CANDIDATES green again.
+Red, NEW and not a break:
+- STOL part 1: the "radial" card flies 4 s off the fixture, fly fingerprint only (def and draw same), 1 of 32 cards. Cause not traced: Pilot names it in the re-capture, not blessed by it.
+TIMED (light): 54 red against the 12 Oct baseline (L31b 48). New reds: metal chase loop 21.8 ms + render 14.7 ms; cub taxi chase @HOME p99 66.6 ms, over15 0.027; cub fuseWidth busy 393 -> 806 ms; shader compile on one sample cub cockpit 14.8 -> 37.3 s, metal chase 15.3 -> 32.8 s; cub cockpit garage 95 -> 127.5 s; warm nav -> garage 122.4 / 122.2 s (108.5 / 112.6). One sample per row, not dated to a branch. On the perf-week list.
+COSTS, by branch:
+- aft-bulkhead-2: 4b meshes 407 -> 417, verts +1282, no mass in the ledger (model gap); flight draws on 4b not measured; Cub sling still fails 20.8 cm, off by default; fixes unseen on a real page except one twin frame.
+- lights-warn: phone top bar buttons 34-35 px at 390 wide, 31-32 at 360 with the triangle up, below the 40 px target, no gate; ul1 non-trainer +13.7 kg; saved planes with lights and no electrics show the triangle; nav by day on every plane with electrics, battery only 5.2-6.4 h then bus off; nav lit in flight unseen.
+- pilot1-circuit: longer flights, Cub circuit 406 s; good full stop limit 340 -> 440 s, same-strip 420 -> 560, climb limit 14 -> 16 deg, gate always allows 500 fpm. Step 4 NOT met: Rufus expert touches 70-74 m in vs a 15 m aim, student 35 m past the 250 m end (master 32); Rufus page leg did not reach the mine, node proof only. TOUR East Point + float Cessna mk_sea prop strike intermittent: Pilot answers Thu 12:00.
+- cub-window: JOINPARITY 5 FAIL. Paint unseen in a browser. NEXT WEEK, high: node and page may fly different Cub and Jodel tanks (node 44 / 53 L deck, page 45 L box), cause not traced.
+- seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
+Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
+NEXT: L32a Thu 13:00, the last train, refs by 12:30.
