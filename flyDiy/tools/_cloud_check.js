@@ -376,6 +376,21 @@ console.log('9. the composite never samples the depth it draws into (G1532: \'cu
   }
 }
 
+// 10. THE TEMPORAL PASS (LOOK-1 2a): static rules; the GPU half is tools/look1_temporal.js
+{ const cs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8'), ap = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const fn = (name) => { const i = cs.indexOf('function ' + name + '('); return i < 0 ? '' : cs.slice(i, cs.indexOf('\n  }\n', i)); };
+  const res = fn('histResolve'), hf = cs.slice(cs.indexOf('const HIST_FRAG'), cs.indexOf('// THE DOME MARCH'));
+  yes((cs.match(/\bhN = 0\b/g) || []).length === 2 && /hW = w; hH = h; hN = 0;/.test(cs) && /if \(main\) hN = 0; return;/.test(cs), 'the history is dropped only on a new size and when the clouds were not drawn: never on a camera move');
+  yes(/float w = k1 \/ max\(k0, 1e-3\) > 1\.15 \? max\(uTK\.y, 0\.5\) : uTK\.y;/.test(hf), 'the current frame\'s weight reads the depth step only, not the camera\'s motion');
+  yes(/U\.uFrame\.value = \(S\.shimmer \|\| hist\)/.test(cs) && /const hist = !!main && !!S\.temporal;/.test(cs), 'the jitter moves per frame only when the history is on');
+  yes(res.indexOf('r.render(fsScene, fsCam)') > 0 && res.indexOf('r.render(fsScene, fsCam)') < res.indexOf('uPrevVP.value.multiplyMatrices'), 'the reprojection reads the previous frame\'s matrix: it is written after the draw');
+  yes(/CLOUDS\.draw\(r, cam, rt, true\)/.test(ap) && /opts\.clouds\(renderer, mc, MIR\.rt\)/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'water.js'), 'utf8')), 'only the main view takes the history: the mirror keeps its own march');
+  const dg = cs.slice(cs.indexOf('const DENSITY_GLSL'), cs.indexOf('// ---- the march'));
+  yes(!/\btexture\(uNoise|\btexture\(uDetail/.test(dg) && /textureLod\(uNoise/.test(dg) && /textureLod\(uDetail/.test(dg), 'the mipped noise is read at a named level (a ray has no derivatives)');
+  yes(/noiseMips\(renderer\)/.test(cs) && (cs.match(/generateMipmap\(gl\.TEXTURE_3D\)/g) || []).length === 1 && /generateMipmaps: false/.test(cs), 'the noise\'s levels are built once, after the bake');
+  yes(/histMat\]\.filter/.test(cs), 'the resolve is in the warm list');
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 console.log(`GATE CLOUD: ${fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);

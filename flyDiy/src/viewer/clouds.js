@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -65,7 +65,7 @@ var CLOUDS = (function () {
     uLogFar: { value: 1 }, uDZ: { value: null }, uGlob: { value: null }, uLayerA: { value: new Float32Array(12) }, uProfA: { value: new Float32Array(12) }, uDriftA: { value: new Float32Array(12) },
     uSun: { value: null }, uSunCol: { value: null }, uMoon: { value: null }, uMoonCol: { value: null },
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
-    uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 },
+    uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 }, uPM: { value: 0 },
     uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 }, uEye: { value: null }, uShape: { value: null },
   };
   // THE SHADOW'S SHARED UNIFORM: the scalars by reference through ShaderLib and inject(); the tile itself is
@@ -173,7 +173,7 @@ var CLOUDS = (function () {
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, the upper decks' shadow softness, the ambient's depth fall-off, 0
     // set by the screen march's main() only: the angle of a march texel (rad, 0 = the dome and the sky fit: level 0, as they were)
-    float gPix = 0.0;
+    float gPix = 0.0, gFullJ = 0.0, gTm = 0.0;   // gFullJ: the history is on: a whole step's jitter, per frame, at every distance; gTm: out: the cloud's mean distance (m)
     ${DENSITY_GLSL}
     ${ATMO_GLSL()}
     float hg(float c, float g) { float g2 = g * g; return (1.0 - g2) / (12.5663706 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
@@ -245,8 +245,8 @@ var CLOUDS = (function () {
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       float N = uSteps.x, budget = N * 4.0 + 64.0, used = 0.0;   // the step budget, shared by the decks
-      // a jitter per PIXEL (interleaved gradient noise) breaks the banding; per frame it would shimmer
-      // (no history averages it yet - the temporal pass is owed), so uFrame scales it to nothing by default
+      // a jitter per PIXEL (interleaved gradient noise) breaks the banding. Without a history it is frozen to the screen (uFrame 0): the
+      // clouds slide under a fixed grain, the "smoke pattern" (the study's C1). With one (the main view) it moves per frame and the history averages it
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
       for (int s = 0; s < MAXL; s++) {
         if (s >= n || T < 0.01) break;
@@ -257,7 +257,8 @@ var CLOUDS = (function () {
         // three steps where the weather map is clear, one and a half where the column is but the noise
         // is not - and the march stops when the light is gone (T < 1 %) or the path ends
         float dt0 = clamp((t1 - t0) / N, 24.0, 60.0);
-        float t = t0 + dt0 * j * jitterK * smoothstep(8000.0, 1500.0, t0);   // the jitter's amplitude (a dial: grain against banding) - near only: far, the fine steps need none and the grain read as blocks
+        // with the history the sample positions are averaged over a whole step at every distance: nothing is anchored to the ray's entry any more (the study's C2)
+        float t = gFullJ > 0.5 ? t0 + max(dt0, t0 * 0.004) * j : t0 + dt0 * j * jitterK * smoothstep(8000.0, 1500.0, t0);   // the jitter's amplitude (a dial: grain against banding) - near only: far, the fine steps need none and the grain read as blocks
         float upOD = -1.0;                                          // the decks above, asked at the first dense step
         float stride = 0.0, fine = 0.0;                             // LOOK-1 2a (the study's C3): the screen march steps back on a hit: a stride that lands in cloud may have jumped its edge, so a wisp thinner than the stride came and went with the camera (Schneider 2015)
         for (int i = 0; i < 320; i++) {
@@ -295,6 +296,7 @@ var CLOUDS = (function () {
       if (alpha < 0.002) return vec4(0.0);
       // the aerial perspective and the mist at the cloud's transmittance-weighted mean distance
       float tm = tsum > 0.0 ? tw / tsum : s0[0];
+      gTm = tm;
       vec3 c = col / max(alpha, 1e-4);
       if (uAtmoAP.z > 0.5) { vec4 ap = apSample(d, tm * 0.001); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
@@ -314,14 +316,17 @@ var CLOUDS = (function () {
     varying vec2 vUv;
     uniform sampler2D uDepth;
     uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
-    uniform vec2 uMT;   // 0, the texel's angle (rad)
+    uniform vec2 uMT;   // the history on (1 / 0), the texel's angle (rad)
+    uniform vec2 uMJ;   // the ray's sub-texel offset this frame (uv); the depth and the key stay on the texel's centre, so the ridge's edge does not wobble
     ${DZ_GLSL}
     ${MARCH_GLSL()}
     void main() {
-      gPix = uMT.y;
+      gPix = uMT.y; gFullJ = uMT.x;
       vec2 ndc = vUv * 2.0 - 1.0;
       vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
+      vec3 dr = d;
+      if (uMT.x > 0.5) { vec4 vj = uInvProj * vec4(ndc + uMJ * 2.0, 1.0, 1.0); dr = normalize(mat3(uCamMat) * normalize(vj.xyz / vj.w)); }
       // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
       float dz = texture(uDepth, vUv).r;
       float tScene = dzSky(dz) ? 1e9 : (dzW1(dz) - 1.0) / max(1e-4, -dv.z);
@@ -333,8 +338,47 @@ var CLOUDS = (function () {
       // THIS frame's scene hides whatever is really there (a key at the object's own distance passed the equal test and
       // painted clouds over the treetops - the first cut).
       bool thru = tScene < deckEntry(o, d);
-      outK = vec4((thru ? dzW1(uDZ.x > 0.5 ? 0.0 : 1.0) : dzW1(dz)) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
-      gl_FragColor = march(o, d, thru ? 1e9 : tScene, uDials2.x);
+      vec4 mc = march(o, dr, thru ? 1e9 : tScene, uDials2.x);
+      outK = vec4((thru ? dzW1(uDZ.x > 0.5 ? 0.0 : 1.0) : dzW1(dz)) * 0.001, gTm * 0.001, 0.0, 1.0);    // r: the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %; g: the cloud's own mean distance (km), for the reprojection
+      gl_FragColor = mc;
+    }`;
+  // THE TEMPORAL PASS (LOOK-1 2a; the study's T1 and F2, Schneider & Vos 2015, Karis 2014, Salvi 2016). The march had no history, so a thin edge was re-cut on every camera
+  // move. Per march texel: where this cloud was last frame (the ray x the cloud's mean distance, against the previous frame's matrix, the drift's advance added), the history read
+  // there (bilinear), kept inside the current 3x3's mean +- sigma in YCoCg so a real change gets through, and blended in. THE HISTORY IS NEVER RESET BECAUSE THE CAMERA MOVED: that is the
+  // flicker this exists to cure. The current frame only weighs more off-screen (all of it) and where the scene's depth steps inside the 3x3 (a ridge, the aeroplane: half), where
+  // the texel's history may be another surface. An empty neighbourhood reprojects at 8 km: a turn does not care how far, and a slow eye moves little at that range. The output is
+  // premultiplied: a bilinear read of a straight colour bleeds the empty texels' black into every rim.
+  const HIST_FRAG = () => `precision highp float; precision highp sampler2D;
+    ${GLSL3_OUT}
+    varying vec2 vUv; uniform sampler2D uCur, uKT, uHist; uniform mat4 uInvProj, uCamMat, uPrevVP; uniform vec3 uDelta; uniform vec4 uTK;   // uTK: a history exists, the current's weight, the unit's ratio (the night's pre-exposure), gamma
+    vec3 toY(vec3 c) { return vec3(0.25 * c.r + 0.5 * c.g + 0.25 * c.b, 0.5 * c.r - 0.5 * c.b, -0.25 * c.r + 0.5 * c.g - 0.25 * c.b); }
+    vec3 fromY(vec3 c) { return vec3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z); }
+    void main() {
+      ivec2 p = ivec2(gl_FragCoord.xy), sz = textureSize(uCur, 0);
+      vec4 m1 = vec4(0.0), m2 = vec4(0.0), cen = vec4(0.0); float bestA = -1.0, bestT = 0.0, k0 = 1e9, k1 = 0.0;
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+        ivec2 q = clamp(p + ivec2(i, j), ivec2(0), sz - 1);
+        vec4 s = texelFetch(uCur, q, 0); vec2 k = texelFetch(uKT, q, 0).rg;
+        vec4 y = vec4(toY(s.rgb * s.a), s.a);
+        m1 += y; m2 += y * y; if (i == 0 && j == 0) cen = y;
+        if (s.a > bestA) { bestA = s.a; bestT = k.y; }
+        k0 = min(k0, k.x); k1 = max(k1, k.x);
+      }
+      vec4 o = cen;
+      if (uTK.x > 0.5) {
+        vec4 mu = m1 / 9.0, sg = sqrt(max(m2 / 9.0 - mu * mu, vec4(0.0)));
+        vec4 v = uInvProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+        vec3 d = normalize(mat3(uCamMat) * normalize(v.xyz / v.w));
+        vec4 cp = uPrevVP * vec4(d * (bestA > 0.002 && bestT > 0.0 ? bestT * 1000.0 : 8000.0) + uDelta, 1.0);
+        vec2 up = cp.xy / max(cp.w, 1e-4) * 0.5 + 0.5;
+        if (cp.w > 0.0 && up.x >= 0.0 && up.x <= 1.0 && up.y >= 0.0 && up.y <= 1.0) {
+          vec4 h = texture(uHist, up); h.rgb *= uTK.z; h = vec4(toY(h.rgb), h.a);
+          h = clamp(h, mu - uTK.w * sg, mu + uTK.w * sg);
+          float w = k1 / max(k0, 1e-3) > 1.15 ? max(uTK.y, 0.5) : uTK.y;
+          o = mix(h, cen, w);
+        }
+      }
+      gl_FragColor = vec4(max(fromY(o.rgb), vec3(0.0)), clamp(o.a, 0.0, 1.0));
     }`;
   // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
   // water and the skin reflect the clouds) and the shed's backdrop (one sky) - no scene depth, the
@@ -429,7 +473,7 @@ var CLOUDS = (function () {
   // (gl_FragDepth from the march's key, in the renderer's logarithmic convention): the skin's samples
   // reject it, the sky's take it, the resolve blends - the edge is anti-aliased like any other. One draw
   // in the pass, no second resolve (the 7 ms of G425 was a draw into the target AFTER its resolve).
-  const COMP_FRAG = () => `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
+  const COMP_FRAG = () => `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK, uPM; uniform mat4 uInvProj;
     ${DZ_GLSL}
     float dist(float dz) { return dzW1(dz); }
     void main() {
@@ -439,7 +483,7 @@ var CLOUDS = (function () {
         float w = max(0.0, texture2D(uKeyTex, vUv).r * 1000.0 * (-dv.z));
         gl_FragDepth = wDz(w); }
       vec4 c;
-      if (uUp < 0.5) c = texture2D(uCloudTex, vUv);
+      if (uUp < 0.5) { c = texture2D(uCloudTex, vUv); if (uPM > 0.5) c.rgb /= max(c.a, 1e-4); }
       else {
         // the 3x3 march texels round the pixel, each weighted by a tent on its distance x the nearness
         // of the depth it saw to this pixel's: the jitter's grain averages out, the ridge keeps its edge
@@ -451,7 +495,7 @@ var CLOUDS = (function () {
           vec2 uv = b + o * uTexel;
           vec2 dd = abs(o - f);                                         // texel centre to pixel, in texels
           float tw = max(0.0, 1.5 - dd.x) * max(0.0, 1.5 - dd.y);
-          vec4 s = texture2D(uCloudTex, uv); s.rgb *= s.a;           // premultiplied: an empty texel must not darken its neighbour's colour
+          vec4 s = texture2D(uCloudTex, uv); if (uPM < 0.5) s.rgb *= s.a;           // premultiplied (the history already is): an empty texel must not darken its neighbour's colour
           float dk = texture2D(uKeyTex, uv).r * 1000.0;
           float w = tw / (0.02 + uDepthK * abs(dm - dk) / max(dm, dk));
           acc += s * w; wsum += w; lin += s * tw; lsum += tw;
@@ -584,9 +628,9 @@ var CLOUDS = (function () {
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
-    uni.uMT = uMT;
+    uni.uMT = uMT; uni.uMJ = uMJ;
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uPM: U.uPM, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
     compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
     shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
@@ -611,7 +655,35 @@ var CLOUDS = (function () {
     }
     timer.pending = keep.length > 8 ? keep.slice(-8) : keep;
   }
-  const uMT = { value: (typeof THREE !== 'undefined' && THREE.Vector2) ? new THREE.Vector2() : null };
+  const uMT = { value: (typeof THREE !== 'undefined' && THREE.Vector2) ? new THREE.Vector2() : null }, uMJ = { value: (typeof THREE !== 'undefined' && THREE.Vector2) ? new THREE.Vector2() : null };
+  // THE HISTORY: two half-res targets ping-ponged, the previous frame's matrix (relative to its eye: world coordinates in a float lose the sub-texel), eye, drift and unit.
+  let histMat = null, hN = 0, hI = 0, hW = 0, hH = 0, hFrame = 0, hScale = 1; const hRT = [null, null], hEye = [0, 0, 0], hDrift = [0, 0];
+  const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+  function histMats() {
+    if (histMat) return;
+    histMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: { uCur: { value: null }, uKT: { value: null }, uHist: { value: null }, uInvProj: U.uInvProj, uCamMat: U.uCamMat, uPrevVP: { value: new THREE.Matrix4() }, uDelta: { value: new THREE.Vector3() }, uTK: { value: new THREE.Vector4() } },
+      vertexShader: QUAD_VERT, fragmentShader: HIST_FRAG(), depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
+  }
+  function histResolve(r, camera, w, h) {
+    histMats();
+    if (!hRT[0] || hW !== w || hH !== h) {
+      for (let i = 0; i < 2; i++) { if (hRT[i]) hRT[i].dispose(); hRT[i] = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }); hRT[i].texture.name = 'cloudHistory' + i; }
+      hW = w; hH = h; hN = 0;
+    }
+    const u = histMat.uniforms, e = U.uCamPos.value, sc = U.uScale.value;
+    u.uCur.value = rt.textures[0]; u.uKT.value = rt.textures[1]; u.uHist.value = hRT[hI].texture;
+    // this cloud sits where last frame's ray ended, plus the drift's advance: p_prev = p + (drift_now - drift_prev) (density: q = (p + drift) / period), deck 0's: a metre a frame at most
+    u.uDelta.value.set(e.x - hEye[0] + drifts[0][0] - hDrift[0], e.y - hEye[1], e.z - hEye[2] + drifts[0][1] - hDrift[1]);
+    u.uTK.value.set(hN > 0 ? 1 : 0, S.tBlend, hN > 0 && hScale > 0 ? sc / hScale : 1, S.tGamma);
+    const q = tBegin('hist');
+    r.setRenderTarget(hRT[1 - hI]); quad.material = histMat; r.render(fsScene, fsCam);
+    tEnd(q);
+    hI = 1 - hI; hN++;
+    // the matrix for NEXT frame's reprojection, written after the draw: the shader read last frame's
+    _hm.copy(camera.matrixWorld); _hm.setPosition(0, 0, 0); _hm.invert(); u.uPrevVP.value.multiplyMatrices(camera.projectionMatrix, _hm);
+    hEye[0] = e.x; hEye[1] = e.y; hEye[2] = e.z; hDrift[0] = drifts[0][0]; hDrift[1] = drifts[0][1]; hScale = sc;
+    return hRT[hI];
+  }
   // both cubes' levels, once, when the last slice is in
   function noiseMips(r) {
     const gl = r.getContext(); if (!gl.generateMipmap || !r.properties || !r.state) return;
@@ -683,6 +755,7 @@ var CLOUDS = (function () {
   // update(day, camera, world): every frame from the world's dayApply - the layer, the map, the light, the drift
   const _T = [0, 0, 0], _E = [0, 0, 0], _Em = [0, 0, 0], _Eg = [0, 0, 0], _Tv = [0, 0, 0], _Ev = [0, 0, 0], _Egv = [0, 0, 0], _w4 = [0, 0, 0, 0];
   const _cc = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : null;
+  const _hm = (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
   let sunEl = 0, layKey = '', sunKey = 0, keyDir = [0, 1, 0];   // sunEl: the KEY's elevation (G2600: the moon's when it is the key)
   const drifts = [[0, 0], [0, 0], [0, 0]], winds = [[3, 1], [3, 1], [3, 1]];
@@ -927,6 +1000,7 @@ var CLOUDS = (function () {
   // path never comes here. The copy: the target's depth format (a blit needs it), a 1-byte colour beside it.
   let dcp = null;
   try { const v = new URLSearchParams(location.search).get('clouddc'); if (v !== null) S.depthCopy = +v; } catch (e) {}
+  try { const v = new URLSearchParams(location.search).get('cloudt'); if (v !== null) S.temporal = +v; } catch (e) {}   // ?cloudt=0: no history, the A/B dial
   function depthFor(r, target) {
     if (target.samples > 0 || !S.depthCopy) return target.depthTexture;   // S.depthCopy 0 (?clouddc=0): the old read, an A/B dial
     const D = target.depthTexture, w = target.width, h = target.height;
@@ -944,10 +1018,11 @@ var CLOUDS = (function () {
     const q = tBegin('depthCopy'); r.copyTextureToTexture(D, dcp.depthTexture); tEnd(q);
     return dcp.depthTexture;
   }
-  // draw(renderer, camera, target): the aa overlay - the march at its resolution, then the composite over the target
-  function draw(r, camera, target) {
+  // draw(renderer, camera, target, main): the aa overlay - the march at its resolution, then the composite over the target.
+  // main: the player's view (the only one with a history: the water's mirror and the hangar's captures march for other eyes through this same function)
+  function draw(r, camera, target, main) {
     if (compMesh) compMesh.visible = false;
-    if (!active() || !target || !target.depthTexture) return;
+    if (!active() || !target || !target.depthTexture) { if (main) hN = 0; return; }
     const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
     if (!bakeStep()) return;
     frame++;
@@ -968,14 +1043,18 @@ var CLOUDS = (function () {
     U.uInvProj.value.copy(camera.projectionMatrixInverse);
     U.uCamMat.value.copy(camera.matrixWorld);
     U.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
-    U.uRes.value.set(w, h); U.uFrame.value = S.shimmer ? (frame % 64) : 0;
-    uMT.value.set(0, 2 / (camera.projectionMatrix.elements[5] * h));
+    const hist = !!main && !!S.temporal;
+    if (hist) hFrame++;
+    U.uRes.value.set(w, h); U.uFrame.value = (S.shimmer || hist) ? ((hist ? hFrame : frame) % 64) : 0;
+    uMT.value.set(hist ? 1 : 0, 2 / (camera.projectionMatrix.elements[5] * h));
+    if (hist && S.tSub) uMJ.value.set((halton((hFrame % 16) + 1, 2) - 0.5) / w, (halton((hFrame % 16) + 1, 3) - 0.5) / h); else uMJ.value.set(0, 0);
     U.uLogFar.value = Math.log2(camera.far + 1);
     U.uDZ.value.set(r.capabilities && r.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far);
     U.uUp.value = (S.upsample && k < 1) ? 1 : 0; U.uDepthK.value = S.depthK;
     r.getClearColor(_cc); const prevCA = r.getClearAlpha();
     let q = tBegin('bind'); r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.clear(true, false, false); tEnd(q);
     q = tBegin('pass'); quad.material = marchMat; r.render(fsScene, fsCam); tEnd(q);
+    U.uCloudTex.value = hist ? histResolve(r, camera, w, h).texture : rt.textures[0]; U.uPM.value = hist ? 1 : 0;
     r.setRenderTarget(target); r.setClearColor(_cc, prevCA);
     marched = true;
     if (compMesh) compMesh.visible = true;
@@ -1051,7 +1130,7 @@ var CLOUDS = (function () {
   // day's cover was not measured yet (lastCover 0), the list came back empty, and the march linked on the first world
   // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
   // B9 (G1020): and the probe's (tileStat / tileMean read the shadow tile through it: it linked on the first flight frames)
-  function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
+  function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); histMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat, histMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
   // warmDraw(r) (G1998e, HWCOV CLOUD-MRT-WARM): THE MARCH'S FIRST DRAW, under the loading screen. The march writes two
   // targets (outC, outK - the cloud and its key, `rt` count 2), and ANGLE on D3D11 links a program's pixel shader for its
   // FIRST output only: the warm's compile (warmList, into a one-target PLAIN_RT) never builds the two-output variant, and the

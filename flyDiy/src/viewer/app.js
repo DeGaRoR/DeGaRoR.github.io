@@ -268,7 +268,7 @@
     CLOUDS.init(renderer);
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
-    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt); });
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
