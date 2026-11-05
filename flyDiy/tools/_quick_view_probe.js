@@ -76,4 +76,17 @@ sc.traverse(o => {
   }
 }
 // (plain arrays: the chain's child hands its result back as JSON - the positions in tenths of a millimetre, as integers)
-return { V: V.map(x => Math.round(x * 1e4)), C, I: opaque.concat(clear), nOpaque: opaque.length, parts, trisIn };
+// THE FOCUS (the pylon session): the box of the engine layer's own mounting - meshes named engPylon*, or (an older
+// drawing) the meshes the layer holds outside its units' groups (edEng*) - for quick_view's --closeup
+let focus = null;
+{
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], bb = new THREE.Box3();
+  const take = o => { if (!o.isMesh || !shown(o)) return; bb.setFromObject(o); if (bb.isEmpty()) return;
+    for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], bb.min.getComponent(a)); hi[a] = Math.max(hi[a], bb.max.getComponent(a)); } };
+  let named = 0;
+  sc.traverse(o => { if (o.isMesh && /^engPylon/.test(o.name || '')) { take(o); named++; } });
+  if (!named) sc.traverse(o => { if (o.name !== 'cageLayer:eng') return;
+    o.traverse(m => { for (let p = m; p && p !== o; p = p.parent) if (/^edEng/.test(p.name || '')) return; take(m); }); });
+  if (isFinite(lo[0])) focus = [lo, hi];
+}
+return { V: V.map(x => Math.round(x * 1e4)), C, I: opaque.concat(clear), nOpaque: opaque.length, parts, trisIn, focus };

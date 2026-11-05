@@ -2477,11 +2477,13 @@ const wingPost = ctx => {
     }
     scene.add(group2);
     plane1 = Object.assign({ k: 1, def, group: group2, semi: PL1.semi, spar: WN2,
-                             rootY: rootYOf(PL1), zRoot: zRoot2 }, probesOf(probe2));
+                             rootY: rootYOf(PL1), zRoot: zRoot2, skinGeos: probe2 }, probesOf(probe2));
   }
   const plane0 = { k: 0, def, group, semi: def.spec.geom && def.spec.geom.semi,
                    spar: WN, rootY: rootYOf(def.parts.planes && def.parts.planes[0]),
-                   zRoot, underAt, overAt, leAt, teAt, box: wbox, wingRay };
+                   zRoot, underAt, overAt, leAt, teAt, box: wbox, wingRay,
+                   // (HULL-B38: the skin's own geometries, cage metres - the pylon indexes them for its rays)
+                   skinGeos: skinProbe };
   const planes = plane1 ? [plane0, plane1] : [plane0];
   let lowest = 0, upper = 0;
   planes.forEach((pl, i) => { if (pl.rootY < planes[lowest].rootY) lowest = i;
