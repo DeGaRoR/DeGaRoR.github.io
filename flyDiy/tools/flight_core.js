@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: dbdb6ace8fad73d7
+// body-sha256: 264568c010b6706b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -470,6 +470,15 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.27 },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
+  // HULL-B49 (the user: "you may add the 912iS"): THE 100 hp 912 - the Super Petrel LS's engine. Rotax 912 iS Sport:
+  // 73.5 kW (100 hp) at 5 800 rpm, 1 352 cm3 (84 x 61 mm), fuel-injected, gearbox i = 2.43, 63.6 kg with its ECU and
+  // generator (flyrotax.com, as recalled - INFERRED to the 912 UL's scope). The prop is the 912 UL's Warp Drive at the
+  // new power through genPropSynth (the same call gives the UL row's 1376 / 0.193 exactly). Price: the ladder, +22 %
+  rotax912is_warp: {
+    price: 22000,
+    engine: { name: 'Rotax 912 iS', mass: 63.6, powerW: 73500, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.43 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1583, kV2: 0.193 },
+  },
   o200_eprops: {
     price: 24000,
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2750 },
@@ -934,7 +943,7 @@ function genEnginePrice(family, powerW) {
 // mass where it always did — absent means today, byte for byte.
 const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
-  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
+  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
   rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
   verner7u_wood: 0.12, rotec3600_std: 0.12, clerget9b_wood: 0.14,
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
@@ -22362,7 +22371,7 @@ const GEN_DRIVE = {
     o540_hartzell: { cyl: 6 }, io550_hartzell3: { cyl: 6 }, io720_hartzell3: { cyl: 8 }, vw2180_wood: { cyl: 4 },
     jabiru2200_std: { cyl: 4 }, mikron3_wood: { cyl: 4 }, gipsymajor1_wood: { cyl: 4 }, ranger440_wood: { cyl: 6 },
     hirth508_wood: { cyl: 8 }, argus10c_wood: { cyl: 8 },
-    rotax912_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 }, rotax916_carbon: { cyl: 4 },
+    rotax912_warp: { cyl: 4 }, rotax912is_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 }, rotax916_carbon: { cyl: 4 },
     rotax582_ivo: { cyl: 2, rpmMax: 6800 }, rotax503_wood: { cyl: 2 }, rotax277_pusher: { cyl: 1 },
     r1830_hs23e50: { cyl: 14 }, r985_hs2b20: { cyl: 9 }, r1340_hs12d40: { cyl: 9 }, r755_hs2b: { cyl: 7 }, w670_hs2b: { cyl: 7 },
     m14p_v530: { cyl: 9 }, verner7u_wood: { cyl: 7 }, rotec3600_std: { cyl: 9 }, clerget9b_wood: { cyl: 9 },
@@ -62438,7 +62447,7 @@ const TECH_TABLE = {
   'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
   'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
   'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2, 'eng:merlin66_rotol4': 2,
-  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3,
+  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
