@@ -638,24 +638,47 @@ function drawStubs(scene, P) {
     || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
   if ('side' in mat) mat.side = THREE.DoubleSide;
   sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
-  const NC = 24, NSp = 6, sec = [];                                   // the section: the upper surface LE->TE, then the flat back
-  for (let i = 0; i <= NC; i++) { const xc = 0.5 * (1 - Math.cos(Math.PI * i / NC)); sec.push([xc, 1]); }
-  for (let i = NC - 1; i >= 1; i--) { const xc = 0.5 * (1 - Math.cos(Math.PI * i / NC)); sec.push([xc, 0]); }
+  // HULL-B27 (the user: "proper sponsons, with love into the model"): THE STUB, MODELLED. The section is the stub's
+  // NACA thickness over a flat planing bottom, the bottom ROUNDED UP INTO THE NOSE over the first 30 % (a leading edge,
+  // not a knife where the flat meets the curve); the planform's leading edge sweeps (the chord closes 70 % from the
+  // front) and the tip closes on the wing's own half-ellipse over the outer quarter (no flat cap); the root FLARES into
+  // the hull's side - the chord and the thickness swell over the inner 14 % and the root section starts inside the hull,
+  // a fillet. 18 cosine-spaced stations x 40 around, one smooth grid. The water reads the stub's table (sponsonTable:
+  // the straight-tapered stub at its mean chord); the tip's rounding and the fillet are within ~5 % of its volume
+  const NC = 20, NSp = 18, U0 = 0.75, UF = 0.14, sec = [];
+  for (let i = 0; i <= NC; i++) sec.push([0.5 * (1 - Math.cos(Math.PI * i / NC)), 1]);          // upper, LE -> TE
+  for (let i = NC - 1; i >= 1; i--) sec.push([0.5 * (1 - Math.cos(Math.PI * i / NC)), 0]);      // lower, TE -> LE
   const yt = xc => 5 * t * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+  const nose = xc => xc < 0.3 ? (1 - xc / 0.3) ** 2 : 0;                                      // the bottom's rise into the LE
   for (const sd of [-1, 1]) {
     const pos = [], idx = [], n = sec.length;
     for (let j = 0; j <= NSp; j++) {
-      const u = j / NSp, cl = cR * (1 - (1 - tp) * u), xL = sd * (near.bd - 0.03 + u * (span + 0.03)), yL = yLow0 + u * span * dih;
-      for (const [xc, up] of sec) pos.push(xL, yL + (up ? 2 * yt(xc) * cl : 0), zMid + (0.5 - xc) * cl);
+      const u = 0.5 * (1 - Math.cos(Math.PI * j / NSp));
+      const fil = u < UF ? (1 - u / UF) ** 2 : 0;                                            // the root fillet's swell
+      const tipK = u > U0 ? Math.sqrt(Math.max(0.0064, 1 - ((u - U0) / (1 - U0)) ** 2)) : 1;   // the tip's half-ellipse
+      const cl = cR * (1 - (1 - tp) * u) * tipK * (1 + 0.28 * fil);
+      const zLE = zMid + 0.5 * cR * (1 + 0.28 * fil) - 0.7 * (cR * (1 + 0.28 * fil) - cl);
+      const xL = sd * (near.bd - 0.06 + u * (span + 0.06)), yL = yLow0 + u * span * dih;
+      const th = 1 + 0.9 * fil;
+      for (const [xc, up] of sec) {
+        const T = 2 * yt(xc) * cl * th;
+        pos.push(xL, yL + (up ? T * (1 - 0.18 * nose(xc)) : -0.18 * T * nose(xc)) + (up ? 0 : 0), zLE - xc * cl);
+      }
     }
     for (let j = 0; j < NSp; j++) for (let i = 0; i < n; i++) {
       const a = j * n + i, b = j * n + (i + 1) % n, c2 = (j + 1) * n + i, d = (j + 1) * n + (i + 1) % n;
       idx.push(a, c2, b, b, c2, d);
     }
-    const e0 = NSp * n; for (let i = 1; i + 1 < n; i++) idx.push(e0, e0 + i, e0 + i + 1);
+    // the tip's last section is ~8 % of the chord: closed on its own centre (a point, the grid's normals round it)
+    const e0 = NSp * n, ctr = [0, 0, 0];
+    for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) ctr[q] += pos[(e0 + i) * 3 + q] / n;
+    const ci = pos.length / 3; pos.push(...ctr);
+    for (let i = 0; i < n; i++) idx.push(e0 + i, ci, e0 + (i + 1) % n);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, mat); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); m.castShadow = true;
+    // (the winding: outward whatever the side - the mirror flips it, so the left stub's faces are turned)
+    if (sd < 0) { const I = g.index.array; for (let q = 0; q < I.length; q += 3) { const tq = I[q + 1]; I[q + 1] = I[q + 2]; I[q + 2] = tq; } g.computeVertexNormals(); }
+    const m = new THREE.Mesh(g, mat); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); m.castShadow = true; m.receiveShadow = true;
     sponGroup.add(m);
   }
   scene.add(sponGroup);

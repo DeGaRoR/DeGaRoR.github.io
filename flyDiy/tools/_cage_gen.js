@@ -429,7 +429,16 @@ function cageResolve(S) {
   // tightening section carries no skin either (truss only, interior
   // pass). buildCage2 emits the rod as its own closed component.
   const ROD = !MIR && S.rod ? S.rod : null;
-  const zRodRoot = HTAP ? zTaperP : zPaxA;            // (HULL-B23: the rod leaves the buoyant taper's aft ring)
+  // HULL-B27: THE BUOYANT TAPER'S TAIL CONE (the user, 5 Nov: "by using the taper section as the base for building
+  // around it ... professional modeling quality, not sketch"): aft of the taper's own pillar the section closes on a
+  // faired cone onto a collar round the rod - the rod grows out of the cone's tip instead of out of a flat disc. Its
+  // length: HT_CONE x the taper end's half-height (the larger of its half-height and half-width); the collar HT_COLLAR x
+  // the rod's radius. The rod leaves the collar (its root 10 mm inside it, as it left the pillar)
+  const HT_CONE = 1.6, HT_COLLAR = 1.35;
+  const htEnd = HTAP ? (() => { const tw = S.taper && S.taper.len > 0 ? W * (S.taper.w || 1) : W;
+    return Math.max(0.5 * (S.aft.roofY - S.aft.keelYA), tw); })() : 0;
+  const zConeTip = HTAP ? zTaperP - HT_CONE * htEnd : null;
+  const zRodRoot = HTAP ? zConeTip : zPaxA;           // (HULL-B23: the rod leaves the buoyant taper; B27: its cone's tip)
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -457,6 +466,9 @@ function cageResolve(S) {
   // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
   // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
   const taperD = dimF(taperD0, 'boom');
+  // (the cabin's aft pillar's dims - the pax frame's with a taper, the boom frame's without; HULL-B27's taper rings read
+  // them before the pillar itself is added)
+  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom'); }
   const tailDF = dimF(tailD, 'tail');
   if (!MIR && !ROD) {
   add(fullRing('tailCap', zCap, tailDF), { mat: CAGE_MAT.plain });
@@ -500,10 +512,41 @@ function cageResolve(S) {
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
   }
-  // HULL-B23: the buoyant taper on a rod - the same pillar pair, skinned (the rod leaves pilTaperA's face)
+  // HULL-B23: the buoyant taper on a rod - the same pillar pair, skinned. HULL-B27: LOFTED, NOT RULED - the tail cone
+  // aft of the pillar (above: onto the rod's collar) and, between the cabin's aft pillar and the taper's, the section
+  // carried on eased laws instead of one straight loft: the plan holds the cabin's beam and closes on a convex curve
+  // (1 - t^1.7), the deck drops off the cabin's roof early and arrives FLAT on the taper's pillar ((1 - t)^1.5: tangent
+  // to the pillar band and the cone - no kink, and the propeller over the wing clears it), the keel runs the straight
+  // afterbody line (the planing run's: a straight buttock releases the water cleanly), the gunwale a straight line. Four rings; the
+  // hull's V goes on each (cageHullVee), so the water's table reads the same body (cageHullLines)
   if (!MIR && ROD && HTAP) {
+    const yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
+    const e = taperD, Wk1 = e.Wk != null ? e.Wk : e.Ww, yc1 = 0.5 * (e.roofY + e.keelY);
+    const hT = 0.5 * (e.roofY - e.keelY), rCol = HT_COLLAR * ROD.r;
+    // the cone: tip -> taper end (added aft first). Its section shrinks on an ogive (1 - u^1.6, u from the taper end),
+    // its centre walks down onto the rod's axis on the same law, the collar a circle-ish ring of rCol
+    for (const u of [1, 0.86, 0.62, 0.34]) {
+      const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
+      const yc = yAx(z) + (yc1 - yAx(z)) * g, sc = h => rCol + (h - rCol) * g;
+      add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+        Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
+        ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
+        waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
+    }
     add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_PILLAR('pillarTaper') });
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
+    // the taper bay's own rings, aft -> fore (t from the cabin's aft pillar, 0, to the taper's, 1)
+    const c = pilPaxADh(), Wk0 = c.Wk != null ? c.Wk : c.Ww;
+    const lp = (a0, a1, f) => a1 + (a0 - a1) * f;
+    for (const t of [0.8, 0.6, 0.4, 0.2]) {
+      const z = zPaxA + (zTaperA - zPaxA) * t, fw = 1 - Math.pow(t, 1.7), fr = Math.pow(1 - t, 1.5), fk = 1 - t;
+      add(fullRing('htTaper' + Math.round(t * 100), z, {
+        Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fw),
+        roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
+        keelY: lp(c.keelY, e.keelY, fk),
+        waistY: (c.waistY != null || e.waistY != null) ? lp(c.waistY != null ? c.waistY : S.waistY, e.waistY != null ? e.waistY : S.waistY, fk) : undefined }),
+        { mat: CAGE_MAT.taper });
+    }
   }
   // THE AERO AFT, CUT 2 (2026-09-04, the user: "reuse the topology of the
   // back of the fuselage rather than reinventing ... it should inherit the
@@ -515,8 +558,8 @@ function cageResolve(S) {
   // and the cap at the tip is the tail cap, domed by its crease.
   // T2.1: the pax pillar's aft ring — the passenger frame with a taper (the
   // pair is a cabin-section prism), the BOOM frame without
-  const pilPaxAD = TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom');
-  const AA = ROD && S.config && S.config.aeroAft;
+  const pilPaxAD = pilPaxADh();
+  const AA = ROD && !HTAP && S.config && S.config.aeroAft;   // (HULL-B27: a hull's buoyant taper IS the afterbody - no aero cone)
   if (!MIR && AA) {
     const baseD = pilPaxAD;
     const zTipA = zPaxA - AA.len;
