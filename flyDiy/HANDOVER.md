@@ -312441,3 +312441,30 @@ econ_sim --seeds=20: frugal pace 3 / 6 / 11, router share 0.21 - the agreed econ
 buys a refresh: these prices do not reach it).
 **COSTS / UNSEEN:** per frame none (a bill at the stop). The refresh buttons and the upkeep row unseen in a page (node
 gates and the smoke's static rows only). Perfect upkeep costs nothing while there are no running costs: the obvious pick.
+
+## WEAR-PRICE.2 - BROKEN AND GROUNDED (REPAIR ON THE WEAR TAB: PAID IN A CAREER, FREE IN THE SANDBOX), RECOVER AND REBUILD, THE UPKEEP AUTHORED AND LOCKED IN A CAREER (2026-11-05, for A0, cloud - node; branch claude/wear-tab)
+The user: "We ruled that we were not carrying the visual damage into the shed, and I think it's right, since planes can
+really explode. So we should probably simply have the plane model, maybe greyed out and listed as broken and grounded,
+and an option in the new tab allows paying for repair. The option is free in sandbox mode (everything is free in sandbox
+mode)"; "the idea with the rate selector is rather to author second hand planes and set this myself, then publish and
+locked in career".
+- **BROKEN AND GROUNDED:** the flight's end no longer charges. app.js flBreak -> 71_ playerBreakBill (76_ econRepairBill
+  off the def and sim.damage()) -> playerBreak: the fleet row's dm10 `damage` record { damaged, bill, cost, why, at },
+  career AND sandbox; the TUTORIAL records nothing. Grounded: econFlyable, 71_ playerFlyStart ("broken and grounded:
+  repair it on the WEAR tab") and the roll-out (brokenRollRefused: the bench greys, the WEAR tab opens) refuse it; the
+  rack greys its row ("broken, grounded", .gfBroken). The WEAR tab's head says what broke, with Repair: econRepair in a
+  career (the bill paid, a repair line), playerRepairFree in the sandbox (FLYDIY_STORE.broken / repair). No visual
+  damage in the shed; the parked 3D model is NOT greyed (the rack row is).
+- **RECOVER / REBUILD** beside repaint / overhaul (76_ econRestoreCost, off 61_'s new `parts.cover` { paintA, clothA }
+  - a new key on every def): repaint = paintM2 x the painted area (no longer the paint line, which carries the cloth);
+  recover (fabric only) = coverM2 x cloth + the paint, the condition years to 0; rebuild = recover or repaint +
+  overhaul + 0.3 (ECON_WEAR.rebuildK, judgement) of fuselage + wings + bracing + tail + gear, years and hours to 0. On
+  the stock Cub: repaint, recover, overhaul 9 350, rebuild (GATE WEARPRICE prints each). No refresh while broken; the
+  sale stays capped at what was paid. Career airframes only (the sandbox sets the age and the look itself).
+- **THE UPKEEP:** authored on the WEAR tab outside a career (spec.aging.care), read-only in a career; econCareSet and
+  the career's setCare door are gone (and econRepairCharge with the stop's charge).
+- GATES: WEARPRICE rewritten (--selftest 13 of 13), WEARTAB, ECON, PRICE, PROCURE, CERTGATES (the roll-out's refusal
+  sits before the route's, its sign-and-warn line follows the route's as the gate reads), ACCEPT, BENCH, STORY,
+  CONTRACTS, PILOTS, ROUTES, PLAYER, GAMEPREM, EDBUGS, SAVE, STORAGE, CARDS, BUILD, UISMOKE, UISMOKE-PHONE, JOIN,
+  ENERGYBASE, DMGPAGEW, PANEL: PASS. UNSEEN in a page: the broken block, the repair, the four refresh buttons, the greyed
+  rack row (node gates and static rows only).
