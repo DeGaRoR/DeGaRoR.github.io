@@ -3886,7 +3886,7 @@ function cageInterior(m, S) {
     // ---- the fasteners: a line of pan-head screws or dome rivets round each face, bare metal (the alloy liner's section) ----
     if (BH.fast) {
       const bL = D > 0 ? 0 : b, screw = BH.fast === 1;
-      const r = (screw ? 0.0052 : 0.0032) / ps, pr = (screw ? 0.0022 : 0.0016) / ps, gap = (screw ? 0.085 : 0.038) / ps, K = 6;
+      const r = (screw ? 0.0052 : 0.0048) / ps, pr = (screw ? 0.0022 : 0.0024) / ps,   /* NIGHT-PHOTO, the user: "see the rivets a little more": 3.2 -> 4.8 mm */ gap = (screw ? 0.085 : 0.038) / ps, K = 6;
       const head = (x, y, z) => {
         const c = V.push([x, y, z + pr]) - 1, lo = [], hi = [];
         for (let i = 0; i < K; i++) {
