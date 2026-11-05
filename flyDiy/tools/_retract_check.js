@@ -500,6 +500,32 @@ console.log('10 THE FOLD (G1)');
     const none = docs({ gearDoors: 0, gearLegDoor: 0 }).G.doors || [];
     check(none.length === 0, 'doors off: an open well');
     check(D6.every(d => R.parts.some(p => p.name === d.name && p.o0)), 'every door is a part of the one kinematics (the flight poses it)'); }
+  // ---- 18. THE CATALINA (P2 v3): the PBY-5A's mains as its operator's handbook draws them (Canso handbook, Figs 12-13)
+  console.log('18 THE CATALINA (P2 v3)');
+  { const ac = D.ARCHETYPES.find(x => x.key === 'c172');
+    const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
+    const Sc = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25 }, garage: bc });
+    const Gc = Sc.W.CAGE_GEAR, CMc = C.GEAR_MECH, Rc = Gc.mech, Cu = Rc.units.L, Ic = Gc.mechInfo.L, AFc = Gc.AF;
+    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d) }; };
+    const top = Cu.top, ax = Cu.axle, legLen = Math.hypot(top[0] - ax[0], top[1] - ax[1]);
+    let inPlane = 0, tiltMax = 0, wheelTilt = 0, stretch = 0;
+    for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, { Q, M, P } = pose(g), t = P(top), a = P(ax);
+      inPlane = Math.max(inPlane, Math.abs(t[2] - top[2]), Math.abs(a[2] - ax[2]));
+      tiltMax = Math.max(tiltMax, Math.acos(Math.max(-1, Math.min(1, (t[1] - a[1]) / Math.hypot(t[0] - a[0], t[1] - a[1], t[2] - a[2])))) * 180 / Math.PI);
+      const w = CMc.gearApp(M, Cu.wAx); wheelTilt = Math.max(wheelTilt, Math.asin(Math.min(1, Math.abs(w[2]))) * 180 / Math.PI);
+      const lp = P(Ic.Lp); stretch = Math.max(stretch, Math.hypot(lp[0] - Ic.S[0], lp[1] - Ic.S[1], lp[2] - Ic.S[2]) - Ic.D); }
+    check(inPlane < 1e-6, 'the motion is in the hull\'s section (about fore-aft axes: no aft swing, no tuck)', (inPlane * 1000).toFixed(3) + ' mm off the plane');
+    check(tiltMax < 25 && wheelTilt < 1e-6, 'the leg stays near upright, the wheel upright in its fore-aft plane', 'leg ' + tiltMax.toFixed(1) + ' deg at the most');
+    check(stretch <= 0.003 && Gc.mechInfo.catStrut, 'the side strut is longest gear down (locked straight) and folds - never stretched', (stretch * 1000).toFixed(1) + ' mm');
+    const cu = pose(0).P(ax);
+    const p1 = pose(0.5).P(ax), r0 = ax;
+    check(cu[1] > ax[1] + 0.5 * legLen && Math.abs(cu[0]) < Math.abs(ax[0]) - 0.05, 'up and in: the wheel rises and comes in against the side',
+          'up ' + (cu[1] - ax[1]).toFixed(2) + ' m, in ' + (Math.abs(ax[0]) - Math.abs(cu[0])).toFixed(2) + ' m');
+    check(p1[1] - r0[1] > (cu[1] - r0[1]) * 0.5, 'it rises first (the jack lifts it, it comes in last - "a tendency to fall into the well")',
+          'half way: ' + Math.round(100 * (p1[1] - r0[1]) / (cu[1] - r0[1])) + ' % of the rise, ' + Math.round(100 * (Math.abs(r0[0]) - Math.abs(p1[0])) / (Math.abs(r0[0]) - Math.abs(cu[0]))) + ' % of the way in');
+    check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
+          'the V-strut\'s jack and the side strut are parts of the one kinematics');
+    check((Gc.cutsSide || []).length === 2, 'a recess in each side (the wheel and its leg)', (Gc.cutsSide || []).length + ' side wells'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

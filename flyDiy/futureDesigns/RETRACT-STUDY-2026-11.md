@@ -1957,7 +1957,36 @@ needs:
 - the well in the hull's side where the wheel ends, upright. The present round recess, the tyre's own outline, is
   that shape already.
 
-That is proposed, not built.
+**Built (P2 v3, 5 Nov, the same day).** The core's kinematics are unchanged. The motion is expressed in what the core
+already poses:
+- **The rise.** The shortening's slide, made to carry the whole unit (`shorten.whole`, `t0` -1e9): the jack lifts
+  the leg straight up, done 60 % of the way.
+- **The swing in.** ONE turn about the fore-aft axis through a POLE solved per build. That is the point the
+  displacement turns about, so the wheel lands where it is stowed:
+  - level with the leg's head as drawn (the side's fitting height);
+  - its centre 40 mm inside the side, the tyre about half out.
+
+  The angle is solved too (6 to 40 degrees): the least that keeps the stowed leg inside the side. A PBY's side is
+  upright and its leg too; a hull with tumblehome leans it in.
+- **The leg's head is free** (`legOleo` `RT.free`). The oleo stands upright over its axle, outboard of the hull, with no
+  trunnion lugs left in the air. The wheel rides OUTBOARD of its leg, as in the drawing (v2 had it inboard). `C.top`
+  is the head and `C.hinge` the pole; every use that means the leg reads `topOf(C)`.
+- **The side strut.** A knee from a fitting inside the hull to the leg near its head. The fitting is searched so the
+  strut is longest gear down (straight, locked) and never stretches. It folds down.
+- **The V-strut's jack.** Its barrel runs from a fitting high on the hull's side, its rod from the leg's head. The
+  jack contracts.
+- **The recess** takes the wheel and its leg.
+- **GATE RETRACT section 18** (on the c172 battery card):
+  - the motion lies in the section plane (0.000 mm off it);
+  - the leg stays near upright (13.7 degrees at the most), the wheel upright;
+  - the strut never stretches;
+  - up 0.69 m and in 0.19 m;
+  - half way it has done 93 % of the rise and 69 % of the way in;
+  - the jack and the strut are parts of the one kinematics;
+  - a recess on each side.
+- **The fit is RED on that card, and rightly.** The C172's side is upright only between -0.3 and +0.3 m, and its
+  round bilge falls away under the wheel, so the stowed unit is 125 mm out and its head 0.86 m into the cabin. The
+  PBY's flat-sided hull, about 3 m deep, is what makes the arrangement possible. It waits for a real hull (G7).
 
 **THE AMPHIBIOUS FLOATS, FROM THE USER'S PHOTOGRAPHS** (5 Nov). These are observations, to be checked against the
 manufacturers' data:
