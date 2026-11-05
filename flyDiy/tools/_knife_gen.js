@@ -455,13 +455,18 @@ function knifeCut(m, win, opt) {
     return r.id;
   };
   // the recessed point: along the skin's normal by `depth` (a window), or straight up to the ceiling (a well)
-  const recess = r => CEIL != null ? [r.P[0], Math.max(ceilAt(r.P[0], r.P[2]), r.P[1]), r.P[2]]
+  // (GR: `opt.ceilP` - a well in any frame: the recess goes INWARD (-n0) to the target its function gives for the point,
+  // in the inward coordinate a . P - the Catalina's side recess)
+  const CP = typeof opt.ceilP === 'function' ? opt.ceilP : null, aIn = [-n0[0], -n0[1], -n0[2]];
+  const recess = r => CP ? (() => { const s0 = r.P[0] * aIn[0] + r.P[1] * aIn[1] + r.P[2] * aIn[2], t = Math.max(0, CP(r.P) - s0);
+      return [r.P[0] + aIn[0] * t, r.P[1] + aIn[1] * t, r.P[2] + aIn[2] * t]; })()
+    : CEIL != null ? [r.P[0], Math.max(ceilAt(r.P[0], r.P[2]), r.P[1]), r.P[2]]
     : [r.P[0] - r.N[0] * depth, r.P[1] - r.N[1] * depth, r.P[2] - r.N[2] * depth];
   const paneId = r => {
     if (r.pid < 0) {
       r.pid = V.length;
       V.push(recess(r));
-      N.push(CEIL != null ? n0.slice() : r.N.slice());
+      N.push(CEIL != null || CP ? n0.slice() : r.N.slice());
       if (A) A.push(r.A ? r.A.slice() : aZ());
     }
     return r.pid;
@@ -518,9 +523,11 @@ function knifeCut(m, win, opt) {
     for (const i of f.v) { const uv = uvOf(m.V[i]); a0 = Math.min(a0, uv[0]); a1 = Math.max(a1, uv[0]); b0 = Math.min(b0, uv[1]); b1 = Math.max(b1, uv[1]); }
     return a1 < bb.u0 - 1e-9 || a0 > bb.u1 + 1e-9 || b1 < bb.v0 - 1e-9 || b0 > bb.v1 + 1e-9;
   } : null;
+  // (GR: `opt.yMax` - a face wholly over it is not this well's: a high wing's centre section over a nose well)
+  const over = opt.yMax != null ? f => f.v.every(i => m.V[i][1] > opt.yMax) : null;
   for (const f of m.F) {
     if (f.v.length < 3 || f.knife || (opt.mats && !opt.mats.has(f.m)) ||
-        f.m === 'joint' || f.m === 'doorSeal' || (far && far(f))) { F.push(f); continue; }
+        f.m === 'joint' || f.m === 'doorSeal' || (far && far(f)) || (over && over(f))) { F.push(f); continue; }
     const nV = f.v.length, Pn = f.v.map(i => m.V[i]);
     const n = [0, 0, 0];
     for (let i = 0; i < nV; i++) {
@@ -756,8 +763,9 @@ function knifeCut(m, win, opt) {
       N.push([0, 0, 0]);
       if (A) A.push(aZ());
     }
-    if (depth > 0 || CEIL != null) for (let i = 0; i < ring.length; i++) {
-      if (CEIL != null && Math.abs(V[top[i]][1] - V[bot[i]][1]) < 1e-7 && Math.abs(V[top[(i + 1) % ring.length]][1] - V[bot[(i + 1) % ring.length]][1]) < 1e-7) continue;
+    if (depth > 0 || CEIL != null || CP) for (let i = 0; i < ring.length; i++) {
+      const j2 = (i + 1) % ring.length, gone = q => Math.hypot(V[top[q]][0] - V[bot[q]][0], V[top[q]][1] - V[bot[q]][1], V[top[q]][2] - V[bot[q]][2]) < 1e-7;
+      if ((CEIL != null || CP) && gone(i) && gone(j2)) continue;
       const j = (i + 1) % ring.length;
       let q = [top[i], top[j], bot[j], bot[i]];
       const nq = cross(sub(V[q[2]], V[q[0]]), sub(V[q[3]], V[q[1]]));
@@ -849,8 +857,66 @@ function wellCeilFn(c) {
     return Math.min(c.ceil, y(i, j) * (1 - tx) * (1 - tz) + y(i + 1, j) * tx * (1 - tz) + y(i, j + 1) * (1 - tx) * tz + y(i + 1, j + 1) * tx * tz);
   };
 }
-function knifeWells(sh, cuts) {
-  if (!sh || !cuts || !cuts.length) return sh;
+// GR: a SIDE WELL's floor - its height map over its frame's (u, v), the target in its inward coordinate
+function wellFloorFn(c) {
+  const H = c.hf, F = c.frame;
+  return P => {
+    const u = P[0] * F.t1[0] + P[1] * F.t1[1] + P[2] * F.t1[2], v = P[0] * F.t2[0] + P[1] * F.t2[1] + P[2] * F.t2[2];
+    const fu = Math.max(0, Math.min(H.nu - 1.000001, (u - H.u0) / H.d)), fv = Math.max(0, Math.min(H.nv - 1.000001, (v - H.v0) / H.d));
+    const i = Math.floor(fu), j = Math.floor(fv), tu = fu - i, tv = fv - j, e = (a, b) => H.e[b * H.nu + a];
+    return Math.min(c.ceil, e(i, j) * (1 - tu) * (1 - tv) + e(i + 1, j) * tu * (1 - tv) + e(i, j + 1) * (1 - tu) * tv + e(i + 1, j + 1) * tu * tv);
+  };
+}
+// GR: THE CARVE IN ANY FRAME (a side well): a face's parts inside the outline's walls (in the frame's (u, v)) and under
+// the floor (its inward coordinate at the piece's centroid less than the floor's there) are carved
+function knifeCarveF(m, cuts, skip) {
+  const V = m.V, N = m.N, A = m.A, F = [];
+  const aW = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4;
+  const mk = (i, j, t) => { const k = V.length; V.push(lerpN(V[i], V[j], t));
+    if (N) N.push(nrm3(lerpN(N[i] || [0, 0, 0], N[j] || [0, 0, 0], t)));
+    if (A) A.push(A[i] && A[j] ? lerpN(A[i], A[j], t) : (A[i] || A[j] || new Array(aW).fill(0)).slice());
+    return k; };
+  const pr = cuts.map(c => {
+    const Fr = c.frame, o = c.outline, aIn = Fr.n0.map(x => -x);
+    const uvOf = p => [p[0] * Fr.t1[0] + p[1] * Fr.t1[1] + p[2] * Fr.t1[2], p[0] * Fr.t2[0] + p[1] * Fr.t2[1] + p[2] * Fr.t2[2]];
+    const walls = o.map((a, i) => { const b = o[(i + 1) % o.length]; return p => { const q = uvOf(p); return (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]); }; });
+    return { walls, floor: wellFloorFn(c), aIn };
+  });
+  let carved = 0;
+  const minus = (pg, P) => {
+    let rest = pg; const outs = [];
+    for (const W of P.walls) {
+      const d = rest.map(i => W(V[i]));
+      if (d.every(x => x > 1e-9)) continue;
+      if (d.every(x => x <= 1e-9)) return null;
+      const inn = [], out = [];
+      for (let a = 0; a < rest.length; a++) { const b = (a + 1) % rest.length, da = d[a], db = d[b];
+        (da > 1e-9 ? inn : out).push(rest[a]);
+        if ((da > 1e-9) !== (db > 1e-9)) { const x = mk(rest[a], rest[b], da / (da - db)); inn.push(x); out.push(x); } }
+      if (out.length >= 3) outs.push(out);
+      rest = inn; if (rest.length < 3) return null;
+    }
+    const c = [0, 0, 0]; for (const i of rest) for (let k = 0; k < 3; k++) c[k] += V[i][k] / rest.length;
+    if (c[0] * P.aIn[0] + c[1] * P.aIn[1] + c[2] * P.aIn[2] >= P.floor(c)) return null;    // beyond the floor: left whole
+    return outs;
+  };
+  for (const f of m.F) {
+    if (f.v.length < 3 || (skip && skip.has(f.m)) || f.m === 'wheelWell') { F.push(f); continue; }
+    let pieces = [f.v], changed = false;
+    for (const P of pr) { const next = []; for (const pg of pieces) { const r = minus(pg, P); if (r) { changed = true; next.push(...r); } else next.push(pg); } pieces = next; }
+    if (!changed) { F.push(f); continue; }
+    carved++;
+    for (const k of pieces) F.push(Object.assign({}, f, { v: k }));
+  }
+  const out = Object.assign({}, m, { V, F, N, A });
+  out.knifeStats = (m.knifeStats || []).concat([{ carvedSide: carved }]);
+  return out;
+}
+function knifeWells(sh, cuts, sides) {
+  // (one list may hold both: a cut with its own frame is a side well)
+  if (sides === undefined && cuts) { sides = cuts.filter(c => c.frame); cuts = cuts.filter(c => !c.frame); }
+  if (!sh || ((!cuts || !cuts.length) && (!sides || !sides.length))) return sh;
+  cuts = cuts || [];
   const N = knifeNormals(sh);
   if (sh.N) for (let i = 0; i < sh.N.length && i < N.length; i++) { const n = sh.N[i]; if (n && (n[0] || n[1] || n[2])) N[i] = n; }
   let m = Object.assign({}, sh, { N, knifeLoops: (sh.knifeLoops || []).slice(), knifeHole: new Map(sh.knifeHole || []),
@@ -858,7 +924,13 @@ function knifeWells(sh, cuts) {
   for (const c of cuts)
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
                                                          mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
-  return knifeCarve(m, cuts);
+  if (cuts.length) m = knifeCarve(m, cuts);
+  // GR: THE SIDE WELLS (the Catalina's recesses): the knife looking at the side, the recess inward to the fitted floor
+  for (const c of (sides || []))
+    m = knifeCut(m, { well: (c.units || []).join('') }, { frame: c.frame, outline: c.outline, ceilP: wellFloorFn(c),
+                                                         mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
+  if (sides && sides.length) m = knifeCarveF(m, sides, WELL_MATS);
+  return m;
 }
 // THE WELL IS EMPTY: what the sheet built inside a well's volume that is not its skin (the frames, the liners, the
 // bulkheads below the floor) is carved out of it - each such face clipped against the well's prism (its outline's
@@ -956,7 +1028,7 @@ function knifeWellsGeo(THREE, geo, cuts, tops) {
   let m = { V, F, N, A: extra.length ? A : null, knifeLoops: [], knifeHole: new Map(), knifeHoleLen: [] };
   for (const c of cuts)
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
-                                                         mats: new Set(['skin']), paneMat: 'wheelWell', wallMat: 'wheelWell' });
+                                                         mats: new Set(['skin']), paneMat: 'wheelWell', wallMat: 'wheelWell', yMax: c.ceil + 0.01 });
   m = knifeCarve(m, cuts, null);
   // GR R4: THE HOLES WHERE A STOWED WHEEL STANDS PROUD of the upper skin - the knife from ABOVE (its frame's n0 up, the
   // outline in (z, x)), the inside taken away: no pane, no wall
@@ -987,7 +1059,7 @@ function knifeWellsGeo(THREE, geo, cuts, tops) {
   return { skin: build(f => f.m !== 'wheelWell'), well: build(f => f.m === 'wheelWell'), stats: st };
 }
 
-const API = { knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, wellCeilFn };
+const API = { knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();

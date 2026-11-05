@@ -184,11 +184,16 @@ const FOLD_PRESETS = {
   skymaster: { turns: [[0, 45], [1, 90]], twist: 0 },        // two axes, then along the body (to check on a reference)
   aft:       { turns: [[1, 90]], twist: 0 },                 // a nose leg aft (Arrow, Bonanza, 210)
   fwd:       { turns: [[1, -90]], twist: 0 },                // a nose leg forward (air and gravity help it down)
+  // GR (the user, 5 Nov: "study the catalina ... a popular way of retracting gear for boat planes ... cut into a fuselage or
+  // a Hull ... not necessarily requiring doors"): the wheel hanging just outside the hull's side LIFTS ALONG IT - the leg
+  // turns about the lateral axis (it keeps its lateral place) - into a recess in the side, part of it out (the trim puts
+  // the wheel's centre on the skin; the side well is cut from the side)
+  catalina:  { turns: [[1, 90]], twist: 0 },
 };
-const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom'];
+const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom', 'catalina'];   // (appended: a saved index keeps its fold)
 const FOLD_NOSE_KEYS = ['aft', 'fwd', 'custom'];
 const FOLD_LABELS = { inward: 'inward (into the wing root)', outward: 'outward', aftFlat: 'aft, the wheel turned flat',
-  aftBelly: 'aft and in, flat (twist-and-tuck)', skymaster: 'two axes (Skymaster)', aft: 'aft', fwd: 'forward',
+  aftBelly: 'aft and in, flat (twist-and-tuck)', skymaster: 'two axes (Skymaster)', catalina: 'up against the hull side (Catalina)', aft: 'aft', fwd: 'forward',
   custom: 'custom (the turns below)' };
 const FOLD_AX_LABELS = ['fore-aft', 'lateral', 'vertical'];
 const foldCustom = P => FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'custom';
@@ -246,7 +251,9 @@ function foldChain(u, key, P, SP) {
   // stub outboard of the leg folds inward ~ its offset UNDER the pin otherwise. A custom fold, a partial one: as set
   const preset = (key === 'T' ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
   C.trim = 0;
-  if (SP && preset && C.frac >= 0.999 && C.turns.length) {
+  // (the Catalina's lift along the hull's side is the leg's own: no trim - the wheel rises to the pin's height)
+  const catF = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+  if (SP && preset && !catF && C.frac >= 0.999 && C.turns.length) {
     const T = C.turns[C.turns.length - 1], a0 = T.ang, sg = a0 < 0 ? -1 : 1;
     let best = null;
     for (let d = -15; d <= 25; d++) {
@@ -441,8 +448,16 @@ function foldFit(P, swing, AF, W, MX) {
   // corners (box, gearWellCut 1: the fallback), FIT.clear wider all round; the ceiling is their highest point and
   // FIT.clear more. Two outlines that meet are cut as one (their hull, the higher ceiling). In the layer's metres here;
   // the knife takes them in cage units (cutsCage)
-  { const mode = +P.gearWellCut === 1 ? 'box' : 'exact', rawB = wellRaw(units, bodyIn, MX);
+  { const mode = +P.gearWellCut === 1 ? 'box' : 'exact', rawAll = wellRaw(units, bodyIn, MX);
+    // GR (the Catalina): A UNIT ENTERING THE BODY THROUGH ITS SIDE is cut from the side - its swept points near the skin
+    // (within 40 mm of it), their section's outward direction averaged: mostly lateral (|nx| > 0.6) is a side well
+    const sideOf = r => { let nx = 0, n = 0;
+      for (const p of r.pts) { if (bodyIn(p) > 0.04) continue; const cy = AF.cyAt(p[2]), l = Math.hypot(p[0], p[1] - cy) || 1; nx += p[0] / l; n++; }
+      return n && Math.abs(nx / n) > 0.6 ? Math.sign(nx) : 0; };
+    const rawB = [], rawS = [];
+    for (const r of rawAll) { const sd = AF ? sideOf(r) : 0; if (sd) rawS.push(Object.assign(r, { side: sd })); else rawB.push(r); }
     out.cuts = wellMerge(rawB, mode);
+    out.cutsSide = wellMergeSide(rawS, mode);
     // G5: THE WING'S CUTS - where the units go into the wing (its skins), and where they go into the body (a low wing's
     // centre section runs through a belly well), merged where they meet: the wing layer's skin is cut by these
     out.cutsWing = W && W.underAt ? wellMerge(wellRaw(units, wingIn, MX).concat(rawB), mode) : [];
@@ -594,6 +609,49 @@ function wellHeights(c) {
   let lo = Infinity; for (const v of y) if (v > -Infinity && v < lo) lo = v;
   return { x0, z0, d, nx, nz, y: y.map(v => v > -Infinity ? v : lo) };
 }
+// GR: A SIDE WELL (the Catalina's recess in the hull's side): the knife's frame looks at the side (n0 = [s, 0, 0]), the
+// outline in its (u, v) = (z, -s y), the recess inward to a fitted floor: the depth coordinate e = -s x (inward +), each
+// cell the deepest swept point's e within the clearance, plus the clearance. Same side's wells merge where they meet
+function wellMergeSide(raw, mode) {
+  const frameOf = s => ({ n0: [s, 0, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [0, -s, 0] });
+  let cuts = raw.map(r => { const s = r.side, uv = r.pts.map(p => [p[2], -s * p[1]]);
+    let top = -Infinity; for (const p of r.pts) top = Math.max(top, -s * p[0]);
+    return { units: r.units.slice(), side: s, mode, uv, pts: r.pts, hull: wellOutline(uv, mode, FIT.clear), ceil: top + FIT.clear }; });
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 0; i < cuts.length && !again; i++) for (let j = i + 1; j < cuts.length && !again; j++)
+      if (cuts[i].side === cuts[j].side && hullsMeet(cuts[i].hull, cuts[j].hull)) {
+        const uv = cuts[i].uv.concat(cuts[j].uv);
+        cuts[i] = Object.assign({}, cuts[i], { units: [...new Set(cuts[i].units.concat(cuts[j].units))], uv, pts: cuts[i].pts.concat(cuts[j].pts),
+                                               hull: wellOutline(uv, mode, FIT.clear), ceil: Math.max(cuts[i].ceil, cuts[j].ceil) });
+        cuts.splice(j, 1); again = true;
+      }
+  }
+  return cuts.map(c => {
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of c.hull) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
+    const d = WELL_CELL, nu = Math.max(2, Math.ceil((u1 - u0) / d) + 1), nv = Math.max(2, Math.ceil((v1 - v0) / d) + 1);
+    const e = new Array(nu * nv).fill(-Infinity), r = FIT.clear + d * 0.75, rc = Math.ceil(r / d);
+    for (const p of c.pts) {
+      const u = p[2], v = -c.side * p[1], ep = -c.side * p[0] + FIT.clear, ci = Math.round((u - u0) / d), cj = Math.round((v - v0) / d);
+      for (let j = Math.max(0, cj - rc); j <= Math.min(nv - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(nu - 1, ci + rc); i++) {
+        if (Math.hypot(u0 + i * d - u, v0 + j * d - v) > r) continue;
+        const k = j * nu + i; if (ep > e[k]) e[k] = ep; }
+    }
+    let lo = Infinity; for (const x of e) if (x > -Infinity && x < lo) lo = x;
+    return { units: c.units, side: c.side, mode, frame: frameOf(c.side), hull: c.hull, ceil: c.ceil,
+             hf: { u0, v0, d, nu, nv, e: e.map(x => x > -Infinity ? x : lo) } };
+  });
+}
+function cutsSideCage(cuts, FS) {
+  return (cuts || []).map(c => {
+    let o = c.hull.map(p => [p[0] / FS, p[1] / FS]), a2 = 0;
+    for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) o = o.slice().reverse();
+    return { units: c.units, side: c.side, mode: c.mode, frame: c.frame, outline: o, ceil: c.ceil / FS,
+             hf: { u0: c.hf.u0 / FS, v0: c.hf.v0 / FS, d: c.hf.d / FS, nu: c.hf.nu, nv: c.hf.nv, e: c.hf.e.map(x => +(x / FS).toFixed(5)) } };
+  });
+}
 // the cuts in the knife's terms: cage units (metres / FS), the outline in the well frame's (u, v) = (z, -x), CCW
 function cutsCage(cuts, FS) {
   return (cuts || []).map(c => {
@@ -677,8 +735,8 @@ const fitNote = () => { const B = window.CAGE_ROW_BAD ? window.CAGE_ROW_BAD() : 
   const w = [...new Set(Object.values(B))]; return 'does not fit: ' + w[0] + (w.length > 1 ? ' (+' + (w.length - 1) + ')' : ''); };
 
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
-const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3 &&
-                                 Math.round(+P.wgPos) === 2);
+// (GR: any wing - a low wing's mains root on the wing, any other's on the body: the Catalina's hull)
+const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3);
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -723,7 +781,7 @@ const GROUP = ['9 · undercarriage', [
     ['gearDoors', 'well doors', 0, 2, 1, ['none (open well)', 'one door', 'two doors (split)'], { when: P => +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
-  ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) * (Math.round(+P.wgPos) === 2 ? 1 : 0) > 0 }],
+  ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
   // G133: one build material for the whole set of fairings — a set of
   // spats is laid up as one job, and the row exists only when one is worn
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
@@ -1608,6 +1666,8 @@ PAGE.post = ctx => {
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
     ...(fit && fit.cuts && fit.cuts.length ? { cuts: cutsCage(fit.cuts, FS) } : {}),
+    // GR: the side wells (the Catalina's recesses in the hull's side), the knife's terms with their own frames
+    ...(fit && fit.cutsSide && fit.cutsSide.length ? { cutsSide: cutsSideCage(fit.cutsSide, FS) } : {}),
     // G5: the wing's cuts (its own and the body's, merged) in the layer's own metres (the wing's skin is drawn in them)
     ...(fit && fit.cutsWing && fit.cutsWing.length ? { cutsM: cutsCage(fit.cutsWing, 1) } : {}),
     // GR R4: the holes the stowed wheels stand proud through the wing's upper skin (metres, (z, x) counter-clockwise)

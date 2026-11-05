@@ -63,9 +63,9 @@ const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
 const P = S.P, FS = S.FS;
 // RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
 // layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
-const CUTS = !argv.includes('--nowells') && S.W.CAGE_GEAR && S.W.CAGE_GEAR.cuts;
-const sheet = CUTS ? require(path.join(ROOT, 'tools', '_knife_gen.js')).knifeWells(S.built.sheet, CUTS) : S.built.sheet;
-if (CUTS) console.log('wells cut: ' + CUTS.map(c => c.units.join('+') + ' ' + c.mode + ' (' + c.outline.length + ' pts, ceiling ' + (c.ceil * FS).toFixed(3) + ' m)').join(', '));
+const CUTS = !argv.includes('--nowells') && S.W.CAGE_GEAR && ((S.W.CAGE_GEAR.cuts || []).concat(S.W.CAGE_GEAR.cutsSide || []));
+const sheet = CUTS && CUTS.length ? require(path.join(ROOT, 'tools', '_knife_gen.js')).knifeWells(S.built.sheet, CUTS) : S.built.sheet;
+if (CUTS && CUTS.length) console.log('wells cut: ' + CUTS.map(c => c.units.join('+') + ' ' + c.mode + (c.frame ? ' side ' + (c.side > 0 ? '+x' : '-x') : '') + ' (' + c.outline.length + ' pts, ' + (c.frame ? 'floor ' : 'ceiling ') + (c.ceil * FS).toFixed(3) + ' m)').join(', '));
 const skin = P.base != null ? P.base : 0xe8a33a;
 const hex = c => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
 // the REGISTRATION's footprint (the decal is a texture layer this renderer does not draw): the faces whose field

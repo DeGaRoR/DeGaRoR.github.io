@@ -1672,9 +1672,10 @@ const EYE_STATS = { builds: 0, buildMs: null, swaps: 0, swapMs: null, last: null
 // it is. The cut costs ~100 ms (node) to ~300 ms (a slow page), so a DRAG TICK never cuts: its fuselage stands uncut
 // (a deform tick then finds its own vertices) and the release - the settle build - cuts it. A cut mesh has more vertices
 // than its sheet, so the first tick after a release refuses the deform ('the stand is not this sheet') and builds whole.
-const wellCutsNow = () => { const C = typeof window !== 'undefined' ? window.CAGE_GEAR : null;
-  return C && Array.isArray(C.cuts) && C.cuts.length ? C.cuts : null; };
-const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.hf ? c.hf.nx + 'x' + c.hf.nz + ':' + c.hf.y.reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
+const wellCutsNow = () => { const C = typeof window !== 'undefined' ? window.CAGE_GEAR : null;      // (GR: the side wells with them)
+  const all = C ? (Array.isArray(C.cuts) ? C.cuts : []).concat(Array.isArray(C.cutsSide) ? C.cutsSide : []) : [];
+  return all.length ? all : null; };
+const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.frame ? 's' + c.side + ':' : '') + (c.hf ? (c.hf.nx || c.hf.nu) + 'x' + (c.hf.nz || c.hf.nv) + ':' + (c.hf.y || c.hf.e).reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
   c.outline.map(p => p[0].toFixed(5) + ',' + p[1].toFixed(5)).join(' ')).join('|') : '';
 const WELL_MEMO = new WeakMap();        // sheet -> { sig, out }
 const WELL_STATS = { cuts: 0, ms: null, swaps: 0, last: null };

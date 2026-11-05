@@ -443,7 +443,7 @@ function cageJoinSpec(P, M, T) {
     // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a low-wing tricycle's in the garage
     // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
     // fixed build's spec is what it was, to the bit
-    if (+P.gearRetract && M.gearType === 'tricycle' && Math.round(+P.wgPos) === 2 && !+P.gearFloats) {
+    if (+P.gearRetract && M.gearType === 'tricycle' && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull)
       spec.gear.retract = { time: +P.gearRetT || 6,
                             act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
       // G1: the fraction, and the LIFT the gear layer MEASURED (foldChain: the stowed wheel's lowest point over the
