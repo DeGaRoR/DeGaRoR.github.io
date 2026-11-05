@@ -148,7 +148,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform float uWMirMax; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform float uWProbeCap; uniform float uWMirMax; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -450,6 +450,7 @@ const WATER = (() => {
             // in metres on the water and so carries the perspective for free, and its direction is the
             // reflection's own. It is CAPPED at uWMirror4.y of the view distance: a facet at grazing has
             // R.y near zero and h / R.y near infinity, and an uncapped walk sends the lookup past the horizon
+            if (uWProbeCap > 0.0) iblRadiance = min(iblRadiance, uWProbeCap * vec3(0.35, 0.55, 1.0));   // NIGHT-PHOTO: the probe capped under the mirror, navy: where the capture has no answer the bright tan probe showed through, white dashes along a far shore
             vec3 mEye = cameraPosition;
             vec3 mR = reflect(normalize(vWP0 - mEye), wNw);
             float mH = mEye.y - uWMirror4.w, mL = max(distance(vWP0, mEye), 1.0e-3);
@@ -670,7 +671,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWStretch: { value: 0 }, uWMirMax: { value: 1e9 }, uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) }, uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
+      uWStretch: { value: 0 }, uWProbeCap: { value: 0 }, uWMirMax: { value: 1e9 }, uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) }, uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
