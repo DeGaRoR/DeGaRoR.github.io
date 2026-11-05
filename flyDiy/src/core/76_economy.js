@@ -328,6 +328,8 @@ const ECON_WEAR = {
   crashK: 0.25,
   // the upkeep's rate on the age and the engine's wear (econCareK): JUDGEMENT
   care: { perfect: 0.5, normal: 1, poor: 2 },
+  // a rebuild's frame work: this share of the structure's ledger (fuselage, wings, bracing, tail, gear): JUDGEMENT
+  rebuildK: 0.3,
 };
 // the resolved spec's engine and prop prices: each engine's row and each prop's (60_ resolveSpec writes prop.price)
 function econPowerPrices(R) {
@@ -389,22 +391,13 @@ function econWorkFreeWhy(doc) {
   if (typeof storyOf === 'function') { const st = storyOf(doc); if (st && !st.open && ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'].includes(st.beat)) return 'free during the tutorial'; }
   return '';
 }
-// THE REPAIR AT THE STOP: the bill charged (a 'repair' ledger line; the wallet may go below zero - the aeroplane is
-// repaired either way, the loan job is offered below its threshold, as for any short wallet). -> { ok, doc, cost, why }
-function econRepairCharge(doc, slot, bill) {
-  if (!bill || !(bill.cost > 0)) return { ok: true, doc, cost: 0, why: 'nothing broken' };
-  const free = econWorkFreeWhy(doc);
-  if (free && doc && doc.mode === 'career') return { ok: true, doc, cost: 0, why: free };
-  const d = ecClone(doc);
-  playerCharge(d, bill.cost, 'repair', slot);
-  return { ok: true, doc: d, cost: bill.cost, why: '' };
-}
 // THE MAINTENANCE (the user, 5 Nov: "rate of decay should offer 3 options; perfect maintenance, normal maintenance,
 // poor maintenance, and that's about it"): how fast the clock and the hours wear the airframe - the years' drag and the
 // engine's hours both accrue x `care[k]` (JUDGEMENT: half as fast kept to the book and hangared, twice as fast skipped;
-// the physics itself, 60_ GEN_AGING, reads only years and hours). It acts FROM NOW ON: a change settles what has
-// accrued at the old rate first, so choosing perfect upkeep buys back nothing (that is the refresh tasks' work). Rough
-// use is not a rate: it acts through the damage model (the repair bill). Absent = normal. No running cost (ruling 3).
+// the physics itself, 60_ GEN_AGING, reads only years and hours). AUTHORED (the user: "the idea with the rate selector
+// is rather to author second hand planes and set this myself, then publish and locked in career"): set on the WEAR tab
+// while building, carried in spec.aging.care, started with the row and LOCKED in a career. Rough use is not a rate: it
+// acts through the damage model (the repair). Absent = normal. No running cost (ruling 3).
 const ECON_CARE = ['perfect', 'normal', 'poor'];
 const econCareK = c => ECON_WEAR.care[c] != null ? ECON_WEAR.care[c] : 1;
 // THE ROW'S RECORD: aging = { years, engineHours, care, at, fl } - the age and the engine's (as-worn) hours SETTLED at
@@ -457,50 +450,59 @@ function econAgingFlown(doc, slot, seconds) {
   d.career.airframes[slot].aging.fl = Math.round((+d.career.airframes[slot].aging.fl || 0) + s);
   return d;
 }
-// the upkeep chosen: what accrued settles at the old rate, the new one runs from now. -> { ok, doc, why }
-function econCareSet(doc, slot, care) {
-  if (!ECON_CARE.includes(care)) return ecNo(doc, care + ' is not an upkeep');
-  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
-  if (!A) return ecNo(doc, slot + ' is not an airframe of the career');
-  let d = A.aging ? econAgingSettle(doc, slot) : econAgingStart(doc, slot, null);
-  d = d === doc ? ecClone(doc) : d;
-  d.career.airframes[slot].aging.care = care;
-  return { ok: true, doc: d, why: '' };
-}
-// THE REFRESH TASKS (ruling 5's "refresh"; the study §4, the first two): their price at the parts bill.
-//   repaint   the ledger's paint line (GEN_FINISH paintM2 x the painted area): the LOOK comes back new - the age, the
-//             engine and the market's curve do not move (a repaint is not a restoration)
-//   overhaul  each engine row x ovhK: the engine's hours since overhaul back to 0 (its power back to rated)
-// -> { cost, what } (cost 0 when there is nothing to buy)
-const ECON_RESTORES = ['repaint', 'overhaul'];
-function econRestoreCost(kind, R, ledger) {
-  if (kind === 'repaint') return { cost: Math.round((ledger && ledger.paint && +ledger.paint.cost) || 0), what: 'a fresh paint job (the paint, at the parts price)' };
-  if (kind === 'overhaul') { const PP = econPowerPrices(R); return { cost: Math.round(PP.engine.reduce((a, b) => a + b, 0) * ECON_WEAR.ovhK), what: 'the engine overhauled (zero hours)' }; }
+// THE REFRESH TASKS (ruling 5's "refresh"; the study §4): their price at the parts bill, off the areas the frame built
+// (61_ parts.cover: painted m2, cloth m2) and the powerplant rows. On a CAREER airframe only (the sandbox sets the age
+// and the look itself, free); refused while it is broken (the repair first).
+//   repaint   the paint (GEN_PRICES.paintM2 x the painted area): the LOOK new - a repaint is not a restoration: the
+//             age, the engine and the value do not move
+//   recover   (a fabric aeroplane) the cloth's materials (coverM2 x its area) and its paint: the airframe's condition
+//             years to 0 (old fabric, dope and rigging are the years' drag) and the look new; the engine untouched
+//   overhaul  each engine row x ovhK: the engine's hours to 0 (its power back to rated)
+//   rebuild   recover (or repaint, on metal) + overhaul + `rebuildK` of the structure's ledger (the frame inspected, its
+//             corrosion and old repairs made good: JUDGEMENT): the years and the hours to 0, the look new
+// The value reads the condition years (econSaleValue), and the sale stays capped at what was paid: no loop prints money.
+// -> { cost, what } (cost 0: nothing to buy - a recover on a metal aeroplane)
+const ECON_RESTORES = ['repaint', 'recover', 'overhaul', 'rebuild'];
+const ECON_STRUCT_SECS = ['fuselage', 'wings', 'bracing', 'tail', 'gear'];
+function econRestoreCost(kind, R, ledger, cover) {
+  const L = ledger || {}, C = cover || null;
+  const paint = C ? GEN_PRICES.paintM2 * (+C.paintA || 0) : ((L.paint && +L.paint.cost) || 0);
+  const cloth = C ? GEN_PRICES.coverM2 * (+C.clothA || 0) : 0;
+  const ovh = econPowerPrices(R).engine.reduce((a, b) => a + b, 0) * ECON_WEAR.ovhK;
+  const struct = ECON_STRUCT_SECS.reduce((a, k) => a + ((L[k] && +L[k].cost) || 0), 0) * ECON_WEAR.rebuildK;
+  if (kind === 'repaint') return { cost: Math.round(paint), what: 'a fresh paint job (the paint, at the parts price)' };
+  if (kind === 'recover') return cloth > 0 ? { cost: Math.round(cloth + paint), what: 'new fabric and its paint (the airframe\'s years back to 0)' }
+                                           : { cost: 0, what: 'no fabric to recover' };
+  if (kind === 'overhaul') return { cost: Math.round(ovh), what: 'the engine overhauled (zero hours)' };
+  if (kind === 'rebuild') return { cost: Math.round(cloth + paint + ovh + struct), what: 'a rebuild: the frame, the covering, the engine (the airframe as new)' };
   return { cost: 0, what: kind + ' is not a refresh task' };
 }
-// a refresh task done: needs the cash in a career (a refusal hands the document back); the row records it (overhaul:
-// the engine's hours from now; repaint: the clock of the paint). The PAGE applies its look / spec. -> { ok, doc, cost, why }
+// a refresh task done: needs the cash in a career (a refusal hands the document back); the row records it. The PAGE
+// applies its look / spec. -> { ok, doc, cost, why }
 function econRestore(doc, slot, kind, cost) {
   if (!ECON_RESTORES.includes(kind)) return ecNo(doc, kind + ' is not a refresh task');
   const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
   if (doc && doc.mode === 'career' && !A) return ecNo(doc, slot + ' is not an airframe of the career');
+  if (typeof playerBroken === 'function' && playerBroken(doc, slot)) return ecNo(doc, slot + ' is broken: repair it first');
   cost = Math.max(0, Math.round(+cost || 0));
+  if (!(cost > 0)) return ecNo(doc, 'nothing to buy');
   if (!econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', this costs ' + cost);
   const d = ecClone(doc);
   playerCharge(d, cost, 'restore', slot);
-  const R = d.career && d.career.airframes && d.career.airframes[slot];
   let out = d;
-  if (R) {
-    if (kind === 'overhaul') {
-      out = R.aging ? econAgingSettle(d, slot) : econAgingStart(d, slot, null);
-      out.career.airframes[slot].aging.engineHours = 0;
+  if (A) {
+    if (kind !== 'repaint') {
+      out = A.aging ? econAgingSettle(d, slot) : econAgingStart(d, slot, null);
+      const g = out.career.airframes[slot].aging;
+      if (kind === 'overhaul' || kind === 'rebuild') g.engineHours = 0;
+      if (kind === 'recover' || kind === 'rebuild') g.years = 0;
     }
     const R2 = out.career.airframes[slot];
     R2.restored = Object.assign({}, R2.restored || {}, { [kind]: Math.round(out.clock || 0) });
   }
+  if (typeof playerWearReset === 'function' && out.fleet && out.fleet[slot] && kind !== 'overhaul') out = playerWearReset(out, slot).doc;
   return { ok: true, doc: out, cost, why: '' };
 }
-
 // ---- THE TRUST'S LOAN JOB (GQ6) ----------------------------------------------------------------------------------
 // Offered while the wallet is below ECON_BOOK.loanBelow (74_ careerOfferIds asks econLoanOffer). A job record
 // (CONTRACT-MODEL's shape, kind 'job', provider 'field'): a short errand from HOME to Tamgas Hill that every

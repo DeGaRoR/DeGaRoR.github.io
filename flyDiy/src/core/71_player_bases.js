@@ -1018,9 +1018,43 @@ function playerFlyStart(doc, name) {
   const W = playerStoreWhere(doc, name);
   const r = (start, why) => ({ ok: !!start, why: why || '', kind: W.kind, start: start || null, aero: W.aero, hangar: W.hangar });
   if (W.kind === 'none') return r(null, name + ' is not in the fleet');
+  if (playerBroken(doc, name)) return r(null, name + ' is broken and grounded: repair it on the WEAR tab');   // WEAR-PRICE
   if (W.kind === 'long') return r(null, name + ' is kept long-term: load it first (a free slot, or the floor)');
   if (W.kind === 'route') return r(null, pbOnRoute(doc, name));
   return r(W.kind === 'floor' ? 'door' : W.kind === 'inside' ? 'lineup' : 'stand');
+}
+// WEAR-PRICE (the user 5 Nov: "We ruled that we were not carrying the visual damage into the shed, and I think it's right,
+// since planes can really explode. So we should probably simply have the plane model, maybe greyed out and listed as
+// broken and grounded, and an option in the new tab allows paying for repair. The option is free in sandbox mode"):
+// BROKEN AND GROUNDED. What a flight broke (playerBreakBill: 76_ econRepairBill off the def and sim.damage()) is left on
+// the airframe's fleet row as `damage` = { damaged, writeOff: false, bill, cost, why, at } - dm10's record: econFlyable,
+// playerFlyStart and the roll-out refuse it, the bench greys its certificate (R5), the rack greys its row. The shed
+// stands the whole model (no visual damage carried). The repair returns it: 76_ econRepair in a career (its bill paid),
+// playerRepairFree in the sandbox (free). The TUTORIAL records nothing (the crash's reset repairs it, as before).
+function playerBreakBill(def, dm) {
+  if (!def || !def.parts || !dm || typeof econRepairBill !== 'function') return { cost: 0, lines: [] };
+  return econRepairBill(def.spec, def.parts.ledger, def.parts.dmg && def.parts.dmg.groups,
+    { groups: dm.groups || [], drive: dm.drive || [], crashed: !!dm.crashed, brokeUp: !!dm.brokeUp });
+}
+function playerBreak(doc, slot, bill) {
+  const e = doc && doc.fleet && doc.fleet[slot];
+  if (!e || !bill || !(bill.cost > 0)) return { ok: true, doc, why: 'nothing broken' };
+  if (typeof econWorkFreeWhy === 'function' && econWorkFreeWhy(doc) === 'free during the tutorial') return { ok: true, doc, why: 'the tutorial: repaired as before' };
+  const d = pbClone(doc);
+  d.fleet[slot].damage = { damaged: true, writeOff: false, bill: bill.lines.slice(), cost: bill.cost,
+    why: 'broken: ' + bill.lines.map(l => l.what).join(', '), at: Math.round(d.clock || 0) };
+  return { ok: true, doc: d, why: '' };
+}
+function playerBroken(doc, slot) {
+  const e = doc && doc.fleet && doc.fleet[slot], D = e && e.damage;
+  return D && D.damaged ? D : null;
+}
+function playerRepairFree(doc, slot) {
+  if (!playerBroken(doc, slot)) return pbNo(doc, slot + ' is not broken');
+  let d = pbClone(doc);
+  delete d.fleet[slot].damage;
+  d = playerWearReset(d, slot).doc;
+  return { ok: true, doc: d, cost: 0, why: '' };
 }
 // THE STORAGE SCREEN'S VIEW of a base (the garage's: `here`'s building and its aerodrome): -> { aero, hangar, shell,
 // floor, inside: { N, slots: [name | null] }, outside: { M, slots: [name | null] }, long: [names], others: [names in

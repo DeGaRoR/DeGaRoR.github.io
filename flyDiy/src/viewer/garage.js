@@ -1156,8 +1156,10 @@ function garageInit(api) {
       let P = null;
       try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
       const away = !!(P && P.kind !== 'none' && !P.here);
-      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
-      const meta = n === slotName ? 'on the stand' : slotMeta(n);
+      // WEAR-PRICE: BROKEN AND GROUNDED - the row greyed and said so (its repair is on the WEAR tab)
+      let brk = null; try { brk = api.broken ? api.broken(n) : null; } catch (e) { brk = null; }
+      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '') + (brk ? ' gfBroken' : '');
+      const meta = (n === slotName ? 'on the stand' : slotMeta(n)) + (brk ? ' · broken, grounded' : '');
       const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
       thumbOn(b, 'mine:' + n);
       if (P && P.text) {

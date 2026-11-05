@@ -80,25 +80,19 @@ function core(C) {
     const Lst = C.procureUsedListing('wear', 0, 0);
     if (Lst) ok(true, '');
   }
-  // ---- THE MAINTENANCE: three upkeeps, from now on
+  // ---- THE MAINTENANCE: three upkeeps, authored, the career's clock at its rate
   {
-    let d = C.careerNew({ id: 'w', seed: 'wear' }); d.fleet.u = { hangar: null, aero: 'HOME' }; d.career.airframes.u = { paid: 1, age: 10, hours: 0 };
     ok(C.ECON_CARE.join() === 'perfect,normal,poor', 'three upkeeps: perfect, normal, poor');
-    const at = care => { let x = C.econCareSet(d, 'u', care).doc; x = C.econAgingFlown(x, 'u', 100 * 3600); return C.econAgingNow(x, 'u'); };
+    const at = care => { let x = C.careerNew({ id: 'w', seed: 'wear' }); x.fleet.u = { hangar: null, aero: 'HOME' }; x.career.airframes.u = { paid: 1 };
+      x = C.econAgingStart(x, 'u', { years: 10, engineHours: 0, care }); x = C.econAgingFlown(x, 'u', 100 * 3600); return C.econAgingNow(x, 'u'); };
     const P = at('perfect'), N = at('normal'), Q = at('poor');
-    ok(P.years === 10.5 && P.engineHours === 50 && N.years === 11 && N.engineHours === 100 && Q.years === 12 && Q.engineHours === 200,
+    ok(P.years === 10.5 && P.engineHours === 50 && N.years === 11 && N.engineHours === 100 && Q.years === 12 && Q.engineHours === 200 && Q.care === 'poor',
        '100 h flown: perfect +0.5 y / 50 h, normal +1 y / 100 h, poor +2 y / 200 h (' + [P, N, Q].map(n => n.years + '/' + n.engineHours).join(', ') + ')');
-    let x = C.econCareSet(d, 'u', 'poor').doc; x = C.econAgingFlown(x, 'u', 100 * 3600);
-    const before = C.econAgingNow(x, 'u'); x = C.econCareSet(x, 'u', 'perfect').doc; const after = C.econAgingNow(x, 'u');
-    ok(before.years === after.years && before.engineHours === after.engineHours && after.care === 'perfect', 'choosing perfect buys nothing back: what accrued at poor stays');
-    x = C.econAgingFlown(x, 'u', 100 * 3600);
-    ok(C.econAgingNow(x, 'u').years === 12.5, 'and runs at perfect from then on (12 -> 12.5)');
     ok(C.econAgingSpec(cub, { years: 0, engineHours: 0, care: 'normal' }).aging === undefined && C.econAgingSpec(cub, { years: 0, engineHours: 0, care: 'poor' }).aging.care === 'poor', 'the spec: absent at 0 / 0 normal; the upkeep carried otherwise');
-    let b = C.careerNew({ id: 'w', seed: 'wear' }); b.fleet.own = { hangar: null, aero: 'HOME' }; b.career.airframes.own = { paid: 1 };
-    ok(C.econAgingNow(C.econAgingStart(b, 'own', { years: 0, engineHours: 0, care: 'poor' }), 'own').care === 'poor', 'a build\'s first save starts with the upkeep it was given');
     ok(C.certMajor(Object.assign({}, cub, { aging: { years: 0, engineHours: 0, care: 'poor' } })).fp === C.certMajor(cub).fp, 'the upkeep is outside the certificate');
+    ok(typeof C.econCareSet === 'undefined', 'no door changes the upkeep in a career (authored, locked)');
   }
-  // ---- THE REPAIR BILL
+  // ---- BROKEN AND GROUNDED, and the repair
   {
     const none = C.econRepairBill(R, L, G, { groups: [], drive: [{}], crashed: false });
     ok(none.cost === 0 && !none.lines.length, 'nothing broken: nothing billed');
@@ -112,33 +106,53 @@ function core(C) {
     ok(pr.cost === Math.round(PP.prop) + Math.round(PP.engine[0] * C.ECON_WEAR.teardownK) && PP.prop > 0, 'a bent prop: a prop and a teardown (' + pr.cost + ')');
     const ov = C.econRepairBill(R, L, G, { drive: [{ os: 'overhaul' }] });
     ok(ov.cost === Math.round(PP.engine[0] * C.ECON_WEAR.ovhK), 'the overspeed\'s overhaul band: an overhaul');
-    ok(C.econRepairCost(w) === w.cost && C.econRepairCost(w.lines) === w.cost, 'econRepairCost sums the bill (no longer 0)');
-    let d = C.careerNew({ id: 'w', seed: 'wear' }); d.fleet.x = { hangar: null, aero: 'HOME' }; d.career.airframes.x = { paid: 1 };
-    const c = C.econRepairCharge(d, 'x', w);
-    ok(c.ok && c.cost === w.cost && c.doc.wallet === d.wallet - w.cost && c.doc.ledger.slice(-1)[0].k === 'repair', 'a career pays it: a `repair` line');
+    ok(C.econRepairCost(w) === w.cost && C.econRepairCost(w.lines) === w.cost, 'econRepairCost sums the bill');
+    const bb = C.playerBreakBill(def, { groups: [{ key: 'wing0R:root' }] });
+    ok(bb.cost === w.cost, 'the page\'s bill reads the def and the flight\'s damage record');
+    // the career
+    let d = C.careerNew({ id: 'w', seed: 'wear' }); d.fleet.x = { hangar: 'HOME', aero: 'HOME' }; d.career.airframes.x = { paid: 1 };
+    const br = C.playerBreak(d, 'x', w);
+    const D = C.playerBroken(br.doc, 'x');
+    ok(br.ok && D && D.damaged && D.cost === w.cost && br.doc.wallet === d.wallet, 'a career: broken and grounded, nothing paid yet');
+    ok(C.econFlyable(br.doc).indexOf('x') < 0 && !C.playerFlyStart(br.doc, 'x').ok && /broken/.test(C.playerFlyStart(br.doc, 'x').why), 'grounded: not flyable, the fly-from-storage door refuses');
+    ok(!C.econRestore(br.doc, 'x', 'repaint', 100).ok, 'no refresh while broken (the repair first)');
+    const rp = C.econRepair(br.doc, 'x');
+    ok(rp.ok && rp.cost === w.cost && rp.doc.wallet === d.wallet - w.cost && !C.playerBroken(rp.doc, 'x') && rp.doc.ledger.slice(-1)[0].k === 'repair', 'the repair: its bill paid, a repair line, flyable again');
+    ok(C.playerBreak(d, 'x', none).doc === d, 'nothing broken: no record');
+    // the tutorial: nothing recorded (the crash's reset repairs it, as before)
     let s = C.careerNew({ id: 'w', seed: 'wear' }); const st = C.storyNewCareer(s, { aeros: [] }); if (st && st.doc) s = st.doc;
-    s.fleet.x = { hangar: null, aero: 'HOME' }; s.career.airframes.x = { paid: 1 };
-    const t = C.econRepairCharge(s, 'x', w);
-    ok(t.ok && t.cost === 0 && t.doc.wallet === s.wallet && t.why === 'free during the tutorial', 'free during the tutorial');
+    s.fleet.x = { hangar: null, aero: 'HOME' };
+    ok(!C.playerBroken(C.playerBreak(s, 'x', w).doc, 'x'), 'the tutorial records nothing');
+    // the sandbox: grounded too, its repair free
+    const sb = JSON.parse(JSON.stringify(d)); sb.mode = 'sandbox'; delete sb.career;
+    const sB = C.playerBreak(sb, 'x', w).doc;
+    const sR = C.playerRepairFree(sB, 'x');
+    ok(C.playerBroken(sB, 'x') && sR.ok && sR.cost === 0 && sR.doc.wallet === sB.wallet && !C.playerBroken(sR.doc, 'x'), 'the sandbox: grounded too, the repair free');
   }
   // ---- THE REFRESHES
   {
-    const rp = C.econRestoreCost('repaint', R, L), oh = C.econRestoreCost('overhaul', R, L);
-    ok(rp.cost === Math.round(L.paint.cost) && rp.cost > 0, 'a repaint: the ledger\'s paint line (' + rp.cost + ')');
-    ok(oh.cost === Math.round(C.econPowerPrices(R).engine[0] * C.ECON_WEAR.ovhK), 'an overhaul: the engine row x ovhK (' + oh.cost + ')');
-    ok(oh.cost >= 9500 / 1.5 && oh.cost <= 9500 * 1.5, 'the A-65\'s overhaul within x1.5 of its sourced shop overhaul (~9.5k, Aviation Consumer)');
+    const CV = def.parts.cover;
+    ok(CV && CV.paintA > 0 && CV.clothA > 0, 'the frame publishes its painted and cloth areas (' + (CV && CV.paintA.toFixed(1)) + ' / ' + (CV && CV.clothA.toFixed(1)) + ' m2)');
+    const P = C.GEN_PRICES;
+    const rp = C.econRestoreCost('repaint', R, L, CV), rc = C.econRestoreCost('recover', R, L, CV), oh = C.econRestoreCost('overhaul', R, L, CV), rb = C.econRestoreCost('rebuild', R, L, CV);
+    ok(rp.cost === Math.round(P.paintM2 * CV.paintA), 'a repaint: the paint alone (' + rp.cost + ')');
+    ok(rc.cost === Math.round(P.coverM2 * CV.clothA + P.paintM2 * CV.paintA) && rc.cost >= 3000 / 1.5 && rc.cost <= 6000 * 1.5 + rp.cost, 'a recover: the cloth and its paint (' + rc.cost + '; materials 3-6k a Cub, Spruce)');
+    ok(oh.cost === Math.round(C.econPowerPrices(R).engine[0] * C.ECON_WEAR.ovhK) && oh.cost >= 9500 / 1.5 && oh.cost <= 9500 * 1.5, 'an overhaul: the engine row x ovhK, in the band of the A-65\'s shop overhaul (' + oh.cost + ')');
+    const struct = C.ECON_STRUCT_SECS.reduce((a, k) => a + ((L[k] && L[k].cost) || 0), 0) * C.ECON_WEAR.rebuildK;
+    ok(rb.cost === Math.round(P.coverM2 * CV.clothA + P.paintM2 * CV.paintA + C.econPowerPrices(R).engine[0] * C.ECON_WEAR.ovhK + struct), 'a rebuild: recover + overhaul + the frame (' + rb.cost + ')');
+    const metal = C.econRestoreCost('recover', R, L, { paintA: 30, clothA: 0 });
+    ok(metal.cost === 0, 'a metal aeroplane has nothing to recover');
     let d = C.careerNew({ id: 'w', seed: 'wear' }); d.fleet.u = { hangar: null, aero: 'HOME' }; d.career.airframes.u = { paid: 1, age: 20, hours: 1500 };
     d = C.econAgingFlown(d, 'u', 300 * 3600);
     const poor = JSON.parse(JSON.stringify(d)); poor.wallet = 10;
     ok(!C.econRestore(poor, 'u', 'overhaul', oh.cost).ok, 'refused short of the cash');
-    const r = C.econRestore(d, 'u', 'overhaul', oh.cost);
-    const n = C.econAgingNow(r.doc, 'u');
-    ok(r.ok && r.doc.wallet === d.wallet - oh.cost && n.engineHours === 0 && n.years === 23 && r.doc.ledger.slice(-1)[0].k === 'restore' && C.econLedgerClass('restore') === 'repair',
-       'overhauled: paid, a `restore` line (class repair), the engine at 0 h, the years unmoved (' + JSON.stringify(n) + ')');
-    const r2 = C.econAgingFlown(r.doc, 'u', 50 * 3600);
-    ok(C.econAgingNow(r2, 'u').engineHours === 50, 'the hours run again from the overhaul');
-    const p = C.econRestore(d, 'u', 'repaint', rp.cost);
-    ok(p.ok && C.econAgingNow(p.doc, 'u').years === 23 && C.econAgingNow(p.doc, 'u').engineHours === 1800, 'a repaint is not a restoration: the age and the engine unmoved');
+    const now = (x) => C.econAgingNow(x, 'u');
+    const O = C.econRestore(d, 'u', 'overhaul', oh.cost), V = C.econRestore(d, 'u', 'recover', rc.cost), B = C.econRestore(d, 'u', 'rebuild', rb.cost), Pn = C.econRestore(d, 'u', 'repaint', rp.cost);
+    ok(O.ok && now(O.doc).engineHours === 0 && now(O.doc).years === 23 && O.doc.ledger.slice(-1)[0].k === 'restore' && C.econLedgerClass('restore') === 'repair', 'overhauled: the engine at 0 h, the years unmoved, a restore line');
+    ok(V.ok && now(V.doc).years === 0 && now(V.doc).engineHours === 1800, 'recovered: the years at 0, the engine unmoved');
+    ok(B.ok && now(B.doc).years === 0 && now(B.doc).engineHours === 0 && B.doc.wallet === d.wallet - rb.cost, 'rebuilt: years and hours at 0');
+    ok(Pn.ok && now(Pn.doc).years === 23 && now(Pn.doc).engineHours === 1800, 'a repaint is not a restoration: the age and the engine unmoved');
+    ok(C.econAgingNow(C.econAgingFlown(O.doc, 'u', 50 * 3600), 'u').engineHours === 50, 'the hours run again from the overhaul');
   }
   return fails;
 }
@@ -147,40 +161,47 @@ function page(S) {
   const fails = [], ok = (c, what) => { if (!c) fails.push(what); return !!c; };
   ok(/const CERT_CONDITION = \['aging'\];/.test(S.CERT) && /o && o\.condition \? \[\] : CERT_CONDITION/.test(S.CERT), '66b: the condition outside the certificate');
   ok(/delete c\.aging;/.test(S.BENCH), 'bench.js: its strip drops the age');
-  ok(/const bill = econRepairBill\(def\.spec, def\.parts\.ledger, def\.parts\.dmg && def\.parts\.dmg\.groups,/.test(S.APP) && /const rc = econRepairCharge\(d, slot, bill\);/.test(S.APP)
-     && /if \(CAREER_DEV && d\.career && d\.career\.airframes && d\.career\.airframes\[flSlot\]\) d = econStopWear\(d, flSlot, Math\.max\(0, ap\.t \|\| 0\), out\);/.test(S.APP), 'app.js: the flight\'s end bills the breakage');
-  ok(/return econAgingFlown\(d, slot, t\);/.test(S.APP), 'app.js: the flight\'s seconds on the age');
+  ok(/if \(flSlot && d\.fleet && d\.fleet\[flSlot\]\) d = flBreak\(d, flSlot, out\);/.test(S.APP) && /const r = playerBreak\(d, slot, bill\);/.test(S.APP), 'app.js: the flight\'s end grounds what it broke (career and sandbox)');
+  ok(/function econStopWear\(d, slot, t\) \{ return econAgingFlown\(d, slot, t\); \}/.test(S.APP), 'app.js: the flight\'s seconds on the age');
+  ok(/if \(brokenRollRefused\(\)\) return;/.test(S.APP), 'app.js: a broken airframe never rolls out');
+  ok(/function brokenRepair\(n\) \{ return CAREER_DEV \? econRepairNow\(n\) : storeRepairFree\(n\); \}/.test(S.APP) && /broken: n => brokenOf\(n\), repair: n => brokenRepair\(n\),/.test(S.APP), 'app.js: the repair - paid in a career, free in the sandbox');
   ok(/return econAgingStart\(r\.doc, name, sp && sp\.aging \? sp\.aging : null\);/.test(S.APP), 'app.js: a build\'s first save starts its clock at the age set');
-  ok(/if \(CAREER_DEV && window\.FLYDIY_CAREER\) Object\.assign\(window\.FLYDIY_CAREER, \{/.test(S.APP) && /restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\), setCare: c => econCareNow\(c\)/.test(S.APP) && /isAirframe: n =>/.test(S.APP), 'app.js: the career\'s wear doors (behind CAREER_DEV)');
+  ok(/if \(CAREER_DEV && window\.FLYDIY_CAREER\) Object\.assign\(window\.FLYDIY_CAREER, \{/.test(S.APP) && /restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\) \}\);/.test(S.APP) && !/setCare/.test(S.APP), 'app.js: the career\'s refresh doors (behind CAREER_DEV), no upkeep door');
   ok(/if \(now && typeof econAgingSpec === 'function'\) sp = econAgingSpec\(sp, now\);/.test(S.GAR), 'garage.js: a career slot loads at its age now');
-  ok(/function wearRefresh\(\)/.test(S.ED) && /if \(isRoot\) wearRefresh\(\);/.test(S.ED), 'editor.js: the refresh buttons on the WEAR tab');
+  ok(/\(brk \? ' gfBroken' : ''\)/.test(S.GAR), 'garage.js: the rack greys a broken airframe');
+  ok(/function wearRefresh\(\)/.test(S.ED) && /if \(isRoot\) wearRefresh\(\);/.test(S.ED) && /\['recover', 'recover the fabric'\]/.test(S.ED) && /\['rebuild', 'rebuild'\]/.test(S.ED), 'editor.js: the four refresh buttons');
+  ok(/function wearBroken\(\)/.test(S.ED) && /if \(isRoot\) wearBroken\(\);/.test(S.ED), 'editor.js: broken and grounded, and its repair, on the WEAR tab');
+  ok(/careEl\.sel\.disabled = inCareer\(\);/.test(S.ED) && /\['perfect', 'perfect maintenance'\], \['normal', 'normal maintenance'\], \['poor', 'poor maintenance'\]/.test(S.ED), 'editor.js: the three upkeeps, locked in a career');
   ok(/aging: L\.age > 0 \? \{ years: L\.age, engineHours: L\.hours \|\| 0, care: 'normal',/.test(S.PROC), '76_procure: a used purchase starts its clock');
-  ok(/function econCareNow\(c\) \{ const n = slotOnStand\(\); const r = econCareSet\(playerLoad\(\), n, c\);/.test(S.APP), 'app.js: the upkeep\'s door');
-  ok(/function careRow\(\)/.test(S.ED) && /if \(isRoot\) emitEls\(p0, 'upkeep', \[careRow\(\)\], 'how fast it wears from now on', false, \{ secG: 'wear:care' \}\);/.test(S.ED)
-     && /\['perfect', 'perfect maintenance'\], \['normal', 'normal maintenance'\], \['poor', 'poor maintenance'\]/.test(S.ED), 'editor.js: the three upkeeps, up front (not expert)');
+  ok(/if \(playerBroken\(doc, name\)\) return r\(null,/.test(S.PB), '71_: the fly-from-storage door refuses a broken airframe');
   return fails;
 }
 
-const SRC = { CERT: rd('src/core/66b_cert_rule.js'), BENCH: rd('src/viewer/bench.js'), APP: rd('src/viewer/app.js'), GAR: rd('src/viewer/garage.js'),
+const SRC = { PB: rd('src/core/71_player_bases.js'), CERT: rd('src/core/66b_cert_rule.js'), BENCH: rd('src/viewer/bench.js'), APP: rd('src/viewer/app.js'), GAR: rd('src/viewer/garage.js'),
               ED: rd('src/viewer/editor.js'), PROC: rd('src/core/76_procure.js') };
 if (SELF) {
   const sub = (k, a, b) => Object.assign({}, SRC, { [k]: SRC[k].replace(a, b) });
   const D = [
     ['the bench hashes the age', sub('BENCH', 'delete c.aging;', '')],
-    ['no bill at the stop', sub('APP', 'const rc = econRepairCharge(d, slot, bill);', 'const rc = { ok: false };')],
-    ['no hours flown', sub('APP', 'return econAgingFlown(d, slot, t);', 'return d;')],
+    ['nothing grounded at the stop', sub('APP', 'if (flSlot && d.fleet && d.fleet[flSlot]) d = flBreak(d, flSlot, out);', '')],
+    ['no hours flown', sub('APP', 'function econStopWear(d, slot, t) { return econAgingFlown(d, slot, t); }', 'function econStopWear(d) { return d; }')],
+    ['a broken one rolls out', sub('APP', 'if (brokenRollRefused()) return;', '')],
     ['a slot loads as saved', sub('GAR', 'if (now && typeof econAgingSpec === \'function\') sp = econAgingSpec(sp, now);', '')],
     ['no refresh buttons', sub('ED', 'if (isRoot) wearRefresh();', '')],
+    ['the upkeep free in a career', sub('ED', 'careEl.sel.disabled = inCareer();', '')],
   ];
+
   // and the core doctored in a copy of flight_core (the certificate hashing the age again; the repair free again)
   const CORE = rd('tools/flight_core.js');
   const coreD = [
     ['the certificate hashes the age', CORE.replace("o && o.condition ? [] : CERT_CONDITION", "[]")],
     ['the repair free again', CORE.replace("return Math.round((Array.isArray(bill) ? bill : (bill && bill.lines) || []).reduce(", "return 0 * Math.round((Array.isArray(bill) ? bill : (bill && bill.lines) || []).reduce(")],
-    ['an overhaul keeps the hours', CORE.replace("out.career.airframes[slot].aging.engineHours = 0;", "")],
-    ['the upkeep retroactive', CORE.replace("let d = A.aging ? econAgingSettle(doc, slot) : econAgingStart(doc, slot, null);", "let d = A.aging ? doc : econAgingStart(doc, slot, null);")],
+    ['an overhaul keeps the hours', CORE.replace("if (kind === 'overhaul' || kind === 'rebuild') g.engineHours = 0;", "")],
     ['the upkeep does nothing', CORE.replace("care: { perfect: 0.5, normal: 1, poor: 2 },", "care: { perfect: 1, normal: 1, poor: 1 },")],
+    ['a broken one flies from storage', CORE.replace("if (playerBroken(doc, name)) return r(null,", "if (false) return r(null,")],
+    ['the tutorial grounds', CORE.replace("econWorkFreeWhy(doc) === 'free during the tutorial') return { ok: true, doc, why: 'the tutorial: repaired as before' };", "false) return null;")],
   ];
+
   let bad = 0;
   for (const [what, s] of D) { const r = page(s); console.log((r.length ? '  caught  ' : '  MISSED  ') + what); if (!r.length) bad++; }
   const os = require('os');
