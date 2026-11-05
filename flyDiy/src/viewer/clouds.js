@@ -259,18 +259,21 @@ var CLOUDS = (function () {
         float dt0 = clamp((t1 - t0) / N, 24.0, 60.0);
         float t = t0 + dt0 * j * jitterK * smoothstep(8000.0, 1500.0, t0);   // the jitter's amplitude (a dial: grain against banding) - near only: far, the fine steps need none and the grain read as blocks
         float upOD = -1.0;                                          // the decks above, asked at the first dense step
+        float stride = 0.0, fine = 0.0;                             // LOOK-1 2a (the study's C3): the screen march steps back on a hit: a stride that lands in cloud may have jumped its edge, so a wisp thinner than the stride came and went with the camera (Schneider 2015)
         for (int i = 0; i < 320; i++) {
           if (used >= budget || T < 0.01 || t > t1) break;
           used += 1.0;
           float dt = max(dt0, t * 0.004);                          // never finer than ~an eighth of a pixel's footprint: a far cloud is small
           vec3 p = o + d * t;
           vec4 w = weather(li, p);
-          if (w.x <= 0.0) { t += dt * 3.0; continue; }
+          if (w.x <= 0.0 && fine <= 0.0) { t += dt * 3.0; stride = 3.0; continue; }
           // the footprint against the texel: beyond ~5 km a pixel covers more than a detail texel, and sampling below its own frequency re-dealt the rims at every sub-pixel move
           if (gPix > 0.0) { float fp = t * gPix; gLodD = max(0.0, log2(fp * ${ND}.0 / uGlob.z)); gLodB = max(0.0, log2(fp * ${NB}.0 / uLayerA[li].w)); }
-          float rho = density(li, p, w, false);
+          float rho = w.x <= 0.0 ? 0.0 : density(li, p, w, false);
           gLodD = 0.0; gLodB = 0.0;
-          if (rho <= 0.0) { t += dt * 1.5; continue; }
+          if (rho <= 0.0) { if (fine > 0.0) { fine -= 1.0; t += dt; stride = 0.0; continue; } t += dt * 1.5; stride = 1.5; continue; }
+          if (stride > 0.0 && gPix > 0.0) { t = max(t0, t - dt * stride); stride = 0.0; fine = 3.0; continue; }
+          stride = 0.0;
           if (upOD < 0.0) upOD = upperOD(li, p, L) * uDials2.y;   // softened like the ground's tile: the light that scatters through and round the deck above
           float h = clamp((p.y - uLayerA[li].x) / uLayerA[li].y, 0.0, 1.0);
           float Tstep = exp(-rho * uGlob.x * dt);
