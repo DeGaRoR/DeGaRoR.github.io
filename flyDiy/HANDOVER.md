@@ -312307,3 +312307,23 @@ COSTS: none at run time - the guard is a branch at the panel's mount; the census
 the next train's to run.
 STATUS (4 Nov): claude/weather-blocks-2 1c052cc08 is green and pushed; claude/ready/weather-blocks is NOT - this session's
 push to a ready branch was refused as a deploy, so it waits for the user's own push.
+
+## A0 - train L32b, 5 Nov 2026 07:05
+
+IN (on L32a master f3688d168): ready/pilot-loads 264c9b500, ready/pilot-ramp d0453bb4b, ready/stol-fixture-3 31dba2e83, ready/thumbs-round3 ab391cde2, claude/tandem-feet 7256b6011 (A0; the second person in a rear-pilot tandem stands on the feet anchors; AIRCRAFT-LOOKS' stills 2026-11-05/tandem-feet: nothing pokes out), ready/buoy-look 61fa5e98a, ready/client-cub-look 7e8d5c97c (N1938J, wear 0.8), ready/livery-5 4c1d07336, ready/weather-blocks 6c0069ab3, ready/dc3-reg b38612632, ready/twin4b-struts d5ad06580, ready/twin4b-stab 9b25d88ec, ready/menu-nits f26d1a9b8.
+OUT: ready/wear-tab 2903259f2 (HANDOVER line endings normalised): A0 fixes, L32c.
+CORRECTION to L32a's note: PRICE-CAL rode at 5111a6552, so PRICE-CAL.2 is in: the Sell button, step 2 (age costs performance) are landed, the "stuck at the Rufus" seeds were an econ_sim bug, fixed. Its "owed" line is stale.
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.15 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE. STOL: 6 join rows again, this train moved spec rows after the re-capture (part 1 card rows green); not a break, re-capture once at the end.
+TIMED (light): 50 red against the 12 Oct baseline (L32a 57): water taxi fps and metal cockpit rows back inside slack, warm nav cub 120.9 s (143.1), floats 130.5 s: L32a's jump was mostly noise, one sample a row. New: cub cockpit fps 24.5, p999 4401.7 ms (one frame of about 4.4 s), compile 19.4 s; metal chase loop 21.1 ms. On the perf-week list.
+COSTS, by branch:
+- pilot-loads: forward flap, 5 loads land first try through the door, no wind (26-28 m/s, 247-286 m). No page leg with the flap out: the page leg flew 2 crew flapless.
+- pilot-ramp: full-tank radial lifts off by 15 s. GATE TAKEOFF crosswind 4 -> 3 m/s and Rufus at the mine 73 -> 76 m, 66 -> 71 m, accepted by the user. A broken-out tailwheel still can't recover. Costs measured before L32a.
+- OPEN: official Cessna lands flapless on light loads (genTrim budget, up-elevator at forward CG; old 25 L file too): CESSNA-TAIL, the user's call. TOUR Cub East Point, float mk_sea prop strike, DMGTYRE, ARCHETYPES Chinook-alike: standing, named.
+- twin4b-struts: new row fltFrontRing, 4b only, margins 14.4 / 23 / 32 / 34.5, -0.9 kg. Drawn floats about 18 cm ahead of flown; centre strut drawn to the door pillar, flown to the aft ring; tail lens is code.
+- twin4b-stab: stY 0.06 flies where drawn (61_gen_frame.js:2168): 18.4 / 9.7 / 39.6 / 34.1, the low read is the shakedown's one 0.02 rad step over the wake kink (central difference: same or better). Old Twin_busher_floats_2 files move. Struts and stab lifted off on a page once, 02:51. Gate finding for later: the shakedown's one step, and corners missing loads.
+- livery-5: images removed, old saves ignore them; layers 4 + 5 on pages 1 + 2; patterns (shape, layout), tartan, flags; registration outline gone everywhere; the ink colour works (proved on a page). Unseen on the GPU.
+- buoy-look: lamps off by default (window.FLYDIY_BUOY_LIT), sheet, opaque; sphere 12x8 -> 20x14. Texture not judged close up.
+- client-cub-look: white + faded blue, wear 0.8, near-triangle window, N1938J. Career keeps its bare paint job: livery holds through storyClientSpec (its session's stills).
+- weather-blocks: three seasonal blocks, 28 new days.
+- menu-nits: unseen on a page. Thumbs unseen on the All planes screen.
+NEXT: L32c Thu 13:00: wear-tab, tour-eastpoint.
