@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7543748b99d0a7a8
+// body-sha256: 7ea57fa030ab1f8d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33536,7 +33536,7 @@ function genStolCageOff(cage) {
 }
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
-                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut'];
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -43675,6 +43675,7 @@ function genParams(S, fr, strips) {
 //   units: { L | R | T: a fold chain - { hinge, leg (unit axis), twist (rad), turns: [{ axis, ang }], frac } }
 //   knees: { id: { s: P, l: P, a, b, bend: P } }   a two-link brace: from s to l, links a and b, the knee on bend's side
 //   parts: [{ name, rule: 'rigid', unit }                       turns with its unit about the hinge (leg, wheel, castor)
+//           { name, rule: 'door', hinge, axis, ang, seq, o0 }  G6: a well door on its hinge (gearDoorOpen)
 //           { name, rule: 'aim', from: P, to: P, o0, d0 }]      its base on `from`, its axis toward `to` (a cylinder's
 //                                                               body, its rod, a brace's link): o0 / d0 its rest base
 //                                                               and axis (at g = 1 the part is where it was drawn)
@@ -43726,6 +43727,14 @@ function gearKnee(s, l, a, b, bend, prev) {
             w = [r[0] - u[0] * t, r[1] - u[1] * t, r[2] - u[2] * t]; const wl = Math.hypot(w[0], w[1], w[2]); w = w.map(c => c / wl); }
   return [s[0] + u[0] * x + w[0] * h, s[1] + u[1] * x + w[1] * h, s[2] + u[2] * x + w[2] * h];
 }
+// G6: HOW OPEN A WELL DOOR IS at g (0 shut .. 1 open): open within `k` of the gear leaving up (always shut once it is
+// stowed); shut again within `k` of down when it can be (`closedDown`: the down gear does not pass through it)
+function gearDoorOpen(seq, g) {
+  const k = (seq && seq.k) || 0.15;
+  let o = Math.max(0, Math.min(1, g / k));
+  if (seq && seq.closedDown) o = Math.min(o, Math.max(0, Math.min(1, (1 - g) / k)));
+  return o;
+}
 // the shortest rotation taking the unit vector a onto b
 function gearAlign(a, b) {
   const k = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -43751,7 +43760,13 @@ function gearMechPose(R, g) {
   const { M, pt } = gearMechPoints(R, g), out = {};
   for (const P of R.parts || []) {
     let A, t;
-    if (P.rule === 'rigid') {
+    if (P.rule === 'door') {
+      // G6: a hinged door - turned about its hinge line by its angle x how open it is at g, less how open it was drawn
+      // (at g = 1: the rest is where it was drawn)
+      A = gearRot(P.axis, P.ang * (gearDoorOpen(P.seq, g) - gearDoorOpen(P.seq, 1)));
+      const h = P.hinge, Ah = gearApp(A, h);
+      t = [h[0] - Ah[0], h[1] - Ah[1], h[2] - Ah[2]];
+    } else if (P.rule === 'rigid') {
       const C = R.units[P.unit];
       if (!C) continue;
       A = M[P.unit]; const h = C.hinge, Ah = gearApp(A, h);
@@ -43767,7 +43782,7 @@ function gearMechPose(R, g) {
   }
   return out;
 }
-const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearKnee, gearAlign, gearMechPoints, gearMechPose };
+const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearKnee, gearAlign, gearMechPoints, gearMechPose, gearDoorOpen };
 // ============================================================
 // THE WING, AND THE MESH TOOLS THE GENERATOR IS BUILT FROM.
 //
