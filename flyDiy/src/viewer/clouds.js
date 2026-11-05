@@ -139,6 +139,9 @@ var CLOUDS = (function () {
     uniform vec4 uProfA[MAXL];      // per deck: bot, top, erode (the worley fbm's share subtracted from the base), coverage gain
     uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), 0, 0
     uniform vec4 uShape;            // detail strength, curl, 0, 0
+    // THE NOISE'S LEVELS (LOOK-1 2a, the study's C4): both 3D textures carry mips, and a ray has no useful derivatives, so every read names its
+    // level. The main march sets these from the pixel's footprint; the shadow, the sky fit and the probes stay at level 0, as they were
+    float gLodB = 0.0, gLodD = 0.0;
     float remap(float v, float a, float b, float c, float d) { return c + (clamp((v - a) / (b - a), 0.0, 1.0)) * (d - c); }
     // the profile: 08_cloud_field.js profile(), the same shape (h the fraction of the layer, hs the column's top)
     float profile(int li, float h, float hs) { if (h <= 0.0 || h >= hs) return 0.0; return smoothstep(0.0, uProfA[li].x, h) * (1.0 - smoothstep(uProfA[li].y * hs, hs, h)); }
@@ -149,7 +152,7 @@ var CLOUDS = (function () {
       float prof = profile(li, h, w.y);
       if (prof <= 0.0 || w.x <= 0.0) return 0.0;
       vec3 q = (p + vec3(uDriftA[li].x, 0.0, uDriftA[li].y)) / uLayerA[li].w;
-      vec4 n = texture(uNoise, q);
+      vec4 n = textureLod(uNoise, q, gLodB);
       float lf = n.g * 0.625 + n.b * 0.25 + n.a * 0.125;
       float base = remap(n.r, lf * uProfA[li].z, 1.0, 0.0, 1.0) * prof;   // the worley fbm erodes (subtracts), see the bake's note
       float cov = w.x * mix(0.85, 1.0, w.z) * uProfA[li].w;
@@ -157,7 +160,7 @@ var CLOUDS = (function () {
       if (cheap || base <= 0.0 || uShape.x <= 0.0) return base;
       vec3 qd = (p + vec3(uDriftA[li].x, 0.0, uDriftA[li].y)) / uGlob.z;
       qd.xz += uShape.y * vec2(n.b - 0.5, n.a - 0.5) * 2.0;   // a curl the base noise lends the wisps
-      vec3 dn = texture(uDetail, qd).rgb;
+      vec3 dn = textureLod(uDetail, qd, gLodD).rgb;
       float hf = dn.r * 0.625 + dn.g * 0.25 + dn.b * 0.125;
       hf = mix(hf, 1.0 - hf, clamp(h * 8.0, 0.0, 1.0));           // wispy at the bottom, billowy above
       return remap(base, hf * uShape.x, 1.0, 0.0, 1.0);
@@ -169,6 +172,8 @@ var CLOUDS = (function () {
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, the upper decks' shadow softness, the ambient's depth fall-off, 0
+    // set by the screen march's main() only: the angle of a march texel (rad, 0 = the dome and the sky fit: level 0, as they were)
+    float gPix = 0.0;
     ${DENSITY_GLSL}
     ${ATMO_GLSL()}
     float hg(float c, float g) { float g2 = g * g; return (1.0 - g2) / (12.5663706 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
@@ -261,7 +266,10 @@ var CLOUDS = (function () {
           vec3 p = o + d * t;
           vec4 w = weather(li, p);
           if (w.x <= 0.0) { t += dt * 3.0; continue; }
+          // the footprint against the texel: beyond ~5 km a pixel covers more than a detail texel, and sampling below its own frequency re-dealt the rims at every sub-pixel move
+          if (gPix > 0.0) { float fp = t * gPix; gLodD = max(0.0, log2(fp * ${ND}.0 / uGlob.z)); gLodB = max(0.0, log2(fp * ${NB}.0 / uLayerA[li].w)); }
           float rho = density(li, p, w, false);
+          gLodD = 0.0; gLodB = 0.0;
           if (rho <= 0.0) { t += dt * 1.5; continue; }
           if (upOD < 0.0) upOD = upperOD(li, p, L) * uDials2.y;   // softened like the ground's tile: the light that scatters through and round the deck above
           float h = clamp((p.y - uLayerA[li].x) / uLayerA[li].y, 0.0, 1.0);
@@ -303,9 +311,11 @@ var CLOUDS = (function () {
     varying vec2 vUv;
     uniform sampler2D uDepth;
     uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
+    uniform vec2 uMT;   // 0, the texel's angle (rad)
     ${DZ_GLSL}
     ${MARCH_GLSL()}
     void main() {
+      gPix = uMT.y;
       vec2 ndc = vUv * 2.0 - 1.0;
       vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
       vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
@@ -553,7 +563,8 @@ var CLOUDS = (function () {
   function init(r) {
     if (ready || !r || typeof THREE === 'undefined' || !THREE.WebGL3DRenderTarget) return ready;
     renderer = r;
-    const mk3 = n => { const t = new THREE.WebGL3DRenderTarget(n, n, n, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    // the levels are built once, after the bake (noiseMips), not by three after each of its 129 passes
+    const mk3 = n => { const t = new THREE.WebGL3DRenderTarget(n, n, n, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
       wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false, depthBuffer: false, stencilBuffer: false }); t.texture.wrapR = THREE.RepeatWrapping; return t; };
     noiseRT = mk3(NB); detailRT = mk3(ND);
     fsScene = new THREE.Scene(); fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -570,6 +581,7 @@ var CLOUDS = (function () {
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
+    uni.uMT = uMT;
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
     compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
     compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
@@ -596,6 +608,13 @@ var CLOUDS = (function () {
     }
     timer.pending = keep.length > 8 ? keep.slice(-8) : keep;
   }
+  const uMT = { value: (typeof THREE !== 'undefined' && THREE.Vector2) ? new THREE.Vector2() : null };
+  // both cubes' levels, once, when the last slice is in
+  function noiseMips(r) {
+    const gl = r.getContext(); if (!gl.generateMipmap || !r.properties || !r.state) return;
+    for (const t of [noiseRT.texture, detailRT.texture]) { const p = r.properties.get(t); if (!p || !p.__webglTexture) continue; r.state.bindTexture(gl.TEXTURE_3D, p.__webglTexture); gl.generateMipmap(gl.TEXTURE_3D); }
+    r.state.unbindTexture();
+  }
   // a few noise slices a frame until both textures are whole (NB + 1 passes: the detail cube is one)
   function bakeStep() {
     if (bakeAt >= NB + 1) return true;
@@ -605,6 +624,7 @@ var CLOUDS = (function () {
       if (bakeAt < NB) { bakeMat.uniforms.uBake.value.set((bakeAt + 0.5) / NB, NB, 0); renderer.setRenderTarget(noiseRT, bakeAt); renderer.render(fsScene, fsCam); bakeAt++; }
       else { for (let z = 0; z < ND; z++) { bakeMat.uniforms.uBake.value.set((z + 0.5) / ND, ND, 1); renderer.setRenderTarget(detailRT, z); renderer.render(fsScene, fsCam); } bakeAt++; }
     }
+    if (bakeAt >= NB + 1) { renderer.setRenderTarget(prev); noiseMips(renderer); }
     if (bakeAt >= NB + 1 && !skyMat) { try { warmSky(renderer); } catch (e) { /* the fit compiles it then */ } }   // the sky pass's program, compiled among the bake's frames
     renderer.setRenderTarget(prev);
     stats.slicesBaked = bakeAt;
@@ -946,6 +966,7 @@ var CLOUDS = (function () {
     U.uCamMat.value.copy(camera.matrixWorld);
     U.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
     U.uRes.value.set(w, h); U.uFrame.value = S.shimmer ? (frame % 64) : 0;
+    uMT.value.set(0, 2 / (camera.projectionMatrix.elements[5] * h));
     U.uLogFar.value = Math.log2(camera.far + 1);
     U.uDZ.value.set(r.capabilities && r.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far);
     U.uUp.value = (S.upsample && k < 1) ? 1 : 0; U.uDepthK.value = S.depthK;
@@ -981,7 +1002,7 @@ var CLOUDS = (function () {
     probeMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: { uNoise: U.uNoise, uDetail: U.uDetail, uWeather: U.uWeather, uDepth: U.uDepth, uShadow: { value: null }, uWhat: { value: 0 } },
       vertexShader: QUAD_VERT, fragmentShader: `precision highp float; precision highp sampler3D; precision highp sampler2DArray; ${GLSL3_OUT}
         varying vec2 vUv; uniform sampler3D uNoise, uDetail; uniform sampler2DArray uWeather; uniform sampler2D uDepth, uShadow; uniform float uWhat;
-        void main() { vec2 tuv = vUv; if (uWhat < 0.5) gl_FragColor = texture(uNoise, vec3(vUv, 0.5)); else if (uWhat < 1.5) gl_FragColor = texture(uDetail, vec3(vUv, 0.5)); else if (uWhat < 2.5) gl_FragColor = texture(uWeather, vec3(vUv, uWhat - 2.0)); else if (uWhat < 3.5) gl_FragColor = vec4(texture(uDepth, vUv).r, 0.0, 0.0, 1.0); else gl_FragColor = texture(uShadow, ${TILE_UV()}); }`,
+        void main() { vec2 tuv = vUv; if (uWhat < 0.5) gl_FragColor = textureLod(uNoise, vec3(vUv, 0.5), 0.0); else if (uWhat < 1.5) gl_FragColor = textureLod(uDetail, vec3(vUv, 0.5), 0.0); else if (uWhat < 2.5) gl_FragColor = texture(uWeather, vec3(vUv, uWhat - 2.0)); else if (uWhat < 3.5) gl_FragColor = vec4(texture(uDepth, vUv).r, 0.0, 0.0, 1.0); else gl_FragColor = texture(uShadow, ${TILE_UV()}); }`,
       depthTest: false, depthWrite: false, toneMapped: false });
     probeRT = new THREE.WebGLRenderTarget(PROBE_N, PROBE_N, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
   }
