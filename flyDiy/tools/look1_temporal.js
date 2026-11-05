@@ -19,6 +19,7 @@
 //
 //   --cap <s> (default 600): the HARD CAP: at this age the rig exits, closing its own Chrome and server (a run hung for 76 min on 5 Nov
 //        holding the GPU lock: a page call that never answered). A single page call over 150 s is a failure too.
+//   --eyes <a.json,b.json>: the views' eyes from earlier runs' JSONs: the same pictures before and after
 //   node tools/look1_temporal.js --out <dir> [--tag before] [--views cu_1500,canopy_cu] [--q k=v&k2=v2] [--size 1600x900]
 //        [--aa msaa4] [--eval '<js>'] [--clip] [--blue] [--timed] [--port 8552] [--fallback D:/Dev/DeGaRoR.github.io]
 //
@@ -32,6 +33,7 @@ const flag = k => argv.includes('--' + k);
 const CAP = +opt('cap', 600);
 const SIZE = opt('size', '1600x900').split('x').map(Number), SPORT = +opt('port', 8552), Q = opt('q', ''), TAG = opt('tag', 'run');
 const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'look1_temporal'))), FALLBACK = opt('fallback', 'D:/Dev/DeGaRoR.github.io');
+const EYES = (() => { const f = opt('eyes', null); if (!f) return {}; const o = {}; for (const one of f.split(',')) { const v = JSON.parse(fs.readFileSync(one, 'utf8')).views; for (const k in v) if (v[k].eye) o[k] = { x: v[k].eye.x, y: v[k].eye.y, z: v[k].eye.z, yaw: v[k].eye.yaw, pitch: v[k].eye.pitch }; } return o; })();
 const ONLY = opt('views', '').split(',').filter(Boolean), AA = opt('aa', null), EVAL = opt('eval', null);
 const REPO = path.resolve(__dirname, '..', '..');
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'].find(p => fs.existsSync(p));
@@ -47,7 +49,7 @@ const VIEWS = [
   { name: 'canopy_cu', day: CU, where: 'tree', d: 80, h: 2, pitch: 7 },            // the user's canopy edge against the clouds behind
   { name: 'canopy', day: CLEAR, where: 'tree', d: 80, h: 2, pitch: 7 },            // the same, a clear sky: the canopy alone
   { name: 'stand', day: CLEAR, where: 'tree', d: 350, h: 40, pitch: 1 },           // the forest at range: the impostors
-  { name: 'plane_cu', day: CU, where: 'orbit', r: 16, h: 2.5, pitch: 8, onlyClip: true },   // round the aeroplane on the stand, the clouds behind it: the history's trap (--clip)
+  { name: 'plane_cu', day: CU, where: 'orbit', r: 14, h: 0.9, pitch: 13, onlyClip: true },   // round the aeroplane on the stand, the clouds behind it: the history's trap (--clip)
 ];
 
 // ---- the page's half ---------------------------------------------------------------------------------------------------
@@ -212,6 +214,7 @@ const PAGE_RIG = `window.LT = (() => {
       return null; })()`);
     if (!p) return null;
     p.pitch = (V.pitch || 0) * Math.PI / 180;
+    if (EYES[V.name]) Object.assign(p, EYES[V.name]);   // the same eye as the run it is compared with: a tree the stream deals differently is another view
     await ev(`(LT.go(${JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch })}), 1)`);
     await ev(FRAMES(90)); await sleep(5000);   // the stream, the clouds' fit, the probe
     await ev(FRAMES(30));
@@ -250,7 +253,7 @@ const PAGE_RIG = `window.LT = (() => {
   } else {
     for (const V of list) {
       const p = await place(V); if (!p) { log('no spot ' + V.name); continue; }
-      const VR = R.views[V.name] = { eye: p };
+      const VR = R.views[V.name] = { eye: p }; log(V.name + ' eye ' + JSON.stringify(p) + ' base ' + await ev('CLOUDS.layer ? CLOUDS.layer.base : -1'));
       // the orbit: the eye round the aeroplane at 0.6 deg a frame (18 deg/s at 30 fps), looking at it
       const orbitRows = () => { const out = [], R0 = V.r; for (let i = 0; i < 158; i++) { const y = p.yaw + i * 0.6 * Math.PI / 180; out.push({ x: p.c[0] - Math.sin(y) * R0, y: p.y, z: p.c[1] + Math.cos(y) * R0, yaw: y, pitch: p.pitch }); } return out; };
       if (flag('clip')) { const c = await J(`LT.clip(${JSON.stringify(V.where === 'orbit' ? orbitRows() : rows(p, 158, 1.5 * pxA, 0))}, 8)`); const dir = path.join(OUT, 'clip_' + TAG + '_' + V.name); fs.mkdirSync(dir, { recursive: true });

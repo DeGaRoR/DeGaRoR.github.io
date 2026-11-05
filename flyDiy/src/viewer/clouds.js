@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -1046,7 +1046,7 @@ var CLOUDS = (function () {
     const hist = !!main && !!S.temporal;
     if (hist) hFrame++;
     U.uRes.value.set(w, h); U.uFrame.value = (S.shimmer || hist) ? ((hist ? hFrame : frame) % 64) : 0;
-    uMT.value.set(hist ? 1 : 0, 2 / (camera.projectionMatrix.elements[5] * h));
+    uMT.value.set(hist ? 1 : 0, (hist ? S.tLod : 1) * 2 / (camera.projectionMatrix.elements[5] * h));   // tLod: the history's sub-texel jitter resolves finer than a march texel
     if (hist && S.tSub) uMJ.value.set((halton((hFrame % 16) + 1, 2) - 0.5) / w, (halton((hFrame % 16) + 1, 3) - 0.5) / h); else uMJ.value.set(0, 0);
     U.uLogFar.value = Math.log2(camera.far + 1);
     U.uDZ.value.set(r.capabilities && r.capabilities.reversedDepthBuffer ? 1 : 0, camera.near, camera.far);
