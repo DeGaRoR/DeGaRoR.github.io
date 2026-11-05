@@ -703,17 +703,25 @@ function pickParts(g, keep, toCage, classOf, field, smooth) {
   }
   // the shared normals (cage space: toCage is a rigid map), area-weighted, one per source vertex
   const NRM = smooth ? new Float32Array(nv * 3) : null;
+  // WING-ROOT-NORMALS (the user, 5 Nov: a black shadow from where the wing meets its centre, over the wing, worse at low
+  // angles, on all planes): the root rib is a closed wall in the 'centre' class and shares its row with the skin, so its
+  // spanwise normal went into the skin's: the root row's normals lay on their side, and the bay's interpolation carried
+  // that across the wing. A rib in the main panel or the centre gives the skin no normal; its own row keeps one (NRM2)
+  // only where no skin face touches it.
+  const NRM2 = smooth ? new Float32Array(nv * 3) : null;
   if (NRM) {
     const P3 = new Map(), at = i => P3.get(i) || (P3.set(i, toCage(raw(i))), P3.get(i));
-    const addTri = (i, j, k) => {
+    const addTri = (i, j, k, ribOk) => {
       const A = at(i), Bq = at(j), Cq = at(k);
       const ux = Bq[0] - A[0], uy = Bq[1] - A[1], uz = Bq[2] - A[2], wx = Cq[0] - A[0], wy = Cq[1] - A[1], wz = Cq[2] - A[2];
       const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
-      for (const q of [i, j, k]) { NRM[q * 3] += nx; NRM[q * 3 + 1] += ny; NRM[q * 3 + 2] += nz; }
+      const rib = ribOk && Math.abs(nx) > 0.85 * Math.hypot(nx, ny, nz);
+      const T = rib ? NRM2 : NRM;
+      for (const q of [i, j, k]) { T[q * 3] += nx; T[q * 3 + 1] += ny; T[q * 3 + 2] += nz; }
     };
     for (const f of faces) if (smooth.has(f.cl)) {
-      const v = f.vs;
-      addTri(v[0], v[1], v[2]); if (f.isQuad) addTri(v[0], v[2], v[3]);
+      const v = f.vs, ribOk = f.cl === 'main' || f.cl === 'centre';
+      addTri(v[0], v[1], v[2], ribOk); if (f.isQuad) addTri(v[0], v[2], v[3], ribOk);
     }
   }
   for (const f of faces) {
@@ -740,7 +748,8 @@ function pickParts(g, keep, toCage, classOf, field, smooth) {
     if (B2.src && B2.src.length * 3 === B2.pos.length) {
       const nA = new Float32Array(B2.pos.length);
       B2.src.forEach((i, k) => {
-        const x = NRM[i * 3], y = NRM[i * 3 + 1], z = NRM[i * 3 + 2], L = Math.hypot(x, y, z) || 1;
+        const T = (NRM[i * 3] || NRM[i * 3 + 1] || NRM[i * 3 + 2]) ? NRM : NRM2;
+        const x = T[i * 3], y = T[i * 3 + 1], z = T[i * 3 + 2], L = Math.hypot(x, y, z) || 1;
         nA[k * 3] = x / L; nA[k * 3 + 1] = y / L; nA[k * 3 + 2] = z / L;
       });
       geo.setAttribute('normal', new THREE.BufferAttribute(nA, 3));
@@ -2427,7 +2436,7 @@ const wingPost = ctx => {
     group2 = new THREE.Group();
     group2.name = 'cageLayer:wing2';
     const probe2 = [];
-    const parts2 = pickParts(gs.skin2, vert2(gs.skin2), toCage, class2, field2(gs.skin2));
+    const parts2 = pickParts(gs.skin2, vert2(gs.skin2), toCage, class2, field2(gs.skin2), new Set(['main', 'centre', 'tip']));
     for (const cl of ['main', 'centre', 'tip']) {
       const pr = parts2 && parts2[cl];
       if (!pr) continue;
