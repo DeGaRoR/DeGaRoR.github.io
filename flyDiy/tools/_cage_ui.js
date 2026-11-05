@@ -1756,6 +1756,35 @@ function wingWellApply() {
   WELL_STATS.wing = n;
   return n;
 }
+// GR: THE NACELLES' SKIN, CUT THE SAME WAY - the cowl units' meshes the gear layer tagged (userData.nacSkin: 'skin' or
+// 'twin', the inner twin), each re-cut from its first geometry when CAGE_GEAR.cutsNacM changes; the cut made in the
+// layer's frame (the mesh's matrix relative to the scene) and carried back
+function nacWellApply() {
+  const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
+  if (!KG || !KG.knifeWellsMesh || !scene) return 0;
+  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsNacM) && C.cutsNacM.length ? C.cutsNacM : null, sig = wellSigOf(cuts);
+  const list = []; scene.traverse(o => { if (o.isMesh && o.userData && o.userData.nacSkin) list.push(o); });
+  scene.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(scene.matrixWorld).invert();
+  let n = 0;
+  for (const o of list) {
+    const ud = o.userData;
+    if ((ud.wellSig || '') === sig) continue;
+    if (!ud.wellGeo0) ud.wellGeo0 = o.geometry;
+    if (ud.wellMesh) { o.remove(ud.wellMesh); ud.wellMesh.geometry.dispose(); ud.wellMesh = null; }
+    if (ud.wellCutGeo) { if (o.geometry === ud.wellCutGeo) o.geometry = ud.wellGeo0; ud.wellCutGeo.dispose(); ud.wellCutGeo = null; }
+    ud.wellSig = sig;
+    if (!cuts) { o.geometry = ud.wellGeo0; continue; }
+    const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin === 'twin');
+    if (!r.skin) continue;
+    o.geometry = r.skin; ud.wellCutGeo = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellNac'; o.add(wm); ud.wellMesh = wm; }
+    n++;
+  }
+  WELL_STATS.nac = n;
+  return n;
+}
 function eyeObjOf(src) {
   const wSig = wellSigOf(wellCutsNow());
   if (EYE_OBJ && EYE_OBJ.userData.eyeSrc === src && (EYE_OBJ.userData.wellSig || '') === wSig) return EYE_OBJ;
@@ -2147,7 +2176,7 @@ function* releaseSteps(built, rplan) {
   const stat = { textContent: STAT0 };
   const ctx = { scene, spec, mesh: sFix, P, stat, defer: false };
   try { CH.run(ctx, P, rplan); } catch (e) { console.error('page post hook (release):', e); }
-  try { wellApply(); wingWellApply(); } catch (e) { console.error('wells:', e); }     // RETRACT G4/G5
+  try { wellApply(); wingWellApply(); nacWellApply(); } catch (e) { console.error('wells:', e); }     // RETRACT G4/G5 (GR: the nacelles)
   if ($('stat')) $('stat').textContent = STAT0 + CH.layers.map(l => l.statApp || '').join('');
   // the scene's order as a whole build leaves it: everything else as it stands, the fuselage's own objects, then each
   // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
@@ -2563,7 +2592,7 @@ function* buildSteps() {
     if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
   }
   catch (e) { console.error('page post hook:', e); }
-  if (!DRAG_TICK) try { wellApply(); wingWellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4/G5: the wells, as the gear says
+  if (!DRAG_TICK) try { wellApply(); wingWellApply(); nacWellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4/G5: the wells, as the gear says
   standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task

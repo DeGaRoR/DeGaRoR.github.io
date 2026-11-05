@@ -1081,7 +1081,19 @@ function knifeWellsGeo(THREE, geo, cuts, tops) {
   return { skin: build(f => f.m !== 'wheelWell'), well: build(f => f.m === 'wheelWell'), stats: st };
 }
 
-const API = { knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
+// GR: A MESH CUT IN THE LAYER'S FRAME (a nacelle's skin sits inside the cowl unit's own frame): its geometry carried
+// to the layer by `rel` (a THREE.Matrix4: the mesh's matrix relative to the layer's scene), cut by knifeWellsGeo, and
+// both results carried back; an inner twin keeps the skin only (its well is the skin's)
+function knifeWellsMesh(THREE, geo, rel, cuts, twin) {
+  const g = geo.clone(); g.applyMatrix4(rel);
+  const r = knifeWellsGeo(THREE, g, cuts, null);
+  g.dispose();
+  const back = new THREE.Matrix4().copy(rel).invert();
+  if (r.skin) r.skin.applyMatrix4(back);
+  if (r.well) { if (twin) { r.well.dispose(); r.well = null; } else r.well.applyMatrix4(back); }
+  return r;
+}
+const API = { knifeWellsMesh, knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();

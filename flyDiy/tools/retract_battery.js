@@ -26,6 +26,8 @@ const CASES = [
   { name: 'bites', file: BITES, over: { gearRetract: 1 }, what: 'B-ITES as it is (retractable)' },
   { name: 'bites_wing', file: BITES, over: { gearRetract: 1, s1X: 1.4 }, what: 'B-ITES, 2.8 m track: the mains into the wing' },
   { name: 'bites_nose_fwd', file: BITES, over: { gearRetract: 1, gearFoldNose: 1 }, what: 'B-ITES, the nose folding forward' },
+  { name: 'da62_nacelle', key: 'da62', over: { gearRetract: 1, gearFold: 7, s1X: 2.45, s1Z: 1.25 }, what: 'low wing: the mains forward into the engine nacelles (no bay grown)' },
+  { name: 'twin_nacelle_bay', key: 'twinBush', over: { gearRetract: 1, gearFold: 7, s1X: 2.8, s1Z: 1.25 }, what: 'high wing: the nacelle too short for the 1.7 m legs - the gear bay grown under the wing, the mains aft into it' },
 ];
 const views = ['qb', 'front'], gs = ['1', '0.5', '0'];
 const QS = path.join(ROOT, 'tools', 'quickshot.js');

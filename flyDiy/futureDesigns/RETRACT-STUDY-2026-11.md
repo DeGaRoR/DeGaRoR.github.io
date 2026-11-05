@@ -1470,21 +1470,218 @@ or a Hull, and have this sort of mecanism, not necessarily requiring doors."
 **In our terms** (built 5 Nov):
 - **The retraction opened beyond the low wing.** Any wing position retracts a tricycle: a low wing's mains root on the
   wing, any other's on the body. GEAR_RETRACTABLE, the retraction rows and the join no longer ask for a low wing.
-- **The fold 'catalina'** (the mains' seventh fold, appended so a saved card keeps its index): the leg turns about the
-  LATERAL axis, so the wheel keeps its lateral place and rises along the side to the pin's height (the trunnion, 45 %
-  of the way from the keel to the floor). There is no trim: it is the leg's own lift.
-- **The side well.** A unit entering the body through its SIDE (its near-skin swept points' section direction mostly
-  lateral) is cut from the side, by the same knife:
-  - its frame looks at the side (n0 = [±1, 0, 0]), the outline in (z, ∓y);
-  - the recess goes inward to a fitted floor (`ceilP`: the deepest swept point's inward coordinate, the clearance more);
-  - knifeCarveF clears the structure in any frame.
+- **v1 was wrong.** The user's review (5 Nov): "you're not cutting at the right place ... the back gear does whatever
+  it does ... doesn't even feel like the mechanism is correctly articulated ... an inset in the fuselage in which the
+  wheel really slots in ... nice round". v1 turned the leg 90 degrees about the lateral axis only. The wheel rose
+  under the pin and its well was cut wherever the swept unit touched the hull. v2 replaces it.
+- **The fold 'catalina' (v2): two turns, SOLVED per build.**
+  - Turn 1 is about the lateral axis, searched from 45 to 135 degrees until the leg lies level (aft).
+  - Turn 2 is about the vertical axis, searched from 0 to 40 degrees until the wheel's centre sits 50 mm into the
+    hull's side (`SP.bodyIn`).
+  - `C.solved` carries both angles.
+- **The pivot is external.** A trunnion fitting stands just outside the skin (`retIn` negative: the oleo's radius and
+  9 mm), as the PBY's does. The wheel rides INBOARD of its leg (`st.ret.flip`, legOleo's `hS`), so the tyre faces the
+  hull.
+- **The pivot's height is automatic.** The leg's root angle round the section is raised until the pin is at least a
+  wheel's radius and the clearance above the lowest point of the near-vertical side (|nx| >= 0.85). The stowed wheel
+  then clears the turn of the bilge, and so does its recess (v1 notched the bilge).
+- **The brace.** The side strut runs from the hull side, 0.4 of the leg's length aft and 60 mm under the pin, with its
+  knee bent outward. There is no actuator (the PBY's own is in the hull).
+- **The recess is the wheel's only, and round.**
+  - Its outline is the tyre's two rims, finely sampled (`wheelRims`: 48 points x 2 radii x 2 faces). The leg lies
+    outside the hull and cuts nothing.
+  - The side well: the knife's frame looks at the side (n0 = [±1, 0, 0]), the outline in (z, ∓y), the floor fitted
+    (`ceilP`).
+  - knifeCarveF clears the structure in any frame, using the deepest floor under each piece plus 8 mm, so no frame
+    face shows inside the recess.
 
   `CAGE_GEAR.cutsSide`. No doors (rows: well doors none, leg door off).
-- **On the Cessna 172 as the hull** (the battery's c172_catalina, a 1.12 m and a 1.0 m track): the mains lift aft
-  along the sides into side recesses, and the wheels stand upright against the hull, half out, just above the belly.
+- **On the Cessna 172 as the hull** (the battery's c172_catalina, a 1.2 m track, the floor raised as a hull's): the
+  mains swing aft and level along the sides, then tuck into round recesses. The tyres stand upright, half in the hull.
   The nose folds aft into its belly well.
 - **Not yet:**
   - the wing strut of the real gear (our brace is the generic folding brace);
   - the nose forward into a bow behind doors (the 'fwd' fold exists; the bow's doors are G6's below-cut doors);
   - a real hull with a step and chines (the amphibian, G7);
   - doors for a side well (doorBuild knows below-cuts only).
+
+### 8.16 THE NACELLE GEAR (the user, 5 Nov: "nacelle mounted retractable wheels ... more or less under the engine, and then it folds back into the nacelle ... should work with low wing, high wing")
+
+**The real thing:**
+- **Low wing** (DC-3, Aztec, Seneca, DA42/62, Baron): the nacelle hangs under the wing and is deep. A short leg folds
+  FORWARD (the DC-3, under the engine, the tyre's bottom left out) or AFT (the Baron) into it.
+- **High wing** (F27, Dash 8, An-24, Fokker 50): the wing is high and the legs are long. The nacelle is carried on
+  DOWN and AFT, past the trailing edge, as the gear's bay. The legs fold aft into it. The bay is most of what one sees
+  of those nacelles.
+
+**In our terms** (built 5 Nov, `_cage_gear.js`):
+- **The nacelles.** The cowl layer's off-centre units (|x| > 0.3 m) are this build's nacelles (`nacellesOf`). Each has
+  its skin meshes and a section table about its own centreline (`meshAirframe`). `nacIn` (the depth inside) and
+  `nacAt` (the nacelle over a plan place) serve the probe, the mounts, the fold, the cuts and the doors.
+- **The mount.** A main station whose wheel is under a nacelle roots its leg on the nacelle's bottom (`nacMount`,
+  before the wing's mount, retracting builds only). The pin is 45 % of the nacelle's depth up.
+- **The fold 'nacelle'** (the mains' eighth fold, appended): 90 degrees about the lateral axis, forward or aft,
+  whichever way the nacelle runs further from the pin. The trim is limited to ±10 degrees and centres the wheel in the
+  nacelle's own depth. A wheel past the nacelle's ends is heavily penalised, so the trim never chases the wing's depth.
+- **The cuts and doors.** The swept units inside a nacelle are cut from below into its skin
+  (`CAGE_GEAR.cutsNacM`; `_cage_ui` nacWellApply and quickshot cut every mesh tagged `nacSkin`). The well's ceiling
+  stays under the nacelle's top. The doors (G6's) take the nacelle's faces: a leg door and one or two well doors.
+- **The fit.** The 'nacelle' test turns s1Z, s1Drop and gearFold red when the stowed wheel ends up past the nacelle's
+  front or tail.
+- **THE GEAR NACELLE (`nacPodBuild`, row `gearNacPod`: auto / always / never).**
+  - **When.** On auto, a nacelle that cannot take the folded leg is GROWN. It cannot when it is too short both ways
+    from the pin, or shallower than the wheel and 40 mm.
+  - **The pod's shape.** A fairing under the wing:
+    - its top 30 mm into the wing's underside, following it (level with the trailing edge behind it);
+    - a wheel's depth and the clearance below that, with the pin at the wheel's centre stowed;
+    - the width of the tyre, or of the leg's offset with the tyre, widened toward 70 % of the nacelle's own (at most
+      1.6 times the tyre's);
+    - a long nose tucked under the engine, a full section from the gear bay's front wall to past the stowed wheel,
+      and an upswept tail.
+  - **The join.** The pod's mesh joins its nacelle's section table (the union's), so the mount, the pin (the pod's own
+    height), the fold (now aft: the union runs aft), the trim, the well and the doors all read it as the nacelle. It
+    is drawn in the gear layer, unnamed, so the join merges it as structure. It is tagged as nacelle skin, so the
+    knife cuts its well.
+
+**Evidence** (quickshot, scratchpad sheets `sheet_lowwing.png`, `sheet_highwing.png`):
+- **Low wing (da62, s1X 2.45, s1Z 1.25).** No bay is grown. The mains fold forward under the engine into the
+  nacelle, behind a leg door and two well doors, and the doors close flush. "always" changes nothing visible: the bay
+  lies inside the deep nacelle.
+- **High wing (twinBush, s1X 2.8, s1Z 1.25).** The 1.7 m legs and the slim nacelle on the wing could not work:
+  before the bay, the wheel stowed in front of the propeller disc. Now the bay is grown and the 1.43 m legs fold aft
+  into it, past the trailing edge. The doors close flush and no fit test fires for the mains.
+
+**Not yet:**
+- **The lift strut.** On the twinBush the strut crosses the bay at that track: a strut-braced high wing puts its
+  nacelles inboard of the strut's root. There is no fit test for a strut through the bay yet.
+- **The well doors stay open while the gear is down** (G6's sequence). The F27's close again. `closedDown` could be
+  set for a nacelle bay's well doors, since the leg door covers the leg's slot.
+- **The pod's nose is a separate body under the engine nacelle.** It is not a loft of the nacelle's own sections
+  into the bay, which would be a smoother join.
+- **A twin-boom or pusher nacelle** (engAim 2) has not been tried.
+
+### 8.17 THE REVIEW OF 5 NOV (evening): the cut's finish, the fittings, the doors, the shortening
+
+The user, after 8.16: "the cut is not that clean ... are you sure that you are cutting into the max subdivided mesh?
+... you have a flat shading that doesn't help ... it doesn't feel like the cut is round at all ... the rotation points
+... the plates ... do not look very realistic ... [the rest-position cut] only partially ... It should really not clip
+at any points ... a metal plate sticking 90 degrees out of the fuselage ... a triangle structure ... another plate that
+comes flat on the fuselage ... the backside should be as flat as possible ... cut through it, extrude that, and do a flat
+surface ... allow these very long landing trains to half retract ... make these options in the sliders ... the doors ...
+until half of the wheel ... the other cut part ... a little opening door".
+
+**What the knife cuts.** The well cuts already used the windows' knife (`_knife_gen.js`), which cuts the subdivided
+displayed sheet (76 566 vertices on the twinBush) along exact crossings. The roughness came from the OUTLINE handed to
+it:
+- a convex hull of points swept at only 17 positions;
+- tyre rings of 12 points;
+- the leg sampled as its axis;
+- corners grown by 12-gons (the nose well came out a 17-point kite).
+
+**Now:**
+- **The sweep.** 33 positions. The tyre's rims at 32 points. The leg is a tube at its radius plus 20 mm (`legTube`,
+  C.legR from the oleo's diameter), so the rest slot holds the leg's skin, not its axis.
+- **The corners.** Grown by circumscribed 32-gons. The nose well is now 39-41 points and smooth.
+- **The ceiling is flat.** The outline is extruded to the highest swept point plus the clearance (`wellHeights`, and
+  the side wells' floor). A wing's upper skin and a nacelle's top still cap it, cell by cell.
+- **The cost.** The fit went from 0.19 s to 1.5 s with the finer sweep, then back to 0.25-0.42 s:
+  - the swept points are posed once per unit and shared by the body's, the nacelles' and the wing's sweeps;
+  - the wing's skin heights are memoised on a 1 cm grid;
+  - the nacelles are rejected by their box;
+  - the nacelles' section tables are cached on their vertices.
+
+**The shading.** quickshot was flat-shaded per triangle. It now interpolates each mesh's own vertex normals per pixel
+(the sheet's `N`, the layers' `normal` attributes), with a Lambert term and a soft highlight. `--flat` gives the old
+facets.
+
+**THE FITTINGS (`fittingsDraw`).** Every fixed pivot hangs from the structure ABOVE it: the trunnions (legOleo now only
+records them, `RT.fits`), the brace anchors and the actuator anchors (`mechBuild` returns `fits`). The structure is the
+well's flat ceiling over the pivot's plan place (the body's, the wing's or the nacelle's well), else 50 mm up. Each
+fitting has:
+- two lugs from the pin;
+- a block between their roots when the drop is longer than a lug (55 mm);
+- a base plate flat on the ceiling, with four bolts;
+- a triangular gusset outside each lug, from the lug to the plate.
+
+Drawn after the fit, once the ceilings are known. The Catalina keeps its hull-side lugs.
+
+**THE DOORS.** The leg door's share is now the leg (its tube) plus the wheel's half on the trunnion's side, ending a
+fifth of a radius short of the axle. Gear down, it ends over the axle, a radius clear of the ground. The rest of the
+cut is the well's doors (one or two). They open as the gear leaves either end and close once it is in. Gear down,
+they close unless the down gear passes through them.
+
+The "passes through" test was too coarse. Any down point within 50 mm of the door's height inside its plan counted,
+so a trunnion inside the structure kept the T-tail's belly doors open on the ground. It is now a crossing test: one of
+the down gear's lines (the leg from its trunnion to its axle, the brace's links, the actuator) crosses the door's own
+surface inside it, or comes within 12 mm of it. The T-tail's and B-ITES's belly doors now close gear down. The
+twinBush's nose doors stay open gear down, because its drag brace crosses them (as the light twins' linked nose doors
+do).
+
+**THE SHORTENING (rows `gearShort`, `gearShortNose`: 0-0.45 of the leg).**
+- **The slide.** The piston slides up into its cylinder as the gear comes up, smoothly, completed half way up the
+  travel. It stops 50 mm short of the gland, and the cylinder is shortened to leave the piston that travel.
+- **In the core** (`src/core/62c_gear_mech.js`): `gearSlide` and `gearSlidePt` slide a unit's points below `t0` along
+  the strut. A part with `slide` (the wheel, the castor, the piston's group `edMechLow*`) rides it in `gearMechPose`.
+  So the editor's preview and the flown aeroplane telescope alike.
+- **The torque scissor** becomes a knee (`R.knees.sc*`, parts `edMech*_sc1/_sc2`): its upper arm on the cylinder, its
+  lower on the piston, folding as the piston goes in.
+- **In the gear layer.** The sweep (`poseAll`), the trim, the lift and the nacelle test all take the slide. The
+  grown gear bay is sized to the stowed (shortened) leg (`stowLen`).
+- **On the twinBush** (gearShort 0.4, the nose 0.3): the 1.43 m mains slide 0.57 m in and stow in a bay about half a
+  metre shorter. The fit is clean for the mains.
+
+**Evidence** (quickshot, smooth shading; scratchpad `fin/`):
+- twinBush with shortening (gearShort 0.4, nose 0.3; gear 1 / 0.6 / 0.3 / 0);
+- da62 nacelle;
+- the T-tail's belly wells (gear 1 / 0.85 / 0.5 / 0) and its wing wells;
+- B-ITES;
+- the Catalina.
+
+**Not yet:**
+- the cut into a cowl (the nose forward into it);
+- the Skymaster (two axes, the rear pod);
+- the long well behind a nose leg, set by where the brace and actuator anchor (a nose well 1 m long for a 0.2 m
+  wheel on the twinBush; anchoring them over the leg's own slot would shorten it);
+- the gear bay's width and length held to the wing (its chord, the flap);
+- a lift strut through a bay (no test);
+- the gates (after the user's review).
+
+### 8.18 THE NACELLE FITTED TO ITS GEAR (replaces 8.16's grown pod as the default)
+
+The user (5 Nov, on 8.16/8.17's bay): "the enormous pod you've created is also unacceptable. The idea is to fit the
+nacelle so it fits, maybe swinging front or back, and possibly retracting, but certainly not to add this enormous
+thing. We could have a stand-alone pod option, but separate. Start again from the linear cowl and nacelle, extend the
+nacelle as much as required, move the whole assembly up and down, possibly make the nacelle higher if required (and
+the cowl, keep these aligned, same height, same width)".
+
+**Built (`_cage_cowl.js nacGearFit`, row `gearNacFit`, on by default).**
+- **Where.** In `engineFaces`, the face every layer reads (the cowl, the engine and its propeller, the gear's nacelle
+  probe). When it changes, the whole engine assembly changes together.
+- **When it applies.** The mains fold into a puller's nacelle (gearFold 'nacelle'), their wheel is under it, and the
+  nacelle as drawn cannot hold the folded wheel either way:
+  - the section as drawn: a free cowl's own rows, a fitted one's face;
+  - the pin is 45 % up the depth (the gear layer's own rule);
+  - the folded wheel is inside the section with its clearance;
+  - on a HIGH wing, the wheel is under the wing's underside where it stows (its middle over the body's centre line;
+    a low wing's wheel stows ahead of the wing or into the wing's own well);
+  - long enough: forward, under the engine's rear (60 % of the cowl past the firewall, the DC-3's way); aft, in the
+    tail cone's first 55 % (the cone keeps 86 % of its section there).
+- **The growth, least first:**
+  1. Deep enough: the half-height grows to hold the wheel and its clearance. It grows DOWNWARD: the top is kept and
+     the assembly is lowered by the growth. Cowl and nacelle stay one section, the same height and width. The width
+     grows to the tyre and its offset.
+  2. Lowered just enough for the folded wheel to pass under a high wing (the leg shortens with it).
+  3. Forward when that fits under the engine's rear. Else aft, into a tail cone as long as it needs, 4 m at most.
+     Past that the gear layer's fit stays red: shorten the legs (8.17) or move the station.
+- **Not saved.** The rows keep their values. The face carries `gearFit` (dy, halfW, halfH, tailLen, fold, ok), and a
+  fitted cowl's synced rows show its section.
+
+**The stand-alone pod** (8.16's `nacPodBuild`) is now only `gearNacPod` 1: "a separate gear pod under the nacelle",
+off by default.
+
+**Evidence** (scratchpad `fit/`):
+- **twinBush, legs shortened 40 %.** Its own nacelle is 0.56 m deep (from 0.34), lowered 0.32 m, under the wing. The
+  legs fold forward under the engine, and the fit is clean for the mains.
+- **twinBush unshortened.** It needs a tail cone of more than 4 m, so it stays red (honestly).
+- **da62.** Its nacelle is deepened downward by 0.16 m, and the wheel is now wholly inside (it was proud through a
+  round cutout). It still folds forward and its fit is clean.

@@ -1732,12 +1732,17 @@ function legOleo(bags, AF, P, st, sgn) {
     // the lugs reach up to the fitting plate under the far skin: as far as the structure's depth leaves (a thin
     // section shortens them; the gear layer's fit says when it is too thin - its 'mount' test)
     const up = mul(dir, -1), w = Rc + 0.034, reach = Math.max(0.025, Math.min(0.075, RT.in - 0.014));
+    // (GR: `RT.fits` - the gear layer draws the trunnion's fitting itself once its well's ceiling is known: lugs, a
+    // base plate bolted flat on the structure, gussets; here only its record)
+    if (RT.fits) RT.fits.push({ c: trunn.slice(), pax: pax.slice(), w, r: 0.030, t: 0.014, kind: 'trunnion' });
+    else {
     for (const s of [-1, 1]) {
       lug(RT.fix.alloy, off(trunn, pax, s * w), pax, up, 0.030, 0.014, reach);
       bolt(RT.fix.dark, off(off(trunn, up, reach), pax, s * w), up, 0.006, 0.010);
     }
     const sideV = nrm(crs(pax, up));
     boxIn(RT.fix.alloy, off(trunn, up, reach + 0.006), [w + 0.022, 0.006, 0.034], pax, up, sideV);
+    }
     revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
     revolve(bags.alloy, off(trunn, pax, -w + 0.009), pax,
             [[Rc * 0.62, 0], [Rc * 0.62, 2 * w - 0.018]], 18, true);      // the yoke's cross-boss, on the pin
@@ -1749,11 +1754,14 @@ function legOleo(bags, AF, P, st, sgn) {
             [[0.012, 0], [0.012, 2 * Rc + 0.056]], 14, true);
   }
   // cylinder (upper) and polished piston (lower)
+  // (GR: a shortening leg - `RT.low` - draws its piston, its axle stub and the scissor's lower arm into the piston's own
+  // bags, which slide up the leg as it retracts; the scissor's arms are handed to the gear layer as a knee, RT.scissor)
+  const LB = RT && RT.low ? RT.low : bags;
   const cylL = L * clamp(P.oleoCyl, 0.30, 0.80);
   revolve(bags.alloy, trunn, dir,
           [[Rc * 0.72, 0], [Rc, Rc * 0.5], [Rc, cylL - Rc * 0.3],
            [Rc * 0.92, cylL]], 20, true);
-  revolve(bags.chrome, off(trunn, dir, cylL - 0.004), dir,
+  revolve(LB.chrome, off(trunn, dir, cylL - 0.004), dir,
           [[Rc * 0.62, 0], [Rc * 0.62, L - cylL - 0.02]], 16, true);
   // the wiper boot at the gland
   revolve(bags.dark, off(trunn, dir, cylL - 0.010), dir,
@@ -1764,11 +1772,14 @@ function legOleo(bags, AF, P, st, sgn) {
   const a0 = add(off(trunn, dir, cylL * 0.80), mul(fwd, Rc * 0.95));
   const a2 = add(off(trunn, dir, L - 0.055), mul(fwd, Rc * 0.80));
   const knee = add(lerp3(a0, a2, 0.5), mul(fwd, P.oleoScissor));
+  if (RT && RT.low) RT.scissor = { a0, a2, knee, pax: pax.slice(), fwd };
+  else
   for (const [p, q] of [[a0, knee], [knee, a2]]) {
     const path = resample([p, q], 4);
     sweep(bags.alloy, path, t => secBlade(0.030 - 0.006 * Math.abs(t - 0.5),
                                           0.011), true, pax);
   }
+  if (!(RT && RT.low))
   for (const p of [a0, knee, a2])
     revolve(bags.bronze, off(p, pax, -0.012), pax,
             [[0.008, 0], [0.008, 0.024]], 10, true);
@@ -1819,8 +1830,9 @@ function legOleo(bags, AF, P, st, sgn) {
                        (Rc + Math.max(0, P.oleoScissor) + 0.03) / 0.35),
               Math.max(P.oleoDia * 1.5, st.R * 0.30));
   const axis = [sgn, 0, 0];
-  axleStub(bags, axleIn, hS < 0 ? [-sgn, 0, 0] : axis, hubIn);
-  return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1), ...(RT ? { pin: pax, trunnion: trunn } : {}) };
+  axleStub(LB, axleIn, hS < 0 ? [-sgn, 0, 0] : axis, hubIn);
+  return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1),
+           ...(RT ? { pin: pax, trunnion: trunn, strutDir: dir, strutL: L, cylF: clamp(P.oleoCyl, 0.30, 0.80) } : {}) };
 }
 
 // ---- 3. STEERING: THE CASTOR MODULE ---------------------------------------

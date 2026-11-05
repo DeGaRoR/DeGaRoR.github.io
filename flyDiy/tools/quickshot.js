@@ -7,6 +7,7 @@
 //   node tools/quickshot.js <build.json | --key <archetype>> <out-prefix> [options]
 //     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above;
 //                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4)
+//     --flat                     flat facets (the default: smooth shading, the meshes' own vertex normals)
 //     --nowells / --noedges      the retractable gear's wells: drawn whole, uncut / the reserved boxes' edges not drawn
 //     --focus gear               frame the picture on the gear (and the wing's wells), not the whole aeroplane
 //     --frames '{"qb":[u0,u1,w0,w1],...}'   the views' frames given (each picture prints the frame it used)
@@ -35,6 +36,7 @@ if (GEARPOS != null) over.gearPos = Math.max(0, Math.min(1, +GEARPOS));
 const VIEWS = opt('views', 'side,top').split(',');
 const WPX = +opt('w', 1400);
 const MARKS = opt('marks', '');
+const FLAT = argv.includes('--flat');                 // GR: the old flat facets (the default shades smoothly)
 const SH = require(path.join(ROOT, 'tools', '_scene_headless.js'));
 let spec;
 if (KEY) {
@@ -83,7 +85,10 @@ for (const f of sheet.F) {
   const off = f.cutOff || [0, 0, 0];
   for (let t = 1; t + 1 < f.v.length; t++) {
     const a = sheet.V[f.v[0]], b = sheet.V[f.v[t]], c = sheet.V[f.v[t + 1]];
-    tris.push([a[0] * FS, a[1] * FS, a[2] * FS, b[0] * FS, b[1] * FS, b[2] * FS, c[0] * FS, c[1] * FS, c[2] * FS, ...col]);
+    const tr = [a[0] * FS, a[1] * FS, a[2] * FS, b[0] * FS, b[1] * FS, b[2] * FS, c[0] * FS, c[1] * FS, c[2] * FS, ...col];
+    // GR: the sheet's own vertex normals (the subdivided surface's), for the smooth shading
+    if (sheet.N && !FLAT) { const na = sheet.N[f.v[0]], nb = sheet.N[f.v[t]], nc = sheet.N[f.v[t + 1]]; if (na && nb && nc) tr.n = [...na, ...nb, ...nc]; }
+    tris.push(tr);
   }
 }
 let nLayer = 0;
@@ -106,6 +111,23 @@ if (CUTSW) {
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellWing'; o.add(wm); nw++; }
   }
   console.log('wing wells cut: ' + CUTSW.map(c => c.units.join('+') + ' ' + c.mode).join(', ') + ' (' + nw + ' skin mesh(es) with a well)');
+}
+// GR: the nacelles' skin cut as the editor cuts it (knifeWellsMesh, the gear layer's CAGE_GEAR.cutsNacM)
+const CUTSN = !argv.includes('--nowells') && S.W.CAGE_GEAR && S.W.CAGE_GEAR.cutsNacM;
+if (CUTSN) {
+  const KGn = require(path.join(ROOT, 'tools', '_knife_gen.js')), nm = [];
+  S.scene.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(S.scene.matrixWorld).invert();
+  S.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.nacSkin) nm.push(o); });
+  let nn = 0;
+  for (const o of nm) {
+    const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const r = KGn.knifeWellsMesh(THREE, o.geometry, rel, CUTSN, o.userData.nacSkin === 'twin');
+    if (!r.skin) continue;
+    o.geometry = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellNac'; o.add(wm); nn++; }
+  }
+  console.log('nacelle wells cut: ' + CUTSN.map(c => c.units.join('+') + ' ' + c.mode).join(', ') + ' (' + nn + ' nacelle mesh(es) with a well)');
 }
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
@@ -132,8 +154,12 @@ S.scene.traverse(o => {
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;
   const W = i => { v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(o.matrixWorld); return [v.x, v.y, v.z]; };
-  let gear = false; for (let q = o; q; q = q.parent) if (q.name === 'cageLayer:gear' || q.name === 'edWellWing') gear = true;
-  for (let i = 0; i + 2 < n; i += 3) { const a = W(i), b = W(i + 1), c = W(i + 2); const t = [...a, ...b, ...c, ...col]; if (gear) t.gear = 1; tris.push(t); nLayer++; }
+  let gear = false; for (let q = o; q; q = q.parent) if (q.name === 'cageLayer:gear' || q.name === 'edWellWing' || q.name === 'edWellNac') gear = true;
+  const nor = !FLAT && o.geometry.attributes.normal, nm3 = nor ? new THREE.Matrix3().getNormalMatrix(o.matrixWorld) : null, vn = new THREE.Vector3();
+  const N3 = i => { vn.fromBufferAttribute(nor, idx ? idx.getX(i) : i).applyMatrix3(nm3).normalize(); return [vn.x, vn.y, vn.z]; };
+  for (let i = 0; i + 2 < n; i += 3) { const a = W(i), b = W(i + 1), c = W(i + 2); const t = [...a, ...b, ...c, ...col]; if (gear) t.gear = 1;
+    if (nor) t.n = [...N3(i), ...N3(i + 1), ...N3(i + 2)];
+    tris.push(t); nLayer++; }
 });
 console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s build)');
 
@@ -185,6 +211,7 @@ function view(name) {
   const img = new Uint8Array(Wd * H * 3), zb = new Float32Array(Wd * H).fill(-Infinity);
   for (let i = 0; i < Wd * H; i++) { img[i * 3] = 22; img[i * 3 + 1] = 26; img[i * 3 + 2] = 32; }
   const L = [0.35, 0.8, 0.45], Ll = Math.hypot(...L);
+  const vd = [V.d([1, 0, 0]) - V.d([0, 0, 0]), V.d([0, 1, 0]) - V.d([0, 0, 0]), V.d([0, 0, 1]) - V.d([0, 0, 0])];   // toward the camera
   for (const t of tris) {
     const A = [t[0], t[1], t[2]], B = [t[3], t[4], t[5]], C = [t[6], t[7], t[8]];
     const ax = (V.u(A) - u0) * sc, ay = (w1 - V.w(A)) * sc, az = V.d(A);
@@ -197,7 +224,10 @@ function view(name) {
     const nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
     const nl = Math.hypot(nx, ny, nz) || 1;
     const lam = 0.35 + 0.65 * Math.abs((nx * L[0] + ny * L[1] + nz * L[2]) / (nl * Ll));
-    const r = Math.min(255, t[9] * lam), g = Math.min(255, t[10] * lam), b = Math.min(255, t[11] * lam);
+    let r = Math.min(255, t[9] * lam), g = Math.min(255, t[10] * lam), b = Math.min(255, t[11] * lam);
+    // GR (the user: "all this flat shading doesn't help"): SMOOTH SHADING - the vertex normals interpolated per pixel
+    // (oriented to the face's side), a Lambert term and a soft highlight; --flat draws the old flat facets
+    const tn = t.n, sgf = tn ? Math.sign(nx * (tn[0] + tn[3] + tn[6]) + ny * (tn[1] + tn[4] + tn[7]) + nz * (tn[2] + tn[5] + tn[8])) || 1 : 1;
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(Wd - 1, Math.ceil(Math.max(ax, bx, cx)));
     const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), y1 = Math.min(H - 1, Math.ceil(Math.max(ay, by, cy)));
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -208,7 +238,17 @@ function view(name) {
       if (w0_ < -1e-6 || w1_ < -1e-6 || w2_ < -1e-6) continue;
       const z = w0_ * az + w1_ * bz + w2_ * cz, i = y * Wd + x;
       if (z <= zb[i]) continue;
-      zb[i] = z; img[i * 3] = r; img[i * 3 + 1] = g; img[i * 3 + 2] = b;
+      zb[i] = z;
+      if (tn) {
+        let qx = w0_ * tn[0] + w1_ * tn[3] + w2_ * tn[6], qy = w0_ * tn[1] + w1_ * tn[4] + w2_ * tn[7], qz = w0_ * tn[2] + w1_ * tn[5] + w2_ * tn[8];
+        const ql = Math.hypot(qx, qy, qz) || 1; qx *= sgf / ql; qy *= sgf / ql; qz *= sgf / ql;
+        const dl = Math.abs((qx * L[0] + qy * L[1] + qz * L[2]) / Ll);
+        // the highlight: the light's half vector with the view (d toward the camera)
+        const hx = L[0] / Ll + vd[0], hy = L[1] / Ll + vd[1], hz = L[2] / Ll + vd[2], hl = Math.hypot(hx, hy, hz) || 1;
+        const sp = Math.pow(Math.abs((qx * hx + qy * hy + qz * hz) / hl), 24) * 0.18;
+        const lm = 0.32 + 0.68 * dl;
+        img[i * 3] = Math.min(255, t[9] * lm + 255 * sp); img[i * 3 + 1] = Math.min(255, t[10] * lm + 255 * sp); img[i * 3 + 2] = Math.min(255, t[11] * lm + 255 * sp);
+      } else { img[i * 3] = r; img[i * 3 + 1] = g; img[i * 3 + 2] = b; }
     }
   }
   // an edge darkening where the depth jumps (a silhouette line)

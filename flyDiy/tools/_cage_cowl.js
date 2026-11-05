@@ -451,6 +451,78 @@ function noseFace(mesh, FS, end) {
 // face OFF the body (a pylon, a nacelle: the engine's own plate, no firewall) keeps both - they are how it is placed.
 // No saved build moved (the survey of every repo build and the flagship's files: the cowled pushers and the body
 // cowls all sat at 0; the Chinook's block is on a cowl-less pusher, the twin floatplane's gap on nacelles).
+// GR (the user, 5 Nov: "the enormous pod you've created is also unacceptable. The idea is to fit the nacelle so it
+// fits, maybe swinging front or back, and possibly retracting ... Start again from the linear cowl and nacelle, extend
+// the nacelle as much as required, move the whole assembly up and down, possibly make the nacelle higher if required
+// (and the cowl, keep these aligned, same height, same width)"): THE NACELLE FITTED TO ITS GEAR. When the mains fold
+// into a puller's nacelle (gearRetract, gearFold 'nacelle', the row gearNacFit on) and their wheel is under it, and
+// the nacelle as drawn cannot take the folded leg either way, the engine's FACE is changed - and with it the cowl, the
+// nacelle and the engine together (every layer reads this face):
+//   DEEP ENOUGH   the half-height grows to hold the wheel and its clearance round the leg's pin (the pin 45 % of the
+//                 depth up, the gear layer's own rule), with room for the tail cone's taper; the width to the tyre and
+//                 its offset - cowl and nacelle one section, the same height and width;
+//   HUNG LOWER    the whole assembly moves down just enough for the folded wheel to pass under the wing's underside
+//                 (never up; the leg shortens with it);
+//   LONG ENOUGH   forward under the engine when the folded leg fits there (no longer nacelle needed), else the tail
+//                 cone runs till the folded wheel (the leg's stowed length, less its shortening) lies in its first 55 %
+//                 (where the cone still has 86 % of its section), 4 m at most.
+// Nothing is saved: the rows keep their values; the face says what it did (face.gearFit) and the cowl shows it.
+const NACFIT = { clr: 0.05, coneE: 0.55, coneK: 0.86, over: 0.03, tailMax: 4.0 };
+let nacFitAF = null;
+function nacGearFit(mesh, FS, P, W, face) {
+  if (!+P.gearRetract || Math.round(+P.gearFold || 0) !== 7 || !(P.gearNacFit == null ? 1 : +P.gearNacFit) || !+P.s1On || +P.gearFloats) return null;
+  const sx = +P.s1X || 0, zs = +P.s1Z || 0, R = +P.s1R || 0.2, drop = +P.s1Drop || 0.4;
+  if (Math.abs(Math.abs(face.x) - sx) > face.halfW + 0.15) return null;             // (the wheel is not under it)
+  const GGx = window.GEAR_GEN;
+  if (!GGx || !GGx.cageAirframe || !W.overAt) return null;
+  if (!nacFitAF || nacFitAF.mesh !== mesh || nacFitAF.FS !== FS) nacFitAF = { mesh, FS, AF: GGx.cageAirframe(mesh, FS) };
+  const AF = nacFitAF.AF; if (!AF) return null;
+  const ya = AF.keelAt(zs) - drop, clr = NACFIT.clr;
+  const cyl = Math.max(0.30, Math.min(0.80, +P.s1_oleoCyl || 0.55)), sh = Math.max(0, Math.min(0.45, +P.gearShort || 0));
+  const cylF = sh > 0 ? Math.max(0.30, Math.min(cyl, 1 - sh - 0.06)) : cyl;
+  const stowed = L => L - (sh > 0 ? Math.max(0, Math.min(sh * L, L - cylF * L - 0.05)) : 0);
+  const tail0 = P.cw_tailLen != null ? +P.cw_tailLen : 1.5, cone0 = Math.round(+(P.cw_aftMode == null ? 1 : P.cw_aftMode)) === 1;
+  const lenFwd = (+P.cw_cowlLen || 0.4) + (+P.cw_lidLen || 0.1);
+  // the wing's underside over the stowed wheel (its lowest over the tyre's length; none: off the wing's chord)
+  // (a HIGH wing's only - its middle over the body's centre line at the station: a low wing's wheel stows ahead of it
+  // or into its own well, the gear layer's wing cuts)
+  const wm = (() => { const o2 = W.overAt(face.x, zs), u2 = W.underAt ? W.underAt(face.x, zs) : null; return o2 && u2 ? (o2.y + u2.y) / 2 : null; })();
+  const high = wm != null && AF.cyAt && wm > AF.cyAt(Math.max(AF.z0, Math.min(AF.z1, zs)));
+  const underOver = zw => { if (!high) return null; let y = null;
+    for (const dz of [-R, 0, R]) { const u = W.underAt ? W.underAt(face.x, zw + dz) : null; if (u && (y == null || u.y < y)) y = u.y; }
+    return y; };
+  // the section as drawn: a free cowl (fitNose 0) takes its own rows, not the face's
+  const free = Math.round(+P.fitNose || 0) === 0;
+  const W0 = free && P.cw_aftW != null ? +P.cw_aftW : face.halfW, H0 = free && P.cw_aftH != null ? +P.cw_aftH : face.halfH;
+  // ONE WAY (fwd / aft), A SECTION (centre yc, half-height H), A TAIL: the pin 45 % up the depth; the folded wheel inside
+  // the section with its clearance; under the wing's underside where it stows (none behind the trailing edge); long
+  // enough - forward, under the engine's rear (60 % of the cowl's length past the firewall: the DC-3's), aft, in the
+  // cone's first 55 %
+  const way = (yc, H, tail, cone, fwd) => {
+    const yh = yc - 0.1 * H, L = stowed(Math.max(0, yh - ya)), zw = zs + (fwd ? L : -L), u = underOver(zw);
+    const deep = 0.9 * H >= R + clr && 1.1 * H >= R + clr;
+    const under = u == null || yh + R + clr <= u;
+    const long = fwd ? zw + R + clr <= face.z + lenFwd * 0.6
+                     : cone && face.z - (zw - R - clr) <= NACFIT.coneE * tail;
+    return { ok: deep && under && long, deep, under, long, yh, L, zw, u };
+  };
+  const hw = Math.max(W0, Math.abs(Math.abs(face.x) - sx) + 0.38 * R + 0.06 + clr);
+  if ((way(face.yc, H0, tail0, cone0, true).ok || way(face.yc, H0, tail0, cone0, false).ok) && hw <= W0 + 1e-6) return null;
+  // GROW, the least first: deep enough for the wheel - deepened DOWNWARD (its top kept: the assembly lowered by the
+  // growth; cowl and nacelle one section) - then lowered just enough for the folded wheel to pass under the wing;
+  // forward when it then fits under the engine's rear, else aft into a tail cone as long as it needs (4 m at most)
+  const H = Math.max(H0, (R + clr) / 0.9);
+  const dropFor = fwd => { let dy = -(H - H0);
+    for (let it = 0; it < 5; it++) { const w = way(face.yc + dy, H, tail0, true, fwd);
+      if (w.u == null || w.under) break; dy -= w.yh + R + clr - w.u + 0.002; }
+    return dy; };
+  const dyF = dropFor(true), wF = way(face.yc + dyF, H, tail0, true, true);
+  if (wF.ok) return { dy: dyF, halfW: hw, halfH: H, tailLen: tail0, aftMode: 1, fold: 'forward', legStowed: wF.L, ok: true };
+  const dyA = dropFor(false), wA0 = way(face.yc + dyA, H, tail0, true, false);
+  const tail = Math.min(NACFIT.tailMax, Math.max(tail0, (face.z - (wA0.zw - R - clr)) / NACFIT.coneE));
+  const wA = way(face.yc + dyA, H, tail, true, false);
+  return { dy: dyA, halfW: hw, halfH: H, tailLen: tail, aftMode: 1, fold: 'aft', legStowed: wA.L, ok: wA.ok };
+}
 const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
   [1, 4].includes(Math.round(+P.engMount || 0));
 function engineFaces(mesh, FS, P) {
@@ -507,11 +579,13 @@ function engineFaces(mesh, FS, P) {
     for (const s of [1, -1]) {
       const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
       if (!e) continue;
-      out.push({ face: { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
-                         yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
-                         halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
-                         uv: null, waist: 0, synthetic: 1 },
-                 aft, kind: 'nacelle' });
+      const face = { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
+                     yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
+                     halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
+                     uv: null, waist: 0, synthetic: 1 };
+      const gf = aft ? null : nacGearFit(mesh, FS, P, W, face);
+      if (gf) Object.assign(face, { yc: face.yc + gf.dy, halfW: gf.halfW, halfH: gf.halfH, gearFit: gf });
+      out.push({ face, aft, kind: 'nacelle' });
     }
     return out;
   }
@@ -1197,6 +1271,12 @@ function cowlPlace(ctx, again) {
   if (mode === 1 || mode === 2) {
     CW.P.aftW = face.halfW;
     CW.P.aftH = face.halfH;
+  }
+  // GR: THE NACELLE FITTED TO ITS GEAR (nacGearFit): its section (free mode too), its tail cone's length
+  if (face.gearFit) {
+    const g = face.gearFit;
+    CW.P.aftW = Math.max(mode === 0 ? CW.P.aftW : 0, g.halfW); CW.P.aftH = Math.max(mode === 0 ? CW.P.aftH : 0, g.halfH);
+    CW.P.aftMode = 1; CW.P.tailLen = g.tailLen;
   }
   if (mode === 1) {
     // SECTION FROM THE BODY (sectionFromFace), then the fitted values back on
