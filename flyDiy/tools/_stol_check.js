@@ -165,6 +165,7 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
       const J = (B.load.validated ? LB.loadValidated(B.load.validated) : LB.loadBuild(B.load.file)).spec;
       const stated = !!J.wings && J.wings[0].stol === null;          // the first plane carries the rows
       for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
+      for (const w of J.wings || []) if (w && w.tipShape === null) delete w.tipShape;   // (HULL-B26: the tip's own shape, stated null at the kind's own - A3, as stol)
       // the cage carries the eight new rows AT THEIR DEFAULTS (the wing layer's PAGE.defaults) and nothing else moves;
       // the certificate's fingerprint (bench.js, against the page's cage defaults) drops them: no certificate withdrawn
       const rowsAt = STOL_ROW_DEFAULTS, J2 = clone(J);

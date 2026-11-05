@@ -1573,7 +1573,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // linkage and the Fowler's tracks on the rear spar - so the CG, the inertia and the damage layer see them where
   // they are. Nothing on a wing without them: no row, no mass, the same bits.
   {
-    const ST = (typeof genStolOf === 'function') ? genStolOf(w.stol) : null, TIPk = GEN_TIPS[w.tip] || {};
+    const ST = (typeof genStolOf === 'function') ? genStolOf(w.stol) : null, TIPk = genTipOf(w) || {};
     if (ST || TIPk.plate || TIPk.droop) {
       sec('stol');
       const K = GEN_STOL.cost, zAt = [zRoot, ...zs];
@@ -2843,7 +2843,51 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a float in). SIZED BY VOLUME for now - 6 % of the gross each by default, the Seabee / Lake class's practice,
     // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
     const TP = HR.tips;
-    if (TP && TP.on !== 0 && wf.L && wf.R) {
+    // ---- HULL-B26: THE BUOYANT WING TIPS (tips.mode 'wing': the Seawind's, the Che-22's - the user, 5 Nov: "the real
+    // one do not even have floats at the top ... it should be a setting of the wingtip itself"). The wing's own tip IS
+    // the float: its record is the tip's drawn shape (60_gen_spec genTipBuoyTable: the bent, filled bow the loft draws,
+    // laid as a station table volume layer by volume layer), its centre on the tip joint's own frame (genTipJoint, the
+    // spar nodes the loft rides), a rigid node body tied into the joint's and the tip's spar nodes - no struts: the tip
+    // is the wing. Its shell is the drooped tip's own (the wing's ledger bills it, 1603); the fuller section's extra
+    // laminate here, 2 kg + 25 kg per m3 of tip, INFERRED (a glass shell of ~1.5 kg/m2 over its wetted area)
+    const w0T = S.wings && S.wings[0], TIPw = w0T ? genTipOf(w0T) : null;
+    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6) {
+      const cT = w0T.tipC > 0 ? w0T.tipC : w0T.chord * (w0T.taper || 1);
+      const BT = genTipBuoyTable(cT, w0T.tipR, (TIPw.droop || 0) * cT, TIPw.full || 1, ((w0T.naca | 0) % 100) / 100, R.sparFront != null ? R.sparFront : 0.15);
+      const TPP = BT && HYDRO.hullParamsFromTable({ sta: BT.sta });
+      if (TPP) {
+        TPP.mFloat = 2 + 25 * BT.vol;
+        for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+          const J = genTipJoint(nodes, W, w0T.tipZ, sd);
+          if (!J) continue;
+          const c = [0, 1, 2].map(i => J.O[i] + J.ch[i] * BT.aMid + J.out[i] * BT.zc + J.up[i] * BT.yK);
+          const xT = c[0], yT = c[1], zT = c[2];
+          const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
+          const Kt = [], Lt = [], Rt = [], Qt = [];
+          for (const xs of st3) {
+            const sc = HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs);
+            Kt.push(N(xT + xs, yT + sc.yk, zT, 'TFK'));
+            Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'TFD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'TFD'));
+            Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+          }
+          const allT = [...Kt, ...Lt, ...Rt];
+          for (const i of allT) pt(i, TPP.mFloat / allT.length);
+          for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+          for (let i = 0; i < 2; i++) {
+            B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+            B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          }
+          clusters.push({ cls: 'float', tag: 'TIP' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+          // the tie: every station's three nodes into the joint's spar pair and the tip's (the wing's last station)
+          const jo = Math.min(W.F.length - 1, J.j + 1), anc = [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]];
+          for (let i = 0; i < 3; i++) for (const q of [Kt[i], Lt[i], Rt[i]]) for (const a of anc) B(q, a, 'gear', false, 'inner', undefined, KMh);
+          const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+            K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+          FLOATS.push({ side: sd, tip: true, wingTip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                        tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
+        }
+      }
+    } else if (TP && TP.on !== 0 && wf.L && wf.R) {
       // HULL-B5: the ROWS' placement (hullTipKg / hullTipY, the Hull tile's fit - the drawing reads the same rows);
       // unset, the same rule off this build's gross (HYDRO.hullTipFit)
       const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);

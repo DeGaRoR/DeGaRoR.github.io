@@ -235,6 +235,13 @@ function cageJoinSpec(P, M, T) {
       // G185: a parasol's cabane height (null on every other position)
       cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip,
+      // HULL-B26: THE TIP'S OWN SHAPE (60_gen_spec GEN_TIP_SHAPE): its length, how far it drops, its fullness - each 0
+      // (fullness 1) = the kind's own. STATED (A3): the record, or null when all three are the kind's; a P without the
+      // rows (a headless caller) says nothing
+      ...(P.wgTipBow != null || P.wgTipDroop != null || P.wgTipFull != null
+        ? { tipShape: +P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1
+            ? { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
+                full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -1450,7 +1457,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY },
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : null },
                        ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
                                                    c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
             const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];

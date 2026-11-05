@@ -48,10 +48,12 @@ const ENGINES = {
              cage: { engPylonH: 0.8, engBlockZ: -0.25, cowlOn: 1, cw_inletOn: 1, noseLen: 1.3, paxLen: 0.15, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 3.0, aftRoofY: -0.25, aftKeelY: -0.6, frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.42,
                      hullSpon: 1, hullSponK: 1.1, hullTips: 0 },
              note: 'the rod boat: a pusher on the wing in a pod nacelle, the tail on a rod over a buoyant taper, stub sponsons' },
-  // HULL-B24: the fin engine with BUOYANT TIPS (the Seawind's arrangement): the tip floats at the wing's end under a
-  // drooped tip, faired up into it
-  finTips: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, hullTips: 2, hullTipAt: 0.97, wgTip: 7 },
-             note: 'the fin engine on buoyant wing tips (the Seawind)' },
+  // HULL-B26: the fin engine with BUOYANT WING TIPS (the Seawind's arrangement): the wing's own drooped tip, bent and
+  // filled by the fit (Wings > tip length / drop / fullness) - on the Cessna's high wing, then on a low wing (the Seawind's)
+  finTips: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, hullTips: 2, wgTip: 7 },
+             note: 'the fin engine on buoyant wing tips, high wing' },
+  seawind: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, hullTips: 2, wgTip: 7, wgPos: 1, wgBrace: 1 },
+             note: 'the fin engine on buoyant wing tips, a cantilever mid wing on the hull side (the Seawind)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
@@ -92,7 +94,8 @@ function one(form, eng) {
     fitAll = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d),
                                 tipArm: ((d.parts.floats || []).find(q => q.tip) || { K: [] }).K.reduce((a, i) => Math.max(a, Math.abs(d.nodes[i].p[2])), 0),
                                 finH: (ys => ys.length ? Math.max(...ys) - Math.min(...ys) : 0)(d.nodes.filter(n => n.tag === 'VF').map(n => n.p[1])) },
-                              C.HYDRO, { semi: d.nodes.reduce((a, n) => Math.max(a, Math.abs(n.p[2])), 0) });   // (the wing's tip: the furthest node off the centreline)
+                              C.HYDRO, { semi: d.nodes.reduce((a, n) => Math.max(a, Math.abs(n.p[2])), 0),
+                                         tip: { joint: C.genTipJointOf(d), fit: C.genTipFit, drooped: Object.keys(C.GEN_TIPS).indexOf('drooped') } });   // (the wing's tip: the furthest node off the centreline)
     if (!fitAll) break;
     Object.assign(sp.cage, fitAll.rows); Object.assign(fitRows, fitAll.rows);
     if (process.env.HM_DEBUG) console.error("pass", pass, JSON.stringify(fitAll.rows), JSON.stringify(fitAll.rest), fitAll.notes.join("; "));

@@ -2616,6 +2616,147 @@ const GEN_TIPS = {
   drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
 };
 
+// HULL-B26: THE TIP'S OWN SHAPE (the user, 5 Nov: "take the existing wingtips, start from that very shape and modify it
+// elegantly ... it should be a setting of the wingtip itself, and how far it is allowed to drop, within reason").
+// Three numbers on the tip (wings[].tipShape; absent, or a number left at the kind's own, = the kind): `bow` its
+// length in tip chords (the planform's own half-ellipse, so the strips, the area and the ribs follow), `droop` how far
+// its end drops, in tip chords, and `full` its section's thickness over the wing's aerofoil where it is fullest. The
+// droop BENDS the tip as one piece (genTipBend): the chord plane rolls down along the bow, theta = PHI smoothstep(s/L)
+// - no kink where the bow starts, its end a straight blade - with PHI solved so the end drops `droop`. WITHIN REASON:
+// PHI <= 85 deg, so a tip of length L drops at most ~0.59 L; a deeper drop is a longer tip. One function for the drawn
+// loft (63_gen_wing), the flown buoyant tip (61_gen_frame, genTipBuoyTable) and the boat's fit (_cage_gen.js)
+const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phiMax: 85 };
+function genTipOf(w) {
+  const K = GEN_TIPS[w && w.tip] || GEN_TIPS.rounded, T = w && w.tipShape;
+  if (!T) return K;
+  return Object.assign({}, K, T.bow != null ? { bow: T.bow } : {}, T.droop != null ? { droop: T.droop } : {},
+                       T.full != null ? { full: T.full } : {});
+}
+// the bend: a path in the tip joint's (out, up) plane over the bow's span s in [0, L], the end `D` metres down:
+// { PHI, drop, th(s), Z(s) out, Y(s) up (negative: down) }
+function genTipBend(L, D) {
+  const N = 64, sm = t => t * t * (3 - 2 * t);
+  const run = PHI => { const Z = [0], Y = [0];
+    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + Math.cos(th) * L / N); Y.push(Y[i] - Math.sin(th) * L / N); }
+    return { Z, Y }; };
+  const pMax = GEN_TIP_SHAPE.phiMax * Math.PI / 180;
+  let PHI = 0;
+  if (D > 1e-6 && L > 1e-6) {
+    if (-run(pMax).Y[N] <= D) PHI = pMax;
+    else { let lo = 0, hi = pMax; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (-run(m).Y[N] < D) lo = m; else hi = m; } PHI = 0.5 * (lo + hi); }
+  }
+  const R = run(PHI);
+  const at = (A, s) => { const u = Math.max(0, Math.min(N, (s / Math.max(1e-9, L)) * N)), i = Math.min(N - 1, Math.floor(u)), f = u - i; return A[i] + (A[i + 1] - A[i]) * f; };
+  return { PHI, drop: -R.Y[N], th: s => PHI * sm(Math.max(0, Math.min(1, s / Math.max(1e-9, L)))), Z: s => at(R.Z, s), Y: s => at(R.Y, s) };
+}
+// the section's fullness along the bow: 1 at the joint (the wing's own aerofoil, no step at the aileron's end), the
+// tip's `full` from mid-bow out
+const genTipFat = (full, s, L) => { const t = Math.max(0, Math.min(1, s / Math.max(1e-9, 0.5 * L))); return 1 + ((full || 1) - 1) * t * t * (3 - 2 * t); };
+// the tip joint's frame off the wing's spar nodes (the station nearest inboard of tipZ and the next): O the front spar's
+// point at the joint, ch the chord (aft), up its normal, out the span outward - what the loft bends about and the frame
+// hangs the buoyant tip on
+function genTipJoint(nodes, Wn, tipZ, side) {
+  if (!Wn || !Wn.F || Wn.F.length < 2) return null;
+  let j = 0;
+  while (j < Wn.F.length - 2 && Math.abs(nodes[Wn.F[j + 1]].p[2]) < tipZ) j++;
+  const a = nodes[Wn.F[j]].p, b = nodes[Wn.F[j + 1]].p, aR = nodes[Wn.R[j]].p, bR = nodes[Wn.R[j + 1]].p;
+  const t = Math.max(0, Math.min(1, (tipZ - Math.abs(a[2])) / Math.max(1e-9, Math.abs(b[2]) - Math.abs(a[2]))));
+  const L3 = (p, q) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  const O = L3(a, b), OR = L3(aR, bR);
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const cr = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const ch = nrm([OR[0] - O[0], OR[1] - O[1], OR[2] - O[2]]);
+  let up = nrm(cr(ch, [0, 0, 1])); if (up[1] < 0) up = up.map(x => -x);
+  const out = nrm(cr(ch, up)).map(x => x * side);
+  return { O, ch, up, out, j };
+}
+// THE BUOYANT TIP FOR THE WATER, off the same shape: in the joint's frame (a aft of the front spar, out, up) the solid
+// the loft draws - the row at s its chord c(s) = cT sqrt(1 - (s/L)^2) (the bow's half-ellipse, about the front spar),
+// its NACA half-thickness x genTipFat, rolled by th(s) about the bend's path - rasterised at each chord station into
+// its horizontal widths and laid as a float record's station table holding, station by station, the drawn tip's own
+// area under its chine and under its deck (a symmetric stand-in of the true volume, layer by layer). Returns the table,
+// the volume (m3), the record's centre (aMid aft of the front spar, zc out, yK the keel, up) in the joint's frame
+function genTipBuoyTable(cT, L, D, full, t, sparF) {
+  if (!(cT > 0.05) || !(L > 0.02)) return null;
+  const BD = genTipBend(L, D), NS = 160, NV = 18, NX = 13, e = cT / 90;
+  const yt = x => 5 * t * (0.2969 * Math.sqrt(x) - 0.1260 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
+  const sf = sparF != null ? sparF : 0.15, a0 = -sf * cT, a1 = (1 - sf) * cT, cells = [];
+  let vol = 0, zA = 0, zW = 0, yK = Infinity;
+  for (let i = 0; i < NX; i++) {
+    const a = a0 + (a1 - a0) * (i + 0.5) / NX, occ = new Map();
+    for (let k = 0; k <= NS; k++) {
+      const s = L * k / NS, c = cT * Math.sqrt(Math.max(0, 1 - (s / L) ** 2));
+      if (!(c > 1e-3) || a < -sf * c || a > (1 - sf) * c) continue;
+      const h = yt(Math.max(0, Math.min(1, a / c + sf))) * c * genTipFat(full, s, L), th = BD.th(s), Z = BD.Z(s), Y = BD.Y(s);
+      for (let q = 0; q <= NV; q++) {
+        const v = -h + 2 * h * q / NV, o = Z + v * Math.sin(th), u = Y + v * Math.cos(th);
+        const iu = Math.floor(u / e), io = Math.floor(o / e), row = occ.get(iu) || new Set();
+        row.add(io); occ.set(iu, row);
+      }
+    }
+    if (!occ.size) { cells.push(null); continue; }
+    const rows = [...occ.keys()].sort((p, q) => p - q), w = rows.map(r => occ.get(r).size * e);
+    rows.forEach((r, n) => { for (const io of occ.get(r)) { zA += (io + 0.5) * e * e * e; zW += e * e; } });
+    vol += w.reduce((p, q) => p + q, 0) * e * (a1 - a0) / NX;
+    yK = Math.min(yK, rows[0] * e);
+    cells.push({ a, yk: rows[0] * e, yd: (rows[rows.length - 1] + 1) * e, rows, w });
+  }
+  if (!(zW > 0)) return null;
+  const zc = zA / zW, aMid = 0.5 * (a0 + a1), sta = [];
+  for (const C of cells) {
+    if (!C) continue;
+    const H = Math.max(2 * e, C.yd - C.yk), yc = C.yk + 0.6 * H;
+    let A1 = 0, A2 = 0;
+    C.rows.forEach((r, n) => { const y = r * e; if (y < yc) A1 += C.w[n] * e; else A2 += C.w[n] * e; });
+    // (half-beams: a vee keel -> chine holds b (yc - yk) of area, the chine -> deck trapezoid (b + bd)(yd - yc))
+    const b = Math.max(0.005, A1 / Math.max(1e-6, yc - C.yk)), bd = Math.max(b, A2 / Math.max(1e-6, C.yd - yc) - b);
+    const x = C.a - aMid;
+    sta.push({ x: Math.abs(x) < 1e-6 ? -1e-4 : +x.toFixed(5), yk: +(C.yk - yK).toFixed(5), b: +b.toFixed(5), yc: +(yc - yK).toFixed(5),
+               bd: +bd.toFixed(5), yd: +(C.yd - yK).toFixed(5) });
+  }
+  if (!sta.some(r => r.x <= 0) || !sta.some(r => r.x > 0)) return null;
+  return { sta, vol, aMid, zc, yK, drop: BD.drop, PHI: BD.PHI };
+}
+// a built aeroplane's tip joint (the right wing's; the left is its mirror) and the tip's own numbers - what the boat's
+// fit shapes the buoyant tip from
+function genTipJointOf(def) {
+  const S = def && def.spec, w = S && ((S.wings && S.wings[0]) || S.wing), wf = def && def.parts && def.parts.wf;
+  if (!w || !(w.tipR > 1e-6) || !wf || !wf.R) return null;
+  const J = genTipJoint(def.nodes, wf.R, w.tipZ, 1), K = genTipOf(w);
+  if (!J) return null;
+  return Object.assign(J, { cT: w.tipC > 0 ? w.tipC : w.chord * (w.taper || 1), L: w.tipR, t: ((w.naca | 0) % 100) / 100,
+                            sparF: GEN_RULES.sparFront != null ? GEN_RULES.sparFront : 0.15, tip: w.tip,
+                            bow: K.bow || 0, droop: K.droop || 0, full: K.full || 1 });
+}
+// HULL-B26: THE BUOYANT TIP'S FIT - the shortest tip (from its own length up, GEN_TIP_SHAPE.bow) whose bend can put its
+// keel down to yTarget (model y) and whose fullness can then hold kgNeed fully immersed: the drop by bisection on the
+// keel, the fullness on the volume, the drop again at that fullness. Returns { bow, droop, full, kg, keel, ok, reach }
+// in tip chords; ok false = even the longest, fullest tip falls short (reach false: its keel does not get down there)
+function genTipFit(J, yTarget, kgNeed) {
+  const G = GEN_TIP_SHAPE, cT = J.cT;
+  const at = (bow, D, full) => { const B = genTipBuoyTable(cT, bow * cT, D * cT, full, J.t, J.sparF);
+    return B ? { y: J.O[1] + B.yK * J.up[1], kg: 1000 * B.vol } : null; };
+  const dropTo = (bow, dMax, full) => { let a = 0, b = dMax; const r0 = at(bow, 0, full);
+    if (r0 && r0.y <= yTarget) return 0;
+    for (let k = 0; k < 14; k++) { const m = 0.5 * (a + b), r = at(bow, m, full); if (r && r.y > yTarget) a = m; else b = m; }
+    return b; };
+  let best = null;
+  for (let bow = Math.max(J.bow || 0, G.bow[0]); bow <= G.bow[1] + 1e-9; bow = +(bow + 0.05).toFixed(3)) {
+    const dMax = Math.min(G.droop[1], genTipBend(bow * cT, 99).drop / cT), deep = at(bow, dMax, G.full[1]);
+    if (!deep) break;
+    if (deep.y > yTarget) { best = { bow, droop: dMax, full: G.full[1], kg: deep.kg, keel: deep.y, ok: false, reach: false }; continue; }
+    if (deep.kg < kgNeed) { best = { bow, droop: dropTo(bow, dMax, G.full[1]), full: G.full[1], kg: deep.kg, keel: yTarget, ok: false, reach: true }; continue; }
+    let D = dropTo(bow, dMax, 1), f1 = 1, f2 = G.full[1];
+    const r1 = at(bow, D, 1);
+    if (r1 && r1.kg >= kgNeed) f2 = 1;
+    else for (let k = 0; k < 12; k++) { const m = 0.5 * (f1 + f2), r = at(bow, D, m); if (r && r.kg < kgNeed) f1 = m; else f2 = m; }
+    D = dropTo(bow, dMax, f2);
+    const r = at(bow, D, f2);
+    return { bow, droop: D, full: f2, kg: r ? r.kg : 0, keel: r ? r.y : yTarget, ok: true, reach: true };
+  }
+  return best;
+}
+
 // ===========================================================================
 // THE STOL WING (G2820) - LEADING-EDGE AND SPANWISE HIGH-LIFT DEVICES
 // ===========================================================================
@@ -4528,6 +4669,16 @@ function clampWing(w, S, k) {
     w.crankAt = 0;
     w.tip = 'elliptic';
   }
+  // HULL-B26: THE TIP'S OWN SHAPE (GEN_TIP_SHAPE) - on a tip that has a bow, each number clamped, and kept only where it
+  // is off the kind's own (absent = the kind: no key moves the hash of a wing that is drawn and flown the same)
+  if ('tipShape' in w) {
+    const T = w.tipShape, K = GEN_TIPS[w.tip], G = GEN_TIP_SHAPE, o = {};
+    if (T && typeof T === 'object' && K && K.bow > 0 && w.plan !== 'elliptic') {
+      const put = (key, r, own) => { const v = +T[key]; if (T[key] != null && Number.isFinite(v)) { const c = genClamp(v, r[0], r[1]); if (Math.abs(c - own) > 1e-9) o[key] = c; } };
+      put('bow', G.bow, K.bow); put('droop', G.droop, K.droop || 0); put('full', G.full, 1);
+    }
+    if (Object.keys(o).length) w.tipShape = o; else delete w.tipShape;
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -5348,7 +5499,9 @@ function clampSpec(spec) {
         // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
         h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.5, 0.98),
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
-                   y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1 };
+                   y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1,
+                   // (HULL-B26: 'wing' = the wing's own tips are the floats - its drooped, buoyant tip; absent = strut floats)
+                   ...(h.tips.mode === 'wing' ? { mode: 'wing' } : {}) };
       } else h.tips = null;
       // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
       if (h.spon && typeof h.spon === 'object' && h.spon.on) {
@@ -5828,7 +5981,7 @@ function resolveSpec(spec) {
   // converges in two on any sane taper). LAW.cAt IS the old `lin` when the
   // stations are null, so the legacy bow is unchanged to the bit.
   // (an elliptic planform closes on its own curve: no bow)
-  const bowF = LAW.ell ? 0 : (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
+  const bowF = LAW.ell ? 0 : genTipOf(w).bow || 0;            // (HULL-B26: the tip's own length when it has one)
   let Rb = bowF * LAW.cAt(semi);
   for (let i = 0; i < 3; i++) Rb = bowF * LAW.cAt(Math.max(zR0, semi - Rb));
   Rb = Math.max(0, Math.min(Rb, 0.45 * (semi - zR0)));

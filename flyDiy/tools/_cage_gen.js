@@ -1293,6 +1293,26 @@ function cageHullFitAll(P, f, HY, opt) {
     const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
     const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass, sy != null && (o.semi || f.tipArm > 0.5) ? { cgY: f.cg[1] - sy, arm: f.tipArm > 0.5 ? f.tipArm : (+P.hullTipAt || 0.85) * o.semi, torqueKgm: tq } : undefined);
     if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
+    // HULL-B26: BUOYANT WING TIPS (hullTips 2) - the wing's own tip is shaped to be the float (the user, 5 Nov: "a
+    // setting of the wingtip itself, and how far it is allowed to drop, within reason"): its keel to where a strut
+    // float's would be (the level waterline + its clear), its full volume what the same moment rule asks of a float
+    // (60_gen_spec genTipFit: the shortest tip that reaches, then its drop, then its fullness). A tip with no bow turns
+    // drooped first (the next build has a tip to shape); past the longest, fullest tip the fit says so - a lower wing
+    if (tf && Math.round(+P.hullTips) === 2 && o.tip && sy != null) {
+      const J = o.tip.joint;
+      if (!J || !(J.bow > 0)) { if (o.tip.drooped >= 0) fit.wgTip = o.tip.drooped; }
+      else if (o.tip.fit) {
+        const T = o.tip.fit(J, sy + tf.y, tf.kg);
+        if (T) {
+          fit.wgTipBow = +T.bow.toFixed(2);
+          fit.wgTipDroop = +Math.max(0.01, T.droop).toFixed(3);
+          fit.wgTipFull = +T.full.toFixed(2);
+          if (!T.reach) notes.push('the wing stands too high for its tips to reach the water: the longest tip\'s keel is '
+            + Math.round((T.keel - sy - tf.y) * 1000) + ' mm over where a tip float\'s would be - a lower wing');
+          else if (!T.ok) notes.push('the buoyant tips hold ' + Math.round(T.kg) + ' of the ' + Math.round(tf.kg) + ' kg the moment rule asks');
+        }
+      }
+    }
   }
   // HULL-B19: THE SPONSONS' SIZE - the same moment rule on their short arm (the hull's side at their station plus their
   // outboard offset), their keel half their depth under the rest waterline (a sponson floats in the water at rest)
@@ -8852,7 +8872,8 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
-const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0 };
+// (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
+const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1 };
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 // CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S

@@ -395,10 +395,12 @@ window.CAGE_PAGE = {
         ['hullTubH',    'its depth (of the pod\'s)', 0.1, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
         ['hullNoseBase', 'bow before the fit (0: not moved)', 0, 4, 0.01, { when: P => +P.hullOn && +P.hullNoseBase > 0, dim: 'len' }],
         // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
-        ['hullTips',    'tip floats',                 0, 2, 1, ['none', 'on struts', 'buoyant tips (faired at the wing\'s end)'], { when: P => +P.hullOn }],   // (HULL-B24)
-        ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && +P.hullTips }],
-        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && +P.hullTips, dim: 'kg' }],
-        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && +P.hullTips, dim: 'len' }],
+        // (HULL-B26: 'buoyant wing tips' - the wing's own tip is the float: Wings > tip length / drop / fullness shape it,
+        // the boat's fit sets them; the strut float's rows stand down)
+        ['hullTips',    'tip floats',                 0, 2, 1, ['none', 'on struts', 'buoyant wing tips (the wing\'s own tip)'], { when: P => +P.hullOn }],
+        ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1 }],
+        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, dim: 'kg' }],
+        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, dim: 'len' }],
       ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the
