@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4481adf6d11d2ff5
+// body-sha256: cbf21dce6bcfa440
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37400,7 +37400,7 @@ function clampSpec(spec) {
       h.sta = rows;
       h.x = h.x == null || !Number.isFinite(+h.x) ? null : genClamp(+h.x, -4, 12);
       h.y = h.y == null || !Number.isFinite(+h.y) ? null : genClamp(+h.y, -2.5, 2.0);
-      h.steps = h.steps === 0 ? 0 : 1;
+      h.steps = h.steps === 0 ? 0 : h.steps === 2 ? 2 : 1;   // (HULL-B31: two steps - the table carries the second break)
       // the strut tip floats (HULL-B3): absent = none
       if (h.tips && typeof h.tips === 'object') {
         // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
