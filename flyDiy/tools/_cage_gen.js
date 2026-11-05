@@ -1500,7 +1500,8 @@ function cageHullSpec(P) {
            // under the straight V over the chine half-beam (0 = the plain V, bit-identical), fluteN the concave arcs a side
            // (1: keel to chine; 2: keel to a ridge at fluteAt of the half-beam, ridge to chine - the EDO's "Batman"),
            // fluteBow the share of the forebody (from the step) by which it has faded out, fluteAft its share kept aft
-           flute: cl(P.hullFlute, 0, 0.45, 0),   // (HULL-B46: to 0.45 - the Petrel's deep arch, a tunnel either side of the keel) fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
+           // (HULL-B46: to 0.45 - the Petrel's deep arch, a tunnel either side of the keel)
+           flute: cl(P.hullFlute, 0, 0.45, 0), fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
            fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0),
            // HULL-B43: the belly's ROCKER - the keel's rise at a step under the buoyant taper over the cabin's aft frame
            // (cage units; 0 = the flat run of B37)
