@@ -312434,3 +312434,9 @@ NEXT: LOOK-1 step 3 (trees), then TAA.
 ## LOOK-1 FREEZE - NO LEVEL CHAIN ON THE CLOUDS NOISE (L32f: taxi frozen 3-11 s on most loads; A0 tabulated it)
 
 clouds.js: S.noiseMips 0 (?cloudmip=1 for a bench). gl.generateMipmap on the 3D noise, once at the end of the bake, stalled the GPU process 1-9 s, intermittently, with no long main-thread task, in the taxi row when the bake ended inside it. Found with MB_TRACE in master_bench (the gap straight after the detail cube; none with the chain off; one run clean so far, the train proves it). Past the texel the detail erosion fades to its mean, which is what the levels converge on. The flicker numbers of LOOK-1 2a were taken WITH the chain: to re-measure. A separate stall stays open: 5 late links in taxi, sizes 14.8k+12.6k, acquired in the render loop, not named. Lesson: a one-off call looks free on a paused rig; a fresh-profile rollout row is the test.
+
+## A0 - train L32g, 6 Nov 2026 00:55
+
+IN (on L32f 12d3f17e6): ready/look-1-freeze 2c0b78966 (no mip chain on the clouds' noise: S.noiseMips 0).
+RESULT, worst frame, L32e / L32f quiet repeat / this: taxi @HOME 33.5 ms / 10.8 s / 33.4 ms; water taxi 300 ms / 9.1 s / 283 ms. Rollout taxi rows: L32e none over 317 ms; L32f 6 of 8 froze 3-11 s; this 4 of 8 froze 2.6-8.5 s. PARTLY FIXED, pushed because it's better than live. Open: LOOK-1's 5 late links at taxi (14.8k + 12.6k, render loop): named or the clouds come out at L33a 04:00.
+BATTERY: FRAMECOST same 5, MEDIA. TIMED 67 red. Flicker numbers without mips not re-measured. Report mean fps no more: median, p99, freezes, links.
