@@ -312406,3 +312406,11 @@ sky_light.js, one line: the moon key's colour is (0.80, 0.86, 1) instead of its 
 ## AA-OFF-LIVE - SWITCHING ANTI-ALIASING TO OFF IN FLIGHT THREW ON EVERY FRAME (found by LOOK-1's rig, 5 Nov)
 
 clouds.js depthFor, one line: the target set up before the depth copy. From gamer (8x), `GFX.set('aa', 'off')` under live clouds threw "Invalid value used as weak map key" in copyTextureToTexture on every frame and no frame was drawn. A boot at zero samples did not hit it. The check is tools/look1_temporal.js --aa off. Nothing moves for a player who never switches: no program, no memory, one map lookup at zero samples.
+
+## A0 - train L32e, 5 Nov 2026 20:07
+
+IN (on L32d master bbf615a28, small train): ready/look-1-moon c2c20a1ec (the moon's key neutral, the user's ruling: the hero's gold goes; night only), ready/wing-root d1991ece3 (the root rib's normal out of the skin's shared normals; the lower wing smooths like the upper; visual only, thumbs and fiches keep the old root until redrawn), ready/look-1-aaoff eb795cb15 (aa off under live clouds threw every frame in clouds.js depthFor).
+BATTERY: red, standing: FRAMECOST (the same 5), MEDIA 5.15 MiB. New, named: LIVERY 2 of 319: builds/cub_2026-09-20.json's strut resolves to castAlu (Client Cub's repaint, L32b; the gate wasn't in L32b's list as a red to read); small, next week or a fix row. SKINMAT (outside this list): a click on a surface in the FINISH view doesn't land on its section's row: standing, AIRCRAFT-LOOKS saw it on master.
+TIMED (light): 55 red (L32c 48, L32d 59). Warm nav 133.6 / 132.9 s, 71 links over 5 s: the cache again. Water taxi @SEA 25.8 fps. One sample per row; PERF-PASS.
+PHYSICS_V unmoved. Flown look of the wing root not checked, same geometry.
+NEXT: NIGHT-LOOK's hero under the neutral moon, LOOK-1 step 1 (clouds).
