@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 264568c010b6706b
+// body-sha256: 24e8db0972e3f920
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -32286,7 +32286,14 @@ const GEN_MATERIALS = {
     // straight from elastic to in pieces. That is the second axis this row
     // gains once a failure model exists; today it is reporting only.
     phys: { E: 135e9, rho: 1550, sigY: 1500e6 },
-    lin:   { fus: 0.38, wing: 0.44, gear: 0.85 },
+    // HULL-B50, THE COMPOSITE RECALIBRATION (the user: "I've been a little surprised by how little we could save using
+    // composite materials ... let's make this carbon worth it"; the reference: the Super Petrel LS, carbon/epoxy foam,
+    // 320 kg empty on a 912 iS). The members were 0.38 / 0.44 / 0.85 - 70-80 % of the alloy row's - so a carbon
+    // wing came out 4 % under an alloy one and 45 % over the ultralight's tube-and-Dacron; the skin (cover) was right and
+    // was never the mass (a wing's cover is ~3 % of it here). x0.45: the Petrel at 332 kg empty (wings 68 kg + struts
+    // 18 for its 15 m2 biplane), carbon's members ~35 % of alloy's - the UD spar caps' 2-3x specific stiffness and a
+    // moulding's missing fasteners. k / c follow (below)
+    lin:   { fus: 0.17, wing: 0.20, gear: 0.38 },
     cover: 2.40,      // cloth / foam / cloth sandwich, with its resin
     // same reasoning as the alloy row above: the sandwich skin IS the spar cap
     // here, so its stiffness rides with its mass, and `c` rides with both to
@@ -32301,8 +32308,12 @@ const GEN_MATERIALS = {
     // cantilever. It is linear, its cantilever sits at 0.66 % in the middle of
     // the band, and the ratio to the alloy strut is about 4x where the material
     // and the mass together argue for 3x. An outlier configuration, not a bug.
-    k:     { fus: 1.21e6, wing: 3.60e6, gear: 1.55e5 },
-    c:     { fus: 275,   wing: 900,   gear: 1866 },
+    // (HULL-B50: the stiffness and the damping follow the members down - k x0.55, c x0.50, the damping ratio held. The
+    // lattice's springs are absolute and its masses are lin's: at x0.45 of the mass the old k rang the solver to NaN at
+    // t 0 (measured: k/m up to x1.33 holds, x1.56 diverges - the row already sat near the explicit step's limit); a
+    // composite airframe's deflection under load rises with it, its frequencies ~10 % up)
+    k:     { fus: 0.666e6, wing: 1.98e6, gear: 0.853e5 },
+    c:     { fus: 138,   wing: 450,   gear: 933 },
     refMass: 420,                       // tuned at the size this generator builds
     refGross: 600, coverGauged: true,   // a two-seat composite at that size; the laminate follows the load
     cdWet: 0.0045,                      // moulded: the smoothest body on the list
@@ -32379,7 +32390,7 @@ const GEN_MATERIALS = {
   glass: {
     name: 'glass + epoxy',
     phys: { E: 20e9, rho: 1900, sigY: 180e6 },
-    lin:   { fus: 0.50, wing: 0.57, gear: 1.10 },
+    lin:   { fus: 0.38, wing: 0.43, gear: 0.83 },   // (HULL-B50: x0.75 - glassfibre's members ~25 % under alloy's, carbon's ~50 % under glass)
     cover: 3.00,
     k:     { fus: 6.05e5, wing: 1.80e6, gear: 1.55e5 },
     c:     { fus: 222,   wing: 725,   gear: 2128 },
