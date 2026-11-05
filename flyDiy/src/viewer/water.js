@@ -148,7 +148,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform float uWMirMax;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform float uWMirMax; uniform float uWStreakG;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -475,7 +475,7 @@ const WATER = (() => {
                 // canopy is made OPAQUE from a sixth of a sample up - a true gap between the trees (alpha 0) still
                 // shows the sky, a thin twig no longer paints the sky over the wood
                 vec3 mcol = mr.rgb / max(mr.a, 0.02);
-                if (uWStretch > 0.0) mcol = min(mcol, vec3(uWMirMax));   // NIGHT-PHOTO: a hot point in the capture (a lit post) must not become a white bar
+                if (uWStretch > 0.0) { mcol = min(mcol, vec3(uWMirMax)); float lM = dot(mcol, vec3(0.3, 0.5, 0.2)); mcol *= 1.0 + uWStreakG * smoothstep(0.03 * uWMirMax, 0.3 * uWMirMax, lM); }   // NIGHT-PHOTO: a hot point must not become a white bar; the lamps' streaks lifted over the sea (the user: "really not strong enough")
                 float mmask = smoothstep(0.06, 0.35, mr.a);
                 // ONE PLANE, ONE BODY (G2830): the capture is the reflection about ITS plane - a lake 38 m over the sea read
                 // through the sea's capture shows the ground at the lake, the sea under a lake's plane is clipped out of
@@ -656,7 +656,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWStretch: { value: 0 }, uWMirMax: { value: 1e9 }, uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
+      uWStretch: { value: 0 }, uWMirMax: { value: 1e9 }, uWStreakG: { value: 0 }, uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };

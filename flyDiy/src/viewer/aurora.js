@@ -10,7 +10,7 @@
 (function () {
   if (typeof window === 'undefined') return;
   const W = window;
-  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 9.5, heightDeg: 4, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
+  const DEF = { level: 0.9, azDeg: 0, wideDeg: 95, baseDeg: 9.3, heightDeg: 4.8, t: -1 };   // t >= 0: the curtains' clock held, so a selected shot comes back the same
   const D = Object.assign({}, DEF);
   const U = { uK: { value: 0 }, uT: { value: 0 }, uAz: { value: 0 }, uWide: { value: 1 }, uBase: { value: 0.1 }, uHgt: { value: 0.1 } };
   const VS = `
