@@ -226,7 +226,9 @@ const PAGE_RIG = `window.LT = (() => {
 
   if (flag('timed')) {
     for (const V of list) { const p = await place(V); if (!p) { log('no spot ' + V.name); continue; }
-      const t = await J(`new Promise(res => { const T = []; let last = 0, n = 0; const f = ts => { if (last) T.push(ts - last); last = ts; if (++n <= 150) requestAnimationFrame(f); else { T.sort((a, b) => a - b); res({ medianMs: +T[T.length >> 1].toFixed(2), p95Ms: +T[(T.length * 0.95) | 0].toFixed(2), cloudsGpuMs: +(CLOUDS.stats.gpuMs || 0).toFixed(2), cloudsCpuMs: +(CLOUDS.stats.ms || 0).toFixed(2), programs: WORLD.renderer.info.programs.length }); } }; requestAnimationFrame(f); })`);
+      const window_ = () => J(`new Promise(res => { const T = []; let last = 0, n = 0; const f = ts => { if (last) T.push(ts - last); last = ts; if (++n <= 150) requestAnimationFrame(f); else { T.sort((a, b) => a - b); res({ medianMs: +T[T.length >> 1].toFixed(2), p95Ms: +T[(T.length * 0.95) | 0].toFixed(2), cloudsGpuMs: +(CLOUDS.stats.gpuMs || 0).toFixed(2), histGpuMs: +(CLOUDS.stats.histMs || 0).toFixed(2), cloudsCpuMs: +(CLOUDS.stats.ms || 0).toFixed(2), programs: WORLD.renderer.info.programs.length }); } }; requestAnimationFrame(f); })`);
+      // the history on, off, on again in one page: the pass's cost against itself, minutes apart at most
+      const t = {}; for (const [k, on] of [['on', 1], ['off', 0], ['on2', 1]]) { await ev(`(CLOUDS.S.temporal = ${on}, 1)`); await ev(FRAMES(20)); t[k] = await window_(); }
       R.views[V.name] = { timed: t }; log(V.name + ' ' + JSON.stringify(t)); save(); }
   } else if (flag('blue')) {
     const V = VIEWS.find(v => v.name === 'stand'), rowsB = {};
