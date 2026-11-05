@@ -774,7 +774,7 @@ function procureBuyUsed(doc, listingId, o) {
                 paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
                 cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0),
                 // WEAR-PRICE: its age runs on the career's clock from the listing's (76_economy econAgingNow)
-                aging: L.age > 0 ? { years0: L.age, engH0: L.hours || 0, at: Math.round(D2.clock || 0), flownS: 0, engAt: 0 } : null };
+                aging: L.age > 0 ? { years: L.age, engineHours: L.hours || 0, care: 'normal', at: Math.round(D2.clock || 0), fl: 0 } : null };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;

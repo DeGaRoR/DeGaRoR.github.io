@@ -9408,6 +9408,8 @@
     agingOf: n => { try { return econAgingNow(playerLoad(), n); } catch (e) { return null; } },
     isAirframe: n => { try { const C = playerLoad().career; return !!(C && C.airframes && n && C.airframes[n]); } catch (e) { return false; } },
     restoreOf: k => econRestoreOf(k), restore: k => econRestoreNow(k),
+    // the upkeep (perfect / normal / poor maintenance): the airframe on the stand's, from now on (76_ econCareSet)
+    setCare: c => { const n = slotOnStand(); const r = econCareSet(playerLoad(), n, c); if (r.ok) { player = r.doc; playerSave(); } return { ok: r.ok, why: r.why }; },
   };
   // ---- G2260 (ECONOMY): THE CAREER WALLET'S PAGE HALF (every function below runs only under CAREER_DEV) -------------
   // What a career pays for, at the door where it happens (76_economy.js, THE PRICE BOOK): the FIRST SAVE of a new

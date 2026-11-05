@@ -1200,7 +1200,8 @@ function editorInit(api) {
       if (!G || wearCareer()) { sync(); return; }
       const y = Math.max(0, Math.round(+yr.i.value || 0)), h = Math.max(0, Math.round(+hr.i.value || 0));
       try {
-        if (y <= 0 && h <= 0) { if (agingOfSpec()) G.remove('aging'); }
+        const A0 = agingOfSpec(), care = A0 && A0.care && A0.care !== 'normal';
+        if (y <= 0 && h <= 0 && !care) { if (A0) G.remove('aging'); }
         else G.update({ aging: { years: y, engineHours: h } });
       } catch (e) { console.error('wear (aging):', e); }
       show();
@@ -1244,6 +1245,48 @@ function editorInit(api) {
     }
     rowsEl.appendChild(n);
   }
+  // WEAR-PRICE: THE MAINTENANCE (the user: "rate of decay should offer 3 options; perfect maintenance, normal
+  // maintenance, poor maintenance, and that's about it"), UP FRONT (no expert switch). How fast the clock and the hours
+  // wear the airframe from now on (76_ ECON_WEAR.care: x0.5 / x1 / x2) - never a restore. A career airframe's is its
+  // row's (FLYDIY_CAREER.setCare: what accrued settles at the old rate); a build carries it in spec.aging.care and its
+  // first save starts its clock with it; normal on an ageless build writes nothing.
+  let careEl = null;
+  function careRow() {
+    if (!careEl) {
+      const d = document.createElement('div');
+      d.className = 'r'; d.dataset.care = '1';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = 'maintenance';
+      k.title = 'how fast its years and its engine hours wear it from now on: perfect half as fast, poor twice as fast (no running cost)';
+      const sel = document.createElement('select'); sel.style.flex = '1';
+      for (const [v, t] of [['perfect', 'perfect maintenance'], ['normal', 'normal maintenance'], ['poor', 'poor maintenance']]) {
+        const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
+      }
+      sel.onchange = () => {
+        const v = sel.value, C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+        try {
+          if (wearCareer()) { const r = C.setCare(v); if (r && !r.ok && r.why) alert(r.why); }
+          else if (G) {
+            const A0 = agingOfSpec();
+            if (A0) G.update({ aging: { care: v } });
+            else if (v !== 'normal') G.update({ aging: { years: 0, engineHours: 0, care: v } });
+            const A1 = agingOfSpec();
+            if (A1 && !(+A1.years > 0) && !(+A1.engineHours > 0) && (!A1.care || A1.care === 'normal')) G.remove('aging');
+          }
+        } catch (e) { console.error('wear (care):', e); }
+      };
+      d.appendChild(k); d.appendChild(sel);
+      careEl = { d, sel };
+      wearHome.appendChild(d); homeOf.set(d, wearHome);
+    }
+    let cur = 'normal';
+    try {
+      const C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+      if (wearCareer()) { const n = C.agingOf(G.name()); cur = (n && n.care) || 'normal'; }
+      else { const A = agingOfSpec(); cur = (A && A.care) || 'normal'; }
+    } catch (e) {}
+    careEl.sel.value = cur;
+    return careEl.d;
+  }
   function renderWear() {
     const body = CU.MATBODY;
     const ex = !!(CU.EXPERT && CU.EXPERT.on);
@@ -1262,18 +1305,19 @@ function editorInit(api) {
     const shown = partsShown(sel);
     const p0 = PT.partByKey[sel];
     const isRoot = !!(p0 && p0.root);
+    if (isRoot) emitEls(p0, 'upkeep', [careRow()], 'how fast it wears from now on', false, { secG: 'wear:care' });
+    if (isRoot) wearRefresh();
     if (!ex) {
       const n = document.createElement('div');
       n.className = 'refNote';
       n.textContent = 'The wear\'s own dials are expert rows for now: how worn it looks, how worn it flies, and how much ' +
-        'of it each surface shows. One age and two rates come in front of them later.';
+        'of it each surface shows. The maintenance above is the one rate; one age comes in front of these later.';
       const b = document.createElement('button');
       b.className = 'pill'; b.textContent = 'show the expert rows';
       b.onclick = () => { setExpert(true); render(); };
       n.appendChild(b);
       rowsEl.appendChild(n);
     }
-    if (isRoot) wearRefresh();
     if (isRoot) {
       emitEls(p0, 'looks', look, 'how worn it looks - the paint and the dirt; no flown number moves', false,
               { secG: 'wear:looks', expert: true });

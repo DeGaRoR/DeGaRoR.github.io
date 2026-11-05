@@ -80,6 +80,24 @@ function core(C) {
     const Lst = C.procureUsedListing('wear', 0, 0);
     if (Lst) ok(true, '');
   }
+  // ---- THE MAINTENANCE: three upkeeps, from now on
+  {
+    let d = C.careerNew({ id: 'w', seed: 'wear' }); d.fleet.u = { hangar: null, aero: 'HOME' }; d.career.airframes.u = { paid: 1, age: 10, hours: 0 };
+    ok(C.ECON_CARE.join() === 'perfect,normal,poor', 'three upkeeps: perfect, normal, poor');
+    const at = care => { let x = C.econCareSet(d, 'u', care).doc; x = C.econAgingFlown(x, 'u', 100 * 3600); return C.econAgingNow(x, 'u'); };
+    const P = at('perfect'), N = at('normal'), Q = at('poor');
+    ok(P.years === 10.5 && P.engineHours === 50 && N.years === 11 && N.engineHours === 100 && Q.years === 12 && Q.engineHours === 200,
+       '100 h flown: perfect +0.5 y / 50 h, normal +1 y / 100 h, poor +2 y / 200 h (' + [P, N, Q].map(n => n.years + '/' + n.engineHours).join(', ') + ')');
+    let x = C.econCareSet(d, 'u', 'poor').doc; x = C.econAgingFlown(x, 'u', 100 * 3600);
+    const before = C.econAgingNow(x, 'u'); x = C.econCareSet(x, 'u', 'perfect').doc; const after = C.econAgingNow(x, 'u');
+    ok(before.years === after.years && before.engineHours === after.engineHours && after.care === 'perfect', 'choosing perfect buys nothing back: what accrued at poor stays');
+    x = C.econAgingFlown(x, 'u', 100 * 3600);
+    ok(C.econAgingNow(x, 'u').years === 12.5, 'and runs at perfect from then on (12 -> 12.5)');
+    ok(C.econAgingSpec(cub, { years: 0, engineHours: 0, care: 'normal' }).aging === undefined && C.econAgingSpec(cub, { years: 0, engineHours: 0, care: 'poor' }).aging.care === 'poor', 'the spec: absent at 0 / 0 normal; the upkeep carried otherwise');
+    let b = C.careerNew({ id: 'w', seed: 'wear' }); b.fleet.own = { hangar: null, aero: 'HOME' }; b.career.airframes.own = { paid: 1 };
+    ok(C.econAgingNow(C.econAgingStart(b, 'own', { years: 0, engineHours: 0, care: 'poor' }), 'own').care === 'poor', 'a build\'s first save starts with the upkeep it was given');
+    ok(C.certMajor(Object.assign({}, cub, { aging: { years: 0, engineHours: 0, care: 'poor' } })).fp === C.certMajor(cub).fp, 'the upkeep is outside the certificate');
+  }
   // ---- THE REPAIR BILL
   {
     const none = C.econRepairBill(R, L, G, { groups: [], drive: [{}], crashed: false });
@@ -135,7 +153,10 @@ function page(S) {
   ok(/restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\),/.test(S.APP) && /isAirframe: n =>/.test(S.APP), 'app.js: the career\'s refresh doors');
   ok(/if \(now && typeof econAgingSpec === 'function'\) sp = econAgingSpec\(sp, now\);/.test(S.GAR), 'garage.js: a career slot loads at its age now');
   ok(/function wearRefresh\(\)/.test(S.ED) && /if \(isRoot\) wearRefresh\(\);/.test(S.ED), 'editor.js: the refresh buttons on the WEAR tab');
-  ok(/aging: L\.age > 0 \? \{ years0: L\.age, engH0: L\.hours \|\| 0,/.test(S.PROC), '76_procure: a used purchase starts its clock');
+  ok(/aging: L\.age > 0 \? \{ years: L\.age, engineHours: L\.hours \|\| 0, care: 'normal',/.test(S.PROC), '76_procure: a used purchase starts its clock');
+  ok(/setCare: c => \{ const n = slotOnStand\(\); const r = econCareSet\(playerLoad\(\), n, c\);/.test(S.APP), 'app.js: the upkeep\'s door');
+  ok(/function careRow\(\)/.test(S.ED) && /if \(isRoot\) emitEls\(p0, 'upkeep', \[careRow\(\)\], 'how fast it wears from now on', false, \{ secG: 'wear:care' \}\);/.test(S.ED)
+     && /\['perfect', 'perfect maintenance'\], \['normal', 'normal maintenance'\], \['poor', 'poor maintenance'\]/.test(S.ED), 'editor.js: the three upkeeps, up front (not expert)');
   return fails;
 }
 
@@ -155,7 +176,9 @@ if (SELF) {
   const coreD = [
     ['the certificate hashes the age', CORE.replace("o && o.condition ? [] : CERT_CONDITION", "[]")],
     ['the repair free again', CORE.replace("return Math.round((Array.isArray(bill) ? bill : (bill && bill.lines) || []).reduce(", "return 0 * Math.round((Array.isArray(bill) ? bill : (bill && bill.lines) || []).reduce(")],
-    ['an overhaul keeps the hours', CORE.replace("R.aging.engH0 = 0; R.aging.engAt = Math.round(+R.aging.flownS || 0);", "")],
+    ['an overhaul keeps the hours', CORE.replace("out.career.airframes[slot].aging.engineHours = 0;", "")],
+    ['the upkeep retroactive', CORE.replace("let d = A.aging ? econAgingSettle(doc, slot) : econAgingStart(doc, slot, null);", "let d = A.aging ? doc : econAgingStart(doc, slot, null);")],
+    ['the upkeep does nothing', CORE.replace("care: { perfect: 0.5, normal: 1, poor: 2 },", "care: { perfect: 1, normal: 1, poor: 1 },")],
   ];
   let bad = 0;
   for (const [what, s] of D) { const r = page(s); console.log((r.length ? '  caught  ' : '  MISSED  ') + what); if (!r.length) bad++; }
