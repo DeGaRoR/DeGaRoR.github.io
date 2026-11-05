@@ -8778,7 +8778,7 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1 };
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
@@ -8954,6 +8954,11 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
 const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1 };
+// RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
+// retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
+// slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)
+const CAGE_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose',
+  'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose'];
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 // CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S
@@ -8981,6 +8986,7 @@ function cageToSpec(P) {
     if (!(+P.hullOn > 0) && CAGE_HULL_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
+    if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
     out[k] = P[k]; n++;
   }
   return n ? out : null;

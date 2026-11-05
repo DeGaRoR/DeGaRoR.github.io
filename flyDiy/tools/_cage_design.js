@@ -1923,15 +1923,19 @@ const DESIGN_ROWS = [
         writes: { cage: { hullBeta: 8, hullBetaBow: 20, hullBetaA: 8, hullSteps: 0, crKeel: 0, botRound: 0.25 } } },   // (B12: a light rounding - 1 narrowed it as the soft chine's did)
     ] },
 
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): LIVE on a tricycle - the tile stands in the
+  // gear layer's `gearRetract` row and follows its rules (shown on a wheeled tricycle only). Mass (GEN_RULES.retractKg),
+  // drag (the gear's own CdA, off as it comes up), price (GEN_PRICES.retract) and the handle to remember
   { key: 'retract', label: 'Retraction', kind: 'discriminator',
-    group: 'undercarriage', status: 'declared',
-    read: () => 'fixed',
+    group: 'undercarriage', status: 'live', twin: ['gearRetract'],
+    help: 'the wheels swing up in flight: speed, for mass, price and a handle to remember',
+    read: P => Math.round(+P.gearRetract || 0),
     options: [
-      { value: 'fixed', label: 'Fixed', icon: ICON.fixed, def: true },
-      { value: 'retract', label: 'Retractable', icon: ICON.retract,
-        inactive: 'declared (§5.8): a real discriminator — mass, ' +
-          'drag, price, complexity — and none of that model is built; ' +
-          'no spec field exists until it is' },
+      { value: 0, label: 'Fixed', icon: ICON.fixed,
+        writes: { cage: { gearRetract: 0 } } },
+      { value: 1, label: 'Retractable', icon: ICON.retract,
+        note: 'gear up after the climb is positive, down before the landing — the horn reminds',
+        writes: { cage: { gearRetract: 1 } } },
     ] },
 
   // THE SUSPENSION IS THE LEG (2026-09-11, the user: "YOU tend to use complex

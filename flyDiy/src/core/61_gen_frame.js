@@ -2714,6 +2714,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
+    // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
+    if (S.gear.retract) {
+      const kit = R.retractKg(gross);
+      pt(GAL, kit / 3); pt(GAR, kit / 3); pt(TW, kit / 3);
+      spend(GEN_PRICES.retract);
+    }
   } else if (BOOMS && TAIL && TAIL.vee && TAIL.down) {   // (G3801: a V whose tips hang below the booms; up, the booms' own)
     // G3800 (TAILWHEELS): THE INVERTED V's TAIL CONTACTS ARE ITS TIPS - a small wheel (or the skid's shoe) under each
     // panel's tip, on a short fork (its hub a hand under the tip), the tip's section and apex its five anchors. The

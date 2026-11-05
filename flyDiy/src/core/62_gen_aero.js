@@ -1748,6 +1748,13 @@ function genParams(S, fr, strips) {
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
     // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
     ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
+    // RETRACT-1 (RETRACT-STUDY §3.1): the retractable gear - the key only when chosen. `cdA` is the gear's own drag area
+    // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
+    // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
+    ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
+                                       cdA: cda.drag.gear || 0,
+                                       // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
+                                       frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
     // carcass (the cage's whProfile: 0 standard, 1 tundra balloon, 2 slim; a spec without a cage reads standard), the
     // third wheel by what it is (a tailwheel or a nose wheel). The third wheel is steered by the rudder as the solver

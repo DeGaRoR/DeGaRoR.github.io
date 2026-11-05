@@ -2516,6 +2516,9 @@ const GEN_PRICES = {
   spat: 380,           // one wheel pant (a main or the third wheel)
   trouser: 560,        // one wheel in full trousers (shell + leg shroud)
   legFair: 240,        // one leg's streamline shroud on its own
+  // RETRACT-1: the retraction system - three actuators, the power pack (or the crank), the up- and down-locks, the
+  // squat switch, the lamps and the horn. A real one is ~10-15 % of a light single's price (RETRACT-STUDY §1.9-1.10)
+  retract: 4200,
 };
 
 // FINISH. `paintJob` above used to be spent unconditionally, which made 1800
@@ -2876,8 +2879,16 @@ function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
   for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // RETRACT-1 / G1: THE RETRACTABLE GEAR'S ROWS, the same rule - with the gear FIXED (gearRetract 0) every one of them is
+  // a row every build before them lacked, and the preview's position (gearPos) is state whatever the gear: none of them
+  // withdraws a certificate, re-keys the certificate cache or moves a procured fingerprint (every caller of this one)
+  const fixed = !(+cage.gearRetract);
+  for (const k of GEN_RETRACT_ROWS) if (k in cage && (fixed || k === 'gearPos')) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
+// RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
+const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -3404,6 +3415,10 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
+  // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
+  // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
+  retractKg:   gross => Math.max(12, 0.035 * (gross || 0)),
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -5517,6 +5532,43 @@ function clampSpec(spec) {
   } else if (S.gear.hull !== undefined) delete S.gear.hull;
   // (a 'hull' with no usable record keeps its type and flies on floats the frame sizes by the gross: a seaplane that
   // floats, never a boat on phantom wheels - 61_gen_frame.js HULL-B3)
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - a tricycle's three wheels
+  // swing up in flight. The key only when chosen (the full swivel's rule, G3575): a fixed build carries none and its spec,
+  // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
+  // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
+  // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
+  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+    const r = S.gear.retract;
+    r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
+    if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
+    if (!['crank', 'freefall', 'pump', 'blow'].includes(r.emerg)) r.emerg = r.act === 'hydraulic' ? 'freefall' : 'crank';
+    // G1: the FRACTION of the fold it retracts (1 all the way: the key absent; 0.6 a Catalina's or a DC-3's - the stowed
+    // wheel still rolls), and the LIFT the drawn fold gives the wheel's lowest point (m, the join's measurement; absent:
+    // the frame's own rule, 30_solver GH x frac)
+    if (r.frac != null) { r.frac = genClamp(+r.frac || 1, 0.3, 1); if (r.frac >= 1) delete r.frac; }
+    if (r.lift && typeof r.lift === 'object') {
+      for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
+      if (!Object.keys(r.lift).length) delete r.lift;
+    } else delete r.lift;
+    // G3 (RETRACT-STUDY §8.3): THE WELLS the stowed units reserve, the join's measurement - per unit its station range x
+    // (the frame's body x), its band of the section lv (0 keel .. 1 top), its span fractions, and its litres in the body
+    // and in the wing. The bays give them up (60c genBayResolve). Only with a retraction; four at the most
+    if (Array.isArray(S.gear.wells)) {
+      const ok = w => w && typeof w === 'object' && Array.isArray(w.x) && w.x.length === 2 && w.x.every(v => isFinite(+v));
+      S.gear.wells = S.gear.wells.filter(ok).slice(0, 4).map(w => {
+        const pair = (a, lo, hi) => { const u = [genClamp(+a[0] || 0, lo, hi), genClamp(+a[1] || 0, lo, hi)]; return u[0] <= u[1] ? u : [u[1], u[0]]; };
+        const o = { unit: ['L', 'R', 'T'].includes(w.unit) ? w.unit : 'L', x: pair(w.x, -20, 40),
+                    bodyL: genClamp(+w.bodyL || 0, 0, 2000), wingL: genClamp(+w.wingL || 0, 0, 2000) };
+        if (Array.isArray(w.lv) && w.lv.length === 2) o.lv = pair(w.lv, 0, 1);
+        if (Array.isArray(w.span) && w.span.length === 2) o.span = pair(w.span, 0, 1.5);
+        return o;
+      });
+      if (!S.gear.wells.length) delete S.gear.wells;
+    } else delete S.gear.wells;
+    // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
+    // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
+    S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
+  } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once

@@ -1177,6 +1177,8 @@ const wingPost = ctx => {
     if (!pr) return null;
     const o = WIRE ? new THREE.LineSegments(pr.wire, wireMat(cl === 'x' ? '' : cl))
                    : new THREE.Mesh(pr.geo, mat);
+    // RETRACT G5: the skin's own meshes are the ones a wheel well is cut into (_cage_ui wellApply, after the gear)
+    if (o.isMesh && (cl === 'main' || cl === 'centre' || cl === 'tip' || cl === 'stol')) o.userData.wingSkin = cl;
     if (offset) o.position.set(offset[0], offset[1], offset[2]);
     group.add(o);
     return pr;

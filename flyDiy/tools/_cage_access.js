@@ -700,6 +700,11 @@ PAGE.post = ctx => {
   }
   const pilMoved = [], pilTaken = [];
   AUTO = {}; AUTO_BUILT = true;
+  // RETRACT GM1: the wheel wells' outlines (the gear layer's cuts, cage units: u = z, v = -x) - a site inside one is moved
+  const CUTS = (window.CAGE_GEAR && Array.isArray(window.CAGE_GEAR.cuts) && window.CAGE_GEAR.cuts.length) ? window.CAGE_GEAR.cuts : null;
+  const wellIn = CUTS ? q => CUTS.some(c => q.p[1] < c.ceil && c.outline.every((a, i) => {
+    const b = c.outline[(i + 1) % c.outline.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return ((b[0] - a[0]) * (-q.p[0] - a[1]) - (b[1] - a[1]) * (q.p[2] - a[0])) / l > -0.05 / FS; })) : null;
   for (const row of rows) {
     const fam = FAMILY[row.key];
     if (fam && !Math.round(P[fam] === undefined ? 1 : P[fam])) continue;
@@ -811,12 +816,21 @@ PAGE.post = ctx => {
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is
       // metres and is. See UNITS at the top of this file.
-      sites = SITE.accessSites(mesh, {
-        sL: atSL / K2,
+      const siteAt = sl => SITE.accessSites(mesh, {
+        sL: sl / K2,
         lv: atLV,
         sC: row.at.sC != null ? row.at.sC / K2 : undefined,
         snap: row.snap, side: row.side,
       });
+      sites = siteAt(atSL);
+      // RETRACT GM1: NOTHING IS BOLTED INTO A WHEEL WELL (the transponder aerial stood in the mains' well, the fuel
+      // drain in the nose's): a site inside a well's outline (CAGE_GEAR.cuts, cage units, 50 mm round) and under its
+      // ceiling slides along the body, aft then forward by 50 mm steps up to 1.2 m, to the first station clear of all
+      if (wellIn && row.on === 'body' && sites.some(wellIn))
+        for (let k = 1; k <= 24; k++) {
+          const tryS = [siteAt(atSL - 0.05 * k), siteAt(atSL + 0.05 * k)].find(ss => ss.length && !ss.some(wellIn));
+          if (tryS) { sites = tryS; break; }
+        }
     }
     // G278: A CROWN FITTING LOOKS FOR THE TOP OF THE AEROPLANE (the user:
     // "these things should always look for the top of the airplane, by

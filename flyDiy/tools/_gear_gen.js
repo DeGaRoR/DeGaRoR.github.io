@@ -1702,31 +1702,66 @@ function legOleo(bags, AF, P, st, sgn) {
   const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted oleo roots above its own foot, so the strut hangs
   // dead vertical and the wheel rides its stub axle outboard (see fitOn)
-  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn);
+  // (GR, the Catalina: `st.ret.flip` - the wheel rides INBOARD of the leg, so it slots into the hull's side while the
+  // leg stays outside)
+  const hS = st.ret && st.ret.flip ? -1 : 1;
+  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn * hS);
   const drop = st.drop, half = st.x;
-  const trunn = off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
+  // RETRACT GM1 (futureDesigns/RETRACT-STUDY-2026-11.md §8.11): A RETRACTING LEG TURNS ON A TRUNNION INSIDE THE
+  // STRUCTURE - `st.ret` { in: metres inward from the skin (the wing's mid-depth, a body frame's), pin: the fold's first
+  // axis, fix: the static bags } - the strut runs from there through the well's opening; no pad on the skin
+  const RT = st.ret || null;
+  const trunn = RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   // an oleo had no rake law of its own: the wheel offset IS its rake — the
   // strut is whatever line joins the trunnion to the axle
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + (st.axZ || 0)];
-  const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
+  const axleIn = [axle[0] - sgn * hubIn * hS, axle[1], axle[2]];
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
-  padOn(bags, AF, st, st.z, aS * P.oleoAng * D2R, 0.19, 0.15,
-        { thick: 0.009 }, -aS * hubIn);
+  if (!RT) padOn(bags, AF, st, st.z, aS * P.oleoAng * D2R, 0.19, 0.15,
+                { thick: 0.009 }, -aS * hubIn);
   // trunnion: two lugs and the pin the strut swings on
-  const pax = nrm(crs(dir, F.fore));
-  for (const s of [-1, 1])
-    lug(bags.alloy, off(trunn, pax, s * (Rc + 0.016)), pax, mul(dir, -1),
-        0.028, 0.011, 0.070);
-  revolve(bags.bronze, off(trunn, pax, -Rc - 0.028), pax,
-          [[0.012, 0], [0.012, 2 * Rc + 0.056]], 14, true);
+  let pax = nrm(crs(dir, F.fore));
+  if (RT) {
+    // the pin along the fold's first axis (square to the strut); the lugs, the pin and a fitting plate on the spar or
+    // the frame are the STRUCTURE's (static); the strut's head is a yoke across the pin and turns with the leg
+    const pa = RT.pin || [0, 0, 1];
+    const pp = sub(pa, mul(dir, dot(pa, dir)));
+    if (len(pp) > 0.2) pax = nrm(pp);
+    // the lugs reach up to the fitting plate under the far skin: as far as the structure's depth leaves (a thin
+    // section shortens them; the gear layer's fit says when it is too thin - its 'mount' test)
+    const up = mul(dir, -1), w = Rc + 0.034, reach = Math.max(0.025, Math.min(0.075, RT.in - 0.014));
+    // (GR: `RT.fits` - the gear layer draws the trunnion's fitting itself once its well's ceiling is known: lugs, a
+    // base plate bolted flat on the structure, gussets; here only its record)
+    if (RT.fits) RT.fits.push({ c: trunn.slice(), pax: pax.slice(), w, r: 0.030, t: 0.014, kind: 'trunnion' });
+    else {
+    for (const s of [-1, 1]) {
+      lug(RT.fix.alloy, off(trunn, pax, s * w), pax, up, 0.030, 0.014, reach);
+      bolt(RT.fix.dark, off(off(trunn, up, reach), pax, s * w), up, 0.006, 0.010);
+    }
+    const sideV = nrm(crs(pax, up));
+    boxIn(RT.fix.alloy, off(trunn, up, reach + 0.006), [w + 0.022, 0.006, 0.034], pax, up, sideV);
+    }
+    revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
+    revolve(bags.alloy, off(trunn, pax, -w + 0.009), pax,
+            [[Rc * 0.62, 0], [Rc * 0.62, 2 * w - 0.018]], 18, true);      // the yoke's cross-boss, on the pin
+  } else {
+    for (const s of [-1, 1])
+      lug(bags.alloy, off(trunn, pax, s * (Rc + 0.016)), pax, mul(dir, -1),
+          0.028, 0.011, 0.070);
+    revolve(bags.bronze, off(trunn, pax, -Rc - 0.028), pax,
+            [[0.012, 0], [0.012, 2 * Rc + 0.056]], 14, true);
+  }
   // cylinder (upper) and polished piston (lower)
+  // (GR: a shortening leg - `RT.low` - draws its piston, its axle stub and the scissor's lower arm into the piston's own
+  // bags, which slide up the leg as it retracts; the scissor's arms are handed to the gear layer as a knee, RT.scissor)
+  const LB = RT && RT.low ? RT.low : bags;
   const cylL = L * clamp(P.oleoCyl, 0.30, 0.80);
   revolve(bags.alloy, trunn, dir,
           [[Rc * 0.72, 0], [Rc, Rc * 0.5], [Rc, cylL - Rc * 0.3],
            [Rc * 0.92, cylL]], 20, true);
-  revolve(bags.chrome, off(trunn, dir, cylL - 0.004), dir,
+  revolve(LB.chrome, off(trunn, dir, cylL - 0.004), dir,
           [[Rc * 0.62, 0], [Rc * 0.62, L - cylL - 0.02]], 16, true);
   // the wiper boot at the gland
   revolve(bags.dark, off(trunn, dir, cylL - 0.010), dir,
@@ -1737,16 +1772,19 @@ function legOleo(bags, AF, P, st, sgn) {
   const a0 = add(off(trunn, dir, cylL * 0.80), mul(fwd, Rc * 0.95));
   const a2 = add(off(trunn, dir, L - 0.055), mul(fwd, Rc * 0.80));
   const knee = add(lerp3(a0, a2, 0.5), mul(fwd, P.oleoScissor));
+  if (RT && RT.low) RT.scissor = { a0, a2, knee, pax: pax.slice(), fwd };
+  else
   for (const [p, q] of [[a0, knee], [knee, a2]]) {
     const path = resample([p, q], 4);
     sweep(bags.alloy, path, t => secBlade(0.030 - 0.006 * Math.abs(t - 0.5),
                                           0.011), true, pax);
   }
+  if (!(RT && RT.low))
   for (const p of [a0, knee, a2])
     revolve(bags.bronze, off(p, pax, -0.012), pax,
             [[0.008, 0], [0.008, 0.024]], 10, true);
-  // drag brace back into the structure
-  if (P.oleoBrace) {
+  // drag brace back into the structure (a retracting leg's brace folds: GM2)
+  if (P.oleoBrace && !RT) {
     // THE BRACE ROOTS ON THE BODY IT HAS (G322, the fitment study). The
     // twin-boom trike's nose leg sits 0.36 m short of the firewall and its
     // brace asked for a station 0.42 m ahead of it — past the end of the
@@ -1792,8 +1830,9 @@ function legOleo(bags, AF, P, st, sgn) {
                        (Rc + Math.max(0, P.oleoScissor) + 0.03) / 0.35),
               Math.max(P.oleoDia * 1.5, st.R * 0.30));
   const axis = [sgn, 0, 0];
-  axleStub(bags, axleIn, axis, hubIn);
-  return { axle, axis, root: F.p, travel: mul(dir, -1) };
+  axleStub(LB, axleIn, hS < 0 ? [-sgn, 0, 0] : axis, hubIn);
+  return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1),
+           ...(RT ? { pin: pax, trunnion: trunn, strutDir: dir, strutL: L, cylF: clamp(P.oleoCyl, 0.30, 0.80) } : {}) };
 }
 
 // ---- 3. STEERING: THE CASTOR MODULE ---------------------------------------

@@ -108,6 +108,10 @@
     // engines). Any other tail contact ignores it. The aeroplane starts with it in
     { id: 'twLock', kind: 'step', ctl: 'twLock', label: 'tailwheel lock', group: 'ground',
       hint: 'IN · OUT (a lockable tailwheel only)', keys: { key: 'Slash' } },
+    // RETRACT-1: the retractable gear's handle (30_solver ctl.gear: 1 down, 0 up) - UP and DOWN, no AUTO: a real gear
+    // has no rule, only a pilot (and a squat switch: the handle up on the ground holds the gear down)
+    { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying',
+      hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -412,6 +416,7 @@
     let nEng = 1;
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
     let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
+    let gearH = 1;                          // RETRACT-1: the gear handle - 1 down, 0 up (written only on a retract build)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -619,6 +624,7 @@
       trimA = air ? clamp(fin(c.da, 0), -TRIM_A_MAX, TRIM_A_MAX) : 0;
       wr = null;
       twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
+      gearH = c.gear === 0 ? 0 : 1;          // RETRACT-1: the handle where the aeroplane has it (the AP's or the reset's)
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -734,6 +740,7 @@
         else if (id === 'trimCentre') { trimR = 0; trimA = 0; }
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
         else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
+        else if (id === 'gear') gearH = gearH === 0 ? 1 : 0;                           // RETRACT-1: UP <-> DOWN
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -777,6 +784,7 @@
       ctl.brakeD = bL === bR ? 0 : (bL - bR) / 2;
       ctl.wr = wr;
       ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
+      if ('gear' in ctl) ctl.gear = gearH;   // RETRACT-1: a fixed build's ctl has no gear key, and gets none
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -824,6 +832,7 @@
                        if (o.a != null) trimA = clamp(fin(o.a, 0), -TRIM_A_MAX, TRIM_A_MAX); },
       waterRudder: () => wr,
       twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
+      gear: () => gearH,                     // RETRACT-1: the gear handle (1 down, 0 up)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },

@@ -312077,3 +312077,80 @@ THE RULE (the user, 3 Nov): "reuse existing controls from the cage ... switch be
 - HULL-B32 (TRIED, REVERTED): the static thrust's couple in the fit's rest balance (momentum-theory thrust x its height over the CG read as the CG moved forward; the bow lengthened until the boat rests at -3 deg or better under it). The Be-103 took a 3.5 m bow and the Super Petrel 2.4 m; neither left the water (Be-103's hump R/W 0.42 at 4 m/s, worse; Petrel 0.20). The plow under a high thrust line is DYNAMIC (the bow pressed in as the hull starts to move), not a rest balance a longer bow cures. Left for a later look: the pilot's water-run power cap (GP.cap 0.88 to tail-up), elevator authority at 3-5 m/s, a deeper forebody (the builder's), the real aeroplanes' size.
 - HULL-B33 THE FIN ENGINE'S FAIRED PYLON (the user: "proper supports, with love into the model"): under a nacelle (cowlOn) the fin mount is drawn as ONE fin-section blade lofted on horizontal sections from the fin's top (its front half, sunk in the skin) up into the nacelle's underside (forward of the flange - a tractor's engine), 13 % thick, flared into both (_cage_eng.js); the mount's tubes are the flown structure inside it and are drawn only without a nacelle. Drawing only. Gates: CLIP's 4 reds are master's nav aerial; COWL, ENGMESH, PARTS, ENGDRAWN green.
 - HULL-B34 THE FIN NACELLE CROSSES THE FIN (the user: "extend the nacelle, and have it cross the fin, which should be sized to accept that. If you put them in contact, you don't even need dedicated support ... If you want to move that, change the fin geometry"): engFinAt to 1 (on the fin's top: the nacelle's belly on its tip), below it the nacelle's axis crosses the fin at that height; engFinFwd (new row) pushes the engine forward of the leading edge, the nacelle lengthened; the cowl's tail cone always runs from the engine's face to 0.25 past the fin's trailing edge (_cage_cowl.js tailLen on a fin face). No block, no pylon (B33's faired pylon removed; the tubes only for a bare engine) - the frame ties the engine into the fin's own section (HULL-B22). The fit: up the fin to its top, then a TALLER FIN (finHeight to 1.8), then a smaller disc - engBlockY is no lever any more. Seawind: engFinAt 1, finHeight 1.057, flies 38.6 s.
+## RETRACT-1 - THE RETRACTABLE GEAR, STEP 1: A TRICYCLE'S THREE WHEELS SWING UP IN FLIGHT (2026-11-03, RETRACT-STUDY for the user via A0, cloud; claude/retract-study + claude/affectionate-edison-fx8582 off master e6bcfb36 = L30c, built)
+- The study and the rulings: `futureDesigns/RETRACT-STUDY-2026-11.md` (§1 the real thing, §2 our code, §3 the steps, §4 the table,
+  §6.1 the user's answers - step 1 first, the low-wing tourer's inward fold; no upkeep cost; hired pilots may forget, rarely;
+  no phone shortcut for doors; every aeroplane on the ground stands on its wheels - §7 as built).
+- Spec `gear.retract` { time 2-20 s, act electric|hydraulic|manual, emerg crank|freefall|pump|blow }: a TRICYCLE's only (clampSpec
+  drops it elsewhere), the key only when chosen (G3575's rule) - a fixed build's spec, def, ctl and flight are master's to the bit.
+  The `retract` design tile is LIVE (twin of the gear layer's `gearRetract`; rows gearRetract / gearRetT / gearRetAct on the mains
+  part, shown on a low wing); the join writes the spec for a LOW-WING TRICYCLE only (`GEAR_RETRACTABLE`; a high wing's body-
+  rooted legs swung aft stood the wheels on edge - the RG's twist-and-tuck is step 3). GEN_RULES.retractKg (3.5 % of the gross, >= 12 kg, on the axles) and GEN_PRICES.retract 4200.
+- Solver (OPTION A - the axle node never moves): ctl.gear (1 down) and the position at 1/time (gearPower: the page's bus is NOT
+  wired yet; gearEmergency: crank 25 s / free fall 4 / pump 20 / gas 2); the squat switch; the CONTACT PLANE rises with the wheel
+  (rC - (1 - pos) GH, GH the lift to the wheel's members' highest anchor + r) and a wheel ROLLS only down and locked - a gear-up
+  landing is the belly landing the ground pass already had (scrape, scar, prop strike); params.retract.cdA (gen.drag.gear) comes
+  off fusCdA by (1 - pos) + 15 % at mid-transit; 32_hydro's wheel plates ride WB.lift; out.gear / gearMov / gearWow / gearEmerg
+  for the physics worker's snapshot.
+- Pilot: up in CLIMB / GOAROUND over 15 m at +1 m/s, up en route; down for the circuit, an inbound within 4 km, a glide under
+  150 m; the emergency extension after 1.5 cycles + 2 s; GUMPS on final under 60 m (around, twice at most); a belly landing at a
+  standstill goes STOPPED ('gear-up-landing'). PILOT_PROFILES gearForget: club 0.01, student 0.02, ham-fist 0.01, bush 0.005,
+  the expert none (a knob, 0-0.05); `pilotGearDice(seed, k)` the deterministic die ('gear-forgotten').
+- Viewer: input 'gear' (Digit9, UP <-> DOWN) through the worker's hand packet; three lamps on the PFD (cell `gear`, shown only
+  when out.gear exists); the horn on the stall voice (audio_params gearWarn, airframe_model: 0.3 s on / 0.2 off); the swing -
+  the join's `gearSwing` (only on a retract build) and app.js `gearSwingRig`: each unit's leg, wheel and castor under one group
+  turned 90 deg about the leg's root (inward on a wing-rooted main, aft otherwise; conjRot), hidden once stowed. No well, no door.
+  The rule is the gear layer's (`CAGE_GEAR.swing`); `tools/quickshot.js --gear 0..1` draws it without the game (the stills:
+  `reports/evidence/RETRACT-1/`, the T-tail tourer at 1 / 0.5 / 0).
+- GATE RETRACT (`tools/_retract_check.js`, core, ~10 min on 4 cores): PASS. JOINPARITY and TECH are red on master e6bcfb36 as
+  well (checked on a clean worktree: the same 8 / 1 rows) - not this chantier's.
+- Open (said in the study §7): the cockpit lever and lamps (a `gear` law), the bus -> gearPower, the tech table, the T-tail
+  tourer card as a retract (ARCHETYPES flies the birth spec pre-join: it needs a GEN_DEFAULT field), wells and doors (step 4),
+  the other motions (step 3), the amphibian (step 2).
+- RETRACT-1b (the user, the night): a retracting gear wears NO fairing (spat / trouser / leg shroud: the rows step aside,
+  the drawing goes bare, the join and clampSpec set the fields 'none' - the doors will be its fairing). The wide overview -
+  one gear UNIT model for retracts, partial retraction, wells, doors and the amphibian; the motion chain (up to three turns + the
+  wheel's twist + a fraction); red sliders, no diagnosis; the order G1-G7; the PIPER ARROW as the reference to fit - is the
+  study's §8.
+- RETRACT G1 (2026-11-04): THE FOLD - a chain per unit (the wheel's twist about its leg, then up to two turns about body
+  axes through the hinge, each sense probed; the starboard mirrored), presets (inward, outward, aft-flat, aft-and-in,
+  two axes; the nose aft / forward) or custom rows, a retraction FRACTION (a partial gear rolls on its tyres up, keeps
+  1 - frac of its drag, stays drawn); the editor's preview row gearPos (quickshot --gear; the capture holds it down,
+  VIEW_STATE 'gear position'); the join writes gear.retract.lift (measured) and frac; app.js replays the chain;
+  genStolCageOff drops the retraction rows of a fixed gear (and the preview always) from every fingerprint. GATE RETRACT
+  §10. The study's §8.7.
+- RETRACT G2 (2026-11-04): DOES IT FIT - the gear layer's foldFit (after the wing; ~20-50 ms): the units' tyre and leg points
+  at six positions; SKIN (up, whole retraction: inside the body or the wing, 15 mm in, said as through the wing's skin /
+  out of the body / off the chord), SPAR (one bay), FLOOR (under floorY), UNITS (30 mm apart); TANKS read at the rows'
+  refresh (fitTanks). window.CAGE_ROW_BAD() -> { row: reason }; _cage_ui.js applyRowVis turns a flagged row red
+  (.rowBad) with the reason as its tooltip, back when it fits; the retraction row's note says the first. GATE RETRACT
+  §11. The study's §8.8.
+- RETRACT G3 (2026-11-04): THE RESERVATION - CAGE_GEAR.wells (per unit the box round its stowed points + 30 mm: its body /
+  wing share, lv band, span), drawn as edges (amber fits / red not; quickshot draws them); spec gear.wells (the join, the
+  frame's body x); 60c genBayWellL - a body bay / the first plane's wing bay gives up the wells' litres (no wells: to the
+  bit); _cage_energy judgeAll - a tank meeting a well is red ('the retracted gear's well'). CLIP's sweep waits for the cuts.
+  GATE RETRACT §12. The study's §8.9.
+- RETRACT G4 (2026-11-04): THE WELLS CUT - CAGE_GEAR.cuts (the swept unit's points inside the body: plan hull (exact) or
+  rounded box (row gearWellCut, the fallback), 30 mm clear, flat ceiling; meeting wells merged); _knife_gen knifeCut from
+  below (frame/outline/ceil: a box recess), knifeWells (section wheelWell) + knifeCarve (frames/liners out of the well);
+  _cage_ui wellApply cuts the DRAWN fuselage and the eye sheet after the chain (never MS; drag ticks keep the last cut);
+  quickshot cuts them (bottom/qb, --nowells, --noedges). GATE RETRACT §13. The study's §8.10.
+- RETRACT G5-GR, PHASE 1 CLOSED (2026-11-05; the study's §8.12-§8.19). The wing's wells (G5); the doors (G6: leg door
+  to half the wheel, well doors that close gear down unless a down line crosses them); the GR robustness work:
+  - the Catalina (two solved turns, an external pivot, a round side recess);
+  - nacelle mains, with the engine's own nacelle fitted to the gear (`_cage_cowl.js nacGearFit`, row gearNacFit:
+    deeper downward, lowered under a high wing, the tail cone longer; the stand-alone pod only as gearNacPod);
+  - a nose cowl cut by the forward-folding nose wheel;
+  - clean wells (finer sweep, the leg as a tube, rounded outlines, flat ceilings);
+  - fittings bolted flat to the ceilings with gussets (`fittingsDraw`);
+  - leg shortening (gearShort / gearShortNose: core gearSlide, `slide` parts, the scissor as a knee);
+  - quickshot smooth shading (`--flat` for the old facets).
+  Gates (5 Nov): RETRACT, SAVE, UISMOKE, KNIFE, COWL, NACLAG, ENGMESH, JOIN, GEAR, PARTS and DESIGN PASS. These were
+  red on master or at this branch's base too:
+  - CLIP (the stock+ifr nav aerial in the fin);
+  - JOINPARITY (8 at the base, identical);
+  - ENGCONFIG (the push-pull, trimotor and four cards);
+  - HANDLE (Twin_busher_floats_2).
+  Open for phase 2: the Skymaster (mains into the back pod: door shards at mid travel, the rear engine shows); the
+  cabin-floor test running under the instrument panel; the long nose well behind the brace and actuator anchors; the
+  gear held to the wing's size (flaps, a lift strut).

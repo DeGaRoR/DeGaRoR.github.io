@@ -460,6 +460,40 @@ function cageJoinSpec(P, M, T) {
       const mode = sv === 2 ? 'lock' : sv === 3 ? 'fixed' : sv === 4 ? 'skid' : null;
       if (mode) spec.gear.twMode = mode; else delete spec.gear.twMode;
       delete spec.gear.twSwivel; }
+    // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a low-wing tricycle's in the garage
+    // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
+    // fixed build's spec is what it was, to the bit
+    if (+P.gearRetract && M.gearType === 'tricycle' && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull)
+      spec.gear.retract = { time: +P.gearRetT || 6,
+                            act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
+      // G1: the fraction, and the LIFT the gear layer MEASURED (foldChain: the stowed wheel's lowest point over the
+      // down one) - the physics' contact plane follows the drawn wheel, not a rule
+      const fr = +P.gearRetFrac;
+      if (fr > 0 && fr < 1) spec.gear.retract.frac = fr;
+      const SWj = window.CAGE_GEAR && window.CAGE_GEAR.swing;
+      if (SWj) {
+        const lm = [SWj.L, SWj.R].filter(Boolean).map(c => c.lift);
+        const lift = {};
+        if (lm.length) lift.mains = +(lm.reduce((a, b) => a + b, 0) / lm.length).toFixed(4);
+        if (SWj.T) lift.nose = +SWj.T.lift.toFixed(4);
+        if (Object.keys(lift).length) spec.gear.retract.lift = lift;
+      }
+      // G3: THE WELLS, in the spec's own frame - the body's station x (the frame's: gear.x + the axle's z less the
+      // point's, cage +z forward), its band of the section (lv), the span fractions; the litres split between the body
+      // and the wing. The core's bays give them up (60c genBayResolve); the editor's tanks keep out (CAGE_GEAR.wells)
+      const WL = window.CAGE_GEAR && window.CAGE_GEAR.wells, msC = (window.CAGE_GEAR.contacts || []).filter(c => c.st && (c.st.single != null ? !c.st.single : c.st.x > 0.01));
+      if (WL && WL.length && typeof M.gearX === 'number' && msC.length) {
+        const zAx = msC.reduce((s, c) => s + c.p[2], 0) / msC.length, r3 = v => +v.toFixed(3);
+        spec.gear.wells = WL.map(w => ({ unit: w.unit,
+          x: [r3(M.gearX + zAx - w.max[2]), r3(M.gearX + zAx - w.min[2])],
+          ...(w.lv ? { lv: [r3(w.lv[0]), r3(w.lv[1])] } : {}),
+          ...(w.span ? { span: [r3(w.span[0]), r3(w.span[1])] } : {}),
+          bodyL: r3(w.vol * w.fBody * 1000), wingL: r3(w.vol * w.fWing * 1000) }));
+      }
+    }
+    // (...and it is drawn bare: the fairing fields the drag and the mass read follow the drawing - clampSpec says so too)
+    if (spec.gear.retract) { spec.gear.fairing = spec.gear.twFairing = 'none'; spec.gear.legFair = spec.gear.twLegFair = 'none'; }
+    else delete spec.gear.retract;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -482,7 +516,8 @@ function cageJoinSpec(P, M, T) {
     // drawn mechanism — a beam leg IS a spring-steel blade and a telescopic
     // leg IS an oleo, whatever the (link-only) shock row happens to hold.
     // Only the swinging link actually has a shock choice to read.
-    const s1leg = Math.round(P.s1Leg);
+    // RETRACT GM1: a retracting leg is drawn as an oleo on a trunnion (the gear layer), and flies as one
+    const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
       s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
@@ -811,6 +846,15 @@ const _vParam = k => ({
 
 const VIEW_STATE = [
   { row: 'explode',         ..._vParam('explodeD'), to: 0 },
+  // RETRACT G1: THE GEAR'S PREVIEW POSITION - a panel row (the retraction group), not a rail control, so `hidden`; the
+  // capture takes the gear DOWN (the flown model swings it from there). Its own getter: an absent row is down, never 0
+  { row: 'gear position',
+    get: () => ((typeof window !== 'undefined' && window.CAGE_UI)
+      ? (window.CAGE_UI.P.gearPos == null ? 1 : +window.CAGE_UI.P.gearPos) : null),
+    set: v => { if (typeof window !== 'undefined' && window.CAGE_UI) window.CAGE_UI.P.gearPos = v; },
+    to: 1,
+    hidden: 'a panel row of the retractable gear (its preview), not a display control in the rail: the flown model ' +
+      'is captured with the gear down and swings it from there' },
   { row: 'section colours', ..._vChk('color'),      to: true },
   // THE THREE THAT REPLACE THE FUSELAGE MESH OUTRIGHT. build() picks one of
   // surfMesh / curvatureMesh / quadWire / meshFrom, so with any of these on
@@ -947,6 +991,7 @@ function cagePartMatch(name, ud, twin) {
   if (name.lastIndexOf('edLeg', 0) === 0 || name.lastIndexOf('edSurf_', 0) === 0 ||
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
+      name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
       name === 'edCastorT')
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
@@ -2208,6 +2253,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
           groups: {} });
+      // RETRACT GM3: THE MECHANISM'S PARTS (a brace's links, an actuator's body and rod) - each its own rigid part,
+      // pivoted on its rest base point; the flight poses it with the core's gearMechPose (the snapshot's gearMech)
+      for (const mp of ((GB.mech && GB.mech.parts) || []))
+        if (mp.name.lastIndexOf('edMech', 0) === 0 && mp.o0)          // (G6: the doors too - rigid on a unit, or hinged)
+          PARTS.others.push({ src: mp.name, kind: 'gearMech', mechName: mp.name, axleC: mp.o0, groups: {} });
       // G59 CONTROL SURFACES. Each named surface becomes its own part
       // with a HINGE derived from its own geometry: the hinge line is
       // the surface's FORWARD edge (x is aft in the model frame, so its
@@ -2937,6 +2987,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           tip: rotP(-m.tip[2], m.tip[1], m.tip[0]),
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
+      if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the
@@ -3234,9 +3285,43 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (exhaust.length || wheels.length)
         weather = { exhaust, wheels, engines, floor: footwell ? footwell.zFloor : null };
     } catch (e) {}
+    // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE GEAR'S SWING, a retractable build's only (absent:
+    // the snapshot is what it was, to the byte) - the gear layer's rule (CAGE_GEAR.swing: per unit the hinge, the axis,
+    // the angle, in the layer's frame) carried to the flown model: the hinge through the capture's map as every pivot,
+    // the axis in the TRUE model frame (x aft, y up, z port) - app.js conjugates the turn by the map (conjRot, G357).
+    // No well is cut: the stowed unit lies inside the skin
+    let gearSwing = null;
+    try {
+      const SW = window.CAGE_GEAR && window.CAGE_GEAR.swing;
+      if (SW) {
+        gearSwing = {};
+        // G1: the whole CHAIN (the gear layer's foldChain) - the leg's axis and the twist, the turns in order, the
+        // fraction - each direction in the true model frame (a vector's swap, no map: conjRot applies the map)
+        const tv = k => [-k[2], k[1], k[0]];
+        for (const key in SW) {
+          const S = SW[key], h = S.hinge;
+          gearSwing[key] = { hinge: rotP(-h[2], h[1], h[0]), leg: tv(S.leg), twist: S.twist,
+                             turns: S.turns.map(T => ({ axis: tv(T.axis), ang: T.ang })), frac: S.frac };
+        }
+      }
+    } catch (e) { gearSwing = null; }
+    // RETRACT GM3 (WYSIWYG): THE ONE KINEMATICS' RECORD as the gear layer posed it (its frame: the cage's metres) and
+    // the capture's map of that frame (rotP, linear: Mp p = rotP(-p.z, p.y, p.x)) - app.js poses every part with the
+    // core's gearMechPose and carries each matrix through Mp (T' = Mp T Mp^-1), the very function the garage ran
+    let gearMech = null;
+    try {
+      const GM = window.CAGE_GEAR && window.CAGE_GEAR.mech;
+      if (GM) {
+        const e = [rotP(0, 0, 1), rotP(0, 1, 0), rotP(-1, 0, 0)];    // the images of the frame's x, y, z
+        gearMech = { R: JSON.parse(JSON.stringify(GM)),
+                     Mp: [e[0][0], e[1][0], e[2][0], e[0][1], e[1][1], e[2][1], e[0][2], e[1][2], e[2][2]] };
+      }
+    } catch (e) { gearMech = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             ...(gearSwing ? { gearSwing } : {}),
+             ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
              layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major

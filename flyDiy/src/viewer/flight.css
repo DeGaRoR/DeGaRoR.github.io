@@ -520,6 +520,11 @@ body.rollShot #flActs { display:none !important; }
 #ui .rd b .windA { display:inline-block; width:18px; height:18px; margin-right:4px; vertical-align:2px;
   fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transform-origin:50% 50%; will-change:transform; }
 #ui .rd b .windA.calm { visibility:hidden; }
+/* RETRACT-1: the gear's three lamps - dark up, red in transit, green down and locked */
+#ui .rd b .gl { display:inline-block; width:0.62em; height:0.62em; border-radius:50%; margin:0 0.09em; vertical-align:0.05em;
+  background:#2b3138; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12); }
+#ui .rd b .gl.g { background:#35c46a; box-shadow:0 0 6px rgba(53,196,106,0.7); }
+#ui .rd b .gl.r { background:#e04a33; box-shadow:0 0 6px rgba(224,74,51,0.7); }
 
 #ui .rd[hidden] { display:none; }
 
