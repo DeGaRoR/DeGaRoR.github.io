@@ -50,7 +50,11 @@ const fs = require('fs'), path = require('path'), http = require('http'), os = r
 const FD = require('./frame_dist.js');
 
 // MB_TRACE=1 (LOOK-1, the freeze of 5 Nov): what the page asked of GL round a frozen frame: [ms, call, ms in the call], and every rAF gap over 300 ms, in window.__LT (--rec saves it)
-const MB_TRACE_PRE = `(() => { const L = window.__LT = [], P = WebGL2RenderingContext.prototype; for (const m of ['generateMipmap', 'linkProgram', 'texImage3D', 'texStorage3D', 'finish']) { const f = P[m]; P[m] = function () { const t = performance.now(), r = f.apply(this, arguments); L.push([+t.toFixed(0), m, +(performance.now() - t).toFixed(1)]); return r; }; }
+const MB_TRACE_PRE = `(() => { const L = window.__LT = [], P = WebGL2RenderingContext.prototype; const who = () => String(new Error().stack).split('\n').slice(3, 8).map(l => l.trim().replace(/^at /, '').replace(/https?:[^ ]*\//, '').slice(0, 60)).join(' < ');
+  for (const m of ['generateMipmap', 'linkProgram', 'texImage3D', 'texStorage3D', 'finish']) { const f = P[m]; P[m] = function (a0, a1, a2, a3, a4, a5) { const t = performance.now(), r = f.apply(this, arguments), e = [+t.toFixed(0), m, +(performance.now() - t).toFixed(1)];
+      if (m === 'linkProgram') { try { const sh = this.getAttachedShaders(a0) || [], fs = sh.map(q => this.getShaderSource(q) || ''); e.push(fs.map(x => x.length).join('+'), (fs[1] || '').replace(/^[\s\S]*?precision[^\n]*\n/, '').slice(0, 50), who()); } catch (x) {} }
+      if (m === 'texImage3D' || m === 'texStorage3D') e.push([a1, a2, a3, a4, a5].join(','), who());
+      if (m !== 'generateMipmap') L.push(e); return r; }; }
   let last = 0; const g = t => { if (last && t - last > 300) L.push([+t.toFixed(0), 'GAP', +(t - last).toFixed(0), window.CLOUDS ? CLOUDS.stats.slicesBaked : -1]); last = t; requestAnimationFrame(g); }; requestAnimationFrame(g); })();`;
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
