@@ -312281,7 +312281,7 @@ system tying them all together, as well as the price" (futureDesigns/WEAR-SYSTEM
 - renderWear: the root holds `looks` (the four macros) and `airframe and engine` (spec.aging); every part its surfaces'
   wear rates; ALL are expert blocks (emitEls' new `o.expert`, applyVis hides them with expert off); with expert off the
   view says so and offers the switch.
-- THE PHYSICAL SLIDERS: airframe age 0-60 y, engine hours since overhaul 0-3 000 h, a read-out (power %, drag %). Written
+- THE PHYSICAL SLIDERS: airframe years 0-60, engine hours since overhaul 0-3 000, a read-out (power %, drag %). Written
   on CHANGE (a rebuild each, never per pixel) through GARAGE_SPEC.update({ aging }), and taken off with
   GARAGE_SPEC.remove('aging') at 0 / 0: absent stays absent, an untouched build's def is the same bits.
 - **THE FINGERPRINT: spec.aging MOVES IT.** No strip list names `aging` (66b CERT_COSMETIC / MINOR / BOLT_ONS), so

@@ -1177,15 +1177,15 @@ function editorInit(api) {
       d.appendChild(k); d.appendChild(i); d.appendChild(v);
       return { d, i, v };
     };
-    const yr = mk('airframe age', 'its years: +0.1 % drag a year on the body and every surface, to +5 % (60_gen_spec GEN_AGING)', 0, 60, 1);
+    const yr = mk('airframe years', 'its years: +0.1 % drag a year on the body and every surface, to +5 % (60_gen_spec GEN_AGING)', 0, 60, 1);
     const hr = mk('engine hours', 'hours since the engine\'s overhaul: -1 % power per 400 h, to -6 % (the propeller\'s thrust; the engine row, its mass and its price stay as rated)', 0, 3000, 50);
     const out = document.createElement('div');
     out.className = 'r edWearSays'; out.dataset.aging = 'says';
     const say = document.createElement('span'); say.className = 'rn'; out.appendChild(say);
     const show = () => {
       const y = +yr.i.value, h = +hr.i.value;
-      yr.v.textContent = y > 0 ? y + ' y' : 'new';
-      hr.v.textContent = h > 0 ? h + ' h' : 'none';
+      yr.v.textContent = y > 0 ? String(y) : 'new';
+      hr.v.textContent = h > 0 ? String(h) : 'none';
       const G = typeof genAgingOf === 'function' ? genAgingOf(y > 0 || h > 0 ? { aging: { years: y, engineHours: h } } : {}) : { powerK: 1, dragK: 1 };
       const pw = Math.round(1000 * G.powerK) / 10, dr = Math.round(1000 * (G.dragK - 1)) / 10;
       say.textContent = (wearCareer() ? 'In a career the airframe\'s age is its own: restoring it will have a price. ' : '') +
