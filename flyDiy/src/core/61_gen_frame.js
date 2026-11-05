@@ -2165,7 +2165,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // bay runs continuous through it and the strips' per-side walk holds.
     const zRootH = 0;
     const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
-    const yStab = (t.stabY != null && t.stabY > yAx(xStab) + kv * rAt(xStab) + 0.02)
+    // TWIN4B-STAB: a stab drawn UNDER the crown flies there too (it was held up on the crown: the 4b's, drawn at the
+    // middle of the boom, flew 10 cm above its own skin). Within 2 cm of the crown it is on the crown (onCrown, below)
+    const yStab = (t.stabY != null && Math.abs(t.stabY - (yAx(xStab) + kv * rAt(xStab))) > 0.02)
       ? t.stabY : yAx(xStab) + kv * rAt(xStab);
     const xFH = z => xStab + (sparF - 0.5) * chordH(z);
     const xRH = z => xStab + (0.5 - CT) * chordH(z);
