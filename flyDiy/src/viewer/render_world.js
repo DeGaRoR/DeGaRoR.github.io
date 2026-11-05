@@ -28,6 +28,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
+  let TREE_SOFT_U = null;   // (set where the impostors' uniforms are made)
   const L1_OFF = typeof location !== 'undefined' && /[?&]l1tree=0/.test(location.search);   // LOOK-1 step 3's A/B: the forest as it was before it
   // THE DAY'S SUN (SKY S2, 2026-09-14). `SUN` is what every SHADOW pass reads
   // (the follow, the far cascade, the impostor depth) and it is held 2 deg
@@ -447,7 +448,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // geometry's sub-pixel twigs do at the hand-over. THE LEVEL: a bare snag barely shades itself, so its geometry's
   // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit is that ABSOLUTE 0.9 (it
   // replaces uILit on a bark sheet, so the shadowed presets' uILit 0.9 + shade x1.38 keep it matched too)
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9, far: 1 };
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9, far: 1, soft: 1 };
   const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat },
         uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut },   // and its alpha: the 3-tap union's share, a floor on its cut
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
@@ -4095,7 +4096,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const IMP_CUT = [0.40, 0.15, 0.10];      // rungs, stand, snag
     // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
     // the tuning); uIGainK is the panel's dial over all of them
-    const uIGainK = { value: 1 }, uISolid = { value: 1 }, uIFar = { value: L1_OFF ? 0 : IMPK.far };
+    const uIGainK = { value: 1 }, uISolid = { value: 1 }, uIFar = { value: L1_OFF ? 0 : IMPK.far }, uISoft = { value: 0 };
+    TREE_SOFT_U = uISoft;
     const uSoftT0 = { value: new THREE.Vector4(150, 600, 5, 4) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
     const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
                             return (e && e.col.place && e.col.place.impa) || 6; };
@@ -4236,7 +4238,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
-        sh.uniforms.uIFar = uIFar; sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp; sh.uniforms.uKeyD = { value: SUN };
+        sh.uniforms.uIFar = uIFar; sh.uniforms.uISoft = uISoft; sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp; sh.uniforms.uKeyD = { value: SUN };
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uSoftT = (typeof window !== 'undefined' && window.TREE_SOFT) || uSoftT0;
         sh.uniforms.uTile = { value: IMP_TILE };
@@ -4360,7 +4362,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
-            '#include <packing>\nuniform float uTrunkOn, uIFar, uFarOn;\nuniform vec4 uSoftT;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\nvarying vec3 vFarP;\n' +
+            '#include <packing>\nuniform float uTrunkOn, uIFar, uFarOn, uISoft;\nuniform vec4 uSoftT;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\nvarying vec3 vFarP;\n' +
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
@@ -4401,8 +4403,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // impostor (the user saw it in the first forest shot)
             'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
-            // LOOK-1 (8 Nov): the far edge wider by TREE_SOFT.w (trees.js) - the gain is the ramp's steepness, so dividing it softens the edge
-            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK / mix(1.0, uSoftT.w, smoothstep(uSoftT.x, uSoftT.y, vImpD)) + 0.5, 0.0, 1.0);',
+            // LOOK-1 2c (the user: "pixely"; the study's F4): THE SHARP CUT ONLY WHEN THE TILE IS MAGNIFIED. A mip of the sheet is the coverage itself (premultiplied, box-filtered), and the
+            // curve's cut re-thresholded it: a far crown thinned and crawled at each level. Where a pixel covers more than a texel the curve lets go toward that coverage. It needs
+            // samples to mean anything (alpha-to-coverage): uISoft is 0 at a zero-sample tier, where the picture stays as it was
+            'float _ta = mix(texelColor.a, aSol, _iSol), _tp = max(length(dFdx(vUvI)), length(dFdy(vUvI))) * uTile;',
+            // (+ LOOK-1 8 Nov: the far edge wider by TREE_SOFT.w - the gain is the ramp's steepness, divided with the distance)
+            'texelColor.a = mix(clamp((_ta - _iCut) * uIGain * uIGainK / mix(1.0, uSoftT.w, smoothstep(uSoftT.x, uSoftT.y, vImpD)) + 0.5, 0.0, 1.0), _ta, uISoft * smoothstep(1.0, 2.5, _tp));',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
@@ -4486,7 +4492,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // and the card share the instance colour), so a crown that is dark up close is dark as a card too.
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; if (o.far !== undefined) uIFar.value = +o.far;
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; if (o.far !== undefined) uIFar.value = +o.far; if (o.soft !== undefined) IMPK.soft = +o.soft;
         if (o.trunk !== undefined) uTrunkOn.value = +o.trunk ? 1 : 0;   // G2590
         for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut', 'barkLit']) if (o[k] !== undefined) IMPK[k] = +o[k];
         uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean;
@@ -8115,6 +8121,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
+      // LOOK-1 2c: the impostors' soft coverage needs samples in the frame's target
+      if (TREE_SOFT_U) { const aa = typeof window !== 'undefined' ? window.FLYDIY_AA : null, tg = aa && aa.target && aa.target(); TREE_SOFT_U.value = L1_OFF || !tg || !(tg.samples >= 4) ? 0 : IMPK.soft; }
       // LOOK-1 D3: the crowns take the moon as one shape once the moon is the key and the sky's light is going (trees.js U_CROWN); 0 under the sun
       if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.crownN) TREE_LEAF.crownN(L1_OFF || !SKY_LIGHT.isMoon ? 0 : Math.max(0, Math.min(1, (-day.sunEl - 1.2) / 3)));
       if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
