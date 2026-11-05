@@ -1624,16 +1624,21 @@ if (process.argv.includes('--selftest')) {
   // outline and no row. NULL IS THE DEFAULT AND THAT IS THE POINT — null
   // means inherit, so an untouched aeroplane still wears the trim and the
   // legacy sheet cannot disagree with the panel.
-  check(/regCol: null, regOut: null,/.test(UI4),
-        'marking: the ink and the outline are not declared inheriting (null)');
+  check(/regCol: null,/.test(UI4),
+        'marking: the ink is not declared inheriting (null)');
+  // LIVERY-5 (the user, 4 Nov: "get rid of the outline, because that one looks bad in every circumstance"): no
+  // keyline row and no keyline default anywhere - the baker is handed null for it, always
+  check(!/regOut/.test(UI4) && !/'outline on'/.test(UI4),
+        'marking: the editor still offers the registration outline (LIVERY-5 removed it)');
   // asserted in the keeper for the same reason as the width rules above: the
   // flown aeroplane resolves its own ink, so "null means the trim" has to be
   // true where BOTH callers pass through (G160).
   const SKIN4 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
   check(/D\.regCol != null \? D\.regCol : trim/.test(SKIN4),
         'marking: the ink no longer falls back to the trim colour');
-  check(/D\.regOut != null \? D\.regOut : 0xffffff/.test(SKIN4),
-        'marking: the outline no longer falls back to white');
+  check(/D\.regCol != null \? D\.regCol : trim,\n(\s*\/\/[^\n]*\n)*\s*null,\n\s*D\.regFont\)/.test(SKIN4) && !/regOut/.test(
+          (SKIN4.split('const AERO_DEC_DEF = {')[1] || '').split('};')[0]),
+        'marking: the registration is drawn with an outline again (LIVERY-5: never)');
   check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SK),
         'marking: the text baker does not take an ink and an outline');
   // ...and USES both, which is the half a signature check cannot see
@@ -1654,9 +1659,10 @@ if (process.argv.includes('--selftest')) {
   check(/function decReframe\(fromMode, toMode, keys\)/.test(UI4),
         'marking: no decReframe — a mode change moves the marking');
   const wired = (UI4.match(/decReframe\(a, b, \{/g) || []).length;
-  check(wired === 3,
+  // (LIVERY-5: the registration's row; the two image channels' are gone, the kit's reframe through its own call)
+  check(wired === 1 && /decReframe\(was, now, \{ l: q \+ 'L', c: q \+ 'C' \}\)/.test(UI4),
         'marking: not every projection row reframes on a mode change',
-        wired + ' of 3 wired');
+        wired + ' of 1 wired');
   check(/o\.geometry\.attributes\.aStruct/.test(UI4) &&
         /mesh\.updateWorldMatrix/.test(UI4),
         'marking: the reframe is not read off the DRAWN mesh — a constant ' +
@@ -1916,15 +1922,18 @@ function kitGate() {
     'of the two are silently dropped, and the registration is last in the list',
     def && (def[1] + ' vs ' + A.AERO_MAXD));
 
-  // 2 — AND IT MUST HOLD WHAT THE PANEL CAN TURN ON. Three kit layers, the
-  //     registration and the two image channels is six; a cap below that is a
-  //     marking the builder placed and cannot see.
-  const need = A.AERO_KIT_LAYERS + 3;
+  // 2 — AND IT MUST HOLD WHAT THE PANEL CAN TURN ON. LIVERY-5: five kit
+  //     layers, the registration, its wing copy, the certification strip and
+  //     the master is nine (the image channels are gone); a cap below that is
+  //     a marking the builder placed and cannot see.
+  const need = A.AERO_KIT_LAYERS + 4;
   check(A.AERO_MAXD >= need,
     'kit: the decal array cannot hold every marking the panel offers',
     A.AERO_MAXD + ' < ' + need);
-  check(A.AERO_KIT_PAGE0 + A.AERO_KIT_LAYERS <= A.AERO_ATLAS_N * A.AERO_ATLAS_N,
-    'kit: the layers run off the end of the atlas');
+  const KP = A.AERO_KIT_PAGES || [];
+  check(KP.length === A.AERO_KIT_LAYERS && KP.every(p => p > 0 && p < 6) && new Set(KP).size === KP.length
+        && KP.slice(0, 3).join(',') === '3,4,5',
+    'kit: a layer off its own page (0 the registration, 6-7 the stickers; layers 1-3 on 3-5 as saved)', KP.join(','));
 
   // 3 — EVERY PATTERN ARRIVES WITH ITS OWN CONTROLS. The panel is generated
   //     from this table, so a pattern that declares no knob names, no ranges
@@ -1933,7 +1942,8 @@ function kitGate() {
   check(A.AERO_KIT.length > 0, 'kit: there are no patterns');
   for (const pat of A.AERO_KIT) {
     check(typeof pat.draw === 'function', 'kit: a pattern cannot draw itself', pat.name);
-    check(Array.isArray(pat.cn) && pat.cn.length >= 2 && pat.cn.length <= 3
+    // (LIVERY-5: a pattern that wears its OWN colours - the flag - declares `own` and no slot)
+    check(Array.isArray(pat.cn) && (pat.own ? pat.cn.length === 0 : pat.cn.length >= 2 && pat.cn.length <= 3)
           && pat.cn.every(n => typeof n === 'string' && n),
       'kit: a pattern does not name its colour slots — the panel would show ' +
       'unlabelled wells, or hide a colour the draw actually reads', pat.name);
@@ -1981,8 +1991,10 @@ function kitGate() {
   const pages = all.map(l => l.page);
   check(new Set(pages).size === pages.length,
     'kit: two layers share an atlas page', pages.join(','));
-  check(pages.every(p => p >= 3),
-    'kit: a layer has taken the registration or an image channel page',
+  // LIVERY-5: pages 1-5 (the image channels' 1 and 2 are kit layers 4 and 5); 0 is the registration, 6 and 7 the
+  // certification strip and the master
+  check(pages.every(p => p >= 1 && p <= 5),
+    'kit: a layer has taken the registration\'s or a sticker\'s page',
     pages.join(','));
 
   // 6 — A KNOB MEANS WHAT ITS OWN PATTERN SAYS. `chequer` counts squares 2..16
@@ -2052,7 +2064,7 @@ function kitGate() {
   // backwards from the far side, which is G4.5's own trap and cost three looks
   // to find the first time.
   const regPush = fn.slice(fn.indexOf('list.push({ page: 0'),
-                           fn.indexOf('if (D.imgOn)'));
+                           fn.indexOf('if (D.wregOn)'));
   check(regPush.indexOf('noMirror') < 0,
     'kit: the registration has been marked as paint — it will read backwards ' +
     'from the far flank, which is the trap G4.5 needed three looks to see');

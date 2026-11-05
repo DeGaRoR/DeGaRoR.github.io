@@ -607,12 +607,9 @@ function garageInit(api) {
   // the envelope, which already carries what is NOT a design decision, takes
   // the pages beside the plaque and the log. Read live off the editor when it
   // is up, else whatever the last load brought in.
+  // LIVERY-5 (4 Nov): RETIRED with the image channels - wipImages stays null (G.images answers null, so the parked
+  // copies and the editor's page restore have nothing to draw)
   let wipImages = null;
-  const imagesNow = () => {
-    const E = ed();
-    if (E && E.decalImages) { try { const im = E.decalImages(); if (im) wipImages = im; } catch (e) {} }
-    return wipImages;
-  };
   // G2630 (RADIAL-DIVERGE): through jsonFinite (70_player.js) - null, and the slot keeps what it had, when any number in
   // the build, its plaque or its logbook is not finite (JSON would write it as a null where a number stood)
   // (`loose`: the export and json() - a file the user takes away is written whatever it holds, as before)
@@ -625,7 +622,7 @@ function garageInit(api) {
     // session silently adopt it as its slot.
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
-    ...((im => im ? { images: im } : {})(imagesNow())),   // REVIEW 2026-10-04 (B19): one toDataURL pass, not two
+    // LIVERY-5 (4 Nov): no `images` any more - a livery is recipes, never pixels (the user: "nothing rasterized")
   }, name ? 'the build ' + name : 'the working build', loose);
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
@@ -634,7 +631,7 @@ function garageInit(api) {
     if (o && o.spec && typeof o.spec === 'object')
       return { name: o.name, spec: o.spec, plaque: o.plaque || null,
                log: o.log || newLog(),
-               images: (o.images && typeof o.images === 'object') ? o.images : null };
+               images: null };   // LIVERY-5: an old save's image pages are read and dropped
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog(), images: null };
     throw new Error('not a flyDiy build');
@@ -785,7 +782,7 @@ function garageInit(api) {
     if (wip) try {
       const got = unwrap(wip);
       spec = got.spec; plaque = got.plaque; log = got.log;
-      wipImages = got.images || null;      // baked once the editor is up (G190)
+      wipImages = null;                    // LIVERY-5: an old save's image pages are dropped
       try { if (typeof genNormaliseSpec === 'function') spec = genNormaliseSpec(spec); }
       catch (e) {}
       // and WHICH BUILD it was, so Save still knows its target after a reload.
@@ -918,7 +915,7 @@ function garageInit(api) {
     // the image pages this build was saved with, or none: a load that only
     // brought pixels in when the file had some would leave the previous
     // aeroplane's picture on the next one's wing
-    wipImages = (im && typeof im === 'object') ? im : null;
+    wipImages = null;   // LIVERY-5: no image pages (an old save's are dropped)
     // clampSpec runs inside the build, so an out-of-envelope or partial file
     // is pulled straight rather than refused — what flies is the honest
     // readout of what the file asked for.
