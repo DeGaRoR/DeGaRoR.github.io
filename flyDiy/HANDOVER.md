@@ -312430,3 +312430,7 @@ Rims' crawl over 4 codes, before -> after: pan 7.6 -> 0.7, turn 41.8 -> 14.6, fl
 COSTS: +1 program, warm-listed; clouds' pass about 0.89 -> 1.06 ms, resolve 0.05 ms (approximate); no visible frame cost; about +7 MB. Thin rims a little softer by day. NOT checked: ghosting around the plane in motion, water mirror + hangar captures by eye, night + blue hour, real drift.
 BATTERY + TIMED: see the train logs; standing FRAMECOST 5, MEDIA. One sample per row.
 NEXT: LOOK-1 step 3 (trees), then TAA.
+
+## LOOK-1 FREEZE - NO LEVEL CHAIN ON THE CLOUDS NOISE (L32f: taxi frozen 3-11 s on most loads; A0 tabulated it)
+
+clouds.js: S.noiseMips 0 (?cloudmip=1 for a bench). gl.generateMipmap on the 3D noise, once at the end of the bake, stalled the GPU process 1-9 s, intermittently, with no long main-thread task, in the taxi row when the bake ended inside it. Found with MB_TRACE in master_bench (the gap straight after the detail cube; none with the chain off; one run clean so far, the train proves it). Past the texel the detail erosion fades to its mean, which is what the levels converge on. The flicker numbers of LOOK-1 2a were taken WITH the chain: to re-measure. A separate stall stays open: 5 late links in taxi, sizes 14.8k+12.6k, acquired in the render loop, not named. Lesson: a one-off call looks free on a paused rig; a fresh-profile rollout row is the test.
