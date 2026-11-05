@@ -602,7 +602,8 @@ const ENG_ITEMS = [
   // or on the fuselage BEHIND THE CABIN (the Icon's), engPylonAft behind the trailing edge
   ['engPylonAt', 'pylon stands on', 0, 1, 1, ['the wing', 'the fuselage, behind the cabin'],
    { when: P => +P.engOn && Math.round(P.engMount) === 2 }],
-  ['engPylonAft', 'behind the trailing edge', 0, 1.5, 0.01,
+  // (HULL-B37: negative = forward of the trailing edge, the nacelle into the wing - the Super Petrel's tower)
+  ['engPylonAft', 'behind the trailing edge', -1.5, 1.5, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
   // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
   ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],

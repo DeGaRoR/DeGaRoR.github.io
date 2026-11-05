@@ -87,16 +87,27 @@ const ENGINES = {
   // boom at 0.36 m over the keel, the boom 2 m climbing 9.5 deg; the sesquiplane (upper 8.9 x 1.0 parasol, lower 7.0 x
   // 0.8 low on the hull with 5 deg dihedral, 0.4 m aft), drooped tips; the pusher 912 iS on the roof pylon behind the
   // cockpit, under the upper wing
-  superPetrel: { sel: { engMount: 'wingTop', planes: 'biplane', seatLayout: 1, paxCount: 0 }, engine: 'rotax 912 (flat)',
+  superPetrel: { sel: { engMount: 'wingTop', planes: 'biplane', paxCount: 0 }, engine: 'rotax 912 (flat)',
+    // (HULL-B36, the user: "keep the hull/fuselage architecture of the cessna, just get rid of the pax section. Then use
+    // the pod and rod structure we've built for the icon, apply it, then match the rod orientation and length, then
+    // match the fin. Your wings are OK, they need the winglet end though") - the Cessna's cabin and bow as they are, no
+    // passenger bay; the rod boat's pod and rod (its lofted buoyant taper, the straight tube) with the tube's incline,
+    // height and length and the fin set to the blueprint; the wings as matched, their tips turned down (the tip's own
+    // length and drop rows: a downward winglet)
+    // (HULL-B37, the user: "your new cabin is far too tall, get it back to the previous settings, and don't touch cabin
+    // height" - the first card's section; the step in the buoyant taper under the lower wing, hullStepZ; "the engine
+    // should reach the wing and intersect it. Place it further fore and high")
     cage: { keelY: -0.62, roofY: 0.68, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42,
-            noseLen: 1.2, pilotLen: 1.83, frPostBotY: 0.05, frWinBotY: 0, paxLen: 0.15, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.0,
-            aftRoofY: -0.016, aftKeelY: -0.32, frBoomTopW: 0.12, frBoomWaistW: 0.16, frBoomBotW: 0.14,
-            rodY: -0.14, rodIncl: 12, rodD: 0.15, boomLen: 1.6, stY: 0.8, stZ: -0.6, stChord: 0.75, stChordTip: 0.6, finChord: 0.8, finChordTip: 0.45,
-            wgSpan: 8.9, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.75, wgDx: -0.5, finHeight: 1.2, wgBrace: 1, wgTip: 7, wgCrankAt: 0,
-            w2On: 1, w2Pos: 1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 5, w2Stagger: 0.4, w2Tip: 7, w2CrankAt: 0,
-            engPylonAt: 1, engPylonH: 0.25, engPylonAft: -0.35, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
+            noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.06, aftRoofY: 0.12, aftKeelY: -0.2,
+            hullStepZ: 0.75,
+            frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.20, rodIncl: 6, rodD: 0.15, boomLen: 2.6,
+            finHeight: 1.1, finChord: 1.05, finChordTip: 0.45, stY: 0.65, stZ: -0.6, stChord: 0.75, stChordTip: 0.6,
+            wgSpan: 8.9, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.8, wgBrace: 1, wgCrankAt: 0,
+            wgTip: 7, wgTipBow: 0.45, wgTipDroop: 0.30,
+            w2On: 1, w2Pos: 1, w2Dy: -0.1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 7, w2Stagger: -0.05, w2Tip: 7, w2CrankAt: 0,
+            engPylonAt: 1, engPylonH: 0.55, engPylonAft: -1.1, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
             hullSpon: 0, hullTips: 0 },
-    note: 'the Super Petrel LS at its size (HULL-B36)' },
+    note: 'the Super Petrel LS on the Cessna cabin, pod and rod (HULL-B36)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

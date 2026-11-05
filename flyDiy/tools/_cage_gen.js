@@ -434,11 +434,14 @@ function cageResolve(S) {
   // faired cone onto a collar round the rod - the rod grows out of the cone's tip instead of out of a flat disc. Its
   // length: HT_CONE x the taper end's half-height (the larger of its half-height and half-width); the collar HT_COLLAR x
   // the rod's radius. The rod leaves the collar (its root 10 mm inside it, as it left the pillar)
+  // (HULL-B36, the user: "it should always be a straight piece of tubing ... keep this clean": the cone is sized off the
+  // taper's END SECTION - the boom frame's own dims, set below once taperD exists - not the cabin's width, which made it
+  // a metre long and left 0.36 m of tube; and its centreline runs STRAIGHT onto the rod's axis)
   const HT_CONE = 1.6, HT_COLLAR = 1.35;
-  const htEnd = HTAP ? (() => { const tw = S.taper && S.taper.len > 0 ? W * (S.taper.w || 1) : W;
-    return Math.max(0.5 * (S.aft.roofY - S.aft.keelYA), tw); })() : 0;
-  const zConeTip = HTAP ? zTaperP - HT_CONE * htEnd : null;
-  const zRodRoot = HTAP ? zConeTip : zPaxA;           // (HULL-B23: the rod leaves the buoyant taper; B27: its cone's tip)
+  // (HULL-B37, the user: "the rod is really meant at going through, and reach until the aft bulkhead, not stop at the
+  // taper section. Same architecture as with pod and rod planes really": the tube's root is the bulkhead on a hull too -
+  // it runs inside the buoyant taper and leaves through the cone's collar; B23/B27 had rooted it at the cone's tip)
+  let zConeTip = null, zRodRoot = zPaxA;
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -466,6 +469,10 @@ function cageResolve(S) {
   // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
   // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
   const taperD = dimF(taperD0, 'boom');
+  if (HTAP) {
+    const htEnd = Math.max(0.5 * (taperD.roofY - taperD.keelY), taperD.Ww, taperD.Wk != null ? taperD.Wk : 0);
+    zConeTip = zTaperP - HT_CONE * htEnd;
+  }
   // (the cabin's aft pillar's dims - the pax frame's with a taper, the boom frame's without; HULL-B27's taper rings read
   // them before the pillar itself is added)
   function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom'); }
@@ -524,10 +531,18 @@ function cageResolve(S) {
     const e = taperD, Wk1 = e.Wk != null ? e.Wk : e.Ww, yc1 = 0.5 * (e.roofY + e.keelY);
     const hT = 0.5 * (e.roofY - e.keelY), rCol = HT_COLLAR * ROD.r;
     // the cone: tip -> taper end (added aft first). Its section shrinks on an ogive (1 - u^1.6, u from the taper end),
-    // its centre walks down onto the rod's axis on the same law, the collar a circle-ish ring of rCol
+    // its centre on the straight line from the taper end's centre to the rod's axis at the tip, the collar a ring of rCol
+    // HULL-B37 (the user, the Super Petrel's photograph: "now you can move the rod up ... it goes into the fuselage from
+    // the top of the float taper"): A ROD OVER THE TAPER'S DECK - its axis at the taper's end above the section's centre
+    // by more than a half of its half-height - leaves through the deck, and the cone closes on ITS OWN tip under it (the
+    // float's tail, swept up a third of the half-height, a tip of 0.15 x the half-height) instead of on the rod's collar
+    const own = yAx(zTaperP) - yc1 > 0.5 * hT;
+    const yTip = own ? yc1 + 0.35 * hT : null, rTip = own ? 0.15 * hT : rCol;
     for (const u of [1, 0.86, 0.62, 0.34]) {
       const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
-      const yc = yAx(z) + (yc1 - yAx(z)) * g, sc = h => rCol + (h - rCol) * g;
+      // (the centreline STRAIGHT from the taper end's centre onto the rod's axis at the tip - a line, never an S - or
+      // onto the float tail's own tip)
+      const yc = own ? yc1 + (yTip - yc1) * u : yAx(z) + (yc1 - yAx(zTaperP)) * (1 - u), sc = h => rTip + (h - rTip) * g;
       add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
         Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
         ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
@@ -538,10 +553,29 @@ function cageResolve(S) {
     // the taper bay's own rings, aft -> fore (t from the cabin's aft pillar, 0, to the taper's, 1)
     const c = pilPaxADh(), Wk0 = c.Wk != null ? c.Wk : c.Ww;
     const lp = (a0, a1, f) => a1 + (a0 - a1) * f;
-    for (const t of [0.8, 0.6, 0.4, 0.2]) {
-      const z = zPaxA + (zTaperA - zPaxA) * t, fw = 1 - Math.pow(t, 1.7), fr = Math.pow(1 - t, 1.5), fk = 1 - t;
-      add(fullRing('htTaper' + Math.round(t * 100), z, {
-        Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fw),
+    // HULL-B37: THE STEP IN THE TAPER (the user's section sketch, 5 Nov: "that would involve moving the step to the taper
+    // section ... with a single slider that places it on the hull or the floating new taper section. It's like the new
+    // taper section, or at least the buoyant part is part of the hull really"). The one slider is hullStepZ (aft of the
+    // cabin frame, as ever); when it lands in the buoyant taper the planing bottom runs on under it: forward of the step
+    // the keel, the floor and the bottom's beam hold the cabin's, aft of it the keel runs straight up to the taper's end
+    // (the afterbody), and a ring stands at the step so the knuckle is exact (buildCage2 adds the step's own pair aft of it)
+    const HS = S.hull && S.hull.steps > 0 && S.hull.hs > 0 ? S.hull : null;
+    // (the cabin frame, pilCabA, stands where the passenger run ends - zPaxEnd, defined below with the run)
+    const zCabF = zPaxB + S.pax.count * S.pax.len + Math.max(0, S.pax.count - 1) * S.paxPillarW;
+    const zS = HS ? zCabF - HS.stepAft : null;
+    const stepIn = zS != null && zS < zPaxA - 0.05 && zS > zTaperA + 0.05;
+    const tS = stepIn ? (zPaxA - zS) / (zPaxA - zTaperA) : null;
+    const ts = [0.8, 0.6, 0.4, 0.2].filter(t => tS == null || Math.abs(t - tS) > 0.06);
+    if (stepIn) ts.push(tS);
+    ts.sort((p, q) => q - p);
+    for (const t of ts) {
+      const z = zPaxA + (zTaperA - zPaxA) * t, fw = 1 - Math.pow(t, 1.7), fr = Math.pow(1 - t, 1.5);
+      // the bottom's law: the straight afterbody run from the cabin's aft pillar, or with the step in the taper flat
+      // to the step and straight from it
+      const fk = !stepIn ? 1 - t : t <= tS + 1e-9 ? 1 : 1 - (t - tS) / (1 - tS);
+      const fkw = !stepIn ? fw : t <= tS + 1e-9 ? 1 : fw;
+      add(fullRing(t === tS ? 'htStep' : 'htTaper' + Math.round(t * 100), z, {
+        Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fkw),
         roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
         keelY: lp(c.keelY, e.keelY, fk),
         waistY: (c.waistY != null || e.waistY != null) ? lp(c.waistY != null ? c.waistY : S.waistY, e.waistY != null ? e.waistY : S.waistY, fk) : undefined }),
@@ -9234,7 +9268,8 @@ function cageSpec(P) {
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
   // cageResolve), so it cannot be longer than the boom less a hand of bare
   // tube for the tail to clamp onto
-  if (S.rod && S.taper)
+  // (HULL-B36: not a hull's buoyant taper - lofted between its own pillars, it ADDS its length as every section does)
+  if (S.rod && S.taper && !(+P.hullOn && !S.rod.twin))
     S.taper.len = Math.min(S.taper.len,
                            Math.max(0.08, (P.boomLen || 2.2) - 0.3));
   // HULL-B23: a boat hull on a single rod lofts its taper (buoyant, skinned) - cageResolve's HTAP

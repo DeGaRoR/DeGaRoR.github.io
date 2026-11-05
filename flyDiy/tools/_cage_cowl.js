@@ -629,7 +629,10 @@ function engineFaces(mesh, FS, P) {
     // frame braces it to the fuselage rings it stands on (61_gen_frame, engines[].pylonAt 'roof')
     if (Math.round(+P.engPylonAt || 0) === 1) {
       const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
-      const zP = le.z - ch - Math.max(0, +P.engPylonAft || 0.15) + bz;
+      // (HULL-B37, the user: "the engine should reach the wing and intersect it. Place it further fore and high" - a
+      // negative engPylonAft stands the mount FORWARD of the trailing edge, under the wing, to 1.5 m; 0 and up as ever)
+      const pa = +P.engPylonAft, paft = pa < 0 ? Math.max(-1.5, pa) : Math.max(0, pa || 0.15);
+      const zP = le.z - ch - paft + bz;
       // (HULL-B18, the user: "you have a large gap now because where you placed it is not that flat ... it should try
       // and follow the fuselage shape"): each foot reads the roof at ITS OWN station - the tail cone falls away aft
       const topAt = z => { try { if (!AF) return null; const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z)); const y = AF.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };

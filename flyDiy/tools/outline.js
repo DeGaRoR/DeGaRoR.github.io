@@ -55,7 +55,13 @@ for (const [name, ha, hs, va] of VIEWS) {
   for (let t = 0; t + 2 < I.length; t += 3) {
     const a = I[t], b = I[t + 1], c = I[t + 2];
     const P3 = [a, b, c].map(i => [px(V[i * 3 + ha] - zero[ha]), py(V[i * 3 + va] - zero[va]), dsg * V[i * 3 + da]]);
-    const shade = 0.55 + 0.45 * ((t / 3) % 7) / 7;
+    // flat Lambert from the triangle's own normal (two-sided), a light from over the viewer's left shoulder
+    const ax = V[a * 3], ay = V[a * 3 + 1], az = V[a * 3 + 2];
+    const ux = V[b * 3] - ax, uy = V[b * 3 + 1] - ay, uz = V[b * 3 + 2] - az, wx = V[c * 3] - ax, wy = V[c * 3 + 1] - ay, wz = V[c * 3 + 2] - az;
+    let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    const Lt = name === 'side' ? [0.35, 0.6, 0.72] : name === 'top' ? [0.3, 0.9, 0.3] : [0.35, 0.6, 0.72];
+    const nd = [nx, ny, nz], Ld = [0, 0, 0]; Ld[ha] = Lt[0] * -1; Ld[va] = Lt[1]; Ld[da] = Lt[2];
+    const shade = 0.38 + 0.62 * Math.abs(nd[0] * Ld[0] + nd[1] * Ld[1] + nd[2] * Ld[2]) / Math.hypot(Ld[0], Ld[1], Ld[2]);
     const col = [C[a * 4] * shade, C[a * 4 + 1] * shade, C[a * 4 + 2] * shade].map(x => Math.max(0, Math.min(255, x | 0)));
     const xs = P3.map(p => p[0]), ys = P3.map(p => p[1]);
     const x0 = Math.max(0, Math.floor(Math.min(...xs))), x1 = Math.min(W - 1, Math.ceil(Math.max(...xs)));

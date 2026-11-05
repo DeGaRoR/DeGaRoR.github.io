@@ -1747,7 +1747,7 @@ PAGE.post = ctx => {
       // the rise below read 1/57 of the inclination - the saddle sat off an
       // inclined tube by the whole rise, and the tailwheel rode it
       const tI = Math.tan(S.rod.incl || 0);
-      return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS,
+      return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS, tI,
                yAx: z => (S.rod.y + tI * (R.rodSpan.zRoot - z / FS)) * FS };
     } catch (e) { return null; }
   })();
@@ -1761,7 +1761,8 @@ PAGE.post = ctx => {
       return { p: [dx || 0, rodSpan.yAx(z) - rodSpan.r - hS, z], n: [0, -1, 0],
                fore: [0, 0, 1], side: [1, 0, 0] };
     };
-    provider.saddle = { ctr: [0, rodSpan.yAx(st.z), st.z], axis: [0, 0, -1], r: rodSpan.r };
+    // (HULL-B37: the collar square to an inclined tube - its axis climbs tI a metre aft)
+    provider.saddle = { ctr: [0, rodSpan.yAx(st.z), st.z], axis: [0, rodSpan.tI / Math.hypot(1, rodSpan.tI), -1 / Math.hypot(1, rodSpan.tI)], r: rodSpan.r };
     provider.onDrawn = rec => saddlesOut.push(rec);
     // G474 (playtest item 130, the birdman: "the rod inclination impacts the
     // position of everything related to the tail wheel"): the saddle rides

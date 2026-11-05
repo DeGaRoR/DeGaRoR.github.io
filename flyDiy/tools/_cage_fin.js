@@ -834,7 +834,8 @@ PAGE.post = ctx => {
         const r = 0.5 * (yT - yB) * FS;
         if (!(r > 0.01)) continue;
         const Wp = Math.max(r * 2 + 0.02, (P.finThick || 0.06) * FS + 0.04), Lp = 0.09;
-        const rec = RF.saddle(bag, { ctr: [0, 0.5 * (yT + yB) * FS, z * FS], axis: [0, 0, -1], r, collar: !near,
+        // (HULL-B37: about the tube's own axis - an inclined rod's collar square to the tube, not to the ground)
+        const rec = RF.saddle(bag, { ctr: [0, 0.5 * (yT + yB) * FS, z * FS], axis: RF.axisOf ? RF.axisOf(deck0, z) : [0, 0, -1], r, collar: !near,
                                      plate: { top: 1, W: Wp, L: Lp } });
         // G2050: the plate's upper face and footprint ride along - a stab
         // seated at this station bolts onto THIS plate (_cage_stab.js)
