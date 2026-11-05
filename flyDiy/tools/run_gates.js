@@ -1092,6 +1092,10 @@ const GATES = [
   // within x1.5 of a sourced benchmark, the pay riding the reference Cub, one margin, the used market's age curve and the
   // sale's cap, the ledger's fixes (a prop per engine, one seat line, an empty tank, paint by area) (~40 s)
   { id: 'PRICE', file: '_price_check.js', tier: 'core' },
+  // WEAR-TAB (2026-11-05, futureDesigns/WEAR-SYSTEM-2026-11.md): the garage's third view - structure / finish / wear, the
+  // wear rows moved out of FINISH with their keys, spec.aging's sliders (absent at 0 / 0, read-only in a career), every
+  // saved build's def the same bits, an age withdrawing the certificate named (~3 s)
+  { id: 'WEARTAB', file: '_wear_tab_check.js', tier: 'core', wall: 5 },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
   // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
   // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where

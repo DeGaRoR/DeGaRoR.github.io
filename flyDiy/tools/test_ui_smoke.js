@@ -1485,6 +1485,7 @@ try {
     const workshop = ['edWrap', 'edView', 'edInfo',
                       'edTree', 'edRows', 'edRail', 'plaque', 'edBench',
                       'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish',
+                      'edTabWear',                 // WEAR-TAB (2026-11-05): the third view
                       // 2026-08-31: the THIRD view (the design tiles), and
                       // the chrome re-cut around the FILE RIBBON — the shelf
                       // rides #edTopBar now, the look rail sits in #edBotBar,

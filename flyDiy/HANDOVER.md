@@ -312327,3 +312327,53 @@ COSTS, by branch:
 - weather-blocks: three seasonal blocks, 28 new days.
 - menu-nits: unseen on a page. Thumbs unseen on the All planes screen.
 NEXT: L32c Thu 13:00: wear-tab, tour-eastpoint.
+
+## WEAR-TAB - THE GARAGE'S THIRD VIEW: STRUCTURE / FINISH / WEAR; THE WEAR ROWS MOVED OUT OF FINISH WITH THEIR KEYS; spec.aging AS TWO EXPERT SLIDERS; GATE WEARTAB; THE WEAR-SYSTEM STUDY (2026-11-05, WEAR-TAB for A0, cloud - node + headless Chromium / SwiftShader; branch claude/wear-tab off origin/master f3688d168)
+The user, 5 Nov: "a third tab in the slider menu. On top of structure and finish, we'll have wear. Let's move the visual
+wear over there for now, and the physical wear, as simple sliders ... keep them under expert row for now", and "study a
+system tying them all together, as well as the price" (futureDesigns/WEAR-SYSTEM-2026-11.md).
+
+**THE TAB (UI only, no new behaviour):**
+- body.html `#edTabWear` after finish; editor.js `view` 'wear' (setView, the boot's LS_VIEW restore, render's dispatch,
+  `.wea` on #edWrap: no per-part reset there, the expert switch stays). The phone uses the same #edViewTabs (three
+  segments, phone.css's 40 px rule unchanged).
+- MOVED, SAME KEYS: renderFinish skips `data-weather` (the four macros, WEAR) and `data-wear` (each section's wear rate,
+  secWear - the one new attribute, set in _cage_ui's dial loop with `data-wear-of`, the surface's name the wear view
+  labels the row with). Prefs (`flydiy.aeroSections` wear / wearM), finish.weather and sections[].wearM unchanged: an
+  old build loads and looks the same. The bench keeps both rows where they were.
+- renderWear: the root holds `looks` (the four macros) and `airframe and engine` (spec.aging); every part its surfaces'
+  wear rates; ALL are expert blocks (emitEls' new `o.expert`, applyVis hides them with expert off); with expert off the
+  view says so and offers the switch.
+- THE PHYSICAL SLIDERS: airframe years 0-60, engine hours since overhaul 0-3 000, a read-out (power %, drag %). Written
+  on CHANGE (a rebuild each, never per pixel) through GARAGE_SPEC.update({ aging }), and taken off with
+  GARAGE_SPEC.remove('aging') at 0 / 0: absent stays absent, an untouched build's def is the same bits.
+- **THE FINGERPRINT: spec.aging MOVES IT.** No strip list names `aging` (66b CERT_COSMETIC / MINOR / BOLT_ONS), so
+  certMajorOf files it with STRUCTURE: setting an age withdraws a certificate ("the wing or the structure changed"); the
+  read-out says so. Clearing it gives the same fingerprint back. Today only used listings carry it (their fp is the aged
+  spec's, while procureUsedCert's numbers are the model's as new - a disconnect, in the study §1).
+- CAREER GUARD (A0's call): the physical sliders are READ-ONLY in a career (FLYDIY_CAREER.doc().career) - until a restore
+  has a price; the look stays editable, as it was in FINISH. Sandbox: free.
+- THE STORY'S LOCK: finishOnly's meaning kept; the wear tab is SHUT while it holds (lockSync's list; STORY_TUTOR_ALLOW
+  finish denies #edTabWear). At T0 the four look rows are therefore out of reach where FINISH used to show them.
+- LIVERY-5: no decal row touched.
+
+**GATES:** WEARTAB (new, core, ~3 s; `--selftest` 8 of 8): three views shown, the dispatch / restore / lock / tutor
+rows, the rows moved with the same keys, the prefs and spec keys, expert, the writer (update / remove at 0 / 0, career
+read-only, on change), and on all 14 saved builds: the def at aging 0 / 0 the same bits (a leaf walk; only
+def.spec.aging differs), write-then-clear byte for byte through genSpecMerge with the same certificate, a real age moves
+the structure group. UISMOKE (+ #edTabWear in the workshop's ids), UISMOKE-PHONE, CARDS, BUILD, WEATHER, EDBUGS, JOIN,
+SAVE, STORAGE, STORY, PRICE: PASS. LIVERY and LAZY red, IDENTICALLY on a clean worktree of master f3688d168 (LIVERY:
+its rig runs seedEditor without `garageFloodArm`, G3358; LAZY: "the door's first demand (ROUTE_DRAW.ready) fetched
+route_draw once and ran it") - not this branch's.
+IN A PAGE (headless Chromium, SwiftShader, dev.html desktop 1600x900): three tabs; FINISH holds no wear row; WEAR with
+expert off is the note alone; on, 4 looks + 3 aging rows + 45 surface rates; the age written {25, 1200} (97 % power,
++2.5 % drag) and cleared back to absent; the story's lock lands on FINISH and the WEAR tab refuses; no page error.
+
+**COSTS:** per frame none (the look is a uniform, aging two factors at resolve). A physical slider is a rebuild per
+change. The four look rows now need two clicks (the tab, the expert switch). Unseen on a real GPU.
+
+**THE STUDY** (futureDesigns/WEAR-SYSTEM-2026-11.md): one master (the airframe's years) driving the look, drag, mass,
+the default engine hours and the price curve; two rates (rough operations through the damage model and the look only;
+poor maintenance through engine power past TBO, corrosion and the look); restores at the parts price (repaint, recover,
+overhaul at 0.85 of the engine row, rebuild), a repaint never a restoration; `aging` proposed out of the certificate.
+Five questions for the user at its end.
