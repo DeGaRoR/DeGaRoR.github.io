@@ -54,6 +54,11 @@ const ENGINES = {
              note: 'the fin engine on buoyant wing tips, high wing' },
   seawind: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, hullTips: 2, wgTip: 7, wgPos: 1, wgBrace: 1 },
              note: 'the fin engine on buoyant wing tips, a cantilever mid wing on the hull side (the Seawind)' },
+  // HULL-B28: OUTRIGGER HULLS (the Adventurer 333's pontoons, the Seagull's / MVP's side hulls) on faired blades
+  outrig: { sel: { engCount: 2 }, engine: 'rotax 912 (flat)', cage: { noseLen: 1.3, hullTips: 3, hullTipAt: 0.5 },
+            note: 'outrigger hulls on faired blades under a twin (the side hulls of the Seagull and the MVP)' },
+  outrigP: { sel: { engMount: 'wingTop' }, engine: 'rotax 915 iS', cage: { engPylonH: 1.2, engPylonForm: 1, engPylonFair: 3, cowlOn: 1, noseLen: 1.3, hullTips: 3, hullTipAt: 0.5 },
+             note: 'outrigger hulls on faired blades, the pusher on a blended blade pylon (the Adventurer 333)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
@@ -151,6 +156,7 @@ function one(form, eng) {
       let Rx = 0; for (const x of fx) Rx += -(x.out.F[0] * v[0] + x.out.F[2] * v[2]) / Math.max(0.3, V);
       if (V < 14 && Rx / W > hump) { hump = Rx / W; humpV = V; }
     }
+    if (process.env.HM_TRACE && s % 30 === 0) console.error('t', Tt.toFixed(1), 'V', V.toFixed(1), 'roll', rollOf(xA, yU).toFixed(1), pil.phase, 'wet', fx.map(x => x.wet ? 1 : 0).join(''), 'keel-h', (def.parts.floats || []).map((q, i) => (Math.min(...q.K.map(k => s2.p[k * 3 + 1])) - (fx[i] && fx[i].h != null ? fx[i].h : 0)).toFixed(2) + (q.tip ? (s2.p[q.K[0] * 3 + 2] > 0 ? 'R' : 'L') : 'H')).join(' '), 'Fy', fx.map(x => (x.out.F[1] / W).toFixed(2)).join(' '), 'broken', (s2.damage ? (s2.damage().broken || []).length : '?'));   // (HULL-B28: the run, every half second)
     if (!wet && wasWet && Tt > 2 && lift == null) { dryFrom = Tt; Vlift = V; }
     if (wet && !wasWet && lift == null) dryFrom = null;
     if (!wet && dryFrom != null && lift == null && Tt - dryFrom >= 2) lift = dryFrom;

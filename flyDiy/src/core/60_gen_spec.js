@@ -5497,11 +5497,11 @@ function clampSpec(spec) {
       // the strut tip floats (HULL-B3): absent = none
       if (h.tips && typeof h.tips === 'object') {
         // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
-        h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.5, 0.98),
+        h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.3, 0.98),   // (HULL-B28: an outrigger stands inboard, to 0.3)
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
                    y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1,
                    // (HULL-B26: 'wing' = the wing's own tips are the floats - its drooped, buoyant tip; absent = strut floats)
-                   ...(h.tips.mode === 'wing' ? { mode: 'wing' } : {}) };
+                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
       } else h.tips = null;
       // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
       if (h.spon && typeof h.spon === 'object' && h.spon.on) {

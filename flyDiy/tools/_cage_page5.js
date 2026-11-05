@@ -397,10 +397,12 @@ window.CAGE_PAGE = {
         // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
         // (HULL-B26: 'buoyant wing tips' - the wing's own tip is the float: Wings > tip length / drop / fullness shape it,
         // the boat's fit sets them; the strut float's rows stand down)
-        ['hullTips',    'tip floats',                 0, 2, 1, ['none', 'on struts', 'buoyant wing tips (the wing\'s own tip)'], { when: P => +P.hullOn }],
-        ['hullTipAt',   'tip floats at (of the semispan)', 0.50, 0.98, 0.01, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1 }],
-        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, dim: 'kg' }],
-        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, dim: 'len' }],
+        // (HULL-B28: 'outrigger hulls' - the Adventurer 333's pontoons, the Seagull's and MVP's side hulls: a bigger float
+        // inboard, resting in the water, on a faired blade)
+        ['hullTips',    'tip floats',                 0, 3, 1, ['none', 'on struts', 'buoyant wing tips (the wing\'s own tip)', 'outrigger hulls (on a faired blade)'], { when: P => +P.hullOn }],
+        ['hullTipAt',   'tip floats at (of the semispan)', 0.30, 0.98, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)) }],
+        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'kg' }],
+        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'len' }],
       ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the

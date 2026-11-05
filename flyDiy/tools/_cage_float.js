@@ -507,11 +507,41 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
     // the aft deck edges to the rear one, a wire from each bow deck edge
     const st3 = [-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)];
     const deck = st3.map(xs => { const sc = HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs); return [toC([xs, sc.yd, -sc.b]), toC([xs, sc.yd, sc.b])]; });
-    const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
-    for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
-    for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
-      GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
-    sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    if (Math.round(+P.hullTips) === 3) {
+      // HULL-B28: AN OUTRIGGER HULL'S SUPPORT (the user: "proper supports"): ONE FAIRED BLADE round the frame's four
+      // struts (61_gen_frame: the deck edges at the step to the front spar node, the aft deck edges to the rear) - at
+      // the float its section is the deck's whole width over the struts' fore-aft run, flared flat into the deck; up
+      // the height it narrows to a 12 % section over the spars' chord, flared again into the wing's underside (the
+      // pylon's cooling-tower fillet, both ends). The flown struts stand inside it
+      const yB = 0.5 * (deck[1][0][1] + deck[2][0][1]) - 0.01, xB = 0.5 * (deck[1][0][0] + deck[1][1][0]);
+      const zB0 = Math.max(deck[1][0][2], deck[2][0][2]) + 0.06, zB1 = Math.min(deck[1][0][2], deck[2][0][2]) - 0.06;
+      const yT = 0.5 * (cF[1] + cR[1]) + 0.02, xT = 0.5 * (cF[0] + cR[0]);
+      const zT0 = Math.max(cF[2], cR[2]) + 0.05, zT1 = Math.min(cF[2], cR[2]) - 0.05;
+      const wB = Math.abs(deck[1][1][0] - deck[1][0][0]) + 0.03, H = Math.max(0.05, yT - yB);
+      const bag = GK.Bag(), NR = 18, NS = 28, path = [], rows = [];
+      for (let i = 0; i <= NR; i++) {
+        // (a 14 % blade over the struts' own chord; the deck fillet - to the deck's width - over its lowest fifth, a
+        // small root fillet into the wing over its top tenth: the first cut flared both ends over a quarter of the
+        // height and read as a sail)
+        const u = i / NR, e0 = Math.max(0, 1 - u / 0.20) ** 2, e1 = Math.max(0, (u - 0.90) / 0.10) ** 2;
+        const zc = 0.5 * ((zB0 + zB1) + ((zT0 + zT1) - (zB0 + zB1)) * u);
+        const ch0 = (zB0 - zB1) + ((zT0 - zT1) - (zB0 - zB1)) * u, ch = ch0 + 0.10 * ch0 * e0 + 0.12 * ch0 * e1;
+        const th = 0.14 * ch0 + (0.7 * wB - 0.14 * ch0) * e0 ** 3 + 0.05 * ch0 * e1;
+        path.push([xB, yB + H * u, zc]); rows.push([ch, Math.max(0.03, th)]);   // (vertical: it stands on the float's centreline)
+      }
+      GK.sweep(bag, path, (tt, i) => { const [c, th] = rows[i], pts = [];
+        for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
+          const yt = 5 * 0.2 * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4) / 0.2;
+          pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * 0.5 * th * Math.min(1, yt / 0.6)]); }
+        return pts; }, true, [0, 0, 1]);
+      bag.mesh(ug, skinM);
+    } else {
+      const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
+      for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
+      for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
+        GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
+      sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    }
     out.push({ side: sd, step: [xS, yK, zS], L: Pt.L, kg, spar: [cF, cR] });
   }
   window.CAGE_TIPFLOATS = out;

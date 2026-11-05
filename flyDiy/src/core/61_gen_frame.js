@@ -2918,9 +2918,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         clusters.push({ cls: 'float', tag: 'TIP' + (sd < 0 ? 'L' : 'R'), nodes: allT });
         // the struts: both deck edges at the step up to the station's front spar node, the aft deck to the rear one,
         // a diagonal - streamlined tubes, stiff (kMul 8, the floats' rigging)
-        B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
-        B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
-        B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+        if (TP.mode === 'outrigger') {
+          // HULL-B28: AN OUTRIGGER HULL'S PYLON (the drawing's faired blade, _cage_float.js): every station's deck edges
+          // to BOTH spar nodes - a triangulated, rigid pylon. The strut float's V pair and two tension wires let a side
+          // hull swing about the spars' line under its water drag (measured: the Cessna boat leaned onto one outrigger to
+          // 44 deg at 7 m/s, whatever its size)
+          for (let i = 0; i < 3; i++) for (const q of [Lt[i], Rt[i]]) for (const a2 of [W.F[j], W.R[j]]) B(q, a2, 'gear', false, 'inner', undefined, KMh);
+        } else {
+          B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
+          B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
+          B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+        }
         const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
           K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
         FLOATS.push({ side: sd, tip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],

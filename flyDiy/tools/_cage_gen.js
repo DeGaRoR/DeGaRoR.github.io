@@ -1204,6 +1204,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  4. a wing PAIR counter-rotates (engRotate 1, below);
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
+const OUTRIG_FRAC = 0.12, OUTRIG_SINK = 0.10, OUTRIG_AT = 0.55, OUTRIG_K = 1.0;   // (HULL-B28: the outrigger hulls' fit)
 const TO_TRIM = 8, PROP_RUN_CLEAR = 0.55, FIN_AT_MAX = 0.9, ENG_BLOCK_MAX = 0.8, SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -1336,6 +1337,16 @@ function cageHullFitAll(P, f, HY, opt) {
     const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
     const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass, sy != null && (o.semi || f.tipArm > 0.5) ? { cgY: f.cg[1] - sy, arm: f.tipArm > 0.5 ? f.tipArm : (+P.hullTipAt || 0.85) * o.semi, torqueKgm: tq } : undefined);
     if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
+    // HULL-B28: OUTRIGGER HULLS (hullTips 3) rest IN the water - their keel OUTRIG_SINK of their depth under the level
+    // waterline, both kissing the water at rest (the trimaran's three-point stance; 30 % deep dragged them into a 49 deg roll on the run) - at least OUTRIG_FRAC of the gross each
+    // (the moment rule on their shorter arm usually asks more), inboard at OUTRIG_AT of the semispan unless set inboard
+    if (tf && Math.round(+P.hullTips) === 3 && HY.tipFloatParams) {
+      // (OUTRIG_K x the rule: at 12 % and the rule's own 95 kg the Cessna boat leaned onto one at 7 m/s, the 915's torque
+      // and its high CG pressing it under to 45 deg - an outrigger is a hull, not a small float)
+      const kg = Math.max(OUTRIG_K * tf.kg, OUTRIG_FRAC * f.mass), Pt = HY.tipFloatParams(kg);
+      fit.hullTipKg = +kg.toFixed(1); fit.hullTipY = +(tf.draft - OUTRIG_SINK * Pt.H).toFixed(3);
+      if (!(+P.hullTipAt <= 0.7)) fit.hullTipAt = OUTRIG_AT;
+    }
     // HULL-B26: BUOYANT WING TIPS (hullTips 2) - the wing's own tip is shaped to be the float (the user, 5 Nov: "a
     // setting of the wingtip itself, and how far it is allowed to drop, within reason"): its keel to where a strut
     // float's would be (the level waterline + its clear), its full volume what the same moment rule asks of a float
