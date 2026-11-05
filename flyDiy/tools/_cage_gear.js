@@ -339,10 +339,11 @@ function foldChain(u, key, P, SP) {
 // THE NACELLES - each wing engine's cowl unit (the cowl layer's off-centre units: |x| > 0.3 m), its skin meshes in the
 // layer's frame, a section table of its own (meshAirframe, the vertices taken about the nacelle's own centreline).
 // NACS is this build's (set before the stations are drawn; read by the probe, the mounts, the fold, the cuts, the doors)
-let NACS = [];
+let NACS = [], AFT_BAYS = [];
 const NAC_AF = new Map();
 function nacellesOf(scene) {
   const out = [];
+  AFT_BAYS = [];
   if (!scene || !GG || !GG.meshAirframe) return out;
   scene.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(scene.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3();
@@ -368,6 +369,9 @@ function nacellesOf(scene) {
     // (GR, the user: "cut into a cowl"): a NOSE COWL (on the centre line) is structure too - kind 'cowl': the nose wheel
     // folding forward stows in it and is cut into it, as into a nacelle; the mains' nacelle logic skips it
     const kind = Math.abs(xc0) < 0.3 ? 'cowl' : 'nacelle', xc = kind === 'cowl' ? 0 : xc0;
+    // (P2, the Skymaster: an AFT cowl on the centre line - a pusher's, a push-pull's rear engine - is the engine bay, never
+    // a gear's stowage: kept as AFT_BAYS for the fit's test, not cut)
+    if (kind === 'cowl' && Math.abs(Math.abs(u.rotation.y) - Math.PI) < 0.1) { AFT_BAYS.push({ x0, x1, z0: Math.min(...V.map(p => p[2])), z1: Math.max(...V.map(p => p[2])), y0: Math.min(...V.map(p => p[1])), y1: Math.max(...V.map(p => p[1])) }); continue; }
     const Vc = V.map(p => [p[0] - xc, p[1], p[2]]);
     // (the section table cached on the skin's own vertices: a rebuild that did not move the nacelle reuses it)
     let sig = Vc.length * 31 + F.length; for (let i = 0; i < Vc.length; i += 7) sig = (sig * 1.000003 + Vc[i][0] * 7.1 + Vc[i][1] * 13.3 + Vc[i][2] * 17.7) % 1e9;
@@ -460,6 +464,22 @@ function nacPodBuild(N, st, sgn, ya, under, P) {
     const ci = V.length; V.push([cx / NA, cy / NA, zs_[i]]);
     for (let k = 0; k < NA; k++) { const a = i * NA + k, b = i * NA + (k + 1) % NA; F.push(flip ? [ci, b, a] : [ci, a, b]); } }
   return { V, F, yh, yB, yTop: yTs, D, L, zN, zB0, zE, zT, hw };
+}
+// the closest distance between two segments (P2: a strut and a leg)
+function segDist(p1, q1, p2, q2) {
+  const d1 = [q1[0] - p1[0], q1[1] - p1[1], q1[2] - p1[2]], d2 = [q2[0] - p2[0], q2[1] - p2[1], q2[2] - p2[2]], r = [p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], a = dot(d1, d1), e = dot(d2, d2), f = dot(d2, r);
+  let s = 0, t = 0;
+  if (a <= 1e-12 && e <= 1e-12) return Math.hypot(...r);
+  if (a <= 1e-12) t = Math.max(0, Math.min(1, f / e));
+  else { const c = dot(d1, r);
+    if (e <= 1e-12) s = Math.max(0, Math.min(1, -c / a));
+    else { const b = dot(d1, d2), den = a * e - b * b;
+      s = den > 1e-12 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0;
+      t = (b * s + f) / e;
+      if (t < 0) { t = 0; s = Math.max(0, Math.min(1, -c / a)); } else if (t > 1) { t = 1; s = Math.max(0, Math.min(1, (b - c) / a)); } } }
+  const c1 = [p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s], c2 = [p2[0] + d2[0] * t, p2[1] + d2[1] * t, p2[2] + d2[2] * t];
+  return Math.hypot(c1[0] - c2[0], c1[1] - c2[1], c1[2] - c2[2]);
 }
 // a nacelle's box about its centreline (a quick reject for nacIn): half width, bottom and top
 function nacBox(V) { let hw = 0, y0 = Infinity, y1 = -Infinity;
@@ -2090,6 +2110,45 @@ PAGE.post = ctx => {
       fit.ok = false; fit.why.push(why);
       (fit.tests.nacelle = fit.tests.nacelle || []).push({ unit: k, why });
       for (const r of ['s1Z', 's1Drop', 'gearFold']) if (!fit.rows[r]) fit.rows[r] = why; }
+    // P2 (the user: "you don't even constrain it to the size of the wing, but we can start without this sort of
+    // constraint and add them later"): THE WING'S LIMITS -
+    //   STRUT   a lift strut (CAGE_WING.struts, pin -> tip) through a gear nacelle, or within 40 mm of the mains' points
+    //           anywhere along their fold;
+    //   FLAP    a gear nacelle's tail, or a folded wheel, behind a flap's hinge line within the flap's span (the flap
+    //           comes down through it)
+    if (fit) { const WGx = window.CAGE_WING, struts = (WGx && WGx.struts) || [], flaps = ((WGx && WGx.surfs) || []).filter(f => f.kind === 'flap');
+      const mainsK = Object.keys(swing).filter(k => k !== 'T'), seen = new Set();
+      const red = (test, unit, why, rows) => { if (seen.has(why)) return; seen.add(why); fit.ok = false; fit.why.push(why);
+        (fit.tests[test] = fit.tests[test] || []).push({ unit, why }); for (const r of rows) if (!fit.rows[r]) fit.rows[r] = why; };
+      for (const st of struts) { if (!st || !st.pin || !st.tip) continue;
+        const sp = []; for (let i = 0; i <= 40; i++) { const t = i / 40; sp.push([st.pin[0] + (st.tip[0] - st.pin[0]) * t, st.pin[1] + (st.tip[1] - st.pin[1]) * t, st.pin[2] + (st.tip[2] - st.pin[2]) * t]); }
+        for (const N of NACS) { if (N.kind === 'cowl') continue;
+          const hit = sp.some(q => nacIn(q) > -0.02 && Math.abs(q[0] - N.xc) < N.bb.hw + 0.05);
+          if (hit) red('strut', 'L', 'a lift strut runs through the engine nacelle at ' + Math.abs(N.xc).toFixed(2) + ' m (move the nacelle or the strut)', ['engNacAt', 's1X']); }
+        // (the leg's axis and the strut's, segment to segment, at every sweep pose: the leg's radius and the strut's
+        // 20 mm off; the wheel: its centre within its radius and 20 mm of the strut)
+        for (const k of mainsK) { const C = swing[k]; let gap = Infinity;
+          for (const g of WELL_G) { const [hP, aP] = poseAll(C, [C.hinge, C.axle], g);
+            gap = Math.min(gap, segDist(hP, aP, st.pin, st.tip) - (C.legR || 0.05) - 0.02, segDist(aP, aP, st.pin, st.tip) - C.R - 0.02); }
+          if (gap < 0) red('strut', k, 'the mains meet a lift strut as they fold (' + Math.round(-gap * 1000) + ' mm into it)', FIT_ROWS[k].fold.concat(['s1X', 's1Z'])); } }
+      for (const F of flaps) { const a = F.line[0], b = F.line[1], x0 = Math.min(Math.abs(a[0]), Math.abs(b[0])), x1 = Math.max(Math.abs(a[0]), Math.abs(b[0]));
+        const zh = x => { const t = Math.max(0, Math.min(1, (Math.abs(x) - Math.abs(a[0])) / ((Math.abs(b[0]) - Math.abs(a[0])) || 1))); return a[2] + (b[2] - a[2]) * t; };
+        for (const N of NACS) { if (N.kind === 'cowl' || Math.sign(N.xc) !== Math.sign(a[0])) continue;
+          if (Math.abs(N.xc) + N.bb.hw > x0 && Math.abs(N.xc) - N.bb.hw < x1 && N.z0 < zh(N.xc) - 0.02)
+            red('flap', 'L', 'the engine nacelle\'s tail runs through the flap at ' + Math.abs(N.xc).toFixed(2) + ' m (split the flap round it, or shorten the flap\'s span)', ['wgFlapSpan', 'engNacAt']); }
+        for (const k of mainsK) { const C = swing[k]; if (Math.sign(C.hinge[0]) !== Math.sign(a[0])) continue;
+          const up = poseAll(C, unitPts(C).W, 0);
+          if (up.some(q => Math.abs(q[0]) > x0 && Math.abs(q[0]) < x1 && q[2] < zh(q[0]) && SPx.wingIn(q) > -0.05))
+            red('flap', k, UNIT_WORD[k] + ', folded, lies behind the flap\'s hinge (the flap comes down through it)', FIT_ROWS[k].fold.concat(['s1Z', 'wgFlapSpan'])); } } }
+    // P2 (the Skymaster): THE REAR ENGINE'S BAY - the mains' folded points inside an aft engine's cowl box (a push-pull's
+    // rear engine): the 337's mains stow in the belly AHEAD of it
+    if (fit && AFT_BAYS.length) for (const k of Object.keys(swing)) { if (k === 'T') continue;
+      const up = poseAll(swing[k], unitPts(swing[k]).W, 0), B = AFT_BAYS.find(b => up.some(q => q[0] > b.x0 && q[0] < b.x1 && q[1] > b.y0 && q[1] < b.y1 && q[2] > b.z0 && q[2] < b.z1));
+      if (!B) continue;
+      const why = UNIT_WORD[k] + ', folded, ends in the rear engine\'s bay (stow it ahead of the rear firewall: shorten the leg, or move it forward)';
+      if (fit.why.includes(why)) continue;
+      fit.ok = false; fit.why.push(why); (fit.tests.bay = fit.tests.bay || []).push({ unit: k, why });
+      for (const r of FIT_ROWS[k].fold.concat(['s1Z', 'gearShort', 's1Drop'])) if (!fit.rows[r]) fit.rows[r] = why; }
     // GR R2: THE BRACE'S KNEE inside the structure over the fold (its shortest brace's)
     // (a partial fold's exposure is declared - its wheel's, and so its brace's and actuator's: GATE RETRACT §11)
     if (fit && mech) for (const k in mech.info) { const I = mech.info[k];

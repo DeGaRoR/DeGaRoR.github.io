@@ -1723,3 +1723,39 @@ skin, inlet ducts, lips).
 - **The floor test** should stop at the firewall (above).
 - **The long nose well** behind a nose leg, where the brace and the actuator anchor far aft.
 - **The gear bay held to the wing's size** (its flaps, a lift strut).
+
+### 8.20 PHASE 2 (5 Nov): the floor, the nose well, the wing's limits, the Skymaster
+
+**THE FLOOR TEST (no change).** It runs the length of the body, and that is right: the space between the firewall
+and the panel is the footwell, a floor too. A forward-folding nose leg pivoting behind the firewall sweeps it. The
+remedy is the station: a forward fold's trunnion belongs on the engine mount, ahead of the firewall, as on real
+forward-folding nose gear. The station row (s2Z) is already among the rows the test turns red. On the T-tail tourer
+with s2Z 2.9 the floor test clears. Its forward-folded nose wheel then stands past the cowl's nose bowl (the cowl is
+short for the leg), which the skin test flags, also correctly.
+
+**THE LONG NOSE WELL (no change).** Measured on the twinBush, the nose well's length (0.77 m) is the folded leg and
+its wheel. The brace and actuator anchors lie inside it; they do not stretch it (8.17's guess was wrong). Shortening
+the nose leg (gearShortNose 0.3 / 0.45) brings the well to 0.63 / 0.58 m.
+
+**THE WING'S LIMITS (new fit tests):**
+- **'strut'.** A lift strut (CAGE_WING.struts, pin to tip) running through a gear nacelle, or crossing the mains
+  anywhere along their fold. The test is segment to segment, at the sweep's 25 poses, the leg's radius and the
+  strut's 20 mm off, the wheel by its radius. It turns engNacAt, s1X, s1Z and the fold red.
+  - On the twinBush (s1X 2.8, high wing, forward fold) the mains cross the strut mid-fold, about 58 mm into it.
+- **'flap'.** A gear nacelle's tail, or a folded wheel, behind a flap's hinge line within the flap's span (the flap
+  comes down through it). It turns wgFlapSpan, engNacAt, s1Z and the fold red.
+  - None of the tested cards trips it.
+
+**THE SKYMASTER:**
+- **The real 337** (the Cessna 210's layout): the mains swing aft and twist flat into the belly behind the cabin,
+  just ahead of the rear firewall; the nose folds aft.
+- **The rear engine's bay is never a stowage.** An aft engine's cowl on the centre line (a pusher's, a push-pull's
+  rear) is no longer cut (AFT_BAYS). A new fit test, 'bay', turns the station, the fold and the shortening red when
+  the folded mains end in it.
+- **The Skymaster-alike card cannot stow its mains as drawn.**
+  - Its pod ends at z 0.73, just behind the gear station (0.95), so there is no belly behind the station.
+  - Its 0.8 m half track leaves the mains outboard of the pod: every fold (inward, aft-flat, aft-and-in, two axes;
+    shortening 0 to 0.45; s1Z 0.95 and 1.3) ends with the mains out of the pod or in the rear engine's bay.
+  - The test now says so.
+  - Making it a 337 means the card itself: a longer pod with belly wells ahead of the rear firewall, the mains under
+    the pod (a narrower track or wider pod), then the aft-and-in twist fold.
