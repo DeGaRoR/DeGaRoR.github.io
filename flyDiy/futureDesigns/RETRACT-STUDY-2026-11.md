@@ -1914,3 +1914,68 @@ What we do not hold, per model:
 
 Where it would come from: the Wipaire installation and parts manuals and STC sheets (wipaire.com, and the manual
 mirrors cited in §1.7), and EDO/Aerocet type data and float drawings. The hosts must be reachable from the session.
+
+### 8.24 The PBY-5A's main gear, from the operator's handbook; the amphibious floats, from photographs
+
+**THE SOURCE.** Pacific Flying Boats, *Canso Flight Operations Handbook* (PBY-5A C-FUAW, June 2020):
+- §1.8 and §1.9, pp. 49-51;
+- Figs 12 and 13, the main gear's extension and retraction drawn in front view;
+- p. 22's g, the gear table.
+
+It was read in this session once the environment allowed pbycatalina.com.
+
+**WHAT IT SAYS:**
+- **The layout.** A tricycle, all hydraulic. "The two main gears retract into wheel wells in the side of the hull. The
+  nose gear retracts into a wheel well in the bow of the hull. Doors close over the nose wheel well", and there are
+  none on the mains.
+- **Up and down locks** on all three units.
+- **The main unit's shock strut** is hydraulic-pneumatic, with a watertight wheel and brake.
+- **The tread** is 16 ft 7 in, 5.05 m, tyre centre to tyre centre.
+- **The motion (§1.9 b, Fig 13).** Two cylinders per side:
+  - the small one, near the main strut's upper hinge point, releases the spring-loaded strut latch through a bell
+    crank and a rod;
+  - the main one "floats between a bracket near the upper end of the main strut and a bracket on the forward leg of
+    the upper V-strut". Contracting, it folds the main strut INWARD, "pulling the gear upward and into the well";
+  - a roller on the axle's inboard end meets a spring bumper arm in the well, because "the gear, in approaching its
+    retracted position, has a tendency to fall into the well". A spring latch then holds it up.
+- **The drawing (Figs 12 and 13, front views of the hull's side).**
+  - Down: the oleo stands upright, OUTBOARD of the hull. A near-level strut runs from the hull's side to the leg's top,
+    and the upper V-strut runs up from it.
+  - Up: the leg and its wheel lie against the hull's side, in the well, still upright.
+  - The motion is all in the cross-section plane (about fore-aft axes): up and in. The wheel stays in its fore-aft
+    plane, with no aft swing and no twist.
+- **The nose.** Two cylinders. The unit is pulled up into the bow's well behind doors, hooked by a spring latch.
+
+**OURS IS WRONG.** The 'catalina' fold (§8.15 v2) swings the leg aft to level, then tucks it about the vertical axis.
+The real gear is a FOUR-BAR in the cross-section plane: the leg is the coupler, carried by the folding side strut and
+the V-strut. It rises and moves inward while staying nearly upright.
+
+Our fold chain only rotates rigid units about a fixed trunnion (plus the shortening slide), so the honest rebuild
+needs:
+- a linkage pose in the core's kinematics (`62c_gear_mech.js`): the leg's pose from two rockers;
+- the gear layer drawing the side strut (with its knee latch) and the V-strut;
+- the well in the hull's side where the wheel ends, upright. The present round recess, the tyre's own outline, is
+  that shape already.
+
+That is proposed, not built.
+
+**THE AMPHIBIOUS FLOATS, FROM THE USER'S PHOTOGRAPHS** (5 Nov). These are observations, to be checked against the
+manufacturers' data:
+- **The mains.** A large wheel, main-gear size, just AFT OF THE STEP, on every set photographed: Wiplines on Cessnas,
+  EDO on a Cessna, and very large floats on a DC-3.
+  - In flight, on the DC-3's floats, there is one main and one nose wheel per float. The second pair seen is the far
+    float's, by parallax.
+  - On the DC-3's floats the main is a big tyre on a horizontal, trailing strut along the float's bottom, with no door
+    (the user's close-ups).
+- **The nose.** A small castoring wheel at the bow. Retracted, it sits at the very front of the float, in the black bow
+  cap, partly in view. Two mechanisms:
+  - **Wipline:** the leg extends from, and stows INSIDE, the bow. Wipaire's 2100 manual (p. 22): "the carriage is drawn
+    along the tracks in the nose box", with an over-centre down lock. The mains also have over-centre locks up and
+    down, the actuator driving the actuating arm "along the slide track".
+  - **EDO** (the American-flag photograph): the pivot is low at the bow's front. The leg is pushed down by a piston
+    through a small triangular linkage. Retracted, it HUGS the outside of the bow, probably with a fairing.
+- **The DC-3's nose well has doors** (the user's close-ups: an upright oleo, torque links, a steering cam "CAM LIMITS
+  TURN", door panels either side). Its mains have none.
+
+The manufacturers' numbers (dimensions, stations, tyres, weights, the mechanisms' geometry) are being gathered from
+the Wipaire manuals and sheets now that the session can reach them. They go into §8.25.
