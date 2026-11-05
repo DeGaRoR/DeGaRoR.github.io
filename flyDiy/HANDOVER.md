@@ -312286,3 +312286,20 @@ WHAT LANDED:
 WATCH: a kit layer 4 / 5 lives on a page parked.js's old setPages would clear - it is inert only because aeroDecalImageClear is gone; do not bring an image door back without moving it.
 - GATES (cloud, node; this tree): LIVERY (+ selftest: every probe red, the two new ones too), LIVERYREACH, SKINMAT, CANDIDATES, PLANETHUMB, STORAGE, SAVE, CARDS, PARTS, BENCH, UISMOKE, BUILD, FLOWNBAKE, DESIGN PASS. PARKED PASS run alone at `node --max-old-space-size=4096` (215 checks, peak heap 1944 MB): at the runner's default heap it dies of OOM because the parked cook is STALE on any branch that changes a source (the page then captures live; master reads its cook and peaks at 1918 MB) - parked_cook.js at the train. LAZY red on one row ("the door's first demand (ROUTE_DRAW.ready) fetched route_draw.<h8>.js once and ran it"), the same row on a clean origin/master f3688d16 worktree: master's.
 - PARKED caught a bug of mine that UISMOKE did not: the image rows' removal left `bodyLock(); wingLock();` at the end of buildDecPanel, so the panel's tail (the slider ranges) and the materials panel after it threw ("CAGE_UI: the finish panels did not build", caught and logged, no page error). Fixed. The stills in reports/evidence/LIVERY-5 were taken BEFORE the fix (the render does not go through that tail: finishFromSpec + build); the rig now counts such a console error as a FAIL.
+## WEATHER-BLOCKS-2 - THE CLOUDS PANEL'S CAREER GUARD (2026-11-04, cloud session for the user via A0; branch claude/weather-blocks-2 off origin/master c2ac56b39 = L31c)
+A0's ask (4 Nov 21:30, the user approving the 28 days): the three seasonal blocks in the game, the career's forecast,
+and the clouds guard TIME-CONTROLS left open. FOUND ON MASTER ALREADY (WEATHER-SEASON, landed in L31a): the 42 days
+(src/weather/days/{early,high,late}), the block lookup (07d_weather_plan.js: early 20 May-2 Jul, high 3 Jul-15 Aug with
+day 1 on 15 Jul, late 16 Aug-30 Sep), and the career's forecast (day_clock.js window.FLYDIY_FORECAST -> WEATHER_PLAN.lines,
+read by DAY_UI.menu's ctx.forecast). So this branch is only the open guard:
+- clouds_ui.js mount: in the career (CK.isCareer()) the sky / low deck / upper decks rows are replaced by told lines (the
+  effective cover, type and base of each deck) and "The career's clouds come with the day: they are told here, not
+  chosen."; "another sky (seed)" is withheld (it changes the weather map). The veil, the look, the motion and the render
+  rows stay (machine-local look settings, not weather). The sandbox's panel is unchanged.
+- GATE WEATHERPLAN 10 holds the guard on the source.
+GATES (node, --no-build, jobs 3): WEATHERPLAN DAY CLOCK CLOUD UISMOKE WEATHER PASS. CLOUD ran with CLOUD_CENSUS=0 (its
+three browser census rows skipped: the change is UI text, no renderer path). Nothing built is committed.
+COSTS: none at run time - the guard is a branch at the panel's mount; the census rows (~5 min each on the cloud box) are
+the next train's to run.
+STATUS (4 Nov): claude/weather-blocks-2 1c052cc08 is green and pushed; claude/ready/weather-blocks is NOT - this session's
+push to a ready branch was refused as a deploy, so it waits for the user's own push.

@@ -192,6 +192,9 @@ console.log('10. the sources');
   yes(/cloudCover: sp\.cloudCover != null \? sp\.cloudCover/.test(dc), 'the pref keeps the sandbox\'s DECLARED decks, never the plan\'s');
   yes(/window\.FLYDIY_FORECAST = d =>/.test(dc) && /forecast: window\.FLYDIY_FORECAST/.test(src('src/viewer/app.js')), 'the TIME menu\'s forecast door is the plan\'s lines');
   yes(/careerSeasonLand/.test(dc) && /'flydiy:layup'/.test(dc), 'a career wait past the close is the layup jump (and its event, for the story)');
+  const cu = src('src/viewer/clouds_ui.js');
+  yes(/const career = !!\(CK\.isCareer && CK\.isCareer\(\)\);/.test(cu) && /if \(career\) \{\s*head\('sky'\);/.test(cu) && /if \(!career\) H\.pills\(host, \[\{ label: 'another sky/.test(cu),
+      'the clouds panel in the career tells the decks and offers neither their rows nor another sky (clouds_ui.js, the guard TIME-CONTROLS left open)');
 }
 
 console.log(checks + ' checks, ' + ((Date.now() - T0) / 1000).toFixed(1) + ' s');
