@@ -312002,3 +312002,36 @@ COSTS, by branch:
 - seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
 Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
 NEXT: L32a Thu 13:00, the last train, refs by 12:30.
+
+## G3801b - THE PUSHER WITH THE A, THROUGH THE NEW-PLANE CHOOSER; THE V's FIN ARM; A DOWNWARD V's STANCE ON THE MAINS; THE CHOOSER AND CONFIG-MATRIX CARRY ALL FOUR WAYS (2026-11-04, cloud; branch claude/tailwheels restarted on master c2ac56b3 = L31c, which had merged G3800-G3801)
+The user, 4 Nov: "rebase onto master and check the pusher with the A. Ensure that you land yuor finished work in your
+branch". L31c had merged the branch whole (c699e3b9 is in master): the branch was restarted on master, not rebased.
+- **THE CHECK** (tools/_newplane_lib.js judge, the chooser's own path: an LSA, twin booms, a flat engine pushing, a low
+  tapered wing, a taildragger, in every tail): the A's panels clear the disc by 3.73 m (the tail 4 m aft of it; 48 % of
+  the A's panel area in the disc's shadow); it lifts off at 40.5 s on the hop, and flies HOME's circuit on the game's
+  host and pilot (tw_probe: lift-off 59 s, touchdown 2.23 m/s, roll-out inside 3 deg, STOPPED). The conventional tail's
+  disc clears its tail by 1.95 m.
+- **FOUND 1: the design check read a V from the booms' fin volume 2-2.7 x short** (the A's Vv 0.011 - fail; every way
+  warned): its vertical arm lv was the join's fin station (no fin: 1.5-2.1 m against the panels' lh 4.05). 60_gen_spec:
+  the V's fin is its panels, vX = hX, lv = lh. A readout: the flown frame does not read vX on the V (the signs probe the
+  same to the digit). Vv 0.031 on all four ways now.
+- **FOUND 2: a downward V on the chooser's taildragger sat 1 deg nose-down and never left the ground** (it ran off the
+  strip on its wheels: the tips hang the V's drop below the booms, and the chooser's fit moved a tail leg the tip
+  wheels do not have). _new_plane.js stanceFit: a downward V's three-point deck is the mains' (s1Drop, aimed at 10 deg;
+  measured +0.3 m 2.7 deg / lift-off 38 s, +0.6 6.4 / 23 s, +0.9 9.9 / 21 s) - LONG MAIN LEGS (+0.9 m on this low-wing
+  pusher, the picture shows them); the V's cant or gap would raise the tips instead, at the volumes' cost - not traded
+  automatically. And stanceFit grows a boom V's chord to Vv 0.024 / Vh 0.36 when the drawn V is short (not needed once
+  the arm was right). Down & out on this low wing: roll.clb warns (-0.003; panels down and out act as anhedral).
+- **THE PATCHES G3800 LEFT** for claude/ready/new-plane and claude/ready/config-matrix (both on master now) APPLIED, and
+  carried to all four ways: the chooser's tail row offers 'Inverted V', 'Inverted V, outward', 'V, inward (an A)', 'V,
+  outward' on twin booms only; the [VAL] pusher-on-a-tailwheel grey lifted on twin booms (measured G3800); the twin's
+  greyed V-tail points to the boom V; CONFIG-MATRIX.md: the taildragger a wheel a boom, the inverted V BUILT, the three.
+- **GATE TAILWHEEL J** (the A and the inverted V through the chooser: the disc clear of the tail > 0.5 m, Vv and Vh
+  pass, lv = lh, the inverted V's deck inside 7-17); the fails the chooser stands on for every pusher here ("prop:
+  through the wing (15 of 288 points)") and the twin booms' deck under 7 (6.2-6.4, the conventional tail's too) named,
+  not counted. Its wall 600 -> 900 s in run_gates.js.
+- **PICTURES:** reports/evidence/TAILWHEELS/pusher_A_chooser_*, pusher_invertedV_chooser_* (builds/ the same).
+- **GATES (on this core, jobs 3):** TAILWHEEL (A-J), NEWPLANE, DESIGN, DESIGNCHECK, GENPAIRS, JOIN, SPECFIX, SAVE, PARTS,
+  CAGEFIT, UISMOKE, UISMOKE-PHONE, HINGE, FIN, LOAD, GEAR, STARTER, TAKEOFF, PILOT, CONTACT PASS. RED = MASTER STANDING,
+  each the same row on a clean origin/master c2ac56b3 worktree: GEN ("cruise is quiet in wind"), NEWPLANE-BUILDS (the
+  fixed tricycle: "join: prop: through the body (6 points)"), CLIP (stock+ifr's navAerial 9.2 mm into edFinSkin).
