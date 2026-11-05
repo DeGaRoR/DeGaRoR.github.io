@@ -1205,7 +1205,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
 const OUTRIG_FRAC = 0.12, OUTRIG_SINK = 0.10, OUTRIG_AT = 0.55, OUTRIG_K = 1.0;   // (HULL-B28: the outrigger hulls' fit)
-const TO_TRIM = 8, PROP_RUN_CLEAR = 0.55, FIN_AT_MAX = 0.9, ENG_BLOCK_MAX = 0.8, SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+const TO_TRIM = 8, PROP_RUN_CLEAR = 0.55, FIN_AT_MAX = 1.0, FIN_H_MAX = 1.8, ENG_BLOCK_MAX = 0.8, SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
   if (!f || !f.cg || !(f.mass > 0)) return null;
@@ -1296,11 +1296,17 @@ function cageHullFitAll(P, f, HY, opt) {
       else if (mount === 8) {
         // (HULL-B22: a fin engine climbs the fin to FIN_AT_MAX, then stands off it on its block (engBlockY: the mount's
         // tubes longer), to ENG_BLOCK_MAX; past both, a smaller propeller)
+        // (HULL-B34, the user: "If you want to move that, change the fin geometry": the engine stays IN CONTACT with the
+        // fin - up it to its top (FIN_AT_MAX 1), then a TALLER FIN (finHeight, to FIN_H_MAX) carries it up; no block)
         const H = f.finH > 0.3 ? f.finH : 1.4, at0 = +P.engFinAt || 0.55;
         const at1 = Math.min(FIN_AT_MAX, at0 + need / H + 0.01), gainAt = (at1 - at0) * H;
         if (at1 > at0 + 1e-3) fit.engFinAt = +at1.toFixed(3);
         let left = need - gainAt;
-        if (left > 0.005) { const b0 = +P.engBlockY || 0, b1 = Math.min(ENG_BLOCK_MAX, b0 + left + 0.01); fit.engBlockY = +b1.toFixed(3); left -= (b1 - b0); }
+        if (left > 0.005) {
+          const fh0 = +P.finHeight > 0 ? +P.finHeight : 1, atU = Math.max(0.2, at1);
+          const fh1 = Math.min(FIN_H_MAX, fh0 * (1 + (left + 0.01) / (H * atU)));
+          if (fh1 > fh0 + 1e-3) { fit.finHeight = +fh1.toFixed(3); left -= (fh1 / fh0 - 1) * H * atU; }
+        }
         if (left > 0.005) { const D0 = +P.cw_propD || 0; if (D0 > 0) fit.cw_propD = +Math.max(PROP_D_MIN, D0 - 2 * left - 0.02).toFixed(3);
           if (!(D0 > 0) || D0 - 2 * left - 0.02 < PROP_D_MIN) notes.push('a fin engine\'s propeller still short of the water on the run'); }
       }

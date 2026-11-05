@@ -475,13 +475,22 @@ function engineFaces(mesh, FS, P) {
     if (!V || !V.length) return [];
     let y0 = Infinity, y1 = -Infinity;
     for (const v of V) { y0 = Math.min(y0, v[1]); y1 = Math.max(y1, v[1]); }
-    const at = Math.max(0.2, Math.min(0.9, +P.engFinAt || 0.55)), yE = y0 + at * (y1 - y0), band = 0.05 * (y1 - y0);
+    // HULL-B34 (the user, 5 Nov: "extend the nacelle, and have it cross the fin, which should be sized to accept that.
+    // If you put them in contact, you don't even need dedicated support ... a bit like the wing-mounted engine ... except
+    // that we allow modifying the nacelle so the engine is pushed forward"): THE NACELLE CROSSES THE FIN. engFinAt the
+    // height on the fin (of its height; 1 = ON ITS TOP, the nacelle's belly on the fin's tip), engFinFwd how far the
+    // engine stands forward of the fin's leading edge (the nacelle lengthened to reach it); the nacelle's tail runs back
+    // through the fin to past its trailing edge (the cowl's tail cone, sized here: tailLen). No block, no pylon - the
+    // frame ties the engine into the fin's own section at that height (61_gen_frame HULL-B22)
+    const at = Math.max(0.2, Math.min(1, +P.engFinAt || 0.55)), atS = Math.min(at, 0.96);
+    const yE = y0 + at * (y1 - y0), yS = y0 + atS * (y1 - y0), band = 0.05 * (y1 - y0);
     let zLE = -Infinity, zTE = Infinity;
-    for (const v of V) if (Math.abs(v[1] - yE) < band) { zLE = Math.max(zLE, v[2]); zTE = Math.min(zTE, v[2]); }
+    for (const v of V) if (Math.abs(v[1] - yS) < band) { zLE = Math.max(zLE, v[2]); zTE = Math.min(zTE, v[2]); }
     if (!isFinite(zLE)) return [];
-    const yc = yE * FS + (+P.engBlockY || 0);
-    return [{ face: { z: zLE * FS + 0.14 + (+P.engBlockZ || 0), yc, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0, synthetic: 1,
-                      fin: { y: yE * FS, zLE: zLE * FS, zTE: zTE * FS } },
+    const NE = nacelleOfEngine(P), hN = NE ? NE.aftH : 0.14, top = at >= 0.999;
+    const yc = yE * FS + (top ? 0.85 * hN : 0);
+    return [{ face: { z: zLE * FS + 0.14 + Math.max(0, +P.engFinFwd || 0), yc, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0, synthetic: 1,
+                      fin: { y: yE * FS, zLE: zLE * FS, zTE: zTE * FS, top } },
               aft: false, kind: 'fin' }];
   }
   // G185: an over-the-wing engine sits on the UPPER plane of a biplane
@@ -1364,6 +1373,9 @@ function cowlPlace(ctx, again) {
   // would be a rolled hem in the middle of a continuous surface, and the
   // skin's aft row would stand off the cone by the lip's own lap.
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
+  // HULL-B34: A FIN NACELLE CROSSES ITS FIN - its tail cone runs from the engine's face back past the fin's trailing
+  // edge at that height (0.25 beyond), whatever the row says
+  if (nacelle && face.fin && isFinite(face.fin.zTE)) CW.P.tailLen = Math.max(0.4, face.z - face.fin.zTE + 0.25);
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
   // G3713 (COWL-RES): THE EYE VARIANT'S COWL - from variant 1 up the cowl is sampled at detail 2 (the page's own

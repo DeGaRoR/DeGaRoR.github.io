@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engFinAt: 0.55, engNacOver: 0, engNacLift: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -593,7 +593,10 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && [2, 7].includes(Math.round(P.engMount)), dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
   // HULL-B22: the fin engine's height on the fin (of its height)
-  ['engFinAt', 'on the fin, at (of its height)', 0.2, 0.9, 0.01,
+  // (HULL-B34: to 1 - on the fin's top; below, the nacelle crosses the fin at that height)
+  ['engFinFwd', 'on the fin, engine forward of it', 0, 1.5, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 8, dim: 'm' }],
+  ['engFinAt', 'on the fin, at (of its height; 1 = on top)', 0.2, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 8 }],
   // HULL-B17: WHERE the over-the-wing pylon stands - on the wing (its centre section, or the cabin roof between the roots)
   // or on the fuselage BEHIND THE CABIN (the Icon's), engPylonAft behind the trailing edge
@@ -1311,32 +1314,8 @@ function engPlace(ctx, prev) {
       GK.tube(bag, plate[0], plate[1], PYLON_RAIL, 8); GK.tube(bag, plate[2], plate[3], PYLON_RAIL, 8);
       GK.tube(bag, plate[0], plate[2], PYLON_RAIL, 8); GK.tube(bag, plate[1], plate[3], PYLON_RAIL, 8);
       if (!+P.cowlOn) bag.mesh(group, matOf('emMount'));   // (under a nacelle the faired pylon below is the drawn mount: the tubes stand inside it)
-      // HULL-B33 (the user: "proper supports, with love into the model"): UNDER A NACELLE (cowlOn) THE FIN MOUNT IS FAIRED
-      // - one fin-section blade from the fin (its root over the fin's front half, sunk into the skin) up into the
-      // nacelle's underside (over the mount's run aft of the flange), 13 % thick, flared into the fin and the nacelle
-      // (the pylon's fillet law both ends) - the Seawind's engine pylon. The tubes stand inside it
-      if (+P.cowlOn) {
-        // (lofted on HORIZONTAL sections - a swept path tilts each section square to a path that leans 0.5 m forward
-        // from the fin to the flange, and the first cut came out crumpled)
-        const NR = 16, NS = 28, yB = yF - 0.06, yT = yP - 0.02, H = Math.max(0.05, yT - yB);
-        const zB0 = zL + 0.02, zB1 = zM, zT0 = zP + 0.65, zT1 = zP - 0.04, pos = [], idx = [];   // (the top under the nacelle: FORWARD of the flange - a tractor's engine)
-        for (let i = 0; i <= NR; i++) {
-          const u = i / NR, e0 = Math.max(0, 1 - u / 0.3) ** 2, e1 = Math.max(0, (u - 0.75) / 0.25) ** 2;
-          const zf = zB0 + (zT0 - zB0) * u + 0.18 * H * (e0 + e1), za = zB1 + (zT1 - zB1) * u - 0.18 * H * (e0 + e1);
-          const c = Math.max(0.05, zf - za), th = 0.13 + 0.10 * e0 + 0.14 * e1, y = yB + H * u;
-          for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, xc = 0.5 * (1 - Math.cos(ang)), sg = Math.sin(ang) >= 0 ? 1 : -1;
-            const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
-            pos.push(sg * yt * c, y, zf - xc * c); }
-        }
-        for (let i = 0; i < NR; i++) for (let k = 0; k < NS; k++) {
-          const a = i * NS + k, b = i * NS + (k + 1) % NS, c2 = a + NS, d = b + NS;
-          idx.push(a, b, c2, b, d, c2);
-        }
-        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-        const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-        const m = (SM && SM('cowl', { surf: 0, fieldM: 1, side: THREE.DoubleSide })) || matOf('emMount');
-        const ms = new THREE.Mesh(g, m); ms.castShadow = true; group.add(ms);
-      }
+      // (HULL-B34: under a nacelle the engine is IN CONTACT with the fin - the nacelle crosses it, no pylon drawn; the
+      // tubes above stand for the bare engine's mount only)
     }
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
