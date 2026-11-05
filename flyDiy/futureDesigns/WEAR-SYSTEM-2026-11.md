@@ -197,3 +197,20 @@ masters write (each a curve's output, overridable in the sandbox, hidden "ultima
 
 Still owed (§7): recover and rebuild; the value reading `A_eff` and the engine-time term; the two rates filled by
 flying; tyre tread; the Client Cub arriving old.
+
+## 10. Broken and grounded, recover and rebuild, the upkeep authored (5 Nov, the user's follow-ups)
+
+- "We ruled that we were not carrying the visual damage into the shed ... since planes can really explode. So we should
+  probably simply have the plane model, maybe greyed out and listed as broken and grounded, and an option in the new tab
+  allows paying for repair. The option is free in sandbox mode": the flight's end no longer charges. What it broke
+  (`econRepairBill`) is left on the fleet row as dm10's damage record: the roll-out and the fly-from-storage door
+  refuse it, the bench greys its certificate (R5), the rack greys its row "broken, grounded", and the WEAR tab shows
+  what broke with its Repair - the bill in a career, free in the sandbox. The shed stands the whole model. The tutorial
+  records nothing (as before). NOT DONE: the parked 3D model greyed (the rack row is).
+- "the idea with the rate selector is rather to author second hand planes and set this myself, then publish and
+  locked in career": the upkeep is set on the WEAR tab outside a career (spec.aging.care), carried by the published
+  build, and read-only in a career; no door changes it there.
+- RECOVER (a fabric aeroplane: the cloth's materials coverM2 x its area + its paint; the condition years to 0) and
+  REBUILD (recover or repaint + overhaul + 0.3 of the structure's ledger, judgement; years and hours to 0) beside
+  repaint and overhaul, priced off 61_'s new `parts.cover` { paintA, clothA }. No refresh while broken. The sale stays
+  capped at what was paid, so a recover-and-sell makes no money.
