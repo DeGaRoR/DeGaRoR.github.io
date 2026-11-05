@@ -1563,7 +1563,11 @@ const DESIGN_ROWS = [
       // nose and the tail faired; a first cut with no cowl (the bare engine on its mount)
       { value: 'fin', label: 'On the fin', icon: ICON.mountPusher,
         note: 'a tractor on the fin\'s leading edge (the Seawind): the thrust line high over the CG',
-        writes: { cage: Object.assign({ engMount: 8, cowlOn: 0, aeroAftOn: 1 }, NOSE_AERO) } },
+        // (HULL-B25, the user: "take the one of the first plane, so the very simple one, the linear one ... the nacelle in
+        // non-pusher mode, so it will be closed"): the straight pod (NACELLE_POD, sealed to the engine), its tail cone
+        // closed - no inlet on a tractor
+        writes: { cage: Object.assign({ engMount: 8, aeroAftOn: 1 }, NOSE_AERO, NACELLE_POD,
+                                      { cowlOn: 1, fitNose: 2, cw_aftMode: 1, cw_tailLen: 0.55, cw_inletOn: 0 }) } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher, after: rodFit,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher

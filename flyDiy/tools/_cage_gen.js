@@ -1260,18 +1260,9 @@ function cageHullFitAll(P, f, HY, opt) {
         if (left > 0.005) { const D0 = +P.cw_propD || 0; if (D0 > 0) fit.cw_propD = +Math.max(PROP_D_MIN, D0 - 2 * left - 0.02).toFixed(3);
           if (!(D0 > 0) || D0 - 2 * left - 0.02 < PROP_D_MIN) notes.push('a fin engine\'s propeller still short of the water on the run'); }
       }
-      else if (mount === 1 && (+P.hullDeep || 0) < HULL_DEEP_MAX) {
-        // (HULL-B20, the user: "it's either on the aft bulkhead, and here you could still try to do that by heightening the
-        // cabin or lowering your fuselage": a pusher's cowl stays on the aft bulkhead and its engine at the face, so the
-        // body rides higher - the hull deepened under it, hullDeep; past its top, a smaller propeller (cw_propD, the flown
-        // disc) to PROP_D_MIN; short of both, reported)
-        const want = (+P.hullDeep || 0) + need + 0.01;
-        fit.hullDeep = +Math.min(HULL_DEEP_MAX, want).toFixed(3);
-        const short = want - HULL_DEEP_MAX, D0 = +P.cw_propD || 0;
-        if (short > 0 && D0 > 0) { const D1 = Math.max(PROP_D_MIN, D0 - 2 * short - 0.02); if (D1 < D0 - 1e-3) fit.cw_propD = +D1.toFixed(3);
-          if (D0 - 2 * short - 0.02 < PROP_D_MIN) notes.push('a propeller ' + Math.round((PROP_D_MIN - (D0 - 2 * short)) / 2 * 1000) + ' mm short of its 18 in with the hull at its deepest and the disc at ' + PROP_D_MIN + ' m'); }
-        else if (short > 0) notes.push('a propeller ' + Math.round(short * 1000) + ' mm short of its 18 in with the hull at its deepest');
-      }
+      // (HULL-B25, the user: "Just don't touch the cabin ... You kept with the tall cabin while I instructed you not to":
+      // the fit NEVER deepens the hull under the body any more - hullDeep stays the builder's own row; a pusher on the aft
+      // bulkhead short of its clearance is reported, nothing reshaped)
       else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
     }
   }

@@ -123,13 +123,13 @@ const GROUP = ['2b · cowl', [
    { when: P => +P.cowlOn }],
   // (FIREWALL RULE: only off the body - a pylon, a nacelle - where the face is the engine's own plate)
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
-   { when: P => +P.cowlOn && [2, 3, 5, 6, 7].includes(Math.round(+P.engMount || 0)) }],
+   { when: P => +P.cowlOn && [2, 3, 5, 6, 7, 8].includes(Math.round(+P.engMount || 0)) }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
                         // the nacelle rows only mean something off the body
                         g.id === 'g_aft'
-                          ? { when: P => +P.cowlOn && [2, 3, 5, 6, 7].includes(Math.round(P.engMount || 0)) }
+                          ? { when: P => +P.cowlOn && [2, 3, 5, 6, 7, 8].includes(Math.round(P.engMount || 0)) }
                           : { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
