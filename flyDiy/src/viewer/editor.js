@@ -360,7 +360,9 @@ function editorInit(api) {
   // 2026-09-04: DESIGN is no longer a tab — it is the Custom-build window
   // NEW opens (EDITOR_SET_VIEW), so a boot restores STRUCTURE or FINISH only;
   // the tiles themselves are sprinkled into STRUCTURE by part (render()).
-  let view = pref(LS_VIEW) === 'finish' ? 'finish' : 'shape';
+  // WEAR-TAB (2026-11-05, the user: "a third tab ... on top of structure and finish, we'll have wear"): a boot restores
+  // WEAR as well
+  let view = ['finish', 'wear'].includes(pref(LS_VIEW)) ? pref(LS_VIEW) : 'shape';
   // WHERE A BORROWED ELEMENT GOES BACK TO. The parameter rows have one home
   // (the nursery) and need no map; the finish rows have two — the materials
   // panel's body and the decals panel's — and `buildMatPanel` clears its body
@@ -744,6 +746,7 @@ function editorInit(api) {
       applyVis(); reopenFly(); return;
     }
     if (view === 'finish') { renderFinish(); applyVis(); reopenFly(); return; }
+    if (view === 'wear') { renderWear(); applyVis(); reopenFly(); return; }
     const shown = partsShown(sel);
     const many = shown.length > 1;
     // THE DESIGN TILES OF THIS PART (2026-09-04, the user: "sprinkle back the
@@ -967,8 +970,10 @@ function editorInit(api) {
   // claimed by exactly one part, and every claim is a section that exists. That
   // gate was written for the 3D highlight; the finish view is the second thing
   // it pays for, and it needed no new rule.
-  function emitEls(part, name, els, meta, isPart) {
+  // (WEAR-TAB: `o` = { secG, expert } - the wear view's blocks fold under their own keys and are expert rows for now)
+  function emitEls(part, name, els, meta, isPart, o) {
     if (!els.length) return;
+    o = o || {};
     const h = document.createElement('div');
     h.className = isPart ? 'edH edHP' : 'edH';
     h.innerHTML = '<span></span><i></i><em></em>';
@@ -977,7 +982,7 @@ function editorInit(api) {
     // the SECTION key, stable across a rename of the heading (see
     // secShutFinish): a part's own block is 'finish', a shared one keeps its
     // group name, which is already a constant ('livery', 'glazing', ...)
-    const secG = isPart ? 'finish' : name;
+    const secG = o.secG || (isPart ? 'finish' : name);
     secWire(h, part.key, secG);
     rowsEl.appendChild(h);
     for (const el of els) {
@@ -991,7 +996,7 @@ function editorInit(api) {
       rowsEl.appendChild(el);
     }
     groupsOf.push({ head: h, part, group: name, secG, rows: [], els,
-                    finish: true });
+                    finish: true, expert: !!o.expert });
   }
 
   function renderFinish() {
@@ -1008,6 +1013,8 @@ function editorInit(api) {
     // the section list changes shape, and CAGE_ON_MAT brings us back here.
     const bySec = new Map(), head = [], glaze = [], lab = [];
     for (const el of Array.from(body.children)) {
+      // WEAR-TAB: the weathering's four macros and every section's wear rate are the WEAR view's (renderWear)
+      if (el.dataset && (el.dataset.weather || el.dataset.wear)) continue;
       const s = el.dataset && el.dataset.sec;
       if (s) { if (!bySec.has(s)) bySec.set(s, []); bySec.get(s).push(el); }
       // `derived` is the bench's read-out of the construction; the live row is
@@ -1136,13 +1143,150 @@ function editorInit(api) {
     }
   }
 
+  // ---- WEAR-TAB (2026-11-05, the user: "a third tab ... On top of structure and finish, we'll have wear. Let's move the
+  // visual wear over there for now, and the physical wear, as simple sliders ... keep them under expert row for now") --
+  // THE WEAR VIEW gathers what was split: the LOOK of wear (_cage_ui's four weathering macros, WEAR - data-weather; and
+  // every section's wear rate, secWear - data-wear), MOVED here from FINISH with their keys and their saved format
+  // untouched (aeroSavePrefs / finishToSpec are not changed: an old build loads and looks the same), and the PHYSICS of
+  // wear (spec.aging = { years, engineHours }, 60_gen_spec GEN_AGING: -1 % power per 400 h to -6 %, +0.1 % drag a
+  // year to +5 %). For now EVERY row here is an expert row (the master age and the two rates of
+  // futureDesigns/WEAR-SYSTEM-2026-11.md come in front of them later); expert off, the view says so and offers the switch.
+  // spec.aging stays ABSENT until a slider moves (and goes again at 0 / 0): an untouched build's def is the same bits.
+  // It is NOT outside the certificate: no strip list names `aging`, so it hashes with the structure group (66b
+  // certMajorOf) - setting it withdraws a certificate ("the wing or the structure changed"). The rows say so.
+  // CAREER: the physical rows are READ-ONLY (A0's call: until a restore has a price, a free slider would repair an old
+  // aeroplane for nothing); the sandbox moves them freely. The look stays editable everywhere, as it was in FINISH.
+  const wearHome = document.createElement('div');   // the physical rows' home between renders (render parks by homeOf)
+  let agingEls = null;
+  const wearCareer = () => {
+    try { const C = window.FLYDIY_CAREER; return !!(C && typeof C.doc === 'function' && C.doc().career); }
+    catch (e) { return false; }
+  };
+  const agingOfSpec = () => {
+    try { const G = window.GARAGE_SPEC, s = G && G.get(); return (s && s.aging && typeof s.aging === 'object') ? s.aging : null; }
+    catch (e) { return null; }
+  };
+  function agingRows() {
+    if (agingEls) return agingEls;
+    const mk = (label, tip, min, max, step) => {
+      const d = document.createElement('div');
+      d.className = 'r'; d.dataset.aging = label;
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = label; k.title = tip;
+      const i = document.createElement('input'); i.type = 'range'; i.min = min; i.max = max; i.step = step; i.style.flex = '1';
+      const v = document.createElement('span'); v.className = 'v';
+      d.appendChild(k); d.appendChild(i); d.appendChild(v);
+      return { d, i, v };
+    };
+    const yr = mk('airframe age', 'its years: +0.1 % drag a year on the body and every surface, to +5 % (60_gen_spec GEN_AGING)', 0, 60, 1);
+    const hr = mk('engine hours', 'hours since the engine\'s overhaul: -1 % power per 400 h, to -6 % (the propeller\'s thrust; the engine row, its mass and its price stay as rated)', 0, 3000, 50);
+    const out = document.createElement('div');
+    out.className = 'r edWearSays'; out.dataset.aging = 'says';
+    const say = document.createElement('span'); say.className = 'rn'; out.appendChild(say);
+    const show = () => {
+      const y = +yr.i.value, h = +hr.i.value;
+      yr.v.textContent = y > 0 ? y + ' y' : 'new';
+      hr.v.textContent = h > 0 ? h + ' h' : 'none';
+      const G = typeof genAgingOf === 'function' ? genAgingOf(y > 0 || h > 0 ? { aging: { years: y, engineHours: h } } : {}) : { powerK: 1, dragK: 1 };
+      const pw = Math.round(1000 * G.powerK) / 10, dr = Math.round(1000 * (G.dragK - 1)) / 10;
+      say.textContent = (wearCareer() ? 'In a career the airframe\'s age is its own: restoring it will have a price. ' : '') +
+        (y > 0 || h > 0 ? 'Flies on ' + pw + ' % of its rated power, with ' + dr + ' % more drag than new. Setting an age is a change to the airframe: it withdraws a certificate.'
+                        : 'As new: no age on the airframe (nothing written to the build).');
+    };
+    const write = () => {
+      const G = window.GARAGE_SPEC;
+      if (!G || wearCareer()) { sync(); return; }
+      const y = Math.max(0, Math.round(+yr.i.value || 0)), h = Math.max(0, Math.round(+hr.i.value || 0));
+      try {
+        if (y <= 0 && h <= 0) { if (agingOfSpec()) G.remove('aging'); }
+        else G.update({ aging: { years: y, engineHours: h } });
+      } catch (e) { console.error('wear (aging):', e); }
+      show();
+    };
+    const sync = () => {
+      const A = agingOfSpec(), held = wearCareer();
+      yr.i.value = String(A ? Math.max(0, +A.years || 0) : 0);
+      hr.i.value = String(A ? Math.max(0, +A.engineHours || 0) : 0);
+      yr.i.disabled = hr.i.disabled = held;
+      show();
+    };
+    // a build per CHANGE, not per pixel: the def rebuilds on every write (the look's rows are uniforms; these are physics)
+    for (const r of [yr, hr]) { r.i.oninput = show; r.i.onchange = write; }
+    agingEls = { els: [yr.d, hr.d, out], sync };
+    for (const el of agingEls.els) { wearHome.appendChild(el); homeOf.set(el, wearHome); }
+    return agingEls;
+  }
+  function renderWear() {
+    const body = CU.MATBODY;
+    const ex = !!(CU.EXPERT && CU.EXPERT.on);
+    const look = [], bySec = new Map();
+    if (body) for (const el of Array.from(body.children)) {
+      const d = el.dataset || {};
+      if (d.weather) look.push(el);
+      else if (d.wear && d.sec) {
+        if (!bySec.has(d.sec)) bySec.set(d.sec, []);
+        // the row says which surface it is: under its part here, not under its own section's row as in FINISH
+        const k = el.querySelector('.k');
+        if (k && d.wearOf && k.textContent !== '   ' + d.wearOf) k.textContent = '   ' + d.wearOf;
+        bySec.get(d.sec).push(el);
+      }
+    }
+    const shown = partsShown(sel);
+    const p0 = PT.partByKey[sel];
+    const isRoot = !!(p0 && p0.root);
+    if (!ex) {
+      const n = document.createElement('div');
+      n.className = 'refNote';
+      n.textContent = 'The wear\'s own dials are expert rows for now: how worn it looks, how worn it flies, and how much ' +
+        'of it each surface shows. One age and two rates come in front of them later.';
+      const b = document.createElement('button');
+      b.className = 'pill'; b.textContent = 'show the expert rows';
+      b.onclick = () => { setExpert(true); render(); };
+      n.appendChild(b);
+      rowsEl.appendChild(n);
+    }
+    if (isRoot) {
+      emitEls(p0, 'looks', look, 'how worn it looks - the paint and the dirt; no flown number moves', false,
+              { secG: 'wear:looks', expert: true });
+      const A = agingRows(); A.sync();
+      emitEls(p0, 'airframe and engine', A.els, 'how worn it flies - power and drag', false,
+              { secG: 'wear:aging', expert: true });
+    }
+    const taken = new Set();
+    for (const p of shown) {
+      const els = [];
+      for (const s of (p.sections || [])) {
+        const r = bySec.get(s);
+        if (!r || taken.has(s)) continue;
+        taken.add(s);
+        for (const el of r) els.push(el);
+      }
+      emitEls(p, nameOf(p), els, 'wear rate: how much of the wear each surface shows', true,
+              { secG: 'wear:part', expert: true });
+    }
+    if (isRoot) {
+      const rest = [];
+      for (const [s, r] of bySec) if (!taken.has(s)) for (const el of r) rest.push(el);
+      emitEls(p0, 'unclaimed', rest, 'not yet in the part table', false, { secG: 'wear:rest', expert: true });
+    }
+    if (ex && !rowsEl.children.length) {
+      const n = document.createElement('div');
+      n.className = 'refNote';
+      n.textContent = 'No wear of its own: its fittings are fixed hardware. The aeroplane\'s wear is on the aeroplane.';
+      const b = document.createElement('button');
+      b.className = 'pill'; b.textContent = 'the aeroplane\'s wear';
+      b.onclick = () => select('craft', true);
+      n.appendChild(b);
+      rowsEl.appendChild(n);
+    }
+  }
+
   // G3350 (STORY-TIM, the user 19 Oct: "at this stage, the structure is not available to edit"): THE STORY'S LOCK.
   // window.EDITOR_LOCK.finishOnly(reason) holds the editor in the FINISH view (paint, liveries, per-part colour, the
   // registration); Shape and Design are refused IN PLACE - disabled, the reason written under the tabs (nothing
   // hover-only). finishOnly(null) lifts it. The story sets it from its mask (app.js storyMaskNote); the sandbox never does.
   let lockWhy = null;
   function lockSync() {
-    for (const id of ['edTabShape', 'edTabDesign']) { const t = $(id); if (t) { t.disabled = !!lockWhy; t.classList.toggle('locked', !!lockWhy); } }
+    for (const id of ['edTabShape', 'edTabDesign', 'edTabWear']) { const t = $(id); if (t) { t.disabled = !!lockWhy; t.classList.toggle('locked', !!lockWhy); } }
     let n = $('edLockNote');
     if (lockWhy && !n) { const tabs = $('edTabShape') && $('edTabShape').parentNode; if (tabs) { n = document.createElement('div'); n.id = 'edLockNote'; tabs.parentNode.insertBefore(n, tabs.nextSibling); } }
     if (n) { n.hidden = !lockWhy; n.textContent = lockWhy || ''; }
@@ -1268,19 +1412,21 @@ function editorInit(api) {
   // ---- G3230 TECH-MASK (end) -------------------------------------------------------------------------------------------
   function setView(v) {
     if (lockWhy && v !== 'finish') { lockSync(); return; }   // G3350: the story's lock holds the finish view
-    view = ['finish', 'design'].includes(v) ? v : 'shape';
+    view = ['finish', 'design', 'wear'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');
+    wrap.classList.toggle('wea', view === 'wear');   // WEAR-TAB: no per-part reset there; the expert switch stays
     // G153: and DESIGN carries its own class for the same reason FINISH does —
     // the tiles are the whole aeroplane's, so there is no selected part to
     // reset and no expert rows among them. The two pills were left visible and
     // INERT here (named at G129), which is a control that lies about what it
     // will do.
     wrap.classList.toggle('des', view === 'design');
-    const a = $('edTabShape'), b = $('edTabFinish'), c = $('edTabDesign');
+    const a = $('edTabShape'), b = $('edTabFinish'), c = $('edTabDesign'), d = $('edTabWear');
     if (a) a.classList.toggle('on', view === 'shape');
     if (b) b.classList.toggle('on', view === 'finish');
     if (c) c.classList.toggle('on', view === 'design');
+    if (d) d.classList.toggle('on', view === 'wear');
     // the transient design fold — see partsAuto's own note
     partsAuto = view === 'design';
     wrap.classList.toggle('pcol-off', partsAway());
@@ -1334,9 +1480,10 @@ function editorInit(api) {
       // whether the part they describe is on this aeroplane at all.
       if (g.finish) {
         const shut = underShut || secShutFinish(g.part.key, g.secG || g.group);
-        const want = (partOk && !shut) ? '' : 'none';
+        const exOff = g.expert && !ex;            // WEAR-TAB: an expert block, the expert rows off
+        const want = (partOk && !shut && !exOff) ? '' : 'none';
         for (const el of g.els) if (el.style.display !== want) el.style.display = want;
-        g.head.classList.toggle('hide', !partOk || underShut);
+        g.head.classList.toggle('hide', !partOk || underShut || exOff);
         secPaint(g.head, shut, g.els.length);
         endsWith(g, (partOk && !shut && g.els.length)
           ? g.els[g.els.length - 1] : null);
@@ -4186,7 +4333,7 @@ function editorInit(api) {
         // name nobody would connect to it). A click on a cage face says its section: the part opens (never a step
         // out - a second click on the same band must not leave it) and that section's row scrolls in and flashes,
         // so whatever colour is on screen is one click from the well that sets it
-        const finSec = view === 'finish' && hit && hit.section ? hit.section : null;
+        const finSec = (view === 'finish' || view === 'wear') && hit && hit.section ? hit.section : null;
         select(finSec ? key : key === lastPick ? stepOut(sel) : key);
         lastPick = finSec ? null : key;
         if (finSec) setTimeout(() => {
@@ -4219,12 +4366,15 @@ function editorInit(api) {
     const t1 = $('edTabShape'); if (t1) t1.onclick = () => setView('shape');
     const t2 = $('edTabFinish'); if (t2) t2.onclick = () => setView('finish');
     const t3 = $('edTabDesign'); if (t3) t3.onclick = () => setView('design');
+    const t4 = $('edTabWear'); if (t4) t4.onclick = () => setView('wear');
     // NEW > Custom build and the tiles' own "back" pill switch the view
     window.EDITOR_SET_VIEW = setView;
     wrap.classList.toggle('fin', view === 'finish');
+    wrap.classList.toggle('wea', view === 'wear');
     if (t1) t1.classList.toggle('on', view === 'shape');
     if (t2) t2.classList.toggle('on', view === 'finish');
     if (t3) t3.classList.toggle('on', view === 'design');
+    if (t4) t4.classList.toggle('on', view === 'wear');
     // THE SECTION LIST CHANGED SHAPE and the finish view is holding its rows.
     //
     // These are the one borrowed set that gets REPLACED rather than returned.
@@ -4240,10 +4390,11 @@ function editorInit(api) {
       const mb = CU && CU.MATBODY;
       if (mb) for (const el of Array.from(rowsEl.children))
         if (homeOf.get(el) === mb) { homeOf.delete(el); el.remove(); }
-      if (view === 'finish') render();
+      if (view === 'finish' || view === 'wear') render();
     };
     const ex = $('edExpert');
-    if (ex) ex.onclick = () => setExpert(!(CU && CU.EXPERT && CU.EXPERT.on));
+    // (WEAR-TAB: the wear view's note follows the switch, so that view redraws)
+    if (ex) ex.onclick = () => { setExpert(!(CU && CU.EXPERT && CU.EXPERT.on)); if (view === 'wear') render(); };
     // FOLD / OPEN EVERY SECTION. One button with two jobs, exactly as the
     // tree's own — and it writes an EXPLICIT choice for every heading on
     // screen, because "collapse all" that the rule then re-opens on the next

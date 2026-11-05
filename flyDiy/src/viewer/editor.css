@@ -370,7 +370,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    no part to reset, no expert rows and none of the column's sections to fold
    — the three pills sat over the reference panel doing nothing */
 #edWrap.noview #edResetPart, #edWrap.noview #edExpert, #edWrap.noview #edSecAll,
-#edWrap.des #edResetPart, #edWrap.des #edExpert { display:none; }
+#edWrap.des #edResetPart, #edWrap.des #edExpert,
+/* WEAR-TAB: the wear view's rows are no part's cage rows - nothing to reset; the expert switch stays, it opens them */
+#edWrap.wea #edResetPart { display:none; }
+#edRows .r.edWearSays > .rn { white-space:normal; line-height:1.35; color:var(--ed-dim); }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
    overflow. `materials & extras` is the honest home for a row NOTHING has

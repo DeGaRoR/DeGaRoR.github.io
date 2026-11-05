@@ -10374,7 +10374,7 @@
       return W.kind === 'inside' || (W.kind === 'outside' && !playerStoreSlots(d, d.here).inside); } catch (e) { return false; } },
   };
   const STORY_TUTOR_ALLOW = {
-    finish: () => ({ allow: '#edWrap', deny: '#edTabShape, #edTabDesign' }),
+    finish: () => ({ allow: '#edWrap', deny: '#edTabShape, #edTabDesign, #edTabWear' }),   // (WEAR-TAB: shut at T0)
     reg: () => ({ allow: '[data-dec="reg"]' }),
     rollout: () => ({ allow: '#bGo, #edRoll, #stSkip' }),
     shed: () => ({ allow: '#bHangar2' }),
