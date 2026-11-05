@@ -312377,3 +312377,13 @@ the default engine hours and the price curve; two rates (rough operations throug
 poor maintenance through engine power past TBO, corrosion and the look); restores at the parts price (repaint, recover,
 overhaul at 0.85 of the engine row, rebuild), a repaint never a restoration; `aging` proposed out of the certificate.
 Five questions for the user at its end.
+
+## A0 - train L32c, 5 Nov 2026 09:05
+
+IN (on L32b master f7ee20edf, both): a0/wear-tab-eol 57ec5f797 (ready/wear-tab 2903259f2 with its HANDOVER line endings restored by A0), ready/tour-eastpoint 38193048c.
+BATTERY: red, standing, no new row: STOL 6 join rows, VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA, ASSETS, GEO, DMGGEAR twin SEVERE.
+TIMED (light): 48 red against the 12 Oct baseline (L32b 50). Water taxi @SEA fps 24.5, p99 66.7, over15 0.1265 back in the reds (it was inside slack on L32b, 25.1 on L32a, 26.7 on L31c): noisy but not going away, first row for PERF-PASS. Cub cockpit fps back inside slack (24.5 on L32b). Warm nav cub 107.1 s, floats 125.4 s.
+COSTS:
+- wear-tab: third view 'wear': visual rows moved with the same keys, physical sliders (airframe years, engine hours) under expert, read-only in a career (A0's call), shut at T0. Study futureDesigns/WEAR-SYSTEM-2026-11.md: 5 questions with the user.
+- tour-eastpoint: Cub at East Point expects two go-arounds and a landing at w3 in 3.3 m/s behind; limit 1800 -> 2800 s on its legs; shards 921 -> ~1147 s, 460 -> ~627 s; the take-off straight after an East Point landing is no longer flown on the game's day. Float mk_sea > SEA stays red and named.
+PHYSICS_V unmoved in this train. NEXT: Pilot's Rufus page check, 09:15.
