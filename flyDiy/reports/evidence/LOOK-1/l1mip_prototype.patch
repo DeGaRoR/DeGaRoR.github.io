@@ -1,0 +1,43 @@
+diff --git a/flyDiy/src/viewer/trees.js b/flyDiy/src/viewer/trees.js
+index 6e96befc..d4e36e97 100644
+--- a/flyDiy/src/viewer/trees.js
++++ b/flyDiy/src/viewer/trees.js
+@@ -172,6 +172,28 @@
+ 
+   const pow2 = v => (v & (v - 1)) === 0 && v > 0;
+ 
++  const L1MIP = (() => { try { return /[?&]l1mip=1/.test(location.search); } catch (e) { return false; } })();
++  function l1Fill(mips) {
++    // pass 1 (pull): each level's colour = the alpha-weighted mean of its four children, from level 0 up (alpha untouched)
++    const col = [];   // per level: Float32 rgb, NaN where nothing covers it
++    { const d = mips[0].data, n = d.length / 4, c = new Float32Array(n * 3), wt = new Float32Array(n);
++      for (let i = 0; i < n; i++) { const a = d[i * 4 + 3]; wt[i] = a; for (let k = 0; k < 3; k++) c[i * 3 + k] = d[i * 4 + k] * a; }
++      col.push({ c, wt, w: mips[0].width, h: mips[0].height }); }
++    for (let l = 1; l < mips.length; l++) { const P = col[l - 1], w = mips[l].width, h = mips[l].height, c = new Float32Array(w * h * 3), wt = new Float32Array(w * h);
++      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = y * w + x;
++        for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) { const sx = Math.min(P.w - 1, x * 2 + dx), sy = Math.min(P.h - 1, y * 2 + dy), s = sy * P.w + sx;
++          wt[o] += P.wt[s]; for (let k = 0; k < 3; k++) c[o * 3 + k] += P.c[s * 3 + k]; } }
++      col.push({ c, wt, w, h }); }
++    // pass 2 (push): top down, an uncovered texel takes its parent's colour; a covered one its own weighted mean
++    let up = null;
++    for (let l = mips.length - 1; l >= 0; l--) { const C = col[l], d = mips[l].data, rgb = new Float32Array(C.w * C.h * 3);
++      for (let y = 0; y < C.h; y++) for (let x = 0; x < C.w; x++) { const o = y * C.w + x;
++        for (let k = 0; k < 3; k++) { let v;
++          if (C.wt[o] > 0) v = C.c[o * 3 + k] / C.wt[o];
++          else v = up ? up.rgb[(Math.min(up.h - 1, y >> 1) * up.w + Math.min(up.w - 1, x >> 1)) * 3 + k] : d[o * 4 + k];
++          rgb[o * 3 + k] = v; d[o * 4 + k] = v; } }
++      up = { rgb, w: C.w, h: C.h }; }
++  }
+   function coverageMips(THREE, tex, img, cut255) {
+     const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+     if (!pow2(w0) || !pow2(h0)) return false;      // the chain only halves cleanly on POT
+@@ -207,6 +229,9 @@
+     }
+     // G1230 (MEM-BUDGET): a budget that skips the top mip (potato's; ktx2.js KTX2.dim) keeps the chain from its second
+     // level - a quarter of the bytes held (these ImageData chains live as long as the textures: ~48 MB of leaf maps)
++    // LOOK-1-STUDY PROTOTYPE (?l1mip=1, evidence only): the RGB of every level alpha-weighted (premultiplied) and every
++    // empty texel's RGB pulled from the next coarser level (push-pull), so no level carries the map's transparent fill
++    if (L1MIP) l1Fill(mips);
+     if (mips.length > 1 && w0 >= 256 && typeof KTX2 !== 'undefined' && KTX2.dim && KTX2.dim(w0) !== w0) mips.shift();   // (tex.image stays the Image: three sizes the upload off mipmaps[0])
+     tex.mipmaps = mips;
+     tex.generateMipmaps = false;

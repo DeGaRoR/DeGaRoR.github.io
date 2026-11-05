@@ -1,0 +1,72 @@
+diff --git a/flyDiy/src/viewer/render_world.js b/flyDiy/src/viewer/render_world.js
+index 48841ef14..737b6efec 100644
+--- a/flyDiy/src/viewer/render_world.js
++++ b/flyDiy/src/viewer/render_world.js
+@@ -827,7 +827,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+     // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
+     // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
+     // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
+-    const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
++    const softEnv = !(typeof location !== 'undefined' && /[?&]softprobe=1/.test(location.search)) && typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
+     probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, pre: true, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
+       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
+       // re-baked as the clouds drift past the eye
+@@ -4130,6 +4130,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
+         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
+         sh.uniforms.uTile = { value: IMP_TILE };
++        if (typeof window !== 'undefined') { window.L1U = window.L1U || { crown: { value: 0 }, dirK: { value: 1 } }; sh.uniforms.uL1Crown = window.L1U.crown; sh.uniforms.uL1DirK = window.L1U.dirK; window.L1U.far = window.L1U.far || { value: 0 }; sh.uniforms.uL1Far = window.L1U.far; }
++        sh.uniforms.uL1FarOn = FAR.on; sh.uniforms.uL1FarMap = FAR.map; sh.uniforms.uL1FarVP = FAR.vp; sh.uniforms.uL1Sun = { value: SUN };
+         // G1975 (DEADWOOD-BRIGHT, the user: "one of the impostor dead tree renders really too bright, almost
+         // white"): the wrap, the translucency and uFlat are the SHEET'S now, not the leaves' for every impostor. A
+         // bark-only sheet (uBark, or row 1 .w of the layer table) drew with the leaf wrap and the translucency its
+@@ -4181,7 +4183,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
+         sh.vertexShader = sh.vertexShader
+           .replace('#include <common>', '#include <common>\n' +
+-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
++            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\nvarying vec3 vL1WP;\nvarying float vL1R;\n' +
+             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+             (rdy ? 'uniform highp sampler2D uRdy;\nuniform vec4 uRdyG;\n' : '') +
+             (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
+@@ -4228,6 +4230,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+             'off.xz += uWind.xy * (uWind.w * 0.010 * max(0.0, off.y + uDiam * 0.5) / max(1.0, uDiam * 0.08)) * (0.8 + 0.2 * sin(swayPh));',
+             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
+             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
++            'vL1WP = (modelMatrix * vec4(wp, 1.0)).xyz; vL1R = uDiam * 0.35 * sX;',
+             'gl_Position = projectionMatrix * mvPosition;',
+             // inside the near band the 3D tier draws these trees for real;
+             // the window before it is shared with the last rung (dithered)
+@@ -4248,7 +4251,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+           .replace('#include <common>', '#include <common>\n' +
+             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
+             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
+-            'uniform float uTrunkOn;\n' +
++            '#include <packing>\nuniform float uTrunkOn, uL1Crown, uL1DirK, uL1Far, uL1FarOn;\nuniform sampler2D uL1FarMap;\nuniform mat4 uL1FarVP;\nuniform vec3 uL1Sun;\nvarying vec3 vL1WP;\nvarying float vL1R;\n' +
+             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
+             // the sampler since r186 - see the map_fragment replacement)
+@@ -4307,6 +4310,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+             'float nW = _cov;',   // (G2590: the normal's alpha is the leaf fraction now; the mask is the albedo's)
+             'vec3 nBake = (n0.rgb * wB.x + n1.rgb * wB.y + n2.rgb * wB.z) / max(nW, 1e-4) * 2.0 - 1.0;',
+             'if (dot(nBake, nBake) < 1e-4) nBake = dI;',
++            // LOOK-1-STUDY PROTOTYPE (evidence only): the crown's own sphere normal, blended in by L1U.crown
++            '{ vec3 _u = abs(dI.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0); vec3 _r = normalize(cross(_u, dI)); vec3 _v = cross(dI, _r);',
++            '  vec2 _p = clamp((vUvI * 2.0 - 1.0) / 0.8, -1.0, 1.0); float _z = sqrt(max(0.0, 1.0 - dot(_p, _p)));',
++            '  vec3 _s = normalize(_r * _p.x + _v * _p.y + dI * max(_z, 0.15)); nBake = mix(normalize(nBake), _s, uL1Crown); }',
+             'vec3 nImpV = normalize((viewMatrix * vec4(normalize(nBake), 0.0)).xyz);',
+           ].join('\n'))
+           // the substitution that buys the rig; both: r186 declares geometryNormal
+@@ -4320,6 +4327,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+             // the sky and not the albedo, and scaling the diffuse alone leaves
+             // a floor that eats the dial (the bench's W0a.2)
+             // (G1975: _iLit - a bark-only sheet's is IMPK.barkLit, set with the sheet's other terms)
++            'if (uL1Far > 0.0 && uL1FarOn > 0.5) { vec3 _q = vL1WP + normalize(uL1Sun) * vL1R; vec4 fc = uL1FarVP * vec4(_q, 1.0);\n' +
++            '' + (DEPTH_RZ ? 'vec3 fp = vec3(fc.xy / fc.w * 0.5 + 0.5, fc.z / fc.w);' : 'vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;') + '\n' +
++            '  if (fp.x > 0.0 && fp.x < 1.0 && fp.y > 0.0 && fp.y < 1.0) { float tx = 1.0 / 2048.0, zb = fp.z ' + (DEPTH_RZ ? '+' : '-') + ' 0.0004, lit = 0.0;\n' +
++            [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([a, b]) => { const t = 'unpackRGBAToDepth(texture2D(uL1FarMap, fp.xy + vec2(' + a.toFixed(1) + ', ' + b.toFixed(1) + ') * tx))'; return '    lit += ' + (DEPTH_RZ ? 'step(' + t + ', zb)' : 'step(zb, ' + t + ')') + ';\n'; }).join('') +
++            '    reflectedLight.directDiffuse *= mix(1.0, 0.25 * lit, uL1Far); } }\n' +
++            'reflectedLight.directDiffuse *= uL1DirK;\n' +
+             'reflectedLight.directDiffuse *= _iLit;\nreflectedLight.indirectDiffuse *= _iLit;\n' +
+             'reflectedLight.directSpecular *= _iLit;\nreflectedLight.indirectSpecular *= _iLit;');
+       };
