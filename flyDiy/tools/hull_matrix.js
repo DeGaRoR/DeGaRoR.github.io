@@ -68,9 +68,12 @@ const ENGINES = {
            note: 'planing wing roots, the pair on stub pylons off the rear fuselage (the Be-103)' },
   // HULL-B31: THE SUPER PETREL - a biplane boat: the lower plane mid on the hull with stub sponsons under it, the upper a
   // parasol over it (plane 0: the over-the-wing mount stands on the first plane), the pusher on its pylon over it
-  petrel: { sel: { engMount: 'wingTop', planes: 'biplane' }, engine: 'rotax 912 (flat)',
+  petrel: { sel: { engMount: 'wingTop', planes: 'biplane' }, engine: 'rotax 915 iS',
             cage: { wgPos: 3, wgBrace: 1, w2Pos: 1, engPylonH: 0.80, cowlOn: 1, noseLen: 1.3, hullSpon: 1, hullSponK: 1.0, hullTips: 0 },
-            note: 'a biplane boat, the pusher between the planes, stub sponsons (the Super Petrel)' },
+            note: 'a biplane boat, the pusher over the parasol, stub sponsons (the Super Petrel) - built, plows at Cessna size (HULL-B31)' },
+  // HULL-B31: TWO STEPS (the Dornier Wal; NACA's "English-type" hull) on the pylon pusher, strut tip floats
+  twoStep: { sel: { engMount: 'wingTop' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3, hullSteps: 2, hullStep2Z: 1.2, hullHs2: 0.05 },
+             note: 'a two-step hull under the pylon pusher (the Dornier Wal\'s hull)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

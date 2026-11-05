@@ -370,7 +370,10 @@ window.CAGE_PAGE = {
         ['hullBeta',    'deadrise at the step °',     0, 40, 0.5, { when: P => +P.hullOn }],
         ['hullBetaBow', 'deadrise at the bow °',      0, 60, 0.5, { when: P => +P.hullOn }],
         ['hullBetaA',   'deadrise aft of the step °', 0, 40, 0.5, { when: P => +P.hullOn }],
-        ['hullSteps',   'step',                       0, 1, 1, ['stepless', 'one step'], { when: P => +P.hullOn }],
+        ['hullSteps',   'step',                       0, 2, 1, ['stepless', 'one step', 'two steps'], { when: P => +P.hullOn }],
+        // (HULL-B31: the second step - the Dornier Wal's)
+        ['hullStep2Z',  'second step aft of the first', 0.2, 5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSteps) === 2, dim: 'len' }],
+        ['hullHs2',     'second step depth', 0, 0.3, 0.005, { when: P => +P.hullOn && Math.round(+P.hullSteps) === 2, dim: 'len' }],
         ['hullStepZ',   'step, aft of the cabin frame', -1.50, 3.00, 0.01,
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
         ['hullHs',      'step depth',                 0.00, 0.25, 0.002,

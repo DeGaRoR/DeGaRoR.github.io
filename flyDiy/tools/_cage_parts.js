@@ -275,7 +275,7 @@ const CAGE_PARTS = [
       ['roundness', ['topRound', 'botRound', 'aeroNose']],
       // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
       ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
-                     'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
+                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],

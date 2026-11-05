@@ -1140,7 +1140,7 @@ function cageHullTable(L, FS) {
                yc: +((s.yc - yS) * FS).toFixed(5), bd: +(s.bd * FS).toFixed(5), yd: +((s.yd - yS) * FS).toFixed(5) });
   }
   out.sort((a, b) => a.x - b.x);
-  return { sta: out, zStep: zs, yStep: yS, steps: L.on ? 1 : 0 };
+  return { sta: out, zStep: zs, yStep: yS, steps: L.on ? (L.zStep2 != null ? 2 : 1) : 0 };
 }
 // THE HULL'S STARTING LINES (HULL-B3), what the Undercarriage tile's Hull option writes ONCE (it is a starter: the
 // warn / undo contract) - the two facts a boat cannot float right without, both the seaplane's rules:
@@ -1405,7 +1405,10 @@ function cageHullSpec(P) {
   const cl = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
   return { beta: cl(P.hullBeta, 0, 40, 22), betaBow: cl(P.hullBetaBow, 0, 60, 36), betaA: cl(P.hullBetaA, 0, 40, 18),
            stepAft: cl(P.hullStepZ, -3, 6, 0.3), hs: cl(P.hullHs, 0, 0.4, 0.07),
-           steps: Math.round(cl(P.hullSteps, 0, 1, 1)),
+           steps: Math.round(cl(P.hullSteps, 0, 2, 1)),
+           // HULL-B31: THE SECOND STEP (the Dornier Wal's; NACA's "English-type" two-step hull): hullStep2Z aft of the main
+           // step, hullHs2 deep - the rings aft of it rise by both steps
+           stepAft2: cl(P.hullStep2Z, 0.2, 5, 1.2), hs2: cl(P.hullHs2, 0, 0.3, 0.05),
            // HULL-B20: the hull DEEPER under the body (m -> cage units): the keel and the chine lowered, the floor and the
            // gunwale kept - the body rides higher over its waterline (the user: 'lowering your fuselage')
            deep: cl(P.hullDeep, 0, 1.2, 0) / ((CAGE_UNIT || 1) * (P.planeScale || 1)) };
@@ -1422,7 +1425,9 @@ function cageHullFrame(H, R, mirror) {
   const zCab = cab ? cageKeelZ(cab) : 0.5 * (zMax + zMin);
   const zStep = Math.max(zMin + 0.1, Math.min(zMax - 0.1, zCab - H.stepAft));
   // (a mirrored pod's aft half is the front reflected: no step there; the V alone)
-  return { zStep, zBow: zMax, zTail: zMin, on: !mirror && H.steps > 0 && H.hs > 0 };
+  const on = !mirror && H.steps > 0 && H.hs > 0;
+  const zStep2 = on && H.steps >= 2 && H.hs2 > 0 && zStep - H.stepAft2 > zMin + 0.1 ? zStep - H.stepAft2 : null;   // (HULL-B31)
+  return { zStep, zBow: zMax, zTail: zMin, on, zStep2 };
 }
 // the deadrise at a station: the step's, warped toward the bow as 32_hydro's sectionOf (t^2.5); the afterbody's aft
 function cageHullBeta(H, HF, z) {
@@ -1517,7 +1522,7 @@ function buildCage2(S, step) {
     for (const r of seq) put(r.lv, r.hullSide);
     for (const n of (hullNose || [])) put(n.lv, null);
     sta.sort((p, q) => p.z - q.z);
-    return { zStep: HF.zStep, zBow: HF.zBow, on: HF.on, hs: HULL.hs, sta };
+    return { zStep: HF.zStep, zBow: HF.zBow, on: HF.on, hs: HULL.hs, sta, zStep2: HF.zStep2 };
   };
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
     : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
@@ -1558,6 +1563,17 @@ function buildCage2(S, step) {
       // bay's material, its door and window keys and its station integers are untouched)
       const ins = [];
       if (b.guards) for (const t of b.guards) ins.push({ t, mk: () => lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g') });
+      // (HULL-B31: the second step's pair the same way, its own side tags)
+      if (HF && HF.on && HF.zStep2 != null) {
+        const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
+        if (zA < HF.zStep2 && HF.zStep2 <= zB && zB - zA > 1e-6) {
+          const dt = Math.max(0.02, 0.6 * HULL.hs2) / (zB - zA);
+          const tF = Math.max(0.02 + dt, Math.min(0.98, (HF.zStep2 - zA) / (zB - zA))), tA = tF - dt;
+          ins.push({ t: tA, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tA, kept[k].name + '+s2'), { hullSide: 'A2' }) });
+          ins.push({ t: tF, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tF, kept[k].name + '+s2'), { hullSide: 'F2' }) });
+          ins.sort((p, q) => p.t - q.t);
+        }
+      }
       if (HF && HF.on) {
         const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
         if (zA < HF.zStep && HF.zStep <= zB && zB - zA > 1e-6) {
@@ -1584,7 +1600,8 @@ function buildCage2(S, step) {
     if (!r.lv || hullDone.has(r.lv)) continue;
     hullDone.add(r.lv);
     const aft = HF.on && (r.hullSide === 'A' || (r.hullSide !== 'F' && cageKeelZ(r) < HF.zStep));
-    cageHullVee(HULL, HF, r.lv, aft ? HULL.hs : 0);
+    const aft2 = HF.on && HF.zStep2 != null && (r.hullSide === 'A2' || (r.hullSide !== 'F2' && cageKeelZ(r) < HF.zStep2));   // (HULL-B31)
+    cageHullVee(HULL, HF, r.lv, (aft ? HULL.hs : 0) + (aft2 ? HULL.hs2 : 0));
   }
 
   // guard levels on every ring (step 2)
@@ -8096,6 +8113,7 @@ const CAGE_PARAMS = {
   //               0.12 m over the hull's level waterline); 0 / -1 = not fitted yet (the frame's gross rule). ROWS, so
   //               the drawing (_cage_float.js HULL-B5) and the frame read one placement (HULL-B5)
   hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
+  hullStep2Z: 1.2, hullHs2: 0.05,      // HULL-B31: the second step (hullSteps 2): metres aft of the main step, its depth
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
@@ -8923,7 +8941,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 // build that never set it keeps every key it had
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
-const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
+const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
