@@ -74,6 +74,29 @@ const ENGINES = {
   // HULL-B31: TWO STEPS (the Dornier Wal; NACA's "English-type" hull) on the pylon pusher, strut tip floats
   twoStep: { sel: { engMount: 'wingTop' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3, hullSteps: 2, hullStep2Z: 1.2, hullHs2: 0.05 },
              note: 'a two-step hull under the pylon pusher (the Dornier Wal\'s hull)' },
+  // HULL-B35: THE SUPER PETREL ON THE ROD BOAT'S POD (the hull tub narrowing into its boom - the real one's): the rod
+  // boat's lofted buoyant pod and rod, the biplane tile's planes (a parasol over a mid plane), the pusher on its pylon
+  // over the upper, stub sponsons
+  petrelRod: { sel: { engMount: 'wingTop', planes: 'biplane' }, engine: 'rotax 915 iS',
+               cage: { engPylonH: 0.8, engBlockZ: -0.25, cowlOn: 1, cw_inletOn: 1, noseLen: 1.3, paxLen: 0.15, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 3.0, aftRoofY: -0.25, aftKeelY: -0.6, frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.42,
+                       wgPos: 3, wgBrace: 1, w2Pos: 1, hullSpon: 1, hullSponK: 1.1, hullTips: 0 },
+               note: 'the Super Petrel on the rod boat\'s pod: a biplane, the pusher over the parasol, stub sponsons' },
+  // HULL-B36: THE SUPER PETREL LS AT ITS SIZE (futureDesigns/SUPER-PETREL-2026-11.md; the blueprint targets in
+  // tools/ref_match/refs/super_petrel/target.json; cage rows in cage units = metres / planeScale 0.745): the tub (0.97 m
+  // keel to canopy, 1.2 m beam, the bow 0.74 m to the windscreen, a 1.36 m cockpit), its afterbody closing into a 0.15 m
+  // boom at 0.36 m over the keel, the boom 2 m climbing 9.5 deg; the sesquiplane (upper 8.9 x 1.0 parasol, lower 7.0 x
+  // 0.8 low on the hull with 5 deg dihedral, 0.4 m aft), drooped tips; the pusher 912 iS on the roof pylon behind the
+  // cockpit, under the upper wing
+  superPetrel: { sel: { engMount: 'wingTop', planes: 'biplane', seatLayout: 1, paxCount: 0 }, engine: 'rotax 912 (flat)',
+    cage: { keelY: -0.62, roofY: 0.68, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42,
+            noseLen: 1.2, pilotLen: 1.83, frPostBotY: 0.05, frWinBotY: 0, paxLen: 0.15, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.0,
+            aftRoofY: -0.016, aftKeelY: -0.32, frBoomTopW: 0.12, frBoomWaistW: 0.16, frBoomBotW: 0.14,
+            rodY: -0.14, rodIncl: 12, rodD: 0.15, boomLen: 1.6, stY: 0.8, stZ: -0.6, stChord: 0.75, stChordTip: 0.6, finChord: 0.8, finChordTip: 0.45,
+            wgSpan: 8.9, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.75, wgDx: -0.5, finHeight: 1.2, wgBrace: 1, wgTip: 7, wgCrankAt: 0,
+            w2On: 1, w2Pos: 1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 5, w2Stagger: 0.4, w2Tip: 7, w2CrankAt: 0,
+            engPylonAt: 1, engPylonH: 0.25, engPylonAft: -0.35, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
+            hullSpon: 0, hullTips: 0 },
+    note: 'the Super Petrel LS at its size (HULL-B36)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
@@ -105,7 +128,7 @@ function one(form, eng) {
   for (let pass = 0; pass < 4; pass++) {
     const got = LB.gameSpecFull(Object.assign(JSON.parse(JSON.stringify(raw)), { afters: ap.afters.filter(a => a !== 'CAGE_HULL_FIT_NEXT').concat(E.engine ? ['engPreset:' + E.engine] : []) }));
     spec = got.spec; errs = got.errors || [];
-    if (pass === 3 || !spec.gear.hull) break;
+    if (pass === 3 || !spec.gear.hull || opt('nofit')) break;   // (HULL-B36: --nofit - the card's own rows, as drawn: a recreation measured against its blueprint)
     const d = defOf(spec); let cx = 0, cy = 0, mass = 0;
     for (const n of d.nodes) { mass += n.m; cx += n.m * n.p[0]; cy += n.m * n.p[1]; } cx /= mass; cy /= mass;
     const P = G.cageFromSpec(spec), FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -179,7 +202,10 @@ function one(form, eng) {
     if (lift != null && Tt > lift + 2) break;
   }
   res.takeoff = fin ? { airborne: lift == null ? null : +lift.toFixed(1), Vlift: lift == null ? null : +Vlift.toFixed(1), hump: +hump.toFixed(3), humpV: +humpV.toFixed(1),
-                        swing: +swing.toFixed(1), roll: +maxRoll.toFixed(1) } : 'DIVERGED';
+                        swing: +swing.toFixed(1), roll: +maxRoll.toFixed(1),
+                        // (HULL-B35: the break code's verdict on the run - members broken / yielded, the user: "see if that
+                        // takes off without breaking")
+                        ...(s2.damage ? { breaks: s2.damage().breaks || 0, yields: s2.damage().yields || 0 } : {}) } : 'DIVERGED';
   const okSettle = typeof res.settle === 'object' && Math.abs(res.settle.LW - 1) < 0.05 && res.settle.bowDeck > 0.1 && res.settle.roll < 6;
   const okTO = typeof res.takeoff === 'object' && res.takeoff.airborne != null && res.takeoff.airborne < 60 && res.takeoff.swing < 30;
   res.verdict = !errs.length && okSettle && okTO ? 'FLIES' : [errs.length ? 'join errors' : null, okSettle ? null : 'settle', okTO ? null : 'take-off'].filter(Boolean).join(', ');
