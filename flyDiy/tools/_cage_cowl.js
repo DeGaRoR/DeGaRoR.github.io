@@ -581,6 +581,33 @@ function engineFaces(mesh, FS, P) {
     // on a PYLON - the over-the-wing mount's own bars and cables or fairing (_cage_eng.js drawPylonMount, engPylonFair)
     // down to the front and rear spars either side. The block rows do not move an over-wing nacelle off its skin
     const over = +P.engNacOver > 0, lift = over ? Math.max(0, +P.engNacLift || 0) : 0;
+    // HULL-B30: ON THE REAR FUSELAGE (engNacOver 2 - the Be-103's engines): each nacelle beside the body behind the wing,
+    // engPylonAft behind its trailing edge, its axis at the fuselage's crown there plus engNacLift, its inboard flank a
+    // stub pylon off the side (the hub a blade's radius + 0.10 out); the stub's root on the skin at the waist (the drawn skin, cageAirframe). The
+    // frame braces it to the two fuselage rings either side (61_gen_frame, engines[].pylonAt 'body')
+    if (Math.round(+P.engNacOver || 0) === 2) {
+      const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+      // (the wing's leading edge at its first station that answers - a low or a mid wing's root is inside the body)
+      let e0 = null; for (let k = 0; !e0 && k <= 40; k++) e0 = W.leAt(0.05 * k);
+      const NE = nacelleOfEngine(P);
+      if (!AF || !e0) return [];
+      const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
+      const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
+      const z = e0.z - ch - Math.max(0, +P.engPylonAft || 0.15) + bz;
+      const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z));
+      let top, side;
+      try { top = AF.surf(zc, Math.PI); side = AF.surf(zc, Math.PI / 2); } catch (e) { return []; }
+      if (!top || !side || !isFinite(top[1]) || !isFinite(side[0])) return [];
+      const hN = NE ? NE.aftH : 0.30, wN = 0.20, xS = Math.abs(side[0]), yc = top[1] + Math.max(0, +P.engNacLift || 0) + by;
+      for (const s of [1, -1]) {
+        // (the hub one blade radius + 0.10 off the side: the disc clears the body - a 0.30 stub put a 912's blade through it)
+        const xN = s * (xS + Math.max(0.30 + wN, 0.5 * (+P.cw_propD || 1.7) + 0.10));
+        out.push({ face: { z, yc, x: xN, halfW: wN, halfH: hN, uv: null, waist: 0, synthetic: 1, chord: 0.9, over: true,
+                           side: { x: xS, y: Math.min(yc, side[1] + 0.5 * (top[1] - side[1])), z: z - 0.25 } },
+                   aft, kind: 'nacelle' });
+      }
+      return out;
+    }
     if (over) {
       const NE = nacelleOfEngine(P);
       const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);

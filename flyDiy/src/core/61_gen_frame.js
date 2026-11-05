@@ -1792,6 +1792,23 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // 13.3 under the engine). Whichever station the join measured, the
         // arm is there. The foot's legs are `inner`.
         const [NL, NR] = NM(e.x, e.y, e.z, 'ENG');
+        // HULL-B30: A PAIR ON THE REAR FUSELAGE (pylonAt 'body' - the Be-103's): each nacelle node on a STUB TRUSS to the
+        // two fuselage rings either side of its station, their side corners top and bottom - a pyramid off the body's
+        // side, no member to the wing (the drawing's stub pylon, _cage_eng.js)
+        if (e.pylonAt === 'body') {
+          const iA = iRing(e.x);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          if (iB === iA) iB = Math.max(0, iA - 1);
+          const rA = F[iA], rB = F[iB];
+          for (const [n, o] of [[NL, 'L'], [NR, 'R']]) {
+            const anc = [rA['T' + o], rA['B' + o], rB['T' + o], rB['B' + o]].filter(q => q != null);
+            for (const q of anc) BM(n, q);
+            hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], anc, P[n][2], engDryM, S.prop.mass);
+          }
+          engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+          if (LAYF) engCowl.push([NL, NL], [NR, NR]);
+          continue;
+        }
         const zAll = [zRoot, ...zs];
         let b = 0;
         for (let k = 0; k < zAll.length - 1; k++) if (e.z >= zAll[k]) b = k;

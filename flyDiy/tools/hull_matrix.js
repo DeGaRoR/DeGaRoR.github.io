@@ -63,6 +63,14 @@ const ENGINES = {
   // twin on it - no tip floats, no sponsons
   roots: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, wgPos: 2, wgBrace: 1, hullSpon: 3, hullSponK: 0.9, hullTips: 0 },
            note: 'planing wing roots on a cantilever low wing, the engine on the fin (the Equator P2: its engine in the tail)' },
+  // HULL-B30: THE BE-103 - planing wing roots on a cantilever low wing, the pair on stub pylons off the rear fuselage
+  be103: { sel: { engCount: 2 }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, wgPos: 2, wgBrace: 1, hullSpon: 3, hullSponK: 0.9, hullTips: 0, engNacOver: 2, engPylonAft: 0.25 },
+           note: 'planing wing roots, the pair on stub pylons off the rear fuselage (the Be-103)' },
+  // HULL-B31: THE SUPER PETREL - a biplane boat: the lower plane mid on the hull with stub sponsons under it, the upper a
+  // parasol over it (plane 0: the over-the-wing mount stands on the first plane), the pusher on its pylon over it
+  petrel: { sel: { engMount: 'wingTop', planes: 'biplane' }, engine: 'rotax 912 (flat)',
+            cage: { wgPos: 3, wgBrace: 1, w2Pos: 1, engPylonH: 0.80, cowlOn: 1, noseLen: 1.3, hullSpon: 1, hullSponK: 1.0, hullTips: 0 },
+            note: 'a biplane boat, the pusher between the planes, stub sponsons (the Super Petrel)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

@@ -182,8 +182,11 @@ function genStrips(S, fr) {
   // wing engine washes the centre section it sits over.
   const E0 = S.engAt && S.engAt[0], mount = E0 ? E0.mount : 'nose';
   const pushes = !!(E0 && E0.pushes);
+  // (HULL-B30: a pair on the REAR FUSELAGE pulls from behind the trailing edge - its wake washes no wing: the Be-103
+  // read 1.9 kN of slipstream lift at 3 m/s off a wing its discs stand behind, and stuck there)
+  const behindTE = !!(E0 && E0.mount === 'wing' && E0.pylonAt === 'body');
   const wingWash = mount === 'nose' ? washAt
-    : (mount === 'wing' && !pushes)
+    : (mount === 'wing' && !pushes && !behindTE)
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;

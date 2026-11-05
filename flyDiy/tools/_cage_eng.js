@@ -573,7 +573,8 @@ const ENG_ITEMS = [
   ['engNacAt2', 'outer nacelle station (semispan)', 0.30, 0.90, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 6 }],
   // HULL-B8: the wing nacelles OVER the wing - on its top skin, or lifted on a pylon (_cage_cowl.js engineFaces)
-  ['engNacOver', 'nacelles', 0, 1, 1, ['through the wing', 'over the wing (on the skin)'],
+  // (HULL-B30: 'on the rear fuselage' - the Be-103's: each nacelle on a stub pylon from the fuselage's side behind the wing)
+  ['engNacOver', 'nacelles', 0, 2, 1, ['through the wing', 'over the wing (on the skin)', 'on the rear fuselage (stub pylons)'],
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   ['engNacLift', 'nacelle pylon height', 0, 1.0, 0.01,
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) && +P.engNacOver > 0, dim: 'm' }],
@@ -1321,6 +1322,23 @@ function engPlace(ctx, prev) {
         pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
         group.add(pl);
       } else drawPylonMount(group, f, P, GK, !!u.aft);
+    }
+    // HULL-B30: A NACELLE ON THE REAR FUSELAGE stands on a STUB PYLON - a short wing-section blade from the fuselage's
+    // side (its root flared into the skin, 18 % thick) to the nacelle's inboard flank (16 %, a small fillet), its chord
+    // the nacelle's mount station over 0.85 m; the frame's stub truss (61_gen_frame pylonAt 'body') inside it
+    if (u.kind === 'nacelle' && f.side && window.GEAR_KIT) {
+      const GK = window.GEAR_KIT, bag = GK.Bag(), sd = Math.sign(f.x || 1);
+      const x0 = sd * (f.side.x - 0.04), x1 = (f.x || 0) - sd * 0.6 * f.halfW, y0 = f.side.y, y1 = f.yc;
+      const C0 = 0.95, C1 = 0.75, NR = 10, NS = 24, path = [], rows = [];
+      for (let i = 0; i <= NR; i++) { const t = i / NR, e0 = Math.max(0, 1 - t / 0.25) ** 2, e1 = Math.max(0, (t - 0.8) / 0.2) ** 2;
+        path.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, f.side.z]); rows.push([C0 + (C1 - C0) * t + 0.25 * e0 + 0.1 * e1, 0.16 + 0.10 * e0 + 0.04 * e1]); }
+      GK.sweep(bag, path, (tt, i) => { const [c, th] = rows[i], pts = [];
+        for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
+          const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+          pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * yt * c]); }
+        return pts; }, true, [0, 0, 1]);
+      const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+      bag.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
     }
     // HULL-B8: a wing nacelle lifted over the wing stands on the same mount, drawn about its own station
     if (u.kind === 'nacelle' && f.foot && window.GEAR_KIT) {
