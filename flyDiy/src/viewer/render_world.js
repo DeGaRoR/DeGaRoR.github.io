@@ -447,7 +447,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // geometry's sub-pixel twigs do at the hand-over. THE LEVEL: a bare snag barely shades itself, so its geometry's
   // match is uILit 0.9 on every preset (the leafy one is 1.242 without tree shadows) - barkLit is that ABSOLUTE 0.9 (it
   // replaces uILit on a bark sheet, so the shadowed presets' uILit 0.9 + shade x1.38 keep it matched too)
-  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9 };
+  const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10, barkWrap: 1, barkSSS: 0, barkFlat: 1, barkSolid: 0, barkCut: 0.4, barkLit: 0.9, far: 1 };
   const uBarkW = { value: IMPK.barkWrap }, uBarkS = { value: IMPK.barkSSS }, uBarkF = { value: IMPK.barkFlat },
         uBarkSol = { value: IMPK.barkSolid }, uBarkCut = { value: IMPK.barkCut },   // and its alpha: the 3-tap union's share, a floor on its cut
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
@@ -4095,7 +4095,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const IMP_CUT = [0.40, 0.15, 0.10];      // rungs, stand, snag
     // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
     // the tuning); uIGainK is the panel's dial over all of them
-    const uIGainK = { value: 1 }, uISolid = { value: 1 };
+    const uIGainK = { value: 1 }, uISolid = { value: 1 }, uIFar = { value: L1_OFF ? 0 : IMPK.far };
     const uSoftT0 = { value: new THREE.Vector4(150, 600, 5, 4) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
     const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
                             return (e && e.col.place && e.col.place.impa) || 6; };
@@ -4236,6 +4236,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uImpC = IMPA.U.col; sh.uniforms.uImpN = IMPA.U.nrm;
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
+        sh.uniforms.uIFar = uIFar; sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp; sh.uniforms.uKeyD = { value: SUN };
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uSoftT = (typeof window !== 'undefined' && window.TREE_SOFT) || uSoftT0;
         sh.uniforms.uTile = { value: IMP_TILE };
@@ -4290,7 +4291,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\nuniform vec3 uKeyD;\nvarying vec3 vFarP;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             (rdy ? 'uniform highp sampler2D uRdy;\nuniform vec4 uRdyG;\n' : '') +
             (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
@@ -4337,6 +4338,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'off.xz += uWind.xy * (uWind.w * 0.010 * max(0.0, off.y + uDiam * 0.5) / max(1.0, uDiam * 0.08)) * (0.8 + 0.2 * sin(swayPh));',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
+            // LOOK-1 D2: the point read against the far cascade: the card's, moved toward the key by the crown's radius, or every crown would shadow itself
+            'vFarP = (modelMatrix * vec4(wp, 1.0)).xyz + uKeyD * (uDiam * 0.35 * sX);',
             'gl_Position = projectionMatrix * mvPosition;',
             // inside the near band the 3D tier draws these trees for real;
             // the window before it is shared with the last rung (dithered)
@@ -4357,7 +4360,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
-            'uniform float uTrunkOn;\nuniform vec4 uSoftT;\n' +
+            '#include <packing>\nuniform float uTrunkOn, uIFar, uFarOn;\nuniform vec4 uSoftT;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\nvarying vec3 vFarP;\n' +
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
@@ -4429,6 +4432,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the tier gain, on all four terms - the multiscatter one rides on
             // the sky and not the albedo, and scaling the diffuse alone leaves
             // a floor that eats the dial (the bench's W0a.2)
+            // LOOK-1 D2 (the user: "forest of speckles", "a very bright edge on every tree"; the study's B2 F1): THE IMPOSTORS READ THE FAR CASCADE. The terrain's own four
+            // taps; the far pass already draws the impostors' silhouettes, so a crown now stands in its neighbour's shade, and a lit edge only where the key reaches it. By day it
+            // moves the forest: the before / after is the user's. The cascade follows the key: the moon at night
+            'if (uIFar > 0.0 && uFarOn > 0.5) { vec4 fc = uFarVP * vec4(vFarP, 1.0);\n' +
+            (DEPTH_RZ ? 'vec3 fp = vec3(fc.xy / fc.w * 0.5 + 0.5, fc.z / fc.w);' : 'vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;') + '\n' +
+            '  if (fp.x > 0.0 && fp.x < 1.0 && fp.y > 0.0 && fp.y < 1.0) { float tx = 1.0 / 2048.0, zb = fp.z ' + (DEPTH_RZ ? '+' : '-') + ' 0.0004, lit = 0.0;\n' +
+            [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].map(([a, b]) => { const t = 'unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(' + a.toFixed(1) + ', ' + b.toFixed(1) + ') * tx))'; return '    lit += ' + (DEPTH_RZ ? 'step(' + t + ', zb)' : 'step(zb, ' + t + ')') + ';\n'; }).join('') +
+            '    reflectedLight.directDiffuse *= mix(1.0, 0.25 * lit, uIFar); } }\n' +
             // (G1975: _iLit - a bark-only sheet's is IMPK.barkLit, set with the sheet's other terms)
             'reflectedLight.directDiffuse *= _iLit;\nreflectedLight.indirectDiffuse *= _iLit;\n' +
             'reflectedLight.directSpecular *= _iLit;\nreflectedLight.indirectSpecular *= _iLit;');
@@ -4475,7 +4486,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // and the card share the instance colour), so a crown that is dark up close is dark as a card too.
     const treeVary = (x, z) => { const v = IMPK.vary; if (!(v > 0)) return 1;
       const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return 1 + (2 * (h - Math.floor(h)) - 1) * v; };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid;
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; if (o.far !== undefined) uIFar.value = +o.far;
         if (o.trunk !== undefined) uTrunkOn.value = +o.trunk ? 1 : 0;   // G2590
         for (const k of ['flat', 'mean', 'vary', 'barkWrap', 'barkSSS', 'barkFlat', 'barkSolid', 'barkCut', 'barkLit']) if (o[k] !== undefined) IMPK[k] = +o[k];
         uIFlat.value = IMPK.flat; uIFlatMean.value = IMPK.mean;
