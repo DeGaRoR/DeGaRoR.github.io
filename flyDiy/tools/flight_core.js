@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 200f912f1f54ef32
+// body-sha256: d3a5df4a20954f22
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37559,7 +37559,10 @@ function clampSpec(spec) {
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
                    y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1,
                    // (HULL-B26: 'wing' = the wing's own tips are the floats - its drooped, buoyant tip; absent = strut floats)
-                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
+                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}),
+                   // (HULL-B45: the plane the strut floats hang under - 1 = a biplane's second plane, the Super Petrel's
+                   // lower wing; absent = the first)
+                   ...(h.tips.plane === 1 ? { plane: 1 } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
       } else h.tips = null;
       // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
       if (h.spon && typeof h.spon === 'object' && h.spon.on) {
@@ -42816,6 +42819,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a float in). SIZED BY VOLUME for now - 6 % of the gross each by default, the Seabee / Lake class's practice,
     // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
     const TP = HR.tips;
+    const TIPF_UNDER = 0.07;   // (HULL-B46: a strut float's deck under its wing's spar line - half the wing's depth and a gap, m)
     // ---- HULL-B26: THE BUOYANT WING TIPS (tips.mode 'wing': the Seawind's, the Che-22's - the user, 5 Nov: "the real
     // one do not even have floats at the top ... it should be a setting of the wingtip itself"). The wing's own tip IS
     // the float: its record is the tip's drawn shape (60_gen_spec genTipBuoyTable: the bent, filled bow the loft draws,
@@ -42860,19 +42864,27 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                         tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
         }
       }
-    } else if (TP && TP.on !== 0 && wf.L && wf.R) {
+    } else if (TP && TP.on !== 0 && (TP.plane === 1 && planes[1] ? planes[1].wf : wf).L) {
+      // HULL-B45 (the Super Petrel's floats hang under its LOWER wing, at the interplane struts): tips.plane 1 hangs the
+      // strut floats from the second plane's spar stations, at tips.at of ITS semispan - the same float, struts and fit
+      const PLT = TP.plane === 1 && planes[1] ? planes[1] : planes[0], WFT = PLT.wf, semiT = PLT.semi || G.semi;
       // HULL-B5: the ROWS' placement (hullTipKg / hullTipY, the Hull tile's fit - the drawing reads the same rows);
       // unset, the same rule off this build's gross (HYDRO.hullTipFit)
       const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
       const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
       const TPP = HYDRO.tipFloatParams(kgT);
       const tAt = TP.at != null ? TP.at : 0.85;
-      for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+      for (const [sd, W] of [[-1, WFT.L], [1, WFT.R]]) {
         // the spar station nearest tAt of the semispan
         let j = 1, dB = Infinity;
-        for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * G.semi); if (e < dB) { dB = e; j = q; } }
+        for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * semiT); if (e < dB) { dB = e; j = q; } }
         const nF = nodes[W.F[j]].p, nR = nodes[W.R[j]].p;
-        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = yS + yRel;
+        // HULL-B46 (the user: "your floats are on top of the low wing. They should sit right below"): under a LOW wing the
+        // waterline's float height can stand above the wing - its deck is held under the wing (the spars' line less
+        // TIPF_UNDER: the wing's half-depth and a gap), the float wetted at rest as the Super Petrel's are
+        const yDeck = Math.max(...[-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)].map(xs => HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs).yd));
+        const yUnder = Math.min(nF[1], nR[1]) - TIPF_UNDER - yDeck;
+        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = Math.min(yS + yRel, yUnder);
         const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
         const Kt = [], Lt = [], Rt = [], Qt = [];
         for (const xs of st3) {
