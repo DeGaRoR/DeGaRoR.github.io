@@ -97,7 +97,7 @@ const ENGINES = {
     // (HULL-B37, the user: "your new cabin is far too tall, get it back to the previous settings, and don't touch cabin
     // height" - the first card's section; the step in the buoyant taper under the lower wing, hullStepZ; "the engine
     // should reach the wing and intersect it. Place it further fore and high")
-    cage: { keelY: -0.62, roofY: 0.68, canopy: 3, intCons: 0, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, bpWires: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
+    cage: { keelY: -0.62, roofY: 0.68, canopy: 3, intCons: 0, wgCentre: 0, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, bpWires: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
             noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.46, aftRoofY: 0.12, aftKeelY: -0.52,
             hullStepZ: 0.74, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 0, hullStrakeW: 0.045, hullStrakeLen: 0.85,
             frBoomTopW: 0.30, frBoomWaistW: 0.45, frBoomBotW: 0.40, rodY: -0.10, rodIncl: 5, rodD: 0.15, boomLen: 2.2,
@@ -105,7 +105,7 @@ const ENGINES = {
             wgSpan: 9.16, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.8, wgBrace: 1, wgCrankAt: 0,
             wgTip: 7, wgTipBow: 0.45, wgTipDroop: 0.30,
             w2On: 1, w2Pos: 1, w2Dy: -0.1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 8, w2Stagger: -0.05, w2Tip: 7, w2CrankAt: 0,
-            engPylonAt: 1, engPylonH: 0.55, engPylonAft: -1.1, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
+            engPylonAt: 1, engPylonH: 0.55, engPylonAft: -0.65, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
             hullSpon: 0, hullTips: 1, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
     energy: { vessels: [{ bay: 'aftCabin', capacity: 72, form: 'box' }] }, cabin: { baggage: 0 },
     note: 'the Super Petrel LS on the Cessna cabin, pod and rod (HULL-B36)' },
