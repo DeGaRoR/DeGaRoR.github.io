@@ -391,6 +391,10 @@ window.CAGE_PAGE = {
         ['hullStrakeLen', 'strakes run aft (of the forebody)', 0.2, 1, 0.01, { when: P => +P.hullOn && +P.hullStrakes > 0 }],
         // HULL-B12: the afterbody keel's run behind the step (the fit's; shallower carries a tail-heavy boat's stern)
         ['hullAftDeg',  'afterbody keel run °',       2, 12, 0.5, { when: P => +P.hullOn }],
+        // HULL-B43: the belly's rocker - the keel rising from the cabin to a step under the buoyant taper
+        ['hullRocker',  'belly rocker (rise to the step)', 0, 0.5, 0.005, { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // HULL-B44: the skirt - the chine standing out past the topsides, a lip overhanging the water
+        ['hullSkirt',   'skirt (chine reach, of the half-beam)', 0, 0.3, 0.005, { when: P => +P.hullOn }],
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
         ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
         // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)

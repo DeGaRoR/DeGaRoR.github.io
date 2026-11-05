@@ -604,10 +604,17 @@ function cageResolve(S) {
       // to the step and straight from it
       const fk = !stepIn ? 1 - t : t <= tS + 1e-9 ? 1 : 1 - (t - tS) / (1 - tS);
       const fkw = fw;
+      // HULL-B43 (the user's red line on the side view: "that feels like a much more natural profile for the belly"):
+      // THE ROCKER. With the step under the taper the keel no longer runs flat from the cabin to the step: it rises
+      // hullRocker over the cabin's aft frame by the step, on a curve leaving the cabin TANGENT ((t / tS)^2), the belly's
+      // lowest point under the cabin; aft of the step it runs straight from there to the taper's end
+      const rk = stepIn && S.hull ? S.hull.rocker : 0;
+      const keelT = !rk ? lp(c.keelY, e.keelY, fk)
+        : t <= tS + 1e-9 ? c.keelY + rk * Math.pow(t / tS, 2) : (c.keelY + rk) + (e.keelY - c.keelY - rk) * (t - tS) / (1 - tS);
       add(fullRing(t === tK ? 'htStep' : 'htTaper' + Math.round(t * 100), z, {
         Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fkw),
         roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
-        keelY: lp(c.keelY, e.keelY, fk),
+        keelY: keelT,
         waistY: (c.waistY != null || e.waistY != null) ? lp(c.waistY != null ? c.waistY : S.waistY, e.waistY != null ? e.waistY : S.waistY, fk) : undefined }),
         { mat: CAGE_MAT.taper });
     }
@@ -887,8 +894,12 @@ function cageResolve(S) {
     add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
                   wa.keel, false, BL * liftT, wa),
         { mat: CAGE_PILLAR('pillarWindow') });
+  // HULL-B43 (the user: "a single sign change on the first order derivative ... a concave shape, not a wavy thing"): on
+  // a hull the windscreen pair's keels are one line - the template's offset (13 mm in the pillar's 4 cm, a kink on the
+  // keel between two flat runs) is kept at 30 %, the slope of its neighbours
+  const wfKeelY = S.hull && wa.keel ? wa.keel.y + 0.3 * (wf.keelY - wa.keel.y) : wf.keelY;
   add(slopeRing('wsFront', wf.roofZ, wf.ceil, wf.bandZ, wf.waist, wf.floorY,
-                { y: wf.keelY }, true, BL, wf), null);
+                { y: wfKeelY }, true, BL, wf), null);
 
   const chain = {
     ceil:  { x: 0, y: S.ws.chain.ceil.y, z: S.ws.chain.ceil.z },
@@ -1490,7 +1501,12 @@ function cageHullSpec(P) {
            // (1: keel to chine; 2: keel to a ridge at fluteAt of the half-beam, ridge to chine - the EDO's "Batman"),
            // fluteBow the share of the forebody (from the step) by which it has faded out, fluteAft its share kept aft
            flute: cl(P.hullFlute, 0, 0.25, 0), fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
-           fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0) };
+           fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0),
+           // HULL-B43: the belly's ROCKER - the keel's rise at a step under the buoyant taper over the cabin's aft frame
+           // (cage units; 0 = the flat run of B37)
+           rocker: cl(P.hullRocker, 0, 0.5, 0),
+           // HULL-B44: THE SKIRT - the chine's reach beyond the topsides (of the half-beam; 0 = none, bit-identical)
+           skirt: cl(P.hullSkirt, 0, 0.3, 0) };
 }
 const cageKeelZ = r => r.lv.keel ? r.lv.keel.z : r.lv.waist ? r.lv.waist.z : 0;
 // the hull's stations off the resolved rings (cage z, +forward): the step (the cabin frame's fore ring, stepAft
@@ -1544,6 +1560,21 @@ function cageHullVee(H, HF, lv, rise) {
     const t = (w.y - yCh0) > 1e-6 ? Math.min(1, (fy - yCh0) / (w.y - yCh0)) : 0;
     f.y = Math.min(Math.max(fy, yCh + 0.02 * Math.max(0, w.y - yCh)), w.y);
     f.x = k.x + (w.x - k.x) * t;
+  }
+  // HULL-B44 (the user, a front photograph of the Super Petrel: "the hull bow is very pronounced, but you also have almost
+  // an overhang on the side ... something like a skirt option"): THE SKIRT. The chine reaches out H.skirt x its half-beam
+  // past where the V put it and the topside strip above it TUCKS IN under the gunwale (the floor level: inboard of the
+  // gunwale by half the reach, down to a third of the way up from the chine) - the chine stands proud as a lip, the side
+  // overhanging the water. Before the flute, so the arch spans the skirt's chine; the water reads that chine (b)
+  if (H.skirt > 0 && !lv.__skirt) {
+    lv.__skirt = true;
+    const sx = k.x < 0 ? -1 : 1, b0 = Math.abs(k.x);
+    k.x = sx * b0 * (1 + H.skirt);
+    if (f && w) {
+      const wx = Math.abs(w.x);
+      f.x = (f.x < 0 ? -1 : 1) * Math.min(Math.abs(f.x), wx * (1 - 0.5 * H.skirt));
+      f.y = Math.min(f.y, k.y + (w.y - k.y) / 3);
+    }
   }
   if (H.flute > 0) cageHullFlute(H, HF, lv);
 }
@@ -8291,6 +8322,8 @@ const CAGE_PARAMS = {
   // side, the ridge's station across, the share of the forebody it has faded by, its share kept aft of the step
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0,
   hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8,   // (HULL-B39: the spray strakes - _cage_float.js)
+  hullRocker: 0,                                             // (HULL-B43: the belly's rise to a step under the taper)
+  hullSkirt: 0,                                              // (HULL-B44: the chine's skirt - its reach past the topsides)
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
@@ -9120,13 +9153,13 @@ const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
-  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen'];
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
 const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
-  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8 };   // (HULL-B39)
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0 };   // (HULL-B39, B43, B44)
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
 // retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
 // slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)
