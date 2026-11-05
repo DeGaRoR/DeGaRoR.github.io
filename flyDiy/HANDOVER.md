@@ -311231,3 +311231,22 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
   below (frame/outline/ceil: a box recess), knifeWells (section wheelWell) + knifeCarve (frames/liners out of the well);
   _cage_ui wellApply cuts the DRAWN fuselage and the eye sheet after the chain (never MS; drag ticks keep the last cut);
   quickshot cuts them (bottom/qb, --nowells, --noedges). GATE RETRACT §13. The study's §8.10.
+- RETRACT G5-GR, PHASE 1 CLOSED (2026-11-05; the study's §8.12-§8.19). The wing's wells (G5); the doors (G6: leg door
+  to half the wheel, well doors that close gear down unless a down line crosses them); the GR robustness work:
+  - the Catalina (two solved turns, an external pivot, a round side recess);
+  - nacelle mains, with the engine's own nacelle fitted to the gear (`_cage_cowl.js nacGearFit`, row gearNacFit:
+    deeper downward, lowered under a high wing, the tail cone longer; the stand-alone pod only as gearNacPod);
+  - a nose cowl cut by the forward-folding nose wheel;
+  - clean wells (finer sweep, the leg as a tube, rounded outlines, flat ceilings);
+  - fittings bolted flat to the ceilings with gussets (`fittingsDraw`);
+  - leg shortening (gearShort / gearShortNose: core gearSlide, `slide` parts, the scissor as a knee);
+  - quickshot smooth shading (`--flat` for the old facets).
+  Gates (5 Nov): RETRACT, SAVE, UISMOKE, KNIFE, COWL, NACLAG, ENGMESH, JOIN, GEAR, PARTS and DESIGN PASS. These were
+  red on master or at this branch's base too:
+  - CLIP (the stock+ifr nav aerial in the fin);
+  - JOINPARITY (8 at the base, identical);
+  - ENGCONFIG (the push-pull, trimotor and four cards);
+  - HANDLE (Twin_busher_floats_2).
+  Open for phase 2: the Skymaster (mains into the back pod: door shards at mid travel, the rear engine shows); the
+  cabin-floor test running under the instrument panel; the long nose well behind the brace and actuator anchors; the
+  gear held to the wing's size (flaps, a lift strut).
