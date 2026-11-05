@@ -729,6 +729,7 @@ async function ladderRun() {
   ok(r.ok && M.storyOf(d).beat === 'T2' && M.playerWhere(d, 'Rufus').hangar === 'HOME' && d.here === 'HOME' && doors === 1 && H.flEnded === true && H.baseId === 'HOME',
      'in flight: the same, then the shed door (the roll-in at HOME); the flight walked away from without an end recorded', JSON.stringify({ ok: r.ok, why: r.why, beat: M.storyOf(d).beat, w: M.playerWhere(d, 'Rufus'), here: d.here, doors, flEnded: H.flEnded, base: H.baseId }));
   // ---- the look
+  ok(/body\.mode-ws:not\(\.gEmpty\) #stTim \{ bottom: calc\(60px/.test(css), "the garage: Tim's band above Roll out, as with the Skip (MENU-NITS)");
   const lad = (css.match(/#stTim\.lad \{[^}]*\}/) || [''])[0], sp = (css.match(/#stSkip \{[^}]*\}/) || [''])[0];
   ok(/background: transparent/.test(lad) && /position: fixed/.test(sp) && /left: 12px/.test(sp) && /bottom: calc\(14px/.test(sp) && !/translate|left: ?50%|top: ?50%/.test(sp) &&
      /IBM Plex Sans/.test(sp) && /font-style: normal/.test(sp) && /var\(--ed-plate\)/.test(sp) && /:is\([^)]*#stSkip[^)]*\) \{/.test(css) && /:root\.phone #stSkip \{ min-height: 48px; \}/.test(css),

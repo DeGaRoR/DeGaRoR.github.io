@@ -312050,6 +312050,10 @@ official, the Cub's `regC` stays -0.18.
 - **The Client Cub's cowl** (`builds/cub_2026-09-20.json`): `cw_aftW` 0.395 -> 0.37, `cw_taperW` 0.99 -> 0.72. The back meets the body's
   half-width at the firewall (0.375 m), the nose narrows from 0.41 to about 0.30 m at the barrel end. The cylinder heads (0.38 m) now stand
   out through the skin, the J3's look, with no drawn cut-out around them. A career that already holds a Client Cub keeps its saved cowl.
+- **MENU-NITS** (5 Nov, off the relook's stills, master f3688d168: 8 of 8 steps, 91 of 91 checks). The empty card's where-line wraps instead of cutting. In the garage Tim's band sits at
+  60 px, as it already did with the Skip, so it clears Roll out at 1280 x 800. Left alone: Tim's T0 line over another hangar is `?tutor=0` only (a dev flag; for a player the tutor's lock holds the map
+  until T1's flight), and the 320 px view at 1280 x 800 with both columns open is the stock layout (`--ws-left:320px; --ws-right:640px`), the same on the earlier look. No Playwright on this box:
+  `empty_stand_relook.js` needs a CDP stand-in or a cloud image.
 - **EMPTY-STAND-RELOOK.** R1: `--ws-left` / `--ws-right` take `!important` under `body.gEmpty`, since the editor writes `--ws-right` inline.
   R2: `gmBusy` counts the chooser, so Escape closes it instead of toggling a hidden menu.
 - **LIVERY is red on master, not from this work:** `garageFloodArm is not defined` in the gate's `seedEditor` stub (app.js gained the call,
