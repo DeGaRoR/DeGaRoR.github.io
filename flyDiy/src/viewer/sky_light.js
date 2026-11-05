@@ -106,7 +106,7 @@ var SKY_LIGHT = (function () {
       if (o.keyGain != null && !isMoon) I *= o.keyGain;   // the key alone (CLOUDS C3: the layer's transmittance over a room - the dome keeps its scale)
       key.intensity = I;
       if (key.color && key.color.setRGB) {
-        if (isMoon) key.color.setRGB(0.92 * _T[0] / mT, 0.96 * _T[1] / mT, _T[2] / mT);
+        if (isMoon) key.color.setRGB(0.80, 0.86, 1);   // LOOK-1-MOON, the user's neutral moon (its branch, not landed yet)
         else key.color.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT);
       }
       if (key.position && key.target) {
