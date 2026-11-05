@@ -445,32 +445,36 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
     const mid = rot([T[0] + 0.55 * (xm - T[0]), T[1] + 0.55 * (ax0[1] - T[1]), 0], T, thM * sm(0.1, 1)), Fh = [T[0] - 0.35 * H, ykS + 0.12 * H, 0];
     GK.tube(al, C3(Fh), C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), 0.034, 12); GK.tube(st, C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), C3(mid), 0.016, 10);
   } else { GK.tube(al, C3(top), C3(lm), 0.028, 12); GK.tube(dk, C3([top[0] - 0.05, top[1], 0]), C3([top[0] + 0.25, top[1], 0]), 0.02, 8); }   // the shock strut, its slide track
-  // THE EDO STYLE'S NOSE (the user's photographs, 5 Nov - no EDO document reached): the leg's pivot LOW ON THE BOW'S
-  // LEADING EDGE (outside the hull, under the bow tip); gear down a piston from a fitting on the bow's deck pushes it down
-  // through a triangle (a bracket from the leg back to the pivot's fitting); retracting, the leg swings FORWARD AND UP
-  // and lies along the stem, faired, the wheel ending ahead of the bow tip in the black cap - "the result while flying
-  // is a little wheel in front of the float". Small clamshell doors over the leg's slot under the bow (the user's
-  // close-ups: "the front wheel definitely has one"), open while the gear is out
+  // THE EDO STYLE'S NOSE (the user's photographs and his reading of them, 5 Nov - no EDO document reached): the leg's
+  // anchor is at the BOTTOM of the float's front - on the keel where it turns up into the stem (the forefoot), not at
+  // the tip (the tip is the Wipline's trolley) - outside the hull. Gear down the leg hangs from it, nearly upright; a
+  // small piston from a fitting on the float's bottom, aft of the anchor, swings it FORWARD AND UP about the anchor,
+  // so the leg lies along the stem and the wheel ends at the bow tip, in front of the float in its black cap. The
+  // anchor is placed where its distance to that stowed place is the leg's length; no well, so no doors
   let edoNose = null, wipNose = null;
   if (Math.round(+P.fltAmph) === 2) {
-    const xP = xb + 0.06 * H, Pe = [xP, sec(xP).yk + 0.10 * H, 0], an0 = [xn, yg + Rn, 0], blk0 = [an0[0] + 0.2 * Rn, an0[1] + Rn + 0.04, 0];
-    // (the swing SOLVED: forward and up till the wheel's centre stands at the bow tip's height - in front of the float,
-    // in its black cap - the leg then lying forward and up under the stem)
-    const yTip = sec(xb + 0.02).yd - 0.5 * Rn;
-    let thE = 0; for (let d = 0; d <= 200; d += 0.5) { thE = -d * D2R; if (rot(an0, Pe, thE)[1] >= yTip) break; }
-    const r = thE * sm(0.05, 0.95), blk = rot(blk0, Pe, r), an = rot(an0, Pe, r);
+    const tip = [xb - 0.45 * Rn, sec(xb + 0.02).yd - 0.6 * Rn, 0], rake = 8 * D2R;
+    let Pe = null, an0 = null;
+    for (let x = xb + 0.03; x <= xb + 0.6 * xs; x += 0.005) {
+      const P0 = [x, sec(x).yk - 0.02, 0], L = (P0[1] - (yg + Rn)) / Math.cos(rake), a = [x - L * Math.sin(rake), yg + Rn, 0];
+      if (Math.hypot(tip[0] - P0[0], tip[1] - P0[1]) <= L) { Pe = P0; an0 = a; break; } }
+    if (!Pe) { const x = xb + 0.6 * xs; Pe = [x, sec(x).yk - 0.02, 0]; an0 = [x - 0.05, yg + Rn, 0]; }
+    // (the swing: forward and up about the anchor till the wheel's centre points at the stowed place)
+    const a0 = Math.atan2(an0[1] - Pe[1], an0[0] - Pe[0]), a1 = Math.atan2(tip[1] - Pe[1], tip[0] - Pe[0]);
+    let thE = a1 - a0; while (thE > 0) thE -= 2 * Math.PI; while (thE <= -2 * Math.PI) thE += 2 * Math.PI;   // (clockwise: down, forward, up)
+    const r = thE * sm(0.05, 0.95), an = rot(an0, Pe, r), blk = rot([an0[0], an0[1] + Rn + 0.04, 0], Pe, r);
     GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
     const u = [blk[0] - Pe[0], blk[1] - Pe[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pe[0]) / 2, (blk[1] + Pe[1]) / 2, 0];
-    GK.boxIn(st, C3(c), [l / 2, 0.016, 0.022], D3([u[0] / l, u[1] / l, 0]), D3([-u[1] / l, u[0] / l, 0]), D3([0, 0, 1]));   // the oleo leg
-    GK.boxIn(al, C3(c), [l * 0.42, 0.006, 0.05], D3([u[0] / l, u[1] / l, 0]), D3([-u[1] / l, u[0] / l, 0]), D3([0, 0, 1]));  // its fairing
-    GK.tube(al, C3(blk), C3(an), 0.016, 10);                                                       // the castering fork
-    const L45 = [Pe[0] + u[0] * 0.45, Pe[1] + u[1] * 0.45, 0], Fp = [xb + 0.30 * H, sec(xb + 0.30 * H).yd - 0.04, 0], Fb = [Pe[0] + 0.10 * H, Pe[1] + 0.02, 0];
-    GK.tube(st, C3(Fb), C3(L45), 0.012, 8);                                                        // the triangle's bracket
-    const dP = [L45[0] - Fp[0], L45[1] - Fp[1]], lP = Math.hypot(dP[0], dP[1]) || 1, mid = [Fp[0] + dP[0] * 0.5, Fp[1] + dP[1] * 0.5, 0];
-    GK.tube(al, C3(Fp), C3(mid), 0.022, 10); GK.tube(st, C3(mid), C3(L45), 0.011, 8);              // the piston: barrel, rod
-    for (const zz of [-1, 1]) { const o = (1 - sm(0.88, 1)) * 1.3, hz = 0.05 * zz, hx0 = Pe[0] + 0.02, hx1 = Pe[0] + 0.32 * H;   // the slot's doors
-      const yh = sec(hx0).yk, w = 0.09, ca = Math.cos(o), sa = Math.sin(o);
-      GK.boxIn(dk, C3([(hx0 + hx1) / 2, yh - sa * w / 2, hz + zz * ca * w / 2]), [(hx1 - hx0) / 2, 0.004, w / 2], D3([1, 0, 0]), D3([0, ca, -zz * sa]), D3([0, zz * sa, zz * ca])); }
+    const e1 = D3([u[0] / l, u[1] / l, 0]), e2 = D3([-u[1] / l, u[0] / l, 0]), e3 = D3([0, 0, 1]);
+    GK.boxIn(st, C3(c), [l / 2, 0.016, 0.022], e1, e2, e3);                                         // the oleo leg
+    GK.boxIn(al, C3(c), [l * 0.42, 0.006, 0.05], e1, e2, e3);                                       // its fairing
+    GK.tube(al, C3(blk), C3(an), 0.016, 10);                                                        // the castering fork
+    GK.tube(dk, C3([Pe[0], Pe[1], -0.06]), C3([Pe[0], Pe[1], 0.06]), 0.022, 10);                     // the anchor's pin and lugs
+    // (the little piston: from a fitting on the bottom, aft of the anchor, to the leg a quarter down - the triangle)
+    const Fb = [Pe[0] + 0.45 * l, sec(Pe[0] + 0.45 * l).yk - 0.015, 0], Lq = [Pe[0] + u[0] * 0.28, Pe[1] + u[1] * 0.28, 0];
+    const mid = [(Fb[0] + Lq[0]) / 2, (Fb[1] + Lq[1]) / 2, 0];
+    GK.tube(al, C3(Fb), C3(mid), 0.020, 10); GK.tube(st, C3(mid), C3(Lq), 0.010, 8);                // barrel, rod
+    GK.tube(dk, C3([Fb[0], Fb[1], -0.04]), C3([Fb[0], Fb[1], 0.04]), 0.016, 8);                     // its fitting
     edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe };
   } else {
   // THE NOSE: the trolley at the end track's foot, the leg raked forward to the castering block over the wheel
@@ -507,7 +511,7 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
   rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['drop', 'stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], fitWhy };
-  rec.amph[tag] = { mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
+  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
 }
 const prevPost = PAGE.post;
 PAGE.post = ctx => {

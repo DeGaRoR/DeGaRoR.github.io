@@ -2100,15 +2100,17 @@ keel.** The catalogue's 2350 hull is 0.58 m deep. The record says so.
 and we have the reference closeups").** `fltAmph` is now three options: none, Wipline, EDO style. No EDO document was
 reached: the geometry is the user's photographs, and the tyres are the same hull's Wipline row's. The record says so
 (`amph.style` 'EDO (photographs)').
-- **The nose.**
-  - The leg's pivot sits LOW ON THE BOW'S LEADING EDGE, under the bow tip.
-  - Gear down, a piston from a fitting on the bow's deck pushes the leg down through a triangle (a bracket from the
-    leg back to the pivot's fitting). The leg is an upright oleo with a fairing, and a castering fork.
-  - Retracting, the leg swings FORWARD AND UP. The swing is solved till the wheel's centre stands at the bow tip's
-    height, so the wheel ends in front of the float at its black cap.
-  - On the c172 card the wheel ends 0.36 m ahead of the bow tip. That leg is long, a common ground line under both
-    wheels, so it lies forward rather than flat against the stem.
-  - The leg's slot under the bow has small clamshell doors (the user's close-ups: "the front wheel definitely has
-    one"). They are open while the gear is out and shut once it is up.
+- **The nose, corrected** (the user: "you have the lever going the other way. So the anchor point is not at the tip
+  where you drew it. That's the whipline design. It's actually at the bottom ... and then it moves up when it
+  retracts. And it moves up because it has a little piston").
+  - The leg's ANCHOR is at the bottom of the float's front: on the keel where it turns up into the stem (the
+    forefoot), outside the hull.
+  - Gear down, the leg hangs from it nearly upright (8 degrees of rake), with a fairing and a castering fork.
+  - A small piston, from a fitting on the float's bottom aft of the anchor to the leg a quarter down (the triangle),
+    swings the leg FORWARD AND UP about the anchor. It lies along the stem, and the wheel ends at the bow tip, in front
+    of the float in its black cap.
+  - The anchor is placed where its distance to that stowed place equals the leg's length.
+  - There is no well, so no doors. The first EDO cut had its pivot at the tip and doors on a slot: that was the wrong
+    way round, and it is gone.
 - **The main.** A trailing arm just aft of the step, with a HORIZONTAL shock cylinder along the float's bottom from a
   fitting ahead of the step to the arm (the close-ups), and no door. Its swing and well are the Wipline's.

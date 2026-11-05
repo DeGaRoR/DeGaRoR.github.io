@@ -533,7 +533,7 @@ console.log('10 THE FOLD (G1)');
     check(['Wipline 2100', 'Wipline 2350', 'Wipline 3450', 'Wipline 8750', 'Wipline 13000'].every(n => H.WIPLINE_AMPHIB[n] && H.TYRE_OD(H.WIPLINE_AMPHIB[n].main) > 0.3)
           && Math.abs(H.TYRE_OD('5.00x5') - 0.356) < 0.005 && Math.abs(H.TYRE_OD('8.50x10') - 0.643) < 0.005,
           'the catalogue: each model\'s published tyres (5.00x5 14 in, 8.50x10 25.3 in), single or dual mains');
-    const amph = g => { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: g }, garage: bc }); return Sx.W.CAGE_FLOAT; };
+    const amph = (g, k) => { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: k || 1, fltPreset: 2, gearPos: g }, garage: bc }); return Sx.W.CAGE_FLOAT; };
     const F1 = amph(1), Am = F1 && F1.amph, R0 = Am && Am.L;
     check(Am && Am.model === 'Wipline 2350' && !Am.est && Am.main === '5.00x5' && Am.nose === '2.50x4', 'the 2350 wears its own gear', Am && Am.model + ' ' + Am.main + ' / ' + Am.nose);
     const zStep = F1.zStep, zBow = zStep + F1.P.xs;
@@ -542,6 +542,11 @@ console.log('10 THE FOLD (G1)');
           R0 && 'nose ' + ((R0.noseAxle[2] - zBow) * 1000).toFixed(0) + ' mm ahead of the bow; main up ' + ((R0.mainUp[1] - R0.mainAxle[1]) * 1000).toFixed(0) + ' mm');
     check(R0 && Math.abs(R0.noseUp[2] - zBow) < 0.15 && R0.noseUp[1] > R0.noseAxle[1] + 0.1, 'stowed, the nose wheel is the bow\'s dock bumper ("retracts into the float nose")',
           R0 && ((R0.noseUp[2] - zBow) * 1000).toFixed(0) + ' mm from the bow tip');
+    { const E = amph(1, 2), Ae = E && E.amph, Re = Ae && Ae.L, zB = E.zStep + E.P.xs;
+      check(Ae && Ae.style.startsWith('EDO') && Re.edoPivot && Re.edoPivot[2] < zB - 0.02 && Re.edoPivot[1] < Re.noseUp[1] - 0.15
+            && Math.abs(Re.noseUp[2] - zB) < 0.25 && Re.noseUp[1] > Re.edoPivot[1] + 0.1,
+            'EDO style: the nose leg anchored at the bottom of the float\'s front (not the tip), the wheel swung up to the bow tip, in front',
+            Re && 'anchor ' + ((zB - Re.edoPivot[2]) * 1000).toFixed(0) + ' mm aft of the tip, ' + ((Re.noseUp[1] - Re.edoPivot[1]) * 1000).toFixed(0) + ' mm under the stowed wheel; wheel ' + ((Re.noseUp[2] - zB) * 1000).toFixed(0) + ' mm from it'); }
     let well = false;
     { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: 0 }, garage: bc }); Sx.scene.traverse(o => { if (o.name === 'edFloatWellL' || o.name === 'edFloatWellR') well = true; }); }
     check(well && Array.isArray(Am.fitWhy) && Am.assumed.length >= 4, 'an open wheel well cut in each float (no door); what Wipaire does not publish is named as assumed',
