@@ -154,7 +154,7 @@ const VIEWS = [
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
 // with the moon over that heading (or behind it), the aeroplane placed and the orbit aimed. Returns the plan.
 const SETUP = V => `(async () => {
-  const b = document.getElementById('bPause'); if (b && ${V.aim === 'compose' && TAXI_MS > 0 ? '/resume/i' : '/pause/i'}.test(b.textContent)) b.click();   // --taxi <m/s>: the photo scene runs, a wake needs a moving hull
+  const b = document.getElementById('bPause'); if (b && ${V.aim === 'compose' && TAXI_MS > 0 ? '/resume|^\s*run/i' : '/pause/i'}.test(b.textContent)) b.click();   // --taxi <m/s>: the photo scene runs, a wake needs a moving hull
   const s = FLIGHT_PROBE.sim(), w = FLIGHT_PROBE.world();
   ${V.js || ''};
   // the stand is where the roll-out put the aeroplane: kept at the first view, put back for every 'stand' view
