@@ -312391,3 +312391,11 @@ PHYSICS_V unmoved in this train. NEXT: Pilot's Rufus page check, 09:15.
 ## BUOY-DESAT - THE BUOYS HALF WAY TO THEIR OWN GREY (the user 5 Nov: "too saturated for the scene. Desaturate them a bit")
 
 render_world.js, one line of colour at the material; the lamps' option (FLYDIY_BUOY_LIT) keeps the full colour in the emissive. The look was seen in the hero rig (same 0.5, on the picture branch), not this cut in a browser. Gates, node only: LIGHT NIGHTVISIBILITY NIGHTEXPOSURE ATMO WATER.
+
+## A0 - train L32d, 5 Nov 2026 11:45
+
+IN (on L32c master 0ebe6e3eb, small train, gates: BENCH + its neighbours, cards, smoke, FRAMECOST, PARKED, MEDIA, BUILT, BUILD): ready/rufus-restamp c1302fdeb, ready/buoy-desat 3d05939a2.
+BATTERY: red, standing: FRAMECOST (the same 5), MEDIA 5.15 MiB. Nothing new. STOL green with the new fixture.
+TIMED (light): 59 red (L32c 48), warm nav 167.1 / 180.9 s, one 11.9 s link frame on world -> garage, taskWorst 11-27 s. NOT read as this train's cost: the same link count (588 vs 584) but 169 links over 5 s against 11, "GPU cache MISS suspected", and these two refs change a data file, a gate, the load door's cache and one buoy colour. W4 / B1's driver cache noise, seen before. One sample; PERF-PASS takes 3.
+COSTS: Rufus's tank moved 10 mm along the body, same 16 L; passed true for the first time (load row + sticker added), flight + logbook kept (G3780); mass, CG and the mine runs unchanged. GATE BENCH holds shipped stamps (versions, body, held rows). _load_build.js: the door's cache recomputes once for everyone. Story HOME screen not opened. Buoys: colour half way to grey, unseen in a browser.
+STANDING, not in the train's list, on master: JOINPARITY 5, APSMOOTH (all five at level), ENGCONFIG: 26 lines, same with and without this train. Next week.
