@@ -42,6 +42,8 @@
 //  16. THE WING'S WELLS (G5): a 3.2 m track's mains wells in the wing; the wing's skin cut from below (closed loops,
 //      walls and a ceiling); the main leg's rest slot in the wing's lower skin inside its well; a wing well closed under
 //      the upper skin; as born, the centre section carved out of the mains' belly well
+//  17. THE DOORS (G6): exact - a leg door on each unit and well doors; up, every door flush on its skin; a well door
+//      opens down in transit; box - two doors split or one, no leg door; doors off - none; every door a kinematics part
 //   9. THE HORN (audio_params + airframe_model, node): the gear warning is 1 with the gear up and the throttle back,
 //      0 with the gear down, 0 on the ground, 0 with no gear (a fixed build); the stall voice sounds it intermittently
 // Run: node tools/_retract_check.js   (one final `GATE RETRACT: PASS|FAIL`)
@@ -451,6 +453,44 @@ console.log('10 THE FOLD (G1)');
       if (inO(mc.outline, cz, -cx) && cy < ceilF(cx, cz) - 1e-6) k++; } return k; };
     for (const o of sk2) { inside0 += count(o.geometry); const r = KG.knifeWellsGeo(THREE, o.geometry, GB2.cutsM); if (r.skin) inside1 += count(r.skin); }
     check(mc && sk2.length && inside0 > 0 && inside1 === 0, 'as born, the centre section is carved out of the mains\' well (the bars through the wheels)', inside0 + ' faces in the well before, ' + inside1 + ' after'); }
+  // ---- 17. THE DOORS (G6): the leg doors, the well doors, flush up, open in transit ---------------------------------
+  console.log('17 THE DOORS (G6)');
+  { const docs = over => { const Sx = sceneOf(Object.assign({ gearPos: 1 }, over)); return { Sx, G: Sx.W.CAGE_GEAR }; };
+    const ex = docs({ s1X: 1.6 }), D6 = ex.G.doors || [];
+    check(['L', 'R', 'T'].every(k => D6.some(d => d.kind === 'leg' && d.unit === k)) && D6.some(d => d.kind === 'well'),
+          'exact: a leg door on each unit (the skin it covers stowed) and well doors for the rest', D6.map(d => d.name.replace('edMechDoor', '')).join(' '));
+    // the doors' panels posed by the core: up (g = 0) every one lies on the skin it was cut from
+    const R = ex.G.mech, AFx = ex.G.AF, W = ex.Sx.W.CAGE_WING;
+    // the skin's own triangles (the sheet's skin sections, metres, and the wing's skin meshes), and a point's height
+    // off the one under it in plan
+    const tris = [], FSx = ex.Sx.FS, SK = new Set(['body', 'taper', 'taperPanel', 'waistband', 'floorLoop', 'ceilingLoop', 'pillarPassenger', 'pillarCabin', 'pillarWindow', 'pillarFront', 'pillarTail']);
+    const sh = ex.Sx.built.sheet;
+    for (const f of sh.F) if (SK.has(f.m)) for (let i = 1; i + 1 < f.v.length; i++) tris.push([f.v[0], f.v[i], f.v[i + 1]].map(k => sh.V[k].map(c => c * FSx)));
+    ex.Sx.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) { const g = o.geometry, pa = g.attributes.position, ix = g.index.array;
+      for (let t = 0; t < ix.length; t += 3) tris.push([0, 1, 2].map(q => [pa.getX(ix[t + q]), pa.getY(ix[t + q]), pa.getZ(ix[t + q])])); } });
+    const onSkin = p => { let best = 1;
+      for (const T of tris) {
+        const [A, B, Cc] = T, d = (B[2] - Cc[2]) * (A[0] - Cc[0]) + (Cc[0] - B[0]) * (A[2] - Cc[2]);
+        if (Math.abs(d) < 1e-12) continue;
+        const l1 = ((B[2] - Cc[2]) * (p[0] - Cc[0]) + (Cc[0] - B[0]) * (p[2] - Cc[2])) / d, l2 = ((Cc[2] - A[2]) * (p[0] - Cc[0]) + (A[0] - Cc[0]) * (p[2] - Cc[2])) / d, l3 = 1 - l1 - l2;
+        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+        best = Math.min(best, Math.abs(p[1] - (l1 * A[1] + l2 * B[1] + l3 * Cc[1])));
+      }
+      return best; };
+    const vertsOf = name => { const out = []; ex.Sx.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.material !== q.parent.children[1]?.material) {} if (q.isMesh) { const pa = q.geometry.attributes.position; for (let i = 0; i < pa.count; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+    const posed = (name, g) => { const t = C.gearMechPose(R, g)[name]; return vertsOf(name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
+    let worst = 0;
+    const atTE = p => { const te = W.teAt(Math.abs(p[0])); return te && p[2] < te.z + 0.015; };   // (the trailing edge's lip: no area in plan)
+    for (const d of D6) for (const p of posed(d.name, 0)) if (!atTE(p)) worst = Math.max(worst, onSkin(p));
+    check(worst < 0.012, 'up, every door lies flush on the skin it was cut from (its outer face; the inner 4 mm in)', Math.round(worst * 1000) + ' mm at the most');
+    const wd = D6.find(d => d.kind === 'well'), cy = (ps) => ps.reduce((s, p) => s + p[1], 0) / ps.length;
+    check(wd && cy(posed(wd.name, 0.5)) < cy(posed(wd.name, 0)) - 0.02, 'a well door swings open (down) as the gear travels', wd && (cy(posed(wd.name, 0)) - cy(posed(wd.name, 0.5))).toFixed(3) + ' m lower');
+    const b2 = docs({ gearWellCut: 1, gearDoors: 2 }).G.doors || [], b1 = docs({ gearWellCut: 1, gearDoors: 1 }).G.doors || [];
+    check(!b2.some(d => d.kind === 'leg') && b2.filter(d => d.kind === 'well').length >= 4 && b1.filter(d => d.kind === 'well').length >= 2 && b1.length < b2.length,
+          'box: simple doors - two split along the well, or one; no leg door', b2.length + ' with two, ' + b1.length + ' with one');
+    const none = docs({ gearDoors: 0, gearLegDoor: 0 }).G.doors || [];
+    check(none.length === 0, 'doors off: an open well');
+    check(D6.every(d => R.parts.some(p => p.name === d.name && p.o0)), 'every door is a part of the one kinematics (the flight poses it)'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

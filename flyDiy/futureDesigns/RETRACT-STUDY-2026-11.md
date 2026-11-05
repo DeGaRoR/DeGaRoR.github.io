@@ -1374,3 +1374,34 @@ which follows GM. G6's doors then hang on GM's parts (the leg door rides the leg
   (makeSkinBinding), so the cut skin and its well flex with the wing.
 - **quickshot** cuts the wing's skin the same way ("wing wells cut: ...").
 - **GATE RETRACT §16** holds it.
+
+### 8.13 G6 AS BUILT (2026-11-05): the doors
+
+The user: "Most of the fuselage actually goes onto the leg that retracts, and only a little part is left as a door that
+needs to open and close ... Did you keep the square cut option? This one could have simple doors based on the square
+cut; One, or 2, slitting in the middle?" (Yes: the box outline, `gearWellCut` 1, is kept.)
+
+- **The patch** (`tools/_cage_gear.js` doorBuild): per cut, the skin the knife takes out, rebuilt exactly. That is the
+  skin's down-facing faces clipped to the outline in plan: the fuselage sheet's skin sections for a body cut, the wing
+  skin meshes outside the body for a wing cut. It is shared out as follows.
+  - **The leg door** (exact outline, row `gearLegDoor`, on by default): for each unit, the part of the patch inside
+    its stowed plan footprint (the wheel and the leg, 10 mm round). It is carried by the unit as a rigid part, drawn
+    where the down leg holds it (the stowed pose undone), so it lands flush in the opening when the gear is up. Gear
+    down it hangs on the strut, as a gear door does.
+  - **The well doors** (row `gearDoors`: none, one, or two split along the well's long axis, which is the patch's
+    principal axis). They cover whatever is left (exact), or the whole box (box: no leg door). Each is hinged on its
+    outer long edge (one door: the side away from the centreline) and opens DOWN by 85°.
+    - Sequence (the core's gearDoorOpen): open within 0.15 of the gear leaving either end, shut once it is up.
+    - Gear down, a door shuts again unless the down gear (the wheel, the leg from its trunnion, the brace, the
+      actuator) passes through it; such a door stands open, and is drawn open, its rest.
+  - Each door is a panel in the skin's own finish (the fuselage's 'body' material, the wing's skin material) over a
+    dark inner face 4 mm in.
+- **The one kinematics**: the core's rule 'door' (hinge, axis, angle, sequence), relative to its rest at g = 1. The
+  leg doors use the rule 'rigid' on their unit. The join captures every `edMech*` part (pivot: its o0), so the flight
+  poses the doors with the same function.
+- **Measured** (the T-tail tourer, 3.2 m track, exact):
+  - a leg door on each unit: the nose's 0.059 m², the mains' 0.143 m² each on the wing;
+  - small well doors for the rest;
+  - up, every door flush on the skin it came from (4 mm: its inner face);
+  - the box with two doors: two per well, one shutting gear down, the other standing open where the leg passes.
+- **GATE RETRACT §17** holds it. Not yet: the doors' drag when open, and a door's own hinge hardware.

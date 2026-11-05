@@ -66,7 +66,7 @@ Object.assign(gearDef, {
   gearRetract: 0, gearRetT: 6, gearRetAct: 1,
   // G1 (the fold): the preview's position, the mains' and the nose's fold (a preset, or 'custom': up to two turns + the
   // wheel's twist), the fraction it retracts (1 all the way; 0.6 a Catalina's or a DC-3's, the wheel left in its inset)
-  gearPos: 1, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0,
+  gearPos: 1, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2, gearLegDoor: 1,
   gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0,
   gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
@@ -665,6 +665,11 @@ const GROUP = ['9 · undercarriage', [
     // G4 (RETRACT-STUDY §8.10): THE WELL'S OUTLINE, always cut exactly into the skin - the swept unit's own plan hull,
     // or a rounded box round it (the fallback the user asked to keep: "so we have a fallback in case we struggle")
     ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => +P.gearRetract }],
+    // G6 (§8.13): THE DOORS - the exact outline's skin rides on the leg (the leg door) and what is left is the well's
+    // door(s); the box's are its door(s) alone: one, or two split along the well (the user: "One, or 2, slitting in
+    // the middle")
+    ['gearLegDoor', 'leg door (the skin on the leg)', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && +P.gearWellCut !== 1 }],
+    ['gearDoors', 'well doors', 0, 2, 1, ['none (open well)', 'one door', 'two doors (split)'], { when: P => +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
   ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) * (Math.round(+P.wgPos) === 2 ? 1 : 0) > 0 }],
@@ -784,6 +789,165 @@ function mechBuild(P, swing, group, KT, CM) {
   }
   for (const q in fix) if (fix[q].tris) fix[q].mesh(group, M(q));
   return { R, info };
+}
+
+// ---- G6 (RETRACT-STUDY §8.13): THE DOORS - the skin the wells took out, given back as doors ------------------------
+// The user (5 Nov): "Most of the fuselage actually goes onto the leg that retracts, and only a little part is left as a
+// door that needs to open and close ... Did you keep the square cut option? This one could have simple doors based on
+// the square cut; One, or 2, slitting in the middle". Per cut, its PATCH - the skin's down-facing faces clipped to the
+// outline in plan, exactly (the body's sheet, or a wing skin outside the body) - is shared out:
+//   THE LEG DOOR (exact outline, gearLegDoor on): the part inside each unit's stowed plan footprint, carried by the
+//   unit (rigid): drawn where the leg holds it gear down, it lands flush in the opening when the gear is up;
+//   THE WELL DOORS (gearDoors: none, one, two split along the well's long axis): the rest (or the whole box), each
+//   hinged on its outer long edge, opening down (DOOR_ANG). They open as the gear leaves either end and close once it
+//   is up; gear down they close too unless the down gear passes through them (then they stand open).
+// Each door is a panel of the skin's own finish over a dark inner face, posed by the core's rule 'door' (gearMechPose).
+const DOOR_ANG = 85 * Math.PI / 180, DOOR_SEQ = 0.15, DOOR_IN = 0.004;
+// a convex polygon (3D points) clipped in plan (u, v) = (z, -x) to the left of a -> b
+function planClip(poly, a, b) {
+  const sd = p => (b[0] - a[0]) * (-p[0] - a[1]) - (b[1] - a[1]) * (p[2] - a[0]);
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length], dp = sd(p), dq = sd(q);
+    if (dp >= 0) out.push(p);
+    if ((dp >= 0) !== (dq >= 0)) { const t = dp / (dp - dq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t]); }
+  }
+  return out.length >= 3 ? out : null;
+}
+const clipConvex = (poly, hull) => { let p = poly; for (let i = 0; i < hull.length && p; i++) p = planClip(p, hull[i], hull[(i + 1) % hull.length]); return p; };
+// the pieces of a polygon outside a convex hull (the part inside each edge in turn carried on)
+function minusConvex(poly, hull) {
+  const outs = []; let rest = poly;
+  for (let i = 0; i < hull.length && rest; i++) {
+    const a = hull[i], b = hull[(i + 1) % hull.length];
+    const o = planClip(rest, b, a); if (o) outs.push(o);
+    rest = planClip(rest, a, b);
+  }
+  return outs;
+}
+const polyArea = ps => { let a = 0; for (const p of ps) for (let i = 1; i + 1 < p.length; i++) {
+  const u = [p[i][0] - p[0][0], p[i][1] - p[0][1], p[i][2] - p[0][2]], v = [p[i + 1][0] - p[0][0], p[i + 1][1] - p[0][1], p[i + 1][2] - p[0][2]];
+  a += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return a; };
+// a skin's faces facing down (Newell) whose plan box meets the outline's, clipped to it
+function doorPatch(faces, outline) {
+  let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
+  for (const p of outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
+  const out = [];
+  for (const f of faces) {
+    let fx0 = Infinity, fx1 = -Infinity, fz0 = Infinity, fz1 = -Infinity, ny = 0;
+    for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length];
+      fx0 = Math.min(fx0, a[0]); fx1 = Math.max(fx1, a[0]); fz0 = Math.min(fz0, a[2]); fz1 = Math.max(fz1, a[2]);
+      ny += (a[2] - b[2]) * (a[0] + b[0]); }
+    if (ny >= 0 || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;   // (Newell's y: < 0 faces down)
+    const c = clipConvex(f, outline);
+    if (c) out.push(c);
+  }
+  return out;
+}
+const DOOR_SKIN = new Set(['body', 'taper', 'taperPanel', 'waistband', 'floorLoop', 'ceilingLoop', 'pillarWindow',
+  'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'pillarTaper', 'boomTube']);
+function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
+  const out = [];
+  if (!fit || !mech || !KT || !CM) return out;
+  const nDoors = Math.round(P.gearDoors == null ? 2 : +P.gearDoors), legOn = +P.gearWellCut !== 1 && (P.gearLegDoor == null || +P.gearLegDoor === 1);
+  if (!nDoors && !legOn) return out;
+  // the skins' faces, metres: the fuselage's sheet (its skin sections) and the wing's skin meshes outside the body
+  const bodyF = [], wingF = [];
+  let bodyMat = null, wingMat = null;
+  const MS = ctx.mesh;
+  if (MS && MS.V && MS.F) for (const f of MS.F) if (f.v.length >= 3 && DOOR_SKIN.has(f.m) && !f.knife && !f.cutOff)
+    bodyF.push(f.v.map(i => [MS.V[i][0] * FS, MS.V[i][1] * FS, MS.V[i][2] * FS]));
+  ctx.scene.traverse(o => {
+    if (!o.isMesh || !o.userData) return;
+    if (o.userData.matNames && !bodyMat) { const k = o.userData.matNames.indexOf('body'); if (k >= 0) bodyMat = Array.isArray(o.material) ? o.material[k] : o.material; }
+    if (!o.userData.wingSkin || o.position.lengthSq() > 1e-12) return;
+    if (!wingMat) wingMat = o.material;
+    const g = o.userData.wellGeo0 || o.geometry, p = g.attributes.position, ix = g.index ? g.index.array : null, n = (ix ? ix.length : p.count) / 3;
+    for (let t = 0; t < n; t++) {
+      const f = [0, 1, 2].map(q => { const i = ix ? ix[t * 3 + q] : t * 3 + q; return [p.getX(i), p.getY(i), p.getZ(i)]; });
+      const cx = (f[0][0] + f[1][0] + f[2][0]) / 3, cz = (f[0][2] + f[1][2] + f[2][2]) / 3;
+      if (AF && cz >= AF.z0 && cz <= AF.z1 && Math.abs(cx) < AF.halfWAt(cz)) continue;    // (inside the body: hidden)
+      wingF.push(f);
+    }
+  });
+  const darkM = (window.CAGE_MAT_OF && window.CAGE_MAT_OF('wheelWell')) || GG.gearMat('dark');
+  // each unit's stowed plan footprint (the leg door's share), (u, v) = (z, -x)
+  const foot = {};
+  for (const k in swing) { const C = swing[k], pts = unitPts(C), up = poseAll(C, pts.W.concat(pts.L), 0);
+    foot[k] = wellOutline(up.map(p => [p[2], -p[0]]), 'exact', 0.01); }
+  // the points the down gear holds through the skin (a well door over them cannot close gear down)
+  const downPts = k => { const C = swing[k], pts = unitPts(C), h = C.hinge, ax = C.axle;
+    return pts.W.concat(WELL_LEG.map(f => [h[0] + (ax[0] - h[0]) * f, h[1] + (ax[1] - h[1]) * f, h[2] + (ax[2] - h[2]) * f]),
+                        wellMechPts({ R: mech.R, CM }, k, 1)); };
+  const panel = (name, polys, front, xf) => {          // a door's panel: the skin's face, a dark face 4 mm in (flush, then placed)
+    const fb = KT.Bag(), bb = KT.Bag(), X = xf || (v => v);
+    for (const p0 of polys) {
+      const a = p0.map(q => fb.v(X(q))), b = p0.map(q => bb.v(X([q[0], q[1] + DOOR_IN, q[2]])));
+      const p = p0;
+      for (let i = 1; i + 1 < p.length; i++) { fb.tri(a[0], a[i], a[i + 1]); bb.tri(b[0], b[i + 1], b[i]); }
+    }
+    const gp = new THREE.Group(); gp.name = name;
+    fb.mesh(gp, front || GG.gearMat('alloy')); bb.mesh(gp, darkM);
+    group.add(gp);
+  };
+  const sets = [['B', fit.cuts || [], bodyF, bodyMat], ['W', fit.cutsWing || [], wingF, wingMat]];
+  for (const [tag, cuts, faces, mat] of sets) cuts.forEach((c, ci) => {
+    const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
+    let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) outline.reverse();
+    let rest = doorPatch(faces, outline);
+    if (!rest.length) return;
+    // THE LEG DOORS: each unit's share, carried by the unit - drawn where the down leg holds it
+    if (legOn) for (const k of c.units) {
+      if (!swing[k] || !foot[k]) continue;
+      const mine = [], left = [];
+      for (const p of rest) { const i = clipConvex(p, foot[k]); if (i) mine.push(i); left.push(...minusConvex(p, foot[k])); }
+      if (polyArea(mine) < 0.002) continue;
+      rest = left;
+      const C = swing[k], M0 = CM.gearFoldPose(C, 0), h = C.hinge;
+      const back = v => { const d = [v[0] - h[0], v[1] - h[1], v[2] - h[2]];   // the stowed pose undone (M0 transposed)
+        return [h[0] + M0[0] * d[0] + M0[3] * d[1] + M0[6] * d[2], h[1] + M0[1] * d[0] + M0[4] * d[1] + M0[7] * d[2], h[2] + M0[2] * d[0] + M0[5] * d[1] + M0[8] * d[2]]; };
+      const name = 'edMechDoor' + k + '_leg' + tag + ci;
+      panel(name, mine, mat, back);
+      mech.R.parts.push({ name, rule: 'rigid', unit: k, o0: h.slice() });
+      out.push({ name, kind: 'leg', unit: k, area: polyArea(mine) });
+    }
+    // THE WELL DOORS: the rest, one or two (split along the well's long axis), hinged on their outer long edges
+    if (!nDoors || polyArea(rest) < 0.002) return;
+    const uv = []; for (const p of rest) for (const q of p) uv.push([q[2], -q[0]]);
+    let mu = 0, mv = 0; for (const q of uv) { mu += q[0] / uv.length; mv += q[1] / uv.length; }
+    let suu = 0, svv = 0, suv = 0; for (const q of uv) { suu += (q[0] - mu) ** 2; svv += (q[1] - mv) ** 2; suv += (q[0] - mu) * (q[1] - mv); }
+    const th = 0.5 * Math.atan2(2 * suv, suu - svv), e1 = [Math.cos(th), Math.sin(th)], e2 = [-e1[1], e1[0]];
+    const ca = [mu, mv], cb = [mu + e1[0], mv + e1[1]];
+    const halves = nDoors === 2 ? [rest.map(p => planClip(p, ca, cb)).filter(Boolean), rest.map(p => planClip(p, cb, ca)).filter(Boolean)] : [rest];
+    halves.forEach((hp, di) => {
+      if (polyArea(hp) < 0.001) return;
+      // the outer long edge: two doors - each its own side (e2 / -e2); one door - the side away from the centreline
+      let nOut = nDoors === 2 ? (di === 0 ? e2 : [-e2[0], -e2[1]]) : e2;
+      const proj = q => (q[2] - mu) * nOut[0] + (-q[0] - mv) * nOut[1];
+      if (nDoors !== 2) { const xs = s => { let m = -Infinity, ax = 0; for (const p of hp) for (const q of p) if (s * proj(q) > m) { m = s * proj(q); ax = q[0]; } return Math.abs(ax); };
+        if (xs(-1) > xs(1) + 1e-6) nOut = [-nOut[0], -nOut[1]]; }
+      let mx = -Infinity; for (const p of hp) for (const q of p) mx = Math.max(mx, proj(q));
+      const edge = []; for (const p of hp) for (const q of p) if (proj(q) > mx - 0.012) edge.push(q);
+      const hinge = [0, 1, 2].map(i => edge.reduce((s, q) => s + q[i], 0) / edge.length);
+      let axis = [-e1[1], 0, e1[0]];                                   // (u, v) = (z, -x): the plan direction e1 in 3D
+      const cen = [0, 1, 2].map(i => { let s = 0, n = 0; for (const p of hp) for (const q of p) { s += q[i]; n++; } return s / n; });
+      const R1 = CM.gearRot(axis, 0.1), d = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]];
+      if (hinge[1] + CM.gearApp(R1, d)[1] > cen[1]) axis = axis.map(x => -x);     // + opens it DOWN
+      // gear down: closed unless the down gear passes through it
+      const hull = (() => { const pz = []; for (const p of hp) for (const q of p) pz.push([q[2], -q[0]]); return wellOutline(pz, 'exact', 0.005); })();
+      let y0 = Infinity, y1 = -Infinity; for (const p of hp) for (const q of p) { y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+      const through = c.units.some(k => swing[k] && downPts(k).some(q => q[1] > y0 - 0.05 && q[1] < y1 + 0.05 &&
+        hull.every((a, i) => { const b = hull[(i + 1) % hull.length]; return (b[0] - a[0]) * (-q[0] - a[1]) - (b[1] - a[1]) * (q[2] - a[0]) >= 0; })));
+      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through };
+      // drawn as it stands gear down (every part's rest): a door the down gear passes through stands open
+      const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
+      panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
+      mech.R.parts.push({ name, rule: 'door', hinge, axis, ang: DOOR_ANG, seq, o0: hinge.slice() });
+      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: !through });
+    });
+  });
+  return out;
 }
 
 // ---- the build ------------------------------------------------------------
@@ -1268,7 +1432,7 @@ PAGE.post = ctx => {
   // contact plane, carried by the join). The join takes it to the flown model (gearSwing, app.js gearSwingRig); THE
   // PREVIEW poses the units here at `gearPos` (the editor's slider, quickshot --gear) - the capture takes them down
   // (_cage_join.js VIEW_STATE 'gear position')
-  let swing = null, fit = null, mech = null;
+  let swing = null, fit = null, mech = null, doors = [];
   if (GEAR_RETRACTABLE(P)) {
     swing = {};
     for (const u of legUnits) {
@@ -1303,6 +1467,8 @@ PAGE.post = ctx => {
       }
       group.add(wg);
     }
+    // G6: THE DOORS - the skin the wells took, given back: the leg doors on the units, the well doors on their hinges
+    if (mech && fit) try { doors = doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM); } catch (e) { doors = []; console.warn('gear doors:', e); }
     // GM3: EVERY PART POSED BY THE ONE KINEMATICS (src/core/62c_gear_mech.js gearMechPose) - the legs, the wheels, the
     // castor rigid with their unit, the brace's links and the actuator's body and rod aimed - as the flight poses them
     const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos));
@@ -1320,6 +1486,7 @@ PAGE.post = ctx => {
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     ...(mech ? { mech: mech.R, mechInfo: mech.info } : {}),   // GM2/GM3: the mechanism's record (gearMechPose) and its numbers
+    ...(mech ? { doors: doors } : {}),                         // G6: the doors made (name, kind, unit(s), area, closedDown)
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)

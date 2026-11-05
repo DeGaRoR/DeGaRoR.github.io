@@ -2186,7 +2186,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // RETRACT GM3: THE MECHANISM'S PARTS (a brace's links, an actuator's body and rod) - each its own rigid part,
       // pivoted on its rest base point; the flight poses it with the core's gearMechPose (the snapshot's gearMech)
       for (const mp of ((GB.mech && GB.mech.parts) || []))
-        if (mp.rule === 'aim')
+        if (mp.name.lastIndexOf('edMech', 0) === 0 && mp.o0)          // (G6: the doors too - rigid on a unit, or hinged)
           PARTS.others.push({ src: mp.name, kind: 'gearMech', mechName: mp.name, axleC: mp.o0, groups: {} });
       // G59 CONTROL SURFACES. Each named surface becomes its own part
       // with a HINGE derived from its own geometry: the hinge line is
