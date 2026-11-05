@@ -1685,3 +1685,41 @@ off by default.
 - **twinBush unshortened.** It needs a tail cone of more than 4 m, so it stays red (honestly).
 - **da62.** Its nacelle is deepened downward by 0.16 m, and the wheel is now wholly inside (it was proud through a
   round cutout). It still folds forward and its fit is clean.
+
+### 8.19 PHASE 1 CLOSED (5 Nov): the cut into a cowl, the gate, what is left
+
+**THE CUT INTO A COWL** (the user: "cut into a cowl ... the tip of a narrow nose"):
+- **Structure.** A nose cowl (the cowl layer's unit on the centre line) is now structure, as a wing nacelle is
+  (`nacellesOf`, kind 'cowl'): its skin is in the probe, and the knife cuts its wells and doors.
+- **Kept apart.** The mains' nacelle logic (the mount, the fold, the trim, the pod, the nacelle test) skips a cowl.
+- **The fold's target.** A forward-folding nose wheel (gearFoldNose 'fwd') is trimmed to the cowl's LOWER QUARTER, not
+  its middle: the engine fills the rest.
+- **On the T-tail tourer** the nose wheel folds forward and stows wholly hidden in the cowl's lower back and the nose,
+  with a well and doors in the cowl skin.
+- **Two fit flags are too strict here.** The floor test still flags it (the cabin-floor test runs the length of the
+  body, under the instrument panel too), and a few points just ahead of the cowl's measured section count as outside.
+  The floor test should stop at the firewall.
+
+**The doors' faces.** Only the outermost down-facing skin over a plan place is a door's (a cowl is shells in shells:
+skin, inlet ducts, lips).
+
+**GATE RETRACT** (5 Nov, after 8.17-8.18):
+- **The fit's time.** 0.33 s, back to about 0.22 s:
+  - 25 poses;
+  - the fine rims at 24 points;
+  - the unit's own points at their hub and 60 % rings only;
+  - the tube's rings at six stations (the axis every 5 %);
+  - the mechanism's points once per unit;
+  - the wing's sweep every other pose.
+- **The wing's wells.** Swept with the leg's axis, not its tube: the tube carried the root's well over the centre
+  section's seam, where the knife's loops cannot close.
+- **The box outline.** Grown as the exact one is (circumscribed), so it holds it.
+- **A partial fold.** Its exposure is declared for the brace and the actuator too, as for the wheel.
+
+**What is left for the next phase:**
+- **The Skymaster.** The 'two axes' preset folds the mains aft and twisted into the back pod, the push-pull's aft
+  cowl. With the cowl cut it is cut and has doors, but at half travel a few shards remain and the open well shows the
+  rear engine. The real 337 stows its mains in the fuselage aft of the cabin, so it wants its own study.
+- **The floor test** should stop at the firewall (above).
+- **The long nose well** behind a nose leg, where the brace and the actuator anchor far aft.
+- **The gear bay held to the wing's size** (its flaps, a lift strut).
