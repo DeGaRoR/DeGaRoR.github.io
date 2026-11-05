@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2c89f059ee38604e
+// body-sha256: c0afa138f43b4878
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36925,7 +36925,7 @@ function clampSpec(spec) {
     e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
-    if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
+    if (!['nose', 'pusher', 'wingTop', 'wing', 'fin'].includes(e.mount)) e.mount = 'nose';   // (HULL-B22: 'fin')
     e.place.dx = genFieldClamp('engines[].place.dx', e.place.dx);
     e.place.dy = genFieldClamp('engines[].place.dy', e.place.dy);
     // the mount station (2026-09-04): an envelope, null kept for derivation.
@@ -38060,6 +38060,7 @@ function resolveSpec(spec) {
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
+            : m === 'fin' ? { x: (S.tail && S.tail.vX != null ? S.tail.vX : S.fuse.boxRear + 2) - 0.4, y: 1.3 * S.cab.h, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
                                z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
@@ -41246,6 +41247,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is whatever list results — the solver spreads the thrust over it and
   // nEngines (the entries) multiplies it, so a pair pulls twice.
   const engNodes = noseEng ? [EL, ER] : [];
+  const finEng = [];                     // HULL-B22: the fin engines, hung once the fin's truss exists (section 4)
   // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
   // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
   // and entry 1 on the starboard one. Published as refs.engineOf so the
@@ -41353,6 +41355,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                    engDryM, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(iE, iE);   // (HULL-B15: a tandem's two entries, 0 and 1; a single mount 0)
         if (LAYF) engCowl.push([WL, WR]);
+      } else if (e.mount === 'fin') {
+        finEng.push({ e, iE, m: engDryM + S.prop.mass });   // (HULL-B22: below, on the fin)
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
@@ -42058,6 +42062,23 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   for (let i = 0; i <= nV; i++) {                             // the section diamond
     B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
     B(VF[i], VR[i], 'tail');
+  }
+  // HULL-B22: THE FIN ENGINE - its mount pair at the engine's station, braced to the fin's front spar, its section pair
+  // and its rear spar at the nearest height and to the front spar at the next one up and down (the drawn tubes' feet),
+  // the engine and its blades' mass on the pair
+  for (const { e, iE, m } of finEng) {
+    let j = 0, dj = Infinity;
+    for (let i = 0; i <= nV; i++) { const d = Math.abs(P[VF[i]][1] - e.y); if (d < dj) { dj = d; j = i; } }
+    const [FL, FR] = NM(e.x, e.y, 0.07, 'ENG');
+    B(FL, FR, 'tail');
+    for (const n of [FL, FR]) {
+      for (const q of [VF[j], VX[j], VX2[j], VR[j]]) B(n, q, 'tail');
+      if (j > 0) B(n, VF[j - 1], 'tail');
+      if (j < nV) B(n, VF[j + 1], 'tail');
+    }
+    pt(FL, 0.5 * m); pt(FR, 0.5 * m);
+    engNodes.push(FL, FR); engIdx.push(iE, iE);
+    if (!(EL >= 0)) { EL = FL; ER = FR; }   // (EL was engNodes[0]: undefined before a fin engine)
   }
   for (let i = 0; i < nV; i++) {
     const ch = [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]];
@@ -61913,7 +61934,7 @@ const TECH_ROWS = {
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
   // spec with more than one engine)
-  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],   // (HULL-B15: 7 the tandem)
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
