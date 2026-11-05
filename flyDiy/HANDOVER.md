@@ -312264,3 +312264,7 @@ COSTS, by branch:
 - plane-lists: three lists, All planes screen, Client Cub cowl, R1 + R2, Cub regC +0.012 (the rail crosses the letters; user accepted), 4b + STOL Cub on the chooser. Official does not mean test reference. Unseen in a browser: Thu 10:00 relook.
 - PRICE-CAL: credits = USD, pay x1.432, used market on an age curve. Owed: Sell button, the makers' new sale hidden in a career, step 2, POD baseline, 5 of 20 seeds stuck at the Rufus.
 NEXT: L32b Thu 13:00, stragglers: pilot-loads, pilot-ramp (costs accepted), stol-fixture-3, thumbs-round3, twin4b-stab, tandem-feet, buoy-look, client-cub-look, livery-5.
+
+## BUOY-LOOK - PLAIN WEATHERED BUOYS, THE LAMPS AN OPTION (the user 4 Nov: "having them lit is maybe nice, but I don't think it should be by default"; they "read as flat plain plastic")
+
+render_world.js only. Emissive off unless window.FLYDIY_BUOY_LIT (no menu row yet: an option in code). One small shared 256x128 canvas sheet, tinted by each buoy's colour: chalked paint, rust and grime runs, scuffs, dark weed at the waterline. Opaque, roughness .6 -> .78, sphere 12x8 -> 20x14 (buoys are one mesh each: cost named, about 2.9 x the triangles a buoy). Seen only from far off in the hero rounds (picture branch), never up close. Gates, node only: LIGHT NIGHTVISIBILITY NIGHTEXPOSURE ATMO WATER. Not run: CLOUD TARR UISMOKE FRAMECOST (they boot Chrome).
