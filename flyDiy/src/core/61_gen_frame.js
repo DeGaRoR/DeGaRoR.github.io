@@ -2809,13 +2809,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      // TWIN4B-STRUTS: `frontRing`: the FRONT strut stands on the ring nearest its deck fitting, not on the ring just ahead
+      // of the step (the 4b: the step 2.1 m back, both pairs on rings 0.4 m apart, 1.7 m of float ahead of them with nothing)
+      let iFront = iFwd;
+      if (FM && FM.frontRing && !engFwd) for (let i = 0; i < iFwd; i++)
+        if (Math.abs(ST[i].x - nodes[Din[1]].p[0]) < Math.abs(ST[iFront].x - nodes[Din[1]].p[0])) iFront = i;
+      const fF = iFront === iFwd ? fB : (sd < 0 ? F[iFront].BL : F[iFront].BR);
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
       // flexible, almost springy"). The forward strut was the gear's `leg`
       // member — the suspension spring, KS x SUS — so the whole float pair
       // rode on two bungees; every member here is BRACING (KS x ARCH.k),
       // a streamlined steel tube like the rest of the truss.
       // (G451: the aft attachments on the aft spreader bar's station, 3)
-      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
+      B(Din[1], fF, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
       B(Dout[3], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
       B(Din[3], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
