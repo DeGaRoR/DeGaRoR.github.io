@@ -147,8 +147,9 @@ function page(S) {
   const fails = [], ok = (c, what) => { if (!c) fails.push(what); return !!c; };
   ok(/const CERT_CONDITION = \['aging'\];/.test(S.CERT) && /o && o\.condition \? \[\] : CERT_CONDITION/.test(S.CERT), '66b: the condition outside the certificate');
   ok(/delete c\.aging;/.test(S.BENCH), 'bench.js: its strip drops the age');
-  ok(/const bill = econRepairBill\(def\.spec, def\.parts\.ledger, def\.parts\.dmg && def\.parts\.dmg\.groups,/.test(S.APP) && /const rc = econRepairCharge\(d, flSlot, bill\);/.test(S.APP), 'app.js: the flight\'s end bills the breakage');
-  ok(/d = econAgingFlown\(d, flSlot, Math\.max\(0, ap\.t \|\| 0\)\);/.test(S.APP), 'app.js: the flight\'s seconds on the age');
+  ok(/const bill = econRepairBill\(def\.spec, def\.parts\.ledger, def\.parts\.dmg && def\.parts\.dmg\.groups,/.test(S.APP) && /const rc = econRepairCharge\(d, slot, bill\);/.test(S.APP)
+     && /if \(CAREER_DEV && d\.career && d\.career\.airframes && d\.career\.airframes\[flSlot\]\) d = econStopWear\(d, flSlot, Math\.max\(0, ap\.t \|\| 0\), out\);/.test(S.APP), 'app.js: the flight\'s end bills the breakage');
+  ok(/return econAgingFlown\(d, slot, t\);/.test(S.APP), 'app.js: the flight\'s seconds on the age');
   ok(/return econAgingStart\(r\.doc, name, sp && sp\.aging \? sp\.aging : null\);/.test(S.APP), 'app.js: a build\'s first save starts its clock at the age set');
   ok(/restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\),/.test(S.APP) && /isAirframe: n =>/.test(S.APP), 'app.js: the career\'s refresh doors');
   ok(/if \(now && typeof econAgingSpec === 'function'\) sp = econAgingSpec\(sp, now\);/.test(S.GAR), 'garage.js: a career slot loads at its age now');
@@ -166,8 +167,8 @@ if (SELF) {
   const sub = (k, a, b) => Object.assign({}, SRC, { [k]: SRC[k].replace(a, b) });
   const D = [
     ['the bench hashes the age', sub('BENCH', 'delete c.aging;', '')],
-    ['no bill at the stop', sub('APP', 'const rc = econRepairCharge(d, flSlot, bill);', 'const rc = { ok: false };')],
-    ['no hours flown', sub('APP', 'd = econAgingFlown(d, flSlot, Math.max(0, ap.t || 0));', '')],
+    ['no bill at the stop', sub('APP', 'const rc = econRepairCharge(d, slot, bill);', 'const rc = { ok: false };')],
+    ['no hours flown', sub('APP', 'return econAgingFlown(d, slot, t);', 'return d;')],
     ['a slot loads as saved', sub('GAR', 'if (now && typeof econAgingSpec === \'function\') sp = econAgingSpec(sp, now);', '')],
     ['no refresh buttons', sub('ED', 'if (isRoot) wearRefresh();', '')],
   ];

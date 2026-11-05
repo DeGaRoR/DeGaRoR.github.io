@@ -8959,26 +8959,8 @@
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
       if (cz && cz.ok) { d = cz.doc; out.reset = cz.where; if (out.career) out.career.lines.unshift(cz.line); }
-      // WEAR-PRICE (the user 5 Nov: "start putting money on the repair ... The repair on breakage should also be there"):
-      // WHAT THE FLIGHT BROKE, PAID at the parts bill (76_ econRepairBill: the groups parted, the fuselage of a crash, a
-      // strike's teardown or overhaul and its prop) - crashed or landed bent; free in the tutorial; the line leads the
-      // card. And the flight's seconds on the airframe's age (econAgingFlown: its engine hours, its years)
-      if (CAREER_DEV && d.career && d.career.airframes && d.career.airframes[flSlot]) {
-        try {
-          const DM = sim.damage ? sim.damage() : null;
-          if (DM && def && def.parts) {
-            const bill = econRepairBill(def.spec, def.parts.ledger, def.parts.dmg && def.parts.dmg.groups,
-              { groups: DM.groups || [], drive: DM.drive || [], crashed: !!DM.crashed, brokeUp: !!DM.brokeUp });
-            const rc = econRepairCharge(d, flSlot, bill);
-            if (rc.ok && bill.cost > 0) {
-              d = rc.doc; out.repair = { bill, paid: rc.cost, why: rc.why };
-              if (out.career) out.career.lines.unshift({ k: 'repair', ok: true, text: 'Repaired: ' + bill.lines.map(l => l.what).join(', ') +
-                (rc.cost ? ' - ' + ecFmt(rc.cost) : ' (' + rc.why + ')') });
-            }
-          }
-        } catch (e) { console.warn('flyDiy (career): the repair bill -', e && e.message); }
-        d = econAgingFlown(d, flSlot, Math.max(0, ap.t || 0));
-      }
+      // WEAR-PRICE: what the flight broke, paid; the flight's seconds on the airframe's age (econStopWear, the page half)
+      if (CAREER_DEV && d.career && d.career.airframes && d.career.airframes[flSlot]) d = econStopWear(d, flSlot, Math.max(0, ap.t || 0), out);
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
       if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
         const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
@@ -9471,6 +9453,26 @@
     if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + (r.cost ? ': ' + ecFmt(r.cost) : ' (free)'); playerSave(); }
     else { ecNote = r.why; econWalletSync(); }
     return r;
+  }
+  // WEAR-PRICE (the user 5 Nov: "start putting money on the repair ... The repair on breakage should also be there"):
+  // AT THE FLIGHT'S END (playerFlightEnd), WHAT THE FLIGHT BROKE, PAID at the parts bill (76_ econRepairBill: the groups
+  // parted, the fuselage of a crash, a strike's teardown or overhaul and its prop) - crashed or landed bent; free in the
+  // tutorial; its line leads the card. And the flight's seconds on the airframe's age (econAgingFlown). -> the document
+  function econStopWear(d, slot, t, out) {
+    try {
+      const DM = sim.damage ? sim.damage() : null;
+      if (DM && def && def.parts) {
+        const bill = econRepairBill(def.spec, def.parts.ledger, def.parts.dmg && def.parts.dmg.groups,
+          { groups: DM.groups || [], drive: DM.drive || [], crashed: !!DM.crashed, brokeUp: !!DM.brokeUp });
+        const rc = econRepairCharge(d, slot, bill);
+        if (rc.ok && bill.cost > 0) {
+          d = rc.doc; out.repair = { bill, paid: rc.cost, why: rc.why };
+          if (out.career) out.career.lines.unshift({ k: 'repair', ok: true, text: 'Repaired: ' + bill.lines.map(l => l.what).join(', ') +
+            (rc.cost ? ' - ' + ecFmt(rc.cost) : ' (' + rc.why + ')') });
+        }
+      }
+    } catch (e) { console.warn('flyDiy (career): the repair bill -', e && e.message); }
+    return econAgingFlown(d, slot, t);
   }
   // WEAR-PRICE: THE REFRESH TASKS (the WEAR tab's buttons; 76_ econRestoreCost / econRestore at the parts bill). The
   // airframe on the stand: its price, then (paid) its row, then the aeroplane itself - an OVERHAUL writes the row's age

@@ -47,7 +47,7 @@ function run(src) {
   ok(/secG: 'wear:looks', expert: true/.test(ED) && /secG: 'wear:part', expert: true/.test(ED) && /secG: 'wear:aging', expert: true/.test(ED), 'the wear rows are expert rows');
   ok(/const exOff = g\.expert && !ex;/.test(ED), 'applyVis hides an expert block with expert off');
   // ---- THE PHYSICS
-  ok(/if \(y <= 0 && h <= 0\) \{ if \(agingOfSpec\(\)\) G\.remove\('aging'\); \}\s*else G\.update\(\{ aging: \{ years: y, engineHours: h \} \}\);/.test(ED), 'aging written by update, cleared by remove at 0 / 0');
+  ok(/if \(y <= 0 && h <= 0 && !care\) \{ if \(A0\) G\.remove\('aging'\); \}\s*else G\.update\(\{ aging: \{ years: y, engineHours: h \} \}\);/.test(ED), 'aging written by update, cleared by remove at 0 / 0 (normal upkeep)');
   ok(/if \(!G \|\| wearCareer\(\)\) \{ sync\(\); return; \}/.test(ED) && /yr\.i\.disabled = hr\.i\.disabled = held;/.test(ED) && /C\.isAirframe\(G\.name\(\)\)/.test(ED), 'read-only on a career airframe (a build is set freely)');
   ok(/r\.i\.oninput = show; r\.i\.onchange = write;/.test(ED), 'a build per change, not per pixel');
   ok(/#edWrap\.wea #edResetPart/.test(CSS), 'no per-part reset in the wear view');
@@ -108,7 +108,7 @@ if (SELF) {
     ['the lock leaves wear open', sub('ED', "['edTabShape', 'edTabDesign', 'edTabWear']", "['edTabShape', 'edTabDesign']")],
     ['finish keeps the wear rows', sub('ED', 'if (el.dataset && (el.dataset.weather || el.dataset.wear)) continue;', '')],
     ['the prefs lose wearM', sub('UI', 'j.wearM = secWear;', '')],
-    ['aging written at zero', sub('ED', "if (y <= 0 && h <= 0) { if (agingOfSpec()) G.remove('aging'); }", 'if (false) {}')],
+    ['aging written at zero', sub('ED', "if (y <= 0 && h <= 0 && !care) { if (A0) G.remove('aging'); }", 'if (false) {}')],
     ['free in a career', sub('ED', 'if (!G || wearCareer()) { sync(); return; }', 'if (!G) { sync(); return; }')],
     ['the tutor opens wear', sub('APP', ", #edTabWear' })", "' })")],
   ];
