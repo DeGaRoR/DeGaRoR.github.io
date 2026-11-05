@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a8f2d33066c0cefd
+// body-sha256: 4481adf6d11d2ff5
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37066,7 +37066,7 @@ function clampSpec(spec) {
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
-    if (e.pylonAt !== 'roof') delete e.pylonAt;        // HULL-B17: 'roof' (behind the cabin) or absent (the wing)
+    if (e.pylonAt !== 'roof' && e.pylonAt !== 'body') delete e.pylonAt;   // HULL-B17: 'roof' (behind the cabin); HULL-B30: 'body' (a wing pair on the rear fuselage); absent (the wing)
     // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
     // positive (the prop axis points down at the front). A high pusher's
     // line of action runs above the CG and its thrust pitches the nose
@@ -38233,6 +38233,7 @@ function resolveSpec(spec) {
              // V legs to both roots (the frame braces each as it is)
              ...(e.pylonForm === 'blade' && m === 'wingTop' ? { pylonForm: 'blade' } : {}),
              ...(e.pylonAt === 'roof' && m === 'wingTop' ? { pylonAt: 'roof' } : {}),
+             ...(e.pylonAt === 'body' && m === 'wing' ? { pylonAt: 'body' } : {}),   // (HULL-B30: a pair on the rear fuselage)
              pushes: m === 'pusher' ? true : m === 'nose' ? false
                    : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
   });
@@ -41527,6 +41528,23 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // 13.3 under the engine). Whichever station the join measured, the
         // arm is there. The foot's legs are `inner`.
         const [NL, NR] = NM(e.x, e.y, e.z, 'ENG');
+        // HULL-B30: A PAIR ON THE REAR FUSELAGE (pylonAt 'body' - the Be-103's): each nacelle node on a STUB TRUSS to the
+        // two fuselage rings either side of its station, their side corners top and bottom - a pyramid off the body's
+        // side, no member to the wing (the drawing's stub pylon, _cage_eng.js)
+        if (e.pylonAt === 'body') {
+          const iA = iRing(e.x);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          if (iB === iA) iB = Math.max(0, iA - 1);
+          const rA = F[iA], rB = F[iB];
+          for (const [n, o] of [[NL, 'L'], [NR, 'R']]) {
+            const anc = [rA['T' + o], rA['B' + o], rB['T' + o], rB['B' + o]].filter(q => q != null);
+            for (const q of anc) BM(n, q);
+            hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], anc, P[n][2], engDryM, S.prop.mass);
+          }
+          engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+          if (LAYF) engCowl.push([NL, NL], [NR, NR]);
+          continue;
+        }
         const zAll = [zRoot, ...zs];
         let b = 0;
         for (let k = 0; k < zAll.length - 1; k++) if (e.z >= zAll[k]) b = k;
@@ -43848,8 +43866,11 @@ function genStrips(S, fr) {
   // wing engine washes the centre section it sits over.
   const E0 = S.engAt && S.engAt[0], mount = E0 ? E0.mount : 'nose';
   const pushes = !!(E0 && E0.pushes);
+  // (HULL-B30: a pair on the REAR FUSELAGE pulls from behind the trailing edge - its wake washes no wing: the Be-103
+  // read 1.9 kN of slipstream lift at 3 m/s off a wing its discs stand behind, and stuck there)
+  const behindTE = !!(E0 && E0.mount === 'wing' && E0.pylonAt === 'body');
   const wingWash = mount === 'nose' ? washAt
-    : (mount === 'wing' && !pushes)
+    : (mount === 'wing' && !pushes && !behindTE)
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;
