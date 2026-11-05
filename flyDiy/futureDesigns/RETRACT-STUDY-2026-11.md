@@ -2114,3 +2114,25 @@ reached: the geometry is the user's photographs, and the tyres are the same hull
     way round, and it is gone.
 - **The main.** A trailing arm just aft of the step, with a HORIZONTAL shock cylinder along the float's bottom from a
   fitting ahead of the step to the arm (the close-ups), and no door. Its swing and well are the Wipline's.
+
+**The noses at the black cap; the EDO leg raked** (the user, 5 Nov: "your little wheel is coming too low, so it should
+really come at the level of the black little tip there, and this black little tip should even be cut so that the
+wheel can slide through it ... your rotation point should still follow the bottom of the hull further by, let's say,
+maybe 20 centimeters ... the landing position of your arm is ... between 45 degrees and horizontal ... Then it goes up
+using a little piston ... so that the little wheel goes straight at the tip"; and: "are we sure that we are working on
+the EDO model here and not just the we pair model?").
+- **Both styles stow at the cap.** The stowed nose wheel's centre comes to the cap's middle height, a quarter of the
+  wheel inside the tip. A slot as wide as the tyre is cut through the rubber cap (`out.bumper`, its faces in the
+  band dropped), so the wheel slides through it.
+  - **Wipline:** the leg swings forward and up till the wheel is at that height, and the trolley draws it into the tip.
+  - **EDO style:** the leg swings straight up to it.
+  - **Measured on the c172 card:** both within 33 mm of the cap's middle, 31 mm inside the tip.
+- **EDO: the anchor further aft along the bottom, the leg landing raked.**
+  - The anchor walks aft along the keel to where a leg raked forward about 35 degrees below level reaches the stowed
+    place at the tip exactly. Its length is set by the ground line; the rake is solved from the anchor's height and
+    distance.
+  - **Measured:** the anchor 242 mm aft of the tip (it was 33), the landing rake 34.9 degrees.
+  - The piston, from a fitting on the float's bottom aft of the anchor, swings the leg up.
+- **The hull is not EDO.** Only the gear is EDO's. The hull is still the Wipline 2350's, the one hull family the garage
+  has; EDO's lines wait for EDO drawings.
+- **GATE RETRACT section 19 adds two checks:** both noses at the cap's height; the EDO rake between 45 degrees and level.

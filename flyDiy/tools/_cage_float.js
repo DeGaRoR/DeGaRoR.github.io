@@ -414,13 +414,27 @@ function streamlined(bag, a, b, t, chordK) {
 //   ASSUMED (Wipaire publishes none of them; the study lists them as missing): the wheels' drop - their bottoms 0.5 of
 //     the main's radius under the step's keel; the stowed main tyre flush with its keel; the trunnion at half the
 //     hull's height; the nose trolley's travel (what lands the wheel at the bow tip); the leg's rake (20 deg).
-function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
+function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
   const A = HY.amphibOf(HP.preset, HP.L, HP.H); if (!A) return;
   const G = HY.AMPHIB_GEOM, sec = x => HY.sectionOf(HP, x === 0 ? -1e-9 : x);
   const Rm = HY.TYRE_OD(A.main) / 2, Wm = HY.TYRE_W(A.main), Rn = HY.TYRE_OD(A.nose) / 2, Wn = HY.TYRE_W(A.nose);
   const xs = HP.xs, H = HP.H, xb = -xs, dL = (A.dL != null ? A.dL : 6) * 0.0254, La = HP.L + dL;
   const ykS = sec(0).yk, yg = ykS - 0.5 * Rm;                        // (the ground line: the wheels' bottoms)
   const xn = xb - dL * 0.5, xm = Math.max(xb - dL + G.mainK * La, Rm + 0.05);
+  // THE BLACK CAP (the rubber nose bumper): the stowed nose wheel comes to ITS height, at the tip, and slides through a
+  // slot cut in it as wide as the tyre (the user, 5 Nov: "your little wheel is coming too low, so it should really
+  // come at the level of the black little tip there, and this black little tip should even be cut so that the wheel
+  // can slide through it") - both styles
+  let yCap = sec(xb + 0.02).yd - 0.6 * Rn;
+  if (out && out.bumper && out.bumper.pos && out.bumper.pos.length) {
+    const B = out.bumper, ps = B.pos; let sy = 0, n = 0, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < ps.length; i += 3) { y0 = Math.min(y0, ps[i + 1]); y1 = Math.max(y1, ps[i + 1]); }
+    yCap = (y0 + y1) / 2;
+    const half = Wn / 2 + 0.015, keep = [];
+    for (let t = 0; t < B.idx.length; t += 3) { let cz = 0, cy = 0; for (let q = 0; q < 3; q++) { cz += ps[B.idx[t + q] * 3 + 2] / 3; cy += ps[B.idx[t + q] * 3 + 1] / 3; }
+      if (Math.abs(cz) < half && cy < yCap + Rn * 0.9) continue; keep.push(B.idx[t], B.idx[t + 1], B.idx[t + 2]); }
+    B.idx = keep; }
+  const stowN = [xb + 0.25 * Rn, yCap, 0];                    // (the stowed nose wheel's centre: a quarter of it inside the tip)
   const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos)), s = 1 - g;
   const sm = (a, b) => { const t = Math.max(0, Math.min(1, (s - a) / (b - a))); return t * t * (3 - 2 * t); };
   const rot = (p, c, a) => { const ca = Math.cos(a), sa = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * ca - dy * sa, c[1] + dx * sa + dy * ca, p[2]]; };
@@ -453,12 +467,20 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
   // anchor is placed where its distance to that stowed place is the leg's length; no well, so no doors
   let edoNose = null, wipNose = null;
   if (Math.round(+P.fltAmph) === 2) {
-    const tip = [xb - 0.45 * Rn, sec(xb + 0.02).yd - 0.6 * Rn, 0], rake = 8 * D2R;
-    let Pe = null, an0 = null;
-    for (let x = xb + 0.03; x <= xb + 0.6 * xs; x += 0.005) {
-      const P0 = [x, sec(x).yk - 0.02, 0], L = (P0[1] - (yg + Rn)) / Math.cos(rake), a = [x - L * Math.sin(rake), yg + Rn, 0];
-      if (Math.hypot(tip[0] - P0[0], tip[1] - P0[1]) <= L) { Pe = P0; an0 = a; break; } }
-    if (!Pe) { const x = xb + 0.6 * xs; Pe = [x, sec(x).yk - 0.02, 0]; an0 = [x - 0.05, yg + Rn, 0]; }
+    // (the user, 5 Nov: "your rotation point should still follow the bottom of the hull further by, let's say, maybe 20
+    // centimeters ... the landing position of your arm is not almost vertical ... It is between 45 degrees and
+    // horizontal ... Then it goes up using a little piston ... so that the little wheel goes straight at the tip"):
+    // the anchor walks aft along the keel to where a leg raked forward at ~35 deg below level (its length set by the
+    // ground line) reaches the stowed place at the tip exactly - the rake solved from the anchor's height and distance
+    const tip = stowN, RAKE = 35 * D2R;
+    let best = null;
+    for (let x = xb + 0.10; x <= xb + 0.6 * xs; x += 0.005) {
+      const P0 = [x, sec(x).yk - 0.02, 0], drop = P0[1] - (yg + Rn), D = Math.hypot(tip[0] - P0[0], tip[1] - P0[1]);
+      if (drop <= 0.02 || D <= drop) continue;
+      const a = Math.asin(drop / D), e = Math.abs(a - RAKE);
+      if (!best || e < best.e) best = { e, P0, a, D }; }
+    const Pe = best ? best.P0 : [xb + 0.2, sec(xb + 0.2).yk - 0.02, 0], ra = best ? best.a : RAKE, Lg = best ? best.D : 0.3;
+    const an0 = [Pe[0] - Lg * Math.cos(ra), Pe[1] - Lg * Math.sin(ra), 0];
     // (the swing: forward and up about the anchor till the wheel's centre points at the stowed place)
     const a0 = Math.atan2(an0[1] - Pe[1], an0[0] - Pe[0]), a1 = Math.atan2(tip[1] - Pe[1], tip[0] - Pe[0]);
     let thE = a1 - a0; while (thE > 0) thE -= 2 * Math.PI; while (thE <= -2 * Math.PI) thE += 2 * Math.PI;   // (clockwise: down, forward, up)
@@ -475,15 +497,16 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
     const mid = [(Fb[0] + Lq[0]) / 2, (Fb[1] + Lq[1]) / 2, 0];
     GK.tube(al, C3(Fb), C3(mid), 0.020, 10); GK.tube(st, C3(mid), C3(Lq), 0.010, 8);                // barrel, rod
     GK.tube(dk, C3([Fb[0], Fb[1], -0.04]), C3([Fb[0], Fb[1], 0.04]), 0.016, 8);                     // its fitting
-    edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe };
+    edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe, rake: +(ra / D2R).toFixed(1) };
   } else {
   // THE NOSE: the trolley at the end track's foot, the leg raked forward to the castering block over the wheel
     const Pn = [xb + 0.18 * H, sec(xb + 0.18 * H).yk + 0.12 * H, 0], an0 = [xn, yg + Rn, 0], blk0 = [an0[0] + 0.25 * Rn, an0[1] + Rn + 0.04, 0];
     const leg0 = Math.atan2(blk0[1] - Pn[1], blk0[0] - Pn[0]);                                   // (down and forward)
-    let thN = -(Math.PI - 10 * D2R) - leg0;                                                        // (to 10 deg under level, forward:
-    while (thN > Math.PI) thN -= 2 * Math.PI; while (thN <= -Math.PI) thN += 2 * Math.PI;          //  the short way, forward and up)
+    // (forward and up - the short way - till the wheel's centre is at the cap's height; the trolley then draws it aft
+    // into the tip)
+    let thN = 0; for (let d = 0; d <= 170; d += 0.5) { thN = -d * D2R; if (rot(an0, Pn, thN)[1] >= stowN[1]) break; }
     const rN = thN * sm(0, 0.7), blkR = rot(blk0, Pn, rN), axR = rot(an0, Pn, rN);
-    const tipX = xb + 0.3 * Rn, slideFull = Math.max(0, tipX - rot(an0, Pn, thN)[0]), slideN = slideFull * sm(0.5, 1);
+    const tipX = stowN[0], slideFull = Math.max(0, tipX - rot(an0, Pn, thN)[0]), slideN = slideFull * sm(0.5, 1);
     const sh = v => [v[0] + slideN, v[1], v[2]], Pn2 = sh(Pn), blk = sh(blkR), an = sh(axR);
     GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
     { const u = [blk[0] - Pn2[0], blk[1] - Pn2[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pn2[0]) / 2, (blk[1] + Pn2[1]) / 2, 0];
@@ -511,7 +534,7 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec) {
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
   rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['drop', 'stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], fitWhy };
-  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
+  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
 }
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
@@ -619,7 +642,7 @@ PAGE.post = ctx => {
       const add = (part, mat, nm, field) => { const m = partMesh(part, at, mat, mirror, nm, field); if (m) ug.add(m); return m; };
       const skin = hullSkinM();
       const hullMesh = add(out.hull, skin, 'edFloatHull' + tag, !!SM);
-      if (+P.fltAmph && HY.amphibOf) try { amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec); } catch (e) { console.warn('amphibian floats:', e); }
+      if (+P.fltAmph && HY.amphibOf) try { amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out); } catch (e) { console.warn('amphibian floats:', e); }
       if (out.protrusions) add(out.protrusions, hullM());
       if (out.bumper) add(out.bumper, rubberM());
       if (out.deck) add(out.deck, deckM());

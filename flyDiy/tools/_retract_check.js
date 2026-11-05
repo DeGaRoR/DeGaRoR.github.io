@@ -547,6 +547,10 @@ console.log('10 THE FOLD (G1)');
             && Math.abs(Re.noseUp[2] - zB) < 0.25 && Re.noseUp[1] > Re.edoPivot[1] + 0.1,
             'EDO style: the nose leg anchored at the bottom of the float\'s front (not the tip), the wheel swung up to the bow tip, in front',
             Re && 'anchor ' + ((zB - Re.edoPivot[2]) * 1000).toFixed(0) + ' mm aft of the tip, ' + ((Re.noseUp[1] - Re.edoPivot[1]) * 1000).toFixed(0) + ' mm under the stowed wheel; wheel ' + ((Re.noseUp[2] - zB) * 1000).toFixed(0) + ' mm from it'); }
+    { const E = amph(1, 2), RE = E.amph.L, RW = Am.L;
+      check(Math.abs(RW.noseUp[1] - RW.capY) < 0.06 && Math.abs(RE.noseUp[1] - RE.capY) < 0.06,
+            'stowed, both noses at the black cap\'s height, through its slot', 'Wipline ' + ((RW.noseUp[1] - RW.capY) * 1000).toFixed(0) + ' mm, EDO ' + ((RE.noseUp[1] - RE.capY) * 1000).toFixed(0) + ' mm off its middle');
+      check(RE.edoRake > 15 && RE.edoRake < 45, 'EDO style: the leg lands raked forward, between 45 degrees and level', RE.edoRake + ' deg'); }
     let well = false;
     { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: 0 }, garage: bc }); Sx.scene.traverse(o => { if (o.name === 'edFloatWellL' || o.name === 'edFloatWellR') well = true; }); }
     check(well && Array.isArray(Am.fitWhy) && Am.assumed.length >= 4, 'an open wheel well cut in each float (no door); what Wipaire does not publish is named as assumed',
