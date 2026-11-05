@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7ea57fa030ab1f8d
+// body-sha256: 5f968b4da02f9a39
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33536,7 +33536,7 @@ function genStolCageOff(cage) {
 }
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
-                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor'];
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -43674,7 +43674,8 @@ function genParams(S, fr, strips) {
 // THE RECORD (the gear layer builds it, in its own frame, metres):
 //   units: { L | R | T: a fold chain - { hinge, leg (unit axis), twist (rad), turns: [{ axis, ang }], frac } }
 //   knees: { id: { s: P, l: P, a, b, bend: P } }   a two-link brace: from s to l, links a and b, the knee on bend's side
-//   parts: [{ name, rule: 'rigid', unit }                       turns with its unit about the hinge (leg, wheel, castor)
+//   parts: [{ name, rule: 'rigid', unit, slide? }               turns with its unit about the hinge (leg, wheel, castor);
+//                                                               `slide`: rides the piston up the leg first (gearSlide)
 //           { name, rule: 'door', hinge, axis, ang, seq, o0 }  G6: a well door on its hinge (gearDoorOpen)
 //           { name, rule: 'aim', from: P, to: P, o0, d0 }]      its base on `from`, its axis toward `to` (a cylinder's
 //                                                               body, its rod, a brace's link): o0 / d0 its rest base
@@ -43704,9 +43705,26 @@ function gearFoldPose(C, g) {
   C.turns.forEach((T, k) => { M = gearMul(gearRot(T.axis, T.ang * Math.max(0, Math.min(1, s * n - k))), M); });
   return M;
 }
-// a unit's rest point where the fold has taken it
-function gearUnitPt(C, M, p) {
-  const h = C.hinge, q = gearApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]);
+// GR (the user, 5 Nov: "allow these very long landing trains to half retract before you put them back into their
+// pod"): THE SHORTENING - a unit's `shorten` { dir: the leg's rest axis (trunnion to axle), t0: where the piston leaves
+// the cylinder (metres down the leg), d: how far it slides in, k: over what share of the travel } - the piston, the
+// axle and the wheel slide up the leg by gearSlide(C, g) (smooth, done by k of the way up) before the fold turns them
+function gearSlide(C, g) {
+  const S = C && C.shorten;
+  if (!S || !(S.d > 0)) return 0;
+  const s = Math.max(0, Math.min(1, 1 - g)) * (C.frac == null ? 1 : C.frac), t = Math.max(0, Math.min(1, s / (S.k || 0.5)));
+  return S.d * t * t * (3 - 2 * t);
+}
+// a rest point slid with the piston (below t0 on the leg), else as it is
+function gearSlidePt(C, p, d) {
+  const S = C && C.shorten;
+  if (!d || !S) return p;
+  const h = C.hinge, t = (p[0] - h[0]) * S.dir[0] + (p[1] - h[1]) * S.dir[1] + (p[2] - h[2]) * S.dir[2];
+  return t > S.t0 ? [p[0] - S.dir[0] * d, p[1] - S.dir[1] * d, p[2] - S.dir[2] * d] : p;
+}
+// a unit's rest point where the fold (and, given d, the shortening) has taken it
+function gearUnitPt(C, M, p, d) {
+  const h = C.hinge, ps = d ? gearSlidePt(C, p, d) : p, q = gearApp(M, [ps[0] - h[0], ps[1] - h[1], ps[2] - h[2]]);
   return [h[0] + q[0], h[1] + q[1], h[2] + q[2]];
 }
 // the two-link knee: from s to l, links a (from s) and b (from l), bent toward `bend` (else `prev`, the side it was on)
@@ -43745,19 +43763,19 @@ function gearAlign(a, b) {
 const gearNrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 // every point of the record at g: the units' folds, then the knees (their ends are units' points or fixed)
 function gearMechPoints(R, g) {
-  const M = {};
-  for (const k in R.units || {}) M[k] = gearFoldPose(R.units[k], g);
+  const M = {}, D = {};
+  for (const k in R.units || {}) { M[k] = gearFoldPose(R.units[k], g); D[k] = gearSlide(R.units[k], g); }
   const knees = {};
-  const pt = P => P.fix ? P.fix : P.unit ? (M[P.unit] ? gearUnitPt(R.units[P.unit], M[P.unit], P.p) : P.p)
+  const pt = P => P.fix ? P.fix : P.unit ? (M[P.unit] ? gearUnitPt(R.units[P.unit], M[P.unit], P.p, D[P.unit]) : P.p)
     : P.knee ? knees[P.knee] : null;
   for (const id in R.knees || {}) {
     const K = R.knees[id];
     knees[id] = gearKnee(pt(K.s), pt(K.l), K.a, K.b, K.bend ? pt(K.bend) : null, K.k0 || null);
   }
-  return { M, knees, pt };
+  return { M, D, knees, pt };
 }
 function gearMechPose(R, g) {
-  const { M, pt } = gearMechPoints(R, g), out = {};
+  const { M, D, pt } = gearMechPoints(R, g), out = {};
   for (const P of R.parts || []) {
     let A, t;
     if (P.rule === 'door') {
@@ -43771,6 +43789,9 @@ function gearMechPose(R, g) {
       if (!C) continue;
       A = M[P.unit]; const h = C.hinge, Ah = gearApp(A, h);
       t = [h[0] - Ah[0], h[1] - Ah[1], h[2] - Ah[2]];
+      // (GR: a part riding the piston - `slide` - goes up the leg first: x -> A (x - dir d - h) + h)
+      const d = P.slide ? D[P.unit] : 0;
+      if (d && C.shorten) { const Ad = gearApp(A, C.shorten.dir); t = [t[0] - Ad[0] * d, t[1] - Ad[1] * d, t[2] - Ad[2] * d]; }
     } else {
       const b = pt(P.from), e = pt(P.to);
       if (!b || !e) continue;
@@ -43782,7 +43803,7 @@ function gearMechPose(R, g) {
   }
   return out;
 }
-const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearKnee, gearAlign, gearMechPoints, gearMechPose, gearDoorOpen };
+const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearSlide, gearSlidePt, gearKnee, gearAlign, gearMechPoints, gearMechPose, gearDoorOpen };
 // ============================================================
 // THE WING, AND THE MESH TOOLS THE GENERATOR IS BUILT FROM.
 //
