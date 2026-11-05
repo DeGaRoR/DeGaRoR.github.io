@@ -1942,7 +1942,7 @@ const GEN_INSTR = {
              power: 'elec', amps: 1.0, note: 'RC Allen RCA26 class' },
   dg:      { name: 'directional gyro',     d: 0.0794, kg: 1.20, price: 1600,
              power: 'vac',  note: 'RC Allen RCA11A class' },
-  turn:    { name: 'turn coordinator',     d: 0.0794, kg: 0.70, price: 800,
+  turn:    { name: 'turn coordinator',     d: 0.0794, kg: 0.70, price: 1260,   // PRICE-CAL: 800 -> 1 260 (RC Allen 82A TSO, $1 195-1 325)
              power: 'elec', amps: 0.3, note: 'Mid-Continent 1394T class' },
   tacho:   { name: 'tachometer',           d: 0.0794, kg: 0.45, price: 260,
              power: 'none', note: 'mechanical, cable-driven' },
@@ -1971,7 +1971,7 @@ const GEN_INSTR = {
   // (G2808: drawn - a 2-1/4 in counter on the panel; it was faceless, billed and powered and never seen)
   hobbs:   { name: 'hour meter',           d: 0.0572, kg: 0.10, price: 110,
              power: 'elec', amps: 0.02 },
-  compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
+  compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 630,   // PRICE-CAL: 300 -> 630 (Airpath C2400, $455-883)
              power: 'none', coaming: true, note: 'Airpath C2300 class' },
 };
 // THE ELECTRICAL SYSTEM. A Cub-class aeroplane has NONE (hand-propped, a
@@ -1991,12 +1991,12 @@ const GEN_ELEC = {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
     gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20,
              note: 'the small Continentals\' belt generator; cuts in above idle' },
-    alt60: { name: '60 A alternator', kg: 4.5, price: 800, A: 60,
+    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
-    yes:  { name: 'electric starter',  kg: 4.0, price: 700, amps: 150,
+    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
   },
   vac: {
@@ -2007,7 +2007,7 @@ const GEN_ELEC = {
                note: 'dry pump on the accessory pad; suction whenever the engine turns' },
   },
   // the harness: master + breakers + the wire, once, plus a little per item
-  harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200 },   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
 };
 // THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
 // The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
@@ -2060,7 +2060,7 @@ const GEN_AVIONICS = {
   },
   xpdr: {
     none:  { name: 'no transponder',      kg: 0,   price: 0,    amps: 0 },
-    modeS: { name: 'Mode-S transponder',  kg: 0.7, price: 2300, amps: 0.7,
+    modeS: { name: 'Mode-S transponder',  kg: 0.7, price: 3400, amps: 0.7,   // PRICE-CAL: 2 300 -> 3 400 (Trig TT21 $3 053, GTX 335 $3 399-3 893)
              note: 'Trig TT21 class; an ADS-B-out GTX 335 is ~3300' },
   },
   nav: {
@@ -2082,7 +2082,7 @@ const GEN_AVIONICS = {
     portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
                 face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
                 note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 6300, amps: 1.0,   // PRICE-CAL: 4 500 -> 6 300 (GPS 175 $4 995, GNX 375 $7 995)
                 face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
                 note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
     glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
@@ -2296,7 +2296,7 @@ function genSystemsResolve(S, opts) {
 // timestep that can integrate whatever this produces.
 const GEN_SUSPENSION = {
   bungee: { name: 'Bungee cord',  k: 1.00, c: 1.00, price: 250 },
-  spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 900 },
+  spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 2200 },   // PRICE-CAL: 900 -> 2 200 (Grove-class legs, $2.0-2.5k)
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
 };
 
@@ -2327,15 +2327,20 @@ const GEN_FAIR_MATS = {
 // are not counted (a few per cent of a light prop's figure).
 const GEN_PROP_IK = 0.15;
 const GEN_PROP_MATS = {
-  wood:   { name: 'Wood',      kg: 2.40, price: 900 },
-  alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },
-  carbon: { name: 'Carbon',    kg: 1.60, price: 5200 },
+  // PRICE (PRICE-CAL 2026-11, credits = USD 2025-26 at parity, futureDesigns/PRICE-STUDY-2026-11.md): a pair of
+  // blades at 1.88 m. Wood 900 -> 3 900 (a Sensenich wood Cub prop, $3.5-4.4k), alloy 2 200 -> 9 000 (a fixed metal
+  // C172 prop, $8.2-10.8k; a PT6A 3-blade 2.69 m comes to ~27 600), carbon 5 200 -> 2 600 (the ground-adjustable
+  // composites a builder buys: Warp Drive, E-Props, IVO, $1.3-4.4k for a 3-blade). A constant-speed hub and its
+  // governor are GEN_PRICES.csHub on top. GATE PRICE holds each against its benchmark.
+  wood:   { name: 'Wood',      kg: 2.40, price: 3900 },
+  alu:    { name: 'Aluminium', kg: 4.20, price: 9000 },
+  carbon: { name: 'Carbon',    kg: 1.60, price: 2600 },
   // G125: the scanned woods, priced as the boutique blanks they are. Mass
   // scales the wood anchor by Wood Handbook density (birch ~680: hard maple
   // ~705 -> 2.50, black walnut ~640 -> 2.25) — a walnut prop really is the
   // lighter one, and the vintage look is what the premium buys.
-  maple:  { name: 'Maple',     kg: 2.50, price: 1300 },
-  walnut: { name: 'Walnut',    kg: 2.25, price: 1500 },
+  maple:  { name: 'Maple',     kg: 2.50, price: 5600 },    // PRICE-CAL: the wood anchor's x4.3, the premium kept
+  walnut: { name: 'Walnut',    kg: 2.25, price: 6500 },
 };
 
 // PITCH is a real trade and ONE number carries it: the figure of merit in
@@ -2504,14 +2509,38 @@ const GEN_INTAKES = {
                                             { u: 0.50, w: 0.075, n: 6 }] },
 };
 
+// AGE COSTS PERFORMANCE (PRICE-CAL step 2, futureDesigns/PRICE-STUDY-2026-11.md §D; the user 4 Nov: "we'd need to
+// degrade performance too for it to make sense"). spec.aging = { years, engineHours } - written on a USED aeroplane by
+// the market (76_procure procureUsedSpec), absent on everything built: absent = 1 and 1, a build bit for bit as before.
+//   power  the engine's rated power x (1 - min(powerMax, engineHours x powerPerHour)): a tired engine loses
+//          compression - 1 % per 400 h since its overhaul, to 6 % (the overhaul's TBO ~2 000 h: ~5 % at TBO)
+//   drag   every zero-lift drag (the body's axial CdA and each flying surface's Cd0) x (1 + min(dragMax, years x
+//          dragPerYear)): the paint layers, the patched fabric, the rigging - 0.1 % a year, to 5 % at 50 years
+const GEN_AGING = { powerPerHour: 1 / 40000, powerMax: 0.06, dragPerYear: 0.001, dragMax: 0.05 };
+function genAgingOf(S) {
+  const A = S && S.aging;
+  if (!A || typeof A !== 'object') return { powerK: 1, dragK: 1 };
+  const h = Math.max(0, +A.engineHours || 0), y = Math.max(0, +A.years || 0);
+  return { powerK: 1 - Math.min(GEN_AGING.powerMax, h * GEN_AGING.powerPerHour),
+           dragK: 1 + Math.min(GEN_AGING.dragMax, y * GEN_AGING.dragPerYear) };
+}
+
 // Bought, not built: things with a price that does not follow from their mass.
 // Credits. Nothing is unaffordable yet — the ledger records, it does not gate.
+// PRICE-CAL 2026-11 (futureDesigns/PRICE-STUDY-2026-11.md): CREDITS ARE USD 2025-26 AT PARITY, the convention the panel
+// arc (G251) and the floats (FLOATS-CLASSIC) already priced in, and the ledger is a PARTS BILL - what a builder buys,
+// the labour free (the maker way). So a labour-heavy line is priced as its MATERIALS: the paint a builder sprays, the
+// interior a builder fits, the fabric a builder covers with - not a shop's job. GATE PRICE holds every row here against
+// a sourced benchmark. `seat` is retired (GEN_SEATS prices the seat; this line billed every seat a second time);
+// `paintJob` is retired for `paintM2` (a flat 1 800 painted a Cub and a DC-3 alike).
 const GEN_PRICES = {
-  wheel: 320,          // each: wheel, tyre, brake
-  thirdWheel: 260,     // tailwheel or nosewheel assembly
+  wheel: 790,          // each: wheel, tyre, brake (a Matco 5.00-5 pair $1 096 + a tyre $254-294 = $680-900); was 320
+  thirdWheel: 1200,    // tailwheel or nosewheel assembly (ABI / Scott 3200, $1.0-1.4k); was 260
   // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
-  paintJob: 1800,
-  seat: 380,
+  paintM2: 40,         // the colour coats a builder sprays, per m2 painted (DIY materials for a C172, ~60 m2, $1.5-4k est.)
+  coverM2: 75,         // a fabric covering system's materials per m2 of CLOTH, over the row's kilos (a Cub's $3-6k)
+  lights: 1500,        // a nav / strobe set + a landing light, on any aeroplane with a bus (AeroLEDs pair $1.2-1.9k)
+  csHub: 1600,         // a constant-speed hub's premium and its governor, per prop (Hartzell CS 2-blade $10.5-11.8k)
   // G133 fairings — glassfibre datum, per piece; GEN_FAIR_MATS scales
   spat: 380,           // one wheel pant (a main or the third wheel)
   trouser: 560,        // one wheel in full trousers (shell + leg shroud)
@@ -2535,9 +2564,10 @@ const GEN_FINISH = {
   // What was missing was the finish on top of it: three or four butyrate
   // colour coats are 0.10-0.15 kg/m2, and primer alone is a tenth of that.
   // Six kilos on a Cub -- small, real, and it was zero.
-  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1,
+  // PRICE-STUDY: `perM2` x the covered area the frame builds (61_gen_frame coverA), was a flat 1 800
+  full: { name: 'Painted',       perM2: GEN_PRICES.paintM2, sweep: 1,
           kgM2: 0.12 },
-  bare: { name: 'Bare / primer', price: 0,                   sweep: 0,
+  bare: { name: 'Bare / primer', perM2: 0,                  sweep: 0,
           kgM2: 0.03 },
 };
 
@@ -6034,7 +6064,9 @@ function resolveSpec(spec) {
   {
     const pr = S.prop;
     put(pr, 'D', PP ? PP.prop.D : 1.80, 'prop.D');
-    const P = PP ? PP.engine.powerW : 48500;
+    // (PRICE-CAL step 2: a used aeroplane's tired engine - GEN_AGING - makes less thrust; the powerplant row, its mass,
+    // its exhaust and its price are the engine's as rated. Absent spec.aging: x1, as before)
+    const P = (PP ? PP.engine.powerW : 48500) * genAgingOf(S).powerK;
     // AUTO (G159, the user: "I would like some automatic control... could the
     // setup of the prop be assisted?"). The pitch class is the one dial on the
     // propeller with a right answer that a builder cannot read off a slider,

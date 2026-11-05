@@ -312002,3 +312002,415 @@ COSTS, by branch:
 - seats-out: unseen in a browser, the chair in flight owed. thumb-nolive: own-plane rows stay glyphs until PLANE_THUMB's 6 s first draw is found.
 Outside the gate list, next week: RADIALDIV cub -46.2 deg vs 15, mosquito -56.2; PROCURE 6/3156; HANDLE 2; DMGTYRE Jodel + metal Cessna; APSMOOTH c172 HOME -> w3.
 NEXT: L32a Thu 13:00, the last train, refs by 12:30.
+
+## NIGHT-BRIGHT - NIGHTS YOU CAN SEE IN, BLUE AND WARM; THE SQUARE ON THE WATER FIXED (the user 4 Nov: "if we don't see anything in the picture, then we don't see anything in the game")
+
+Numbers, old -> new: EV knots -9: 10 -> 11, -6: 6 -> 7, sunset 2.5 -> 3; NIGHT_DEF eye 0 -> 1.75, moon 1 -> 0.3, desat .5 -> .3, new grade R .66 G .82 B 1.55 contrast 1.1 (the dark range only; warm lamplight and strong green keep out of it: the `keep` mask in NIGHT_GLSL); nightVisibility .8 -> 1.4; the sea's sheen (uWNight) new: k .38, colour .25/.42/1, 70 % flat, 30 % on the slopes; water detail at night up to 5 x, capped at 3.1 (none by day); flood 0xffd9a0 reach 4 -> 0xff9f50 reach 3.6, its gain from outside at night 3.2 -> 40 (CK.eyeOut; the seat's 3.2 unchanged); land/taxi/flood/pax lenses amber (1, .68, .34). Gates moved: ATMO 12..16 -> 12..18 stops at -18, NIGHTEXPOSURE -9: 10 -> 11.
+
+THE SQUARE (G2836, 19 Oct, 89005249b): every aircraft mesh is frustumCulled = false (app.js), so that filter left a stray 0.3 m part for the hull capture's sphere: a 64 px capture of one piece of the plane, a hard rectangle on the water. The box now reads model.grp (r 8.4 m on the 4b) and the centre rides it. COST NAMED: the capture's rectangle 64x64 -> up to 1024x768, hull CPU ~4 -> ~7 ms in one rig shot (not a timed number).
+
+NEW IN THE GAME, seen only in the photo rig, not flown: the lens glows (cockpit.js, 7 sprites on the 4b, one more program: first dusk compile named) and the aurora (aurora.js, app.js's first caller: from Kp 3 on the day's plan, exposure over 2^8, tiers current and up, one sphere, its program compiled and one probe bake on the first such night). Stars round on a long lens only (atmo.js, the wide view to the bit).
+
+Red-standing and open: the 4b's white tail lens sits between the booms at (4.02, .46, 0): no glow here, the card's site is FLAGSHIP's. The gold specks are not the grade (same pixels with nightEye off, k3/shots/specks.jpg): LOOK-1. Cottage windows x 2.5, the dock and the buoys: claude/night-photo, briefs/night-dock-2026-11-04.md.
+
+Rig trap: `await FLIGHT_PROBE.place({at,zeroV:true}); FLIGHT_PROBE.sim().cgPos()` returns the roll-out spot while the placed answer, sim.p and the model are right; night_shots reads the model group. The photo rig (--nose, --shots, --sweep names) stays on claude/night-photo with the worker's place yaw. 5120x2880 rendered black there, not looked at.
+
+Gates here, node only: NIGHTEXPOSURE NIGHTVISIBILITY ATMO LIGHT CABINLAMP WATER SCENERYLIGHTS WEATHERPLAN. Not run (they boot Chrome): CLOUD TARR UISMOKE FRAMECOST: L32a judges.
+## PLANE-LISTS - the three lists, the All planes screen, the Client Cub's cowl (Game, 4 Nov 2026)
+
+The user's ruling off the all-planes sheet: "you can keep planes for internal testing too, so we have an exhaustive list". Nothing is
+deleted; the gates keep every file they read. Until the user says otherwise (A0, 4 Nov): STOL Cub, Client Cub and PA-18 on floats are
+official, the Cub's `regC` stays -0.18.
+
+- **The lists: `builds/lists/plane_lists.json`** (40 rows: official 10, candidates 13, internal 17). `n` is the all-planes sheet's
+  number; 39 (Metal Cessna on floats) and 40 (the older Metal Cessna save) are new. It is in a sub-folder because KNIFE and LIVERY read
+  every `.json` directly in `builds/` as a build. AIRCRAFT-LOOKS's copy: `flydiy-notes/evidence-2026-10-18/2026-11-04/all-planes/lists.json`.
+  Change a plane's list here, and in `builds/candidates/index.json` if it is a pool file; GATE PLANELISTS says when the two disagree.
+- **The pool.** Promoted from `review/`: Birdman, the v7 twin, the v8 pusher, twinBoomFail. Filed: B-ITES, Pawnee, the ultralight twin on
+  floats (`VALIDATED.twinFloats` baked to `build_v7_ultralight_2026-09-05_floats.json`). `official: true` in the index (the flagship, the
+  STOL Cub) takes a plane off the candidate cards and puts it in the chooser's official group; the file stays. `cub_fittings_hand_2026-10.json` moved to `review/`, and a plane left in
+  `review/` now means INTERNAL. `review/sailPlane.json` is the user's export, which holds only `{P: rows}` and which the load door refuses:
+  its rows are filed as `spec.cage`.
+- **Official only means shown on the list** (the user, 4 Nov): an official plane does not become a reference plane for the test battery. Add
+  none to a gate as a reference. The career's plane list stays as it is until the used-plane and new-plane functions are built (next week or later).
+- **The chooser** keeps the flagship and the STOL Cub in its own "official" group, before the candidates (the user: "yes, both on the chooser"):
+  `GARAGE_SPEC.officialPool` reads the index's `official: true` rows.
+- **The official Cub's `regC`** 0.012 m (was -0.18): the user asked for the boom's true centre. At `regL` 3.66 m the boom's flank runs -0.248 to
+  +0.401 m, 0.649 m tall, its middle at sC +0.012 m. Paint only. The level black rail (sC +0.011 to +0.057 m, 0x262626) now crosses the upper half of
+  the near-black letters (0x141414, 0.20 m tall); a look is owed.
+- **The screen.** The rack's "all planes" button opens `NEW_PLANE.open({ all: true })`: the chooser's own panel, render held, a tile per
+  row grouped Official / Candidates / Internal testing, the baked picture when there is one, the name alone when not. A press goes through
+  `GARAGE_SPEC.openListed`: unnamed, no plaque, an empty log, like a candidate. Internal and the notes show in `dev.html` and the dev
+  career only. The Client Cub's row carries its unfinish as `over`, because `storyClientSpec` is career core and a sandbox never loads it;
+  PLANELISTS holds the row equal to `storyClientSpec` of the file. New picks have no baked picture yet (`tools/thumb_bake.js`).
+- **The Market and the contracts keep their table.** `CONTRACT_DESIGNS` still reads `bugReports/cessnaFloatsWOrks.json` (c172f, internal
+  here) and `bugReports/cessnaMetal (1).json` (c172); the core does not read the lists. Moving the Market to B-CESS is not done.
+- **`builds/cessna172_floats_2026-11.json`** rides `claude/ready/cessna-official` (FLAGSHIP). Until both are merged PLANELISTS names the row
+  instead of going red; its `rides` field can go once the file is on master.
+- **The Client Cub's cowl** (`builds/cub_2026-09-20.json`): `cw_aftW` 0.395 -> 0.37, `cw_taperW` 0.99 -> 0.72. The back meets the body's
+  half-width at the firewall (0.375 m), the nose narrows from 0.41 to about 0.30 m at the barrel end. The cylinder heads (0.38 m) now stand
+  out through the skin, the J3's look, with no drawn cut-out around them. A career that already holds a Client Cub keeps its saved cowl.
+- **MENU-NITS** (5 Nov, off the relook's stills, master f3688d168: 8 of 8 steps, 91 of 91 checks). The empty card's where-line wraps instead of cutting. In the garage Tim's band sits at
+  60 px, as it already did with the Skip, so it clears Roll out at 1280 x 800. Left alone: Tim's T0 line over another hangar is `?tutor=0` only (a dev flag; for a player the tutor's lock holds the map
+  until T1's flight), and the 320 px view at 1280 x 800 with both columns open is the stock layout (`--ws-left:320px; --ws-right:640px`), the same on the earlier look. No Playwright on this box:
+  `empty_stand_relook.js` needs a CDP stand-in or a cloud image.
+- **EMPTY-STAND-RELOOK.** R1: `--ws-left` / `--ws-right` take `!important` under `body.gEmpty`, since the editor writes `--ws-right` inline.
+  R2: `gmBusy` counts the chooser, so Escape closes it instead of toggling a hidden menu.
+- **LIVERY is red on master, not from this work:** `garageFloodArm is not defined` in the gate's `seedEditor` stub (app.js gained the call,
+  the stub did not).
+## PRICE-CAL - CREDITS ARE USD 2025-26 AT PARITY, THE LEDGER A PARTS BILL; THE PAY RIDES THE REFERENCE CUB (econPayScale); ONE MAKER'S MARGIN; THE USED MARKET ON AN AGE CURVE; GATE PRICE (2026-11-04, PRICE-STUDY for A0, cloud - node + headless Chromium; branch claude/price-apply off origin/master af8116aa)
+The user, 4 Nov: "a price study, it's time ... we've eyeballed prices from the start" (futureDesigns/PRICE-STUDY-2026-11.md,
+its scripts and data in futureDesigns/price-study/), then "let's go and implement, we don't do anything with money now, so we
+can move stuff. Just take the opportunity for a robust calibration" - with the market tiers: the maker way (new plane, built),
+pre-built planes USED only for now, and what a plane sells for.
+
+**THE CONVENTION** (comment heads in 60_gen_spec GEN_PRICES and 76_economy ECON_BOOK):
+- **1 credit = 1 USD 2025-26.** The panel (G251) and the floats (FLOATS-CLASSIC) already priced at parity.
+- **The ledger is a parts bill**: what a builder buys, the labour free. A labour-heavy line is priced as its materials.
+- **GATE PRICE** holds every priced row within ×1.5 of a sourced benchmark.
+
+**THE ROWS** (each with its source in its comment):
+
+| | rows |
+|---|---|
+| engines (00_registry) | every combustion row to its sourced overhauled / exchange mid (new for the Rotax): A-65 11 000, 582 8 800, 912 22 000, 915 51 600, 916 55 300, O-200 43 000, O-320 / IO-360 52 000, O-540 64 000, Gipsy 55 000, R-985 52 000, R-1830 78 000, PT6A-114A 390 000, -34 420 000, -42 455 000 |
+| unbenchmarked rows and `genEnginePrice` | × the family's measured median: four 60 -> 87 (×1.45), two 90 -> 135, turbine 250 -> 390; electric unchanged |
+| props (GEN_PROP_MATS) | wood 3 900, alu 9 000, carbon 2 600 (maple 5 600, walnut 6 500); `GEN_PRICES.csHub` 1 600 a prop on an engine with `cs` |
+| panel | turn coordinator 1 260, compass 630, alternator 1 150, starter 1 100, harness 1 200, Mode-S 3 400, panel GPS 6 300 |
+| gear | wheel 790, third wheel 1 200, spring legs 2 200 |
+| new | `lights` 1 500 (any aeroplane with a bus, billed in the outfit so GATE PANEL's bill holds); `paintM2` 40 (GEN_FINISH.full.perM2, was a flat 1 800); `coverM2` 75 a m² of cloth (coverPan's `cloth`) |
+| furnishing | 200 a kilo (was 60) |
+| vessels (60c) | priced by shell (`priceM2` × surface) and no longer billed full (mediumPrice 0 for fuel; a pack keeps its cells) |
+
+**THE FAULTS FIXED** (61_gen_frame):
+- a prop per engine (a twin billed one);
+- `GEN_PRICES.seat` retired (every seat was billed twice);
+- ONE maker's margin: `ECON_BOOK.makerMargin` 1.15 over the ledger, `PROCURE_MARGIN` reads it, `econCatalogPrice` = ledger × it
+  (was 0.8 × 1.35 = 1.08).
+
+**THE PAY RIDES THE PRICES.**
+- `econPayScale()` = econRefPrice() / `ECON_BOOK.payRef`. payRef is 31 203, the Cub the pay was tuned at (G2261, G3359): history,
+  never re-derived (GATE PRICE holds it).
+- It scales:
+  - contractPay (base rounded to the pay's unit, per km, the surface bonuses);
+  - contractPayTotal's authored fallback;
+  - routeTerms per km;
+  - T6's fee (`econPay(STORY_T6_FEE)`) and the T2 budget (`storyCostCap`);
+  - the grant (`careerGrant()`, careerNew, 79_story's removal, econReference);
+  - the loan threshold;
+  - PROCURE's side delivery.
+- The five authored `costMax` caps are ×1.432 in 72_ (clients.04 45 800: the Cub qualifies, the Jodel not); builtin.json
+  re-retrofitted.
+- Today: the Cub's ledger 44 683 → scale **1.432**, grant 85 900, T6 fee 28 600, a field shed 160 900.
+
+**CONTRACT_DESIGNS re-derived** (GATE CONTRACTS: the certificate's numbers):
+
+| | cost |
+|---|---|
+| cub | 44 683 |
+| jodel | 45 992 |
+| c172 | 137 572 |
+| c172f | 202 863 (FLOATS-CLASSIC's Wipline price had never reached the table) |
+| twinf | 68 854 |
+
+The 23 PROCURE `eff` costs were taken from `--emit`; only the cost moved.
+
+**THE MARKET TIERS** (76_economy, 76_procure):
+- V0 = the ledger × makerMargin; `econAgeFactor(age)` = 1 new, else 0.8 × (0.14 + 0.86 × e^(−age / 27.5)). That curve is fitted
+  on same-type new/used pairs (futureDesigns/price-study/age_curve.js, rms ×1.12).
+- `procureUsedListing` draws an age of 1-14 years (`ECON_BOOK.age.listAges`).
+  - The age drives the condition (the curve less the old deductions, still held to PROCURE_COND 0.4-0.8), the hours since
+    overhaul, the extra kilos and the older-panel chance.
+  - The listing carries `built`, and the facts say "built 2016, 10 years old".
+  - `procureUsedSpec` wears playerWearSpec (visual; the finish is outside the fingerprint).
+  - The mean condition is 0.572 against the hours rule's ~0.58, measured over 960 listings, so the market's level did not
+    move; 2-24 years dropped it to 0.495. Older planes wait for age to cost performance (study §D step 2).
+- `procureBuyUsed`'s row carries `paid`, `age`, `built`, `v0` and `repairs`.
+- `econSaleValue(doc, slot, cost)` = min(0.75 × the value at its age, `paid`). Pure; no button yet.
+
+**THE ECONOMY HOLDS BY CONSTRUCTION.** `node tools/econ_sim.js --seeds=20` on the calibrated core, PROPOSED:
+- pace 4 / 8 / 12 (unchanged; the same run before the prices moved read 4 / 8 / 12);
+- money at rest 0.37-0.98 everywhere;
+- route share 0.16;
+- 5 seeds stuck at the Rufus as before (below).
+
+econ_sim reads the grant and the fee through careerGrant / econPay, and T2's edit bill is re-measured (the Jabiru finish
+53 939 against the 57 300 budget; the O-320's 85 115 over it).
+
+**ECON_SIM'S T5 FAILURE FIXED** (79f53151, the first commit):
+- since L30d's cert gate every career stopped at T5;
+- `benchSign()` signs each career airframe through careerSign before an accept, as the bench would;
+- FINDING for the economy owner: 5 of 20 seeds per policy stall in segment 1 at contract 7-8. The Cub is on the story's route,
+  the Rufus (1 seat, 0 kg, 114 km) can fly no offer, and the wallet (~6 000 then) buys nothing. A player could end the route;
+  nothing points there.
+
+**GATES:**
+- **GATE PRICE** (new, tools/_price_check.js, core): PASS; `--selftest` catches 9 doctors.
+- Re-pointed at the scale (their hand numbers were payRef's money): ROUTES (the 480 case → 480 × the scale), PILOTS, STORY (the
+  budget, the edit bills), MISSIONS (the bases, the 40 000 order), CONTRACTS (the grant, the bonuses), ECON (the margin rule, the
+  loan threshold, the reference wallet), ACCEPT (the costMax probes ×1.432), PROCURE (the voucher's buyer given the cash: a
+  customised Scout is 88 350 against an 85 900 grant).
+- ENERGYBASE blessed (14 planes: costs only, 0 masses / CG / positions moved).
+- ENGINE (the custom law inside every row's band), PANEL, ENERGY, FLOATSCLASSIC, GAMEPREM, PLAYER, STORAGE, ELEC, HANGAR, FREIGHT, CERTGATES, STAGES, PODEDITOR, DMGINTEGRITY,
+  PATCHBOUNDS, ENGID: PASS.
+- **RED ON MASTER af8116aa TOO** (the same 16 gates run on a clean worktree of it): STOL (FLOATS-CLASSIC's new cage rows,
+  `finVentralShape` / `fltStyle` / `fltBoard`, against stol_baseline), DMGCERTCOST (the worker's certificate vs node's), FRAMECOST,
+  ROUNDTRIP (1 800 s timeout), TECH (`pitch:seaplane` has no segment), POD (tools/_pod_base.json stale on master: all 18 lines -
+  NOT re-blessed here, it would hide that drift), plus CONTRACTS and PROCURE, which this re-derivation turned green.
+- **FRAMECOST'S STAND / TAXI RISE IS ANY CORE EDIT, NOT THESE PRICES.**
+  - On top of master's 5 boot lines, the stand adds +345 draws: the `parked` family goes from 5 to 347 draws.
+  - Bisected to 76_economy.js, then to a COMMENT-ONLY line in it, which gives the identical census.
+  - parked.js cookSig keys the shipped cooks on FLYDIY_BUILD, so any source change misses them and the world stands full
+    meshes. It clears when the train re-cooks at landing.
+- **SELFTESTS:** PRICE, ROUTES, STORY, MISSIONS, PANEL, ENERGYBASE, CONTRACTS, ENERGY PASS (their anchors re-pointed where they
+  read a line this changed). Missed, but missed identically on master af8116aa:
+  - ECON: "the pay halved" (the quick seeds stay in band) and the stale loan anchor;
+  - PILOTS: two;
+  - ACCEPT: its fingerprint anchor (72_accept, untouched).
+
+  PROCURE's two fingerprint doctors miss here. They doctor procureFpP1 / PROCURE_COSMETIC, which procureFp reads only without
+  certMajor (G3780). Master's selftest cannot say, because its gate is red before any doctor.
+- **The used listing's age comes from its OWN stream** (`seed|id|age`), so every other draw of a listing (the model, its
+  options, the panel, the registration, where it stands) is the one master drew.
+- **Owed:**
+  - a Sell button on the fleet card (econSaleValue);
+  - the makers' NEW sale hidden in a career until age costs performance;
+  - step 2 (engine wear, drag, older listings);
+  - skis (no gear row);
+  - the stuck-at-the-Rufus seeds;
+  - POD's baseline re-taken by its owner;
+  - the parked cooks re-baked at landing.
+
+## PRICE-CAL.2 - THE FLEET CARD SELLS, AGE COSTS PERFORMANCE (STEP 2), ONE BASE FOR NEW, USED AND DELIVERED, AND ECON-SIM'S DOUBLE GRANT (2026-11-04, PRICE-STUDY for A0, cloud; branch claude/price-apply)
+The user, 4 Nov:
+- "add the Sell button on the fleet card, at the used plane market price, and add step 2";
+- the tutorial "leaves you with a recurring stream of money and a big bonus from the floats cub contract ... enough to buy or
+  build yourself something, then 3-5 missions buy you a new small plane";
+- "No sales during the tuto (ends when we commit to the cub floats route)";
+- "the new ones, at the zero damage, plus a new bonus ... that is also the price we'd sell our planes, except if a build
+  contract is fixed price ... even the fixed price may be evaluated using the same method".
+
+**ECON-SIM LOST THE GRANT TWICE (fixed, tools/econ_sim.js).**
+- Since G3359 the story's own start (storyNewCareer) removes careerNew's grant line and its money. econ_sim ALSO took it off
+  the wallet before that, so every simulated story career began one grant short.
+- The tutorial ended at −31 630 in the sim. The real exit is **54 270 at T7** (T5's three jobs + T6's fee 28 600 + the
+  route's down payment).
+- The 5-in-20 "stuck at the Rufus" seeds were this bug, not the economy: none stall now.
+- The grant is now set after storyNewCareer (the config's, over STORY_GRANT).
+
+**ONE BASE (76_economy ECON_BOOK):**
+
+| | rule |
+|---|---|
+| zero-days value | ledger × `zeroK` 0.92 |
+| used | zero × `econAgeFactor(age)` × (1 − its deductions); the curve is 1 at zero days, floor 0.14, tau 27.5 (refit as continuous, the same numbers as before) |
+| new | zero × (1 + `newBonus` 0.25) = `econNewPrice` = the makers' catalogue (makerMargin 1.15, GATE PRICE holds makerMargin = zeroK × (1 + newBonus)) |
+| sale | the USED price at its age (`sellK` 1), capped at `paid` |
+| delivered | `econDeliveredValue(A)`: new for an own build, used for a used one |
+
+- **The sale's cap:** an own build in a fitted hangar is worth 0.92 at zero days and cost 0.8, so building to sell would print
+  money. With the cap it sells back at what it cost.
+- **The delivered value:** a build contract pays it (74_ careerComplete → contractPayTotal's `base`) unless the contract is
+  `pay.fixed`; a row without its ledger keeps the authored base (the offer card's estimate).
+- **Rows record their ledger:** airframe rows carry `cost` (econMaterialise; PROCURE's maker and used rows, which carry
+  `paid` too).
+- **A fixed price by the method** (the cheapest validated design that meets the contract): 8 of the 11 authored build
+  contracts are met by no validated design (an electric, a sub-300 kg plane, 6 g...), so the rule is the delivered value.
+
+**THE SALE (econSaleWhy / econSaleValue / econSell):**
+- Refused during the tutorial (story beats T0-T6: until T6's route is signed), on a route, for a story airframe, for one that
+  cost nothing.
+- Sold: out of the fleet (playerFleetReconcile) and the airframes, its pilot freed, `career.sold` (`how: 'market'`), a `sale`
+  ledger line (a new class, income; GATE ECON's allowed set).
+- The page: app.js `careerSaleOf` / `careerSellNow` (the slot's saved build → procureLedger → its cost), the garage API's
+  `saleOf` / `sell`.
+- garage.js's fleet rack has a **Sell** button per career airframe: its price in the title, greyed with the reason, a confirm,
+  then the slot leaves the shelf. `.gfSell` in editor.css.
+
+**STEP 2: AGE COSTS PERFORMANCE** (60_ GEN_AGING / genAgingOf; spec.aging = { years, engineHours }, written by
+procureUsedSpec):
+- **Power:** 1 % per 400 h since overhaul, to 6 %. Applied ONLY where power makes thrust: the prop's synthesis (resolveSpec's
+  P) and the solver's engine record (62_ def.engine, a copy). The powerplant row, its mass, exhaust and price are the engine's
+  as rated.
+- **Drag:** 0.1 % a year, to 5 %, on the body's CdA and every surface polar's Cd0.
+- **Absent: nothing moves** (×1 paths, the same objects).
+- Measured on the Cub, new vs 40 years and 2 000 h: cruise 113.0 → 109.8 km/h, climb 2.97 → 2.73 m/s, take-off 156 → 169 m;
+  mass and ledger identical.
+- **The listings:**
+  - ages 1-40 (`listAges`), PROCURE_COND 0.2-0.8, mean condition 0.383 (960 listings; was 0.574 at 1-14 years);
+  - the facts add "the engine gives 97 % of its rated power; 1 % more drag than new".
+
+**THE AGREED ECONOMY** (econ_sim PROPOSED, 20 seeds, with the grant fixed and build contracts at the delivered value):
+- pace: Cub-class 3, 4-seater 6, side hangar 11 (bands 3-4 / 6-8 / 8-12);
+- money at rest 0.50-2.8 everywhere;
+- route share 0.21 (router);
+- frugal, router and competitor finish segment 3 on 20 / 20, collector on 19 / 20;
+- the demo hours are as the user kept them.
+
+**GATES:**
+- GATE PRICE: the tiers (one base, the new bonus, the curve, the 1-40 market's mean, each listing's spec carrying `aging`),
+  the sale (locked in the tutorial, own = cost, used = its value, a story plane none, sold = credited + gone + `sale`), the
+  delivered value, step 2 (slower, worse climb, longer take-off; the same mass and ledger; absent ×1). `--selftest`: 10 of 10.
+- UISMOKE: the fleet card's Sell (live, greyed in the tutorial, none on an unpriced row, asks, sells, clears the slot).
+- PROCURE's band read off PROCURE_COND; ECON allows `sale`.
+
+## A0 - train L32a, 5 Nov 2026 00:05
+
+IN (on L31c master c2ac56b39, all 6): ready/cessna-official c469da8c9, ready/twin4b-seat cf51c8db7, ready/looks-round2 8fb6d9717, ready/night-bright d91b60329, ready/plane-lists cf6133faa, claude/price-apply 5111a6552 (PRICE-CAL, the user asked PRICE-STUDY to implement; rode without a ready ref).
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.14 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE, STOL 6 join rows + radial fly (TAILWHEELS G3800, Pilot's L32b). CONTRACTS and PROCURE green again (PRICE-CAL re-derived). PRICE, LIVERY rig not in the list as its own red.
+Red, new and not a break: STOL part 1 card c172 def: the card's def moved in this train, cause not traced; Pilot's re-capture names it.
+TIMED (light): 57 red against the 12 Oct baseline (L31c 54). New: metal cockpit fps 28.1, p99 66.7 ms, over15 0.0246; floats water taxi @SEA fps 25.1 (L31c 26.7), p99 66.6, worst task 284 ms; warm nav -> garage cub 143.1 s (122.4), floats 134.0 s (122.2). One sample per row, not dated to a branch; first suspect night-bright's hull capture (64x64 -> up to 1024x768). On the perf-week list.
+COSTS, by branch:
+- cessna-official: 212 L wing root (POH 56 US gal), +44 kg dry, 153 kg fuel. Margins solo full 16.7 land, 14.9 floats. Floats over the 2350's 1157 kg rating above 2-up with 160 L; nothing stops an overload. Fingerprints move on both files. Loaded go-arounds (G3914) until Pilot's fix on L32b. DC-3 tail by eye; tools/dc3_build.js has the old rows.
+- twin4b-seat: seatH 0.01, real drop 7 cm (the commit says 5.2), all four seats move, rear pair not looked at. Stab held to L32b.
+- looks-round2: Remy 1.75 m, no flown number moved. Float letters off. Thumbs re-baked. Stearman shoe: TANDEM-FEET on L32b. Unseen in a page.
+- night-bright: moon 0.3 takes 70 % off moonlight on land, judged on the hero only. Aurora and lens glows in, node gates + one browser look. Flood's seat-view switch not proven. White patch under the landing lamp = model.spot, standing, on the list.
+- plane-lists: three lists, All planes screen, Client Cub cowl, R1 + R2, Cub regC +0.012 (the rail crosses the letters; user accepted), 4b + STOL Cub on the chooser. Official does not mean test reference. Unseen in a browser: Thu 10:00 relook.
+- PRICE-CAL: credits = USD, pay x1.432, used market on an age curve. Owed: Sell button, the makers' new sale hidden in a career, step 2, POD baseline, 5 of 20 seeds stuck at the Rufus.
+NEXT: L32b Thu 13:00, stragglers: pilot-loads, pilot-ramp (costs accepted), stol-fixture-3, thumbs-round3, twin4b-stab, tandem-feet, buoy-look, client-cub-look, livery-5.
+
+## BUOY-LOOK - PLAIN WEATHERED BUOYS, THE LAMPS AN OPTION (the user 4 Nov: "having them lit is maybe nice, but I don't think it should be by default"; they "read as flat plain plastic")
+
+render_world.js only. Emissive off unless window.FLYDIY_BUOY_LIT (no menu row yet: an option in code). One small shared 256x128 canvas sheet, tinted by each buoy's colour: chalked paint, rust and grime runs, scuffs, dark weed at the waterline. Opaque, roughness .6 -> .78, sphere 12x8 -> 20x14 (buoys are one mesh each: cost named, about 2.9 x the triangles a buoy). Seen only from far off in the hero rounds (picture branch), never up close. Gates, node only: LIGHT NIGHTVISIBILITY NIGHTEXPOSURE ATMO WATER. Not run: CLOUD TARR UISMOKE FRAMECOST (they boot Chrome).
+## LIVERY-5 - THE IMAGES OUT, FIVE KIT LAYERS, A PATTERN GENERATOR, TARTAN, FLAGS, NO REGISTRATION OUTLINE (2026-11-04, LIVERY-5 for A0, cloud - node + SwiftShader; branch claude/livery-5 off origin/master f3688d16 = train L32a)
+THE ASK (the user, 4 Nov): "remove the images, use these two slots for two new livery slots, do not touch the UI, do not touch the system, but implement the flags and have also this option of having the rounded version"; a pattern generator ("little stars, little dots ... hexagonal ... or a grid pattern, but with shifted rows", "a Scottish clothes pattern"); "get rid of the outline"; "everything procedural and nothing rasterized".
+WHAT LANDED:
+- IMAGES OUT. aeroDecalImage / ImageData / ImageFrom / ImageClear, the img* / wim* rows, the upload rows, decalImages / decalImagesFrom, and the envelope's `images` (garage.js writes none; unwrap drops an old save's: `images: null`). An old save's img / wim rows are dropped by finishFromSpec (keys not in DEC_DEF) and read by nothing in flight. parked.js's setPages / decodeImages and app.js's seed restore are left in place and are now inert (they test for exports that are gone, and G.images answers null). 0 of 45 repo builds carried images.
+- FIVE LAYERS. AERO_KIT_LAYERS 5; AERO_KIT_PAGES = [3, 4, 5, 1, 2]: layers 1-3 keep their pages, 4 and 5 take the images' 1 and 2 (6 the sticker strip, 7 the master). The panel's loop made the two new rows itself (no UI work).
+- NINE SLOTS. Worst case = 5 layers + registration + wing registration + strip + master = 9, so AERO_MAXD 8 -> 9 (JS const and GLSL define). COST: 5 more vec4 uniforms per aircraft material (45 vec4 of decal arrays), one more unrolled loop iteration in every skin program's text (one recompile, then cached). Per pixel nothing changes: the loop breaks at uDecN. AND A GUARD: aeroDecalsFor trims the KIT to what the slots leave after the registration, its wing copy and the stickers - an overflow drops the last kit layer, never a registration or a certificate.
+- THREE PATTERNS in AERO_KIT (recipes; GLSL unchanged except the 9):
+  - `pattern`: shape (star dot square triangle diamond cross ring chevron heart) x layout (grid, shifted rows, HEXAGONAL default, diagonal, scatter seeded by a hash - no Math.random) x size (of the layer's depth) x spacing (in sizes). A shapes, D every other row, B ground, transparent on pick (`clr0: 2`). FLOOR: AERO_PAT_MINPX 8 page px across the narrower axis (1024 px page: 4.7 cm along a 6 m layer; potato's 512 px page: 9.4 cm) - asked smaller, drawn at the floor; AERO_PAT_MAXN 6000 shapes a page (size and spacing scale up past it). Said in the help text.
+  - `tartan`: ground A, a band and two lines in B / D at alpha 0.55 both ways, square in metres.
+  - `flag`: P a preset of AERO_FLAGS (23: France Germany Italy Ireland Belgium Netherlands Austria Poland Norway Sweden Denmark Finland Iceland Switzerland Greece Japan USA UK Alaska Ukraine Estonia Lithuania Bangladesh; a composer: bands, weighted bands, Nordic cross, centred cross, saltire, canton + its cross, disc, the US 50 stars and Alaska's Dipper), Q rectangle / rounded / disc (both readings of "the rounded version"), R size. Its own ratio in metres, centred; colour wells hidden (`cn: []`, `own: 1`); `fit: 0` (picking it keeps the hand placement). Hoist toward the NOSE on both flanks (noMirror) = reversed on the right side, the way a flag is worn on an aeroplane; no per-pattern fix needed.
+  - Two table-driven panel hooks (no layout change): a knob with `o` names shows the name (shape, layout, flag); `clr0` / `fit: 0` on the pattern switch.
+- NO REGISTRATION OUTLINE: aeroDecalsFor hands aeroDecalText null for it, always; regOut / regOutOn gone from AERO_DEC_DEF and DEC_DEF, the 'outline on' / 'outline' rows gone. The SDF underlay is the ink's own colour. Paint only (no fingerprint moves). VISIBLY LOSE AN OUTLINE (regOutOn absent): stock Cessna 172; builds/ c172r_wipline x2, cessna172 x3, cub_2026-09-20 (not the _corrected one), jodel_2026-09-20 (not _corrected), rufus; candidates B-ITES, Twin busher floats (4b and review 2/3/3b/4), build_v7 twin, ultralight (+floats), v8 pusher, dc3, pawnee, sailPlane, ugly_bi, flydiy-build (4); and the archetypes without regOutOn: 0. UNCHANGED (had regOutOn 0): stock Cub, Jodel, Chinook; cub/jodel _corrected, pa18_floats, chinook, composite_jodel, camel, stearman, tigermoth, mosquito, birdman, the STOL Cubs. Their dead `regOutOn: 0` rows are left in the data (ignored).
+- THE INK WORKS: the panel's own 'ink' well driven in the page (value + input event) reaches the export (regCol 0xc81e1e) - see reports/evidence/LIVERY-5/README.md for the atlas and the still.
+- GATE LIVERY's rig: the seedEditor stub lacked garageFloodArm / slotOnStand (G3358) AND SYNC / DEC_RELOAD (G2829) - the second made every seed throw midway, silently, inside the seed's try. Both stubbed. New rows (1c): A->Q / Q->A with five layers, the block n6, pages 3,4,5,1,2, an old save with img / wim / keyline rows loads to the same finish and block, no image row or data in the saved finish, the envelope source, and 161 pattern / flag / tartan recipes drawn with finite coordinates. Two new selftest probes.
+- Re-blessed by source: SKINMAT (the keyline asserts, 1 of 1 reframe rows, pages 1-5, the flag's `own`), BENCH (AERO_MAXD 9), PARTS (the image chain asserts now assert its absence).
+WATCH: a kit layer 4 / 5 lives on a page parked.js's old setPages would clear - it is inert only because aeroDecalImageClear is gone; do not bring an image door back without moving it.
+- GATES (cloud, node; this tree): LIVERY (+ selftest: every probe red, the two new ones too), LIVERYREACH, SKINMAT, CANDIDATES, PLANETHUMB, STORAGE, SAVE, CARDS, PARTS, BENCH, UISMOKE, BUILD, FLOWNBAKE, DESIGN PASS. PARKED PASS run alone at `node --max-old-space-size=4096` (215 checks, peak heap 1944 MB): at the runner's default heap it dies of OOM because the parked cook is STALE on any branch that changes a source (the page then captures live; master reads its cook and peaks at 1918 MB) - parked_cook.js at the train. LAZY red on one row ("the door's first demand (ROUTE_DRAW.ready) fetched route_draw.<h8>.js once and ran it"), the same row on a clean origin/master f3688d16 worktree: master's.
+- PARKED caught a bug of mine that UISMOKE did not: the image rows' removal left `bodyLock(); wingLock();` at the end of buildDecPanel, so the panel's tail (the slider ranges) and the materials panel after it threw ("CAGE_UI: the finish panels did not build", caught and logged, no page error). Fixed. The stills in reports/evidence/LIVERY-5 were taken BEFORE the fix (the render does not go through that tail: finishFromSpec + build); the rig now counts such a console error as a FAIL.
+## WEATHER-BLOCKS-2 - THE CLOUDS PANEL'S CAREER GUARD (2026-11-04, cloud session for the user via A0; branch claude/weather-blocks-2 off origin/master c2ac56b39 = L31c)
+A0's ask (4 Nov 21:30, the user approving the 28 days): the three seasonal blocks in the game, the career's forecast,
+and the clouds guard TIME-CONTROLS left open. FOUND ON MASTER ALREADY (WEATHER-SEASON, landed in L31a): the 42 days
+(src/weather/days/{early,high,late}), the block lookup (07d_weather_plan.js: early 20 May-2 Jul, high 3 Jul-15 Aug with
+day 1 on 15 Jul, late 16 Aug-30 Sep), and the career's forecast (day_clock.js window.FLYDIY_FORECAST -> WEATHER_PLAN.lines,
+read by DAY_UI.menu's ctx.forecast). So this branch is only the open guard:
+- clouds_ui.js mount: in the career (CK.isCareer()) the sky / low deck / upper decks rows are replaced by told lines (the
+  effective cover, type and base of each deck) and "The career's clouds come with the day: they are told here, not
+  chosen."; "another sky (seed)" is withheld (it changes the weather map). The veil, the look, the motion and the render
+  rows stay (machine-local look settings, not weather). The sandbox's panel is unchanged.
+- GATE WEATHERPLAN 10 holds the guard on the source.
+GATES (node, --no-build, jobs 3): WEATHERPLAN DAY CLOCK CLOUD UISMOKE WEATHER PASS. CLOUD ran with CLOUD_CENSUS=0 (its
+three browser census rows skipped: the change is UI text, no renderer path). Nothing built is committed.
+COSTS: none at run time - the guard is a branch at the panel's mount; the census rows (~5 min each on the cloud box) are
+the next train's to run.
+STATUS (4 Nov): claude/weather-blocks-2 1c052cc08 is green and pushed; claude/ready/weather-blocks is NOT - this session's
+push to a ready branch was refused as a deploy, so it waits for the user's own push.
+
+## A0 - train L32b, 5 Nov 2026 07:05
+
+IN (on L32a master f3688d168): ready/pilot-loads 264c9b500, ready/pilot-ramp d0453bb4b, ready/stol-fixture-3 31dba2e83, ready/thumbs-round3 ab391cde2, claude/tandem-feet 7256b6011 (A0; the second person in a rear-pilot tandem stands on the feet anchors; AIRCRAFT-LOOKS' stills 2026-11-05/tandem-feet: nothing pokes out), ready/buoy-look 61fa5e98a, ready/client-cub-look 7e8d5c97c (N1938J, wear 0.8), ready/livery-5 4c1d07336, ready/weather-blocks 6c0069ab3, ready/dc3-reg b38612632, ready/twin4b-struts d5ad06580, ready/twin4b-stab 9b25d88ec, ready/menu-nits f26d1a9b8.
+OUT: ready/wear-tab 2903259f2 (HANDOVER line endings normalised): A0 fixes, L32c.
+CORRECTION to L32a's note: PRICE-CAL rode at 5111a6552, so PRICE-CAL.2 is in: the Sell button, step 2 (age costs performance) are landed, the "stuck at the Rufus" seeds were an econ_sim bug, fixed. Its "owed" line is stale.
+BATTERY: red, standing: VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA (5.15 MiB gz; no page-size work), ASSETS, GEO, DMGGEAR twin SEVERE. STOL: 6 join rows again, this train moved spec rows after the re-capture (part 1 card rows green); not a break, re-capture once at the end.
+TIMED (light): 50 red against the 12 Oct baseline (L32a 57): water taxi fps and metal cockpit rows back inside slack, warm nav cub 120.9 s (143.1), floats 130.5 s: L32a's jump was mostly noise, one sample a row. New: cub cockpit fps 24.5, p999 4401.7 ms (one frame of about 4.4 s), compile 19.4 s; metal chase loop 21.1 ms. On the perf-week list.
+COSTS, by branch:
+- pilot-loads: forward flap, 5 loads land first try through the door, no wind (26-28 m/s, 247-286 m). No page leg with the flap out: the page leg flew 2 crew flapless.
+- pilot-ramp: full-tank radial lifts off by 15 s. GATE TAKEOFF crosswind 4 -> 3 m/s and Rufus at the mine 73 -> 76 m, 66 -> 71 m, accepted by the user. A broken-out tailwheel still can't recover. Costs measured before L32a.
+- OPEN: official Cessna lands flapless on light loads (genTrim budget, up-elevator at forward CG; old 25 L file too): CESSNA-TAIL, the user's call. TOUR Cub East Point, float mk_sea prop strike, DMGTYRE, ARCHETYPES Chinook-alike: standing, named.
+- twin4b-struts: new row fltFrontRing, 4b only, margins 14.4 / 23 / 32 / 34.5, -0.9 kg. Drawn floats about 18 cm ahead of flown; centre strut drawn to the door pillar, flown to the aft ring; tail lens is code.
+- twin4b-stab: stY 0.06 flies where drawn (61_gen_frame.js:2168): 18.4 / 9.7 / 39.6 / 34.1, the low read is the shakedown's one 0.02 rad step over the wake kink (central difference: same or better). Old Twin_busher_floats_2 files move. Struts and stab lifted off on a page once, 02:51. Gate finding for later: the shakedown's one step, and corners missing loads.
+- livery-5: images removed, old saves ignore them; layers 4 + 5 on pages 1 + 2; patterns (shape, layout), tartan, flags; registration outline gone everywhere; the ink colour works (proved on a page). Unseen on the GPU.
+- buoy-look: lamps off by default (window.FLYDIY_BUOY_LIT), sheet, opaque; sphere 12x8 -> 20x14. Texture not judged close up.
+- client-cub-look: white + faded blue, wear 0.8, near-triangle window, N1938J. Career keeps its bare paint job: livery holds through storyClientSpec (its session's stills).
+- weather-blocks: three seasonal blocks, 28 new days.
+- menu-nits: unseen on a page. Thumbs unseen on the All planes screen.
+NEXT: L32c Thu 13:00: wear-tab, tour-eastpoint.
+
+## WEAR-TAB - THE GARAGE'S THIRD VIEW: STRUCTURE / FINISH / WEAR; THE WEAR ROWS MOVED OUT OF FINISH WITH THEIR KEYS; spec.aging AS TWO EXPERT SLIDERS; GATE WEARTAB; THE WEAR-SYSTEM STUDY (2026-11-05, WEAR-TAB for A0, cloud - node + headless Chromium / SwiftShader; branch claude/wear-tab off origin/master f3688d168)
+The user, 5 Nov: "a third tab in the slider menu. On top of structure and finish, we'll have wear. Let's move the visual
+wear over there for now, and the physical wear, as simple sliders ... keep them under expert row for now", and "study a
+system tying them all together, as well as the price" (futureDesigns/WEAR-SYSTEM-2026-11.md).
+
+**THE TAB (UI only, no new behaviour):**
+- body.html `#edTabWear` after finish; editor.js `view` 'wear' (setView, the boot's LS_VIEW restore, render's dispatch,
+  `.wea` on #edWrap: no per-part reset there, the expert switch stays). The phone uses the same #edViewTabs (three
+  segments, phone.css's 40 px rule unchanged).
+- MOVED, SAME KEYS: renderFinish skips `data-weather` (the four macros, WEAR) and `data-wear` (each section's wear rate,
+  secWear - the one new attribute, set in _cage_ui's dial loop with `data-wear-of`, the surface's name the wear view
+  labels the row with). Prefs (`flydiy.aeroSections` wear / wearM), finish.weather and sections[].wearM unchanged: an
+  old build loads and looks the same. The bench keeps both rows where they were.
+- renderWear: the root holds `looks` (the four macros) and `airframe and engine` (spec.aging); every part its surfaces'
+  wear rates; ALL are expert blocks (emitEls' new `o.expert`, applyVis hides them with expert off); with expert off the
+  view says so and offers the switch.
+- THE PHYSICAL SLIDERS: airframe years 0-60, engine hours since overhaul 0-3 000, a read-out (power %, drag %). Written
+  on CHANGE (a rebuild each, never per pixel) through GARAGE_SPEC.update({ aging }), and taken off with
+  GARAGE_SPEC.remove('aging') at 0 / 0: absent stays absent, an untouched build's def is the same bits.
+- **THE FINGERPRINT: spec.aging MOVES IT.** No strip list names `aging` (66b CERT_COSMETIC / MINOR / BOLT_ONS), so
+  certMajorOf files it with STRUCTURE: setting an age withdraws a certificate ("the wing or the structure changed"); the
+  read-out says so. Clearing it gives the same fingerprint back. Today only used listings carry it (their fp is the aged
+  spec's, while procureUsedCert's numbers are the model's as new - a disconnect, in the study §1).
+- CAREER GUARD (A0's call): the physical sliders are READ-ONLY in a career (FLYDIY_CAREER.doc().career) - until a restore
+  has a price; the look stays editable, as it was in FINISH. Sandbox: free.
+- THE STORY'S LOCK: finishOnly's meaning kept; the wear tab is SHUT while it holds (lockSync's list; STORY_TUTOR_ALLOW
+  finish denies #edTabWear). At T0 the four look rows are therefore out of reach where FINISH used to show them.
+- LIVERY-5: no decal row touched.
+
+**GATES:** WEARTAB (new, core, ~3 s; `--selftest` 8 of 8): three views shown, the dispatch / restore / lock / tutor
+rows, the rows moved with the same keys, the prefs and spec keys, expert, the writer (update / remove at 0 / 0, career
+read-only, on change), and on all 14 saved builds: the def at aging 0 / 0 the same bits (a leaf walk; only
+def.spec.aging differs), write-then-clear byte for byte through genSpecMerge with the same certificate, a real age moves
+the structure group. UISMOKE (+ #edTabWear in the workshop's ids), UISMOKE-PHONE, CARDS, BUILD, WEATHER, EDBUGS, JOIN,
+SAVE, STORAGE, STORY, PRICE: PASS. LIVERY and LAZY red, IDENTICALLY on a clean worktree of master f3688d168 (LIVERY:
+its rig runs seedEditor without `garageFloodArm`, G3358; LAZY: "the door's first demand (ROUTE_DRAW.ready) fetched
+route_draw once and ran it") - not this branch's.
+IN A PAGE (headless Chromium, SwiftShader, dev.html desktop 1600x900): three tabs; FINISH holds no wear row; WEAR with
+expert off is the note alone; on, 4 looks + 3 aging rows + 45 surface rates; the age written {25, 1200} (97 % power,
++2.5 % drag) and cleared back to absent; the story's lock lands on FINISH and the WEAR tab refuses; no page error.
+
+**COSTS:** per frame none (the look is a uniform, aging two factors at resolve). A physical slider is a rebuild per
+change. The four look rows now need two clicks (the tab, the expert switch). Unseen on a real GPU.
+
+**THE STUDY** (futureDesigns/WEAR-SYSTEM-2026-11.md): one master (the airframe's years) driving the look, drag, mass,
+the default engine hours and the price curve; two rates (rough operations through the damage model and the look only;
+poor maintenance through engine power past TBO, corrosion and the look); restores at the parts price (repaint, recover,
+overhaul at 0.85 of the engine row, rebuild), a repaint never a restoration; `aging` proposed out of the certificate.
+Five questions for the user at its end.
+
+## A0 - train L32c, 5 Nov 2026 09:05
+
+IN (on L32b master f7ee20edf, both): a0/wear-tab-eol 57ec5f797 (ready/wear-tab 2903259f2 with its HANDOVER line endings restored by A0), ready/tour-eastpoint 38193048c.
+BATTERY: red, standing, no new row: STOL 6 join rows, VEHICLE, DMGSKINGPU, FRAMECOST (the same 5), MEDIA, ASSETS, GEO, DMGGEAR twin SEVERE.
+TIMED (light): 48 red against the 12 Oct baseline (L32b 50). Water taxi @SEA fps 24.5, p99 66.7, over15 0.1265 back in the reds (it was inside slack on L32b, 25.1 on L32a, 26.7 on L31c): noisy but not going away, first row for PERF-PASS. Cub cockpit fps back inside slack (24.5 on L32b). Warm nav cub 107.1 s, floats 125.4 s.
+COSTS:
+- wear-tab: third view 'wear': visual rows moved with the same keys, physical sliders (airframe years, engine hours) under expert, read-only in a career (A0's call), shut at T0. Study futureDesigns/WEAR-SYSTEM-2026-11.md: 5 questions with the user.
+- tour-eastpoint: Cub at East Point expects two go-arounds and a landing at w3 in 3.3 m/s behind; limit 1800 -> 2800 s on its legs; shards 921 -> ~1147 s, 460 -> ~627 s; the take-off straight after an East Point landing is no longer flown on the game's day. Float mk_sea > SEA stays red and named.
+PHYSICS_V unmoved in this train. NEXT: Pilot's Rufus page check, 09:15.
+
+## BUOY-DESAT - THE BUOYS HALF WAY TO THEIR OWN GREY (the user 5 Nov: "too saturated for the scene. Desaturate them a bit")
+
+render_world.js, one line of colour at the material; the lamps' option (FLYDIY_BUOY_LIT) keeps the full colour in the emissive. The look was seen in the hero rig (same 0.5, on the picture branch), not this cut in a browser. Gates, node only: LIGHT NIGHTVISIBILITY NIGHTEXPOSURE ATMO WATER.
+
+## A0 - train L32d, 5 Nov 2026 11:45
+
+IN (on L32c master 0ebe6e3eb, small train, gates: BENCH + its neighbours, cards, smoke, FRAMECOST, PARKED, MEDIA, BUILT, BUILD): ready/rufus-restamp c1302fdeb, ready/buoy-desat 3d05939a2.
+BATTERY: red, standing: FRAMECOST (the same 5), MEDIA 5.15 MiB. Nothing new. STOL green with the new fixture.
+TIMED (light): 59 red (L32c 48), warm nav 167.1 / 180.9 s, one 11.9 s link frame on world -> garage, taskWorst 11-27 s. NOT read as this train's cost: the same link count (588 vs 584) but 169 links over 5 s against 11, "GPU cache MISS suspected", and these two refs change a data file, a gate, the load door's cache and one buoy colour. W4 / B1's driver cache noise, seen before. One sample; PERF-PASS takes 3.
+COSTS: Rufus's tank moved 10 mm along the body, same 16 L; passed true for the first time (load row + sticker added), flight + logbook kept (G3780); mass, CG and the mine runs unchanged. GATE BENCH holds shipped stamps (versions, body, held rows). _load_build.js: the door's cache recomputes once for everyone. Story HOME screen not opened. Buoys: colour half way to grey, unseen in a browser.
+STANDING, not in the train's list, on master: JOINPARITY 5, APSMOOTH (all five at level), ENGCONFIG: 26 lines, same with and without this train. Next week.
+
+## LOOK-1-MOON - THE MOON'S LIGHT WHITE, NOT GOLD (the user 5 Nov on the night hero: "golden light and specks on trees"; then "moon color neutral, looks a lot more natural")
+
+sky_light.js, one line: the moon key's colour is (0.80, 0.86, 1) instead of its transmittance. Measured on the GPU at the hero's spot and day (ultra, real trees to 1000 m, the colour held on every frame; evidence-2026-10-18/2026-11-05/look-1/moon/): warm lit pixels on the moon-facing slope 2.76 % -> 0.02 %; the moon off 0.05 %, so the key was the gold. THE SPECKS STAY, pale: they are the key on each card's own normal, the study's D3 (LOOK-1 step 3). Moves: everything the moon lights when it is the key, including its path on the water (gold to white). Nothing by day: the sun's branch is untouched. No program, no memory, no frame cost.
+## AA-OFF-LIVE - SWITCHING ANTI-ALIASING TO OFF IN FLIGHT THREW ON EVERY FRAME (found by LOOK-1's rig, 5 Nov)
+
+clouds.js depthFor, one line: the target set up before the depth copy. From gamer (8x), `GFX.set('aa', 'off')` under live clouds threw "Invalid value used as weak map key" in copyTextureToTexture on every frame and no frame was drawn. A boot at zero samples did not hit it. The check is tools/look1_temporal.js --aa off. Nothing moves for a player who never switches: no program, no memory, one map lookup at zero samples.
+
+## A0 - train L32e, 5 Nov 2026 20:07
+
+IN (on L32d master bbf615a28, small train): ready/look-1-moon c2c20a1ec (the moon's key neutral, the user's ruling: the hero's gold goes; night only), ready/wing-root d1991ece3 (the root rib's normal out of the skin's shared normals; the lower wing smooths like the upper; visual only, thumbs and fiches keep the old root until redrawn), ready/look-1-aaoff eb795cb15 (aa off under live clouds threw every frame in clouds.js depthFor).
+BATTERY: red, standing: FRAMECOST (the same 5), MEDIA 5.15 MiB. New, named: LIVERY 2 of 319: builds/cub_2026-09-20.json's strut resolves to castAlu (Client Cub's repaint, L32b; the gate wasn't in L32b's list as a red to read); small, next week or a fix row. SKINMAT (outside this list): a click on a surface in the FINISH view doesn't land on its section's row: standing, AIRCRAFT-LOOKS saw it on master.
+TIMED (light): 55 red (L32c 48, L32d 59). Warm nav 133.6 / 132.9 s, 71 links over 5 s: the cache again. Water taxi @SEA 25.8 fps. One sample per row; PERF-PASS.
+PHYSICS_V unmoved. Flown look of the wing root not checked, same geometry.
+NEXT: NIGHT-LOOK's hero under the neutral moon, LOOK-1 step 1 (clouds).

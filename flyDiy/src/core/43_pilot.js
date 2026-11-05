@@ -1135,7 +1135,7 @@ function makePilot(sim, def, world, opts) {
   const P3_ = !!(A.p3 ?? true);
   // G3914: A FLAPLESS AEROPLANE COMING DOWN CLOSES THE THROTTLE. Its idle floor costs as much slope as the whole slip: the Cub in still air at 19.2 m/s, flown steady,
   // 0.109 on the floor, 0.121 slipping at 0.8 of rudder; 0.119 and 0.130 closed. On the descending legs it also rolled in 12 m high without it
-  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0;
+  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0, p3FlapOut = false;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
   // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
   // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
@@ -3198,7 +3198,7 @@ function makePilot(sim, def, world, opts) {
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
-    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; }   // G1936: the slip is the short final's only
+    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; p3FlapOut = false; }   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
     // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
@@ -3728,7 +3728,11 @@ function makePilot(sim, def, world, opts) {
           // 1 s, and the roll's clock (the accelerate-stop's filter and its rules) starts there. Only a taildragger on
           // wheels over static T/W lineupTW (0.30) arms it: the user's Cub 0.27, the Jodel 0.23; the Cessnas are
           // tricycles, the float builds on the water - no validated aeroplane
-          if (rollS0 === null) { lineHold = false; lineOkT = 0; }
+          // G3914: ...AND OPENS IT SMOOTHLY. A step to full power from rest swings a taildragger of this class past its tailwheel's arc (G3800): the radial card at full tanks broke
+          // out 0.8 s into the roll, castoring it steers nothing, and it never left ROLL (900 s, gave up). Over the same 2 s as a profile's ramp the wheel holds and it lifts off at
+          // 15 s (13.9 before G3800). On a short field the brakes hold through the ramp (shortTO below), so it costs no run
+          const capR = (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) ? Math.min(GP.cap, 0.3) : GP.cap;
+          if (rollS0 === null) { lineHold = false; lineOkT = 0; thrRoll = Math.min(thrRoll, capR); }
           if (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) {
             if (!lineHold && Math.abs(e) > 0.26) { lineHold = true; lineOkT = 0; }
             if (lineHold) {
@@ -3737,8 +3741,8 @@ function makePilot(sim, def, world, opts) {
             }
           } else lineHold = false;
           if (lineHold) { capT = Math.min(capT, Math.max(0.2, (A.lineTaxiTW ?? 0.15) / STATIC_TW)); phaseT = 0; }
-          thrRoll = GP.cap < 1
-            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+          thrRoll = capR < 1
+            ? Math.min(capT, Math.max(thrRoll, capR) + (1 - capR) / (A.thrRampS ?? 2) * dt)
             : capT;
           // G1937 (PILOT-ONE, the user: the take-off "pulls on the stick much too fast, and hops" - on the WATER).
           // ON THE WATER THE POWER COMES IN OVER SECONDS. The throttle went from 0 to full in one step at 0.5 s:
@@ -4620,7 +4624,11 @@ function makePilot(sim, def, world, opts) {
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
-        flapTgt = (P3_ && onPathF && fLDG > 0) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
+        // G3914: THE STAGE WAITS FOR THE ROLL-OUT ONLY WHILE THE ELEVATOR HAS ROOM. Past the trim budget at half flap the next stage is the relief: the 4-up float Cessna (1176 kg)
+        // held half at 0.31 of elevator, G975 took the flap back to 0.25, the elevator pinned and it sank 5.4 m/s; the 1222 kg land one took full flap 13 s above the gate and sank
+        // 4.1 there. Both went round for ever; with the flap out early they land first try, full flap on 0.05-0.10 of elevator (26.2 m/s, run 254 m: what they did before the stages)
+        if (P3_ && deF > 0.18) p3FlapOut = true;
+        flapTgt = (P3_ && onPathF && fLDG > 0 && !p3FlapOut) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
         // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
         // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
         // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m

@@ -1086,7 +1086,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   }
   spend((PP.price || 0) * S.engines.length);
-  spend(S.prop.price || 0);
+  // PRICE-CAL: a propeller per engine (a twin billed one), and a constant-speed hub's premium + governor on each
+  spend(((S.prop.price || 0) + (PP.engine && PP.engine.cs ? GEN_PRICES.csHub : 0)) * S.engines.length);
 
   // which frames straddle a given station, so a component that moves finds new
   // ones to attach to instead of dragging its old ones along
@@ -2851,7 +2852,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
   sec('cabin');
-  spend(S.seats * GEN_PRICES.seat);
+  // (PRICE-CAL: the 380-a-seat line is retired - the seat itself is billed by its GEN_SEATS row in the outfit)
   // WHICH FRAME EACH OCCUPANT SITS ON. This was a two-element literal, which
   // is the whole of why the aeroplane could not carry more than two people:
   // a third occupant fell through `|| F[1]` and was billed onto the front row
@@ -3258,12 +3259,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
     // lining) carved out of it, so the total is the credit it was
+    // PRICE-CAL: the furnishing (lining, carpet, panels, trim) at 200 cr a kilo, was 60 - the materials of a builder's
+    // interior (a C172's DIY interior kit is $3-8k for ~24 kg; a shop's job is $14-20k, labour the ledger does not bill)
     const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                                28 * (exhM + plumbM + ctlM) + 60 * furnM);
-    const furnCr = Math.round(seat.price * seats + 60 * furnM);
+                                28 * (exhM + plumbM + ctlM) + 200 * furnM);
+    const furnCr = Math.round(seat.price * seats + 200 * furnM);
     spend(furnCr);
     sec('outfit');
     spend(outfitCr - furnCr);
+    // PRICE-CAL: the lights (nav / strobe and a landing light) on any aeroplane with a bus - in the outfit, beside the
+    // panel's bill (GATE PANEL holds panel + elec + avionics to the resolver's); their draw is GEN_LIGHT_AMPS'
+    if (SYS.hasBus) spend(GEN_PRICES.lights);
   }
   sec('paint');
   {
@@ -3274,7 +3280,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // on the covered nodes in proportion, so it lands where the paint is and
     // moves no centre of gravity.
     const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
-    spend(FIN.price);
+    // PRICE-CAL: the colour coats per square metre painted (was a flat 1 800, a Cub's and a DC-3's alike), and the
+    // fabric covering system's materials per square metre of CLOTH (the dope, the tapes, the rib lacing: the row's
+    // kilos bill the cloth's weight, not its price) - both off the panels the frame actually built
+    spend((FIN.perM2 || 0) * coverA);
+    let clothA = 0;
+    for (const c of coverPan) if (c.cloth) clothA += c.A;
+    spend(GEN_PRICES.coverM2 * clothA);
     // ...in proportion to the AREA each node covers (G457): per node it
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries

@@ -324,7 +324,7 @@ if (!SELF) {
           tag + 'past the limit it is the edge line or the heading that goes, not a rejection', String(xw.failWhy));
     check(cpu < 60, tag + 'measured inside a minute of CPU time', cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
     // declared knobs move it as declared: a 1 m band cannot be held even in
-    // calm air; a 4 m/s cap with a 100 m band reports "> cap"
+    // calm air; a 3 m/s cap with a 100 m band reports "> cap"
     // A TIGHTER BAND READS A SMALLER LIMIT — the knob, not a magic number
     // (2026-09-08). This asked for "a 1 m band reads under 1 m/s", which was
     // true while the pilot took a crosswind roll with its wings level: it
@@ -338,8 +338,9 @@ if (!SELF) {
     check(tight.limit != null && tight.limit < xw.limit,
           tag + 'a 1 m band reads a lower limit than the strip\'s own',
           tight.limit + ' < ' + xw.limit);
-    const loose = C.genCrosswindLimit(def, { band: 100, cap: 4, world: xwWorld, memo });
-    check(loose.limit == null && loose.cap === 4, tag + 'a 100 m band with a 4 m/s cap reads "> 4"', String(loose.limit));
+    // G3914, rule (b), the user 4 Nov ("peanuts"): the 2 s throttle ramp takes this fixture's crosswind limit from 4 to 3 m/s (on the 100 m band it first swings off the heading at 4), so the cap is 3 (it was 4)
+    const loose = C.genCrosswindLimit(def, { band: 100, cap: 3, world: xwWorld, memo });
+    check(loose.limit == null && loose.cap === 3, tag + 'a 100 m band with a 3 m/s cap reads "> 3"', String(loose.limit));
     console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +
                 ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
   }

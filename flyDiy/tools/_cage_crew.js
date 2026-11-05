@@ -3524,7 +3524,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // but without the actual pedals'): two fixed anchors on the floor of the
     // bay, fore-aft / height / spread from the sliders, the legs IK'd onto
     // them exactly as onto pedals — nothing is drawn.
-    const feet = (!pedals && seat.section && +P.paxFeetOn) ? (() => {
+    // TANDEM-FEET (the user, 4 Nov: the passengers' legs poke through on the Stearman and the Moth): with the pilot in bay 1
+    // (G3515) the cockpit's second person sits in section 0 with no pedals, so `seat.section` left the legs in the frozen
+    // pose and the shins hung through the belly. Anyone but the pilot, without pedals, stands on these anchors.
+    const feet = (!pedals && (seat.section || !seat.pilot) && +P.paxFeetOn) ? (() => {
       const g = new THREE.Group(); group.add(g);
       const z = seat.zBack + (P.paxFeetZ == null ? 0.55 : +P.paxFeetZ);
       const y = A.floorAt(z) + (+P.paxFeetY || 0) + 0.072 * s;   // ankle over sole

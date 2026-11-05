@@ -1,0 +1,5509 @@
+{
+ "what": "PRICE-STUDY 2026-11-04: the game prices (credits) off tools/flight_core.js, the real benchmark (USD 2025-26)",
+ "date": "2026-11-04",
+ "core": "tools/flight_core.js",
+ "refCub": 31203,
+ "planes": [
+  {
+   "id": "cub",
+   "label": "Cub (J-3, slightly upgraded)",
+   "src": "builds/cub_2026-09-20_corrected.json",
+   "engine": "Continental A-65",
+   "hp": 65,
+   "nEng": 1,
+   "prop": "2-blade wood 1.91 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 354,
+   "loadedKg": 476,
+   "engineKg": 80,
+   "fuelL": 48,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 40.8,
+     "cost": 1714,
+     "payload": false
+    },
+    "engines": {
+     "kg": 99.3,
+     "cost": 10094,
+     "payload": false
+    },
+    "wings": {
+     "kg": 72.2,
+     "cost": 3101,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 27.1,
+     "cost": 1138,
+     "payload": false
+    },
+    "tail": {
+     "kg": 15.9,
+     "cost": 548,
+     "payload": false
+    },
+    "gear": {
+     "kg": 27.1,
+     "cost": 1855,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 5,
+     "cost": 918,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 32.4,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 30.3,
+     "cost": 999,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 7.4,
+     "cost": 326,
+     "payload": false
+    },
+    "paint": {
+     "kg": 6,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 9000,
+    "prop": 929,
+    "structure": 6666,
+    "gear": 1855,
+    "gearBought": 1150,
+    "gearStructure": 705,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 999,
+    "furnish": 326,
+    "tank": 918,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 156,
+   "prices": {
+    "ledger": 31203,
+    "scratchFit": 25000,
+    "scratchFitRule": 25000,
+    "scratchShort": 31200,
+    "catalogue": 35900,
+    "catalogueSrc": "procurePrice(scout)",
+    "econCat": 33700,
+    "usedLo": 14400,
+    "usedHi": 28700,
+    "inCubs": 1
+   },
+   "coverCr": 900,
+   "coverNote": "51 m2 (HANDOVER G159: the Cub covers 51 m2) x 0.42 kg/m2 x 42 cr/kg"
+  },
+  {
+   "id": "c172",
+   "label": "Cessna 172",
+   "src": "builds/cessna172_2026-09-20_corrected.json",
+   "engine": "custom Flat (boxer) 4-cyl 5.9 L",
+   "hp": 159,
+   "nEng": 1,
+   "prop": "2-blade aluminium 1.91 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 637,
+   "loadedKg": 974,
+   "engineKg": 144,
+   "fuelL": 202,
+   "seats": 4,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 108.8,
+     "cost": 8486,
+     "payload": false
+    },
+    "engines": {
+     "kg": 176.4,
+     "cost": 32203,
+     "payload": false
+    },
+    "wings": {
+     "kg": 132.7,
+     "cost": 9519,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 32.8,
+     "cost": 2559,
+     "payload": false
+    },
+    "tail": {
+     "kg": 25.6,
+     "cost": 1695,
+     "payload": false
+    },
+    "gear": {
+     "kg": 41.8,
+     "cost": 5452,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 1520,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 9.6,
+     "cost": 3312,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 137.5,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 8,
+     "cost": 10460,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 47.1,
+     "cost": 1515,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 24.3,
+     "cost": 1335,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.2,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 29740,
+    "prop": 2259,
+    "structure": 22463,
+    "gear": 5452,
+    "gearBought": 1800,
+    "gearStructure": 3652,
+    "panel": 10460,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 19090,
+    "seats": 1520,
+    "outfit": 1515,
+    "furnish": 1335,
+    "tank": 3312,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 300,
+   "prices": {
+    "ledger": 88486,
+    "scratchFit": 70800,
+    "scratchFitRule": 70800,
+    "scratchShort": 88500,
+    "catalogue": 107900,
+    "catalogueSrc": "procurePrice(meridian)",
+    "econCat": 95600,
+    "usedLo": 43200,
+    "usedHi": 86300,
+    "inCubs": 2.84
+   }
+  },
+  {
+   "id": "jodel",
+   "label": "Jodel (as a D115)",
+   "src": "builds/jodel_2026-09-20_corrected.json",
+   "engine": "Continental A-65",
+   "hp": 65,
+   "nEng": 1,
+   "prop": "2-blade wood 1.83 m",
+   "material": "wood",
+   "wants": [
+    "wood"
+   ],
+   "emptyKg": 341,
+   "loadedKg": 463,
+   "engineKg": 80,
+   "fuelL": 48,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 43,
+     "cost": 2363,
+     "payload": false
+    },
+    "engines": {
+     "kg": 99.2,
+     "cost": 10036,
+     "payload": false
+    },
+    "wings": {
+     "kg": 68.9,
+     "cost": 3000,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 25.8,
+     "cost": 1421,
+     "payload": false
+    },
+    "tail": {
+     "kg": 17.5,
+     "cost": 696,
+     "payload": false
+    },
+    "gear": {
+     "kg": 25.4,
+     "cost": 4447,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 5,
+     "cost": 918,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 32.4,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 23.6,
+     "cost": 789,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 4,
+     "cost": 183,
+     "payload": false
+    },
+    "paint": {
+     "kg": 5.5,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 9000,
+    "prop": 853,
+    "structure": 7663,
+    "gear": 4447,
+    "gearBought": 3500,
+    "gearStructure": 947,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 789,
+    "furnish": 183,
+    "tank": 918,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 155,
+   "prices": {
+    "ledger": 34363,
+    "scratchFit": 27500,
+    "scratchFitRule": 27500,
+    "scratchShort": 34400,
+    "catalogue": 39500,
+    "catalogueSrc": "procurePrice(pinson)",
+    "econCat": 37100,
+    "usedLo": 15800,
+    "usedHi": 31600,
+    "inCubs": 1.1
+   }
+  },
+  {
+   "id": "birdman",
+   "label": "Birdman",
+   "src": "builds/candidates/review/birdman.json",
+   "engine": "Rotax 582 + 2.62 red.",
+   "hp": 64,
+   "nEng": 1,
+   "prop": "2-blade wood 1.41 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 263,
+   "loadedKg": 365,
+   "engineKg": 43,
+   "fuelL": 18,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 29.7,
+     "cost": 1248,
+     "payload": false
+    },
+    "engines": {
+     "kg": 52.3,
+     "cost": 6153,
+     "payload": false
+    },
+    "wings": {
+     "kg": 60.5,
+     "cost": 2588,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 24.2,
+     "cost": 1018,
+     "payload": false
+    },
+    "tail": {
+     "kg": 18.7,
+     "cost": 637,
+     "payload": false
+    },
+    "gear": {
+     "kg": 21.3,
+     "cost": 4050,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 1.4,
+     "cost": 971,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 12.2,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 22.4,
+     "cost": 703,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 6,
+     "cost": 240,
+     "payload": false
+    },
+    "paint": {
+     "kg": 3.9,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 5500,
+    "prop": 506,
+    "structure": 5638,
+    "gear": 4050,
+    "gearBought": 3500,
+    "gearStructure": 550,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 703,
+    "furnish": 240,
+    "tank": 971,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 133,
+   "prices": {
+    "ledger": 28118,
+    "scratchFit": 22500,
+    "scratchFitRule": 22500,
+    "scratchShort": 28100,
+    "catalogue": 32300,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 30400,
+    "usedLo": 12900,
+    "usedHi": 25800,
+    "inCubs": 0.9
+   }
+  },
+  {
+   "id": "chinook",
+   "label": "Chinook (the Birdman Chinook)",
+   "src": "builds/chinook_2026-09-21_corrected.json",
+   "engine": "Rotax 582 + 2.62 red.",
+   "hp": 64,
+   "nEng": 1,
+   "prop": "3-blade wood 1.73 m",
+   "material": "aluTube",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 219,
+   "loadedKg": 337,
+   "engineKg": 43,
+   "fuelL": 40,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 22.2,
+     "cost": 666,
+     "payload": false
+    },
+    "engines": {
+     "kg": 57.1,
+     "cost": 6844,
+     "payload": false
+    },
+    "wings": {
+     "kg": 34.9,
+     "cost": 849,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 16.1,
+     "cost": 483,
+     "payload": false
+    },
+    "tail": {
+     "kg": 14.1,
+     "cost": 329,
+     "payload": false
+    },
+    "gear": {
+     "kg": 19.5,
+     "cost": 3840,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 1.6,
+     "cost": 1651,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 27.4,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 21.8,
+     "cost": 670,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 6,
+     "cost": 240,
+     "payload": false
+    },
+    "paint": {
+     "kg": 3.6,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 5500,
+    "prop": 1143,
+    "structure": 2529,
+    "gear": 3840,
+    "gearBought": 3500,
+    "gearStructure": 340,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 670,
+    "furnish": 240,
+    "tank": 1651,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 87,
+   "prices": {
+    "ledger": 26082,
+    "scratchFit": 20900,
+    "scratchFitRule": 20900,
+    "scratchShort": 26100,
+    "catalogue": 30000,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 28200,
+    "usedLo": 12000,
+    "usedHi": 24000,
+    "inCubs": 0.84
+   }
+  },
+  {
+   "id": "tiger",
+   "label": "Tiger Moth",
+   "src": "builds/candidates/tigermoth_2026-10.json",
+   "engine": "DH Gipsy Major 1",
+   "hp": 130,
+   "nEng": 1,
+   "prop": "2-blade wood 1.91 m",
+   "material": "wood",
+   "wants": [
+    "wood"
+   ],
+   "emptyKg": 557,
+   "loadedKg": 800,
+   "engineKg": 139,
+   "fuelL": 92,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 43.9,
+     "cost": 2414,
+     "payload": false
+    },
+    "engines": {
+     "kg": 164.6,
+     "cost": 27038,
+     "payload": false
+    },
+    "wings": {
+     "kg": 135.8,
+     "cost": 6076,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 74.4,
+     "cost": 3928,
+     "payload": false
+    },
+    "tail": {
+     "kg": 26.6,
+     "cost": 1125,
+     "payload": false
+    },
+    "gear": {
+     "kg": 33.8,
+     "cost": 2515,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 6.6,
+     "cost": 1607,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 62.6,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 27.2,
+     "cost": 820,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 14.5,
+     "cost": 752,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.2,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 20,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 26000,
+    "prop": 929,
+    "structure": 13651,
+    "gear": 2515,
+    "gearBought": 1150,
+    "gearStructure": 1365,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 820,
+    "furnish": 752,
+    "tank": 1607,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 281,
+   "prices": {
+    "ledger": 56784,
+    "scratchFit": 45400,
+    "scratchFitRule": 45400,
+    "scratchShort": 56800,
+    "catalogue": 65300,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 61300,
+    "usedLo": 26100,
+    "usedHi": 52200,
+    "inCubs": 1.82
+   }
+  },
+  {
+   "id": "bites",
+   "label": "B-ITES (user, RV range)",
+   "src": "origin/claude/a0/b-ites-input:flyDiy/builds/candidates/review/B-ITES.json",
+   "engine": "Lycoming IO-360-L2A",
+   "hp": 180,
+   "nEng": 1,
+   "prop": "2-blade aluminium 1.69 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 467,
+   "loadedKg": 583,
+   "engineKg": 138,
+   "fuelL": 23,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 43.5,
+     "cost": 1825,
+     "payload": false
+    },
+    "engines": {
+     "kg": 165.4,
+     "cost": 39904,
+     "payload": false
+    },
+    "wings": {
+     "kg": 68.4,
+     "cost": 3027,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 72.5,
+     "cost": 3044,
+     "payload": false
+    },
+    "tail": {
+     "kg": 14.6,
+     "cost": 507,
+     "payload": false
+    },
+    "gear": {
+     "kg": 33.2,
+     "cost": 5370,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 4,
+     "cost": 541,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 15.8,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 30.5,
+     "cost": 1009,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 7.5,
+     "cost": 392,
+     "payload": false
+    },
+    "paint": {
+     "kg": 4.8,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 20,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 38000,
+    "prop": 1778,
+    "structure": 8529,
+    "gear": 5370,
+    "gearBought": 3500,
+    "gearStructure": 1870,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 1009,
+    "furnish": 392,
+    "tank": 541,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 199,
+   "prices": {
+    "ledger": 66128,
+    "scratchFit": 52900,
+    "scratchFitRule": 52900,
+    "scratchShort": 66100,
+    "catalogue": 76000,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 71400,
+    "usedLo": 30400,
+    "usedHi": 60800,
+    "inCubs": 2.12
+   }
+  },
+  {
+   "id": "rv",
+   "label": "RV-alike (archetype)",
+   "src": "tools/_cage_design.js ARCHETYPES.rv",
+   "engine": "Lycoming IO-360-L2A",
+   "hp": 180,
+   "nEng": 1,
+   "prop": "2-blade wood 1.93 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 469,
+   "loadedKg": 683,
+   "engineKg": 138,
+   "fuelL": 169,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 63.6,
+     "cost": 4964,
+     "payload": false
+    },
+    "engines": {
+     "kg": 163.7,
+     "cost": 39058,
+     "payload": false
+    },
+    "wings": {
+     "kg": 84.2,
+     "cost": 5952,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 24.4,
+     "cost": 1903,
+     "payload": false
+    },
+    "tail": {
+     "kg": 13.1,
+     "cost": 841,
+     "payload": false
+    },
+    "gear": {
+     "kg": 32.4,
+     "cost": 4527,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 8.8,
+     "cost": 2788,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 114.5,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 37.9,
+     "cost": 1170,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 13.5,
+     "cost": 690,
+     "payload": false
+    },
+    "paint": {
+     "kg": 4.5,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 20,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 38000,
+    "prop": 949,
+    "structure": 13768,
+    "gear": 4527,
+    "gearBought": 1800,
+    "gearStructure": 2727,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 1170,
+    "furnish": 690,
+    "tank": 2788,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 185,
+   "prices": {
+    "ledger": 72402,
+    "scratchFit": 57900,
+    "scratchFitRule": 57900,
+    "scratchShort": 72400,
+    "catalogue": 83300,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 78200,
+    "usedLo": 33300,
+    "usedHi": 66600,
+    "inCubs": 2.32
+   }
+  },
+  {
+   "id": "dc3",
+   "label": "DC-3",
+   "src": "builds/candidates/dc3_2026-10.json",
+   "engine": "P&W R-1830 Twin Wasp",
+   "hp": 1200,
+   "nEng": 2,
+   "prop": "3-blade aluminium 3.40 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 6441,
+   "loadedKg": 8880,
+   "engineKg": 750,
+   "fuelL": 3297,
+   "seats": 29,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 1286.3,
+     "cost": 100330,
+     "payload": false
+    },
+    "engines": {
+     "kg": 1845.5,
+     "cost": 142461,
+     "payload": false
+    },
+    "wings": {
+     "kg": 1740.9,
+     "cost": 130587,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 250.9,
+     "cost": 19569,
+     "payload": false
+    },
+    "tail": {
+     "kg": 296.3,
+     "cost": 21295,
+     "payload": false
+    },
+    "gear": {
+     "kg": 272.1,
+     "cost": 16622,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 11020,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 64.6,
+     "cost": 51364,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 2239.2,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 8.3,
+     "cost": 10550,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 292.7,
+     "cost": 8685,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 318.5,
+     "cost": 18870,
+     "payload": false
+    },
+    "paint": {
+     "kg": 42,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 130000,
+    "prop": 10793,
+    "structure": 273448,
+    "gear": 16622,
+    "gearBought": 3500,
+    "gearStructure": 13122,
+    "panel": 10550,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 19180,
+    "seats": 11020,
+    "outfit": 8685,
+    "furnish": 18870,
+    "tank": 51364,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 3574,
+   "prices": {
+    "ledger": 541782,
+    "scratchFit": 433400,
+    "scratchFitRule": 433400,
+    "scratchShort": 541800,
+    "catalogue": 623000,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 585100,
+    "usedLo": 249200,
+    "usedHi": 498400,
+    "inCubs": 17.36
+   }
+  },
+  {
+   "id": "caravan",
+   "label": "Caravan-alike (archetype)",
+   "src": "tools/_cage_design.js ARCHETYPES.caravan",
+   "engine": "P&W PT6A-114A",
+   "hp": 675,
+   "nEng": 1,
+   "prop": "3-blade carbon 2.70 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 873,
+   "loadedKg": 1793,
+   "engineKg": 160,
+   "fuelL": 1060,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 90,
+     "cost": 7019,
+     "payload": false
+    },
+    "engines": {
+     "kg": 194.2,
+     "cost": 256356,
+     "payload": false
+    },
+    "wings": {
+     "kg": 202.6,
+     "cost": 14582,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 40,
+     "cost": 3121,
+     "payload": false
+    },
+    "tail": {
+     "kg": 35,
+     "cost": 2374,
+     "payload": false
+    },
+    "gear": {
+     "kg": 56.2,
+     "cost": 6236,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 24.6,
+     "cost": 15480,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 800,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 6.4,
+     "cost": 8030,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 108.2,
+     "cost": 3129,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 85.3,
+     "cost": 4997,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.6,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 240000,
+    "prop": 16088,
+    "structure": 27363,
+    "gear": 6236,
+    "gearBought": 1800,
+    "gearStructure": 4436,
+    "panel": 8030,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 16660,
+    "seats": 760,
+    "outfit": 3129,
+    "furnish": 4997,
+    "tank": 15480,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 368,
+   "prices": {
+    "ledger": 332513,
+    "scratchFit": 266000,
+    "scratchFitRule": 266000,
+    "scratchShort": 332500,
+    "catalogue": 382400,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 359100,
+    "usedLo": 153000,
+    "usedHi": 305900,
+    "inCubs": 10.66
+   }
+  },
+  {
+   "id": "c172f",
+   "label": "Cessna on floats (O-540)",
+   "src": "bugReports/cessnaFloatsWOrks.json",
+   "engine": "Lycoming O-540-B2C5",
+   "hp": 235,
+   "nEng": 1,
+   "prop": "2-blade aluminium 2.06 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 799,
+   "loadedKg": 1017,
+   "engineKg": 176,
+   "fuelL": 27,
+   "seats": 4,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 117.8,
+     "cost": 9191,
+     "payload": false
+    },
+    "engines": {
+     "kg": 213,
+     "cost": 40789,
+     "payload": false
+    },
+    "wings": {
+     "kg": 136.9,
+     "cost": 9754,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 32.8,
+     "cost": 2557,
+     "payload": false
+    },
+    "tail": {
+     "kg": 24.2,
+     "cost": 1544,
+     "payload": false
+    },
+    "gear": {
+     "kg": 163.9,
+     "cost": 6107,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 1520,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 4.1,
+     "cost": 590,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 18,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 8,
+     "cost": 10460,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 43.2,
+     "cost": 1425,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 25.5,
+     "cost": 1408,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.2,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 38000,
+    "prop": 2641,
+    "structure": 23194,
+    "gear": 6107,
+    "gearBought": 1800,
+    "gearStructure": 4307,
+    "panel": 10460,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 19090,
+    "seats": 1520,
+    "outfit": 1425,
+    "furnish": 1408,
+    "tank": 590,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 312,
+   "prices": {
+    "ledger": 95775,
+    "scratchFit": 76600,
+    "scratchFitRule": 76600,
+    "scratchShort": 95800,
+    "catalogue": 110100,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 103400,
+    "usedLo": 44000,
+    "usedHi": 88100,
+    "inCubs": 3.07
+   }
+  },
+  {
+   "id": "pa18f",
+   "label": "PA-18 on floats",
+   "src": "builds/pa18_floats_2026-10-23.json",
+   "engine": "Lycoming O-320-E2D",
+   "hp": 150,
+   "nEng": 1,
+   "prop": "2-blade wood 1.91 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 564,
+   "loadedKg": 752,
+   "engineKg": 122,
+   "fuelL": 144,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 45.2,
+     "cost": 1900,
+     "payload": false
+    },
+    "engines": {
+     "kg": 147.1,
+     "cost": 29108,
+     "payload": false
+    },
+    "wings": {
+     "kg": 80.5,
+     "cost": 3513,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 32.9,
+     "cost": 1380,
+     "payload": false
+    },
+    "tail": {
+     "kg": 18.2,
+     "cost": 642,
+     "payload": false
+    },
+    "gear": {
+     "kg": 147.4,
+     "cost": 3140,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 8.1,
+     "cost": 2410,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 97.9,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 40.4,
+     "cost": 1294,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 15.3,
+     "cost": 796,
+     "payload": false
+    },
+    "paint": {
+     "kg": 6.1,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 28000,
+    "prop": 929,
+    "structure": 7614,
+    "gear": 3140,
+    "gearBought": 1150,
+    "gearStructure": 1990,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 1294,
+    "furnish": 796,
+    "tank": 2410,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 177,
+   "prices": {
+    "ledger": 54693,
+    "scratchFit": 43800,
+    "scratchFitRule": 43800,
+    "scratchShort": 54700,
+    "catalogue": 62900,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 59100,
+    "usedLo": 25200,
+    "usedHi": 50300,
+    "inCubs": 1.75
+   }
+  },
+  {
+   "id": "rufus",
+   "label": "Rufus (the starter, econ-sim)",
+   "src": "builds/rufus_2026-10-18_certified.json",
+   "engine": "Rotax 912 UL",
+   "hp": 80,
+   "nEng": 1,
+   "prop": "2-blade carbon 1.91 m",
+   "material": "tubeFabric",
+   "wants": [
+    "tube"
+   ],
+   "emptyKg": 273,
+   "loadedKg": 365,
+   "engineKg": 58,
+   "fuelL": 17,
+   "seats": 1,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 27.9,
+     "cost": 1171,
+     "payload": false
+    },
+    "engines": {
+     "kg": 72.2,
+     "cost": 23506,
+     "payload": false
+    },
+    "wings": {
+     "kg": 65.2,
+     "cost": 2664,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 21.1,
+     "cost": 887,
+     "payload": false
+    },
+    "tail": {
+     "kg": 19.8,
+     "cost": 644,
+     "payload": false
+    },
+    "gear": {
+     "kg": 20.2,
+     "cost": 2307,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 380,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 3.6,
+     "cost": 442,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 11.5,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 3,
+     "cost": 3100,
+     "payload": false
+    },
+    "elec": {
+     "kg": 16.6,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 0,
+     "cost": 0,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 19.6,
+     "cost": 630,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 3,
+     "cost": 120,
+     "payload": false
+    },
+    "paint": {
+     "kg": 1.2,
+     "cost": 0,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 0,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 18000,
+    "prop": 5367,
+    "structure": 5506,
+    "gear": 2307,
+    "gearBought": 1800,
+    "gearStructure": 507,
+    "panel": 3100,
+    "elec": 1730,
+    "avionics": 0,
+    "systems": 4830,
+    "seats": 380,
+    "outfit": 630,
+    "furnish": 120,
+    "tank": 442,
+    "paint": 0,
+    "pod": 0
+   },
+   "structureKg": 134,
+   "prices": {
+    "ledger": 37581,
+    "scratchFit": 30100,
+    "scratchFitRule": 30100,
+    "scratchShort": 37600,
+    "catalogue": 43200,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 40600,
+    "usedLo": 17300,
+    "usedHi": 34600,
+    "inCubs": 1.2
+   }
+  },
+  {
+   "id": "c172m",
+   "label": "metal Cessna (econ-sim c172)",
+   "src": "bugReports/cessnaMetal (1).json",
+   "engine": "Lycoming O-540-B2C5",
+   "hp": 235,
+   "nEng": 1,
+   "prop": "2-blade aluminium 2.06 m",
+   "material": "alloy",
+   "wants": [
+    "metal"
+   ],
+   "emptyKg": 662,
+   "loadedKg": 880,
+   "engineKg": 176,
+   "fuelL": 27,
+   "seats": 4,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 113.6,
+     "cost": 8860,
+     "payload": false
+    },
+    "engines": {
+     "kg": 213,
+     "cost": 40789,
+     "payload": false
+    },
+    "wings": {
+     "kg": 139.8,
+     "cost": 9979,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 30.9,
+     "cost": 2407,
+     "payload": false
+    },
+    "tail": {
+     "kg": 23.2,
+     "cost": 1469,
+     "payload": false
+    },
+    "gear": {
+     "kg": 35.1,
+     "cost": 4593,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 160,
+     "cost": 1520,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 4.1,
+     "cost": 590,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 18,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 8,
+     "cost": 10460,
+     "payload": false
+    },
+    "elec": {
+     "kg": 19.1,
+     "cost": 2530,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 3.3,
+     "cost": 6100,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 43.2,
+     "cost": 1425,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 21.5,
+     "cost": 1172,
+     "payload": false
+    },
+    "paint": {
+     "kg": 7.7,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 40,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 38000,
+    "prop": 2641,
+    "structure": 22863,
+    "gear": 4593,
+    "gearBought": 1800,
+    "gearStructure": 2793,
+    "panel": 10460,
+    "elec": 2530,
+    "avionics": 6100,
+    "systems": 19090,
+    "seats": 1520,
+    "outfit": 1425,
+    "furnish": 1172,
+    "tank": 590,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 307,
+   "prices": {
+    "ledger": 93694,
+    "scratchFit": 75000,
+    "scratchFitRule": 75000,
+    "scratchShort": 93700,
+    "catalogue": 107700,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 101200,
+    "usedLo": 43100,
+    "usedHi": 86200,
+    "inCubs": 3
+   }
+  },
+  {
+   "id": "cjodel",
+   "label": "composite Jodel (econ-sim)",
+   "src": "builds/composite_jodel_2026-10-07.json",
+   "engine": "Continental A-65",
+   "hp": 65,
+   "nEng": 1,
+   "prop": "2-blade wood 1.83 m",
+   "material": "glass",
+   "wants": [
+    "composite"
+   ],
+   "emptyKg": 391,
+   "loadedKg": 513,
+   "engineKg": 80,
+   "fuelL": 48,
+   "seats": 2,
+   "ledgerSections": {
+    "fuselage": {
+     "kg": 61.6,
+     "cost": 6771,
+     "payload": false
+    },
+    "engines": {
+     "kg": 99.2,
+     "cost": 10036,
+     "payload": false
+    },
+    "wings": {
+     "kg": 99.4,
+     "cost": 9959,
+     "payload": false
+    },
+    "bracing": {
+     "kg": 25.4,
+     "cost": 2796,
+     "payload": false
+    },
+    "tail": {
+     "kg": 17.1,
+     "cost": 1437,
+     "payload": false
+    },
+    "gear": {
+     "kg": 26.1,
+     "cost": 5472,
+     "payload": false
+    },
+    "cabin": {
+     "kg": 80,
+     "cost": 760,
+     "payload": true
+    },
+    "vessel": {
+     "kg": 5,
+     "cost": 918,
+     "payload": false
+    },
+    "fuel": {
+     "kg": 32.4,
+     "cost": 0,
+     "payload": true
+    },
+    "panel": {
+     "kg": 4.5,
+     "cost": 4620,
+     "payload": false
+    },
+    "elec": {
+     "kg": 17,
+     "cost": 1730,
+     "payload": false
+    },
+    "avionics": {
+     "kg": 1,
+     "cost": 1600,
+     "payload": false
+    },
+    "outfit": {
+     "kg": 23.6,
+     "cost": 790,
+     "payload": false
+    },
+    "furnish": {
+     "kg": 5.5,
+     "cost": 271,
+     "payload": false
+    },
+    "paint": {
+     "kg": 5.5,
+     "cost": 1800,
+     "payload": false
+    },
+    "cargo": {
+     "kg": 10,
+     "cost": 0,
+     "payload": true
+    }
+   },
+   "cat": {
+    "engine": 9000,
+    "prop": 853,
+    "structure": 21145,
+    "gear": 5472,
+    "gearBought": 3500,
+    "gearStructure": 1972,
+    "panel": 4620,
+    "elec": 1730,
+    "avionics": 1600,
+    "systems": 7950,
+    "seats": 760,
+    "outfit": 790,
+    "furnish": 271,
+    "tank": 918,
+    "paint": 1800,
+    "pod": 0
+   },
+   "structureKg": 203,
+   "prices": {
+    "ledger": 48959,
+    "scratchFit": 49000,
+    "scratchFitRule": 39200,
+    "scratchShort": 49000,
+    "catalogue": 56300,
+    "catalogueSrc": "ledger x PROCURE_MARGIN",
+    "econCat": 52900,
+    "usedLo": 22500,
+    "usedHi": 45000,
+    "inCubs": 1.57
+   }
+  }
+ ],
+ "components": {
+  "engines": [
+   {
+    "key": "a65_sensenich74",
+    "name": "Continental A-65",
+    "kW": 48.5,
+    "hp": 65,
+    "kg": 80,
+    "price": 9000,
+    "family": "four"
+   },
+   {
+    "key": "r1830_hs23e50",
+    "name": "P&W R-1830 Twin Wasp",
+    "kW": 895,
+    "hp": 1200,
+    "kg": 750,
+    "price": 65000,
+    "family": "four"
+   },
+   {
+    "key": "io360_mccauley",
+    "name": "Lycoming IO-360-L2A",
+    "kW": 134,
+    "hp": 180,
+    "kg": 138,
+    "price": 38000,
+    "family": "four"
+   },
+   {
+    "key": "rotax277_pusher",
+    "name": "Rotax 277 (pusher)",
+    "kW": 21,
+    "hp": 28,
+    "kg": 30,
+    "price": 3500,
+    "family": "two"
+   },
+   {
+    "key": "vw2180_wood",
+    "name": "VW 2180 conversion",
+    "kW": 44,
+    "hp": 59,
+    "kg": 66,
+    "price": 6000,
+    "family": "four"
+   },
+   {
+    "key": "rotax582_ivo",
+    "name": "Rotax 582 + 2.62 red.",
+    "kW": 48,
+    "hp": 64,
+    "kg": 43,
+    "price": 5500,
+    "family": "two"
+   },
+   {
+    "key": "jabiru2200_std",
+    "name": "Jabiru 2200A",
+    "kW": 63,
+    "hp": 84,
+    "kg": 60,
+    "price": 15000,
+    "family": "four"
+   },
+   {
+    "key": "rotax912_warp",
+    "name": "Rotax 912 UL",
+    "kW": 59.6,
+    "hp": 80,
+    "kg": 58,
+    "price": 18000,
+    "family": "four"
+   },
+   {
+    "key": "o200_eprops",
+    "name": "Continental O-200-A",
+    "kW": 74.6,
+    "hp": 100,
+    "kg": 85,
+    "price": 24000,
+    "family": "four"
+   },
+   {
+    "key": "r985_hs2b20",
+    "name": "P&W R-985 Wasp Junior",
+    "kW": 336,
+    "hp": 451,
+    "kg": 290,
+    "price": 48000,
+    "family": "four"
+   },
+   {
+    "key": "verner7u_wood",
+    "name": "Verner Scarlett 7U",
+    "kW": 78,
+    "hp": 105,
+    "kg": 78,
+    "price": 22000,
+    "family": "four"
+   },
+   {
+    "key": "clerget9b_wood",
+    "name": "Clerget 9B",
+    "kW": 97,
+    "hp": 130,
+    "kg": 173,
+    "price": 26000,
+    "family": "four"
+   },
+   {
+    "key": "merlin66_rotol4",
+    "name": "Rolls-Royce Merlin 66",
+    "kW": 1283,
+    "hp": 1721,
+    "kg": 744,
+    "price": 180000,
+    "family": "four"
+   },
+   {
+    "key": "rotec3600_std",
+    "name": "Rotec R3600",
+    "kW": 112,
+    "hp": 150,
+    "kg": 102,
+    "price": 30000,
+    "family": "four"
+   },
+   {
+    "key": "mikron3_wood",
+    "name": "Walter Mikron III",
+    "kW": 48,
+    "hp": 64,
+    "kg": 74,
+    "price": 16000,
+    "family": "four"
+   },
+   {
+    "key": "gipsymajor1_wood",
+    "name": "DH Gipsy Major 1",
+    "kW": 97,
+    "hp": 130,
+    "kg": 139,
+    "price": 26000,
+    "family": "four"
+   },
+   {
+    "key": "hirth508_wood",
+    "name": "Hirth HM 508D",
+    "kW": 209,
+    "hp": 280,
+    "kg": 186,
+    "price": 40000,
+    "family": "four"
+   },
+   {
+    "key": "argus10c_wood",
+    "name": "Argus As 10C",
+    "kW": 176,
+    "hp": 236,
+    "kg": 213,
+    "price": 38000,
+    "family": "four"
+   },
+   {
+    "key": "o320_mccauley",
+    "name": "Lycoming O-320-E2D",
+    "kW": 112,
+    "hp": 150,
+    "kg": 122,
+    "price": 28000,
+    "family": "four"
+   },
+   {
+    "key": "o540_hartzell",
+    "name": "Lycoming O-540-B2C5",
+    "kW": 175,
+    "hp": 235,
+    "kg": 176,
+    "price": 38000,
+    "family": "four"
+   },
+   {
+    "key": "io550_hartzell3",
+    "name": "Continental IO-550-N",
+    "kW": 231,
+    "hp": 310,
+    "kg": 195,
+    "price": 42000,
+    "family": "four"
+   },
+   {
+    "key": "io720_hartzell3",
+    "name": "Lycoming IO-720-A1A",
+    "kW": 298,
+    "hp": 400,
+    "kg": 257,
+    "price": 45000,
+    "family": "four"
+   },
+   {
+    "key": "rotax915_carbon",
+    "name": "Rotax 915 iS",
+    "kW": 105,
+    "hp": 141,
+    "kg": 84,
+    "price": 34000,
+    "family": "four"
+   },
+   {
+    "key": "rotax916_carbon",
+    "name": "Rotax 916 iS",
+    "kW": 117,
+    "hp": 157,
+    "kg": 85.8,
+    "price": 38000,
+    "family": "four"
+   },
+   {
+    "key": "ranger440_wood",
+    "name": "Ranger L-440-5",
+    "kW": 149,
+    "hp": 200,
+    "kg": 170,
+    "price": 35000,
+    "family": "four"
+   },
+   {
+    "key": "w670_hs2b",
+    "name": "Continental W-670-6A",
+    "kW": 164,
+    "hp": 220,
+    "kg": 211,
+    "price": 36000,
+    "family": "four"
+   },
+   {
+    "key": "r755_hs2b",
+    "name": "Jacobs R-755-A2",
+    "kW": 224,
+    "hp": 300,
+    "kg": 230,
+    "price": 41000,
+    "family": "four"
+   },
+   {
+    "key": "m14p_v530",
+    "name": "Vedeneyev M-14P",
+    "kW": 268,
+    "hp": 359,
+    "kg": 214,
+    "price": 43000,
+    "family": "four"
+   },
+   {
+    "key": "r1340_hs12d40",
+    "name": "P&W R-1340-AN-1 Wasp",
+    "kW": 447,
+    "hp": 599,
+    "kg": 400,
+    "price": 52000,
+    "family": "four"
+   },
+   {
+    "key": "rotax503_wood",
+    "name": "Rotax 503 UL + B red.",
+    "kW": 37,
+    "hp": 50,
+    "kg": 38,
+    "price": 4000,
+    "family": "two"
+   },
+   {
+    "key": "emrax268_carbon",
+    "name": "EMRAX 268 / 107 kW",
+    "kW": 107,
+    "hp": 143,
+    "kg": 20.3,
+    "price": 32000,
+    "family": "electric"
+   },
+   {
+    "key": "outrunner2212_9x47",
+    "name": "2212 outrunner 1000KV / 3S",
+    "kW": 0.18,
+    "hp": 0,
+    "kg": 0.1,
+    "price": 25,
+    "family": "electric"
+   },
+   {
+    "key": "outrunner3548_12x6",
+    "name": "3548 outrunner 900KV / 4S",
+    "kW": 0.8,
+    "hp": 1,
+    "kg": 0.35,
+    "price": 55,
+    "family": "electric"
+   },
+   {
+    "key": "outrunner6374_18x10",
+    "name": "6374 outrunner 170KV / 12S",
+    "kW": 2.2,
+    "hp": 3,
+    "kg": 0.75,
+    "price": 130,
+    "family": "electric"
+   },
+   {
+    "key": "eppg_direct_130",
+    "name": "e-PPG 12 kW direct drive",
+    "kW": 12,
+    "hp": 16,
+    "kg": 7,
+    "price": 3800,
+    "family": "electric"
+   },
+   {
+    "key": "fes_folding_100",
+    "name": "FES sustainer 22 kW",
+    "kW": 22,
+    "hp": 30,
+    "kg": 9,
+    "price": 9500,
+    "family": "electric"
+   },
+   {
+    "key": "emrax228_3blade",
+    "name": "EMRAX 228 / 55 kW",
+    "kW": 55,
+    "hp": 74,
+    "kg": 19.5,
+    "price": 11000,
+    "family": "electric"
+   },
+   {
+    "key": "e811_velis",
+    "name": "Pipistrel E-811 (certified)",
+    "kW": 57.6,
+    "hp": 77,
+    "kg": 30,
+    "price": 28000,
+    "family": "electric"
+   },
+   {
+    "key": "sp260d_class",
+    "name": "SP260D-class 260 kW",
+    "kW": 260,
+    "hp": 349,
+    "kg": 68,
+    "price": 90000,
+    "family": "electric"
+   },
+   {
+    "key": "pt6a114a_hartzell3",
+    "name": "P&W PT6A-114A",
+    "kW": 503,
+    "hp": 675,
+    "kg": 160,
+    "price": 240000,
+    "family": "turbine"
+   },
+   {
+    "key": "pt6a34_hartzell4",
+    "name": "P&W PT6A-34",
+    "kW": 560,
+    "hp": 751,
+    "kg": 150,
+    "price": 265000,
+    "family": "turbine"
+   },
+   {
+    "key": "pt6a42_hartzell4",
+    "name": "P&W PT6A-42",
+    "kW": 634,
+    "hp": 850,
+    "kg": 183,
+    "price": 300000,
+    "family": "turbine"
+   },
+   {
+    "key": "pt6a60a_hartzell4",
+    "name": "P&W PT6A-60A",
+    "kW": 783,
+    "hp": 1050,
+    "kg": 218,
+    "price": 380000,
+    "family": "turbine"
+   }
+  ],
+  "customEngineLaw": {
+   "four 60 kW": 12296,
+   "four 75 kW": 16434,
+   "four 112 kW": 27678,
+   "four 134 kW": 33953,
+   "turbine 503 kW": 234242,
+   "two 48 kW": 7721
+  },
+  "props": [
+   {
+    "name": "fixed wood 2-blade 1.88 m (Cub)",
+    "price": 900,
+    "kg": 4.8
+   },
+   {
+    "name": "fixed alloy 2-blade 1.91 m (C172)",
+    "price": 2271,
+    "kg": 8.7
+   },
+   {
+    "name": "composite 3-blade 1.73 m (912 class)",
+    "price": 6605,
+    "kg": 3.9
+   },
+   {
+    "name": "alloy 2-blade 1.93 m (an RV CS prop: priced as fixed)",
+    "price": 2319,
+    "kg": 9
+   },
+   {
+    "name": "alloy 3-blade 2.69 m (PT6A-114A, CS)",
+    "price": 6756,
+    "kg": 30.9
+   },
+   {
+    "name": "carbon 3-blade 2.70 m (the Caravan-alike)",
+    "price": 16088,
+    "kg": 11.9
+   },
+   {
+    "name": "alloy 3-blade 3.40 m (R-1830, CS)",
+    "price": 10793,
+    "kg": 55.4
+   }
+  ],
+  "instruments": {
+   "asi": {
+    "name": "airspeed indicator",
+    "kg": 0.4,
+    "price": 350
+   },
+   "alt": {
+    "name": "altimeter",
+    "kg": 0.5,
+    "price": 600
+   },
+   "vsi": {
+    "name": "vertical speed",
+    "kg": 0.4,
+    "price": 320
+   },
+   "ai": {
+    "name": "attitude, vacuum",
+    "kg": 1.1,
+    "price": 1900
+   },
+   "aiE": {
+    "name": "attitude, electric",
+    "kg": 1,
+    "price": 2800
+   },
+   "dg": {
+    "name": "directional gyro",
+    "kg": 1.2,
+    "price": 1600
+   },
+   "turn": {
+    "name": "turn coordinator",
+    "kg": 0.7,
+    "price": 800
+   },
+   "tacho": {
+    "name": "tachometer",
+    "kg": 0.45,
+    "price": 260
+   },
+   "gmeter": {
+    "name": "accelerometer",
+    "kg": 0.45,
+    "price": 500
+   },
+   "oilP": {
+    "name": "oil pressure",
+    "kg": 0.2,
+    "price": 130
+   },
+   "oilT": {
+    "name": "oil temperature",
+    "kg": 0.2,
+    "price": 130
+   },
+   "fuel": {
+    "name": "fuel quantity",
+    "kg": 0.25,
+    "price": 180
+   },
+   "fuelSight": {
+    "name": "fuel sight gauge",
+    "kg": 0.05,
+    "price": 30
+   },
+   "volts": {
+    "name": "volt / ammeter",
+    "kg": 0.15,
+    "price": 120
+   },
+   "clock": {
+    "name": "8-day clock",
+    "kg": 0.25,
+    "price": 240
+   },
+   "hobbs": {
+    "name": "hour meter",
+    "kg": 0.1,
+    "price": 110
+   },
+   "compass": {
+    "name": "magnetic compass",
+    "kg": 0.3,
+    "price": 300
+   }
+  },
+  "elec": {
+   "battery": {
+    "none": {
+     "name": "no battery",
+     "kg": 0,
+     "price": 0,
+     "Ah": 0
+    },
+    "lead": {
+     "name": "lead-acid 12 V, 16 Ah",
+     "kg": 7,
+     "price": 180,
+     "Ah": 16,
+     "note": "Odyssey PC680 class"
+    },
+    "lithium": {
+     "name": "lithium 12 V, 13 Ah",
+     "kg": 2.3,
+     "price": 520,
+     "Ah": 13,
+     "note": "EarthX ETX900 class"
+    }
+   },
+   "alternator": {
+    "none": {
+     "name": "no alternator",
+     "kg": 0,
+     "price": 0,
+     "A": 0
+    },
+    "gen20": {
+     "name": "20 A generator",
+     "kg": 4,
+     "price": 450,
+     "A": 20,
+     "note": "the small Continentals' belt generator; cuts in above idle"
+    },
+    "alt60": {
+     "name": "60 A alternator",
+     "kg": 4.5,
+     "price": 800,
+     "A": 60,
+     "note": "Plane-Power class, with its regulator"
+    }
+   },
+   "starter": {
+    "none": {
+     "name": "hand-propped",
+     "kg": 0,
+     "price": 0,
+     "amps": 0
+    },
+    "yes": {
+     "name": "electric starter",
+     "kg": 4,
+     "price": 700,
+     "amps": 150,
+     "note": "Sky-Tec class; 150 A while cranking"
+    }
+   },
+   "vac": {
+    "none": {
+     "name": "no suction",
+     "kg": 0,
+     "price": 0,
+     "minV": 0
+    },
+    "venturi": {
+     "name": "venturi",
+     "kg": 0.4,
+     "price": 150,
+     "minV": 20,
+     "note": "on the strut; makes suction above ~40 kt"
+    },
+    "pump": {
+     "name": "engine-driven vacuum pump",
+     "kg": 1.2,
+     "price": 600,
+     "minV": 0,
+     "note": "dry pump on the accessory pad; suction whenever the engine turns"
+    }
+   },
+   "harness": {
+    "kg": 1.2,
+    "kgPerItem": 0.15,
+    "price": 250
+   }
+  },
+  "avionics": {
+   "com": {
+    "none": {
+     "name": "no radio",
+     "kg": 0,
+     "price": 0,
+     "amps": 0
+    },
+    "compact": {
+     "name": "VHF COM, compact",
+     "kg": 1,
+     "price": 1600,
+     "amps": 0.5,
+     "ampsTx": 2,
+     "note": "Trig TY91 class with its controller; a Garmin GTR 200 is ~1800"
+    }
+   },
+   "xpdr": {
+    "none": {
+     "name": "no transponder",
+     "kg": 0,
+     "price": 0,
+     "amps": 0
+    },
+    "modeS": {
+     "name": "Mode-S transponder",
+     "kg": 0.7,
+     "price": 2300,
+     "amps": 0.7,
+     "note": "Trig TT21 class; an ADS-B-out GTX 335 is ~3300"
+    }
+   },
+   "nav": {
+    "none": {
+     "name": "no nav receiver",
+     "kg": 0,
+     "price": 0,
+     "amps": 0
+    },
+    "vor": {
+     "name": "VOR receiver + CDI",
+     "kg": 1.6,
+     "price": 2200,
+     "amps": 0.5,
+     "later": true,
+     "note": "a second-hand KX 155 + KI 208; navaids are a world item"
+    }
+   },
+   "gps": {
+    "none": {
+     "name": "no GPS",
+     "kg": 0,
+     "price": 0,
+     "amps": 0
+    },
+    "portable": {
+     "name": "portable GPS",
+     "kg": 0.7,
+     "price": 900,
+     "amps": 0.5,
+     "face": {
+      "w": 0.135,
+      "h": 0.087,
+      "sw": 0.111,
+      "sh": 0.067,
+      "keys": "below"
+     },
+     "note": "aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle"
+    },
+    "panel": {
+     "name": "panel GPS navigator",
+     "kg": 1.5,
+     "price": 4500,
+     "amps": 1,
+     "face": {
+      "w": 0.159,
+      "h": 0.051,
+      "sw": 0.112,
+      "sh": 0.04,
+      "keys": "left",
+      "knob": true
+     },
+     "note": "GPS 175 class (6.25 x 2 in, a 4.8 in screen)"
+    },
+    "glass": {
+     "name": "glass PFD/MFD",
+     "kg": 3.5,
+     "price": 6500,
+     "amps": 2.5,
+     "face": {
+      "w": 0.193,
+      "h": 0.115,
+      "sw": 0.155,
+      "sh": 0.093,
+      "keys": "below",
+      "knob": true
+     },
+     "note": "G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page"
+    },
+    "flat": {
+     "name": "10 in glass display",
+     "kg": 2.9,
+     "price": 9500,
+     "amps": 4,
+     "face": {
+      "w": 0.271,
+      "h": 0.208,
+      "sw": 0.211,
+      "sh": 0.158,
+      "keys": "below",
+      "knob": true,
+      "knobs": "both",
+      "keysN": 12,
+      "keySlots": [
+       1,
+       2,
+       3,
+       11
+      ],
+      "n": 1
+     },
+     "note": "G1000 GDU 1040 class with ADAHRS (a 10.4 in 1024 x 768 screen, 271 x 208 mm): the PFD, the map on its page"
+    },
+    "flatPair": {
+     "name": "twin 10 in displays (PFD + MFD)",
+     "kg": 5.8,
+     "price": 19000,
+     "amps": 8,
+     "face": {
+      "w": 0.271,
+      "h": 0.208,
+      "sw": 0.211,
+      "sh": 0.158,
+      "keys": "below",
+      "knob": true,
+      "knobs": "both",
+      "keysN": 12,
+      "keySlots": [
+       1,
+       2,
+       3,
+       11
+      ],
+      "n": 2
+     },
+     "note": "G1000 class, a Skyhawk's: the PFD in front of the pilot, the MFD with its engine strip beside it"
+    }
+   }
+  },
+  "systemTiers": {
+   "minimal": {
+    "kg": 2.1,
+    "price": 1800
+   },
+   "basic": {
+    "kg": 22.6,
+    "price": 7950
+   },
+   "ifr": {
+    "kg": 28.8,
+    "price": 16660
+   }
+  },
+  "wheels": {
+   "wheelEach": 320,
+   "thirdWheel": 260,
+   "suspension": {
+    "bungee": {
+     "name": "Bungee cord",
+     "k": 1,
+     "c": 1,
+     "price": 250
+    },
+    "spring": {
+     "name": "Spring steel",
+     "k": 2.2,
+     "c": 1.2,
+     "price": 900
+    },
+    "oleo": {
+     "name": "Oleo strut",
+     "k": 3.5,
+     "c": 2.6,
+     "price": 2600
+    }
+   },
+   "fairings": {
+    "spat": 380,
+    "trouser": 560,
+    "legFair": 240
+   }
+  },
+  "seats": {
+   "cabinLinePerSeat": 380,
+   "rows": {
+    "sling": {
+     "name": "Tube and sling",
+     "kg": 3,
+     "price": 120
+    },
+    "basic": {
+     "name": "Moulded pan",
+     "kg": 7,
+     "price": 400
+    },
+    "standard": {
+     "name": "Upholstered",
+     "kg": 11,
+     "price": 900
+    },
+    "energy": {
+     "name": "Energy-absorbing",
+     "kg": 15,
+     "price": 2600
+    },
+    "carbon": {
+     "name": "Carbon bucket",
+     "kg": 4.5,
+     "price": 1400
+    },
+    "airliner": {
+     "name": "Vintage airliner",
+     "kg": 18,
+     "price": 1100
+    },
+    "touring": {
+     "name": "Touring",
+     "kg": 14,
+     "price": 1300
+    },
+    "sculpted": {
+     "name": "Sculpted sport",
+     "kg": 9,
+     "price": 2400
+    },
+    "executive": {
+     "name": "Executive leather",
+     "kg": 18,
+     "price": 2900
+    },
+    "ultralight": {
+     "name": "Ultralight sling",
+     "kg": 3.5,
+     "price": 150
+    },
+    "aerobatic": {
+     "name": "Aerobatic recline",
+     "kg": 6,
+     "price": 1600
+    },
+    "vintageCrew": {
+     "name": "Vintage crew",
+     "kg": 20,
+     "price": 1000
+    },
+    "work": {
+     "name": "Heavy-duty work",
+     "kg": 16,
+     "price": 2200
+    },
+    "cane": {
+     "name": "Woven cane",
+     "kg": 3,
+     "price": 300
+    },
+    "reclined": {
+     "name": "Reclined tub",
+     "kg": 3,
+     "price": 700
+    },
+    "folding": {
+     "name": "Folding canvas",
+     "kg": 2.5,
+     "price": 100
+    },
+    "parachute": {
+     "name": "Parachute bucket",
+     "kg": 8,
+     "price": 800
+    },
+    "utility": {
+     "name": "Bush utility",
+     "kg": 12,
+     "price": 700
+    }
+   }
+  },
+  "paint": {
+   "full": 1800,
+   "bare": 0
+  },
+  "tanks": {
+   "alu 44 L (a Cub)": 796,
+   "alu 100 L": 1580,
+   "wet 200 L (an RV)": 6420,
+   "wet 1257 L (a Caravan)": 38130,
+   "alu 3000 L (a DC-3)": 42180,
+   "fuelFirstFillPerL": 2.4,
+   "first fill 44 L": 106
+  },
+  "materials": {
+   "tubeFabric": {
+    "name": "4130 tube + fabric",
+    "pricePerKg": 42
+   },
+   "wood": {
+    "name": "spruce + ply",
+    "pricePerKg": 55
+   },
+   "alloy": {
+    "name": "2024 alloy sheet",
+    "pricePerKg": 78
+   },
+   "carbon": {
+    "name": "carbon + epoxy",
+    "pricePerKg": 165
+   },
+   "aluTube": {
+    "name": "6061 tube + Dacron",
+    "pricePerKg": 30
+   },
+   "glass": {
+    "name": "glass + epoxy",
+    "pricePerKg": 110
+   }
+  },
+  "floats": "no row: a float pair is billed by its shell mass x the airframe material (the gear section), no bought price",
+  "skis": "no row: 25_airfield knows the word skis, the frame neither weighs nor prices them",
+  "lights": "no row: GEN_LIGHT_AMPS draws amps, nothing prices or weighs a lamp",
+  "interior": "GEN_SEATS rows + 60 cr/kg of furnishing (61_gen_frame outfit/furnish) + the cabin line 380 a seat",
+  "floatPairOnTheCessna": {
+   "id": "c172f_delta",
+   "gearDelta": 1529,
+   "gearKgDelta": 129,
+   "totalDelta": 3018,
+   "emptyDelta": 149
+  },
+  "benchmark": [
+   {
+    "name": "Continental A-65",
+    "key": "eng:a65_sensenich74",
+    "game": 9000,
+    "real": [
+     9500,
+     13000
+    ],
+    "basis": "oh",
+    "note": "shop overhaul ~9.5k before accessories; mid-time used 3-3.5k",
+    "ratio": 1.23
+   },
+   {
+    "name": "Rotax 582 (with gearbox)",
+    "key": "eng:rotax582_ivo",
+    "game": 5500,
+    "real": [
+     8200,
+     9500
+    ],
+    "basis": "new",
+    "note": "GBP 7 500 new boxed (UK 2025); AUD dealer ~8.2k ex GST",
+    "ratio": 1.6
+   },
+   {
+    "name": "Rotax 503",
+    "key": "eng:rotax503_wood",
+    "game": 4000,
+    "real": [
+     4500,
+     5000
+    ],
+    "basis": "oh",
+    "note": "out of production; zero-time rebuild ~4.8k",
+    "ratio": 1.19
+   },
+   {
+    "name": "Rotax 912 UL / ULS",
+    "key": "eng:rotax912_warp",
+    "game": 18000,
+    "real": [
+     20600,
+     23700
+    ],
+    "basis": "new",
+    "note": "Motive / Six Chuter retail 2024-25",
+    "ratio": 1.23
+   },
+   {
+    "name": "Rotax 915 iS",
+    "key": "eng:rotax915_carbon",
+    "game": 34000,
+    "real": [
+     48500,
+     55000
+    ],
+    "basis": "new",
+    "note": "Motive retail (no exhaust, no alternator)",
+    "ratio": 1.52
+   },
+   {
+    "name": "Rotax 916 iS",
+    "key": "eng:rotax916_carbon",
+    "game": 38000,
+    "real": [
+     51000,
+     60000
+    ],
+    "basis": "new",
+    "note": "flying411; AUD dealer",
+    "ratio": 1.46
+   },
+   {
+    "name": "Continental O-200",
+    "key": "eng:o200_eprops",
+    "game": 24000,
+    "real": [
+     40000,
+     47500
+    ],
+    "basis": "oh",
+    "note": "Air Power O-200-A rebuilt 47.5k; new O-200-D 46.7k",
+    "ratio": 1.82
+   },
+   {
+    "name": "Lycoming O-320 (150/160 hp)",
+    "key": "eng:o320_mccauley",
+    "game": 28000,
+    "real": [
+     48000,
+     56000
+    ],
+    "basis": "oh",
+    "note": "factory overhaul / rebuilt exchange 2024; used reman 32k",
+    "ratio": 1.85
+   },
+   {
+    "name": "Lycoming IO-360 (180 hp)",
+    "key": "eng:io360_mccauley",
+    "game": 38000,
+    "real": [
+     48000,
+     56000
+    ],
+    "basis": "oh",
+    "note": "overhaul / rebuilt exchange; new 75-88k; Superior XP kit 31-55k",
+    "ratio": 1.36
+   },
+   {
+    "name": "Lycoming O-540",
+    "key": "eng:o540_hartzell",
+    "game": 38000,
+    "real": [
+     61000,
+     67000
+    ],
+    "basis": "oh",
+    "note": "factory overhaul exchange 2024; new 117k",
+    "ratio": 1.68
+   },
+   {
+    "name": "DH Gipsy Major",
+    "key": "eng:gipsymajor1_wood",
+    "game": 26000,
+    "real": [
+     43000,
+     70000
+    ],
+    "basis": "oh",
+    "note": "GBP 34-55k zero-timed / overhauled asking",
+    "ratio": 2.11
+   },
+   {
+    "name": "P&W R-985",
+    "key": "eng:r985_hs2b20",
+    "game": 48000,
+    "real": [
+     45000,
+     60000
+    ],
+    "basis": "oh",
+    "note": "ESTIMATE (no published figure; R-1340 forum scaling)",
+    "ratio": 1.08
+   },
+   {
+    "name": "P&W R-1830",
+    "key": "eng:r1830_hs23e50",
+    "game": 65000,
+    "real": [
+     60000,
+     100000
+    ],
+    "basis": "oh",
+    "note": "ESTIMATE (no reliable published figure)",
+    "ratio": 1.19
+   },
+   {
+    "name": "P&W PT6A-114A",
+    "key": "eng:pt6a114a_hartzell3",
+    "game": 240000,
+    "real": [
+     350000,
+     433000
+    ],
+    "basis": "oh",
+    "note": "P&WC flat rate 2025 (capped 433k); 2026 382-472k; exchange ~590k",
+    "ratio": 1.62
+   },
+   {
+    "name": "P&W PT6A-34",
+    "key": "eng:pt6a34_hartzell4",
+    "game": 265000,
+    "real": [
+     387000,
+     455000
+    ],
+    "basis": "oh",
+    "note": "P&WC flat rate 2026",
+    "ratio": 1.58
+   },
+   {
+    "name": "P&W PT6A-42",
+    "key": "eng:pt6a42_hartzell4",
+    "game": 300000,
+    "real": [
+     420000,
+     489000
+    ],
+    "basis": "oh",
+    "note": "P&WC flat rate 2026",
+    "ratio": 1.51
+   },
+   {
+    "name": "prop: fixed wood, Cub",
+    "key": "prop:wood:2:1.88",
+    "game": 900,
+    "real": [
+     3500,
+     4400
+    ],
+    "basis": "new",
+    "note": "Sensenich W72 (Univair)",
+    "ratio": 4.36
+   },
+   {
+    "name": "prop: fixed metal, C172",
+    "key": "prop:alu:2:1.91",
+    "game": 2271,
+    "real": [
+     8200,
+     10800
+    ],
+    "basis": "new",
+    "note": "Sensenich 74DM6 / McCauley 1C160",
+    "ratio": 4.14
+   },
+   {
+    "name": "prop: ground-adj. composite 3-blade (912)",
+    "key": "prop:carbon:3:1.73",
+    "game": 6605,
+    "real": [
+     1300,
+     4400
+    ],
+    "basis": "new",
+    "note": "Warp Drive 1.3k, E-Props EUR 1.5k, IVO 3.4-4.4k",
+    "ratio": 0.36
+   },
+   {
+    "name": "prop: constant speed 2-blade (IO-360)",
+    "key": "prop:alu:2:1.93",
+    "game": 2319,
+    "real": [
+     10500,
+     11800
+    ],
+    "basis": "new",
+    "note": "Hartzell via Van's ~10.5k + governor ~1.25k; the game prices it as fixed",
+    "ratio": 4.8
+   },
+   {
+    "name": "prop: turboprop 3-blade (PT6A)",
+    "key": "prop:alu:3:2.69",
+    "game": 6756,
+    "real": [
+     18500,
+     45000
+    ],
+    "basis": "new",
+    "note": "18.5-19.9k old Hartzell kit price; 30-45k ESTIMATE today",
+    "ratio": 4.27
+   },
+   {
+    "name": "airspeed indicator",
+    "key": "instr:asi",
+    "game": 350,
+    "real": [
+     254,
+     374
+    ],
+    "basis": "exp",
+    "note": "Swift 2 1/4 in; TSO 1.2-1.6k",
+    "ratio": 0.88
+   },
+   {
+    "name": "altimeter",
+    "key": "instr:alt",
+    "game": 600,
+    "real": [
+     429,
+     1200
+    ],
+    "basis": "exp",
+    "note": "Winter 2 1/4 in to 3 in 20k ft",
+    "ratio": 1.2
+   },
+   {
+    "name": "attitude, vacuum",
+    "key": "instr:ai",
+    "game": 1900,
+    "real": [
+     1487,
+     2495
+    ],
+    "basis": "tso",
+    "note": "Falcon to Sigma-Tek 5000B",
+    "ratio": 1.01
+   },
+   {
+    "name": "attitude, electric",
+    "key": "instr:aiE",
+    "game": 2800,
+    "real": [
+     893,
+     4195
+    ],
+    "basis": "exp",
+    "note": "non-TSO ~0.9k; TSO Mid-Continent 4.2k+",
+    "ratio": 0.69
+   },
+   {
+    "name": "directional gyro",
+    "key": "instr:dg",
+    "game": 1600,
+    "real": [
+     675,
+     893
+    ],
+    "basis": "exp",
+    "note": "non-TSO vacuum",
+    "ratio": 0.49
+   },
+   {
+    "name": "turn coordinator",
+    "key": "instr:turn",
+    "game": 800,
+    "real": [
+     1195,
+     1325
+    ],
+    "basis": "tso",
+    "note": "RC Allen 82A",
+    "ratio": 1.57
+   },
+   {
+    "name": "compass",
+    "key": "instr:compass",
+    "game": 300,
+    "real": [
+     455,
+     883
+    ],
+    "basis": "new",
+    "note": "Airpath C2400",
+    "ratio": 2.11
+   },
+   {
+    "name": "vacuum pump",
+    "key": "elec:vac:pump",
+    "game": 600,
+    "real": [
+     553,
+     809
+    ],
+    "basis": "new",
+    "note": "Rapco overhauled / new",
+    "ratio": 1.11
+   },
+   {
+    "name": "battery, lead (PC680)",
+    "key": "elec:battery:lead",
+    "game": 180,
+    "real": [
+     183,
+     281
+    ],
+    "basis": "new",
+    "note": "Van's / Spruce",
+    "ratio": 1.26
+   },
+   {
+    "name": "battery, lithium",
+    "key": "elec:battery:lithium",
+    "game": 520,
+    "real": [
+     379,
+     450
+    ],
+    "basis": "new",
+    "note": "EarthX ETX680C",
+    "ratio": 0.79
+   },
+   {
+    "name": "alternator 60 A",
+    "key": "elec:alternator:alt60",
+    "game": 800,
+    "real": [
+     1057,
+     1287
+    ],
+    "basis": "new",
+    "note": "Plane-Power",
+    "ratio": 1.46
+   },
+   {
+    "name": "starter",
+    "key": "elec:starter:yes",
+    "game": 700,
+    "real": [
+     1086,
+     1120
+    ],
+    "basis": "new",
+    "note": "Sky-Tec",
+    "ratio": 1.58
+   },
+   {
+    "name": "wiring harness",
+    "key": "elec:harness",
+    "game": 250,
+    "real": [
+     500,
+     3000
+    ],
+    "basis": "new",
+    "note": "ESTIMATE (parts, homebuilt)",
+    "ratio": 4.9
+   },
+   {
+    "name": "VHF COM",
+    "key": "av:com:compact",
+    "game": 1600,
+    "real": [
+     1364,
+     2110
+    ],
+    "basis": "new",
+    "note": "GTR 200 / Trig TY91",
+    "ratio": 1.06
+   },
+   {
+    "name": "Mode-S transponder",
+    "key": "av:xpdr:modeS",
+    "game": 2300,
+    "real": [
+     3053,
+     3893
+    ],
+    "basis": "new",
+    "note": "Trig TT21 / GTX 335 ADS-B",
+    "ratio": 1.5
+   },
+   {
+    "name": "VOR nav (used KX 155)",
+    "key": "av:nav:vor",
+    "game": 2200,
+    "real": [
+     1995,
+     3000
+    ],
+    "basis": "used",
+    "note": "Controller listings",
+    "ratio": 1.11
+   },
+   {
+    "name": "portable GPS",
+    "key": "av:gps:portable",
+    "game": 900,
+    "real": [
+     849,
+     1549
+    ],
+    "basis": "new",
+    "note": "aera 660 / 760",
+    "ratio": 1.27
+   },
+   {
+    "name": "panel GPS",
+    "key": "av:gps:panel",
+    "game": 4500,
+    "real": [
+     4995,
+     7995
+    ],
+    "basis": "new",
+    "note": "GPS 175 / GNX 375",
+    "ratio": 1.4
+   },
+   {
+    "name": "glass EFIS 7 in",
+    "key": "av:gps:glass",
+    "game": 6500,
+    "real": [
+     3360,
+     6500
+    ],
+    "basis": "new",
+    "note": "G3X Touch / SkyView HDX display; with ADAHRS ~6-7k",
+    "ratio": 0.72
+   },
+   {
+    "name": "main wheel + tyre + brake, each",
+    "key": "gear:wheel",
+    "game": 320,
+    "real": [
+     680,
+     900
+    ],
+    "basis": "new",
+    "note": "Matco 5.00-5 pair 1 096 + a tyre 254-294",
+    "ratio": 2.44
+   },
+   {
+    "name": "tailwheel assembly",
+    "key": "gear:thirdWheel",
+    "game": 260,
+    "real": [
+     1000,
+     1410
+    ],
+    "basis": "new",
+    "note": "ABI / Scott 3200 PMA; used ~GBP 1 000",
+    "ratio": 4.57
+   },
+   {
+    "name": "bungee set (Cub)",
+    "key": "gear:sus:bungee",
+    "game": 250,
+    "real": [
+     200,
+     260
+    ],
+    "basis": "new",
+    "note": "Univair, sold singly 49-65 (ESTIMATE for the set)",
+    "ratio": 0.91
+   },
+   {
+    "name": "spring-steel gear legs",
+    "key": "gear:sus:spring",
+    "game": 900,
+    "real": [
+     2000,
+     2500
+    ],
+    "basis": "new",
+    "note": "Grove / LGC (old figure)",
+    "ratio": 2.48
+   },
+   {
+    "name": "floats, Cub/C172 class pair",
+    "key": "floats",
+    "game": 1529,
+    "real": [
+     27000,
+     50000
+    ],
+    "basis": "new",
+    "note": "Aerocet 2200 straight ~27.5k; Wipline 2100 amphib ~50k; XCub straight 45k / amphib 70k; used EDO 2000 ~19k",
+    "ratio": 24.03
+   },
+   {
+    "name": "skis, Cub class pair",
+    "key": "skis",
+    "game": null,
+    "real": [
+     3000,
+     9500
+    ],
+    "basis": "new",
+    "note": "Summit carbon 4.9k; Federal wheel-ski 8.8-9.5k",
+    "ratio": null
+   },
+   {
+    "name": "paint, C172 professional",
+    "key": "paint",
+    "game": 1800,
+    "real": [
+     7000,
+     15000
+    ],
+    "basis": "new",
+    "note": "strip and paint 2025",
+    "ratio": 5.69
+   },
+   {
+    "name": "interior, C172 professional",
+    "key": "interior:c172",
+    "game": 2855,
+    "real": [
+     14000,
+     20000
+    ],
+    "basis": "new",
+    "note": "DIY kit 3-8k",
+    "ratio": 5.86
+   },
+   {
+    "name": "fuel tank, Cub/PA-18 class",
+    "key": "tank:alu:44",
+    "game": 796,
+    "real": [
+     400,
+     2274
+    ],
+    "basis": "new",
+    "note": "used J-3 tank ~400; new PA-18 wing tank 2 274",
+    "ratio": 1.2
+   },
+   {
+    "name": "nav/strobe LED pair",
+    "key": "lights",
+    "game": null,
+    "real": [
+     1190,
+     1900
+    ],
+    "basis": "new",
+    "note": "AeroLEDs Pulsar",
+    "ratio": null
+   },
+   {
+    "name": "fabric covering materials, Cub",
+    "key": "cover:cub",
+    "game": 900,
+    "real": [
+     3000,
+     6000
+    ],
+    "basis": "new",
+    "note": "Poly-Fiber / Stewart / Oratex; a professional recover 20-40k",
+    "ratio": 4.71
+   }
+  ]
+ },
+ "real": {
+  "components": [
+   [
+    "Continental A-65",
+    "eng:a65_sensenich74",
+    [
+     9500,
+     13000
+    ],
+    "oh",
+    "shop overhaul ~9.5k before accessories; mid-time used 3-3.5k"
+   ],
+   [
+    "Rotax 582 (with gearbox)",
+    "eng:rotax582_ivo",
+    [
+     8200,
+     9500
+    ],
+    "new",
+    "GBP 7 500 new boxed (UK 2025); AUD dealer ~8.2k ex GST"
+   ],
+   [
+    "Rotax 503",
+    "eng:rotax503_wood",
+    [
+     4500,
+     5000
+    ],
+    "oh",
+    "out of production; zero-time rebuild ~4.8k"
+   ],
+   [
+    "Rotax 912 UL / ULS",
+    "eng:rotax912_warp",
+    [
+     20600,
+     23700
+    ],
+    "new",
+    "Motive / Six Chuter retail 2024-25"
+   ],
+   [
+    "Rotax 915 iS",
+    "eng:rotax915_carbon",
+    [
+     48500,
+     55000
+    ],
+    "new",
+    "Motive retail (no exhaust, no alternator)"
+   ],
+   [
+    "Rotax 916 iS",
+    "eng:rotax916_carbon",
+    [
+     51000,
+     60000
+    ],
+    "new",
+    "flying411; AUD dealer"
+   ],
+   [
+    "Continental O-200",
+    "eng:o200_eprops",
+    [
+     40000,
+     47500
+    ],
+    "oh",
+    "Air Power O-200-A rebuilt 47.5k; new O-200-D 46.7k"
+   ],
+   [
+    "Lycoming O-320 (150/160 hp)",
+    "eng:o320_mccauley",
+    [
+     48000,
+     56000
+    ],
+    "oh",
+    "factory overhaul / rebuilt exchange 2024; used reman 32k"
+   ],
+   [
+    "Lycoming IO-360 (180 hp)",
+    "eng:io360_mccauley",
+    [
+     48000,
+     56000
+    ],
+    "oh",
+    "overhaul / rebuilt exchange; new 75-88k; Superior XP kit 31-55k"
+   ],
+   [
+    "Lycoming O-540",
+    "eng:o540_hartzell",
+    [
+     61000,
+     67000
+    ],
+    "oh",
+    "factory overhaul exchange 2024; new 117k"
+   ],
+   [
+    "DH Gipsy Major",
+    "eng:gipsymajor1_wood",
+    [
+     43000,
+     70000
+    ],
+    "oh",
+    "GBP 34-55k zero-timed / overhauled asking"
+   ],
+   [
+    "P&W R-985",
+    "eng:r985_hs2b20",
+    [
+     45000,
+     60000
+    ],
+    "oh",
+    "ESTIMATE (no published figure; R-1340 forum scaling)"
+   ],
+   [
+    "P&W R-1830",
+    "eng:r1830_hs23e50",
+    [
+     60000,
+     100000
+    ],
+    "oh",
+    "ESTIMATE (no reliable published figure)"
+   ],
+   [
+    "P&W PT6A-114A",
+    "eng:pt6a114a_hartzell3",
+    [
+     350000,
+     433000
+    ],
+    "oh",
+    "P&WC flat rate 2025 (capped 433k); 2026 382-472k; exchange ~590k"
+   ],
+   [
+    "P&W PT6A-34",
+    "eng:pt6a34_hartzell4",
+    [
+     387000,
+     455000
+    ],
+    "oh",
+    "P&WC flat rate 2026"
+   ],
+   [
+    "P&W PT6A-42",
+    "eng:pt6a42_hartzell4",
+    [
+     420000,
+     489000
+    ],
+    "oh",
+    "P&WC flat rate 2026"
+   ],
+   [
+    "prop: fixed wood, Cub",
+    "prop:wood:2:1.88",
+    [
+     3500,
+     4400
+    ],
+    "new",
+    "Sensenich W72 (Univair)"
+   ],
+   [
+    "prop: fixed metal, C172",
+    "prop:alu:2:1.91",
+    [
+     8200,
+     10800
+    ],
+    "new",
+    "Sensenich 74DM6 / McCauley 1C160"
+   ],
+   [
+    "prop: ground-adj. composite 3-blade (912)",
+    "prop:carbon:3:1.73",
+    [
+     1300,
+     4400
+    ],
+    "new",
+    "Warp Drive 1.3k, E-Props EUR 1.5k, IVO 3.4-4.4k"
+   ],
+   [
+    "prop: constant speed 2-blade (IO-360)",
+    "prop:alu:2:1.93",
+    [
+     10500,
+     11800
+    ],
+    "new",
+    "Hartzell via Van's ~10.5k + governor ~1.25k; the game prices it as fixed"
+   ],
+   [
+    "prop: turboprop 3-blade (PT6A)",
+    "prop:alu:3:2.69",
+    [
+     18500,
+     45000
+    ],
+    "new",
+    "18.5-19.9k old Hartzell kit price; 30-45k ESTIMATE today"
+   ],
+   [
+    "airspeed indicator",
+    "instr:asi",
+    [
+     254,
+     374
+    ],
+    "exp",
+    "Swift 2 1/4 in; TSO 1.2-1.6k"
+   ],
+   [
+    "altimeter",
+    "instr:alt",
+    [
+     429,
+     1200
+    ],
+    "exp",
+    "Winter 2 1/4 in to 3 in 20k ft"
+   ],
+   [
+    "attitude, vacuum",
+    "instr:ai",
+    [
+     1487,
+     2495
+    ],
+    "tso",
+    "Falcon to Sigma-Tek 5000B"
+   ],
+   [
+    "attitude, electric",
+    "instr:aiE",
+    [
+     893,
+     4195
+    ],
+    "exp",
+    "non-TSO ~0.9k; TSO Mid-Continent 4.2k+"
+   ],
+   [
+    "directional gyro",
+    "instr:dg",
+    [
+     675,
+     893
+    ],
+    "exp",
+    "non-TSO vacuum"
+   ],
+   [
+    "turn coordinator",
+    "instr:turn",
+    [
+     1195,
+     1325
+    ],
+    "tso",
+    "RC Allen 82A"
+   ],
+   [
+    "compass",
+    "instr:compass",
+    [
+     455,
+     883
+    ],
+    "new",
+    "Airpath C2400"
+   ],
+   [
+    "vacuum pump",
+    "elec:vac:pump",
+    [
+     553,
+     809
+    ],
+    "new",
+    "Rapco overhauled / new"
+   ],
+   [
+    "battery, lead (PC680)",
+    "elec:battery:lead",
+    [
+     183,
+     281
+    ],
+    "new",
+    "Van's / Spruce"
+   ],
+   [
+    "battery, lithium",
+    "elec:battery:lithium",
+    [
+     379,
+     450
+    ],
+    "new",
+    "EarthX ETX680C"
+   ],
+   [
+    "alternator 60 A",
+    "elec:alternator:alt60",
+    [
+     1057,
+     1287
+    ],
+    "new",
+    "Plane-Power"
+   ],
+   [
+    "starter",
+    "elec:starter:yes",
+    [
+     1086,
+     1120
+    ],
+    "new",
+    "Sky-Tec"
+   ],
+   [
+    "wiring harness",
+    "elec:harness",
+    [
+     500,
+     3000
+    ],
+    "new",
+    "ESTIMATE (parts, homebuilt)"
+   ],
+   [
+    "VHF COM",
+    "av:com:compact",
+    [
+     1364,
+     2110
+    ],
+    "new",
+    "GTR 200 / Trig TY91"
+   ],
+   [
+    "Mode-S transponder",
+    "av:xpdr:modeS",
+    [
+     3053,
+     3893
+    ],
+    "new",
+    "Trig TT21 / GTX 335 ADS-B"
+   ],
+   [
+    "VOR nav (used KX 155)",
+    "av:nav:vor",
+    [
+     1995,
+     3000
+    ],
+    "used",
+    "Controller listings"
+   ],
+   [
+    "portable GPS",
+    "av:gps:portable",
+    [
+     849,
+     1549
+    ],
+    "new",
+    "aera 660 / 760"
+   ],
+   [
+    "panel GPS",
+    "av:gps:panel",
+    [
+     4995,
+     7995
+    ],
+    "new",
+    "GPS 175 / GNX 375"
+   ],
+   [
+    "glass EFIS 7 in",
+    "av:gps:glass",
+    [
+     3360,
+     6500
+    ],
+    "new",
+    "G3X Touch / SkyView HDX display; with ADAHRS ~6-7k"
+   ],
+   [
+    "main wheel + tyre + brake, each",
+    "gear:wheel",
+    [
+     680,
+     900
+    ],
+    "new",
+    "Matco 5.00-5 pair 1 096 + a tyre 254-294"
+   ],
+   [
+    "tailwheel assembly",
+    "gear:thirdWheel",
+    [
+     1000,
+     1410
+    ],
+    "new",
+    "ABI / Scott 3200 PMA; used ~GBP 1 000"
+   ],
+   [
+    "bungee set (Cub)",
+    "gear:sus:bungee",
+    [
+     200,
+     260
+    ],
+    "new",
+    "Univair, sold singly 49-65 (ESTIMATE for the set)"
+   ],
+   [
+    "spring-steel gear legs",
+    "gear:sus:spring",
+    [
+     2000,
+     2500
+    ],
+    "new",
+    "Grove / LGC (old figure)"
+   ],
+   [
+    "floats, Cub/C172 class pair",
+    "floats",
+    [
+     27000,
+     50000
+    ],
+    "new",
+    "Aerocet 2200 straight ~27.5k; Wipline 2100 amphib ~50k; XCub straight 45k / amphib 70k; used EDO 2000 ~19k"
+   ],
+   [
+    "skis, Cub class pair",
+    "skis",
+    [
+     3000,
+     9500
+    ],
+    "new",
+    "Summit carbon 4.9k; Federal wheel-ski 8.8-9.5k"
+   ],
+   [
+    "paint, C172 professional",
+    "paint",
+    [
+     7000,
+     15000
+    ],
+    "new",
+    "strip and paint 2025"
+   ],
+   [
+    "interior, C172 professional",
+    "interior:c172",
+    [
+     14000,
+     20000
+    ],
+    "new",
+    "DIY kit 3-8k"
+   ],
+   [
+    "fuel tank, Cub/PA-18 class",
+    "tank:alu:44",
+    [
+     400,
+     2274
+    ],
+    "new",
+    "used J-3 tank ~400; new PA-18 wing tank 2 274"
+   ],
+   [
+    "nav/strobe LED pair",
+    "lights",
+    [
+     1190,
+     1900
+    ],
+    "new",
+    "AeroLEDs Pulsar"
+   ],
+   [
+    "fabric covering materials, Cub",
+    "cover:cub",
+    [
+     3000,
+     6000
+    ],
+    "new",
+    "Poly-Fiber / Stewart / Oratex; a professional recover 20-40k"
+   ]
+  ],
+  "planes": {
+   "cub": {
+    "plans": [
+     35000,
+     60000
+    ],
+    "kit": [
+     80000,
+     140000
+    ],
+    "fac": [
+     45000,
+     65000
+    ],
+    "facWhat": "USED airworthy J-3, US and continental Europe alike (EUR 47-60k), 2024-26 asking; restored 70-100k; a 20-30 % Cub collector premium is in it",
+    "newCub": [
+     250000,
+     295000
+    ],
+    "newWhat": "NEW Cub-class: American Legend AL3 2025 ~252-272k, Carbon Cub UL ~294k",
+    "plansWhat": "ESTIMATE: tube, fabric, spruce, hardware 15-25k + an overhauled C85/O-200 20-30k + a basic panel 5-8k",
+    "kitWhat": "ESTIMATE: Wag-Aero quickbuild class airframe + engine + panel; a Backcountry Super Cub kit alone is 95.8k",
+    "hours": [
+     700,
+     3000
+    ]
+   },
+   "c172": {
+    "fac": [
+     499000,
+     580000
+    ],
+    "facWhat": "NEW 172S list (Textron 2023 499k; 2026 MSRP ~580k)",
+    "used": [
+     95000,
+     150000
+    ],
+    "usedWhat": "used 1970s 172M/N: Europe EUR 80-110k, US 120-150k typical"
+   },
+   "jodel": {
+    "plans": [
+     25000,
+     45000
+    ],
+    "fac": [
+     20000,
+     35000
+    ],
+    "facWhat": "USED D11/D112/D117 typical in Europe (EUR 12-38k asking, UK GBP 9-24k); no factory price found",
+    "plansWhat": "ESTIMATE: wood, ply, fabric, hardware 6-12k + an overhauled C90/O-200 15-30k + a basic panel 5k",
+    "hours": [
+     1500,
+     2500
+    ]
+   },
+   "chinook": {
+    "kit": [
+     20000,
+     36000
+    ],
+    "kitWhat": "2009 kit list: 1S/2S with a 503 ~20k, Plus 2 with a 912 27.5-36k (out of production)",
+    "fac": [
+     10000,
+     15000
+    ],
+    "facWhat": "USED Chinook Plus 2 (CAD 12-16k; US dealer 20-27.5k refurbished)"
+   },
+   "tiger": {
+    "fac": [
+     80000,
+     170000
+    ],
+    "facWhat": "USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold"
+   },
+   "bites": {
+    "kit": [
+     150000,
+     190000
+    ],
+    "kitWhat": "RV-7/-8 airframe kit 48-50k + FWF 12k + IO-360 39-56k + CS prop ~10k + VFR panel 10-20k + paint/interior (ESTIMATE total); single-seat RV-3B kit 28k",
+    "fac": [
+     130000,
+     160000
+    ],
+    "facWhat": "USED flying RV-7A / RV-8",
+    "hours": [
+     1500,
+     2500
+    ]
+   },
+   "rv": {
+    "kit": [
+     150000,
+     190000
+    ],
+    "kitWhat": "as B-ITES",
+    "fac": [
+     130000,
+     160000
+    ],
+    "facWhat": "USED flying RV-7A / RV-8",
+    "hours": [
+     1500,
+     2500
+    ]
+   },
+   "dc3": {
+    "fac": [
+     230000,
+     600000
+    ],
+    "facWhat": "USED airworthy DC-3 / C-47 listings 2024-26 (a BT-67 turbine conversion is 9-16M)"
+   },
+   "caravan": {
+    "fac": [
+     2600000,
+     2900000
+    ],
+    "facWhat": "NEW 208B Grand Caravan EX (Textron 2.685M, 2023; 2025-26 not confirmed)",
+    "used": [
+     700000,
+     1500000
+    ],
+    "usedWhat": "used 2000s 208B"
+   }
+  }
+ },
+ "ratios": [
+  {
+   "id": "cub",
+   "label": "Cub (J-3, slightly upgraded)",
+   "game": {
+    "scratchFit": 25000,
+    "scratchShort": 31200,
+    "catalogue": 35900,
+    "usedLo": 14400,
+    "usedHi": 28700
+   },
+   "plans": {
+    "real": [
+     35000,
+     60000
+    ],
+    "ratio": 1.83
+   },
+   "kit": {
+    "real": [
+     80000,
+     140000
+    ],
+    "ratio": 3.39
+   },
+   "fac": {
+    "real": [
+     45000,
+     65000
+    ],
+    "what": "USED airworthy J-3, US and continental Europe alike (EUR 47-60k), 2024-26 asking; restored 70-100k; a 20-30 % Cub collector premium is in it",
+    "ratio": 1.51
+   },
+   "newCub": {
+    "real": [
+     250000,
+     295000
+    ],
+    "ratio": 7.56
+   }
+  },
+  {
+   "id": "c172",
+   "label": "Cessna 172",
+   "game": {
+    "scratchFit": 70800,
+    "scratchShort": 88500,
+    "catalogue": 107900,
+    "usedLo": 43200,
+    "usedHi": 86300
+   },
+   "fac": {
+    "real": [
+     499000,
+     580000
+    ],
+    "what": "NEW 172S list (Textron 2023 499k; 2026 MSRP ~580k)",
+    "ratio": 4.99
+   },
+   "used": {
+    "real": [
+     95000,
+     150000
+    ],
+    "ratio": 1.96
+   }
+  },
+  {
+   "id": "jodel",
+   "label": "Jodel (as a D115)",
+   "game": {
+    "scratchFit": 27500,
+    "scratchShort": 34400,
+    "catalogue": 39500,
+    "usedLo": 15800,
+    "usedHi": 31600
+   },
+   "plans": {
+    "real": [
+     25000,
+     45000
+    ],
+    "ratio": 1.22
+   },
+   "fac": {
+    "real": [
+     20000,
+     35000
+    ],
+    "what": "USED D11/D112/D117 typical in Europe (EUR 12-38k asking, UK GBP 9-24k); no factory price found",
+    "ratio": 0.67
+   }
+  },
+  {
+   "id": "chinook",
+   "label": "Chinook (the Birdman Chinook)",
+   "game": {
+    "scratchFit": 20900,
+    "scratchShort": 26100,
+    "catalogue": 30000,
+    "usedLo": 12000,
+    "usedHi": 24000
+   },
+   "kit": {
+    "real": [
+     20000,
+     36000
+    ],
+    "ratio": 1.03
+   },
+   "fac": {
+    "real": [
+     10000,
+     15000
+    ],
+    "what": "USED Chinook Plus 2 (CAD 12-16k; US dealer 20-27.5k refurbished)",
+    "ratio": 0.41
+   }
+  },
+  {
+   "id": "tiger",
+   "label": "Tiger Moth",
+   "game": {
+    "scratchFit": 45400,
+    "scratchShort": 56800,
+    "catalogue": 65300,
+    "usedLo": 26100,
+    "usedHi": 52200
+   },
+   "fac": {
+    "real": [
+     80000,
+     170000
+    ],
+    "what": "USED DH.82A: GBP 60-75k flying (UK), 170k restored (US); AUD 99-105k sold",
+    "ratio": 1.79
+   }
+  },
+  {
+   "id": "bites",
+   "label": "B-ITES (user, RV range)",
+   "game": {
+    "scratchFit": 52900,
+    "scratchShort": 66100,
+    "catalogue": 76000,
+    "usedLo": 30400,
+    "usedHi": 60800
+   },
+   "kit": {
+    "real": [
+     150000,
+     190000
+    ],
+    "ratio": 2.55
+   },
+   "fac": {
+    "real": [
+     130000,
+     160000
+    ],
+    "what": "USED flying RV-7A / RV-8",
+    "ratio": 1.9
+   }
+  },
+  {
+   "id": "rv",
+   "label": "RV-alike (archetype)",
+   "game": {
+    "scratchFit": 57900,
+    "scratchShort": 72400,
+    "catalogue": 83300,
+    "usedLo": 33300,
+    "usedHi": 66600
+   },
+   "kit": {
+    "real": [
+     150000,
+     190000
+    ],
+    "ratio": 2.33
+   },
+   "fac": {
+    "real": [
+     130000,
+     160000
+    ],
+    "what": "USED flying RV-7A / RV-8",
+    "ratio": 1.73
+   }
+  },
+  {
+   "id": "dc3",
+   "label": "DC-3",
+   "game": {
+    "scratchFit": 433400,
+    "scratchShort": 541800,
+    "catalogue": 623000,
+    "usedLo": 249200,
+    "usedHi": 498400
+   },
+   "fac": {
+    "real": [
+     230000,
+     600000
+    ],
+    "what": "USED airworthy DC-3 / C-47 listings 2024-26 (a BT-67 turbine conversion is 9-16M)",
+    "ratio": 0.6
+   }
+  },
+  {
+   "id": "caravan",
+   "label": "Caravan-alike (archetype)",
+   "game": {
+    "scratchFit": 266000,
+    "scratchShort": 332500,
+    "catalogue": 382400,
+    "usedLo": 153000,
+    "usedHi": 305900
+   },
+   "fac": {
+    "real": [
+     2600000,
+     2900000
+    ],
+    "what": "NEW 208B Grand Caravan EX (Textron 2.685M, 2023; 2025-26 not confirmed)",
+    "ratio": 7.18
+   },
+   "used": {
+    "real": [
+     700000,
+     1500000
+    ],
+    "ratio": 4.74
+   }
+  }
+ ],
+ "facFit": {
+  "k": 1.55,
+  "rmsFactor": 2.45,
+  "res": [
+   {
+    "id": "cub",
+    "game": 35900,
+    "real": 54083.26913195984,
+    "ratio": 0.97
+   },
+   {
+    "id": "c172",
+    "game": 107900,
+    "real": 537977.6947049013,
+    "ratio": 3.22
+   },
+   {
+    "id": "jodel",
+    "game": 39500,
+    "real": 26457.513110645905,
+    "ratio": 0.43
+   },
+   {
+    "id": "chinook",
+    "game": 30000,
+    "real": 12247.44871391589,
+    "ratio": 0.26
+   },
+   {
+    "id": "tiger",
+    "game": 65300,
+    "real": 116619.03789690601,
+    "ratio": 1.15
+   },
+   {
+    "id": "bites",
+    "game": 76000,
+    "real": 144222.05101855958,
+    "ratio": 1.22
+   },
+   {
+    "id": "rv",
+    "game": 83300,
+    "real": 144222.05101855958,
+    "ratio": 1.12
+   },
+   {
+    "id": "dc3",
+    "game": 623000,
+    "real": 371483.5124201342,
+    "ratio": 0.38
+   },
+   {
+    "id": "caravan",
+    "game": 382400,
+    "real": 2745906.0435491963,
+    "ratio": 4.63
+   }
+  ]
+ },
+ "compFit": {
+  "k": 1.711,
+  "rmsFactor": 2.08,
+  "res": [
+   {
+    "id": "Continental A-65",
+    "game": 9000,
+    "real": 11113.055385446434,
+    "ratio": 0.72
+   },
+   {
+    "id": "Rotax 582 (with gearbox)",
+    "game": 5500,
+    "real": 8826.09766544649,
+    "ratio": 0.94
+   },
+   {
+    "id": "Rotax 503",
+    "game": 4000,
+    "real": 4743.416490252569,
+    "ratio": 0.69
+   },
+   {
+    "id": "Rotax 912 UL / ULS",
+    "game": 18000,
+    "real": 22095.700939323015,
+    "ratio": 0.72
+   },
+   {
+    "id": "Rotax 915 iS",
+    "game": 34000,
+    "real": 51647.846034466915,
+    "ratio": 0.89
+   },
+   {
+    "id": "Rotax 916 iS",
+    "game": 38000,
+    "real": 55317.266743757325,
+    "ratio": 0.85
+   },
+   {
+    "id": "Continental O-200",
+    "game": 24000,
+    "real": 43588.98943540674,
+    "ratio": 1.06
+   },
+   {
+    "id": "Lycoming O-320 (150/160 hp)",
+    "game": 28000,
+    "real": 51845.92558726288,
+    "ratio": 1.08
+   },
+   {
+    "id": "Lycoming IO-360 (180 hp)",
+    "game": 38000,
+    "real": 51845.92558726288,
+    "ratio": 0.8
+   },
+   {
+    "id": "Lycoming O-540",
+    "game": 38000,
+    "real": 63929.64883369844,
+    "ratio": 0.98
+   },
+   {
+    "id": "DH Gipsy Major",
+    "game": 26000,
+    "real": 54863.46689738081,
+    "ratio": 1.23
+   },
+   {
+    "id": "P&W R-985",
+    "game": 48000,
+    "real": 51961.52422706632,
+    "ratio": 0.63
+   },
+   {
+    "id": "P&W R-1830",
+    "game": 65000,
+    "real": 77459.66692414833,
+    "ratio": 0.7
+   },
+   {
+    "id": "P&W PT6A-114A",
+    "game": 240000,
+    "real": 389294.2331964346,
+    "ratio": 0.95
+   },
+   {
+    "id": "P&W PT6A-34",
+    "game": 265000,
+    "real": 419624.83243964484,
+    "ratio": 0.93
+   },
+   {
+    "id": "P&W PT6A-42",
+    "game": 300000,
+    "real": 453188.70241876063,
+    "ratio": 0.88
+   },
+   {
+    "id": "prop: fixed wood, Cub",
+    "game": 900,
+    "real": 3924.2833740697165,
+    "ratio": 2.55
+   },
+   {
+    "id": "prop: fixed metal, C172",
+    "game": 2271,
+    "real": 9410.632284814874,
+    "ratio": 2.42
+   },
+   {
+    "id": "prop: ground-adj. composite 3-blade (912)",
+    "game": 6605,
+    "real": 2391.6521486202796,
+    "ratio": 0.21
+   },
+   {
+    "id": "prop: constant speed 2-blade (IO-360)",
+    "game": 2319,
+    "real": 11131.037687475504,
+    "ratio": 2.8
+   },
+   {
+    "id": "prop: turboprop 3-blade (PT6A)",
+    "game": 6756,
+    "real": 28853.076092507017,
+    "ratio": 2.5
+   },
+   {
+    "id": "airspeed indicator",
+    "game": 350,
+    "real": 308.2142112232984,
+    "ratio": 0.51
+   },
+   {
+    "id": "altimeter",
+    "game": 600,
+    "real": 717.4956445860839,
+    "ratio": 0.7
+   },
+   {
+    "id": "attitude, vacuum",
+    "game": 1900,
+    "real": 1926.1529015111962,
+    "ratio": 0.59
+   },
+   {
+    "id": "attitude, electric",
+    "game": 2800,
+    "real": 1935.493477126699,
+    "ratio": 0.4
+   },
+   {
+    "id": "directional gyro",
+    "game": 1600,
+    "real": 776.385857676452,
+    "ratio": 0.28
+   },
+   {
+    "id": "turn coordinator",
+    "game": 800,
+    "real": 1258.322295757331,
+    "ratio": 0.92
+   },
+   {
+    "id": "compass",
+    "game": 300,
+    "real": 633.8493511868573,
+    "ratio": 1.23
+   },
+   {
+    "id": "vacuum pump",
+    "game": 600,
+    "real": 668.8624671784178,
+    "ratio": 0.65
+   },
+   {
+    "id": "battery, lead (PC680)",
+    "game": 180,
+    "real": 226.76639962745804,
+    "ratio": 0.74
+   },
+   {
+    "id": "battery, lithium",
+    "game": 520,
+    "real": 412.97699693808613,
+    "ratio": 0.46
+   },
+   {
+    "id": "alternator 60 A",
+    "game": 800,
+    "real": 1166.3442887929791,
+    "ratio": 0.85
+   },
+   {
+    "id": "starter",
+    "game": 700,
+    "real": 1102.8689858727555,
+    "ratio": 0.92
+   },
+   {
+    "id": "wiring harness",
+    "game": 250,
+    "real": 1224.744871391589,
+    "ratio": 2.86
+   },
+   {
+    "id": "VHF COM",
+    "game": 1600,
+    "real": 1696.4787060261028,
+    "ratio": 0.62
+   },
+   {
+    "id": "Mode-S transponder",
+    "game": 2300,
+    "real": 3447.510551107857,
+    "ratio": 0.88
+   },
+   {
+    "id": "VOR nav (used KX 155)",
+    "game": 2200,
+    "real": 2446.4259645450134,
+    "ratio": 0.65
+   },
+   {
+    "id": "portable GPS",
+    "game": 900,
+    "real": 1146.7785313651455,
+    "ratio": 0.74
+   },
+   {
+    "id": "panel GPS",
+    "game": 4500,
+    "real": 6319.416507874758,
+    "ratio": 0.82
+   },
+   {
+    "id": "glass EFIS 7 in",
+    "game": 6500,
+    "real": 4673.328578219169,
+    "ratio": 0.42
+   },
+   {
+    "id": "main wheel + tyre + brake, each",
+    "game": 320,
+    "real": 782.3042886243178,
+    "ratio": 1.43
+   },
+   {
+    "id": "tailwheel assembly",
+    "game": 260,
+    "real": 1187.4342087037917,
+    "ratio": 2.67
+   },
+   {
+    "id": "bungee set (Cub)",
+    "game": 250,
+    "real": 228.0350850198276,
+    "ratio": 0.53
+   },
+   {
+    "id": "spring-steel gear legs",
+    "game": 900,
+    "real": 2236.06797749979,
+    "ratio": 1.45
+   },
+   {
+    "id": "floats, Cub/C172 class pair",
+    "game": 1529,
+    "real": 36742.34614174767,
+    "ratio": 14.04
+   },
+   {
+    "id": "paint, C172 professional",
+    "game": 1800,
+    "real": 10246.950765959598,
+    "ratio": 3.33
+   },
+   {
+    "id": "interior, C172 professional",
+    "game": 2855,
+    "real": 16733.20053068151,
+    "ratio": 3.42
+   },
+   {
+    "id": "fuel tank, Cub/PA-18 class",
+    "game": 796,
+    "real": 953.7295214053091,
+    "ratio": 0.7
+   },
+   {
+    "id": "fabric covering materials, Cub",
+    "game": 900,
+    "real": 4242.640687119285,
+    "ratio": 2.75
+   }
+  ]
+ },
+ "proposal": {
+  "rate": 1.5,
+  "table": {
+   "data": [
+    [
+     "GEN_PROP_MATS.wood.price",
+     900,
+     2600
+    ],
+    [
+     "GEN_PROP_MATS.alu.price",
+     2200,
+     6000
+    ],
+    [
+     "GEN_PROP_MATS.carbon.price",
+     5200,
+     2000
+    ],
+    [
+     "GEN_PRICES.wheel",
+     320,
+     550
+    ],
+    [
+     "GEN_PRICES.thirdWheel",
+     260,
+     800
+    ],
+    [
+     "GEN_SUSPENSION.spring.price",
+     900,
+     1500
+    ],
+    [
+     "GEN_ELEC.harness.price",
+     250,
+     800
+    ],
+    [
+     "GEN_INSTR.compass.price",
+     300,
+     450
+    ],
+    [
+     "POWERPLANTS.o200_eprops.price",
+     24000,
+     29000
+    ],
+    [
+     "POWERPLANTS.o320_mccauley.price",
+     28000,
+     34000
+    ],
+    [
+     "POWERPLANTS.gipsymajor1_wood.price",
+     26000,
+     37000
+    ]
+   ],
+   "code": {
+    "paintPerM2": 120,
+    "furnishPerKg": 240,
+    "coverPerM2": 50,
+    "floatsPerKgGross": 24,
+    "lights": 1000,
+    "csHub": 1000,
+    "propPerEngine": true,
+    "seatLine": 0
+   }
+  },
+  "planes": [
+   {
+    "id": "cub",
+    "label": "Cub (J-3, slightly upgraded)",
+    "ledgerNow": 31203,
+    "ledgerData": 34658,
+    "codeDeltas": {
+     "paint": 4200,
+     "furnish": 1332,
+     "cover": 2500,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 42930,
+    "factor": 1.376,
+    "catalogue": 49400,
+    "scratchFit": 34300
+   },
+   {
+    "id": "c172",
+    "label": "Cessna 172",
+    "ledgerNow": 88486,
+    "ledgerData": 94688,
+    "codeDeltas": {
+     "paint": 5400,
+     "furnish": 4374,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -1520
+    },
+    "ledger": 103942,
+    "factor": 1.175,
+    "catalogue": 119500,
+    "scratchFit": 83200
+   },
+   {
+    "id": "jodel",
+    "label": "Jodel (as a D115)",
+    "ledgerNow": 34363,
+    "ledgerData": 37674,
+    "codeDeltas": {
+     "paint": 3700,
+     "furnish": 720,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 42334,
+    "factor": 1.232,
+    "catalogue": 48700,
+    "scratchFit": 33900
+   },
+   {
+    "id": "birdman",
+    "label": "Birdman",
+    "ledgerNow": 28118,
+    "ledgerData": 30775,
+    "codeDeltas": {
+     "paint": 2100,
+     "furnish": 1080,
+     "cover": 1625,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 35820,
+    "factor": 1.274,
+    "catalogue": 41200,
+    "scratchFit": 28700
+   },
+   {
+    "id": "chinook",
+    "label": "Chinook (the Birdman Chinook)",
+    "ledgerNow": 26082,
+    "ledgerData": 29941,
+    "codeDeltas": {
+     "paint": 1800,
+     "furnish": 1080,
+     "cover": 1500,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 34561,
+    "factor": 1.325,
+    "catalogue": 39700,
+    "scratchFit": 27600
+   },
+   {
+    "id": "tiger",
+    "label": "Tiger Moth",
+    "ledgerNow": 56784,
+    "ledgerData": 71239,
+    "codeDeltas": {
+     "paint": 5400,
+     "furnish": 2610,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 79489,
+    "factor": 1.4,
+    "catalogue": 91400,
+    "scratchFit": 63600
+   },
+   {
+    "id": "bites",
+    "label": "B-ITES (user, RV range)",
+    "ledgerNow": 66128,
+    "ledgerData": 70899,
+    "codeDeltas": {
+     "paint": 3000,
+     "furnish": 1350,
+     "cover": 2000,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 77489,
+    "factor": 1.172,
+    "catalogue": 89100,
+    "scratchFit": 62000
+   },
+   {
+    "id": "rv",
+    "label": "RV-alike (archetype)",
+    "ledgerNow": 72402,
+    "ledgerData": 76493,
+    "codeDeltas": {
+     "paint": 2700,
+     "furnish": 2430,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 81863,
+    "factor": 1.131,
+    "catalogue": 94100,
+    "scratchFit": 65500
+   },
+   {
+    "id": "dc3",
+    "label": "DC-3",
+    "ledgerNow": 541782,
+    "ledgerData": 562125,
+    "codeDeltas": {
+     "paint": 40200,
+     "furnish": 57330,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 29436,
+     "seatLine": -11020
+    },
+    "ledger": 679071,
+    "factor": 1.253,
+    "catalogue": 780900,
+    "scratchFit": 543300
+   },
+   {
+    "id": "caravan",
+    "label": "Caravan-alike (archetype)",
+    "ledgerNow": 332513,
+    "ledgerData": 324913,
+    "codeDeltas": {
+     "paint": 5800,
+     "furnish": 15354,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 1000,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 347307,
+    "factor": 1.044,
+    "catalogue": 399400,
+    "scratchFit": 277800
+   },
+   {
+    "id": "c172f",
+    "label": "Cessna on floats (O-540)",
+    "ledgerNow": 95775,
+    "ledgerData": 102638,
+    "codeDeltas": {
+     "paint": 5400,
+     "furnish": 4590,
+     "cover": 0,
+     "floats": 24408,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -1520
+    },
+    "ledger": 136516,
+    "factor": 1.425,
+    "catalogue": 157000,
+    "scratchFit": 109200
+   },
+   {
+    "id": "pa18f",
+    "label": "PA-18 on floats",
+    "ledgerNow": 54693,
+    "ledgerData": 64148,
+    "codeDeltas": {
+     "paint": 4300,
+     "furnish": 2754,
+     "cover": 2542,
+     "floats": 18048,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 92032,
+    "factor": 1.683,
+    "catalogue": 105800,
+    "scratchFit": 73600
+   },
+   {
+    "id": "rufus",
+    "label": "Rufus (the starter, econ-sim)",
+    "ledgerNow": 37581,
+    "ledgerData": 36428,
+    "codeDeltas": {
+     "paint": -600,
+     "furnish": 540,
+     "cover": 500,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -380
+    },
+    "ledger": 37488,
+    "factor": 0.998,
+    "catalogue": 43100,
+    "scratchFit": 30000
+   },
+   {
+    "id": "c172m",
+    "label": "metal Cessna (econ-sim c172)",
+    "ledgerNow": 93694,
+    "ledgerData": 100557,
+    "codeDeltas": {
+     "paint": 5900,
+     "furnish": 3870,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -1520
+    },
+    "ledger": 109807,
+    "factor": 1.172,
+    "catalogue": 126300,
+    "scratchFit": 87800
+   },
+   {
+    "id": "cjodel",
+    "label": "composite Jodel (econ-sim)",
+    "ledgerNow": 48959,
+    "ledgerData": 52270,
+    "codeDeltas": {
+     "paint": 3700,
+     "furnish": 990,
+     "cover": 0,
+     "floats": 0,
+     "lights": 1000,
+     "cs": 0,
+     "prop2": 0,
+     "seatLine": -760
+    },
+    "ledger": 57200,
+    "factor": 1.168,
+    "catalogue": 65800,
+    "scratchFit": 45800
+   }
+  ],
+  "career": {
+   "cubFactor": 1.376,
+   "cubLedgerNow": 31203,
+   "cubLedgerProposed": 42935,
+   "scalesWithCub": [
+    "ECON_BOOK.shells",
+    "KIT_PRICES",
+    "signOn",
+    "landmarks",
+    "rungs",
+    "comps"
+   ],
+   "absolute": {
+    "CAREER_GRANT": 60000,
+    "STORY_T6_FEE": 20000,
+    "CONTRACT_PAY.perKm": 160,
+    "CONTRACT_PAY.surf.short": 1100,
+    "ROUTES_PAY.perKm": 30
+   },
+   "paceIfPayHeld": {
+    "cubClass": 4.1,
+    "seat4": 9.4,
+    "hangar1": 15.1
+   },
+   "note": "ECON-SIM G3250 measured (proposed table, 20 seeds): Cub-class 3 contracts, 4-seater 8, side hangar 11. Pace scales with price / pay to first order."
+  }
+ },
+ "routes": {
+  "sellK": 0.75,
+  "rule": "sale = min(SELL_K x listing(condition), paid)",
+  "planes": [
+   {
+    "id": "cub",
+    "label": "Cub (J-3, slightly upgraded)",
+    "now": {
+     "buildFit": 25000,
+     "buildShort": 31200,
+     "usedLo": 14400,
+     "usedHi": 28700,
+     "occasion": 12600,
+     "sellOwnBuild": 21500,
+     "sellUsedMid": 16100
+    },
+    "proposed": {
+     "buildFit": 34300,
+     "buildShort": 42900,
+     "usedLo": 19700,
+     "usedHi": 39500,
+     "occasion": 17300,
+     "sellOwnBuild": 29600,
+     "sellUsedMid": 22200
+    }
+   },
+   {
+    "id": "c172",
+    "label": "Cessna 172",
+    "now": {
+     "buildFit": 70800,
+     "buildShort": 88500,
+     "usedLo": 40700,
+     "usedHi": 81400,
+     "occasion": 35600,
+     "sellOwnBuild": 61100,
+     "sellUsedMid": 45800
+    },
+    "proposed": {
+     "buildFit": 83200,
+     "buildShort": 103900,
+     "usedLo": 47800,
+     "usedHi": 95600,
+     "occasion": 41800,
+     "sellOwnBuild": 71700,
+     "sellUsedMid": 53800
+    }
+   },
+   {
+    "id": "jodel",
+    "label": "Jodel (as a D115)",
+    "now": {
+     "buildFit": 27500,
+     "buildShort": 34400,
+     "usedLo": 15800,
+     "usedHi": 31600,
+     "occasion": 13800,
+     "sellOwnBuild": 23700,
+     "sellUsedMid": 17800
+    },
+    "proposed": {
+     "buildFit": 33900,
+     "buildShort": 42300,
+     "usedLo": 19500,
+     "usedHi": 38900,
+     "occasion": 17000,
+     "sellOwnBuild": 29200,
+     "sellUsedMid": 21900
+    }
+   },
+   {
+    "id": "birdman",
+    "label": "Birdman",
+    "now": {
+     "buildFit": 22500,
+     "buildShort": 28100,
+     "usedLo": 12900,
+     "usedHi": 25900,
+     "occasion": 11300,
+     "sellOwnBuild": 19400,
+     "sellUsedMid": 14600
+    },
+    "proposed": {
+     "buildFit": 28700,
+     "buildShort": 35800,
+     "usedLo": 16500,
+     "usedHi": 33000,
+     "occasion": 14400,
+     "sellOwnBuild": 24700,
+     "sellUsedMid": 18500
+    }
+   },
+   {
+    "id": "chinook",
+    "label": "Chinook (the Birdman Chinook)",
+    "now": {
+     "buildFit": 20900,
+     "buildShort": 26100,
+     "usedLo": 12000,
+     "usedHi": 24000,
+     "occasion": 10500,
+     "sellOwnBuild": 18000,
+     "sellUsedMid": 13500
+    },
+    "proposed": {
+     "buildFit": 27600,
+     "buildShort": 34600,
+     "usedLo": 15900,
+     "usedHi": 31800,
+     "occasion": 13900,
+     "sellOwnBuild": 23800,
+     "sellUsedMid": 17900
+    }
+   },
+   {
+    "id": "tiger",
+    "label": "Tiger Moth",
+    "now": {
+     "buildFit": 45400,
+     "buildShort": 56800,
+     "usedLo": 26100,
+     "usedHi": 52200,
+     "occasion": 22900,
+     "sellOwnBuild": 39200,
+     "sellUsedMid": 29400
+    },
+    "proposed": {
+     "buildFit": 63600,
+     "buildShort": 79500,
+     "usedLo": 36600,
+     "usedHi": 73100,
+     "occasion": 32000,
+     "sellOwnBuild": 54800,
+     "sellUsedMid": 41100
+    }
+   },
+   {
+    "id": "bites",
+    "label": "B-ITES (user, RV range)",
+    "now": {
+     "buildFit": 52900,
+     "buildShort": 66100,
+     "usedLo": 30400,
+     "usedHi": 60800,
+     "occasion": 26600,
+     "sellOwnBuild": 45600,
+     "sellUsedMid": 34200
+    },
+    "proposed": {
+     "buildFit": 62000,
+     "buildShort": 77500,
+     "usedLo": 35600,
+     "usedHi": 71300,
+     "occasion": 31200,
+     "sellOwnBuild": 53500,
+     "sellUsedMid": 40100
+    }
+   },
+   {
+    "id": "rv",
+    "label": "RV-alike (archetype)",
+    "now": {
+     "buildFit": 57900,
+     "buildShort": 72400,
+     "usedLo": 33300,
+     "usedHi": 66600,
+     "occasion": 29100,
+     "sellOwnBuild": 50000,
+     "sellUsedMid": 37500
+    },
+    "proposed": {
+     "buildFit": 65500,
+     "buildShort": 81900,
+     "usedLo": 37700,
+     "usedHi": 75300,
+     "occasion": 32900,
+     "sellOwnBuild": 56500,
+     "sellUsedMid": 42400
+    }
+   },
+   {
+    "id": "dc3",
+    "label": "DC-3",
+    "now": {
+     "buildFit": 433400,
+     "buildShort": 541800,
+     "usedLo": 249200,
+     "usedHi": 498400,
+     "occasion": 218100,
+     "sellOwnBuild": 373800,
+     "sellUsedMid": 280400
+    },
+    "proposed": {
+     "buildFit": 543300,
+     "buildShort": 679100,
+     "usedLo": 312400,
+     "usedHi": 624700,
+     "occasion": 273300,
+     "sellOwnBuild": 468600,
+     "sellUsedMid": 351400
+    }
+   },
+   {
+    "id": "caravan",
+    "label": "Caravan-alike (archetype)",
+    "now": {
+     "buildFit": 266000,
+     "buildShort": 332500,
+     "usedLo": 153000,
+     "usedHi": 305900,
+     "occasion": 133800,
+     "sellOwnBuild": 229400,
+     "sellUsedMid": 172100
+    },
+    "proposed": {
+     "buildFit": 277800,
+     "buildShort": 347300,
+     "usedLo": 159800,
+     "usedHi": 319500,
+     "occasion": 139800,
+     "sellOwnBuild": 239600,
+     "sellUsedMid": 179700
+    }
+   },
+   {
+    "id": "c172f",
+    "label": "Cessna on floats (O-540)",
+    "now": {
+     "buildFit": 76600,
+     "buildShort": 95800,
+     "usedLo": 44100,
+     "usedHi": 88100,
+     "occasion": 38500,
+     "sellOwnBuild": 66100,
+     "sellUsedMid": 49600
+    },
+    "proposed": {
+     "buildFit": 109200,
+     "buildShort": 136500,
+     "usedLo": 62800,
+     "usedHi": 125600,
+     "occasion": 54900,
+     "sellOwnBuild": 94200,
+     "sellUsedMid": 70600
+    }
+   },
+   {
+    "id": "pa18f",
+    "label": "PA-18 on floats",
+    "now": {
+     "buildFit": 43800,
+     "buildShort": 54700,
+     "usedLo": 25200,
+     "usedHi": 50300,
+     "occasion": 22000,
+     "sellOwnBuild": 37700,
+     "sellUsedMid": 28300
+    },
+    "proposed": {
+     "buildFit": 73600,
+     "buildShort": 92000,
+     "usedLo": 42300,
+     "usedHi": 84700,
+     "occasion": 37000,
+     "sellOwnBuild": 63500,
+     "sellUsedMid": 47600
+    }
+   },
+   {
+    "id": "rufus",
+    "label": "Rufus (the starter, econ-sim)",
+    "now": {
+     "buildFit": 30100,
+     "buildShort": 37600,
+     "usedLo": 17300,
+     "usedHi": 34600,
+     "occasion": 15100,
+     "sellOwnBuild": 25900,
+     "sellUsedMid": 19400
+    },
+    "proposed": {
+     "buildFit": 30000,
+     "buildShort": 37500,
+     "usedLo": 17200,
+     "usedHi": 34500,
+     "occasion": 15100,
+     "sellOwnBuild": 25900,
+     "sellUsedMid": 19400
+    }
+   },
+   {
+    "id": "c172m",
+    "label": "metal Cessna (econ-sim c172)",
+    "now": {
+     "buildFit": 75000,
+     "buildShort": 93700,
+     "usedLo": 43100,
+     "usedHi": 86200,
+     "occasion": 37700,
+     "sellOwnBuild": 64600,
+     "sellUsedMid": 48500
+    },
+    "proposed": {
+     "buildFit": 87800,
+     "buildShort": 109800,
+     "usedLo": 50500,
+     "usedHi": 101000,
+     "occasion": 44200,
+     "sellOwnBuild": 75800,
+     "sellUsedMid": 56800
+    }
+   },
+   {
+    "id": "cjodel",
+    "label": "composite Jodel (econ-sim)",
+    "now": {
+     "buildFit": 39200,
+     "buildShort": 49000,
+     "usedLo": 22500,
+     "usedHi": 45000,
+     "occasion": 19700,
+     "sellOwnBuild": 33800,
+     "sellUsedMid": 25300
+    },
+    "proposed": {
+     "buildFit": 45800,
+     "buildShort": 57200,
+     "usedLo": 26300,
+     "usedHi": 52600,
+     "occasion": 23000,
+     "sellOwnBuild": 39500,
+     "sellUsedMid": 29600
+    }
+   }
+  ]
+ }
+}

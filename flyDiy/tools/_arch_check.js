@@ -239,6 +239,8 @@ if (!process.argv.includes('--selftest')) {
     const half = spec.fuel && spec.fuel.litres > 0 ? genSpecAtFuel(spec, spec.fuel.litres / 2) : spec;
     const r = fly(half, maxS);
     checkFlight(a.name, r, maxS);
+    // G3914: half tanks hid the radial's take-off: at full tanks its tail is lighter, G3800's wheel broke out on the step to full power and it gave up in ROLL
+    if (a.key === 'radial') checkFlight(a.name + ' at full tanks', fly(spec, maxS), maxS);
     if (only) for (const v of r.report.verdicts) console.log('           ' + v.t + ' s  ' + v.code + '  ' + v.note);
     flown++;
   }

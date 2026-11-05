@@ -914,6 +914,10 @@ var CLOUDS = (function () {
       dcp.texture.name = dt.name = 'cloudDepthCopy';
       r.initRenderTarget(dcp);
     }
+    // AA-OFF-LIVE (LOOK-1, 5 Nov): a live switch to a zero-sample tier builds a new target, and this copy runs before anything has drawn into it:
+    // r186's depth copy reads the target off the depth texture's properties, unset until the target is set up ("Invalid value used as weak map
+    // key"), the throw took the frame before the scene pass, so the target was never set up and every frame threw: no world on screen
+    r.initRenderTarget(target);
     const q = tBegin('depthCopy'); r.copyTextureToTexture(D, dcp.depthTexture); tEnd(q);
     return dcp.depthTexture;
   }

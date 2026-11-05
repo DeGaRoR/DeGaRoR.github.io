@@ -50,10 +50,12 @@
 // the build files' specs, the slot names and the ledgers it measured.
 // ===========================================================================
 const PROCURE_V = 1;
-const PROCURE_MARGIN = 1.15;           // a maker's margin over the ledger (§5.2: a scratch build is ×0.75 of it)
+const PROCURE_MARGIN = ECON_BOOK.makerMargin;   // PRICE-CAL: the ONE maker's margin over the ledger (76_economy), 1.15
 const PROCURE_USED_MAX = 4;            // at most four listings at once
 const PROCURE_USED_EVERY = 3;          // refreshed after every three completed contracts (CONTRACT_GEN.refreshEvery)
-const PROCURE_COND = [0.4, 0.8];       // a used aeroplane's price: catalogue × condition
+const PROCURE_COND = [0.2, 0.8];       // a used aeroplane's price: catalogue × condition (PRICE-CAL: the condition is the
+                                        // age curve over the new price, 76_economy, less the deductions - held to this band;
+                                        // step 2: 0.2 at the bottom, the 40-year-olds that age now slows down)
 const PROCURE_DELIVERY = { main: 0, side: 400, perKm: 25 };   // a maker's delivery to a side hangar (the stub's)
 const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH_COSMETIC
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
@@ -103,6 +105,8 @@ const PROCURE_TEXT = {
   // the used market
   'used.title': PRT_('{m}, {h} hours'),
   'used.hours': PRT_('{h} hours on the engine since its last overhaul'),
+  'used.built': PRT_('built {y}, {a} years old'),
+  'used.aged': PRT_('the engine gives {p} % of its rated power; {d} % more drag than new'),
   'used.repair.none': PRT_('no damage history'),
   'used.repair.gear': PRT_('the gear was replaced after a hard landing'),
   'used.repair.prop': PRT_('a new propeller after a prop strike'),
@@ -178,28 +182,28 @@ const PROCURE_MODELS = {
     id: 'scout', maker: 'bramble', name: 'mdl.scout.name', line: 'mdl.scout.line', designs: { wheels: 'cub' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { cub: {} } },
-                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 15100, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
-                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 8834, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 32134, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
+                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 10720, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
-                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 836, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 965, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
       gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
-                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 50, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
+                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 81, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
-                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -6355, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 8872, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -9406, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 11058, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   pinson: {
     id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
-                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 15112, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
-                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -3154, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32146, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
+                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -2531, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
-                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 868, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 997, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { jodel: {} } },
-                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -6360, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 8857, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -9357, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 10986, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   meridian: {
@@ -207,28 +211,28 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11033, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -715, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -13365, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -13348, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
+                                                                     c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 683, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
-                                                                c172f: PE_({ cost: 681, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                                                c172f: PE_({ cost: 808, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
-                                    3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1522, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                    3: { seats: 1, eff: { c172: PE_({ cost: -1553, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
+                                                          c172f: PE_({ cost: -1530, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
-                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
-                                                                       c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
+                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -13200, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
+                                                                       c172f: PE_({ cost: -13198, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   tern: {
     id: 'tern', maker: 'driftwood', name: 'mdl.tern.name', line: 'mdl.tern.line', designs: { floats: 'twinf' },
     opts: {
       engine:   { def: 'r582', vals: { r582: { eng: 'r582', eff: { twinf: {} } },
-                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -3103, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
+                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -8703, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { twinf: {} } },
-                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 517, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 983, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
 };
@@ -455,7 +459,7 @@ function procureEconStub(kind, item) {
   item = item || {};
   if (kind === 'model') return prR100((+item.cost || 0) * PROCURE_MARGIN);
   if (kind === 'option') return prR100((+item.cost || 0) * PROCURE_MARGIN);
-  if (kind === 'delivery') return item.to === 'side' ? prR100(PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) : PROCURE_DELIVERY.main;
+  if (kind === 'delivery') return item.to === 'side' ? prR100((PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) * (typeof econPayScale === 'function' ? econPayScale() : 1)) : PROCURE_DELIVERY.main;
   if (kind === 'build') return prR100(+item.cost || 0);
   if (kind === 'used') return prR100((+item.catalogue || 0) * (+item.condition || 0));
   if (kind === 'edit') return Math.round(+item.cost || 0);
@@ -615,7 +619,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   const fp = procureFp(spec);
   const row = { from: 'maker', maker: PROCURE_MODELS[modelId].maker, model: modelId, design: P.design, opts: prClone(opt), fp,
                 cert: prClone(cert), factory: true, modified: false, price: total, at: Math.round(D2.clock || 0),
-                ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what it cost, and its ledger (a delivery and a sale read them): a maker's is new, age 0
+                paid: total, cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[P.design] ? Math.round(CONTRACT_DESIGNS[P.design].cost) : 0) };
   if (career) {
     D2.career.airframes[slot] = row;
     if (voucher) D2.career.voucher = Object.assign({}, D2.career.voucher, { used: true, slot });
@@ -651,10 +657,16 @@ function procureUsedListing(seed, epoch, i) {
   const design = procureDesignOf(model, o);
   // the engine and the tank as the first owner chose them (any value offered on its design)
   for (const r of ['engine', 'tank']) if (M.opts[r]) o[r] = pick(Object.keys(M.opts[r].vals).filter(v => prOffered(M, r, v, design)));
-  // an older panel: one tier below the factory's, where the sheet has one
+  // PRICE-CAL: THE AGE (whole years, ECON_BOOK.age.listAges): the price's term (econAgeFactor), and what comes with it
+  // ITS OWN STREAM: the listing's draws (model, options, panel, registration, where it stands) are the ones they were -
+  // an age drawn from the listing's stream shifted every pick after it, and the world stood other aeroplanes on its
+  // aprons (GATE FRAMECOST's stand: +131 draws)
+  const AG = ECON_BOOK.age, rngA = contractRng(String(seed) + '|' + id + '|age');
+  const age = Math.round(AG.listAges[0] + rngA() * (AG.listAges[1] - AG.listAges[0]));
+  // an older panel: one tier below the factory's, where the sheet has one - likelier the older the aeroplane
   const AV = M.opts.avionics, tiers = ['minimal', 'basic', 'ifr'];
   let older = false;
-  if (AV && rng() < 0.6) {
+  if (AV && rng() < Math.min(0.9, age * AG.olderPerYear)) {
     const cur = AV.vals[o.avionics].fit, ix = tiers.indexOf(cur || 'ifr');
     const down = tiers.slice(0, Math.max(0, ix)).reverse().find(t => Object.keys(AV.vals).some(v => AV.vals[v].fit === t && prOffered(M, 'avionics', v, design)));
     if (down) { o.avionics = Object.keys(AV.vals).find(v => AV.vals[v].fit === down); older = true; }
@@ -662,14 +674,19 @@ function procureUsedListing(seed, epoch, i) {
   o.finish = pick(Object.keys(PROCURE_FINISH));
   const L3 = 'ABCDEFGHJKLMNPRSTUVWXYZ';
   o.reg = 'N' + (100 + Math.floor(rng() * 900)) + L3[Math.floor(rng() * L3.length)] + L3[Math.floor(rng() * L3.length)];
-  const hours = 50 * Math.round((150 + rng() * 2850) / 50);
+  // the engine's hours since its last overhaul: the years at a club's rate, short of the next overhaul
+  const hpy = AG.hoursPerYear[0] + rng() * (AG.hoursPerYear[1] - AG.hoursPerYear[0]);   // (the old hours' draw, in its place)
+  const hours = 50 * Math.round(Math.max(150, Math.min(2950, (age * hpy) % 2000 + 150)) / 50);
   const repair = pick(PROCURE_REPAIRS);
-  const kg = Math.round(rng() * 15);
+  // the kilos of equipment fitted over the years (a real spec row: the cargo it carries)
+  const kg = Math.round(Math.min(AG.kgMax, AG.kgPerYear * age * (0.5 + rng())));     // (the old kilos' draw, in its place)
   const seller = Math.floor(rng() * 6);
-  // condition 0.4-0.8: the hours, a repair, an older panel, the kilos
-  let cond = PROCURE_COND[1] - 0.25 * hours / 3000 - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
+  // condition (over the NEW price): the age curve at zero days is 1 / (1 + newBonus) = 0.8, then falling; less a repair,
+  // an older panel and the kilos, held to PROCURE_COND
+  let cond = econAgeFactor(age) / (1 + ECON_BOOK.newBonus) - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
   cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;
-  const L = { id, model, design, opts: o, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
+  const built = (+String(CAREER_DAY0.date).slice(0, 4) || 2026) - age;
+  const L = { id, model, design, opts: o, age, built, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
   // where it stands: an aerodrome it can fly from, drawn in the listing's own order
   const cert = procureUsedCert(L);
   const fields = Object.keys(CONTRACT_FIELDS).sort();
@@ -712,7 +729,11 @@ function procureUsedWords(L) {
   const M = PROCURE_MODELS[L.model];
   return {
     title: procureText('used.title', { m: procureText(M.name), h: L.hours }),
-    facts: [procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)]
+    facts: (L.age ? [procureText('used.built', { y: L.built, a: L.age })] : [])
+      .concat((() => { if (!L.age || typeof genAgingOf !== 'function') return [];
+        const G = genAgingOf({ aging: { years: L.age, engineHours: L.hours } });
+        return [procureText('used.aged', { p: Math.round(100 * G.powerK), d: Math.round(100 * (G.dragK - 1)) })]; })())
+      .concat([procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)])
       .concat(L.older ? [procureText('used.older')] : []).concat(L.kg ? [procureText('used.kg', { k: L.kg })] : []),
     seller: procureText(L.seller),
     where: procureText('used.where', { a: CONTRACT_FIELDS[L.aero] ? CONTRACT_FIELDS[L.aero].name : L.aero }),
@@ -722,6 +743,11 @@ function procureUsedWords(L) {
 function procureUsedSpec(L, fileSpec) {
   const s = procureSpec(L.model, L.opts, fileSpec);
   if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });
+  // PRICE-CAL step 2: AGE COSTS PERFORMANCE - its years and its engine's hours since overhaul (60_ GEN_AGING: power, drag)
+  if (L.age > 0) s.aging = { years: L.age, engineHours: L.hours || 0 };
+  // PRICE-CAL: it LOOKS its age - the weathering the parked fleet already wears (71_ playerWearSpec, visual only: the
+  // finish is cosmetic, outside the certificate's fingerprint)
+  if (L.age > 0 && typeof playerWearSpec === 'function') return playerWearSpec(s, Math.min(1, L.age / ECON_BOOK.age.weatherAt));
   return s;
 }
 // BUY IT WHERE IT STANDS: an airframe stationed at the listing's aerodrome (in a hangar of yours there if one has
@@ -743,7 +769,10 @@ function procureBuyUsed(doc, listingId, o) {
   const D2 = r.doc;
   const row = { from: 'used', listing: L.id, seed, model: L.model, maker: PROCURE_MODELS[L.model].maker, design: L.design, opts: prClone(L.opts),
                 fp: procureFp(spec), cert: prClone(cert), factory: true, modified: false, price: L.price, at: Math.round(D2.clock || 0),
-                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
+                paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;

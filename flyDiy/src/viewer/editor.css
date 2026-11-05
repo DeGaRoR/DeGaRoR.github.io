@@ -370,7 +370,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    no part to reset, no expert rows and none of the column's sections to fold
    — the three pills sat over the reference panel doing nothing */
 #edWrap.noview #edResetPart, #edWrap.noview #edExpert, #edWrap.noview #edSecAll,
-#edWrap.des #edResetPart, #edWrap.des #edExpert { display:none; }
+#edWrap.des #edResetPart, #edWrap.des #edExpert,
+/* WEAR-TAB: the wear view's rows are no part's cage rows - nothing to reset; the expert switch stays, it opens them */
+#edWrap.wea #edResetPart { display:none; }
+#edRows .r.edWearSays > .rn { white-space:normal; line-height:1.35; color:var(--ed-dim); }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
    overflow. `materials & extras` is the honest home for a row NOTHING has
@@ -898,6 +901,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 .gfH { display:flex; align-items:center; justify-content:space-between;
   gap:10px; }
+.gfH .gfAll { margin-left:auto; margin-right:8px; }
 .gfH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
   color:var(--ed-ink); }
 
@@ -946,6 +950,13 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
   font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }
 .gfHome:hover { border-color:var(--ed-acc); color:var(--ed-acc); }
+/* PRICE-CAL: the fleet card's Sell - the home button's look, wider for its word; greyed (with its reason) when it
+   cannot be sold now */
+.gfSell { flex:0 0 auto; padding:0 8px; background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
+  font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.03em; cursor:pointer; }
+.gfSell:hover:not(:disabled) { border-color:var(--ed-acc); color:var(--ed-acc); }
+.gfSell:disabled { opacity:.4; cursor:default; }
 
 .gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
   padding:8px 2px; }
@@ -1960,7 +1971,7 @@ html.phone #edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v {
 /* EMPTY-STAND (the user 4 Nov: "Empty hangar"): the stand empty - the editor's columns and Roll out stand down, the card
    (app.js standEmptyCard, body-level, draggable) says what fills it */
 body.gEmpty :is(#edWrap, #edInfo, #edRoll) { display:none !important; }
-body.mode-ws.gEmpty, body.mode-ws.gEmpty.info-off { --ws-left:0px; --ws-right:0px; }   /* the columns gone, the view takes their room */
+body.mode-ws.gEmpty, body.mode-ws.gEmpty.info-off { --ws-left:0px !important; --ws-right:0px !important; }   /* the columns gone, the view takes their room (!important: the editor writes --ws-right inline, EMPTY-STAND-RELOOK R1) */
 html.npOffer :is(#stTim, #stSkip, #stCard, #gmMenu, #gmPanel, #mapEntry, #frEntry, #gEmptyCard) { display:none !important; }   /* the empty stand's choice: nothing over it */
 #gEmptyCard { position:fixed; left:max(12px, calc(50% - 170px)); top:96px; z-index:40; width:min(340px, calc(100vw - 24px));
   max-height:calc(100vh - 180px); overflow:auto; box-sizing:border-box; background:var(--ed-plate); border:1px solid var(--ed-border);
@@ -1978,7 +1989,7 @@ html.npOffer :is(#stTim, #stSkip, #stCard, #gmMenu, #gmPanel, #mapEntry, #frEntr
 #gEmptyCard .geList { list-style:none; margin:6px 0 0; padding:0; display:grid; gap:6px; }
 #gEmptyCard .geList li { display:flex; align-items:center; gap:8px; min-width:0; }
 #gEmptyCard .geList b { font:600 12px/1.2 'IBM Plex Sans', sans-serif; }
-#gEmptyCard .geList small { flex:1; min-width:0; color:var(--ed-dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#gEmptyCard .geList small { flex:1; min-width:0; color:var(--ed-dim); font-size:11px; line-height:1.25; }   /* MENU-NITS: the whole line, wrapped ("the client's, out at Jolen..." on the look of 5 Nov) */
 #gEmptyCard .geWhy { margin:8px 0 0; color:var(--ed-warn); font-size:11.5px; }
 :root.phone #gEmptyCard button { min-height:48px; }
 /* STORY-HOME-FIX (F10): in the shed on a computer the (dev) card stands over the view, not over the left panel's plaque */
@@ -2038,6 +2049,7 @@ body.stNoCard #stCard { display: none !important; }
 #stSkip:focus-visible { border-color: var(--ed-acc); outline: none; }
 #stSkip[hidden] { display: none; }
 body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+body.mode-ws:not(.gEmpty) #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }   /* MENU-NITS: the garage, above Roll out (#edActs): at 1280 x 800 the band covered it, on any beat without the Skip */
 :root.phone #stSkip { min-height: 48px; }
 :root.phone body.stSkipOn #stTim { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 /* G3580 (STORY-TUTOR): a step that waits for the player's action - the band's accent edge, no Next (only its pass, when it

@@ -233,7 +233,7 @@
       ccK: m.ccK, fieldK: m.fieldK,
       fieldLK: m.fieldLK,
       inside: m.inside || 0,
-      decals: m.noDec ? 0 : 1,
+      decals: m.noDec ? 0 : m.noLet ? 0.5 : 1,
       memF: m.memF || null,
       metalK: m.metalK || 0,
       ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,

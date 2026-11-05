@@ -252,7 +252,8 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // 4. the energy layer's write-back (commitLater, 120 ms after a layout that placed a tank for itself)
   await new Promise(res => setTimeout(res, 400));
   console.error = quiet; console.warn = qwarn;
-  const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps };
+  // (benchLive + benchD: the join's export and garage.js cageDefaults, what the page's bench fingerprints: GATE BENCH's shipped-certificate row)
+  const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps, benchLive: W.CAGE_JOIN.export(), benchD: Object.assign(W.CAGE2.cageDefaults(), (W.CAGE_PAGE && W.CAGE_PAGE.defaults) || {}) };
   // (a diagnostic: FLYDIY_JOIN_PROBE=<file> runs that function body in the page context after the last build)
   if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
   // (exit once the pipe has taken it all: a large probe answer was cut at the pipe's 64 KB by an immediate exit)

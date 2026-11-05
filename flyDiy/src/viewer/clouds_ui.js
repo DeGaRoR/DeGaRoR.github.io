@@ -62,6 +62,18 @@ var CLOUDS_UI = (function () {
     if (!cf || !CK || !CK.day()) { H.note(host, 'This build has no cloud field.'); return; }
     const day = () => CK.day();
     const types = cf.TYPE_ORDER.map(t => ({ label: cf.TYPES[t].label, value: t }));
+    // THE CAREER'S CLOUDS ARE TOLD, NOT SET (WEATHER-BLOCKS, the guard TIME-CONTROLS left open): under the career's weather
+    // plan the decks are the plan's (07d_weather_plan.js through the day), so a set here would change the declared spec
+    // and nothing drawn. The decks are said; the look, the motion and the render below stay (they are this machine's).
+    const career = !!(CK.isCareer && CK.isCareer());
+    const deckWords = (c, t, base) => (c > 0.01 ? (c * 100).toFixed(0) + ' % ' + (cf.TYPES[cf.typeOf(t)] ? cf.TYPES[cf.typeOf(t)].label : t) + (base != null ? ', base ' + Math.round(base) + ' m' : '') : 'clear');
+    if (career) {
+      head('sky');
+      const d = day();
+      H.note(host, 'low deck: ' + deckWords(d.cloudCoverEff != null ? d.cloudCoverEff : d.cloudCover, d.cloudTypeEff || d.cloudType, d.cloudBase));
+      (d.cloudUpper || []).forEach((u, i) => H.note(host, 'upper deck ' + (i + 1) + ': ' + deckWords(u.cover, u.type, u.base)));
+      H.note(host, 'The career\'s clouds come with the day: they are told here, not chosen.');
+    } else {
     // ---- presets ----------------------------------------------------------------------
     head('sky');
     H.pills(host, PRESETS.map(p => ({ label: p.label, value: p.k })), o => o.value === presetOf(day()), o => { const p = PRESETS.find(q => q.k === o.value); CK.set(p.day); refresh(); });
@@ -82,6 +94,7 @@ var CLOUDS_UI = (function () {
         H.range(host, 'base', 500, 9000, 100, () => (up().base != null ? up().base : cf.TYPES[cf.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
       }
     }
+    }   // (the sandbox's decks)
     // ---- the high veil ------------------------------------------------------------------
     if (s) {
       head('cirrus veil');
@@ -98,7 +111,7 @@ var CLOUDS_UI = (function () {
       head('motion');
       H.range(host, 'drift × wind', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + '×' : 'still');
       // another sky: the DAY's seed (the renderer and the climate read one field, clouds.js seedOf)
-      H.pills(host, [{ label: 'another sky (seed ' + day().cloudSeed + ')', value: 'seed' }], () => false, () => { const n = 1 + Math.floor(Math.random() * 98); if (CK && CK.set) CK.set({ cloudSeed: n }); else { s.seed = n; save(); } refresh(); });
+      if (!career) H.pills(host, [{ label: 'another sky (seed ' + day().cloudSeed + ')', value: 'seed' }], () => false, () => { const n = 1 + Math.floor(Math.random() * 98); if (CK && CK.set) CK.set({ cloudSeed: n }); else { s.seed = n; save(); } refresh(); });
       // ---- the cost -----------------------------------------------------------------------
       head('render');
       const G = W.GFX;

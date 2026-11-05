@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c64a5d15681e9199
+// body-sha256: efb8d3cf05c077f8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -397,7 +397,7 @@ function hyp2(x, y) {
 // A blown row MUST carry critAlt and no other row may (GATE ATMOS §8).
 const POWERPLANTS = {
   a65_sensenich74: {
-    price: 9000,
+    price: 11000,   // PRICE-CAL: 9000 -> 11000 (shop overhaul $9.5-13k)
     engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2300 },
     // G158: 1202 N / 0.1941, the generator's own synthesis at standard pitch
     // (figure of merit 0.477 on a 1.88 m disc absorbing 48.5 kW) and inside
@@ -409,19 +409,19 @@ const POWERPLANTS = {
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 1202, kV2: 0.1941 },
   },
   r1830_hs23e50: {
-    price: 65000,
+    price: 78000,   // PRICE-CAL: 65000 -> 78000 (overhaul $60-100k (est.))
     // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
     // -92's 4 900 ft low-blower critical altitude
     engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2700, gear: 1.78 },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
-    price: 38000,
+    price: 52000,   // PRICE-CAL: 38000 -> 52000 (overhaul / rebuilt exchange $48-56k)
     engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
-    price: 3500,
+    price: 5300,   // PRICE-CAL: 3500 -> 5300 (the two-stroke median x1.5)
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6250, gear: 2.58 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
@@ -451,27 +451,27 @@ const POWERPLANTS = {
   // stroke without its reduction gearbox is not a powerplant, so its 43 kg is
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
-    price: 6000,
+    price: 8700,   // PRICE-CAL: 6000 -> 8700 (the four-stroke median x1.45)
     engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3200 },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 1012, kV2: 0.1406 },
   },
   rotax582_ivo: {
-    price: 5500,
+    price: 8800,   // PRICE-CAL: 5500 -> 8800 (new with its gearbox $8.2-9.5k)
     engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid', rpm: 6500, gear: 2.62 },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 1168, kV2: 0.182 },
   },
   jabiru2200_std: {
-    price: 15000,
+    price: 21800,   // PRICE-CAL: 15000 -> 21800 (the four-stroke median x1.45)
     engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3300 },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 1242, kV2: 0.1269 },
   },
   rotax912_warp: {
-    price: 18000,
+    price: 22000,   // PRICE-CAL: 18000 -> 22000 (new $20.6-23.7k)
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.27 },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
   o200_eprops: {
-    price: 24000,
+    price: 43000,   // PRICE-CAL: 24000 -> 43000 (rebuilt / new $40-47.5k)
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2750 },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
@@ -493,12 +493,12 @@ const POWERPLANTS = {
   // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
-    price: 48000,
+    price: 52000,   // PRICE-CAL: 48000 -> 52000 (overhaul $45-60k (est.))
     engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2300 },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
-    price: 22000,
+    price: 31900,   // PRICE-CAL: 22000 -> 31900 (the four-stroke median x1.45)
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
@@ -508,7 +508,7 @@ const POWERPLANTS = {
   // DERIVED as the catalogue's are: its static thrust 0.43 of the momentum ideal for 97 kW on a 2.59 m disc, the
   // Camel's 8 ft 6 in wooden two-blade.
   clerget9b_wood: {
-    price: 26000,
+    price: 37700,   // PRICE-CAL: 26000 -> 37700 (the four-stroke median x1.45)
     engine: { name: 'Clerget 9B', mass: 173, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 1250 },
     prop:   { name: '2-blade wood 2.59 m', D: 2.59, Tstatic: 2130, kV2: 0.300 },
   },
@@ -518,12 +518,12 @@ const POWERPLANTS = {
   // 0.477 reduction (2.096), a 60 deg upright V12 of 5.4 x 6.0 in, liquid cooled. The prop is DERIVED as the
   // catalogue's are (genPropSynth at four blades, 3.27 m - the Mk IX's 10 ft 9 in Rotol, standard pitch).
   merlin66_rotol4: {
-    price: 180000,
+    price: 261000,   // PRICE-CAL: 180000 -> 261000 (the four-stroke median x1.45)
     engine: { name: 'Rolls-Royce Merlin 66', mass: 744, powerW: 1283000, aspiration: 'super', critAlt: 1765, family: 'four', cooling: 'liquid', rpm: 3000, gear: 2.096 },
     prop:   { name: 'Rotol 4-blade 3.27 m', D: 3.27, Tstatic: 17131, kV2: 0.8032 },
   },
   rotec3600_std: {
-    price: 30000,
+    price: 43500,   // PRICE-CAL: 30000 -> 43500 (the four-stroke median x1.45)
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
@@ -546,12 +546,12 @@ const POWERPLANTS = {
   // thrust. Reproducing the Jabiru row exactly from the same three numbers is
   // how I know I ran the right formula.
   mikron3_wood: {
-    price: 16000,
+    price: 23200,   // PRICE-CAL: 16000 -> 23200 (the four-stroke median x1.45)
     engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2600 },
     prop:   { name: '2-pale bois 1.65 m', D: 1.65, Tstatic: 1094, kV2: 0.1495 },
   },
   gipsymajor1_wood: {
-    price: 26000,
+    price: 55000,   // PRICE-CAL: 26000 -> 55000 (zero-timed / overhauled GBP 34-55k)
     engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2350 },
     prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
   },
@@ -565,12 +565,12 @@ const POWERPLANTS = {
   // PROPS are genPropSynth's own output at two wooden blades of 2.30 and
   // 2.40 m at standard pitch; the prices are the bent four-stroke law's.
   hirth508_wood: {
-    price: 40000,
+    price: 58000,   // PRICE-CAL: 40000 -> 58000 (the four-stroke median x1.45)
     engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3000, gear: 1.5 },
     prop:   { name: '2-pale bois 2.30 m', D: 2.30, Tstatic: 3641, kV2: 0.2905 },
   },
   argus10c_wood: {
-    price: 38000,
+    price: 55100,   // PRICE-CAL: 38000 -> 55100 (the four-stroke median x1.45)
     engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2000 },
     prop:   { name: '2-pale bois 2.40 m', D: 2.40, Tstatic: 3340, kV2: 0.3163 },
   },
@@ -586,28 +586,28 @@ const POWERPLANTS = {
   //
   // THE FLATS: 100 -> 150 -> 180 -> 235 -> 310 -> 400 hp
   o320_mccauley: {
-    price: 28000,
+    price: 52000,   // PRICE-CAL: 28000 -> 52000 (overhaul exchange $48-56k)
     engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '2-blade alloy 1.93 m', D: 1.93, Tstatic: 2137, kV2: 0.2046 },
   },
   o540_hartzell: {
-    price: 38000,
+    price: 64000,   // PRICE-CAL: 38000 -> 64000 (overhaul exchange $61-67k)
     engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2575 },
     prop:   { name: '2-blade alloy 2.13 m', D: 2.13, Tstatic: 3073, kV2: 0.2492 },
   },
   io550_hartzell3: {
-    price: 42000,
+    price: 60900,   // PRICE-CAL: 42000 -> 60900 (the four-stroke median x1.45)
     engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '3-blade alloy 1.98 m', D: 1.98, Tstatic: 3716, kV2: 0.2528 },
   },
   io720_hartzell3: {
-    price: 45000,
+    price: 65300,   // PRICE-CAL: 45000 -> 65300 (the four-stroke median x1.45)
     engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2650 },
     prop:   { name: '3-blade alloy 2.03 m', D: 2.03, Tstatic: 4477, kV2: 0.2658 },
   },
   // the amateur turbo (the 912's blown sibling): 'turbo', held to 4 600 m
   rotax915_carbon: {
-    price: 34000,
+    price: 51600,   // PRICE-CAL: 34000 -> 51600 (new $48.5-55k)
     engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
   },
@@ -621,44 +621,44 @@ const POWERPLANTS = {
   // 'four' for both. The prop is genPropSynth's at 1.80 m, 3 carbon blades, standard pitch, 117 kW (the 915's row
   // through the same call gives its 2061 / 0.2090 exactly). Price: the game's ladder, the 915's +12 % with the power.
   rotax916_carbon: {
-    price: 38000,
+    price: 55300,   // PRICE-CAL: 38000 -> 55300 (new $51-60k)
     engine: { name: 'Rotax 916 iS', mass: 85.8, powerW: 117000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2216, kV2: 0.2090 },
   },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
-    price: 35000,
+    price: 50800,   // PRICE-CAL: 35000 -> 50800 (the four-stroke median x1.45)
     engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2450 },
     prop:   { name: '2-blade wood 2.20 m', D: 2.20, Tstatic: 2821, kV2: 0.2658 },
   },
   // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
   w670_hs2b: {
-    price: 36000,
+    price: 52200,   // PRICE-CAL: 36000 -> 52200 (the four-stroke median x1.45)
     engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2075 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
   },
   r755_hs2b: {
-    price: 41000,
+    price: 59500,   // PRICE-CAL: 41000 -> 59500 (the four-stroke median x1.45)
     engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2200 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
   },
   // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
   // nearly ground-boosted — rated to 500 m
   m14p_v530: {
-    price: 43000,
+    price: 62400,   // PRICE-CAL: 43000 -> 62400 (the four-stroke median x1.45)
     engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2900, gear: 1.52 },
     prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
   },
   // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
   // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
   r1340_hs12d40: {
-    price: 52000,
+    price: 75400,   // PRICE-CAL: 52000 -> 75400 (the four-stroke median x1.45)
     engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air', layout: 'radial', rpm: 2250 },
     prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
   },
   // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
   rotax503_wood: {
-    price: 4000,
+    price: 4700,   // PRICE-CAL: 4000 -> 4700 (zero-time rebuild ~$4.8k)
     engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6800, gear: 2.58 },
     prop:   { name: '2-blade wood 1.60 m', D: 1.60, Tstatic: 901, kV2: 0.1406 },
   },
@@ -741,12 +741,12 @@ const POWERPLANTS = {
   // 7.7 kN static on the Caravan's 2.69 m three-blade is inside the
   // published band. Prices are the second-hand market's: 5-7x an R-985.
   pt6a114a_hartzell3: {
-    price: 240000,
+    price: 390000,   // PRICE-CAL: 240000 -> 390000 (P&WC flat-rate overhaul $350-433k (2025))
     engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60, rpm: 1900, cs: true },
     prop:   { name: 'Hartzell 3-blade 2.69 m', D: 2.69, Tstatic: 7657, kV2: 0.4667 },
   },
   pt6a34_hartzell4: {
-    price: 265000,
+    price: 420000,   // PRICE-CAL: 265000 -> 420000 (P&WC flat rate $387-455k (2026))
     engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57, rpm: 2200, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
   },
@@ -755,12 +755,12 @@ const POWERPLANTS = {
   // the 850 and 1 050 shp rungs. Dry masses are P&W's; the props are
   // genPropSynth's output at each installation's four-blade diameter.
   pt6a42_hartzell4: {
-    price: 300000,
+    price: 455000,   // PRICE-CAL: 300000 -> 455000 (P&WC flat rate $420-489k (2026))
     engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70, rpm: 2000, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.36 m', D: 2.36, Tstatic: 8615, kV2: 0.4183 },
   },
   pt6a60a_hartzell4: {
-    price: 380000,
+    price: 590000,   // PRICE-CAL: 380000 -> 590000 (the turbine median x1.56)
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
@@ -895,16 +895,20 @@ function genEngineRpm(eng, propRpm) {
 // tracks the UNCERTIFIED side of each ladder (an E-811 costs 2.5x an EMRAX
 // for the paperwork; a custom build gets EMRAX pricing, which is the honest
 // direction). Fit checked in tools/_engcustom_check.js against every row.
+// PRICE-CAL 2026-11 (credits = USD 2025-26 at parity): each family's coefficient x its benchmarked rows' median
+// real/game ratio - four-stroke 60 -> 87 (x1.45, sixteen engines against overhaul / exchange or new prices), two-stroke
+// 90 -> 135 (x1.5), turbine 250 -> 390 (x1.56, the PT6As against P&WC's flat-rate overhaul); electric unchanged (no
+// benchmark). The shape (the exponents, the knee) is G134's / 2026-09-05's, unchanged.
 function genEnginePrice(family, powerW) {
   const kW = Math.max(0.05, (powerW || 0) / 1000);
   if (family === 'electric')
     return Math.round(kW < 3 ? 60 * CORE_MATH.pow(kW, 0.9)
                              : 300 * kW);
-  if (family === 'two') return Math.round(90 * CORE_MATH.pow(kW, 1.15));
+  if (family === 'two') return Math.round(135 * CORE_MATH.pow(kW, 1.15));
   // a turbine is the dear end of the market — 5-7x a radial of the same
   // power second-hand (a used PT6A-34 against a used R-985); fitted on the
   // two PT6A rows and banded by _engcustom_check like every other family
-  if (family === 'turbine') return Math.round(250 * CORE_MATH.pow(kW, 1.1));
+  if (family === 'turbine') return Math.round(390 * CORE_MATH.pow(kW, 1.1));
   // THE FOUR-STROKE LAW BENDS (2026-09-05): kW^1.3 is the AMATEUR market and
   // holds to the IO-360; above it the second-hand warbird market prices by
   // provenance more than by kilowatts. Fitted on the R-985 (336 kW, 48k) and
@@ -912,8 +916,8 @@ function genEnginePrice(family, powerW) {
   // both, where the straight law read 2.4x and 6.4x. The R-1830's waiver in
   // _engcustom_check is retired by this line.
   const knee = 130;
-  if (kW <= knee) return Math.round(60 * CORE_MATH.pow(kW, 1.3));
-  return Math.round(60 * CORE_MATH.pow(knee, 1.3) * CORE_MATH.pow(kW / knee, 0.35));
+  if (kW <= knee) return Math.round(87 * CORE_MATH.pow(kW, 1.3));
+  return Math.round(87 * CORE_MATH.pow(knee, 1.3) * CORE_MATH.pow(kW / knee, 0.35));
 }
 
 // ============================================================
@@ -26306,7 +26310,7 @@ function makePilot(sim, def, world, opts) {
   const P3_ = !!(A.p3 ?? true);
   // G3914: A FLAPLESS AEROPLANE COMING DOWN CLOSES THE THROTTLE. Its idle floor costs as much slope as the whole slip: the Cub in still air at 19.2 m/s, flown steady,
   // 0.109 on the floor, 0.121 slipping at 0.8 of rudder; 0.119 and 0.130 closed. On the descending legs it also rolled in 12 m high without it
-  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0;
+  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0, p3FlapOut = false;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
   // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
   // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
@@ -28369,7 +28373,7 @@ function makePilot(sim, def, world, opts) {
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
-    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; }   // G1936: the slip is the short final's only
+    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; p3FlapOut = false; }   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
     // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
@@ -28899,7 +28903,11 @@ function makePilot(sim, def, world, opts) {
           // 1 s, and the roll's clock (the accelerate-stop's filter and its rules) starts there. Only a taildragger on
           // wheels over static T/W lineupTW (0.30) arms it: the user's Cub 0.27, the Jodel 0.23; the Cessnas are
           // tricycles, the float builds on the water - no validated aeroplane
-          if (rollS0 === null) { lineHold = false; lineOkT = 0; }
+          // G3914: ...AND OPENS IT SMOOTHLY. A step to full power from rest swings a taildragger of this class past its tailwheel's arc (G3800): the radial card at full tanks broke
+          // out 0.8 s into the roll, castoring it steers nothing, and it never left ROLL (900 s, gave up). Over the same 2 s as a profile's ramp the wheel holds and it lifts off at
+          // 15 s (13.9 before G3800). On a short field the brakes hold through the ramp (shortTO below), so it costs no run
+          const capR = (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) ? Math.min(GP.cap, 0.3) : GP.cap;
+          if (rollS0 === null) { lineHold = false; lineOkT = 0; thrRoll = Math.min(thrRoll, capR); }
           if (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) {
             if (!lineHold && Math.abs(e) > 0.26) { lineHold = true; lineOkT = 0; }
             if (lineHold) {
@@ -28908,8 +28916,8 @@ function makePilot(sim, def, world, opts) {
             }
           } else lineHold = false;
           if (lineHold) { capT = Math.min(capT, Math.max(0.2, (A.lineTaxiTW ?? 0.15) / STATIC_TW)); phaseT = 0; }
-          thrRoll = GP.cap < 1
-            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+          thrRoll = capR < 1
+            ? Math.min(capT, Math.max(thrRoll, capR) + (1 - capR) / (A.thrRampS ?? 2) * dt)
             : capT;
           // G1937 (PILOT-ONE, the user: the take-off "pulls on the stick much too fast, and hops" - on the WATER).
           // ON THE WATER THE POWER COMES IN OVER SECONDS. The throttle went from 0 to full in one step at 0.5 s:
@@ -29791,7 +29799,11 @@ function makePilot(sim, def, world, opts) {
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
-        flapTgt = (P3_ && onPathF && fLDG > 0) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
+        // G3914: THE STAGE WAITS FOR THE ROLL-OUT ONLY WHILE THE ELEVATOR HAS ROOM. Past the trim budget at half flap the next stage is the relief: the 4-up float Cessna (1176 kg)
+        // held half at 0.31 of elevator, G975 took the flap back to 0.25, the elevator pinned and it sank 5.4 m/s; the 1222 kg land one took full flap 13 s above the gate and sank
+        // 4.1 there. Both went round for ever; with the flap out early they land first try, full flap on 0.05-0.10 of elevator (26.2 m/s, run 254 m: what they did before the stages)
+        if (P3_ && deF > 0.18) p3FlapOut = true;
+        flapTgt = (P3_ && onPathF && fLDG > 0 && !p3FlapOut) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
         // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
         // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
         // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
@@ -33690,7 +33702,7 @@ const GEN_INSTR = {
              power: 'elec', amps: 1.0, note: 'RC Allen RCA26 class' },
   dg:      { name: 'directional gyro',     d: 0.0794, kg: 1.20, price: 1600,
              power: 'vac',  note: 'RC Allen RCA11A class' },
-  turn:    { name: 'turn coordinator',     d: 0.0794, kg: 0.70, price: 800,
+  turn:    { name: 'turn coordinator',     d: 0.0794, kg: 0.70, price: 1260,   // PRICE-CAL: 800 -> 1 260 (RC Allen 82A TSO, $1 195-1 325)
              power: 'elec', amps: 0.3, note: 'Mid-Continent 1394T class' },
   tacho:   { name: 'tachometer',           d: 0.0794, kg: 0.45, price: 260,
              power: 'none', note: 'mechanical, cable-driven' },
@@ -33719,7 +33731,7 @@ const GEN_INSTR = {
   // (G2808: drawn - a 2-1/4 in counter on the panel; it was faceless, billed and powered and never seen)
   hobbs:   { name: 'hour meter',           d: 0.0572, kg: 0.10, price: 110,
              power: 'elec', amps: 0.02 },
-  compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
+  compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 630,   // PRICE-CAL: 300 -> 630 (Airpath C2400, $455-883)
              power: 'none', coaming: true, note: 'Airpath C2300 class' },
 };
 // THE ELECTRICAL SYSTEM. A Cub-class aeroplane has NONE (hand-propped, a
@@ -33739,12 +33751,12 @@ const GEN_ELEC = {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
     gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20,
              note: 'the small Continentals\' belt generator; cuts in above idle' },
-    alt60: { name: '60 A alternator', kg: 4.5, price: 800, A: 60,
+    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
-    yes:  { name: 'electric starter',  kg: 4.0, price: 700, amps: 150,
+    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
   },
   vac: {
@@ -33755,7 +33767,7 @@ const GEN_ELEC = {
                note: 'dry pump on the accessory pad; suction whenever the engine turns' },
   },
   // the harness: master + breakers + the wire, once, plus a little per item
-  harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200 },   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
 };
 // THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
 // The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
@@ -33808,7 +33820,7 @@ const GEN_AVIONICS = {
   },
   xpdr: {
     none:  { name: 'no transponder',      kg: 0,   price: 0,    amps: 0 },
-    modeS: { name: 'Mode-S transponder',  kg: 0.7, price: 2300, amps: 0.7,
+    modeS: { name: 'Mode-S transponder',  kg: 0.7, price: 3400, amps: 0.7,   // PRICE-CAL: 2 300 -> 3 400 (Trig TT21 $3 053, GTX 335 $3 399-3 893)
              note: 'Trig TT21 class; an ADS-B-out GTX 335 is ~3300' },
   },
   nav: {
@@ -33830,7 +33842,7 @@ const GEN_AVIONICS = {
     portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
                 face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
                 note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 6300, amps: 1.0,   // PRICE-CAL: 4 500 -> 6 300 (GPS 175 $4 995, GNX 375 $7 995)
                 face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
                 note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
     glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
@@ -34044,7 +34056,7 @@ function genSystemsResolve(S, opts) {
 // timestep that can integrate whatever this produces.
 const GEN_SUSPENSION = {
   bungee: { name: 'Bungee cord',  k: 1.00, c: 1.00, price: 250 },
-  spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 900 },
+  spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 2200 },   // PRICE-CAL: 900 -> 2 200 (Grove-class legs, $2.0-2.5k)
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
 };
 
@@ -34075,15 +34087,20 @@ const GEN_FAIR_MATS = {
 // are not counted (a few per cent of a light prop's figure).
 const GEN_PROP_IK = 0.15;
 const GEN_PROP_MATS = {
-  wood:   { name: 'Wood',      kg: 2.40, price: 900 },
-  alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },
-  carbon: { name: 'Carbon',    kg: 1.60, price: 5200 },
+  // PRICE (PRICE-CAL 2026-11, credits = USD 2025-26 at parity, futureDesigns/PRICE-STUDY-2026-11.md): a pair of
+  // blades at 1.88 m. Wood 900 -> 3 900 (a Sensenich wood Cub prop, $3.5-4.4k), alloy 2 200 -> 9 000 (a fixed metal
+  // C172 prop, $8.2-10.8k; a PT6A 3-blade 2.69 m comes to ~27 600), carbon 5 200 -> 2 600 (the ground-adjustable
+  // composites a builder buys: Warp Drive, E-Props, IVO, $1.3-4.4k for a 3-blade). A constant-speed hub and its
+  // governor are GEN_PRICES.csHub on top. GATE PRICE holds each against its benchmark.
+  wood:   { name: 'Wood',      kg: 2.40, price: 3900 },
+  alu:    { name: 'Aluminium', kg: 4.20, price: 9000 },
+  carbon: { name: 'Carbon',    kg: 1.60, price: 2600 },
   // G125: the scanned woods, priced as the boutique blanks they are. Mass
   // scales the wood anchor by Wood Handbook density (birch ~680: hard maple
   // ~705 -> 2.50, black walnut ~640 -> 2.25) — a walnut prop really is the
   // lighter one, and the vintage look is what the premium buys.
-  maple:  { name: 'Maple',     kg: 2.50, price: 1300 },
-  walnut: { name: 'Walnut',    kg: 2.25, price: 1500 },
+  maple:  { name: 'Maple',     kg: 2.50, price: 5600 },    // PRICE-CAL: the wood anchor's x4.3, the premium kept
+  walnut: { name: 'Walnut',    kg: 2.25, price: 6500 },
 };
 
 // PITCH is a real trade and ONE number carries it: the figure of merit in
@@ -34252,14 +34269,38 @@ const GEN_INTAKES = {
                                             { u: 0.50, w: 0.075, n: 6 }] },
 };
 
+// AGE COSTS PERFORMANCE (PRICE-CAL step 2, futureDesigns/PRICE-STUDY-2026-11.md §D; the user 4 Nov: "we'd need to
+// degrade performance too for it to make sense"). spec.aging = { years, engineHours } - written on a USED aeroplane by
+// the market (76_procure procureUsedSpec), absent on everything built: absent = 1 and 1, a build bit for bit as before.
+//   power  the engine's rated power x (1 - min(powerMax, engineHours x powerPerHour)): a tired engine loses
+//          compression - 1 % per 400 h since its overhaul, to 6 % (the overhaul's TBO ~2 000 h: ~5 % at TBO)
+//   drag   every zero-lift drag (the body's axial CdA and each flying surface's Cd0) x (1 + min(dragMax, years x
+//          dragPerYear)): the paint layers, the patched fabric, the rigging - 0.1 % a year, to 5 % at 50 years
+const GEN_AGING = { powerPerHour: 1 / 40000, powerMax: 0.06, dragPerYear: 0.001, dragMax: 0.05 };
+function genAgingOf(S) {
+  const A = S && S.aging;
+  if (!A || typeof A !== 'object') return { powerK: 1, dragK: 1 };
+  const h = Math.max(0, +A.engineHours || 0), y = Math.max(0, +A.years || 0);
+  return { powerK: 1 - Math.min(GEN_AGING.powerMax, h * GEN_AGING.powerPerHour),
+           dragK: 1 + Math.min(GEN_AGING.dragMax, y * GEN_AGING.dragPerYear) };
+}
+
 // Bought, not built: things with a price that does not follow from their mass.
 // Credits. Nothing is unaffordable yet — the ledger records, it does not gate.
+// PRICE-CAL 2026-11 (futureDesigns/PRICE-STUDY-2026-11.md): CREDITS ARE USD 2025-26 AT PARITY, the convention the panel
+// arc (G251) and the floats (FLOATS-CLASSIC) already priced in, and the ledger is a PARTS BILL - what a builder buys,
+// the labour free (the maker way). So a labour-heavy line is priced as its MATERIALS: the paint a builder sprays, the
+// interior a builder fits, the fabric a builder covers with - not a shop's job. GATE PRICE holds every row here against
+// a sourced benchmark. `seat` is retired (GEN_SEATS prices the seat; this line billed every seat a second time);
+// `paintJob` is retired for `paintM2` (a flat 1 800 painted a Cub and a DC-3 alike).
 const GEN_PRICES = {
-  wheel: 320,          // each: wheel, tyre, brake
-  thirdWheel: 260,     // tailwheel or nosewheel assembly
+  wheel: 790,          // each: wheel, tyre, brake (a Matco 5.00-5 pair $1 096 + a tyre $254-294 = $680-900); was 320
+  thirdWheel: 1200,    // tailwheel or nosewheel assembly (ABI / Scott 3200, $1.0-1.4k); was 260
   // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
-  paintJob: 1800,
-  seat: 380,
+  paintM2: 40,         // the colour coats a builder sprays, per m2 painted (DIY materials for a C172, ~60 m2, $1.5-4k est.)
+  coverM2: 75,         // a fabric covering system's materials per m2 of CLOTH, over the row's kilos (a Cub's $3-6k)
+  lights: 1500,        // a nav / strobe set + a landing light, on any aeroplane with a bus (AeroLEDs pair $1.2-1.9k)
+  csHub: 1600,         // a constant-speed hub's premium and its governor, per prop (Hartzell CS 2-blade $10.5-11.8k)
   // G133 fairings — glassfibre datum, per piece; GEN_FAIR_MATS scales
   spat: 380,           // one wheel pant (a main or the third wheel)
   trouser: 560,        // one wheel in full trousers (shell + leg shroud)
@@ -34283,9 +34324,10 @@ const GEN_FINISH = {
   // What was missing was the finish on top of it: three or four butyrate
   // colour coats are 0.10-0.15 kg/m2, and primer alone is a tenth of that.
   // Six kilos on a Cub -- small, real, and it was zero.
-  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1,
+  // PRICE-STUDY: `perM2` x the covered area the frame builds (61_gen_frame coverA), was a flat 1 800
+  full: { name: 'Painted',       perM2: GEN_PRICES.paintM2, sweep: 1,
           kgM2: 0.12 },
-  bare: { name: 'Bare / primer', price: 0,                   sweep: 0,
+  bare: { name: 'Bare / primer', perM2: 0,                  sweep: 0,
           kgM2: 0.03 },
 };
 
@@ -37782,7 +37824,9 @@ function resolveSpec(spec) {
   {
     const pr = S.prop;
     put(pr, 'D', PP ? PP.prop.D : 1.80, 'prop.D');
-    const P = PP ? PP.engine.powerW : 48500;
+    // (PRICE-CAL step 2: a used aeroplane's tired engine - GEN_AGING - makes less thrust; the powerplant row, its mass,
+    // its exhaust and its price are the engine's as rated. Absent spec.aging: x1, as before)
+    const P = (PP ? PP.engine.powerW : 48500) * genAgingOf(S).powerK;
     // AUTO (G159, the user: "I would like some automatic control... could the
     // setup of the prop be assisted?"). The pitch class is the one dial on the
     // propeller with a right answer that a builder cannot read off a slider,
@@ -38541,18 +38585,23 @@ const GEN_CELLS = {
 // the structure itself is sealed, which is how a metal wing carries fuel and
 // why it is the lightest and the dearest to build.
 // ---------------------------------------------------------------------------
+// PRICE-CAL 2026-11: a vessel is priced by its SHELL (priceM2 x the surface it needs, as its mass already is) plus
+// its fittings, no longer by the litre - a litre-linear price billed a DC-3's 3 300 L at 46 000, where its shell is
+// 15 m2. The rates hold a 45 L tank where it was (alu 14 /L x 45 L over 0.84 m2 -> 750 /m2; a Cub's 44 L tank ~800,
+// the J-3's used one ~$400, a new PA-18 wing tank $2 274). And a fuel tank no longer arrives FULL: the first fill
+// was billed into the airframe, against G-COST (no fuel cost). A pack's CELLS stay in its price - they are equipment.
 const GEN_VESSELS = {
   alu:     { name: 'Welded aluminium', holds: 'fuel',
-             shapeK: 6.6, kgM2: 3.4, fixed: 2.2, price: 14, priceFixed: 180 },
+             shapeK: 6.6, kgM2: 3.4, fixed: 2.2, priceM2: 750, priceFixed: 180 },
   bladder: { name: 'Rubber bladder',   holds: 'fuel',
-             shapeK: 7.4, kgM2: 1.9, fixed: 1.6, price: 26, priceFixed: 240 },
+             shapeK: 7.4, kgM2: 1.9, fixed: 1.6, priceM2: 1250, priceFixed: 240 },
   moulded: { name: 'Moulded plastic',  holds: 'fuel',
-             shapeK: 6.8, kgM2: 2.6, fixed: 1.8, price: 8,  priceFixed: 90 },
+             shapeK: 6.8, kgM2: 2.6, fixed: 1.8, priceM2: 420, priceFixed: 90 },
   wet:     { name: 'Wet wing (sealed structure)', holds: 'fuel',
              // no shell at all: the sealant and the ribs' extra work only
-             shapeK: 6.6, kgM2: 0.55, fixed: 1.2, price: 30, priceFixed: 420 },
+             shapeK: 6.6, kgM2: 0.55, fixed: 1.2, priceM2: 1600, priceFixed: 420 },
   packCase:{ name: 'Pack case',        holds: 'battery',
-             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, price: 40, priceFixed: 300 },
+             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, priceM2: 2300, priceFixed: 300 },
 };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
@@ -38578,7 +38627,7 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
     const fuel = GEN_FUELS[mediumKey] || GEN_FUELS.avgas100LL;
     litres   = V;
     contents = V * fuel.kgL;
-    mediumPrice = V * fuel.price;
+    mediumPrice = 0;                                  // PRICE-CAL: no first fill (G-COST: fuel costs nothing)
   }
   const m3 = litres / 1000;
   const surface = ves.shapeK * CORE_MATH.pow(Math.max(1e-9, m3), 2 / 3);
@@ -38597,7 +38646,7 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
     payloadKg: battery ? 0 : contents,
     emptyKg: vesselKg + (battery ? contents : 0),
     price: Math.round(m3 > 1e-9
-      ? ves.priceFixed + litres * ves.price + mediumPrice : 0),
+      ? ves.priceFixed + surface * ves.priceM2 + mediumPrice : 0),
   };
 }
 
@@ -40458,7 +40507,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   }
   spend((PP.price || 0) * S.engines.length);
-  spend(S.prop.price || 0);
+  // PRICE-CAL: a propeller per engine (a twin billed one), and a constant-speed hub's premium + governor on each
+  spend(((S.prop.price || 0) + (PP.engine && PP.engine.cs ? GEN_PRICES.csHub : 0)) * S.engines.length);
 
   // which frames straddle a given station, so a component that moves finds new
   // ones to attach to instead of dragging its old ones along
@@ -41536,7 +41586,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // bay runs continuous through it and the strips' per-side walk holds.
     const zRootH = 0;
     const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
-    const yStab = (t.stabY != null && t.stabY > yAx(xStab) + kv * rAt(xStab) + 0.02)
+    // TWIN4B-STAB: a stab drawn UNDER the crown flies there too (it was held up on the crown: the 4b's, drawn at the
+    // middle of the boom, flew 10 cm above its own skin). Within 2 cm of the crown it is on the crown (onCrown, below)
+    const yStab = (t.stabY != null && Math.abs(t.stabY - (yAx(xStab) + kv * rAt(xStab))) > 0.02)
       ? t.stabY : yAx(xStab) + kv * rAt(xStab);
     const xFH = z => xStab + (sparF - 0.5) * chordH(z);
     const xRH = z => xStab + (0.5 - CT) * chordH(z);
@@ -42181,13 +42233,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      // TWIN4B-STRUTS: `frontRing`: the FRONT strut stands on the ring nearest its deck fitting, not on the ring just ahead
+      // of the step (the 4b: the step 2.1 m back, both pairs on rings 0.4 m apart, 1.7 m of float ahead of them with nothing)
+      let iFront = iFwd;
+      if (FM && FM.frontRing && !engFwd) for (let i = 0; i < iFwd; i++)
+        if (Math.abs(ST[i].x - nodes[Din[1]].p[0]) < Math.abs(ST[iFront].x - nodes[Din[1]].p[0])) iFront = i;
+      const fF = iFront === iFwd ? fB : (sd < 0 ? F[iFront].BL : F[iFront].BR);
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
       // flexible, almost springy"). The forward strut was the gear's `leg`
       // member — the suspension spring, KS x SUS — so the whole float pair
       // rode on two bungees; every member here is BRACING (KS x ARCH.k),
       // a streamlined steel tube like the rest of the truss.
       // (G451: the aft attachments on the aft spreader bar's station, 3)
-      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
+      B(Din[1], fF, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
       B(Dout[3], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
       B(Din[3], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
@@ -42215,7 +42273,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
   sec('cabin');
-  spend(S.seats * GEN_PRICES.seat);
+  // (PRICE-CAL: the 380-a-seat line is retired - the seat itself is billed by its GEN_SEATS row in the outfit)
   // WHICH FRAME EACH OCCUPANT SITS ON. This was a two-element literal, which
   // is the whole of why the aeroplane could not carry more than two people:
   // a third occupant fell through `|| F[1]` and was billed onto the front row
@@ -42622,12 +42680,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
     // lining) carved out of it, so the total is the credit it was
+    // PRICE-CAL: the furnishing (lining, carpet, panels, trim) at 200 cr a kilo, was 60 - the materials of a builder's
+    // interior (a C172's DIY interior kit is $3-8k for ~24 kg; a shop's job is $14-20k, labour the ledger does not bill)
     const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                                28 * (exhM + plumbM + ctlM) + 60 * furnM);
-    const furnCr = Math.round(seat.price * seats + 60 * furnM);
+                                28 * (exhM + plumbM + ctlM) + 200 * furnM);
+    const furnCr = Math.round(seat.price * seats + 200 * furnM);
     spend(furnCr);
     sec('outfit');
     spend(outfitCr - furnCr);
+    // PRICE-CAL: the lights (nav / strobe and a landing light) on any aeroplane with a bus - in the outfit, beside the
+    // panel's bill (GATE PANEL holds panel + elec + avionics to the resolver's); their draw is GEN_LIGHT_AMPS'
+    if (SYS.hasBus) spend(GEN_PRICES.lights);
   }
   sec('paint');
   {
@@ -42638,7 +42701,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // on the covered nodes in proportion, so it lands where the paint is and
     // moves no centre of gravity.
     const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
-    spend(FIN.price);
+    // PRICE-CAL: the colour coats per square metre painted (was a flat 1 800, a Cub's and a DC-3's alike), and the
+    // fabric covering system's materials per square metre of CLOTH (the dope, the tapes, the rib lacing: the row's
+    // kilos bill the cloth's weight, not its price) - both off the panels the frame actually built
+    spend((FIN.perM2 || 0) * coverA);
+    let clothA = 0;
+    for (const c of coverPan) if (c.cloth) clothA += c.A;
+    spend(GEN_PRICES.coverM2 * clothA);
     // ...in proportion to the AREA each node covers (G457): per node it
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
@@ -44458,9 +44527,12 @@ function genParams(S, fr, strips) {
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
                     (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
+  // PRICE-CAL step 2: an old airframe's surfaces (GEN_AGING dragK on each polar's Cd0; absent spec.aging: x1)
+  const AGk = genAgingOf(S).dragK, aged = P => (AGk === 1 || !P ? P : Object.assign({}, P, { Cd0: P.Cd0 * AGk }));
+  for (let k = 0; k < polarWings.length; k++) polarWings[k] = aged(polarWings[k]);
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0);   // G213
+  const polarTail = aged(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0));   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -44478,7 +44550,7 @@ function genParams(S, fr, strips) {
            : (S.tail.stabH || 0) >= 0.8 ? 't'
            : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
   const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
-  const polarFin = genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0);     // G213
+  const polarFin = aged(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0));     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -44622,6 +44694,9 @@ function genParams(S, fr, strips) {
     });
     if (sd > 0) cda.drag.stol = sd;      // G2822: reported; the force rides the strips (genStrips stXcd)
   }
+  // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
+  const AGd = genAgingOf(S).dragK;
+  if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -44666,7 +44741,9 @@ function genParams(S, fr, strips) {
     // read, the plaque's engine line and the coming burn/ventilation models
     // consume these instead of re-looking-up the registry at runtime. For a
     // fiche this IS the registry row's engine dict, so nothing moves.
-    engine: (S.pplant || POWERPLANTS[S.engine]).engine,
+    // (PRICE-CAL step 2: the solver's torque from a tired engine's power, a copy; absent spec.aging: the row itself)
+    engine: (() => { const E0 = (S.pplant || POWERPLANTS[S.engine]).engine, k = genAgingOf(S).powerK;
+      return k < 1 ? Object.assign({}, E0, { powerW: E0.powerW * k }) : E0; })(),
     // HOW MANY ENGINES, which is NOT how many mount nodes. `refs.engine` is the
     // two mount points of one engine here, and the solver used to multiply
     // thrust by its length — so a generated single fell on 2x its own prop.
@@ -52890,20 +52967,20 @@ const CONTRACT_FIELDS = {
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
-            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 31203, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44683, tankL: 47.7, power: 'fuel' },
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 463, emptyKg: 341, toM: 205,
-            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 34363, tankL: 47.7, power: 'fuel' },
+            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45992, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
-            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 93783, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
             gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
-            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 95731, tankL: 26.5, power: 'fuel' },
+            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202863, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
             gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
-            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 35551, tankL: 20.1, power: 'fuel' },
+            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 68854, tankL: 20.1, power: 'fuel' },
 };
 
 // ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
@@ -53054,13 +53131,13 @@ const CONTRACT_PROVIDERS = {
              { k: 'hydro', op: '==', v: true },
              { k: 'landAt', op: '==', v: 'SEA', at: { pax: 0, kg: 150 } }] }] }],
            pay: { base: 48000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 1 },
-           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 110000 }] } }),
+           followUp: { prefer: ['tankL', 'costMax'], add: [{ k: 'costMax', op: '<=', v: 157500 }] } }),
       C_({ id: 'minedock.b2', provider: 'minedock', kind: 'build', title: 'ct.minedock.b2.title', brief: 'ct.minedock.b2.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'mn_strip', crit: [
              { k: 'takeoffAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } },
              { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
            pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
-           followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+           followUp: { add: [{ k: 'costMax', op: '<=', v: 171800 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
     ],
     // (G2665) A LATE RETURN from the mine: the shift's engineer down to the field after dusk
     night: [
@@ -53125,7 +53202,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'xwindKt', op: '>=', v: 15 },
              { k: 'landAt', op: '==', v: 'tw_ski', at: { pax: 1, kg: 0 } }] }] }],
            pay: { base: 38000 }, rep: { provider: 'resort', gain: 1 }, needs: { rep: 2 },
-           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 60000 }] } }),
+           followUp: { prefer: ['xwindKt'], add: [{ k: 'costMax', op: '<=', v: 85900 }] } }),
     ],
   },
 
@@ -53201,7 +53278,7 @@ const CONTRACT_PROVIDERS = {
              { k: 'seats', op: '>=', v: 1 }] }] }],
            pay: { base: 30000, bonus: [{ crit: 'emptyKg', by: 0.1, pct: 10 }] },
            rep: { provider: 'clients', gain: 1 }, needs: { after: ['clients.01'] },
-           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 30000 }] } }),
+           followUp: { prefer: ['emptyKg', 'spanM'], add: [{ k: 'costMax', op: '<=', v: 43000 }] } }),
       C_({ id: 'clients.03', provider: 'clients', kind: 'challenge', title: 'ct.clients.03.title', brief: 'ct.clients.03.brief',
            stages: [{ subs: [{ do: 'fly', from: 'tw_ski', to: 'HOME',
                                medals: [{ medal: 'gold', le: 300 }, { medal: 'silver', le: 420 }, { medal: 'bronze', le: 540 }] }] }],
@@ -53209,7 +53286,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
+             { k: 'costMax', op: '<=', v: 45800 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 let the stock Cub (31 203) qualify, the Jodel (34 363) not. PRICE-CAL: every costMax x1.432, the pay's scale - the Cub 44 683 qualifies, the Jodel 45 992 not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
@@ -54224,17 +54301,20 @@ function contractPay(rec, fields) {
     const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
     km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
   }
+  // PRICE-CAL: every money term at today's prices (76_economy econPayScale: the pay rides the reference Cub's ledger)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
   let surface = 0;
   for (const id of Object.keys(touched)) {
     const f = F[id];
     if (!f) continue;
-    if (ctWet(f)) surface += P.surf.water;
-    else if (f.len <= P.shortM) surface += P.surf.short;
-    if (f.surf === 'snow') surface += P.surf.snow;
-    if (f.alti) surface += P.surf.altiport;
+    if (ctWet(f)) surface += P.surf.water * PS;
+    else if (f.len <= P.shortM) surface += P.surf.short * PS;
+    if (f.surf === 'snow') surface += P.surf.snow * PS;
+    if (f.alti) surface += P.surf.altiport * PS;
   }
-  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
-  const perKm = rec.kind === 'job' ? P.perKm : 0;
+  // (the scaled base rounded to the pay's unit, as the unscaled bases were whole: a medal's x2 stays exact)
+  const base = Math.round((rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec)) * PS / P.round) * P.round;
+  const perKm = rec.kind === 'job' ? P.perKm * PS : 0;
   const legPay = perKm * legs;
   const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
   const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
@@ -54683,9 +54763,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 }
 
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
-function contractPayTotal(rec, got, medal) {
+function contractPayTotal(rec, got, medal, base) {
   const P = rec.pay || {};
-  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : Math.round(contractStoryBase(rec));
+  // (PRICE-CAL: a job's total was fixed by contractPay at today's prices when offered; an authored base is scaled here)
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total
+    : Math.round(contractStoryBase(rec) * (typeof econPayScale === 'function' ? econPayScale() : 1) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
+  // (PRICE-CAL: a build contract's delivered airframe at its value to the client, handed in by careerComplete)
+  if (rec.kind === 'build' && typeof base === 'number' && isFinite(base) && base > 0) total = base;
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {
@@ -55983,7 +56067,9 @@ const CAREER_V = 2;
 // DATE is the career's alone: the sandbox's GAME_DAY and every gate's day keep 21 June.
 const CAREER_DAY0 = Object.freeze({ date: '2026-07-16', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
-const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
+const CAREER_GRANT = 60000;
+// PRICE-CAL: the grant at today's prices (76_economy econPay: the pay rides the reference Cub's ledger)
+const careerGrant = () => (typeof econPay === 'function' ? econPay(CAREER_GRANT) : CAREER_GRANT);                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
 const careerKey = id => CAREER_KEY + (id || 'main');
 const crClone = o => JSON.parse(JSON.stringify(o));
@@ -56054,7 +56140,7 @@ function careerNew(o) {
   const main = careerMainShed();
   if (main) d.sheds.HOME = main;
   d.career = careerBlockDefault(o);
-  playerCharge(d, -CAREER_GRANT, 'grant', null);
+  playerCharge(d, -careerGrant(), 'grant', null);
   // G2290 (PILOTS): the companion arrives with the career (76_pilots.js; §9.2 "the first pilot comes with the opening")
   if (typeof pilotsCompanion === 'function') pilotsCompanion(d);
   return careerRefresh(d);
@@ -56512,7 +56598,12 @@ function contractOnStop(doc, contract, stop, hooks) {
 // the done list (the completed count the generator reads), and the offers refreshed (the follow-up among them)
 function careerComplete(d, rec, live, medal, events) {
   const c = d.career, C = c.contracts;
-  const pay = contractPayTotal(rec, live.got, medal);
+  // PRICE-CAL: a build contract pays what the delivered airframe is worth to its client - its NEW price (76_economy
+  // econDeliveredValue: the zero-days value + the new bonus; a used one at its used value) - unless the contract is a
+  // FIXED price (rec.pay.fixed: its authored base, as before). Its ledger unknown: the authored base stands.
+  const A = live && live.slot && c.airframes ? c.airframes[live.slot] : null;
+  const dv = rec.kind === 'build' && !(rec.pay && rec.pay.fixed) && typeof econDeliveredValue === 'function' ? econDeliveredValue(A) : null;
+  const pay = contractPayTotal(rec, live.got, medal, dv);
   playerCharge(d, -pay, rec.loan ? 'loan' : 'contract', rec.id);   // G2260: the Trust's loan job writes a `loan` line
   const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 });
   P.rep = Math.max(0, Math.min(CONTRACT_GEN.repMax, +(P.rep + (rec.rep.gain || 0)).toFixed(3)));
@@ -57305,7 +57396,32 @@ const ECON_BOOK = {
   comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
-  makerMargin: 1.35,
+  // PRICE-CAL 2026-11: ONE maker's margin, over the LEDGER (the core had two: PROCURE's 1.15 over the ledger and this
+  // row's 1.35 over a fitted build, 1.08 - a Cub read 35 900 or 33 700 depending on who asked). PROCURE_MARGIN reads it.
+  makerMargin: 1.15,
+  // PRICE-CAL: THE PAY RIDES THE PRICES. Every absolute money number - CONTRACT_PAY, ROUTES_PAY.perKm, T6's fee,
+  // careerNew's grant, the Trust's loan threshold, a maker's delivery - was tuned (G2261, G3359) when the reference
+  // Cub's ledger was `payRef`. econPayScale() = econRefPrice() / payRef multiplies each of them, so a re-priced ledger
+  // moves the pay with it and the career's paces, which ECON-SIM measured in CONTRACTS, hold by construction.
+  payRef: 31203,
+  // PRICE-CAL: THE MARKET TIERS, ONE BASE (the user 4 Nov: "the new ones, at the zero damage, plus a new bonus ... that
+  // is also the price we'd sell our planes, except if a build contract is fixed price ... even the fixed price may be
+  // evaluated using the same method"):
+  //   zero     the ZERO-DAYS value: an airframe the day it left the shop, no damage = the ledger x `zeroK`
+  //   used     zero x econAgeFactor(age) x (1 - its deductions): the curve 1 at zero days, falling toward `floor` with
+  //            `tau` years (fitted on same-type new/used pairs, futureDesigns/price-study/age_curve.js, rms x1.12)
+  //   new      zero x (1 + `newBonus`): the first owner's premium, 25 % - the real market's nearly-new plane sells at
+  //            ~0.8 of new (the fit's step). zero x 1.25 = the ledger x makerMargin: the makers' catalogue is NEW
+  //   sale     the fleet card's Sell: the USED price at its age (`sellK` 1), never more than the player paid - a build in
+  //            a fitted hangar (0.8) is worth 0.92 at zero days, and without the cap building to sell would print money
+  //   build    a build contract's fixed price is evaluated the same way: the NEW price of the cheapest validated design
+  //            that meets it (tools/_price_check.js holds the authored bases to it)
+  // The used market draws its listings' ages inside `listAges` (step 2: age now costs performance, 60_ GEN_AGING, so
+  // the old planes are back: 1-40 years, their condition held to PROCURE_COND).
+  zeroK: 0.92, newBonus: 0.25,
+  age: { floor: 0.14, tau: 27.5, listAges: [1, 40], kgPerYear: 0.4, kgMax: 15, olderPerYear: 1 / 30,
+         hoursPerYear: [50, 120], weatherAt: 40 },
+  sellK: 1,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
   round: 100,
   loanBelow: -20000,
@@ -57346,10 +57462,89 @@ function econAirframePrice(cost, shed, wants) {
   const L = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed || null, wants || []) : 1;
   return econRound((+cost || 0) * L);
 }
-// THE MAKERS' CATALOGUE PRICE (PROCURE): the scratch price (the ledger in a fully fitted works) x the margin
+// THE MAKERS' CATALOGUE PRICE (PROCURE): V0, the new value = the ledger x the one maker's margin
 function econCatalogPrice(cost, margin) {
   const m = typeof margin === 'number' && margin > 0 ? margin : ECON_BOOK.makerMargin;
-  return econRound((+cost || 0) * PREM_RATES.labourFit * m);
+  return econRound((+cost || 0) * m);
+}
+// THE PAY'S SCALE (PRICE-CAL): the reference Cub's ledger over the one the pay was tuned at
+function econPayScale() {
+  const r = econRefPrice() / ECON_BOOK.payRef;
+  return isFinite(r) && r > 0 ? r : 1;
+}
+// an absolute money number of the tables (pay, a fee, a grant) at today's prices, rounded as the book rounds
+const econPay = v => econRound((+v || 0) * econPayScale());
+// THE AGE CURVE (PRICE-CAL): the used value over the zero-days value - 1 at zero days, floor + (1 - floor) e^(-age/tau)
+function econAgeFactor(age) {
+  const A = ECON_BOOK.age, a = Math.max(0, +age || 0);
+  return A.floor + (1 - A.floor) * Math.exp(-a / A.tau);
+}
+// the zero-days value of a ledger, and the NEW price (zero x (1 + newBonus) = the makers' catalogue)
+const econZeroValue = cost => (+cost || 0) * ECON_BOOK.zeroK;
+const econNewPrice = cost => econRound(econZeroValue(cost) * (1 + ECON_BOOK.newBonus));
+// A USED PLANE'S VALUE: the zero-days value (or { v0 }: a NEW price, its listing's catalogue, taken back to zero days)
+// x the age curve x (1 - the deductions: a repair, an older panel, the extra kilos) - { cost } | { v0 }, age, ded
+function econUsedValue(o) {
+  o = o || {};
+  const z = o.v0 != null ? +o.v0 / (1 + ECON_BOOK.newBonus) : econZeroValue(o.cost);
+  return econRound(z * econAgeFactor(o.age) * (1 - Math.max(0, Math.min(1, +o.ded || 0))));
+}
+// WHAT A FLEET AIRFRAME SELLS FOR (the fleet card's Sell): min(sellK x its used value at its age, what the player paid)
+// - a story airframe (paid 0) sells for nothing. (doc, slot, cost: its ledger) -> { value, paid, cap, age, why }
+// `why` is the refusal when it cannot be sold now: the tutorial (until T6's route is signed - the user 4 Nov: "no sales
+// during the tuto, ends when we commit to the cub floats route"), a route flown on it, a story airframe, not ours
+function econSaleWhy(doc, slot) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!doc || doc.mode !== 'career' || !A) return 'not an airframe of the career';
+  if (typeof storyOf === 'function') {
+    const st = storyOf(doc);
+    if (st && !st.open && ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'].includes(st.beat)) return 'no sales during the tutorial';
+  }
+  if (typeof routeOfPlane === 'function' && routeOfPlane(doc, slot)) return 'it flies a route: end the route first';
+  if (A.from === 'story' || A.client) return 'a story aeroplane is not for sale';
+  if (!(+A.paid > 0)) return 'it cost you nothing: not for sale';
+  return '';
+}
+function econSaleValue(doc, slot, cost) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0, why: 'not an airframe of the career' };
+  const age = Math.max(0, +A.age || 0);
+  const ded = Math.min(0.5, 0.08 * (+A.repairs || 0) + (A.damage ? 0.1 : 0));
+  const v = econRound(ECON_BOOK.sellK * econUsedValue({ v0: A.v0 != null ? A.v0 : null, cost, age, ded }));
+  const paid = Math.max(0, Math.round(+A.paid || 0));
+  return { value: Math.min(v, paid), paid, cap: v > paid ? 'what it cost you' : '', age: +age.toFixed(2), why: econSaleWhy(doc, slot) };
+}
+// WHAT A CLIENT PAYS FOR A DELIVERED AIRFRAME (PRICE-CAL; the user 4 Nov: "the new ones, at the zero damage, plus a new
+// bonus ... that is also the price we'd sell our planes, except if a build contract is fixed price"): its NEW price
+// (the zero-days value + the new bonus) when it is the player's own making (no age), else its USED value at its age (a
+// used plane bought cheap and handed over is not a new one). null when its ledger is not on record: the contract's
+// authored base stands (the offer's estimate). (A: a career.airframes row)
+function econDeliveredValue(A) {
+  if (!A) return null;
+  const cost = +A.cost > 0 ? +A.cost : (A.v0 != null ? +A.v0 / ECON_BOOK.makerMargin : 0);
+  if (!(cost > 0)) return null;
+  if (+A.age > 0) return econUsedValue({ cost, age: +A.age, ded: Math.min(0.5, 0.08 * (+A.repairs || 0)) });
+  return econNewPrice(cost);
+}
+// THE SALE (the fleet card's Sell): the airframe out of the fleet and out of career.airframes (74_ careerHandover's
+// canonical drop: playerFleetReconcile, its pilot freed), on record (career.sold, `how: 'market'`), the wallet credited
+// with its sale value, a `sale` ledger line (income). Refused (the same document) with econSaleWhy's reason.
+// (doc, slot, cost: its ledger) -> { ok, doc, why, value }
+function econSell(doc, slot, cost) {
+  const why = econSaleWhy(doc, slot);
+  if (why) return ecNo(doc, why);
+  const sv = econSaleValue(doc, slot, cost);
+  if (!(sv.value > 0)) return ecNo(doc, 'it is worth nothing on the market');
+  const d = ecClone(doc), c = d.career;
+  if (d.fleet && d.fleet[slot] && typeof playerFleetReconcile === 'function') {
+    const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== slot));
+    for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];
+  }
+  delete c.airframes[slot];
+  for (const p of Object.keys(c.pilots || {})) if (c.pilots[p] && c.pilots[p].plane === slot) c.pilots[p].plane = null;
+  c.sold = (Array.isArray(c.sold) ? c.sold : []).concat([{ slot, how: 'market', at: Math.round(d.clock || 0), pay: sv.value, cost: sv.paid }]);
+  playerCharge(d, -sv.value, 'sale', slot);
+  return { ok: true, doc: d, why: '', value: sv.value };
 }
 // A PILOT'S SIGN-ON FEE (PILOTS): one time, by tier ('rookie' | 'pilot' | 'ace'); unknown tiers cost a pilot's
 function econSignOn(tier) {
@@ -57372,6 +57567,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  sale: 'sale',                                     // PRICE-CAL: an airframe sold on the market (econSell): income
   story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
 };
@@ -57401,7 +57597,8 @@ function econMaterialise(doc, slot, cost, wants, opts) {
   if (!r.ok) return r;
   const C = r.doc.career;
   if (C && C.airframes && typeof C.airframes === 'object')
-    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
+    // (PRICE-CAL: `cost` its LEDGER - what a client pays for it delivered, and the market for it sold, read it)
+    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, cost: Math.round(+cost || 0), how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
       opts.podPaid > 0 ? { podPaid: Math.round(opts.podPaid) } : {});   // G3465: its belly pod is in that price (76_procure: not billed twice)
   return { ok: true, doc: r.doc, cost: price, why: '' };
 }
@@ -57438,7 +57635,7 @@ const ECON_TEXT = {
 if (typeof CONTRACT_TEXT !== 'undefined') for (const k of Object.keys(ECON_TEXT)) if (!CONTRACT_TEXT[k]) CONTRACT_TEXT[k] = ECON_TEXT[k];
 const econLoans = doc => ((doc && doc.ledger) || []).filter(l => l && l.k === 'loan').length;
 function econLoanOffer(doc) {
-  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow)) return null;
+  if (!doc || doc.mode !== 'career' || !(doc.wallet < ECON_BOOK.loanBelow * econPayScale())) return null;
   return 'loan:field:' + (econLoans(doc) + 1);
 }
 function econLoanPay(wallet) {
@@ -57620,7 +57817,7 @@ function econReference(seed, opts) {
   const R = Object.assign({}, ECON_REF, opts.ref || {});
   let d = careerNew({ id: 'ref', seed });
   const fleet = ['cub'];
-  const float = CAREER_GRANT, at = {}, pays = [];
+  const float = careerGrant(), at = {}, pays = [];
   let wi = 0, spent = 0, arcBy = null;
   const priceOf = w => w.k === 'acquire' ? plotPrice(w.aero, w.plot, w.shell)
     : econAirframePrice(CONTRACT_DESIGNS[w.design].cost, d.sheds[PREM_MAIN], R.wants[w.design]);
@@ -57712,10 +57909,12 @@ function econCalibration(opts) {
 // the build files' specs, the slot names and the ledgers it measured.
 // ===========================================================================
 const PROCURE_V = 1;
-const PROCURE_MARGIN = 1.15;           // a maker's margin over the ledger (§5.2: a scratch build is ×0.75 of it)
+const PROCURE_MARGIN = ECON_BOOK.makerMargin;   // PRICE-CAL: the ONE maker's margin over the ledger (76_economy), 1.15
 const PROCURE_USED_MAX = 4;            // at most four listings at once
 const PROCURE_USED_EVERY = 3;          // refreshed after every three completed contracts (CONTRACT_GEN.refreshEvery)
-const PROCURE_COND = [0.4, 0.8];       // a used aeroplane's price: catalogue × condition
+const PROCURE_COND = [0.2, 0.8];       // a used aeroplane's price: catalogue × condition (PRICE-CAL: the condition is the
+                                        // age curve over the new price, 76_economy, less the deductions - held to this band;
+                                        // step 2: 0.2 at the bottom, the 40-year-olds that age now slows down)
 const PROCURE_DELIVERY = { main: 0, side: 400, perKm: 25 };   // a maker's delivery to a side hangar (the stub's)
 const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH_COSMETIC
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
@@ -57765,6 +57964,8 @@ const PROCURE_TEXT = {
   // the used market
   'used.title': PRT_('{m}, {h} hours'),
   'used.hours': PRT_('{h} hours on the engine since its last overhaul'),
+  'used.built': PRT_('built {y}, {a} years old'),
+  'used.aged': PRT_('the engine gives {p} % of its rated power; {d} % more drag than new'),
   'used.repair.none': PRT_('no damage history'),
   'used.repair.gear': PRT_('the gear was replaced after a hard landing'),
   'used.repair.prop': PRT_('a new propeller after a prop strike'),
@@ -57840,28 +58041,28 @@ const PROCURE_MODELS = {
     id: 'scout', maker: 'bramble', name: 'mdl.scout.name', line: 'mdl.scout.line', designs: { wheels: 'cub' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { cub: {} } },
-                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 15100, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
-                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 8834, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { cub: PE_({ cost: 32134, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
+                                      r912: { eng: 'r912', eff: { cub: PE_({ cost: 10720, emptyKg: -28, massKg: -28, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
-                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 836, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 965, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
       gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
-                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 50, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
+                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 81, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
-                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -6355, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 8872, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -9406, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 11058, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   pinson: {
     id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
-                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 15112, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
-                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -3154, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32146, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
+                                      vw: { eng: 'vw', eff: { jodel: PE_({ cost: -2531, emptyKg: -19, massKg: -19, toM: 0, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
-                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 868, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 997, emptyKg: 9, massKg: 25, toM: 31, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { jodel: {} } },
-                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -6360, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
-                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 8857, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
+                                        minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -9357, emptyKg: -24, massKg: -24, toM: -26, cruiseKmh: 3, rangeKm: 8, tankL: 0, seats: 0 }) } },
+                                        ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 10986, emptyKg: 9, massKg: 9, toM: 11, cruiseKmh: -1, rangeKm: -4, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   meridian: {
@@ -57869,28 +58070,28 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11033, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -715, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -13365, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -13348, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
+                                                                     c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 683, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
-                                                                c172f: PE_({ cost: 681, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                                                c172f: PE_({ cost: 808, emptyKg: 7, massKg: 16, toM: 28, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
-                                    3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1522, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                    3: { seats: 1, eff: { c172: PE_({ cost: -1553, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
+                                                          c172f: PE_({ cost: -1530, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
-                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
-                                                                       c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
+                                         basic: { fit: 'basic', eff: { c172: PE_({ cost: -13200, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
+                                                                       c172f: PE_({ cost: -13198, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
   tern: {
     id: 'tern', maker: 'driftwood', name: 'mdl.tern.name', line: 'mdl.tern.line', designs: { floats: 'twinf' },
     opts: {
       engine:   { def: 'r582', vals: { r582: { eng: 'r582', eff: { twinf: {} } },
-                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -3103, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
+                                       r503: { eng: 'r503', eff: { twinf: PE_({ cost: -8703, emptyKg: -14, massKg: -14, toM: 50, cruiseKmh: -2, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { twinf: {} } },
-                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 517, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 983, emptyKg: 7, massKg: 13, toM: 24, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
 };
@@ -58117,7 +58318,7 @@ function procureEconStub(kind, item) {
   item = item || {};
   if (kind === 'model') return prR100((+item.cost || 0) * PROCURE_MARGIN);
   if (kind === 'option') return prR100((+item.cost || 0) * PROCURE_MARGIN);
-  if (kind === 'delivery') return item.to === 'side' ? prR100(PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) : PROCURE_DELIVERY.main;
+  if (kind === 'delivery') return item.to === 'side' ? prR100((PROCURE_DELIVERY.side + PROCURE_DELIVERY.perKm * (+item.km || 0)) * (typeof econPayScale === 'function' ? econPayScale() : 1)) : PROCURE_DELIVERY.main;
   if (kind === 'build') return prR100(+item.cost || 0);
   if (kind === 'used') return prR100((+item.catalogue || 0) * (+item.condition || 0));
   if (kind === 'edit') return Math.round(+item.cost || 0);
@@ -58277,7 +58478,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   const fp = procureFp(spec);
   const row = { from: 'maker', maker: PROCURE_MODELS[modelId].maker, model: modelId, design: P.design, opts: prClone(opt), fp,
                 cert: prClone(cert), factory: true, modified: false, price: total, at: Math.round(D2.clock || 0),
-                ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what it cost, and its ledger (a delivery and a sale read them): a maker's is new, age 0
+                paid: total, cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[P.design] ? Math.round(CONTRACT_DESIGNS[P.design].cost) : 0) };
   if (career) {
     D2.career.airframes[slot] = row;
     if (voucher) D2.career.voucher = Object.assign({}, D2.career.voucher, { used: true, slot });
@@ -58313,10 +58516,16 @@ function procureUsedListing(seed, epoch, i) {
   const design = procureDesignOf(model, o);
   // the engine and the tank as the first owner chose them (any value offered on its design)
   for (const r of ['engine', 'tank']) if (M.opts[r]) o[r] = pick(Object.keys(M.opts[r].vals).filter(v => prOffered(M, r, v, design)));
-  // an older panel: one tier below the factory's, where the sheet has one
+  // PRICE-CAL: THE AGE (whole years, ECON_BOOK.age.listAges): the price's term (econAgeFactor), and what comes with it
+  // ITS OWN STREAM: the listing's draws (model, options, panel, registration, where it stands) are the ones they were -
+  // an age drawn from the listing's stream shifted every pick after it, and the world stood other aeroplanes on its
+  // aprons (GATE FRAMECOST's stand: +131 draws)
+  const AG = ECON_BOOK.age, rngA = contractRng(String(seed) + '|' + id + '|age');
+  const age = Math.round(AG.listAges[0] + rngA() * (AG.listAges[1] - AG.listAges[0]));
+  // an older panel: one tier below the factory's, where the sheet has one - likelier the older the aeroplane
   const AV = M.opts.avionics, tiers = ['minimal', 'basic', 'ifr'];
   let older = false;
-  if (AV && rng() < 0.6) {
+  if (AV && rng() < Math.min(0.9, age * AG.olderPerYear)) {
     const cur = AV.vals[o.avionics].fit, ix = tiers.indexOf(cur || 'ifr');
     const down = tiers.slice(0, Math.max(0, ix)).reverse().find(t => Object.keys(AV.vals).some(v => AV.vals[v].fit === t && prOffered(M, 'avionics', v, design)));
     if (down) { o.avionics = Object.keys(AV.vals).find(v => AV.vals[v].fit === down); older = true; }
@@ -58324,14 +58533,19 @@ function procureUsedListing(seed, epoch, i) {
   o.finish = pick(Object.keys(PROCURE_FINISH));
   const L3 = 'ABCDEFGHJKLMNPRSTUVWXYZ';
   o.reg = 'N' + (100 + Math.floor(rng() * 900)) + L3[Math.floor(rng() * L3.length)] + L3[Math.floor(rng() * L3.length)];
-  const hours = 50 * Math.round((150 + rng() * 2850) / 50);
+  // the engine's hours since its last overhaul: the years at a club's rate, short of the next overhaul
+  const hpy = AG.hoursPerYear[0] + rng() * (AG.hoursPerYear[1] - AG.hoursPerYear[0]);   // (the old hours' draw, in its place)
+  const hours = 50 * Math.round(Math.max(150, Math.min(2950, (age * hpy) % 2000 + 150)) / 50);
   const repair = pick(PROCURE_REPAIRS);
-  const kg = Math.round(rng() * 15);
+  // the kilos of equipment fitted over the years (a real spec row: the cargo it carries)
+  const kg = Math.round(Math.min(AG.kgMax, AG.kgPerYear * age * (0.5 + rng())));     // (the old kilos' draw, in its place)
   const seller = Math.floor(rng() * 6);
-  // condition 0.4-0.8: the hours, a repair, an older panel, the kilos
-  let cond = PROCURE_COND[1] - 0.25 * hours / 3000 - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
+  // condition (over the NEW price): the age curve at zero days is 1 / (1 + newBonus) = 0.8, then falling; less a repair,
+  // an older panel and the kilos, held to PROCURE_COND
+  let cond = econAgeFactor(age) / (1 + ECON_BOOK.newBonus) - (repair !== 'none' ? 0.08 : 0) - (older ? 0.03 : 0) - 0.04 * kg / 15;
   cond = Math.round(Math.max(PROCURE_COND[0], Math.min(PROCURE_COND[1], cond)) * 100) / 100;
-  const L = { id, model, design, opts: o, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
+  const built = (+String(CAREER_DAY0.date).slice(0, 4) || 2026) - age;
+  const L = { id, model, design, opts: o, age, built, hours, repair, older, kg, seller: 'used.seller.' + seller, condition: cond };
   // where it stands: an aerodrome it can fly from, drawn in the listing's own order
   const cert = procureUsedCert(L);
   const fields = Object.keys(CONTRACT_FIELDS).sort();
@@ -58374,7 +58588,11 @@ function procureUsedWords(L) {
   const M = PROCURE_MODELS[L.model];
   return {
     title: procureText('used.title', { m: procureText(M.name), h: L.hours }),
-    facts: [procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)]
+    facts: (L.age ? [procureText('used.built', { y: L.built, a: L.age })] : [])
+      .concat((() => { if (!L.age || typeof genAgingOf !== 'function') return [];
+        const G = genAgingOf({ aging: { years: L.age, engineHours: L.hours } });
+        return [procureText('used.aged', { p: Math.round(100 * G.powerK), d: Math.round(100 * (G.dragK - 1)) })]; })())
+      .concat([procureText('used.hours', { h: L.hours }), procureText('used.repair.' + L.repair)])
       .concat(L.older ? [procureText('used.older')] : []).concat(L.kg ? [procureText('used.kg', { k: L.kg })] : []),
     seller: procureText(L.seller),
     where: procureText('used.where', { a: CONTRACT_FIELDS[L.aero] ? CONTRACT_FIELDS[L.aero].name : L.aero }),
@@ -58384,6 +58602,11 @@ function procureUsedWords(L) {
 function procureUsedSpec(L, fileSpec) {
   const s = procureSpec(L.model, L.opts, fileSpec);
   if (L.kg) s.cargo = Object.assign({}, s.cargo || { len: 0, kg: 0 }, { kg: ((s.cargo && +s.cargo.kg) || 0) + L.kg });
+  // PRICE-CAL step 2: AGE COSTS PERFORMANCE - its years and its engine's hours since overhaul (60_ GEN_AGING: power, drag)
+  if (L.age > 0) s.aging = { years: L.age, engineHours: L.hours || 0 };
+  // PRICE-CAL: it LOOKS its age - the weathering the parked fleet already wears (71_ playerWearSpec, visual only: the
+  // finish is cosmetic, outside the certificate's fingerprint)
+  if (L.age > 0 && typeof playerWearSpec === 'function') return playerWearSpec(s, Math.min(1, L.age / ECON_BOOK.age.weatherAt));
   return s;
 }
 // BUY IT WHERE IT STANDS: an airframe stationed at the listing's aerodrome (in a hangar of yours there if one has
@@ -58405,7 +58628,10 @@ function procureBuyUsed(doc, listingId, o) {
   const D2 = r.doc;
   const row = { from: 'used', listing: L.id, seed, model: L.model, maker: PROCURE_MODELS[L.model].maker, design: L.design, opts: prClone(L.opts),
                 fp: procureFp(spec), cert: prClone(cert), factory: true, modified: false, price: L.price, at: Math.round(D2.clock || 0),
-                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null };
+                hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
+                // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
+                paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;
@@ -60445,7 +60671,9 @@ function routeTerms(km, D) {
   // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
   const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
   const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
-  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
+  // PRICE-CAL: per km at today's prices (76_economy econPayScale)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
+  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * PS * (1 + payloadKg / P.kgUnit));
   return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
@@ -61002,7 +61230,7 @@ function storyStep(doc, ev, ctx) {
     else {
       const list = storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
       if (miss.length) why = 'the checklist: ' + miss.map(r => r.words).join(', ');
-      else if (typeof ev.cost === 'number' && ev.cost > G.costCap) why = 'over budget (' + Math.round(ev.cost) + ' > ' + G.costCap + ')';
+      else if (typeof ev.cost === 'number' && ev.cost > storyCostCap(G)) why = 'over budget (' + Math.round(ev.cost) + ' > ' + storyCostCap(G) + ')';
       else met = true;
     }
   }
@@ -61055,6 +61283,8 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
 // own down payment - the first real money, enough for any one of T7's occasions.
 const STORY_GRANT = 0, STORY_T6_FEE = 20000;
+// PRICE-CAL: a beat's budget (T2's costCap) is money of the table it was written in, at today's prices like the pay
+const storyCostCap = G => (typeof econPay === 'function' ? econPay(G.costCap) : G.costCap);
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
     seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
@@ -61096,8 +61326,9 @@ function storyNewCareer(doc, o) {
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
   // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
   if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
-    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
-    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+    const G = typeof careerGrant === 'function' ? careerGrant() : CAREER_GRANT;
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -G);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= G; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
   }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
@@ -61188,7 +61419,8 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
+    const fee = typeof econPay === 'function' ? econPay(STORY_T6_FEE) : STORY_T6_FEE;   // PRICE-CAL: at today's prices
+    if (fee > 0) { playerCharge(D, -fee, 'story', 'T6:fee'); offer.fee = fee; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
@@ -61254,7 +61486,7 @@ function storyCard(doc, o) {
                           : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
   } else if (G.k === 'certified') {
     for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
-    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + G.costCap, ok: typeof o.cost === 'number' && o.cost <= G.costCap });
+    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + storyCostCap(G), ok: typeof o.cost === 'number' && o.cost <= storyCostCap(G) });
     rows.push({ words: 'certified in the garage (the bench)', ok: false });
   } else if (G.k === 'jobs') {
     rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });
@@ -61587,7 +61819,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

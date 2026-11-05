@@ -607,12 +607,9 @@ function garageInit(api) {
   // the envelope, which already carries what is NOT a design decision, takes
   // the pages beside the plaque and the log. Read live off the editor when it
   // is up, else whatever the last load brought in.
+  // LIVERY-5 (4 Nov): RETIRED with the image channels - wipImages stays null (G.images answers null, so the parked
+  // copies and the editor's page restore have nothing to draw)
   let wipImages = null;
-  const imagesNow = () => {
-    const E = ed();
-    if (E && E.decalImages) { try { const im = E.decalImages(); if (im) wipImages = im; } catch (e) {} }
-    return wipImages;
-  };
   // G2630 (RADIAL-DIVERGE): through jsonFinite (70_player.js) - null, and the slot keeps what it had, when any number in
   // the build, its plaque or its logbook is not finite (JSON would write it as a null where a number stood)
   // (`loose`: the export and json() - a file the user takes away is written whatever it holds, as before)
@@ -625,7 +622,7 @@ function garageInit(api) {
     // session silently adopt it as its slot.
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
-    ...((im => im ? { images: im } : {})(imagesNow())),   // REVIEW 2026-10-04 (B19): one toDataURL pass, not two
+    // LIVERY-5 (4 Nov): no `images` any more - a livery is recipes, never pixels (the user: "nothing rasterized")
   }, name ? 'the build ' + name : 'the working build', loose);
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
@@ -634,7 +631,7 @@ function garageInit(api) {
     if (o && o.spec && typeof o.spec === 'object')
       return { name: o.name, spec: o.spec, plaque: o.plaque || null,
                log: o.log || newLog(),
-               images: (o.images && typeof o.images === 'object') ? o.images : null };
+               images: null };   // LIVERY-5: an old save's image pages are read and dropped
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog(), images: null };
     throw new Error('not a flyDiy build');
@@ -737,16 +734,41 @@ function garageInit(api) {
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
     return candP.then(l => l.map(candRow));
   };
+  // the pool's official rows, on the chooser in their own group (the user 4 Nov: "yes, both on the chooser"); the same door as a candidate
+  const officialPool = () => (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+    .then(j => ((j && j.planes) || []).filter(p => p && p.official).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
+  // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
+  // aeroplane we have in three lists. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with
+  // no plaque and an empty log; a stock row as a stock design. INTERNAL and the developer's notes: dev only (dev.html, the dev career)
+  const LISTS_FILE = 'builds/lists/plane_lists.json';
+  let listsP = null;
+  const planeLists = () => {
+    if (!listsP) {
+      listsP = (typeof fetch === 'function' ? fetch(LISTS_FILE).then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+        .then(j => (j && Array.isArray(j.planes) ? j.planes : []), () => []);
+      listsP.then(l => { if (!l.length) listsP = null; });
+    }
+    const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
+    return listsP.then(l => l.filter(p => p && (dev || p.list !== 'internal')).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
+  };
+  const openListed = p => {
+    if (p.stock) { loadStock(p.stock); return; }
+    if (p.gen) { loadSpec(api.defaults(), ''); return; }
+    return fetch(p.file.split('/').map(encodeURIComponent).join('/'))
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, ''); })
+      .catch(e => alert('That aeroplane could not be loaded: ' + p.file + ' (' + ((e && e.message) || e) + ')'));
+  };
 
   let spec = api.defaults();
   let slotName = '';
@@ -760,7 +782,7 @@ function garageInit(api) {
     if (wip) try {
       const got = unwrap(wip);
       spec = got.spec; plaque = got.plaque; log = got.log;
-      wipImages = got.images || null;      // baked once the editor is up (G190)
+      wipImages = null;                    // LIVERY-5: an old save's image pages are dropped
       try { if (typeof genNormaliseSpec === 'function') spec = genNormaliseSpec(spec); }
       catch (e) {}
       // and WHICH BUILD it was, so Save still knows its target after a reload.
@@ -893,7 +915,7 @@ function garageInit(api) {
     // the image pages this build was saved with, or none: a load that only
     // brought pixels in when the file had some would leave the previous
     // aeroplane's picture on the next one's wing
-    wipImages = (im && typeof im === 'object') ? im : null;
+    wipImages = null;   // LIVERY-5: no image pages (an old save's are dropped)
     // clampSpec runs inside the build, so an out-of-envelope or partial file
     // is pulled straight rather than refused — what flies is the honest
     // readout of what the file asked for.
@@ -1065,6 +1087,7 @@ function garageInit(api) {
     fleetEl.innerHTML =
       '<div class="gfBox">' +
         '<div class="gfH"><span>THE FLEET</span>' +
+          '<button type="button" class="dfPill gfAll">all planes</button>' +
           '<button type="button" class="dfPill gfClose">close</button></div>' +
         '<div class="gfSub"></div>' +
         '<div class="gfGroupH">your aeroplanes</div>' +
@@ -1079,6 +1102,7 @@ function garageInit(api) {
         '</div>' +
       '</div>';
     fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
+    fleetEl.querySelector('.gfAll').addEventListener('click', () => { closeFleet(); if (window.NEW_PLANE) window.NEW_PLANE.open({ all: true }); });
     if (typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => { if (fleetEl && !fleetEl.hidden) renderFleet(); });
     // the scrim closes it too — backing out of a load door costs one click
     fleetEl.addEventListener('click', e => {
@@ -1163,6 +1187,29 @@ function garageInit(api) {
         hb.title = 'Bring it home (free): back into the hangar it last left, else the main hangar';
         hb.addEventListener('click', () => { try { api.bringHome(n); } catch (e) {} renderFleet(); });
         row.appendChild(hb);
+      }
+      // PRICE-CAL: SELL (a career's own airframe) - at its used-market price (its age, never more than it cost you);
+      // greyed with the reason when it cannot be sold now (the tutorial, a route flown on it, a story aeroplane)
+      let sv = null;
+      try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
+      if (sv && api.sell) {
+        const pw = api.money ? api.money(sv.value) : String(sv.value);
+        const sb = document.createElement('button');
+        sb.type = 'button'; sb.className = 'gfSell'; sb.textContent = 'Sell';
+        sb.disabled = !!sv.why || !(sv.value > 0);
+        sb.title = sv.why ? 'Not for sale now: ' + sv.why
+          : 'Sell on the used market for ' + pw + (sv.cap ? ' (capped at what it cost you)' : '');
+        sb.addEventListener('click', () => {
+          if (!confirm('Sell “' + label(n) + '” on the used market for ' + pw + '? It leaves your fleet for good.')) return;
+          let r = null; try { r = api.sell(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+          if (r && !r.ok) { alert(r.why || 'refused'); return; }
+          lsDel(SLOT + n);
+          try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+          if (slotName === n) slotName = '';
+          slotsChanged({ deleted: n });
+          syncRibbon();
+        });
+        row.appendChild(sb);
       }
       row.appendChild(del);
       mine.appendChild(row);
@@ -1553,6 +1600,7 @@ function garageInit(api) {
       touch, commit, onCommit, exportFile,
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
+      planeLists, openListed, officialPool,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },

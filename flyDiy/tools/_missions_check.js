@@ -339,7 +339,9 @@ function run(mut) {
   ok(Math.abs(bush.km - kmWant) < 0.02, 'a carry to a site is paid the field-to-site km (' + bush.km + ' vs ' + kmWant.toFixed(2) + ')');
   // the reward line
   const rw = M.missionReward(S.missions[0], { pack: S });
-  ok(rw.paid === Math.round(2000 * M.CONTRACT_PAY.story / 10) * 10 && rw.best === rw.paid * 2 && rw.why === '', 'missionReward: paid, best with gold, runs today (' + J(rw) + ')');
+  // (PRICE-CAL: an authored base x the story factor x the pay scale, rounded to the pay's unit - 73_ contractPay)
+  const B0 = X => Math.round(2000 * X.CONTRACT_PAY.story * X.econPayScale() / 10) * 10;
+  ok(rw.paid === B0(M) && rw.best === rw.paid * 2 && rw.why === '', 'missionReward: paid, best with gold, runs today (' + J(rw) + ')');
   ok(M.missionReward(S.missions[3], { pack: S }).prefs === 10, 'missionReward: the bonus preferences\' pct');
   // THE RALLY: one checkpoint per route point, splits along the route at the reference speed, the timer
   const rally = M.missionRallyDerive(S.missions[1]);
@@ -465,8 +467,8 @@ function runtimeRows(M, mut) {
   const w0 = d.wallet;
   r = N.careerOnStop(d, stopAt('HOME', { slot: mine, spec: cubSpec }), hooks);
   const dn = r.ok && r.events.find(e => e.k === 'done' && e.id === 'o.sold');
-  const pay = 40000 * 1.1;
-  ok(dn && dn.pay === pay && r.doc.wallet - w0 === pay, 'delivered: paid the base + the bonus preference (' + (dn && dn.pay) + ' = 40 000 + 10 %)');
+  const pay = Math.round(Math.round(40000 * N.econPayScale() / 10) * 10 * 1.1 / 10) * 10;   // (PRICE-CAL: the base at today's prices)
+  ok(dn && dn.pay === pay && r.doc.wallet - w0 === pay, 'delivered: paid the base + the bonus preference (' + (dn && dn.pay) + ' = 40 000 x the pay scale + 10 %)');
   ok(dn && dn.handover && dn.handover.slot === mine && dn.handover.blueprint === 'Mine' && dn.handover.cost === 30000 && dn.handover.profit === pay - 30000 && !dn.handover.client,
      'the handover: sold, the blueprint "Mine", cost 30 000, profit ' + (dn && dn.handover && dn.handover.profit));
   ok(r.ok && !r.doc.fleet[mine] && !r.doc.career.airframes[mine] && r.doc.career.sold.some(x => x.slot === mine && x.id === 'o.sold' && x.cost === 30000), 'the airframe left the fleet and the airframes; the sale on record');
@@ -610,7 +612,7 @@ function runtimeRows(M, mut) {
   const wS = d.wallet;
   for (const [v, medal, mult] of [[50, 'gold', 2], [35, 'silver', 1.5]]) {
     const x = N.careerOnStop(d, run(v), hooks), e = x.ok && x.events.find(q => q.k === 'done');
-    ok(e && e.medal === medal && e.pay === Math.round(2000 * N.CONTRACT_PAY.story * mult / 10) * 10 && x.doc.wallet - wS === e.pay, 'the speed run at ' + v + ' m/s: ' + (e && e.medal) + ', paid ' + (e && e.pay));
+    ok(e && e.medal === medal && e.pay === Math.round(Math.round(2000 * N.CONTRACT_PAY.story * N.econPayScale() / 10) * 10 * mult / 10) * 10 && x.doc.wallet - wS === e.pay, 'the speed run at ' + v + ' m/s: ' + (e && e.medal) + ', paid ' + (e && e.pay));
   }
   const slow = N.careerOnStop(d, run(25), hooks);
   ok(!slow.ok && /120 s, 95 s or less for a medal/.test(slow.untouched['r.speed'] || ''), 'at 25 m/s (120 s): no medal, not done - fly it again (' + (slow.untouched['r.speed'] || '') + ')');
