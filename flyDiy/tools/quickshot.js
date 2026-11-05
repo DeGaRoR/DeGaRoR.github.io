@@ -100,7 +100,7 @@ if (CUTSW) {
   S.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) skins.push(o); });
   let nw = 0;
   for (const o of skins) {
-    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW);
+    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW, S.W.CAGE_GEAR.pierceTopM || null);
     if (!r.skin) continue;
     o.geometry = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellWing'; o.add(wm); nw++; }

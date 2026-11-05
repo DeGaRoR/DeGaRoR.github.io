@@ -940,7 +940,7 @@ function knifeCarve(m, cuts, skip) {
 // (one section, `skin`; every attribute but the position and the normal packed into the field, lerped like it), cut
 // from below by the cuts (metres), carved (every face: the wing has no structure of its own to keep), and back: the
 // skin's geometry and the well's (walls and ceiling, section wheelWell) apart, so each keeps its own material
-function knifeWellsGeo(THREE, geo, cuts) {
+function knifeWellsGeo(THREE, geo, cuts, tops) {
   const P = geo.attributes.position, Nm = geo.attributes.normal, nv = P.count;
   const extra = Object.keys(geo.attributes).filter(k => k !== 'position' && k !== 'normal');
   const V = [], N = [], A = [];
@@ -958,6 +958,12 @@ function knifeWellsGeo(THREE, geo, cuts) {
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
                                                          mats: new Set(['skin']), paneMat: 'wheelWell', wallMat: 'wheelWell' });
   m = knifeCarve(m, cuts, null);
+  // GR R4: THE HOLES WHERE A STOWED WHEEL STANDS PROUD of the upper skin - the knife from ABOVE (its frame's n0 up, the
+  // outline in (z, x)), the inside taken away: no pane, no wall
+  for (const t of (tops || []))
+    m = knifeCut(m, { pierce: (t.units || []).join('') }, { frame: { n0: [0, 1, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [1, 0, 0] },
+                                                             outline: t.outline, depth: 0, mats: new Set(['skin']), paneMat: '__drop', wallMat: '__drop' });
+  if (tops && tops.length) m = Object.assign({}, m, { F: m.F.filter(f => f.m !== '__drop') });
   const build = keep => {
     const fs = m.F.filter(keep);
     if (!fs.length) return null;

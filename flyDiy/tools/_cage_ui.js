@@ -1725,7 +1725,9 @@ function wellApply() {
 function wingWellApply() {
   const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
   if (!KG || !KG.knifeWellsGeo || !scene) return 0;
-  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsM) && C.cutsM.length ? C.cutsM : null, sig = wellSigOf(cuts);
+  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsM) && C.cutsM.length ? C.cutsM : null;
+  const tops = C && Array.isArray(C.pierceTopM) && C.pierceTopM.length ? C.pierceTopM : null;     // GR R4: the wheels' holes
+  const sig = wellSigOf(cuts) + '#' + (tops ? tops.map(t => t.outline.map(p => p[0].toFixed(4) + ',' + p[1].toFixed(4)).join(' ')).join('|') : '');
   const list = [];
   scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) list.push(o); });
   let n = 0;
@@ -1744,7 +1746,7 @@ function wingWellApply() {
       for (const p of c.outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
       return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
     if (!near) { o.geometry = g0; continue; }
-    const r = KG.knifeWellsGeo(THREE, g0, cuts);
+    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops);
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }

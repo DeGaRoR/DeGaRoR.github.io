@@ -20,6 +20,7 @@ const CASES = [
   { name: 'ttail_wing', key: 'ttail', over: { gearRetract: 1, s1X: 1.6 }, what: 'T-tail tourer, 3.2 m track: the mains inward into the wing' },
   { name: 'ttail_wing_box2', key: 'ttail', over: { gearRetract: 1, s1X: 1.6, gearWellCut: 1, gearDoors: 2 }, what: 'the same, box outline, two doors' },
   { name: 'ttail_partial', key: 'ttail', over: { gearRetract: 1, s1X: 1.6, gearRetFrac: 0.6 }, what: 'the same, retracting 0.6 of the fold (the wheels in their insets)' },
+  { name: 'ttail_partial85', key: 'ttail', over: { gearRetract: 1, s1X: 1.6, gearRetFrac: 0.85 }, what: 'the same, 0.85 of the fold: the wheels part way in (the cutouts round them)' },
   { name: 'ttail_nose_fwd', key: 'ttail', over: { gearRetract: 1, s1X: 1.6, gearFoldNose: 1 }, what: 'the nose folding forward (into the narrowing nose / under the cowl)' },
   { name: 'bites', file: BITES, over: { gearRetract: 1 }, what: 'B-ITES as it is (retractable)' },
   { name: 'bites_wing', file: BITES, over: { gearRetract: 1, s1X: 1.4 }, what: 'B-ITES, 2.8 m track: the mains into the wing' },
