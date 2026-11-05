@@ -1515,6 +1515,7 @@ const DESIGN_ROWS = [
     // G2790: a layout (4 / 5 / 6) is the Engines row's; no mount tile is lit
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
              : Math.round(P.engMount) === 2 ? 'wingTop'
+             : Math.round(P.engMount) === 8 ? 'fin'
              : Math.round(P.engMount) >= 4 ? null : 'nose',
     options: [
       // 2026-09-04 (the user): "pusher configs should have no cowl by
@@ -1558,6 +1559,11 @@ const DESIGN_ROWS = [
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
         writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
+      // HULL-B22: ON THE FIN (the Seawind's): a tractor at the fin's leading edge on a tube mount into the fin's spars; the
+      // nose and the tail faired; a first cut with no cowl (the bare engine on its mount)
+      { value: 'fin', label: 'On the fin', icon: ICON.mountPusher,
+        note: 'a tractor on the fin\'s leading edge (the Seawind): the thrust line high over the CG',
+        writes: { cage: Object.assign({ engMount: 8, cowlOn: 0, aeroAftOn: 1 }, NOSE_AERO) } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher, after: rodFit,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher

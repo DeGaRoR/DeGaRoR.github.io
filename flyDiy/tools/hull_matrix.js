@@ -39,6 +39,8 @@ const ENGINES = {
   // the thrust line high on it (engY), the tail on a rod the rod fit sets LOW (under the hub's disc)
   tub: { sel: { engMount: 'pusher' }, engine: 'rotax 915 iS', cage: { paxLen: 0.6, engY: 0, noseLen: 1.3, hullTubLen: 2.2, hullTubRise: 8, cowlOn: 1, hullSpon: 1, hullSponK: 1.1, hullTips: 0 },
          note: 'the hull tub: cabin + engine bay in one pod, the pusher high on its aft face, the tail on a low rod boom (the Icon A5)' },
+  fin: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55 },
+         note: 'a tractor on the fin (the Seawind): a first cut, the bare engine on its tube mount' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },
@@ -77,7 +79,8 @@ function one(form, eng) {
     const TB = G.cageHullTable(G.cageHullLines(P), FS), hr = spec.gear.hull;
     if (!TB) break;
     fitAll = G.cageHullFitAll(P, { cg: [cx, cy], mass, zFw: hr.x + TB.zStep * FS, yD: TB.yStep * FS - hr.y, props: C.HYDRO.propDiscs(d),
-                                tipArm: ((d.parts.floats || []).find(q => q.tip) || { K: [] }).K.reduce((a, i) => Math.max(a, Math.abs(d.nodes[i].p[2])), 0) },
+                                tipArm: ((d.parts.floats || []).find(q => q.tip) || { K: [] }).K.reduce((a, i) => Math.max(a, Math.abs(d.nodes[i].p[2])), 0),
+                                finH: (ys => ys.length ? Math.max(...ys) - Math.min(...ys) : 0)(d.nodes.filter(n => n.tag === 'VF').map(n => n.p[1])) },
                               C.HYDRO, { semi: d.nodes.reduce((a, n) => Math.max(a, Math.abs(n.p[2])), 0) });   // (the wing's tip: the furthest node off the centreline)
     if (!fitAll) break;
     Object.assign(sp.cage, fitAll.rows); Object.assign(fitRows, fitAll.rows);

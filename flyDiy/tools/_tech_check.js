@@ -148,7 +148,10 @@ function run(core, edSrc) {
   const cons4 = listIn(/const CONS4 = (\[[^\]]*\]);/);
   const glz = listIn(/cabin\.glazingMat = (\[[^\]]*\])\[/);
   const fair = listIn(/spec\.gear\.fairMat = (\[[^\]]*\])\[/);
-  const mounts = listIn(/const mk = (\[[^\]]*\])\[Math\.round\(P\.engMount/);
+  // (HULL-B22: the join's single mounts are a lookup by index - 8 the fin - read either form)
+  const mounts = listIn(/const mk = (\[[^\]]*\])\[Math\.round\(P\.engMount/) || (() => {
+    const m = /const mk = \(\{([^}]*)\}\)\[Math\.round\(P\.engMount/.exec(JS); if (!m) return null;
+    const out = []; for (const [, k, v] of m[1].matchAll(/(\d+):\s*'([^']+)'/g)) out[+k] = v; return out; })();
   ok(J(M.TECH_ROWS.intCons) === J(intJoin.map(m => 'mat:' + m)), 'intCons: the join\'s fuselage materials, in its order', J(intJoin));
   ok(J(M.TECH_SURF_ROW) === J([null].concat(cons4.map(m => 'surf:' + m))) && /material: Math\.round\(P\.wgCons\) > 0/.test(JS) && /\['carbon', 'steel', 'fabric',\s*'alloy', 'aluFabric', 'glass'\]\[Math\.round\(P\.wgCons\) - 1\]/.test(JS),
      'the surfaces\' rows (wg / w2 / fin / stab): "as the aeroplane", then the join\'s CONS4', J(cons4));

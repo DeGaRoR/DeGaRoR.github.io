@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engNacOver: 0, engNacLift: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engFinAt: 0.55, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -558,11 +558,11 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
-  ['engMount',  'mount', 0, 7, 1,
+  ['engMount',  'mount', 0, 8, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)', 'nose + pusher (push-pull)',
     'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)',
-    'push-pull on one pylon (tandem)'],
+    'push-pull on one pylon (tandem)', 'on the fin'],
    { when: P => +P.engOn }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
    { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],   // (a tandem's aims are its own)
@@ -591,6 +591,9 @@ const ENG_ITEMS = [
   ['engPylonH', 'pylon height', 0.05, 1.5, 0.01,
    { when: P => +P.engOn && [2, 7].includes(Math.round(P.engMount)), dim: 'm' }],
   // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
+  // HULL-B22: the fin engine's height on the fin (of its height)
+  ['engFinAt', 'on the fin, at (of its height)', 0.2, 0.9, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 8 }],
   // HULL-B17: WHERE the over-the-wing pylon stands - on the wing (its centre section, or the cabin roof between the roots)
   // or on the fuselage BEHIND THE CABIN (the Icon's), engPylonAft behind the trailing edge
   ['engPylonAt', 'pylon stands on', 0, 1, 1, ['the wing', 'the fuselage, behind the cabin'],
@@ -1292,6 +1295,22 @@ function engPlace(ctx, prev) {
       if (pg) pg.position.z += ex * 2.0;
     }
     group.add(ug);
+    // HULL-B22: THE FIN MOUNT - steel tubes from the engine's plate (its four corners) back to the fin's leading edge above
+    // and below the thrust line, and a pair to the fin's mid-chord (the frame braces the engine to the fin's spars and
+    // its section nodes at that height - 61_gen_frame)
+    if (u.kind === 'fin' && f.fin && window.GEAR_KIT) {
+      const GK = window.GEAR_KIT, bag = GK.Bag(), xt = 0.07, hh = 0.11, zP = f.z, yP = f.yc;
+      const zL = f.fin.zLE - 0.02, zM = 0.5 * (f.fin.zLE + f.fin.zTE), yF = f.fin.y;
+      const plate = [[-xt, yP + hh, zP], [xt, yP + hh, zP], [-xt, yP - hh, zP], [xt, yP - hh, zP]];
+      for (const p of plate) {
+        const sg = Math.sign(p[0]);
+        GK.tube(bag, p, [0.25 * sg * xt, yF + (p[1] > yP ? 0.22 : -0.22), zL], PYLON_R, 10);
+        GK.tube(bag, p, [0.25 * sg * xt, yF, zM], 0.8 * PYLON_R, 10);
+      }
+      GK.tube(bag, plate[0], plate[1], PYLON_RAIL, 8); GK.tube(bag, plate[2], plate[3], PYLON_RAIL, 8);
+      GK.tube(bag, plate[0], plate[2], PYLON_RAIL, 8); GK.tube(bag, plate[1], plate[3], PYLON_RAIL, 8);
+      bag.mesh(group, matOf('emMount'));
+    }
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
     if (u.kind === 'wingTop' && f.yBase != null && !u.tandemRear) {   // (HULL-B15: a tandem's one pylon, under its front unit)

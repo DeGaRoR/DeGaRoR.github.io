@@ -5018,7 +5018,7 @@ function clampSpec(spec) {
     e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
-    if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
+    if (!['nose', 'pusher', 'wingTop', 'wing', 'fin'].includes(e.mount)) e.mount = 'nose';   // (HULL-B22: 'fin')
     e.place.dx = genFieldClamp('engines[].place.dx', e.place.dx);
     e.place.dy = genFieldClamp('engines[].place.dy', e.place.dy);
     // the mount station (2026-09-04): an envelope, null kept for derivation.
@@ -6153,6 +6153,7 @@ function resolveSpec(spec) {
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
+            : m === 'fin' ? { x: (S.tail && S.tail.vX != null ? S.tail.vX : S.fuse.boxRear + 2) - 0.4, y: 1.3 * S.cab.h, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
                                z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };

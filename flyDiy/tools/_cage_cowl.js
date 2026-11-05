@@ -467,6 +467,23 @@ function engineFaces(mesh, FS, P) {
     const inner = +P.engNacAt || 0.30, outer = Math.max(inner + 0.10, +P.engNacAt2 || 0.62);
     return one(3, { engNacAt: inner }).concat(one(3, { engNacAt: outer }));
   }
+  // HULL-B22: ON THE FIN (engMount 8 - the Seawind's): a tractor at the fin's leading edge, engFinAt of its height (the
+  // drawn fin: CAGE_FIN's mesh, cage units x FS); the plate a hand ahead of the edge, the engine forward of it. A first
+  // cut: the bare engine on its mount, no cowl (the user: "don't bother with the cowls at this stage")
+  if (mount === 8) {
+    const CF = window.CAGE_FIN, V = CF && CF.mesh && CF.mesh.V;
+    if (!V || !V.length) return [];
+    let y0 = Infinity, y1 = -Infinity;
+    for (const v of V) { y0 = Math.min(y0, v[1]); y1 = Math.max(y1, v[1]); }
+    const at = Math.max(0.2, Math.min(0.9, +P.engFinAt || 0.55)), yE = y0 + at * (y1 - y0), band = 0.05 * (y1 - y0);
+    let zLE = -Infinity, zTE = Infinity;
+    for (const v of V) if (Math.abs(v[1] - yE) < band) { zLE = Math.max(zLE, v[2]); zTE = Math.min(zTE, v[2]); }
+    if (!isFinite(zLE)) return [];
+    const yc = yE * FS + (+P.engBlockY || 0);
+    return [{ face: { z: zLE * FS + 0.14 + (+P.engBlockZ || 0), yc, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0, synthetic: 1,
+                      fin: { y: yE * FS, zLE: zLE * FS, zTE: zTE * FS } },
+              aft: false, kind: 'fin' }];
+  }
   // G185: an over-the-wing engine sits on the UPPER plane of a biplane
   const W0 = window.CAGE_WING;
   const W = (W0 && W0.planes) ? (W0.planes[W0.upper] || W0) : W0;

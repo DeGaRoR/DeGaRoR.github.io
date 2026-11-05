@@ -1150,7 +1150,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  4. a wing PAIR counter-rotates (engRotate 1, below);
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
-const SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+const TO_TRIM = 8, PROP_RUN_CLEAR = 0.55, FIN_AT_MAX = 0.9, ENG_BLOCK_MAX = 0.8, SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
   if (!f || !f.cg || !(f.mass > 0)) return null;
@@ -1218,11 +1218,16 @@ function cageHullFitAll(P, f, HY, opt) {
     const th = r.trim * Math.PI / 180;
     const tipZ = (+P.hullTipAt || 0.85) * (o.semi || 5);
     let need = 0;
+    // (HULL-B22: and at the TAKE-OFF TRIM - the bow up TO_TRIM about the step, where the water meets the hull on the run:
+    // a disc far aft of the step - a fin engine's, a tub pusher's - drops by its arm x the angle; the measured fin boat
+    // put its disc in the water at 5 deg and stopped its engine)
+    const thT = (r.trim + TO_TRIM) * Math.PI / 180;
     for (const d of f.props) {
       const x = d.x - r.sx, y = d.y - r.sy;
       const low = (-x * Math.sin(th) + y * Math.cos(th)) - d.R - r.draft;
+      const lowT = (-x * Math.sin(thT) + y * Math.cos(thT)) - d.R;           // (the step keel at the water on the run)
       const heel = Math.abs(d.z || 0) > 0.5 && +P.hullTips ? 0.12 * Math.abs(d.z) / Math.max(1, tipZ) : 0;
-      need = Math.max(need, PROP_WATER_CLEAR + heel - low);
+      need = Math.max(need, PROP_WATER_CLEAR + heel - low, PROP_RUN_CLEAR - lowT);
     }
     if (need > 0.005) {
       // (a wing nacelle stays ON the wing: first onto its top skin, then up on a pylon - the user, 4 Nov: "if you have
@@ -1233,6 +1238,17 @@ function cageHullFitAll(P, f, HY, opt) {
         else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
       }
       else if (mount === 2 || mount === 7) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
+      else if (mount === 8) {
+        // (HULL-B22: a fin engine climbs the fin to FIN_AT_MAX, then stands off it on its block (engBlockY: the mount's
+        // tubes longer), to ENG_BLOCK_MAX; past both, a smaller propeller)
+        const H = f.finH > 0.3 ? f.finH : 1.4, at0 = +P.engFinAt || 0.55;
+        const at1 = Math.min(FIN_AT_MAX, at0 + need / H + 0.01), gainAt = (at1 - at0) * H;
+        if (at1 > at0 + 1e-3) fit.engFinAt = +at1.toFixed(3);
+        let left = need - gainAt;
+        if (left > 0.005) { const b0 = +P.engBlockY || 0, b1 = Math.min(ENG_BLOCK_MAX, b0 + left + 0.01); fit.engBlockY = +b1.toFixed(3); left -= (b1 - b0); }
+        if (left > 0.005) { const D0 = +P.cw_propD || 0; if (D0 > 0) fit.cw_propD = +Math.max(PROP_D_MIN, D0 - 2 * left - 0.02).toFixed(3);
+          if (!(D0 > 0) || D0 - 2 * left - 0.02 < PROP_D_MIN) notes.push('a fin engine\'s propeller still short of the water on the run'); }
+      }
       else if (mount === 1 && (+P.hullDeep || 0) < HULL_DEEP_MAX) {
         // (HULL-B20, the user: "it's either on the aft bulkhead, and here you could still try to do that by heightening the
         // cabin or lowering your fuselage": a pusher's cowl stays on the aft bulkhead and its engine at the face, so the
