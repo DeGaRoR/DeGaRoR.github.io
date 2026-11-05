@@ -1566,8 +1566,10 @@ function cageHullFluteAt(H, HF, z) {
 function cageHullFlute(H, HF, lv) {
   const k = lv.keel;
   if (!k || lv.chine) return;
-  const sx = k.x < 0 ? -1 : 1, b = Math.abs(k.x), yk = k.yC != null ? k.yC : k.y, yc = k.y, z = k.z;
-  if (!(b > 1e-6)) return;
+  // (HULL-B41: EVERY ring takes the levels - the bow's nose ring is all but a point, and skipping it left the cowl loops
+  // lerped toward it without a chine: the bow loft's first band had the level on one ring only, a crack the subdivision
+  // pulled into a blade under the forefoot and a 7 cm drop of the keel)
+  const sx = k.x < 0 ? -1 : 1, b = Math.max(1e-4, Math.abs(k.x)), yk = k.yC != null ? k.yC : k.y, yc = k.y, z = k.z;
   const fl = cageHullFluteAt(H, HF, z), two = H.fluteN >= 2, sag = 0.75 * fl;
   const tb = (yc - yk) / b, zr = two ? H.fluteAt * b : 0.5 * b, yr = yk + zr * tb - (two ? fl * b : 0);
   // a control point of the arc A -> B ([x, y]): the chord's middle, 1.5 x the depth along its inward (up, in) normal
@@ -2433,14 +2435,15 @@ function buildCage2(S, step) {
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
         for (const k of NLO) {
-          if (!target[k]) continue;
-          lv[k] = lerpLv(wsLow[k], target[k], k === 'waist' ? e : eB);
+          const tg = target[k] || (FLV.includes(k) ? target.keel : null);     // (HULL-B41: never a level on one side only)
+          if (!tg) continue;
+          lv[k] = lerpLv(wsLow[k], tg, k === 'waist' ? e : eB);
           // dims follow the eased blend, z stays linear — that lag IS the
           // convexity
-          lv[k].z = wsLow[k].z + (target[k].z - wsLow[k].z) * t;
+          lv[k].z = wsLow[k].z + (tg.z - wsLow[k].z) * t;
           if (lv[k].zC != null) {
             const az = wsLow[k].zC != null ? wsLow[k].zC : wsLow[k].z;
-            const bz = target[k].zC != null ? target[k].zC : target[k].z;
+            const bz = tg.zC != null ? tg.zC : tg.z;
             lv[k].zC = az + (bz - az) * t;
           }
         }
@@ -2578,6 +2581,10 @@ function buildCage2(S, step) {
         // G319: the keel rail runs on under the nose (HULL-B39: a fluted hull's chine and ridge - flutedTags)
         for (const [k, w] of FLV.length ? flutedTags : [['keel', CW.keelW]])
           if (s.a.P[k] != null && s.b.P[k] != null) { tagE(s.a.P[k], s.b.P[k], w); tagE(s.a.M[k], s.b.M[k], w); }
+        // HULL-B41 (the user: "why do I have a discontinuity there? That should be smooth"): A HULL'S KEEL LINE RUNS ON TO
+        // THE STEM. It was creased along the body (HULL-B1) and ended at the windscreen's front ring - a sharp crease that
+        // dies mid-surface pinches the subdivision there: a blade under the forefoot, the keel dropping 7 cm in a few
+        if (HULL && s.a.C.keel != null && s.b.C.keel != null) tagE(s.a.C.keel, s.b.C.keel, 3);
       }
     }
 
