@@ -380,7 +380,7 @@ console.log('9. the composite never samples the depth it draws into (G1532: \'cu
 { const cs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8'), ap = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
   const fn = (name) => { const i = cs.indexOf('function ' + name + '('); return i < 0 ? '' : cs.slice(i, cs.indexOf('\n  }\n', i)); };
   const res = fn('histResolve'), hf = cs.slice(cs.indexOf('const HIST_FRAG'), cs.indexOf('// THE DOME MARCH'));
-  yes((cs.match(/[;{] hN = 0;/g) || []).length === 2 && /hW = w; hH = h; hN = 0;/.test(cs) && /if \(main\) hN = 0; return;/.test(cs), 'the history is dropped only on a new size and when the clouds were not drawn: never on a camera move');
+  yes((cs.match(/\bhN = 0;/g) || []).length === 2 && /hW = w; hH = h; hN = 0;/.test(cs) && /if \(main\) hN = 0; return;/.test(cs), 'the history is dropped only on a new size and when the clouds were not drawn: never on a camera move');
   yes(/float w = k1 \/ max\(k0, 1e-3\) > 1\.15 \? max\(uTK\.y, 0\.5\) : uTK\.y;/.test(hf), 'the current frame\'s weight reads the depth step only, not the camera\'s motion');
   yes(/U\.uFrame\.value = \(S\.shimmer \|\| hist\)/.test(cs) && /const hist = !!main && !!S\.temporal;/.test(cs), 'the jitter moves per frame only when the history is on');
   yes(res.indexOf('r.render(fsScene, fsCam)') > 0 && res.indexOf('r.render(fsScene, fsCam)') < res.indexOf('uPrevVP.value.multiplyMatrices'), 'the reprojection reads the previous frame\'s matrix: it is written after the draw');
