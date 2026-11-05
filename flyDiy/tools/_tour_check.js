@@ -242,6 +242,15 @@ function knownRed(b, L2, R) {
   return 'JOIN-PARITY\'s load-door float Cessna (G1970.4) - ' + (L2.verdicts.find(v => v.startsWith('vref-raised')) || '') + '; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') +
     '; ' + L2.faults.map(f => f.k + (f.k === 'yield' ? ' (' + f.note.split(' (')[0] + ')' : '')).join(', ') + '; no break, no crash (' + (R.game ? R.game.mass + ' kg' : '') + ')';
 }
+// G3914, rule (b), THE USER'S RULING 5 Nov (via A0): EAST POINT EXPECTS THE DIVERT, the Cub only, this strip only. East Point: 150 m, one way in, the game's day 8 kt from 250 deg (3.3 m/s behind). The Cub's landing
+// run is 135 m with no flaps to steepen the slope (0.119 needed): it arrives 5 m high at the 46 m gate, goes round twice and diverts, and that is the pilot being right. Held: exactly two go-arounds, said, then
+// a clean landing on the strip it chose (HOME > East Point: Ridgeback, t 2149 s, 18.7 m/s, sink 0.53, run 139 m, no damage). A landing at East Point still passes. The leg is longer than the 1800 s limit
+const EP_DIVERT = { roundOK: 'nv_strip', tMax: 2800 };
+function epHeldOff(id, L2) {
+  const gas = L2.warnings.filter(w => /^go-around/.test(w)).length;
+  check(gas === 2, id + ': East Point in the 8 kt behind (150 m, one way in): round exactly twice, then the divert', L2.warnings.join('; '));
+  console.log('  DIVERTED ' + id + ': ' + L2.warnings.join('; ') + ' -> ' + L2.heldOff + ' (' + JSON.stringify(L2.arr.landing) + ')');
+}
 if (!STRIPS) {
   const JOBS = [{ b: 'cub' }, { b: 'c172' }, { b: 'floats' }];
   for (const J of JOBS) {
@@ -252,7 +261,7 @@ if (!STRIPS) {
     const t0 = Date.now();
     // G1970 (ISLAND-TOUR-2): THE GAME'S FLIGHT - TOUR-REAL (G2065) flew this tour in the game and node's was not it (a calm
     // day, the file's 45 L, a pilot with no shakedown): the worker's host, the game's day ticked, the load door's aeroplane
-    const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    const R = TR.flyTour(C, TW.W, def, order, Object.assign({ game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null }, J.b === 'cub' ? EP_DIVERT : {}));
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' - ' + (R.done ? 'DONE' : 'NOT DONE') + ', ' + R.legs.length + ' legs, fuel left ' + R.fuel + ' L (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
     check(def.params.damage === true && R.game && R.game.damage === true, '5 ' + B.name + ': the damage is ON');
     // the flight is the game's: DAY_CLOCK's day (the 8 kt breeze), the garage's shakedown behind the pilot, the aeroplane the
@@ -276,9 +285,10 @@ if (!STRIPS) {
         check(/too short|short-field stop/.test(why), id + ': the To refused with its reason said - landed and stopped on ' + L2.declined + ' with no fault', why);
         console.log('  DECLINED ' + id + ': ' + why + ' -> ' + L2.declined + ' (' + JSON.stringify(L2.arr.landing) + ')');
       }
+      else if (L2.heldOff) epHeldOff(id, L2);
       else check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
       // G1970: the landing judged on the strip it was made on (_tour_lib: flightWhere under the wheels at the touchdown)
-      check(L2.landedOn === (L2.declined || L2.to), id + ': landed on its To' + (L2.declined ? ' (refused: on the strip diverted to, ' + L2.declined + ')' : '') + ' (the landing judged on ' + L2.landedOn + ')');
+      check(L2.landedOn === (L2.declined || L2.heldOff || L2.to), id + ': landed on its To' + (L2.declined || L2.heldOff ? ' (not landed there: on the strip diverted to, ' + (L2.declined || L2.heldOff) + ')' : '') + ' (the landing judged on ' + L2.landedOn + ')');
       const a = TW.W.aerodromes.find(q => q.id === L2.from);
       const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
       if (oneWay && L2.from !== order[0]) {
@@ -308,17 +318,23 @@ if (!STRIPS) {
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
     const t0 = Date.now();
-    const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
-    const L1 = R.legs[0], L2 = R.legs[1];
+    // G3914: the two legs apart: the arrival diverts, so the departure is flown from East Point's stand (the same take-off, the strip's named way out)
+    const R = TR.flyTour(C, TW.W, def, order.slice(0, 2), Object.assign({ game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null }, EP_DIVERT));
+    const R2 = TR.flyTour(C, TW.W, def, order.slice(1), { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    const L1 = R.legs[0], L2 = R2.legs[0];
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
-    check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
+    if (L1 && L1.heldOff) { epHeldOff('6 ' + B.name + ' HOME > nv_strip', L1); check(L1.landedOn === L1.heldOff, '6 ' + B.name + ' HOME > nv_strip: landed and stopped on the strip it diverted to, no fault', L1.heldOff + ' ' + JSON.stringify(L1.arr.landing)); }
+    else check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
     // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
     // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
-    check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
+    if (!(L1 && L1.heldOff)) check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
     // G2450: THE DEPARTURE, GATED (it was printed until it took off): from the strip's very end (within 15 m - the turn's
     // spot is the half-span + 1.5 m in), the named way out, and on to Jumbo Mine with no fault
     check(L2 && L2.ok && L2.landedOn === 'mn_strip', '6 ' + B.name + ' nv_strip > mn_strip: takes off from East Point and lands at Jumbo Mine, no fault', L2 ? (L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.verdicts.filter(v => /reject|abort|declin/.test(v)).join('; ') || 'ok') : 'not flown');
-    check(L2 && L2.dep.rollFromEnd != null && L2.dep.rollFromEnd <= 15, '6 ' + B.name + ' nv_strip > mn_strip: the roll began at the strip\'s end (<= 15 m in)', L2 ? L2.dep.rollFromEnd + ' m in' : '-');
+    // G3914, rule (b): from the stand now, not the landing's turn spot (<= 15 m in): the strip's hold + 15 m, as every other one-way strip's row (section 5)
+    { const a = TW.W.aerodromes.find(q => q.id === 'nv_strip'), P = C.sitePattern(a, C.siteOf(a.id), {}), Rw = C.siteRunway(a);
+      const holdIn = Math.max(...(P.stops || []).map(h => { const q = P.nodes.find(n => n.id === h); return q ? Math.min(Math.hypot(q.x - Rw.end0.x, q.z - Rw.end0.z), Math.hypot(q.x - Rw.end1.x, q.z - Rw.end1.z)) : 0; }));
+      check(L2 && L2.dep.rollFromEnd != null && L2.dep.rollFromEnd <= holdIn + 15, '6 ' + B.name + ' nv_strip > mn_strip: the roll began at the strip\'s hold or nearer the end', L2 ? L2.dep.rollFromEnd + ' m (the hold ' + holdIn.toFixed(0) + ' m in)' : '-'); }
   }
 }
 // (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)

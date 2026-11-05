@@ -206,6 +206,10 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   // to, no other fault. The tour goes on from there (flyTour) and the gate judges the refusal (GATE TOUR 5)
   L.declined = !L.ok && !!L.divertedTo && L.landedOn === L.divertedTo && L.faults.every(f => f.k === 'diverted') &&
     ap.report.verdicts.some(v => v.code === 'strip-too-short') && !!(LD && LD.onStrip) ? L.divertedTo : null;
+  // G3914 (o.roundOK, the gate's East Point rows): TWICE ROUND, THEN THE DIVERT. Went round twice on that strip, said so, landed and stopped on the strip it diverted to, no other fault.
+  // The tour goes on from there, as from a refusal
+  L.heldOff = !L.ok && o.roundOK === b.id && !!L.divertedTo && L.landedOn === L.divertedTo && L.faults.every(f => f.k === 'diverted') &&
+    ap.report.verdicts.some(v => v.code === 'divert' && /^twice round/.test(v.note)) && !!(LD && LD.onStrip) ? L.divertedTo : null;
   L.track = o.track || null;
   return L;
 }
@@ -244,10 +248,10 @@ function flyTour(C, W, def, order, opt) {
     L.trackI = [t0, track.length];
     legs.push(L);
     if (o.log) o.log(L);
-    if (!L.ok && !L.declined) break;
-    from = L.declined ? A(L.declined) : b;   // (a refused To: the next leg leaves from where it diverted to)
+    if (!L.ok && !L.declined && !L.heldOff) break;
+    from = L.declined || L.heldOff ? A(L.declined || L.heldOff) : b;   // (a refused To: the next leg leaves from where it diverted to)
   }
-  const done = legs.length === order.length - 1 && legs.every(L => L.ok || L.declined);
+  const done = legs.length === order.length - 1 && legs.every(L => L.ok || L.declined || L.heldOff);
   return { order, legs, track, done, fuel: sim.fuel ? r1(sim.fuel.litres) : null, game: H ? H.game : null };
 }
 
