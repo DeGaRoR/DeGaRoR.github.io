@@ -365,7 +365,7 @@ function storyStep(doc, ev, ctx) {
     else {
       const list = storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
       if (miss.length) why = 'the checklist: ' + miss.map(r => r.words).join(', ');
-      else if (typeof ev.cost === 'number' && ev.cost > G.costCap) why = 'over budget (' + Math.round(ev.cost) + ' > ' + G.costCap + ')';
+      else if (typeof ev.cost === 'number' && ev.cost > storyCostCap(G)) why = 'over budget (' + Math.round(ev.cost) + ' > ' + storyCostCap(G) + ')';
       else met = true;
     }
   }
@@ -418,6 +418,8 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
 // own down payment - the first real money, enough for any one of T7's occasions.
 const STORY_GRANT = 0, STORY_T6_FEE = 20000;
+// PRICE-CAL: a beat's budget (T2's costCap) is money of the table it was written in, at today's prices like the pay
+const storyCostCap = G => (typeof econPay === 'function' ? econPay(G.costCap) : G.costCap);
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
     seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
@@ -459,8 +461,9 @@ function storyNewCareer(doc, o) {
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
   // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
   if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
-    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
-    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+    const G = typeof careerGrant === 'function' ? careerGrant() : CAREER_GRANT;
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -G);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= G; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
   }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
@@ -551,7 +554,8 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
+    const fee = typeof econPay === 'function' ? econPay(STORY_T6_FEE) : STORY_T6_FEE;   // PRICE-CAL: at today's prices
+    if (fee > 0) { playerCharge(D, -fee, 'story', 'T6:fee'); offer.fee = fee; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
@@ -617,7 +621,7 @@ function storyCard(doc, o) {
                           : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
   } else if (G.k === 'certified') {
     for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
-    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + G.costCap, ok: typeof o.cost === 'number' && o.cost <= G.costCap });
+    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + storyCostCap(G), ok: typeof o.cost === 'number' && o.cost <= storyCostCap(G) });
     rows.push({ words: 'certified in the garage (the bench)', ok: false });
   } else if (G.k === 'jobs') {
     rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });

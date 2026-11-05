@@ -297,7 +297,7 @@ function runChecks(C, F, D, src, quiet) {
     [{ k: 'tankL', v: 50 }, 'ok'], [{ k: 'tankL', v: 20 }, 'fail'],
     [{ k: 'batteryKWh', v: 10 }, 'ok'],
     [{ k: 'spanM', v: 11 }, 'ok'], [{ k: 'spanM', v: 9 }, 'fail'],
-    [{ k: 'costMax', v: 40000 }, 'ok'], [{ k: 'costMax', v: 25000 }, 'fail'],
+    [{ k: 'costMax', v: 57300 }, 'ok'], [{ k: 'costMax', v: 35800 }, 'fail'],   // (PRICE-CAL: 40 000 / 25 000 x the pay scale 1.432)
     [{ k: 'ultimateG', v: 5.7 }, 'ok'], [{ k: 'ultimateG', v: 6 }, 'fail'],
     [{ k: 'xwindKt', v: 8 }, 'ok'], [{ k: 'xwindKt', v: 15 }, 'fail'],
     [{ k: 'hydro', v: true }, 'needs-test'],

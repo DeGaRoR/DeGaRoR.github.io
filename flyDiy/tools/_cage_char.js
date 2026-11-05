@@ -52,6 +52,10 @@ const base = n => n.replace(/^.*:/, '');
 
 // ---- the node tree, verbatim from the manifest ---------------------------
 // joints become THREE.Bone (a Skeleton wants them), everything else Object3D.
+// LOOKS-ROUND2 (the user, 4 Nov: "a figure that tends to be much bigger than the other, and I think it is this remy guy"):
+// Remy.fbx is modelled at 3.69 m where the five others stand 1.73-1.78 m. Brought to 1.75 m at the armature, so the rig, the
+// solver chain and the skin (bone world x inverse bind) all follow; GATE CHARS holds every crew body's stature.
+const BODY_K = { remy: 1.75 / 3.687 };
 function buildTree(c) {
   const isJoint = new Set(c.joints);
   const objs = c.nodes.map((n, i) => {
@@ -62,6 +66,7 @@ function buildTree(c) {
     o.scale.fromArray(n.s);
     return o;
   });
+  if (BODY_K[c.key]) for (const i of c.scene) objs[i].scale.multiplyScalar(BODY_K[c.key]);
   c.nodes.forEach((n, i) => { if (n.p >= 0) objs[n.p].add(objs[i]); });
   const root = new THREE.Group();
   root.name = 'char:' + c.key;

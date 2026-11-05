@@ -1086,7 +1086,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   }
   spend((PP.price || 0) * S.engines.length);
-  spend(S.prop.price || 0);
+  // PRICE-CAL: a propeller per engine (a twin billed one), and a constant-speed hub's premium + governor on each
+  spend(((S.prop.price || 0) + (PP.engine && PP.engine.cs ? GEN_PRICES.csHub : 0)) * S.engines.length);
 
   // which frames straddle a given station, so a component that moves finds new
   // ones to attach to instead of dragging its old ones along
@@ -2164,7 +2165,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // bay runs continuous through it and the strips' per-side walk holds.
     const zRootH = 0;
     const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
-    const yStab = (t.stabY != null && t.stabY > yAx(xStab) + kv * rAt(xStab) + 0.02)
+    // TWIN4B-STAB: a stab drawn UNDER the crown flies there too (it was held up on the crown: the 4b's, drawn at the
+    // middle of the boom, flew 10 cm above its own skin). Within 2 cm of the crown it is on the crown (onCrown, below)
+    const yStab = (t.stabY != null && Math.abs(t.stabY - (yAx(xStab) + kv * rAt(xStab))) > 0.02)
       ? t.stabY : yAx(xStab) + kv * rAt(xStab);
     const xFH = z => xStab + (sparF - 0.5) * chordH(z);
     const xRH = z => xStab + (0.5 - CT) * chordH(z);
@@ -2809,13 +2812,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      // TWIN4B-STRUTS: `frontRing`: the FRONT strut stands on the ring nearest its deck fitting, not on the ring just ahead
+      // of the step (the 4b: the step 2.1 m back, both pairs on rings 0.4 m apart, 1.7 m of float ahead of them with nothing)
+      let iFront = iFwd;
+      if (FM && FM.frontRing && !engFwd) for (let i = 0; i < iFwd; i++)
+        if (Math.abs(ST[i].x - nodes[Din[1]].p[0]) < Math.abs(ST[iFront].x - nodes[Din[1]].p[0])) iFront = i;
+      const fF = iFront === iFwd ? fB : (sd < 0 ? F[iFront].BL : F[iFront].BR);
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
       // flexible, almost springy"). The forward strut was the gear's `leg`
       // member — the suspension spring, KS x SUS — so the whole float pair
       // rode on two bungees; every member here is BRACING (KS x ARCH.k),
       // a streamlined steel tube like the rest of the truss.
       // (G451: the aft attachments on the aft spreader bar's station, 3)
-      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
+      B(Din[1], fF, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
       B(Dout[3], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
       B(Din[3], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
@@ -2843,7 +2852,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
   sec('cabin');
-  spend(S.seats * GEN_PRICES.seat);
+  // (PRICE-CAL: the 380-a-seat line is retired - the seat itself is billed by its GEN_SEATS row in the outfit)
   // WHICH FRAME EACH OCCUPANT SITS ON. This was a two-element literal, which
   // is the whole of why the aeroplane could not carry more than two people:
   // a third occupant fell through `|| F[1]` and was billed onto the front row
@@ -3250,12 +3259,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
     // lining) carved out of it, so the total is the credit it was
+    // PRICE-CAL: the furnishing (lining, carpet, panels, trim) at 200 cr a kilo, was 60 - the materials of a builder's
+    // interior (a C172's DIY interior kit is $3-8k for ~24 kg; a shop's job is $14-20k, labour the ledger does not bill)
     const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                                28 * (exhM + plumbM + ctlM) + 60 * furnM);
-    const furnCr = Math.round(seat.price * seats + 60 * furnM);
+                                28 * (exhM + plumbM + ctlM) + 200 * furnM);
+    const furnCr = Math.round(seat.price * seats + 200 * furnM);
     spend(furnCr);
     sec('outfit');
     spend(outfitCr - furnCr);
+    // PRICE-CAL: the lights (nav / strobe and a landing light) on any aeroplane with a bus - in the outfit, beside the
+    // panel's bill (GATE PANEL holds panel + elec + avionics to the resolver's); their draw is GEN_LIGHT_AMPS'
+    if (SYS.hasBus) spend(GEN_PRICES.lights);
   }
   sec('paint');
   {
@@ -3266,7 +3280,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // on the covered nodes in proportion, so it lands where the paint is and
     // moves no centre of gravity.
     const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
-    spend(FIN.price);
+    // PRICE-CAL: the colour coats per square metre painted (was a flat 1 800, a Cub's and a DC-3's alike), and the
+    // fabric covering system's materials per square metre of CLOTH (the dope, the tapes, the rib lacing: the row's
+    // kilos bill the cloth's weight, not its price) - both off the panels the frame actually built
+    spend((FIN.perM2 || 0) * coverA);
+    let clothA = 0;
+    for (const c of coverPan) if (c.cloth) clothA += c.A;
+    spend(GEN_PRICES.coverM2 * clothA);
     // ...in proportion to the AREA each node covers (G457): per node it
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries

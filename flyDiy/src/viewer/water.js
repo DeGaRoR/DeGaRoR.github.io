@@ -1586,6 +1586,8 @@ const WATER = (() => {
     if (IN.wind[0] > 0.3) U.uWDir.value.set(Math.cos(IN.wind[1]), Math.sin(IN.wind[1]), 0, 0);
     // the detail band is the wind's: calm air, a glassy tile; the strength saturates by 8 m/s
     U.uWDetailK.value.z = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
+    // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1); the day's to the bit
+    if (U.uWNight && U.uWNight.value.x > 0) U.uWDetailK.value.z = Math.max(U.uWDetailK.value.z, Math.min(3.1, U.uWDetailK.value.z * 5));
   }
   function setSDF(tex, grid) {
     IN.sdf = tex || null; IN.grid = grid ? [grid.x, grid.y, grid.z, grid.w] : null;

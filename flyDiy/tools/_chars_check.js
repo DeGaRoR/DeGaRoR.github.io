@@ -299,5 +299,29 @@ if (T && P) {
     '7 no cast member has a boot manifest (src/chars/<key>_char.js)');
 }
 
+// ---- 8 STATURE (LOOKS-ROUND2, the user 4 Nov: "a figure that tends to be much bigger than the other") ---------------
+// every crew body as _cage_char.js buildTree stands it: its BODY_K at the armature, the highest joint over the lowest
+{
+  const THREE = require(path.join(ROOT, 'vendor', 'three.min.js'));
+  const m = /const BODY_K = (\{[^}]*\});/.exec(fs.readFileSync(path.join(__dirname, '_cage_char.js'), 'utf8'));
+  const K = m ? vm.runInNewContext('(' + m[1] + ')') : {};
+  verdict(!!m, '8 _cage_char.js declares BODY_K');
+  const standing = (c, k) => {
+    const objs = c.nodes.map(n => { const o = new THREE.Object3D(); o.position.fromArray(n.t); o.quaternion.fromArray(n.r); o.scale.fromArray(n.s); return o; });
+    c.nodes.forEach((n, i) => { if (n.p >= 0) objs[n.p].add(objs[i]); });
+    const root = new THREE.Group(); for (const i of c.scene) { objs[i].scale.multiplyScalar(k); root.add(objs[i]); }
+    root.updateMatrixWorld(true);
+    let lo = Infinity, hi = -Infinity; const v = new THREE.Vector3();
+    for (const i of c.joints) { const y = objs[i].getWorldPosition(v).y; if (y < lo) lo = y; if (y > hi) hi = y; }
+    return hi - lo;
+  };
+  for (const f of JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'chars', 'chars_index.json'), 'utf8')).filter(x => /_char\.js$/.test(x))) {
+    let c = null;
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'chars', f), 'utf8'), { registerChar: x => { c = x; }, FLYDIY_ASSET_BASE: '' });
+    const h = standing(c, K[c.key] || 1);
+    verdict(h >= 1.6 && h <= 1.9, `8 ${c.key} stands ${h.toFixed(2)} m (1.6-1.9)`);
+  }
+}
+
 console.log('GATE CHARS: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

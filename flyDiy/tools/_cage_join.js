@@ -411,7 +411,7 @@ function cageJoinSpec(P, M, T) {
       // numbers, the details, the water rudder, the mass) plus the placement
       const HYj = window.HYDRO_GEN || (typeof HYDRO !== 'undefined' ? HYDRO : null);
       const keys = (HYj && HYj.FLOAT_SPEC_KEYS) || ['L', 'xs', 'B', 'H', 'beta', 'betaA', 'hs', 'aftAngle', 'bStern'];
-      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc']))
+      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc', 'frontRing']))
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
@@ -2534,7 +2534,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // G210.2: a person is their own bucket, per character and per
             // material — two characters' skins must never merge
             (kud.charKey ? 'H' + kud.charKey + '.' + kud.charMat : '') +
-            (kud.aeroNoDec ? 'K' : '') +
+            (kud.aeroNoDec ? 'K' : '') + (kud.aeroNoLet ? 'NL' : '') +
             // the panel arc (session 4): the painted faces are one atlas
             // material and must never merge into a colour bucket (their uv
             // would be lost); a lamp's lens and cup are their own buckets per
@@ -2615,6 +2615,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
+          ...(ud.aeroNoLet ? { noLet: 1 } : {}),   // LOOKS-ROUND2: a float, paint without letters
           // G214: the skin's screws, as the editor drew them
           ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
           // G215: the metal flake in this section's paint

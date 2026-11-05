@@ -798,17 +798,20 @@ function contractPay(rec, fields) {
     const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
     km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
   }
+  // PRICE-CAL: every money term at today's prices (76_economy econPayScale: the pay rides the reference Cub's ledger)
+  const PS = typeof econPayScale === 'function' ? econPayScale() : 1;
   let surface = 0;
   for (const id of Object.keys(touched)) {
     const f = F[id];
     if (!f) continue;
-    if (ctWet(f)) surface += P.surf.water;
-    else if (f.len <= P.shortM) surface += P.surf.short;
-    if (f.surf === 'snow') surface += P.surf.snow;
-    if (f.alti) surface += P.surf.altiport;
+    if (ctWet(f)) surface += P.surf.water * PS;
+    else if (f.len <= P.shortM) surface += P.surf.short * PS;
+    if (f.surf === 'snow') surface += P.surf.snow * PS;
+    if (f.alti) surface += P.surf.altiport * PS;
   }
-  const base = rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec);
-  const perKm = rec.kind === 'job' ? P.perKm : 0;
+  // (the scaled base rounded to the pay's unit, as the unscaled bases were whole: a medal's x2 stays exact)
+  const base = Math.round((rec.kind === 'job' ? ((prov && prov.base) || 0) * P.baseF : contractStoryBase(rec)) * PS / P.round) * P.round;
+  const perKm = rec.kind === 'job' ? P.perKm * PS : 0;
   const legPay = perKm * legs;
   const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
   const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
@@ -1257,9 +1260,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
 }
 
 // the pay a completed contract earns: the total (a job) or the base, plus the bonuses its margins and medal earn
-function contractPayTotal(rec, got, medal) {
+function contractPayTotal(rec, got, medal, base) {
   const P = rec.pay || {};
-  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total : Math.round(contractStoryBase(rec));
+  // (PRICE-CAL: a job's total was fixed by contractPay at today's prices when offered; an authored base is scaled here)
+  let total = (typeof P.total === 'number' && isFinite(P.total)) ? P.total
+    : Math.round(contractStoryBase(rec) * (typeof econPayScale === 'function' ? econPayScale() : 1) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
+  // (PRICE-CAL: a build contract's delivered airframe at its value to the client, handed in by careerComplete)
+  if (rec.kind === 'build' && typeof base === 'number' && isFinite(base) && base > 0) total = base;
   const crit = contractCrit(rec);
   let pct = 0;
   for (const b of P.bonus || []) {

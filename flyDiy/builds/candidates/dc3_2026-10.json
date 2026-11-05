@@ -428,8 +428,8 @@
    "finCrB": 0,
    "finTipZ": -0.565,
    "finTipY": -0.79,
-   "finAftZ": 0.275,
-   "finAftY": -0.9,
+   "finAftZ": 0.3,
+   "finAftY": -0.8,
    "finBaseZ": 0.24,
    "finBaseY": 0.5,
    "finMidY": -0.565,
@@ -444,15 +444,15 @@
    "finTEU": 0,
    "finTEMid": 0,
    "finSharpTip": 1,
-   "finSharpAft": 3,
+   "finSharpAft": 0,
    "finSharpBase": 3,
    "finSharpShoulder": 0,
    "finSharpLE": 0,
    "finHeight": 1.64,
-   "finChord": 1.6,
+   "finChord": 1.4,
    "finChordTip": 1.5,
    "finSweep": -9,
-   "finHinge": 0.085,
+   "finHinge": 0.3,
    "mass": 620,
    "cgZ": 1.17,
    "cgY": 0.05,
@@ -1102,7 +1102,7 @@
     "chord": 0.2690614782595618
    },
    "rudder": {
-    "chord": 0.23949006687947488
+    "chord": 0.3964328983575392
    }
   },
   "engines": [
@@ -1146,8 +1146,8 @@
   "meta": {
    "class": "n23",
    "role": "touring",
-   "name": "cessnaMetal",
-   "reg": "B-CESS"
+   "name": "DC-3",
+   "reg": "B-DAKO"
   },
   "fuel": {
    "litres": 3110,
@@ -1582,7 +1582,7 @@
    "type": "conventional",
    "vAngle": null,
    "Sh": 15.04298028784476,
-   "Sv": 10.575776746203323,
+   "Sv": 8.79902876592325,
    "Svt": null,
    "hSpan": 7.814963531494141,
    "hChord": 1.9248944959527785,
@@ -1591,8 +1591,8 @@
    "tip": "rounded",
    "tipV": null,
    "tipH": null,
-   "vSweep": 30.85089496124193,
-   "stabH": 0.025599944172631634,
+   "vSweep": 24.502407776130664,
+   "stabH": 0.023862236556549746,
    "dorsal": {
     "len": 0.34,
     "height": 0.16,
@@ -1600,10 +1600,10 @@
     "angle": null,
     "area": 0
    },
-   "vHeight": 3.989695540954728,
-   "vChord": 2.6507728817002802,
-   "vX": 15.058893911481446,
-   "vTaper": 0.4812655518498663,
+   "vHeight": 4.29936289563151,
+   "vChord": 2.0465889899323813,
+   "vX": 15.51191972646907,
+   "vTaper": 0.49225312868598475,
    "place": {
     "dx": 0
    },
