@@ -106,7 +106,10 @@ var SKY_LIGHT = (function () {
       if (o.keyGain != null && !isMoon) I *= o.keyGain;   // the key alone (CLOUDS C3: the layer's transmittance over a room - the dome keeps its scale)
       key.intensity = I;
       if (key.color && key.color.setRGB) {
-        if (isMoon) key.color.setRGB(0.92 * _T[0] / mT, 0.96 * _T[1] / mT, _T[2] / mT);
+        // LOOK-1-MOON (the user 5 Nov, "a lot more natural"): the moon's light is white, a hair blue, at every height. It took the
+        // atmosphere's transmittance like the sun, which at 10 deg is (0.92, 0.62, 0.32): gold specks on the crowns that face the moon.
+        // The sun's key stays physical; the intensity above still carries mT
+        if (isMoon) key.color.setRGB(0.80, 0.86, 1);
         else key.color.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT);
       }
       if (key.position && key.target) {
