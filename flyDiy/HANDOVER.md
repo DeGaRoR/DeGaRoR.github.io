@@ -312022,3 +312022,10 @@ Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/`
   normals at night (near only), A2C for real on 'current' (0 samples under the clouds today), the mips, the tier re-measure,
   air (turbidity 2.8 -> pick), bloom (thresholdless), tone trial. The default tone is Cineon, not ACES.
   SwiftShader: the blue-hour white trees are the static-env artefact; forcing the probe on blackens noon (G1460).
+- PASS 3 (5 Nov, the user: "the constant flickering", the clouds' thin edges and the canopies; study §E): the back-step to
+  the literature (Hoffman et al. 2018: volatile >> stable, blurred or aliased; MSFS / X-Plane / DCS players; Nubis,
+  Frostbite, UE, Karis 2014 TAA, three.js r186 TRAANode). Our frame has NO HISTORY anywhere; the clouds' jitter is frozen
+  in screen space ("the temporal pass is owed"). Measured (SwiftShader, sub-pixel offsets): 13-14 % of the pixels below the
+  horizon crawl, the tree outlines; softer edges -2 % only. PROPOSED PHASE 2 (§E6, the user decides): 2a the clouds'
+  temporal pass, 2b a toggleable TAA tier, 2c the impostor alpha rebuilt + the far cascade + the sky once. Frame
+  interpolation is NOT a cure (no new samples). The user's night hero frame (circled near slope) is §E0's reference.

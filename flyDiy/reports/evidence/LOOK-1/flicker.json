@@ -1,0 +1,50 @@
+{
+ "canopy_base": {
+  "flicker_all": 7.65,
+  "flicker_sky": 0.66,
+  "flicker_low": 13.36,
+  "spread_p99": 22.8,
+  "noise_floor": 0.0,
+  "mean_spread": 1.28
+ },
+ "canopy_msaa4": {
+  "flicker_all": 7.65,
+  "flicker_sky": 0.66,
+  "flicker_low": 13.36,
+  "spread_p99": 22.8,
+  "noise_floor": 0.0,
+  "mean_spread": 1.28
+ },
+ "canopy_soft": {
+  "flicker_all": 7.49,
+  "flicker_sky": 0.66,
+  "flicker_low": 13.07,
+  "spread_p99": 22.5,
+  "noise_floor": 0.0,
+  "mean_spread": 1.25
+ },
+ "stand_base": {
+  "flicker_all": 7.56,
+  "flicker_sky": 0.0,
+  "flicker_low": 13.75,
+  "spread_p99": 16.7,
+  "noise_floor": 0.0,
+  "mean_spread": 1.11
+ },
+ "stand_msaa4": {
+  "flicker_all": 7.56,
+  "flicker_sky": 0.0,
+  "flicker_low": 13.75,
+  "spread_p99": 16.7,
+  "noise_floor": 0.0,
+  "mean_spread": 1.11
+ },
+ "stand_soft": {
+  "flicker_all": 7.81,
+  "flicker_sky": 0.0,
+  "flicker_low": 14.2,
+  "spread_p99": 17.0,
+  "noise_floor": 0.0,
+  "mean_spread": 1.14
+ }
+}

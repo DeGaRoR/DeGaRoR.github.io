@@ -46,3 +46,17 @@ Same rig; `rig/views8-11.json` + `rig/stage_lights.js` (per-view `pre` and `vars
 | `also_tone.jpg` | Cineon (today) / AgX / Khronos neutral |
 | `blue_softprobe.jpg` | the blue hour with the REAL probe forced on (dark trees, not white) / probe off / the night with the probe |
 | `softprobe_poison_noon.jpg` | why the forced probe cannot settle the blue hour: noon goes black (G1460), golden draws |
+
+## Pass 3 (5 Nov): the flicker in motion
+
+`rig/stage_flicker.js` + `rig/flicker.py` + `rig/viewsF.json`: the same paused scene at six sub-pixel camera offsets
+(Halton 2,3, ±0.5 px) + one repeat (the noise floor). Each sheet: one frame | the offsets' mean (what a temporal
+accumulation converges to) | the flicker map (the per-pixel spread x 8: hot = crawls when the camera moves). Potato,
+render scale 0.67, no clouds (the clouds black the frame under SwiftShader). Numbers: `flicker.json`.
+
+| still | what it shows |
+|---|---|
+| `flicker_stand_base.jpg` | a stand from 350 m: 13.8 % of the pixels below the horizon crawl, every crown's outline |
+| `flicker_canopy_base.jpg` | a canopy from the ground: 13.4 % |
+| `flicker_*_soft.jpg` | the leaf sharpen 0.3 + the impostor alpha gain x0.5: -2 % only - the edges' sharpness is not the crawl |
+| `flicker_*_msaa4.jpg` | the runtime MSAA switch did not apply on SwiftShader (identical numbers): NOT a result |
