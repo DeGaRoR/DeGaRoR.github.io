@@ -1,9 +1,9 @@
 // AIRCRAFT-BOARD PLANE_FICHE (the user, 4 Nov: "the full fiche could be generated and awarded on passed certification"): the
 // pictures and the data of an aeroplane's fiche, drawn once in the garage's own page, kept with the plane. The page that
 // shows it, the award's moment and the share are Game's (flydiy-notes/PLAN-AIRCRAFT-BOARD-2026-11-04.md).
-//   PLANE_FICHE.award(name)       the stand's plane, on the airworthiness certificate: refused without one ("candidates don't get
+//   PLANE_FICHE.award(name, title) the stand's plane, on the airworthiness certificate: refused without one ("candidates don't get
 //                                 a fiche without the certificate"), nothing drawn when the stored fiche is this build's
-//   PLANE_FICHE.generate(opts)    the draw itself: { name, store (false: no IndexedDB), only: [views], onView(view, i, n) } -> the record
+//   PLANE_FICHE.generate(opts)    the draw itself: { name, title (shown; else the name), store (false: no IndexedDB), only: [views], onView(view, i, n) } -> the record
 //   PLANE_FICHE.get(name)         -> { name, at, fp, hash, data, pics: { view: Blob } } or null
 //   PLANE_FICHE.stale(rec)        -> { cert, paint }: the mark's two reasons; the fiche itself stays ("a plane having received
 //                                 one does not lose it"): only forget() removes it, and a new one replaces it only once drawn
@@ -17,7 +17,8 @@
 (function () {
   const DB = 'flydiy-fiches', STORE = 'fiche', Q = 0.85, FOV = 22, FIT = 0.94, SAMPLES = 4;
   const HERO_W = 1200, HERO_H = 960, CUT_W = 1000, CUT_H = 800, ORTHO = 900, PAD = 12;
-  const STUDIO = { key: 1.5, rim: 1.8 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3 };
+  // an eye from above: the garage's overhead lights wash a top surface out (5 Nov, measured on the twin and the Tiger Moth: room at 20-50 % brings its colour back, the reflection changes nothing)
+  const STUDIO = { key: 1.5, rim: 1.8, room: 1 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3, room: 0.35 };
   const NEAR_OFF = ['wing', 'wing2', 'brace', 'light', 'hinge', 'access'];   // the cutaway's near half also loses these (the user 4 Nov: NEAR WINGS OFF)
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
   const frames = n => new Promise(res => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : res()); f(); });
@@ -194,10 +195,10 @@
     for (const c of st.clones) { try { c.dispose(); } catch (e) {} }
   }
   // ---- the numbers: what the fiche says, from the bench's own call and the drawn extents ------------------------------
-  function numbers(spec, F) {
+  function numbers(spec, F, title) {
     const d = { span: +F.len('l').toFixed(2), length: +F.len('f').toFixed(2), height: +F.len('u').toFixed(2) };
     const eng = (spec.engines || [])[0] || {}, cab = spec.cabin || {};
-    const data = { name: (spec.meta && spec.meta.name) || '', reg: (spec.meta && spec.meta.reg) || '', dims: d,
+    const data = { name: title || (spec.meta && spec.meta.name) || '', reg: (spec.meta && spec.meta.reg) || '', dims: d,
                    wings: (spec.wings || []).length, gear: (spec.gear && spec.gear.type) || '', fuelL: (spec.fuel && spec.fuel.litres) || null,
                    engine: eng.type || '', nEngines: (spec.engines || []).length, seats: cab.seats || null, specs: null };
     try {   // the plaque's call (app.js shakeFetch)
@@ -218,6 +219,7 @@
     const rt = new T.WebGLRenderTarget(HERO_W, HERO_H, { samples: SAMPLES, type: T.UnsignedByteType, depthBuffer: true });
     rt.texture.colorSpace = T.SRGBColorSpace; rt.isXRRenderTarget = true;   // display-space, as the canvas (aa_resolve.js)
     rt.texture.internalFormat = 'RGBA8';   // the shader encodes; sRGB storage would not take the multisampled buffer's resolve (the first run: every picture empty)
+    const room = []; S.traverse(o => { if (o.isLight) room.push(o); }); const roomI = room.map(l => l.intensity);   // (uniforms only: no program changes for this)
     const lights = new T.Group(), key = new T.DirectionalLight(0xfff0dc, STUDIO.key), rim = new T.DirectionalLight(0xe6eeff, STUDIO.rim), amb = new T.AmbientLight(0xfff4e6, 0);
     lights.add(key, key.target, rim, rim.target, amb); S.add(lights);
     const hid = []; let cut = null, xray0 = null, data = null;
@@ -228,9 +230,10 @@
       R.shadowMap.autoUpdate = false;
       root.rotation.x = 0;   // the air's attitude
       let F = frameOf(T, root);
-      data = numbers(spec, F);
+      data = numbers(spec, F, opts.title || opts.name);   // what the player calls it, not the file's meta (a Tiger Moth's says "Garage Special")
       const place = (F, low, st) => {
         key.intensity = st.key; rim.intensity = st.rim; amb.intensity = st.amb || 0;
+        room.forEach((l, i) => { l.intensity = roomI[i] * st.room; });
         key.position.copy(F.c).addScaledVector(F.fwd, 6).addScaledVector(F.left, 5).addScaledVector(F.up, low ? -2 : 3); key.target.position.copy(F.c);
         rim.position.copy(F.c).addScaledVector(F.fwd, -7).addScaledVector(F.left, -2).addScaledVector(F.up, 6); rim.target.position.copy(F.c);
         lights.updateMatrixWorld(true);
@@ -246,18 +249,20 @@
         R.setRenderTarget(rt0); S.background = bg0;
         const m = matte(k, wt, w, h);
         if (!m.n) throw new Error('the ' + name + ' picture is empty');
+        if (m.n === w * h) throw new Error('the ' + name + ' picture drew nothing (the two draws read back the same)');
+        if (m.edge) throw new Error('the ' + name + ' picture touches its frame');
                 const e = await encode(m, w, h);
         pics[name] = e.blob;
-        tm.views[name] = { ms: Math.round(performance.now() - t1), w: e.w, h: e.h, kb: Math.round(e.blob.size / 1024), n: m.n, of: w * h, edge: m.edge };
+        tm.views[name] = { ms: Math.round(performance.now() - t1), w: e.w, h: e.h, kb: Math.round(e.blob.size / 1024) };
         if (opts.onView) opts.onView(name);
         await frames(2);   // the page breathes between pictures
       };
       const s = ORTHO / Math.max(F.len('f'), F.len('l')), ow = a => Math.round(s * a) + PAD * 2;
       data.pxPerM = +s.toFixed(3);
       if (only.includes('hero')) await shoot('hero', heroCam(T, F, HERO_W / HERO_H, 38, -28), HERO_W, HERO_H, true, STUDIO, F);
-      if (only.includes('above')) await shoot('above', heroCam(T, F, HERO_W / HERO_H, 38, 28), HERO_W, HERO_H, false, STUDIO, F);
+      if (only.includes('above')) await shoot('above', heroCam(T, F, HERO_W / HERO_H, 38, 28), HERO_W, HERO_H, false, CUT_STUDIO, F);   // its eye is above: a top surface takes key + rim (the below view's lights wash it out)
       if (only.includes('side')) await shoot('side', orthoCam(T, F, F.left, F.up, ow(F.len('f')), ow(F.len('u')), s), ow(F.len('f')), ow(F.len('u')), false, STUDIO, F);
-      if (only.includes('plan')) await shoot('plan', orthoCam(T, F, F.up, F.fwd, ow(F.len('l')), ow(F.len('f')), s), ow(F.len('l')), ow(F.len('f')), false, STUDIO, F);
+      if (only.includes('plan')) await shoot('plan', orthoCam(T, F, F.up, F.fwd, ow(F.len('l')), ow(F.len('f')), s), ow(F.len('l')), ow(F.len('f')), false, CUT_STUDIO, F);
       if (only.includes('front')) await shoot('front', orthoCam(T, F, F.fwd, F.up, ow(F.len('l')), ow(F.len('u')), s), ow(F.len('l')), ow(F.len('u')), false, STUDIO, F);
       if (only.includes('cutaway') && U && V) {
         const t1 = performance.now();
@@ -269,6 +274,7 @@
         await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, 50, 28), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
       }
     } finally {
+      room.forEach((l, i) => { l.intensity = roomI[i]; });
       if (cut) cutOff(cut);
       R.localClippingEnabled = lc;
       if (xray0 != null) { V.xray = xray0; U.build(); await stable(T, root); }
@@ -291,12 +297,12 @@
       busy = (busy || Promise.resolve()).catch(() => {}).then(run);
       return busy;
     },
-    async award(name) {
+    async award(name, title) {
       let st = null; try { st = window.BENCH_STATE ? window.BENCH_STATE() : null; } catch (e) {}
       if (!st || !st.passed) return { refused: 'no certificate' };
       const had = await api.get(name), h = hashOf(specNow());
       if (had && had.hash === h && had.fp === fpNow()) return { kept: had };
-      return { drawn: await api.generate({ name }) };   // the old fiche stays until this one is stored
+      return { drawn: await api.generate({ name, title }) };   // the old fiche stays until this one is stored
     },
     get(name) { return tx('readonly', s => s.get(name)).then(r => r || null); },
     forget(name) { return tx('readwrite', s => s.delete(name)); },

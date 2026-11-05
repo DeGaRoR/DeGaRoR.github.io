@@ -24,6 +24,10 @@ async function run(F, B) {
   ok(/const VIEWS = \['hero', 'above', 'side', 'plan', 'front', 'cutaway'\]/.test(F), 'the six views');
   ok(/shoot\('hero', heroCam\(T, F, HERO_W \/ HERO_H, 38, -28\)/.test(F), 'the hero: yaw 38, from below');
   ok(/shoot\('above', heroCam\(T, F, HERO_W \/ HERO_H, 38, 28\)/.test(F), 'the inverse hero: the same yaw, from above');
+  ok(/38, 28\), HERO_W, HERO_H, false, CUT_STUDIO, F\)/.test(F), 'the inverse hero: its own lights, not the below view\'s');
+  ok(/room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\] \* st\.room; \}\)/.test(F) && /room: 0\.35/.test(F) && /room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\]; \}\);\n\s*if \(cut\) cutOff/.test(F), 'a view from above dims the room, and the room is put back');
+  ok(/m\.n === w \* h\) throw/.test(F) && /m\.edge\) throw/.test(F), 'a picture that drew nothing or touches its frame stops the fiche');
+  ok(/numbers\(spec, F, opts\.title \|\| opts\.name\)/.test(F) && /name: title \|\| \(spec\.meta/.test(F), 'the name is the save\'s or the list\'s, before the file\'s');
   ok(F.indexOf("only.includes('above')") < F.indexOf("V.xray = 1"), 'the inverse hero is drawn before the cut: whole, wings on');
   ok(/c\.onBeforeCompile = m\.onBeforeCompile; c\.customProgramCacheKey = m\.customProgramCacheKey/.test(F), 'dup carries the shader step');
   ok(/rt\.isXRRenderTarget = true/.test(F), 'the target is display-space');
@@ -65,6 +69,11 @@ async function run(F, B) {
     ['a stale fiche removed', F.replace('if (!rec) return null;', "if (!rec) return null; tx('readwrite', s => s.delete(rec.name));")],
     ['the matte upside down', F.replace('const row = (h - 1 - y) * w * 4;', 'const row = y * w * 4;')],
     ['the target linear', F.replace('rt.isXRRenderTarget = true;', '')],
+    ['the top view on the below lights', F.replace('false, CUT_STUDIO, F);   // its eye', 'false, STUDIO, F);   // its eye')],
+    ['the room left dim', F.replace('room.forEach((l, i) => { l.intensity = roomI[i]; });', '')],
+    ['the room at full on a top view', F.replace('room: 0.35', 'room: 1')],
+    ['the frame check off', F.replace("if (m.edge) throw new Error('the ' + name + ' picture touches its frame');", '')],
+    ['the file\'s name first', F.replace('numbers(spec, F, opts.title || opts.name)', 'numbers(spec, F)')],
   ];
   let bad = 0;
   for (const [nm, f2] of BREAKS) { if (f2 === F) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; } const r = await run(f2, B); if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; } }
