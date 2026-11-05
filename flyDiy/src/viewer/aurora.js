@@ -35,14 +35,14 @@
       float w = 0.6 * fbm(u * 26.0 + seed + uT * 0.01);
       float rA = n1(u * 210.0 + seed * 3.0 + w * 9.0 + uT * 0.03), rB = n1(u * 640.0 + seed * 5.0 + w * 23.0 - uT * 0.02), rC = fbm(u * 58.0 + seed * 9.0 + uT * 0.015);
       float reach = 0.5 + 1.1 * rC * rC + 0.35 * rA;
-      float lower = smoothstep(-0.05 - soft, 0.03 + soft, x), upper = exp(-max(x, 0.0) * 3.0 / reach);
+      float lower = smoothstep(-0.16 - soft, 0.06 + soft, x), upper = exp(-max(x, 0.0) * 3.0 / reach);
       float rays = 0.3 + 0.75 * rA * rA + 0.55 * rB * rB * rB;
-      float along = smoothstep(0.34, 0.5, fbm(u * 9.0 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 37.0 + seed * 2.0 + uT * 0.02), 3.0);
+      float along = smoothstep(0.3, 0.56, fbm(u * 9.0 + seed * 7.0 + uT * 0.006)), bright = 0.6 + 1.0 * pow(n1(u * 37.0 + seed * 2.0 + uT * 0.02), 3.0);
       float I = lower * upper * rays * along * bright * s * (1.0 + 1.5 * exp(-max(x, 0.0) * 6.0));
-      float hem = (1.0 - smoothstep(-0.05, 0.05, x)) * max(1.0 - soft * 4.0, 0.0), top = smoothstep(0.3, 1.0, x / reach), mid = smoothstep(0.15, 0.7, x / reach);
+      float hem = (1.0 - smoothstep(-0.12, 0.1, x)) * max(1.0 - soft * 4.0, 0.0), top = smoothstep(0.3, 1.0, x / reach), mid = smoothstep(0.15, 0.7, x / reach);
       vec3 col = mix(vec3(0.06, 1.0, 0.2), vec3(0.03, 0.8, 0.42), mid);
       col = mix(col, vec3(0.62, 0.12, 0.8), top);
-      col = mix(col, vec3(0.9, 0.16, 0.6), hem * 0.8);
+      col = mix(col, vec3(0.9, 0.16, 0.6), hem * 0.55);
       return col * I;
     }
     void main() {
