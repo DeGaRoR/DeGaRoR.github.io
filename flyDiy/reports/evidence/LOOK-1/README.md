@@ -26,3 +26,23 @@ out, from 200 m and 35 m up.
 | `rig/` | `stage.js` / `stage_lights.js` (soft_still stages), the run scripts, `mips_canvas.py` (the mip table), `sheet.py`, the runs' light dumps (`run6_rows.json`, `run7_rows.json`) |
 
 Re-run: `L1_SCRATCH=<dir> bash rig/run7_key.sh` (one boot, ~15 min on 4 cores; one page at a time: two pages run out of 15 GB).
+
+## Pass 2 (5 Nov): the six picks, the forest in volume, the blue hour
+
+Same rig; `rig/views8-11.json` + `rig/stage_lights.js` (per-view `pre` and `vars`); the prototype dials of
+`rig/pass2_prototype.patch` (`?softprobe=1`, `L1U.crown`, `L1U.dirK`, `L1U.far`), applied for the runs only.
+
+| still | what it shows |
+|---|---|
+| `pick2_far_stand8.jpg` | **the forest of speckles at a low sun (~8 deg)**: today / the impostors reading the far cascade (shadows 'full' on at runtime): part of the stand loses its per-tree bright sides (8.4 % of pixels, luma x0.96) |
+| `pick2_far_stand30.jpg` | the same at ~30 deg: 2.3 %, x0.99 (untuned prototype) |
+| `pick2_far_potato_inert.jpg` | the same dial on potato: inert (no far cascade without shadows) |
+| `pick2_forest_dials.jpg` | a side-lit stand: today / impostor crown normals 1 (lollipops) / the key x0.5 / wrap 2 |
+| `pick1_aa.jpg` | potato aa off / msaa4 (small: potato has no clouds; the default preset's 0-sample case is GPU-only) |
+| `pick3_trees085.jpg` | trees today / MASTER.light x0.85 |
+| `pick4_air.jpg`, `pick4_mist.jpg` | turbidity 2.8 / 5 / 8; mist flat rh 0.5 / banks rh 0.85 |
+| `pick5_bloom.jpg` | bloom off (potato) / soft (current, gamer) |
+| `pick6_hand.jpg` | one stand at 40 m into the sun as geometry / as impostors: luma 0.92x, hue equal; the trunks differ |
+| `also_tone.jpg` | Cineon (today) / AgX / Khronos neutral |
+| `blue_softprobe.jpg` | the blue hour with the REAL probe forced on (dark trees, not white) / probe off / the night with the probe |
+| `softprobe_poison_noon.jpg` | why the forced probe cannot settle the blue hour: noon goes black (G1460), golden draws |

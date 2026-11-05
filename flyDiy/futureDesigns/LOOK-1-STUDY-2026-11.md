@@ -1,4 +1,7 @@
-# LOOK-1-STUDY — tree lighting: the night specks, diagnosis and methods (A0, 4 Nov 2026)
+# LOOK-1-STUDY — the harsh look: tree lighting, the air, the night (A0, 4-5 Nov 2026)
+
+TWO PASSES. Pass 1 (4 Nov, §0-§2): the night specks. Pass 2 (5 Nov, §B-§C): the 29 Oct pre-study's six picks and its
+"also" items, the user's forest-in-volume note and the blue hour as a bug. **§D is the one ordered landing plan.**
 
 A STUDY: no game code changed. Branch `claude/look-1-study` (off origin/master c2ac56b3, train L31c). Evidence:
 `reports/evidence/LOOK-1/` (README: one row a picture; `rig/`: the stages, run scripts and analysis). The one prototype
@@ -29,7 +32,7 @@ renderer the game bakes no sky probe.
 5. **It is in both tiers.** Geometry and impostors take the same key on per-card normals. The impostor lacks even the
    shadow map's occlusion, and the mips darken it most.
 6. **By day the same mechanism reads as sun-dappled foliage**, because the sunlit land makes the hemisphere's ground half
-   bright and the sky probe fills the crown. So the fix for the night must not touch the day (§3).
+   bright and the sky probe fills the crown. So the fix for the night must not touch the day (§D).
 
 ## 1. DIAGNOSIS
 
@@ -164,45 +167,180 @@ normals the artist transfers from a hull, not from the impostor. That is M1's jo
 - **GATE CARDMATCH** after either (cards follow the sheets by construction, so the ratio should hold).
 - Frame time: none expected from either; FRAMECOST `--census` for draws, programs and bytes. Never a SwiftShader time.
 
-## 3. PLAN (landable steps; the first serves the night hero)
+## 3. PLAN: superseded by §D (one ordered landing plan for both passes)
 
-### Step 1: crown normals at night (M1) (S-M)
-- **Files**: `src/viewer/trees.js` (the leaf hook: the normal blend in the vertex stage, `uCrownN` beside uWrap / uSSS in
-  `TREE_LEAF.uniforms`, so the impostor shares it); `src/viewer/render_world.js` (impostorMat: blend `nBake` with the quad's
-  sphere normal by the same uniform; `dayApply` sets it from the sun's elevation, 0 above -0.833 deg, 1 below -6).
-- **Cost**: draws 0; a normalize + mix per vertex (geometry) and per fragment (impostor); **programs 0** (unconditional text,
-  a uniform: check with GATE PROGRAMS); memory, bake, pack 0.
-- **Gates**: PROGRAMS (counts unchanged), TREES, TREE, GFX, CARDMATCH (a day row: unmoved, since the dial is 0), LIGHT (the
-  new writer is a dial, not a light), and a new row **CROWNN**: by day the uniform is 0 (the day bit-identical by
-  construction), under -6 deg it is 1, the text has no `#if` on it.
-- **Day-look risk**: none (0 by day). The dusk ramp is the thing to judge. Never preset-dependent.
+## 4. PICTURES: see `reports/evidence/LOOK-1/README.md` (pass 1 and pass 2 rows)
 
-### Step 2: the alpha-weighted leaf mips + a leaf-only level factor (A1) (S)
-- **Files**: `src/viewer/trees.js` (`coverageMips` loop; a `MIPFIX_K` on the leaf parts in `retint`, beside SHADE.k, not on
-  bark). The factor comes from the GPU measurement (§2.4); about 0.6 at range on SwiftShader.
-- **Cost**: 0 draws, 0 shader, 0 programs, 0 memory, load the same (measured), pack 0.
-- **Gates**: TREES, TREE, GFX, PROGRAMS, FRAMECOST census, CARDMATCH (GPU). A new node row **MIPCOLOR**: replay
-  `coverageMips` on every coverage-mip map; covered texels' mean at mips 5-7 within 0.75-1.05 of mip 0; NEGATIVE CONTROL:
-  the straight filter fails it (realistic fir 0.50 at mip 6).
-- **Day-look risk**: REAL. The far forest's level and its inner contrast move. The user sees day stills before and after
-  (`sheet_*_noon.jpg`, `sheet_*_golden.jpg` here are SwiftShader proxies) and decides; uFlat can buy the "bitty" back.
+---
 
-### Step 3: the tier match re-measured, with a night row (S, data only)
-IMP_LEVEL per sheet, uILit both states, SHADE_K, on gamer + potato x golden + noon + the full moon (the deadwood rig). Rows
-that move: none assert the values except CARDMATCH's ratio.
+# PASS 2 (5 Nov): THE 29 OCT PRE-STUDY, THE FOREST IN VOLUME, THE BLUE HOUR
 
-### Step 4: the backlit impostor at golden hour (S): one impostor-only translucency gain, measured into the sun to core ~0.9.
+The brief of pass 1 missed the starting point (A0, 5 Nov). The user, 29 Oct: *"the rendering keeps being harsh. Like it
+tries to do everything crisp ... there's blur in reality, through fog, distance, air, FOV ... The trees too, when lit
+under certain conditions, are very harsh and very pixely."* Six picks were agreed that day, each to be judged by eye on a
+before / after still. The user's notes on pass 1 (5 Nov) add two things: **look at a FOREST** (mostly impostors, side-lit,
+where every tree gets its own bright edge and the stand reads as "a forest of speckles"), and **treat the blue hour as a
+bug**.
 
-### Step 5 (optional): the sway phase shared at the hand-over (S, vertex only).
+Rig for pass 2: the same `soft_still.js` stages (`rig/stage_lights.js`, `rig/views*.json`), Jolene, potato on SwiftShader,
+plus three prototype dials in the working tree for the runs only (`rig/pass2_prototype.patch`, never in the branch's
+code): `?softprobe=1` (the real sky probe forced on a software renderer), `L1U.crown` (impostor crown normals), `L1U.dirK`
+(the impostor's key x k) and `L1U.far` (the impostors read the far cascade, B2).
 
-Not worth it now: a depth / thickness sheet, alpha hashing, larger tiles.
+## B. THE SIX PICKS (29 Oct) AND THE "ALSO" ITEMS
 
-## 4. PICTURES
+### B1. Alpha-to-coverage on the trees (pick 1)
+- **The cause, in the code:** every leaf material and impostor asks for it (`trees.js` `alphaToCoverage: !!cutout`,
+  `impostorMat` `alphaToCoverage: true`). But A2C only exists where the target has samples. `aa_resolve.js` tiers: `off`
+  = "the canvas's 4x MSAA, none under the clouds" (G1250: once a pass asks for the target the clouds' needRT draws it at
+  ZERO samples). **'current', the default preset, is `aa: 'off'` with `clouds: 'half'`**, so for most players every leaf
+  and impostor edge is the hard cut that EDGE_GLSL's sharpen leaves. It is on only for gamer (msaa) and ultra (full), and
+  potato / laptop (no clouds: the canvas's 4x). The TSL path cuts at a plain 0.5 (A0's read, render_world ~3390;
+  WebGPU-only, not the shipped renderer).
+- **Methods:** (a) the `off` tier keeps 4 samples under the clouds (= `msaa4` for 'current'): the frame's colour + depth x4
+  at render scale (1080p RGBA16F ~ +50 MB), resolve cost, fill; (b) alpha hashing (Wyman & McGuire 2017) where there are
+  no samples: a stochastic cut, needs TAA to be clean, so not without TAA; (c) a wider EDGE sharpen on a 0-sample target
+  (a softer cut, blurrier at range, no AA): cheap, partial.
+- **Cost / gate:** (a) is a memory and fill question for the strict-30 frame: **GPU only** (FRAMECOST census + a low
+  flight over the forest, current preset, before / after). 0 programs (the tier's sample count is not a program key).
+- **Still:** `pick1_aa.jpg` (potato, aa off / msaa4): a small softening. Potato has no clouds, so its 'off' may already
+  draw at the canvas's 4x: **the default preset's case (clouds on, 0 samples) must be shot on the GPU**. No frame time here.
 
-`reports/evidence/LOOK-1/README.md`: one row a still. All at the HOME stand on Jolene, potato on SwiftShader, 1280 x 720,
-JPG q85. The three that show it best: `key_specks_near.jpg` (the moon key on / off: the specks are the key),
-`sheet_near_night.jpg` (the mips: before / after A1), `swiftshader_env_artefact.jpg` (why the cloud's own night frames
-look frosted and must not be judged as the game).
+### B2. Trees lighting up on their sides in the forest, golden hour (pick 2) + the user's 5 Nov "forest of speckles"
+- **The cause, in the code:** each impostor is lit alone: the key's `N·L` on its baked normals plus the leaf wrap (0.80)
+  and the translucency (1.12) give every crown a bright sun side and a bright rim, and **nothing shades one tree from its
+  neighbour at range**. The near shadow map reaches ~105-540 m round the aeroplane. Beyond, the game already renders a
+  FAR CASCADE of the impostor quads (render_world.js W0c.19: ±1400 m about the eye, 2048², the trees' sun-facing
+  silhouettes, every 4th frame), but by design **only the terrain samples it**: "Not a general cascade: trees do not read
+  it". So in a stand every tree shows its own lit side: the speckle in volume, worst when the key is low and to the side.
+- **What does not fix it:** crown normals (`L1U.crown`, pass 1's M1) make each impostor a lit ball; in volume that is a
+  forest of lollipops, still one bright side per tree (`pick2_forest_crown.jpg`). Pass 1's M1 stays a near-tree / night
+  method only. Halving the key (`L1U.dirK` 0.5) evens the stand only by darkening it.
+- **Methods:**
+  - **F1, the impostors read the far cascade** (prototype `L1U.far`): the existing map, four taps of packed depth like the
+    terrain's, the receiver point moved toward the sun by ~0.35 x the crown's diameter so a tree does not shade itself.
+    The trees upwind shade the trees behind them, as a canopy does. Cost: +1 sampler, 4 taps a fragment on the impostor
+    tier, 0 memory (the map exists), 0 programs if the text is unconditional (a dial uniform). GPU: the impostor fragment
+    cost over a dense stand (FRAMECOST low flight). Engines: a far / distance-field shadow cascade that the vegetation
+    receives is the standard answer (UE's far cascades and distance-field shadows, a forest's "canopy shadow map").
+  - **F2, canopy-density occlusion from the cover map** (`COVER`, the straight-down crown mask the terrain's floor already
+    reads): one tap at the tree's root, darkening the crown's lower half and its key in dense cover. An AO for the stand,
+    not a shadow. Cost: 1 tap, +1 sampler.
+  - **F3, a crowding attribute at placement** (the fill knows each tree's neighbours): a per-instance "how enclosed" that
+    lowers the wrap / translucency and the key on the inner trees. 0 taps, a float per instance.
+- **Measured (prototype, SwiftShader, shadows 'full' switched on at runtime):** a stand of realistic fir side-lit by a
+  LOW sun (~8 deg): today every crown carries its own bright orange side (the user's "forest of speckles", exactly);
+  with F1 part of the inner crowns lose it, 8.4 % of the stand's pixels change, luma x0.96 (`pick2_far_stand8.jpg`).
+  At ~30 deg: 2.3 %, x0.99 (`pick2_far_stand30.jpg`). Partial, untuned: the sunward offset (0.35 x the diameter), the
+  cascade's 1.4 m texel and its depth bias are the dials, to tune on the GPU. **On potato the dial is inert**
+  (`pick2_far_potato_inert.jpg`): the far cascade renders only where the preset has shadows (gfx_settings
+  `farShadow: sh.on && sh.far`), so F1 serves current / gamer / ultra, and F2 / F3 the shadowless presets.
+- **Recommended:** F1 first (it is the physical answer, the data already exists), F2 as its ambient half and the
+  shadowless presets' answer. Crown normals and the key's gain: `pick2_forest_dials.jpg`.
+
+### B3. Trees a little darker in plain sun (pick 3)
+- **The cause, in the code: the trees count the sky twice.** Leaf materials and impostors are MeshStandardMaterial
+  (`envMapIntensity` 1): they take the hemisphere light AND the sky probe's irradiance (`scene.environment`). The world's
+  terrain is Lambert and opts out of the probe on purpose (render_world.js "THE WORLD'S LAMBERT STAYS OUT OF THE
+  ENVIRONMENT": letting the IBL in "would count the sky a second time on every slope, tree and roof"). The trees were left
+  with both. On top, `SHADE_K` 1.38 lifts both tiers where trees cast shadows (G1975.1, the user's column 3).
+- **Methods:** (a) the trees take ONE sky term: the probe's diffuse share on leaf materials set to (1 - the hemisphere's
+  share), or the hemisphere off on trees and the probe alone (the probe is the better ambient: directional, it carries
+  the sky's colour gradient); a uniform each, 0 programs; (b) the simple dial: MASTER.light x 0.85 (`pick3_*`); (c) keep
+  both and lower SHADE_K. (a) is the fix; it also changes the blue hour (C2), the night's fill and the step (B6). Each
+  needs the re-measure of B6.
+- **Still:** `pick3_trees085.jpg` (the dial). (a) needs the real probe: **GPU only** (SwiftShader's static environment, §5).
+
+### B4. Thicker air (pick 4)
+- **The cause, in the code:** the mechanism is complete (ATMO's Hillaire aerial perspective, Mie scaled by the day's
+  turbidity; the mist layer F1/F2). It is set clear: `DAY_CLOCK GAME_DAY.turbidity` 2.8 ("~48 km: the hills keep their
+  aerial depth") and the 'current' preset's mist 'on' (one flat layer); gamer 'land'.
+- **Methods:** (a) the game's default turbidity 2.8 -> ~5 (a summer haze, visibility ~20-25 km), 0 cost (`pick4_air_t5`,
+  `_t8`); (b) humidity: rh with the mist 'banks' (`pick4_mist`), a few tenths of a ms; (c) a "near haze" floor: a minimum
+  AP in-scatter within the first km (the ground haze that real air always has), a uniform in ATMO's splice. The forward
+  Mie glow round the sun ("diffusing lights at a distance") comes with (a). All are the user's eye; (a) is free. **Stills:** `pick4_air.jpg` (turbidity 2.8 / 5 / 8), `pick4_mist.jpg`.
+
+### B5. A better bloom, not more (pick 5)
+- **The cause, in the code:** `bloom: 'soft'` (gamer / current) is a thresholded 5-level pyramid: "the brightest pixels
+  (the sun, lamps, highlights) bleed". A threshold makes bright edges halo and leaves the rest of the frame clinical.
+- **Methods:** (a) the Call of Duty: Advanced Warfare bloom (Jimenez, SIGGRAPH 2014): no threshold, every pixel at a small
+  weight (~0.04), a 13-tap downsample with a Karis average against fireflies, a tent upsample. It reads as air and lens
+  scatter rather than glow, at the same pyramid's cost; (b) keep the threshold, widen the kernel and halve the weight.
+  (a) is the "better". **Still:** `pick5_bloom.jpg` (potato's off / today's soft); (a) is not built here (code, not a dial).
+
+### B6. The 3D model to impostor step recalibrated (pick 6)
+- **The cause, in the code:** the match (G1975 uILit, G2591 IMP_LEVEL) was measured by day at the hand-over, before the
+  probe followed the sun and before the night; three things move it since: the double sky (B3: both tiers take it, but the
+  baked normal faces the sky more than a card does), the mip darkening (pass 1 §1.4: the sheet is baked at mip 6-7, the
+  geometry at the hand-over draws mips 2-4), and the night (no row ever).
+- **Method:** data only: the deadwood rig (`tools/perf/deadwood/match2.js`) re-run after B3 and A1 land, golden + noon +
+  the full moon, gamer + potato; IMP_LEVEL / uILit / SHADE_K from it. **Still:** `pick6_hand.jpg` (geometry / impostor of
+  the same stand at 40 m, potato, into the sun): the impostor 0.92x the geometry's luma, the hue the same to three
+  decimals; the visible step is the shape (potato's 64 px tile) and the trunks (pale pink on the impostor, black on the
+  backlit geometry: G1975's into-the-sun side finding, still open).
+
+### B7. The "also" items
+| item | the code today | method | cost | verdict |
+|---|---|---|---|---|
+| tone curve default | **Cineon** since the colour ruling (not ACES, as the 29 Oct reading assumed); AgX, neutral in the menu | AgX or Khronos neutral as default (`also_tone.jpg`) | 0 | the user's eye; neutral keeps the colours the world was tuned in, AgX softens highlights |
+| specular AA | trees are roughness 1 (no specular); the water already turns its sub-pixel slope variance into roughness (water.js) | geometric specular AA (Tokuyoshi & Kaplanyan 2019) on the aeroplane skin and wet pavement | a few ALU | low: the trees do not sparkle, the water is done |
+| shadow penumbra | impostorMat forces PCF over PCF_SOFT; the far cascade 4 taps at 1.4 m a texel | PCSS (a blocker search + a variable kernel) on the near map; a wider kernel with distance | 16+ taps a lit fragment: GPU only | after B2 (the far cascade on the trees changes what shadows are seen) |
+| TAA | none | history + reprojection + motion vectors (the flexing aeroplane, the prop) | ~1-2 ms, 2 RGBA16F targets, ghosting risk | not now; it would make alpha hashing and specular AA cheap later |
+
+## C. THE USER'S 5 NOV NOTES
+
+### C1. The forest in volume: see B2 (the impostors read the far cascade). The impostors, not the near models, are what is
+seen in volume, and they are where the method lands.
+
+### C2. The blue hour, as a bug
+- **What the cloud's frames show, judged critically:** at sun -5 deg SwiftShader drew the trees (and the water) near-white
+  over dark land (`blue_*`). That is a RIG ARTEFACT: on a software renderer the game bakes no probe (G1460) and lights
+  Standard materials with a static daylight sky made at boot (`swiftshader_env_artefact.jpg`), so at the blue hour's exposure (x40) the trees and the
+  water, which read it, blow out, and the Lambert ground, which does not, stays dark. With the probe forced on
+  (`?softprobe=1`) the blue-hour trees are dark, not white (`blue_softprobe.jpg`). But forcing the probe on SwiftShader
+  blackens every material at noon (G1460's poisoning, `softprobe_poison_noon.jpg`), so the blue hour cannot be settled on SwiftShader either way.
+- **What is real in the code, and fits "a shine from only one angle, at the blue hour and at night":**
+  1. **The blue hour is the only time with no key.** The sun's key fades out by -1.5 deg, the moon takes the key at
+     -1.2 deg (`sky_light.js`, the hysteresis) and is ~1e-5 until it is high; measured at -5.2 deg: key 1e-5, hemisphere
+     0.034, exposure 40.7. The light is the sky alone.
+  2. **The trees count that sky twice, the ground once (B3).** With no key to dominate, the second term is the trees'
+     whole difference from the land.
+  3. **The probe is directional.** At the blue hour the sky's radiance is concentrated in the sunset band; the probe
+     lights the crown sides that face it, so trees glow from one azimuth. The hemisphere (the ground's only sky) has no
+     azimuth. At night the moon key returns and masks it, partly.
+  4. The pre-exposure switch sits in the same window (P 1 above -5.5, 2^14 under -6.5): the probe re-bakes at the switch
+     (`preCut`), and the water's "~1 s glint toward the sun after the switch" from G2620 is still open: one more reason the
+     blue hour can look out of line with the hours either side.
+  The exposure ladder itself is smooth through it (light_rig `exposureFor`: 5.6 at -1, 36.8 at -5, 93 at -6.5, 148 at -7;
+  no step at the switch).
+- **The bug's GPU test (A0, 10 minutes):** the same forest at sun -2, -4, -6, -8 deg, four frames each: as is,
+  `scene.environment = null`, the hemisphere at 0. Read the trees' and the ground's luma. If the trees / ground ratio
+  jumps in the keyless window and the probe-off frame brings it in line with the other hours, B3 (a) is the fix and it is
+  the same fix as pick 3.
+
+## D. ONE ORDERED LANDING PLAN (both passes; cheapest with the biggest gain first, the night hero served first)
+
+Each step: the files, the cost, the gate, the risk to the day look the user tuned. Rules held: strict perf (stable 30), no
+new program where a uniform will do, never a look that only an unreachable preset gets.
+
+| # | step | serves | files | cost | gates | day-look risk |
+|---|---|---|---|---|---|---|
+| **D0** | **A0's GPU test, 10 min** (C2): the forest at sun -2 / -4 / -6 / -8 deg and the full moon; as is / probe off / hemisphere 0; trees' and ground's luma; and the impostors with `L1U.far` 0 / 1 at golden hour on gamer (the prototype patch) | decides D1 and D2 | none (the patch, a scratch tree) | none | none | none |
+| **D1** | **the trees count the sky once** (B3 a): a leaf-material uniform splitting the sky between the hemisphere and the probe (one term in all), the impostors through the same uniform | **the blue hour bug** (C2), pick 3 (darker in sun), the night's fill, feeds pick 6 | trees.js (the leaf hook), render_world.js impostorMat | 0 draws, 0 programs, 0 memory | PROGRAMS, LIGHT (a row: trees take one sky term), CARDMATCH (cards follow by construction), TREES | REAL and wanted: the trees darker in plain sun is the user's pick 3; level compensated only if the user asks |
+| **D2** | **the impostors read the far cascade** (F1), the cover map's stand AO (F2) for the shadowless presets | **pick 2 + the forest of speckles** (C1); the night at range (the cascade follows the key: the moon at night) | render_world.js impostorMat (the terrain's own 4-tap lookup, the receiver moved sunward by the crown), farRender unchanged | +1-2 samplers, 4-5 taps an impostor fragment, 0 memory, 0 programs | PROGRAMS, FRAMECOST (low flight over the forest, current + gamer), CARDMATCH | stands darker on their shaded sides; the lone trees unchanged |
+| **D3** | crown normals at night, near geometry only (pass 1 M1; NOT on the impostors: `pick2_forest_crown` shows why) | the hero shot's near specks | trees.js leaf hook (vertex), the dial from dayApply | a mix + normalize a vertex, 0 programs | PROGRAMS, a CROWNN row (0 by day) | none (0 by day) |
+| **D4** | alpha-to-coverage for real on the default preset: the `off` tier keeps 4 samples under the clouds (B1 a) | pick 1 ("pixely") | aa_resolve.js (the tier's needRT sample count) | ~+50 MB at 1080p, fill: **GPU decides** | FRAMECOST, AA | edges softer everywhere: the asked-for change |
+| **D5** | alpha-weighted leaf mips + a leaf-only level factor (pass 1 A1) | the specks' amplifier, "harsh" crowns at range, pick 6 | trees.js coverageMips, retint | 0 (load time measured the same) | MIPCOLOR (new, with the straight filter as its negative control), TREES, CARDMATCH | REAL: the far crowns' level and contrast; the user judges `sheet_*` |
+| **D6** | the tier match re-measured, golden + noon + the full moon (a night row for the first time) | pick 6 | render_world.js IMP_LEVEL / TREE_SHADED numbers | data only | CARDMATCH, TREES | holds the approved level by construction |
+| **D7** | thicker air: the default turbidity 2.8 -> the user's pick from `pick4_*`, a near-haze floor in ATMO's AP | pick 4 | day_clock.js GAME_DAY, atmo.js | 0 | ATMO, DAY, SKY | the whole picture: the user's eye |
+| **D8** | a better bloom: thresholdless, energy-conserving (Jimenez 2014) | pick 5 | the post pass (aa_resolve / bloom) | the same pyramid; 0-1 program swapped, not added | POSTFX, PROGRAMS | the glow round lamps and the sun: the user's eye |
+| **D9** | the tone curve trial: AgX / neutral as default (`also_tone_*`) | "also" | gfx_settings.js COLOUR | 0 | GFX | the whole picture: the user's eye |
+| **D10** | later: the golden-hour backlit gain on impostors, the sway phase, specular AA on the skin, PCSS, TAA | pick 2 (backlit), "also" | | | | |
+
+**Pass 1's steps against the six picks:** its crown normals serve the near trees and the night only, not pick 2 in volume
+(D3); its mip fix (D5) serves the "harsh / pixely" crowns at range and pick 6; its tier re-measure is pick 6 (D6); its
+backlit gain is pick 2's golden-hour half (D10). Pass 1's "step 1" moves down: the forest and the blue hour come first.
+
 
 ## 5. What SwiftShader cannot show
 
@@ -212,6 +350,9 @@ look frosted and must not be judged as the game).
   the probe-off frames are the closer stand-in). The probe's real share at night is the first GPU number to take.
 - Only potato: no tree shadows (uILit 1.242; the shadow map's crown occlusion on shadowed presets is not seen), 64 px
   tiles, no MSAA (alpha-to-coverage inert), no 4K.
+- **Forcing the probe on (`?softprobe=1`, pass 2) does not help by day**: every material goes black at noon (G1460's
+  poisoning); it draws at night and at golden hour only.
+- **No far cascade on potato**: it needs world shadows; pass 2 switched shadows 'full' on at runtime to show B2.
 - No frame time, ever.
 - The user's shore cottage, its lamps and Twin_4b: not in the repo.
 
@@ -230,3 +371,6 @@ look frosted and must not be judged as the game).
 - Castano 2010 (coverage-preserving alpha mips): already cited in trees.js's header.
 - In this repo: TREES-FROM-TWIGS-2026-09-08 §3.3; VEGETATION-2026-09-15; HANDOVER G1975 / G1975.1 / G2590-G2591 /
   G3180-G3186 / NIGHT-LOOK step 1 (G2600, G2620).
+- Pass 2 (cited by title; the methods are well known, no page was fetched for them): J. Jimenez, "Next Generation Post
+  Processing in Call of Duty: Advanced Warfare", SIGGRAPH 2014 (the thresholdless bloom); C. Wyman, M. McGuire, "Hashed
+  Alpha Testing", I3D 2017; Y. Tokuyoshi, A. Kaplanyan, "Improved Geometric Specular Antialiasing", I3D 2019.

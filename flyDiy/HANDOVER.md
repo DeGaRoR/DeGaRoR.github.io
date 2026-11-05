@@ -312014,3 +312014,11 @@ Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/`
   REAL day-look change: the user judges); 3 the tier match re-measured with a night row; 4 golden backlit gain; 5 sway.
 - CLOUD RIGS BEWARE: on SwiftShader the game has NO sky probe (G1460) and lights Standard materials with a static boot-time
   environment - every cloud night / blue-hour frame shows frosted or white trees that the GPU does not draw.
+- PASS 2 (5 Nov, from the user's 29 Oct pre-study + the 5 Nov notes; study §B-§D): ONE landing plan D0-D10. D0 = A0's
+  10-min GPU test. D1 the trees count the sky ONCE (leaf materials take the hemisphere AND the probe; the Lambert world
+  opts out) - the blue-hour "shine from one angle" (the only keyless window: sun key gone by -1.5 deg, moon 1e-5) and pick
+  3. D2 the impostors read the existing FAR CASCADE (terrain-only today: "trees do not read it") - the forest of speckles,
+  prototype at a low sun: 8.4 % of a stand's pixels, x0.96; shadowed presets only, the cover map for the rest. Then crown
+  normals at night (near only), A2C for real on 'current' (0 samples under the clouds today), the mips, the tier re-measure,
+  air (turbidity 2.8 -> pick), bloom (thresholdless), tone trial. The default tone is Cineon, not ACES.
+  SwiftShader: the blue-hour white trees are the static-env artefact; forcing the probe on blackens noon (G1460).
