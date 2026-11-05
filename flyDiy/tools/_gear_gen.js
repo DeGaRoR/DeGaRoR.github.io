@@ -1702,7 +1702,10 @@ function legOleo(bags, AF, P, st, sgn) {
   const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted oleo roots above its own foot, so the strut hangs
   // dead vertical and the wheel rides its stub axle outboard (see fitOn)
-  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn);
+  // (GR, the Catalina: `st.ret.flip` - the wheel rides INBOARD of the leg, so it slots into the hull's side while the
+  // leg stays outside)
+  const hS = st.ret && st.ret.flip ? -1 : 1;
+  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn * hS);
   const drop = st.drop, half = st.x;
   // RETRACT GM1 (futureDesigns/RETRACT-STUDY-2026-11.md §8.11): A RETRACTING LEG TURNS ON A TRUNNION INSIDE THE
   // STRUCTURE - `st.ret` { in: metres inward from the skin (the wing's mid-depth, a body frame's), pin: the fold's first
@@ -1712,7 +1715,7 @@ function legOleo(bags, AF, P, st, sgn) {
   // an oleo had no rake law of its own: the wheel offset IS its rake — the
   // strut is whatever line joins the trunnion to the axle
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + (st.axZ || 0)];
-  const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
+  const axleIn = [axle[0] - sgn * hubIn * hS, axle[1], axle[2]];
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
@@ -1816,7 +1819,7 @@ function legOleo(bags, AF, P, st, sgn) {
                        (Rc + Math.max(0, P.oleoScissor) + 0.03) / 0.35),
               Math.max(P.oleoDia * 1.5, st.R * 0.30));
   const axis = [sgn, 0, 0];
-  axleStub(bags, axleIn, axis, hubIn);
+  axleStub(bags, axleIn, hS < 0 ? [-sgn, 0, 0] : axis, hubIn);
   return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1), ...(RT ? { pin: pax, trunnion: trunn } : {}) };
 }
 

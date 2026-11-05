@@ -896,8 +896,20 @@ function knifeCarveF(m, cuts, skip) {
       if (out.length >= 3) outs.push(out);
       rest = inn; if (rest.length < 3) return null;
     }
+    // inside the walls: the part in FRONT of the floor carved, the part beyond it kept - the floor taken as the plane of
+    // its value at the piece's centroid (a face reaching from behind the floor into the recess is cut at the floor)
     const c = [0, 0, 0]; for (const i of rest) for (let k = 0; k < 3; k++) c[k] += V[i][k] / rest.length;
-    if (c[0] * P.aIn[0] + c[1] * P.aIn[1] + c[2] * P.aIn[2] >= P.floor(c)) return null;    // beyond the floor: left whole
+    // (the floor is fitted, not flat: the deepest of it under the piece, and 8 mm more - nothing shows through)
+    let fl = P.floor(c); for (const i of rest) fl = Math.max(fl, P.floor(V[i])); fl += 0.008;
+    const e = rest.map(i => V[i][0] * P.aIn[0] + V[i][1] * P.aIn[1] + V[i][2] * P.aIn[2] - fl);
+    if (e.every(x => x >= -1e-9)) return outs.length ? outs.concat([rest]) : null;            // wholly beyond: as it was
+    if (e.some(x => x > 1e-9)) {
+      const keep = [];
+      for (let a = 0; a < rest.length; a++) { const b = (a + 1) % rest.length;
+        if (e[a] >= -1e-9) keep.push(rest[a]);
+        if ((e[a] > 1e-9 && e[b] < -1e-9) || (e[a] < -1e-9 && e[b] > 1e-9)) keep.push(mk(rest[a], rest[b], e[a] / (e[a] - e[b]))); }
+      if (keep.length >= 3) outs.push(keep);
+    }
     return outs;
   };
   for (const f of m.F) {
@@ -984,11 +996,21 @@ function knifeCarve(m, cuts, skip) {
       rest = inn;
       if (rest.length < 3) return null;
     }
-    // inside every wall: carved if under the ceiling there (its centroid), else kept with the pieces
+    // inside every wall: the part UNDER the ceiling carved, the part over it kept - the ceiling taken as the plane of its
+    // height at the piece's centroid (a face reaching from over the ceiling down into the well is cut at it)
     let cx = 0, cy = 0, cz = 0;
     for (const i of rest) { cx += V[i][0]; cy += V[i][1]; cz += V[i][2]; }
     cx /= rest.length; cy /= rest.length; cz /= rest.length;
-    if (cy >= pr.at(cx, cz)) return outs.length ? null : null;    // over the ceiling: the face is left whole
+    let ch = pr.at(cx, cz); for (const i of rest) ch = Math.max(ch, pr.at(V[i][0], V[i][2])); ch += 0.008;   // (the highest of it, 8 mm over)
+    const e = rest.map(i => V[i][1] - ch);
+    if (e.every(x => x >= -1e-9)) return null;                    // wholly over the ceiling: the face is left whole
+    if (e.some(x => x > 1e-9)) {
+      const keep = [];
+      for (let a = 0; a < rest.length; a++) { const b = (a + 1) % rest.length;
+        if (e[a] >= -1e-9) keep.push(rest[a]);
+        if ((e[a] > 1e-9 && e[b] < -1e-9) || (e[a] < -1e-9 && e[b] > 1e-9)) keep.push(mk(rest[a], rest[b], e[a] / (e[a] - e[b]))); }
+      if (keep.length >= 3) outs.push(keep);
+    }
     return outs;
   };
   for (const f of m.F) {

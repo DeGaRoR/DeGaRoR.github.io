@@ -185,10 +185,13 @@ const FOLD_PRESETS = {
   aft:       { turns: [[1, 90]], twist: 0 },                 // a nose leg aft (Arrow, Bonanza, 210)
   fwd:       { turns: [[1, -90]], twist: 0 },                // a nose leg forward (air and gravity help it down)
   // GR (the user, 5 Nov: "study the catalina ... a popular way of retracting gear for boat planes ... cut into a fuselage or
-  // a Hull ... not necessarily requiring doors"): the wheel hanging just outside the hull's side LIFTS ALONG IT - the leg
-  // turns about the lateral axis (it keeps its lateral place) - into a recess in the side, part of it out (the trim puts
-  // the wheel's centre on the skin; the side well is cut from the side)
-  catalina:  { turns: [[1, 90]], twist: 0 },
+  // a Hull ... not necessarily requiring doors"; again: "an inset in the fuselage in which the wheel really slots in ... a
+  // nice round"): THE PBY-5A's MAINS, in two turns - the leg, on an EXTERNAL fitting on the hull's side, swings AFT and up
+  // about the lateral axis till it lies level (the wheel, inboard of the leg and kept just outside the side by the leg's
+  // splay, rising along the side, upright), then TUCKS inward about the vertical axis: the wheel moves sideways into a
+  // round recess in the side, its outer face near flush, the leg outside. Both angles are solved (the leg level; the
+  // wheel's centre 50 mm into the side); the strut runs aft along the side to the leg; the jack is inside the hull
+  catalina:  { turns: [[1, 90], [2, 15]], twist: 0 },
 };
 const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom', 'catalina'];   // (appended: a saved index keeps its fold)
 const FOLD_NOSE_KEYS = ['aft', 'fwd', 'custom'];
@@ -251,8 +254,22 @@ function foldChain(u, key, P, SP) {
   // stub outboard of the leg folds inward ~ its offset UNDER the pin otherwise. A custom fold, a partial one: as set
   const preset = (key === 'T' ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
   C.trim = 0;
-  // (the Catalina's lift along the hull's side is the leg's own: no trim - the wheel rises to the pin's height)
+  // (the Catalina: its two turns SOLVED - the first till the leg lies level, the second till the wheel's centre is 50 mm
+  // into the hull's side)
   const catF = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+  if (catF && C.turns.length === 2 && C.frac >= 0.999) {
+    const [T1, T2] = C.turns, v0 = [ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]];
+    let b1 = null;
+    for (let d = 45; d <= 135; d += 0.25) { const q = fApp(fRot(T1.axis, d * D2R), v0); const e = Math.abs(q[1]); if (!b1 || e < b1.e) b1 = { e, d }; }
+    T1.ang = b1.d * D2R;
+    let b2 = null;
+    if (SP) for (let d = 0; d <= 40; d += 0.25) {
+      T2.ang = d * D2R;
+      const Mz = foldPose(C, 0), q = fApp(Mz, v0), c = [h[0] + q[0], h[1] + q[1], h[2] + q[2]];
+      const e = Math.abs(SP.bodyIn(c) - 0.05); if (!b2 || e < b2.e) b2 = { e, d }; }
+    T2.ang = (b2 ? b2.d : 15) * D2R;
+    C.solved = [b1.d, b2 ? b2.d : null];
+  }
   if (SP && preset && !catF && C.frac >= 0.999 && C.turns.length) {
     const T = C.turns[C.turns.length - 1], a0 = T.ang, sg = a0 < 0 ? -1 : 1;
     let best = null;
@@ -448,7 +465,9 @@ function foldFit(P, swing, AF, W, MX) {
   // corners (box, gearWellCut 1: the fallback), FIT.clear wider all round; the ceiling is their highest point and
   // FIT.clear more. Two outlines that meet are cut as one (their hull, the higher ceiling). In the layer's metres here;
   // the knife takes them in cage units (cutsCage)
-  { const mode = +P.gearWellCut === 1 ? 'box' : 'exact', rawAll = wellRaw(units, bodyIn, MX);
+  { const mode = +P.gearWellCut === 1 ? 'box' : 'exact';
+    const catK = FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina' ? new Set(['L', 'R']) : null;
+    const rawAll = wellRaw(units, bodyIn, MX, catK);
     // GR (the Catalina): A UNIT ENTERING THE BODY THROUGH ITS SIDE is cut from the side - its swept points near the skin
     // (within 40 mm of it), their section's outward direction averaged: mostly lateral (|nx| > 0.6) is a side well
     const sideOf = r => { let nx = 0, n = 0;
@@ -548,14 +567,27 @@ function wellMechPts(MX, key, g) {
 }
 // a unit's swept points inside a structure (`inFn` > 0: the body's section, or the wing's skins), with the points where a
 // swept point crosses that structure's skin between two poses
-function wellRaw(units, inFn, MX) {
+// the tyre's two rims finely (48 points each, at the full radius and 96 %): a wheel-only recess's outline comes out ROUND
+function wheelRims(C) {
+  const a = C.wAx, R = C.R, hw = 0.38 * R, c = C.axle;
+  const ref = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const u = fNrm([a[1] * ref[2] - a[2] * ref[1], a[2] * ref[0] - a[0] * ref[2], a[0] * ref[1] - a[1] * ref[0]]);
+  const v = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]], out = [c.slice()];
+  for (const sd of [-hw, hw]) for (const r of [R, 0.96 * R]) for (let k = 0; k < 48; k++) {
+    const ca = Math.cos(k * Math.PI / 24) * r, sa = Math.sin(k * Math.PI / 24) * r;
+    out.push([c[0] + a[0] * sd + u[0] * ca + v[0] * sa, c[1] + a[1] * sd + u[1] * ca + v[1] * sa, c[2] + a[2] * sd + u[2] * ca + v[2] * sa]);
+  }
+  return out;
+}
+function wellRaw(units, inFn, MX, wheelOnly) {
   const raw = [];
   for (const key in units) {
-    const U = units[key], h = U.C.hinge, ax = U.C.axle, inside = [];
-    const all = U.pts.W.concat(WELL_LEG.map(f => [h[0] + (ax[0] - h[0]) * f, h[1] + (ax[1] - h[1]) * f, h[2] + (ax[2] - h[2]) * f]));
+    // (`wheelOnly` keys - the Catalina's mains: their leg and strut stay outside the hull, the recess is the wheel's alone)
+    const U = units[key], h = U.C.hinge, ax = U.C.axle, inside = [], wo = wheelOnly && wheelOnly.has(key);
+    const all = wo ? wheelRims(U.C) : U.pts.W.concat(WELL_LEG.map(f => [h[0] + (ax[0] - h[0]) * f, h[1] + (ax[1] - h[1]) * f, h[2] + (ax[2] - h[2]) * f]));
     let prev = null, prevD = null;
     for (const g of WELL_G) {
-      const ps = poseAll(U.C, all, g).concat(MX ? wellMechPts(MX, key, g) : []), ds = ps.map(inFn);
+      const ps = poseAll(U.C, all, g).concat(MX && !wo ? wellMechPts(MX, key, g) : []), ds = ps.map(inFn);
       for (let i = 0; i < ps.length; i++) {
         if (ds[i] > 0) inside.push(ps[i]);
         if (prev && (ds[i] > 0) !== (prevD[i] > 0)) {         // crossing the skin between two poses
@@ -867,7 +899,18 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       return { Lp, S, D, bend: best.B, worst: best.worst };
     };
     let br = null;
-    for (const bp of [MECH.bracePt, 0.30, 0.22]) {
+    const catM = k !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+    if (catM && SP) {
+      // THE CATALINA'S STRUT: from a fitting on the hull's side (found on the skin by bisection, 30 mm out) to the leg
+      // (45 % down); its knee folding OUTWARD (the PBY's strut ran to the wing; the jack that works it is inside the
+      // hull - not drawn)
+      // (v2: the strut's fitting AFT along the side at the pin's height - 40 % of the leg's length aft, 60 mm under - so
+      // it is longest gear down (straight, locked) and folds as the leg swings aft and level; its knee goes outward)
+      const L = dist(h, ax), sg = h[0] >= 0 ? 1 : -1, y = h[1] - 0.06, z = h[2] - 0.4 * L;
+      let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, z]) > 0) lo = m2; else hi = m2; }
+      const S = [sg * (lo + 0.03), y, z], Lp = legPt(0.45), D = dist(S, Lp);
+      br = { Lp, S, D, bend: [S[0] + sg * D, S[1] - 0.2 * D, S[2]], worst: 0 };
+    } else for (const bp of [MECH.bracePt, 0.30, 0.22]) {
       const c = braceAt(bp);
       if (!br || c.worst > br.worst + 0.002) br = c;
       if (!SP || br.worst >= 0.005) break;
@@ -896,8 +939,8 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       KT.revolve(b.bronze, KT.off(Lp, pn, -0.026), pn, [[0.007, 0], [0.007, 0.052]], 10, true);
     });
     info[k] = Object.assign({ S, Lp, D }, info.knee != null ? { knee: info.knee } : {}); delete info.knee;
-    // THE ACTUATOR
-    if (act === 2) continue;
+    // THE ACTUATOR (the Catalina's works its strut from inside the hull: none drawn)
+    if (act === 2 || catM) continue;
     // GR R2 (the user: "you have your piston still sticking out at the end"): THE BASE IS PLACED INSIDE - searched along
     // the actuator point's stowed line from the trunnion (2.8 .. 1.5 x its offset) and turned off it in the swing plane
     // (0, +-15, +-30, +-45 deg), the first whose base AND barrel (stowed, to the leg) are 8 mm inside the structure and
@@ -1352,6 +1395,8 @@ PAGE.post = ctx => {
   const RETR = GEAR_RETRACTABLE(P);
   const retMounts = [];        // each retracting leg's structure depth at its trunnion (the fit's 'mount' test)
   const retIn = (st, m) => {
+    // (the Catalina's mains pivot on an EXTERNAL fitting, just outside the hull's skin)
+    if (!st.single && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina') return -(0.009 + (+st.P.oleoDia || 0.06) * 0.42);
     const W = window.CAGE_WING;
     if (m && W && W.overAt && W.underAt) {
       const q = m(0, 0), o = W.overAt(q.p[0], q.p[2]), u = W.underAt(q.p[0], q.p[2]);
@@ -1366,6 +1411,17 @@ PAGE.post = ctx => {
     const t = (F.turns || []).find(T => T && T[1]) || [0, 0];
     return t[0] === 1 ? [1, 0, 0] : t[0] === 2 ? [0, 1, 0] : [0, 0, 1];
   };
+  // GR (the Catalina): THE MAINS' PIVOT HIGH ENOUGH ON THE HULL'S SIDE - the leg's root angle round the section raised
+  // till the stowed wheel (level with the pin) and its recess clear the turn of the bilge: the pin at least a wheel's
+  // radius and the clearance over the lowest point of the side whose outward normal is mostly lateral (|nx| >= 0.85)
+  if (RETR && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina') for (const st of stations) {
+    if (st.single || st.leg === 3) continue;
+    let yLo = Infinity;
+    for (let a = 10; a <= 170; a += 2) { const n = AF.nrmAt(st.z, a * D2R), q = AF.surf(st.z, a * D2R); if (Math.abs(n[0]) >= 0.85) yLo = Math.min(yLo, q[1]); }
+    if (!isFinite(yLo)) continue;
+    const need = yLo + st.R + FIT.clear;
+    for (let a = Math.max(20, +st.P.oleoAng || 40); a <= 120; a++) if (AF.surf(st.z, a * D2R)[1] >= need) { st.P.oleoAng = a; break; }
+  }
   const contacts = [];
   // G188: the third wheel is the station the table FLAGS single (row 2), not
   // whichever contact happens to sit on the centreline; a tailwheel builder
@@ -1421,7 +1477,8 @@ PAGE.post = ctx => {
         // not retract; the join flies it as an oleo) - the pin along the fold's first axis, its point the wing's mid-
         // depth over the leg's root (a low wing's mains) or 45 % of the way from the keel to the cabin floor (a body
         // leg, 50-160 mm); its lugs and fitting plate are the static structure's
-        if (RETR) { st.leg = 2; st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags };
+        if (RETR) { st.leg = 2; st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags,
+                                     flip: !st.single && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina' };
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
