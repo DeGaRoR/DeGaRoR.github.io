@@ -312387,3 +312387,7 @@ COSTS:
 - wear-tab: third view 'wear': visual rows moved with the same keys, physical sliders (airframe years, engine hours) under expert, read-only in a career (A0's call), shut at T0. Study futureDesigns/WEAR-SYSTEM-2026-11.md: 5 questions with the user.
 - tour-eastpoint: Cub at East Point expects two go-arounds and a landing at w3 in 3.3 m/s behind; limit 1800 -> 2800 s on its legs; shards 921 -> ~1147 s, 460 -> ~627 s; the take-off straight after an East Point landing is no longer flown on the game's day. Float mk_sea > SEA stays red and named.
 PHYSICS_V unmoved in this train. NEXT: Pilot's Rufus page check, 09:15.
+
+## BUOY-DESAT - THE BUOYS HALF WAY TO THEIR OWN GREY (the user 5 Nov: "too saturated for the scene. Desaturate them a bit")
+
+render_world.js, one line of colour at the material; the lamps' option (FLYDIY_BUOY_LIT) keeps the full colour in the emissive. The look was seen in the hero rig (same 0.5, on the picture branch), not this cut in a browser. Gates, node only: LIGHT NIGHTVISIBILITY NIGHTEXPOSURE ATMO WATER.
