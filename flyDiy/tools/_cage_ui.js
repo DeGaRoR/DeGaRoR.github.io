@@ -1776,7 +1776,7 @@ function nacWellApply() {
     ud.wellSig = sig;
     if (!cuts) { o.geometry = ud.wellGeo0; continue; }
     const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin === 'twin');
+    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin !== 'skin');   // (twins and shells: the hole only)
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellNac'; o.add(wm); ud.wellMesh = wm; }

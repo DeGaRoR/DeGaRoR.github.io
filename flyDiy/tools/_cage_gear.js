@@ -327,6 +327,15 @@ function foldChain(u, key, P, SP) {
     T.ang = a0 + sg * (best ? best.d : 0) * D2R;
     C.trim = best ? best.d : 0;
   }
+  // P2 (the Skymaster's twist-and-tuck): A MAIN NEVER STOWS ACROSS THE CENTRE LINE - the other main's wheel stows
+  // mirrored there; a preset's last turn backs off, a degree at a time, till the stowed tyre keeps 20 mm off it
+  if (key !== 'T' && preset && !catF && C.turns.length && C.frac >= 0.999) {
+    const T = C.turns[C.turns.length - 1], sg = Math.sign(h[0]) || 1, rim = wheelRims(C, 16, [1]);
+    const inner = () => { const M = foldPose(C, 0); let m = Infinity;
+      for (const p0 of rim) { const p = slidePt(C, p0, slideD(C, 0)), q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); m = Math.min(m, sg * (h[0] + q[0])); }
+      return m; };
+    for (let i = 0; i < 60 && inner() < 0.02 && Math.abs(T.ang) > D2R; i++) T.ang -= Math.sign(T.ang) * D2R;
+  }
   // the LIFT: how far the wheel's lowest point rises, the gear up (at the fraction), over the ground (the pitch's frame)
   const bottom = (c, a) => c[1] - C.R * Math.sqrt(Math.max(0, 1 - a[1] * a[1]));
   const Mup = foldPose(C, 0), axUp = fApp(Mup, [axS[0] - h[0], axS[1] - h[1], axS[2] - h[2]]);
@@ -1352,7 +1361,7 @@ const polyArea = ps => { let a = 0; for (const p of ps) for (let i = 1; i + 1 < 
   const u = [p[i][0] - p[0][0], p[i][1] - p[0][1], p[i][2] - p[0][2]], v = [p[i + 1][0] - p[0][0], p[i + 1][1] - p[0][1], p[i + 1][2] - p[0][2]];
   a += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return a; };
 // a skin's faces facing down (Newell) whose plan box meets the outline's, clipped to it
-function doorPatch(faces, outline) {
+function doorPatch(faces, outline, anyWinding) {
   let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
   for (const p of outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
   const out = [];
@@ -1363,7 +1372,9 @@ function doorPatch(faces, outline) {
       nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
     // (Newell's normal: a door's face looks DOWN - more than 24 degrees off the vertical; a spar's closing face, a
     // trailing edge's lip, is not the door's)
-    if (ny >= -0.4 * Math.hypot(nx, ny, nz) || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
+    // (a cowl's or a nacelle's shells may be wound either way - the generator's aft lofts march inside out: there the
+    // face need only lie flat enough, and the lowest skin over each place, below, is the door's)
+    if ((anyWinding ? Math.abs(ny) : -ny) <= 0.4 * Math.hypot(nx, ny, nz) || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
     const c = clipConvex(f, outline, DOOR_SEAM);
     if (c) out.push(c);
   }
@@ -1435,7 +1446,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
   const nacF = []; let nacMat = null;
   { const inv = new THREE.Matrix4().copy(ctx.scene.matrixWorld).invert(), M4 = new THREE.Matrix4(), vv = new THREE.Vector3();
     for (const N of NACS) for (const o of N.meshes) {
-      if (o.userData.innerTwin) continue;
+      if (o.userData.innerTwin || o.userData.nacSkin === 'shell') continue;     // (P2: the outer skins' doors, as their wells)
       if (!nacMat) nacMat = o.material;
       M4.multiplyMatrices(inv, o.matrixWorld);
       const g = o.userData.wellGeo0 || o.geometry, pa = g.attributes.position, ix = g.index ? g.index.array : null, n = (ix ? ix.length : pa.count) / 3;
@@ -1446,7 +1457,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
     let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
     if (a2 < 0) outline.reverse();
-    let rest = doorPatch(faces, outline);
+    let rest = doorPatch(faces, outline, tag === 'N');
     // GR R4: where a stowed wheel stands proud of this skin, the doors are cut round it (its section, the seam round it)
     for (const pb of ((fit.pierce && fit.pierce.bottom) || [])) if (c.units.includes(pb.unit)) rest = rest.flatMap(p => minusConvex(p, pb.outline, DOOR_SEAM));
     if (!rest.length) return;
@@ -1629,7 +1640,18 @@ PAGE.post = ctx => {
         group.add(m); N.meshes.push(m); pods.push(m);
       } }
   }
-  for (const N of NACS) for (const o of N.meshes) o.userData.nacSkin = o.userData.innerTwin ? 'twin' : 'skin';
+  // (P2, the user: "the shading inside the cuts looks odd ... a closed section, where we first cut, then extrude the cut
+  // and close it": ONE well per cut - its walls and its ceiling from the nacelle's or the cowl's MAIN skin (its largest
+  // mesh) and from a gear pod; every other shell of it - the inner twin, the lips, the ducts, the seams - only has the
+  // hole cut, so no second box stands inside the first and fights it)
+  // (the OUTER skins: those whose box lies inside no other skin mesh's box; an inlet's duct, a lip, a seam lie inside the
+  // cowl's own - an adjoining barrel and tail cone are both outer, each building the well where the cut crosses it)
+  { const bx = new THREE.Box3();
+    for (const N of NACS) { const sk = N.meshes.filter(o => !o.userData.innerTwin).map(o => ({ o, b: bx.setFromObject(o).clone() }));
+      const vol = b => (b.max.x - b.min.x) * (b.max.y - b.min.y) * (b.max.z - b.min.z);
+      const inner = e => sk.some(f => f !== e && vol(f.b) > vol(e.b) && f.b.clone().expandByScalar(0.01).containsBox(e.b));
+      for (const o of N.meshes) { const e = sk.find(x => x.o === o);
+        o.userData.nacSkin = o.userData.innerTwin ? 'twin' : (!e || !inner(e)) ? 'skin' : 'shell'; } } }
 
   // G133: THE NEAREST SURFACE ABOVE THE WHEEL (user's rule). When the
   // WING'S UNDERSIDE at the axle's own span sits lower than the fuselage

@@ -122,7 +122,7 @@ if (CUTSN) {
   let nn = 0;
   for (const o of nm) {
     const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    const r = KGn.knifeWellsMesh(THREE, o.geometry, rel, CUTSN, o.userData.nacSkin === 'twin');
+    const r = KGn.knifeWellsMesh(THREE, o.geometry, rel, CUTSN, o.userData.nacSkin !== 'skin');   // (twins and shells: the hole only)
     if (!r.skin) continue;
     o.geometry = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellNac'; o.add(wm); nn++; }

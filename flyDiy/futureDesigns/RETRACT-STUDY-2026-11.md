@@ -1759,3 +1759,56 @@ the nose leg (gearShortNose 0.3 / 0.45) brings the well to 0.63 / 0.58 m.
   - The test now says so.
   - Making it a 337 means the card itself: a longer pod with belly wells ahead of the rear firewall, the mains under
     the pod (a narrower track or wider pod), then the aft-and-in twist fold.
+
+### 8.21 CLOSED WELLS, THE SKYMASTER, THE EVIDENCE (5 Nov)
+
+**THE WELL A CLOSED BOX** (the user: "the shading inside the cuts looks odd. Did you build an actual volume after the
+cut? It should really be a closed section, where we first cut, then extrude the cut and close it so it forms a closed
+volume").
+
+- **What it was.** The knife's well was the cut-out skin pushed up to the ceiling, its walls the ring between, a
+  window's recessed pane. Two faults followed.
+  - A skin with an opening of its own (the T-tail cowl's open belly round its exhaust stacks) left the well open there:
+    the engine's fins showed through.
+  - Every SHELL of a cowl or a nacelle that the outline crossed built its own well (its inlet ducts, its lips, its
+    seams): boxes inside boxes, fighting for the same pixels.
+- **What it is now** (`_knife_gen.js wellBox` / `skinYOf`).
+  - Each downward cut's well is built from its OUTLINE: sampled finely and dropped onto the ORIGINAL skin from below.
+  - Walls go straight up to one flat ceiling, their normals level and facing the well's axis.
+  - The ceiling is the outline at that height, facing the opening.
+  - The knife only cuts the hole and carves the structure out of the volume.
+  - The fuselage sheet (`knifeWells`) and the wing's and nacelles' skins (`knifeWellsGeo`) take it.
+  - The Catalina's side recesses keep the knife's own.
+- **One shell per well.** Only a nacelle's or a cowl's OUTER skins (those inside no other skin mesh's box) build a
+  well; the others (and the inner twin) are cut through for the hole only. The doors take the outer skins' faces too,
+  of either winding (a cowl's aft lofts are wound inside out).
+- **Not fixed.** On the T-tail cowl the front of the slot still has no door: there is no skin there.
+
+**THE SKYMASTER** (the user: "you may change the skymaster. It has never been authored"). The card is born retractable,
+the 337's (and the 210's) way:
+- the mains under the pod: 0.43 m half track, s1Z 1.7, 0.17 m tyres;
+- fold 'aftBelly' (aft and in, the wheel turned flat), the legs shortening 30 %, into one belly well ahead of the rear
+  engine;
+- the nose aft, shortened 30 % (its own well);
+- the cabin floor at -0.25.
+- **A preset's main never stows across the centre line.** The last turn backs off a degree at a time till the stowed
+  tyre keeps 20 mm off it, where the other main lies (the two mains met otherwise).
+- **The fit's last flag:** the stowed tyres sit 8 mm inside the pod's skin, where the test wants 15.
+- **Still rough:** the shared belly well's doors (large panels hanging at mid-travel, triangular leg doors). The
+  generic door split does not suit a well this wide.
+- **The pod's length cannot be changed this way.** Neither taperLen nor aeroAftLen move this card's body (it ends at
+  0.73).
+
+**THE EVIDENCE.** One page with every option tested, each with its verdict and its sheet (the artifact "Retractable Gear
+Evidence"; the renders in the scratchpad's ev/ folder, the same frames across each sheet's positions):
+- the belly wells (exact, box with one door, box with two, open);
+- the fittings;
+- the wing wells;
+- a partial fold;
+- the nose forward into the cowl, and its close-up;
+- the Catalina;
+- the nacelles (low wing; high wing shortened; high wing unshortened, red; the separate pod);
+- B-ITES;
+- the Skymaster;
+- the strut test;
+- the closed wells.
