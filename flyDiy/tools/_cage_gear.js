@@ -329,7 +329,9 @@ function foldChain(u, key, P, SP) {
   }
   // P2 (the Skymaster's twist-and-tuck): A MAIN NEVER STOWS ACROSS THE CENTRE LINE - the other main's wheel stows
   // mirrored there; a preset's last turn backs off, a degree at a time, till the stowed tyre keeps 20 mm off it
-  if (key !== 'T' && preset && !catF && C.turns.length && C.frac >= 0.999) {
+  // (a TUCK's only - a last turn about the vertical axis, the twist-and-tuck's: an inward fold's crossing is a red fit,
+  // the builder's track to widen, never a fold backed off out of the body)
+  if (key !== 'T' && preset && !catF && C.turns.length && C.frac >= 0.999 && Math.abs(C.turns[C.turns.length - 1].axis[1]) > 0.9) {
     const T = C.turns[C.turns.length - 1], sg = Math.sign(h[0]) || 1, rim = wheelRims(C, 16, [1]);
     const inner = () => { const M = foldPose(C, 0); let m = Infinity;
       for (const p0 of rim) { const p = slidePt(C, p0, slideD(C, 0)), q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); m = Math.min(m, sg * (h[0] + q[0])); }
