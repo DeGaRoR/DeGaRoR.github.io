@@ -47,6 +47,7 @@ const VIEWS = [
   { name: 'canopy_cu', day: CU, where: 'tree', d: 80, h: 2, pitch: 7 },            // the user's canopy edge against the clouds behind
   { name: 'canopy', day: CLEAR, where: 'tree', d: 80, h: 2, pitch: 7 },            // the same, a clear sky: the canopy alone
   { name: 'stand', day: CLEAR, where: 'tree', d: 350, h: 40, pitch: 1 },           // the forest at range: the impostors
+  { name: 'plane_cu', day: CU, where: 'orbit', r: 16, h: 2.5, pitch: 8, onlyClip: true },   // round the aeroplane on the stand, the clouds behind it: the history's trap (--clip)
 ];
 
 // ---- the page's half ---------------------------------------------------------------------------------------------------
@@ -205,6 +206,7 @@ const PAGE_RIG = `window.LT = (() => {
     const p = await J(`(() => { const cg = FLIGHT_PROBE.camGet().target, W = FLIGHT_PROBE.world(), d = DAY_CLOCK.day(); const L = d.sun, ln = Math.hypot(L[0], L[2]) || 1; const side = [-L[2] / ln, L[0] / ln];
       const air = () => { const g = W.terrainH ? W.terrainH(cg[0], cg[2]) : 0, base = CLOUDS.layer ? CLOUDS.layer.base : 1500; return { x: cg[0], z: cg[2], y: ${V.under != null ? 'base - ' + (V.under || 0) : '(g + ' + (V.agl || 0) + ')'}, yaw: Math.atan2(side[0], -side[1]), base, g }; };
       if (${V.where === 'air'}) return air();
+      if (${V.where === 'orbit'}) { const g = W.terrainH ? W.terrainH(cg[0], cg[2]) : cg[1]; return { x: cg[0] - side[0] * ${V.r || 0}, z: cg[2] - side[1] * ${V.r || 0}, y: g + ${V.h || 0}, yaw: Math.atan2(side[0], -side[1]), c: [cg[0], cg[2]] }; }
       for (const key of ['realistic', 'cedar', 'spruce', 'hemlock']) { let t = []; try { t = TREE_LOD.find(key, cg[0], cg[2], 300, 3000, 40); } catch (e) {} for (const tr of t) { const ex = tr.x + side[0] * ${V.d || 0}, ez = tr.z + side[1] * ${V.d || 0}, gy = W.terrainH ? W.terrainH(ex, ez) : tr.y;
         if (gy < 2) continue; return { x: ex, z: ez, y: gy + ${V.h || 0}, yaw: Math.atan2(tr.x - ex, -(tr.z - ez)), tree: { key, x: tr.x, z: tr.z, y: tr.y } }; } }
       return null; })()`);
@@ -217,7 +219,7 @@ const PAGE_RIG = `window.LT = (() => {
   };
   const rows = (p, n, dYaw, dFwd) => { const out = []; for (let i = 0; i < n; i++) { const y = p.yaw + i * dYaw; out.push({ x: p.x + Math.sin(p.yaw) * dFwd * i, y: p.y, z: p.z - Math.cos(p.yaw) * dFwd * i, yaw: y, pitch: p.pitch }); } return out; };
   const offs = []; for (let i = 1; i <= 6; i++) offs.push([halton(i, 2) - 0.5, halton(i, 3) - 0.5]); offs.push(offs[0]);
-  const list = VIEWS.filter(v => !ONLY.length || ONLY.includes(v.name));
+  const list = VIEWS.filter(v => ONLY.length ? ONLY.includes(v.name) : !v.onlyClip);
 
   if (flag('timed')) {
     for (const V of list) { const p = await place(V); if (!p) { log('no spot ' + V.name); continue; }
@@ -249,7 +251,9 @@ const PAGE_RIG = `window.LT = (() => {
     for (const V of list) {
       const p = await place(V); if (!p) { log('no spot ' + V.name); continue; }
       const VR = R.views[V.name] = { eye: p };
-      if (flag('clip')) { const c = await J(`LT.clip(${JSON.stringify(rows(p, 158, 1.5 * pxA, 0))}, 8)`); const dir = path.join(OUT, 'clip_' + TAG + '_' + V.name); fs.mkdirSync(dir, { recursive: true });
+      // the orbit: the eye round the aeroplane at 0.6 deg a frame (18 deg/s at 30 fps), looking at it
+      const orbitRows = () => { const out = [], R0 = V.r; for (let i = 0; i < 158; i++) { const y = p.yaw + i * 0.6 * Math.PI / 180; out.push({ x: p.c[0] - Math.sin(y) * R0, y: p.y, z: p.c[1] + Math.cos(y) * R0, yaw: y, pitch: p.pitch }); } return out; };
+      if (flag('clip')) { const c = await J(`LT.clip(${JSON.stringify(V.where === 'orbit' ? orbitRows() : rows(p, 158, 1.5 * pxA, 0))}, 8)`); const dir = path.join(OUT, 'clip_' + TAG + '_' + V.name); fs.mkdirSync(dir, { recursive: true });
         for (let i = 0; i < c.n; i++) fs.writeFileSync(path.join(dir, 'f' + String(i).padStart(4, '0') + '.jpg'), Buffer.from(await ev('LT.clipped[' + i + ']'), 'base64'));
         VR.clip = c; log(V.name + ' clip ' + JSON.stringify(c)); save(); continue; }
       const s = await J(`LT.spread(${JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch })}, ${JSON.stringify(offs)}, ${pxA})`);
