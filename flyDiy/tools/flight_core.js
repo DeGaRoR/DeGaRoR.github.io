@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d3a5df4a20954f22
+// body-sha256: dbdb6ace8fad73d7
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37543,8 +37543,12 @@ function clampSpec(spec) {
   if (S.gear.hull && typeof S.gear.hull === 'object') {
     const h = S.gear.hull, K6 = ['x', 'yk', 'b', 'yc', 'bd', 'yd'];
     const rows = Array.isArray(h.sta) ? h.sta.filter(r => r && K6.every(k => Number.isFinite(+r[k])))
-      .map(r => ({ x: genClamp(+r.x, -12, 16), yk: genClamp(+r.yk, -2, 4), b: genClamp(+r.b, 0, 3), yc: genClamp(+r.yc, -2, 4),
-                   bd: genClamp(+r.bd, 0, 3), yd: genClamp(+r.yd, -2, 5) })).sort((a, b) => a.x - b.x) : [];
+      .map(r => Object.assign({ x: genClamp(+r.x, -12, 16), yk: genClamp(+r.yk, -2, 4), b: genClamp(+r.b, 0, 3), yc: genClamp(+r.yc, -2, 4),
+                   bd: genClamp(+r.bd, 0, 3), yd: genClamp(+r.yd, -2, 5) },
+                   // (HULL-B48: a fluted bottom's water ridge - across and its height - rides along; the normaliser dropped it,
+                   // so the water read the plain V under a drawn arch)
+                   Number.isFinite(+r.zr) && Number.isFinite(+r.yr) ? { zr: genClamp(+r.zr, 0, 3), yr: genClamp(+r.yr, -2, 4) } : {}))
+      .sort((a, b) => a.x - b.x) : [];
     const nF = rows.filter(r => r.x <= 0).length, nA = rows.length - nF;
     if (rows.length > 200 || nF < 2 || nA < 2) delete S.gear.hull;
     else {
