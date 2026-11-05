@@ -1310,7 +1310,33 @@ function engPlace(ctx, prev) {
       }
       GK.tube(bag, plate[0], plate[1], PYLON_RAIL, 8); GK.tube(bag, plate[2], plate[3], PYLON_RAIL, 8);
       GK.tube(bag, plate[0], plate[2], PYLON_RAIL, 8); GK.tube(bag, plate[1], plate[3], PYLON_RAIL, 8);
-      bag.mesh(group, matOf('emMount'));
+      if (!+P.cowlOn) bag.mesh(group, matOf('emMount'));   // (under a nacelle the faired pylon below is the drawn mount: the tubes stand inside it)
+      // HULL-B33 (the user: "proper supports, with love into the model"): UNDER A NACELLE (cowlOn) THE FIN MOUNT IS FAIRED
+      // - one fin-section blade from the fin (its root over the fin's front half, sunk into the skin) up into the
+      // nacelle's underside (over the mount's run aft of the flange), 13 % thick, flared into the fin and the nacelle
+      // (the pylon's fillet law both ends) - the Seawind's engine pylon. The tubes stand inside it
+      if (+P.cowlOn) {
+        // (lofted on HORIZONTAL sections - a swept path tilts each section square to a path that leans 0.5 m forward
+        // from the fin to the flange, and the first cut came out crumpled)
+        const NR = 16, NS = 28, yB = yF - 0.06, yT = yP - 0.02, H = Math.max(0.05, yT - yB);
+        const zB0 = zL + 0.02, zB1 = zM, zT0 = zP + 0.65, zT1 = zP - 0.04, pos = [], idx = [];   // (the top under the nacelle: FORWARD of the flange - a tractor's engine)
+        for (let i = 0; i <= NR; i++) {
+          const u = i / NR, e0 = Math.max(0, 1 - u / 0.3) ** 2, e1 = Math.max(0, (u - 0.75) / 0.25) ** 2;
+          const zf = zB0 + (zT0 - zB0) * u + 0.18 * H * (e0 + e1), za = zB1 + (zT1 - zB1) * u - 0.18 * H * (e0 + e1);
+          const c = Math.max(0.05, zf - za), th = 0.13 + 0.10 * e0 + 0.14 * e1, y = yB + H * u;
+          for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, xc = 0.5 * (1 - Math.cos(ang)), sg = Math.sin(ang) >= 0 ? 1 : -1;
+            const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+            pos.push(sg * yt * c, y, zf - xc * c); }
+        }
+        for (let i = 0; i < NR; i++) for (let k = 0; k < NS; k++) {
+          const a = i * NS + k, b = i * NS + (k + 1) % NS, c2 = a + NS, d = b + NS;
+          idx.push(a, b, c2, b, d, c2);
+        }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+        const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+        const m = (SM && SM('cowl', { surf: 0, fieldM: 1, side: THREE.DoubleSide })) || matOf('emMount');
+        const ms = new THREE.Mesh(g, m); ms.castShadow = true; group.add(ms);
+      }
     }
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
