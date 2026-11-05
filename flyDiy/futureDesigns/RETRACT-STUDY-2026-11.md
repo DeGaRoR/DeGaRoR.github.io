@@ -1853,3 +1853,64 @@ shadow/dirt in the corners ... Then do a pass of quality ... stay grounded in cl
   "down". A nacelle's door wraps its round belly, with its centroid nearly under the hinge.
 - **The check.** On the DA62 (fold 7, s1X 2.45), no vertex of the gear layer stands outside the nacelle's skin, gear up,
   half and down (the scratchpad probe `poke.js`).
+
+### 8.23 The wing well's box, the Catalina re-checked, and what the amphibian needs (P2)
+
+**THE WING WELL** (the user: "a hole, plus a little border that extrudes out with no cap, so nothing like extrude in
+and cap"). Cross-sections of the T-tail's wing well (plane x = const: the uncut skin, the cut skin, the well) showed
+two boxes:
+- the right one, from the lower skin up to the ceiling;
+- a second one from the wing's centre-section skin mesh (|x| < 0.65 m), which the outline only grazes at the root.
+  Its points with no skin under them took the nearest hit's height (-0.49 m), so its walls hung 2 to 3 cm under the
+  wing with no cap.
+
+Aft of the trailing edge, too, the outline's points had no skin under them and borrowed a neighbour's height: a wall
+stood in the air behind the wing.
+
+`wellBox` now does two things:
+- **The box is the skin's that carries the cut.** A mesh under less than 40 % of the outline builds none.
+- **A point with no skin under it is walked inward** (5 mm steps, up to 0.4 m), until it finds the skin. The wall
+  closes the well at the trailing edge.
+
+After the fix: one box per well, walls from the skin up, closed at the trailing edge, and the doors flush. This
+variant's wheel still stands 34 to 51 mm proud of its thin wing (the fit's red row).
+
+**THE CATALINA, RE-CHECKED** (the user: "did you fix the cut in the fuselage? And is our animation mechanism correct
+there?"):
+- **The cut is a closed, round pocket.** A hull section through it (z = 0.458 m on the c172 battery card) shows it
+  going 0.19 m in from the side: walls, a floor, the tyre's own outline.
+- **It still reads wrong gear down.** Its floor and walls are flat grey with no lip and no shadow, so it reads as a
+  drum standing out of the hull. It wants the closed wells' finish (a chamfered lip, a darker interior).
+- **The motion is not confirmed, and the sources point elsewhere.** Ours swings the leg aft to level along the hull,
+  then turns it in about the vertical axis. The sources found say the PBY-5A's mains went UP into recesses in the hull
+  sides, under the wing and between the wing struts, hydraulic, the wheel left in view
+  ([History of War](https://www.historyofwar.org/articles/weapons_PBY-5A_catalina.html),
+  [AOPA](https://www.aopa.org/news-and-media/all-news/2014/august/pilot/f_pby)).
+- **No source found gives the pivot or the linkage.** The operator handbook found
+  (pbycatalina.com, the PBY-5A C-FUAW handbook) is outside this session's network. Not to be rebuilt by eye: the
+  pivot and the arc wait for a handbook or erection-and-maintenance drawing.
+
+**THE AMPHIBIAN: WHAT WE HAVE, WHAT IT NEEDS** (the user: "does your session have enough information to accurately
+start on amphibious floats by modifying the Wipaire and EDO floats? That's work that needs to be done according to
+manufacturer data, not eyeballed"). No, not yet.
+
+What we hold:
+- **The Wipline seaplane catalogue** (`32_hydro.js` FLOAT_PRESETS): length, beam, height, displacement and system mass
+  for 15 models. Eight are marked `est: true` (scaled from displacement, not read off a sheet).
+- **The 2350's lines**, from its parts manual.
+- **Three amphibian installed-mass figures** (206/3450, Beaver/6100, PA-18/2100).
+- **The 2100 and 13000 manuals' system descriptions** (quadricycle, a hydraulic pump and a hand pump, the bow carriage
+  on tracks locking over centre).
+
+What we do not hold, per model:
+- **The amphibian float's own dimensions.** The amphib hull is not the seaplane hull: it is deeper and longer at the
+  bow box, with the main well.
+- **The wheels' positions:** the nose and main axle stations from the bow and the step; the main wheel's height under
+  the keel, gear down; the stowed positions (§1.7 marks them [unverified], from photos).
+- **The tyres and wheels:** the sizes, and the castoring nose's trail.
+- **The retraction geometry:** the nose carriage's track and arc; the main's pivot and swing.
+- **The weights:** the amphibian system weight per model, and land vs water gross and CG limits.
+- **EDO: nothing at all.** No row in the catalogue, no amphibian data.
+
+Where it would come from: the Wipaire installation and parts manuals and STC sheets (wipaire.com, and the manual
+mirrors cited in §1.7), and EDO/Aerocet type data and float drawings. The hosts must be reachable from the session.

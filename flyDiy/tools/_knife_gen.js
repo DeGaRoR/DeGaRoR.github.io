@@ -944,6 +944,16 @@ function wellBox(c, skinY, inBody, skinTop) {
   const X = q => -q[1], Z = q => q[0];
   let ys = ring.map(q => skinY(X(q), Z(q)));
   if (!ys.some(y => y != null)) return null;
+  // (P2, the user: "a hole, plus a little border that extrudes out with no cap"): THE BOX IS THE SKIN'S THAT CARRIES THE
+  // CUT - a mesh under less than 40 % of the outline (the wing's centre section, grazed at the root) builds none (its
+  // walls, from the nearest hit's height, hung under the wing); and an outline point with no skin under it (aft of a
+  // trailing edge) is walked inward till it finds the skin - the wall closes the well there, not in the air behind it
+  if (ys.filter(y => y != null).length < 0.4 * ys.length) return null;
+  { const r0 = ring.map(q => q.slice()), m = r0.length;
+    for (let i = 0; i < m; i++) if (ys[i] == null) {
+      const a = r0[(i - 1 + m) % m], b = r0[(i + 1) % m], du = b[0] - a[0], dv = b[1] - a[1], l = Math.hypot(du, dv) || 1, iu = -dv / l, iv = du / l;
+      for (let k = 1; k <= 80; k++) { const d = k * 0.005, u = r0[i][0] + iu * d, v = r0[i][1] + iv * d, y = skinY(-v, u);
+        if (y != null) { ring[i] = [u + iu * 0.003, v + iv * 0.003]; ys[i] = skinY(-ring[i][1], ring[i][0]); if (ys[i] == null) ys[i] = y; break; } } } }
   for (let i = 0; i < ys.length; i++) if (ys[i] == null) {          // (a miss: the nearest answered point's height)
     for (let d = 1; d < ys.length; d++) { const a = ys[(i + d) % ys.length], b = ys[(i - d + ys.length) % ys.length]; if (a != null || b != null) { ys[i] = a != null ? a : b; break; } } }
   let cu = 0, cv = 0; for (const q of ring) { cu += q[0] / ring.length; cv += q[1] / ring.length; }
