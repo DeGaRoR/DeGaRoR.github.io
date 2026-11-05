@@ -59,6 +59,10 @@ const ENGINES = {
             note: 'outrigger hulls on faired blades under a twin (the side hulls of the Seagull and the MVP)' },
   outrigP: { sel: { engMount: 'wingTop' }, engine: 'rotax 915 iS', cage: { engPylonH: 1.2, engPylonForm: 1, engPylonFair: 3, cowlOn: 1, noseLen: 1.3, hullTips: 3, hullTipAt: 0.5 },
              note: 'outrigger hulls on faired blades, the pusher on a blended blade pylon (the Adventurer 333)' },
+  // HULL-B29: PLANING WING ROOTS (the Be-103, the Equator P2): a cantilever low wing whose inner panels plane and float, the
+  // twin on it - no tip floats, no sponsons
+  roots: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, wgPos: 2, wgBrace: 1, hullSpon: 3, hullSponK: 0.9, hullTips: 0 },
+           note: 'planing wing roots on a cantilever low wing, the engine on the fin (the Equator P2: its engine in the tail)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

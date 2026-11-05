@@ -2941,7 +2941,51 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // waterline). A float of the family sized for its displacement (tipFloatParams), its three stations tied to the
     // fuselage frame nearest and the next one - no struts: the hull and the sponson are one structure
     const SP = HR.spon;
-    if (SP && SP.on) {
+    // ---- HULL-B29: PLANING WING ROOTS (spon.mode 'root' - the Be-103's and the Equator's "float wings", HULL-TYPES 1.1:
+    // the low wing's roots displace water and plane; three planing elements, the step and both wing roots). The wing's
+    // OWN inner panel is the sponson: its record is the root's stub (HYDRO.sponsonTable: the wing's root chord and
+    // thickness, k root chords of span, flat beneath), centred at mid-chord on the panel's own frame (genTipJoint at the
+    // root station plus half the span), its keel on the wing's underside (the aerofoil's lower ordinate at 35 %), tied
+    // into that bay's four spar nodes. Nothing is added to the drawing: the wing IS the float. Its skin doubling, 1.5 kg
+    // per m2 of planing bottom, INFERRED
+    const w0R = S.wings && S.wings[0];
+    if (SP && SP.on && SP.mode === 'root' && w0R && wf.L && wf.R) {
+      const cRt = w0R.chord, tR = Math.max(0.08, ((w0R.naca | 0) % 100) / 100), kR = SP.k || 0.75, spanR = Math.max(0.2, kR * cRt);
+      const STB = HYDRO.sponsonTable(cRt, kR, tR), SPP = STB && HYDRO.hullParamsFromTable(STB);
+      if (SPP) {
+        SPP.mFloat = 1.5 * cRt * spanR;
+        const sfR = R.sparFront != null ? R.sparFront : 0.15;
+        const loR = (typeof genAfEval === 'function' ? genAfEval(w0R.naca).lo(0.35)[1] : -0.5 * tR) * cRt;
+        for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+          const z0 = Math.abs(nodes[W.F[0]].p[2]), J = genTipJoint(nodes, W, z0 + 0.5 * spanR, sd);
+          if (!J) continue;
+          const c = [0, 1, 2].map(i => J.O[i] + J.ch[i] * (0.5 - sfR) * cRt + J.up[i] * loR);
+          const xT = c[0], yT = c[1], zT = c[2];
+          const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
+          const Kt = [], Lt = [], Rt = [], Qt = [];
+          for (const xs of st3) {
+            const sc = HYDRO.sectionOf(SPP, xs === 0 ? -1e-9 : xs);
+            Kt.push(N(xT + xs, yT + sc.yk, zT, 'SPK'));
+            Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'SPD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'SPD'));
+            Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+          }
+          const allT = [...Kt, ...Lt, ...Rt];
+          for (const i of allT) pt(i, SPP.mFloat / allT.length);
+          for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+          for (let i = 0; i < 2; i++) {
+            B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+            B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          }
+          clusters.push({ cls: 'float', tag: 'SPON' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+          const jo = Math.min(W.F.length - 1, J.j + 1), anc = [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]];
+          for (let i = 0; i < 3; i++) for (const q of [Kt[i], Lt[i], Rt[i]]) for (const a2 of anc) B(q, a2, 'gear', false, 'inner', undefined, KMh);
+          const slabS = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+            K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+          FLOATS.push({ side: sd, spon: true, root: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                        tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
+        }
+      }
+    } else if (SP && SP.on) {
       const fitS = HYDRO.hullTipFit(HR, gross || 400);
       // HULL-B21: a STUB sponson flies its own station table (HYDRO.sponsonTable: the drawn stub), rooted ON the hull's
       // side (its record's centre half its span out); a float sponson the family's float, w outboard

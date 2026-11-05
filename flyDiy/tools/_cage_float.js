@@ -622,6 +622,7 @@ function drawSponsons(scene, P) {
   if (sponGroup) { dispose(sponGroup); sponGroup = null; }
   if (!scene || !+P.hullOn || !+P.hullSpon || !CG2 || !CG2.cageHullTable) return;
   if (Math.round(+P.hullSpon) === 1) return drawStubs(scene, P);
+  if (Math.round(+P.hullSpon) === 3) return;            // (HULL-B29: planing wing roots - the wing draws itself)
   const kg = +P.hullSponKg, yRel = +P.hullSponY, HY = HYc(), FG = window.FLOAT_GEN;
   if (!(kg > 0) || !(yRel > -0.999) || !HY || !HY.tipFloatParams || !FG) return;
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);

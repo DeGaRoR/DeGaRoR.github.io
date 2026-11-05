@@ -380,16 +380,17 @@ window.CAGE_PAGE = {
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
         ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
         // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)
-        ['hullSpon',    'sponsons', 0, 2, 1, ['none', 'stub wings', 'floats on the sides'], { when: P => +P.hullOn }],
+        // (HULL-B29: 'planing wing roots' - a low wing's inner panel planes and floats: the Be-103's, the Equator's)
+        ['hullSpon',    'sponsons', 0, 3, 1, ['none', 'stub wings', 'floats on the sides', 'planing wing roots (a low wing\'s own)'], { when: P => +P.hullOn }],
         ['hullSponC',   'stub mean chord', 0, 4, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1, dim: 'len' }],
-        ['hullSponK',   'stub span (of its chord)', 0.3, 2, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
+        ['hullSponK',   'stub / planing root span (of its chord)', 0.3, 2, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullSpon)) }],
         ['hullSponT',   'stub thickness (of its chord)', 0.08, 0.4, 0.005, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
         ['hullSponTaper', 'stub tip taper', 0.2, 1, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
         ['hullSponDih', 'stub dihedral °', -15, 15, 0.5, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
-        ['hullSponX',   'sponsons forward of the step', -1.5, 2.5, 0.01, { when: P => +P.hullOn && +P.hullSpon, dim: 'len' }],
+        ['hullSponX',   'sponsons forward of the step', -1.5, 2.5, 0.01, { when: P => +P.hullOn && [1, 2].includes(Math.round(+P.hullSpon)), dim: 'len' }],
         ['hullSponW',   'side floats outboard of the side', 0.1, 1.5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 2, dim: 'len' }],
         ['hullSponKg',  'side float, each (displacement)', 0, 800, 1, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 2, dim: 'kg' }],
-        ['hullSponY',   'sponson keel over the step keel', -1, 2, 0.005, { when: P => +P.hullOn && +P.hullSpon, dim: 'len' }],
+        ['hullSponY',   'sponson keel over the step keel', -1, 2, 0.005, { when: P => +P.hullOn && [1, 2].includes(Math.round(+P.hullSpon)), dim: 'len' }],
         ['hullTubRise', 'its keel rise °', 0, 25, 0.5, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
         ['hullTubEnd',  'its end beam (of the pod\'s)', 0.05, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
         ['hullTubH',    'its depth (of the pod\'s)', 0.1, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],

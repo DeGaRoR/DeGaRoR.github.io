@@ -1370,7 +1370,9 @@ function cageHullFitAll(P, f, HY, opt) {
   }
   // HULL-B19: THE SPONSONS' SIZE - the same moment rule on their short arm (the hull's side at their station plus their
   // outboard offset), their keel half their depth under the rest waterline (a sponson floats in the water at rest)
-  if (+P.hullSpon && HY && HY.hullTipFit && HY.tipFloatParams) {
+  // (HULL-B29: planing wing roots - hullSpon 3 - are the wing's own: nothing to size; the water and the break code judge
+  // a root that stands too high or too low)
+  if (+P.hullSpon && Math.round(+P.hullSpon) !== 3 && HY && HY.hullTipFit && HY.tipFloatParams) {
     const TB = r ? r.TB : cageHullTable(cageHullLines(Object.assign({}, P, fit)), FS);
     const sy = r ? r.sy : TB && TB.yStep * FS - f.yD;
     if (TB && sy != null) {

@@ -1458,7 +1458,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
                        tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null },
-                       ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
+                       ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : Math.round(+P.hullSpon) === 3 ? 'root' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
                                                    c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
             const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];
             window.CAGE_HULL = { zStep: TB.zStep * FSh, keelY: TB.yStep * FSh, chineY: TB.yStep * FSh + sF.yc };
