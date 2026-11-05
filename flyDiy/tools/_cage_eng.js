@@ -1425,7 +1425,7 @@ function engPlace(ctx, prev) {
       if (Math.abs(hy - RA.y(dz)) < R + RA.r) {
         const below = !(hy < (isFinite(u.faceYc) ? u.faceYc : hy) - 1e-3);
         const yAx = below ? hy - R - ROD_CLEAR - RA.r : hy + R + ROD_CLEAR + RA.r;
-        const v = Math.max(-0.9, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
+        const v = Math.max(-1.5, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
         // what the rod's slider range could not give (metres) goes to the REAR ENGINE ALONE, where the firewall
         // rule lets it move (CABIN-CRAFT-2, engineFaces: a COWLED pusher - or a push-pull's rear - stands on the pod's
         // face itself and ignores the block; the cowl does not read engY, so moving a cowled engine would pull it out

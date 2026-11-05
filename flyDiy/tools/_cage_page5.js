@@ -1197,7 +1197,7 @@ window.CAGE_PAGE = {
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn }],
       ['aeroAftEdge', 'aero aft edge (of the base)', 0.05, 1.5, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn && +P.aeroAftShape }],
-      ['rodY',      'rod height',     -0.9, 0.9, 0.005,
+      ['rodY',      'rod height',     -1.5, 0.9, 0.005,   // (HULL-B20: -1.5 - a rod under a deep hull's disc)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],

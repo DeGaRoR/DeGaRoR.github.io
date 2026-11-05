@@ -1005,9 +1005,22 @@ const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft',
 // the keel and chine creased onto it) in cage units; null when the hull is off
 function cageHullLines(P) {
   if (!(+P.hullOn > 0)) return null;
-  const m = buildCage2(cageSpec(P), 1);
+  const S = cageSpec(P), m = buildCage2(S, 1);
   const H = m && m.hull || null;
-  return H ? cageHullTub(H, P) : null;
+  if (!H) return null;
+  // (HULL-B20: the pusher's disc for the tub's clearance - the hub at the pod's aft face centre: its last ring's roof
+  // and its hull keel; the disc's radius the drawn propeller's)
+  let disc = null;
+  if (+P.hullTubLen > 0.05 && Math.round(+P.engMount || 0) === 1) {
+    try {
+      const R = cageResolve(S), rA = R.rings.filter(r => r.lv.roof).reduce((a, r) => (cageKeelZ(r) < cageKeelZ(a) ? r : a));
+      const sA = H.sta.reduce((a, q) => (q.z < a.z ? q : a), H.sta[0]);
+      const FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+      const yW = rA.lv.waist ? rA.lv.waist.y : 0.5 * (rA.lv.roof.y + sA.yk);   // (the face above the gunwale - _cage_cowl)
+      disc = { hubY: 0.5 * (rA.lv.roof.y + yW) + (+P.engY || 0) / FS, R: 0.5 * (+P.cw_propD || 1.8) / FS };
+    } catch (e) { disc = null; }
+  }
+  return cageHullTub(H, P, disc);
 }
 // HULL-B18: THE TUB'S AFTERBODY (the user: "an Icon puts its boom really low, keeps a large space behind the cabin and
 // sticks the engine in there"; and "would we need to also give a rod its buoyancy?" - yes). A pod that ends at its aft
@@ -1015,7 +1028,7 @@ function cageHullLines(P) {
 // 21 deg bow up, measured. The planing bottom CONTINUES under the boom: hullTubLen metres of V sections past the pod's
 // last ring, the keel rising hullTubRise deg, the section closing to hullTubEnd of the last ring's - flown (the station
 // table, the frame's hull record, the fit) and drawn (_cage_float.js, the same stations). 0: none - bit-identical
-function cageHullTub(H, P) {
+function cageHullTub(H, P, disc) {
   const len = +P.hullTubLen || 0;
   if (!(len > 0.05) || !H.sta || H.sta.length < 2) return H;
   const FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -1028,17 +1041,27 @@ function cageHullTub(H, P) {
   // (and "you still have a section available for higher floats on the length of the cowl": under a pusher's cowl, ahead
   // of its disc, nothing turns - the afterbody keeps 0.85 of the pod's depth there, then falls to the low section over
   // 0.3 m behind the cowl's end, so the disc turns over it)
-  const dep0 = Math.max(sA.yc - sA.yk + 0.02, kH * (sA.yd - sA.yk)), depC = 0.85 * (sA.yd - sA.yk);
-  const zCowl = Math.round(+P.engMount || 0) === 1 ? Math.max(0, +P.cw_cowlLen || 0.8) / FS : 0, zFall = 0.3 / FS;
+  const dep0 = Math.max(sA.yc - sA.yk + 0.02, kH * (sA.yd - sA.yk));
+  // (HULL-B20, the user: "you should have a huge prop strike, both with the cowl and your back extension"): the tall part
+  // stays UNDER the cowl (its underside: the hub less the cowl's half-height, free mode) and ENDS falling 0.05 m ahead of
+  // the disc's plane (the cowl's length + the spinner's stand-off); aft of the plane the deck stays DISC_CLEAR under the
+  // disc's lowest tip
+  const pusher = Math.round(+P.engMount || 0) === 1 && disc;
+  const cowlL = Math.max(0, +P.cw_cowlLen || 0.8) / FS, zDisc = pusher ? cowlL + 0.15 / FS : 0;
+  const zFall = 0.25 / FS, zCowl = pusher ? Math.max(0, zDisc - 0.05 / FS - zFall) : 0;
+  const yCowlBot = pusher ? disc.hubY - (Math.round(+P.fitNose || 0) === 0 && +P.cw_aftH > 0 ? +P.cw_aftH / FS : 0.9 * disc.R) - 0.02 / FS : Infinity;
+  const yDiscLow = pusher ? disc.hubY - disc.R - DISC_CLEAR / FS : Infinity;
+  const depC = Math.max(dep0, Math.min(0.85 * (sA.yd - sA.yk), yCowlBot - sA.yk));
   const NN = N + 4;
   for (let i = 1; i <= NN; i++) {
     const u = i / NN, dz = u * len / FS, sc = 1 - (1 - kE) * u, sh = 1 - 0.5 * u, yk = sA.yk + dz * tr;
     const hc = (sA.yc - sA.yk) * sc;
     const wC = dz <= zCowl ? 1 : dz >= zCowl + zFall ? 0 : 0.5 * (1 + Math.cos(Math.PI * (dz - zCowl) / zFall));
-    const dep = wC * depC + (1 - wC) * dep0 * sh;
-    ext.push({ z: sA.z - dz, yk, b: sA.b * sc, yc: yk + hc, bd: Math.max(sA.b, sA.bd) * sc, yd: yk + Math.max(hc + 0.01, dep), tub: true });
+    let yd = yk + Math.max(hc + 0.01, wC * depC + (1 - wC) * dep0 * sh);
+    if (pusher && dz >= zDisc - 0.05 / FS) yd = Math.max(yk + hc + 0.005, Math.min(yd, yDiscLow));   // under the disc
+    ext.push({ z: sA.z - dz, yk, b: sA.b * sc, yc: Math.min(yk + hc, yd - 0.004), bd: Math.max(sA.b, sA.bd) * sc, yd, tub: true });
   }
-  return Object.assign({}, H, { sta: H.sta.concat(ext), tub: { from: sA, ext } });
+  return Object.assign({}, H, { sta: H.sta.concat(ext), tub: { from: sA, ext, disc: pusher ? { yLow: yDiscLow, zDisc } : null } });
 }
 // ...and in the WATER's frame (32_hydro: x aft of the step, y up from the step's keel, metres): the station table
 // spec.gear.hull carries (HULL-B2), with the step's own cage station and keel height for the join's placement.
@@ -1083,7 +1106,8 @@ function cageHullFit(P, cgZ, cgY, opt) {
   const rs = R.rings.filter(r => r.lv.keel).slice().sort((a, b) => cageKeelZ(a) - cageKeelZ(b));
   if (rs.length < 2 || !Number.isFinite(cgZ) || !Number.isFinite(cgY)) return null;
   const keelAt = z => {
-    const lo = r => Math.min(r.lv.keel.y, r.lv.keel.yC != null ? r.lv.keel.yC : r.lv.keel.y);
+    // (HULL-B20: the hull's deepening lowers every keel the boat floats on)
+    const lo = r => Math.min(r.lv.keel.y, r.lv.keel.yC != null ? r.lv.keel.yC : r.lv.keel.y) - (H.deep || 0);
     if (z <= cageKeelZ(rs[0])) return lo(rs[0]);
     for (let i = 0; i + 1 < rs.length; i++) {
       const a = rs[i], b = rs[i + 1], za = cageKeelZ(a), zb = cageKeelZ(b);
@@ -1126,7 +1150,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  4. a wing PAIR counter-rotates (engRotate 1, below);
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
-const PROP_D_MIN = 1.4, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+const ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
   if (!f || !f.cg || !(f.mass > 0)) return null;
@@ -1209,19 +1233,33 @@ function cageHullFitAll(P, f, HY, opt) {
         else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
       }
       else if (mount === 2 || mount === 7) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
-      else if (mount === 1 && (+P.engY || 0) < 0.5) {
-        // (HULL-B18: a pusher on the pod's face rises on its thrust line, engY, INSIDE its cowl - the cowl never leaves the
-        // aft bulkhead - to its row's top; short of it, reported)
-        const want = (+P.engY || 0) + need / FS + 0.01;
-        fit.engY = +Math.min(0.5, want).toFixed(3);
-        // ...and past the thrust line's top, a SMALLER propeller (the flown disc is the drawn one, cw_propD): the radius
-        // gives back what the hub cannot, to PROP_D_MIN
-        const short = want - 0.5, D0 = +P.cw_propD || 0;
-        if (short > 0 && D0 > 0) { const D1 = Math.max(PROP_D_MIN, D0 - 2 * short * FS - 0.02); if (D1 < D0 - 1e-3) fit.cw_propD = +D1.toFixed(3);
-          if (D0 - 2 * short * FS - 0.02 >= PROP_D_MIN) { /* cleared */ } else notes.push('a propeller ' + Math.round((PROP_D_MIN - (D0 - 2 * short * FS)) / 2 * 1000) + ' mm short of its 18 in with the thrust line at its top and the disc at ' + PROP_D_MIN + ' m'); }
-        else if (want > 0.5) notes.push('a propeller ' + Math.round((want - 0.5) * FS * 1000) + ' mm short of its 18 in with the thrust line at its top: a taller engine bay (the aft roof) or a smaller propeller');
+      else if (mount === 1 && (+P.hullDeep || 0) < HULL_DEEP_MAX) {
+        // (HULL-B20, the user: "it's either on the aft bulkhead, and here you could still try to do that by heightening the
+        // cabin or lowering your fuselage": a pusher's cowl stays on the aft bulkhead and its engine at the face, so the
+        // body rides higher - the hull deepened under it, hullDeep; past its top, a smaller propeller (cw_propD, the flown
+        // disc) to PROP_D_MIN; short of both, reported)
+        const want = (+P.hullDeep || 0) + need + 0.01;
+        fit.hullDeep = +Math.min(HULL_DEEP_MAX, want).toFixed(3);
+        const short = want - HULL_DEEP_MAX, D0 = +P.cw_propD || 0;
+        if (short > 0 && D0 > 0) { const D1 = Math.max(PROP_D_MIN, D0 - 2 * short - 0.02); if (D1 < D0 - 1e-3) fit.cw_propD = +D1.toFixed(3);
+          if (D0 - 2 * short - 0.02 < PROP_D_MIN) notes.push('a propeller ' + Math.round((PROP_D_MIN - (D0 - 2 * short)) / 2 * 1000) + ' mm short of its 18 in with the hull at its deepest and the disc at ' + PROP_D_MIN + ' m'); }
+        else if (short > 0) notes.push('a propeller ' + Math.round(short * 1000) + ' mm short of its 18 in with the hull at its deepest');
       }
       else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
+    }
+  }
+  // HULL-B20: THE ROD FOLLOWS THE TUB'S AFTERBODY (the user: "the rod should probably be tilted the same way you have
+  // tilted your buoyant structure at the back"): a rod boom over a tub afterbody climbs at the afterbody keel's rise
+  if (+P.hullTubLen > 0.05 && Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin) {
+    const ri = Math.max(-12, Math.min(12, +P.hullTubRise >= 0 ? +P.hullTubRise : 8));
+    if (Math.abs((+P.rodIncl || 0) - ri) > 1e-3) fit.rodIncl = ri;
+    // ...and RIDES THE AFTERBODY UNDER THE DISC: its axis at the disc's plane just under the disc's lowest tip (the
+    // afterbody's deck stays DISC_CLEAR under it - cageHullTub), climbing at the same rise behind it (cage units)
+    const L = cageHullLines(Object.assign({}, P, fit)), dsc = L && L.tub && L.tub.disc;
+    if (dsc) {
+      const rr = Math.max(0.015, (+P.rodD || 0.12) / 2) / FS, t = Math.tan(ri * Math.PI / 180);
+      const ry = +Math.max(-ROD_Y_MIN_ABS, Math.min(0.9, dsc.yLow + (DISC_CLEAR - 0.03) / FS - rr - t * dsc.zDisc)).toFixed(3);
+      if (Math.abs((+P.rodY || 0) - ry) > 1e-3) fit.rodY = ry;
     }
   }
   // 4. A PAIR ON A HULL TURNS AGAINST ITSELF (engRotate 1, tops inward): a same-hand pair's torque, even at idle, rolled
@@ -1258,7 +1296,10 @@ function cageHullSpec(P) {
   const cl = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
   return { beta: cl(P.hullBeta, 0, 40, 22), betaBow: cl(P.hullBetaBow, 0, 60, 36), betaA: cl(P.hullBetaA, 0, 40, 18),
            stepAft: cl(P.hullStepZ, -3, 6, 0.3), hs: cl(P.hullHs, 0, 0.4, 0.07),
-           steps: Math.round(cl(P.hullSteps, 0, 1, 1)) };
+           steps: Math.round(cl(P.hullSteps, 0, 1, 1)),
+           // HULL-B20: the hull DEEPER under the body (m -> cage units): the keel and the chine lowered, the floor and the
+           // gunwale kept - the body rides higher over its waterline (the user: 'lowering your fuselage')
+           deep: cl(P.hullDeep, 0, 1.2, 0) / ((CAGE_UNIT || 1) * (P.planeScale || 1)) };
 }
 const cageKeelZ = r => r.lv.keel ? r.lv.keel.z : r.lv.waist ? r.lv.waist.z : 0;
 // the hull's stations off the resolved rings (cage z, +forward): the step (the cabin frame's fore ring, stepAft
@@ -1287,6 +1328,9 @@ function cageHullVee(H, HF, lv, rise) {
   const w = lv.waist, f = lv.floor;
   const tb = Math.tan(cageHullBeta(H, HF, k.z) * Math.PI / 180);
   // the V as it stands without the step (crown0, chine0), then the step's rise on the bottom alone
+  if (H.deep > 0 && !lv.__deep) {            // (HULL-B20: once per ring - the keel and its centre column lowered together)
+    k.y -= H.deep; if (k.yC != null) k.yC -= H.deep; lv.__deep = true;
+  }
   const crown0 = Math.min(k.yC != null ? k.yC : k.y, k.y);
   const chineOf = (cr, ky) => {
     let y = Math.max(ky, cr + Math.abs(k.x) * tb);
@@ -7948,7 +7992,7 @@ const CAGE_PARAMS = {
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
   hullAftDeg: 7, hullNoseBase: 0,
   // HULL-B18: the tub's afterbody under the boom (m; 0 none), its keel's rise (deg) and its end section (of the last ring's)
-  hullTubLen: 0, hullTubRise: 8, hullTubEnd: 0.6, hullTubH: 0.3,
+  hullTubLen: 0, hullTubRise: 8, hullTubEnd: 0.6, hullTubH: 0.3, hullDeep: 0,
   // HULL-B19: SPONSONS - a buoyant stub a side on the hull, partly in the water at rest (0 none): its displacement
   // each (kg; 0 not fitted), its keel over the step keel (m; -1 not fitted), its station forward of the step and its
   // centre outboard of the hull's side (m) - the fit sizes the first two by the roll-moment rule
@@ -8768,7 +8812,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
-  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes

@@ -479,7 +479,20 @@ function engineFaces(mesh, FS, P) {
     // its disc in front of the cabin. No face, no engine: the engine layer says why and the join files it.
     const C2 = window.CAGE2;
     if (C2 && C2.cageAftEngineFace && !+P.rearAperture && !C2.cageAftEngineFace(P)) return [];
-    const f = noseFace(mesh, FS, 'tail');
+    let f = noseFace(mesh, FS, 'tail');
+    // HULL-B20: ON A HULL THE ENGINE'S FACE IS THE BODY'S, ABOVE THE GUNWALE (the user: "you need to get the engine at the
+    // cabin level"): the aft cap's lower part is the boat's hull, not a firewall - the face (and the cowl on it) is the
+    // cap from its gunwale (the drawn skin's widest line there) to its roof; the hull's depth below it never moves it
+    if (f && +P.hullOn) {
+      try {
+        const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+        if (AF) {
+          const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, f.z + 0.05)), yW = AF.surf(zc, Math.PI / 2)[1];
+          const top = f.yc + f.halfH, bot = f.yc - f.halfH;
+          if (isFinite(yW) && yW > bot + 0.05 && yW < top - 0.10) f = Object.assign({}, f, { yc: 0.5 * (top + yW), halfH: 0.5 * (top - yW), uv: null, waist: 0 });
+        }
+      } catch (e) {}
+    }
     // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
     // is where the mount bolts, and a Chinook's engine sits over the wing's
     // trailing edge, a third of a metre ahead of where the pod ends — the
