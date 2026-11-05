@@ -481,12 +481,17 @@ console.log('10 THE FOLD (G1)');
         best = Math.min(best, Math.abs(p[1] - (l1 * A[1] + l2 * B[1] + l3 * Cc[1])));
       }
       return best; };
-    const vertsOf = name => { const out = []; ex.Sx.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.material !== q.parent.children[1]?.material) {} if (q.isMesh) { const pa = q.geometry.attributes.position; for (let i = 0; i < pa.count; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+    // (P2: a door is a slab - its outer face (the first doorOuterN vertices of its front mesh) lies on the skin, its back
+    // face DOOR_T in; behind the wing's blunt trailing edge 'in' is between the skins, so the outer face is what is measured)
+    const vertsOf = name => { const out = []; ex.Sx.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.userData.doorOuterN) { const pa = q.geometry.attributes.position; for (let i = 0; i < q.userData.doorOuterN; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
     const posed = (name, g) => { const t = C.gearMechPose(R, g)[name]; return vertsOf(name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
     let worst = 0;
     const atTE = p => { const te = W.teAt(Math.abs(p[0])); return te && p[2] < te.z + 0.015; };   // (the trailing edge's lip: no area in plan)
     for (const d of D6) for (const p of posed(d.name, 0)) if (!atTE(p)) worst = Math.max(worst, onSkin(p));
-    check(worst < 0.012, 'up, every door lies flush on the skin it was cut from (its outer face; the inner 4 mm in)', Math.round(worst * 1000) + ' mm at the most');
+    check(worst < 0.004, 'up, every door lies flush on the skin it was cut from (its outer face)', Math.round(worst * 1000) + ' mm at the most');
+    { let slab = 0; ex.Sx.scene.traverse(o => { if (D6.some(d => d.name === o.name)) { const m = o.children.filter(q => q.isMesh), f = m.find(q => q.userData.doorOuterN);
+        if (f && m.length >= 2 && f.geometry.attributes.position.count > f.userData.doorOuterN && f.geometry.attributes.color) slab++; } });
+      check(slab === D6.length, 'P2: every door is a slab - its outer face, a chamfered edge and side wall (seam-shaded), a back face', slab + ' of ' + D6.length); }
     const wd = D6.find(d => d.kind === 'well'), cy = (ps) => ps.reduce((s, p) => s + p[1], 0) / ps.length;
     check(wd && cy(posed(wd.name, 0.5)) < cy(posed(wd.name, 0)) - 0.02, 'a well door swings open (down) as the gear travels', wd && (cy(posed(wd.name, 0)) - cy(posed(wd.name, 0.5))).toFixed(3) + ' m lower');
     const b2 = docs({ gearWellCut: 1, gearDoors: 2 }).G.doors || [], b1 = docs({ gearWellCut: 1, gearDoors: 1 }).G.doors || [];

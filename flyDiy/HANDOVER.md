@@ -311250,3 +311250,29 @@ TIMED (light): the same boot picture (warm nav -> garage 108.6 / 133.5 s), nothi
   Open for phase 2: the Skymaster (mains into the back pod: door shards at mid travel, the rear engine shows); the
   cabin-floor test running under the instrument panel; the long nose well behind the brace and actuator anchors; the
   gear held to the wing's size (flaps, a lift strut).
+
+## RETRACT phase 2 - the wing's limits, closed wells, the Skymaster, the slab doors and a polish pass (2026-11-05, cloud)
+
+The study is `futureDesigns/RETRACT-STUDY-2026-11.md`, sections 8.20 to 8.22. The evidence page (the artifact
+"Retractable Gear Evidence") has every option tested, with a sheet each.
+
+- **The wing's limits (8.20).** Fit tests for the strut, the flap and the rear engine's bay.
+- **Closed wells (8.21).** Every well is a closed box built from its cut's outline: walls with a chamfered lip, one
+  flat ceiling. A wing well running into the body keeps its walls out (`inBody`).
+- **The Skymaster (8.21).** The card is born retractable (fold aftBelly, shortened legs).
+- **The slab doors (8.22).** Every door is a slab: smooth front, 1.5 mm chamfer, side wall, dark back face 6 mm in, and
+  seam grime as vertex colours. `quickshot.js` draws vertex colours.
+- **The polish pass (8.22).** Each fix was found in a close-up:
+  - the well's shoulder (`wellBox` with `skinTop`): the walls stay inside a nacelle that narrows to its top;
+  - a fitting's plate stays inside its nacelle (`fittingsDraw` with `roomX`);
+  - a nacelle's doors take only its down-facing faces, oriented from the nacelle's own centre line;
+  - a well door opens out along its own outward normal.
+- **GATE RETRACT section 17.** It measures a door's outer face (the front mesh's `doorOuterN` vertices), against a 4 mm
+  limit, and checks that every door is a slab.
+- **Gates PASS:** RETRACT, KNIFE, SAVE, GEAR, DESIGN, PARTS. The known reds from phase 1 are unchanged and not ours
+  (CLIP, JOINPARITY, ENGCONFIG, HANDLE).
+- **Still rough:**
+  - the Skymaster's wide belly well doors at mid-travel;
+  - the T-tail cowl slot's front, which has no skin to make a door from;
+  - the 3.2 m-track T-tail's wheel, 34 to 51 mm proud of its thin wing (a red fit row, by design);
+  - the DA62 card's engine blocks, which stand ahead of the cowl (the card, not the gear).

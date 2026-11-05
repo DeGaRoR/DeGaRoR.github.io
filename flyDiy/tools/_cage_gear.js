@@ -1282,7 +1282,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
 // place (the body's, the wing's, the nacelle's - capped under a skin), else 50 mm up. Two lugs from the pin, a block
 // between their roots where the drop is longer than a lug, a base plate flat on the ceiling with four bolts, and a
 // triangular gusset outside each lug from the lug to the plate
-function fittingsDraw(fits, fit, group, KT) {
+function fittingsDraw(fits, fit, group, KT, roomX) {
   if (!fits || !fits.length || !KT) return;
   const al = KT.Bag(), dk = KT.Bag(), up = [0, 1, 0];
   const cutsAll = fit ? [].concat(fit.cuts || [], fit.cutsWing || [], fit.cutsNac || []) : [];
@@ -1302,19 +1302,25 @@ function fittingsDraw(fits, fit, group, KT) {
   for (const F of fits) {
     const c = F.c, pax = KT.nrm(F.pax), side = KT.nrm(KT.crs(pax, up));
     if (!isFinite(side[0])) continue;
-    const yc = ceilAt(c), reach = Math.max(0.025, Math.min(0.40, yc != null ? yc - c[1] : 0.05));
-    const lugR = Math.min(reach, 0.055), at = d => KT.off(c, up, d);
+    const yc = ceilAt(c); let reach = Math.max(0.025, Math.min(0.40, yc != null ? yc - c[1] : 0.05));
+    const lugR = Math.min(reach, 0.055), at = d => KT.off(c, up, d), lug = F.w + F.t / 2;
+    // (P2: inside a nacelle the plate keeps inside its skin - where the nacelle's top narrows to a ridge under the wing,
+    // it lands lower, on the nacelle's own frame, where the skin leaves the lugs their room)
+    const roomAt = d => roomX && Math.abs(pax[0]) > 0.7 ? roomX(c, at(d)[1]) - 0.004 : Infinity;
+    while (reach > lugR + 0.012 && roomAt(reach) < lug + 0.006) reach -= 0.004;
     for (const s of [-1, 1]) KT.lug(al, KT.off(c, pax, s * F.w), pax, up, F.r, F.t, lugR);
     // the block between the lugs' roots and the plate (a long drop)
     if (reach > lugR + 0.004) KT.boxIn(al, at((lugR + reach) / 2), [F.w + F.t / 2, (reach - lugR) / 2, F.r * 0.72], pax, up, side);
     // the base plate, flat on the structure, and its four bolts (their heads under it)
-    const pw = F.w + F.t / 2 + 0.026, pd = F.r + 0.012;
+    // (P2: inside a nacelle, no wider than the room its skin leaves at the plate - the lugs kept, the lip and gussets trimmed)
+    const room = roomAt(reach);
+    const pw = Math.max(lug + 0.004, Math.min(lug + 0.026, room)), pd = F.r + 0.012;
     KT.boxIn(al, at(reach - 0.003), [pw, 0.003, pd], pax, up, side);
     for (const sx of [-1, 1]) for (const sz of [-1, 1])
       KT.bolt(dk, KT.off(KT.off(at(reach - 0.006), pax, sx * (pw - 0.008)), side, sz * (pd - 0.008)), up, 0.004, 0.008);
     // the gussets: outside each lug, from its root on the plate down the lug, and out along the plate
-    const gh = Math.min(reach * 0.75, 0.05), gw = 0.020;
-    for (const s of [-1, 1]) { const x0 = s * (F.w + F.t / 2 + 0.0015);
+    const gh = Math.min(reach * 0.75, 0.05), gw = Math.min(0.020, pw - lug - 0.004);
+    if (gw > 0.006) for (const s of [-1, 1]) { const x0 = s * (F.w + F.t / 2 + 0.0015);
       prism(KT.off(at(reach - 0.006), pax, x0), KT.off(at(reach - 0.006), pax, x0 + s * gw), KT.off(at(reach - 0.006 - gh), pax, x0), side, 0.004); }
   }
   if (al.tris) al.mesh(group, GG.gearMat('alloy'));
@@ -1334,6 +1340,15 @@ function fittingsDraw(fits, fit, group, KT) {
 //   is up; gear down they close too unless the down gear passes through them (then they stand open).
 // Each door is a panel of the skin's own finish over a dark inner face, posed by the core's rule 'door' (gearMechPose).
 const DOOR_ANG = 85 * Math.PI / 180, DOOR_SEQ = 0.15, DOOR_IN = 0.004;
+const DOOR_T = 0.006, DOOR_BEV = 0.0015;      // P2: a door's thickness and its edge's chamfer (out and in)
+const nrm1 = x => x;                          // (a component kept: the side wall's normal is the outward direction)
+// the skin's material with vertex colours, once per material (a door's grime)
+const DOOR_MATS = new Map();
+function doorMat(m) {
+  if (!m || !m.clone) return m;
+  if (!DOOR_MATS.has(m.uuid)) { const c = m.clone(); c.vertexColors = true; c.needsUpdate = true; DOOR_MATS.set(m.uuid, c); if (DOOR_MATS.size > 64) DOOR_MATS.clear(); }
+  return DOOR_MATS.get(m.uuid);
+}
 // a convex polygon (3D points) clipped in plan (u, v) = (z, -x) to the left of a -> b
 function planClip(poly, a, b, off) {
   // (GR R1: `off` metres further in - the seam)
@@ -1363,10 +1378,18 @@ const polyArea = ps => { let a = 0; for (const p of ps) for (let i = 1; i + 1 < 
   const u = [p[i][0] - p[0][0], p[i][1] - p[0][1], p[i][2] - p[0][2]], v = [p[i + 1][0] - p[0][0], p[i + 1][1] - p[0][1], p[i + 1][2] - p[0][2]];
   a += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return a; };
 // a skin's faces facing down (Newell) whose plan box meets the outline's, clipped to it
-function doorPatch(faces, outline, anyWinding) {
+function doorPatch(faces, outline, anyWinding, steep) {
   let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
   for (const p of outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
   const out = [];
+  // (P2: a shell wound either way - its faces turned AWAY from its own centre line (each 5 cm station's middle, from
+  // its faces near the outline): |ny| alone let the nacelle's top skin at its edge into a door)
+  let cenAt = null;
+  if (anyWinding) { const st = new Map();
+    for (const f of faces) for (const q of f) { if (q[0] < x0 - 0.3 || q[0] > x1 + 0.3 || q[2] < z0 - 0.1 || q[2] > z1 + 0.1) continue;
+      const k = Math.round(q[2] / 0.05), b = st.get(k) || st.set(k, [Infinity, -Infinity, Infinity, -Infinity]).get(k);
+      b[0] = Math.min(b[0], q[0]); b[1] = Math.max(b[1], q[0]); b[2] = Math.min(b[2], q[1]); b[3] = Math.max(b[3], q[1]); }
+    cenAt = z => { const b = st.get(Math.round(z / 0.05)); return b ? [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2] : null; }; }
   for (const f of faces) {
     let fx0 = Infinity, fx1 = -Infinity, fz0 = Infinity, fz1 = -Infinity, nx = 0, ny = 0, nz = 0;
     for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length];
@@ -1376,7 +1399,12 @@ function doorPatch(faces, outline, anyWinding) {
     // trailing edge's lip, is not the door's)
     // (a cowl's or a nacelle's shells may be wound either way - the generator's aft lofts march inside out: there the
     // face need only lie flat enough, and the lowest skin over each place, below, is the door's)
-    if ((anyWinding ? Math.abs(ny) : -ny) <= 0.4 * Math.hypot(nx, ny, nz) || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
+    // (`steep`: a wing's door - the closing face ahead of its flap is not its; a body's or a nacelle's rounded underside
+    // curves up steeply round its well and is the door's to 84 degrees)
+    if (fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
+    if (cenAt) { let mx = 0, my = 0, mz = 0; for (const q of f) { mx += q[0] / f.length; my += q[1] / f.length; mz += q[2] / f.length; }
+      const ce = cenAt(mz); if (ce && nx * (mx - ce[0]) + ny * (my - ce[1]) < 0) { nx = -nx; ny = -ny; nz = -nz; } }
+    if ((cenAt ? -ny : anyWinding ? Math.abs(ny) : -ny) <= (steep ? 0.4 : 0.1) * Math.hypot(nx, ny, nz)) continue;
     const c = clipConvex(f, outline, DOOR_SEAM);
     if (c) out.push(c);
   }
@@ -1433,15 +1461,93 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
   const downLines = k => { const C = swing[k], h = C.hinge, ax = C.axle, m = wellMechPts({ R: mech.R, CM }, k, 1), out = [[h, ax]];
     for (let i = 0; i + 5 < m.length; i += 6) out.push(m.slice(i, i + 6));
     return out; };
-  const panel = (name, polys, front, xf) => {          // a door's panel: the skin's face, a dark face 4 mm in (flush, then placed)
-    const fb = KT.Bag(), bb = KT.Bag(), X = xf || (v => v);
-    for (const p0 of polys) {
-      const a = p0.map(q => fb.v(X(q))), b = p0.map(q => bb.v(X([q[0], q[1] + DOOR_IN, q[2]])));
-      const p = p0;
-      for (let i = 1; i + 1 < p.length; i++) { fb.tri(a[0], a[i], a[i + 1]); bb.tri(b[0], b[i + 1], b[i]); }
-    }
-    const gp = new THREE.Group(); gp.name = name;
-    fb.mesh(gp, front || GG.gearMat('alloy')); bb.mesh(gp, darkM);
+  // P2 (the user: "the doors, give them some thickness, and proper edge beveling ... seams and light shadow/dirt in the
+  // corners and to highlight the seams"): A DOOR IS A SLAB - the skin's own faces welded into one smooth front (its
+  // normals averaged), a 45-degree chamfer round its edge (DOOR_BEV out and in), a side wall down to the back face
+  // DOOR_T in (the dark inner skin); the front's vertex colours darken gently toward the edge and a little more into
+  // its corners (the seam's shadow, the grime a door collects - no noise: on the skin's irregular triangles it read as
+  // crumpled); the chamfer catches the light a
+  // shade lighter, the side wall stays in the seam's shadow. The skin's material is cloned once with vertex colours
+  const panel = (name, polys, front, xf) => {
+    const X = xf || (v => v), gp = new THREE.Group(); gp.name = name;
+    const key = q => Math.round(q[0] * 2e4) + ',' + Math.round(q[1] * 2e4) + ',' + Math.round(q[2] * 2e4);
+    const W = [], WI = new Map(), F = [];
+    for (const p0 of polys) { if (p0.length < 3) continue;
+      const ids = p0.map(q => { const k = key(q); if (!WI.has(k)) { WI.set(k, W.length); W.push(q.slice()); } return WI.get(k); })
+        .filter((v, i, a) => v !== a[(i + 1) % a.length]);
+      if (ids.length < 3) continue;
+      // (each face turned to look DOWN, out of the aircraft: a door is cut from a down-facing skin)
+      let ny = 0; for (let i = 0; i < ids.length; i++) { const a = W[ids[i]], b = W[ids[(i + 1) % ids.length]]; ny += (a[2] - b[2]) * (a[0] + b[0]); }
+      F.push(ny > 0 ? ids.slice().reverse() : ids); }
+    if (!F.length) return;
+    // the smooth front's normals (Newell per face, averaged at the welded vertices)
+    const VN = W.map(() => [0, 0, 0]);
+    for (const f of F) { let nx = 0, ny = 0, nz = 0;
+      for (let i = 0; i < f.length; i++) { const a = W[f[i]], b = W[f[(i + 1) % f.length]];
+        nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+      for (const v of f) { VN[v][0] += nx; VN[v][1] += ny; VN[v][2] += nz; } }
+    for (const n of VN) { const l = Math.hypot(n[0], n[1], n[2]) || 1; n[0] /= l; n[1] /= l; n[2] /= l; }
+    // (smoothed over their neighbours, three passes: the clipped fragments' own normals are noisy - a door read crumpled)
+    { const nb = W.map(() => new Set()); for (const f of F) for (let i = 0; i < f.length; i++) { nb[f[i]].add(f[(i + 1) % f.length]); nb[f[(i + 1) % f.length]].add(f[i]); }
+      for (let it = 0; it < 3; it++) { const nv = VN.map((n, v) => { const a = n.slice(); for (const u of nb[v]) { a[0] += VN[u][0]; a[1] += VN[u][1]; a[2] += VN[u][2]; }
+          const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }); for (let v = 0; v < VN.length; v++) VN[v] = nv[v]; } }
+    // the boundary: directed edges used once, followed into loops
+    const ecount = new Map(), dir = [];
+    for (const f of F) for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length], k = a < b ? a + '_' + b : b + '_' + a;
+      ecount.set(k, (ecount.get(k) || 0) + 1); dir.push([a, b, k]); }
+    const next = new Map(); for (const [a, b, k] of dir) if (ecount.get(k) === 1) next.set(a, b);
+    const loops = [], seen = new Set();
+    for (const s0 of next.keys()) { if (seen.has(s0)) continue; const L = []; let v = s0;
+      while (v != null && !seen.has(v)) { seen.add(v); L.push(v); v = next.get(v); }
+      if (L.length >= 3) loops.push(L); }
+    // each boundary vertex's outward direction in the door's plane (its two edges', mitred) and its corner's sharpness
+    const OUT = new Map(), CORN = new Map(), sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+    for (const L of loops) { const n = L.length, eo = [];
+      for (let i = 0; i < n; i++) { const a = W[L[i]], b = W[L[(i + 1) % n]], d = nrm(sub3(b, a)), nn = VN[L[i]];
+        eo.push(nrm(crs(d, nn))); }
+      // (outward: away from the faces - checked once on the loop against the welded vertices' centroid)
+      let cx = 0, cy = 0, cz = 0; for (const q of W) { cx += q[0]; cy += q[1]; cz += q[2]; } const C = [cx / W.length, cy / W.length, cz / W.length];
+      let sgn = 0; for (let i = 0; i < n; i++) { const a = W[L[i]]; sgn += eo[i][0] * (a[0] - C[0]) + eo[i][1] * (a[1] - C[1]) + eo[i][2] * (a[2] - C[2]); }
+      const fl = sgn < 0 ? -1 : 1;
+      for (let i = 0; i < n; i++) { const e0 = eo[(i - 1 + n) % n].map(x => x * fl), e1 = eo[i].map(x => x * fl);
+        const m = nrm([e0[0] + e1[0], e0[1] + e1[1], e0[2] + e1[2]]), c = Math.max(0.5, m[0] * e1[0] + m[1] * e1[1] + m[2] * e1[2]);
+        OUT.set(L[i], m.map(x => x / c)); CORN.set(L[i], 1 - Math.max(-1, Math.min(1, e0[0] * e1[0] + e0[1] * e1[1] + e0[2] * e1[2]))); } }
+    // the front's grime: darker within ~15 mm of the edge, more at a corner; a faint, large, smooth variation
+    const bnd = [...OUT.keys()].map(v => W[v]);
+    const shade = (q, v) => { let d = Infinity; for (const b of bnd) d = Math.min(d, Math.hypot(q[0] - b[0], q[1] - b[1], q[2] - b[2]));
+      const corner = CORN.has(v) ? Math.min(1, CORN.get(v)) : 0;
+      return Math.max(0.6, Math.min(1, 1 - 0.16 * Math.exp(-d / 0.025) - 0.10 * corner * Math.exp(-d / 0.02))); };
+    const T = DOOR_T, BV = DOOR_BEV;
+    const P = [], NN = [], CC = [], IX = [];
+    const put = (q, n, c) => { const a = X(q), b = X([q[0] + n[0] * 0.01, q[1] + n[1] * 0.01, q[2] + n[2] * 0.01]);
+      P.push(a[0], a[1], a[2]); const m = nrm(sub3(b, a)); NN.push(m[0], m[1], m[2]); CC.push(c, c, c); return P.length / 3 - 1; };
+    // the front (welded, smooth)
+    const fid = W.map((q, v) => put(q, VN[v], shade(q, v)));
+    for (const f of F) for (let i = 1; i + 1 < f.length; i++) IX.push(fid[f[0]], fid[f[i]], fid[f[i + 1]]);
+    // the chamfer and the side wall, round each loop
+    const inw = v => [-VN[v][0], -VN[v][1], -VN[v][2]];                  // (into the aircraft)
+    const at = (v, o, i) => { const q = W[v], d = OUT.get(v), n = inw(v); return [q[0] + d[0] * o + n[0] * i, q[1] + d[1] * o + n[1] * i, q[2] + d[2] * o + n[2] * i]; };
+    for (const L of loops) { const n = L.length;
+      for (let i = 0; i < n; i++) { const a = L[i], b = L[(i + 1) % n];
+        const nc = v => nrm([OUT.get(v)[0] - inw(v)[0], OUT.get(v)[1] - inw(v)[1], OUT.get(v)[2] - inw(v)[2]]);
+        const p0 = put(W[a], nc(a), 0.62), p1 = put(W[b], nc(b), 0.62), r1 = put(at(b, BV, BV), nc(b), 0.62), r0 = put(at(a, BV, BV), nc(a), 0.62);
+        IX.push(p0, r1, p1, p0, r0, r1);
+        const s0 = put(at(a, BV, BV), OUT.get(a).map(nrm1), 0.42), s1 = put(at(b, BV, BV), OUT.get(b).map(nrm1), 0.42), t1 = put(at(b, BV, T), OUT.get(b).map(nrm1), 0.42), t0 = put(at(a, BV, T), OUT.get(a).map(nrm1), 0.42);
+        IX.push(s0, t1, s1, s0, t0, t1); } }
+    // (each triangle wound to look along its own normal: the front out, the chamfer and the wall outward)
+    for (let t = 0; t < IX.length; t += 3) { const A = [P[IX[t] * 3], P[IX[t] * 3 + 1], P[IX[t] * 3 + 2]], B = [P[IX[t + 1] * 3], P[IX[t + 1] * 3 + 1], P[IX[t + 1] * 3 + 2]], Cq = [P[IX[t + 2] * 3], P[IX[t + 2] * 3 + 1], P[IX[t + 2] * 3 + 2]];
+      const fn = crs(sub3(B, A), sub3(Cq, A)), vn = [NN[IX[t] * 3], NN[IX[t] * 3 + 1], NN[IX[t] * 3 + 2]];
+      if (fn[0] * vn[0] + fn[1] * vn[1] + fn[2] * vn[2] < 0) { const k = IX[t + 1]; IX[t + 1] = IX[t + 2]; IX[t + 2] = k; } }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(NN, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(CC, 3)); g.setIndex(IX);
+    const fm = new THREE.Mesh(g, doorMat(front || GG.gearMat('alloy'))); fm.userData.doorOuterN = W.length; gp.add(fm);   // (its first W.length vertices: the outer face)
+    // the back face, DOOR_T in (the boundary on the side wall's foot), dark, looking into the aircraft
+    const bb = KT.Bag(), bid = W.map((q, v) => bb.v(X(OUT.has(v) ? at(v, BV, T) : [q[0] - VN[v][0] * T, q[1] - VN[v][1] * T, q[2] - VN[v][2] * T])));
+    for (const f of F) for (let i = 1; i + 1 < f.length; i++) bb.tri(bid[f[0]], bid[f[i + 1]], bid[f[i]]);
+    bb.mesh(gp, darkM);
     group.add(gp);
   };
   // GR: THE NACELLES' doors - their skin's faces (the cowl units' skin meshes, the layer's frame), their wells, their finish
@@ -1459,7 +1565,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
     let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
     if (a2 < 0) outline.reverse();
-    let rest = doorPatch(faces, outline, tag === 'N');
+    let rest = doorPatch(faces, outline, tag === 'N', tag === 'W');
     // GR R4: where a stowed wheel stands proud of this skin, the doors are cut round it (its section, the seam round it)
     for (const pb of ((fit.pierce && fit.pierce.bottom) || [])) if (c.units.includes(pb.unit)) rest = rest.flatMap(p => minusConvex(p, pb.outline, DOOR_SEAM));
     if (!rest.length) return;
@@ -1499,7 +1605,13 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       let axis = [-e1[1], 0, e1[0]];                                   // (u, v) = (z, -x): the plan direction e1 in 3D
       const cen = [0, 1, 2].map(i => { let s = 0, n = 0; for (const p of hp) for (const q of p) { s += q[i]; n++; } return s / n; });
       const R1 = CM.gearRot(axis, 0.1), d = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]];
-      if (hinge[1] + CM.gearApp(R1, d)[1] > cen[1]) axis = axis.map(x => -x);     // + opens it DOWN
+      // + opens it OUT of the skin (P2: along the door's own outward normal - a nacelle's door wraps its round belly, its
+      // centroid nearly under the hinge: 'down' alone swung one in, through the nacelle's top)
+      const on = [0, 0, 0]; for (const p of hp) { let nx = 0, ny = 0, nz = 0;
+        for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+        const sg = ny > 0 ? -1 : 1; on[0] += nx * sg; on[1] += ny * sg; on[2] += nz * sg; }
+      const mv1 = CM.gearApp(R1, d).map((x, i) => x - d[i]);
+      if (mv1[0] * on[0] + mv1[1] * on[1] + mv1[2] * on[2] < 0) axis = axis.map(x => -x);
       // gear down: closed unless the down gear passes through it
       const hull = (() => { const pz = []; for (const p of hp) for (const q of p) pz.push([q[2], -q[0]]); return wellOutline(pz, 'exact', 0.005); })();
       let y0 = Infinity, y1 = -Infinity; for (const p of hp) for (const q of p) { y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
@@ -2112,7 +2224,17 @@ PAGE.post = ctx => {
     // G2: the fit (the gear layer runs after the wing: CAGE_WING is this build's)
     try { fit = foldFit(P, swing, AF, window.CAGE_WING, mech && CM ? { R: mech.R, CM } : null); } catch (e) { fit = null; console.warn('gear fit:', e); }
     // GR: the fixed pivots' fittings, on the wells' ceilings (the trunnions' records, the brace's and actuator's)
-    try { fittingsDraw(retFits.concat(mech && mech.fits || []), fit, group, KT); } catch (e) { console.warn('gear fittings:', e); }
+    // (P2: in a nacelle the plate keeps inside its skin - the nacelle's outer skin points, the layer's frame; a narrow
+    // nacelle's top is narrower than a trunnion's plate)
+    let nacPts = null;
+    const roomX = (c, y) => {
+      if (!nacPts) { nacPts = []; const inv = new THREE.Matrix4().copy(ctx.scene.matrixWorld).invert(), M4 = new THREE.Matrix4(), vv = new THREE.Vector3();
+        for (const N of NACS) for (const o of N.meshes) { if (o.userData.nacSkin !== 'skin') continue; M4.multiplyMatrices(inv, o.matrixWorld);
+          const pa = (o.userData.wellGeo0 || o.geometry).attributes.position; for (let i = 0; i < pa.count; i++) { vv.fromBufferAttribute(pa, i).applyMatrix4(M4); nacPts.push([vv.x, vv.y, vv.z]); } } }
+      let lo = -Infinity, hi = Infinity, n = 0;
+      for (const q of nacPts) if (Math.abs(q[2] - c[2]) < 0.04 && Math.abs(q[1] - y) < 0.02 && Math.abs(q[0] - c[0]) < 0.6) { n++; if (q[0] < c[0]) lo = Math.max(lo, q[0] - c[0]); else hi = Math.min(hi, q[0] - c[0]); }
+      return n >= 2 && isFinite(lo) && isFinite(hi) ? Math.min(-lo, hi) : Infinity; };
+    try { fittingsDraw(retFits.concat(mech && mech.fits || []), fit, group, KT, NACS.length ? roomX : null); } catch (e) { console.warn('gear fittings:', e); }
     // GM1: THE MOUNT - a trunnion needs structure round its pin: MOUNT_MIN of depth (the lug's eye under the pin, the
     // fitting plate over it); a wing leg's station near the trailing edge, or a thin section, has not got it
     if (fit) for (const mt of retMounts) if (mt.wing && mt.depth < MOUNT_MIN && mt.key !== 'R') {

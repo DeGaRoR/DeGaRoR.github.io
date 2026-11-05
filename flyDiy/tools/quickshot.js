@@ -105,7 +105,8 @@ if (CUTSW) {
   S.scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) skins.push(o); });
   let nw = 0;
   for (const o of skins) {
-    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW, S.W.CAGE_GEAR.pierceTopM || null);
+    const AFg = S.W.CAGE_GEAR.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;
+    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW, S.W.CAGE_GEAR.pierceTopM || null, inBody);
     if (!r.skin) continue;
     o.geometry = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellWing'; o.add(wm); nw++; }
@@ -157,8 +158,11 @@ S.scene.traverse(o => {
   let gear = false; for (let q = o; q; q = q.parent) if (q.name === 'cageLayer:gear' || q.name === 'edWellWing' || q.name === 'edWellNac') gear = true;
   const nor = !FLAT && o.geometry.attributes.normal, nm3 = nor ? new THREE.Matrix3().getNormalMatrix(o.matrixWorld) : null, vn = new THREE.Vector3();
   const N3 = i => { vn.fromBufferAttribute(nor, idx ? idx.getX(i) : i).applyMatrix3(nm3).normalize(); return [vn.x, vn.y, vn.z]; };
+  // (P2: vertex colours multiply the material's, as three.js does - a door's grime)
+  const vc = m && m.vertexColors && o.geometry.attributes.color, C3 = i => { const j = idx ? idx.getX(i) : i; return [vc.getX(j), vc.getY(j), vc.getZ(j)]; };
   for (let i = 0; i + 2 < n; i += 3) { const a = W(i), b = W(i + 1), c = W(i + 2); const t = [...a, ...b, ...c, ...col]; if (gear) t.gear = 1;
     if (nor) t.n = [...N3(i), ...N3(i + 1), ...N3(i + 2)];
+    if (vc) t.c = [...C3(i), ...C3(i + 1), ...C3(i + 2)];
     tris.push(t); nLayer++; }
 });
 console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s build)');
@@ -246,8 +250,9 @@ function view(name) {
         // the highlight: the light's half vector with the view (d toward the camera)
         const hx = L[0] / Ll + vd[0], hy = L[1] / Ll + vd[1], hz = L[2] / Ll + vd[2], hl = Math.hypot(hx, hy, hz) || 1;
         const sp = Math.pow(Math.abs((qx * hx + qy * hy + qz * hz) / hl), 24) * 0.18;
-        const lm = 0.32 + 0.68 * dl;
-        img[i * 3] = Math.min(255, t[9] * lm + 255 * sp); img[i * 3 + 1] = Math.min(255, t[10] * lm + 255 * sp); img[i * 3 + 2] = Math.min(255, t[11] * lm + 255 * sp);
+        let lm = 0.32 + 0.68 * dl;
+        const tc = t.c, vr = tc ? w0_ * tc[0] + w1_ * tc[3] + w2_ * tc[6] : 1, vg = tc ? w0_ * tc[1] + w1_ * tc[4] + w2_ * tc[7] : 1, vb = tc ? w0_ * tc[2] + w1_ * tc[5] + w2_ * tc[8] : 1;
+        img[i * 3] = Math.min(255, t[9] * vr * lm + 255 * sp * vr); img[i * 3 + 1] = Math.min(255, t[10] * vg * lm + 255 * sp * vg); img[i * 3 + 2] = Math.min(255, t[11] * vb * lm + 255 * sp * vb);
       } else { img[i * 3] = r; img[i * 3 + 1] = g; img[i * 3 + 2] = b; }
     }
   }

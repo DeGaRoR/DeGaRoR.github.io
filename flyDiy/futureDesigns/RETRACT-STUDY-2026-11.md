@@ -1812,3 +1812,44 @@ Evidence"; the renders in the scratchpad's ev/ folder, the same frames across ea
 - the Skymaster;
 - the strut test;
 - the closed wells.
+
+### 8.22 Polish: the doors as slabs, and a quality pass (P2)
+
+The user: "give them some thickness, and proper edge beveling. Also do some texture work on them; seams and light
+shadow/dirt in the corners ... Then do a pass of quality ... stay grounded in clear action yielding benefit".
+
+**THE DOOR IS A SLAB** (`_cage_gear.js`, `panel`):
+- **The front.** The skin's own faces, welded into one smooth front. Their normals are averaged, then smoothed over
+  their neighbours in three passes: the clipped fragments' own normals made a door read crumpled.
+- **The edge.** A 45-degree chamfer, DOOR_BEV (1.5 mm) out and in, catching the light a shade lighter. Then a side wall
+  down to the back face, DOOR_T (6 mm) in, which stays in the seam's shadow.
+- **The back face.** The dark inner skin, looking into the aircraft.
+- **The grime.** Vertex colours on the front: darker within about 25 mm of the edge (16 % at most), and a little more
+  into its corners (10 %). There is no noise: on the skin's irregular triangles it read as mottled.
+- **The material.** The skin's material, cloned once with vertex colours. `quickshot.js` now draws vertex colours too
+  (they multiply the material's colour).
+- **The gate measures the outer face.** The front mesh carries `doorOuterN`: its first vertices are the outer face.
+  Behind the wing's blunt trailing edge (86 mm tall on the T-tail) "6 mm in" lies between the skins, and a plan-view
+  test read it as 26 mm off the skin. GATE RETRACT §17 now measures the outer face only: every door is within 4 mm
+  (measured: 0.1 mm). A new check confirms every door is a slab: outer face, chamfer and wall (seam-shaded), back face.
+
+**THE QUALITY PASS** (each one found in a screenshot, each one a single fix):
+- **The well's lip is chamfered** (`wellBox`): the wall's top 3 mm turns out at 45 degrees.
+- **Where a wing well runs into the body** (`inBody`): its walls stay out, and its ceiling sits 2 mm under the body's.
+  No two surfaces share a place.
+- **The well's shoulder** (`wellBox`, `skinTop`). On the DA62 the fitted nacelle narrows to a ridge under the wing, and
+  the straight walls rose out of its sides as dark slivers between the nacelle and the wing. Now, where the skin over an
+  outline point is lower than the flat ceiling, the wall stops 3 mm under it. It then slopes in to a ceiling point
+  drawn inward until the skin over it clears the ceiling. Elsewhere nothing changes: the shoulder is skipped.
+- **A fitting stays inside its nacelle** (`fittingsDraw`, `roomX`). The trunnion's base plate (plus or minus 96 mm)
+  stood out of the same narrow ridge. Inside a nacelle, the plate now lands lower, on the nacelle's own frame, where the
+  skin leaves the lugs their room. It is also no wider than that room: the lip and the gussets are trimmed, and the lugs
+  are kept.
+- **A nacelle's doors are its belly's.** The nacelle's shells are wound either way, so the door test took any face lying
+  flat enough (|ny|). That let the nacelle's top skin at its edge into two doors. Each face is now turned away from the
+  nacelle's own centre line at its station (5 cm stations, from the faces near the outline), and only the faces that
+  look down are kept.
+- **A well door opens out of the skin.** The hinge's sense is now taken from the door's own outward normal, not just
+  "down". A nacelle's door wraps its round belly, with its centroid nearly under the hinge.
+- **The check.** On the DA62 (fold 7, s1X 2.45), no vertex of the gear layer stands outside the nacelle's skin, gear up,
+  half and down (the scratchpad probe `poke.js`).
