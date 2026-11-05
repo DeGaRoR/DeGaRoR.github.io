@@ -13,6 +13,7 @@
 //   --out       the viewer (default reports/quick_view/<build name>.html - not committed: reports/ is a scratch)
 //   --png       also the four views at once as a picture (the pre-installed Chromium, headless, through Playwright)
 //   --cage      cage rows set first (a what-if without writing a file)
+//   QV_HIDE     (environment) a regex on mesh / layer names to leave out, e.g. QV_HIDE='wing|eng' - the fuselage alone
 //   --closeup   also six close views of the engine's mounting (the pylon: the probe's focus box) as one picture
 //               (--closeK=<k> the distance, k x the box's size, default 1.6; --closeViews=yaw,pitch;yaw,pitch;... radians)
 //   (the page opens on the view its hash names: #three #side #top #front #grid; window.__qv = { cam, draw, set } for a script)

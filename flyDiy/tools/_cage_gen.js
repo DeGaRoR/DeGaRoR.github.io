@@ -539,7 +539,26 @@ function cageResolve(S) {
     // float's tail, swept up a third of the half-height, a tip of 0.15 x the half-height) instead of on the rod's collar
     const own = yAx(zTaperP) - yc1 > 0.5 * hT;
     const yTip = own ? yc1 + 0.35 * hT : null, rTip = own ? 0.15 * hT : rCol;
-    for (const u of [1, 0.86, 0.62, 0.34]) {
+    // HULL-B40 (the user: "the aft end shape of the floating taper section also looks inelegant and slapped, can you finish
+    // this clean?"): THE FLOAT'S TAIL FAIRED INTO THE ROD. With the rod over the deck the cone no longer closes on a point
+    // of its own under the tube: its deck runs from the taper's end ONTO THE ROD'S AXIS and its keel sweeps up to just
+    // under the tube, its plan closing on the tube's own width - so the tail ends WRAPPING the rod's lower half, a fillet,
+    // and the tube grows out of the float's deck as the Super Petrel's boom does. The same ogive (g = 1 - u^1.6, 1 at the
+    // taper's end): every level eases from its taper-end height (relative to the rod's axis there) onto the tip's
+    if (own) {
+      const rr = ROD.r, yA0 = yAx(zTaperP), kT = 1.05 * rr, wT = 1.12 * rr;
+      for (const u of [1, 0.86, 0.62, 0.34]) {
+        const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6), yA = yAx(z);
+        const roof = yA + (e.roofY - yA0) * g, keel = yA - kT + (e.keelY - (yA0 - kT)) * g;
+        // the inner levels keep their share of the section between the keel and the deck
+        const fr = v => keel + (roof - keel) * (v - e.keelY) / Math.max(1e-6, e.roofY - e.keelY);
+        const wd = v => wT + (v - wT) * g;
+        add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+          Ww: wd(e.Ww), Wr: wd(e.Wr), Wk: wd(Wk1), roofY: roof, keelY: keel, ceilY: fr(e.ceilY), floorY: fr(e.floorY),
+          waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: CAGE_MAT.taper });
+      }
+    }
+    if (!own) for (const u of [1, 0.86, 0.62, 0.34]) {
       const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
       // (the centreline STRAIGHT from the taper end's centre onto the rod's axis at the tip - a line, never an S - or
       // onto the float tail's own tip)
@@ -549,7 +568,8 @@ function cageResolve(S) {
         ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
         waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
     }
-    add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_PILLAR('pillarTaper') });
+    // (HULL-B40: the buoyant taper's end is skin, not a rib - no pillar band, no crease: buildCage2's fam)
+    add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_MAT.taper });
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
     // the taper bay's own rings, aft -> fore (t from the cabin's aft pillar, 0, to the taper's, 1)
     const c = pilPaxADh(), Wk0 = c.Wk != null ? c.Wk : c.Ww;
@@ -566,16 +586,25 @@ function cageResolve(S) {
     const zS = HS ? zCabF - HS.stepAft : null;
     const stepIn = zS != null && zS < zPaxA - 0.05 && zS > zTaperA + 0.05;
     const tS = stepIn ? (zPaxA - zS) / (zPaxA - zTaperA) : null;
-    const ts = [0.8, 0.6, 0.4, 0.2].filter(t => tS == null || Math.abs(t - tS) > 0.06);
-    if (stepIn) ts.push(tS);
+    // HULL-B40: the step's own ring stands 3 cm FORWARD of the step (at the step itself it pushed the step's pair into
+    // the bay aft, the fore ring past the step and onto the afterbody's deadrise: a notch in the chine)
+    const tK = stepIn ? Math.max(0.02, tS - 0.03 / Math.max(1e-6, zPaxA - zTaperA)) : null;
+    const ts = [0.8, 0.6, 0.4, 0.2].filter(t => tK == null || Math.abs(t - tK) > 0.06);
+    if (stepIn) ts.push(tK);
     ts.sort((p, q) => q - p);
+    const sm = x => { const v = Math.max(0, Math.min(1, x)); return v * v * (3 - 2 * v); };
     for (const t of ts) {
-      const z = zPaxA + (zTaperA - zPaxA) * t, fw = 1 - Math.pow(t, 1.7), fr = Math.pow(1 - t, 1.5);
+      // HULL-B40 (the user: "nice continuous lines ... a continuous profile, no steps" - the deck fell off the cabin's
+      // aft pillar at (1 - t)^1.5, a shoulder behind a rib): the deck LEAVES THE CABIN TANGENT and arrives flat (an early
+      // smoothstep, 1 - sm(t^0.75)); with the step in the taper THE PLAN HOLDS THE CABIN'S BEAM TO THE STEP and closes
+      // convexly after it (the waist narrowed over a chine held wide: the side tumbled in, a bulge behind the door)
+      const z = zPaxA + (zTaperA - zPaxA) * t, fr = 1 - sm(Math.pow(t, 0.75));
+      const fw = !stepIn ? 1 - Math.pow(t, 1.7) : t <= tS + 1e-9 ? 1 : 1 - Math.pow((t - tS) / (1 - tS), 1.7);
       // the bottom's law: the straight afterbody run from the cabin's aft pillar, or with the step in the taper flat
       // to the step and straight from it
       const fk = !stepIn ? 1 - t : t <= tS + 1e-9 ? 1 : 1 - (t - tS) / (1 - tS);
-      const fkw = !stepIn ? fw : t <= tS + 1e-9 ? 1 : fw;
-      add(fullRing(t === tS ? 'htStep' : 'htTaper' + Math.round(t * 100), z, {
+      const fkw = fw;
+      add(fullRing(t === tK ? 'htStep' : 'htTaper' + Math.round(t * 100), z, {
         Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fkw),
         roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
         keelY: lp(c.keelY, e.keelY, fk),
@@ -2097,8 +2126,12 @@ function buildCage2(S, step) {
       }
     }
     const sh = ordOf(seq[i]).filter(k => seq[i + 1].lv[k] != null);
+    // HULL-B40 (the user: "the rounded section on the aft side of the door. Where does this come from?"): on a hull a
+    // pillar's band ENDS AT THE WAIST - below it the ring creases are spared (the bottom stays soft, tagLoopHull), so a
+    // pillar painted on down the topsides and the bottom was a soft-edged dark shape, a rounded blot behind the door
+    const pilLow = HULL && isPillarMat(mat), lowK = k => k === 'waist' || k === 'waistG' || FLOWS.has(k);
     for (let k = 0; k < sh.length - 1; k++) {
-      const hi = sh[k], lo = sh[k + 1], m = bandMat(mat, hi, lo);
+      const hi = sh[k], lo = sh[k + 1], m = pilLow && lowK(hi) ? bandMat(CAGE_MAT.plain, hi, lo) : bandMat(mat, hi, lo);
       if (cut && cutHere(hi)) continue;
       face(a.P[hi], b.P[hi], b.P[lo], a.P[lo], m);
       face(a.M[lo], b.M[lo], b.M[hi], a.M[hi], m);
@@ -2136,8 +2169,8 @@ function buildCage2(S, step) {
         }
       }
     }
-    face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, mat.belly);
-    face(a.C.keel, b.C.keel, b.M.keel, a.M.keel, mat.belly);
+    face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, pilLow ? CAGE_MAT.plain.belly : mat.belly);
+    face(a.C.keel, b.C.keel, b.M.keel, a.M.keel, pilLow ? CAGE_MAT.plain.belly : mat.belly);
     // longitudinal rails: the sill (waist) and waistband-top lines stay
     // crisp the whole length — this is what the guard levels did. The ceil
     // rail gets a gentle continuous crease too: it anchors the top edge of
@@ -2169,6 +2202,8 @@ function buildCage2(S, step) {
     const fam = nm =>
         nm === 'tailCap' ? CW.cap
       : nm === 'tailMid' || nm === 'tailPost' ? CW.pillar
+      // (HULL-B40: on a hull with a buoyant taper the cabin's aft face and the taper's end are skin, not ribs)
+      : S.hullTaper && HULL && (/^pilTaper/.test(nm) || /^pilPax/.test(nm)) ? 0
       : /^pilPax/.test(nm) || /^pilCab/.test(nm)
         || /^pilTaper/.test(nm) ? CW.pillar
       // a frame ring crease would PIN the repositioned canopy (bent
@@ -2569,7 +2604,7 @@ function buildCage2(S, step) {
     // (own family so a round nose can dome while the tail cap stays crisp);
     // an intermediate cowl loop stays smooth
     if (E) noseSeq.forEach((r, i) => {
-      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) tagLoop(nIds[i], r, CW.pillar);
+      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) (HULL ? tagLoopHull : tagLoop)(nIds[i], r, CW.pillar);   // (HULL-B40: a hull's bottom stays soft)
       if (r.name === 'noseRing')
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });

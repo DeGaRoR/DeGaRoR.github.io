@@ -97,10 +97,10 @@ const ENGINES = {
     // (HULL-B37, the user: "your new cabin is far too tall, get it back to the previous settings, and don't touch cabin
     // height" - the first card's section; the step in the buoyant taper under the lower wing, hullStepZ; "the engine
     // should reach the wing and intersect it. Place it further fore and high")
-    cage: { keelY: -0.62, roofY: 0.68, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42,
+    cage: { keelY: -0.62, roofY: 0.68, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
             noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.06, aftRoofY: 0.12, aftKeelY: -0.2,
-            hullStepZ: 0.75, hullFlute: 0.10, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 2, hullStrakeW: 0.045, hullStrakeLen: 0.85,
-            frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.20, rodIncl: 6, rodD: 0.15, boomLen: 2.6,
+            hullStepZ: 0.75, hullFlute: 0.10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 2, hullStrakeW: 0.045, hullStrakeLen: 0.85,
+            frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.10, rodIncl: 5, rodD: 0.15, boomLen: 2.6,
             finHeight: 1.1, finChord: 1.05, finChordTip: 0.45, stY: 0.65, stZ: -0.6, stChord: 0.75, stChordTip: 0.6,
             wgSpan: 8.9, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.8, wgBrace: 1, wgCrankAt: 0,
             wgTip: 7, wgTipBow: 0.45, wgTipDroop: 0.30,

@@ -90,7 +90,7 @@ function gameSpecFull(rawIn) {
   // HULL-B8: a tile's `after` doors by name (designApply's `afters`: the rod's fit, the hull's), opened once before
   // the first build as design_flow.js doApply opens them in the game
   if (rawIn && Array.isArray(rawIn.afters) && rawIn.afters.length) raw = Object.assign({ __afters: rawIn.afters.slice() }, raw);
-  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').digest('hex');
+  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').update(process.env.QV_HIDE || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
     try { const c = JSON.parse(fs.readFileSync(cf, 'utf8')); return Object.assign(c, { key, cached: true }); } catch (e) {}
@@ -267,7 +267,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   console.error = quiet; console.warn = qwarn;
   const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps };
   // (a diagnostic: FLYDIY_JOIN_PROBE=<file> runs that function body in the page context after the last build)
-  if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
+  if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; W.__probeEnv = { QV_HIDE: process.env.QV_HIDE || '' }; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
   // (exit once the pipe has taken it all: a large probe answer was cut at the pipe's 64 KB by an immediate exit)
   process.stdout.write('\u0001' + JSON.stringify(out), () => process.exit(0));
 })().catch(e => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });
