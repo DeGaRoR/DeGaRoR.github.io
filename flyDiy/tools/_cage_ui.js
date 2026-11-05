@@ -5234,7 +5234,6 @@ function buildDecPanel() {
   pick('spiral hand', 'spiralHand', ['one way', 'the other'], 'which way the stroke winds');
   num('spiral pitch', 'spiralPitch', 0.03, 0.30, 0.005, 'metres of radius per turn — smaller winds tighter');
   num('spiral width', 'spiralW', 0.05, 0.60, 0.01, 'the stroke\'s width at the base, as a fraction of one turn');
-  bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was
   // capped at a literal 4.0 m — the user: "the image max width is

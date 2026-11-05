@@ -25,3 +25,7 @@ finish door. Rig: `node flyDiy/tools/livery5_shot.js --out <dir> [--light --size
 What SwiftShader cannot show: no frame time or compile cost, and no GPU anisotropy or mip behaviour at a real phone's
 resolution. The first run's far-flank still was a copy of the near one (a camera move alone does not re-render the
 garage), so it was retaken in the light run after a rebuild.
+
+Caveat: these stills were taken before the `bodyLock` fix (see HANDOVER LIVERY-5). While that bug stood, the decal panel's
+last lines and the materials panel threw and logged it. The layers went on through finishFromSpec + build, which do not
+pass through that code, so the pictures stand. The rig now fails on such a console error.

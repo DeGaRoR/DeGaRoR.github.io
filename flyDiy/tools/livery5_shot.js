@@ -36,6 +36,8 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
     page.setDefaultTimeout(2400 * 1000);
     page.on('pageerror', e => { R.errors.push(String(e.message || e).slice(0, 300)); log('PAGEERR', String(e.message).slice(0, 200)); });
     page.on('dialog', d => d.accept().catch(() => {}));
+    // a builder that catches its own error logs it (CAGE_UI's 'the finish panels did not build'): counted as one
+    page.on('console', m => { if (m.type() === 'error' && /CAGE_UI|ReferenceError|TypeError/.test(m.text())) { R.errors.push('console: ' + m.text().slice(0, 300)); log('CONSOLEERR', m.text().slice(0, 200)); } });
     await page.addInitScript('window.__f=0;(function t(){window.__f++;requestAnimationFrame(t)})();');
     await page.goto('http://localhost:' + port + '/flyDiy/dev.html?profile=phone&gfx=laptop&intro=0');
     await page.waitForFunction(() => window.BOOT && BOOT.state === 'gone' && !BOOT.current && window.CAGE_UI && window.FLIGHT_PROBE && window.AEROSKIN,
