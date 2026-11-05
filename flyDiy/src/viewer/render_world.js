@@ -3012,7 +3012,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t;
       })();
       const matOf = {};
-      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), map: buoyMap, emissive: C(hex), emissiveIntensity: 0, roughness: 0.78 }));  // pre-ok: 0 here; seaUpdate drives it x P
+      // BUOY-DESAT (the user 5 Nov: "too saturated for the scene. Desaturate them a bit"): half way to their own grey; the lamps' option keeps the full colour
+      const buoyDull = c => { const g = 0.3 * c.r + 0.5 * c.g + 0.2 * c.b; c.r += (g - c.r) * 0.5; c.g += (g - c.g) * 0.5; c.b += (g - c.b) * 0.5; return c; };
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: buoyDull(C(hex)), map: buoyMap, emissive: C(hex), emissiveIntensity: 0, roughness: 0.78 }));  // pre-ok: 0 here; seaUpdate drives it x P
       const matP = hex => { const m = mat(hex); if (!buoyMats.includes(m)) buoyMats.push(m); return m; };
       const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, matP(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
       for (const a of (world.aerodromes || [])) {
