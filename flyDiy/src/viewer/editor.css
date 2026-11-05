@@ -1986,7 +1986,7 @@ html.npOffer :is(#stTim, #stSkip, #stCard, #gmMenu, #gmPanel, #mapEntry, #frEntr
 #gEmptyCard .geList { list-style:none; margin:6px 0 0; padding:0; display:grid; gap:6px; }
 #gEmptyCard .geList li { display:flex; align-items:center; gap:8px; min-width:0; }
 #gEmptyCard .geList b { font:600 12px/1.2 'IBM Plex Sans', sans-serif; }
-#gEmptyCard .geList small { flex:1; min-width:0; color:var(--ed-dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#gEmptyCard .geList small { flex:1; min-width:0; color:var(--ed-dim); font-size:11px; line-height:1.25; }   /* MENU-NITS: the whole line, wrapped ("the client's, out at Jolen..." on the look of 5 Nov) */
 #gEmptyCard .geWhy { margin:8px 0 0; color:var(--ed-warn); font-size:11.5px; }
 :root.phone #gEmptyCard button { min-height:48px; }
 /* STORY-HOME-FIX (F10): in the shed on a computer the (dev) card stands over the view, not over the left panel's plaque */
@@ -2046,6 +2046,7 @@ body.stNoCard #stCard { display: none !important; }
 #stSkip:focus-visible { border-color: var(--ed-acc); outline: none; }
 #stSkip[hidden] { display: none; }
 body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+body.mode-ws:not(.gEmpty) #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }   /* MENU-NITS: the garage, above Roll out (#edActs): at 1280 x 800 the band covered it, on any beat without the Skip */
 :root.phone #stSkip { min-height: 48px; }
 :root.phone body.stSkipOn #stTim { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 /* G3580 (STORY-TUTOR): a step that waits for the player's action - the band's accent edge, no Next (only its pass, when it
