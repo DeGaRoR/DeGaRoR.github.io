@@ -7792,7 +7792,7 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1 };
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and

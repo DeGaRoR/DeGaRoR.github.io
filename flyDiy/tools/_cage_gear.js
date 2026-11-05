@@ -1337,11 +1337,13 @@ function doorPatch(faces, outline) {
   for (const p of outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
   const out = [];
   for (const f of faces) {
-    let fx0 = Infinity, fx1 = -Infinity, fz0 = Infinity, fz1 = -Infinity, ny = 0;
+    let fx0 = Infinity, fx1 = -Infinity, fz0 = Infinity, fz1 = -Infinity, nx = 0, ny = 0, nz = 0;
     for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length];
       fx0 = Math.min(fx0, a[0]); fx1 = Math.max(fx1, a[0]); fz0 = Math.min(fz0, a[2]); fz1 = Math.max(fz1, a[2]);
-      ny += (a[2] - b[2]) * (a[0] + b[0]); }
-    if (ny >= 0 || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;   // (Newell's y: < 0 faces down)
+      nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+    // (Newell's normal: a door's face looks DOWN - more than 24 degrees off the vertical; a spar's closing face, a
+    // trailing edge's lip, is not the door's)
+    if (ny >= -0.4 * Math.hypot(nx, ny, nz) || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
     const c = clipConvex(f, outline, DOOR_SEAM);
     if (c) out.push(c);
   }
@@ -1388,7 +1390,9 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
   for (const k in swing) { const C = swing[k], h = C.hinge, ax = C.axle, ld = fNrm([ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]);
     const cut = (ax[0] - h[0]) * ld[0] + (ax[1] - h[1]) * ld[1] + (ax[2] - h[2]) * ld[2] - 0.2 * C.R;
     const near = wheelRims(C, 32, [1, 0.6]).filter(p => (p[0] - h[0]) * ld[0] + (p[1] - h[1]) * ld[1] + (p[2] - h[2]) * ld[2] <= cut);
-    const leg = legTube(C).filter(p => (p[0] - h[0]) * ld[0] + (p[1] - h[1]) * ld[1] + (p[2] - h[2]) * ld[2] <= cut);
+    // (the leg from a quarter of the way down: its root is in the structure, by the trunnion)
+    const L4 = 0.25 * Math.hypot(ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]);
+    const leg = legTube(C).filter(p => { const t = (p[0] - h[0]) * ld[0] + (p[1] - h[1]) * ld[1] + (p[2] - h[2]) * ld[2]; return t >= L4 && t <= cut; });
     const up = poseAll(C, near.concat(leg), 0);
     if (up.length >= 3) foot[k] = wellOutline(up.map(p => [p[2], -p[0]]), 'exact', 0.01); }
   // the points the down gear holds through the skin (a well door over them cannot close gear down)
