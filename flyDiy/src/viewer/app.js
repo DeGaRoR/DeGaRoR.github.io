@@ -4103,6 +4103,7 @@
   // most a rolling wheel is credited with (m/s at the rim: a placement's jump is no roll)
   const WHEEL_SPIN_TAU = 3, WHEEL_SPIN_BRAKE = 8, WHEEL_OM_MAX = 90;
   const mR = new THREE.Matrix4();
+  if (typeof window !== 'undefined') window.__poseRigid = o => poseRigid(o);   // NIGHT-PHOTO: the shot's prop pin
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
     o.matrixAutoUpdate = false;
