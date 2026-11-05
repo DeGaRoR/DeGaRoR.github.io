@@ -312029,3 +312029,9 @@ Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/`
   horizon crawl, the tree outlines; softer edges -2 % only. PROPOSED PHASE 2 (§E6, the user decides): 2a the clouds'
   temporal pass, 2b a toggleable TAA tier, 2c the impostor alpha rebuilt + the far cascade + the sky once. Frame
   interpolation is NOT a cure (no new samples). The user's night hero frame (circled near slope) is §E0's reference.
+- §F (5 Nov, the study's close): the cloud flicker's FIVE causes from clouds.js - the jitter frozen in screen space (C1, the
+  "smoke"), the samples anchored to the ray's entry (C2), thin wisps skipped by 3x strides with no step-back (C3, "the
+  thin cut ends"), 3D noise without mips undersampled beyond ~5 km (C4), half-res blocks with no history (C5) - and the
+  implementation specs for a LOCAL GPU session: 2a the clouds' temporal pass (+ noise mips, step-back, world-anchored
+  steps first), 2b an `aa: 'taa'` tier (port of three r186 TRAANode logic; the aeroplane masked), 2c the impostors'
+  soft coverage bake + coverage mips + the cut only when magnified; F5 the GPU measurements to take first.

@@ -2,7 +2,8 @@
 
 THREE PASSES. Pass 1 (4 Nov, §0-§2): the night specks. Pass 2 (5 Nov, §B-§D): the 29 Oct pre-study's six picks, the
 forest in volume, the blue hour, one landing plan. **Pass 3 (5 Nov, §E): the back-step - the flicker in motion, the
-literature and the engines, a flicker measurement, and a NARROWER PHASE 2 (§E6), which supersedes §D's order.**
+literature and the engines, a flicker measurement, and a NARROWER PHASE 2 (§E6), which supersedes §D's order. §F: the
+cloud flicker's five causes from the code, and the implementation specs for 2a / 2b / 2c (for a local GPU session).**
 
 A STUDY: no game code changed. Branch `claude/look-1-study` (off origin/master c2ac56b3, train L31c). Evidence:
 `reports/evidence/LOOK-1/` (README: one row a picture; `rig/`: the stages, run scripts and analysis). The one prototype
@@ -481,6 +482,142 @@ complaint is motion.
 - **Phase 2c - the impostor alpha rebuilt (T3)**, with pass 2's D2 (the far cascade) and D1 (the sky once) in the same
   tree session - the static "pixely, badly shaded impostor".
 - Then the rest of pass 2's plan (§D), re-ordered behind these.
+
+
+---
+
+# §F. THE STUDY'S LAST PART: THE CLOUD FLICKER IN FULL, AND THE SPECS A LOCAL GPU SESSION IMPLEMENTS FROM
+
+The user, 5 Nov: a local session with the GPU implements, not this one; the cloud finding (the clouds slide under a
+fixed grain) is the most interesting so far. This part closes the study: every cause of the cloud flicker read off
+the code, then one spec per phase-2 step, written so the implementing session does not have to re-derive anything.
+
+## F1. Why the clouds flicker in motion: five causes, each moving with the camera (clouds.js, read in full)
+
+| # | cause | the code | what it does in motion |
+|---|---|---|---|
+| C1 | **the grain is frozen to the screen** | the ray start is offset by an interleaved-gradient noise of `gl_FragCoord` (l. 245), times `S.jitter` 0.6 x the step (24-60 m), within 1.5-8 km of the eye (l. 255); `uFrame` = 0 unless `S.shimmer` (l. 944): "per frame it would shimmer (no history averages it yet - the temporal pass is owed)" | the grain pattern stays on the screen while the clouds move under it: a static "smoke" texture the clouds slide through - **the user's "redrawn through that sort of smoke pattern"**. Toft et al. 2016: "TAA is unable to improve the appearance when an identical random offset is applied to every ray per frame" |
+| C2 | **the sample positions are anchored to the ray's entry, not to the world** | `t = t0 + dt0 * j...` then `t += dt` (l. 255-283); `dt = max(dt0, t * 0.004)` (l. 260) | every camera move shifts where along each ray the density is sampled; at a cloud's edge, where the density crosses zero steeply (the detail noise erodes the edge, Schneider 2015), a sample lands in or out of the wisp from one frame to the next |
+| C3 | **thin wisps are skipped by the strides** | empty air is crossed in 3 x dt (72-180 m), noise-empty column in 1.5 x dt (l. 263-265); no "step back on the first hit" (Horizon's march takes cheap samples until it hits cloud, steps back one, then full samples) | a wisp thinner than the stride is hit on one frame and missed on the next: **"the little ends where they are really thin and cut ... redraw as soon as the camera moves"** |
+| C4 | **the detail noise has no mips and is undersampled far away** | both 3D noise targets `generateMipmaps: false`, LinearFilter (l. 556-557): base 128^3, detail 64^3 over `detailPeriod` 700 m = ~11 m a texel; a half-res pixel covers ~10 m of cloud at 5 km, ~40 m at 20 km | beyond ~5 km each pixel samples the detail noise below its own frequency: aliasing that changes with every sub-pixel camera move (C2 makes it worse) |
+| C5 | **half-res blocks and no history** | the march at half resolution into a NEAREST-filtered target (l. 936), a 3x3 depth-aware tent upsample in the composite (l. 408-440), marched in full every frame, nothing reused (l. 925-950) | a thin edge is 2x2-pixel blocks whose shape changes as C1-C4 change; the tent softens it spatially, nothing averages it in time |
+
+The step budget (`N x 4 + 64` = 256 steps at 48, shared by the decks, l. 242) and `maxKm` 60 cut grazing rays near the horizon at
+a distance that also moves with the eye: a fainter, sixth contributor at the far layer's "cut" ends.
+
+None of this is a bug in the sense of a wrong number: it is a ray marcher without its temporal half. Every production
+cloud system the literature names (Nubis 2015-2023, Frostbite 2015/2016, UE's volumetric clouds, Toft et al. 2016)
+assumes a history buffer; C1's comment shows the author knew.
+
+## F2. SPEC 2a - THE CLOUDS' TEMPORAL PASS (+ three per-frame fixes that help with or without it)
+
+**First, without a history (cheap, each its own commit, each judged in motion):**
+1. **C4: noise mips.** `generateMipmaps` on both 3D targets after the bake (WebGL2 mips 3D textures; ~+14 % of 2.3 MB);
+   in `density()` sample the detail (and the base far away) with `textureLod(uDetail, qd, lod)`, `lod = log2(footprint /
+   texel)`, footprint = the pixel's cone width at `t` (`t x uPixAngle`, a new uniform). Fade `uShape.x` (the detail
+   erosion) to 0 where lod > 2. Removes the far aliasing at the source. Cost ~0 (fewer cache misses far away).
+2. **C3: step back on the first hit.** On the first sample with density > 0 after a stride, step back one stride and
+   resume at `dt0` (Schneider 2015). A few lines in the march loop; cost: a few extra samples per ray.
+3. **C2: world-anchored sample positions.** Snap the first sample to the next multiple of `dt0` measured along the ray
+   from a world-fixed plane (the deck's base: `t = t0 + mod(-(o.y - base)/d.y ... )` style), so a slow move slides the
+   lattice continuously instead of re-cutting it. Cheap; partly redundant once 2a's history exists.
+
+**Then the temporal pass (the cure):**
+- **Inputs that already exist:** `rt.textures[0]` (radiance x scale, alpha), `rt.textures[1]` (the key: the
+  transmittance-weighted mean distance in km, written for the upsample), `uInvProj`, `uCamMat`, the drift (`uDriftA`).
+- **New:** two half-res RGBA16F history targets (ping-pong, ~4 MB each at 1080p) + the previous frame's view-projection
+  and drift; one fullscreen pass at half res between the march and the composite; the composite reads the history.
+- **The reprojection, per half-res texel:** the world point `P = camPos + dir x key` (for alpha 0 texels: the deck's
+  mid-height intersection along the ray, or the direction alone at "infinity"); the cloud ADVECTS, so `P_prev = P -
+  (drift_now - drift_prev)` in the deck's frame; `uvPrev = prevViewProj x P_prev`. History sampled BILINEARLY (nearest
+  gives false rejections; the practitioners' note).
+- **The clamp:** the current 3x3 neighbourhood's mean ± 1.0 sigma in YCoCg (Salvi variance clipping); blend
+  `current x 0.1 + history x 0.9`; raise the current's weight to 0.5 where `uvPrev` is off-screen, where the key
+  disagrees by > 15 %, or where the scene depth in front changed (the aeroplane or a ridge uncovering cloud). **Never
+  reset the history because the camera moved** (the bug that would recreate the flicker).
+- **The jitter, now it is averaged:** per frame, from a spatiotemporal blue-noise mask (STBN, Wolfe et al. 2022; 64x64x32
+  R8 slices, 128 KB, NVIDIA's free SDK) in place of the screen-frozen IGN: `S.shimmer` on, the IGN line replaced by an STBN
+  fetch indexed by `frame % 32`; and a second, sub-pixel jitter of the march's pixel centre (Halton 2,3) so the half-res
+  grid converges toward full-res detail.
+- **Known traps:** the aeroplane in front of clouds (disocclusion trails behind it: the MSFS 2024 "ghosting around
+  objects in front of clouds" thread) - the depth-changed rule above, plus the composite's per-sample depth test already
+  in place (A6); fast cloud motion (a 60 kt wind at 30 fps is 1 m a frame: negligible); the reflection probe's own dome
+  march (`DOME_VERT`, no history: keep it as is, it is a probe); the G650 stale-depth "thru" texels (their key is the far
+  plane: reproject them as sky).
+- **Cost (estimate):** +8 MB, +1 program, one half-res pass (~0.2-0.5 ms); the march may then drop steps (48 -> 32) and
+  pay for itself. FRAMECOST decides.
+- **Gates:** CLOUD (+ rows: the history is not reset on a camera move; the jitter is per-frame only when the history is
+  on; the reprojection matrix is the previous frame's), PROGRAMS (+1), FRAMECOST.
+- **Judged by:** a slow pan and a turn over a broken cumulus layer at ~1500 ft, before / after, by the user's eye, and the
+  temporal metric of F5.
+
+## F3. SPEC 2b - A TAA TIER THE USER CAN TOGGLE (`aa: 'taa'`)
+
+- **Where:** aa_resolve.js, a new tier beside `off / msaa4 / msaa / full`: 0 MSAA samples (TAA and MSAA do not mix; this
+  tier gives up A2C), the history pass after the scene and before the tone-map / night eye / bloom (they stay after, on
+  the converged image). The scene target is display-referred today (the clouds' comment): accumulate there (Karis 2014
+  weights in a tonemapped space anyway) or move the tone map after - the implementing session measures both.
+- **Jitter:** per frame, a Halton(2,3) sub-pixel offset added to the projection matrix (`elements[8]`, `[9]` += offset x 2
+  / size) after `updateProjectionMatrix`, undone before anything that must not jitter (the HUD is DOM: unaffected; the
+  shadow cameras: not jittered). The clouds' march reads `projectionMatrixInverse`: it jitters with the frame, for free.
+- **Reprojection:** the world is static: `uvPrev = prevViewProj x worldPos(depth)`. **What moves with the camera must
+  not take the static reprojection**: the aeroplane, the cockpit, the prop disc, the pilot, the spray, the water's waves
+  (mild). V1: a "dynamic" bit (the aeroplane's group drawn with a stencil ref or into a mask target) - in those pixels the
+  history weight drops to ~0.3 with a tight clamp (no smear on the aeroplane in chase view); V2: true motion vectors for
+  the aeroplane from its previous model matrix.
+- **The resolve:** 3x3 variance clip in YCoCg (Salvi), closest-depth velocity dilation, history bilinear (or Catmull-Rom
+  for sharpness), feedback 0.88-0.95 by the luma difference (Lottes / Playdead), Karis's luma weighting against
+  flicker, **no sharpening after** (the MSFS / r/FuckTAA lesson). The reference: three.js r186 `TRAANode.js` +
+  `TAAUtils.js` (MIT, ~200 lines of resolve logic; the TSL node itself cannot be used on this WebGLRenderer pipeline - a
+  GLSL port), and Playdead's `temporal` (MIT).
+- **Cost (estimate):** a full-res RGBA16F history x2 (ping-pong, ~16 MB at 1080p) + the depth already there, one
+  full-screen pass (~0.5-1.5 ms); against msaa4's ~+50 MB and its resolve.
+- **Trees under TAA:** the leaves' A2C is inert (0 samples), so the leaf edge sharpen (`uSharp`) should drop for this
+  tier (the history smooths the cut); later, hashed alpha (Wyman & McGuire 2017) becomes usable, and the hand-over's
+  stipple windows converge instead of showing.
+- **Gates:** AA (the tier exists, its sample count is 0, the jitter is undone for the shadow cameras), PROGRAMS (+1-2),
+  FRAMECOST, the strict roll-out gate on the cockpit views (ghosting is the risk there).
+- **Judged by:** the user, in motion, `taa` against `msaa4`, over the forest and in the circled night frame; that call
+  decides the default AA path (T4 vs T2).
+
+## F4. SPEC 2c - THE IMPOSTORS: SOFT EDGES, THEIR MIPS, THEIR LIGHT
+
+- **The bake (render_world.js bakeImpostorAtlasNow):** render each tile at 2x (256 px) and reduce into the 128 px layer
+  with an ALPHA-WEIGHTED box (the coverage becomes a soft alpha, the colour premultiplied); dilate the colour into the
+  empty texels of the tile (push-pull, the gutters) so no level averages black in; the leaves' own mips fixed first
+  (pass 1 A1) since the bake reads them. Bake time x~2 (it runs at boot: measure; the 64 px potato tile keeps 1x).
+- **The sheet's mips:** today GPU `generateMipmap` boxes the binary alpha, so coverage falls at each level and the draw's
+  cut (0.40, gain 6) re-thresholds it: far impostors thin and crawl. Coverage-preserving levels (Castano): an alpha scale
+  per level found at the bake from a read-back (`sheetMean` already reads sheets back), applied in a small mip pass.
+- **The draw (impostorMat):** the sharp cut only when the tile is MAGNIFIED: `m = fwidth(vUvI) x tileTexels`; where m < 1
+  (minified, i.e. nearly always beyond the hand-over) the alpha curve's gain falls with m toward the soft coverage itself
+  (A2C where samples exist, the TAA tier's history otherwise).
+- **The light:** pass 2's D1 (the sky counted once on leaf materials) and D2 (the far cascade read by the impostors), and
+  pass 1's crown normals at night on the NEAR geometry only.
+- **Gates:** TREES, TREE, CARDMATCH (the cards are composed from the sheets: they follow), PROGRAMS, FRAMECOST (boot: the
+  bake time), the deadwood rig's tier match re-run (pass 2 B6).
+- **Judged by:** the user's circled night frame (E0) and the side-lit forest at golden hour, before / after.
+
+## F5. THE MEASUREMENTS THE LOCAL SESSION TAKES (its first hour; none of them is a SwiftShader number)
+
+1. **The flicker index** (this study's rig, `rig/stage_flicker.js` + `flicker.py`, runs unchanged on the GPU box): the
+   canopy and the stand views, plus the same with the clouds on (SwiftShader could not draw them) and with `aa: msaa4`
+   (the runtime switch did not apply here). Gives the baseline the three phase-2 steps are measured against.
+2. **A temporal metric on a real pan:** 60 frames of a slow constant yaw (0.25 px a frame) over the cumulus layer and the
+   forest; per pixel, the energy of the second difference in time (`|f(t+1) - 2 f(t) + f(t-1)|`, which a smooth pan
+   leaves near 0 and a crawl does not), its share above 4 codes, sky band vs below. Before / after each step.
+3. **The probe's night share and the blue-hour test** (pass 2 D0): still owed, ten minutes.
+4. **FRAMECOST** for every step; the strict-30 rule holds.
+
+## F6. WHAT THIS STUDY DID NOT SETTLE (honestly)
+
+- The clouds' flicker is diagnosed from the code and the literature, not measured (SwiftShader blacks the frame with
+  the clouds on); F5.1-2 measure it.
+- Every GPU cost above is an estimate from the literature's orders of magnitude.
+- The far-cascade prototype on impostors (pass 2 D2) is untuned; its offsets and bias are dials for the GPU session.
+- Most literature claims stand on search-engine excerpts: this session's network could not open the primary decks
+  (guerrilla-games.com, advances.realtimerendering.com, research.nvidia.com, dev.epicgames.com, medium.com). The
+  implementing session should read Schneider & Vos 2015, Karis 2014 and the three.js r186 TRAANode source first.
 
 
 ## 5. What SwiftShader cannot show
