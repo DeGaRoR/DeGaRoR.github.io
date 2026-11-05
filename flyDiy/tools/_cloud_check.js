@@ -387,7 +387,7 @@ console.log('9. the composite never samples the depth it draws into (G1532: \'cu
   yes(/CLOUDS\.draw\(r, cam, rt, true\)/.test(ap) && /opts\.clouds\(renderer, mc, MIR\.rt\)/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'water.js'), 'utf8')), 'only the main view takes the history: the mirror keeps its own march');
   const dg = cs.slice(cs.indexOf('const DENSITY_GLSL'), cs.indexOf('// ---- the march'));
   yes(!/\btexture\(uNoise|\btexture\(uDetail/.test(dg) && /textureLod\(uNoise/.test(dg) && /textureLod\(uDetail/.test(dg), 'the mipped noise is read at a named level (a ray has no derivatives)');
-  yes(/noiseMips\(renderer\)/.test(cs) && (cs.match(/generateMipmap\(gl\.TEXTURE_3D\)/g) || []).length === 1 && /generateMipmaps: false/.test(cs), 'the noise\'s levels are built once, after the bake');
+  yes(/noiseMips: 0,/.test(cs) && /bakeAt >= NB \+ 1 && S\.noiseMips\)/.test(cs) && /generateMipmaps: false/.test(cs), 'no level chain on the noise by default: generateMipmap on the 3D target froze the taxi 1-9 s (L32f)');
   yes(/histMat\]\.filter/.test(cs), 'the resolve is in the warm list');
 }
 

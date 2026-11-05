@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 0, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -611,7 +611,7 @@ var CLOUDS = (function () {
   function init(r) {
     if (ready || !r || typeof THREE === 'undefined' || !THREE.WebGL3DRenderTarget) return ready;
     renderer = r;
-    // the levels are built once, after the bake (noiseMips), not by three after each of its 129 passes
+    // (with S.noiseMips the levels are built once, after the bake, not by three after each of its 129 passes)
     const mk3 = n => { const t = new THREE.WebGL3DRenderTarget(n, n, n, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: S.noiseMips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter, magFilter: THREE.LinearFilter,
       wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false, depthBuffer: false, stencilBuffer: false }); t.texture.wrapR = THREE.RepeatWrapping; return t; };
     noiseRT = mk3(NB); detailRT = mk3(ND);
@@ -685,7 +685,9 @@ var CLOUDS = (function () {
     hEye[0] = e.x; hEye[1] = e.y; hEye[2] = e.z; hDrift[0] = drifts[0][0]; hDrift[1] = drifts[0][1]; hScale = sc;
     return hRT[hI];
   }
-  // both cubes' levels, once, when the last slice is in
+  // both cubes' levels, once, when the last slice is in. OFF (S.noiseMips 0, ?cloudmip=1 for a bench): THE FREEZE OF 5 NOV (L32f): this one call stalled the GPU process 1-9 s,
+  // intermittently, no long task on the main thread, in the taxi row when the bake ended inside it (MB_TRACE: the gap straight after the detail cube; none with the chain off). The
+  // erosion's fade to its mean in density() does the far clouds' job without a chain
   function noiseMips(r) {
     const gl = r.getContext(); if (!gl.generateMipmap || !r.properties || !r.state) return;
     for (const t of [noiseRT.texture, detailRT.texture]) { const p = r.properties.get(t); if (!p || !p.__webglTexture) continue; r.state.bindTexture(gl.TEXTURE_3D, p.__webglTexture); gl.generateMipmap(gl.TEXTURE_3D); }
