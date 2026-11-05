@@ -504,11 +504,30 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
     // the aft deck edges to the rear one, a wire from each bow deck edge
     const st3 = [-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)];
     const deck = st3.map(xs => { const sc = HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs); return [toC([xs, sc.yd, -sc.b]), toC([xs, sc.yd, sc.b])]; });
-    const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
-    for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
-    for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
-      GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
-    sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    if (Math.round(+P.hullTips) === 2) {
+      // HULL-B24: BUOYANT TIPS (the user: "do the buoyant wingtips ... use a form of wingtips that already exists ... give
+      // it some buoyant properties"): the float at the wing's end, its deck faired up into the drooped tip by ONE
+      // streamlined droop - a thick section half the float's length and three quarters its beam, filleted flat into the float's
+      // deck and into the wing's underside (the frame's members are the struts' own, inside it)
+      const yTop = 0.5 * (cF[1] + cR[1]), yBot = deck[1][0][1], xC = 0.5 * (deck[1][0][0] + deck[1][1][0]);
+      const zc0 = 0.5 * (deck[1][0][2] + deck[2][0][2]), zc1 = 0.5 * (cF[2] + cR[2]);
+      const H = Math.max(0.05, yTop - yBot), c0 = 0.5 * Pt.L, th0 = 0.75 * 2 * HY.sectionOf(Pt, -1e-9).b, NR = 14, NS = 24;
+      const fb = GK.Bag(), path = [], rows = [];
+      for (let i = 0; i <= NR; i++) { const u = i / NR, e = Math.max(0, 1 - u / 0.3) ** 2 * 0.6 + Math.max(0, (u - 0.75) / 0.25) ** 2 * 0.35;
+        path.push([xC, yBot - 0.02 + (H + 0.04) * u, zc0 + (zc1 - zc0) * u]); rows.push([c0 * (1 + 0.4 * e), th0 * (1 + 1.2 * e)]); }
+      GK.sweep(fb, path, (tt, i) => { const [c, th] = rows[i], pts = [];
+        for (let k = 0; k < NS; k++) { const a = 2 * Math.PI * k / NS, ca = Math.cos(a), sa = Math.sin(a), xc = 0.5 * (1 - ca);
+          const yt = 5 * 0.30 * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+          pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * 0.5 * th * Math.min(1, yt / 0.15)]); }   // (a thick droop: the half-thickness th / 2 over the section, the aerofoil's own run at the edges)
+        return pts; }, true, [0, 0, 1]);
+      fb.mesh(ug, skinM);
+    } else {
+      const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
+      for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
+      for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
+        GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
+      sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    }
     out.push({ side: sd, step: [xS, yK, zS], L: Pt.L, kg, spar: [cF, cR] });
   }
   window.CAGE_TIPFLOATS = out;

@@ -41,6 +41,17 @@ const ENGINES = {
          note: 'the hull tub: cabin + engine bay in one pod, the pusher high on its aft face, the tail on a low rod boom (the Icon A5)' },
   fin: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55 },
          note: 'a tractor on the fin (the Seawind): a first cut, the bare engine on its tube mount' },
+  // HULL-B23 (the user's recipe): the over-the-wing engine pushing, on the wing (its lowest pylon - the fit raises it
+  // only for the water), the straight pod nacelle with its air inlet; the cabin as built; the tail on a rod whose
+  // taper is the hull's buoyant afterbody; stub sponsons
+  rodBoat: { sel: { engMount: 'wingTop' }, engine: 'rotax 915 iS',
+             cage: { engPylonH: 0.8, engBlockZ: -0.25, cowlOn: 1, cw_inletOn: 1, noseLen: 1.3, paxLen: 0.15, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 3.0, aftRoofY: -0.25, aftKeelY: -0.6, frBoomTopW: 0.22, frBoomWaistW: 0.3, frBoomBotW: 0.26, rodY: -0.42,
+                     hullSpon: 1, hullSponK: 1.1, hullTips: 0 },
+             note: 'the rod boat: a pusher on the wing in a pod nacelle, the tail on a rod over a buoyant taper, stub sponsons' },
+  // HULL-B24: the fin engine with BUOYANT TIPS (the Seawind's arrangement): the tip floats at the wing's end under a
+  // drooped tip, faired up into it
+  finTips: { sel: { engMount: 'fin' }, engine: 'rotax 915 iS', cage: { noseLen: 1.3, engFinAt: 0.55, hullTips: 2, hullTipAt: 0.97, wgTip: 7 },
+             note: 'the fin engine on buoyant wing tips (the Seawind)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
   pylonTractor: { sel: { engMount: 'wingTop', engAim: 'puller' }, cage: { engPylonH: 1.0, engPylonFair: 2, cowlOn: 1, noseLen: 1.3 },

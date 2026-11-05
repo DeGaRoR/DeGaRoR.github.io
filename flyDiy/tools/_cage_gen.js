@@ -374,9 +374,14 @@ function cageResolve(S) {
   // A LOFTED taper is a real skinned section between two pillars and keeps
   // adding its length, as every section does (user ruling: rod only).
   const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
-  const tpW = TAP && !S.rod
+  // HULL-B23: ON A HULL THE ROD'S TAPER IS A SKINNED, BUOYANT SECTION (the user: "the taper section, which could fit a
+  // rod very nicely ... you would put a buoyant fuselage on top of that thing ... the taper section would become this
+  // buoyant taper section if the flying boat hull and fuselage has been selected"): lofted between its own pillars as
+  // without a rod - the hull's V on its rings, so the water reads it - and the rod leaves from its aft ring
+  const HTAP = !!(TAP && S.rod && !S.rod.twin && S.hullTaper);
+  const tpW = TAP && (!S.rod || HTAP)
     ? (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0;
-  const zTaperA = zPaxA - (TAP && !S.rod ? TAP.len : 0);   // fwd end of taper pillar
+  const zTaperA = zPaxA - (TAP && (!S.rod || HTAP) ? TAP.len : 0);   // fwd end of taper pillar
   const zTaperP = zTaperA - tpW;                 // aft ring of taper pillar
   const zPost = zTaperP - S.boom.len;
   const zCap  = zPost - S.tail.len;
@@ -424,6 +429,7 @@ function cageResolve(S) {
   // tightening section carries no skin either (truss only, interior
   // pass). buildCage2 emits the rod as its own closed component.
   const ROD = !MIR && S.rod ? S.rod : null;
+  const zRodRoot = HTAP ? zTaperP : zPaxA;            // (HULL-B23: the rod leaves the buoyant taper's aft ring)
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -432,7 +438,7 @@ function cageResolve(S) {
     const rc = ROD.r * 3 / (2 + Math.cos(2 * Math.PI / 14));
     const th = k => k * Math.PI / 7;
     // G267.1: the axis climbs tan(incl) per metre aft of the bulkhead
-    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zPaxA - z);
+    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
     const at = k => ({ x: rc * Math.sin(th(k)),
                        y: yA + rc * Math.cos(th(k)), z });
     const lv = { roof: at(1), ceil: at(2), band: at(3),
@@ -493,6 +499,11 @@ function cageResolve(S) {
         { mat: CAGE_PILLAR('pillarTaper') });
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
+  }
+  // HULL-B23: the buoyant taper on a rod - the same pillar pair, skinned (the rod leaves pilTaperA's face)
+  if (!MIR && ROD && HTAP) {
+    add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_PILLAR('pillarTaper') });
+    add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
   // THE AERO AFT, CUT 2 (2026-09-04, the user: "reuse the topology of the
   // back of the fuselage rather than reinventing ... it should inherit the
@@ -710,7 +721,7 @@ function cageResolve(S) {
     // cap the cowl and the engine bolt to (capFace, as the cowl nose's);
     // an aerodynamic one in G19's domed point
     return { rings, bays, aero: true, aeroFace: CFG.noseFinish !== 'aero',
-             rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing }
+             rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing }
                           : null };
   }
 
@@ -979,7 +990,7 @@ function cageResolve(S) {
   // for whatever the bubble becomes.)
 
   return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
-           rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing } : null };
+           rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing } : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -6600,7 +6611,7 @@ function cageInterior(m, S) {
         ].filter(Boolean);
         for (const n2 of XN) mem(n2, rim(n2, rr + 0.049, zXi), 0.034);
       }
-      if (!S.taper) return;
+      if (!S.taper || S.hullTaper) return;   // (HULL-B23: a hull's taper is skinned - no truss, no collar)
       // ---- the welded collar the truss lands on ----
       const zC2 = zPax0 - S.taper.len;
       sleeve(rr + 0.006, zC2 + 0.045, zC2 - 0.045);
@@ -9128,6 +9139,8 @@ function cageSpec(P) {
   if (S.rod && S.taper)
     S.taper.len = Math.min(S.taper.len,
                            Math.max(0.08, (P.boomLen || 2.2) - 0.3));
+  // HULL-B23: a boat hull on a single rod lofts its taper (buoyant, skinned) - cageResolve's HTAP
+  S.hullTaper = !!(+P.hullOn && S.rod && !S.rod.twin && S.taper && S.taper.len > 0);
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
