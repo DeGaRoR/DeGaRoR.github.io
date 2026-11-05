@@ -5819,7 +5819,7 @@ function buildMatPanel() {
       d.dataset.sec = nm;
       // WEAR-TAB (2026-11-05): the wear rate is the game's WEAR view's row, not FINISH's (src/viewer/editor.js
       // renderWear), named by its surface there; the bench keeps it under its section as before
-      if (store === secWear) { d.dataset.wear = '1'; d.dataset.wearOf = SEC_LABEL[nm] || nm; }
+      if (store === secWear) { d.dataset.wear = '1'; d.dataset.wearOf = SEC_LABEL[nm] || ((A.AERO_SEC || {})[nm] || {}).label || nm; }
       const inp = document.createElement('input');
       // G214: the floor came down 0.25 -> 0.05 (the user, dialling a
       // fabric wing: "all sliders need to go lower")
