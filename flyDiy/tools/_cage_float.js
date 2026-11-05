@@ -449,7 +449,11 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
   const kg = +P.hullTipKg, yRel = +P.hullTipY;
   if (!(kg > 0) || !(yRel > -0.999)) return;
   const HY = HYc(), FG = window.FLOAT_GEN;
-  const wf = W.def.parts && W.def.parts.wf, nodes = W.def.nodes, semi = W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
+  // (HULL-B45: under the second plane on request - its own spar stations and semispan, the frame's planes[1])
+  const PL2 = Math.round(+P.hullTipPlane || 0) === 1 && W.def.parts && W.def.parts.planes && W.def.parts.planes[1] && W.def.parts.planes[1].wf
+    ? W.def.parts.planes[1] : null;
+  const wf = PL2 ? PL2.wf : W.def.parts && W.def.parts.wf, nodes = W.def.nodes,
+        semi = PL2 && PL2.semi > 0 ? PL2.semi : W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
   if (!HY || !HY.tipFloatParams || !wf || !wf.L || !wf.R || !(semi > 0)) return;
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
@@ -471,10 +475,14 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
     let jj = 1, dB = Infinity;
     for (let q = 1; q < Wn.F.length; q++) { const e = Math.abs(Math.abs(nodes[Wn.F[q]].p[2]) - tAt * semi); if (e < dB) { dB = e; jj = q; } }
     const cF = W.nodeCage(nodes[Wn.F[jj]].p), cR = W.nodeCage(nodes[Wn.R[jj]].p);
+    // (HULL-B46: the frame's own rule - the deck held 0.07 m under the spars' line, the float under a low wing; the
+    // nodes' y in the frame's metres, the deck off the same sections)
+    const yDeck = Math.max(...[-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)].map(xs => HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs).yd));
+    const yKs = Math.min(yK, Math.min(cF[1], cR[1]) - 0.07 - yDeck);
     // the step: 0.10 L aft of the spars' mid-chord (cage z is forward), under their mid-span line
     const zS = 0.5 * (cF[2] + cR[2]) - 0.10 * Pt.L, xS = 0.5 * (cF[0] + cR[0]);
     // the float frame (x aft of its step, y up from its keel, z across) -> the cage (the frame's axes: cage x = model z)
-    const toC = v => [xS + v[2], yK + v[1], zS - v[0]];
+    const toC = v => [xS + v[2], yKs + v[1], zS - v[0]];
     const ug = new THREE.Group();
     ug.name = 'edTipFloat' + (sd < 0 ? 'L' : 'R');
     tipGroup.add(ug);

@@ -380,9 +380,9 @@ window.CAGE_PAGE = {
         ['hullHs',      'step depth',                 0.00, 0.25, 0.002,
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
         // HULL-B39: THE FLUTED BOTTOM (the EDO's "Batman", the Super Petrel's): concave arcs a side and a sharp keel ridge
-        ['hullFlute',    'fluted bottom (ridge drop, of the half-beam)', 0, 0.25, 0.005, { when: P => +P.hullOn }],
+        ['hullFlute',    'fluted bottom (ridge drop, of the half-beam)', 0, 0.45, 0.005, { when: P => +P.hullOn }],
         ['hullFluteN',   'flutes a side', 1, 2, 1, ['one arc, keel to chine', 'two arcs and a ridge'], { when: P => +P.hullOn && +P.hullFlute > 0 }],
-        ['hullFluteAt',  'ridge across (of the half-beam)', 0.3, 0.8, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 && Math.round(+P.hullFluteN) >= 2 }],
+        ['hullFluteAt',  'ridge across (of the half-beam)', 0.3, 0.8, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],   // (HULL-B46: one arch - its crown's station)
         ['hullFluteBow', 'flutes fade out by (of the forebody)', 0.35, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
         ['hullFluteAft', 'flutes kept aft of the step', 0, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
         // HULL-B39: the spray strakes on the forebody's bottom (_cage_float.js drawStrakes)
@@ -420,6 +420,8 @@ window.CAGE_PAGE = {
         // inboard, resting in the water, on a faired blade)
         ['hullTips',    'tip floats',                 0, 3, 1, ['none', 'on struts', 'buoyant wing tips (the wing\'s own tip)', 'outrigger hulls (on a faired blade)'], { when: P => +P.hullOn }],
         ['hullTipAt',   'tip floats at (of the semispan)', 0.30, 0.98, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)) }],
+        // HULL-B45: under which plane the strut floats hang (a biplane: the second - the Super Petrel's lower wing)
+        ['hullTipPlane', 'tip floats under', 0, 1, 1, ['the first plane', 'the second plane'], { when: P => +P.hullOn && +P.w2On && [1, 3].includes(Math.round(+P.hullTips)) }],
         ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'kg' }],
         ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'len' }],
       ], 'open'],

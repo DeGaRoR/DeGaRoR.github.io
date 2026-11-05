@@ -1500,7 +1500,7 @@ function cageHullSpec(P) {
            // under the straight V over the chine half-beam (0 = the plain V, bit-identical), fluteN the concave arcs a side
            // (1: keel to chine; 2: keel to a ridge at fluteAt of the half-beam, ridge to chine - the EDO's "Batman"),
            // fluteBow the share of the forebody (from the step) by which it has faded out, fluteAft its share kept aft
-           flute: cl(P.hullFlute, 0, 0.25, 0), fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
+           flute: cl(P.hullFlute, 0, 0.45, 0),   // (HULL-B46: to 0.45 - the Petrel's deep arch, a tunnel either side of the keel) fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
            fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0),
            // HULL-B43: the belly's ROCKER - the keel's rise at a step under the buoyant taper over the cabin's aft frame
            // (cage units; 0 = the flat run of B37)
@@ -1566,14 +1566,18 @@ function cageHullVee(H, HF, lv, rise) {
   // past where the V put it and the topside strip above it TUCKS IN under the gunwale (the floor level: inboard of the
   // gunwale by half the reach, down to a third of the way up from the chine) - the chine stands proud as a lip, the side
   // overhanging the water. Before the flute, so the arch spans the skirt's chine; the water reads that chine (b)
+  // (HULL-B46, the user's section sketch - red the B44 skirt, green the one meant: "You've made an horizontal skirt while it
+  // needed to be vertical"): THE SKIRT IS VERTICAL. The hull is WIDEST AT THE CHINE (the chine reaches H.skirt x its
+  // half-beam past where the V put it), the strip above it STANDS STRAIGHT UP over the chine (the floor level at the
+  // chine's own beam, a quarter of the way up to the gunwale) and the topside leans IN from there to the gunwale - a
+  // flared, tent-like side ending on a short vertical lip, the bottom running in flat from it to the arch and the keel
   if (H.skirt > 0 && !lv.__skirt) {
     lv.__skirt = true;
     const sx = k.x < 0 ? -1 : 1, b0 = Math.abs(k.x);
     k.x = sx * b0 * (1 + H.skirt);
     if (f && w) {
-      const wx = Math.abs(w.x);
-      f.x = (f.x < 0 ? -1 : 1) * Math.min(Math.abs(f.x), wx * (1 - 0.5 * H.skirt));
-      f.y = Math.min(f.y, k.y + (w.y - k.y) / 3);
+      f.x = (f.x < 0 ? -1 : 1) * Math.abs(k.x);
+      f.y = Math.min(w.y - 0.02 * Math.max(0, w.y - k.y), k.y + 0.25 * Math.max(0, w.y - k.y));
     }
   }
   if (H.flute > 0) cageHullFlute(H, HF, lv);
@@ -1602,13 +1606,16 @@ function cageHullFlute(H, HF, lv) {
   // pulled into a blade under the forefoot and a 7 cm drop of the keel)
   const sx = k.x < 0 ? -1 : 1, b = Math.max(1e-4, Math.abs(k.x)), yk = k.yC != null ? k.yC : k.y, yc = k.y, z = k.z;
   const fl = cageHullFluteAt(H, HF, z), two = H.fluteN >= 2, sag = 0.75 * fl;
-  const tb = (yc - yk) / b, zr = two ? H.fluteAt * b : 0.5 * b, yr = yk + zr * tb - (two ? fl * b : 0);
-  // a control point of the arc A -> B ([x, y]): the chord's middle, 1.5 x the depth along its inward (up, in) normal
-  const ctl = (A, B) => { const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, o = 1.5 * sag * L;
-    return [0.5 * (A[0] + B[0]) - o * dy / L, 0.5 * (A[1] + B[1]) + o * dx / L]; };
+  // (HULL-B46: a single arch's CROWN may stand off the middle - at fluteAt of the chord, the Petrel's high near its
+  // skirt; the two-arc bottom keeps its ridge there and its arcs' crowns in their middles)
+  const q1 = two ? 0.5 : H.fluteAt;
+  const tb = (yc - yk) / b, zr = two ? H.fluteAt * b : q1 * b, yr = yk + zr * tb - (two ? fl * b : 0);
+  // a control point of the arc A -> B ([x, y]): at q of the chord, 1.5 x the depth along its inward (up, in) normal
+  const ctl = (A, B, q = 0.5) => { const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, o = 1.5 * sag * L * 4 * q * (1 - q);
+    return [A[0] + q * dx - o * dy / L, A[1] + q * dy + o * dx / L]; };
   const K = [0, yk], R = [zr, yr], C = [b, yc];
   lv.chine = { x: k.x, y: yc, z };
-  const mI = ctl(K, two ? R : C);
+  const mI = two ? ctl(K, R) : ctl(K, C, q1);
   if (two) {
     const mO = ctl(R, C);
     lv.ridge = { x: sx * zr, y: yr, z };
@@ -1619,7 +1626,8 @@ function cageHullFlute(H, HF, lv) {
   const on = (y0, z0, y1, z1, f) => { const dz = z1 - z0, dy = y1 - y0, L = Math.hypot(dz, dy) || 1, o = 4 * sag * L * f * (1 - f);
     return [y0 + f * dy + o * (dz / L), z0 + f * dz - o * (dy / L)]; };
   const arc = two ? [on(yk, 0, yr, zr, 1 / 3), on(yk, 0, yr, zr, 2 / 3), [yr, zr], on(yr, zr, yc, b, 0.25), on(yr, zr, yc, b, 0.5), on(yr, zr, yc, b, 0.75)]
-    : [1, 2, 3, 4, 5].map(i => on(yk, 0, yc, b, i / 6));
+    : [1, 2, 3, 4, 5].map(i => { const f = i / 6, g = f <= q1 ? 0.5 * f / q1 : 0.5 + 0.5 * (f - q1) / (1 - q1); const p = on(yk, 0, yc, b, g);
+        return [yk + f * (yc - yk) + (p[0] - (yk + g * (yc - yk))), f * b + (p[1] - g * b)]; });
   const poly = [[yk, 0], ...arc, [yc, b]];
   let cut = 0;
   for (let i = 0; i + 1 < poly.length; i++) cut += poly[i][1] * poly[i + 1][0] - poly[i + 1][1] * poly[i][0];
@@ -8325,6 +8333,7 @@ const CAGE_PARAMS = {
   hullRocker: 0,                                             // (HULL-B43: the belly's rise to a step under the taper)
   hullSkirt: 0,                                              // (HULL-B44: the chine's skirt - its reach past the topsides)
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
+  hullTipPlane: 0,                     // HULL-B45: the strut floats under the first plane (0) or a biplane's second (1)
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
   hullAftDeg: 7, hullNoseBase: 0,
@@ -9153,13 +9162,13 @@ const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
-  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt'];
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
 const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
-  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0 };   // (HULL-B39, B43, B44)
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0 };   // (HULL-B39, B43, B44, B45)
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
 // retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
 // slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)

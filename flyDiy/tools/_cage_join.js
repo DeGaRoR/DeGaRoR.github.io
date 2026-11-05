@@ -1504,7 +1504,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null },
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
+                              ...(Math.round(+P.hullTipPlane || 0) === 1 && +P.w2On ? { plane: 1 } : {}) },   // (HULL-B45)
                        ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : Math.round(+P.hullSpon) === 3 ? 'root' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
                                                    c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
             const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];

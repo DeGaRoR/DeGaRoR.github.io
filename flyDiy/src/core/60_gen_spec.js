@@ -5516,7 +5516,10 @@ function clampSpec(spec) {
                    kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
                    y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1,
                    // (HULL-B26: 'wing' = the wing's own tips are the floats - its drooped, buoyant tip; absent = strut floats)
-                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
+                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}),
+                   // (HULL-B45: the plane the strut floats hang under - 1 = a biplane's second plane, the Super Petrel's
+                   // lower wing; absent = the first)
+                   ...(h.tips.plane === 1 ? { plane: 1 } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
       } else h.tips = null;
       // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
       if (h.spon && typeof h.spon === 'object' && h.spon.on) {
