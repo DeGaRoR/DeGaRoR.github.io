@@ -109,7 +109,7 @@ Object.assign(PAGE.defaults = PAGE.defaults || {}, {
   fltNoseR: 0.17, fltPlan: 2.7, fltStern: 0.39, fltFlare: 4, fltMass: 27,
 }, DEF_ROWS, {
   fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
-  fltStrutAng: 55, fltSpread: 1, fltSpreadAft: 0.36,
+  fltStrutAng: 55, fltFrontRing: 0, fltSpread: 1, fltSpreadAft: 0.36,
   // FLOATS-CLASSIC: 0 = the Wipline (every build saved before), 1 = the EDO-style rounded deck; the deck board (EDO)
   fltStyle: 0, fltBoard: 0,
 });
@@ -161,6 +161,7 @@ const GROUP = ['9b · floats', [
   ['struts', [
     ['fltStrutR',  'strut thickness',      0.008, 0.090, 0.001, onM],
     ['fltStrutAng','strut root angle °',  20, 85, 1, on],
+    ['fltFrontRing','front strut root', 0, 1, 1, ['with the rear V', 'over its deck fitting']],
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
     ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
@@ -187,6 +188,8 @@ function hullParams(P) {
   // ...and the EDO's own afterbody PLAN (held 0, closing linearly: HY.EDO_AFT; the keel and the stern's beam stay rows)
   if (Math.round(+P.fltStyle || 0) === 1 && HY.EDO_STYLE) Object.assign(Q, HY.EDO_STYLE, HY.EDO_AFT ? { aftHold: HY.EDO_AFT.aftHold, aftPow: HY.EDO_AFT.aftPow } : null);
   Q.scale = k;
+  // TWIN4B-STRUTS: the front strut pair on the ring over its deck fitting (61_gen_frame; absent: on the step's ring)
+  if (Math.round(+P.fltFrontRing || 0) === 1) Q.frontRing = 1;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
   return Q;
@@ -661,18 +664,21 @@ PAGE.post = ctx => {
   for (const sd of [-1, 1]) {
     const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag];
     const rF = pilF ? pilRoot(pilF.zc, sd) : root(d.fwdIn[2], sd), rA = pilA ? pilRoot(pilA.zc, sd) : root(d.aftIn[2], sd);
-    roots[tag] = { rF, rA };
-    member(rF, d.fwdIn, sg, t);            // front
+    // TWIN4B-STRUTS (the user, 5 Nov: the 4b "hovers", no front pair; "just do it like in the middle of the passenger door
+    // if need be"): the front pair stands over its deck fitting, between pillars if it must, its root under the door's sill
+    const rFf = Math.round(+P.fltFrontRing || 0) === 1 ? pilRoot(d.fwdIn[2], sd) : rF;
+    roots[tag] = { rF, rA, rFf };
+    member(rFf, d.fwdIn, sg, t);           // front
     member(rF, d.aftIn, sg, t);            // centre
     member(rA, d.aftIn, sg, t);            // rear
     // the fuselage fittings: a lug pair at each root
-    for (const r of [rF, rA]) GK.boxIn(hg, r, [0.03, 0.012, 0.03], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    for (const r of (rFf === rF ? [rF, rA] : [rFf, rF, rA])) GK.boxIn(hg, r, [0.03, 0.012, 0.03], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     if (+P.fltWires) wire(d.fwdIn, rA);    // the drag wire
   }
   if (+P.fltWires) {
     // the wire pulls: crossed in the transverse plane at each bar
     const L = rec.deck.L, R = rec.deck.R;
-    wire(L.fwdIn, roots.R.rF); wire(R.fwdIn, roots.L.rF);
+    wire(L.fwdIn, roots.R.rFf); wire(R.fwdIn, roots.L.rFf);
     wire(L.aftIn, roots.R.rA); wire(R.aftIn, roots.L.rA);
   }
   if (+P.fltSpread) {
@@ -709,7 +715,7 @@ PAGE.post = ctx => {
     try {
       const PSy = PSx || PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS);
       const hit = [];
-      for (const tag of ['L', 'R']) for (const r of [roots[tag].rF, roots[tag].rA]) {
+      for (const tag of ['L', 'R']) for (const r of [roots[tag].rFf, roots[tag].rF, roots[tag].rA]) {
         const h = PSm.inDoor(PSy, r, 0.03, { panelOnly: true });
         if (h && !hit.includes(h.door)) hit.push(h.door);
       }

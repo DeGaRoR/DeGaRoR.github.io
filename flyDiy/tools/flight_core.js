@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 22ac5da4f9f24a6d
+// body-sha256: efb8d3cf05c077f8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -26310,7 +26310,7 @@ function makePilot(sim, def, world, opts) {
   const P3_ = !!(A.p3 ?? true);
   // G3914: A FLAPLESS AEROPLANE COMING DOWN CLOSES THE THROTTLE. Its idle floor costs as much slope as the whole slip: the Cub in still air at 19.2 m/s, flown steady,
   // 0.109 on the floor, 0.121 slipping at 0.8 of rudder; 0.119 and 0.130 closed. On the descending legs it also rolled in 12 m high without it
-  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0;
+  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0, p3FlapOut = false;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
   // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
   // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
@@ -28373,7 +28373,7 @@ function makePilot(sim, def, world, opts) {
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
-    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; }   // G1936: the slip is the short final's only
+    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; p3FlapOut = false; }   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
     // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
@@ -28903,7 +28903,11 @@ function makePilot(sim, def, world, opts) {
           // 1 s, and the roll's clock (the accelerate-stop's filter and its rules) starts there. Only a taildragger on
           // wheels over static T/W lineupTW (0.30) arms it: the user's Cub 0.27, the Jodel 0.23; the Cessnas are
           // tricycles, the float builds on the water - no validated aeroplane
-          if (rollS0 === null) { lineHold = false; lineOkT = 0; }
+          // G3914: ...AND OPENS IT SMOOTHLY. A step to full power from rest swings a taildragger of this class past its tailwheel's arc (G3800): the radial card at full tanks broke
+          // out 0.8 s into the roll, castoring it steers nothing, and it never left ROLL (900 s, gave up). Over the same 2 s as a profile's ramp the wheel holds and it lifts off at
+          // 15 s (13.9 before G3800). On a short field the brakes hold through the ramp (shortTO below), so it costs no run
+          const capR = (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) ? Math.min(GP.cap, 0.3) : GP.cap;
+          if (rollS0 === null) { lineHold = false; lineOkT = 0; thrRoll = Math.min(thrRoll, capR); }
           if (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) {
             if (!lineHold && Math.abs(e) > 0.26) { lineHold = true; lineOkT = 0; }
             if (lineHold) {
@@ -28912,8 +28916,8 @@ function makePilot(sim, def, world, opts) {
             }
           } else lineHold = false;
           if (lineHold) { capT = Math.min(capT, Math.max(0.2, (A.lineTaxiTW ?? 0.15) / STATIC_TW)); phaseT = 0; }
-          thrRoll = GP.cap < 1
-            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+          thrRoll = capR < 1
+            ? Math.min(capT, Math.max(thrRoll, capR) + (1 - capR) / (A.thrRampS ?? 2) * dt)
             : capT;
           // G1937 (PILOT-ONE, the user: the take-off "pulls on the stick much too fast, and hops" - on the WATER).
           // ON THE WATER THE POWER COMES IN OVER SECONDS. The throttle went from 0 to full in one step at 0.5 s:
@@ -29795,7 +29799,11 @@ function makePilot(sim, def, world, opts) {
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
-        flapTgt = (P3_ && onPathF && fLDG > 0) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
+        // G3914: THE STAGE WAITS FOR THE ROLL-OUT ONLY WHILE THE ELEVATOR HAS ROOM. Past the trim budget at half flap the next stage is the relief: the 4-up float Cessna (1176 kg)
+        // held half at 0.31 of elevator, G975 took the flap back to 0.25, the elevator pinned and it sank 5.4 m/s; the 1222 kg land one took full flap 13 s above the gate and sank
+        // 4.1 there. Both went round for ever; with the flap out early they land first try, full flap on 0.05-0.10 of elevator (26.2 m/s, run 254 m: what they did before the stages)
+        if (P3_ && deF > 0.18) p3FlapOut = true;
+        flapTgt = (P3_ && onPathF && fLDG > 0 && !p3FlapOut) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
         // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
         // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
         // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
@@ -41578,7 +41586,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // bay runs continuous through it and the strips' per-side walk holds.
     const zRootH = 0;
     const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
-    const yStab = (t.stabY != null && t.stabY > yAx(xStab) + kv * rAt(xStab) + 0.02)
+    // TWIN4B-STAB: a stab drawn UNDER the crown flies there too (it was held up on the crown: the 4b's, drawn at the
+    // middle of the boom, flew 10 cm above its own skin). Within 2 cm of the crown it is on the crown (onCrown, below)
+    const yStab = (t.stabY != null && Math.abs(t.stabY - (yAx(xStab) + kv * rAt(xStab))) > 0.02)
       ? t.stabY : yAx(xStab) + kv * rAt(xStab);
     const xFH = z => xStab + (sparF - 0.5) * chordH(z);
     const xRH = z => xStab + (0.5 - CT) * chordH(z);
@@ -42223,13 +42233,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      // TWIN4B-STRUTS: `frontRing`: the FRONT strut stands on the ring nearest its deck fitting, not on the ring just ahead
+      // of the step (the 4b: the step 2.1 m back, both pairs on rings 0.4 m apart, 1.7 m of float ahead of them with nothing)
+      let iFront = iFwd;
+      if (FM && FM.frontRing && !engFwd) for (let i = 0; i < iFwd; i++)
+        if (Math.abs(ST[i].x - nodes[Din[1]].p[0]) < Math.abs(ST[iFront].x - nodes[Din[1]].p[0])) iFront = i;
+      const fF = iFront === iFwd ? fB : (sd < 0 ? F[iFront].BL : F[iFront].BR);
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
       // flexible, almost springy"). The forward strut was the gear's `leg`
       // member — the suspension spring, KS x SUS — so the whole float pair
       // rode on two bungees; every member here is BRACING (KS x ARCH.k),
       // a streamlined steel tube like the rest of the truss.
       // (G451: the aft attachments on the aft spreader bar's station, 3)
-      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
+      B(Din[1], fF, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
       B(Dout[3], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
       B(Din[3], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the

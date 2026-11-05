@@ -4029,22 +4029,18 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // sheet also uses — so the two could not disagree. They still cannot: null
   // means "whatever the trim is", and a number is the builder overruling it
   // for this marking only.
-  regCol: null, regOut: null, regOutOn: 1,
-  regMetal: 0, imgMetal: 0, wimMetal: 0,
+  // LIVERY-5: no keyline (regOut / regOutOn gone: "the outline looks bad in every circumstance"); an old save's rows
+  // are dropped on load like any key missing from this list
+  regCol: null,
+  regMetal: 0,
   // INDEPENDENT WIDTH (G113.1). The width was DERIVED — `regH * aspect` —
   // and there was no way to stretch or condense a marking to fit the space
   // it has. Locked (the default, and exactly what the old code did) the
   // width still follows the height at the face's own aspect.
   regW: 0.96, regLock: 1,
   regFont: 0,             // an index into AEROSKIN.AERO_DEC_FONTS
-  // THE BODY CHANNEL — fuselage, cowl, fin and stab when it is aimed there
-  imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
-  imgMode: 0, imgRot: 0, imgLock: 1,
-  // THE WING CHANNEL — its own image, its own placement, its own projection.
-  // It opens in PLAN because that is what makes a stripe cross both wings as
-  // one thing rather than as two mirrored halves.
-  wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
-  wimMode: 2, wimRot: 0, wimLock: 1,
+  // LIVERY-5: THE TWO IMAGE CHANNELS ARE GONE (img* / wim*): an old save's rows are dropped on load; their atlas
+  // pages carry kit layers 4 and 5
   // G2829: THE REGISTRATION ON THE WING TOP (aeroskin AERO_DEC_DEF's wreg*: the registration's page placed a second
   // time, in plan - L across the span, C fore / aft, the turn in radians). This file loads BEFORE aeroskin.js on
   // dev.html, so this literal is the editor's list of decal keys: a key missing here is dropped from a loaded build
@@ -4411,43 +4407,6 @@ function decFitGrey(q) {
   const fit = !!DEC[q + 'Fit'];
   for (const k of ['L', 'C', 'W', 'H']) if (GREY[q + k]) GREY[q + k](!fit);
 }
-// ---- THE IMAGE PAGES, IN AND OUT (G190) ------------------------------------
-// The body image is atlas page 1 (imgOn), the wing image page 2 (wimOn). Out:
-// the pages that hold an image, as the page's own pixels plus the aspect the
-// upload measured (the lock reads it), for the save envelope. In: the same
-// object, baked back through aeroskin's drawer and re-applied — the flags and
-// the placement come from the spec's decals, this is only the picture.
-const DEC_IMG_PAGES = { 1: 'imgOn', 2: 'wimOn' };
-function decalImages() {
-  const A = AK();
-  if (!A || !A.aeroDecalImageData) return null;
-  const out = {};
-  for (const pg in DEC_IMG_PAGES) {
-    const d = A.aeroDecalImageData(+pg);
-    if (d) out[pg] = { data: d, aspect: ASPECT[DEC_IMG_PAGES[pg]] || 1 };
-  }
-  return Object.keys(out).length ? out : null;
-}
-function decalImagesFrom(images) {
-  const A = AK();
-  if (!A || !A.aeroDecalImageFrom || !images || typeof images !== 'object') return 0;
-  let n = 0;
-  for (const pg in DEC_IMG_PAGES) {
-    const rec = images[pg];
-    const key = DEC_IMG_PAGES[pg];
-    if (!rec || !rec.data) {
-      // nothing for this page: the previous build's picture goes
-      if (A.aeroDecalImageClear) { A.aeroDecalImageClear(THREE, +pg); ASPECT[key] = 1; }
-      continue;
-    }
-    if (A.aeroDecalImageFrom(THREE, +pg, rec.data, () => {
-      ASPECT[key] = +rec.aspect > 0 ? +rec.aspect : 1;
-      try { applyDecals(); draw(); } catch (e) {}
-    })) n++;
-  }
-  return n;
-}
-
 // ---- THE WEATHERING'S SOURCES (G345, replacing G70's applyWear) ------------
 // The four macros are one number each; WHERE the exhaust and the wheels land
 // is measured off this build, every build, and handed to aeroweather.js in
@@ -5011,12 +4970,6 @@ function buildDecPanel() {
     well('ink', 'regCol', 0x1b3a5c,
          'the glyph. Unset it follows the aeroplane trim colour — ' +
          'double-click the label to go back to following');
-    // G214: the keyline is optional
-    flag('outline on', 'regOutOn',
-         'a keyline around the glyphs; off, the ink alone');
-    well('outline', 'regOut', 0xffffff,
-         'the keyline around the glyph, which is what keeps a dark ' +
-         'registration legible on a dark flank');
   }
   pick('face', 'regFont', (A.AERO_DEC_FONTS || []).map(f => f.name),
        'only the faces the artifact ships: a livery that renders in a ' +
@@ -5097,7 +5050,9 @@ function buildDecPanel() {
           // G2870: a fade or a sunburst is meant edge to edge of a SURFACE,
           // so it arrives fitted to the one it goes on (untick FIT to place
           // it by hand). The stripes keep whatever placement they had.
-          if (patOf(q + 'Pat').asp) DEC[q + 'Fit'] = 1;
+          // (LIVERY-5: a flag keeps its hand placement - `fit: 0`; a pattern's ground arrives transparent - `clr0`)
+          if (patOf(q + 'Pat').asp && patOf(q + 'Pat').fit !== 0) DEC[q + 'Fit'] = 1;
+          if (patOf(q + 'Pat').clr0 != null) DEC[q + 'Clr'] = patOf(q + 'Pat').clr0;
           redo();
         }, det);
       refresh.push(() => {
@@ -5167,7 +5122,9 @@ function buildDecPanel() {
           i.min = kd.lo; i.max = kd.hi; i.step = kd.st;
           const cur = A.aeroKitKnob(pat, j, DEC[key]);
           i.value = cur;
-          v.textContent = kd.st >= 1 ? String(Math.round(cur)) : cur.toFixed(2);
+          // LIVERY-5: a knob that picks (a shape, a layout, a flag) says the name, not the index
+          v.textContent = kd.o && kd.o[Math.round(cur)] != null ? kd.o[Math.round(cur)]
+                        : kd.st >= 1 ? String(Math.round(cur)) : cur.toFixed(2);
         };
         i.oninput = () => { DEC[key] = +i.value; show();
           decSavePrefs(); applyDecals(); draw(); };
@@ -5216,60 +5173,6 @@ function buildDecPanel() {
     }
   }
 
-  // ---- ONE CHANNEL PER SUBJECT (G108) ------------------------------------
-  // The user: "the fuselage projection and the fin projection should be one
-  // if possible. The wing and the slabs projection should [be] another, fully
-  // independent one, allowing its own projection and image and settings."
-  //
-  // Each channel takes an image, a projection and a placement of its own. The
-  // BODY's reaches the fuselage, the cowl and the tail; the WING's reaches the
-  // wing and its slabs and nothing else.
-  const channel = (tag, keys, page, help) => {
-    const h = row(tag, help);
-    const f = document.createElement('input');
-    f.type = 'file'; f.accept = 'image/*'; f.style.flex = '1';
-    f.onchange = () => {
-      const file = f.files && f.files[0];
-      if (!file) return;
-      const fr = new FileReader();
-      fr.onload = () => {
-        const im = new Image();
-        im.onload = () => {
-          ASPECT[keys.on] = A.aeroDecalImage(THREE, page, im) || 1;
-          DEC[keys.on] = 1;
-          if (DEC[keys.lock]) {
-            DEC[keys.h] = DEC[keys.w] / Math.max(0.05, ASPECT[keys.on]);
-            if (SYNC[keys.h]) SYNC[keys.h]();
-          }
-          decSavePrefs(); applyDecals(); draw();
-        };
-        im.src = fr.result;
-      };
-      fr.readAsDataURL(file);
-    };
-    h.appendChild(f);
-  };
-  // THE RATIO LOCK, and it closes a live bug rather than only adding a row.
-  // The image height was computed ONCE, when the image loaded, and never
-  // again — so dragging the width STRETCHED the picture, and there was no
-  // height control to put it back with. The user reported the missing
-  // control; the stretch was the other half of the same defect. Locked (the
-  // default, and what the old code always did) the height follows the width
-  // at the image's own aspect; unlocked both are free, and the greyed slider
-  // is what says which of the two is being driven.
-  const lockPair = keys => {
-    const apply = () => {
-      const on = !!DEC[keys.lock];
-      if (GREY[keys.h]) GREY[keys.h](!on);
-      if (on) {
-        DEC[keys.h] = DEC[keys.w] / Math.max(0.05, ASPECT[keys.on] || 1);
-        if (SYNC[keys.h]) SYNC[keys.h]();
-      }
-    };
-    LOCK[keys.w] = () => { if (DEC[keys.lock]) apply(); };
-    return apply;
-  };
-
   // THE REGISTRATION'S LOCK RUNS THE OTHER WAY, and that is not an
   // inconsistency: a marking is specified by its legal HEIGHT ("300 mm is the
   // usual"), so height drives width here where an image's width drives its
@@ -5287,41 +5190,6 @@ function buildDecPanel() {
     apply();
   }
 
-  const BODY = { on: 'imgOn', w: 'imgW', h: 'imgH', lock: 'imgLock' };
-  const WING = { on: 'wimOn', w: 'wimW', h: 'wimH', lock: 'wimLock' };
-
-  DECG.cur = 'body';
-  channel('body image', BODY, 1,
-          'one image across the fuselage, the cowl and the tail');
-  num('body width', 'imgW', 0.1, 4.0, 0.05, 'metres', 'len');
-  num('body height', 'imgH', 0.1, 4.0, 0.05, 'metres', 'up');
-  const bodyLock = lockPair(BODY);
-  flag('body lock ratio', 'imgLock',
-       'hold the image aspect: the height follows the width', bodyLock);
-  num('body station', 'imgL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
-  num('body height on side', 'imgC', -1.2, 1.2, 0.02, 'metres from the waist', 'up');
-  num('body turn', 'imgRot', -0.6, 0.6, 0.01, 'radians');
-  num('body metallic', 'imgMetal', 0, 1, 0.02, 'metal flake where the image paints');
-  pick('body goes on', 'imgTarget',
-       ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail']);
-  pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP,
-       (a, b) => decReframe(a, b, { l: 'imgL', c: 'imgC' }));
-
-  DECG.cur = 'wing';
-  channel('wing image', WING, 2,
-          'one image across the wing and its slabs, independent of the body');
-  num('wing width', 'wimW', 0.1, 4.0, 0.05, 'metres', 'span');
-  num('wing height', 'wimH', 0.1, 4.0, 0.05, 'metres', 'len');
-  const wingLock = lockPair(WING);
-  flag('wing lock ratio', 'wimLock',
-       'hold the image aspect: the height follows the width', wingLock);
-  num('wing across', 'wimL', -6.0, 6.0, 0.05,
-      'metres from the centreline, in PLAN', 'span');
-  num('wing along', 'wimC', -3.0, 3.0, 0.02, 'metres fore and aft, in PLAN', 'len');
-  num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
-  num('wing metallic', 'wimMetal', 0, 1, 0.02, 'metal flake where the image paints');
-  pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP,
-       (a, b) => decReframe(a, b, { l: 'wimL', c: 'wimC' }));
   // THE CERTIFICATION STICKERS (G208.2, the user: "we should be able to
   // choose where certification stickers are applied, and maybe move them
   // manually a little (like the fuel tanks, default section + manual fine
@@ -5366,7 +5234,6 @@ function buildDecPanel() {
   pick('spiral hand', 'spiralHand', ['one way', 'the other'], 'which way the stroke winds');
   num('spiral pitch', 'spiralPitch', 0.03, 0.30, 0.005, 'metres of radius per turn — smaller winds tighter');
   num('spiral width', 'spiralW', 0.05, 0.60, 0.01, 'the stroke\'s width at the base, as a fraction of one turn');
-  bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was
   // capped at a literal 4.0 m — the user: "the image max width is
@@ -6071,13 +5938,10 @@ window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, 
   // THE FINISH, in and out of the spec (G105). `applySpec` already calls the
   // second one; the first is what `_cage_join.js`'s export puts on the build.
   finishToSpec, finishFromSpec,
-  // THE IMAGE PAGES (G190): out as {page: dataURL, aspect} for the save
-  // envelope, in from one — the pixels a spec deliberately does not carry
   // G208: the certification stickers ride the decal list through aeroskin's
   // AERO_EXTRA_DECALS hook; when a certificate is awarded or withdrawn the
   // bench asks for the list to be rebuilt, which is this call
-  redecal: () => { try { applyDecals(); draw(); } catch (e) {} },
-  decalImages, decalImagesFrom };
+  redecal: () => { try { applyDecals(); draw(); } catch (e) {} } };
 // THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
 // first build(): the panel it builds is what the build's own applyRowVis pass
 // then decides the visibility of, and doing it the other way round would show
