@@ -87,7 +87,7 @@ const ENGINES = {
   // boom at 0.36 m over the keel, the boom 2 m climbing 9.5 deg; the sesquiplane (upper 8.9 x 1.0 parasol, lower 7.0 x
   // 0.8 low on the hull with 5 deg dihedral, 0.4 m aft), drooped tips; the pusher 912 iS on the roof pylon behind the
   // cockpit, under the upper wing
-  superPetrel: { sel: { engMount: 'wingTop', planes: 'biplane', paxCount: 0 }, engine: 'rotax 912 (flat)',
+  superPetrel: { sel: { engMount: 'wingTop', planes: 'biplane', paxCount: 0 }, engine: 'rotax 912 iS',
     // (HULL-B36, the user: "keep the hull/fuselage architecture of the cessna, just get rid of the pax section. Then use
     // the pod and rod structure we've built for the icon, apply it, then match the rod orientation and length, then
     // match the fin. Your wings are OK, they need the winglet end though") - the Cessna's cabin and bow as they are, no
@@ -97,9 +97,9 @@ const ENGINES = {
     // (HULL-B37, the user: "your new cabin is far too tall, get it back to the previous settings, and don't touch cabin
     // height" - the first card's section; the step in the buoyant taper under the lower wing, hullStepZ; "the engine
     // should reach the wing and intersect it. Place it further fore and high")
-    cage: { keelY: -0.62, roofY: 0.68, canopy: 3, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
+    cage: { keelY: -0.62, roofY: 0.68, canopy: 3, intCons: 0, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, bpWires: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
             noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.46, aftRoofY: 0.12, aftKeelY: -0.52,
-            hullStepZ: 0.52, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 0, hullStrakeW: 0.045, hullStrakeLen: 0.85,
+            hullStepZ: 0.74, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 0, hullStrakeW: 0.045, hullStrakeLen: 0.85,
             frBoomTopW: 0.30, frBoomWaistW: 0.45, frBoomBotW: 0.40, rodY: -0.10, rodIncl: 5, rodD: 0.15, boomLen: 2.2,
             finHeight: 1.1, finChord: 1.05, finChordTip: 0.45, stY: 0.65, stZ: -0.35, stChord: 0.75, stChordTip: 0.6,
             wgSpan: 9.16, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.8, wgBrace: 1, wgCrankAt: 0,
@@ -107,6 +107,7 @@ const ENGINES = {
             w2On: 1, w2Pos: 1, w2Dy: -0.1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 8, w2Stagger: -0.05, w2Tip: 7, w2CrankAt: 0,
             engPylonAt: 1, engPylonH: 0.55, engPylonAft: -1.1, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.25,
             hullSpon: 0, hullTips: 1, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
+    energy: { vessels: [{ bay: 'aftCabin', capacity: 72, form: 'box' }] }, cabin: { baggage: 0 },
     note: 'the Super Petrel LS on the Cessna cabin, pod and rod (HULL-B36)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
             note: 'two Rotax 912s back to back on one pylon over the wing, one pulling, one pushing (the Seastar)' },
@@ -130,6 +131,9 @@ function one(form, eng) {
   delete sp.gear.floats;
   const ap = D.designApply(Object.assign({}, sp.cage), Object.assign({ gearLayout: 'hull', hullForm: form }, E.sel));
   sp.cage = Object.assign({}, sp.cage, ap.cage, E.cage);
+  // (HULL-B49: a card may carry its own fuel (energy: the vessels) and cabin (crew, baggage) - the load it is judged at)
+  if (E.energy) sp.energy = Object.assign({}, sp.energy, E.energy);
+  if (E.cabin) sp.cabin = Object.assign({}, sp.cabin, E.cabin);
   sp.gear = Object.assign({}, sp.gear, (ap.spec && ap.spec.gear) || {}, { type: 'hull' });
   const res = { form, eng, missing: ap.missing };
   const defOf = s2 => C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(s2))));

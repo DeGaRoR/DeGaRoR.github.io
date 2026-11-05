@@ -468,6 +468,15 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.27 },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
+  // HULL-B49 (the user: "you may add the 912iS"): THE 100 hp 912 - the Super Petrel LS's engine. Rotax 912 iS Sport:
+  // 73.5 kW (100 hp) at 5 800 rpm, 1 352 cm3 (84 x 61 mm), fuel-injected, gearbox i = 2.43, 63.6 kg with its ECU and
+  // generator (flyrotax.com, as recalled - INFERRED to the 912 UL's scope). The prop is the 912 UL's Warp Drive at the
+  // new power through genPropSynth (the same call gives the UL row's 1376 / 0.193 exactly). Price: the ladder, +22 %
+  rotax912is_warp: {
+    price: 22000,
+    engine: { name: 'Rotax 912 iS', mass: 63.6, powerW: 73500, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.43 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1583, kV2: 0.193 },
+  },
   o200_eprops: {
     price: 24000,
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2750 },
@@ -932,7 +941,7 @@ function genEnginePrice(family, powerW) {
 // mass where it always did — absent means today, byte for byte.
 const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
-  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
+  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
   rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
   verner7u_wood: 0.12, rotec3600_std: 0.12, clerget9b_wood: 0.14,
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
