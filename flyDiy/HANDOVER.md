@@ -312299,7 +312299,12 @@ rows, the rows moved with the same keys, the prefs and spec keys, expert, the wr
 read-only, on change), and on all 14 saved builds: the def at aging 0 / 0 the same bits (a leaf walk; only
 def.spec.aging differs), write-then-clear byte for byte through genSpecMerge with the same certificate, a real age moves
 the structure group. UISMOKE (+ #edTabWear in the workshop's ids), UISMOKE-PHONE, CARDS, BUILD, WEATHER, EDBUGS, JOIN,
-SAVE, STORAGE, STORY, PRICE: PASS. LIVERY and LAZY red here - see the train note for master's own.
+SAVE, STORAGE, STORY, PRICE: PASS. LIVERY and LAZY red, IDENTICALLY on a clean worktree of master f3688d168 (LIVERY:
+its rig runs seedEditor without `garageFloodArm`, G3358; LAZY: "the door's first demand (ROUTE_DRAW.ready) fetched
+route_draw once and ran it") - not this branch's.
+IN A PAGE (headless Chromium, SwiftShader, dev.html desktop 1600x900): three tabs; FINISH holds no wear row; WEAR with
+expert off is the note alone; on, 4 looks + 3 aging rows + 45 surface rates; the age written {25, 1200} (97 % power,
++2.5 % drag) and cleared back to absent; the story's lock lands on FINISH and the WEAR tab refuses; no page error.
 
 **COSTS:** per frame none (the look is a uniform, aging two factors at resolve). A physical slider is a rebuild per
 change. The four look rows now need two clicks (the tab, the expert switch). Unseen on a real GPU.
