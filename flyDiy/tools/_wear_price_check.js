@@ -151,11 +151,11 @@ function page(S) {
      && /if \(CAREER_DEV && d\.career && d\.career\.airframes && d\.career\.airframes\[flSlot\]\) d = econStopWear\(d, flSlot, Math\.max\(0, ap\.t \|\| 0\), out\);/.test(S.APP), 'app.js: the flight\'s end bills the breakage');
   ok(/return econAgingFlown\(d, slot, t\);/.test(S.APP), 'app.js: the flight\'s seconds on the age');
   ok(/return econAgingStart\(r\.doc, name, sp && sp\.aging \? sp\.aging : null\);/.test(S.APP), 'app.js: a build\'s first save starts its clock at the age set');
-  ok(/restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\),/.test(S.APP) && /isAirframe: n =>/.test(S.APP), 'app.js: the career\'s refresh doors');
+  ok(/if \(CAREER_DEV && window\.FLYDIY_CAREER\) Object\.assign\(window\.FLYDIY_CAREER, \{/.test(S.APP) && /restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\), setCare: c => econCareNow\(c\)/.test(S.APP) && /isAirframe: n =>/.test(S.APP), 'app.js: the career\'s wear doors (behind CAREER_DEV)');
   ok(/if \(now && typeof econAgingSpec === 'function'\) sp = econAgingSpec\(sp, now\);/.test(S.GAR), 'garage.js: a career slot loads at its age now');
   ok(/function wearRefresh\(\)/.test(S.ED) && /if \(isRoot\) wearRefresh\(\);/.test(S.ED), 'editor.js: the refresh buttons on the WEAR tab');
   ok(/aging: L\.age > 0 \? \{ years: L\.age, engineHours: L\.hours \|\| 0, care: 'normal',/.test(S.PROC), '76_procure: a used purchase starts its clock');
-  ok(/setCare: c => \{ const n = slotOnStand\(\); const r = econCareSet\(playerLoad\(\), n, c\);/.test(S.APP), 'app.js: the upkeep\'s door');
+  ok(/function econCareNow\(c\) \{ const n = slotOnStand\(\); const r = econCareSet\(playerLoad\(\), n, c\);/.test(S.APP), 'app.js: the upkeep\'s door');
   ok(/function careRow\(\)/.test(S.ED) && /if \(isRoot\) emitEls\(p0, 'upkeep', \[careRow\(\)\], 'how fast it wears from now on', false, \{ secG: 'wear:care' \}\);/.test(S.ED)
      && /\['perfect', 'perfect maintenance'\], \['normal', 'normal maintenance'\], \['poor', 'poor maintenance'\]/.test(S.ED), 'editor.js: the three upkeeps, up front (not expert)');
   return fails;

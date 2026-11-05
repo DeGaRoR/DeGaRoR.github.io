@@ -312399,3 +312399,45 @@ BATTERY: red, standing: FRAMECOST (the same 5), MEDIA 5.15 MiB. Nothing new. STO
 TIMED (light): 59 red (L32c 48), warm nav 167.1 / 180.9 s, one 11.9 s link frame on world -> garage, taskWorst 11-27 s. NOT read as this train's cost: the same link count (588 vs 584) but 169 links over 5 s against 11, "GPU cache MISS suspected", and these two refs change a data file, a gate, the load door's cache and one buoy colour. W4 / B1's driver cache noise, seen before. One sample; PERF-PASS takes 3.
 COSTS: Rufus's tank moved 10 mm along the body, same 16 L; passed true for the first time (load row + sticker added), flight + logbook kept (G3780); mass, CG and the mine runs unchanged. GATE BENCH holds shipped stamps (versions, body, held rows). _load_build.js: the door's cache recomputes once for everyone. Story HOME screen not opened. Buoys: colour half way to grey, unseen in a browser.
 STANDING, not in the train's list, on master: JOINPARITY 5, APSMOOTH (all five at level), ENGCONFIG: 26 lines, same with and without this train. Next week.
+
+## WEAR-PRICE - THE AGE ON THE CAREER'S CLOCK (SET WHILE BUILDING), THREE UPKEEPS, THE AGE OUTSIDE THE CERTIFICATE, BREAKAGE REPAIRED AND TWO REFRESHES PAID AT THE PARTS PRICE; GATE WEARPRICE (2026-11-05, WEAR-TAB's follow-up for A0, cloud - node + headless Chromium; branch claude/wear-tab off origin/master bbf615a2 = L32d)
+The user's answers to WEAR-SYSTEM §8, 5 Nov: "1. Yes, and when building, you can set the age of the plane. 2. No 3. No
+running costs for now 4. Parts price 5. Yes - and you can start putting money on the repair and refresh tasks. The
+repair on breakage should also be there." Then: "rate of decay should offer 3 options; perfect maintenance, normal
+maintenance, poor maintenance, and that's about it". The study's §9 records them.
+
+**THE AGE ON THE CLOCK** (76_economy): the career airframe row's `aging` = { years, engineHours, care, at, fl } settled
+at clock `at`, `fl` seconds flown since. Now (econAgingNow) = years + k x max(calendar years since, hours flown / 100);
+hours + k x flown. k = ECON_WEAR.care { perfect 0.5, normal 1, poor 2 } (JUDGEMENT). A change of upkeep settles first
+(econCareSet): choosing perfect buys nothing back. Started by a used purchase (the listing's age and hours), a build's
+first save (the age and upkeep set on the WEAR tab: app.js econMaterialiseNow), or the first flight of an older row (its
+`age` / `hours`). The flight's end adds its seconds (app.js econStopWear); a career slot loads at its age now (garage.js
+loadSlot, econAgingSpec). The sale reads the age now. Physics (60_ GEN_AGING) reads only years and hours.
+
+**THE CERTIFICATE**: 66b CERT_CONDITION ['aging'] is outside the hash (bench.js's strip too). Used airframes signed
+while it hashed are re-signed on their next save (76_procure M4: the old rule with the listing's age and hours 150-2 950
+matched; not modified, nothing billed, a bench signature on that fp follows). A bench result stored under an aged sandbox
+build's old fp goes stale (re-run).
+
+**THE MONEY (parts bill; no running cost):**
+- BREAKAGE at the flight's end (econRepairBill -> econRepairCharge; crashed or landed bent): a parted damage group =
+  its ledger section / that section's groups (a Cub's wing root 1 541); a break-up the fuselage, a crash with nothing
+  parted 0.25 of it, an engine mount 0.1 of the engine row, a strike's teardown 0.1 of it, an overhaul-band overspeed or
+  internal finding the overhaul, a bent+ prop a new prop (all marked JUDGEMENT in ECON_WEAR). The card's line leads.
+  Free in the tutorial (T0-T6, as the sale); a free record in the sandbox. The crash's reset to the departure stands.
+- econRepairCost sums the bill (was 0, G2705); econRepair (the fleet damage record's Repair) charges it. GATE ECON's
+  six "repair is free" rows re-pointed to the user's new ruling.
+- REFRESH (the WEAR tab's buttons on a career airframe, up front): repaint = the ledger's paint line (the four look
+  macros to 0, the outside wear reset; the age untouched), overhaul = the engine rows x 0.85 (engine hours to 0). Cub:
+  5 642 / 9 350 (the A-65's shop overhaul ~9.5k). Ledger kind `restore`, class repair.
+- THE WEAR TAB: `upkeep` (perfect / normal / poor maintenance) and the refresh buttons up front; the expert rows as
+  before; on a career airframe the age rows are read-only, on a build free.
+
+**GATES:** WEARPRICE (new, core, ~2 s, --selftest 10 of 10), WEARTAB (an age withdraws nothing), ECON, UISMOKE (+ its
+CAREER_DEV rule: the stop's wear and the career's doors live in the economy's page half), UISMOKE-PHONE, PRICE, PROCURE,
+CERTGATES, ACCEPT, BENCH, STORY, CONTRACTS, PILOTS, ROUTES, PLAYER, GAMEPREM, EDBUGS, SAVE, STORAGE, CARDS, BUILD: PASS.
+DMGCERTCOST red (its node-time ceilings and the worker's last bits) - red on master before this (PRICE-CAL's list).
+econ_sim --seeds=20: frugal pace 3 / 6 / 11, router share 0.21 - the agreed economy, unmoved (the sim neither crashes nor
+buys a refresh: these prices do not reach it).
+**COSTS / UNSEEN:** per frame none (a bill at the stop). The refresh buttons and the upkeep row unseen in a page (node
+gates and the smoke's static rows only). Perfect upkeep costs nothing while there are no running costs: the obvious pick.
