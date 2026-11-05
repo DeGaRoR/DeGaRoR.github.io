@@ -28,6 +28,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
+  const L1_OFF = typeof location !== 'undefined' && /[?&]l1tree=0/.test(location.search);   // LOOK-1 step 3's A/B: the forest as it was before it
   // THE DAY'S SUN (SKY S2, 2026-09-14). `SUN` is what every SHADOW pass reads
   // (the follow, the far cascade, the impostor depth) and it is held 2 deg
   // above the horizon so agl / SUN.y never blows up at sunset; `SUN_SKY` is
@@ -8103,6 +8104,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
+      // LOOK-1 D3: the crowns take the moon as one shape once the moon is the key and the sky's light is going (trees.js U_CROWN); 0 under the sun
+      if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.crownN) TREE_LEAF.crownN(L1_OFF || !SKY_LIGHT.isMoon ? 0 : Math.max(0, Math.min(1, (-day.sunEl - 1.2) / 3)));
       if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)

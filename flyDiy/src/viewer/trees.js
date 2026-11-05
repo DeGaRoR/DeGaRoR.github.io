@@ -606,6 +606,12 @@
   // leaves' width there (1 = today), w the impostors' (render_world.js reads the same object). Same coverage, wider edge.
   const U_SOFT = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(150, 600, 5, 4) : { x: 150, y: 600, z: 5, w: 4 } };   // the user 8 Nov: "strong" (far trees must read, a little big)
   if (typeof window !== 'undefined') window.TREE_SOFT = U_SOFT;
+  // LOOK-1 D3: THE CROWN'S NORMALS AT NIGHT, near geometry only (the user's hero: "golden light and specks on trees"). The moon lights a crown card by card, each on its own
+  // normal, and at night nothing fills the rest (the study's §0): specks. Toward a cone round the tree's axis, the crown takes the moon as one shape. 0 by day, so nothing
+  // moves there: dayApply sets it from the moon key. The impostors keep their baked normals (the study's pick2_forest_crown shows why). A leaf is double-sided, and three flips the
+  // normal on a back face: with one shape's normal that flip would deal the specks back, so it is undone
+  const U_CROWN = { value: 0 };
+  const CROWN_VS = 'if (uCrownN > 0.0) { vec3 _cn = normalize(vec3(position.x, length(position.xz) * 0.55 + 0.01, position.z)); objectNormal = normalize(mix(objectNormal, _cn, uCrownN)); }';
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',
     '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
@@ -633,7 +639,7 @@
       sh.uniforms.uBakeAlb = U_BAKEALB;
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
-      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP; sh.uniforms.uSoft = U_SOFT;
+      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP; sh.uniforms.uSoft = U_SOFT; sh.uniforms.uCrownN = U_CROWN;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
@@ -643,6 +649,7 @@
         vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
+        if (isLeaf) { vs = declOnce(vs, 'uniform float uCrownN;'); vs = vs.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + CROWN_VS); }
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
       if (mat.userData.fade) fadeInject(sh, mat.userData.fadeSet, mat);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
@@ -658,6 +665,7 @@
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + (isLeaf ? 'if (uCrownN > 0.5 && faceDirection < 0.0) { normal = -normal; nonPerturbedNormal = normal; }' : ''))
           .replace('#include <lights_fragment_end>',
             '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
@@ -808,6 +816,7 @@
     window.treeTrunk = treeTrunk;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
+    treeLeaf.crownN = k => { if (k !== undefined) U_CROWN.value = k; return U_CROWN.value; };
     window.TREE_LEAF = treeLeaf;
   }
 })();
