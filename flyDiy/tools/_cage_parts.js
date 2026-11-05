@@ -1120,7 +1120,7 @@ const CAGE_PARTS = [
     sections: ['float', 'floatDeck'],
     groups: [
       // G451: the Wipline preset (a starter), the details, and the family's rows
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle']],
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltAmph']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],

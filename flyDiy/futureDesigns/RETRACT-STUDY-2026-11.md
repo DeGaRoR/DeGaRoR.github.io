@@ -2008,3 +2008,107 @@ manufacturers' data:
 
 The manufacturers' numbers (dimensions, stations, tyres, weights, the mechanisms' geometry) are being gathered from
 the Wipaire manuals and sheets now that the session can reach them. They go into §8.25.
+
+### 8.25 The amphibious floats: Wipaire's data, and the gear drawn on the Wipline hulls
+
+The user: "do more than study, do it". The data comes from Wipaire's own documents, reached once the environment
+allowed wipaire.com and manualshive.com. The research notes, with every figure used, are in the session's scratchpad
+(AMPHIB-DATA.md, not in the repository). The sources by model:
+
+| model | service manual | parts manual / guide |
+|---|---|---|
+| 2100/2350 | `wipaire.com/wp-content/uploads/2016/10/2100-and-2350-SMAN-Rev-V.pdf` (and manualshive 988365) | guides Husky, Scout, C-172 (`.../2018/06/*.pdf`) |
+| 3000/3450 | `.../2016/10/3000-and-3450-SMAN-Rev-P.pdf` | `.../2016/11/3450-PMAN-on-Cessna-206-Rev-V.pdf`; guides C-180..206 |
+| 3730/3900 | manualshive 988366 | — |
+| 4000, 6000/6100, 7000 | `.../2016/10/4000-SMAN-Rev-K.pdf`, `6000-and-6100-Service-Manual-Rev-W.pdf`, `7000-Service-Manual-Rev-U.pdf` | guides Beaver, Kodiak |
+| 8750 | manualshive 988360 (`.../8750-SMAN-Rev-V.pdf`) | guide C-208B |
+| 13000, 10000 | manualshive 988363 / 988362 (`.../13000-Service-Manual-Rev-T-1.pdf`) | `.../2016/11/13000-PMAN-Rev-Y.pdf`; guide Twin Otter |
+
+**What the manufacturer states:**
+- **The hull is unchanged.** "The amphibian float is geometrically the same as the seaplane except for the addition of
+  landing gear and internal structure for the gear."
+- **The layout is a quadricycle.**
+  - The main gear: a drag link on trunnions at the step bulkhead. Single wheels from the 2100 to the 3450, dual from
+    the 4000 up. It swings up into an open wheel well just aft of the step, with NO doors (no door in any parts
+    list).
+  - The nose gear: a composite spring leg ("very similar to a Cessna style") on a trolley in tracks in a nose box,
+    fully castering, self-centring, with no shimmy damper. It "retracts into the float nose to provide a dock
+    bumper", with no doors.
+- **Locks.** Over-centre locks; the main locks up and down, the nose down only.
+- **Hydraulics.** One hydraulic system and a hand pump: about 100 strokes on the 2100, about 400 on the 13000.
+- **Tyres and weights per model.** The tyres (5.00x5 to dual 8.50x10), the nose tyres, and the amphibian system weight
+  over the seaplane's: +147 lb (PA-18) to +677 lb (DHC-6).
+- **Geometry, read off the dimensioned 3-views** [inferred, plus or minus 3 %]: the wheelbase is 0.48 to 0.52 of the
+  amphibian length; the main axle sits at 0.50 to 0.55 of it from the front, the nose axle at the front.
+
+**Not published, so the drawing ASSUMES these and the record says so (`amph.assumed`):**
+- the wheels' drop: their bottoms half the main's radius under the step's keel;
+- whether the stowed main sits flush with the keel or shows below it: flush where the hull is deep enough, else as
+  high as the deck allows, and the record says how far it shows (`amph.fitWhy`);
+- the trunnion's height: half the hull's;
+- the nose trolley's travel: what lands the wheel at the bow tip;
+- the nose leg's rake: 20 degrees.
+
+**EDO: no data.** No reachable host has any. The FAA type certificate data sheets (drs.faa.gov), Kenmore Air / EDO-AIRE
+and archive.org would be needed.
+
+The DC-3 floats in the user's photographs (an upright oleo, torque links, a steering cam, a doored nose well) are not
+Wiplines. Wipaire's 13000 has a castering spring on a trolley and no doors; no DC-3 float document was reached.
+
+**BUILT (the drawing, the data, the gate):**
+- **The data.** `HYDRO.WIPLINE_AMPHIB` (`32_hydro.js`), beside the seaplane catalogue, which is left untouched:
+  - per model, the main and nose tyres, single or dual mains, the extra length, and the weight over the seaplane's
+    (null where Wipaire publishes no pair);
+  - `TYRE_OD` / `TYRE_W` by the aircraft-tyre rule;
+  - `AMPHIB_GEOM` (wheelbase 0.50, main 0.53);
+  - `amphibOf`: a preset's own gear, else the row nearest the hull's HEIGHT (the wheel must stow in it), est: true.
+- **The row `fltAmph`** ("amphibian (Wipline wheels in the floats)") in the floats group. The gear's position is the
+  gear page's preview row (`gearPos`).
+- **The drawing** (`_cage_float.js` amphib), on each float in the hull's model frame, mirrored to port:
+  - the main's drag link from the step bulkhead's trunnion, the wheel (or the pair) on its axle, and the shock strut
+    to the carriage under the deck. It swings up about the trunnion into its well;
+  - the nose's spring leg from the trolley at the end track's foot to the castering block and fork. It swings forward
+    and up (the short way) while the trolley is drawn aft, and the wheel ends at the bow tip, in the black bumper,
+    half out.
+- **The main well.** The knife cuts it from below into the hull: a closed box to a ceiling over the stowed tyre, open at
+  the bottom, no door.
+- **The record** (`CAGE_FLOAT.amph`): the model, est, the tyres, the weight, the assumptions, the fit's words, and per
+  float the axles down and up, the trunnion and the angle.
+- **GATE RETRACT section 19:**
+  - the catalogue's tyres (5.00x5 is 14 in, 8.50x10 is 25.3 in);
+  - the 2350 wears its own gear;
+  - the main wheel just aft of the step;
+  - the nose ahead of the bow gear down, the main swinging up;
+  - the nose wheel stowed as the dock bumper;
+  - the wells cut;
+  - the assumptions named.
+
+**On the C172 battery card's own float (L 6.95 m, 0.45 m step keel to deck) the stowed 5.00x5 shows 86 mm under the
+keel.** The catalogue's 2350 hull is 0.58 m deep. The record says so.
+
+**NOT YET (the amphibian's next steps, in order):**
+1. The physics. The wheels as contacts beside the hulls (`refs.mains` / `refs.tw`, two nose wheels: free-castering with
+   differential brake). The solver's `isTW` takes an array. The float pass and the wheels' plates run together, so a
+   gear-down water landing noses over.
+2. The flight's poses. The float layer's gear as parts of the one kinematics (`gearMechPose`), the gear handle and the
+   transit on a floatplane.
+3. The mass. `dKg` into the join's float system mass, where Wipaire gives it.
+4. The advisory voice ("gear is up for water landing"), and the pilot's rule (raise it on a positive rate).
+5. EDO, when its data can be reached.
+
+**THE EDO STYLE (built the same day; the user: "you now have enough for doing the EDO variation too, I described enough
+and we have the reference closeups").** `fltAmph` is now three options: none, Wipline, EDO style. No EDO document was
+reached: the geometry is the user's photographs, and the tyres are the same hull's Wipline row's. The record says so
+(`amph.style` 'EDO (photographs)').
+- **The nose.**
+  - The leg's pivot sits LOW ON THE BOW'S LEADING EDGE, under the bow tip.
+  - Gear down, a piston from a fitting on the bow's deck pushes the leg down through a triangle (a bracket from the
+    leg back to the pivot's fitting). The leg is an upright oleo with a fairing, and a castering fork.
+  - Retracting, the leg swings FORWARD AND UP. The swing is solved till the wheel's centre stands at the bow tip's
+    height, so the wheel ends in front of the float at its black cap.
+  - On the c172 card the wheel ends 0.36 m ahead of the bow tip. That leg is long, a common ground line under both
+    wheels, so it lies forward rather than flat against the stem.
+  - The leg's slot under the bow has small clamshell doors (the user's close-ups: "the front wheel definitely has
+    one"). They are open while the gear is out and shut once it is up.
+- **The main.** A trailing arm just aft of the step, with a HORIZONTAL shock cylinder along the float's bottom from a
+  fitting ahead of the step to the arm (the close-ups), and no door. Its swing and well are the Wipline's.

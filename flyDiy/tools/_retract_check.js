@@ -526,6 +526,26 @@ console.log('10 THE FOLD (G1)');
     check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
           'the V-strut\'s jack and the side strut are parts of the one kinematics');
     check((Gc.cutsSide || []).length === 2, 'a recess in each side (the wheel and its leg)', (Gc.cutsSide || []).length + ' side wells'); }
+  // ---- 19. THE AMPHIBIAN FLOATS (§8.25): Wipline wheels in the floats, from Wipaire's manuals and guides ----------
+  console.log('19 THE AMPHIBIAN FLOATS (§8.25)');
+  { const H = C.HYDRO, ac = D.ARCHETYPES.find(x => x.key === 'c172');
+    const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
+    check(['Wipline 2100', 'Wipline 2350', 'Wipline 3450', 'Wipline 8750', 'Wipline 13000'].every(n => H.WIPLINE_AMPHIB[n] && H.TYRE_OD(H.WIPLINE_AMPHIB[n].main) > 0.3)
+          && Math.abs(H.TYRE_OD('5.00x5') - 0.356) < 0.005 && Math.abs(H.TYRE_OD('8.50x10') - 0.643) < 0.005,
+          'the catalogue: each model\'s published tyres (5.00x5 14 in, 8.50x10 25.3 in), single or dual mains');
+    const amph = g => { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: g }, garage: bc }); return Sx.W.CAGE_FLOAT; };
+    const F1 = amph(1), Am = F1 && F1.amph, R0 = Am && Am.L;
+    check(Am && Am.model === 'Wipline 2350' && !Am.est && Am.main === '5.00x5' && Am.nose === '2.50x4', 'the 2350 wears its own gear', Am && Am.model + ' ' + Am.main + ' / ' + Am.nose);
+    const zStep = F1.zStep, zBow = zStep + F1.P.xs;
+    check(R0 && R0.mainAxle[2] < zStep && R0.mainAxle[2] > zStep - 0.6, 'the main wheel just aft of the step (every guide\'s 3-view)', R0 && ((zStep - R0.mainAxle[2]) * 1000).toFixed(0) + ' mm aft');
+    check(R0 && R0.noseAxle[2] > zBow - 0.05 && R0.mainUp[1] > R0.mainAxle[1] + 0.1, 'the nose wheel at the bow, ahead of it gear down; the main swings up',
+          R0 && 'nose ' + ((R0.noseAxle[2] - zBow) * 1000).toFixed(0) + ' mm ahead of the bow; main up ' + ((R0.mainUp[1] - R0.mainAxle[1]) * 1000).toFixed(0) + ' mm');
+    check(R0 && Math.abs(R0.noseUp[2] - zBow) < 0.15 && R0.noseUp[1] > R0.noseAxle[1] + 0.1, 'stowed, the nose wheel is the bow\'s dock bumper ("retracts into the float nose")',
+          R0 && ((R0.noseUp[2] - zBow) * 1000).toFixed(0) + ' mm from the bow tip');
+    let well = false;
+    { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: 0 }, garage: bc }); Sx.scene.traverse(o => { if (o.name === 'edFloatWellL' || o.name === 'edFloatWellR') well = true; }); }
+    check(well && Array.isArray(Am.fitWhy) && Am.assumed.length >= 4, 'an open wheel well cut in each float (no door); what Wipaire does not publish is named as assumed',
+          (Am.fitWhy || []).join('; ') || 'stowed flush'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');
