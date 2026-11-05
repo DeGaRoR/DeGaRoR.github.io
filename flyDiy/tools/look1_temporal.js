@@ -14,6 +14,7 @@
 //        the ground's luma (the trees are the pixels the probe moves: the ground's Lambert opts out of it).
 //   --moon: the user's night hero (the hillside's gold specks, Cabin Lake, night_shots' photo_moon): as is / the moon's light 50 % toward
 //        neutral / neutral / off, the light changed every frame; JPEGs and the left slope's numbers. Use --size 3200x900 --q gfx=ultra.
+//   --stills: composed frames for the eye: the forest by day (noon, golden) and the hero's spot at night, default bands and real trees to 1000 m (--tag names the side, ?l1tree=0 the before)
 //   --clip: the frames of a short turn as JPEGs (<out>/clip_<view>/), the same path every run: the before / after pair.
 //   --timed: no read-back: 150 frames per view, the median frame and the clouds' pass off their GPU timer. A TIMED slot.
 //
@@ -96,14 +97,14 @@ const PAGE_RIG = `window.LT = (() => {
   // THE SECOND DIFFERENCE over poses (the first WARM frames only feed the history, the frame's and any temporal pass's)
   async function d2(poses, WARM, heatKey) {
     let L0 = null, L1 = null, L2 = null, heat = null, nf = 0, last = null;
-    const B = { all: bins(), sky: bins(), low: bins(), rim: bins(), core: bins(), clear: bins() };
+    const B = { all: bins(), sky: bins(), low: bins(), rim: bins(), core: bins(), clear: bins(), crown: bins() };
     const r = await walk(poses, (i, px, w, h) => {
       if (!L0) { L0 = new Float32Array(w * h); L1 = new Float32Array(w * h); L2 = new Float32Array(w * h); heat = new Float32Array(w * h); }
       const t = L2; L2 = L1; L1 = L0; L0 = t; luma(px, w, h, L0);
       if (i < WARM + 2) return;
       const A = alpha(), skyY = (h * 0.55) | 0; nf++;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const q = y * w + x, d = Math.abs(L0[q] - 2 * L1[q] + L2[q]); heat[q] += d;
-        add(B.all, d); add(y >= skyY ? B.sky : B.low, d);
+        add(B.all, d); add(y >= skyY ? B.sky : B.low, d); if (y >= h * 0.38 && y < h * 0.88) add(B.crown, d);   // crown: 12-62 % down the frame: the canopy's rows, the meadow's grass out
         if (A) { const a = A.a[Math.min(A.h - 1, (y * A.h / h) | 0) * A.w + Math.min(A.w - 1, (x * A.w / w) | 0)]; add(a >= 0.6 ? B.core : a >= 0.05 ? B.rim : B.clear, d); } }
       last = [px.slice(), w, h];
     });
@@ -140,13 +141,17 @@ const PAGE_RIG = `window.LT = (() => {
     const asis = await grab(4), env0 = W.environment;
     W.environment = null; const noenv = await grab(8); W.environment = env0;
     const hi0 = hemi.map(l => l.intensity); const nohemi = await grab(8, () => { for (const l of hemi) l.intensity = 0; }); hemi.forEach((l, i) => { l.intensity = hi0[i]; });
+    const keys = []; W.traverse(l => { if (l.isDirectionalLight && l.intensity > 0) keys.push(l); });
+    const lights = { hemiI: hemi.map(l => +l.intensity.toExponential(3)), hemiC: hemi.map(l => l.color.toArray().map(v => +v.toFixed(4))), hemiG: hemi.map(l => l.groundColor.toArray().map(v => +v.toFixed(4))), keyI: keys.map(l => +l.intensity.toExponential(3)), keyDeg: +(Math.asin(Math.min(1, SKY_LIGHT.isMoon ? DAY_CLOCK.day().moon[1] : DAY_CLOCK.day().sun[1])) * 180 / Math.PI).toFixed(1), isMoon: SKY_LIGHT.isMoon };
+    const g0 = hemi.map(l => l.groundColor.clone()); const nognd = await grab(8, () => { for (const l of hemi) l.groundColor.setRGB(0, 0, 0); }); hemi.forEach((l, i) => l.groundColor.copy(g0[i]));
+    const nokey0 = keys.map(l => l.intensity); const nokey = await grab(8, () => { for (const l of keys) l.intensity = 0; }); keys.forEach((l, i) => { l.intensity = nokey0[i]; });
     await grab(4);
-    const [a, w, h] = asis, [b] = noenv, [c] = nohemi; const stat = { as: [0, 0], noenv: [0, 0], nohemi: [0, 0] }; let nT = 0, nG = 0; const top = (h * 0.5) | 0;
+    const [a, w, h] = asis, [b] = noenv, [c] = nohemi, [e] = nognd, [f] = nokey; const stat = { as: [0, 0], noenv: [0, 0], nohemi: [0, 0], nognd: [0, 0], nokey: [0, 0] }; let nT = 0, nG = 0; const top = (h * 0.5) | 0;
     const Y = (p, o) => 0.2126 * srgb2lin(p[o]) + 0.7152 * srgb2lin(p[o + 1]) + 0.0722 * srgb2lin(p[o + 2]);
     for (let y = 0; y < top; y++) for (let x = 0; x < w; x++) { const o = (y * w + x) * 4; const d = Math.abs(a[o] - b[o]) + Math.abs(a[o + 1] - b[o + 1]) + Math.abs(a[o + 2] - b[o + 2]), k = d >= 4 ? 0 : 1; if (k) nG++; else nT++;
-      stat.as[k] += Y(a, o); stat.noenv[k] += Y(b, o); stat.nohemi[k] += Y(c, o); }
+      stat.as[k] += Y(a, o); stat.noenv[k] += Y(b, o); stat.nohemi[k] += Y(c, o); stat.nognd[k] += Y(e, o); stat.nokey[k] += Y(f, o); }
     const R_ = {}; for (const k in stat) { R_[k] = { trees: +(stat[k][0] / Math.max(1, nT)).toFixed(5), ground: +(stat[k][1] / Math.max(1, nG)).toFixed(5) }; R_[k].ratio = +(R_[k].trees / Math.max(1e-6, R_[k].ground)).toFixed(3); }
-    return Object.assign(R_, { treePixels: +(100 * nT / (nT + nG)).toFixed(1), jpgAs: await png(w, h, flipRGB(a, w, h), 0.92), jpgNoenv: await png(w, h, flipRGB(b, w, h), 0.92), jpgNohemi: await png(w, h, flipRGB(c, w, h), 0.92) });
+    return Object.assign(R_, { lights, treePixels: +(100 * nT / (nT + nG)).toFixed(1), jpgAs: await png(w, h, flipRGB(a, w, h), 0.92), jpgNoenv: await png(w, h, flipRGB(b, w, h), 0.92), jpgNohemi: await png(w, h, flipRGB(c, w, h), 0.92) });
   }
   async function moon(pose, variants) { st.yaw = pose.yaw; st.pitch = pose.pitch; const keys = []; WORLD.scene.traverse(l => { if (l.isDirectionalLight && l.intensity > 0) keys.push(l); }); const out = { keys: keys.map(l => ({ i: +l.intensity.toExponential(3), c: l.color.toArray().map(v => +v.toFixed(3)) })) }, c0 = keys.map(l => l.color.clone()), i0 = keys.map(l => l.intensity);
     for (const V of variants) { const shot = await grab(8, () => keys.forEach((l, i) => { if (V.off) { l.intensity = 0; return; } l.intensity = i0[i]; l.color.setRGB(c0[i].r + (V.neutral[0] - c0[i].r) * V.k, c0[i].g + (V.neutral[1] - c0[i].g) * V.k, c0[i].b + (V.neutral[2] - c0[i].b) * V.k); }));
@@ -154,7 +159,8 @@ const PAGE_RIG = `window.LT = (() => {
       for (let y = ya; y < yb; y++) for (let x = xa; x < xb; x++) { const o = (y * w + x) * 4, r = px[o], g = px[o + 1], b = px[o + 2], L = 0.2126 * r + 0.7152 * g + 0.0722 * b; n++; sL += L; sq += L * L; sR += r; sB += b; if (r > 70 && r > b * 1.4) gold++; }
       const m = sL / n; out[V.tag] = { meanLuma: +m.toFixed(2), lumaSD: +Math.sqrt(Math.max(0, sq / n - m * m)).toFixed(2), rOverB: +(sR / Math.max(1, sB)).toFixed(3), goldPct: +(100 * gold / n).toFixed(3), jpg: await png(w, h, flipRGB(px, w, h), 0.94) }; }
     await grab(4); return out; }
-  return { d2, spread, clip, clipped, blue, moon, go, camera };
+  async function still(pose) { st.yaw = pose.yaw; st.pitch = pose.pitch; const [px, w, h] = await grab(6); return png(w, h, flipRGB(px, w, h), 0.94); }
+  return { d2, spread, clip, clipped, blue, moon, still, go, camera };
 })(); 'LT ok'`;
 
 // ---- the driver ----------------------------------------------------------------------------------------------------------
@@ -240,6 +246,20 @@ const PAGE_RIG = `window.LT = (() => {
       for (const k of ['As', 'Noenv', 'Nohemi']) { wr('blue_' + el + '_' + k + '.jpg', b['jpg' + k]); delete b['jpg' + k]; }
       rowsB[el] = b; R.blue = rowsB; log('blue ' + el + ' ' + JSON.stringify(b)); save();
     }
+  } else if (flag('stills')) {
+    const G = { date: '2026-06-22', utc: 4.6 * 3600, rate: 0, cloudCover: 0, cloudType: 'cu' };
+    const shots = [['stand_noon', 'stand', CLEAR], ['stand_golden', 'stand', G], ['canopy_noon', 'canopy', CLEAR], ['canopy_golden', 'canopy', G]];
+    R.stills = {};
+    for (const [tag, vn, day] of shots) { const V = VIEWS.find(v => v.name === vn); const p = await place(Object.assign({}, V, { day })); if (!p) { log('no spot ' + tag); continue; }
+      const b64 = await ev(`LT.still(${JSON.stringify({ yaw: p.yaw, pitch: p.pitch })})`); wr('still_' + tag + '.jpg', b64); R.stills[tag] = { eye: p, sunDeg: await ev('Math.asin(DAY_CLOCK.day().sun[1]) * 180 / Math.PI') }; log('still ' + tag); save(); }
+    await ev(`(DAY_CLOCK.set(${JSON.stringify(MOON_DAY)}), window.AURORA && AURORA.on && AURORA.on({ azDeg: 253 }), FLYDIY_HVIEW.flyFov(24), 1)`);
+    const b0 = 253 / 57.29578, hx = 2445 - Math.sin(b0) * 15, hz = -17532 + Math.cos(b0) * 15, hy = 105.34;
+    const hero = { x: hx, y: hy, z: hz, yaw: b0, pitch: -0.02 };
+    await ev(`(LT.go(${JSON.stringify(hero)}), 1)`); await ev(FRAMES(90)); await sleep(9000); await ev(FRAMES(30));
+    wr('still_hero_default.jpg', await ev(`LT.still(${JSON.stringify({ yaw: hero.yaw, pitch: hero.pitch })})`)); log('still hero default');
+    await ev(`(GFX.set('bands', 'far'), TREE_LOD.set([150, 1000, 1000]), TREE_LOD.fade && TREE_LOD.fade(60), 1)`); await ev(FRAMES(90)); await sleep(22000); await ev(FRAMES(30));
+    wr('still_hero_real1000.jpg', await ev(`LT.still(${JSON.stringify({ yaw: hero.yaw, pitch: hero.pitch })})`)); log('still hero real1000');
+    save();
   } else if (flag('moon')) {
     await ev(`(GFX.set('bands', 'far'), TREE_LOD.set([150, 1000, 1000]), TREE_LOD.fade && TREE_LOD.fade(60), 1)`);
     await ev(`(DAY_CLOCK.set(${JSON.stringify(MOON_DAY)}), window.AURORA && AURORA.on && AURORA.on({ azDeg: 253 }), FLYDIY_HVIEW.flyFov(24), 1)`);
@@ -265,7 +285,7 @@ const PAGE_RIG = `window.LT = (() => {
       wr(V.name + '_spread_heat.png', s.heat); wr(V.name + '_one.jpg', s.one); delete s.heat; delete s.one; VR.spread = s; log(V.name + ' spread ' + JSON.stringify(s));
       const MOT = { hold: [0, 0], pan: [0.25 * pxA, 0], turn: [2 * pxA, 0] }; if (V.fly) MOT.fly = [0, 2];
       for (const m in MOT) { const d = await J(`LT.d2(${JSON.stringify(rows(p, 70, MOT[m][0], MOT[m][1]))}, 8)`); wr(V.name + '_' + m + '_d2heat.png', d.heat); if (m === 'turn') wr(V.name + '_' + m + '_last.jpg', d.last); delete d.heat; delete d.last; VR[m] = d;
-        log(V.name + ' ' + m + ' all ' + JSON.stringify(d.all) + ' sky ' + JSON.stringify(d.sky) + ' low ' + JSON.stringify(d.low) + ' rim ' + JSON.stringify(d.rim) + ' miss ' + d.yawMiss + '/' + d.posMiss); }
+        log(V.name + ' ' + m + ' all ' + JSON.stringify(d.all) + ' sky ' + JSON.stringify(d.sky) + ' low ' + JSON.stringify(d.low) + ' rim ' + JSON.stringify(d.rim) + ' crown ' + JSON.stringify(d.crown) + ' miss ' + d.yawMiss + '/' + d.posMiss); }
       save();
     }
   }

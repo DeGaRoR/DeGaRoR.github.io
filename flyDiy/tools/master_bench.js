@@ -49,6 +49,9 @@ const { spawn, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), os = require('os');
 const FD = require('./frame_dist.js');
 
+// MB_TRACE=1 (LOOK-1, the freeze of 5 Nov): what the page asked of GL round a frozen frame: [ms, call, ms in the call], and every rAF gap over 300 ms, in window.__LT (--rec saves it)
+const MB_TRACE_PRE = `(() => { const L = window.__LT = [], P = WebGL2RenderingContext.prototype; for (const m of ['generateMipmap', 'linkProgram', 'texImage3D', 'texStorage3D', 'finish']) { const f = P[m]; P[m] = function () { const t = performance.now(), r = f.apply(this, arguments); L.push([+t.toFixed(0), m, +(performance.now() - t).toFixed(1)]); return r; }; }
+  let last = 0; const g = t => { if (last && t - last > 300) L.push([+t.toFixed(0), 'GAP', +(t - last).toFixed(0), window.CLOUDS ? CLOUDS.stats.slicesBaked : -1]); last = t; requestAnimationFrame(g); }; requestAnimationFrame(g); })();`;
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
@@ -275,7 +278,7 @@ async function browser(udd) {
   let preId = null;
   const load = async (url, pre) => {   // a navigation with this page's own pre-script (the last one removed)
     if (preId) await cmd('Page.removeScriptToEvaluateOnNewDocument', { identifier: preId });
-    preId = (await cmd('Page.addScriptToEvaluateOnNewDocument', { source: pre })).result.identifier;
+    preId = (await cmd('Page.addScriptToEvaluateOnNewDocument', { source: (process.env.MB_TRACE ? MB_TRACE_PRE : '') + pre })).result.identifier;
     const t0 = Date.now(); await cmd('Page.navigate', { url }); await sleep(1500);
     const r = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), 300000))]))()", 310000);
     return { state: r, sec: +((Date.now() - t0) / 1000).toFixed(1) };
@@ -379,7 +382,7 @@ async function sweep() {
   let recN = 0; const recSave = async tag => { if (!RECDIR) return; try { fs.mkdirSync(RECDIR, { recursive: true });
     const txt = await b.ev('(window.FLIGHT_REC && FLIGHT_REC.rec && FLIGHT_REC.rec.logParts) ? FLIGHT_REC.rec.logParts().join("") : "null"', 120000);
     const f = path.join(RECDIR, String(++recN).padStart(2, '0') + '_' + tag + '.json'); fs.writeFileSync(f, txt);
-    try { fs.writeFileSync(f.replace(/\.json$/, '_gl.json'), await b.ev('JSON.stringify({ fc: window.__MB.fc || null, gs: window.__MB.gs || null, gp: window.__MB.gp || null, rf: window.__MB.rf || null })', 30000)); } catch (e) {} log('recorder log -> ' + f + ' (' + (txt.length / 1048576).toFixed(1) + ' MB)'); } catch (e) { log('recorder log failed: ' + e.message); } };
+    try { fs.writeFileSync(f.replace(/\.json$/, '_gl.json'), await b.ev('JSON.stringify({ fc: window.__MB.fc || null, gs: window.__MB.gs || null, gp: window.__MB.gp || null, rf: window.__MB.rf || null, lt: window.__LT || null })', 30000)); } catch (e) {} log('recorder log -> ' + f + ' (' + (txt.length / 1048576).toFixed(1) + ' MB)'); } catch (e) { log('recorder log failed: ' + e.message); } };
   let recTag = 'warmup';
   const fresh = async () => { await recSave(recTag); if (flag('one-chrome')) return; R.exceptions.push(...b.exc.slice(0, 10)); await b.close(); b = await browser(UDD); S = Object.assign(session(b), { b }); };
   let places = null;

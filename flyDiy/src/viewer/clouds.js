@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 1, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
@@ -163,6 +163,7 @@ var CLOUDS = (function () {
       vec3 dn = textureLod(uDetail, qd, gLodD).rgb;
       float hf = dn.r * 0.625 + dn.g * 0.25 + dn.b * 0.125;
       hf = mix(hf, 1.0 - hf, clamp(h * 8.0, 0.0, 1.0));           // wispy at the bottom, billowy above
+      hf = mix(hf, 0.5, smoothstep(0.5, 2.5, gLodD));             // beyond the texel the erosion goes to its mean (what the levels converge on): the far cloud keeps its mass and loses the alias
       return remap(base, hf * uShape.x, 1.0, 0.0, 1.0);
     }`;
 
@@ -611,7 +612,7 @@ var CLOUDS = (function () {
     if (ready || !r || typeof THREE === 'undefined' || !THREE.WebGL3DRenderTarget) return ready;
     renderer = r;
     // the levels are built once, after the bake (noiseMips), not by three after each of its 129 passes
-    const mk3 = n => { const t = new THREE.WebGL3DRenderTarget(n, n, n, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
+    const mk3 = n => { const t = new THREE.WebGL3DRenderTarget(n, n, n, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: S.noiseMips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter, magFilter: THREE.LinearFilter,
       wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false, depthBuffer: false, stencilBuffer: false }); t.texture.wrapR = THREE.RepeatWrapping; return t; };
     noiseRT = mk3(NB); detailRT = mk3(ND);
     fsScene = new THREE.Scene(); fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -699,7 +700,7 @@ var CLOUDS = (function () {
       if (bakeAt < NB) { bakeMat.uniforms.uBake.value.set((bakeAt + 0.5) / NB, NB, 0); renderer.setRenderTarget(noiseRT, bakeAt); renderer.render(fsScene, fsCam); bakeAt++; }
       else { for (let z = 0; z < ND; z++) { bakeMat.uniforms.uBake.value.set((z + 0.5) / ND, ND, 1); renderer.setRenderTarget(detailRT, z); renderer.render(fsScene, fsCam); } bakeAt++; }
     }
-    if (bakeAt >= NB + 1) { renderer.setRenderTarget(prev); noiseMips(renderer); }
+    if (bakeAt >= NB + 1 && S.noiseMips) { renderer.setRenderTarget(prev); noiseMips(renderer); }
     if (bakeAt >= NB + 1 && !skyMat) { try { warmSky(renderer); } catch (e) { /* the fit compiles it then */ } }   // the sky pass's program, compiled among the bake's frames
     renderer.setRenderTarget(prev);
     stats.slicesBaked = bakeAt;
@@ -1001,6 +1002,7 @@ var CLOUDS = (function () {
   let dcp = null;
   try { const v = new URLSearchParams(location.search).get('clouddc'); if (v !== null) S.depthCopy = +v; } catch (e) {}
   try { const v = new URLSearchParams(location.search).get('cloudt'); if (v !== null) S.temporal = +v; } catch (e) {}   // ?cloudt=0: no history, the A/B dial
+  try { const v = new URLSearchParams(location.search).get('cloudmip'); if (v !== null) S.noiseMips = +v; } catch (e) {}   // ?cloudmip=0: no level chain on the noise, the A/B dial (the freeze of 5 Nov)
   function depthFor(r, target) {
     if (target.samples > 0 || !S.depthCopy) return target.depthTexture;   // S.depthCopy 0 (?clouddc=0): the old read, an A/B dial
     const D = target.depthTexture, w = target.width, h = target.height;
