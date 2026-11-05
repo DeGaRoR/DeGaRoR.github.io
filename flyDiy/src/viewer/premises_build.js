@@ -475,6 +475,7 @@ function makeBuilder(C) {
         const tg = [c, -sn], n = [-sn, -c];                                                                 // along the frontage; away from the road (-z)
         const roadPts = [W2(-L / 2 - mx - 30, zF + 6), W2(L / 2 + mx + 30, zF + 6)];
         plot = { id: 'site:' + it.id, side: 'land', poly, depth: zF - zB, n, tg, w: L + 2 * mx, front: W2(0, zF), cat, road: null, seed: it.seed | 0, synthetic: true };
+        if (it.P.plotFence === false) plot.noFence = true;   // NIGHT-PHOTO: an item's lot without its fence (the user: "delete the fence from the cottage"); a zone's plot has rules.noFence, an item had no such row
         if (it.P.plotGround === false) plot.noGround = true;   // (v1.35: the key only when said - the cook keeps the plot's plan)
         const house = { x: it.x, z: it.z, yaw: it.yaw, P, gen: it.gen, preset: it.P.preset, cat, toWorld: W2, ground: it.ground, built };
         const Vv = Object.assign({}, g.VILLAGE_GEN.VDEF, { seed: rec.seed });

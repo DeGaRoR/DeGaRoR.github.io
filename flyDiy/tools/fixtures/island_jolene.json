@@ -20488,7 +20488,7 @@
        "winLit": 0.8,
        "porchLamp": 1,
        "stairLights": 1,
-       "railStyle": 0
+       "plotFence": false
       }
      }
     ],
