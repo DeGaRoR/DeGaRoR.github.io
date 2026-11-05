@@ -169,3 +169,31 @@ masters write (each a curve's output, overridable in the sandbox, hidden "ultima
 5. **Rough operations' physics only through the damage model?** Recommend YES: hard landings already break members; R
    adds no invented penalty, only the look (`bush`, `flight`) and, later, tread. If you want R to cost money, it is the
    repairs (free today, `econRepairCost` 0) that should get their price first.
+
+## 9. The user's answers (5 Nov) and what landed (WEAR-PRICE)
+
+1. **Own planes age on the career's clock - yes; and when building you set the plane's age.** The career's airframe
+   row carries `aging` { years0, engH0, at, flownS, engAt }: years = years0 + max(calendar years of the clock, hours
+   flown / 100); engine hours = engH0 + hours flown since the last overhaul (76_economy `econAgingNow`). A used
+   purchase starts at its listing's age and hours; a build at what the WEAR tab set when its first save materialises
+   it. A career slot loads at its age now (garage.js loadSlot). On a career AIRFRAME the sliders are read-only (its
+   history); on a build not yet an airframe they are free.
+2. **Age withdraws no certificate.** `aging` is the CONDITION (66b `CERT_CONDITION`), outside the hash; the bench's
+   strip drops it. The used airframes signed while it hashed are re-signed on their next save (76_procure M4).
+3. **No running costs.** Nothing is billed for time passing; the age costs power, drag and value, and the refreshes
+   buy them back.
+4. **Parts price.** Every bill below is a ledger row or a powerplant / prop row.
+5. **Rough use through the damage model only; money on the repair and the refresh tasks, breakage included.**
+   - THE REPAIR AT THE STOP (`econRepairBill`, app.js playerFlightEnd): each damage group parted bills its ledger
+     section shared by that section's groups (a Cub's wing root: half the wings); a break-up the fuselage, a crash with
+     nothing parted a quarter of it (judgement); an engine mount a tenth of the engine row (judgement); a strike's
+     teardown 0.1 of the engine row (judgement), an overhaul-band overspeed or an internal finding the overhaul; a bent
+     or worse prop a new prop. Crashed or landed bent. Free during the tutorial (T0-T6, as the sale), a free record in
+     the sandbox. The crash's reset to the departure stands (G2705).
+   - THE REFRESHES (the WEAR tab's buttons on a career airframe): REPAINT = the ledger's paint line (the look's four
+     macros to 0 and the outside wear reset; the age, the engine and the price curve unmoved); OVERHAUL = the engine
+     rows x 0.85 (the engine's hours to 0). On the stock Cub: repaint 5 642, overhaul 9 350 (the A-65's shop overhaul
+     ~9.5k), a crash with a wing root, a gear leg and a bent prop 8 315.
+
+Still owed (§7): recover and rebuild; the value reading `A_eff` and the engine-time term; the two rates filled by
+flying; tyre tread; the Client Cub arriving old.

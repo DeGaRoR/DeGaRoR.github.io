@@ -1152,14 +1152,17 @@ function editorInit(api) {
   // year to +5 %). For now EVERY row here is an expert row (the master age and the two rates of
   // futureDesigns/WEAR-SYSTEM-2026-11.md come in front of them later); expert off, the view says so and offers the switch.
   // spec.aging stays ABSENT until a slider moves (and goes again at 0 / 0): an untouched build's def is the same bits.
-  // It is NOT outside the certificate: no strip list names `aging`, so it hashes with the structure group (66b
-  // certMajorOf) - setting it withdraws a certificate ("the wing or the structure changed"). The rows say so.
-  // CAREER: the physical rows are READ-ONLY (A0's call: until a restore has a price, a free slider would repair an old
-  // aeroplane for nothing); the sandbox moves them freely. The look stays editable everywhere, as it was in FINISH.
+  // WEAR-PRICE (the user 5 Nov): the age is OUTSIDE the certificate (66b CERT_CONDITION: "age withdraws a certificate?"
+  // - "No"). CAREER: a career AIRFRAME's age is its history - the rows are READ-ONLY, the age runs on the career's clock
+  // and the hours flown (76_ econAgingNow, laid on its spec when its slot loads) and the REFRESH tasks below buy the
+  // engine's hours and the look back at the parts price; a BUILD not yet an airframe takes the age the builder sets
+  // ("when building, you can set the age of the plane"), and its first save starts the clock there. The sandbox moves
+  // them freely. The look stays editable everywhere, as it was in FINISH.
   const wearHome = document.createElement('div');   // the physical rows' home between renders (render parks by homeOf)
   let agingEls = null;
   const wearCareer = () => {
-    try { const C = window.FLYDIY_CAREER; return !!(C && typeof C.doc === 'function' && C.doc().career); }
+    try { const C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+          return !!(C && typeof C.isAirframe === 'function' && G && C.isAirframe(G.name())); }
     catch (e) { return false; }
   };
   const agingOfSpec = () => {
@@ -1188,8 +1191,8 @@ function editorInit(api) {
       hr.v.textContent = h > 0 ? String(h) : 'none';
       const G = typeof genAgingOf === 'function' ? genAgingOf(y > 0 || h > 0 ? { aging: { years: y, engineHours: h } } : {}) : { powerK: 1, dragK: 1 };
       const pw = Math.round(1000 * G.powerK) / 10, dr = Math.round(1000 * (G.dragK - 1)) / 10;
-      say.textContent = (wearCareer() ? 'In a career the airframe\'s age is its own: restoring it will have a price. ' : '') +
-        (y > 0 || h > 0 ? 'Flies on ' + pw + ' % of its rated power, with ' + dr + ' % more drag than new. Setting an age is a change to the airframe: it withdraws a certificate.'
+      say.textContent = (wearCareer() ? 'A career airframe\'s age is its history: it grows with the clock and the hours flown, and an overhaul buys the engine\'s hours back. ' : '') +
+        (y > 0 || h > 0 ? 'Flies on ' + pw + ' % of its rated power, with ' + dr + ' % more drag than new. Its condition, not its design: the certificate stands.'
                         : 'As new: no age on the airframe (nothing written to the build).');
     };
     const write = () => {
@@ -1214,6 +1217,32 @@ function editorInit(api) {
     agingEls = { els: [yr.d, hr.d, out], sync };
     for (const el of agingEls.els) { wearHome.appendChild(el); homeOf.set(el, wearHome); }
     return agingEls;
+  }
+  // WEAR-PRICE: THE REFRESH TASKS, up front (no expert switch): a career airframe on the stand gets a button per task,
+  // its parts price on it, greyed with the reason when it cannot be bought (app.js FLYDIY_CAREER.restoreOf / restore)
+  function wearRefresh() {
+    const C = window.FLYDIY_CAREER;
+    if (!wearCareer() || !C || typeof C.restoreOf !== 'function') return;
+    const n = document.createElement('div');
+    n.className = 'refNote edWearRefresh';
+    n.textContent = 'Refresh, at the parts price: a repaint brings the look back (not the age); an overhaul brings the engine back to zero hours.';
+    const fmt = v => Math.round(+v || 0).toLocaleString('en-GB').replace(/,/g, ' ');
+    for (const [k, label] of [['repaint', 'repaint'], ['overhaul', 'overhaul the engine']]) {
+      const q = C.restoreOf(k) || {};
+      const b = document.createElement('button');
+      b.className = 'pill'; b.dataset.restore = k;
+      b.textContent = label + (q.cost ? ' - ' + fmt(q.cost) : '');
+      b.disabled = !!q.why; b.title = q.why || q.what || '';
+      b.onclick = () => {
+        if (!confirm(label + ': ' + fmt(q.cost) + ' credits?')) return;
+        const r = C.restore(k);
+        if (r && !r.ok && r.why) alert(r.why);
+        if (agingEls) agingEls.sync();
+        render();
+      };
+      n.appendChild(b);
+    }
+    rowsEl.appendChild(n);
   }
   function renderWear() {
     const body = CU.MATBODY;
@@ -1244,6 +1273,7 @@ function editorInit(api) {
       n.appendChild(b);
       rowsEl.appendChild(n);
     }
+    if (isRoot) wearRefresh();
     if (isRoot) {
       emitEls(p0, 'looks', look, 'how worn it looks - the paint and the dirt; no flown number moves', false,
               { secG: 'wear:looks', expert: true });

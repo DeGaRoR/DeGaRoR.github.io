@@ -34,6 +34,11 @@ const CERT_MINOR_BLOCKS = ['systems', 'cargo', 'fuel'];
 // belly pod never withdraws, re-checks or re-stamps it (the pod is billed as its own ledger line; the bench's pod row
 // is advice, not a test). Stripped here, so no group holds it (an unnamed block would count with the structure)
 const CERT_BOLT_ONS = ['pod'];
+// THE CONDITION (WEAR-PRICE, the user 5 Nov: age withdraws no certificate - "No"): the airframe's years and its engine's
+// hours since overhaul (spec.aging, 60_ GEN_AGING) are its CONDITION, not its design: a type's certificate is not voided
+// by age (the annual inspection keeps an aeroplane airworthy). Ageing, an overhaul, a restore never withdraw. Before
+// this, `aging` hashed with the structure group (an unnamed block): procureOnSaveCert re-signs those (WEAR-PRICE M4)
+const CERT_CONDITION = ['aging'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -65,11 +70,12 @@ function certHash(str) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return ('0000000' + h.toString(16)).slice(-8);
 }
-// the spec -> the design's major rows only (a clone; the caller's spec untouched)
-function certStrip(spec) {
+// the spec -> the design's major rows only (a clone; the caller's spec untouched). o.condition: keep the condition
+// (the hash before WEAR-PRICE: only the re-signing of an airframe signed then asks for it)
+function certStrip(spec, o) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
-  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS)) delete c[k];
+  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
   if (c.energy && typeof c.energy === 'object') {
     for (const k of CERT_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels)) for (const v of c.energy.vessels) if (v && typeof v === 'object') for (const k of CERT_LOOK.vessel) delete v[k];

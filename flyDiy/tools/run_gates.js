@@ -1096,6 +1096,10 @@ const GATES = [
   // wear rows moved out of FINISH with their keys, spec.aging's sliders (absent at 0 / 0, read-only in a career), every
   // saved build's def the same bits, an age withdrawing the certificate named (~3 s)
   { id: 'WEARTAB', file: '_wear_tab_check.js', tier: 'core', wall: 5 },
+  // WEAR-PRICE (2026-11-05, the user's answers to WEAR-SYSTEM §8): the age outside the certificate (and the used airframes
+  // signed while it hashed re-signed), the airframe's age on the career's clock and the hours flown, the breakage repaired
+  // at the parts price at the flight's end (free in the tutorial), the repaint and the overhaul as paid refresh tasks (~5 s)
+  { id: 'WEARPRICE', file: '_wear_price_check.js', tier: 'core', wall: 8 },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
   // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
   // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where

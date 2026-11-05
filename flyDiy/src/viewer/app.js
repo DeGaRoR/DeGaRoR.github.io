@@ -8959,6 +8959,26 @@
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
       if (cz && cz.ok) { d = cz.doc; out.reset = cz.where; if (out.career) out.career.lines.unshift(cz.line); }
+      // WEAR-PRICE (the user 5 Nov: "start putting money on the repair ... The repair on breakage should also be there"):
+      // WHAT THE FLIGHT BROKE, PAID at the parts bill (76_ econRepairBill: the groups parted, the fuselage of a crash, a
+      // strike's teardown or overhaul and its prop) - crashed or landed bent; free in the tutorial; the line leads the
+      // card. And the flight's seconds on the airframe's age (econAgingFlown: its engine hours, its years)
+      if (CAREER_DEV && d.career && d.career.airframes && d.career.airframes[flSlot]) {
+        try {
+          const DM = sim.damage ? sim.damage() : null;
+          if (DM && def && def.parts) {
+            const bill = econRepairBill(def.spec, def.parts.ledger, def.parts.dmg && def.parts.dmg.groups,
+              { groups: DM.groups || [], drive: DM.drive || [], crashed: !!DM.crashed, brokeUp: !!DM.brokeUp });
+            const rc = econRepairCharge(d, flSlot, bill);
+            if (rc.ok && bill.cost > 0) {
+              d = rc.doc; out.repair = { bill, paid: rc.cost, why: rc.why };
+              if (out.career) out.career.lines.unshift({ k: 'repair', ok: true, text: 'Repaired: ' + bill.lines.map(l => l.what).join(', ') +
+                (rc.cost ? ' - ' + ecFmt(rc.cost) : ' (' + rc.why + ')') });
+            }
+          }
+        } catch (e) { console.warn('flyDiy (career): the repair bill -', e && e.message); }
+        d = econAgingFlown(d, flSlot, Math.max(0, ap.t || 0));
+      }
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
       if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
         const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
@@ -9383,6 +9403,11 @@
     key: PLAYER_KEY, doc: () => JSON.parse(JSON.stringify(playerLoad())), record: careerRecord, act: careerAct,
     cargo: kg => { if (kg !== undefined) { crCargoKg = kg == null ? null : Math.max(0, Math.round(+kg || 0)); careerPlateSync(); } return careerCargo(); },
     overflew: () => crOver.slice(), last: () => (flLastEnd && flLastEnd.career) || null, sync: careerPlateSync,
+    // WEAR-PRICE: an airframe's age now (null: none recorded, or not an airframe of the career), whether it is one (the
+    // WEAR tab: its age is its history - read-only - while a build not yet an airframe is set freely), the refresh tasks
+    agingOf: n => { try { return econAgingNow(playerLoad(), n); } catch (e) { return null; } },
+    isAirframe: n => { try { const C = playerLoad().career; return !!(C && C.airframes && n && C.airframes[n]); } catch (e) { return false; } },
+    restoreOf: k => econRestoreOf(k), restore: k => econRestoreNow(k),
   };
   // ---- G2260 (ECONOMY): THE CAREER WALLET'S PAGE HALF (every function below runs only under CAREER_DEV) -------------
   // What a career pays for, at the door where it happens (76_economy.js, THE PRICE BOOK): the FIRST SAVE of a new
@@ -9422,7 +9447,8 @@
     if (r.ok && podPaid > 0 && r.doc.career && r.doc.career.airframes && r.doc.career.airframes[name]) r.doc.career.airframes[name].podPaid = Math.round(podPaid);
     if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
     ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
-    return r.doc;
+    // WEAR-PRICE (the user: "when building, you can set the age of the plane"): the age set on the WEAR tab starts its clock
+    try { const G = window.GARAGE_SPEC, sp = G && G.get(); return econAgingStart(r.doc, name, sp && sp.aging ? sp.aging : null); } catch (e) { return r.doc; }
   }
   // the garage's shell / kit / size doors: playerUpgrade on the main hangar -> true (paid, the document moved) | false
   function econShedDoor(change) {
@@ -9440,9 +9466,42 @@
     try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
           wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
     const r = econRepair(playerLoad(), n, { wants });
-    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ' (free)'; playerSave(); }
+    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + (r.cost ? ': ' + ecFmt(r.cost) : ' (free)'); playerSave(); }
     else { ecNote = r.why; econWalletSync(); }
     return r;
+  }
+  // WEAR-PRICE: THE REFRESH TASKS (the WEAR tab's buttons; 76_ econRestoreCost / econRestore at the parts bill). The
+  // airframe on the stand: its price, then (paid) its row, then the aeroplane itself - an OVERHAUL writes the row's age
+  // (the engine's hours from now) into the spec; a REPAINT brings the look back new (the four weathering macros to 0,
+  // through the editor's own finish door, and the outside wear reset). -> { ok, cost, why }
+  function econRestoreOf(kind) {
+    const n = slotOnStand();
+    const A = n && playerLoad().career && playerLoad().career.airframes ? playerLoad().career.airframes[n] : null;
+    if (!A) return { cost: 0, why: 'not an airframe of the career', what: '' };
+    const c = econRestoreCost(kind, def && def.spec, def && def.parts && def.parts.ledger);
+    const w = c.cost > 0 && !econAfford(playerLoad(), c.cost) ? 'the wallet holds ' + ecFmt(playerLoad().wallet) : '';
+    return { cost: c.cost, what: c.what, why: w || (c.cost > 0 ? '' : 'nothing to buy') };
+  }
+  function econRestoreNow(kind) {
+    const n = slotOnStand();
+    if (!n) return { ok: false, why: 'no aeroplane on the stand' };
+    const q = econRestoreOf(kind);
+    if (q.why) { ecNote = q.why; econWalletSync(); return { ok: false, why: q.why }; }
+    const r = econRestore(playerLoad(), n, kind, q.cost);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return r; }
+    let d = r.doc;
+    if (kind === 'repaint' && typeof playerWearReset === 'function' && d.fleet && d.fleet[n]) d = playerWearReset(d, n).doc;
+    player = d; playerSave();
+    ecNote = (kind === 'repaint' ? 'repainted ' : 'overhauled ') + n + ': ' + ecFmt(r.cost);
+    try {
+      const G = window.GARAGE_SPEC, E = window.CAGE_UI;
+      if (kind === 'overhaul' && G) { const s = econAgingSpec(G.get(), econAgingNow(player, n)); if (s.aging) G.update({ aging: s.aging }); else G.remove('aging'); }
+      if (kind === 'repaint' && E && E.finishToSpec && E.finishFromSpec) {
+        const f = E.finishToSpec() || {}; f.weather = { age: 0, flight: 0, bush: 0, rain: 0 }; E.finishFromSpec(f); if (E.build) E.build();
+      }
+    } catch (e) { console.warn('flyDiy (career): the refresh on the aeroplane -', e && e.message); }
+    econWalletSync();
+    return { ok: true, cost: r.cost, why: '' };
   }
   // THE WALLET LINE IN THE GARAGE (career only): the wallet, the last thing paid or refused, Repair when the airframe
   // on the stand is damaged (free: G2705)

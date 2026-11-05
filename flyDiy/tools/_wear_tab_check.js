@@ -13,7 +13,7 @@
 //                   0 / 0; read-only in a career; expert rows.
 //   AN OLD BUILD    every saved build's def is the same bits with aging at 0 / 0 (GEN_AGING's x1 paths), and the
 //                   write-then-clear round trip through the garage's merge gives the spec back byte for byte (its
-//                   certificate the same); a real age DOES move the certificate (the structure group) - named.
+//                   certificate the same); a real age leaves the certificate too (WEAR-PRICE: the condition is outside it).
 //
 //   node tools/_wear_tab_check.js            -> "GATE WEARTAB: PASS|FAIL"
 //   node tools/_wear_tab_check.js --selftest -> each row doctored once must go red
@@ -48,7 +48,7 @@ function run(src) {
   ok(/const exOff = g\.expert && !ex;/.test(ED), 'applyVis hides an expert block with expert off');
   // ---- THE PHYSICS
   ok(/if \(y <= 0 && h <= 0\) \{ if \(agingOfSpec\(\)\) G\.remove\('aging'\); \}\s*else G\.update\(\{ aging: \{ years: y, engineHours: h \} \}\);/.test(ED), 'aging written by update, cleared by remove at 0 / 0');
-  ok(/if \(!G \|\| wearCareer\(\)\) \{ sync\(\); return; \}/.test(ED) && /yr\.i\.disabled = hr\.i\.disabled = held;/.test(ED), 'read-only in a career');
+  ok(/if \(!G \|\| wearCareer\(\)\) \{ sync\(\); return; \}/.test(ED) && /yr\.i\.disabled = hr\.i\.disabled = held;/.test(ED) && /C\.isAirframe\(G\.name\(\)\)/.test(ED), 'read-only on a career airframe (a build is set freely)');
   ok(/r\.i\.oninput = show; r\.i\.onchange = write;/.test(ED), 'a build per change, not per pixel');
   ok(/#edWrap\.wea #edResetPart/.test(CSS), 'no per-part reset in the wear view');
   return fails;
@@ -90,11 +90,11 @@ function physics() {
     ok(JSON.stringify(back) === JSON.stringify(C.genSpecMerge(JSON.parse(JSON.stringify(sp)), {})), f + ': write then clear gives the spec back');
     const m0 = C.certMajor(sp), m1 = C.certMajor(w);
     ok(m0.fp === C.certMajor(back).fp, f + ': write then clear keeps the certificate');
-    ok(m0.fp !== m1.fp && C.certGroupsChanged(m0.groups, m1.groups).join() === 'structure', f + ': an age moves the structure group (the withdrawal, named)');
+    ok(m0.fp === m1.fp, f + ': an age leaves the certificate as it is (WEAR-PRICE: the condition is outside it)');
     n++;
   }
   ok(n >= 8, 'enough saved builds (' + n + ')');
-  console.log('  physics: ' + n + ' saved builds - def x1 at 0 / 0, write-then-clear byte for byte, an age withdraws (structure)');
+  console.log('  physics: ' + n + ' saved builds - def x1 at 0 / 0, write-then-clear byte for byte, an age withdraws nothing');
   return fails;
 }
 

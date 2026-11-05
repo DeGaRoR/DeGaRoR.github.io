@@ -772,7 +772,9 @@ function procureBuyUsed(doc, listingId, o) {
                 hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
                 // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
                 paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
-                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0),
+                // WEAR-PRICE: its age runs on the career's clock from the listing's (76_economy econAgingNow)
+                aging: L.age > 0 ? { years0: L.age, engH0: L.hours || 0, at: Math.round(D2.clock || 0), flownS: 0, engAt: 0 } : null };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;
@@ -842,6 +844,25 @@ function procureOnSaveCert(doc, slot, spec, ledger) {
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
   if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // WEAR-PRICE M4: SIGNED WHILE THE AGE HASHED (a used airframe bought PRICE-CAL step 2 -> WEAR-PRICE: its spec carried
+  // the listing's `aging`, and the structure group hashed it). The same aeroplane if the old rule, on this spec with the
+  // listing's age and some listing's hours (50 h steps, 150-2 950: 76_ procureUsedListing), gives the stored fingerprint:
+  // re-signed, nothing withdrawn, nothing billed; a bench signature on that fingerprint follows it
+  if (A.age > 0 && typeof certMajorOf === 'function' && typeof certStrip === 'function') {
+    const base = Object.assign({}, spec);
+    let hit = false;
+    for (let h = 150; h <= 2950 && !hit; h += 50) {
+      base.aging = { years: A.age, engineHours: h };
+      const M = certMajorOf(certStrip(base, { condition: true }));
+      hit = !!M && M.fp === A.fp;
+    }
+    if (hit) {
+      const d = prClone(doc), R = d.career.airframes[slot];
+      if (R.sign && R.sign.fp === R.fp) R.sign.fp = fp;
+      R.fp = fp;
+      return { ok: true, doc: d, modified: !!R.modified, bill: null, why: 're-signed: the age is outside the certificate now (WEAR-PRICE)' };
+    }
+  }
   // G3780 M3: SIGNED UNDER THE OLD HASH, THE SAME AEROPLANE: re-signed with the major fingerprint, nothing withdrawn,
   // nothing billed - and an airframe an earlier update alone had made MODIFIED (its file's own p1 under another
   // version) gets its maker's certificate back (that bill was nothing: an update moves no ledger row)
