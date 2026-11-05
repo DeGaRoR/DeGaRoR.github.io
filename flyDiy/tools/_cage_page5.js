@@ -379,6 +379,16 @@ window.CAGE_PAGE = {
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
         ['hullHs',      'step depth',                 0.00, 0.25, 0.002,
          { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // HULL-B39: THE FLUTED BOTTOM (the EDO's "Batman", the Super Petrel's): concave arcs a side and a sharp keel ridge
+        ['hullFlute',    'fluted bottom (ridge drop, of the half-beam)', 0, 0.25, 0.005, { when: P => +P.hullOn }],
+        ['hullFluteN',   'flutes a side', 1, 2, 1, ['one arc, keel to chine', 'two arcs and a ridge'], { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        ['hullFluteAt',  'ridge across (of the half-beam)', 0.3, 0.8, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 && Math.round(+P.hullFluteN) >= 2 }],
+        ['hullFluteBow', 'flutes fade out by (of the forebody)', 0.35, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        ['hullFluteAft', 'flutes kept aft of the step', 0, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        // HULL-B39: the spray strakes on the forebody's bottom (_cage_float.js drawStrakes)
+        ['hullStrakes',   'spray strakes a side', 0, 3, 1, { when: P => +P.hullOn }],
+        ['hullStrakeW',   'strake width', 0.01, 0.10, 0.005, { when: P => +P.hullOn && +P.hullStrakes > 0, dim: 'm' }],
+        ['hullStrakeLen', 'strakes run aft (of the forebody)', 0.2, 1, 0.01, { when: P => +P.hullOn && +P.hullStrakes > 0 }],
         // HULL-B12: the afterbody keel's run behind the step (the fit's; shallower carries a tail-heavy boat's stern)
         ['hullAftDeg',  'afterbody keel run °',       2, 12, 0.5, { when: P => +P.hullOn }],
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)

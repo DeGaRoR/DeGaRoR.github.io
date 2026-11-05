@@ -191,7 +191,8 @@ const isPillarMat = mat => mat.roof === mat.glass && mat.roof === mat.belly
 // there — so they take FRACTIONAL coordinates and nothing is ever drawn on
 // them. That is what lets an alloy fuselage carry 0.45 m frames on a cage
 // whose rings are 1.2 m apart, without adding a single vertex.
-const CAGE_LVI_BASE = { keel: 0, floor: 1, waist: 2, band: 3, ceil: 4, roof: 5 };
+const CAGE_LVI_BASE = { keel: 0, floor: 1, waist: 2, band: 3, ceil: 4, roof: 5,
+  ridge: 0.25, fluteO: 0.5, chine: 0.75 };             // (HULL-B39: a fluted hull's bottom levels - guards' fractions)
 const cageLvIndex = S => ({
   ...CAGE_LVI_BASE,
   waistG: 2 - (S.gWaistT || 0),      // lerp(waist -> floor, gWaistT)
@@ -1170,8 +1171,10 @@ function cageHullTable(L, FS) {
     // the step pair: the fore ring IS x = 0 (the forebody's last), the aft ring the afterbody's first
     const x = s.side === 'F' ? 0 : s.side === 'A' ? Math.max(1e-4, (zs - s.z) * FS) : (zs - s.z) * FS;
     if (!s.side && Math.abs(x) < 1e-4) continue;
-    out.push({ x: +x.toFixed(5), yk: +((s.yk - yS) * FS).toFixed(5), b: +(s.b * FS).toFixed(5),
-               yc: +((s.yc - yS) * FS).toFixed(5), bd: +(s.bd * FS).toFixed(5), yd: +((s.yd - yS) * FS).toFixed(5) });
+    out.push(Object.assign({ x: +x.toFixed(5), yk: +((s.yk - yS) * FS).toFixed(5), b: +(s.b * FS).toFixed(5),
+               yc: +((s.yc - yS) * FS).toFixed(5), bd: +(s.bd * FS).toFixed(5), yd: +((s.yd - yS) * FS).toFixed(5) },
+               // (HULL-B39: the fluted bottom's water ridge - across, and its height)
+               s.zr != null ? { zr: +(s.zr * FS).toFixed(5), yr: +((s.yr - yS) * FS).toFixed(5) } : {}));
   }
   out.sort((a, b) => a.x - b.x);
   return { sta: out, zStep: zs, yStep: yS, steps: L.on ? (L.zStep2 != null ? 2 : 1) : 0 };
@@ -1451,7 +1454,14 @@ function cageHullSpec(P) {
            stepAft2: cl(P.hullStep2Z, 0.2, 5, 1.2), hs2: cl(P.hullHs2, 0, 0.3, 0.05),
            // HULL-B20: the hull DEEPER under the body (m -> cage units): the keel and the chine lowered, the floor and the
            // gunwale kept - the body rides higher over its waterline (the user: 'lowering your fuselage')
-           deep: cl(P.hullDeep, 0, 1.2, 0) / ((CAGE_UNIT || 1) * (P.planeScale || 1)) };
+           deep: cl(P.hullDeep, 0, 1.2, 0) / ((CAGE_UNIT || 1) * (P.planeScale || 1)),
+           // HULL-B39: THE FLUTED BOTTOM (the user, the Super Petrel: "this crazy shape I wanted you to do for a while ...
+           // 2 arcs and a central hull ridge slicing the water ... quite similar to the EDO floats"): flute the ridge's drop
+           // under the straight V over the chine half-beam (0 = the plain V, bit-identical), fluteN the concave arcs a side
+           // (1: keel to chine; 2: keel to a ridge at fluteAt of the half-beam, ridge to chine - the EDO's "Batman"),
+           // fluteBow the share of the forebody (from the step) by which it has faded out, fluteAft its share kept aft
+           flute: cl(P.hullFlute, 0, 0.25, 0), fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
+           fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0) };
 }
 const cageKeelZ = r => r.lv.keel ? r.lv.keel.z : r.lv.waist ? r.lv.waist.z : 0;
 // the hull's stations off the resolved rings (cage z, +forward): the step (the cabin frame's fore ring, stepAft
@@ -1506,6 +1516,53 @@ function cageHullVee(H, HF, lv, rise) {
     f.y = Math.min(Math.max(fy, yCh + 0.02 * Math.max(0, w.y - yCh)), w.y);
     f.x = k.x + (w.x - k.x) * t;
   }
+  if (H.flute > 0) cageHullFlute(H, HF, lv);
+}
+// HULL-B39: THE FLUTED BOTTOM on one ring (after its V): the keel corner the V made is the CHINE, and between the keel's
+// centre column and the chine the bottom is one or two CONCAVE ARCS a side - the EDO float's own law (32_hydro sectionOf,
+// FLOATS-CLASSIC.4): the ridge at fluteAt x the half-beam standing flute x the half-beam under the straight V, each arc cut
+// in 0.75 x flute of its chord (a parabola). Drawn as levels under the floor - chine (creased like the chine was), fluteO
+// (the outer arc's control, smooth), ridge (sharp), and the keel's own flank point as the inner arc's control (smooth):
+// a control stands 1.5 x the arc's depth in, so the subdivided limit (A + 4M + B) / 6 between two creased ends meets it.
+// The water's ridge (lv.__fr: its station across and its height, cage units) is the EDO's physics ridge - raised by
+// exactly the area the drawn arcs cut in, so the table's two facets a side hold the drawn section's volume
+function cageHullFluteAt(H, HF, z) {
+  const sm = u => { const t = Math.max(0, Math.min(1, u)); return t * t * (3 - 2 * t); };
+  if (!HF.on || z >= HF.zStep) {
+    const t = (z - HF.zStep) / Math.max(1e-6, HF.zBow - HF.zStep);
+    return H.flute * (1 - sm((t - (H.fluteBow - 0.35)) / 0.35));
+  }
+  return H.flute * H.fluteAft;
+}
+function cageHullFlute(H, HF, lv) {
+  const k = lv.keel;
+  if (!k || lv.chine) return;
+  const sx = k.x < 0 ? -1 : 1, b = Math.abs(k.x), yk = k.yC != null ? k.yC : k.y, yc = k.y, z = k.z;
+  if (!(b > 1e-6)) return;
+  const fl = cageHullFluteAt(H, HF, z), two = H.fluteN >= 2, sag = 0.75 * fl;
+  const tb = (yc - yk) / b, zr = two ? H.fluteAt * b : 0.5 * b, yr = yk + zr * tb - (two ? fl * b : 0);
+  // a control point of the arc A -> B ([x, y]): the chord's middle, 1.5 x the depth along its inward (up, in) normal
+  const ctl = (A, B) => { const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, o = 1.5 * sag * L;
+    return [0.5 * (A[0] + B[0]) - o * dy / L, 0.5 * (A[1] + B[1]) + o * dx / L]; };
+  const K = [0, yk], R = [zr, yr], C = [b, yc];
+  lv.chine = { x: k.x, y: yc, z };
+  const mI = ctl(K, two ? R : C);
+  if (two) {
+    const mO = ctl(R, C);
+    lv.ridge = { x: sx * zr, y: yr, z };
+    lv.fluteO = { x: sx * mO[0], y: mO[1], z };
+  }
+  k.x = sx * Math.max(1e-4, mI[0]); k.y = mI[1];
+  // the water's ridge: the drawn arcs (parabolas of the depth, [y, z] as 32_hydro's) and the area they cut in
+  const on = (y0, z0, y1, z1, f) => { const dz = z1 - z0, dy = y1 - y0, L = Math.hypot(dz, dy) || 1, o = 4 * sag * L * f * (1 - f);
+    return [y0 + f * dy + o * (dz / L), z0 + f * dz - o * (dy / L)]; };
+  const arc = two ? [on(yk, 0, yr, zr, 1 / 3), on(yk, 0, yr, zr, 2 / 3), [yr, zr], on(yr, zr, yc, b, 0.25), on(yr, zr, yc, b, 0.5), on(yr, zr, yc, b, 0.75)]
+    : [1, 2, 3, 4, 5].map(i => on(yk, 0, yc, b, i / 6));
+  const poly = [[yk, 0], ...arc, [yc, b]];
+  let cut = 0;
+  for (let i = 0; i + 1 < poly.length; i++) cut += poly[i][1] * poly[i + 1][0] - poly[i + 1][1] * poly[i][0];
+  cut -= (0 * yr - zr * yk) + (zr * yc - b * yr);
+  lv.__fr = { zr, yr: yr + Math.max(0, -cut) / b };
 }
 
 // step: 0 zones | 1 pillars+rails | 2 guard loops | 'crease' = step-1
@@ -1557,16 +1614,24 @@ function buildCage2(S, step) {
     const put = (lv, side) => {
       const k = lv && lv.keel, w = lv && lv.waist;
       if (!k || !w) return;
-      sta.push({ z: k.z, yk: k.yC != null ? k.yC : k.y, b: Math.abs(k.x), yc: k.y, bd: Math.abs(w.x), yd: w.y, side: side || null });
+      // (HULL-B39: a fluted bottom's chine is its own level; its ridge the water's - cageHullFlute)
+      const ch = lv.chine || k, fr = lv.__fr;
+      sta.push(Object.assign({ z: k.z, yk: k.yC != null ? k.yC : k.y, b: Math.abs(ch.x), yc: ch.y, bd: Math.abs(w.x), yd: w.y, side: side || null },
+        fr ? { zr: fr.zr, yr: fr.yr } : {}));
     };
     for (const r of seq) put(r.lv, r.hullSide);
     for (const n of (hullNose || [])) put(n.lv, null);
     sta.sort((p, q) => p.z - q.z);
     return { zStep: HF.zStep, zBow: HF.zBow, on: HF.on, hs: HULL.hs, sta, zStep2: HF.zStep2 };
   };
+  // (HULL-B39: a fluted hull's bottom levels between the floor and the keel - cageHullFlute)
+  const FLV = HULL && HULL.flute > 0 ? (HULL.fluteN >= 2 ? ['chine', 'fluteO', 'ridge'] : ['chine']) : [];
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
-    : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
-    : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', 'keel'];
+    : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', ...FLV, 'keel']
+    : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', ...FLV, 'keel'];
+  const FLOWS = new Set(['floor', ...FLV, 'keel']);      // the bottom's levels (a hull's ring creases spare them)
+  // (the fluted bottom's rails: the chine takes the keel rail's crease, the ridge is sharp, the arcs' controls smooth)
+  const flutedTags = FLV.length ? [['chine', (S.crease || {}).keel || 0], ['ridge', 3], ['fluteO', 0], ['keel', 0]] : null;
 
   // ---- ring sequence for this step ---------------------------------------
   const STEP0_XTRA = new Set(['aeroWsB', 'noseMid', 'boomMid']);
@@ -1839,6 +1904,19 @@ function buildCage2(S, step) {
     }
   };
 
+  // (HULL-B39: a hull's ring loop, its bottom's edges spared - the floor, the fluted levels, the keel and its centre)
+  const tagLoopHull = (o, r, w) => {
+    const lv = LV.filter(k => r.lv[k] != null), pts = [];
+    if (o.C[lv[0]] != null) pts.push([lv[0], o.C[lv[0]]]);
+    for (const k of lv) if (o.P[k] != null) pts.push([k, o.P[k]]);
+    if (o.C[lv[lv.length - 1]] != null) pts.push([lv[lv.length - 1], o.C[lv[lv.length - 1]]]);
+    for (let i = lv.length - 1; i >= 0; i--) if (o.M[lv[i]] != null) pts.push([lv[i], o.M[lv[i]]]);
+    for (let i = 0; i < pts.length; i++) {
+      const A = pts[i], B = pts[(i + 1) % pts.length];
+      if (FLOWS.has(A[0]) || FLOWS.has(B[0])) continue;
+      tagE(A[1], B[1], w);
+    }
+  };
   const mkIds = (r, capRing, sf) => {
     const o = { P: {}, M: {}, C: {} };
     for (const k of LV) {
@@ -2075,7 +2153,7 @@ function buildCage2(S, step) {
     // round-bottom pod (botRound) fades the crease out: its keel level has
     // moved up the arc and a corner there would be a kink on a curve.
     if (E) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
-                                 ['ceil', CW.ceil], ['keel', CW.keelW]]) {
+                                 ['ceil', CW.ceil], ...(FLV.length ? flutedTags : [['keel', CW.keelW]])]) {
       if (a.P[k] != null && b.P[k] != null) {
         tagE(a.P[k], b.P[k], w);
         tagE(a.M[k], b.M[k], w);
@@ -2108,11 +2186,18 @@ function buildCage2(S, step) {
       if (!r.hullSide) return;
       const o = ids[i];
       if (o.P.keel != null && o.C.keel != null) { tagE(o.P.keel, o.C.keel, 3); tagE(o.C.keel, o.M.keel, 3); }
+      // (HULL-B39: a fluted bottom's step runs chine -> arcs -> ridge -> keel)
+      const bot = ['chine', 'fluteO', 'ridge', 'keel'].filter(k => o.P[k] != null);
+      for (let j = 0; j + 1 < bot.length; j++) { tagE(o.P[bot[j]], o.P[bot[j + 1]], 3); tagE(o.M[bot[j]], o.M[bot[j + 1]], 3); }
     });
     seq.forEach((r, i) => {
       const w = fam(r.name);
       if (!w) return;
-      if (crestOn && (/^pilPax/.test(r.name) || /^pilCab/.test(r.name)))
+      // HULL-B39 (the user, the Super Petrel: "the petrel does not have the front step. It has a smooth hull till the step
+      // at the back"): a frame's or a pillar's ring crease ran round the whole loop - across a HULL's bottom it is a
+      // transverse knuckle that reads as a step. On a hull the bottom's edges (the floor down to the keel) stay soft
+      if (HULL) tagLoopHull(ids[i], r, w);
+      else if (crestOn && (/^pilPax/.test(r.name) || /^pilCab/.test(r.name)))
         tagLoopLow(ids[i], r, w);
       else tagLoop(ids[i], r, w);
     });
@@ -2285,6 +2370,8 @@ function buildCage2(S, step) {
                yC: wsLv.floor.y, zC: wsLv.floor.z },
       keel:  wsLv.keel,
     };
+    for (const k of FLV) if (wsLv[k]) wsLow[k] = wsLv[k];      // (HULL-B39: a fluted hull's bottom runs on into the bow)
+    const NLO = ['waist', 'floor', ...FLV, 'keel'].filter(k => wsLow[k]), NBO = NLO.filter(k => k !== 'waist');
     // G468, TRIED AND WITHDRAWN (playtest item 73, "the polygonality of the
     // nose is very visible from the cockpit"): a ring every 0.14 m of the
     // nose run whatever `front rings` says. It smooths the deck (the row at
@@ -2310,7 +2397,8 @@ function buildCage2(S, step) {
         const e = eAt(cowl.ease), eB = eAt(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
-        for (const k of ['waist', 'floor', 'keel']) {
+        for (const k of NLO) {
+          if (!target[k]) continue;
           lv[k] = lerpLv(wsLow[k], target[k], k === 'waist' ? e : eB);
           // dims follow the eased blend, z stays linear — that lag IS the
           // convexity
@@ -2322,7 +2410,8 @@ function buildCage2(S, step) {
           }
         }
         const wY = lv.waist.y, wYC = lv.waist.yC;
-        for (const k of ['floor', 'keel']) {
+        for (const k of NBO) {
+          if (!lv[k]) continue;
           lv[k].x *= bg;
           lv[k].y = wY + (lv[k].y - wY) * bg;
           if (lv[k].yC != null) lv[k].yC = wYC + (lv[k].yC - wYC) * bg;
@@ -2333,7 +2422,7 @@ function buildCage2(S, step) {
         // settable, user ruling)
         const cwO = S.ringOff && S.ringOff.cowl
           ? (S.ringOff.cowl[i - 1] || 0) : 0;
-        if (cwO) for (const k of ['waist', 'floor', 'keel'])
+        if (cwO) for (const k of NLO)
           if (lv[k]) lv[k].x += cwO;
         noseSeq.push(prepNose({ name: 'cowlLoop' + i, lv }));
       }
@@ -2356,7 +2445,8 @@ function buildCage2(S, step) {
           return t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez; };
         const e2 = e2At(cowl.ease), e2B = e2At(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const lv3 = {};
-        for (const k of ['waist', 'floor', 'keel']) {
+        for (const k of NLO) {
+          if (!R.noseRing.lv[k]) continue;
           lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], k === 'waist' ? e2 : e2B);
           lv3[k].z = wsLow[k].z
                    + (R.noseRing.lv[k].z - wsLow[k].z) * t2;
@@ -2429,7 +2519,7 @@ function buildCage2(S, step) {
                      deck: pf ? 'pillarFront' : 'body' });
     }
     const lowOrd = LV.filter(k =>
-      k === 'waist' || k === 'waistG' || k === 'floor' || k === 'keel');
+      k === 'waist' || k === 'waistG' || FLOWS.has(k));
     for (const s of lowSets) {
       face(s.a.P.waist, s.b.P.waist, s.b.C.waist, s.a.C.waist, s.deck);
       face(s.a.C.waist, s.b.C.waist, s.b.M.waist, s.a.M.waist, s.deck);
@@ -2450,8 +2540,9 @@ function buildCage2(S, step) {
           ? CW.sillNose : CW.sill;
         tagE(s.a.P.waist, s.b.P.waist, wS);
         tagE(s.a.M.waist, s.b.M.waist, wS);
-        tagE(s.a.P.keel, s.b.P.keel, CW.keelW);      // G319: the keel rail runs on under the nose
-        tagE(s.a.M.keel, s.b.M.keel, CW.keelW);
+        // G319: the keel rail runs on under the nose (HULL-B39: a fluted hull's chine and ridge - flutedTags)
+        for (const [k, w] of FLV.length ? flutedTags : [['keel', CW.keelW]])
+          if (s.a.P[k] != null && s.b.P[k] != null) { tagE(s.a.P[k], s.b.P[k], w); tagE(s.a.M[k], s.b.M[k], w); }
       }
     }
 
@@ -8154,6 +8245,10 @@ const CAGE_PARAMS = {
   //               the drawing (_cage_float.js HULL-B5) and the frame read one placement (HULL-B5)
   hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
   hullStep2Z: 1.2, hullHs2: 0.05,      // HULL-B31: the second step (hullSteps 2): metres aft of the main step, its depth
+  // HULL-B39: the fluted bottom (cageHullSpec): the ridge's drop over the chine half-beam (0 = the plain V), the arcs a
+  // side, the ridge's station across, the share of the forebody it has faded by, its share kept aft of the step
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0,
+  hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8,   // (HULL-B39: the spray strakes - _cage_float.js)
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
@@ -8982,12 +9077,14 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
-  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
-const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1 };
+const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8 };   // (HULL-B39)
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
 // retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
 // slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)

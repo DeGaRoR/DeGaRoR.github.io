@@ -380,7 +380,16 @@ function tableSection(P, x) {
   const L = k => a[k] + (c[k] - a[k]) * t;
   const yk = L('yk'), b = Math.max(1e-4, L('b')), yc = Math.max(yk, L('yc'));
   const yd = Math.max(yc + 0.01, L('yd')), bd = Math.max(b, L('bd'));
-  return { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd, yt: yd };   // (yt: the deck's top - FLOATS-CLASSIC's secAreaTo reads it; a hull's deck is its gunwale)
+  const out = { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd, yt: yd };   // (yt: the deck's top - FLOATS-CLASSIC's secAreaTo reads it; a hull's deck is its gunwale)
+  // HULL-B39: A FLUTED HULL's water ridge (the cage's cageHullFlute: the EDO's physics ridge, the drawn arcs' area held) -
+  // every station of a fluted table carries one (a row without it - the tub's - its straight V's middle), so the bottom
+  // is the keel -> ridge -> chine ladder everywhere (makeFloat)
+  if (P.fluted) {
+    const rg = r => r.zr != null ? [r.yr, r.zr] : [r.yk + 0.5 * (r.yc - r.yk), 0.5 * r.b];
+    const ra = rg(a), rc = rg(c), zr = Math.min(0.98 * b, Math.max(0.02 * b, ra[1] + (rc[1] - ra[1]) * t));
+    out.fluteP = [[Math.min(yc, Math.max(yk, ra[0] + (rc[0] - ra[0]) * t)), zr]];
+  }
+  return out;
 }
 function sectionOf(P, x) {
   if (P.table) return tableSection(P, x);
@@ -486,7 +495,8 @@ function secPoly(P, s) {
     return { K: [s.yk, 0], B: s.fluteP, C: [s.yc, s.b], E: pts[0], D: pts[1], R: [pts[2]], T: [s.yt, 0], bv: 0, dome: true };
   }
   const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
-  return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
+  // (HULL-B39: a fluted hull's bottom ridge - B, the EDO's ladder without its dome)
+  return Object.assign({ K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv }, s.fluteP ? { B: s.fluteP } : {});
 }
 // the EDO arc's seven points, shoulder (k 0) to crown (k 6), evenly in the ellipse's angle: [y, z]
 function edoArc(s) {
@@ -541,18 +551,21 @@ function makeFloat(over = {}) {
     s.Dm = push([s.x, q.D[0], -q.D[1]]); s.Dp = push([s.x, q.D[0], q.D[1]]);
     // FLOATS-CLASSIC: the dome's 30-75 deg pairs and its crown on the centreline (a flat deck has none): s.Rm / s.Rp
     // run D (15 deg), the four, then T - the ladder every dome panel walks
-    if (q.dome) {
-      // the fluted bottom's ladder a side: K, the first flute's mid, the ridge, the second's mid, C
+    if (q.B) {
+      // the fluted bottom's ladder a side: K, the first flute's mid, the ridge, the second's mid, C (HULL-B39: a fluted
+      // hull's too - its one ridge)
       s.Bm = [s.K]; s.Bp = [s.K];
       for (const q2 of q.B) { s.Bm.push(push([s.x, q2[0], -q2[1]])); s.Bp.push(push([s.x, q2[0], q2[1]])); }
       s.Bm.push(s.Cm); s.Bp.push(s.Cp);
+    }
+    if (q.dome) {
       s.Rm = [s.Dm]; s.Rp = [s.Dp];
       for (const r of q.R) { s.Rm.push(push([s.x, r[0], -r[1]])); s.Rp.push(push([s.x, r[0], r[1]])); }
       s.T = push([s.x, q.T[0], 0]); s.Rm.push(s.T); s.Rp.push(s.T);
     }
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
-  const dome = !!P.crownK;
+  const dome = !!P.crownK, fluted = !!(sta[0] && sta[0].Bm);   // (HULL-B39: the ladder bottom, an EDO's or a fluted hull's)
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
   // different slopes, so it is split on its diagonal into two triangles
   // (the clip is then exact, and the pressure's direction with it); the
@@ -571,7 +584,7 @@ function makeFloat(over = {}) {
       // afterbody and every step face came out inward: the closure sum read
       // -2x their area and a level float felt 71 N fore-aft at rest)
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
-      if (dome) {
+      if (fluted) {
         // (an EDO's bottom is four facets a side: the step face between the two bottoms is four quads a side)
         for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
           for (let k = 0; k + 1 < s0[L].length; k++) quad('step', s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], { side: sd, body: 'A', beta: 0, ref: rs });
@@ -597,7 +610,7 @@ function makeFloat(over = {}) {
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
-    if (dome) {
+    if (fluted) {
       // the EDO's fluted bottom: four facets a side (two per flute), each its own deadrise (the planing law reads it)
       for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
         for (let k = 0; k + 1 < s0[L].length; k++) {
@@ -622,7 +635,7 @@ function makeFloat(over = {}) {
   { // bow cap and stern transom
     const s = sta[0];
     const rb = [s.x + 0.05, s.ref[1], 0];
-    if (dome) { tri('bow', s.K, s.Bm[1], s.Bp[1], { side: 0, body: 'F', beta: 0, ref: rb });
+    if (fluted) { tri('bow', s.K, s.Bm[1], s.Bp[1], { side: 0, body: 'F', beta: 0, ref: rb });
                 for (let k = 1; k + 1 < s.Bm.length; k++) quad('bow', s.Bm[k], s.Bm[k + 1], s.Bp[k + 1], s.Bp[k], { side: 0, body: 'F', beta: 0, ref: rb }); }
     else tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
@@ -630,7 +643,7 @@ function makeFloat(over = {}) {
     if (dome) { for (let k = 0; k + 2 < s.Rm.length; k++) quad('bow', s.Rm[k], s.Rp[k], s.Rp[k + 1], s.Rm[k + 1], { side: 0, body: 'F', beta: 0, ref: rb });
                 const n = s.Rm.length; tri('bow', s.Rm[n - 2], s.Rp[n - 2], s.T, { side: 0, body: 'F', beta: 0, ref: rb }); }
     const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
-    if (dome) { tri('stern', e.K, e.Bm[1], e.Bp[1], { side: 0, body: 'A', beta: 0, ref: re });
+    if (fluted) { tri('stern', e.K, e.Bm[1], e.Bp[1], { side: 0, body: 'A', beta: 0, ref: re });
                 for (let k = 1; k + 1 < e.Bm.length; k++) quad('stern', e.Bm[k], e.Bm[k + 1], e.Bp[k + 1], e.Bp[k], { side: 0, body: 'A', beta: 0, ref: re }); }
     else tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
@@ -695,7 +708,7 @@ function secAreaTo(P, s, hw) {
   const top = Math.min(hw, s.yt);
   if (top <= s.yk) return 0;
   // the starboard half-polygon keel -> C -> E -> D, then the centreline back (FLOATS-CLASSIC: a dome's R and its crown)
-  const pts = q.dome ? [q.K, ...q.B, q.C, q.E, q.D, ...q.R, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  const pts = q.dome ? [q.K, ...q.B, q.C, q.E, q.D, ...q.R, q.T] : [q.K, ...(q.B || []), q.C, q.E, q.D, [s.yd, 0]];
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -1903,7 +1916,7 @@ function hullParamsFromTable(rec, over) {
     table: { F, A }, L, xs, B: 2 * s0.bd, H: s0.yd - s0.yk, beta: deg(s0), betaA: deg(a0), betaBow: deg(F[0]),
     hs: Math.max(0, a0.yk - s0.yk), mFloat: 0, mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], cgFloat: [0, 0, 0],
     nSta: 32, wrArea: rec.wrArea != null ? rec.wrArea : 0.06, wrDepth: rec.wrDepth != null ? rec.wrDepth : 0.30,
-    hull: true }, over || {});
+    hull: true, fluted: rec.sta.some(s => s.zr != null) }, over || {});   // (HULL-B39: a fluted hull's table)
   delete P._keel;
   return P;
 }
@@ -1927,7 +1940,7 @@ function hullTipFit(rec, grossKg, opt) {
   if (o.cgY != null && o.arm > 0.5) {
     const n = 120, dx = HP.L / n, hb = (s, h) => {
       // the section's half-breadth at height h (keel -> chine -> the deck's edge), the polygon secAreaTo cuts
-      const q = secPoly(HP, s), pts = [q.K, q.C, q.E, q.D];
+      const q = secPoly(HP, s), pts = [q.K, ...(q.B || []), q.C, q.E, q.D];
       if (h <= s.yk) return 0;
       for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1];
         if (h <= b[0]) return a[1] + (b[1] - a[1]) * (b[0] - a[0] > 1e-9 ? (h - a[0]) / (b[0] - a[0]) : 1); }

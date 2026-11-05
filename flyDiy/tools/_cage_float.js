@@ -614,6 +614,90 @@ function drawTub(scene, P) {
   const m = new THREE.Mesh(g, mat); m.name = 'edHullTub'; m.castShadow = true; m.receiveShadow = true;
   tubGroup.add(m); scene.add(tubGroup);
 }
+// HULL-B39: THE SPRAY STRAKES (the user, the Super Petrel: "the front ridge really looks like the one of a boat, it has
+// protrusions in the fore-aft axis"): hullStrakes a side on the forebody's bottom, evenly across the chine half-beam
+// (1/(n+1) apart), from hullStrakeLen of the forebody aft of the bow to the bow. Each is a boat's strake - a flat
+// landing hullStrakeW wide, level with its inboard edge, and a vertical face up to the bottom at its outboard edge (a
+// wedge, as deep as the deadrise makes it), tapered in over its ends. Laid ON THE DRAWN BOTTOM: each station's heights
+// are the drawn skin's under a vertical line (the mesh's own triangles, cage units), so the inboard edge sits flush on
+// a flute or a V alike. Spray hardware: like a float's straps and keelsons, the water does not read it
+let strakeGroup = null;
+function drawStrakes(scene, mesh, P) {
+  if (strakeGroup) { dispose(strakeGroup); strakeGroup = null; }
+  const n = Math.round(+P.hullStrakes || 0);
+  if (!scene || !+P.hullOn || !(n > 0) || !mesh || !mesh.V || !mesh.F || !CG2 || !CG2.cageHullLines) return;
+  const L = CG2.cageHullLines(P);
+  if (!L || !L.sta || L.sta.length < 3) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1), V = mesh.V;
+  const sta = L.sta.slice().sort((a, b) => a.z - b.z);
+  const zS = L.on ? L.zStep : sta[0].z, zB = L.zBow;
+  const len = Math.max(0.2, Math.min(1, +P.hullStrakeLen || 0.8)), w = Math.max(0.01, +P.hullStrakeW || 0.05) / FS;
+  const zA = zB - len * (zB - zS) + 0.03 / FS, zF = zB - 0.06 / FS;
+  if (!(zF > zA + 0.1 / FS)) return;
+  const bAt = z => { let i = 0; while (i + 2 < sta.length && sta[i + 1].z < z) i++;
+    const a = sta[i], c = sta[i + 1], t = c.z - a.z > 1e-9 ? Math.max(0, Math.min(1, (z - a.z) / (c.z - a.z))) : 0; return a.b + (c.b - a.b) * t; };
+  // the drawn bottom's triangles in the run, bucketed by z
+  const NB = 64, bucket = Array.from({ length: NB }, () => []), bz = z => Math.floor((z - zA) / (zF - zA) * NB);
+  for (const f of mesh.F) {
+    const v = f && f.v; if (!v || v.length < 3) continue;
+    for (let t = 1; t + 1 < v.length; t++) {
+      const tri = [V[v[0]], V[v[t]], V[v[t + 1]]];
+      const lo = Math.min(tri[0][2], tri[1][2], tri[2][2]), hi = Math.max(tri[0][2], tri[1][2], tri[2][2]);
+      if (hi < zA || lo > zF) continue;
+      for (let k = Math.max(0, bz(lo)); k <= Math.min(NB - 1, bz(hi)); k++) bucket[k].push(tri);
+    }
+  }
+  // the lowest skin under (x, z): a vertical line through the triangles' plan
+  const yAt = (x, z) => {
+    let best = Infinity;
+    for (const [a, b, c] of bucket[Math.max(0, Math.min(NB - 1, bz(z)))] || []) {
+      const d = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+      if (Math.abs(d) < 1e-12) continue;
+      const u = ((x - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (z - a[2])) / d, v2 = ((b[0] - a[0]) * (z - a[2]) - (x - a[0]) * (b[2] - a[2])) / d;
+      if (u < -1e-6 || v2 < -1e-6 || u + v2 > 1 + 1e-6) continue;
+      best = Math.min(best, a[1] + u * (b[1] - a[1]) + v2 * (c[1] - a[1]));
+    }
+    return best;
+  };
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+  if ('side' in mat) mat.side = THREE.DoubleSide;
+  strakeGroup = new THREE.Group(); strakeGroup.name = 'cageLayer:float';
+  const NS = 40, sink = 0.003 / FS;
+  for (let i = 0; i < n; i++) {
+    const q = (i + 1) / (n + 1);
+    for (const sd of [-1, 1]) {
+      const pos = [], idx = [];
+      let ok = 0;
+      for (let j = 0; j <= NS; j++) {
+        const u = j / NS, z = zA + (zF - zA) * u;
+        const tp = Math.min(1, u / 0.12, (1 - u) / 0.12), ww = w * Math.max(0.05, tp);
+        const x0 = q * bAt(z), x1 = x0 + ww;
+        let y0 = yAt(sd * x0, z), y1 = yAt(sd * x1, z);
+        if (!isFinite(y0) || !isFinite(y1)) { y0 = y1 = NaN; } else ok++;
+        const yl = Math.min(y0, y1);
+        for (const [x, y] of [[x0, y0 + sink], [x1, y1 + sink], [x1, yl]]) pos.push(sd * x * FS, y * FS, z * FS);
+      }
+      if (ok < NS * 0.6) continue;
+      // (a station that missed the skin takes its neighbour's section - the run stays one strip)
+      for (let j = 0; j <= NS; j++) if (!isFinite(pos[j * 9 + 1])) {
+        const k = j > 0 && isFinite(pos[(j - 1) * 9 + 1]) ? j - 1 : j + 1;
+        for (let m = 0; m < 9; m++) if (m % 3 !== 2) pos[j * 9 + m] = pos[k * 9 + m];
+      }
+      for (let j = 0; j < NS; j++) for (let e = 0; e < 3; e++) {
+        const a = j * 3 + e, b = j * 3 + (e + 1) % 3, c = a + 3, d = b + 3;
+        if (sd > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+      }
+      const e0 = NS * 3;
+      if (sd > 0) idx.push(0, 2, 1, e0, e0 + 1, e0 + 2); else idx.push(0, 1, 2, e0, e0 + 2, e0 + 1);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = 'edHullStrake' + (sd < 0 ? 'L' : 'R') + i; m.castShadow = true; m.receiveShadow = true;
+      strakeGroup.add(m);
+    }
+  }
+  scene.add(strakeGroup);
+}
 // HULL-B19: THE SPONSONS, drawn from the rows the frame flies (hullSponKg / Y / X / W: a float of the family sized for
 // its displacement, HYDRO.tipFloatParams) at the hull's side at their station (the hull's own table, cageHullTable) -
 // no struts: the sponson is part of the hull. Rows not fitted yet: nothing drawn (the frame flies the gross rule)
@@ -719,6 +803,7 @@ PAGE.post = ctx => {
   hullFitStep(P, stat);
   try { drawTub(scene, P); } catch (e) {}
   try { drawSponsons(scene, P); } catch (e) {}
+  try { drawStrakes(scene, mesh, P); } catch (e) {}
   // THE STARTER FIRES BEFORE THE CHAIN, like the engine's: the rows it
   // writes are read by this layer's own build below and by the join after
   if (+P.gearFloats) {
