@@ -312422,3 +312422,11 @@ clouds.js + one argument in app.js. Study: futureDesigns/LOOK-1-STUDY-2026-11.md
 MEASURED, RTX 3080, gamer, 1600x900, same eyes as L32d (tools/look1_temporal.js; % of pixels over 4 codes, second difference): rims cu_1500 pan 7.6 -> 0.7, turn 41.8 -> 14.6, fly 9.1 -> 0.7; rims cu_rims pan 6.5 -> 0.7, turn 38.9 -> 14.3, fly 19.1 -> 1.6; sky band cu_1500 pan 0.9 -> 0.1. Held camera: 0.8 % of rim pixels (the jitter's residue). The trees do not move: canopy below the sky band 45.4 -> 45.4 (steps 2, 3). The metric rewards blur: read it with the clips (flydiy-notes/evidence-2026-10-18/2026-11-05/look-1/after1/).
 COSTS: +1 program (the resolve; 539 -> 540, 557 -> 558 in FRAMECOST's census, warm-listed). Clouds' pass ~0.89 -> ~1.06 ms, the resolve ~0.05 ms on their own timers, EMA, one sample. Frame medians unchanged within noise (10.1 -> 10.0, 9.3 -> 9.2, 11.8 -> 11.3 ms). Memory ~+6 MB at 1600x900 (two half-res RGBA16F) + ~1.3 MB of noise mips. FRAMECOST: the same 5 boot rows red as clean L32e, no new row (cook fresh on each side).
 BY DAY: the clouds' shapes and level hold; the fixed grain goes, the thin rims read a little softer. By night: not measured. NOT DONE: the study's C2 lattice snap (the per-frame whole-step jitter replaces it). Trap: a stale parked cook paints FRAMECOST red on stand and taxi: run the cook, then --check, before reading it.
+
+## A0 - train L32f, 5 Nov 2026 22:15
+
+IN (on L32e master e99afbfc7, small train): ready/look-1-clouds 36d29a99d (noise mips, step-back on first hit, the clouds' temporal pass). The user saw the clip: "New clouds feel good".
+Rims' crawl over 4 codes, before -> after: pan 7.6 -> 0.7, turn 41.8 -> 14.6, fly 9.1 -> 0.7 (cu_1500); cu_rims 6.5 -> 0.7, 38.9 -> 14.3, 19.1 -> 1.6.
+COSTS: +1 program, warm-listed; clouds' pass about 0.89 -> 1.06 ms, resolve 0.05 ms (approximate); no visible frame cost; about +7 MB. Thin rims a little softer by day. NOT checked: ghosting around the plane in motion, water mirror + hangar captures by eye, night + blue hour, real drift.
+BATTERY + TIMED: see the train logs; standing FRAMECOST 5, MEDIA. One sample per row.
+NEXT: LOOK-1 step 3 (trees), then TAA.
