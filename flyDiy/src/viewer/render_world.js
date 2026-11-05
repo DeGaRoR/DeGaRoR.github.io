@@ -3690,6 +3690,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return null;
     };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
+    let BAKE_RED = null;
+    const bakeReduce = () => { if (BAKE_RED) return BAKE_RED; const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: { uSrc: { value: null } },
+        vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: 'uniform sampler2D uSrc; varying vec2 vU; void main() { gl_FragColor = texture2D(uSrc, vU); }',
+        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending })); q.frustumCulled = false; const sc = new THREE.Scene(); sc.add(q);
+      return (BAKE_RED = { q, sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) }); };
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
     // of its own wearing it: 1 400 impostor draws at the Jolene stand, 2 100 at 300 m over the field -
@@ -3823,6 +3828,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
       }
       const N = IMP_G * IMP_TILE;
+      // LOOK-1 2c: THE SHEET'S EDGE IS COVERAGE, NOT A STEP. A tile's leaves are a hard mask, and at one sample a texel an impostor's outline was binary at its finest level: the
+      // "pixely" crown. The tile is drawn at twice the size and reduced by a box, so the alpha carries the coverage. The sheet is premultiplied (cleared to transparent black), so
+      // the box bleeds no black into the colour. The pair at 2x (~76 MB with its depth) lives for one sheet's bake. The 64 px tile of a small budget stays at 1x
+      const SS = !L1_OFF && IMP_TILE >= 128 && !IMPA.stub && typeof renderer.capabilities === 'object' && renderer.capabilities.maxTextureSize >= N * 2 ? 2 : 1;
       // ONE PAIR OF BAKE TARGETS FOR EVERY SHEET (2026-09-21): a target is its colour
       // plus a depth renderbuffer and its own framebuffer, ~19 MB the pair at 1024 -
       // and 67 sheets (the biomes' 22 subjects x 3 series) held 1.3 GB of the card
@@ -3836,6 +3845,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         BAKE_RT.rt.texture.colorSpace = THREE.SRGBColorSpace;
       }
       const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const mkSS = srgb => { const t = new THREE.WebGLRenderTarget(N * SS, N * SS, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, generateMipmaps: false }); if (srgb) t.texture.colorSpace = THREE.SRGBColorSpace; return t; };
+      const rtS = SS > 1 ? mkSS(true) : rt, rtNS = SS > 1 ? mkSS(false) : rtN;
       const sheetOf = (srgb) => {     // the sheet's own texture: allocated empty, filled by the blit
         const t = new THREE.DataTexture(null, N, N, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -3889,18 +3900,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           cam.position.copy(ctr).addScaledVector(d, bs.r * 4);
           cam.lookAt(ctr);
           cam.updateProjectionMatrix();
-          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
-          renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          const TS = target === rtS || target === rtNS ? IMP_TILE * SS : IMP_TILE;
+          renderer.setViewport(i * TS, j * TS, TS, TS);
+          renderer.setScissor(i * TS, j * TS, TS, TS);
           renderer.clearDepth();
           renderer.render(sc, cam);
         }
         renderer.setScissorTest(false);
       };
+      // the 2x target into the sheet's: one bilinear tap at each texel's corner is the box of its four
+      const reduce = (from, to) => { if (from === to) return; renderer.setRenderTarget(to); renderer.setViewport(0, 0, N, N); renderer.clear(true, true, false); const R_ = bakeReduce(); R_.q.material.uniforms.uSrc.value = from.texture; renderer.render(R_.sc, R_.cam); };
       const BAKE = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.bake) || { value: 0 };
       uNoBand.value = 1;                     // the bake sees every rung whole
       BAKE.value = 1;                        // pass 1: albedo + coverage
-      drawAll(rt);
+      drawAll(rtS);
       BAKE.value = 0;
+      reduce(rtS, rt);
       // THE SHEET IS READ BACK BEFORE IT IS TRUSTED (B1, 2026-09-20). Every
       // fault of this bake has presented as "the impostor is wrong" with
       // nothing on the screen to say which (TREE-IMPORT.md section 6), and
@@ -3922,7 +3937,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       else if (typeof renderer.readRenderTargetPixels === 'function') shout(sheetCheck(rt, N));   // the headless stub (GATE WORLDRENDER) has no readback
       const swap = [];                       // pass 2: the tree's own normals
       for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
-      drawAll(rtN);
+      drawAll(rtNS);
+      reduce(rtNS, rtN);
+      if (SS > 1) { rtS.dispose(); rtNS.dispose(); }
       for (const [mm, m] of swap) mm.material = m;
       uNoBand.value = 0;
       renderer.toneMapping = pTM;
