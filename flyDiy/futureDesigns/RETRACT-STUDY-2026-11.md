@@ -1453,3 +1453,38 @@ forward.
   needs the retraction opened beyond the low-wing tricycle (GEAR_RETRACTABLE): body- or boom-rooted mains, the
   'skymaster' preset (already a two-turn chain), the pod/boom as a cut target. A study with its own case in the
   battery before code.
+
+### 8.15 THE CATALINA (the user, 5 Nov: "before the skymaster, study the catalina")
+
+The user: "It remains a popular way of retracting gear for boat planes, and we should be able to cut into a fuselage
+or a Hull, and have this sort of mecanism, not necessarily requiring doors."
+
+**The real thing** (PBY-5A, and the amphibians after it: Goose, Widgeon, Albatross, the modern amphibious hulls):
+- The mains hang from the hull's sides, braced to the wing.
+- Up, each wheel lies in a RECESS in the hull's side, about half out of it, upright, above the chine. There are no
+  doors: the recess and the exposed tyre are the design, and the hull's bottom stays clean for the water.
+- The nose wheel goes forward into the bow behind two doors.
+- The mechanism is a linkage (the oleo, a long side strut to the wing, a drag link), hydraulic with a hand pump as
+  the alternate. The wheel rises roughly ALONG the hull's side.
+
+**In our terms** (built 5 Nov):
+- **The retraction opened beyond the low wing.** Any wing position retracts a tricycle: a low wing's mains root on the
+  wing, any other's on the body. GEAR_RETRACTABLE, the retraction rows and the join no longer ask for a low wing.
+- **The fold 'catalina'** (the mains' seventh fold, appended so a saved card keeps its index): the leg turns about the
+  LATERAL axis, so the wheel keeps its lateral place and rises along the side to the pin's height (the trunnion, 45 %
+  of the way from the keel to the floor). There is no trim: it is the leg's own lift.
+- **The side well.** A unit entering the body through its SIDE (its near-skin swept points' section direction mostly
+  lateral) is cut from the side, by the same knife:
+  - its frame looks at the side (n0 = [±1, 0, 0]), the outline in (z, ∓y);
+  - the recess goes inward to a fitted floor (`ceilP`: the deepest swept point's inward coordinate, the clearance more);
+  - knifeCarveF clears the structure in any frame.
+
+  `CAGE_GEAR.cutsSide`. No doors (rows: well doors none, leg door off).
+- **On the Cessna 172 as the hull** (the battery's c172_catalina, a 1.12 m and a 1.0 m track): the mains lift aft
+  along the sides into side recesses, and the wheels stand upright against the hull, half out, just above the belly.
+  The nose folds aft into its belly well.
+- **Not yet:**
+  - the wing strut of the real gear (our brace is the generic folding brace);
+  - the nose forward into a bow behind doors (the 'fwd' fold exists; the bow's doors are G6's below-cut doors);
+  - a real hull with a step and chines (the amphibian, G7);
+  - doors for a side well (doorBuild knows below-cuts only).
