@@ -172,6 +172,7 @@
 
   const pow2 = v => (v & (v - 1)) === 0 && v > 0;
 
+  const L1_OFF_T = typeof location !== 'undefined' && /[?&]l1tree=0/.test(location.search);   // LOOK-1 step 3's A/B
   function coverageMips(THREE, tex, img, cut255) {
     const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
     if (!pow2(w0) || !pow2(h0)) return false;      // the chain only halves cleanly on POT
@@ -196,8 +197,12 @@
           // a STRAIGHT box filter off one getImageData: a canvas stores
           // premultiplied colour, so repeated canvas draws bleed the
           // background into every leaf edge — the classic dark fringe
-          for (let k = 0; k < 4; k++)
-            nd[o + k] = (sd[a + k] + sd[b + k] + sd[c + k] + sd[d + k]) * 0.25;
+          // LOOK-1 D5 (the study's A1; TREES-FROM-TWIGS §3.3 named it): AND THE COLOUR IS WEIGHTED BY THE ALPHA. A canvas returns RGB 0 under alpha 0, so a straight box averaged that
+          // black into every edge texel, and the coverage rescale kept them opaque: crowns 0.40-0.68x dark at range, their texel contrast 2-3x, frozen into the impostors by the bake.
+          const wA = sd[a + 3], wB = sd[b + 3], wC = sd[c + 3], wD = sd[d + 3], wS = wA + wB + wC + wD;
+          for (let k = 0; k < 3; k++)
+            nd[o + k] = wS > 0 && !L1_OFF_T ? (sd[a + k] * wA + sd[b + k] * wB + sd[c + k] * wC + sd[d + k] * wD) / wS : (sd[a + k] + sd[b + k] + sd[c + k] + sd[d + k]) * 0.25;
+          nd[o + 3] = wS * 0.25;
         }
       }
       rescale(nd, target, cut255);
