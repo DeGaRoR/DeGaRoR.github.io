@@ -1405,3 +1405,51 @@ cut; One, or 2, slitting in the middle?" (Yes: the box outline, `gearWellCut` 1,
   - up, every door flush on the skin it came from (4 mm: its inner face);
   - the box with two doors: two per well, one shutting gear down, the other standing open where the leg passes.
 - **GATE RETRACT §17** holds it. Not yet: the doors' drag when open, and a door's own hinge hardware.
+
+### 8.14 GR - ROBUSTNESS: the battery, the questions, the remedies (the user, 5 Nov, after G6)
+
+The user: "you need to leave a gap in your opening ... the wheels are not fitting into your wings, so it looks odd ...
+I think you have your piston still sticking out at the end ... when they are not getting it in completely, we would
+still do the cutouts ... I do not see the round cutout for the wheel ... maybe you want to get the wheels higher so that
+really penetrate the wing ... a full battery of images for a lot of cases (the wing, the fuselage, the tip of a narrow
+nose, the cowl) ... partially retractable ... the Skymaster ... two axes ... the back pod ... would we be able to cut into
+a cowl ... a single test plane, that's not enough. You can take ... the B-ITES plane."
+
+**The battery** (`tools/retract_battery.js <out-dir>`): every case drawn by quickshot down / half / up, from a
+three-quarter below and from ahead. The frame is fixed on the gear down (`--focus gear`, `--frames`), giving one
+contact sheet a case. The aeroplanes are the T-tail tourer and B-ITES (`builds/candidates/B-ITES.json`, a low-wing
+oleo tricycle). The cases: into the fuselage, into the wing, the box with two doors, a 0.6 fraction, the nose folding
+forward.
+
+**What the first battery shows** (5 Nov, on G6):
+1. **Into the fuselage** (both aeroplanes as born): the mains and the nose stow, and the doors close flush.
+2. **Into the wing** (both, a wide track): the stowed wheels hang UNDER the wing. The wheel rides its stub axle
+   OUTBOARD of the leg (hubIn ~0.1 m); the inward 90° fold turns that offset DOWN, so the stowed wheel's centre is
+   ~0.1 m under the trunnion's pin at the wing's mid-depth. The tyre (~0.15 m) is also thicker than these wings
+   (96-110 mm there). On the T-tail tourer the station is at 97 % chord, so the well is clipped STRAIGHT by the
+   trailing edge: the user's "straight cutout".
+3. **A 0.6 fraction**: nothing enters the structure, so no inset is cut.
+4. **The actuator**: its base (2.8 x the actuator point's stowed offset from the trunnion) can stand outside the
+   wing; its end sticks out stowed.
+5. **The doors**: they lie edge to edge with the skin, with no seam.
+
+**The remedies, in order:**
+- R1 THE SEAM: every door is 4 mm short of the opening's edge and of its neighbour (the leg door's edge too).
+- R2 THE ACTUATOR INSIDE: its base searched in the swing plane (along the stowed line and turned off it) for a place
+  inside the structure, with the barrel inside it stowed and the stroke a real cylinder's. None found: the fit's
+  'actuator' test turns the fold's rows red.
+- R3 THE WHEEL HIGHER: a preset's last turn is trimmed (-15..+25°) so the stowed wheel's centre sits at the
+  structure's mid-depth there (the wing's, or the body's between keel and floor). The physics' lift follows the chain.
+- R4 THE CUTOUTS WHERE IT STILL PIERCES: where the stowed wheel stands proud of a skin (a wing thinner than the tyre,
+  a partial fold), that skin is cut round it:
+  - the upper skin by the knife from above, a hole, no recess;
+  - the doors (leg door, well doors) minus the wheel's section on the lower skin.
+
+  The wheel lies in its inset, as on a DC-3 or a Catalina.
+- R5 THE COWL (the nose folding forward under a long cowl, a pusher's pod): the cowl layer's meshes as a cut target,
+  the wing's way (knifeWellsGeo on its geometry), and the cowl's own doors. To study on the battery's nose-forward
+  cases first.
+- R6 THE SKYMASTER: the mains on the booms/pod of a high wing, folding aft on two axes into the boom or the pod. This
+  needs the retraction opened beyond the low-wing tricycle (GEAR_RETRACTABLE): body- or boom-rooted mains, the
+  'skymaster' preset (already a two-turn chain), the pod/boom as a cut target. A study with its own case in the
+  battery before code.

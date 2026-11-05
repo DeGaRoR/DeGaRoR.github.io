@@ -8,6 +8,8 @@
 //     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above;
 //                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4)
 //     --nowells / --noedges      the retractable gear's wells: drawn whole, uncut / the reserved boxes' edges not drawn
+//     --focus gear               frame the picture on the gear (and the wing's wells), not the whole aeroplane
+//     --frames '{"qb":[u0,u1,w0,w1],...}'   the views' frames given (each picture prints the frame it used)
 //     --over '{"row":value}'     panel rows over the build (try a slider without saving a file)
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
 //     --w 1400                   picture width, px
@@ -130,7 +132,8 @@ S.scene.traverse(o => {
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;
   const W = i => { v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(o.matrixWorld); return [v.x, v.y, v.z]; };
-  for (let i = 0; i + 2 < n; i += 3) { const a = W(i), b = W(i + 1), c = W(i + 2); tris.push([...a, ...b, ...c, ...col]); nLayer++; }
+  let gear = false; for (let q = o; q; q = q.parent) if (q.name === 'cageLayer:gear' || q.name === 'edWellWing') gear = true;
+  for (let i = 0; i + 2 < n; i += 3) { const a = W(i), b = W(i + 1), c = W(i + 2); const t = [...a, ...b, ...c, ...col]; if (gear) t.gear = 1; tris.push(t); nLayer++; }
 });
 console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s build)');
 
@@ -166,9 +169,16 @@ function view(name) {
     V.d = p => dd(p) * cp + p[1] * sp;
   }
   let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
-  for (const t of tris) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+  // RETRACT GR: --focus gear frames the picture on the gear layer's parts (and the wing's wells), with a margin
+  const FOCUS = opt('focus', null) === 'gear' && tris.some(t => t.gear);
+  for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
   if (crop && name === 'side') { const [z0, z1, y0, y1] = crop.split(',').map(Number); u0 = -z1; u1 = -z0; w0 = y0; w1 = y1; }
+  if (FOCUS) { const m = 0.18 * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
+  // --frames '{"qb":[u0,u1,w0,w1]}': a frame given (a series of pictures in one frame); every frame used is printed
+  const FR = opt('frames', null) ? JSON.parse(opt('frames', '{}'))[name] : null;
+  if (FR) { [u0, u1, w0, w1] = FR; }
+  console.log('frame ' + name + ': ' + JSON.stringify([u0, u1, w0, w1].map(x => +x.toFixed(4))));
   const pad = 0.04 * (u1 - u0);
   u0 -= pad; u1 += pad; w0 -= pad; w1 += pad;
   const sc = WPX / (u1 - u0), H = Math.ceil((w1 - w0) * sc), Wd = WPX;
