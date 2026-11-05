@@ -679,6 +679,23 @@ if (SELF) {
   ok(p === null, 'an infinite value has no marker');
 }
 
+// G3914 (A0 5 Nov: TAILWHEELS bumped PHYSICS_V and nobody re-stamped the story's Rufus; its body had moved too, the dummy rows' rename and the new rows, so the load withdrew it): A SHIPPED CERTIFICATE IS CURRENT.
+// Each shipped stamped file: the bench check held under this GEN_SPEC_V and PHYSICS_V in the current scheme, the stamp the one recorded here, and the body the load door builds now the one recorded with it. The page's
+// hash is the page's alone (its live export, last bits included), so the door's own hash stands beside it. A red here means re-stamp: load the file in the game, run the bench check, save the file the game writes, and
+// record both hashes; never edit the plaque's numbers
+const SHIPPED_CERTS = { 'builds/rufus_2026-10-18_certified.json': { page: '58f5a348', door: '24e2e238' } };
+if (CORE) {
+  const LB = require(path.join(ROOT, 'tools', '_load_build.js'));
+  for (const f of Object.keys(SHIPPED_CERTS)) {
+    const W = SHIPPED_CERTS[f], J = JSON.parse(rd(f)), res = (J.plaque && J.plaque.results) || {}, sh = res.shake || {}, door = LB.gameSpecFull(J), fp = BE.benchFingerprint(door.benchLive, door.benchD);
+    ok(sh.ok === true && !sh.stale && sh.design && sh.design.verdict !== 'fail', f + ': its bench check holds, the design not failed (' + sh.verdict + ')');
+    ok(['load', 'flight'].every(k => res[k] && res[k].ok === true && !res[k].stale), f + ': the wing loading and the test flight held too, so the page reads it passed (' + ['load', 'flight'].map(k => (res[k] || {}).verdict).join(', ') + ')');
+    ok(sh.fps === 'f3' && sh.sv === CORE.GEN_SPEC_V && sh.pv === CORE.PHYSICS_V, f + ': stamped under this game (' + sh.fps + ', spec ' + sh.sv + ', physics ' + sh.pv + '; now ' + CORE.GEN_SPEC_V + ', ' + CORE.PHYSICS_V + ')');
+    ok(sh.fp === W.page && (!res.flight || !res.flight.fp || res.flight.fp === W.page), f + ': the plaque is the stamp recorded here (' + sh.fp + ', recorded ' + W.page + ')');
+    ok(fp === W.door, f + ': the load door still builds the body that was stamped (' + fp + ', recorded ' + W.door + ')');
+  }
+}
+
 console.log(`\n${checks - fails}/${checks} checks`);
 console.log('GATE BENCH: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
