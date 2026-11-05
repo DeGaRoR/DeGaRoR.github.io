@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5f968b4da02f9a39
+// body-sha256: 41a923b76ef17da3
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -20444,6 +20444,52 @@ const FLOAT_PRESETS = {
                      for: 'de Havilland DHC-6 Twin Otter' },
 };
 const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
+// ---- THE WIPLINE AMPHIBIANS (RETRACT-STUDY §8.25, 2026-11-05) ----------------------------------------------------
+// The user: "amphibious floats ... work that needs to be done according to manufacturer data, not eyeballed". Read
+// off Wipaire's own documents (the service manuals / ICA, the parts manuals and the product guides on wipaire.com
+// and their manualshive copies; the study's §8.25 lists every source by model):
+//   - "The amphibian float is geometrically the same as the seaplane except for the addition of landing gear and
+//     internal structure for the gear" (every service manual) - the hull rows stand; the published amphibian
+//     length is longer by `dL` (in): the nose gear ahead of the bow [inferred - Wipaire gives no datum];
+//   - a QUADRICYCLE: one nose wheel in each bow (a composite spring leg on a trolley in tracks in a nose box, full
+//     castering, retracting into the float's nose "to provide a dock bumper", no doors); one main gear per float,
+//     single or DUAL wheels, on a drag link hinged on the step bulkhead's trunnions, swinging up into an open wheel
+//     well just aft of the step, no doors; over-centre locks; one hydraulic system, a hand pump;
+//   - the tyres (size code as published; OD from it by the aircraft-tyre rule rim + 2 x 0.9 x width, or as given);
+//   - `dKg`: the amphibian system's weight over the seaplane's (the pair, rigging included; Wipaire's installed
+//     weights, the example aircraft named), null where Wipaire publishes no seaplane figure beside it;
+//   - the geometry measured on the product guides' dimensioned 3-views [inferred, +-3 %]: the wheelbase is 0.48-0.52
+//     of the amphibian float's length, the main axle 0.50-0.55 of it from its front, the nose axle at its front.
+// Not published (so not modelled as fact): the main wheel's drop under the keel, the swing angles, the nose trolley's
+// stroke, the stations - the drawing ASSUMES them and says so (`_cage_float.js` amphib).
+const TYRE_OD = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? a : b + 2 * 0.9 * a) * 0.0254; };          // ('10x3.50': OD x width)
+const TYRE_W = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? b : a) * 0.0254; };
+const WIPLINE_AMPHIB = {
+  'Wipline 2100':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 147 * 0.4536, ex: 'PA-18 (427 vs 280 lb)' },
+  'Wipline 2350':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 163 * 0.4536, ex: 'C-172 (468 vs 305 lb)' },
+  'Wipline 3000':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 200 * 0.4536, ex: 'C-185 (632 vs 432 lb)' },
+  'Wipline 3450':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 203 * 0.4536, ex: 'C-206 (694 vs 491 lb)' },
+  'Wipline 3730':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'older C-185/206 design; nose tyre stated two ways' },
+  'Wipline 3900':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'as the 3730' },
+  'Wipline 4000':  { main: '5.00x5', mainN: 2, nose: '4.10x4',  dL: null, dKg: null },
+  'Wipline 6000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: null, ex: 'as the 6100' },
+  'Wipline 6100':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: 418 * 0.4536, ex: 'DHC-2 (exchange 885 vs 467 lb)' },
+  'Wipline 7000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: null, dKg: null, ex: 'Kodiak (amphibian only)' },
+  'Wipline 8750':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 7,  dKg: 384 * 0.4536, ex: 'C-208B (1678 vs 1294 lb)' },
+  'Wipline 10000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: null, dKg: null, ex: 'Fire Boss (amphibian only)' },
+  'Wipline 13000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: 14, dKg: 677 * 0.4536, ex: 'DHC-6 (2163 vs 1486 lb)' },
+};
+const AMPHIB_GEOM = { wbK: 0.50, mainK: 0.53 };     // [inferred] off the guides' 3-views (above)
+// a hull row's amphibian gear: its preset's, else the catalogue row nearest its hull HEIGHT (the wheel must stow in
+// it), its length the tie-break (est: true)
+function amphibOf(preset, L, H) {
+  if (preset && WIPLINE_AMPHIB[preset]) return Object.assign({ name: preset, est: false }, WIPLINE_AMPHIB[preset]);
+  let best = null;
+  for (const n in WIPLINE_AMPHIB) { const r = FLOAT_PRESETS[n]; if (!r) continue; const e = Math.abs(r.H - (H || 0.6)) + 0.02 * Math.abs(r.L - (L || 6)); if (!best || e < best.e) best = { e, n }; }
+  return best ? Object.assign({ name: best.n, est: true }, WIPLINE_AMPHIB[best.n]) : null;
+}
 // what the join carries into spec.gear.floats: every number the hull, its
 // details and its rudder are built from (rho and the model's constants stay
 // the model's; `preset` rides as a string beside them)
@@ -21223,7 +21269,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
-              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, WIPLINE_AMPHIB, AMPHIB_GEOM, amphibOf, TYRE_OD, TYRE_W, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
