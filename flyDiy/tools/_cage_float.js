@@ -585,6 +585,7 @@ let sponGroup = null;
 function drawSponsons(scene, P) {
   if (sponGroup) { dispose(sponGroup); sponGroup = null; }
   if (!scene || !+P.hullOn || !+P.hullSpon || !CG2 || !CG2.cageHullTable) return;
+  if (Math.round(+P.hullSpon) === 1) return drawStubs(scene, P);
   const kg = +P.hullSponKg, yRel = +P.hullSponY, HY = HYc(), FG = window.FLOAT_GEN;
   if (!(kg > 0) || !(yRel > -0.999) || !HY || !HY.tipFloatParams || !FG) return;
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -609,6 +610,47 @@ function drawSponsons(scene, P) {
       const m = new THREE.Mesh(g, skinM); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); if (skinM.side !== undefined) skinM.side = THREE.DoubleSide;
       sponGroup.add(m);
     }
+  }
+  scene.add(sponGroup);
+}
+// HULL-B21: THE STUB SPONSONS, the stub the water reads (HYDRO.sponsonTable: mean chord hullSponC, span hullSponK x it,
+// thickness hullSponT, flat underneath): a tapered stub wing (tip hullSponTaper of the root, the same mean chord) from
+// the hull's side at its station (hullSponX forward of the step), its underside hullSponY over the step keel, rising
+// hullSponDih deg out to its tip; a flat-bottomed NACA thickness up top, the tip closed
+function drawStubs(scene, P) {
+  const c = +P.hullSponC, yRel = +P.hullSponY;
+  if (!(c > 0) || !(yRel > -0.999)) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const k = +P.hullSponK || 0.75, t = +P.hullSponT || 0.22, tp = Math.max(0.2, Math.min(1, +P.hullSponTaper || 0.65));
+  const dih = Math.tan((+P.hullSponDih || 0) * Math.PI / 180), span = k * c, cR = 2 * c / (1 + tp);
+  const xsS = -(+P.hullSponX || 0.3), near = TB.sta.reduce((a, s) => Math.abs(s.x - xsS) < Math.abs(a.x - xsS) ? s : a, TB.sta[0]);
+  const yLow0 = TB.yStep * FS + yRel, zMid = TB.zStep * FS - xsS;
+  const SM = window.CAGE_SECMAT;
+  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
+    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+  if ('side' in mat) mat.side = THREE.DoubleSide;
+  sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
+  const NC = 24, NSp = 6, sec = [];                                   // the section: the upper surface LE->TE, then the flat back
+  for (let i = 0; i <= NC; i++) { const xc = 0.5 * (1 - Math.cos(Math.PI * i / NC)); sec.push([xc, 1]); }
+  for (let i = NC - 1; i >= 1; i--) { const xc = 0.5 * (1 - Math.cos(Math.PI * i / NC)); sec.push([xc, 0]); }
+  const yt = xc => 5 * t * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+  for (const sd of [-1, 1]) {
+    const pos = [], idx = [], n = sec.length;
+    for (let j = 0; j <= NSp; j++) {
+      const u = j / NSp, cl = cR * (1 - (1 - tp) * u), xL = sd * (near.bd - 0.03 + u * (span + 0.03)), yL = yLow0 + u * span * dih;
+      for (const [xc, up] of sec) pos.push(xL, yL + (up ? 2 * yt(xc) * cl : 0), zMid + (0.5 - xc) * cl);
+    }
+    for (let j = 0; j < NSp; j++) for (let i = 0; i < n; i++) {
+      const a = j * n + i, b = j * n + (i + 1) % n, c2 = (j + 1) * n + i, d = (j + 1) * n + (i + 1) % n;
+      idx.push(a, c2, b, b, c2, d);
+    }
+    const e0 = NSp * n; for (let i = 1; i + 1 < n; i++) idx.push(e0, e0 + i, e0 + i + 1);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); m.castShadow = true;
+    sponGroup.add(m);
   }
   scene.add(sponGroup);
 }

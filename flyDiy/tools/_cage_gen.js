@@ -1150,7 +1150,7 @@ function cageHullFit(P, cgZ, cgY, opt) {
 //  4. a wing PAIR counter-rotates (engRotate 1, below);
 //  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
 // Returns the rows to write (and `rest`, `notes`: what it read - not rows)
-const ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+const SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
 function cageHullFitAll(P, f, HY, opt) {
   const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
   if (!f || !f.cg || !(f.mass > 0)) return null;
@@ -1286,8 +1286,23 @@ function cageHullFitAll(P, f, HY, opt) {
       const arm = near.bd + (+P.hullSponW || 0.32);
       const pair = [3, 5, 6].includes(mount) && (Math.round(+P.engRotate || 0) || fit.engRotate);
       const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
-      const tf = HY.hullTipFit({ sta: TB.sta }, f.mass, { cgY: f.cg[1] - sy, arm, torqueKgm: tq });
-      if (tf) { const Pt = HY.tipFloatParams(tf.kg); fit.hullSponKg = tf.kg; fit.hullSponY = +(tf.draft - 0.5 * Pt.H).toFixed(3); }
+      const stub = Math.round(+P.hullSpon) === 1 && HY.sponsonVol;
+      if (stub) {
+        // (HULL-B21: the stub's arm is its mid-span, the hull's side + half its span; its chord such that its full volume
+        // is SPON_MARGIN x what the moment rule asks; its flat underside just under the rest waterline, SPON_SINK of its
+        // thickness - the Icon's, which kiss the water at rest; half-sunk, a heel drowned the low one whole)
+        const k = Math.max(0.3, +P.hullSponK || 0.75), t = Math.max(0.08, +P.hullSponT || 0.22);
+        let c = 1.0;
+        for (let it = 0; it < 4; it++) {
+          const tfi = HY.hullTipFit({ sta: TB.sta }, f.mass, { cgY: f.cg[1] - sy, arm: near.bd + 0.5 * k * c, torqueKgm: tq });
+          if (!tfi) break;
+          c = Math.cbrt(SPON_MARGIN * tfi.kg / (1000 * 0.685 * t * k));
+          if (it === 3) { fit.hullSponC = +c.toFixed(3); fit.hullSponY = +(tfi.draft - SPON_SINK * t * c).toFixed(3); }
+        }
+      } else {
+        const tf = HY.hullTipFit({ sta: TB.sta }, f.mass, { cgY: f.cg[1] - sy, arm, torqueKgm: tq });
+        if (tf) { const Pt = HY.tipFloatParams(tf.kg); fit.hullSponKg = tf.kg; fit.hullSponY = +(tf.draft - 0.5 * Pt.H).toFixed(3); }
+      }
     }
   }
   return { rows: fit, rest: r && { trim: r.trim, draft: r.draft, bowDeck: r.bowDeck }, notes };
@@ -7997,6 +8012,9 @@ const CAGE_PARAMS = {
   // each (kg; 0 not fitted), its keel over the step keel (m; -1 not fitted), its station forward of the step and its
   // centre outboard of the hull's side (m) - the fit sizes the first two by the roll-moment rule
   hullSpon: 0, hullSponKg: 0, hullSponY: -1, hullSponX: 0.3, hullSponW: 0.32,
+  // HULL-B21: hullSpon 1 = STUB-WING sponsons (2 = floats on the hull's sides): the stub's mean chord (m; 0 not fitted),
+  // its span over its chord, its thickness (of the chord), its tip taper, its dihedral (deg)
+  hullSponC: 0, hullSponK: 0.75, hullSponT: 0.22, hullSponTaper: 0.65, hullSponDih: -3,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -8812,7 +8830,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
 const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps',
-  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW'];
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes

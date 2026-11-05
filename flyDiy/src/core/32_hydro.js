@@ -1982,6 +1982,24 @@ function hullRestTrim(rec, grossKg, cgX, cgY) {
   const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * Math.sin(th) + s0.yd * Math.cos(th)) - r.w;
   return { trim: +(th / D2R).toFixed(2), draft: +r.w.toFixed(3), bowDeck: +bow.toFixed(3), sunk: r.full };
 }
+// HULL-B21: A SPONSON IS A STUB WING (the user: "they should link to the fuselage directly and they should really look
+// like little wing stubs"): its mean chord c, span k*c out from the hull's side, a flat-bottomed section t thick (of the
+// chord), its tip taper. For the water it is a float record whose STATIONS run along its chord (x aft, 0 at mid-chord)
+// and whose width is its span: at each station the section's depth is the aerofoil's thickness there (the NACA 4-digit
+// half-thickness doubled, flat underneath), its bottom a 3-deg vee, its width the span (b = bd = span / 2). The volume is
+// the drawn stub's (the tapered planform at its mean chord). sponsonVol: its displacement, full, kg
+function sponsonTable(c, k, t) {
+  const span = Math.max(0.2, k * c), b = 0.5 * span, rows = [], N = 10;
+  for (let i = 0; i <= N; i++) {
+    const xc = 0.02 + 0.96 * i / N, x = (xc - 0.5) * c;
+    const yt = 5 * t * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+    const yc = b * Math.tan(3 * D2R), yd = Math.max(yc + 0.012, 2 * yt * c);
+    rows.push({ x: Math.abs(x) < 1e-6 ? (i < N / 2 ? -1e-4 : 1e-4) : +x.toFixed(5), yk: 0, b, yc: +yc.toFixed(5), bd: b, yd: +yd.toFixed(5) });
+  }
+  if (!rows.some(r => r.x <= 0) || !rows.some(r => r.x > 0)) return null;
+  return { sta: rows };
+}
+const sponsonVol = (c, k, t) => 1000 * 0.685 * t * c * c * Math.max(0.2, k * c);
 // the propeller discs of a built aeroplane (model frame: the centre of each engine's thrust nodes, the disc's radius)
 // - what the boat's fit asks the rest waterline about (_cage_gen.js cageHullFitAll), the solver's own geometry
 // (30_solver propWater: refs.engine / engineOf, params.prop or the powerplant's)
@@ -2970,7 +2988,7 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, hullRestTrim, propDiscs, tipFloatParams,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, hullRestTrim, propDiscs, sponsonTable, sponsonVol, tipFloatParams,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               EDO_STYLE, EDO_AFT, EDO_HULL, edoArc, edoArcP, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };

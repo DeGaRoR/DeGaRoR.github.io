@@ -5355,7 +5355,10 @@ function clampSpec(spec) {
         const sp = h.spon;
         h.spon = { on: 1, kg: Number.isFinite(+sp.kg) && +sp.kg > 0 ? genClamp(+sp.kg, 2, 3000) : 0,
                    y: Number.isFinite(+sp.y) && +sp.y > -0.999 ? genClamp(+sp.y, -0.99, 2) : -1,
-                   x: genClamp(Number.isFinite(+sp.x) ? +sp.x : 0.3, -3, 5), w: genClamp(Number.isFinite(+sp.w) ? +sp.w : 0.32, 0.05, 3) };
+                   x: genClamp(Number.isFinite(+sp.x) ? +sp.x : 0.3, -3, 5), w: genClamp(Number.isFinite(+sp.w) ? +sp.w : 0.32, 0.05, 3),
+                   // HULL-B21: the stub (mode 'stub'): its mean chord (0 not fitted), span / chord, thickness / chord
+                   mode: sp.mode === 'stub' ? 'stub' : 'float', c: Number.isFinite(+sp.c) && +sp.c > 0 ? genClamp(+sp.c, 0.2, 4) : 0,
+                   k: genClamp(Number.isFinite(+sp.k) ? +sp.k : 0.75, 0.3, 2), t: genClamp(Number.isFinite(+sp.t) ? +sp.t : 0.22, 0.08, 0.4) };
       } else delete h.spon;
     }
   } else if (S.gear.hull !== undefined) delete S.gear.hull;

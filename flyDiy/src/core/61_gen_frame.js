@@ -2871,13 +2871,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const SP = HR.spon;
     if (SP && SP.on) {
       const fitS = HYDRO.hullTipFit(HR, gross || 400);
-      const kgS = SP.kg > 0 ? SP.kg : 2 * fitS.kg;
-      const SPP = HYDRO.tipFloatParams(kgS);
-      const ySrel = SP.y > -0.999 ? SP.y : fitS.draft - 0.5 * SPP.H;
+      // HULL-B21: a STUB sponson flies its own station table (HYDRO.sponsonTable: the drawn stub), rooted ON the hull's
+      // side (its record's centre half its span out); a float sponson the family's float, w outboard
+      const stub = SP.mode === 'stub', cS = SP.c > 0 ? SP.c : Math.cbrt(1.3 * 2 * fitS.kg / (1000 * 0.685 * (SP.t || 0.22) * (SP.k || 0.75)));
+      const STB = stub ? HYDRO.sponsonTable(cS, SP.k || 0.75, SP.t || 0.22) : null;
+      const SPP = STB ? Object.assign(HYDRO.hullParamsFromTable(STB), { mFloat: 6.0 * cS * (SP.k || 0.75) * cS })
+                      : HYDRO.tipFloatParams(SP.kg > 0 ? SP.kg : 2 * fitS.kg);
+      const ySrel = SP.y > -0.999 ? SP.y : fitS.draft - 0.5 * (STB ? (SP.t || 0.22) * cS : SPP.H);
       const xsS = -(SP.x != null ? SP.x : 0.3), scH = HYDRO.sectionOf(HP, xsS === 0 ? -1e-9 : xsS);
       const nearFS = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
       for (const sd of [-1, 1]) {
-        const xT = xS + xsS + 0.10 * SPP.L, zT = sd * (scH.bd + (SP.w != null ? SP.w : 0.32)), yT = yS + ySrel;
+        const xT = xS + xsS + (STB ? 0 : 0.10 * SPP.L), yT = yS + ySrel;
+        const zT = sd * (scH.bd + (STB ? 0.5 * (SP.k || 0.75) * cS - 0.03 : (SP.w != null ? SP.w : 0.32)));
         const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
         const Kt = [], Lt = [], Rt = [], Qt = [];
         for (const xs of st3) {
