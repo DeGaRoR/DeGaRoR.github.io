@@ -2347,3 +2347,29 @@ cut, and rotates 90 deg upwards, comes right below the wing of the Petrel for ex
   about 100 mm under the wing. At w2Dy 0.12 the fit is red: the door stands 15 mm into the wing, and the stowed knee too.
 - **Gate (section 18):** two hull doors and no leg or foot doors; the hinge on the cut's top; shut, the door is over
   300 mm tall; open, it is level (under 60 mm of height) and under the wing; with a low wing, the door's red is named.
+
+### 8.31 A door on a curved skin turns on its hinge edge's tangent, at the edge's middle (6 Nov)
+
+The user, on the Super Petrel's bow doors, with a drawing: "your opening doors, in particular for the front wheels, do
+not take the correct rotation points. If they hit a curve, they should take the middle point and rotate along the
+tangent at this point. The petrel clearly shows the issue, and so do every other non horizontal pieces."
+
+- **The fault.** Every well door turned on a LEVEL line, its plan direction e1 with y = 0, through the MEAN of its hinge
+  edge's points. On a rising bow, a wing's dihedral or a nacelle's belly that line leaves the edge, so the door swung
+  off the skin and splayed.
+- **The rule** (doorHinge):
+  - The hinge point is the edge's MIDDLE: the mean of the edge points within 15 % of the edge's run either side of the
+    run's mid point.
+  - The axis is the skin's TANGENT there, along the edge's run. Well doors read the skin's lowest surface (lowSkin: a
+    10 cm bucket grid of the patch faces) at the hinge -+ 5 cm along e1. The knee's side doors read the hull's half
+    width at the hinge's height, at z -+ 5 cm.
+  - Failing those, the edge points' own least-squares run; failing that, the old level line.
+  - The opening sense is chosen as before, along the door's outward normal.
+- **Measured** (`edgeOff`: the edge's middle 60 % off the axis line; `edgeOffLevel`: the same off the old line):
+  - the Petrel's bow doors (hull-types B61, box, two doors): the axis climbs 14.7 deg; 12 mm against 44 mm;
+  - the Skymaster's doors: 11 mm against 56 mm;
+  - the C172's nose doors: 8 mm against 29 mm;
+  - the ttail's wing doors now follow the 4 deg dihedral.
+  - What is left is the outline's own curve: a straight hinge can't follow a curved edge.
+- **Gate (section 17):** every well door's edge lies no further off its axis than off the level line (+5 mm); at least
+  four axes climb (over 3 deg); and a sloped one is nearer by more than 5 mm.
