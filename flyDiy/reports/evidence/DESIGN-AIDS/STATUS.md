@@ -258,19 +258,22 @@ and `_2` (now also the three aids rows). Every other build keeps its verdict; th
 
 ## 7. GATES
 
-On the READY tree (`claude/ready/phone-1b` 4f959b92 + this branch), A0's list, `--jobs=3`:
+On the READY tree (`origin/master` a8a23ad6, train L30a, + this branch), A0's list, `--jobs=4`:
 
-**PASS (20):** AIDS, DESIGN, PARTS, SAVE, CAGEFIT, UISMOKE, UISMOKE-PHONE, UILAYER, CARDS, CARDDRAG, VIEW, BOOMBOX,
-DESIGNCHECK, BENCH, CGBAND, ACCEPT, CONTRACTS, SPECFIX, HINGE, MEDIA.
+**PASS (21):** AIDS, DESIGN, PARTS, SAVE, CAGEFIT, UISMOKE, UISMOKE-PHONE, UILAYER, CARDS, CARDDRAG, VIEW, BOOMBOX,
+DESIGNCHECK, BENCH, CGBAND, ACCEPT, CONTRACTS, SHEETWORKER, SPECFIX, HINGE, MEDIA.
 
-**FAIL (2), both FAILING THE SAME ON CLEAN `claude/ready/phone-1b`** (a detached worktree, the same hour) - PHONE-1b's,
-not this branch's (both passed on the FINISH-4 base with this branch):
-- **SHEETWORKER**: "the editor says when a hand is on a slider (or its settle build is owed)".
-- **STORY**: "the beat card: T0's title and brief, no step counter ... the hangar not ours yet".
+**FAIL (1): STORY**, failing the same on clean `origin/master` a8a23ad6 (a detached worktree, the same hour): "the
+beat card: T0's title and brief, no step counter ... the hangar not ours yet". Master's, not this branch's.
 
-Earlier, on the FINISH-4 base: the same list passed whole (SHEETWORKER and STORY included). Outside the list, STOL,
-POD, DMGCERT and BENCHTIME fail the same on clean master (stale byte baselines, the destruction test, wall-clock budgets);
-POD's shakedown-sheet digests are master's (this branch writes no field into the sheet).
+Before the rebase, on PHONE-1b's tree: SHEETWORKER and STORY failed the same on clean PHONE-1b; SHEETWORKER passes on
+L30a. Outside the list, STOL, POD, DMGCERT and BENCHTIME failed the same on clean master (stale byte baselines, the
+destruction test, wall-clock budgets); POD's shakedown-sheet digests are master's (this branch writes no field into the
+sheet).
+
+**PUSHED (3 Nov 18:45 A0's time, 17:45 UTC):** the force-push of `claude/ready/design-aids` (it held 3efbc2e56; the
+rebase is a new history) waited for the user's approval, given at 18:42; the rebased, gated tree landed at 6f222780.
+(This cloud session cannot message A0: the cross-session post is refused here - this file is the report.)
 
 ## 8. QUESTIONS (answered by the user 3 Nov: D1-D5 above)
 
