@@ -112,7 +112,7 @@ const ENGINES = {
     // and slimmer") - wgTip / w2Tip 8 (Upturned: the drooped bend mirrored), three carbon blades, slimmer chords
     cage: { keelY: -0.62, roofY: 0.68, canopy: 3, intCons: 0, wgCentre: 0, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, bpWires: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
             noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.46, aftRoofY: 0.12, aftKeelY: -0.52,
-            hullStepZ: 0.90, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 0, hullStrakeW: 0.045, hullStrakeLen: 0.85,
+            hullStepZ: 0.90, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 1, hullStrakeW: 0.045, hullStrakeLen: 0.85,
             frBoomTopW: 0.30, frBoomWaistW: 0.45, frBoomBotW: 0.40, rodY: -0.10, rodIncl: 5, rodD: 0.15, boomLen: 2.2,
             finHeight: 1.1, finChord: 1.05, finChordTip: 0.45, stY: 0.65, stZ: -0.35, stChord: 0.75, stChordTip: 0.6,
             wgSpan: 9.16, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.9, wgBrace: 1, wgCrankAt: 0,

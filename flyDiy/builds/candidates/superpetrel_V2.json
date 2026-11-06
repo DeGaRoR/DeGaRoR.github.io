@@ -110,6 +110,7 @@
    "hullFlute": 0.16,
    "hullFluteN": 1,
    "hullFluteBow": 0.9,
+   "hullStrakes": 1,
    "hullStrakeW": 0.045,
    "hullStrakeLen": 0.85,
    "hullSkirt": 0.04,
