@@ -1761,7 +1761,10 @@ function wingWellApply() {
       return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
     if (!near) { o.geometry = g0; continue; }
     const AFg = C && C.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;   // (P2: the body's box is seen there)
-    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops, inBody);
+    // (P2: a mesh takes its own plane's cuts - the second plane's skin the rigid L's recess, the first's the rest)
+    const mine = cuts.filter(c => (c.plane || 0) === (ud.wingPlane || 0));
+    if (!mine.length) { o.geometry = g0; continue; }
+    const r = KG.knifeWellsGeo(THREE, g0, mine, (ud.wingPlane || 0) ? null : tops, inBody);
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }

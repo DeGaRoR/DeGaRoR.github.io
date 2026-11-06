@@ -505,6 +505,12 @@ console.log('10 THE FOLD (G1)');
     const b2 = docs({ gearWellCut: 1, gearDoors: 2 }).G.doors || [], b1 = docs({ gearWellCut: 1, gearDoors: 1 }).G.doors || [];
     check(!b2.some(d => d.kind === 'leg') && b2.filter(d => d.kind === 'well').length >= 4 && b1.filter(d => d.kind === 'well').length >= 2 && b1.length < b2.length,
           'box: simple doors - two split along the well, or one; no leg door', b2.length + ' with two, ' + b1.length + ' with one');
+    // (the user, 6 Nov, the Super Petrel: "when extended, the doors stay open, they don't close. They close only for the
+    // retracted position") - with no leg door, every well door is open with the gear down and shut up
+    { const nl = docs({ gearDoors: 2, gearLegDoor: 0 }), Wd = (nl.G.doors || []).filter(d => d.kind === 'well'), Rn = nl.G.mech;
+      const open1 = Wd.filter(d => { const p = Rn.parts.find(q => q.name === d.name); return p && C.GEAR_MECH.gearDoorOpen(p.seq, 1) > 0.99 && C.GEAR_MECH.gearDoorOpen(p.seq, 0) < 0.01; });
+      check(Wd.length >= 2 && open1.length === Wd.length && Wd.every(d => !d.closedDown),
+            'no leg door: the well doors stay open with the gear down, and shut only when it is up', open1.length + ' of ' + Wd.length + ' well doors'); }
     const none = docs({ gearDoors: 0, gearLegDoor: 0 }).G.doors || [];
     check(none.length === 0, 'doors off: an open well');
     check(D6.every(d => R.parts.some(p => p.name === d.name && p.o0)), 'every door is a part of the one kinematics (the flight poses it)'); }
@@ -605,6 +611,37 @@ console.log('10 THE FOLD (G1)');
             && ySpan(up) > 0.3 && xOut(dn) > 0.8 * ySpan(up) && Math.max(...dn.map(p => p[1])) < dp.hinge[1] + 0.02 && gap > 0.005 && gap < 0.3 && !dp.seq.closedDown && lo.some(w => /door, swung up, stands/.test(w)),
             'a full door on the hull: the whole keyhole, hinged along the cut\'s top, swung 90 deg up and out - out under the wing while the gear travels and stands down; a wing too low for it is red',
             dp && 'shut ' + (ySpan(up) * 1000).toFixed(0) + ' mm tall; open, out ' + (xOut(dn) * 1000).toFixed(0) + ' mm from its hinge, never over it (curved as the hull: ' + (ySpan(dn) * 1000).toFixed(0) + ' mm deep); ' + (gap * 1000).toFixed(0) + ' mm under the wing; low wing: ' + (lo.find(w => /door, swung/.test(w)) || 'no word')); }
+    // (P2, the Super Petrel's V2, the user's sketch: "it just stows below the wing, no doors. It's a fixed 90 deg angle
+    // that rotates 90 degrees and the wheel slots partly into the bottom wing") - the rigid L on the C172 card under a
+    // second wing: one 90 deg turn about the pivot on the side; the tyre flat, its mid-plane on the lower wing's
+    // underside, in an exact round cut there, no doors; the piston from inside the hull to the corner, a real stroke; a
+    // wing too low for the leg is red
+    { const lb = (dy, x) => SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 9, gearDoors: 2, gearLegDoor: 0, s1X: x || 1.0, floorY: -0.25, s1Root: 1, w2On: 1, w2Pos: 1, w2Dy: dy }, garage: bc });
+      const ls = lb(0.25), Gl = ls.W.CAGE_GEAR, Rl = Gl.mech, Cl = Rl.units.L, Kl = Cl.lfold, CMl = C.GEAR_MECH, LI = Gl.mechInfo.L.lGeo;
+      const W2 = ls.W.CAGE_WING, WL = W2.planes[W2.lowest];
+      const Qu = CMl.gearMechPoints(Rl, 0), up = p => CMl.gearUnitPt(Cl, Qu.M.L, p, Qu.D.L, Qu.Lm.L, Qu.Am.L), c = up(Cl.axle), wa = CMl.gearApp(Qu.M.L, Cl.wAx), u = WL.underAt(c[0], c[2]);
+      const corner = up(Kl.knee0), cw = (Gl.fit.cutsWing || []).filter(q => !q.units.includes('T')), why = Gl.fit.why || [];
+      const aspW = h => { const us = h.map(q => q[0]), vs = h.map(q => q[1]), A = Math.max(...us) - Math.min(...us), B = Math.max(...vs) - Math.min(...vs); return Math.max(A, B) / Math.min(A, B); };
+      check(ls.W.CAGE_GEAR_FOLD.FOLD_KEYS[9] === 'lfold' && Cl.turns.length === 1 && Math.abs(Math.abs(Cl.turns[0].ang) - Math.PI / 2) < 1e-9 && Math.abs(Cl.hinge[0] - Kl.P[0]) < 1e-9
+            && Math.abs(corner[0] - Kl.P[0]) < 1e-6 && Math.abs(corner[1] - Kl.P[1] - Kl.a) < 1e-6 && Math.abs(Math.abs(wa[1]) - 1) < 1e-6
+            && u && Math.abs(c[1] - Kl.yc) < 0.003 && Math.abs(c[1] - u.y) < 0.015,
+            'the rigid L: one 90 deg turn about the pivot on the side - the arm stood up along it, the leg level, the tyre FLAT with its mid-plane on the lower wing\'s underside',
+            'arm ' + LI.a + ', leg ' + LI.b + '; tyre centre ' + ((c[1] - u.y) * 1000).toFixed(0) + ' mm off the underside');
+      check(cw.length === 2 && cw.every(q => aspW(q.hull) < 1.25) && !(Gl.doors || []).some(d => /DoorW/.test(d.name)) && LI.ratio <= 1.8 && LI.stroke > 0.05
+            && (Gl.fit.cutsSide || []).filter(q => q.pistonSlot).length === 2 && !why.some(w => /main/.test(w)),
+            'its recess: one exact ROUND cut in the lower wing each side, no doors; the piston from inside the hull to the corner (a slot where it passes the side), a real stroke',
+            cw.length + ' wing cuts, length / width ' + cw.map(q => aspW(q.hull).toFixed(2)).join(', ') + '; piston ' + LI.ratio + ':1, stroke ' + (LI.stroke * 1000).toFixed(0) + ' mm; mains ' + (why.filter(w => /main/.test(w)).join('; ') || 'green'));
+      // (the user: "an exact beautiful round cut ... into the wing where the wheel slots. And this should be automatic":
+      // the lower plane's own skin takes the recess - a well box built there - and the upper plane's none)
+      { const KGl = require('./_knife_gen.js'), TH = SH.context().THREE, got = { 0: 0, 1: 0 };
+        ls.scene.traverse(o => { if (!(o.isMesh && o.userData && o.userData.wingSkin)) return; const pl = o.userData.wingPlane || 0;
+          const mine = (Gl.cutsM || []).filter(c => (c.plane || 0) === pl); if (!mine.length) return;
+          const r = KGl.knifeWellsGeo(TH, o.geometry, mine, null, null); if (r.well) got[pl]++; });
+        check(got[W2.lowest] >= 1 && got[1 - W2.lowest] === 0 && (Gl.cutsM || []).filter(c => c.plane === W2.lowest).length === 2,
+              'the round recess cuts itself into the LOWER plane\'s skin (a closed well there), never the upper\'s', 'wells: lower ' + got[W2.lowest] + ', upper ' + got[1 - W2.lowest]); }
+      const lo = lb(0.25, 1.8).W.CAGE_GEAR.fit.why || [];
+      check(lo.some(w => /too low for the leg to clear the tyre/.test(w)), 'a track too wide for the lower wing (the arm eats the leg) is red, with how much higher the wing must be',
+            lo.find(w => /too low for the leg/.test(w)) || 'no word'); }
     const sides = Gc.cutsSide || [];
     check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
           sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }
