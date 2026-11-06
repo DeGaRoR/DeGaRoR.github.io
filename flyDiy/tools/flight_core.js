@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d002d1f48baf2fee
+// body-sha256: a6da00c49d9acc93
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7358,6 +7358,7 @@ function stripGear(x) {
     if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
     if (t === 'skis' || g.skis === true) return 'skis';
     if (t === 'floats') return 'floats';
+    if (t === 'tricycle' && g.hull && Array.isArray(g.hull.sta)) return 'amphibian';   // HULL-B55: a boat hull on retracting wheels
     if (t === 'hull') return 'floats';    // HULL-B1: a flying boat is water-only, as floats are (amphibian wheels: S4)
     return 'wheels';
   }
@@ -19001,7 +19002,9 @@ function makeSim(def, world) {
     // wet: not yet on the step) counts a third, so a seaplane at rest reads
     // three like a taildragger on three points and two once on the step,
     // which is exactly the tail-down / tail-up split the pilot steers by
-    if (HY) {
+    // (HULL-B55: an AMPHIBIAN - its hull's count while the hull is wet, its wheels' on land)
+    const AMPHs = !!(def.parts && def.parts.amph);
+    if (HY && (!AMPHs || HY.floats.some(fx => fx.wet > 0.05))) {
       let wet = 0, aft = 0;
       for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
@@ -19022,7 +19025,7 @@ function makeSim(def, world) {
   // still flying; on the water the floats, as above
   function wheelContacts() {
     const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rCe(i) - gh < 0.03; };
-    if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
+    if (HY && (!(def.parts && def.parts.amph) || HY.floats.some(fx => fx.wet > 0.05))) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
     return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? (on(def.refs.tw) || (TW2 >= 0 && on(TW2))) : false, water: false };
   }
   function cgPos() {
@@ -42671,14 +42674,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
   // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
-  const hullGear = S.gear.type === 'hull' && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
+  // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
+  // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
+  const AMPH = S.gear.type === 'tricycle' && !!(S.gear.hull && Array.isArray(S.gear.hull.sta)) && typeof HYDRO !== 'undefined';
+  const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
   const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
-  if (S.gear.type !== 'floats' && S.gear.type !== 'hull') {
+  const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
+  if (WHEELS) {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
@@ -42836,7 +42843,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
-  } else if (hullGear) {
+  } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
     // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
     // on exactly the hull the builder drew. It rides the floats' machinery whole - a rigid node body of five stations
@@ -42893,7 +42900,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       K: [Q[i * 3][1], Q[i * 3][2]], DL: [Q[i * 3 + 1][1], Q[i * 3 + 1][2]], DR: [Q[i * 3 + 2][1], Q[i * 3 + 2][2]] })) };
     FLOATS = [{ side: 0, hull: true, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
                 tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: HP, pos: [xS, yS, 0] }];
-    GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS;
+    if (!WHEELS) { GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS; }   // (HULL-B55: an amphibian's refs are its wheels)
     // ---- THE STRUT TIP FLOATS (HULL-B3, the boat's lateral stability: HULL-TYPES §3.4 "Strut tip floats" - Seabee,
     // Lake, SeaRey, the Goose; NACA TN-215: every boat but Dornier's stub types needs them. A flying boat with a high
     // wing and its engine on a pylon has its CG well over its metacentre: the hull alone capsized in 4 s, measured,
@@ -43098,7 +43105,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
       }
     }
-  } else {
+  } else if (!WHEELS) {   // (HULL-B55: the floats - never under an amphibian's wheels)
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
     // both deck edges at four stations (bow, the flat's end, the step, the
     // stern), a triangulated shell drawn inside the float, one cluster so
@@ -43763,6 +43770,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
+    ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
