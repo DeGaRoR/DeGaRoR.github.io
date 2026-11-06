@@ -20232,7 +20232,7 @@
     if (window.AURORA && typeof DAY_CLOCK !== 'undefined' && performance.now() - (AURORA.at || -1e9) > 2000) {
       AURORA.at = performance.now();
       const dA = DAY_CLOCK.day(), kpA = dA && dA.auroraKp || 0, exA = window.GFX && GFX.exposureBase ? GFX.exposureBase() : 1, bA = window.GFX && GFX.budget ? GFX.budget().preset : 'gamer';
-      if (!inGarage && kpA >= 3 && exA > 256 && (bA === 'current' || bA === 'gamer' || bA === 'ultra')) AURORA.on({ camera, azDeg: 0, level: Math.min(2, kpA / 2.5), heightDeg: 9 });
+      if (!inGarage && kpA >= 3 && exA > 256 && (bA === 'current' || bA === 'gamer' || bA === 'ultra')) AURORA.on({ camera, azDeg: 0, level: Math.min(0.8, kpA / 6) });
       else if (AURORA.on_) AURORA.off();
     }
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
