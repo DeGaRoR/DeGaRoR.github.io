@@ -127,8 +127,8 @@ const ENGINES = {
             // forward turn) - a box well with two doors
             // (HULL-B56, the user: "the bottom wing needs to get higher up on the fuselage ... it can go up maybe 10-15 cm") -
             // w2Dy -0.1 -> 0.025, the lower wing 12.5 cm higher on the hull's side (its struts and floats with it)
-            s1On: 1, s2On: 1, gearRetract: 1, gearRetT: 6, gearRetAct: 0, gearFold: 8, gearKneeDoor: 0, s1Root: 1, gearFoldNose: 2, gn1Ax: 1, gn1Ang: -140, gn2Ang: 0, gearWellCut: 0, gearDoors: 2,
-            s1Z: 0.60, s1X: 0.90, s1R: 0.12, s1Drop: -0.04, s1AxZ: 0, s2Z: 2.8, s2X: 0, s2R: 0.12, s2Drop: 0.15, s2AxZ: 0, s2Leg: 2, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
+            s1On: 1, s2On: 1, gearRetract: 1, gearRetT: 6, gearRetAct: 0, gearFold: 8, gearKneeDoor: 0, s1Root: 1, gearFoldNose: 2, gn1Ax: 1, gn1Ang: -140, gn2Ang: 0, gearWellCut: 0, gearLegDoor: 0, gearDoors: 2,
+            s1Z: 0.85, s1X: 0.90, s1R: 0.12, s1Drop: -0.04, s1AxZ: 0, s2Z: 2.8, s2X: 0, s2R: 0.12, s2Drop: 0.15, s2AxZ: 0, s2Leg: 2, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
     energy: { vessels: [{ bay: 'aftCabin', capacity: 72, form: 'box' }] }, cabin: { baggage: 0 },
     note: 'the Super Petrel LS on the Cessna cabin, pod and rod (HULL-B36)' },
   tandem: { sel: { engCount: 'tandem' }, engine: 'rotax 912 (flat)', cage: { engPylonH: 1.25, noseLen: 1.3 },
