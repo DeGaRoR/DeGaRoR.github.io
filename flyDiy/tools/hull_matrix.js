@@ -143,6 +143,13 @@ const ENGINES = {
   nose: { sel: {}, cage: {},
           note: 'the Cessna\'s own nose tractor (the control: a boat with its propeller at the bow)' },
 };
+// HULL-B70 THE SUPER PETREL V2 (the user's sketch, the RETRACT session's 'lfold'): the card above (V1, the folding knee)
+// with the mains on the RIGID L - one 90 deg turn about a pivot on the hull's side, the tyre flat half into the lower
+// wing's round recess, no doors - and the lower wing 2.5 cm lower ("a tad too high now"; the stow allows w2Dy 0.0 at
+// this track, -0.01 at 0.84, red below). V0 / V1 as builds/candidates/superpetrel_V0.json / _V1.json
+ENGINES.superPetrelV2 = Object.assign({}, ENGINES.superPetrel, {
+  cage: Object.assign({}, ENGINES.superPetrel.cage, { gearFold: 9, s1X: 0.86, w2Dy: 0.0 }),
+  note: 'the Super Petrel LS V2: the rigid-L mains turned flat into the lower wing (HULL-B70)' });
 
 // THE ROLL, whatever the heading: the body's lateral axis (x aft cross y up) out of the horizontal (HULL-B10: the up
 // axis's world z read the roll only on the reset heading - a boat yawed by its abort read 1 deg while it turned turtle)
