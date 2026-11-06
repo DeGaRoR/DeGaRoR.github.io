@@ -283,6 +283,8 @@ function cageJoinSpec(P, M, T) {
                // biplane switched back to one plane kept its N struts and its
                // wires in the file.
                cabane: (Math.round(P.wgPos) === 3 || +P.w2On) && Math.round(P.bpCabane || 0) ? 'V' : 'N',
+               // HULL-B78: the cabane as one central faired pylon (the frame's narrow truss inside it)
+               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1 } : {}),
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
                                interplaneAt: +P.bpInterAt || 0.62,
                                wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }

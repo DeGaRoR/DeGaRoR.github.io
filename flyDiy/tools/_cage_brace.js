@@ -36,6 +36,11 @@ PAGE.defaults = Object.assign({
   // interplane struts (1 = as before); bpCabDraw 0 leaves the cabane undrawn - the frame keeps it (61_gen_frame), the
   // drawing only (a tower or a pylon carries the plane)
   bpStrutK: 1, bpCabDraw: 1,
+  // HULL-B78 (the user: "replace the central struts by a central pylon ... the same tech as the current pylon, except
+  // that it would stick to the bottom of the wing ... and we do that properly in the physics model as well"): the
+  // cabane as ONE faired pylon on the centreline (the engine pylon's blended blade, roof to the wing's underside) - the
+  // frame roots the wing at the pylon and runs the cabane as a narrow truss inside it (61_gen_frame cabPylon)
+  bpCabPylon: 0,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -48,7 +53,8 @@ const BRACE_ITEMS = [
     ['bpCabane', 'cabane', 0, 1, 1, ['N struts', 'V struts'], { when: onCab }],
     ['bpStrutZ', 'fore / aft', -0.20, 0.20, 0.01, { when: onCab, dim: 'm' }],
     ['bpStrutX', 'in / out (foot)', -0.25, 0.35, 0.01, { when: onCab, dim: 'm' }],
-    ['bpCabDraw', 'cabane drawn', 0, 1, 1, ['hidden (flown, not drawn)', 'drawn'], { when: onCab }],
+    ['bpCabDraw', 'cabane drawn', 0, 1, 1, ['hidden (flown, not drawn)', 'drawn'], { when: P => onCab(P) && !+P.bpCabPylon }],
+    ['bpCabPylon', 'cabane form', 0, 1, 1, ['struts', 'central pylon (faired)'], { when: onCab }],
     ['bpStrutK', 'strut size (cabane, interplane)', 0.3, 1.5, 0.01, { when: P => onCab(P) || onBip(P) }],
   ], { when: onCab }],
   ['interplane & wires', [
@@ -271,7 +277,7 @@ PAGE.post = ctx => {
   // (b.b) up to a root spar node (b.a); one ring node may carry the post of
   // one spar and the diagonal of the other, which is exactly strutBuild's
   // shape — one foot, up to two wing ends, front first.
-  if (P.bpCabDraw == null || +P.bpCabDraw) {
+  if ((P.bpCabDraw == null || +P.bpCabDraw) && !+P.bpCabPylon) {   // (HULL-B78: a pylon draws no struts)
     const byFoot = new Map();
     for (const b of cab) {
       const spar = (N2[b.a].tag === 'WF' || N2[b.a].tag === 'WR') ? b.a : b.b;

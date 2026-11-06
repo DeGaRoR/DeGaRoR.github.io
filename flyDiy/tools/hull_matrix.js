@@ -150,6 +150,13 @@ const ENGINES = {
 ENGINES.superPetrelV2 = Object.assign({}, ENGINES.superPetrel, {
   cage: Object.assign({}, ENGINES.superPetrel.cage, { gearFold: 9, s1X: 0.86, w2Dy: 0.0, s1Drop: 0.08, s2Drop: 0.08, wgFlapType: 0 }),
   note: 'the Super Petrel LS V2: the rigid-L mains turned flat into the lower wing (HULL-B70)' });
+// HULL-B78 THE SUPER PETREL V4 (the user: "the pylon supporting the wing, and then the engine wing-mounted ... that
+// would transmit forces a bit better"): V3 (the superPetrelV2 card) with the cabane as ONE central faired pylon under
+// the upper wing (bpCabPylon) and the engine OVER THE WING on its centre section (engPylonAt 0: a short pylon on the
+// wing, the frame hanging it on the wing's root spars) - the single wing-mounted engine the garage has
+ENGINES.superPetrelV4 = Object.assign({}, ENGINES.superPetrelV2, {
+  cage: Object.assign({}, ENGINES.superPetrelV2.cage, { bpCabPylon: 1, engPylonAt: 0, engPylonH: 0.08, engBlockZ: -0.25, engBlockY: 0, engPylonFwd: 0 }),
+  note: 'the Super Petrel LS V4: a central pylon carries the wing, the engine on the wing (HULL-B78)' });
 
 // THE ROLL, whatever the heading: the body's lateral axis (x aft cross y up) out of the horizontal (HULL-B10: the up
 // axis's world z read the roll only on the reset heading - a boat yawed by its abort read 1 deg while it turned turtle)

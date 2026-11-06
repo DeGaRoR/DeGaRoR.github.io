@@ -714,7 +714,7 @@ const CAGE_PARTS = [
     place: { type: 'bpCabane', fore: 'bpStrutZ', out: 'bpStrutX',
              at: 'the foot, on the deck' },
     groups: [
-      ['cabane', ['bpCabane', 'bpCabDraw', 'bpStrutK']],
+      ['cabane', ['bpCabPylon', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
       ['foot', ['bpStrutZ', 'bpStrutX']],
     ] },
 
