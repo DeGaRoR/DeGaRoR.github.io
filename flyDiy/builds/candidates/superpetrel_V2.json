@@ -721,7 +721,7 @@
    "wgParaH": 0.6,
    "wgStrutZ": 0.2,
    "wgStrutX": -0.06,
-   "wgFlapType": 2,
+   "wgFlapType": 0,
    "wgFlapSpan": 0.5,
    "wgFlapChord": 0.2,
    "wgAilOn": 0,
@@ -1253,7 +1253,7 @@
   },
   "controls": {
    "flap": {
-    "type": "slotted",
+    "type": "none",
     "span": 0.5,
     "chord": 0.2
    },
