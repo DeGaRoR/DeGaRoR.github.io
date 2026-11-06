@@ -549,9 +549,38 @@ console.log('10 THE FOLD (G1)');
       const up = pts[pts.length - 1][1] - pts[0][1], inw = Math.abs(pts[0][0]) - Math.abs(pts[pts.length - 1][0]);
       check(tilt < 1e-6 && Math.abs(up - Kk.a) < 0.002 && Math.abs(inw - Kk.a) < 0.002,
             'the leg stays upright; the wheel translates on a quarter circle - up and in by the arm\'s length', 'a ' + Kk.a.toFixed(3) + ' m: up ' + up.toFixed(3) + ', in ' + inw.toFixed(3));
-      const why = Gk.fit.why || [];
-      check(!why.some(w => /not centred|outside the skin|crosses/.test(w)) && (Gk.cutsSide || []).length === 2 && (Gk.cutsSide || []).every(c => asp(c) < 1.25),
-            'stowed: the wheel centred on the side line in its round recess; the arm, the leg and the piston behind the skin', (Gk.cutsSide || []).length + ' round recesses; ' + (why.filter(w => /floor/.test(w)).join('; ') || 'no other red')); }
+      const why = Gk.fit.why || [], rnd = (Gk.cutsSide || []).filter(c => !c.slot), slots = (Gk.cutsSide || []).filter(c => c.slot);
+      check(!why.some(w => /not centred|outside the skin|crosses/.test(w)) && rnd.length === 2 && rnd.every(c => asp(c) < 1.25),
+            'stowed: the wheel centred on the side line in its round recess; the arm, the leg and the piston behind the skin', rnd.length + ' round recesses; ' + (why.filter(w => /floor/.test(w)).join('; ') || 'no other red'));
+      // (the user, 6 Nov: "a little piston on the folding knee, at the place where the rotating joint is, and anchoring
+      // higher up on the fuselage")
+      const KI = Gk.mechInfo.L.kneeGeo, cyl = Rk.parts.find(p => p.name === 'edMechL_cyl');
+      check(cyl && cyl.to.along && KI.horn <= 0.09 && KI.F[1] - KI.P[1] >= 0.15 && KI.stroke > 0.05 && KI.stroke < 0.15 && Math.abs(KI.F[0]) < Math.abs(KI.P[0]),
+            'a little piston at the arm\'s pivot: on the arm\'s horn, from a fitting higher up and inboard on the fuselage, a short stroke',
+            KI && 'horn ' + (KI.horn * 1000).toFixed(0) + ' mm; fitting ' + ((KI.F[1] - KI.P[1]) * 1000).toFixed(0) + ' mm over the pivot; stroke ' + (KI.stroke * 1000).toFixed(0) + ' mm');
+      // ("it needs a little cut on top so the folded leg can fit"): the keyhole - a slot over each circle, one opening
+      const cOf = c => { const v = c.outline.map(q => q[1]), u = c.outline.map(q => q[0]); return { v0: Math.min(...v), v1: Math.max(...v), u0: Math.min(...u), u1: Math.max(...u) }; };
+      check(slots.length === 2 && slots.every(sc => { const r = rnd.find(c => c.group === sc.group), A = cOf(r), B = cOf(sc), up = sc.side > 0 ? B.v0 < A.v0 - 0.02 : B.v1 > A.v1 + 0.02;
+              return r && up && B.u1 - B.u0 < 0.6 * (A.u1 - A.u0); }),
+            'a narrow slot over each round recess, where the leg passes the side on its way up - one keyhole opening (the walls between them dropped)',
+            slots.length + ' slots, up to y ' + ((Gk.fit && Gk.fit.cutsSide) || []).filter(c => c.slot).map(c => c.yTop.toFixed(3)).join(', ') + ' m');
+      // ("a version with full doors"): gearKneeDoor - the wheel wholly inside, a door riding the leg flush over the
+      // keyhole stowed, a little hinged door at the circle's foot; gear down the leg's door clears the ground (flush is
+      // read against the airframe's section probe, whose chords sit a few mm off the faceted skin at the bilge)
+      const kd = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 8, gearKneeDoor: 1, gearDoors: 0, gearLegDoor: 0, s1X: 0.85, floorY: -0.25, s1Root: 1 }, garage: bc });
+      const Gd = kd.W.CAGE_GEAR, Dd = Gd.doors || [], Rd = Gd.mech, Cd = Rd.units.L, AFd = Gd.AF;
+      const halfAt = (y, z) => { let best = null; for (let d = 0; d < 360; d++) { const a = AFd.surf(z, d * Math.PI / 360), b = AFd.surf(z, (d + 1) * Math.PI / 360);
+        if ((a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } } return best; };
+      const vOf = name => { const out = []; kd.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.userData.doorOuterN) { const pa = q.geometry.attributes.position; for (let i = 0; i < q.userData.doorOuterN; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+      const psd = (name, g) => { const t = CMk.gearMechPose(Rd, g)[name]; return vOf(name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
+      let off = 0, nv = 0; for (const d of Dd) for (const p of psd(d.name, 0)) { const h = halfAt(p[1], p[2]); if (h != null) { off = Math.max(off, Math.abs(Math.abs(p[0]) - h)); nv++; } }
+      const legD = Dd.find(d => d.name === 'edMechDoorL_knee'), footD = Dd.find(d => d.name === 'edMechDoorL_kneeFoot');
+      const tyreLo = CMk.gearUnitPt(Cd, CMk.gearFoldPose(Cd, 1), Cd.axle, 0, 0, null)[1] - Cd.R, doorLo = legD ? Math.min(...psd(legD.name, 1).map(p => p[1])) : NaN;
+      const footOpen = footD ? Math.min(...psd(footD.name, 0).map(p => p[1])) - Math.min(...psd(footD.name, 0.5).map(p => p[1])) : 0;   // (swung out and down: it hangs under its hinge)
+      check(Dd.filter(d => d.kind === 'knee').length === 2 && Dd.filter(d => d.kind === 'kneeFoot').length === 2 && Cd.knee.full && !(Gd.fit.why || []).some(w => /into its door|outside the skin|crosses/.test(w))
+            && nv > 50 && off < 0.010 && doorLo > tyreLo + 0.02 && footOpen > 0.01,
+            'full doors: the wheel wholly inside; up, the leg\'s door and the foot\'s door lie flush in the side; down, the leg\'s door clears the ground; the foot\'s door swings out as the gear travels',
+            'flush within ' + (off * 1000).toFixed(1) + ' mm (' + nv + ' points); door ' + ((doorLo - tyreLo) * 1000).toFixed(0) + ' mm over the tyre\'s foot; at mid travel the foot door hangs ' + (footOpen * 1000).toFixed(0) + ' mm under where it shuts'); }
     const sides = Gc.cutsSide || [];
     check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
           sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }

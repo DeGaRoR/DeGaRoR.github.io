@@ -2272,3 +2272,53 @@ raised cabin floor: the stowed knee is 64 mm into it.
 - the fold exists beside the Catalina's;
 - the leg stays upright and the wheel moves up and in by a;
 - stowed, the wheel is centred in a round recess, with nothing outside the skin.
+
+### 8.29 The folding knee: a little piston at the pivot, a slot for the leg, full doors (6 Nov)
+
+The user, on the knee: "have a little piston on the folding knee, at the place where the rotating joint is, and
+anchoring higher up on the fuselage. Also, in this case it needs a little cut on top so the folded leg can fit. Would
+also be good to do a version with full doors ... Only work on the folding knee, it's good".
+
+**THE PISTON AT THE PIVOT** (kneeGeom, mechBuild's knee branch):
+- The arm carries a HORN at its pivot P: h = 0.22 a, kept between 50 and 90 mm, at 120 deg round from the arm. Gear
+  down the horn points up and in; stowed, it points in and down.
+- The piston's fitting F is taken from a short list of places over the pivot and inboard (160 mm in, 360 mm up, down to
+  80 / 200 mm). The first place that is 40 mm inside the side, under the wing (40 mm), and no closer than 50 mm to the
+  centre line wins.
+- The piston runs from F to the horn's end: a barrel from F and a rod from the horn. It pushes the horn round, and the
+  arm swings up. On the C172 card: stroke 109 mm, shortest 305 mm, barrel radius 20 mm.
+- The core (62c_gear_mech.js) has a new point type, `{ along: [P, Q], r, s, ax }`: the point r along the link from P
+  toward Q, plus s across it along ax x the link. The horn's end is `{ along: [{fix: P}, {unit, p: knee}], r: h cos 120,
+  s: h sin 120, ax: [0, 0, side] }`. It travels to the flight with the record, like every other point.
+
+**THE SLOT** (kneeSlots, after wellMergeSide):
+- For each knee main, the leg's axis (knee to foot) and the arm's (P to knee) are sampled every 1 cm at each WELL_G
+  pose. Where a sample crosses the skin, or lies within the leg's radius of it, that is a piercing.
+- The slot is a rounded rectangle from the circle's centre up to the highest piercing plus the leg's radius. Its width
+  is the leg's diameter (at least 60 mm), plus FIT.clear all round.
+- It is a side cut of its own (`slot`), with the circle's `group`. Both are given ONE flat floor: the deeper of the
+  circle's floor and the stowed leg's depth plus FIT.clear.
+- The knife (knifeWells) tags each side cut's new walls (`sideCut`) and drops any wall of a grouped cut whose middle
+  lies inside the other cut's outline, grown a hair. The two cuts become one keyhole opening, with no wall between them.
+- Gate: a slot over each circle, narrower than 60 % of it. On the C172 card it reaches y -0.13, the height of the
+  stowed knee.
+
+**FULL DOORS** (row gearKneeDoor: 0 open recess, 1 full door; shown with the knee fold; claimed in PARTS, listed in
+CAGE_RETRACT_ROWS / the spec's retract rows):
+- kneeGeom(…, full) solves the arm so the whole stowed tyre (its outer face, over its full height) sits KNEE_IN = 25 mm
+  behind the skin. On the C172 card that gives a 0.61 m arm, against 0.48 m for the open recess. The fit's centred test
+  becomes "wholly inside": every rim point at least 17 mm in.
+- **The leg's door.** This is the body's side faces inside the keyhole (circle and slot, DOOR_SEAM in, the outermost skin
+  only), cut at y = stowed axle - 0.8 R. It is one slab (panel(), looking along [side, 0, 0]), rule 'rigid' on the unit,
+  drawn at the stowed place less gearArc(C, 0). The fold is a pure translation that ends moving level and inward, so the
+  door lands flush. A stay runs from the axle's outer end to the door's back. Gear down, its foot is 0.2 R (+ seam) over
+  the tyre's.
+- **The foot's door** is the circle under that line: a crescent hinged on the hull along its lowest edge. Its rule is
+  'door', 120 deg with closedDown: it swings out and down as the gear leaves up, and is shut both up and down. The wheel
+  enters over it.
+- Gate: two leg doors and two foot doors. Stowed, both lie flush, within 10 mm of the airframe probe (the probe's chords
+  sit a few mm off the faceted bilge). The leg door clears the tyre's foot by 39 mm, and the foot door hangs open at mid
+  travel.
+
+On the C172 stand-in the full-door wheel goes deeper, so the cabin-floor red grows (137 mm against 64). That card's
+raised floor is not a hull's.
