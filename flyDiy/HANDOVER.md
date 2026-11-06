@@ -312440,3 +312440,7 @@ clouds.js: S.noiseMips 0 (?cloudmip=1 for a bench). gl.generateMipmap on the 3D 
 IN (on L32f 12d3f17e6): ready/look-1-freeze 2c0b78966 (no mip chain on the clouds' noise: S.noiseMips 0).
 RESULT, worst frame, L32e / L32f quiet repeat / this: taxi @HOME 33.5 ms / 10.8 s / 33.4 ms; water taxi 300 ms / 9.1 s / 283 ms. Rollout taxi rows: L32e none over 317 ms; L32f 6 of 8 froze 3-11 s; this 4 of 8 froze 2.6-8.5 s. PARTLY FIXED, pushed because it's better than live. Open: LOOK-1's 5 late links at taxi (14.8k + 12.6k, render loop): named or the clouds come out at L33a 04:00.
 BATTERY: FRAMECOST same 5, MEDIA. TIMED 67 red. Flicker numbers without mips not re-measured. Report mean fps no more: median, p99, freezes, links.
+
+## NIGHT-RIPPLE - THE NIGHT'S RIPPLE BOOST IN frame(), NOT setWind
+
+water.js. NIGHT-BRIGHT wrote the boost (up to 5 x, capped at 3.1) in setWind, which climate_link calls only when the wind changes: it could latch through the next day, or never come on at a calm dusk, and it switched hard. It now runs in frame(), eased with the sheen's own ramp (exposure 2^1.5..2^5); by day uWDetailK.z is setWind's value to the bit. A side effect: WATER.set({detailK}) now applies at once instead of at the next wind change. Read from the code; the fault and the fix were not seen in the game. node --check only here (A0): the train gates WATER LIGHT ATMO NIGHTVISIBILITY.
