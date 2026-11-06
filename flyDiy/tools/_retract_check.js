@@ -506,7 +506,7 @@ console.log('10 THE FOLD (G1)');
     const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
     const Sc = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25 }, garage: bc });
     const Gc = Sc.W.CAGE_GEAR, CMc = C.GEAR_MECH, Rc = Gc.mech, Cu = Rc.units.L, Ic = Gc.mechInfo.L, AFc = Gc.AF;
-    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d) }; };
+    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L, lf = Q.Lm.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d, lf) }; };
     const top = Cu.top, ax = Cu.axle, legLen = Math.hypot(top[0] - ax[0], top[1] - ax[1]);
     let inPlane = 0, tiltMax = 0, wheelTilt = 0, stretch = 0;
     for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, { Q, M, P } = pose(g), t = P(top), a = P(ax);
@@ -525,7 +525,78 @@ console.log('10 THE FOLD (G1)');
           'half way: ' + Math.round(100 * (p1[1] - r0[1]) / (cu[1] - r0[1])) + ' % of the rise, ' + Math.round(100 * (Math.abs(r0[0]) - Math.abs(p1[0])) / (Math.abs(r0[0]) - Math.abs(cu[0]))) + ' % of the way in');
     check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
           'the V-strut\'s jack and the side strut are parts of the one kinematics');
+    // (P2, the Super Petrel's sesquiplane: a lower wing over the mains caps their rise; a leg, strut or jack through a
+    // wing's skin reddens the fit)
+    { const wf = dy => { const S2 = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25, s1Root: 1, w2On: 1, w2Pos: 1, w2Dy: dy }, garage: bc });
+        return S2.W.CAGE_GEAR; };
+      const lo = wf(-0.1), hi = wf(0.25), Ch = hi.swing.L, Mh = hi.mech, Cl = lo.swing.L;
+      let topUp = -Infinity; { const Q = C.GEAR_MECH.gearMechPoints(Mh, 0); topUp = C.GEAR_MECH.gearUnitPt(Ch, Q.M.L, Ch.top, Q.D.L, Q.Lm.L)[1]; }
+      const jackY = hi.mechInfo.L.jack && hi.mechInfo.L.jack.U[1];
+      check(Ch.catCap != null && topUp <= Ch.catCap + 0.005 && jackY <= Ch.catCap + 0.005 && !(hi.fit.why || []).some(w => /crosses|wing over it/.test(w)) && Ch.solved[3] > 0.1,
+            'a lower wing over the Catalina mains: a small mechanism - the head and the jack stay under it, the oleo telescopes the rest, the wheel tucks under it, nothing crosses it',
+            'head ' + topUp.toFixed(3) + ', jack ' + (jackY != null ? jackY.toFixed(3) : '-') + ' under the cap ' + (Ch.catCap != null ? Ch.catCap.toFixed(3) : '-') + ' m; head lifts ' + Ch.solved[2] + ', oleo ' + Ch.solved[3] + ' m');
+      check(Cl.catCapWhy && (lo.fit.why || []).some(w => /mm higher/.test(w)), 'a wing too low for the rise reddens the fit, and says how much higher it must be',
+            (lo.fit.why || []).find(w => /mm higher/.test(w)) || 'no word'); }
     const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };
+    // (P2, the user's sketch: THE FOLDING KNEE, a fold beside the Catalina's - 'knee')
+    { const ks = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 8, gearDoors: 0, gearLegDoor: 0, s1X: 0.85, floorY: -0.25, s1Root: 1 }, garage: bc });
+      const Gk = ks.W.CAGE_GEAR, Rk = Gk.mech, Ck = Rk.units.L, Kk = Ck.knee, CMk = C.GEAR_MECH;
+      check(Gk.swing && Kk && ks.W.CAGE_GEAR_FOLD.FOLD_KEYS.includes('catalina') && ks.W.CAGE_GEAR_FOLD.FOLD_KEYS[8] === 'knee',
+            'the folding knee is a fold of its own (the Catalina\'s kept beside it)');
+      let tilt = 0, pts = [];
+      for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, Q = CMk.gearMechPoints(Rk, g), P = p => CMk.gearUnitPt(Ck, Q.M.L, p, Q.D.L, Q.Lm.L, Q.Am.L);
+        const kn = P(Kk.knee0), ft = P([Kk.knee0[0], Ck.axle[1], Ck.axle[2]]); tilt = Math.max(tilt, Math.abs(kn[0] - ft[0]) + Math.abs(kn[2] - ft[2])); pts.push(P(Ck.axle)); }
+      const up = pts[pts.length - 1][1] - pts[0][1], inw = Math.abs(pts[0][0]) - Math.abs(pts[pts.length - 1][0]);
+      check(tilt < 1e-6 && Math.abs(up - Kk.a) < 0.002 && Math.abs(inw - Kk.a) < 0.002,
+            'the leg stays upright; the wheel translates on a quarter circle - up and in by the arm\'s length', 'a ' + Kk.a.toFixed(3) + ' m: up ' + up.toFixed(3) + ', in ' + inw.toFixed(3));
+      const why = Gk.fit.why || [], rnd = (Gk.cutsSide || []).filter(c => !c.slot), slots = (Gk.cutsSide || []).filter(c => c.slot);
+      check(!why.some(w => /not centred|outside the skin|crosses/.test(w)) && rnd.length === 2 && rnd.every(c => asp(c) < 1.25),
+            'stowed: the wheel centred on the side line in its round recess; the arm, the leg and the piston behind the skin', rnd.length + ' round recesses; ' + (why.filter(w => /floor/.test(w)).join('; ') || 'no other red'));
+      // (the user, 6 Nov: "a little piston on the folding knee, at the place where the rotating joint is, and anchoring
+      // higher up on the fuselage")
+      const KI = Gk.mechInfo.L.kneeGeo, cyl = Rk.parts.find(p => p.name === 'edMechL_cyl');
+      check(cyl && cyl.to.along && KI.horn <= 0.09 && KI.F[1] - KI.P[1] >= 0.15 && KI.stroke > 0.05 && KI.stroke < 0.15 && Math.abs(KI.F[0]) < Math.abs(KI.P[0]),
+            'a little piston at the arm\'s pivot: on the arm\'s horn, from a fitting higher up and inboard on the fuselage, a short stroke',
+            KI && 'horn ' + (KI.horn * 1000).toFixed(0) + ' mm; fitting ' + ((KI.F[1] - KI.P[1]) * 1000).toFixed(0) + ' mm over the pivot; stroke ' + (KI.stroke * 1000).toFixed(0) + ' mm');
+      // ("it needs a little cut on top so the folded leg can fit"): the keyhole - a slot over each circle, one opening
+      const cOf = c => { const v = c.outline.map(q => q[1]), u = c.outline.map(q => q[0]); return { v0: Math.min(...v), v1: Math.max(...v), u0: Math.min(...u), u1: Math.max(...u) }; };
+      check(slots.length === 2 && slots.every(sc => { const r = rnd.find(c => c.group === sc.group), A = cOf(r), B = cOf(sc), up = sc.side > 0 ? B.v0 < A.v0 - 0.02 : B.v1 > A.v1 + 0.02;
+              return r && up && B.u1 - B.u0 < 0.6 * (A.u1 - A.u0); }),
+            'a narrow slot over each round recess, where the leg passes the side on its way up - one keyhole opening (the walls between them dropped)',
+            slots.length + ' slots, up to y ' + ((Gk.fit && Gk.fit.cutsSide) || []).filter(c => c.slot).map(c => c.yTop.toFixed(3)).join(', ') + ' m');
+      // ("a version with full doors"): gearKneeDoor - the wheel wholly inside, a door riding the leg flush over the
+      // keyhole stowed, a little hinged door at the circle's foot; gear down the leg's door clears the ground (flush is
+      // read against the airframe's section probe, whose chords sit a few mm off the faceted skin at the bilge)
+      const kd = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 8, gearKneeDoor: 1, gearDoors: 0, gearLegDoor: 0, s1X: 0.85, floorY: -0.25, s1Root: 1 }, garage: bc });
+      const Gd = kd.W.CAGE_GEAR, Dd = Gd.doors || [], Rd = Gd.mech, Cd = Rd.units.L, AFd = Gd.AF;
+      const halfAt = (y, z) => { let best = null; for (let d = 0; d < 360; d++) { const a = AFd.surf(z, d * Math.PI / 360), b = AFd.surf(z, (d + 1) * Math.PI / 360);
+        if ((a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } } return best; };
+      const vOf = name => { const out = []; kd.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.userData.doorOuterN) { const pa = q.geometry.attributes.position; for (let i = 0; i < q.userData.doorOuterN; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+      const psd = (name, g) => { const t = CMk.gearMechPose(Rd, g)[name]; return vOf(name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
+      let off = 0, nv = 0; for (const d of Dd) for (const p of psd(d.name, 0)) { const h = halfAt(p[1], p[2]); if (h != null) { off = Math.max(off, Math.abs(Math.abs(p[0]) - h)); nv++; } }
+      const legD = Dd.find(d => d.name === 'edMechDoorL_knee'), footD = Dd.find(d => d.name === 'edMechDoorL_kneeFoot');
+      const tyreLo = CMk.gearUnitPt(Cd, CMk.gearFoldPose(Cd, 1), Cd.axle, 0, 0, null)[1] - Cd.R, doorLo = legD ? Math.min(...psd(legD.name, 1).map(p => p[1])) : NaN;
+      const footOpen = footD ? Math.min(...psd(footD.name, 0).map(p => p[1])) - Math.min(...psd(footD.name, 0.5).map(p => p[1])) : 0;   // (swung out and down: it hangs under its hinge)
+      check(Dd.filter(d => d.kind === 'knee').length === 2 && Dd.filter(d => d.kind === 'kneeFoot').length === 2 && Cd.knee.full && !(Gd.fit.why || []).some(w => /into its door|outside the skin|crosses/.test(w))
+            && nv > 50 && off < 0.010 && doorLo > tyreLo + 0.02 && footOpen > 0.01,
+            'full doors: the wheel wholly inside; up, the leg\'s door and the foot\'s door lie flush in the side; down, the leg\'s door clears the ground; the foot\'s door swings out as the gear travels',
+            'flush within ' + (off * 1000).toFixed(1) + ' mm (' + nv + ' points); door ' + ((doorLo - tyreLo) * 1000).toFixed(0) + ' mm over the tyre\'s foot; at mid travel the foot door hangs ' + (footOpen * 1000).toFixed(0) + ' mm under where it shuts'); }
+    // (the user, 6 Nov: "the door also full attached to the hull. Same cut, but the top part attaches to the top of the
+    // cut, and rotates 90 deg upwards, comes right below the wing") - gearKneeDoor 2, under a second wing; and a wing
+    // too low for the swung door reddens the fit
+    { const hb = dy => SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 8, gearKneeDoor: 2, gearDoors: 0, gearLegDoor: 0, s1X: 0.85, floorY: -0.25, s1Root: 1, w2On: 1, w2Pos: 1, w2Dy: dy }, garage: bc });
+      const hs = hb(0.25), Gh = hs.W.CAGE_GEAR, Dh = Gh.doors || [], Rh = Gh.mech, CMh = C.GEAR_MECH, dp = Rh.parts.find(p => p.name === 'edMechDoorL_kneeHull');
+      const vH = name => { const out = []; hs.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.userData.doorOuterN) { const pa = q.geometry.attributes.position; for (let i = 0; i < q.userData.doorOuterN; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+      const pH = g => { const t = CMh.gearMechPose(Rh, g)[dp.name]; return vH(dp.name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
+      const up = pH(0), dn = pH(1), W2 = hs.W.CAGE_WING, pls = (W2.planes && W2.planes.length ? W2.planes : [W2]);
+      const ySpan = ps => Math.max(...ps.map(p => p[1])) - Math.min(...ps.map(p => p[1])), xOut = ps => Math.max(...ps.map(p => Math.abs(p[0]))) - Math.abs(dp.hinge[0]);
+      let gap = Infinity; for (const p of dn) for (const pl of pls) { const u = pl.underAt(p[0], p[2]); if (u) gap = Math.min(gap, u.y - p[1]); }
+      const hingeTop = dp && Math.abs(dp.hinge[1] - Math.max(...up.map(p => p[1]))) < 0.02;
+      const lo = hb(0.12).W.CAGE_GEAR.fit.why || [];
+      check(Dh.filter(d => d.kind === 'kneeHull').length === 2 && !Dh.some(d => d.kind === 'knee' || d.kind === 'kneeFoot') && dp && hingeTop && Math.abs(dp.ang - Math.PI / 2) < 1e-9
+            && ySpan(up) > 0.3 && xOut(dn) > 0.8 * ySpan(up) && Math.max(...dn.map(p => p[1])) < dp.hinge[1] + 0.02 && gap > 0.005 && gap < 0.3 && !dp.seq.closedDown && lo.some(w => /door, swung up, stands/.test(w)),
+            'a full door on the hull: the whole keyhole, hinged along the cut\'s top, swung 90 deg up and out - out under the wing while the gear travels and stands down; a wing too low for it is red',
+            dp && 'shut ' + (ySpan(up) * 1000).toFixed(0) + ' mm tall; open, out ' + (xOut(dn) * 1000).toFixed(0) + ' mm from its hinge, never over it (curved as the hull: ' + (ySpan(dn) * 1000).toFixed(0) + ' mm deep); ' + (gap * 1000).toFixed(0) + ' mm under the wing; low wing: ' + (lo.find(w => /door, swung/.test(w)) || 'no word')); }
     const sides = Gc.cutsSide || [];
     check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
           sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }

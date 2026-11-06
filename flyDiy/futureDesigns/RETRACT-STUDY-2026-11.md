@@ -2167,3 +2167,183 @@ Wipaire's dimensioned 3-views (the product guides), each scaled by its own wheel
 Both are 0.8 of the main wheel's radius, and the main axle stands level with the keel. `HYDRO.AMPHIB_GEOM.clearK` is
 0.8, a measurement now, not an assumption: `amph.measured.keelClearance` is 142 mm on the 2350's 5.00x5. The old
 assumption, 0.5 R (89 mm), was short, as the user saw. GATE RETRACT section 19 checks it.
+
+### 8.27 A wing over the Catalina mains: the cap, and the wing-crossing test (6 Nov, for the Super Petrel)
+
+The hull-types session (the Super Petrel LS, a sesquiplane amphibian whose lower wing roots on the hull's side over
+the Catalina mains; relayed by the user) found two problems:
+- the stowed leg head and the V-strut jack stood 0.4 to 0.5 m over the chine, through the lower wing's root;
+- nothing flagged it.
+
+Now:
+- **THE CAP** (`foldChain`, the Catalina block). Take the lowest wing underside, over any plane (`wingPlanes`,
+  `wingUnderIn`: CAGE_WING.planes, else the one wing), over a band: the leg head's plan place to 0.4 m outboard, the
+  wheel's length fore and aft. Less 30 mm, it caps the rise (`C.catCap`):
+  - the stowed wheel's centre comes down by what the cap takes, so the stowed head stays under it;
+  - the side strut's and the jack's fittings are searched under it too;
+  - with no room to rise (under 50 mm), the fit reddens (`C.catCapWhy`) and says how much higher the wing must be
+    for the full rise (`C.catWingRaise`).
+- **THE WING-CROSSING TEST** (`foldFit`, `catU`). At every fit position, the Catalina unit's leg points, its head, its
+  side strut (through its knee) and its jack's line are tested against every plane's skins. Any point between a
+  plane's underside and its top skin (5 mm margin) reddens the fit, naming the plane and the gear position.
+- **GATE RETRACT section 18 adds two checks**, on the c172 battery card with a second, lower wing (w2On, w2Pos 1):
+  - raised (w2Dy 0.45): the stowed head and the jack are under the cap and nothing crosses the wing;
+  - low (w2Dy -0.1): the fit is red, with the words "mm higher".
+- **What it cannot do yet.** The Catalina's rise is the whole unit's slide (`shorten.whole`). The leg cannot also
+  telescope as it rises (`gearShort` does not reach a Catalina), so a long leg needs that much room under the wing. A
+  second slide in the core's kinematics (the piston into its cylinder while the unit rises) would let a long leg tuck
+  under a low wing. That is the next step if the Petrel needs it.
+
+**THE SMALL MECHANISM: the head hoisted a little, the oleo telescoping the rest** (the user, relayed by the hull-types
+session: "The bottom wing needs to get higher up on the fuselage, the mechanism needs to be small and the wheel should
+fit below the wing. It can go up maybe 10-15 cm"). The cap alone kept the head under the wing only by keeping the
+wheel low: the unit still rose as one piece.
+
+Now the core has a second slide:
+- **THE HOIST** (`src/core/62c_gear_mech.js` gearLift, a unit's `hoist` { dir, d, k }) carries the WHOLE unit up its
+  leg: head, leg, wheel, every rigid part (gearMechPose), every unit point (gearUnitPt's new argument) and every knee.
+  It is apart from the SHORTENING, which slides only the piston and the wheel up the leg. The layer's copies follow
+  (liftD, poseAll), and the shortening now measures its gland from the leg's HEAD (C.top), not the fold's pole.
+- **The Catalina with a wing over it** (the lowest underside over the leg):
+  - the stowed wheel's top tucks 20 mm under the wing;
+  - the head is hoisted only as far as 30 mm under it (the jack stays short and low);
+  - the oleo telescopes the rest, its travel the piston's length less 50 mm. The Catalina's oleo is drawn with its
+    piston apart and its cylinder at 42 %.
+  - Short of travel, the fit reddens: "the wing over it leaves N mm to rise (the head .., the oleo ..) - tucked under
+    it, the wheel needs the wing M mm higher (or a shorter leg)".
+- **With no wing over it**, the head is hoisted the whole way, as v4.
+- **On the c172 battery card with a second wing:**
+
+  | lower wing | head hoisted | oleo telescopes | result |
+  |---|---|---|---|
+  | w2Dy 0.25 (underside about +0.03 m) | 0.398 m | 0.296 m | jack stroke 0.106 m; nothing crosses |
+  | w2Dy 0.45 | 0.598 m | 0.096 m | |
+  | w2Dy -0.1 | | | red: needs the wing 167 mm higher |
+
+- **GATE RETRACT section 18:** the w2Dy 0.25 case - head and jack under the cap, the oleo telescoping, nothing crossing.
+
+### 8.28 The folding knee, a fold of its own (6 Nov - the user's sketch, relayed by the hull-types session)
+
+The user, on v4 and the hoist: "I don't think that's the system. Honestly, I don't think it's the system for the
+catalina either, because you have all your mechanism exposed, while in both cases, mechanisms are invisible." And:
+"maybe the retract session can also keep its previous design as options, and we will check the different systems at
+the end". So 'catalina' stays as it is, and 'knee' is appended to FOLD_KEYS (index 8, "folding knee, hidden in the
+side").
+
+**THE SKETCH (front view):**
+- **Extended:** a horizontal ARM runs from a pivot P just inside the hull's wall, out through the side, to a KNEE.
+  From the knee a straight LEG goes vertically down to the axle, with the wheel outboard of it. A PISTON runs from a
+  fitting high inside the hull to the knee.
+- **Retracted:** the piston pulls the knee in and up, and the arm swings up about P to near vertical, just inside the
+  wall. The leg hangs down along it. Only the wheel shows, centred on the hull's line, half in its round recess.
+
+**THE KINEMATICS.** The arm turns about P (a fore-aft axis) and the knee opens by as much, so the leg stays upright. The
+whole unit TRANSLATES with the knee on a quarter circle about P: up by the arm's length a, and in by a.
+- **The core.** A third motion in src/core/62c_gear_mech.js: the ARC (`C.arc` { p, knee, axis, ang }; gearArc is the
+  translation at g, smooth over the travel). gearUnitPt takes it as a 6th argument; gearMechPoints (Am) and
+  gearMechPose apply it to every rigid part.
+- **The layer.** arcT and poseAll follow. The fold has no turn.
+
+**THE GEOMETRY** (`kneeGeom`, per side at the station; the leg is drawn to it, `RT.kneeB`):
+- **The down axle A0** comes from the station's rows: half track s1X, the drop under the keel. The hub (0.4 R + 20 mm)
+  sits outboard of the leg.
+- **The arm a = the inward travel = the rise**, solved by bisection so the stowed wheel's centre lies ON the side line
+  at its height: |A0.x| - a = the section's half width at A0.y + a. The track sets the arm.
+- **The leg b**, three conditions:
+  - long enough that the arm clears the tyre (R + 30 mm);
+  - long enough that P sits INSIDE the hull, 30 mm in from the wall at its height;
+  - short enough that the stowed knee keeps 20 mm under the lowest wing over it.
+- **P** is the down knee less a. **The piston's fitting F** is inboard of P and up, under that wing.
+- **The links.** The arm is drawn as a link P -> knee (rule 'aim'); the piston as a barrel from F and a rod from the
+  knee; lugs at P and F; the knee's pin on the leg.
+- **The recess** is the stowed wheel's rims, round, always a side well. The arm passes the wall inside that circle.
+- **The fit** (`kneeU`):
+  - the stowed wheel centred on the side line, within 30 mm;
+  - the arm, the leg, the head and the piston BEHIND the skin when stowed;
+  - nothing crossing a wing at any position;
+  - the knee's own words if the wing over it is too low, or the track too wide;
+  - the floor test as for the Catalina's.
+
+**ON THE C172 BATTERY CARD** (s1X 0.85, s1Root 1): a 0.478, b 0.47 (the pivot pushed up inside the round bottom), the
+piston's stroke 0.63. The wheel is centred in its recess; arm, leg and piston are hidden. The one red is the card's
+raised cabin floor: the stowed knee is 64 mm into it.
+
+**GATE RETRACT section 18:**
+- the fold exists beside the Catalina's;
+- the leg stays upright and the wheel moves up and in by a;
+- stowed, the wheel is centred in a round recess, with nothing outside the skin.
+
+### 8.29 The folding knee: a little piston at the pivot, a slot for the leg, full doors (6 Nov)
+
+The user, on the knee: "have a little piston on the folding knee, at the place where the rotating joint is, and
+anchoring higher up on the fuselage. Also, in this case it needs a little cut on top so the folded leg can fit. Would
+also be good to do a version with full doors ... Only work on the folding knee, it's good".
+
+**THE PISTON AT THE PIVOT** (kneeGeom, mechBuild's knee branch):
+- The arm carries a HORN at its pivot P: h = 0.22 a, kept between 50 and 90 mm, at 120 deg round from the arm. Gear
+  down the horn points up and in; stowed, it points in and down.
+- The piston's fitting F is taken from a short list of places over the pivot and inboard (160 mm in, 360 mm up, down to
+  80 / 200 mm). The first place that is 40 mm inside the side, under the wing (40 mm), and no closer than 50 mm to the
+  centre line wins.
+- The piston runs from F to the horn's end: a barrel from F and a rod from the horn. It pushes the horn round, and the
+  arm swings up. On the C172 card: stroke 109 mm, shortest 305 mm, barrel radius 20 mm.
+- The core (62c_gear_mech.js) has a new point type, `{ along: [P, Q], r, s, ax }`: the point r along the link from P
+  toward Q, plus s across it along ax x the link. The horn's end is `{ along: [{fix: P}, {unit, p: knee}], r: h cos 120,
+  s: h sin 120, ax: [0, 0, side] }`. It travels to the flight with the record, like every other point.
+
+**THE SLOT** (kneeSlots, after wellMergeSide):
+- For each knee main, the leg's axis (knee to foot) and the arm's (P to knee) are sampled every 1 cm at each WELL_G
+  pose. Where a sample crosses the skin, or lies within the leg's radius of it, that is a piercing.
+- The slot is a rounded rectangle from the circle's centre up to the highest piercing plus the leg's radius. Its width
+  is the leg's diameter (at least 60 mm), plus FIT.clear all round.
+- It is a side cut of its own (`slot`), with the circle's `group`. Both are given ONE flat floor: the deeper of the
+  circle's floor and the stowed leg's depth plus FIT.clear.
+- The knife (knifeWells) tags each side cut's new walls (`sideCut`) and drops any wall of a grouped cut whose middle
+  lies inside the other cut's outline, grown a hair. The two cuts become one keyhole opening, with no wall between them.
+- Gate: a slot over each circle, narrower than 60 % of it. On the C172 card it reaches y -0.13, the height of the
+  stowed knee.
+
+**FULL DOORS** (row gearKneeDoor: 0 open recess, 1 full door; shown with the knee fold; claimed in PARTS, listed in
+CAGE_RETRACT_ROWS / the spec's retract rows):
+- kneeGeom(…, full) solves the arm so the whole stowed tyre (its outer face, over its full height) sits KNEE_IN = 25 mm
+  behind the skin. On the C172 card that gives a 0.61 m arm, against 0.48 m for the open recess. The fit's centred test
+  becomes "wholly inside": every rim point at least 17 mm in.
+- **The leg's door.** This is the body's side faces inside the keyhole (circle and slot, DOOR_SEAM in, the outermost skin
+  only), cut at y = stowed axle - 0.8 R. It is one slab (panel(), looking along [side, 0, 0]), rule 'rigid' on the unit,
+  drawn at the stowed place less gearArc(C, 0). The fold is a pure translation that ends moving level and inward, so the
+  door lands flush. A stay runs from the axle's outer end to the door's back. Gear down, its foot is 0.2 R (+ seam) over
+  the tyre's.
+- **The foot's door** is the circle under that line: a crescent hinged on the hull along its lowest edge. Its rule is
+  'door', 120 deg with closedDown: it swings out and down as the gear leaves up, and is shut both up and down. The wheel
+  enters over it.
+- Gate: two leg doors and two foot doors. Stowed, both lie flush, within 10 mm of the airframe probe (the probe's chords
+  sit a few mm off the faceted bilge). The leg door clears the tyre's foot by 39 mm, and the foot door hangs open at mid
+  travel.
+
+On the C172 stand-in the full-door wheel goes deeper, so the cabin-floor red grows (137 mm against 64). That card's
+raised floor is not a hull's.
+
+### 8.30 The folding knee's door on the hull, hinged at the top (6 Nov)
+
+The user: "Can we have the door also full attached to the hull. Same cut, but the top part attaches to the top of the
+cut, and rotates 90 deg upwards, comes right below the wing of the Petrel for example".
+
+- **The row.** gearKneeDoor gets a third value: 2, "full door on the hull, hinged at the top". kneeDoor(P) (the wheel
+  wholly inside, KNEE_IN) holds for 1 and 2; kneeHullDoor(P) is 2 alone.
+- **The door** (doorBuild, the knee's branch) is the body's side faces over the WHOLE keyhole (circle and slot, DOOR_SEAM
+  in, the outermost skin), one slab with no foot split.
+  - Its hinge is the cut's top edge (the points within 8 mm of the highest), fore-aft. The axis sign is chosen so the
+    door swings OUT.
+  - Rule 'door': ang 90 deg (KNEE_DOOR_ANG), seq { k: KNEE_DOOR_SEQ = 0.10, closedDown: false }. It is open as soon as
+    the gear leaves up, and stays open while the gear travels and stands down: the arm passes through the opening gear
+    down. It shuts in the last tenth, with the wheel already in.
+  - It is drawn as it stands gear down (open). Two steel knuckles sit on the hinge line.
+- **Open, it must clear every wing.** Its outer face is swung 90 deg, plus DOOR_T. A point within 5 mm of any plane's
+  underside reddens the fit: "the left main's door, swung up, stands N mm into the wing over it (lower the cut's top: a
+  narrower track, or raise the wing)". The rows it points to are the fold, gearKneeDoor and w2Dy.
+- **The horn, stowed, inside.** kneeGeom's pivot-inside condition now also holds the horn's stowed end 20 mm inside. A
+  full-door knee under a low wing, with its leg shortened, had put the horn 23 mm out of the bottom.
+- **On the C172 card** with a second wing (w2On 1, w2Pos 1, w2Dy 0.25): the hinge is at y -0.073 and the open door lies
+  about 100 mm under the wing. At w2Dy 0.12 the fit is red: the door stands 15 mm into the wing, and the stowed knee too.
+- **Gate (section 18):** two hull doors and no leg or foot doors; the hinge on the cut's top; shut, the door is over
+  300 mm tall; open, it is level (under 60 mm of height) and under the wing; with a low wing, the door's red is named.

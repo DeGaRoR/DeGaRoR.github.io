@@ -1047,9 +1047,28 @@ function knifeWells(sh, cuts, sides) {
     m = Object.assign({}, m, { V, N, A, F });
   }
   // GR: THE SIDE WELLS (the Catalina's recesses): the knife looking at the side, the recess inward to the fitted floor
-  for (const c of (sides || []))
+  (sides || []).forEach((c, si) => {
+    const was = new Set(m.F);
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: c.frame, outline: c.outline, ceilP: wellFloorFn(c),
                                                          mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
+    for (const f of m.F) if (!was.has(f) && f.knife && f.m === 'wheelWell') f.sideCut = si; });
+  // P2 (the folding knee's keyhole - its round recess and the slot over it, two cuts of one `group` on one floor): the
+  // walls BETWEEN them dropped - a wall of one standing inside the other's outline (grown a hair) - one opening
+  if (sides && sides.some(c => c.group)) {
+    const inO = (o, q, e) => { for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      if ((b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]) < -e * L) return false; } return true; };
+    m = Object.assign({}, m, { F: m.F.filter(f => {
+      const c = f.sideCut != null ? sides[f.sideCut] : null; if (!c || !c.group || f.v.length !== 4) return true;
+      const Fr = c.frame, P = [0, 0, 0]; for (const i of f.v) for (let k = 0; k < 3; k++) P[k] += m.V[i][k] / 4;
+      // (a wall: its face edge-on to the frame's view)
+      const A = m.V[f.v[0]], B = m.V[f.v[1]], Cc = m.V[f.v[2]], u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [Cc[0] - A[0], Cc[1] - A[1], Cc[2] - A[2]];
+      const nn = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]], nl = Math.hypot(nn[0], nn[1], nn[2]) || 1;
+      if (Math.abs(nn[0] * Fr.n0[0] + nn[1] * Fr.n0[1] + nn[2] * Fr.n0[2]) / nl > 0.5) return true;
+      const q = [P[0] * Fr.t1[0] + P[1] * Fr.t1[1] + P[2] * Fr.t1[2], P[0] * Fr.t2[0] + P[1] * Fr.t2[1] + P[2] * Fr.t2[2]];
+      return !sides.some((d, j) => j !== f.sideCut && d.group === c.group && d.side === c.side && (() => {
+        let u0 = Infinity, u1 = -Infinity; for (const p of d.outline) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); }
+        return inO(d.outline, q, (u1 - u0) * 0.01); })()); }) });
+  }
   if (sides && sides.length) m = knifeCarveF(m, sides, WELL_MATS);
   return m;
 }
