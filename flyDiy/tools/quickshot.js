@@ -106,7 +106,9 @@ if (CUTSW) {
   let nw = 0;
   for (const o of skins) {
     const AFg = S.W.CAGE_GEAR.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;
-    const r = KGw.knifeWellsGeo(THREE, o.geometry, CUTSW, S.W.CAGE_GEAR.pierceTopM || null, inBody);
+    const mine = CUTSW.filter(c => (c.plane || 0) === (o.userData.wingPlane || 0));     // (P2: each plane its own cuts)
+    if (!mine.length) continue;
+    const r = KGw.knifeWellsGeo(THREE, o.geometry, mine, (o.userData.wingPlane || 0) ? null : S.W.CAGE_GEAR.pierceTopM || null, inBody);
     if (!r.skin) continue;
     o.geometry = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshLambertMaterial({ color: 0x60645c })); wm.name = 'edWellWing'; o.add(wm); nw++; }

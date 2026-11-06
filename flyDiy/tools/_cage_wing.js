@@ -2434,6 +2434,8 @@ const wingPost = ctx => {
       const pr = parts2 && parts2[cl];
       if (!pr) continue;
       const o = new THREE.Mesh(pr.geo, wingMat(cl, 1));
+      // (P2, the Super Petrel's V2: the second plane's skin takes its wheel well too - a cut names its plane, `plane`)
+      o.userData.wingSkin = cl; o.userData.wingPlane = 1;
       group2.add(o); probe2.push(pr.geo); faces += pr.geo.index.count / 3;
     }
     const yes2 = () => () => true;

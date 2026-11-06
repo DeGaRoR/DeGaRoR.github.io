@@ -205,11 +205,18 @@ const FOLD_PRESETS = {
   // on a quarter circle, up and in, to its round recess - arm, leg and piston behind the skin, the wheel half out. No
   // turn: the arc (`C.arc`, the core's gearArc), solved per build (kneeGeom)
   knee:      { turns: [], twist: 0 },
+  // P2 (the Super Petrel's V2, the user's sketch relayed by the hull-types session, 6 Nov: "it just stows below the wing,
+  // no doors. It's a fixed 90 deg angle that rotates 90 degrees and the wheel slots partly into the bottom wing"): THE
+  // RIGID L - an arm level from a pivot on the hull's side out to a corner, the leg straight down from the corner, at a
+  // fixed 90 deg; ONE 90 deg turn about the pivot (fore-aft), outboard and up: the arm stands up along the side, the leg
+  // lies level under the lower wing, the tyre FLAT, half into the wing's underside through an exact round cut. Solved
+  // per build (lGeom)
+  lfold:     { turns: [], twist: 0 },
 };
-const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom', 'catalina', 'nacelle', 'knee'];   // (appended: a saved index keeps its fold)
+const FOLD_KEYS = ['inward', 'outward', 'aftFlat', 'aftBelly', 'skymaster', 'custom', 'catalina', 'nacelle', 'knee', 'lfold'];   // (appended: a saved index keeps its fold)
 const FOLD_NOSE_KEYS = ['aft', 'fwd', 'custom'];
 const FOLD_LABELS = { inward: 'inward (into the wing root)', outward: 'outward', aftFlat: 'aft, the wheel turned flat',
-  aftBelly: 'aft and in, flat (twist-and-tuck)', skymaster: 'two axes (Skymaster)', catalina: 'up against the hull side (Catalina)', nacelle: 'into the engine nacelle', knee: 'folding knee, hidden in the side', aft: 'aft', fwd: 'forward',
+  aftBelly: 'aft and in, flat (twist-and-tuck)', skymaster: 'two axes (Skymaster)', catalina: 'up against the hull side (Catalina)', nacelle: 'into the engine nacelle', knee: 'folding knee, hidden in the side', lfold: 'rigid L, turned up flat under the lower wing', aft: 'aft', fwd: 'forward',
   custom: 'custom (the turns below)' };
 const FOLD_AX_LABELS = ['fore-aft', 'lateral', 'vertical'];
 const foldCustom = P => FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'custom';
@@ -240,6 +247,7 @@ const topOf = C => C.top || C.hinge;
 const SIDE_FOLDS = new Set(['catalina', 'knee']);
 const sideFold = P => SIDE_FOLDS.has(FOLD_KEYS[Math.round(+P.gearFold || 0)]);
 const kneeFold = P => FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'knee';
+const lFold = P => FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'lfold';
 // THE FOLDING KNEE'S GEOMETRY, solved once per side at the station (the leg is drawn to it) and read by the fold:
 //   the down axle A0 (the station's rows: half track, drop under the keel); the hub `hub` outboard of the leg;
 //   the stowed wheel centred ON the side line at its height (half out), the wheel's top 20 mm under the lowest wing over
@@ -305,6 +313,66 @@ function kneeGeom(AF, st, sgn, full) {
   if (wU != null && y1 + R > wU - 0.02 + 0.005) why.push('the stowed wheel stands ' + Math.round((y1 + R - wU + 0.02) * 1000) + ' mm into the wing over it (narrow the track: a shorter arm rises less)');
   if (wU != null && bWing < bMin) why.push('the knee, stowed, stands ' + Math.round((bMin - bWing) * 1000) + ' mm into the wing over it (raise the wing, or narrow the track)');
   return { A0, hub, a, b, knee0, P, kUp, F, full: !!full, h, hornR, hornS, horn0, ang: sgn * Math.PI / 2, wU, y1, why };
+}
+// THE RIGID L'S GEOMETRY (lfold), solved once per side at the station and read by the fold. With the hub `hub` outboard
+// of the leg (the wheel beside it), the down axle A0 (the station's rows), the leg's line x_L = |A0.x| - hub:
+//   the pivot P on the hull's side - its axis 30 mm off the skin over the arm's stowed height (the arm, stood up, stays
+//   outside the side), its horn and the piston inside the hull;
+//   the arm a = x_L - |P.x| (THE TRACK SETS THE ARM), the leg b = P.y - A0.y (the corner over the axle);
+//   turned 90 deg outboard and up, the corner stands a over P, the leg lies level out to x_c = |P.x| + b and the hub's
+//   offset turns UP: the flat tyre's mid-plane at y_c = P.y + a + hub - set ON the lower wing's underside at x_c (the
+//   tyre half in the wing; a wing too thin for that: its top 12 mm under the upper skin). So THE WING'S HEIGHT SETS P,
+//   AND P THE LEG: a wing too low for a leg that clears the tyre (b < R + 30 mm) is red, with how much higher it wants
+//   to be; the horn at P (as the knee's), 120 deg round from the arm, inside the hull; the piston's fitting F higher up
+//   inside, inboard, under the wing
+const LFOLD = {};
+const lowestPlane = () => { const W0 = window.CAGE_WING; if (!W0) return null;
+  const pl = W0.planes && W0.planes.length ? (W0.planes[W0.lowest] || W0.planes[0]) : W0; return pl && pl.underAt && pl.overAt ? pl : null; };
+function lGeom(AF, st, sgn) {
+  const z = st.z + (st.axZ || 0), R = st.R, hub = R * 0.40 + 0.020, hw = 0.38 * R, A0 = [sgn * st.x, AF.keelAt(st.z) - st.drop, z];
+  const sideX = y => { let best = null;
+    for (let d = 0; d < 180; d += 1) { const a = AF.surf(st.z, d * D2R), b = AF.surf(st.z, (d + 1) * D2R);
+      if ((a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } }
+    return best; };
+  const WL = lowestPlane(), xL = Math.abs(A0[0]) - hub;
+  // (the tyre's mid-plane target at x: the lower wing's underside, or 12 mm + half the tyre under its upper skin)
+  const yT = x => { if (!WL) return null; const u = WL.underAt(sgn * x, z), o = u ? WL.overAt(sgn * x, z) : null;
+    return u && o ? Math.min(u.y, o.y - 0.012 - hw) : u ? u.y : null; };
+  const pX = (y0, a) => { let m = 0; for (let y = y0 - 0.02; y <= y0 + Math.max(0.02, a) + 1e-9; y += 0.01) m = Math.max(m, sideX(y) || 0); return m + 0.03; };
+  // (the fixed point: P.y from the wing over the stowed tyre, P.x from the side over the arm's stowed run)
+  let Py = A0[1] + R + 0.03, Px = pX(Py, 0.2), a = xL - Px, ok = !!WL;
+  for (let it = 0; it < 40 && ok; it++) {
+    const b = Py - A0[1], xc = Px + b, y = yT(xc);
+    if (y == null) { ok = false; break; }
+    const ny = y - a - hub; Px = pX(ny, a); a = xL - Px; if (Math.abs(ny - Py) < 1e-5) { Py = ny; break; } Py = ny; }
+  const why = [];
+  if (!WL) why.push('no lower wing over the mains - the rigid L stows into a wing\'s underside');
+  else if (!ok) why.push('the stowed tyre has no wing over it (a wider span, or a narrower track)');
+  if (a < 0.06) why.push('the track leaves the arm ' + Math.round(a * 1000) + ' mm (a wider track: s1X)');
+  let b = Py - A0[1];
+  if (ok && b < R + 0.03) why.push('the lower wing is ' + Math.round((R + 0.03 - b) * 1000) + ' mm too low for the leg to clear the tyre (raise it - w2Dy - or narrow the track)');
+  b = Math.max(b, R + 0.03); Py = A0[1] + b;
+  if (ok && sideX(Py) == null) why.push('the pivot falls below the hull\'s side (a narrower track, or a lower axle: s1Drop)');
+  const P = [sgn * Px, Py, z], knee0 = [sgn * xL, Py, z], xc = Px + b, yc = Py + a + hub, wantU = yc;
+  // (THE PISTON, the user's sketch: from a fitting INSIDE the hull, through the side, to the corner. Its fitting F is
+  // searched inside the hull (40 mm in), under the wing (60 mm) and over the pivot, for a stroke a real piston makes - its
+  // longest no more than 1.7 times its shortest over the turn (a barrel and its rod side by side): the highest such
+  // place, as drawn; none: the least ratio, and the fit says so)
+  const wRoot = WL ? WL.underAt(sgn * Px, z) : null, cOf = t => [P[0] + sgn * a * Math.cos(t), Py + a * Math.sin(t)];
+  const ratioAt = (x, y) => { let mx = 0, mn = Infinity; for (let i = 0; i <= 18; i++) { const c = cOf(i / 18 * Math.PI / 2), d = Math.hypot(c[0] - x, c[1] - y); mx = Math.max(mx, d); mn = Math.min(mn, d); } return [mx / mn, mn, mx]; };
+  let F = null, best = null;
+  for (let fy = 0.30; fy >= -0.06; fy -= 0.02) for (let fx = 0.08; fx <= 0.40; fx += 0.02) {
+    const y = Py + fy; if (wRoot && y > wRoot.y - 0.06) continue;
+    const xs = sideX(y), x = Px - 0.03 - fx; if (xs == null || x > xs - 0.04 || x < 0.05) continue;
+    const r = ratioAt(sgn * x, y);
+    if (!best || r[0] < best.r[0]) best = { p: [sgn * x, y, z], r };
+    if (!F && r[0] <= 1.7) F = { p: [sgn * x, y, z], r }; }
+  if (!F) F = best;
+  const Fp = F ? F.p : [sgn * Math.max(0.05, Px - 0.2), Py, z];
+  if (F && F.r[0] > 1.8) why.push('the piston to the corner would need a stroke ' + F.r[0].toFixed(1) + ' times its shortest length - no piston does (a longer arm: a wider track)');
+  // (the stowed tyre's top and the leg against the wing: the corner's top under the wing at the pivot)
+  if (wRoot && Py + a + 0.022 > wRoot.y - 0.01) why.push('the stowed corner stands ' + Math.round((Py + a + 0.032 - wRoot.y) * 1000) + ' mm into the lower wing at the hull (a shorter arm: narrow the track)');
+  return { A0, hub, a, b, knee0, P, F: Fp, ratio: F ? F.r[0] : null, ang: sgn * Math.PI / 2, xc, yc, wantU, why };
 }
 // every wing plane's skins (a biplane's or a sesquiplane's two; else the one), for the Catalina's clearances
 const wingPlanes = () => { const W0 = window.CAGE_WING; if (!W0) return [];
@@ -454,7 +522,13 @@ function foldChain(u, key, P, SP) {
     C.top = K.knee0.slice(); C.hinge = K.knee0.slice(); C.knee = K;
     C.arc = { p: K.P.slice(), knee: K.knee0.slice(), axis: [0, 0, 1], ang: K.ang };
     C.solved = [+K.a.toFixed(3), +K.b.toFixed(3)]; }
-  if (SP && preset && !catF && C.frac >= 0.999 && C.turns.length) {
+  // (P2, the Super Petrel's V2: THE RIGID L - one 90 deg turn about the pivot, outboard and up; the corner the leg's head)
+  const lF = key !== 'T' && lFold(P) && LFOLD[key];
+  if (lF) { const K = LFOLD[key];
+    C.hinge = K.P.slice(); C.top = K.knee0.slice(); C.lfold = K; C.twist = 0;
+    C.turns = [{ axis: [0, 0, 1], ang: K.ang }];
+    C.solved = [+K.a.toFixed(3), +K.b.toFixed(3)]; }
+  if (SP && preset && !catF && !lF && C.frac >= 0.999 && C.turns.length) {
     const T = C.turns[C.turns.length - 1], a0 = T.ang, sg = a0 < 0 ? -1 : 1;
     let best = null;
     const dLo = C.nacelle ? -10 : -15, dHi = C.nacelle ? 10 : 25;          // (a nacelle's fold: a trim, never a different fold)
@@ -480,7 +554,7 @@ function foldChain(u, key, P, SP) {
   // mirrored there; a preset's last turn backs off, a degree at a time, till the stowed tyre keeps 20 mm off it
   // (a TUCK's only - a last turn about the vertical axis, the twist-and-tuck's: an inward fold's crossing is a red fit,
   // the builder's track to widen, never a fold backed off out of the body)
-  if (key !== 'T' && preset && !catF && C.turns.length && C.frac >= 0.999 && Math.abs(C.turns[C.turns.length - 1].axis[1]) > 0.9) {
+  if (key !== 'T' && preset && !catF && !lF && C.turns.length && C.frac >= 0.999 && Math.abs(C.turns[C.turns.length - 1].axis[1]) > 0.9) {
     const T = C.turns[C.turns.length - 1], sg = Math.sign(h[0]) || 1, rim = wheelRims(C, 16, [1]);
     const inner = () => { const M = foldPose(C, 0); let m = Infinity;
       for (const p0 of rim) { const p = slidePt(C, p0, slideD(C, 0)), q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); m = Math.min(m, sg * (h[0] + q[0])); }
@@ -759,7 +833,7 @@ function foldFit(P, swing, AF, W, MX) {
     const up = posed[key][FIT_G.length - 1], all = up.W.concat(up.L);
     // (P2 v4: the Catalina's mains stow OUTSIDE by design - the leg along the hull's side, the wheel half in its round
     // recess, the links' fittings on the skin: its skin test is the recess's - the stowed wheel's centre inside the side)
-    const catU = key !== 'T' && sideFold(P), kneeU = catU && kneeFold(P);
+    const lU = key !== 'T' && lFold(P) && !!C.lfold, catU = key !== 'T' && (sideFold(P) || lU), kneeU = catU && kneeFold(P);
     // (P2: and a Catalina unit's leg, side strut or jack never crosses a wing's skin - any plane, any position)
     if (catU) {
       if (C.catCapWhy) fail('wing', key, word + ': ' + C.catCapWhy, R.fold.concat([st + 'Drop', st + 'R', 'w2Dy']));
@@ -780,7 +854,22 @@ function foldFit(P, swing, AF, W, MX) {
       for (const k of (C.knee && C.knee.why) || []) fail('wing', key, word + ': ' + k, R.fold.concat([st + 'X', st + 'Drop', 'w2Dy']));
       let out = 0; for (const p of posed[key][FIT_G.length - 1].L.concat(poseAll(C, [topOf(C)], 0), MX ? wellMechPts(MX, key, 0) : [])) out = Math.max(out, 0.002 - bodyIn(p));
       if (out > 0) fail('skin', key, word + '\'s arm, leg or piston shows ' + Math.round(out * 1000) + ' mm outside the skin, stowed', R.fold.concat([st + 'X', st + 'Drop', st + 'R'])); }
-    if (catU && !kneeU && C.frac >= 0.999) { const c = poseAll(C, [C.axle], 0)[0];
+    // (P2, the Super Petrel's V2: THE RIGID L's - the solve's own words; the flat stowed tyre half in the lower wing
+    // (its mid-plane within 15 mm of the underside, its top 8 mm under the upper skin), clear of the hull's side
+    // (10 mm), the arm and the leg outside the body at every position)
+    if (lU && C.frac >= 0.999) { const K = C.lfold, WL = lowestPlane(), rows = R.fold.concat([st + 'X', st + 'Drop', st + 'R', 'w2Dy']);
+      for (const k of K.why) fail('wing', key, word + ': ' + k, rows);
+      const rim = poseAll(C, wheelRims(C, 24, [1]), 0), c = poseAll(C, [C.axle], 0)[0];
+      if (WL) { const u = WL.underAt(c[0], c[2]);
+        if (!u) fail('wing', key, word + ', up, has no lower wing over its tyre', rows);
+        else if (Math.abs(c[1] - Math.min(u.y, K.yc)) > 0.015) fail('wing', key, word + '\'s flat tyre, up, sits ' + Math.round((c[1] - u.y) * 1000) + ' mm off the lower wing\'s underside', rows);
+        let top = -Infinity; for (const p of rim) { const o = WL.overAt(p[0], p[2]); if (o) top = Math.max(top, p[1] - (o.y - 0.008)); }
+        if (top > 0) fail('wing', key, word + '\'s flat tyre, up, stands ' + Math.round(top * 1000) + ' mm through the lower wing\'s top', rows); }
+      let inH = 0; for (const p of rim) inH = Math.max(inH, bodyIn(p) + 0.01);
+      if (inH > 0) fail('skin', key, word + '\'s flat tyre, up, runs ' + Math.round(inH * 1000) + ' mm into the hull\'s side (a longer leg: a higher lower wing, or a lower axle)', rows);
+      let inB = 0; FIT_G.forEach((g, gi) => { for (const p of posed[key][gi].L.concat(poseAll(C, [C.hinge, topOf(C)], g))) inB = Math.max(inB, bodyIn(p) + 0.005); });
+      if (inB > 0) fail('skin', key, word + '\'s arm or leg runs ' + Math.round(inB * 1000) + ' mm into the hull', rows); }
+    if (catU && !kneeU && !lU && C.frac >= 0.999) { const c = poseAll(C, [C.axle], 0)[0];
       if (!(bodyIn(c) > 0.015)) fail('skin', key, word + ', up, does not sit in its recess: its centre ' + Math.round(-bodyIn(c) * 1000) + ' mm out of the side', R.fold.concat([st + 'R', st + 'Drop'])); }
     // SKIN (fully up, a whole retraction only)
     if (C.frac >= 0.999 && !catU) {
@@ -882,6 +971,7 @@ function foldFit(P, swing, AF, W, MX) {
     out.cuts = wellMerge(rawB, mode);
     out.cutsSide = wellMergeSide(rawS, mode);
     if (catK && kneeFold(P)) kneeSlots(out.cutsSide, units, bodyIn, MX);
+    if (lFold(P)) lSlots(out.cutsSide, units, bodyIn, MX);
     // GR: THE NACELLES' WELLS - the units' swept points inside a nacelle, cut from below into its skin (the wing's way)
     out.cutsNac = NACS.length ? wellMerge(wellRaw(units, nacIn, MX), mode) : [];
     // (a nacelle well's ceiling held 8 mm under the nacelle's top: a wheel taller than the nacelle never opens its top)
@@ -894,7 +984,15 @@ function foldFit(P, swing, AF, W, MX) {
     // centre section runs through a belly well), merged where they meet: the wing layer's skin is cut by these
     // (the wing's sweep takes the leg's AXIS, not its tube: a wing's rest slot sits in its lower skin by the trunnion,
     // and the tube's 70 mm carried the root's well over the centre section's seam, where its loops cannot close)
-    out.cutsWing = W && W.underAt ? wellMerge(wellRaw(units, wingIn, MX, null, true).concat(rawB), mode) : [];
+    // (P2, the Super Petrel's V2 - the rigid L: the mains' cut is in the LOWEST plane, the stowed flat tyre's own round
+    // outline, exact - its rims' plan hull, as the Catalina's side recess - and its ceiling the tyre's top and the
+    // clearance, under that plane's upper skin)
+    const lFw = lFold(P), WW = lFw ? lowestPlane() : W;
+    const wingInW = !lFw ? wingIn : p => { if (!WW) return -1; const u = WW.underAt(p[0], p[2]), o = u ? WW.overAt(p[0], p[2]) : null; return u && o ? Math.min(p[1] - u.y, o.y - p[1]) : -1; };
+    const lUnits = lFw ? Object.fromEntries(Object.entries(units).filter(([k]) => k !== 'T')) : units;
+    out.cutsWing = WW && WW.underAt ? wellMerge(wellRaw(lUnits, wingInW, MX, lFw ? new Set(['L', 'R']) : null, !lFw).concat(lFw ? [] : rawB), lFw ? 'exact' : mode) : [];
+    // (each wing cut names the plane whose skin it is cut into: the knife cuts a mesh with its own plane's cuts only)
+    { const W0 = window.CAGE_WING, pl = lFw && W0 && W0.planes ? (W0.lowest || 0) : 0; for (const c of out.cutsWing) c.plane = pl; }
     // GR R4 (the user: "when they are not getting it in completely, we would still do the cutouts ... the round cutout for
     // the wheel"): WHERE THE STOWED WHEEL STANDS PROUD of a skin - its points over the wing's upper skin (the top: a hole
     // the knife cuts from above) and its points under the structure's lower skin (the bottom: the doors are cut round
@@ -903,10 +1001,10 @@ function foldFit(P, swing, AF, W, MX) {
     for (const key in units) {
       const Wp = poseAll(units[key].C, wheelRims(units[key].C), 0), top = [], bot = [];   // (the fine rims: a round cutout)
       for (const p of Wp) {
-        const o = W && W.overAt ? W.overAt(p[0], p[2]) : null, u = W && W.underAt ? W.underAt(p[0], p[2]) : null;
+        const o = WW && WW.overAt ? WW.overAt(p[0], p[2]) : null, u = WW && WW.underAt ? WW.underAt(p[0], p[2]) : null;
         const inB = bodyIn(p) > 0.002 || nacIn(p) > 0.002, Nn = nacAt(p[0], p[2]);
         if (o && !inB && p[1] > o.y - 0.002) top.push([p[2], p[0]]);
-        if (!inB && !(wingIn(p) > 0.002) && ((Nn && p[1] < Nn.AF.keelAt(p[2]) + 0.002) || (u && p[1] < u.y + 0.002) ||
+        if (!inB && !(wingInW(p) > 0.002) && ((Nn && p[1] < Nn.AF.keelAt(p[2]) + 0.002) || (u && p[1] < u.y + 0.002) ||
                                               (!u && AF && p[2] >= AF.z0 && p[2] <= AF.z1 && p[1] < AF.cyAt(p[2]))))
           bot.push([p[2], -p[0]]);
       }
@@ -919,7 +1017,7 @@ function foldFit(P, swing, AF, W, MX) {
       for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
         const x = H.x0 + i * H.d, z = H.z0 + j * H.d;
         if (AF && z >= AF.z0 && z <= AF.z1 && Math.abs(x) <= AF.halfWAt(z) + 0.02) continue;
-        const o = W.overAt(x, z); if (o) H.y[j * H.nx + i] = Math.min(H.y[j * H.nx + i], o.y - 0.008);
+        const o = WW.overAt(x, z); if (o) H.y[j * H.nx + i] = Math.min(H.y[j * H.nx + i], o.y - 0.008);
       } } }
   out.ms = +((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0).toFixed(1);
   return out;
@@ -1158,6 +1256,29 @@ function kneeSlots(cuts, units, bodyIn, MX) {
                 yTop: yTop + lr, hf: { u0, v0, d, nu, nv, e: new Array(nu * nv).fill(fl) } });
   }
 }
+// P2 (the Super Petrel's V2, the rigid L): THE PISTON'S SLOT - where the piston from inside the hull passes the side to
+// the corner over the turn (its line's crossings of the skin, at every WELL_G pose), a rounded slot its width and 20 mm
+// round it; a side well of its own, 70 mm deep (the piston runs on through its floor, inside)
+function lSlots(cuts, units, bodyIn, MX) {
+  if (!MX) return;
+  for (const key of ['L', 'R']) {
+    const U = units[key]; if (!U || !U.C || !U.C.lfold) continue;
+    const C = U.C, K = C.lfold, s = K.knee0[0] >= 0 ? 1 : -1, cr = [];
+    for (const g of WELL_G) { const Q = MX.CM.gearMechPoints(MX.R, g), e = Q.pt({ unit: key, p: K.knee0 }), line = [];
+      for (let i = 0; i <= 40; i++) { const t = i / 40; line.push([K.F[0] + (e[0] - K.F[0]) * t, K.F[1] + (e[1] - K.F[1]) * t, K.F[2] + (e[2] - K.F[2]) * t]); }
+      const d = line.map(bodyIn);
+      for (let i = 0; i + 1 < line.length; i++) if ((d[i] > 0) !== (d[i + 1] > 0)) { const t = d[i] / (d[i] - d[i + 1]);
+        cr.push([line[i][0] + (line[i + 1][0] - line[i][0]) * t, line[i][1] + (line[i + 1][1] - line[i][1]) * t, line[i][2] + (line[i + 1][2] - line[i][2]) * t]); } }
+    if (cr.length < 2) continue;
+    const rc = MECH.rCyl[0] + 0.02, uv = cr.map(p => [p[2], -s * p[1]]), hull = wellOutline(uv, 'exact', rc);
+    const fl = 0.07 - Math.min(...cr.map(p => Math.abs(p[0])));
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of hull) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
+    const d = WELL_CELL, nu = Math.max(2, Math.ceil((u1 - u0) / d) + 1), nv = Math.max(2, Math.ceil((v1 - v0) / d) + 1);
+    cuts.push({ units: [key], side: s, mode: 'exact', frame: { n0: [s, 0, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [0, -s, 0] }, hull, ceil: fl, pistonSlot: true,
+                hf: { u0, v0, d, nu, nv, e: new Array(nu * nv).fill(fl) } });
+  }
+}
 function cutsSideCage(cuts, FS) {
   return (cuts || []).map(c => {
     let o = c.hull.map(p => [p[0] / FS, p[1] / FS]), a2 = 0;
@@ -1175,7 +1296,7 @@ function cutsCage(cuts, FS) {
     for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
     if (a2 < 0) o = o.slice().reverse();
     const hf = c.hf ? { x0: c.hf.x0 / FS, z0: c.hf.z0 / FS, d: c.hf.d / FS, nx: c.hf.nx, nz: c.hf.nz, y: c.hf.y.map(v => +(v / FS).toFixed(5)) } : null;
-    return { units: c.units, mode: c.mode, outline: o, ceil: c.ceil / FS, ...(hf ? { hf } : {}) };
+    return { units: c.units, mode: c.mode, outline: o, ceil: c.ceil / FS, ...(hf ? { hf } : {}), ...(c.plane ? { plane: c.plane } : {}) };
   });
 }
 // the fifth test, the TANKS - read when the rows are refreshed (the energy layer runs after the gear): the stowed and
@@ -1391,6 +1512,28 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     // its HORN at the pivot (the user, 6 Nov: "a little piston on the folding knee, at the place where the rotating joint
     // is, and anchoring higher up on the fuselage"); the little piston from its fitting F high inside the hull to the
     // horn's end: barrel from F, rod from the horn; lugs at P and F, the knee's pin on the leg. Stowed, all behind the skin)
+    // (P2, the Super Petrel's V2: THE RIGID L's ARM - rigid with the unit, from the pivot's boss on the hull's side out
+    // to the corner; the piston (the user's sketch) from its fitting F inside the hull, through the side, to the corner;
+    // lugs at P and F)
+    if (k !== 'T' && C.lfold) { const K = C.lfold, kn = K.knee0, sg = kn[0] >= 0 ? 1 : -1, pn = [0, 0, 1];
+      const dA = nrm(sub3(kn, K.P));
+      R.parts.push({ name: 'edMech' + k + '_arm', rule: 'rigid', unit: k });
+      partGroup('edMech' + k + '_arm', b => {
+        KT.boxIn(b.alloy, lerp(K.P, kn, 0.5), [dist(K.P, kn) / 2 + 0.02, 0.022, 0.030], dA, nrm(crs(pn, dA)), pn);
+        for (const q of [K.P, kn]) KT.revolve(b.steel, KT.off(q, pn, -0.040), pn, [[0.020, 0], [0.020, 0.080]], 14, true);
+      });
+      const hornPt = { unit: k, p: kn };          // (the piston's end: the corner's pin)
+      let Dmax = 0, Dmin = Infinity; for (let i = 0; i <= 24; i++) { const d = dist(K.F, CM.gearMechPoints(R, 1 - i / 24).pt(hornPt)); Dmax = Math.max(Dmax, d); Dmin = Math.min(Dmin, d); }
+      const hn = kn, rc = MECH.rCyl[0], Lb = Math.max(0.08, Dmin - 0.03), Lr = Math.max(0.05, Math.min(Dmin - 0.02, Dmax - Lb + 0.04)), d0 = nrm(sub3(hn, K.F));
+      R.parts.push({ name: 'edMech' + k + '_lcyl', rule: 'aim', from: { fix: K.F }, to: hornPt, o0: K.F, d0 },
+                   { name: 'edMech' + k + '_lrod', rule: 'aim', from: hornPt, to: { fix: K.F }, o0: hn, d0: d0.map(x => -x) });
+      partGroup('edMech' + k + '_lcyl', b => { KT.revolve(b.alloy, K.F, d0, [[0.008, 0], [rc, 0.016], [rc, Lb - 0.010], [rc * 0.8, Lb]], 16, true); });
+      partGroup('edMech' + k + '_lrod', b => { KT.revolve(b.chrome || b.steel, hn, d0.map(x => -x), [[MECH.rRod * 0.8, 0], [MECH.rRod * 0.8, Lr]], 12, true); });
+      for (const q of [K.P, K.F]) { for (const s2 of [-1, 1]) KT.lug(fix.alloy, KT.off(q, pn, s2 * 0.045), pn, [sg, 0, 0], 0.022, 0.008, 0.040);
+        KT.revolve(fix.bronze, KT.off(q, pn, -0.055), pn, [[0.007, 0], [0.007, 0.110]], 10, true); }
+      info[k] = { lGeo: { P: K.P, a: +K.a.toFixed(3), b: +K.b.toFixed(3), F: K.F, ratio: K.ratio && +K.ratio.toFixed(2), stroke: +(Dmax - Dmin).toFixed(3), Dmin: +Dmin.toFixed(3),
+                          xc: +K.xc.toFixed(3), yc: +K.yc.toFixed(3) } };
+      continue; }
     if (k !== 'T' && C.knee && C.arc) { const K = C.knee, kn = K.knee0, sg = kn[0] >= 0 ? 1 : -1, pn = [0, 0, 1];
       const dA = nrm(sub3(kn, K.P)), armTo = { unit: k, p: kn };
       R.parts.push({ name: 'edMech' + k + '_arm', rule: 'aim', from: { fix: K.P }, to: armTo, o0: K.P, d0: dA });
@@ -1766,7 +1909,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
   ctx.scene.traverse(o => {
     if (!o.isMesh || !o.userData) return;
     if (o.userData.matNames && !bodyMat) { const k = o.userData.matNames.indexOf('body'); if (k >= 0) bodyMat = Array.isArray(o.material) ? o.material[k] : o.material; }
-    if (!o.userData.wingSkin || o.position.lengthSq() > 1e-12) return;
+    if (!o.userData.wingSkin || o.userData.wingPlane || o.position.lengthSq() > 1e-12) return;      // (the first plane's skin)
     if (!wingMat) wingMat = o.material;
     const g = o.userData.wellGeo0 || o.geometry, p = g.attributes.position, ix = g.index ? g.index.array : null, n = (ix ? ix.length : p.count) / 3;
     for (let t = 0; t < n; t++) {
@@ -1995,7 +2138,8 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       for (let t = 0; t < n; t++) nacF.push([0, 1, 2].map(q => { vv.fromBufferAttribute(pa, ix ? ix[t * 3 + q] : t * 3 + q).applyMatrix4(M4); return [vv.x, vv.y, vv.z]; }));
     } }
   const LOWS = new Map();
-  const sets = [['B', fit.cuts || [], bodyF, bodyMat], ['W', fit.cutsWing || [], wingF, wingMat], ['N', fit.cutsNac || [], nacF, nacMat]];
+  // (the rigid L's wing recess has no doors)
+  const sets = [['B', fit.cuts || [], bodyF, bodyMat], ['W', lFold(P) ? [] : fit.cutsWing || [], wingF, wingMat], ['N', fit.cutsNac || [], nacF, nacMat]];
   for (const [tag, cuts, faces, mat] of sets) cuts.forEach((c, ci) => {
     const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
     let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
@@ -2070,12 +2214,16 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
             if (s0 != null && s1 != null && (p0[1] - s0) * (p1[1] - s1) < 0) return true; } }
         return false; };
       const through = c.units.some(k => swing[k] && downLines(k).some(crosses));
-      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through };
+      // (the user, 6 Nov, the Super Petrel - carried from claude/hull-types HULL-B64: "when extended, the doors stay open,
+      // they don't close. They close only for the retracted position"): with NO leg door the down leg stands in the
+      // opening, so the well's doors stay open while it is down - two split doors had shut on it, the leg running along
+      // their seam and crossing neither half; with a leg door, a door the down gear does not pass through shuts down)
+      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through && !!+P.gearLegDoor };
       // drawn as it stands gear down (every part's rest): a door the down gear passes through stands open
       const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
       panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
       mech.R.parts.push({ name, rule: 'door', hinge, axis, ang: DOOR_ANG, seq, o0: hinge.slice() });
-      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: !through, hinge, axis, edgeOff: off, edgeOffLevel: offLevel });
+      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: seq.closedDown, hinge, axis, edgeOff: off, edgeOffLevel: offLevel });
     });
   });
   return out;
@@ -2464,7 +2612,8 @@ PAGE.post = ctx => {
         // leg, 50-160 mm); its lugs and fitting plate are the static structure's
         if (RETR) { const catS = !st.single && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
                     // (P2: the folding knee - its geometry solved here, the leg drawn to it: its head the knee)
-                    const kneeS = !st.single && kneeFold(P), KG = kneeS ? (KNEE[sgn > 0 ? 'L' : 'R'] = kneeGeom(AF, st, sgn, kneeDoor(P))) : null;
+                    const lS = !st.single && lFold(P), kneeS = !st.single && (kneeFold(P) || lS);
+                    const KG = lS ? (LFOLD[sgn > 0 ? 'L' : 'R'] = lGeom(AF, st, sgn)) : kneeS ? (KNEE[sgn > 0 ? 'L' : 'R'] = kneeGeom(AF, st, sgn, kneeDoor(P))) : null;
                     st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, free: catS || kneeS, flip: catS, kneeB: KG ? KG.b : null, fits: catS || kneeS ? null : retFits };
                     st.leg = 2;
                     // GR: a shortening leg - its piston's own bags (they slide), its cylinder shortened for the travel

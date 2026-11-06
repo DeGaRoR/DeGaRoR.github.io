@@ -2373,3 +2373,74 @@ tangent at this point. The petrel clearly shows the issue, and so do every other
   - What is left is the outline's own curve: a straight hinge can't follow a curved edge.
 - **Gate (section 17):** every well door's edge lies no further off its axis than off the level line (+5 mm); at least
   four axes climb (over 3 deg); and a sloped one is nearer by more than 5 mm.
+
+### 8.32 The well doors stay open gear down without a leg door; the Super Petrel's V2 mains, the rigid L (6 Nov)
+
+**THE DOOR RULE** (carried from claude/hull-types HULL-B64, at the user's word: "in both versions, the front gear doors
+stay open when the gear is extended, close only when retracted").
+- A well door's seq is now closedDown = !through && gearLegDoor.
+- With no leg door, the down leg stands in the opening. Two split doors had shut on it, because the leg ran along their
+  seam and crossed neither half.
+- Gate section 17: with gearLegDoor 0 every well door is open down and shut up.
+
+**THE RIGID L** (FOLD_KEYS[9] 'lfold', "rigid L, turned up flat under the lower wing"). The user's sketch (hull-types
+flyDiy/reports/evidence/PETREL-V2/user_sketch_v2_section.png): "it just stows below the wing, no doors. It's a fixed 90
+deg angle that rotates 90 degrees and the wheel slots partly into the bottom wing".
+
+- **lGeom (the station).**
+  - The leg is drawn as the knee's (RT.free, kneeB = b), with the wheel outboard by hub = 0.4 R + 20 mm.
+  - The pivot P sits on the hull's side, its axis 30 mm off the skin over the arm's stowed run.
+  - The arm a = |A0.x| - hub - |P.x|: the track sets the arm.
+  - Turned 90 deg, the hub's offset points up. The tyre's mid-plane y_c = P.y + a + hub is set ON the lowest plane's
+    underside at x_c = |P.x| + b, or 12 mm + half the tyre under a thin wing's upper skin. That fixes P.y, and with it
+    the leg b = P.y - A0.y (a fixed point with P.x, which follows the side).
+- **The reds:**
+  - "the lower wing is N mm too low for the leg to clear the tyre" (b < R + 30 mm);
+  - "the track leaves the arm N mm";
+  - "the stowed corner stands N mm into the lower wing at the hull";
+  - "the pivot falls below the hull's side";
+  - no lower wing over the tyre.
+- **The piston** follows the sketch: from a fitting INSIDE the hull, through the side, to the corner (the unit's point).
+  - Its fitting is searched over a grid inside the hull (40 mm in), under the wing (60 mm) and over the pivot: the
+    highest place whose longest-to-shortest length over the turn is at most 1.7. Failing that, the least ratio, red over
+    1.8.
+  - A piston from high on the side to the corner would want 2.5 : 1; one on the leg, 4 : 1.
+  - lSlots cuts its slot in the side: the line's skin crossings at every pose, a rounded outline, 70 mm deep.
+- **foldChain:** C.hinge = P, C.top = the corner, one turn { axis [0, 0, 1], ang = side x 90 deg }, kept out of the
+  preset trim and the tuck.
+- **mechBuild:** the arm is rigid with the unit (P to the corner, bosses); the piston is '_lcyl' / '_lrod' (kept out of
+  the body wells' mechanism points); lugs sit at P and F. mechInfo[k].lGeo = {P, a, b, F, ratio, stroke, Dmin, xc, yc}.
+- **The recess** is the LOWEST plane's cut: the stowed rims only (wheelOnly), exact and round, with its ceiling under
+  that plane's upper skin. The pierce outlines read the same plane. There are no wing doors.
+- **foldFit (lU):**
+  - the solve's words;
+  - the tyre's mid-plane within 15 mm of the underside;
+  - its top 8 mm under the upper skin;
+  - its rim 10 mm off the hull's side;
+  - the arm and the leg outside the hull at every position;
+  - the Catalina's wing-crossing test.
+- **On the Petrel** (hull-types HULL-B64): the lower wing's underside at the station is about -0.04 m (not the relayed
+  +0.10). The axle at -0.416 leaves a + b = 0.31 m.
+  - s1X 0.86, w2Dy 0.025: a 0.14, b 0.178, green.
+  - s1X 0.86, w2Dy 0.0: a 0.14, b 0.15, green.
+  - s1X 0.84, w2Dy -0.01: a 0.12, b 0.161, green.
+  - s1X 0.86, w2Dy -0.02: red, 22 mm.
+  - The piston: 1.68 : 1, stroke 158 mm.
+- **Gate section 18** (the C172 under a second wing, s1X 1.0, w2Dy 0.25):
+  - one 90 deg turn about P; the corner stood a over P; the tyre flat, its mid-plane on the underside;
+  - two round wing cuts and no wing doors;
+  - the piston at most 1.8 : 1, with its two slots;
+  - the mains green;
+  - s1X 1.8 is red.
+
+**THE RECESS CUTS ITSELF INTO THE LOWER WING.** The user: "we need an exact beautiful round cut like you implemented
+before, but this time into the wing where the wheel slots. And this should be automatic, same philosophy as the
+beginning, the wheel auto cuts".
+- The cut was computed, but the knife never reached the lower wing: only the first plane's skin meshes carried
+  userData.wingSkin. The second plane's skins (cageLayer:wing2) now carry wingSkin and wingPlane 1.
+- Each wing cut names its plane (c.plane: the rigid L's is the lowest plane's; every other fold's is 0), and cutsCage
+  carries it.
+- The editor (_cage_ui wingWellApply) and quickshot cut each mesh with its own plane's cuts only. The wheels' top holes
+  (pierce) apply to the first plane.
+- doorBuild reads the first plane's skin only.
+- Gate section 18: the lower plane's skin builds the well and the upper plane's none.
