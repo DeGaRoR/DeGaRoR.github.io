@@ -125,12 +125,12 @@ console.log('6. the splice rules');
   yes(/CLOUDS\.inject\(sh\)/.test(at) && /renderer\.setScissor\(0, 0, AP_N \* AP_W, AP_H\)/.test(at), 'ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows');
   yes(/_C \*= cloudShadow\(\);/.test(src('viewer/trees.js')), 'the trees\' own leaf terms take the cloud shadow');
   yes(/setPre: f => \{ S\.pre = f \|\| null; \}/.test(aa) && /if \(S\.pre\) \{ if \(camera\.updateWorldMatrix\) camera\.updateWorldMatrix\(true, false\); S\.pre\(renderer, camera, S\.rt(?:, scene)?\); \}/.test(aa), 'the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame\'s depth, with THIS frame\'s camera (G650)');
-  yes((/aa\.setPre\(\(r, cam, rt\) => \{ if \(!inGarage\) CLOUDS\.draw\(r, cam, rt\); \}\)/.test(src('viewer/app.js')) || (/aa\.setPre\(\(r, cam, rt, drawnScene\) => \{ if \(drawnScene === scene\) CLOUDS\.draw\(r, cam, rt, true\); \}\)/.test(src('viewer/app.js')) && /S\.pre\(renderer, camera, S\.rt, scene\)/.test(aa))) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js marches before the scene and dims the flare by the column');
+  yes((/aa\.setPre\(\(r, cam, rt\) => \{ if \(!inGarage\) CLOUDS\.draw\(r, cam, rt\); \}\)/.test(src('viewer/app.js')) || (/aa\.setPre\(\(r, cam, rt, drawnScene\) => \{ if \(drawnScene === scene\) CLOUDS\.draw\(r, cam, rt\); \}\)/.test(src('viewer/app.js')) && /S\.pre\(renderer, camera, S\.rt, scene\)/.test(aa))) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js marches before the scene and dims the flare by the column');
   yes(/gl_FragDepth = wDz\(w\);/.test(cj) && /log2\(1\.0 \+ w\) \/ uLogFar/.test(cj) && /uDZ\.y \* \(uDZ\.z - w\)/.test(cj) && /depthTest: true, depthWrite: false, transparent: true, toneMapped: true/.test(cj) && /compMesh\.renderOrder = 1e6/.test(cj) && /scene\.add\(CLOUDS\.compositeMesh\(\)\)/.test(rw), 'the composite is a quad IN the world scene at the cloud\'s depth (reversed float or log, as the renderer runs - PERF 2026-09-23), last, tested per MSAA sample (the 1-px line round the aeroplane)');
   yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
   yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
   // C3: the probe and the shed see the layer (the dome march), the hemisphere rises under a cloud, the shed's key takes the column
-  yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /vec4 mc = march\(o, dr, thru \? 1e9 : tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
+  yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /gl_FragColor = march\(o, d, thru \? 1e9 : tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
   const rw3 = src('viewer/render_world.js');
   yes(/decorate: typeof CLOUDS !== 'undefined' && CLOUDS\.domeMesh \? es => \{ const m = CLOUDS\.domeMesh\(0, 20, 24\);/.test(rw3) && /dirty: typeof CLOUDS !== 'undefined' && CLOUDS\.probeDirty/.test(rw3), 'the world\'s probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)');
   yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /\(\(o\.dirty && o\.dirty\(\)\) \|\| \(o\.cap && capMoved\(\)\)\)\) return probe\.bake\(day\);/.test(at),
@@ -374,21 +374,6 @@ console.log('9. the composite never samples the depth it draws into (G1532: \'cu
     yes(good, pr + ': the clouds live, the composite drawn, no feedback draw (samples ' + (R && R.samples) + ', composite ' + (R && R.compositeDraws) + ' draws, feedbacks ' + (R && R.feedbackAll) + ', ' + Math.round((Date.now() - t0) / 1000) + ' s)'
       + (good ? '' : ' - ' + (R ? JSON.stringify(R) : 'no PROBE line (exit ' + cp.status + ') ' + String(cp.stderr || '').slice(-300))));
   }
-}
-
-// 10. THE TEMPORAL PASS (LOOK-1 2a): static rules; the GPU half is tools/look1_temporal.js
-{ const cs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8'), ap = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
-  const fn = (name) => { const i = cs.indexOf('function ' + name + '('); return i < 0 ? '' : cs.slice(i, cs.indexOf('\n  }\n', i)); };
-  const res = fn('histResolve'), hf = cs.slice(cs.indexOf('const HIST_FRAG'), cs.indexOf('// THE DOME MARCH'));
-  yes((cs.match(/\bhN = 0;/g) || []).length === 2 && /hW = w; hH = h; hN = 0;/.test(cs) && /if \(main\) hN = 0; return;/.test(cs), 'the history is dropped only on a new size and when the clouds were not drawn: never on a camera move');
-  yes(/float w = k1 \/ max\(k0, 1e-3\) > 1\.15 \? max\(uTK\.y, 0\.5\) : uTK\.y;/.test(hf), 'the current frame\'s weight reads the depth step only, not the camera\'s motion');
-  yes(/U\.uFrame\.value = \(S\.shimmer \|\| hist\)/.test(cs) && /const hist = !!main && !!S\.temporal;/.test(cs), 'the jitter moves per frame only when the history is on');
-  yes(res.indexOf('r.render(fsScene, fsCam)') > 0 && res.indexOf('r.render(fsScene, fsCam)') < res.indexOf('uPrevVP.value.multiplyMatrices'), 'the reprojection reads the previous frame\'s matrix: it is written after the draw');
-  yes(/CLOUDS\.draw\(r, cam, rt, true\)/.test(ap) && /opts\.clouds\(renderer, mc, MIR\.rt\)/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'water.js'), 'utf8')), 'only the main view takes the history: the mirror keeps its own march');
-  const dg = cs.slice(cs.indexOf('const DENSITY_GLSL'), cs.indexOf('// ---- the march'));
-  yes(!/\btexture\(uNoise|\btexture\(uDetail/.test(dg) && /textureLod\(uNoise/.test(dg) && /textureLod\(uDetail/.test(dg), 'the mipped noise is read at a named level (a ray has no derivatives)');
-  yes(/noiseMips: 0,/.test(cs) && /bakeAt >= NB \+ 1 && S\.noiseMips\)/.test(cs) && /generateMipmaps: false/.test(cs), 'no level chain on the noise by default: generateMipmap on the 3D target froze the taxi 1-9 s (L32f)');
-  yes(/histMat\]\.filter/.test(cs), 'the resolve is in the warm list');
 }
 
 console.log(`${checks} checks, ${fails} failed`);
