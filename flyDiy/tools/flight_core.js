@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 748d6a0adf3f535f
+// body-sha256: 519d8735763bbc38
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34680,6 +34680,12 @@ const GEN_TIPS = {
   // the Hoerner row and a hair more, no drag of its own.
   endplate:{ name: 'Endplate',   e: 1.05, bow: 0,    arc: 0, fin: 0, plate: [0.55, 1.10] },
   drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
+  // HULL-B54 (the user, the Super Petrel: "the wingtips are going up, not down ... this very one, but inverted would be
+  // quite perfect"; "flipping the tip is really a new type of wingtip, the current one should not be changed"): the
+  // drooped tip's bend MIRRORED - the same bow rolled UP, its end `droop` tip chords above the joint (63_gen_wing reads
+  // `up`); its length, rise and fullness the same three rows (wgTipBow / wgTipDroop / wgTipFull); e as the drooped. A
+  // buoyant tip is a drooped one (genTipBuoyTable bends down): an upturned tip floats nothing
+  upturned:{ name: 'Upturned',   e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14, up: 1 },
 };
 
 // HULL-B26: THE TIP'S OWN SHAPE (the user, 5 Nov: "take the existing wingtips, start from that very shape and modify it
@@ -42856,7 +42862,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // is the wing. Its shell is the drooped tip's own (the wing's ledger bills it, 1603); the fuller section's extra
     // laminate here, 2 kg + 25 kg per m3 of tip, INFERRED (a glass shell of ~1.5 kg/m2 over its wetted area)
     const w0T = S.wings && S.wings[0], TIPw = w0T ? genTipOf(w0T) : null;
-    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6) {
+    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6 && !(TIPw && TIPw.up)) {   // (HULL-B54: an upturned tip floats nothing)
       const cT = w0T.tipC > 0 ? w0T.tipC : w0T.chord * (w0T.taper || 1);
       const BT = genTipBuoyTable(cT, w0T.tipR, (TIPw.droop || 0) * cT, TIPw.full || 1, ((w0T.naca | 0) % 100) / 100, R.sparFront != null ? R.sparFront : 0.15);
       const TPP = BT && HYDRO.hullParamsFromTable({ sta: BT.sta });
@@ -46839,14 +46845,14 @@ function genWingInto(def, out) {
       const ch = genV3.norm(genV3.sub(f0.pR, f0.pF));
       let up = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (up[1] < 0) up = genV3.mul(up, -1);
       const out = genV3.mul(genV3.norm(genV3.cross(ch, up)), side), O = f0.pF;
-      const BD = genTipBend(W.tipR, (TIP.droop || 0) * cT);
+      const BD = genTipBend(W.tipR, (TIP.droop || 0) * cT), sgU = TIP.up ? -1 : 1;   // (HULL-B54: up - th and Y mirrored)
       for (const row of fixRows) {
         if (!(row.z0 > W.tipZ + 1e-6)) continue;
-        const s0 = row.z0 - W.tipZ, th = BD.th(s0), cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
+        const s0 = row.z0 - W.tipZ, th = sgU * BD.th(s0), cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
         const fat = genTipFat(TIP.full, s0, W.tipR);
         const loc = row.map(pt => { const d = genV3.sub(pt.p, O); return [genV3.dot(d, ch), genV3.dot(d, up), genV3.dot(d, out) - s0]; });
         let vLo = Infinity, vHi = -Infinity; for (const q of loc) { vLo = Math.min(vLo, q[1]); vHi = Math.max(vHi, q[1]); }
-        const vm = 0.5 * (vLo + vHi), Z = BD.Z(s0), Y = BD.Y(s0);
+        const vm = 0.5 * (vLo + vHi), Z = BD.Z(s0), Y = sgU * BD.Y(s0);
         row.forEach((pt, i) => {
           const [a, v, w] = loc[i], v2 = vm + (v - vm) * fat;
           // p = O + a ch + (Z + w) out + Y up + v2 (up cos th + out sin th)
