@@ -2136,3 +2136,34 @@ the EDO model here and not just the we pair model?").
 - **The hull is not EDO.** Only the gear is EDO's. The hull is still the Wipline 2350's, the one hull family the garage
   has; EDO's lines wait for EDO drawings.
 - **GATE RETRACT section 19 adds two checks:** both noses at the cap's height; the EDO rake between 45 degrees and level.
+
+### 8.26 The Catalina's single round opening; the amphibians' legs measured (6 Nov)
+
+**THE CATALINA, v4** (the user: "you have done an opening on the side, which corresponds to the whole mechanism. But
+that's not what it does ... the whole mechanism is done so that you can have a single round opening that the wheel
+comes and closes ... The little leg there will have almost a single point of travel through the wall it goes
+through"). v3 had stowed the leg INSIDE the hull, and its sweep tore a tall slot.
+
+v4:
+- **The leg stays outside.** It stows along the hull's side. The wheel rides INBOARD of it again (`st.ret.flip`, with
+  `free`). The lean is solved (-20 to 40 degrees, the least) to keep every point of the leg 15 mm off the skin.
+- **The links pass the wall at their fittings.** Both the side strut's and the V-strut jack's sit ON the skin, so each
+  passes the wall at one point and cuts nothing.
+- **The recess is the STOWED wheel's rims alone:** one round opening, which the wheel closes.
+- **It is always cut as a side well.** Where the side turns into the bilge, the average normal had read it as a belly
+  well.
+- **The fit tests the design.**
+  - The Catalina's skin test is its recess's: the stowed wheel's centre at least 15 mm inside the side.
+  - The floor test ignores the fittings on the skin, the points within 20 mm of it.
+- **On the c172 card one red stays, and it is real:** the stowed wheel's inner half reaches 121 mm over the cabin floor
+  the card raises to -0.25 m. A flying boat's hull is deep, with its floor high.
+
+**THE AMPHIBIANS' LEGS, MEASURED** (the user: "check ... whether the length of the leg that we have is sufficient. They
+just seem a little short to me ... if you can find any data that gives you a clear reference point"). Read off
+Wipaire's dimensioned 3-views (the product guides), each scaled by its own wheelbase dimension:
+- **C-206 on 3450s** (6.00x6, wheelbase 11'-7", 1.806 px/in): the keel stands 7.2 in over the ground line at the step.
+- **Husky on 2100s** (5.00x5, wheelbase 9'-3", 0.836 px/in): 5.5 in.
+
+Both are 0.8 of the main wheel's radius, and the main axle stands level with the keel. `HYDRO.AMPHIB_GEOM.clearK` is
+0.8, a measurement now, not an assumption: `amph.measured.keelClearance` is 142 mm on the 2350's 5.00x5. The old
+assumption, 0.5 R (89 mm), was short, as the user saw. GATE RETRACT section 19 checks it.

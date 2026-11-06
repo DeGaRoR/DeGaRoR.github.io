@@ -1801,7 +1801,12 @@ const WIPLINE_AMPHIB = {
   'Wipline 10000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: null, dKg: null, ex: 'Fire Boss (amphibian only)' },
   'Wipline 13000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: 14, dKg: 677 * 0.4536, ex: 'DHC-6 (2163 vs 1486 lb)' },
 };
-const AMPHIB_GEOM = { wbK: 0.50, mainK: 0.53 };     // [inferred] off the guides' 3-views (above)
+// clearK (measured 6 Nov, the user: "the float will be really close to the ground ... if you can find any data that
+// gives you a clear reference point"): the keel's height over the ground at the step, gear down, as a share of the
+// main wheel's radius - read off Wipaire's dimensioned 3-views against their own wheelbase dimension: the C-206 on
+// 3450s (6.00x6, wheelbase 11'-7") 7.2 in, the Husky on 2100s (5.00x5, 9'-3") 5.5 in - both 0.8 R; the main axle
+// stands level with the keel
+const AMPHIB_GEOM = { wbK: 0.50, mainK: 0.53, clearK: 0.80 };     // [inferred / measured] off the guides' 3-views (above)
 // a hull row's amphibian gear: its preset's, else the catalogue row nearest its hull HEIGHT (the wheel must stow in
 // it), its length the tie-break (est: true)
 function amphibOf(preset, L, H) {

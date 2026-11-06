@@ -411,15 +411,15 @@ function streamlined(bag, a, b, t, chordK) {
 //     end track, turns the corner and is drawn aft (the 3730 manual: rollers "go around the corner"), so the leg swings
 //     from hanging down to lying forward and the wheel ends at the bow tip, half out - "retracts into the float nose
 //     to provide a dock bumper" (Wipaire, the 13000). No doors.
-//   ASSUMED (Wipaire publishes none of them; the study lists them as missing): the wheels' drop - their bottoms 0.5 of
-//     the main's radius under the step's keel; the stowed main tyre flush with its keel; the trunnion at half the
+//   MEASURED off Wipaire's 3-views: the keel 0.8 of the main's radius over the ground at the step (HYDRO.AMPHIB_GEOM.
+//     clearK). ASSUMED (Wipaire publishes none of them; the study lists them as missing): the stowed main tyre flush with its keel; the trunnion at half the
 //     hull's height; the nose trolley's travel (what lands the wheel at the bow tip); the leg's rake (20 deg).
 function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
   const A = HY.amphibOf(HP.preset, HP.L, HP.H); if (!A) return;
   const G = HY.AMPHIB_GEOM, sec = x => HY.sectionOf(HP, x === 0 ? -1e-9 : x);
   const Rm = HY.TYRE_OD(A.main) / 2, Wm = HY.TYRE_W(A.main), Rn = HY.TYRE_OD(A.nose) / 2, Wn = HY.TYRE_W(A.nose);
   const xs = HP.xs, H = HP.H, xb = -xs, dL = (A.dL != null ? A.dL : 6) * 0.0254, La = HP.L + dL;
-  const ykS = sec(0).yk, yg = ykS - 0.5 * Rm;                        // (the ground line: the wheels' bottoms)
+  const ykS = sec(0).yk, yg = ykS - (G.clearK || 0.8) * Rm;          // (the ground line: the keel 0.8 R over it - the guides' 3-views)
   const xn = xb - dL * 0.5, xm = Math.max(xb - dL + G.mainK * La, Rm + 0.05);
   // THE BLACK CAP (the rubber nose bumper): the stowed nose wheel comes to ITS height, at the tip, and slides through a
   // slot cut in it as wide as the tyre (the user, 5 Nov: "your little wheel is coming too low, so it should really
@@ -533,7 +533,7 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
     if (r.skin) { hullMesh.geometry.dispose(); hullMesh.geometry = r.skin; }
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
-  rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['drop', 'stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], fitWhy };
+  rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
   rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
 }
 const prevPost = PAGE.post;

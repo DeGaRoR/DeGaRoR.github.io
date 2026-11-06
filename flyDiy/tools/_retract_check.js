@@ -525,7 +525,10 @@ console.log('10 THE FOLD (G1)');
           'half way: ' + Math.round(100 * (p1[1] - r0[1]) / (cu[1] - r0[1])) + ' % of the rise, ' + Math.round(100 * (Math.abs(r0[0]) - Math.abs(p1[0])) / (Math.abs(r0[0]) - Math.abs(cu[0]))) + ' % of the way in');
     check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
           'the V-strut\'s jack and the side strut are parts of the one kinematics');
-    check((Gc.cutsSide || []).length === 2, 'a recess in each side (the wheel and its leg)', (Gc.cutsSide || []).length + ' side wells'); }
+    const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };
+    const sides = Gc.cutsSide || [];
+    check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
+          sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }
   // ---- 19. THE AMPHIBIAN FLOATS (§8.25): Wipline wheels in the floats, from Wipaire's manuals and guides ----------
   console.log('19 THE AMPHIBIAN FLOATS (§8.25)');
   { const H = C.HYDRO, ac = D.ARCHETYPES.find(x => x.key === 'c172');
@@ -551,6 +554,9 @@ console.log('10 THE FOLD (G1)');
       check(Math.abs(RW.noseUp[1] - RW.capY) < 0.06 && Math.abs(RE.noseUp[1] - RE.capY) < 0.06,
             'stowed, both noses at the black cap\'s height, through its slot', 'Wipline ' + ((RW.noseUp[1] - RW.capY) * 1000).toFixed(0) + ' mm, EDO ' + ((RE.noseUp[1] - RE.capY) * 1000).toFixed(0) + ' mm off its middle');
       check(RE.edoRake > 15 && RE.edoRake < 45, 'EDO style: the leg lands raked forward, between 45 degrees and level', RE.edoRake + ' deg'); }
+    check(Am.measured && Math.abs(Am.measured.keelClearance - 0.8 * H.TYRE_OD('5.00x5') / 2) < 0.005,
+          'gear down the keel stands 0.8 of the main wheel\'s radius over the ground at the step (Wipaire\'s C-206 and Husky 3-views)',
+          Am.measured && (Am.measured.keelClearance * 1000).toFixed(0) + ' mm');
     let well = false;
     { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: 0 }, garage: bc }); Sx.scene.traverse(o => { if (o.name === 'edFloatWellL' || o.name === 'edFloatWellR') well = true; }); }
     check(well && Array.isArray(Am.fitWhy) && Am.assumed.length >= 4, 'an open wheel well cut in each float (no door); what Wipaire does not publish is named as assumed',

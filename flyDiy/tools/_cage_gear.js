@@ -316,11 +316,14 @@ function foldChain(u, key, P, SP) {
     const poleFor = a => { const th = a * T.axis[2], cs = Math.cos(th), sn = Math.sin(th);
       const rx = c1[0] - (cs * cs0[0] - sn * cs0[1]), ry = c1[1] - (sn * cs0[0] + cs * cs0[1]), det = 2 * (1 - cs);
       return [((1 - cs) * rx - sn * ry) / det, (sn * rx + (1 - cs) * ry) / det, c0[2]]; };
-    const legPts = []; for (let f = 0; f <= 0.75; f += 0.05) legPts.push([h[0] + (c0[0] - h[0]) * f, h[1] + (c0[1] - h[1]) * f, h[2]]);
+    // (P2 v4, the user 6 Nov: "a single round opening that the wheel comes and closes ... The little leg there will
+    // have almost a single point of travel through the wall": the leg stays OUTSIDE, along the hull's side, the wheel
+    // inboard of it in the round recess - its lean solved (-20 .. 40 deg, the least) to keep the leg 15 mm off the skin)
+    const legPts = []; for (let f = 0; f <= 1.0001; f += 0.05) legPts.push([h[0], h[1] + (c0[1] - h[1]) * f, h[2]]);
     let bestA = null;
-    for (let deg = 6; deg <= 40; deg += 1) { T.ang = deg * D2R; C.hinge = poleFor(T.ang);
-      let out = 0; for (const p of poseAll(C, legPts, 0)) out = Math.max(out, 0.03 - SP.bodyIn(p));
-      const e = Math.max(0, out) + 0.0005 * deg; if (!bestA || e < bestA.e) bestA = { e, deg }; }
+    for (let deg = -20; deg <= 40; deg += 1) { if (!deg) continue; T.ang = deg * D2R; C.hinge = poleFor(T.ang);
+      let inn = 0; for (const p of poseAll(C, legPts, 0)) inn = Math.max(inn, SP.bodyIn(p) + 0.015);
+      const e = Math.max(0, inn) + 0.0005 * Math.abs(deg); if (!bestA || e < bestA.e) bestA = { e, deg }; }
     T.ang = bestA.deg * D2R; C.hinge = poleFor(T.ang);
     C.solved = [+(T.ang / D2R).toFixed(1), +rise.toFixed(3)];
   }
@@ -627,8 +630,13 @@ function foldFit(P, swing, AF, W, MX) {
   for (const key in units) {
     const C = units[key].C, R = FIT_ROWS[key], st = R.st, word = UNIT_WORD[key];
     const up = posed[key][FIT_G.length - 1], all = up.W.concat(up.L);
+    // (P2 v4: the Catalina's mains stow OUTSIDE by design - the leg along the hull's side, the wheel half in its round
+    // recess, the links' fittings on the skin: its skin test is the recess's - the stowed wheel's centre inside the side)
+    const catU = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+    if (catU && C.frac >= 0.999) { const c = poseAll(C, [C.axle], 0)[0];
+      if (!(bodyIn(c) > 0.015)) fail('skin', key, word + ', up, does not sit in its recess: its centre ' + Math.round(-bodyIn(c) * 1000) + ' mm out of the side', R.fold.concat([st + 'R', st + 'Drop'])); }
     // SKIN (fully up, a whole retraction only)
-    if (C.frac >= 0.999) {
+    if (C.frac >= 0.999 && !catU) {
       // each point outside, classified: through the wing's skin (in its planform: by how much), out of the body (in
       // its width: by how much), or OFF the wing's chord (aft of the trailing edge / ahead of the leading edge)
       let wingMM = 0, bodyMM = 0, aftTE = 0, foreLE = 0, beyond = 0;
@@ -659,7 +667,8 @@ function foldFit(P, swing, AF, W, MX) {
              R.fold.concat([st + 'Z', st + 'AxZ', st + 'R', 'wgChord'])); }
     // FLOOR (inside the body, at any position)
     { let worst = 0;
-      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > 0 && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
+      const inT = catU ? 0.02 : 0;                     // (the Catalina's: its fittings on the skin are not in the cabin)
+      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > inT && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
       if (worst > 0) fail('floor', key, word + ' rises ' + Math.round(worst * 1000) + ' mm into the cabin floor',
                           R.fold.concat([st + 'Drop', st + 'R', 'floorY', 'gearRetFrac'])); }
   }
@@ -719,7 +728,10 @@ function foldFit(P, swing, AF, W, MX) {
       for (const p of r.pts) { if (bodyIn(p) > 0.04) continue; const cy = AF.cyAt(p[2]), l = Math.hypot(p[0], p[1] - cy) || 1; nx += p[0] / l; n++; }
       return n && Math.abs(nx / n) > 0.6 ? Math.sign(nx) : 0; };
     const rawB = [], rawS = [];
-    for (const r of rawAll) { const sd = AF ? sideOf(r) : 0; if (sd) rawS.push(Object.assign(r, { side: sd })); else rawB.push(r); }
+    // (the Catalina's recesses are side wells by design - v4's stowed wheel sits where the side turns into the bilge,
+    // and the average normal read it as a belly well)
+    for (const r of rawAll) { const sd = catK && r.units.every(k => catK.has(k)) ? Math.sign(r.pts.reduce((a, p) => a + p[0], 0)) || 1 : AF ? sideOf(r) : 0;
+      if (sd) rawS.push(Object.assign(r, { side: sd })); else rawB.push(r); }
     out.cuts = wellMerge(rawB, mode);
     out.cutsSide = wellMergeSide(rawS, mode);
     // GR: THE NACELLES' WELLS - the units' swept points inside a nacelle, cut from below into its skin (the wing's way)
@@ -862,12 +874,13 @@ function legTube(C) {
 function wellRaw(units, inFn, MX, wheelOnly, axisOnly) {
   const raw = [];
   for (const key in units) {
-    // (`wheelOnly` keys - the Catalina's mains: the recess is the wheel's and its leg's (P2 v3: the leg comes in with it),
-    // not the links')
+    // (`wheelOnly` keys - the Catalina's mains: the recess is the stowed wheel's alone, round (v4: the leg stays outside
+    // along the side; the links pass the wall at their fittings))
     const U = units[key], inside = [], wo = wheelOnly && wheelOnly.has(key);
     // (the swept points once per unit and kind, shared by the body's, the nacelles' and the wing's sweeps)
     const ck = wo ? '_swW' : axisOnly ? '_swA' : '_sw';
-    if (!U[ck]) { const all = wo ? wheelRims(U.C).concat(legTube(U.C)) : wheelRims(U.C, 24, [1]).concat(U.pts.W.filter((p, i) => i === 0 || ((i - 1) % 24) >= 12), axisOnly ? legTube(Object.assign({}, U.C, { legR: 1e-9 })) : legTube(U.C));
+    if (!U[ck] && wo) U[ck] = [poseAll(U.C, wheelRims(U.C), 0)];        // (v4: the STOWED wheel's rims only - the round opening it closes)
+    if (!U[ck]) { const all = wheelRims(U.C, 24, [1]).concat(U.pts.W.filter((p, i) => i === 0 || ((i - 1) % 24) >= 12), axisOnly ? legTube(Object.assign({}, U.C, { legR: 1e-9 })) : legTube(U.C));
       if (MX && !wo && !U._mech) U._mech = WELL_G.map(g => wellMechPts(MX, key, g));    // (the mechanism's, once per unit)
       // (the wing's axis sweep every other pose: its outline is the wheel's and the axis', coarser in time than the tube's)
       U[ck] = WELL_G.map((g, gi) => axisOnly && gi % 2 ? null : poseAll(U.C, all, g).concat(MX && !wo ? U._mech[gi] : [])).filter(Boolean); }
@@ -1216,7 +1229,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       let bestS = null;
       for (let yi = 0; yi <= 12; yi++) { const y = Lp[1] + (yTop - Lp[1]) * yi / 12;
         let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, Lp[2]]) > 0) lo = m2; else hi = m2; }
-        for (const dIn of [0.02, 0.05, 0.08, 0.12, 0.17, 0.23, 0.30]) {
+        for (const dIn of [0.004]) {                                       // (v4: the fitting ON the skin - one point through the wall)
           const S0 = [sg * (lo - dIn), y, Lp[2]], D0 = dist2(S0, Lp);
           let mx = 0; for (const q of path) mx = Math.max(mx, dist2(S0, q));
           const ok = mx <= D0 + 0.002, lev = Math.abs(S0[1] - Lp[1]) / D0;
@@ -1269,7 +1282,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       for (let f = 0.6; f <= 1.61; f += 0.1) { const y = h[1] + f * Lg;
         let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, h[2]]) > 0) lo = m2; else hi = m2; }
         if (lo < 0.6 * Math.abs(h[0])) break;                          // (above the side: the cabin's top, not a fitting's place)
-        const U = [sg * (lo - 0.03), y, h[2]], ds = hp.map(q => dist2(U, q)), Dmax = Math.max(...ds), Dmin = Math.min(...ds);
+        const U = [sg * (lo - 0.004), y, h[2]], ds = hp.map(q => dist2(U, q)), Dmax = Math.max(...ds), Dmin = Math.min(...ds);
         pickU = { U, Dmax, Dmin }; if (Dmax <= 2 * Dmin - 0.08) break; }
       if (!pickU) { const U = [h[0] - sg * 0.05, h[1] + 0.6 * Lg, h[2]], ds = hp.map(q => dist2(U, q)); pickU = { U, Dmax: Math.max(...ds), Dmin: Math.min(...ds) }; }
       const { U, Dmax, Dmin } = pickU, Lb = Math.max(0.10, Dmin - 0.03), Lr = Math.min(Dmin - 0.02, Dmax - Lb + 0.04), d0 = nrm(sub3(h, U));
@@ -2086,7 +2099,7 @@ PAGE.post = ctx => {
         // depth over the leg's root (a low wing's mains) or 45 % of the way from the keel to the cabin floor (a body
         // leg, 50-160 mm); its lugs and fitting plate are the static structure's
         if (RETR) { const catS = !st.single && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
-                    st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, free: catS, fits: catS ? null : retFits };
+                    st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, free: catS, flip: catS, fits: catS ? null : retFits };
                     st.leg = 2;
                     // GR: a shortening leg - its piston's own bags (they slide), its cylinder shortened for the travel
                     if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
