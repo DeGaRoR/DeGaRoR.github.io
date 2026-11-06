@@ -77,7 +77,8 @@ async function run(F, B) {
   ];
   let bad = 0;
   for (const [nm, f2] of BREAKS) { if (f2 === F) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; } const r = await run(f2, B); if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; } }
-  console.log('GATE PLANEFICHE selftest: ' + (bad || base.fails.length ? 'FAIL' : 'PASS') + ' (' + (BREAKS.length - bad) + ' of ' + BREAKS.length + ' caught)');
+  console.log('  selftest: ' + (BREAKS.length - bad) + ' of ' + BREAKS.length + ' caught');
+  console.log('GATE PLANEFICHE: ' + (bad || base.fails.length ? 'FAIL' : 'PASS'));
   for (const m of base.fails) console.log('  FAIL ' + m);
   process.exit(bad || base.fails.length ? 1 : 0);
 })();

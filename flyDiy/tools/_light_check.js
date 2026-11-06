@@ -700,6 +700,7 @@ if (process.argv.includes('--selftest')) {
     'src/viewer/shed_shadow.js': "the shed's shadow cache",
     'src/viewer/world_rail.js': "the rail's tree thumbnails (offscreen)",
     'src/viewer/studio.js': "the phone garage's black studio (G3726: the garage, P = 1)",
+    'src/viewer/plane_fiche.js': "the fiche's pictures, drawn in the garage's own page (the garage, P = 1)",
   };
   const PAT = [/emissiveIntensity\s*[:=]/, /new\s+(THREE|T|three)\.(PointLight|SpotLight|DirectionalLight|HemisphereLight|AmbientLight|RectAreaLight)\b/,
                /totalEmissiveRadiance\s*\+=/, /MeshBasicMaterial\s*\(|'basic'\s*,/];
