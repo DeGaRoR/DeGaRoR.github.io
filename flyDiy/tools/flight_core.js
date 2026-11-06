@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 08ccaa571941069b
+// body-sha256: fa714adb7ad96664
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37375,6 +37375,7 @@ function clampSpec(spec) {
   // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
+  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -41176,8 +41177,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const cabane = cabH > R.cabaneMin;
   // G274: the centre section's own width when the builder set one (the
   // root pair moves with it; the panels start there), else the cabin's
-  const zRoot = (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
-  dmgRootZ[k] = zRoot;                                    // G1815: a node here is a root fitting's
+  // HULL-B78: A CENTRAL PYLON for the cabane (S.bracing.cabPylon, the first plane's) - the wing roots on the pylon, a
+  // half-width CABPY_HW off the centreline, its cabane a narrow truss inside the fairing (below)
+  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !!(S.bracing && S.bracing.cabPylon);
+  const zRoot = cabPy ? CABPY_HW : (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
+  dmgRootZ[k] = zRoot;
+  const cabPyBase = new Map();                            // (HULL-B78: the pylon's base nodes, per ring and side)                                    // G1815: a node here is a root fitting's
 
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
@@ -41359,7 +41364,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const [iA, iB] = straddle(x), iN = nearestRing(x);
       const rings = [...new Set([iN, iA, iB])];
       if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
-      else {
+      else if (cabPy) {
+        // HULL-B78: THE PYLON's TRUSS - each root node to a base node on the roof's centreline at the same half-width
+        // (each ring's own, tied across to its top longerons and to its mirror): posts and diagonals fore / aft, all
+        // inside the fairing, so undrawn ('inner'); the fairing's own skin (~1.5 kg/m2 over its two faces, INFERRED)
+        for (const i of rings) {
+          const key = i + '_' + s;
+          if (!cabPyBase.has(key)) {
+            const yR = Math.max(P[F[i].TL][1], P[F[i].TR][1]), b = N(ST[i].x, yR, s * CABPY_HW, 'CPB');
+            B(b, F[i].TL, 'cabane', false, 'inner'); B(b, F[i].TR, 'cabane', false, 'inner');
+            const m = cabPyBase.get(i + '_' + (-s)); if (m != null) B(b, m, 'cabane', false, 'inner');
+            pt(b, 1.5 * 2 * Math.max(0.1, P[nd][1] - yR) * 0.3);
+            cabPyBase.set(key, b);
+          }
+          B(nd, cabPyBase.get(key), 'cabane', false, 'inner');
+        }
+      } else {
         // G185: THE CABANE IS THESE MEMBERS, IN OPEN AIR. On a plane a cabane
         // height above the roof the root ties to the top longerons are not
         // hidden under the fabric — they are the struts you see, so they are
