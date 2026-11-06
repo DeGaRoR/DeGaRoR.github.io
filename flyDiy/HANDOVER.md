@@ -312540,3 +312540,35 @@ branch". L31c had merged the branch whole (c699e3b9 is in master): the branch wa
   CAGEFIT, UISMOKE, UISMOKE-PHONE, HINGE, FIN, LOAD, GEAR, STARTER, TAKEOFF, PILOT, CONTACT PASS. RED = MASTER STANDING,
   each the same row on a clean origin/master c2ac56b3 worktree: GEN ("cruise is quiet in wind"), NEWPLANE-BUILDS (the
   fixed tricycle: "join: prop: through the body (6 points)"), CLIP (stock+ifr's navAerial 9.2 mm into edFinSkin).
+## LOOK-1-STUDY - THE NIGHT SPECKS ON THE TREES: DIAGNOSIS + METHODS (2026-11-04, A0, cloud: SwiftShader only; branch claude/look-1-study, no game code)
+Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/` (README).
+- THE CAUSE: the moon key lights the crown card by card (each leaf card's / impostor texel's own normal, nothing occluding
+  the crown's inside, a ~black hemisphere ground half at night); key held at 0 -> the specks go (crown median x7 darker).
+  Gold = the moon key's transmittance colour (0.92, 0.78, 0.58). NOT the grade (A0, GPU), the lamps (0.00), wrap/SSS (-2 %).
+- AMPLIFIER: `coverageMips` filters RGB straight off a canvas (alpha-0 RGB = 0): crowns 0.40-0.68x at mip 6, contrast 2-3x,
+  frozen into the impostor sheets (TREES-FROM-TWIGS §3.3's "colour dilation under the alpha" never shipped).
+- PLAN: 1 crown normals at night (one uniform, 0 programs, 0 by day); 2 alpha-weighted mips + a leaf-only level factor (a
+  REAL day-look change: the user judges); 3 the tier match re-measured with a night row; 4 golden backlit gain; 5 sway.
+- CLOUD RIGS BEWARE: on SwiftShader the game has NO sky probe (G1460) and lights Standard materials with a static boot-time
+  environment - every cloud night / blue-hour frame shows frosted or white trees that the GPU does not draw.
+- PASS 2 (5 Nov, from the user's 29 Oct pre-study + the 5 Nov notes; study §B-§D): ONE landing plan D0-D10. D0 = A0's
+  10-min GPU test. D1 the trees count the sky ONCE (leaf materials take the hemisphere AND the probe; the Lambert world
+  opts out) - the blue-hour "shine from one angle" (the only keyless window: sun key gone by -1.5 deg, moon 1e-5) and pick
+  3. D2 the impostors read the existing FAR CASCADE (terrain-only today: "trees do not read it") - the forest of speckles,
+  prototype at a low sun: 8.4 % of a stand's pixels, x0.96; shadowed presets only, the cover map for the rest. Then crown
+  normals at night (near only), A2C for real on 'current' (0 samples under the clouds today), the mips, the tier re-measure,
+  air (turbidity 2.8 -> pick), bloom (thresholdless), tone trial. The default tone is Cineon, not ACES.
+  SwiftShader: the blue-hour white trees are the static-env artefact; forcing the probe on blackens noon (G1460).
+- PASS 3 (5 Nov, the user: "the constant flickering", the clouds' thin edges and the canopies; study §E): the back-step to
+  the literature (Hoffman et al. 2018: volatile >> stable, blurred or aliased; MSFS / X-Plane / DCS players; Nubis,
+  Frostbite, UE, Karis 2014 TAA, three.js r186 TRAANode). Our frame has NO HISTORY anywhere; the clouds' jitter is frozen
+  in screen space ("the temporal pass is owed"). Measured (SwiftShader, sub-pixel offsets): 13-14 % of the pixels below the
+  horizon crawl, the tree outlines; softer edges -2 % only. PROPOSED PHASE 2 (§E6, the user decides): 2a the clouds'
+  temporal pass, 2b a toggleable TAA tier, 2c the impostor alpha rebuilt + the far cascade + the sky once. Frame
+  interpolation is NOT a cure (no new samples). The user's night hero frame (circled near slope) is §E0's reference.
+- §F (5 Nov, the study's close): the cloud flicker's FIVE causes from clouds.js - the jitter frozen in screen space (C1, the
+  "smoke"), the samples anchored to the ray's entry (C2), thin wisps skipped by 3x strides with no step-back (C3, "the
+  thin cut ends"), 3D noise without mips undersampled beyond ~5 km (C4), half-res blocks with no history (C5) - and the
+  implementation specs for a LOCAL GPU session: 2a the clouds' temporal pass (+ noise mips, step-back, world-anchored
+  steps first), 2b an `aa: 'taa'` tier (port of three r186 TRAANode logic; the aeroplane masked), 2c the impostors'
+  soft coverage bake + coverage mips + the cut only when magnified; F5 the GPU measurements to take first.
