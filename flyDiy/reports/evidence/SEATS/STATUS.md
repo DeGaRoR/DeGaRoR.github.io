@@ -62,6 +62,100 @@ A0's set, ALL PASS: SEATS GEN WEIGHT BUILD JOIN SAVE PARTS DESIGN STARTER PROCUR
 DMGOCCUPANT SKINMAT UISMOKE UISMOKE-PHONE TANKMOUNT PANEL DASH - no red, so nothing to name against master.
 (Outside that set, on the 2 Nov tree: JOINPARITY, LIVERY, CLIP and NODUMMY were red identically on a clean master.)
 
+## SEATS-COST: ZERO COST, MEASURED ON POST-L30c MASTER (the user 3 Nov 19:00: "garage + world performance should remain unaffected")
+Tree: origin/master e6bcfb368 (train L30c) + the seats (merged), built. What changed for the cost (claude/ready/seats):
+- the game builds the MID level (the user: "the second level of detail also look good"); the hero is the seat studio's;
+- ONE MATERIAL PER ROLE at the game's levels: at most four a seat (base, accent, seams, frame), the hardware folded into the
+  frame's; the default Tube & sling wears three (cushion, piping, frame) - the count of the tube frame it replaced;
+- no new shader programs (the materials are the finish system's pooled ones; program links equal below).
+FRAMECOST, LIKE FOR LIKE (the parked cook off on BOTH trees, FRAMECOST_QUERY=parkcook=0; `--compare master seats`):
+RED rows: cub 0, cessna 0. Verbatim (full files in framecost/):
+```
+  cub stand (a -> b, what moved)
+  cub taxi (a -> b, what moved)
+  cub boot (a -> b, what moved)
+    boot/garage:compile/three.updateMatrixWorld       16364      15580  down
+    boot/garage:landing/three.updateMatrixWorld        3014       2566  down
+    boot/garage:parked/three.updateMatrixWorld       116123      93051  down
+    boot/garage:recheck/three.updateMatrixWorld       14671      13775  down
+    boot/garage:restore/three.updateMatrixWorld         810        698  down
+    boot/garage:seed/three.updateMatrixWorld          25262      21118  down
+    boot/garage:settle/three.updateMatrixWorld        42888      42328  down
+    boot/garage:snapshot/three.updateMatrixWorld      35858      31266  down
+    boot/garage:town/three.updateMatrixWorld           4673       4449  down
+    boot/garage:world/three.updateMatrixWorld         97331      88707  down
+    boot/rollout:click/three.updateMatrixWorld         2442       2106  down
+    boot/rollout:craft/bytes.uniforms                809860     798196  down
+    boot/rollout:craft/gl.calls                       25284      25007  down
+    boot/rollout:landing/three.updateMatrixWorld     129896     128216  down
+    boot/rollout:shedWarm/three.updateMatrixWorld      12298      11738  down
+    boot/rollout:snapshot/three.updateMatrixWorld       1628       1404  down
+    boot/rollout:spec/three.updateMatrixWorld          7618       7058  down
+  cub the aeroplane at stand (a -> b)
+    craft.stand/draws.main                                0          0  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                 0          0  
+    craft.stand/meshes                                  105        105  
+    craft.stand/programs                                  0          0  
+    craft.stand/skinnedDraws                              0          0  
+  cub the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                 0          0  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                  0          0  
+    craft.taxi/meshes                                   105        105  
+    craft.taxi/programs                                   0          0  
+    craft.taxi/skinnedDraws                               0          0  
+  cessna stand (a -> b, what moved)
+  cessna taxi (a -> b, what moved)
+  cessna boot (a -> b, what moved)
+    boot/garage:compile/three.updateMatrixWorld       19759      18191  down
+    boot/garage:firstFrame/bytes.uniforms            861264     647140  down
+    boot/garage:firstFrame/draws.total                 6170       4602  down
+    boot/garage:firstFrame/gl.calls                   67077      49084  down
+    boot/garage:firstFrame/three.frustumTests          6938       5370  down
+    boot/garage:firstFrame/three.updateMatrixWorld       2927       2703  down
+    boot/garage:landing/bytes.uniforms              2556836    1831520  down
+    boot/garage:landing/draws.total                   18441      13737  down
+    boot/garage:landing/gl.calls                      94499      67560  down
+    boot/garage:landing/three.frustumTests            20742      16038  down
+    boot/garage:landing/three.updateMatrixWorld       11763      10643  down
+    boot/garage:parked/three.updateMatrixWorld       133109     104885  down
+    boot/garage:recheck/three.updateMatrixWorld       18721      16929  down
+    boot/garage:restore/three.updateMatrixWorld        4677       3781  down
+    boot/garage:seed/three.updateMatrixWorld          34486      26422  down
+    boot/garage:settle/three.updateMatrixWorld        44678      43558  down
+    boot/garage:snapshot/three.updateMatrixWorld      51824      42416  down
+    boot/garage:town/three.updateMatrixWorld           7697       6801  down
+    boot/garage:trees/three.updateMatrixWorld          2308       1860  down
+    boot/garage:world/three.updateMatrixWorld        127365     109669  down
+    boot/rollout:click/three.updateMatrixWorld      2492948    2340404  down
+  cessna the aeroplane at stand (a -> b)
+    craft.stand/draws.main                               89         89  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                70         70  
+    craft.stand/meshes                                  120        120  
+    craft.stand/programs                                 16         16  
+    craft.stand/skinnedDraws                             11         11  
+  cessna the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                89         89  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                 70         70  
+    craft.taxi/meshes                                   120        120  
+    craft.taxi/programs                                  16         16  
+    craft.taxi/skinnedDraws                              11         11  
+```
+THE GATE ITSELF on this tree (framecost/gate_seats_L30c.txt) reads FAIL (16): the parked aeroplanes captured live because
+the cook is STALE for any changed tree - `parked_cook.js --check`: manifest 6051f2c08e4b, this tree 9fed71f0fffe (STALE);
+master 6051f2c08e4b (same). The gate's own HINT names it ("a STALE cook captures the parked aeroplanes live ... the train
+re-cooks on its final build"). The cook refuses SwiftShader, so it cannot run in this cloud box: the train's re-cook on
+the GPU box is what turns those rows back to master's.
+GATES on this tree (L30c + seats, built): SEATS GEN WEIGHT BUILD JOIN SAVE PARTS DESIGN STARTER PROCURE PILOTS CAGEFIT
+CABIN FRAMES DMGOCCUPANT SKINMAT UISMOKE UISMOKE-PHONE TANKMOUNT PANEL DASH - all PASS.
+
 ## FRAMECOST (A0 17:35 / 17:40: "22 red rows against master's 5 ... the Cub's draws 914 -> 1063, links 5 -> 42")
 MEASURED (tools/_framecost_check.js --census cub, master a8a23ad62 vs this branch, --compare):
 - ALL OF THE FRAME ROWS ARE THE PARKED AEROPLANES, NOT THE SEATS. detail.stand: every family equal except `parked`,

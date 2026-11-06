@@ -1,0 +1,45 @@
+  cessna stand (a -> b, what moved)
+  cessna taxi (a -> b, what moved)
+  cessna boot (a -> b, what moved)
+    boot/garage:compile/three.updateMatrixWorld       19759      18191  down
+    boot/garage:firstFrame/bytes.uniforms            861264     647140  down
+    boot/garage:firstFrame/draws.total                 6170       4602  down
+    boot/garage:firstFrame/gl.calls                   67077      49084  down
+    boot/garage:firstFrame/three.frustumTests          6938       5370  down
+    boot/garage:firstFrame/three.updateMatrixWorld       2927       2703  down
+    boot/garage:landing/bytes.uniforms              2556836    1831520  down
+    boot/garage:landing/draws.total                   18441      13737  down
+    boot/garage:landing/gl.calls                      94499      67560  down
+    boot/garage:landing/three.frustumTests            20742      16038  down
+    boot/garage:landing/three.updateMatrixWorld       11763      10643  down
+    boot/garage:parked/three.updateMatrixWorld       133109     104885  down
+    boot/garage:recheck/three.updateMatrixWorld       18721      16929  down
+    boot/garage:restore/three.updateMatrixWorld        4677       3781  down
+    boot/garage:seed/three.updateMatrixWorld          34486      26422  down
+    boot/garage:settle/three.updateMatrixWorld        44678      43558  down
+    boot/garage:snapshot/three.updateMatrixWorld      51824      42416  down
+    boot/garage:town/three.updateMatrixWorld           7697       6801  down
+    boot/garage:trees/three.updateMatrixWorld          2308       1860  down
+    boot/garage:world/three.updateMatrixWorld        127365     109669  down
+    boot/rollout:click/three.updateMatrixWorld      2492948    2340404  down
+  cessna KTX2 (a -> b): {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":96,"ktx2Bytes":23621451,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null} -> {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":96,"ktx2Bytes":23621451,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null}; loader {"files":483,"bytes":86657963,"failed":0,"fallbacks":0,"target":36492,"off":null,"workers":4,"skipped":0}; worker messages 970
+  cessna texture upload MiB by step (a -> b): garage:bake 80.0 -> 81.0, total 1292.7 -> 1293.7
+  cessna crew at the stand (a -> b): 2 character(s) (ch20, ch22), 3 materials (3 on the budget set), 6 textures (6 KTX2, 0 images, 0 pending): 8.0 MiB on the GPU (ch20 2.7, ch22 5.3)  ->  2 character(s) (ch20, ch22), 3 materials (3 on the budget set), 6 textures (6 KTX2, 0 images, 0 pending): 8.0 MiB on the GPU (ch20 2.7, ch22 5.3)
+  cessna memory after rollout (MiB, a -> b): heapUsed 924.3 -> 1005.5, arrayBuffers 2444.6 -> 2446.9, external 2511.7 -> 2513.9, rss 3937.7 -> 3924.3
+  cessna memory after end (MiB, a -> b): heapUsed 875.9 -> 874.4, arrayBuffers 2611.1 -> 2611.1, external 2678.2 -> 2678.2, rss 4075.9 -> 4069.2
+  cessna the aeroplane at stand (a -> b)
+    craft.stand/draws.main                               89         89  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                70         70  
+    craft.stand/meshes                                  120        120  
+    craft.stand/programs                                 16         16  
+    craft.stand/skinnedDraws                             11         11  
+  cessna the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                89         89  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                 70         70  
+    craft.taxi/meshes                                   120        120  
+    craft.taxi/programs                                  16         16  
+    craft.taxi/skinnedDraws                              11         11  

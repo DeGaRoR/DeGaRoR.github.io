@@ -1,0 +1,2 @@
+parked_cook --check: manifest build 6051f2c08e4b, this tree 9fed71f0fffe (STALE: every key is captured live until a re-cook); keys arch:c172, arch:chinook, arch:cub, arch:jodel
+parked_cook --check: manifest build 6051f2c08e4b, this tree 6051f2c08e4b (same); keys arch:c172, arch:chinook, arch:cub, arch:jodel

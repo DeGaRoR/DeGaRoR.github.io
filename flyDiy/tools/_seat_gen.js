@@ -114,7 +114,26 @@ const PRESET_OF = t => SEAT_PRESETS[Math.round(t)] || null;
 // wins, exactly as on every other part. A section the finish table does not carry yet (seatFrame / seatAccent until the
 // wiring lands) answers null and the preset's own material is used.
 const MAT_POOL = new Map();
+// ONE MATERIAL PER ROLE IN THE GAME (SEATS-COST, the user 3 Nov: "garage + world performance should remain
+// unaffected"): at the levels the game builds (mid, phone) a seat wears at most FOUR materials - its first base, accent,
+// seam and frame - and every other material it asks for folds into its role's (a second seam colour into the first;
+// the untagged hardware - cast brackets, chrome, rubber, the rails - into the frame's). The hero (the seat studio's close
+// stills) keeps every material. ROLE is reset per seat build (build() below).
+// The hardware is asked for in no particular order (a preset may name its brackets before its frame), so an untagged
+// material is a TOKEN until the seat is flushed: it then wears the preset's own frame material (the first tagged
+// FRAME), or, on a preset with none, the first hardware asked for - and merges into that one bucket.
+let ROLE = null;
+const HARDWARE = { roleToken: 'seatFrame' };
 function mat(finish, tint, o) {
+  if (ROLE) {
+    if (!(o && o.sec)) { if (!ROLE._hw) ROLE._hw = [finish, tint]; return HARDWARE; }
+    if (!ROLE[o.sec]) ROLE[o.sec] = matOwn(finish, tint, o);
+    return ROLE[o.sec];
+  }
+  return matOwn(finish, tint, o);
+}
+const roleFrame = () => ROLE.seatFrame || (ROLE.seatFrame = matOwn(ROLE._hw[0], ROLE._hw[1], FRAME));
+function matOwn(finish, tint, o) {
   if (o && o.sec && typeof window !== 'undefined' && window.CAGE_SECMAT) {
     try {
       const m = window.CAGE_SECMAT(o.sec, { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: tint, fin: finish });
@@ -166,6 +185,16 @@ function Bags() {
     },
     flush(parent) {
       let tris = 0, draws = 0;
+      // the hardware token (one material per role, above): into the frame material's own bucket
+      if (bags.has(HARDWARE) && ROLE) {
+        const fm = roleFrame(), src = bags.get(HARDWARE);
+        let dst = bags.get(fm); if (!dst) { dst = new Map(); bags.set(fm, dst); }
+        for (const [pk, b] of src) {
+          let d = dst.get(pk); if (!d) { d = { pos: [], idx: [] }; dst.set(pk, d); }
+          const o = d.pos.length / 3; for (const v of b.pos) d.pos.push(v); for (const i of b.idx) d.idx.push(i + o);
+        }
+        bags.delete(HARDWARE);
+      }
       const emit = (m, b, part) => {
         if (!b.idx.length) return;
         const g = new THREE.BufferGeometry();
@@ -1011,8 +1040,9 @@ function seatDC3(B, A, P, g, pre, sbs, SP) {
 }
 function seatDC3Pax(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22, SEAM), mLin = mat('liner', 0xebe5d6),
-        mChrome = mat('chrome', 0xdfe5ec), mLea = mat('leather', 0x5a3a28, ACCENT), mDark = mat('rubber', 0x1b1c20);
+  // roles (SEATS-COST): the linen is the accent, the polished frame the frame, the arms' leather rides with the piping
+  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22, SEAM), mLin = mat('liner', 0xebe5d6, ACCENT),
+        mChrome = mat('chrome', 0xdfe5ec, FRAME), mLea = mat('leather', 0x5a3a28, SEAM), mDark = mat('rubber', 0x1b1c20);
   const K = KIT();
   const thP = 0.06;
   const spP = spine([ptP(S, S.panL + 0.02, g, -0.04), ptP(S, S.panL, g), S.H, ptB(S, 0.06)], 0.06);
@@ -1091,8 +1121,10 @@ function seatDC3Pax(B, A, P, g, pre, sbs) {
 function seatCub(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   // the cushion keeps today's tube seat's look (G332's hide, its cream piping) as the sections' bottom-out
+  // (SEATS-COST: the canvas rides the FRAME role, so in the game this seat wears THREE materials - cushion, piping,
+  // frame - exactly the tube frame's it replaced; the hero still draws it as canvas)
   const mCush = mat('hide', 0x7a4f33, TRIM), mPipe = mat('leather', 0xd8cdb6, SEAM);
-  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722, SEAM),
+  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, FRAME), mLace = mat('webbing', 0x2a2722, SEAM),
         mCast = mat('castAlu', 0x8e949a), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
   const tr = 0.0095;                                      // 3/4-inch tube
@@ -1586,9 +1618,10 @@ function build(parent, A, P, g, SP, sbs) {
   const lvl = levelFor(P);
   const B = Bags();
   LOD.lvl = lvl;
+  ROLE = lvl >= 1 ? {} : null;
   let S;
-  try { S = BUILD[pre.build](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
-  const st = B.flush(parent);
+  let st;
+  try { S = BUILD[pre.build](B, A, P, g, pre, sbs, SP); st = B.flush(parent); } finally { LOD.lvl = 0; ROLE = null; }
   const kg = pre.kg;
   parent.userData.seatStats = { key: pre.key, tris: st.tris, draws: st.draws, kg, lod: lvl };
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: S.hw, backH: S.backL, rake: g.rake, fit: S.fit,
