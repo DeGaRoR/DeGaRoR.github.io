@@ -106,6 +106,8 @@ const ENGINES = {
     // back, so it sits well below the wing it supports, but still on the cowl/nacelle assembly ... you may put the
     // engine 5 cm higher") - engPylonAft -0.45, the new row engPylonFwd 0.5 (the tower under the upper wing, on the
     // nacelle's front), engPylonH 0.703: the hub 1.456, 5 cm over B51's
+    // (HULL-B53, the user: "engine fore 5 cm, pylon aft 15 cm") - engPylonAft -0.50, engPylonFwd 0.30 (the pylon's
+    // station 0.15 aft of B52's), engPylonH 0.687 holding the hub at 1.456
     cage: { keelY: -0.62, roofY: 0.68, canopy: 3, intCons: 0, wgCentre: 0, frPostBotY: -0.625, frWinBotY: -0.586, hullRocker: 0.0, hullSkirt: 0.04, wsBaseLift: 0, crewOn: 1, seatLayout: 1, seatType: 11, seatRake: 45, seatTilt: 12, seatH: 0.02, topRound: 0.6, bpStrutK: 0.5, bpCabDraw: 0, bpWires: 0, waistY: 0.05, halfW: 0.805, roofHalfW: 0.60, floorY: -0.42, bandH: 0.12, noseJointOn: 0,
             noseLen: 1.3, aeroAftOn: 0, boomStyle: 1, boomTwin: 0, taperOn: 1, taperLen: 2.46, aftRoofY: 0.12, aftKeelY: -0.52,
             hullStepZ: 0.90, hullFlute: 0.16, hullBeta: 12, hullBetaBow: 22, hullBetaA: 10, hullFluteN: 1, hullFluteAt: 0.55, hullFluteBow: 0.9, hullStrakes: 0, hullStrakeW: 0.045, hullStrakeLen: 0.85,
@@ -114,7 +116,7 @@ const ENGINES = {
             wgSpan: 9.16, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.9, wgBrace: 1, wgCrankAt: 0,
             wgTip: 7, wgTipBow: 0.45, wgTipDroop: 0.30,
             w2On: 1, w2Pos: 1, w2Dy: -0.1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 8, w2Stagger: -0.05, w2Tip: 7, w2CrankAt: 0,
-            engPylonAt: 1, engPylonH: 0.703, engPylonAft: -0.45, engPylonFwd: 0.5, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.6,
+            engPylonAt: 1, engPylonH: 0.687, engPylonAft: -0.50, engPylonFwd: 0.30, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.6,
             hullSpon: 0, hullTips: 1, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
     energy: { vessels: [{ bay: 'aftCabin', capacity: 72, form: 'box' }] }, cabin: { baggage: 0 },
     note: 'the Super Petrel LS on the Cessna cabin, pod and rod (HULL-B36)' },
