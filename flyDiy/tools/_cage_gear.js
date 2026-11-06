@@ -230,6 +230,16 @@ const fApp = (M, v) => [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M
 const fNrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 // (P2: the leg's head - the hinge, but for a unit whose fold turns about a pole off the leg (the Catalina's), C.top)
 const topOf = C => C.top || C.hinge;
+// every wing plane's skins (a biplane's or a sesquiplane's two; else the one), for the Catalina's clearances
+const wingPlanes = () => { const W0 = window.CAGE_WING; if (!W0) return [];
+  return (W0.planes && W0.planes.length ? W0.planes : [W0]).filter(pl => pl && pl.underAt && pl.overAt); };
+// (P2, the Super Petrel's sesquiplane: the lower wing roots on the hull's side over the Catalina mains) - the lowest
+// wing underside over a plan band (x0..x1 outboard, z0..z1), null where no wing is over it
+function wingUnderIn(x0, x1, z0, z1) { let y = null;
+  for (const pl of wingPlanes()) for (let i = 0; i <= 8; i++) for (let j = 0; j <= 4; j++) {
+    const x = x0 + (x1 - x0) * i / 8, z = z0 + (z1 - z0) * j / 4, u = pl.underAt(x, z);
+    if (u && (y == null || u.y < y)) y = u.y; }
+  return y; }
 // THE POSE at position g (1 down .. 0 up): s = (1 - g) x frac walks the chain - the twist across all of it, the turns one
 // after the other - and the 3 x 3 the unit turns by about its hinge
 function foldPose(C, g) {
@@ -302,7 +312,15 @@ function foldChain(u, key, P, SP) {
   // small angle, its head INWARD, about the pole that lands the wheel there)
   const catF = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
   if (catF && C.turns.length === 1 && SP) {
-    const T = C.turns[0], sg = Math.sign(ax[0]) || 1, c0 = ax, y1 = h[1];
+    const T = C.turns[0], sg = Math.sign(ax[0]) || 1, c0 = ax;
+    // (P2, the Super Petrel: A WING OVER THE MAINS CAPS THE RISE - the stowed leg's head and its jack stay 30 mm under
+    // the lowest wing's underside over the leg (its head's plan place, 0.4 m outboard, the wheel's length fore and aft);
+    // the stowed wheel then sits lower in the side by what the cap takes; with no room to rise at all the fit says so)
+    const Lup = h[1] - c0[1], wU = wingUnderIn(h[0] - sg * 0.05, h[0] + sg * 0.40, c0[2] - C.R, c0[2] + C.R);
+    C.catCap = wU != null ? wU - 0.03 : null;
+    const y1 = C.catCap != null ? Math.min(h[1], C.catCap - Lup) : h[1];
+    C.catWingRaise = C.catCap != null ? Math.max(0, h[1] + Lup - C.catCap) : 0;      // (what the full rise would need)
+    if (C.catCap != null && y1 < c0[1] + 0.05) C.catCapWhy = 'the wing over it leaves ' + Math.round(Math.max(0, y1 - c0[1]) * 1000) + ' mm to rise - the full rise needs it ' + Math.round(C.catWingRaise * 1000) + ' mm higher (or a shorter leg)';
     let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y1, c0[2]]) > 0) lo = m2; else hi = m2; }
     const c1 = [sg * (lo - 0.04), y1, c0[2]], dir = fNrm([c0[0] - h[0], c0[1] - h[1], c0[2] - h[2]]);
     const rise = Math.max(0, y1 - c0[1]);
@@ -633,6 +651,16 @@ function foldFit(P, swing, AF, W, MX) {
     // (P2 v4: the Catalina's mains stow OUTSIDE by design - the leg along the hull's side, the wheel half in its round
     // recess, the links' fittings on the skin: its skin test is the recess's - the stowed wheel's centre inside the side)
     const catU = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+    // (P2: and a Catalina unit's leg, side strut or jack never crosses a wing's skin - any plane, any position)
+    if (catU) {
+      if (C.catCapWhy) fail('wing', key, word + ': ' + C.catCapWhy, R.fold.concat([st + 'Drop', st + 'R', 'w2Dy']));
+      let hit = null;
+      FIT_G.forEach((g, gi) => { if (hit) return;
+        const pts = posed[key][gi].L.concat(poseAll(C, [topOf(C)], g), MX ? wellMechPts(MX, key, g) : []);
+        for (const p of pts) for (const pl of wingPlanes()) { const u = pl.underAt(p[0], p[2]), o = u ? pl.overAt(p[0], p[2]) : null;
+          if (u && o && p[1] > u.y - 0.005 && p[1] < o.y + 0.005) { hit = { g, pl: pl.k || 0 }; break; } } });
+      if (hit) fail('wing', key, word + '\'s leg, strut or jack crosses the ' + (wingPlanes().length > 1 ? (hit.pl === 1 ? 'second' : 'first') + ' plane' : 'wing') + ' (at gear ' + hit.g + ')',
+                    R.fold.concat([st + 'X', st + 'Drop', 'w2Dy'])); }
     if (catU && C.frac >= 0.999) { const c = poseAll(C, [C.axle], 0)[0];
       if (!(bodyIn(c) > 0.015)) fail('skin', key, word + ', up, does not sit in its recess: its centre ' + Math.round(-bodyIn(c) * 1000) + ' mm out of the side', R.fold.concat([st + 'R', st + 'Drop'])); }
     // SKIN (fully up, a whole retraction only)
@@ -1225,7 +1253,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       // longest gear down - a link that must stretch is no link - and the most level there
       const sg = h[0] >= 0 ? 1 : -1, Lp = legPt(0.10), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
       const path = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; path.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), Lp, CM.gearSlide(C, g))); }
-      const yTop = Math.max(...path.map(q => q[1]));
+      const yTop = Math.min(Math.max(...path.map(q => q[1])), C.catCap != null ? C.catCap : Infinity);
       let bestS = null;
       for (let yi = 0; yi <= 12; yi++) { const y = Lp[1] + (yTop - Lp[1]) * yi / 12;
         let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, Lp[2]]) > 0) lo = m2; else hi = m2; }
@@ -1279,12 +1307,13 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       const sg = h[0] >= 0 ? 1 : -1, Lg = dist(h, ax), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
       const hp = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; hp.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), h, CM.gearSlide(C, g))); }
       let pickU = null;
-      for (let f = 0.6; f <= 1.61; f += 0.1) { const y = h[1] + f * Lg;
+      for (let f = C.catCap != null ? 0.2 : 0.6; f <= 1.61; f += 0.1) { const y = h[1] + f * Lg;
+        if (C.catCap != null && y > C.catCap) break;                         // (P2: never over the wing over it)
         let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, h[2]]) > 0) lo = m2; else hi = m2; }
         if (lo < 0.6 * Math.abs(h[0])) break;                          // (above the side: the cabin's top, not a fitting's place)
         const U = [sg * (lo - 0.004), y, h[2]], ds = hp.map(q => dist2(U, q)), Dmax = Math.max(...ds), Dmin = Math.min(...ds);
         pickU = { U, Dmax, Dmin }; if (Dmax <= 2 * Dmin - 0.08) break; }
-      if (!pickU) { const U = [h[0] - sg * 0.05, h[1] + 0.6 * Lg, h[2]], ds = hp.map(q => dist2(U, q)); pickU = { U, Dmax: Math.max(...ds), Dmin: Math.min(...ds) }; }
+      if (!pickU) { const U = [h[0] - sg * 0.05, Math.min(h[1] + 0.6 * Lg, C.catCap != null ? C.catCap : Infinity), h[2]], ds = hp.map(q => dist2(U, q)); pickU = { U, Dmax: Math.max(...ds), Dmin: Math.min(...ds) }; }
       const { U, Dmax, Dmin } = pickU, Lb = Math.max(0.10, Dmin - 0.03), Lr = Math.min(Dmin - 0.02, Dmax - Lb + 0.04), d0 = nrm(sub3(h, U));
       const pnV = [0, 0, 1], rc = MECH.rCyl[1];   // (its pins fore-aft: the swing is in the section's plane)
       R.parts.push({ name: 'edMech' + k + '_cyl', rule: 'aim', from: { fix: U }, to: { unit: k, p: h }, o0: U, d0 },

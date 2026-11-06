@@ -525,6 +525,18 @@ console.log('10 THE FOLD (G1)');
           'half way: ' + Math.round(100 * (p1[1] - r0[1]) / (cu[1] - r0[1])) + ' % of the rise, ' + Math.round(100 * (Math.abs(r0[0]) - Math.abs(p1[0])) / (Math.abs(r0[0]) - Math.abs(cu[0]))) + ' % of the way in');
     check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
           'the V-strut\'s jack and the side strut are parts of the one kinematics');
+    // (P2, the Super Petrel's sesquiplane: a lower wing over the mains caps their rise; a leg, strut or jack through a
+    // wing's skin reddens the fit)
+    { const wf = dy => { const S2 = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25, s1Root: 1, w2On: 1, w2Pos: 1, w2Dy: dy }, garage: bc });
+        return S2.W.CAGE_GEAR; };
+      const lo = wf(-0.1), hi = wf(0.45), Ch = hi.swing.L, Mh = hi.mech, Cl = lo.swing.L;
+      let topUp = -Infinity; { const Q = C.GEAR_MECH.gearMechPoints(Mh, 0); topUp = C.GEAR_MECH.gearUnitPt(Ch, Q.M.L, Ch.top, Q.D.L)[1]; }
+      const jackY = hi.mechInfo.L.jack && hi.mechInfo.L.jack.U[1];
+      check(Ch.catCap != null && topUp <= Ch.catCap + 0.005 && jackY <= Ch.catCap + 0.005 && !(hi.fit.why || []).some(w => /crosses/.test(w)),
+            'a lower wing over the Catalina mains: the stowed leg head and the jack stay under it, nothing crosses it',
+            'head ' + topUp.toFixed(3) + ', jack ' + (jackY != null ? jackY.toFixed(3) : '-') + ' under the cap ' + (Ch.catCap != null ? Ch.catCap.toFixed(3) : '-') + ' m');
+      check(Cl.catCapWhy && (lo.fit.why || []).some(w => /mm higher/.test(w)), 'a wing too low for the rise reddens the fit, and says how much higher it must be',
+            (lo.fit.why || []).find(w => /mm higher/.test(w)) || 'no word'); }
     const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };
     const sides = Gc.cutsSide || [];
     check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',

@@ -2167,3 +2167,29 @@ Wipaire's dimensioned 3-views (the product guides), each scaled by its own wheel
 Both are 0.8 of the main wheel's radius, and the main axle stands level with the keel. `HYDRO.AMPHIB_GEOM.clearK` is
 0.8, a measurement now, not an assumption: `amph.measured.keelClearance` is 142 mm on the 2350's 5.00x5. The old
 assumption, 0.5 R (89 mm), was short, as the user saw. GATE RETRACT section 19 checks it.
+
+### 8.27 A wing over the Catalina mains: the cap, and the wing-crossing test (6 Nov, for the Super Petrel)
+
+The hull-types session (the Super Petrel LS, a sesquiplane amphibian whose lower wing roots on the hull's side over
+the Catalina mains; relayed by the user) found two problems:
+- the stowed leg head and the V-strut jack stood 0.4 to 0.5 m over the chine, through the lower wing's root;
+- nothing flagged it.
+
+Now:
+- **THE CAP** (`foldChain`, the Catalina block). Take the lowest wing underside, over any plane (`wingPlanes`,
+  `wingUnderIn`: CAGE_WING.planes, else the one wing), over a band: the leg head's plan place to 0.4 m outboard, the
+  wheel's length fore and aft. Less 30 mm, it caps the rise (`C.catCap`):
+  - the stowed wheel's centre comes down by what the cap takes, so the stowed head stays under it;
+  - the side strut's and the jack's fittings are searched under it too;
+  - with no room to rise (under 50 mm), the fit reddens (`C.catCapWhy`) and says how much higher the wing must be
+    for the full rise (`C.catWingRaise`).
+- **THE WING-CROSSING TEST** (`foldFit`, `catU`). At every fit position, the Catalina unit's leg points, its head, its
+  side strut (through its knee) and its jack's line are tested against every plane's skins. Any point between a
+  plane's underside and its top skin (5 mm margin) reddens the fit, naming the plane and the gear position.
+- **GATE RETRACT section 18 adds two checks**, on the c172 battery card with a second, lower wing (w2On, w2Pos 1):
+  - raised (w2Dy 0.45): the stowed head and the jack are under the cap and nothing crosses the wing;
+  - low (w2Dy -0.1): the fit is red, with the words "mm higher".
+- **What it cannot do yet.** The Catalina's rise is the whole unit's slide (`shorten.whole`). The leg cannot also
+  telescope as it rises (`gearShort` does not reach a Catalina), so a long leg needs that much room under the wing. A
+  second slide in the core's kinematics (the piston into its cylinder while the unit rises) would let a long leg tuck
+  under a low wing. That is the next step if the Petrel needs it.
