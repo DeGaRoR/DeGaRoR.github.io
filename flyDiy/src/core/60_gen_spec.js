@@ -2628,6 +2628,12 @@ const GEN_TIPS = {
   // the Hoerner row and a hair more, no drag of its own.
   endplate:{ name: 'Endplate',   e: 1.05, bow: 0,    arc: 0, fin: 0, plate: [0.55, 1.10] },
   drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
+  // HULL-B54 (the user, the Super Petrel: "the wingtips are going up, not down ... this very one, but inverted would be
+  // quite perfect"; "flipping the tip is really a new type of wingtip, the current one should not be changed"): the
+  // drooped tip's bend MIRRORED - the same bow rolled UP, its end `droop` tip chords above the joint (63_gen_wing reads
+  // `up`); its length, rise and fullness the same three rows (wgTipBow / wgTipDroop / wgTipFull); e as the drooped. A
+  // buoyant tip is a drooped one (genTipBuoyTable bends down): an upturned tip floats nothing
+  upturned:{ name: 'Upturned',   e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14, up: 1 },
 };
 
 // HULL-B26: THE TIP'S OWN SHAPE (the user, 5 Nov: "take the existing wingtips, start from that very shape and modify it

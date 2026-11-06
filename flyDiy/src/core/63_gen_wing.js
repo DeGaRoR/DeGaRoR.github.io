@@ -969,14 +969,14 @@ function genWingInto(def, out) {
       const ch = genV3.norm(genV3.sub(f0.pR, f0.pF));
       let up = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (up[1] < 0) up = genV3.mul(up, -1);
       const out = genV3.mul(genV3.norm(genV3.cross(ch, up)), side), O = f0.pF;
-      const BD = genTipBend(W.tipR, (TIP.droop || 0) * cT);
+      const BD = genTipBend(W.tipR, (TIP.droop || 0) * cT), sgU = TIP.up ? -1 : 1;   // (HULL-B54: up - th and Y mirrored)
       for (const row of fixRows) {
         if (!(row.z0 > W.tipZ + 1e-6)) continue;
-        const s0 = row.z0 - W.tipZ, th = BD.th(s0), cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
+        const s0 = row.z0 - W.tipZ, th = sgU * BD.th(s0), cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
         const fat = genTipFat(TIP.full, s0, W.tipR);
         const loc = row.map(pt => { const d = genV3.sub(pt.p, O); return [genV3.dot(d, ch), genV3.dot(d, up), genV3.dot(d, out) - s0]; });
         let vLo = Infinity, vHi = -Infinity; for (const q of loc) { vLo = Math.min(vLo, q[1]); vHi = Math.max(vHi, q[1]); }
-        const vm = 0.5 * (vLo + vHi), Z = BD.Z(s0), Y = BD.Y(s0);
+        const vm = 0.5 * (vLo + vHi), Z = BD.Z(s0), Y = sgU * BD.Y(s0);
         row.forEach((pt, i) => {
           const [a, v, w] = loc[i], v2 = vm + (v - vm) * fat;
           // p = O + a ch + (Z + w) out + Y up + v2 (up cos th + out sin th)

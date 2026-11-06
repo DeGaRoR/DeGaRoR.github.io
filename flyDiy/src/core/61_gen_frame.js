@@ -2878,7 +2878,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // is the wing. Its shell is the drooped tip's own (the wing's ledger bills it, 1603); the fuller section's extra
     // laminate here, 2 kg + 25 kg per m3 of tip, INFERRED (a glass shell of ~1.5 kg/m2 over its wetted area)
     const w0T = S.wings && S.wings[0], TIPw = w0T ? genTipOf(w0T) : null;
-    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6) {
+    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6 && !(TIPw && TIPw.up)) {   // (HULL-B54: an upturned tip floats nothing)
       const cT = w0T.tipC > 0 ? w0T.tipC : w0T.chord * (w0T.taper || 1);
       const BT = genTipBuoyTable(cT, w0T.tipR, (TIPw.droop || 0) * cT, TIPw.full || 1, ((w0T.naca | 0) % 100) / 100, R.sparFront != null ? R.sparFront : 0.15);
       const TPP = BT && HYDRO.hullParamsFromTable({ sta: BT.sta });

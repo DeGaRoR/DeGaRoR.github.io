@@ -1413,9 +1413,9 @@ const DESIGN_ROWS = [
   { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['wgTip'],
     read: P => Math.round(P.wgTip),
-    // G2820: endplate and drooped APPENDED (the index is the saved value)
+    // G2820: endplate and drooped APPENDED (the index is the saved value); HULL-B54: upturned
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
-                    'winglet', 'endplate', 'drooped'].map((k, i) => ({
+                    'winglet', 'endplate', 'drooped', 'upturned'].map((k, i) => ({
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
       icon: iconTip(k), writes: { cage: { wgTip: i } },
       ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
