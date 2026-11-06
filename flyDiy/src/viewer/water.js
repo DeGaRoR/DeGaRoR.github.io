@@ -1566,8 +1566,6 @@ const WATER = (() => {
     if (IN.wind[0] > 0.3) U.uWDir.value.set(Math.cos(IN.wind[1]), Math.sin(IN.wind[1]), 0, 0);
     // the detail band is the wind's: calm air, a glassy tile; the strength saturates by 8 m/s
     U.uWDetailK.value.z = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
-    // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1); the day's to the bit
-    if (U.uWNight && U.uWNight.value.x > 0) U.uWDetailK.value.z = Math.max(U.uWDetailK.value.z, Math.min(3.1, U.uWDetailK.value.z * 5));
   }
   function setSDF(tex, grid) {
     IN.sdf = tex || null; IN.grid = grid ? [grid.x, grid.y, grid.z, grid.w] : null;
@@ -1653,6 +1651,10 @@ const WATER = (() => {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
       const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
+      // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1).
+      // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
+      const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
+      U.uWDetailK.value.z = Math.max(zD, Math.min(3.1, zD * (1 + 4 * tN)));
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;

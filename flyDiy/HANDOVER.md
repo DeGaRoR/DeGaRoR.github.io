@@ -312572,3 +312572,7 @@ Study `futureDesigns/LOOK-1-STUDY-2026-11.md`, stills `reports/evidence/LOOK-1/`
   implementation specs for a LOCAL GPU session: 2a the clouds' temporal pass (+ noise mips, step-back, world-anchored
   steps first), 2b an `aa: 'taa'` tier (port of three r186 TRAANode logic; the aeroplane masked), 2c the impostors'
   soft coverage bake + coverage mips + the cut only when magnified; F5 the GPU measurements to take first.
+
+## NIGHT-RIPPLE - THE NIGHT'S RIPPLE BOOST IN frame(), NOT setWind
+
+water.js. NIGHT-BRIGHT wrote the boost (up to 5 x, capped at 3.1) in setWind, which climate_link calls only when the wind changes: it could latch through the next day, or never come on at a calm dusk, and it switched hard. It now runs in frame(), eased with the sheen's own ramp (exposure 2^1.5..2^5); by day uWDetailK.z is setWind's value to the bit. A side effect: WATER.set({detailK}) now applies at once instead of at the next wind change. Read from the code; the fault and the fix were not seen in the game. node --check only here (A0): the train gates WATER LIGHT ATMO NIGHTVISIBILITY.
