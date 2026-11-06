@@ -226,8 +226,16 @@ if (TOWN_ALLOC) { q.push('townalloc=1'); CHROME_FLAGS.push('--enable-precise-mem
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
+// RP_SLOWGL=1 (LOOK-1, the taxi's freeze): every GL call over 100 ms on the main thread: its name, the program in use (shader sizes, its first uniforms), the JS path; in window.__SLOWGL, printed at the end
+const RP_SLOWGL = String.raw`(() => { const L = window.__SLOWGL = [], P = WebGL2RenderingContext.prototype; let cur = null;
+  const who = () => String(new Error().stack).split('\n').slice(3, 9).map(l => l.trim().replace(/^at /, '').replace(/https?:[^ ]*\//, '').slice(0, 48)).join(' < ');
+  const desc = (g, pr) => { try { if (!pr) return ''; const sh = g.getAttachedShaders(pr) || [], fs = sh.map(q => g.getShaderSource(q) || ''), u = ((fs[1] || fs[0] || '').match(/uniform\s+\w+\s+\w+\s+u[A-Z]\w+/g) || []).slice(0, 6).map(x => x.split(/\s+/).pop()); return fs.map(x => x.length).join('+') + ' ' + u.join(','); } catch (e) { return '?'; } };
+  for (const m of Object.getOwnPropertyNames(P)) { let d; try { d = Object.getOwnPropertyDescriptor(P, m); } catch (e) { continue; } if (!d || typeof d.value !== 'function') continue; const f = d.value;
+    P[m] = function () { if (m === 'useProgram') cur = arguments[0]; const t = performance.now(), r = f.apply(this, arguments), dt = performance.now() - t; if (dt > 100) L.push([Math.round(t), m, Math.round(dt), desc(this, cur), who()]); return r; }; }
+  let last = 0; const g = t => { if (last && t - last > 300) L.push([Math.round(t), 'GAP', Math.round(t - last), window.CLOUDS ? CLOUDS.stats.slicesBaked : -1]); last = t; requestAnimationFrame(g); }; requestAnimationFrame(g); })();`;
 function preScript() {
   const lines = [];
+  if (process.env.RP_SLOWGL) lines.push(RP_SLOWGL);
   // a warm profile keeps localStorage between runs: every run states its build and graphics afresh
   // G770: no --build is THE OLD STOCK, pinned by name (tools/_stock_pin.js) - a fresh first boot is the Cub
   // since G770, and every 'stock' row measured before it was GEN_DEFAULT's; `--build default` measures that
@@ -609,6 +617,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     await sleep(SHOT_PHASE.length ? 250 : 500);
   }
   let premStream = null;
+  if (process.env.RP_SLOWGL) { try { console.log('SLOWGL ' + await ev('JSON.stringify(window.__SLOWGL || [])')); } catch (e) { console.log('SLOWGL failed ' + e.message); } }
   if (flag('progwatch')) { const pw = JSON.parse(await ev("(() => { const who = new Map(); try { WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { const p = WORLD.renderer.properties.get(m).currentProgram; if (p && !who.has(p)) who.set(p, (o.name || o.type) + '/' + (m.name || m.type) + (m.userData && Object.keys(m.userData).length ? '{' + Object.keys(m.userData).slice(0, 4).join(',') + '}' : '')); } }); } catch (e) {} for (const [pr, e] of (window.__PW || new Map())) e.who = who.get(pr) || ''; return 1; })() && JSON.stringify([...(window.__PW || new Map()).values()].map(e => [e.n, e.k, Math.round(e.t0), e.t1 == null ? -1 : Math.round(e.t1 - e.t0), e.who || '']))", 20000)); pw.sort((a, b) => b[3] - a[3]); console.log('  programs: ' + pw.length + ', slowest links (name, key length, seen at ms, ms to ready):\n' + pw.slice(0, 30).map(x => '    ' + x.join('  ')).join('\n')); }
   // ---- the settings probe (G680) ----
   const settingsRuns = [];
