@@ -4469,7 +4469,8 @@ function econSaleWhy(doc, slot) {
 function econSaleValue(doc, slot, cost) {
   const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
   if (!A) return { value: 0, paid: 0, cap: 'not an airframe of the career', age: 0, why: 'not an airframe of the career' };
-  const age = Math.max(0, +A.age || 0);
+  const now = typeof econAgingNow === 'function' ? econAgingNow(doc, slot) : null;   // WEAR-PRICE: its age on the clock
+  const age = now ? now.years : Math.max(0, +A.age || 0);
   const ded = Math.min(0.5, 0.08 * (+A.repairs || 0) + (A.damage ? 0.1 : 0));
   const v = econRound(ECON_BOOK.sellK * econUsedValue({ v0: A.v0 != null ? A.v0 : null, cost, age, ded }));
   const paid = Math.max(0, Math.round(+A.paid || 0));
@@ -4512,12 +4513,13 @@ function econSignOn(tier) {
   const r = ECON_BOOK.signOn[tier];
   return econRound((typeof r === 'number' ? r : ECON_BOOK.signOn.pilot) * econRefPrice());
 }
-// THE REPAIR (dm9; G2705 CAREER-DAMAGE, the user's ruling of 10 Oct, §R.4): REPAIR IS FREE everywhere. DMG-D5's
-// bill [{ section | event, line, cost }] stays on the damage record (what broke, in its lines) and costs nothing,
-// wherever the aeroplane stands; the punishment for a crash is the reset to where the flight departed from
-// (75_ careerCrashReset), never a bill. (bill, labour) -> 0, the signature kept for its callers.
+// THE REPAIR (dm9; G2705 CAREER-DAMAGE). It WAS free (the user's ruling of 10 Oct, §R.4); WEAR-PRICE (the user, 5 Nov:
+// "start putting money on the repair and refresh tasks. The repair on breakage should also be there") prices it at the
+// parts bill: the bill's lines summed (econRepairBill below writes them; DMG-D5's [{ section | event, line, cost }] has
+// the same shape). A crash still resets the aeroplane to where the flight departed from (75_ careerCrashReset); the
+// stop now also pays what broke (app.js playerFlightEnd -> econRepairCharge). (bill, labour) -> the sum.
 function econRepairCost(bill, labour) {
-  return 0;
+  return Math.round((Array.isArray(bill) ? bill : (bill && bill.lines) || []).reduce((a, l) => a + Math.max(0, +(l && l.cost) || 0), 0));
 }
 
 // ---- THE LEDGER'S CLASSES (G-COST: no running cost anywhere) ---------------------------------------------------
@@ -4528,6 +4530,7 @@ const ECON_LEDGER = {
   grant: 'grant', contract: 'contract', loan: 'loan',
   airframe: 'purchase', acquire: 'purchase', upgrade: 'purchase', signon: 'purchase', catalogue: 'purchase',
   repair: 'repair',
+  restore: 'repair',                                // WEAR-PRICE: a refresh task bought (a repaint, an overhaul)
   sale: 'sale',                                     // PRICE-CAL: an airframe sold on the market (econSell): income
   story: 'grant',                                   // the story's sign-on top-up (T6): money given, like a grant
   recover: 'free', release: 'free',
@@ -4580,9 +4583,213 @@ function econRepair(doc, slot, opts) {
   let d = ecClone(doc);
   delete d.fleet[slot].damage;
   if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
-  return { ok: true, doc: d, cost: econRepairCost(D.bill), why: '' };
+  // WEAR-PRICE: the bill paid (the sandbox records it free; the tutorial bills nothing - econWorkFreeWhy)
+  const cost = econWorkFreeWhy(d) && d.mode === 'career' ? 0 : econRepairCost(D.bill);
+  if (cost > 0) playerCharge(d, cost, 'repair', slot);
+  return { ok: true, doc: d, cost, why: '' };
 }
 
+// ---- WEAR-PRICE (2026-11-05; futureDesigns/WEAR-SYSTEM-2026-11.md §8, the user's answers: "1. Yes [your own planes age
+// on the career's clock], and when building, you can set the age of the plane. 2. No [age withdraws no certificate].
+// 3. No running costs for now. 4. Parts price. 5. Yes [rough use acts through the damage model] - and you can start
+// putting money on the repair and refresh tasks. The repair on breakage should also be there.") ----------------------
+// THE AIRFRAME'S AGE, ON THE CAREER'S CLOCK. The career's airframe row carries `aging` (econAgingNow below): its age
+// and its engine's hours since overhaul when it joined the fleet (a build: what the builder set on the WEAR tab; a used
+// listing: its age and hours), growing with the clock and the hours flown at its upkeep's rate.
+// No running cost: nothing is billed for time passing (the user's ruling 3); the age costs power and drag (60_
+// GEN_AGING) and value (econAgeFactor), and a restore buys them back.
+// THE PRICES ARE THE PARTS BILL (ruling 4; PRICE-STUDY's convention: the labour free). Every number is the ledger's
+// own row or a row of POWERPLANTS / the prop's; the factors below are JUDGEMENT where marked.
+const ECON_WEAR = {
+  year: 365.25 * 86400, flownPerYear: 100,
+  // an overhaul: the engine row (an overhauled / exchange price) x ovhK - anchored on the A-65: a shop overhaul ~9.5k
+  // against its 11k row (Aviation Consumer, PRICE-STUDY §B); JUDGEMENT beyond that anchor
+  ovhK: 0.85,
+  // a teardown inspection after a strike or an overspeed's 'inspect' band (Lycoming SB 533 / SB 369: the engine
+  // opened, no internal damage found): JUDGEMENT, the parts of a teardown (gaskets, bolts, the crank flange's check)
+  teardownK: 0.1,
+  // an engine mount group broken: a welded mount ~ a tenth of the engine row (a J-3 mount new ~1-3k): JUDGEMENT
+  mountK: 0.1,
+  // a crash's fuselage share when no group parted but the airframe came to rest wrecked (skin, longerons dented):
+  // JUDGEMENT; a break-up (the fuselage parted) bills the whole fuselage section
+  crashK: 0.25,
+  // the upkeep's rate on the age and the engine's wear (econCareK): JUDGEMENT
+  care: { perfect: 0.5, normal: 1, poor: 2 },
+  // a rebuild's frame work: this share of the structure's ledger (fuselage, wings, bracing, tail, gear): JUDGEMENT
+  rebuildK: 0.3,
+};
+// the resolved spec's engine and prop prices: each engine's row and each prop's (60_ resolveSpec writes prop.price)
+function econPowerPrices(R) {
+  const engs = (R && Array.isArray(R.engines) && R.engines.length) ? R.engines : (R && R.engine ? [R.engine] : []);
+  const one = e => { const k = typeof e === 'string' ? e : e && (e.type || e.engine); const P = k && POWERPLANTS[k]; return P ? +P.price || 0 : 0; };
+  const n = Math.max(1, engs.length);
+  const eng = engs.map(one);
+  return { n, engine: eng.length ? eng : [0], prop: Math.round(+(R && R.prop && R.prop.price) || 0) };
+}
+// which ledger section a damage group bills (61_ parts.dmg.groups keys: 'wing0R:root', 'wing0L:strut', 'gearL:gear',
+// 'tw:gear', 'stab:attach', 'fin:attach', 'eng:mount' ...)
+function econGroupSection(key) {
+  const k = String(key || '');
+  if (/^wing\d*[LR]?:strut/.test(k)) return 'bracing';
+  if (/^wing/.test(k)) return 'wings';
+  if (/^(gear|tw|nose|float)/.test(k)) return 'gear';
+  if (/^(stab|fin|tail|elev|rud)/.test(k)) return 'tail';
+  if (/^eng/.test(k)) return 'engines';
+  return 'fuselage';
+}
+// THE BREAKAGE'S BILL (ruling 5: "the repair on breakage should also be there"): what the flight broke, at the parts
+// price. R the resolved spec, ledger def.parts.ledger, groups the def's damage groups (def.parts.dmg.groups), dmg =
+// { groups: [key] the groups broken (sim.damage().groups), drive: [state] (sim.damage().drive), crashed, brokeUp }.
+// A broken group bills its section's ledger shared by the groups that section holds (a Cub's wing root: half the
+// wings); the engine mount, the strike's teardown or overhaul and a new prop are the powerplant's rows. Nothing broken:
+// nothing billed. -> { cost, lines: [{ what, cost }] }
+function econRepairBill(R, ledger, groups, dmg) {
+  const L = ledger || {}, D = dmg || {}, lines = [];
+  const per = {};
+  for (const g of (groups || [])) { const s = econGroupSection(g && g.key != null ? g.key : g); per[s] = (per[s] || 0) + 1; }
+  const PP = econPowerPrices(R);
+  const engAvg = PP.engine.reduce((a, b) => a + b, 0) / PP.engine.length;
+  const seen = new Set();
+  for (const g of (D.groups || [])) {
+    const key = g && g.key != null ? g.key : g;
+    if (seen.has(key)) continue; seen.add(key);
+    const s = econGroupSection(key);
+    const c = s === 'engines' ? engAvg * ECON_WEAR.mountK : ((L[s] && +L[s].cost) || 0) / Math.max(1, per[s] || 1);
+    if (c > 0) lines.push({ what: String(key), cost: Math.round(c) });
+  }
+  if (D.brokeUp) lines.push({ what: 'fuselage', cost: Math.round((L.fuselage && +L.fuselage.cost) || 0) });
+  else if (D.crashed) lines.push({ what: 'fuselage (dents)', cost: Math.round(((L.fuselage && +L.fuselage.cost) || 0) * ECON_WEAR.crashK) });
+  (D.drive || []).forEach((st, i) => {
+    if (!st) return;
+    const e = PP.engine[Math.min(i, PP.engine.length - 1)] || engAvg;
+    const over = st.os === 'overhaul' || st.os === 'failed' || st.failed || st.internal;
+    if (over) lines.push({ what: 'engine ' + (i + 1) + ' overhaul', cost: Math.round(e * ECON_WEAR.ovhK) });
+    else if (st.teardown || st.os === 'inspect' || (st.strike && st.strike !== 'brush'))
+      lines.push({ what: 'engine ' + (i + 1) + ' teardown', cost: Math.round(e * ECON_WEAR.teardownK) });
+    if (st.strike && st.strike !== 'brush') lines.push({ what: 'propeller ' + (i + 1), cost: Math.round(PP.prop / PP.n) });
+  });
+  const kept = lines.filter(l => l.cost > 0);
+  return { cost: kept.reduce((a, l) => a + l.cost, 0), lines: kept };
+}
+// is this airframe's work free now? the sandbox records it free (playerCharge); the TUTORIAL (until T6's route is
+// signed, as the sale's rule) bills nothing, so a crash cannot sink the story's budget. '' = billed
+function econWorkFreeWhy(doc) {
+  if (!doc || doc.mode !== 'career') return 'the sandbox';
+  if (typeof storyOf === 'function') { const st = storyOf(doc); if (st && !st.open && ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'].includes(st.beat)) return 'free during the tutorial'; }
+  return '';
+}
+// THE MAINTENANCE (the user, 5 Nov: "rate of decay should offer 3 options; perfect maintenance, normal maintenance,
+// poor maintenance, and that's about it"): how fast the clock and the hours wear the airframe - the years' drag and the
+// engine's hours both accrue x `care[k]` (JUDGEMENT: half as fast kept to the book and hangared, twice as fast skipped;
+// the physics itself, 60_ GEN_AGING, reads only years and hours). AUTHORED (the user: "the idea with the rate selector
+// is rather to author second hand planes and set this myself, then publish and locked in career"): set on the WEAR tab
+// while building, carried in spec.aging.care, started with the row and LOCKED in a career. Rough use is not a rate: it
+// acts through the damage model (the repair). Absent = normal. No running cost (ruling 3).
+const ECON_CARE = ['perfect', 'normal', 'poor'];
+const econCareK = c => ECON_WEAR.care[c] != null ? ECON_WEAR.care[c] : 1;
+// THE ROW'S RECORD: aging = { years, engineHours, care, at, fl } - the age and the engine's (as-worn) hours SETTLED at
+// clock `at`, with `fl` the seconds flown since that settle. Now: years + k x max(calendar years since `at`, hours
+// flown since / flownPerYear) (whichever runs first: a career's clock runs days, the hours lead); hours + k x flown.
+function econAgingNow(doc, slot) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  const g = A && A.aging;
+  if (!g || typeof g !== 'object') return null;
+  const W = ECON_WEAR, k = econCareK(g.care), flH = Math.max(0, +g.fl || 0) / 3600;
+  const dt = Math.max(0, (+(doc.clock) || 0) - (+g.at || 0)) / W.year;
+  const years = Math.max(0, +g.years || 0) + k * Math.max(dt, flH / W.flownPerYear);
+  const engineHours = Math.max(0, +g.engineHours || 0) + k * flH;
+  return { years: Math.round(years * 10) / 10, engineHours: Math.round(engineHours), care: ECON_CARE.includes(g.care) ? g.care : 'normal' };
+}
+// the record settled to now (the accrued folded in at its rate; `at` the clock, nothing flown since)
+function econAgingSettle(doc, slot) {
+  const n = econAgingNow(doc, slot);
+  if (!n) return doc;
+  const d = ecClone(doc), g = d.career.airframes[slot].aging;
+  g.years = n.years; g.engineHours = n.engineHours; g.at = Math.round(d.clock || 0); g.fl = 0;
+  return d;
+}
+// the age a spec carries now: its own `aging` replaced by the row's (absent when the row's age is 0 at normal upkeep)
+function econAgingSpec(spec, now) {
+  if (!spec || typeof spec !== 'object' || !now) return spec;
+  const s = Object.assign({}, spec);
+  const care = ECON_CARE.includes(now.care) && now.care !== 'normal' ? now.care : null;
+  if (!(now.years > 0) && !(now.engineHours > 0) && !care) delete s.aging;
+  else s.aging = Object.assign({ years: now.years || 0, engineHours: now.engineHours || 0 }, care ? { care } : {});
+  return s;
+}
+// the row starts its age: a build at what the builder set (spec.aging, its upkeep too), a used airframe at its listing's
+function econAgingStart(doc, slot, aging) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A) return doc;
+  const d = ecClone(doc);
+  // (no age given: the row's own - a used airframe bought before WEAR-PRICE carries `age` and `hours`; else new)
+  const a = aging || { years: A.age || 0, engineHours: A.hours || 0 };
+  d.career.airframes[slot].aging = { years: Math.max(0, +a.years || 0), engineHours: Math.max(0, +a.engineHours || 0),
+    care: ECON_CARE.includes(a.care) ? a.care : 'normal', at: Math.round(d.clock || 0), fl: 0 };
+  return d;
+}
+// a flight's seconds on the row (a row with no age record starts one at its own age)
+function econAgingFlown(doc, slot, seconds) {
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  const s = Math.max(0, +seconds || 0);
+  if (!A || !(s > 0)) return doc;
+  const d = A.aging ? ecClone(doc) : econAgingStart(doc, slot, null);
+  d.career.airframes[slot].aging.fl = Math.round((+d.career.airframes[slot].aging.fl || 0) + s);
+  return d;
+}
+// THE REFRESH TASKS (ruling 5's "refresh"; the study §4): their price at the parts bill, off the areas the frame built
+// (61_ parts.cover: painted m2, cloth m2) and the powerplant rows. On a CAREER airframe only (the sandbox sets the age
+// and the look itself, free); refused while it is broken (the repair first).
+//   repaint   the paint (GEN_PRICES.paintM2 x the painted area): the LOOK new - a repaint is not a restoration: the
+//             age, the engine and the value do not move
+//   recover   (a fabric aeroplane) the cloth's materials (coverM2 x its area) and its paint: the airframe's condition
+//             years to 0 (old fabric, dope and rigging are the years' drag) and the look new; the engine untouched
+//   overhaul  each engine row x ovhK: the engine's hours to 0 (its power back to rated)
+//   rebuild   recover (or repaint, on metal) + overhaul + `rebuildK` of the structure's ledger (the frame inspected, its
+//             corrosion and old repairs made good: JUDGEMENT): the years and the hours to 0, the look new
+// The value reads the condition years (econSaleValue), and the sale stays capped at what was paid: no loop prints money.
+// -> { cost, what } (cost 0: nothing to buy - a recover on a metal aeroplane)
+const ECON_RESTORES = ['repaint', 'recover', 'overhaul', 'rebuild'];
+const ECON_STRUCT_SECS = ['fuselage', 'wings', 'bracing', 'tail', 'gear'];
+function econRestoreCost(kind, R, ledger, cover) {
+  const L = ledger || {}, C = cover || null;
+  const paint = C ? GEN_PRICES.paintM2 * (+C.paintA || 0) : ((L.paint && +L.paint.cost) || 0);
+  const cloth = C ? GEN_PRICES.coverM2 * (+C.clothA || 0) : 0;
+  const ovh = econPowerPrices(R).engine.reduce((a, b) => a + b, 0) * ECON_WEAR.ovhK;
+  const struct = ECON_STRUCT_SECS.reduce((a, k) => a + ((L[k] && +L[k].cost) || 0), 0) * ECON_WEAR.rebuildK;
+  if (kind === 'repaint') return { cost: Math.round(paint), what: 'a fresh paint job (the paint, at the parts price)' };
+  if (kind === 'recover') return cloth > 0 ? { cost: Math.round(cloth + paint), what: 'new fabric and its paint (the airframe\'s years back to 0)' }
+                                           : { cost: 0, what: 'no fabric to recover' };
+  if (kind === 'overhaul') return { cost: Math.round(ovh), what: 'the engine overhauled (zero hours)' };
+  if (kind === 'rebuild') return { cost: Math.round(cloth + paint + ovh + struct), what: 'a rebuild: the frame, the covering, the engine (the airframe as new)' };
+  return { cost: 0, what: kind + ' is not a refresh task' };
+}
+// a refresh task done: needs the cash in a career (a refusal hands the document back); the row records it. The PAGE
+// applies its look / spec. -> { ok, doc, cost, why }
+function econRestore(doc, slot, kind, cost) {
+  if (!ECON_RESTORES.includes(kind)) return ecNo(doc, kind + ' is not a refresh task');
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (doc && doc.mode === 'career' && !A) return ecNo(doc, slot + ' is not an airframe of the career');
+  if (typeof playerBroken === 'function' && playerBroken(doc, slot)) return ecNo(doc, slot + ' is broken: repair it first');
+  cost = Math.max(0, Math.round(+cost || 0));
+  if (!(cost > 0)) return ecNo(doc, 'nothing to buy');
+  if (!econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', this costs ' + cost);
+  const d = ecClone(doc);
+  playerCharge(d, cost, 'restore', slot);
+  let out = d;
+  if (A) {
+    if (kind !== 'repaint') {
+      out = A.aging ? econAgingSettle(d, slot) : econAgingStart(d, slot, null);
+      const g = out.career.airframes[slot].aging;
+      if (kind === 'overhaul' || kind === 'rebuild') g.engineHours = 0;
+      if (kind === 'recover' || kind === 'rebuild') g.years = 0;
+    }
+    const R2 = out.career.airframes[slot];
+    R2.restored = Object.assign({}, R2.restored || {}, { [kind]: Math.round(out.clock || 0) });
+  }
+  if (typeof playerWearReset === 'function' && out.fleet && out.fleet[slot] && kind !== 'overhaul') out = playerWearReset(out, slot).doc;
+  return { ok: true, doc: out, cost, why: '' };
+}
 // ---- THE TRUST'S LOAN JOB (GQ6) ----------------------------------------------------------------------------------
 // Offered while the wallet is below ECON_BOOK.loanBelow (74_ careerOfferIds asks econLoanOffer). A job record
 // (CONTRACT-MODEL's shape, kind 'job', provider 'field'): a short errand from HOME to Tamgas Hill that every
@@ -5592,7 +5799,9 @@ function procureBuyUsed(doc, listingId, o) {
                 hours: L.hours, repair: L.repair, kg: L.kg, ledger: o.ledger ? procureLedgerOf(o.ledger) : null,
                 // PRICE-CAL: what the sale reads (76_economy econSaleValue) - what was paid, its age, its new value, its repairs
                 paid: L.price, age: L.age || 0, built: L.built || null, v0: L.catalogue || null, repairs: L.repair && L.repair !== 'none' ? 1 : 0,
-                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0) };
+                cost: o.ledger ? econLedgerCost(o.ledger) : (CONTRACT_DESIGNS[L.design] ? Math.round(CONTRACT_DESIGNS[L.design].cost) : 0),
+                // WEAR-PRICE: its age runs on the career's clock from the listing's (76_economy econAgingNow)
+                aging: L.age > 0 ? { years: L.age, engineHours: L.hours || 0, care: 'normal', at: Math.round(D2.clock || 0), fl: 0 } : null };
   const mk = career ? (D2.career.market = D2.career.market || { used: [], seen: 0 }) : (D2.market = D2.market || {});
   mk.sold = (Array.isArray(mk.sold) ? mk.sold : []).concat([L.id]);
   if (career) D2.career.airframes[slot] = row;
@@ -5662,6 +5871,25 @@ function procureOnSaveCert(doc, slot, spec, ledger) {
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
   if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // WEAR-PRICE M4: SIGNED WHILE THE AGE HASHED (a used airframe bought PRICE-CAL step 2 -> WEAR-PRICE: its spec carried
+  // the listing's `aging`, and the structure group hashed it). The same aeroplane if the old rule, on this spec with the
+  // listing's age and some listing's hours (50 h steps, 150-2 950: 76_ procureUsedListing), gives the stored fingerprint:
+  // re-signed, nothing withdrawn, nothing billed; a bench signature on that fingerprint follows it
+  if (A.age > 0 && typeof certMajorOf === 'function' && typeof certStrip === 'function') {
+    const base = Object.assign({}, spec);
+    let hit = false;
+    for (let h = 150; h <= 2950 && !hit; h += 50) {
+      base.aging = { years: A.age, engineHours: h };
+      const M = certMajorOf(certStrip(base, { condition: true }));
+      hit = !!M && M.fp === A.fp;
+    }
+    if (hit) {
+      const d = prClone(doc), R = d.career.airframes[slot];
+      if (R.sign && R.sign.fp === R.fp) R.sign.fp = fp;
+      R.fp = fp;
+      return { ok: true, doc: d, modified: !!R.modified, bill: null, why: 're-signed: the age is outside the certificate now (WEAR-PRICE)' };
+    }
+  }
   // G3780 M3: SIGNED UNDER THE OLD HASH, THE SAME AEROPLANE: re-signed with the major fingerprint, nothing withdrawn,
   // nothing billed - and an airframe an earlier update alone had made MODIFIED (its file's own p1 under another
   // version) gets its maker's certificate back (that bill was nothing: an update moves no ledger row)
