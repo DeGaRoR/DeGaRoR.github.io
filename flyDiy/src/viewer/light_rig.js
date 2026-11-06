@@ -289,7 +289,7 @@
   // NIGHT-LOOK 1b (3 Nov): desat 0.9 -> 0.5, the moonlit blue the user asked to keep (the 18:20 sky band: master 60,84,106,
   // 0.9 69,77,89, 0.5 61,75,93); `lamp` the exposed luminance at which colour is whole (a lamp at night is display-white)
   // NIGHT-BRIGHT, the user 4 Nov: "the whole thing needs more colours; warmer lights, bluer night", "I think darker skies look better": the dark range's grade (R .66, G .82, B 1.55, contrast 1.1), less of the eye's grey (desat .5 -> .3), the moon's light .3 of its measured value (the sky behind the aurora, the land held by the eye's +1.75)
-  var NIGHT_DEF = { eye: 1.75, moon: 0.3, desat: 0.3, blue: 0.6, colourCd: 3, lamp: 0.5, gradeR: 0.66, gradeG: 0.82, gradeB: 1.55, contrast: 1.1 };
+  var NIGHT_DEF = { eye: 1.75, moon: 0.3, desat: 0.3, blue: 0.6, colourCd: 3, lamp: 0.5, gradeR: 0.66, gradeG: 0.82, gradeB: 1.55, contrast: 0.92 };
   var NIGHT = {}; for (var nk in NIGHT_DEF) NIGHT[nk] = NIGHT_DEF[nk];
   function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
   // the phase law: a phase's light over the full moon's (phase = the illuminated fraction, 06_solar)
