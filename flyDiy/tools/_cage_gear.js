@@ -616,6 +616,14 @@ function foldFit(P, swing, AF, W, MX) {
   const floorY = (P.floorY != null ? +P.floorY : -0.5) * FSm;
   // the body and the wing: depth inside (structProbe)
   const { bodyIn, wingIn } = structProbe(AF, W, P);
+  // HULL-B55: a boat hull's cabin ends at its aft bulkhead (the cage's pilPaxA ring, else pilCabA: its floor's station,
+  // metres, z forward) - the floor test stands forward of it; null on any other build
+  // (and at its front, the windscreen's front ring wsFront: ahead of it is the bow - the nose wheel folds forward into
+  // the nose there, as an EDO amphibian float's does)
+  const [zCabA, zCabF] = !+P.hullOn ? [null, null] : (() => { try {
+    const RR = CG2.cageResolve(CG2.cageSpec(P)), zOf = (...nm) => { for (const n of nm) { const rr = RR.rings.find(q => q.name === n);
+      const lv = rr && rr.lv && (rr.lv.floor || rr.lv.waist); if (lv && isFinite(lv.z)) return lv.z * FSm; } return null; };
+    return [zOf('pilPaxA', 'pilCabA'), zOf('wsFront')]; } catch (e) { return [null, null]; } })();
   const leTe = new Map();
   const chordFrac = p => {
     if (!W || !W.leAt || !W.teAt) return null;
@@ -668,9 +676,12 @@ function foldFit(P, swing, AF, W, MX) {
         fail('spar', key, word + ' crosses the ' + (lo < sparF && hi > sparF ? 'front' : 'rear') + ' spar, up',
              R.fold.concat([st + 'Z', st + 'AxZ', st + 'R', 'wgChord'])); }
     // FLOOR (inside the body, at any position)
+    // (HULL-B55: a BOAT's cabin floor runs from its aft bulkhead to its windscreen's front ring - behind it the buoyant
+    // hull, ahead of it the bow, no floor: the Super Petrel's mains stow in the hull's side under the lower wing, aft of
+    // the cabin, its nose wheel forward into the nose. zCabA / zCabF above; any other build as ever)
     { let worst = 0;
       const inT = catU ? 0.02 : 0;                     // (the Catalina's: its fittings on the skin are not in the cabin)
-      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > inT && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
+      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > inT && p[1] > floorY - FIT.floor && !(zCabA != null && p[2] < zCabA) && !(zCabF != null && p[2] > zCabF)) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
       if (worst > 0) fail('floor', key, word + ' rises ' + Math.round(worst * 1000) + ' mm into the cabin floor',
                           R.fold.concat([st + 'Drop', st + 'R', 'floorY', 'gearRetFrac'])); }
   }

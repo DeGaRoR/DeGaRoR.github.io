@@ -1299,7 +1299,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // H1 (G383): a float build declares itself — there are no contacts to
     // measure, and the frame sizes the floats from the gross
     // HULL-B1: the fuselage is the boat - no contacts either; its lines are measured below (gear.hull)
-    if (+P.hullOn) M.gearType = 'hull';
+    // HULL-B55 (the Super Petrel, the user: "we need to exploit the retractable gear code"): AN AMPHIBIAN - a hull that
+    // also stands on a retracting tricycle (gearRetract with both stations on) measures its wheels as a tricycle; the
+    // hull's lines ride gear.hull beside them (60_gen_spec keeps the record on any type; 61_gen_frame builds both)
+    if (+P.hullOn && !(+P.gearRetract && +P.s1On && +P.s2On)) M.gearType = 'hull';
     else if (+P.gearFloats) M.gearType = 'floats';
     else if (G2.contacts && G2.contacts.length) {
       const mains = G2.contacts.filter(c => c.st && !isSingle(c));

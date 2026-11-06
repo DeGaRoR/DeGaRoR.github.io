@@ -2636,14 +2636,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
   // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
-  const hullGear = S.gear.type === 'hull' && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
+  // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
+  // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
+  const AMPH = S.gear.type === 'tricycle' && !!(S.gear.hull && Array.isArray(S.gear.hull.sta)) && typeof HYDRO !== 'undefined';
+  const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
   const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
-  if (S.gear.type !== 'floats' && S.gear.type !== 'hull') {
+  const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
+  if (WHEELS) {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
@@ -2801,7 +2805,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
-  } else if (hullGear) {
+  } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
     // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
     // on exactly the hull the builder drew. It rides the floats' machinery whole - a rigid node body of five stations
@@ -2858,7 +2862,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       K: [Q[i * 3][1], Q[i * 3][2]], DL: [Q[i * 3 + 1][1], Q[i * 3 + 1][2]], DR: [Q[i * 3 + 2][1], Q[i * 3 + 2][2]] })) };
     FLOATS = [{ side: 0, hull: true, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
                 tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: HP, pos: [xS, yS, 0] }];
-    GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS;
+    if (!WHEELS) { GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS; }   // (HULL-B55: an amphibian's refs are its wheels)
     // ---- THE STRUT TIP FLOATS (HULL-B3, the boat's lateral stability: HULL-TYPES §3.4 "Strut tip floats" - Seabee,
     // Lake, SeaRey, the Goose; NACA TN-215: every boat but Dornier's stub types needs them. A flying boat with a high
     // wing and its engine on a pylon has its CG well over its metacentre: the hull alone capsized in 4 s, measured,
@@ -3063,7 +3067,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                       tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
       }
     }
-  } else {
+  } else if (!WHEELS) {   // (HULL-B55: the floats - never under an amphibian's wheels)
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
     // both deck edges at four stations (bow, the flat's end, the step, the
     // stern), a triangulated shell drawn inside the float, one cluster so
@@ -3728,6 +3732,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
+    ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,

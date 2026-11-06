@@ -65,6 +65,9 @@ const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
 const P = S.P, FS = S.FS;
 // RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
 // layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
+// HULL-B55: --fit prints the gear layer's own fit verdict (foldFit: the rows it reddens and why; CAGE_ROW_BAD)
+if (argv.includes('--fit')) { const B = S.W.CAGE_ROW_BAD ? S.W.CAGE_ROW_BAD() : null, F = S.W.CAGE_GEAR && S.W.CAGE_GEAR.fit;
+  console.log('fit: ' + (F ? (B ? 'RED ' + JSON.stringify(B) : 'fits') : 'no fit record') + (F && F.cutsWing ? ' | wing cuts ' + JSON.stringify(F.cutsWing).slice(0, 300) : '')); }
 const CUTS = !argv.includes('--nowells') && S.W.CAGE_GEAR && ((S.W.CAGE_GEAR.cuts || []).concat(S.W.CAGE_GEAR.cutsSide || []));
 const sheet = CUTS && CUTS.length ? require(path.join(ROOT, 'tools', '_knife_gen.js')).knifeWells(S.built.sheet, CUTS) : S.built.sheet;
 if (CUTS && CUTS.length) console.log('wells cut: ' + CUTS.map(c => c.units.join('+') + ' ' + c.mode + (c.frame ? ' side ' + (c.side > 0 ? '+x' : '-x') : '') + ' (' + c.outline.length + ' pts, ' + (c.frame ? 'floor ' : 'ceiling ') + (c.ceil * FS).toFixed(3) + ' m)').join(', '));

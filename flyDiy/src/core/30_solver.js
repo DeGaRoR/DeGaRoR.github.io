@@ -4206,7 +4206,9 @@ function makeSim(def, world) {
     // wet: not yet on the step) counts a third, so a seaplane at rest reads
     // three like a taildragger on three points and two once on the step,
     // which is exactly the tail-down / tail-up split the pilot steers by
-    if (HY) {
+    // (HULL-B55: an AMPHIBIAN - its hull's count while the hull is wet, its wheels' on land)
+    const AMPHs = !!(def.parts && def.parts.amph);
+    if (HY && (!AMPHs || HY.floats.some(fx => fx.wet > 0.05))) {
       let wet = 0, aft = 0;
       for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
@@ -4227,7 +4229,7 @@ function makeSim(def, world) {
   // still flying; on the water the floats, as above
   function wheelContacts() {
     const on = i => { const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0; return p[i*3+1] - rCe(i) - gh < 0.03; };
-    if (HY) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
+    if (HY && (!(def.parts && def.parts.amph) || HY.floats.some(fx => fx.wet > 0.05))) return { mains: HY.floats.map(fx => fx.wet > 0.05), tw: HY.floats.length === 2 && HY.floats.every(fx => fx.out.wetA > 0.2), water: true };
     return { mains: def.refs.mains.map(on), tw: def.refs.tw != null && def.refs.tw >= 0 ? (on(def.refs.tw) || (TW2 >= 0 && on(TW2))) : false, water: false };
   }
   function cgPos() {
