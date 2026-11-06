@@ -2083,12 +2083,15 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
             if (s0 != null && s1 != null && (p0[1] - s0) * (p1[1] - s1) < 0) return true; } }
         return false; };
       const through = c.units.some(k => swing[k] && downLines(k).some(crosses));
-      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through };
+      // (HULL-B64, the user: "when extended, the doors stay open, they don't close. They close only for the retracted
+      // position" - with no leg door the down leg stands in the well's opening: its doors stay open while it is down)
+      const shutDown = !through && !!+P.gearLegDoor;
+      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: shutDown };
       // drawn as it stands gear down (every part's rest): a door the down gear passes through stands open
       const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
       panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
       mech.R.parts.push({ name, rule: 'door', hinge, axis, ang: DOOR_ANG, seq, o0: hinge.slice() });
-      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: !through, hinge, axis, edgeOff: off, edgeOffLevel: offLevel });
+      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: shutDown, hinge, axis, edgeOff: off, edgeOffLevel: offLevel });
     });
   });
   return out;
