@@ -231,7 +231,7 @@ const RP_SLOWGL = String.raw`(() => { const L = window.__SLOWGL = [], P = WebGL2
   const who = () => String(new Error().stack).split('\n').slice(3, 9).map(l => l.trim().replace(/^at /, '').replace(/https?:[^ ]*\//, '').slice(0, 48)).join(' < ');
   const desc = (g, pr) => { try { if (!pr) return ''; const sh = g.getAttachedShaders(pr) || [], fs = sh.map(q => g.getShaderSource(q) || ''), u = ((fs[1] || fs[0] || '').match(/uniform\s+\w+\s+\w+\s+u[A-Z]\w+/g) || []).slice(0, 6).map(x => x.split(/\s+/).pop()); return fs.map(x => x.length).join('+') + ' ' + u.join(','); } catch (e) { return '?'; } };
   for (const m of Object.getOwnPropertyNames(P)) { let d; try { d = Object.getOwnPropertyDescriptor(P, m); } catch (e) { continue; } if (!d || typeof d.value !== 'function') continue; const f = d.value;
-    P[m] = function () { if (m === 'useProgram') cur = arguments[0]; const t = performance.now(), r = f.apply(this, arguments), dt = performance.now() - t; if (dt > 100) L.push([Math.round(t), m, Math.round(dt), desc(this, cur), who()]); return r; }; }
+    P[m] = function () { if (m === 'useProgram') cur = arguments[0]; const t = performance.now(), r = f.apply(this, arguments), dt = performance.now() - t; if (dt > 100) L.push([Math.round(t), m, Math.round(dt), desc(this, /^(getProgramInfoLog|getProgramParameter|linkProgram)$/.test(m) ? arguments[0] : cur), who()]); return r; }; }
   let last = 0; const g = t => { if (last && t - last > 300) L.push([Math.round(t), 'GAP', Math.round(t - last), window.CLOUDS ? CLOUDS.stats.slicesBaked : -1]); last = t; requestAnimationFrame(g); }; requestAnimationFrame(g); })();`;
 function preScript() {
   const lines = [];
@@ -719,6 +719,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
         + (latency.simw ? ' | key -> post ' + h.post + ' -> due ' + h.due + ' -> arrive ' + h.arrive + ' -> picture ' + h.draw + ' = TOTAL ' + h.total + ' ms (p90 ' + h.totalP90 + ')' : ' (+ the pose 0.75 step behind: ~12.5 ms)')
         + ' | drawn pose age ' + a.med + ' ms (p90 ' + a.p90 + ', ' + a.n + ' frames)'
         + ' | starved ' + JSON.stringify(latency.starved) + ' | judderTs ' + JSON.stringify(latency.judderTs)); } }
+  // CODEX1 diagnostic: snapshot frames before the optional census serializes.
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, bs: __RP.bs || [], twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
@@ -745,7 +747,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
   }
-  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, bs: __RP.bs || [], twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
+
   R.fr.forEach((r, i) => { r.tw = R.tw ? R.tw[i] || null : null; });   // (G3415: the town meter rides its frame through the filters)
   // G680: the world step's slices (app.js buildWorldSliced) - how many, the longest, the step's wall
   const worldSlices = JSON.parse(await ev('JSON.stringify(window.__WORLD_SLICES || null)').catch(() => 'null'));
@@ -878,7 +880,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), revealAt, label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     bootSpans: SPANS.map(x => [x[0], isFinite(x[1]) ? x[1] : null]), tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),

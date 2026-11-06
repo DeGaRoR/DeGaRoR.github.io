@@ -6731,12 +6731,20 @@
   // and the same sampler (patternPath), so the ribbon is the line the
   // aeroplane steers to. Its layers are the rail's `patterns` flyout; off by
   // default, so nothing on screen changes until asked.
-  let patVis = null, patVisK = -1, patLegsRef = null;
+  let patVis = null, patVisOld = null, patVisK = -1, patLegsRef = null;
   const patOnGet = () => {
     try { return patOn; } catch (e) { return { graph: false, slope: false, targets: false, map: false }; }
   };
   function patternVisFor(from, st) {
-    if (patVis) { try { patVis.dispose(); } catch (e) {} patVis = null; }
+    // Keep one retired overlay until its replacement has had a chance to use
+    // the warmed programs. Disposing the last holder before rebuilding releases
+    // all three guide programs, so the first rollout links identical GLSL again.
+    // As with the indicator labels, only the preceding generation stays alive.
+    if (patVisOld) { try { patVisOld.dispose(); } catch (e) {} patVisOld = null; }
+    if (patVis) {
+      if (patVis.group && patVis.group.parent) patVis.group.parent.remove(patVis.group);
+      patVisOld = patVis; patVis = null;
+    }
     if (!from || !window.PATTERN_VIS || typeof sitePattern !== 'function') return;
     let P = null;
     // G710: the way out round the parked aeroplanes is planned for the span the pilot taxis (ap.patOf's own)
