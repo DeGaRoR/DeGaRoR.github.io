@@ -563,6 +563,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (CAM) { await ev('FLIGHT_PROBE.camMode(' + JSON.stringify(CAM) + '), 1'); await sleep(500); where.cam = await ev('FLIGHT_PROBE.camModeNow()');
     if (where.cam !== CAM) console.log('  CAM: asked ' + CAM + ', the page shows ' + where.cam + ' (the view is not the one asked for)'); }
   else where.cam = await ev('FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null').catch(() => null);
+  const cameraAt = await ev('performance.now()');
   if (HOVER) { await ev("(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return 1; })()"); where.hover = true; }
   // G1165: the rudder steps, alongside the recording (it waits for them before the report)
   let latP = null;
@@ -880,7 +881,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), revealAt, label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), revealAt, shotEndAt, cameraAt, label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     bootSpans: SPANS.map(x => [x[0], isFinite(x[1]) ? x[1] : null]), tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),
