@@ -328,10 +328,10 @@ async function sweep() {
       log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p90 ' + st.p90 + ', p99 ' + st.p99 + ', p99.9 ' + st.p999 + ', worst ' + st.worst + ' ms, >1.5x cap ' + FD.pc(st.over15) + ', >100 ms ' + st.over100 + ', tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
     const trip = async (build, name, kind, action, extra) => {
       const n0 = await b.ev(A.trips), t0 = await now(), w0 = Date.now(); const pressed = await b.ev(action);
-      let d = null; const tEnd = Date.now() + 300000;
-      while (Date.now() < tEnd) { d = JSON.parse(await b.ev(A.lastTrip, 30000)); if (d.n > n0 && d.kind === kind && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
+      let d = null, timedOutPolls = 0; const tEnd = Date.now() + 300000;
+      while (Date.now() < tEnd) { const raw = await b.ev(A.lastTrip, 30000); if (raw === '__timeout') { timedOutPolls++; log(name + ': browser reply exceeded 30 s; retrying read-only trip poll'); continue; } d = JSON.parse(raw); if (d.n > n0 && d.kind === kind && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
       const t1 = await now(); const fr = await pull(); const st = stat(fr.fr, fr.lt, t0, t1, fr.sc);
-      const row = Object.assign({ build, load: name, kind, pressed, tripMs: d ? d.ms : null, wallSec: +((Date.now() - w0) / 1000).toFixed(1), ran: d ? d.ran : null, anim: d ? d.anim : null,
+      const row = Object.assign({ build, load: name, kind, pressed, timedOutPolls, tripMs: d ? d.ms : null, wallSec: +((Date.now() - w0) / 1000).toFixed(1), ran: d ? d.ran : null, anim: d ? d.anim : null,
         frames: st, links: await b.links(t0, t1) }, extra || {}); R.loads.push(row);
       log(name.padEnd(28) + ' ' + (d ? (d.ms / 1000).toFixed(1) + ' s (wall ' + row.wallSec + ' s) ran [' + d.ran.join(' ') + ']' : 'NOT DONE (' + pressed + ')')); return row; };
     // PHONE-1b-fix (A0 3 Nov): THE BOOT'S LINK TAIL - BOOT ready can come with programs still linking (1B: 5 pending, 218

@@ -177,7 +177,8 @@ const PROFILE_LIVE = opt('profile-live', null);
 // thread's tasks) from just before the roll-out click for <secs> s, written beside the JSON as <label>.trace.json (open
 // it in chrome://tracing or Perfetto). For the cold freeze that sits off the main thread (the frames stop, no long task)
 const TRACE = opt('trace', null);
-const TRACE_CATS = 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
+// --trace-cats narrows a targeted trace; the default still includes GPU/ANGLE.
+const TRACE_CATS = opt('trace-cats', null) || 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
   + 'disabled-by-default-gpu.service,disabled-by-default-gpu.angle,disabled-by-default-gpu.decoder,gpu.capture,__metadata';
 // --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
 // debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
@@ -335,7 +336,7 @@ const INSTALL = `(() => {
   const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
   P.end = function (workMs, physMs, steps, now) {
     // REVEAL (A0 22 Oct): a frame the loop ran and did NOT draw (holdRender: the trip's links) - its time and its worldUpdate
-    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 29)
+    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 31)
     if (arguments[5]) { heldN++; return endW(workMs, physMs, steps, now, arguments[4], true); }
     const st = P.state();
     let agl = null, x = null, z = null, apPh = '', V = null, onG = null, hAgl = null, wph = '', man = 0;
@@ -502,6 +503,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // G3320 (PILOTPAGE): --persona <name> - the shed's #selPersona set and its change fired before the roll-out (as tools/tour_real.js)
   if (opt('persona', null)) console.log('  persona: ' + await ev("(()=>{if(window.FLYDIY_RAIL&&FLYDIY_RAIL.dev)FLYDIY_RAIL.dev(true);const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT
+  const bootAtRoll = await ev('JSON.stringify(window.BOOT ? {state:BOOT.state,busy:BOOT.busy ? BOOT.busy() : null,current:BOOT.current,step:BOOT.stepI,steps:BOOT.steps.length} : null)');
   const tRoll = Date.now(), clickAt = await ev('performance.now()');
   // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
   // both started the roll-out and then SKIPPED its shot with the second press - every run before G1117 measured a skipped shot)
@@ -825,6 +827,19 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const SPANS = bootSpans(R.bs);
   const scr = (t0, t1) => underScreen(SPANS, t0, t1);
   const frScr = fr.filter(r => scr(r[0] - r[1], r[0])), frFree = fr.filter(r => !scr(r[0] - r[1], r[0]));
+  // Keep the stock phase totals, but identify where a long interval occurred.
+  // A garage/shot frame labelled stand, or a held loading span labelled taxi,
+  // is not evidence of a long frame in the requested flight view.
+  const frameGaps = fr.filter(r => r[1] > 1000).map(r => ({
+    at: r[0], ms: r[1], phase: r.ph, uiPhase: r[7], heldTicks: r[31] || 0,
+    startsBeforeReveal: r[0] - r[1] < revealAt, afterRequestedCamera: r[0] - r[1] >= cameraAt,
+    context: scr(r[0] - r[1], r[0]) ? 'loading' : r[7] === 'GARAGE' ? 'garage'
+      : r[0] - r[1] < shotEndAt ? 'rollout' : 'flight'
+  }));
+  const firstFlightFrameAt = (fr.find(r => r[7] !== 'GARAGE' && r[7] !== 'HOLDING' && r[29] > 0
+    && r[0] >= Math.max(shotEndAt, cameraAt)
+    && !scr(r[0] - 0.001, r[0])) || [null])[0];
+  if (frameGaps.length) console.log('  GAPS over 1 s by context: ' + JSON.stringify(frameGaps));
   const over100 = frFree.filter(r => r[1] > 100), over100S = frScr.filter(r => r[1] > 100);
   const ltAll = R.lt.filter(x => settingsT0 == null || x[0] < settingsT0), ltS = ltAll.filter(x => scr(x[0], x[0] + x[1]));
   const lt = ltAll.filter(x => !scr(x[0], x[0] + x[1])).sort((a, b) => b[1] - a[1]);
@@ -881,7 +896,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), revealAt, shotEndAt, cameraAt, label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), revealAt, shotEndAt, cameraAt, firstFlightFrameAt, frameGaps, bootAtRoll: JSON.parse(bootAtRoll), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     bootSpans: SPANS.map(x => [x[0], isFinite(x[1]) ? x[1] : null]), tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),
