@@ -117,7 +117,7 @@ const ENGINES = {
             finHeight: 1.1, finChord: 1.05, finChordTip: 0.45, stY: 0.65, stZ: -0.35, stChord: 0.75, stChordTip: 0.6,
             wgSpan: 9.16, wgChord: 1.0, wgChordTip: 1.0, wgTipX: 0, wgDihedral: 0, wgPos: 3, wgParaH: 0.6, wgDx: -0.9, wgBrace: 1, wgCrankAt: 0,
             wgTip: 8, wgTipBow: 0.45, wgTipDroop: 0.30,
-            w2On: 1, w2Pos: 1, w2Dy: -0.1, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 8, w2Stagger: -0.05, w2Tip: 8, w2CrankAt: 0,
+            w2On: 1, w2Pos: 1, w2Dy: 0.025, w2Span: 7.0, w2Chord: 0.8, w2ChordTip: 0.8, w2Dihedral: 8, w2Stagger: -0.05, w2Tip: 8, w2CrankAt: 0,
             engPylonAt: 1, engPylonH: 0.687, engPylonAft: -0.50, engPylonFwd: 0.30, engPylonFair: 3, cowlOn: 1, cw_inletOn: 1, cw_propD: 1.6, cw_bladeN: 3, cw_material: 3, cw_rootChord: 0.12, cw_tipChord: 0.07,
             hullSpon: 0, hullTips: 1,
             // (HULL-B55, the user: "exploit the retractable gear code ... a catalina style retractable wheel. The front one is
@@ -125,6 +125,8 @@ const ENGINES = {
             // amphibian: the retracting tricycle beside the hull (the join measures both); the mains Catalina (gearFold 6,
             // rooted on the fuselage), the nose FORWARD into the nose (the user: "a bit like the EDO floats": a custom 140 deg
             // forward turn) - a box well with two doors
+            // (HULL-B56, the user: "the bottom wing needs to get higher up on the fuselage ... it can go up maybe 10-15 cm") -
+            // w2Dy -0.1 -> 0.025, the lower wing 12.5 cm higher on the hull's side (its struts and floats with it)
             s1On: 1, s2On: 1, gearRetract: 1, gearRetT: 6, gearRetAct: 0, gearFold: 6, s1Root: 1, gearFoldNose: 2, gn1Ax: 1, gn1Ang: -140, gn2Ang: 0, gearWellCut: 1, gearDoors: 2,
             s1Z: 0.80, s1X: 0.85, s1R: 0.19, s1Drop: 0.25, s1AxZ: 0, s2Z: 2.7, s2X: 0, s2R: 0.12, s2Drop: 0.15, s2AxZ: 0, s2Leg: 2, hullTipPlane: 1, hullTipAt: 0.78, hullTipKg: 25, hullTipY: 0.416 },
     energy: { vessels: [{ bay: 'aftCabin', capacity: 72, form: 'box' }] }, cabin: { baggage: 0 },
