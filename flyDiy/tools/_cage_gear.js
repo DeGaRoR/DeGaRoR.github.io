@@ -1673,6 +1673,44 @@ const DOOR_SEAM = 0.004;       // GR R1 (the user: "you need to leave a gap in y
 const polyArea = ps => { let a = 0; for (const p of ps) for (let i = 1; i + 1 < p.length; i++) {
   const u = [p[i][0] - p[0][0], p[i][1] - p[0][1], p[i][2] - p[0][2]], v = [p[i + 1][0] - p[0][0], p[i + 1][1] - p[0][1], p[i + 1][2] - p[0][2]];
   a += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return a; };
+// THE HINGE ON A CURVED SKIN (the user, 6 Nov, on the Petrel's bow doors: "If they hit a curve, they should take the
+// middle point and rotate along the tangent at this point"): a door turns about its hinge edge's TANGENT at the edge's
+// MIDDLE - not a level line through the edge points' mean, which on a rising bow (or any sloped piece) swung the door
+// off the skin. `edge`: the hinge edge's points; `d`: its run (a unit vector, rough); `tan(h, d)`: the skin's own
+// tangent through h along d (else the edge points' fit, else d)
+function doorHinge(edge, d, tan) {
+  const t = edge.map(q => q[0] * d[0] + q[1] * d[1] + q[2] * d[2]);
+  const t0 = Math.min(...t), t1 = Math.max(...t), tm = (t0 + t1) / 2, span = t1 - t0;
+  let near = edge.filter((q, i) => Math.abs(t[i] - tm) <= Math.max(0.01, 0.15 * span));
+  if (!near.length) { let bi = 0; t.forEach((x, i) => { if (Math.abs(x - tm) < Math.abs(t[bi] - tm)) bi = i; }); near = [edge[bi]]; }
+  const hinge = [0, 1, 2].map(i => near.reduce((a, q) => a + q[i], 0) / near.length);
+  let ax = tan ? tan(hinge, d) : null;
+  if (!ax) {                                  // (the edge points' least-squares run, over the middle's neighbourhood)
+    const w = edge.map((q, i) => [q, t[i]]).filter(e => Math.abs(e[1] - tm) <= Math.max(0.03, 0.3 * span));
+    const tb = w.reduce((a, e) => a + e[1], 0) / (w.length || 1), qb = [0, 1, 2].map(i => w.reduce((a, e) => a + e[0][i], 0) / (w.length || 1));
+    let stt = 0; const b = [0, 0, 0]; for (const [q, x] of w) { stt += (x - tb) ** 2; for (let i = 0; i < 3; i++) b[i] += (x - tb) * (q[i] - qb[i]); }
+    if (stt > 0.02 * 0.02 * Math.max(1, w.length / 4)) ax = b;
+  }
+  ax = ax ? fNrm(ax) : d.slice();
+  if (ax[0] * d[0] + ax[1] * d[1] + ax[2] * d[2] < 0) ax = ax.map(x => -x);
+  // (`off`: how far the edge's middle stretch (its middle 60 %) lies off the axis line - a door turning about a line
+  // its own edge leaves swings that edge off the skin)
+  const offOf = (h, a) => { let m = 0; edge.forEach((q, i) => { if (Math.abs(t[i] - tm) > 0.3 * span) return;
+    const v = [q[0] - h[0], q[1] - h[1], q[2] - h[2]], k = v[0] * a[0] + v[1] * a[1] + v[2] * a[2]; m = Math.max(m, Math.hypot(v[0] - a[0] * k, v[1] - a[1] * k, v[2] - a[2] * k)); }); return m; };
+  return { hinge, axis: ax, off: offOf(hinge, ax), offLevel: offOf([0, 1, 2].map(i => edge.reduce((a, q) => a + q[i], 0) / edge.length), fNrm([d[0], 0, d[2]])), span };
+}
+// the skin's lowest surface over a plan place (x, z), from polygons (a bucket grid, 10 cm): a door's under-skin
+function lowSkin(faces) {
+  const g = new Map(), key = (i, j) => i + ':' + j, C = 0.1;
+  for (const f of faces) for (let k = 1; k + 1 < f.length; k++) { const T = [f[0], f[k], f[k + 1]];
+    const x0 = Math.min(T[0][0], T[1][0], T[2][0]), x1 = Math.max(T[0][0], T[1][0], T[2][0]), z0 = Math.min(T[0][2], T[1][2], T[2][2]), z1 = Math.max(T[0][2], T[1][2], T[2][2]);
+    for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(z0 / C); j <= Math.floor(z1 / C); j++) { const k2 = key(i, j); if (!g.has(k2)) g.set(k2, []); g.get(k2).push(T); } }
+  return (x, z) => { const ts = g.get(key(Math.floor(x / C), Math.floor(z / C))); if (!ts) return null; let best = null;
+    for (const [A, B, Cc] of ts) { const den = (B[2] - Cc[2]) * (A[0] - Cc[0]) + (Cc[0] - B[0]) * (A[2] - Cc[2]); if (Math.abs(den) < 1e-14) continue;
+      const l1 = ((B[2] - Cc[2]) * (x - Cc[0]) + (Cc[0] - B[0]) * (z - Cc[2])) / den, l2 = ((Cc[2] - A[2]) * (x - Cc[0]) + (A[0] - Cc[0]) * (z - Cc[2])) / den, l3 = 1 - l1 - l2;
+      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue; const y = l1 * A[1] + l2 * B[1] + l3 * Cc[1]; if (best == null || y < best) best = y; }
+    return best; };
+}
 // a skin's faces facing down (Newell) whose plan box meets the outline's, clipped to it
 function doorPatch(faces, outline, anyWinding, steep) {
   let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
@@ -1862,6 +1900,10 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     const circ = ccw(cs.find(c => !c.slot).hull), slot = cs.find(c => c.slot), sl = slot ? ccw(slot.hull) : null;
     // (the side frame's (u, v) = (z, -s y) fed to the plan clip, whose (u, v) is (z, -x): x' = s y, y' = x)
     const to = q => [s * q[1], q[0], q[2]], fro = q => [q[1], s * q[0], q[2]];
+    // (a side hinge's tangent: along the hull at the hinge's height - the side's x at z -+ 5 cm, from the airframe's sections)
+    const halfX = (y, z) => { let best = null; for (let d = 0; d < 360; d++) { const a = AF.surf(z, d * Math.PI / 360), b = AF.surf(z, (d + 1) * Math.PI / 360);
+      if ((a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } } return best; };
+    const sideTan = h => { const dl = 0.05, a = halfX(h[1], h[2] - dl), b = halfX(h[1], h[2] + dl); return a != null && b != null ? [s * (b - a), 0, 2 * dl] : null; };
     const polys = [], low = [], hullD = kneeHullDoor(P);
     // (the leg's door ends 0.8 R under the stowed axle: gear down it hangs a fifth of a radius clear of the ground, as a
     // leg door does; the circle's foot under that line is a little door of its own, hinged on the hull at its bottom)
@@ -1890,10 +1932,10 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     if (hullD) {
       let y1 = -Infinity; for (const p of mine) for (const q of p) y1 = Math.max(y1, q[1]);
       const edge = []; for (const p of mine) for (const q of p) if (q[1] > y1 - 0.008) edge.push(q);
-      const hinge = [0, 1, 2].map(i => edge.reduce((a, q) => a + q[i], 0) / edge.length);
+      let { hinge, axis } = doorHinge(edge, [0, 0, 1], sideTan);
       const cen = [0, 1, 2].map(i => { let a = 0, n = 0; for (const p of mine) for (const q of p) { a += q[i]; n++; } return a / n; });
-      let axis = [0, 0, 1]; const d0 = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]], mv = CM.gearApp(CM.gearRot(axis, 0.1), d0);
-      if (s * (mv[0] - d0[0]) < 0) axis = [0, 0, -1];
+      const d0 = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]], mv = CM.gearApp(CM.gearRot(axis, 0.1), d0);
+      if (s * (mv[0] - d0[0]) < 0) axis = axis.map(x => -x);
       const name = 'edMechDoor' + k + '_kneeHull', seq = { k: KNEE_DOOR_SEQ, closedDown: false };
       const Rd = CM.gearRot(axis, KNEE_DOOR_ANG * CM.gearDoorOpen(seq, 1));
       const gp = panel(name, mine, bodyMat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; }, [s, 0, 0]);
@@ -1933,10 +1975,9 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     if (polyArea(foot) > 0.002) {
       let y0 = Infinity; for (const p of foot) for (const q of p) y0 = Math.min(y0, q[1]);
       const edge = []; for (const p of foot) for (const q of p) if (q[1] < y0 + 0.008) edge.push(q);
-      const hinge = [0, 1, 2].map(i => edge.reduce((a, q) => a + q[i], 0) / edge.length);
-      let axis = [0, 0, 1]; const cen = [0, 1, 2].map(i => { let a = 0, n = 0; for (const p of foot) for (const q of p) { a += q[i]; n++; } return a / n; });
+      let { hinge, axis } = doorHinge(edge, [0, 0, 1], sideTan); const cen = [0, 1, 2].map(i => { let a = 0, n = 0; for (const p of foot) for (const q of p) { a += q[i]; n++; } return a / n; });
       const mv = CM.gearApp(CM.gearRot(axis, 0.1), [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]]);
-      if (s * (mv[0] - (cen[0] - hinge[0])) < 0) axis = [0, 0, -1];
+      if (s * (mv[0] - (cen[0] - hinge[0])) < 0) axis = axis.map(x => -x);
       const fn = 'edMechDoor' + k + '_kneeFoot', seq = { k: DOOR_SEQ, closedDown: true };
       panel(fn, foot, bodyMat, null, [s, 0, 0]);
       mech.R.parts.push({ name: fn, rule: 'door', hinge, axis, ang: 120 * Math.PI / 180, seq, o0: hinge.slice() });
@@ -1953,6 +1994,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       const g = o.userData.wellGeo0 || o.geometry, pa = g.attributes.position, ix = g.index ? g.index.array : null, n = (ix ? ix.length : pa.count) / 3;
       for (let t = 0; t < n; t++) nacF.push([0, 1, 2].map(q => { vv.fromBufferAttribute(pa, ix ? ix[t * 3 + q] : t * 3 + q).applyMatrix4(M4); return [vv.x, vv.y, vv.z]; }));
     } }
+  const LOWS = new Map();
   const sets = [['B', fit.cuts || [], bodyF, bodyMat], ['W', fit.cutsWing || [], wingF, wingMat], ['N', fit.cutsNac || [], nacF, nacMat]];
   for (const [tag, cuts, faces, mat] of sets) cuts.forEach((c, ci) => {
     const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
@@ -1994,8 +2036,11 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
         if (xs(-1) > xs(1) + 1e-6) nOut = [-nOut[0], -nOut[1]]; }
       let mx = -Infinity; for (const p of hp) for (const q of p) mx = Math.max(mx, proj(q));
       const edge = []; for (const p of hp) for (const q of p) if (proj(q) > mx - 0.012) edge.push(q);
-      const hinge = [0, 1, 2].map(i => edge.reduce((s, q) => s + q[i], 0) / edge.length);
-      let axis = [-e1[1], 0, e1[0]];                                   // (u, v) = (z, -x): the plan direction e1 in 3D
+      // (the hinge: the edge's middle, its axis the skin's tangent there along the edge's run - the plan direction e1, in
+      // 3D (u, v) = (z, -x) - climbing with the skin: a bow rising, a nacelle's belly, a wing's dihedral)
+      const low = LOWS.get(faces) || LOWS.set(faces, lowSkin(faces)).get(faces);
+      let { hinge, axis, off, offLevel } = doorHinge(edge, [-e1[1], 0, e1[0]], (h, d) => { const dl = 0.05, a = low(h[0] - d[0] * dl, h[2] - d[2] * dl), b = low(h[0] + d[0] * dl, h[2] + d[2] * dl);
+        return a != null && b != null && Math.abs(b - a) < 2 * dl * 3 ? [2 * dl * d[0], b - a, 2 * dl * d[2]] : null; });
       const cen = [0, 1, 2].map(i => { let s = 0, n = 0; for (const p of hp) for (const q of p) { s += q[i]; n++; } return s / n; });
       const R1 = CM.gearRot(axis, 0.1), d = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]];
       // + opens it OUT of the skin (P2: along the door's own outward normal - a nacelle's door wraps its round belly, its
@@ -2030,7 +2075,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
       panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
       mech.R.parts.push({ name, rule: 'door', hinge, axis, ang: DOOR_ANG, seq, o0: hinge.slice() });
-      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: !through });
+      out.push({ name, kind: 'well', units: c.units.slice(), area: polyArea(hp), closedDown: !through, hinge, axis, edgeOff: off, edgeOffLevel: offLevel });
     });
   });
   return out;

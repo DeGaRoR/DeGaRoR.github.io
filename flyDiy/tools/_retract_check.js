@@ -461,6 +461,14 @@ console.log('10 THE FOLD (G1)');
   console.log('17 THE DOORS (G6)');
   { const docs = over => { const Sx = sceneOf(Object.assign({ gearPos: 1 }, over)); return { Sx, G: Sx.W.CAGE_GEAR }; };
     const ex = docs({ s1X: 1.6 }), D6 = ex.G.doors || [];
+    // (the user, 6 Nov, the Super Petrel's bow doors: "If they hit a curve, they should take the middle point and rotate
+    // along the tangent at this point") - every well door turns about its hinge edge's tangent at the edge's middle: the
+    // axis climbs with the skin (the wing's dihedral, the nose's rise); no door's edge lies further off its axis than off a
+    // level line through its mean, and a sloped one's lies nearer
+    { const W6 = D6.filter(d => d.kind === 'well' && d.axis), cl = W6.filter(d => Math.abs(d.axis[1]) > Math.sin(3 * Math.PI / 180));
+      check(W6.length && W6.every(d => d.edgeOff <= d.edgeOffLevel + 0.005) && cl.length >= 4 && cl.some(d => d.edgeOff < d.edgeOffLevel - 0.005),
+            'a well door turns about its hinge edge\'s TANGENT at the edge\'s middle - climbing with the skin, the edge on it',
+            W6.map(d => d.name.replace('edMechDoor', '') + ' ' + (Math.asin(d.axis[1]) * 180 / Math.PI).toFixed(1) + ' deg, ' + (d.edgeOff * 1000).toFixed(0) + ' mm (level ' + (d.edgeOffLevel * 1000).toFixed(0) + ')').join('; ')); }
     check(['L', 'R', 'T'].every(k => D6.some(d => d.kind === 'leg' && d.unit === k)) && D6.some(d => d.kind === 'well'),
           'exact: a leg door on each unit (the skin it covers stowed) and well doors for the rest', D6.map(d => d.name.replace('edMechDoor', '')).join(' '));
     // the doors' panels posed by the core: up (g = 0) every one lies on the skin it was cut from
