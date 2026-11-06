@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 24e8db0972e3f920
+// body-sha256: 748d6a0adf3f535f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37237,6 +37237,7 @@ function clampSpec(spec) {
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
+    if (e.pylonAt !== 'roof' || !isFinite(+e.pylonFwd) || !+e.pylonFwd) delete e.pylonFwd; else e.pylonFwd = Math.max(-0.6, Math.min(0.8, +e.pylonFwd));   // HULL-B52
     if (e.pylonAt !== 'roof' && e.pylonAt !== 'body') delete e.pylonAt;   // HULL-B17: 'roof' (behind the cabin); HULL-B30: 'body' (a wing pair on the rear fuselage); absent (the wing)
     // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
     // positive (the prop axis points down at the front). A high pusher's
@@ -38448,6 +38449,7 @@ function resolveSpec(spec) {
              // V legs to both roots (the frame braces each as it is)
              ...(e.pylonForm === 'blade' && m === 'wingTop' ? { pylonForm: 'blade' } : {}),
              ...(e.pylonAt === 'roof' && m === 'wingTop' ? { pylonAt: 'roof' } : {}),
+             ...(e.pylonAt === 'roof' && m === 'wingTop' && +e.pylonFwd ? { pylonFwd: +e.pylonFwd } : {}),   // (HULL-B52)
              ...(e.pylonAt === 'body' && m === 'wing' ? { pylonAt: 'body' } : {}),   // (HULL-B30: a pair on the rear fuselage)
              pushes: m === 'pusher' ? true : m === 'nose' ? false
                    : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
@@ -41708,8 +41710,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN - the pylon stands on the roof of the two rings either side of the
           // engine's station (the nearest and the next one forward), its legs to their top corners, crossed; a blade
           // stands on a narrow root fitting between them on the centreline. No member reaches the wing
-          const iA = iRing(e.x);
-          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          // (HULL-B52: pylonFwd - the pylon's station that far forward of the engine's, x aft)
+          const xPy = e.x - (+e.pylonFwd || 0);
+          const iA = iRing(xPy);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > xPy ? -1 : 1)));
           if (iB === iA) iB = Math.max(0, iA - 1);
           const rA = F[iA], rB = F[iB];
           if (e.pylonForm === 'blade') {
