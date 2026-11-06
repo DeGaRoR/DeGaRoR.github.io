@@ -2322,3 +2322,28 @@ CAGE_RETRACT_ROWS / the spec's retract rows):
 
 On the C172 stand-in the full-door wheel goes deeper, so the cabin-floor red grows (137 mm against 64). That card's
 raised floor is not a hull's.
+
+### 8.30 The folding knee's door on the hull, hinged at the top (6 Nov)
+
+The user: "Can we have the door also full attached to the hull. Same cut, but the top part attaches to the top of the
+cut, and rotates 90 deg upwards, comes right below the wing of the Petrel for example".
+
+- **The row.** gearKneeDoor gets a third value: 2, "full door on the hull, hinged at the top". kneeDoor(P) (the wheel
+  wholly inside, KNEE_IN) holds for 1 and 2; kneeHullDoor(P) is 2 alone.
+- **The door** (doorBuild, the knee's branch) is the body's side faces over the WHOLE keyhole (circle and slot, DOOR_SEAM
+  in, the outermost skin), one slab with no foot split.
+  - Its hinge is the cut's top edge (the points within 8 mm of the highest), fore-aft. The axis sign is chosen so the
+    door swings OUT.
+  - Rule 'door': ang 90 deg (KNEE_DOOR_ANG), seq { k: KNEE_DOOR_SEQ = 0.10, closedDown: false }. It is open as soon as
+    the gear leaves up, and stays open while the gear travels and stands down: the arm passes through the opening gear
+    down. It shuts in the last tenth, with the wheel already in.
+  - It is drawn as it stands gear down (open). Two steel knuckles sit on the hinge line.
+- **Open, it must clear every wing.** Its outer face is swung 90 deg, plus DOOR_T. A point within 5 mm of any plane's
+  underside reddens the fit: "the left main's door, swung up, stands N mm into the wing over it (lower the cut's top: a
+  narrower track, or raise the wing)". The rows it points to are the fold, gearKneeDoor and w2Dy.
+- **The horn, stowed, inside.** kneeGeom's pivot-inside condition now also holds the horn's stowed end 20 mm inside. A
+  full-door knee under a low wing, with its leg shortened, had put the horn 23 mm out of the bottom.
+- **On the C172 card** with a second wing (w2On 1, w2Pos 1, w2Dy 0.25): the hinge is at y -0.073 and the open door lies
+  about 100 mm under the wing. At w2Dy 0.12 the fit is red: the door stands 15 mm into the wing, and the stowed knee too.
+- **Gate (section 18):** two hull doors and no leg or foot doors; the hinge on the cut's top; shut, the door is over
+  300 mm tall; open, it is level (under 60 mm of height) and under the wing; with a low wing, the door's red is named.

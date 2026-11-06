@@ -251,7 +251,12 @@ const KNEE = {};
 // (`full`, gearKneeDoor - the user, 6 Nov: "a version with full doors": the stowed wheel WHOLLY inside, its tyre's
 // outer face KNEE_IN behind the skin over its whole height - the door, riding the leg, closes the side over it)
 const KNEE_IN = 0.025;
-const kneeDoor = P => kneeFold(P) && +P.gearKneeDoor === 1;
+const kneeDoor = P => kneeFold(P) && Math.round(+P.gearKneeDoor || 0) >= 1;
+// (gearKneeDoor 2 - the user, 6 Nov: "the door also full attached to the hull. Same cut, but the top part attaches to the
+// top of the cut, and rotates 90 deg upwards, comes right below the wing": ONE door over the whole keyhole, hinged on
+// the hull along the cut's top, swung 90 deg up and out - level under the wing - while the gear travels and stands down)
+const kneeHullDoor = P => kneeFold(P) && Math.round(+P.gearKneeDoor || 0) === 2;
+const KNEE_DOOR_ANG = Math.PI / 2, KNEE_DOOR_SEQ = 0.10;
 function kneeGeom(AF, st, sgn, full) {
   const z = st.z + (st.axZ || 0), R = st.R, hub = R * 0.40 + 0.020, A0 = [sgn * st.x, AF.keelAt(st.z) - st.drop, z];
   const sideX = y => { let best = null;          // (the section's half width at height y: the side's crossing)
@@ -273,7 +278,11 @@ function kneeGeom(AF, st, sgn, full) {
   // (the leg: the arm clears the tyre (R + 30 mm), and the arm's pivot P sits INSIDE the hull - at a height where the
   // section's half width is 30 mm past P's)
   const xP = Math.abs(A0[0]) - hub - a;
-  let yIn = null; for (let y = A0[1]; y <= A0[1] + 2.0; y += 0.005) { const xs = sideX(y); if (xs != null && xs >= xP + 0.03) { yIn = y; break; } }
+  // (and the arm's horn, stowed - in and down from P, 0.87 h in and 0.5 h down - 20 mm inside too: a short leg's low
+  // pivot put its end out of the bottom)
+  const h = Math.min(0.09, Math.max(0.05, 0.22 * a));
+  let yIn = null; for (let y = A0[1]; y <= A0[1] + 2.0; y += 0.005) { const xs = sideX(y), xh = sideX(y - 0.5 * h);
+    if (xs != null && xs >= xP + 0.03 && xh != null && xh >= xP - 0.866 * h + 0.02) { yIn = y; break; } }
   const bMin = Math.max(R + 0.03, yIn != null ? yIn - A0[1] : 0), bWing = wU != null ? wU - 0.02 - a - A0[1] : Infinity;
   const b = Math.max(bMin, Math.min(bMin + 0.07, bWing));
   const knee0 = [A0[0] - sgn * hub, A0[1] + b, z], P = [knee0[0] - sgn * a, knee0[1], z];
@@ -282,7 +291,7 @@ function kneeGeom(AF, st, sgn, full) {
   // higher up on the fuselage"): THE ARM'S HORN - a short lever on the arm at its pivot, 120 deg round from the arm
   // (gear down: up and in; stowed: in and down), h long; the little piston from its fitting F high up inside the hull,
   // over the pivot and inboard, to the horn's end: it pushes the horn round, the arm swings up - a short stroke
-  const h = Math.min(0.09, Math.max(0.05, 0.22 * a)), hornR = h * Math.cos(2 * Math.PI / 3), hornS = h * Math.sin(2 * Math.PI / 3);
+  const hornR = h * Math.cos(2 * Math.PI / 3), hornS = h * Math.sin(2 * Math.PI / 3);
   const horn0 = [P[0] + sgn * hornR, P[1] + hornS, z];
   let F = null;
   for (const [fx, fy] of [[0.16, 0.36], [0.14, 0.32], [0.12, 0.28], [0.10, 0.24], [0.08, 0.20]]) {
@@ -1293,7 +1302,7 @@ const GROUP = ['9 · undercarriage', [
     ['gearNacFit', 'fit the nacelle to the gear (deeper, lower, longer)', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
     // P2 (the user, 6 Nov: "a version with full doors"): the folding knee's - an open recess (the wheel half out), or
     // the wheel wholly inside and a door riding the leg that closes the side over it
-    ['gearKneeDoor', 'folding knee: the side recess', 0, 1, 1, ['open (the wheel half out)', 'full door (the wheel inside)'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'knee' }],
+    ['gearKneeDoor', 'folding knee: the side recess', 0, 2, 1, ['open (the wheel half out)', 'full door on the leg (the wheel inside)', 'full door on the hull, hinged at the top'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'knee' }],
     ['gearNacPod', 'a separate gear pod under the nacelle', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
     ['gearDoors', 'well doors', 0, 2, 1, ['none (open well)', 'one door', 'two doors (split)'], { when: P => +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
@@ -1853,7 +1862,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     const circ = ccw(cs.find(c => !c.slot).hull), slot = cs.find(c => c.slot), sl = slot ? ccw(slot.hull) : null;
     // (the side frame's (u, v) = (z, -s y) fed to the plan clip, whose (u, v) is (z, -x): x' = s y, y' = x)
     const to = q => [s * q[1], q[0], q[2]], fro = q => [q[1], s * q[0], q[2]];
-    const polys = [], low = [];
+    const polys = [], low = [], hullD = kneeHullDoor(P);
     // (the leg's door ends 0.8 R under the stowed axle: gear down it hangs a fifth of a radius clear of the ground, as a
     // leg door does; the circle's foot under that line is a little door of its own, hinged on the hull at its bottom)
     const yA = CM.gearUnitPt(C, CM.gearFoldPose(C, 0), C.axle, 0, 0, CM.gearArc(C, 0))[1], yCut = yA - 0.8 * C.R, vc = -s * yCut;
@@ -1864,7 +1873,8 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
         nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
       if (s * cx <= 0 || s * nx <= 0.05 * Math.hypot(nx, ny, nz)) continue;
       const f2 = f.map(to), a = clipConvex(f2, circ, DOOR_SEAM);
-      if (a) { const up = planClip(a, hiA, hiB, DOOR_SEAM / 2), dn = planClip(a, hiB, hiA, DOOR_SEAM / 2);
+      if (a && hullD) polys.push(a.map(fro));
+      else if (a) { const up = planClip(a, hiA, hiB, DOOR_SEAM / 2), dn = planClip(a, hiB, hiA, DOOR_SEAM / 2);
         if (up) polys.push(up.map(fro)); if (dn) low.push(dn.map(fro)); }
       if (sl) { const b = clipConvex(f2, sl, DOOR_SEAM); if (b) for (const q of minusConvex(b, circ, -DOOR_SEAM)) polys.push(q.map(fro)); }
     }
@@ -1875,6 +1885,34 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     for (const p of low) { const kk = cell(p), x = xo(p); if (!hi.has(kk) || x > hi.get(kk)) hi.set(kk, x); }
     const mine = polys.filter(p => xo(p) >= hi.get(cell(p)) - 0.015), foot = low.filter(p => xo(p) >= hi.get(cell(p)) - 0.015);
     if (polyArea(mine) < 0.01) continue;
+    // (gearKneeDoor 2: the whole keyhole one door, hinged on the hull along the cut's top edge (fore-aft), swung 90 deg
+    // up and out: gear down it lies level, out from the side, its back to the wing; shut only once the wheel is in)
+    if (hullD) {
+      let y1 = -Infinity; for (const p of mine) for (const q of p) y1 = Math.max(y1, q[1]);
+      const edge = []; for (const p of mine) for (const q of p) if (q[1] > y1 - 0.008) edge.push(q);
+      const hinge = [0, 1, 2].map(i => edge.reduce((a, q) => a + q[i], 0) / edge.length);
+      const cen = [0, 1, 2].map(i => { let a = 0, n = 0; for (const p of mine) for (const q of p) { a += q[i]; n++; } return a / n; });
+      let axis = [0, 0, 1]; const d0 = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]], mv = CM.gearApp(CM.gearRot(axis, 0.1), d0);
+      if (s * (mv[0] - d0[0]) < 0) axis = [0, 0, -1];
+      const name = 'edMechDoor' + k + '_kneeHull', seq = { k: KNEE_DOOR_SEQ, closedDown: false };
+      const Rd = CM.gearRot(axis, KNEE_DOOR_ANG * CM.gearDoorOpen(seq, 1));
+      const gp = panel(name, mine, bodyMat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; }, [s, 0, 0]);
+      // (its hinge: two knuckles on the cut's top edge, the pin fore-aft - drawn open, as the door)
+      if (gp) { const bk = KT.Bag(); let z0 = Infinity, z1 = -Infinity; for (const q of edge) { z0 = Math.min(z0, q[2]); z1 = Math.max(z1, q[2]); }
+        const hp = [hinge[0] - s * 0.008, hinge[1] + 0.004, 0];
+        for (const zz of [z0 + 0.012, z1 - 0.042]) if (z1 - z0 > 0.06) KT.revolve(bk, [hp[0], hp[1], zz], [0, 0, 1], [[0.007, 0], [0.007, 0.03]], 10, true);
+        bk.mesh(group, GG.gearMat('steel')); }
+      mech.R.parts.push({ name, rule: 'door', hinge, axis, ang: KNEE_DOOR_ANG, seq, o0: hinge.slice() });
+      // (open, it must clear every wing's skin over it: its far edge and its face, swung)
+      const Ro = CM.gearRot(axis, KNEE_DOOR_ANG); let hit = 0;
+      for (const p of mine) for (const q of p) { const r = CM.gearApp(Ro, [q[0] - hinge[0], q[1] - hinge[1], q[2] - hinge[2]]), w = [hinge[0] + r[0], hinge[1] + r[1] + DOOR_T, hinge[2] + r[2]];
+        for (const pl of wingPlanes()) { const u = pl.underAt(w[0], w[2]); if (u && w[1] > u.y - 0.005) hit = Math.max(hit, w[1] - u.y + 0.005); } }
+      if (hit > 0) { const why = UNIT_WORD[k] + '\'s door, swung up, stands ' + Math.round(hit * 1000) + ' mm into the wing over it (lower the cut\'s top: a narrower track, or raise the wing)';
+        fit.ok = false; fit.why.push(why); (fit.tests.wing = fit.tests.wing || []).push({ unit: k, why });
+        for (const r of FIT_ROWS[k].fold.concat(['gearKneeDoor', 'w2Dy'])) if (!fit.rows[r]) fit.rows[r] = why; }
+      out.push({ name, kind: 'kneeHull', unit: k, area: polyArea(mine), hinge, closedDown: false, wingHit: hit });
+      continue;
+    }
     const a0 = CM.gearArc(C, 0), back = v => [v[0] - a0[0], v[1] - a0[1], v[2] - a0[2]];
     const name = 'edMechDoor' + k + '_knee';
     const gp = panel(name, mine, bodyMat, back, [s, 0, 0]);
